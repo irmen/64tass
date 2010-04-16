@@ -1,0 +1,904 @@
+64tass v1.46 manual
+
+Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
+BigFoot/Breeze, and finally added 65816 support, CPU64, DTV, illegal opcodes,
+optimizations, multi pass compile and a lot of features by Soci/Singular.
+
+Compile it with "make", if argp is missing or search.h then try to add -DWIN32
+to CFLAGS. (that workarounds these, but there's a small performance loss)
+
+On non-GNU systems try "make -f Makefile2" to compile.
+
+Syntax is the same as the well known Turbo Assembler on c64, so you can port
+your sources easy by only replacing the CR at the end of each line.
+
+Maintainer: soci at c64.rulez.org
+
+V1.43:
+    Added 8 alias illegal opcodes, and fixed addressing mode of shx and shy.
+V1.44:
+    Added experimental CPU64 support, local label bugfix, message cache, nop
+    illegal addressing modes, .warn, lot of listing improvements, .enc,
+    performance improvement for win32, .binary fix for win32
+V1.45:
+    Added .rta, .char, .int, .null, .shift, .elsif, .cerror, .cwarn, .align,
+    and .cpu, nested conditional compile bugfix, added .ifeq, .ifne, .ifpl,
+    .ifmi and .endif for compatibility, label list fixes, offset and maximum
+    size for .binary, anonymous forward and backward reference (+-), initial
+    65DTV02 support (needs more info), added missing 65c02 opcodes.
+V1.45c:
+    Compile fixes for SunOs and other non-GNU systems. (no stdint.h there...)
+V1.46:
+    Bank byte operator, label before conditional compile instruction bugfix cop
+    # and brk # fix, empty macro parameter fix, added .long, some constant too
+    large bugfix, jmp/jsr ($ffff,x) must be in the same bank, now .cerror and
+    .cwarn accepts parameter, upper byte of negative number correct now
+
+-------------------------------------------------------------------------------
+
+Usage tips
+
+64tass is a command line compiler, the source can be written in any text
+editor. As a minimum the source filename must be given on command line.
+
+64tass src.asm
+
+There are also some useful parameters which are described later.
+
+For comfortable compiling I use such "Makefile"s (for make):
+
+demo.prg: source.asm makros.asm pic.drp music.bin
+        64tass -C -a -B -i source.asm -o demo.prg
+
+This way demo.prg is recreated whenever source.asm, makros.asm, pic.drp or
+music.bin had changed. For cross development with VICE here's another Makefile
+example:
+
+demo.prg: source.asm makros.asm pic.drp music.bin
+        64tass -C -a -B -i source.asm -o demo.tmp
+        pucrunch -ffast -x 2048 demo.tmp >demo.prg
+        killall x64 || true
+        x64 demo.prg
+
+Of course it's not much harder to create something similar for win32
+(make.bat):
+
+64tass.exe -C -a -B -i source.asm -o demo.tmp
+pucrunch.exe -ffast -x 2048 demo.tmp >demo.prg
+x64.exe demo.prg
+
+Another useful thing is to add a basic header to your source files like the one
+below, so that the resulting file is directly runnable without additional
+compression:
+
+        *=$0801
+        .word ss,2005
+        .null $9e,^start;will be sys 4096
+ss      .word 0
+
+        *=$1000
+
+start   rts
+
+The assembler supports anonymous labels, also called as forward (+) and
+backward (-) references. "-" means one backward, "--" means two backward, etc.
+also the same for forward, but with "+".
+
+        ldy #4
+-       ldx #0
+-       txa
+        cmp #3
+        bcc +
+        adc #44
++       sta $400,x
+        inx
+        bne -
+        dey
+        bne --
+
+These references are also useful in macros, but this can create some nice
+traps, as macros are copied into the code, with the internal references.
+
+        bne +
+        #somemakro      ;let's hope that this macro does
++       nop             ;not contain forward references...
+
+For writing short code (4k intro, whatever) there are some special pseudo
+instructions. These are automatically compiled as relative branches when the
+distance is short and as jumps when longer. (GEQ, GNE, GCC, GCS, GPL, GMI, GVC,
+GVS) There's one more called GRA for CPUs supporting BRA, which is expanded to
+BRL (if available) or JMP (otherwise).
+
+        lda #3
+        gne label       ;compiled as bne, or jmp
+        nop
+label
+
+To avoid branch too long errors the assembler also supports long branches, it
+can automatically convert conditional relative branches to it's opposite and a
+JMP. This have to be enabled on the command line using the "--long-branch"
+option.
+
+        bcc veryfar     ;compiled as "bcc veryfar" or
+                        ;       bcs sk
+                        ;       jmp veryfar
+                        ;sk
+
+There are some other tips below in the descriptions.
+
+-------------------------------------------------------------------------------
+
+Command line options
+
+Operation options
+
+-a, --ascii Convert ASCII to PETASCII
+
+Normally no conversion takes place, this is for backwards compatibility with a
+DOS based Turbo Assembler editor, which could create petscii files for
+6502tass. (with control characters also of course)
+
+Using this option will convert 'a'-'z' and 'A'-'Z' into the correct petscii
+range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor.
+
+Example:
+
+64tass a.asm
+lda #"a"        -> result: $A9, $61
+.text "1aA"     -> result: $31, $61, $41
+
+64tass --ascii a.asm
+lda #"a"        -> result: $A9, $41
+.text "1aA"     -> result: $31, $41, $C1
+
+-b, --nostart Strip starting address
+
+Strips the 2 or 3 byte starting address before the resulting binary. Usefull
+for creating ROM images.
+
+-B, --long-branch Automatic bxx *+3 jmp $xxxx
+
+Branch too long messages can be annoying sometimes, usually they'll result in
+an bxx *+5 jmp rewrite. 64tass can do this automatically if this option is
+used. But BRA is not converted.
+
+Example
+
+64tass a.asm
+*=$1000
+bcc $1233 ;error...
+
+64tass a.asm
+*=$1000
+bcs *+5   ;opposite condition
+jmp $1233 ;as simple workaround
+
+64tass --long-branch a.asm
+*=$1000
+bcc $1233 ;no error, automatically converted to the above one.
+
+-C, --case-sensitive Case sensitive labels
+
+Labels are non case sensitive by default, this option changes that. If defining
+labels by "-D", this option must be first.
+
+Example
+
+64tass a.asm
+label nop
+Label nop       ;double defined...
+
+64tass --case-sensitive a.asm
+label nop
+Label nop       ;Ok, it's a different label...
+
+-D <label>=<value> Define <label> to <value>
+
+Defines a label to a value. Only decimal numbers are allowed. If using case
+sensitive labels, that option must be used before.
+
+Example
+
+64tass -D ii=2 a.asm
+lda #ii ;result: $a9, $02
+
+-n, --nonlinear Generate nonlinear output file
+
+Generates non-linear output for linkers. Format: length, address, code, length,
+...
+
+Example
+
+64tass --nonlinear a.asm
+*=$1000
+lda #2
+*=$2000
+nop
+result:
+$02, $00 ;little endian length, 2 bytes
+$00, $10 ;little endian start $1000
+$a9, $02 ;code
+$01, $00 ;little endian length, 1 byte
+$00, $20 ;little endian start $2000
+$ea      ;code
+$00, $00 ;end marker (length=0)
+
+-o <file> Place output into <file>
+
+The default output filename is "a.out". This option changes it.
+
+Example
+
+64tass a.asm -o a.prg
+
+-w, --no-warn Suppress warnings
+
+Disables warnings during compile.
+
+Example
+
+64tass --no-warn a.asm
+
+-W, --wordstart Force 2 byte start address
+
+It 16 MiB address space is used for 65816 or CPU64, then the starting address
+of file will be 3 bytes long. This option makes it 2 bytes long.
+
+Example
+
+64tass --wordstart --m65816 a.asm
+
+Target selection on command line
+
+These options will select the default architecture. It can be overridden by
+using the .cpu directive in the source.
+
+-c, --m65c02 CMOS 65C02
+
+Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.
+
+Example
+
+64tass --m65c02 a.asm
+stz $d020       ;65c02 instruction
+
+-i, --m6502 NMOS 65xx
+
+Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for
+C64, disk drive code, etc.
+
+Example
+
+64tass --m6502 a.asm
+lax $14         ;illegal instruction
+
+--m65xx Standard 65xx (default)
+
+Selects standard 6502. For writing compatible code, no extra codes. This is the
+default.
+
+Example
+
+64tass --m65xx a.asm
+lda $14         ;regular instructions
+
+-t, --m65dtv02 65DTV02
+
+Selects 65DTV02. Enables extra opcodes specific to DTV.
+
+Example
+
+64tass --m65dtv02 a.asm
+sac #$00
+
+-x, --m65816 W65C816
+
+Selects 65816. Enables extra opcodes, and full 16 MiB address space. Useful for
+SuperCPU projects. Don't forget to use "--word-start" for small ones ;)
+
+Example
+
+64tass --m65816 a.asm
+lda $123456,x
+
+-X, --mcpu64 CPU64
+
+Selects CPU64. Enables extra opcodes, and full 16 MiB address space. This CPU
+is not yet built, opcodes may change.
+
+Example
+
+64tass --mcpu64 a.asm
+ldx $123456
+
+Source listing options
+
+-l <file> List labels into <file>
+
+List labels to a file. Local labels are commented out, unused ones are marked
+with a comment.
+
+Example
+
+64tass -l labels.txt a.asm
+*=$1000
+label
+
+result (labels.txt):
+label           = $1000    ; *** unused
+
+-L <file> List into <file>
+
+Dumps source code and compiled code into file. Useful for debugging code, it's
+much easier to identify the code in memory within the source files.
+
+Example
+
+64tass -L list.txt a.asm
+        *=$1000
+        ldx #0
+loop    dex
+        bne loop
+        rts
+
+result (list.txt):
+
+;6502/65C02/65816/CPU64/DTV Turbo Assembler V1.4x listing file of "a.asm"
+;done on Fri Dec  9 19:08:55 2005
+
+
+.1000    a2 00          ldx #$00                ldx #0
+.1002    ca             dex             loop    dex
+.1003    d0 fd          bne $1002               bne loop
+.1005    60             rts                     rts
+
+;******  end of code
+
+-m, --no-monitor Don't put monitor code into listing
+
+There won't be any monitor listing in the list file.
+
+Example
+
+64tass --no-monitor -L list.txt a.asm
+
+result (list.txt):
+
+;6502/65C02/65816/CPU64/DTV Turbo Assembler V1.4x listing file of "a.asm"
+;done on Fri Dec  9 19:11:43 2005
+
+
+.1000    a2 00                                  ldx #0
+.1002    ca                             loop    dex
+.1003    d0 fd                                  bne loop
+.1005    60                                     rts
+
+;******  end of code
+
+-s, --no-source Don't put source code into listing
+
+There won't be any source listing in the list file.
+
+Example
+
+64tass --no-source -L list.txt a.asm
+
+result (list.txt):
+
+;6502/65C02/65816/CPU64/DTV Turbo Assembler V1.4x listing file of "a.asm"
+;done on Fri Dec  9 19:13:25 2005
+
+
+.1000    a2 00          ldx #$00
+.1002    ca             dex
+.1003    d0 fd          bne $1002
+.1005    60             rts
+
+;******  end of code
+
+Other options
+
+-?, --help Give this help list
+
+Prints help about command line options.
+
+--usage Give a short usage message
+
+Prints short help about command line options.
+
+-V, --version Print program version
+
+Prints program version.
+-------------------------------------------------------------------------------
+
+Expressions
+
+Expressions can be used at a lot of places. Here's a list of available
+operators:
+
+( )
+
+lda #(4+2)*3
+
+< ? lower byte
+
+> ? higher byte
+
+` ? bank byte
+
+lda #<label
+ldy #>label
+jsr $ab1e
+
+= ? equal
+
+< ? less
+
+> ? more
+
+!= ? non equal
+
+>= ? more or equal
+
+<= ? less or equal
+
+        .if ntsc=1
+        nop
+        .fi
+
++ ? add
+
+- ? substract
+
+* ? multiply
+
+/ ? divide
+
+// ? modulo
+
+| ? or
+
+^ ? xor
+
+& ? and
+
+<< ? shift left
+
+>> ? shift right
+
+- ? negate
+
+~ ? invert
+
+! ? not
+
+        lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
+        sta $d018
+
+-------------------------------------------------------------------------------
+
+Compiler directives:
+
+*=
+    Set current address
+
+            *=$1000
+
+.byte
+    Include 8bit unsigned byte constants, same as .text
+.text
+    Include constants and strings:
+
+            .text "oeU"     ; text, "" means $22
+            .text 'oeU'     ; text, '' means $27
+            .text 23, $33   ; bytes
+            .text %00011111 ; more bytes
+            .text ^OEU      ; the decimal value as string (^23 is $32,$33)
+
+.char
+    Include 8bit signed integer constants
+
+            .char -33, 57
+
+.shift
+    Same as .text, but the last byte is "shifted". Characters in range $c0-$df
+    are converted to $60-$7f, $ff is converted to $7e, and everything else >=
+    $80 will cause an error. No conversion if screen encoding is done, >=$80
+    will always cause an error.
+
+            ldx #0
+    loop    lda txt,x
+            php
+            and #$7f
+            jsr $ffd2
+            inx
+            plp
+            bpl loop
+            rts
+    txt     .shift "some text"
+
+.null
+    Same as .text, but adds a null at the end, null in string is an error
+
+    txt     .text "lot of stuff"
+            .null "to write"
+            lda #<txt
+            ldy #>txt
+            jsr $ab1e
+
+.rta
+    Include return address constants
+
+            lda #0
+            asl
+            tax
+            lda rets+1,x
+            pha
+            lda rets,x
+            pha
+            rts
+    rets    .rta $fce2
+
+.word
+    Include 16bit unsigned word constants
+
+            .word $2342, $4555
+
+.int
+    Include 16bit signed integer constants
+
+            .int -533, 4433
+
+.long
+    Include 24bit unsigned constants
+
+            .long $123456
+
+.offs
+    Add compile offset to logical address
+
+            .offs 100
+
+.macro
+    Macro definition, it copies the macro content in. (so be careful with
+    labels, better use anonymous ones)
+
+    name    .macro
+            lda #\1         ;first parameter
+            .endm
+
+            #name 23        ;call macro
+
+.endm
+    End of macro definition
+.for
+    Compile loop, only anonymous references are allowed as labels inside
+
+            .for ue=0,ue<10,ue=ue+1
+            .byte ue
+            .next
+
+.next
+    End of compile loop (.rept or .for)
+.if
+.ifne
+    Conditional compile, if result!=0
+.ifeq
+    Conditional compile, if result=0
+.ifpl
+    Conditional compile, if result>=0
+.ifmi
+    Conditional compile, if result<0
+
+            .if oeu=1
+            nop
+            .else
+            lda #1
+            .fi
+
+.else
+    The inverse condition
+.elsif
+    The inverse condition, if result!=0
+
+            .if wait=2      ;2 cycles
+            nop
+            .elsif wait=3   ;3 cycles
+            bit $ea
+            .elsif wait=4   ;4 cycles
+            bit $eaea
+            .else           ;else 5 cycles
+            inc $2
+            .fi
+
+.fi
+.endif
+    End of conditional compile
+.rept
+    Repeated compile, only anonymous references are allowed as labels inside
+
+            .rept 100
+            nop
+            .next
+
+.include
+    Include source file here
+
+            .include macros.asm
+
+.binary
+    Include binary data. Please note that loading address is ignored, and if
+    not skipped then it's also loaded.
+
+            .binary stuffz.bin ;simple include
+            .binary "stuffz.bin",2 ;skip start address
+            .binary "stuffz.bin",2,1000 ;skip start address, 1000 bytes max
+
+            *=$1000                 ;load music to $1000 and
+            .binary "music.dmc",2   ;strip load address
+
+.comment
+    Comment block start
+
+            .comment
+            lda #1          ;this won't be compiled
+            sta $d020
+            .endc
+
+.endc
+    End of comment block
+.page
+    Gives an error on page boundary crossing, eg. for timing sensitive code.
+
+            .page
+    table   .byte 0,1,2,3,4,5,6,7
+            .endp
+
+.endp
+    End of page cross checking
+.logical
+    Changes logical address. Can be nested.
+
+            .logical $300
+    drive   lda #$80
+            sta $00
+            jmp drive       ;jmp $300
+            rts
+            .here
+
+.here
+    Restore logical address to physical
+.as
+    Select 8 bit accu (65816)
+.al
+    Select 16 bit accu (65816)
+
+            .al
+            lda #$4322
+
+.xs
+    Select 8 bit index (65816)
+.xl
+    Select 16 bit index (65816)
+
+            .xl
+            ldx #$1000
+
+.error
+    Exit with error
+
+            .error "Unfinished here..."
+
+.warn
+    Warning
+
+            .warn "FIXME: handle negative values too!"
+
+.cerror
+    Conditional exit with error
+
+            .cerror *>$1200,"Program too long!"
+
+.cwarn
+    Conditional warning
+
+            .cwarn *>$1200,"This may not work!"
+
+.proc
+    Procedure start
+
+    ize     .proc
+            nop
+    cucc    nop
+            .pend
+
+            jsr ize
+            jmp ize.cucc
+
+    If "ize" is not referenced then the code won't be compiled at all! All
+    labels inside are local.
+.pend
+    End of procedure
+.databank
+    Set databank (65816)
+
+            .databank $10   ;$10xxxx
+
+.dpage
+    Set directpage (65816/C128/DTV) (forced to page boundary for DTV)
+
+            .dpage $400
+
+.fill
+    Skip bytes, or fill with repeated bytes. For multibyte patterns use
+    .repeat!
+
+            .fill $100      ;no fill, just skip $100 bytes
+            .fill $4000,0   ;16384 bytes of 0
+
+.align
+    Align code to a dividable address by skip or fill
+
+            .align $100
+    irq     inc $d019       ;this will be on a page boundary, after skipping bytes
+            .align 4,$ea
+    loop    adc #1          ;padding with "nop" for DTV burst mode
+
+.enc
+    Text encoding, "none" or "screen" (screen code)
+
+            .enc screen     ;screencode mode
+            .text "text with screencodes"
+            cmp #"u"        ;compare screencode
+            .enc none       ;normal again mode
+            cmp #"u"        ;compare ascii
+
+.cpu
+    Selects cpu
+
+            .cpu 6502       ;standard 65xx
+            .cpu 65c02      ;CMOS 65C02
+            .cpu 6502i      ;NMOS 65xx
+            .cpu 65816      ;W65C816
+            .cpu cpu64      ;CPU64
+            .cpu 65dtv02    ;65dtv02
+            .cpu default    ;cpu set on commandline
+
+.global
+    Do not use this, buggy!
+.assert
+.check
+    Do not use these, the syntax will change in next version!
+
+-------------------------------------------------------------------------------
+
+Messages
+
+Warnings
+
+Top of memory excedeed
+    compile continues at the bottom ($0000)
+Possibly incorrectly used A
+    do not use "a" as label
+Memory bank excedeed
+    compile continues in the next 64 KiB bank, however execution may not
+Possible jmp ($xxff) bug
+    yet another 65xx feature...
+Long branch used
+    Branch too long, so long branch was used (bxx *+5 jmp)
+
+Errors
+
+Double defined
+    double use of label/macro
+Not defined
+    not defined label
+Extra characters on line
+    there's some garbage on the end of line
+Constant too large
+    the number was too big
+General syntax
+    can't do anything with this
+X expected
+    X may be missing
+Expression syntax
+    syntax error
+Branch too far
+    can't relative branch that far
+Missing argument
+    no argument given
+Illegal operand
+    can't be used here
+Unknown encoding
+    give screen or none as encoding
+Requirements not met:
+    Not all features are provided, at least one is missing
+Conflict:
+    at least one feature is provided, which shouldn't be there
+Division by zero
+    Cannot calculate value
+
+Fatal errors
+
+Can't locate file
+    cannot open file
+Out of memory
+    won't happen ;)
+Can't write object file:
+    cannot write the result
+Line too long
+    input line was too long
+Can't write listing file:
+    cannot write the list file
+Can't write label file:
+    cannot write the label file
+File recursion
+    wrong use of .include
+Macro recursion too deep
+    wrong use of nested macros
+Unknown CPU
+    CPU type not known
+Ooops! Too many passes...
+    With a carefuly crafted source file it's possible to create unresolvable
+    situations. Fix your code.
+
+-------------------------------------------------------------------------------
+
+6502 illegal opcodes
+
+    opcode        hex
+ANC               $0b
+ANE (XAA)         $8b
+ARR               $6b
+ASR (ALR)         $4b
+DCP (DCM)         $c3, $c7, $cf, $d3, $d7, $db, $df
+ISB (INS, ISC)    $e3, $e7, $ef, $f3, $f7, $fb, $ff
+JAM               $02
+LAE (LAS, LDS)    $bb
+LAX               $a3, $a7, $ab, $af, $b3, $b7, $bf
+LXA (LAX #)       $ab
+RLA               $23, $27, $2f, $33, $37, $3b, $3f
+RRA               $63, $67, $6f, $73, $77, $7b, $7f
+SAX               $83, $87, $8f, $97
+SBX (AXS)         $cb
+SHA (AHX)         $93, $9f
+SHS (TAS)         $9b
+SHX               $9e
+SHY               $9c
+SLO               $03, $07, $0f, $13, $17, $1b, $1f
+SRE               $43, $47, $4f, $53, $57, $5b, $5f
+-------------------------------------------------------------------------------
+
+65C02 extra opcodes
+
+    opcode        hex
+BRA               $80
+DEA               $3a
+INA               $1a
+PHX               $da
+PHY               $5a
+PLX               $fa
+PLY               $7a
+TRB               $14, $1c
+TSB               $04, $0c
+STZ               $64, $74, $9c, $9e
+-------------------------------------------------------------------------------
+
+65DTV02 extra and illegal opcodes
+
+    opcode        hex
+BRA               $12
+SAC               $32
+SIR               $42
+ANE (XAA)         $8b
+ARR               $6b
+ASR (ALR)         $4b
+DCP (DCM)         $c3, $c7, $cf, $d3, $d7, $db, $df
+ISB (INS, ISC)    $e3, $e7, $ef, $f3, $f7, $fb, $ff
+LAX               $a3, $a7, $ab, $af, $b3, $b7, $bf
+LXA (LAX #)       $ab
+RLA               $23, $27, $2f, $33, $37, $3b, $3f
+RRA               $63, $67, $6f, $73, $77, $7b, $7f
+SAX               $83, $87, $8f, $97
+SLO               $03, $07, $0f, $13, $17, $1b, $1f
+SRE               $43, $47, $4f, $53, $57, $5b, $5f
