@@ -1620,7 +1620,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 sline=tmp2->lin;
                 macrecursion++;
                 if (macrecursion<100) {
-                    enterfile(tmp2->file,sline);
+                    enterfile(tmp2->file,lin);
                     if (strcmp(tmp2->file,nam)) compile(tmp2->file,tmp2->point,1,mparams,nprm,NULL);
                     else compile(tmp2->file,tmp2->point,3,mparams,nprm,fin);
                     exitfile();
