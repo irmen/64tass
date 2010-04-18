@@ -44,7 +44,7 @@ static unsigned char *opcode;    //opcodes
 
 #define linelength 4096
 #define nestinglevel 256
-int errors=0,conderrors=0,warnings=0;
+int errors=0,conderrors=0,warnings=0, wrapwarn=0, wrapwarn2=0;
 long sline;      //current line
 static unsigned long low_mem,top_mem;
 static unsigned long all_mem, full_mem;
@@ -160,12 +160,14 @@ void pokeb(unsigned char byte) {
 	if (address>top_mem) top_mem=address;
 	if (address<=full_mem) mem64[address]=byte;
     }
+    if (wrapwarn) err_msg(ERROR_TOP_OF_MEMORY,NULL);
+    if (wrapwarn2) err_msg(ERROR___BANK_BORDER,NULL);
     address++;l_address++;l_address&=all_mem;
     if (address>all_mem) {
-	if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);
+	if (fixeddig) wrapwarn=1;
 	address=0;
     }
-    if ((fixeddig) && (scpumode || cpu64mode)) if (!(address & 0xffff) || !(l_address & 0xffff)) err_msg(ERROR___BANK_BORDER,NULL);
+    if ((fixeddig) && (scpumode || cpu64mode)) if (!(address & 0xffff) || !(l_address & 0xffff)) wrapwarn2=1;
 }
 
 // ---------------------------------------------------------------------------
@@ -852,6 +854,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 	case WHAT_STAR:if (skipit[waitforp] & 1) //skip things if needed
 	    {
 		ignore();if (get()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
+		wrapwarn=0;wrapwarn2=0;
 		val=get_exp(&w,&d,&c);if (!d) fixeddig=0;
 		if (!c) break;
 		if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
@@ -2019,7 +2022,7 @@ int main(int argc,char *argv[]) {
     do {
         if (pass++>20) {fprintf(stderr,"Ooops! Too many passes...\n");exit(1);}
         set_cpumode(arguments.cpumode);
-	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;
+	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;
         fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;procname[0]=0;conderrors=warnings=0;freeerrorlist(0);
         /*	listing=1;flist=stderr;*/
@@ -2040,7 +2043,7 @@ int main(int argc,char *argv[]) {
 
         pass++;
         set_cpumode(arguments.cpumode);
-	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;
+	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;
         fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;procname[0]=0;conderrors=warnings=0;freeerrorlist(0);
         enterfile(arguments.input,0);
