@@ -681,6 +681,7 @@ void mtranslate(char* mpr, int nprm, char *cucc) //macro parameter expansion
 		if (((ch=lowcase(tmp[i+1]))>='1' && ch<='9') || (ch>='a' && ch<='z')) {
 		    if ((ch=(ch<='9' ? ch-'1' : ch-'a'+9))>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
 		    for (pp=j=0; j<ch; j++) while (mpr[pp++]); //skip parameters
+		    while (mpr[pp]==32) pp++; //skip space
 		    while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
 		    if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
 		    i++;continue;
