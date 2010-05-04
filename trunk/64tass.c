@@ -126,27 +126,59 @@ void status() {
 // ---------------------------------------------------------------------------
 
 void readln(FILE* fle) {
-    int i=0,q=0;
+    int i=0,i2=0,q=0;
     char ch;
-  
-    pline[0]=foundopcode=0;
-    fgets(pline,sizeof(pline),fle);
-    if (!pline[0]) strcpy(pline,"\n");
-    sline++;
-    if (listing && arguments.source) strcpy(llist,pline);
-    if (((ch=pline[strlen(pline)-1])!=13) && (ch!=10) && (!feof(fle))) err_msg(ERROR_LINE_TOO_LONG,NULL);
-    while (((ch=pline[i])!=0) && (ch!=13) && (ch!=10)) {
-	if (ch=='\'' && !(q & 1)) q^=2;
-	else if (ch=='"' && !(q & 2)) q^=1;
-	else if (!q)
-	{
-	    if (ch==9) pline[i]=' '; //tab
-	    else if (ch==';') break;
-	}
-	i++;
+
+    for (;;) {
+        ch=fgetc(fle);
+        if (feof(fle)) {sline++;break;}
+        if (!ch) continue;   //null?
+        if (ch==13) {
+            ch=fgetc(fle);
+            if (feof(fle)) ch=10;
+            if (ch!=10) {
+                if (ch==':') ch=32;
+                ungetc(ch,fle);
+            } else goto ide;
+            sline++;break;
+        }
+        if (ch==10) {
+        ide:
+            ch=fgetc(fle);
+            if (!feof(fle)) {
+                if (ch==':') ch=32;
+                ungetc(ch,fle);
+            }
+            sline++;break;
+        }
+        llist[i2++]=ch;
+        if (ch=='\'' && !(q & 5)) q^=2;
+        if (ch=='"' && !(q & 6)) q^=1;
+        if (!q) {
+            if (ch==9) ch=32;
+            if (ch==';') {ch=32;q=4;}
+            if (ch==':') {
+                i2--;
+                if (i2) {
+                    ungetc(ch,fle);
+                    sline++;
+                    break;
+                }
+                sline--;
+                goto at;
+            }
+        }
+        if (!(q & 4)) {
+            pline[i]=ch;
+            i++;
+        }
+    at:
+        if (i2==sizeof(pline)-1) {sline++;pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);}
     }
-    while (pline[i-1]==' ') i--;
-    pline[i]=lpoint=0;
+    llist[i2]=0;
+    if (i)
+        while (pline[i-1]==' ') i--;
+    pline[i]=lpoint=foundopcode=0;
 }
 
 // ---------------------------------------------------------------------------
