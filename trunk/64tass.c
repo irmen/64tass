@@ -1691,6 +1691,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		if ((cod=cnmemonic[ADR_IMMEDIATE])==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {// cpx cpy ldx ldy
 		    if (longindex) ln++;
 		}
+		else if (cod==0xF4) ln=2; //pea #$ffff
 		else if (cod!=0xC2 && cod!=0xE2) {//not sep rep=all accu
 		    if (longaccu) ln++;
                 }
