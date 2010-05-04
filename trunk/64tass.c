@@ -1747,8 +1747,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		if (whatis[wht]!=WHAT_EXPRESSION && whatis[wht]!=WHAT_CHAR && wht!='_' && wht!='*') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
 		val=get_exp(&w,&d,&c); //ellenorizve.
 		if (!c) break;
+            meg:
 		if (c==1) {
 		    if ((wht=what(&prm))==WHAT_X) {// lda $ff,x lda $ffff,x lda $ffffff,x
+                        if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
 			if (w==3) {//auto length
 			    if (d) {
 				if (cnmemonic[ADR_ZP_X]!=____ && val>=dpage && val<(dpage+0x100)) {val-=dpage;w=0;}
@@ -1762,6 +1764,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			opr=ADR_ZP_X-w;ln=w+1;
 		    }// 6 Db
 		    else if (wht==WHAT_Y) {// lda $ff,y lda $ffff,y lda $ffffff,y
+                        if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
 			if (w==3) {//auto length
 			    if (d) {
 				if (cnmemonic[ADR_ZP_Y]!=____ && val>=dpage && val<(dpage+0x100)) {val-=dpage;w=0;}
@@ -1775,6 +1778,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
 		    }// 8 Db
 		    else if (wht==WHAT_S) {
+                        if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
 			if (d) {
 			    if (w==3) w=val_length(val);//auto length
 			    if (w) w=3; // there's no lda $ffffff,s or lda $ffff,s!
@@ -1783,13 +1787,33 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			ln=1; // lda $ff,s
 		    }// 9 Db
 		    else if (wht==WHAT_COMA) { // mvp $10,$20
-			int w2,c2;
+			int w2,c2,d2;
 			long val2;
-
+                        d2=d;
+			megint:
 			if (!d) fixeddig=0;
                         val2=get_exp(&w2,&d,&c2);
                         if (!c2) break;
                         if (c2==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                        if (cnmemonic[ADR_REL]!=____) {
+                            long valx,valx2;
+                            if (d && d2) {
+                                valx=val-l_address-2;
+                                valx2=val2-l_address-2;
+                                if ((valx<-128 || valx>127) && valx2>=-128 && valx2<=127) {
+                                    val=val2;
+                                    c=c2;
+                                    w=w2;
+                                } else d=d2;
+                            } else {
+                                if (d2) d=d2;
+                                else {
+                                    val=val2;
+                                    c=c2;w=w2;
+                                }
+                            }
+                            goto meg;
+                        }
                         if (d) {
                             if (w==3) w=val_length(val);//auto length
                             if (w2==3) w2=val_length(val2);//auto length
