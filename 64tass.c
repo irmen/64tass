@@ -1670,14 +1670,14 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
             ignore();
 	    if (!(wht=here())) {
 		if ((cod=cnmemonic[ADR_IMPLIED])==____) {err_msg(ERROR_ILLEGAL_OPERA,NULL);break;}
-		opr=ADR_IMPLIED;d=ln=0;
+		opr=ADR_IMPLIED;w=ln=0;d=1;
 	    }  //clc
 	    // 1 Db
 	    else if (lowcase(wht)=='a' && pline[lpoint+1]==0)
 	    {
 		if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
 		if ((cod=cnmemonic[ADR_ACCU])==____) {err_msg(ERROR_ILLEGAL_OPERA,NULL);break;}
-		opr=ADR_ACCU;d=ln=0;// asl a
+		opr=ADR_ACCU;w=ln=0;d=1;// asl a
                 lpoint++;
 	    }
 	    // 2 Db
