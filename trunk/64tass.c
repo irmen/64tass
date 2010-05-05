@@ -270,23 +270,27 @@ int what(int *tempno) {
 	    *tempno=0;return WHAT_EXPRESSION;
     default:lpoint++;return ch;
     }
- }
+}
 
-int get_ident(unsigned char allowed) {
-    int v,code;
+int get_ident2(unsigned char allowed) {
     int i=0;
     unsigned char ch;
- 
-    if ((v=what(&code))!=WHAT_EXPRESSION || !code) {
-	err_msg(ERROR_EXPRES_SYNTAX,NULL);
-	return 1;
-    }
     if (arguments.casesensitive)
 	while ((whatis[ch=here()]==WHAT_CHAR) || (ch>='0' && ch<='9') || ch==allowed || ch=='_') {ident[i++]=ch; lpoint++; }
     else
 	while (((ch=lowcase(pline[lpoint]))>='a' && ch<='z') || (ch>='0' && ch<='9') || ch==allowed || ch=='_') { ident[i++]=ch; lpoint++; }
     ident[i]=0;
     return 0;
+}
+
+int get_ident(unsigned char allowed) {
+    int v,code;
+ 
+    if ((v=what(&code))!=WHAT_EXPRESSION || !code) {
+	err_msg(ERROR_EXPRES_SYNTAX,NULL);
+	return 1;
+    }
+    return get_ident2(allowed);
 }
 
 long get_num(int *cd, int mode) {
@@ -831,7 +835,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
                 continue;
             }
-	    if (wht==WHAT_COMMAND && prm==CMD_MACRO) { // .macro
+            if (wht==WHAT_COMMAND && prm==CMD_MACRO) { // .macro
+            do_macro:
 		ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
 		tmp2=new_macro(ident);
 		if (labelexists) {
@@ -844,7 +849,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		wait_cmd(fin,CMD_ENDM); //.endm
 		continue;
 	    }
-	    if (listing && arguments.source && ((wht==WHAT_COMMAND && prm>CMD_LONG && prm!=CMD_PROC) || wht==WHAT_STAR || wht==WHAT_EOL || wht==WHAT_HASHMARK)) {
+            if ((tmp2=find_macro(ident))) {lpoint--;goto as_macro;}
+	    if (listing && arguments.source && ((wht==WHAT_COMMAND && prm>CMD_LONG && prm!=CMD_PROC) || wht==WHAT_STAR || wht==WHAT_EOL || wht==WHAT_HASHMARK || wht==WHAT_EXPRESSION)) {
                 if (lastl==2) {fputc('\n',flist);lastl=1;}
                 if (ident[0]!='-' && ident[0]!='+')
                     fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident);
@@ -1614,8 +1620,9 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 	case WHAT_HASHMARK:if (skipit[waitforp] & 1) //skip things if needed
 	    {                   //macro stuff
 		int ppoint;
-		if (get_ident('_')) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-		if (!(tmp2=find_macro(ident))) {err_msg(ERROR___NOT_DEFINED,ident); break;}
+                if (get_ident2('_')) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                if (!(tmp2=find_macro(ident))) {err_msg(ERROR___NOT_DEFINED,ident); break;}
+            as_macro:
 		ppoint=nprm=0;
                 ignore();
 		while ((ch=get())) {
@@ -1663,21 +1670,22 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		break;
 	    }
 	case WHAT_MNEMONIC:if (skipit[waitforp] & 1) {//skip things if needed
-	    int opr,mnem=prm;
+            int opr,mnem=prm;
+            int oldlpoint=lpoint;
 	    unsigned char* cnmemonic=&opcode[prm*25]; //current nmemonic
 	    char ln;
 	    unsigned char cod,longbranch=0;
 
             ignore();
 	    if (!(wht=here())) {
-		if ((cod=cnmemonic[ADR_IMPLIED])==____) {err_msg(ERROR_ILLEGAL_OPERA,NULL);break;}
+		if ((cod=cnmemonic[ADR_IMPLIED])==____) goto illegal_addressing;
 		opr=ADR_IMPLIED;w=ln=0;d=1;
 	    }  //clc
 	    // 1 Db
 	    else if (lowcase(wht)=='a' && pline[lpoint+1]==0)
 	    {
 		if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
-		if ((cod=cnmemonic[ADR_ACCU])==____) {err_msg(ERROR_ILLEGAL_OPERA,NULL);break;}
+		if ((cod=cnmemonic[ADR_ACCU])==____) goto illegal_addressing;
 		opr=ADR_ACCU;w=ln=0;d=1;// asl a
                 lpoint++;
 	    }
@@ -1743,7 +1751,15 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    }             
                     lpoint--;
 		}
-	    }
+            }
+            else if (wht=='.') {
+                wht=what(&prm);
+                if (wht==WHAT_COMMAND && prm==CMD_MACRO) {
+                    memcpy(ident,&mnemonic[mnem*3],3);
+                    ident[3]=0;goto do_macro;
+                }
+                err_msg(ERROR_GENERL_SYNTAX,NULL);break;
+            }
 	    else {
 		if (whatis[wht]!=WHAT_EXPRESSION && whatis[wht]!=WHAT_CHAR && wht!='_' && wht!='*') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
 		val=get_exp(&w,&d,&c); //ellenorizve.
@@ -1956,12 +1972,22 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         lpoint--;
 		    } // 21 Db
 		}
-	    }
+	    } 
 	    if (here()) {extrachar:err_msg(ERROR_EXTRA_CHAR_OL,NULL); break;}
 
 	    if (d) {
 		if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-		if ((cod=cnmemonic[opr])==____) {err_msg(ERROR_ILLEGAL_OPERA,NULL);break;}
+                if ((cod=cnmemonic[opr])==____) {
+                illegal_addressing:
+                    memcpy(ident,&mnemonic[mnem*3],3);
+                    ident[3]=0;
+                    if ((tmp2=find_macro(ident))) {
+                        lpoint=oldlpoint;
+                        goto as_macro;
+                    }
+                    err_msg(ERROR_ILLEGAL_OPERA,NULL);
+                    break;
+                }
 	    }
 	    {
 		long temp=val;
@@ -2032,6 +2058,12 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 	    }
 	    break;
         }
+        case WHAT_EXPRESSION:
+            if (skipit[waitforp] & 1) {
+                get_ident2('_');
+                if ((tmp2=find_macro(ident))) goto as_macro;
+            }
+            // fall through
 	default: if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
 	}
     }
