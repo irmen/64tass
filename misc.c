@@ -167,7 +167,8 @@ const char *terr_fatal[]={
 	"%s\n",
 	"File recursion\n",
 	"Macro recursion too deep\n",
-        "Unknown CPU: %s\n"
+        "Unknown CPU: %s\n",
+        "Unknown option: %s\n"
 };
 
 void err_msg(unsigned char no, char* prm) {
@@ -194,6 +195,10 @@ void err_msg(unsigned char no, char* prm) {
     else if (no<0x80) {
         if (no==ERROR____PAGE_ERROR) {
             snprintf(line,linelength,"Page error at $%06lx",l_address);
+            conderrors++;
+        }
+        else if (no==ERROR__BRANCH_CROSS) {
+            snprintf(line,linelength,"Branch crosses page");
             conderrors++;
         }
         else {

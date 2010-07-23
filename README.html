@@ -44,7 +44,7 @@ size for .binary, anonymous forward and backward reference (+-), initial
 <dd>Bank byte operator, label before conditional compile instruction bugfix
 cop # and brk # fix, empty macro parameter fix, added .long, some constant too large
 bugfix, jmp/jsr ($ffff,x) must be in the same bank, now .cerror and .cwarn accepts parameter,
-upper byte of negative number correct now
+upper byte of negative number correct now, .shiftl and .option added
 </dl>
 
 <hr>
@@ -480,6 +480,25 @@ loop	lda txt,x
 txt	.shift "some text"
 </pre>
 
+<dt>.shiftl
+<dd>Same as <code>.text</code>, but all bytes a shifted to left, and the last
+        character has the lowest bit set. Characters
+	in range $c0-$df are converted to $60-$7f, $ff is converted to
+	$7e, and everything else &gt;=$80 will cause an error. No conversion
+        if screen encoding is done, &gt;=$80 will always cause an error.
+<pre width=80>
+        ldx #0
+loop	lda txt,x
+        lsr
+	sta $400,x
+        inx
+        bcc loop
+        rts
+	.enc screen
+txt	.shiftl "some text"
+	.enc none
+</pre>
+
 <dt>.null
 <dd>Same as <code>.text</code>, but adds a null at the end, null in string is an error
 <pre width=80>
@@ -763,6 +782,18 @@ loop	adc #1		;padding with "nop" for DTV burst mode
 	.cpu cpu64	;CPU64
 	.cpu 65dtv02	;65dtv02
 	.cpu default	;cpu set on commandline
+</pre>
+
+<dt>.option allow_branch_across_page
+<dd>Switches error generation on page boundary crossing during relative branch.
+Such a condition on 6502 adds 1 extra cycle to the execution time, which 
+can ruin the timing of a carefuly cycle counted code.
+<pre width=80>
+	.option allow_branch_across_page = 0
+        ldx #3		;now this will execute in
+-       dex		;16 cycles for sure
+        bne -
+	.option allow_branch_across_page = 1
 </pre>
 
 <dt>.global
