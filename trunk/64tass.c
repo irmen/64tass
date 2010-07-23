@@ -73,6 +73,8 @@ static char procname[linelength];
 static unsigned long current_requires;
 static unsigned long current_conflicts;
 static unsigned long current_provides;
+static int allowslowbranch=1;
+static int longbranchasjmp=0;
 
 static char s_stack[256];
 static struct {long val; char sgn;} e_stack[256];
@@ -91,18 +93,18 @@ unsigned long curfnum=1;
 unsigned long macrecursion;
 
                        // 0       1       2        3        4         5        6         7      8         9
-const char* command[]={"byte"   ,"text", "char" ,"shift" ,"null"  ,"rta" , "int"  , "word" , "long" ,"offs"  ,"macro"  ,"endm"   ,"for" ,
+const char* command[]={"byte"   ,"text", "char" ,"shift","shiftl" ,"null"  ,"rta" , "int"  , "word" , "long" ,"offs"  ,"macro"  ,"endm"   ,"for" ,
                         "next"   ,"if"   ,"else"  ,"fi"    ,"elsif","rept"   ,"include","binary","comment","endc",
                         "page"   ,"endp" ,"logical","here" ,"as"   ,"al"     ,"xs"    ,"xl"     ,"error"  ,"proc",
                         "pend"   ,"databank","dpage","fill","global","warn"  ,"enc"   ,"endif"  , "ifne"  , "ifeq",
-                        "ifpl"   , "ifmi","cerror","cwarn", "align","assert", "check", "cpu"};
+                        "ifpl"   , "ifmi","cerror","cwarn", "align","assert", "check", "cpu", "option"};
 enum {
-    CMD_BYTE, CMD_TEXT, CMD_CHAR, CMD_SHIFT, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
+    CMD_BYTE, CMD_TEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFT2, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
     CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL,
     CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE,
-    CMD_FILL, CMD_GLOBAL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU
+    CMD_FILL, CMD_GLOBAL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION
 };
-#define COMMANDS 51
+#define COMMANDS 53
 
 // ---------------------------------------------------------------------------
 
@@ -959,7 +961,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    break;
 		}
                 if (!(skipit[waitforp] & 1)) break; //skip things if needed
-                if (prm<CMD_RTA) {    // .byte .text .char .shift .null
+                if (prm<CMD_RTA) {    // .byte .text .char .shift .shift2 .null
                     int ch2=-1;
                     char quo;
 		    if (listing) {
@@ -998,11 +1000,12 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                                 }
                                 ch2=(unsigned char)petascii(ch);
                                 if (prm==CMD_CHAR) {if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}}
-                                else if (prm==CMD_SHIFT) {
+                                else if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
                                     if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
                                     if (ch2>=0xc0 && ch2<0xe0) ch2-=0x60; else
                                         if (ch2==0xff) ch2=0x7e; else
                                             if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
+            			    if (prm==CMD_SHIFT2) ch2<<=1;
                                 } else
                                     if (prm==CMD_NULL && !ch2) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
                             }
@@ -1033,11 +1036,12 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                                 }
                                 ch2=(unsigned char)petascii(snum[i]);
                                 if (prm==CMD_CHAR) {if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}}
-                                else if (prm==CMD_SHIFT) {
+                                else if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
                                     if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
                                     if (ch2>=0xc0 && ch2<0xe0) ch2-=0x60; else
                                         if (ch2==0xff) ch2=0x7e; else
                                             if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
+				    if (prm==CMD_SHIFT2) ch2<<=1;
                                 }
                             }
                             goto cvege;
@@ -1068,11 +1072,12 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             pokeb(ch2);
                         }
                         ch2=(unsigned char)val;
-                        if (prm==CMD_SHIFT) {
+                        if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
                             if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
                             if (ch2>=0xc0 && ch2<0xe0) ch2-=0x60; else
                                 if (ch2==0xff) ch2=0x7e; else
                                     if (ch2>=0x80 && d) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+			    if (prm==CMD_SHIFT2) ch2<<=1;
                         } else
                             if (prm==CMD_NULL && !ch2 && d) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
                     cvege:
@@ -1080,6 +1085,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         if (ch) err_msg(ERROR______EXPECTED,",");
                         if (ch2>=0) {
                             if (prm==CMD_SHIFT) ch2|=0x80;
+                            if (prm==CMD_SHIFT2) ch2|=0x01;
                             if (listing) {
                                 if (lcol==1) {
                                     if (arguments.source && kiirva) {
@@ -1616,6 +1622,19 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    pagelo=(l_address>>8);
 		    break;
 		}
+		if (prm==CMD_OPTION) { // .option
+                    get_ident('_');
+                    ignore();if (get()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
+                    val=get_exp(&w,&d,&c);
+		    if (!c) break;
+		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
+		    ignore();if (here()) goto extrachar;
+                    if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for option");break;}
+                    if (!strcasecmp(ident,"allow_branch_across_page")) allowslowbranch=val;
+                    else if (!strcasecmp(ident,"auto_longbranch_as_jmp")) longbranchasjmp=val;
+                    else err_msg(ERROR_UNKNOWN_OPTIO,ident);
+		    break;
+		}
 	    }
 	case WHAT_HASHMARK:if (skipit[waitforp] & 1) //skip things if needed
 	    {                   //macro stuff
@@ -1842,13 +1861,29 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    }// 10 Db
 		    else if (wht==WHAT_EOL) {
 			if (cnmemonic[ADR_REL]!=____) {
+			    ln=1;
 			    if (d) {
 				if (fixeddig && (l_address >> 16)!=(((unsigned)val) >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
 				val=(val-l_address-2) & 0xffff;
 				if (val<0xFF80 && val>0x007F) {
-				    if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____) &&
-					((cnmemonic[ADR_REL] & 0x1f)==0x10)) {//branch
-					longbranch=0x20;val=0x4C03+(((val+l_address+2) & 0xffff) << 16);
+				    if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
+					if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
+					    longbranch=0x20;ln=4;
+                                	    if (scpumode && !longbranchasjmp) {
+                                        	val=0x8203+(((val-3) & 0xffff) << 16);
+                                    	    } else {
+                                        	val=0x4C03+(((val+l_address+2) & 0xffff) << 16);
+                                    	    }
+					} else {//bra
+                                	    if (scpumode && !longbranchasjmp) {
+						longbranch=cnmemonic[ADR_REL]^0x82;
+						val=(val-1) & 0xffff;
+                                    		ln=2;
+                                    	    } else {
+						longbranch=cnmemonic[ADR_REL]^0x4C;
+                                        	val=(val+l_address+2) & 0xffff;ln=2;
+                                    	    }
+					}    
 					if (fixeddig) err_msg(ERROR___LONG_BRANCH,NULL);
 				    } else {
 					if (cnmemonic[ADR_ADDR]!=____) {
@@ -1860,9 +1895,13 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 					else if (fixeddig) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
 				    }
 				}
+                                if (fixeddig) {
+                                    if (!longbranch && ((l_address+2) & 0xff00)!=((l_address+2+val) & 0xff00)) {
+                                        if (!allowslowbranch) err_msg(ERROR__BRANCH_CROSS,NULL);
+                                    }
+                                }
 				opr=ADR_REL;w=0;// bne
 			    } else fixeddig=0;
-			    if (longbranch) ln=4; else ln=1;
 			}
 			else if (cnmemonic[ADR_REL_L]!=____) {
 			    if (d) {
@@ -2025,12 +2064,17 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			    break;
 			}
 		    case ADR_LONG: fprintf(flist," $%06x",(unsigned)(val&0xffffff)); break;
-		    case ADR_ADDR: fprintf(flist," $%04x",(unsigned)(val&0xffff)); break;
+		    case ADR_ADDR: 
+		        if (cnmemonic[ADR_LONG]==0x5C || cnmemonic[ADR_LONG]==0x22)
+		            fprintf(flist," $%06x",(unsigned)(val&0xffff)+(l_address&0xff0000));
+			else
+		            fprintf(flist," $%04x",(unsigned)(val&0xffff));
+			break;
 		    case ADR_ZP: fprintf(flist," $%02x\t",(unsigned char)val); break;
 		    case ADR_LONG_X: fprintf(flist," $%06x,x",(unsigned)(val&0xffffff)); break;
 		    case ADR_ADDR_X: fprintf(flist," $%04x,x",(unsigned)(val&0xffff)); break;
 		    case ADR_ZP_X: fprintf(flist," $%02x,x",(unsigned char)val); break;
-		    case ADR_ADDR_X_I: fprintf(flist," ($%04x,x)",(unsigned)(val&0xffff)); break;
+		    case ADR_ADDR_X_I: fprintf(flist,(all_mem==0xffff)?" ($%04x,x)":" ($%06x,x)",(unsigned)(val&0xffff)+(l_address&0xff0000)); break;
 		    case ADR_ZP_X_I: fprintf(flist," ($%02x,x)",(unsigned char)val); break;
 		    case ADR_ZP_S: fprintf(flist," $%02x,s",(unsigned char)val); break;
 		    case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(unsigned char)val); break;
@@ -2045,6 +2089,12 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    case ADR_ZP_I: fprintf(flist," ($%02x)",(unsigned char)val); break;
 		    case ADR_REL:
                         if (ln==1) fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((((signed char)val)+l_address)&all_mem));
+                        else if (ln==2) {
+			    if (cod ^ longbranch==0x4C)
+				fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((val&0xffff)+(l_address&0xff0000)));
+			    else
+				fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((((signed short int)val)+l_address)&all_mem));
+		        }
                         else fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)(((val >> 16)&0xffff)+(l_address&0xff0000)));
 			break;
 		    case ADR_REL_L: fprintf(flist," $%06x",(unsigned)((((signed short)val)+l_address)&0xffffff)); break;
@@ -2113,7 +2163,7 @@ int main(int argc,char *argv[]) {
         if (pass++>20) {fprintf(stderr,"Ooops! Too many passes...\n");exit(1);}
         set_cpumode(arguments.cpumode);
 	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
-        current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;
+        current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
         fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;procname[0]=0;conderrors=warnings=0;freeerrorlist(0);
         /*	listing=1;flist=stderr;*/
         enterfile(arguments.input,0);
@@ -2134,7 +2184,7 @@ int main(int argc,char *argv[]) {
         pass++;
         set_cpumode(arguments.cpumode);
 	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
-        current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;
+        current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
         fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;procname[0]=0;conderrors=warnings=0;freeerrorlist(0);
         enterfile(arguments.input,0);
         sline=0;
