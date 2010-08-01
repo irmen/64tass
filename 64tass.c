@@ -57,7 +57,7 @@ unsigned long address=0,l_address=0; //address, logical address
 char pline[linelength];  //current line data
 static char llist[linelength];  //current line for listing
 static int lpoint;              //position in current line
-static char ident[linelength];  //identifier (label, etc)
+static char ident[linelength], ident2[linelength];  //identifier (label, etc)
 static char varname[linelength];//variable (same as identifier?)
 static char path[80];           //path
 static int pagelo=-1;           //still in same page?
@@ -775,6 +775,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 	readln(fin);
 	if (nprm>=0) mtranslate(mprm,nprm,pline); //expand macro parameters, if any
 
+        ident2[0]=0;
 	if ((wht=what(&prm))==WHAT_EXPRESSION) {
             if (!prm) {
                 if (here()=='-') {
@@ -793,7 +794,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 continue;
             } //not label
             get_ident('_');                                           //get label
-        hh: if (!(skipit[waitforp] & 1)) {wht=what(&prm);goto jn;} //skip things if needed
+        hh: strcpy(ident2,ident);
+            if (!(skipit[waitforp] & 1)) {wht=what(&prm);goto jn;} //skip things if needed
             if ((wht=what(&prm))==WHAT_EQUAL) { //variable
 		strcpy(varname,procname);
 		if (procname[0]) strcat(varname,".");
@@ -2022,6 +2024,13 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     ident[3]=0;
                     if ((tmp2=find_macro(ident))) {
                         lpoint=oldlpoint;
+                        if (listing && arguments.source && ident2[0]) {
+                            if (lastl==2) {fputc('\n',flist);lastl=1;}
+                            if (ident2[0]!='-' && ident2[0]!='+')
+                                fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident2);
+                            else
+                                fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%c\n":".%06lx\t\t\t\t\t%c\n",address,ident2[0]);
+                        }
                         goto as_macro;
                     }
                     err_msg(ERROR_ILLEGAL_OPERA,NULL);
