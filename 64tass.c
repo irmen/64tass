@@ -1447,7 +1447,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         fill=get_exp(&w,&d,&c);if (!d) fixeddig=0;
                         if (!c) break;
                         if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                        if (val_length(val)) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                        if (val_length(fill)) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
                         ignore();if (here()) goto extrachar;
                     }
                     if (d) {
