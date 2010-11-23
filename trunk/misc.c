@@ -173,10 +173,13 @@ const char *terr_fatal[]={
 
 void err_msg(unsigned char no, char* prm) {
     char line[linelength];
-    struct sfilenamelist *b=filenamelist->next, *b2=filenamelist;
+    struct sfilenamelist *b=NULL, *b2=filenamelist;
     char *p;
+    if (filenamelist) {
+	b=filenamelist->next;
+	snprintf(line,linelength,"%s:%ld: ",&filenamelist->name,sline);
+    } else line[0]=0;
 
-    snprintf(line,linelength,"%s:%ld: ",&filenamelist->name,sline);
     adderror(line);
 
     while (b) {
