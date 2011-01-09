@@ -33,7 +33,7 @@ V1.46:
     # and brk # fix, empty macro parameter fix, added .long, some constant too
     large bugfix, jmp/jsr ($ffff,x) must be in the same bank, now .cerror and
     .cwarn accepts parameter, upper byte of negative number correct now,
-    .shiftl and .option added
+    .shiftl and .option added, .ptext added
 
 -------------------------------------------------------------------------------
 
@@ -543,6 +543,30 @@ Compiler directives:
             lda #<txt
             ldy #>txt
             jsr $ab1e
+
+.ptext
+    Same as .text, but prepend the number of bytes in front of the string
+    (pascal style string):
+
+            lda #<txt
+            ldx #>txt
+            jsr print
+            rts
+
+    print   sta $fb
+            stx $fc
+            ldy #0
+            lda ($fb),y
+            beq null
+            tax
+    -       iny
+            lda ($fb),y
+            jsr $ffd2
+            dex
+            bne -
+    null    rts
+
+    txt     .ptext "note"
 
 .rta
     Include return address constants

@@ -206,7 +206,7 @@ void err_msg(unsigned char no, char* prm) {
         }
         else {
             snprintf(line,linelength,terr_error[no & 63],prm);
-            if (no==ERROR_BRANCH_TOOFAR) conderrors++;
+            if (no==ERROR_BRANCH_TOOFAR || no==ERROR_CONSTNT_LARGE) conderrors++;
             else errors++;
         }
     }

@@ -40,7 +40,7 @@
 #include "misc.h"
 
 static char *mnemonic;    //mnemonics
-static unsigned char *opcode;    //opcodes
+const unsigned char *opcode;    //opcodes
 
 #define linelength 4096
 #define nestinglevel 256
@@ -93,18 +93,18 @@ unsigned long curfnum=1;
 unsigned long macrecursion;
 
                        // 0       1       2        3        4         5        6         7      8         9
-const char* command[]={"byte"   ,"text", "char" ,"shift","shiftl" ,"null"  ,"rta" , "int"  , "word" , "long" ,"offs"  ,"macro"  ,"endm"   ,"for" ,
+const char* command[]={"byte"   ,"text", "ptext", "char" ,"shift","shiftl" ,"null"  ,"rta" , "int"  , "word" , "long" ,"offs"  ,"macro"  ,"endm"   ,"for" ,
                         "next"   ,"if"   ,"else"  ,"fi"    ,"elsif","rept"   ,"include","binary","comment","endc",
                         "page"   ,"endp" ,"logical","here" ,"as"   ,"al"     ,"xs"    ,"xl"     ,"error"  ,"proc",
                         "pend"   ,"databank","dpage","fill","global","warn"  ,"enc"   ,"endif"  , "ifne"  , "ifeq",
                         "ifpl"   , "ifmi","cerror","cwarn", "align","assert", "check", "cpu", "option"};
 enum {
-    CMD_BYTE, CMD_TEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFT2, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
+    CMD_BYTE, CMD_TEXT, CMD_PTEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFT2, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
     CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL,
     CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE,
     CMD_FILL, CMD_GLOBAL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION
 };
-#define COMMANDS 53
+#define COMMANDS 54
 
 // ---------------------------------------------------------------------------
 
@@ -194,8 +194,8 @@ void pokeb(unsigned char byte) {
 	if (address>top_mem) top_mem=address;
 	if (address<=full_mem) mem64[address]=byte;
     }
-    if (wrapwarn) err_msg(ERROR_TOP_OF_MEMORY,NULL);
-    if (wrapwarn2) err_msg(ERROR___BANK_BORDER,NULL);
+    if (wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);wrapwarn=0;}
+    if (wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);wrapwarn2=0;}
     address++;l_address++;l_address&=all_mem;
     if (address>all_mem) {
 	if (fixeddig) wrapwarn=1;
@@ -385,7 +385,7 @@ long get_num(int *cd, int mode) {
 	    } else tmp=NULL;
             if (!tmp) tmp=find_label(ident);  //ok, global label
 	    if (pass==1) {
-		if (tmp) if (tmp->ertelmes) {*cd=1;tmp->proclabel=0;tmp->used=1;return tmp->value;}
+                if (tmp) if (tmp->ertelmes) {*cd=1;if (!procname[0]) {tmp->proclabel=0;tmp->used=1;} return tmp->value;}
 		*cd=2;return 0;
 	    }
 	    else {
@@ -963,15 +963,11 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    break;
 		}
                 if (!(skipit[waitforp] & 1)) break; //skip things if needed
-                if (prm<CMD_RTA) {    // .byte .text .char .shift .shift2 .null
+                if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
                     int ch2=-1;
                     char quo;
-		    if (listing) {
-			if (lastl!=2) {fputc('\n',flist);lastl=2;}
-                        fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",address);
-			lcol=25;
-                        kiirva=1;
-		    }
+                    unsigned long ptextaddr=address;
+                    if (prm==CMD_PTEXT) pokeb(0);
                     for (;;) {
 
                         ignore();
@@ -986,18 +982,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 				    if (pline[lpoint]==quo) lpoint++; else break;
                                 }
                                 if (ch2>=0) {
-                                    if (listing) {
-                                        if (lcol==1) {
-                                            if (arguments.source && kiirva) {
-                                                if (nprm>=0) mtranslate(mprm,nprm,llist);
-                                                fprintf(flist,"\t%s\n",llist);kiirva=0;
-                                            } else fputc('\n',flist);
-                                            fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",address);lcol=25;
-                                        }
-                                        fprintf(flist,"%02x ",(unsigned char)ch2);
-
-                                        lcol-=3;
-                                    }
                                     pokeb(ch2);
                                 }
                                 ch2=(unsigned char)petascii(ch);
@@ -1023,17 +1007,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 
                             for(i=0; snum[i]; i++) {
                                 if (ch2>=0) {
-                                    if (listing) {
-                                        if (lcol==1) {
-                                            if (arguments.source && kiirva) {
-                                                if (nprm>=0) mtranslate(mprm,nprm,llist);
-                                                fprintf(flist,"\t%s\n",llist);kiirva=0;
-                                            } else fputc('\n',flist);
-                                            fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",address);lcol=25;
-                                        }
-                                        fprintf(flist,"%02x ",(unsigned char)ch2);
-                                        lcol-=3;
-                                    }
                                     pokeb(ch2);
                                 }
                                 ch2=(unsigned char)petascii(snum[i]);
@@ -1060,17 +1033,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             }
                         }
                         if (ch2>=0) {
-                            if (listing) {
-                                if (lcol==1) {
-                                    if (arguments.source && kiirva) {
-                                        if (nprm>=0) mtranslate(mprm,nprm,llist);
-                                        fprintf(flist,"\t%s\n",llist);kiirva=0;
-                                    } else fputc('\n',flist);
-                                    fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",address);lcol=25;
-                                }
-                                fprintf(flist,"%02x ",(unsigned char)ch2);
-                                lcol-=3;
-                            }
                             pokeb(ch2);
                         }
                         ch2=(unsigned char)val;
@@ -1088,34 +1050,38 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         if (ch2>=0) {
                             if (prm==CMD_SHIFT) ch2|=0x80;
                             if (prm==CMD_SHIFT2) ch2|=0x01;
-                            if (listing) {
-                                if (lcol==1) {
-                                    if (arguments.source && kiirva) {
-                                        if (nprm>=0) mtranslate(mprm,nprm,llist);
-                                        fprintf(flist,"\t%s\n",llist);kiirva=0;
-                                    } else fputc('\n',flist);
-                                    fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",address);lcol=25;
-                                }
-                                fprintf(flist,"%02x ",(unsigned char)ch2);
-                                lcol-=3;
-                            }
                             pokeb(ch2);
                         }
                         if (prm==CMD_NULL) {
                             pokeb(0);
-                            if (listing) {
+                        }
+                        if (prm==CMD_PTEXT) {
+                            if ((address>ptextaddr && address-ptextaddr>0x100) ||
+                                (address<ptextaddr && address+all_mem-ptextaddr>0xff)) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
+
+                            mem64[ptextaddr]=(address-ptextaddr-1) & 0xff;
+                        }
+                    cvege2:
+                        if (listing) {
+                            if (lastl!=2) {fputc('\n',flist);lastl=2;}
+                            fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",ptextaddr);
+                            lcol=25;
+                            kiirva=1;
+                            while (ptextaddr!=address) {
+                                ch2=mem64[ptextaddr];
+                                ptextaddr=(ptextaddr+1) & all_mem;
                                 if (lcol==1) {
                                     if (arguments.source && kiirva) {
                                         if (nprm>=0) mtranslate(mprm,nprm,llist);
                                         fprintf(flist,"\t%s\n",llist);kiirva=0;
                                     } else fputc('\n',flist);
-                                    fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",address);lcol=25;
+                                    fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",ptextaddr);lcol=25;
                                 }
-                                fprintf(flist,"00 ");
+                                fprintf(flist,"%02x ",(unsigned char)ch2);
+    
                                 lcol-=3;
                             }
                         }
-                    cvege2:
 			break;
 		    }
 		}
@@ -1693,7 +1659,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 	case WHAT_MNEMONIC:if (skipit[waitforp] & 1) {//skip things if needed
             int opr,mnem=prm;
             int oldlpoint=lpoint;
-	    unsigned char* cnmemonic=&opcode[prm*25]; //current nmemonic
+	    const unsigned char* cnmemonic=&opcode[prm*25]; //current nmemonic
 	    char ln;
 	    unsigned char cod,longbranch=0;
 
