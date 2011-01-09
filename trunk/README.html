@@ -44,7 +44,8 @@ size for .binary, anonymous forward and backward reference (+-), initial
 <dd>Bank byte operator, label before conditional compile instruction bugfix
 cop # and brk # fix, empty macro parameter fix, added .long, some constant too large
 bugfix, jmp/jsr ($ffff,x) must be in the same bank, now .cerror and .cwarn accepts parameter,
-upper byte of negative number correct now, .shiftl and .option added
+upper byte of negative number correct now, .shiftl and .option added,
+.ptext added
 </dl>
 
 <hr>
@@ -507,6 +508,31 @@ txt	.text "lot of stuff"
         lda #&lt;txt
         ldy #&gt;txt
         jsr $ab1e
+</pre>
+
+<dt>.ptext
+<dd>Same as <code>.text</code>, but prepend the
+number of bytes in front of the string (pascal style string):
+<pre width=80>
+	lda #&lt;txt
+	ldx #&gt;txt
+	jsr print
+	rts
+
+print	sta $fb
+	stx $fc
+	ldy #0
+	lda ($fb),y
+	beq null
+	tax
+-	iny
+	lda ($fb),y
+	jsr $ffd2
+	dex
+	bne -
+null	rts
+
+txt	.ptext "note"
 </pre>
 
 <dt>.rta
