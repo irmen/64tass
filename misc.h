@@ -121,6 +121,7 @@ struct sfilenamelist {
 
 struct arguments_t {
     int warning;
+    int quiet;
     int nonlinear;
     int stripstart;
     int toascii;

@@ -28,7 +28,7 @@
 #include "opcodes.h"
 #include <string.h>
 
-struct arguments_t arguments={1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1};
+struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1};
 
 static void *label_tree=NULL;
 static void *macro_tree=NULL; 
@@ -175,6 +175,9 @@ void err_msg(unsigned char no, char* prm) {
     char line[linelength];
     struct sfilenamelist *b=NULL, *b2=filenamelist;
     char *p;
+
+    if (!arguments.warning && no<0x40) return;
+
     if (filenamelist) {
 	b=filenamelist->next;
 	snprintf(line,linelength,"%s:%ld: ",&filenamelist->name,sline);
@@ -190,10 +193,8 @@ void err_msg(unsigned char no, char* prm) {
     }
 
     if (no<0x40) {
-        if (arguments.warning) {
-            snprintf(line,linelength,"warning: %s",(no==ERROR_WUSER_DEFINED)?prm:terr_warning[no]);
-            warnings++;
-	}
+        snprintf(line,linelength,"warning: %s",(no==ERROR_WUSER_DEFINED)?prm:terr_warning[no]);
+        warnings++;
     }
     else if (no<0x80) {
         if (no==ERROR____PAGE_ERROR) {
@@ -599,6 +600,7 @@ const char doc[]="64tass Turbo Assembler Macro";
 const char args_doc[]="SOURCE";
 const struct argp_option options[]={
     {"no-warn"	, 	'w',		0,     	0,  "Suppress warnings"},
+    {"quiet"	,	'q',		0,     	0,  "Display errors/warnings"},
     {"nonlinear",	'n',		0,     	0,  "Generate nonlinear output file"},
     {"nostart" 	,	'b',		0,     	0,  "Strip starting address"},
     {"wordstart",	'W',		0,     	0,  "Force 2 byte start address"},
@@ -628,6 +630,7 @@ static error_t parse_opt (int key,char *arg,struct argp_state *state)
     switch (key)
     {
     case 'w':arguments.warning=0;break;
+    case 'q':arguments.quiet=0;break;
     case 'W':arguments.wordstart=0;break;
     case 'n':arguments.nonlinear=1;break;
     case 'b':arguments.stripstart=1;break;
