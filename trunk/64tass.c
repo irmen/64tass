@@ -110,15 +110,16 @@ enum {
 
 void status() {
     freeerrorlist(1);
-    fprintf(stdout,"Error messages:    ");
     errors+=conderrors;
-    if (errors) fprintf(stdout,"%i\n",errors); else fprintf(stdout,"None\n");
-    fprintf(stdout,"Warning messages:  ");
-    if (warnings) fprintf(stdout,"%i\n",warnings); else fprintf(stdout,"None\n");
-    fprintf(stdout,"Passes:            %i\n",pass);
-    fprintf(stdout,"Range:             ");
-    if (low_mem<=top_mem) fprintf(stdout,(full_mem==0xffff)?"$%04lx-$%04lx\n\n":"$%06lx-$%06lx\n\n",low_mem,top_mem);else fprintf(stdout,"None\n");
-
+    if (arguments.quiet) {
+        fprintf(stdout,"Error messages:    ");
+        if (errors) fprintf(stdout,"%i\n",errors); else fprintf(stdout,"None\n");
+        fprintf(stdout,"Warning messages:  ");
+        if (warnings) fprintf(stdout,"%i\n",warnings); else fprintf(stdout,"None\n");
+        fprintf(stdout,"Passes:            %i\n",pass);
+        fprintf(stdout,"Range:             ");
+        if (low_mem<=top_mem) fprintf(stdout,(full_mem==0xffff)?"$%04lx-$%04lx\n\n":"$%06lx-$%06lx\n\n",low_mem,top_mem);else fprintf(stdout,"None\n");
+    }
     if (mem64) free(mem64);			// free codemem
     if (mmap) free(mmap);				// free memorymap
 
@@ -2117,6 +2118,7 @@ int main(int argc,char *argv[]) {
 
     testarg(argc,argv);
 
+    if (arguments.quiet)
     fprintf(stdout,"6502/65C02 Turbo Assembler Version 1.3  Copyright (c) 1997 Taboo Productions\n"
                    "6502/65C02 Turbo Assembler Version 1.35 ANSI C port by [BiGFooT/BReeZe^2000]\n"
                    "6502/65C02/65816/CPU64/DTV TASM Version 1.46 Fixing by Soci/Singular 2001-2010\n"
@@ -2127,7 +2129,7 @@ int main(int argc,char *argv[]) {
     else all_mem=0x00ffff;
     full_mem=all_mem;
 
-    fprintf(stdout,"\nAssembling file:   %s\n",arguments.input);
+    if (arguments.quiet) fprintf(stdout,"\nAssembling file:   %s\n",arguments.input);
 
     if (!(mem64=malloc(all_mem+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
     if (arguments.nonlinear) if (!(mmap=malloc((all_mem+1) >> 3))) err_msg(ERROR_OUT_OF_MEMORY,NULL);

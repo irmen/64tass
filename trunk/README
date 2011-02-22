@@ -240,6 +240,14 @@ Example
 
 64tass --no-warn a.asm
 
+-q, --quiet Suppress messages
+
+Disables header and summary messages.
+
+Example
+
+64tass --quiet a.asm
+
 -W, --wordstart Force 2 byte start address
 
 It 16 MiB address space is used for 65816 or CPU64, then the starting address
