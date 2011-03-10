@@ -932,11 +932,13 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
 		if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
 		    if (prm==CMD_ELSIF && waitfor[waitforp]!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
-		    val=get_exp(&w,&d,&c); //ellenorizve.
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-		    ignore();if (here()) goto extrachar;
-                    if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");wait_cmd(fin,CMD_FI);break;}
+		    if (skipit[waitforp] & 1) {
+			val=get_exp(&w,&d,&c); //ellenorizve.
+			if (!c) break;
+			if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
+			ignore();if (here()) goto extrachar;
+                	if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");wait_cmd(fin,CMD_FI);break;}
+		    } else val=0;
                     waitfor[++waitforp]='e';
                     switch (prm) {
                     case CMD_ELSIF:
