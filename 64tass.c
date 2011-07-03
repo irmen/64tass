@@ -1863,7 +1863,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 					else if (cnmemonic[ADR_REL_L]!=____) {//gra
 					    val=(val-1) & 0xffff;
 					    opr=ADR_REL_L;w=1;ln=2;goto brancb;}
-					else if (fixeddig) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
+					else if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);
 				    }
 				}
                                 if (fixeddig) {
