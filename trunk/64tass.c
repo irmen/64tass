@@ -932,7 +932,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
 		if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
 		    if (prm==CMD_ELSIF && waitfor[waitforp]!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
-		    if (skipit[waitforp] & 1) {
+		    if (((skipit[waitforp]==1) && prm!=CMD_ELSIF) || ((skipit[waitforp]==2) && prm==CMD_ELSIF)) {
 			val=get_exp(&w,&d,&c); //ellenorizve.
 			if (!c) break;
 			if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
