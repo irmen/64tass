@@ -737,12 +737,14 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
     long pos,lin,cnt,oldpos=-1;
 
     char snum[12];
-    int fflen;
 
     struct slabel* tmp;
     struct smacro* tmp2;
 
+#ifndef WIN32
+    int fflen;
     struct stat filestat;
+#endif
     unsigned long backr_old, forwr_old, reffile_old;
 
     if (tpe==0) {
@@ -2044,7 +2046,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    case ADR_LONG: fprintf(flist," $%06x",(unsigned)(val&0xffffff)); break;
 		    case ADR_ADDR: 
 		        if (cnmemonic[ADR_LONG]==0x5C || cnmemonic[ADR_LONG]==0x22)
-		            fprintf(flist," $%06x",(unsigned)(val&0xffff)+(l_address&0xff0000));
+		            fprintf(flist," $%06x",(unsigned)(val&0xffff)+(unsigned)(l_address&0xff0000));
 			else
 		            fprintf(flist," $%04x",(unsigned)(val&0xffff));
 			break;
@@ -2052,7 +2054,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    case ADR_LONG_X: fprintf(flist," $%06x,x",(unsigned)(val&0xffffff)); break;
 		    case ADR_ADDR_X: fprintf(flist," $%04x,x",(unsigned)(val&0xffff)); break;
 		    case ADR_ZP_X: fprintf(flist," $%02x,x",(unsigned char)val); break;
-		    case ADR_ADDR_X_I: fprintf(flist,(all_mem==0xffff)?" ($%04x,x)":" ($%06x,x)",(unsigned)(val&0xffff)+(l_address&0xff0000)); break;
+		    case ADR_ADDR_X_I: fprintf(flist,(all_mem==0xffff)?" ($%04x,x)":" ($%06x,x)",(unsigned)(val&0xffff)+(unsigned)(l_address&0xff0000)); break;
 		    case ADR_ZP_X_I: fprintf(flist," ($%02x,x)",(unsigned char)val); break;
 		    case ADR_ZP_S: fprintf(flist," $%02x,s",(unsigned char)val); break;
 		    case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(unsigned char)val); break;
@@ -2068,7 +2070,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    case ADR_REL:
                         if (ln==1) fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((((signed char)val)+l_address)&all_mem));
                         else if (ln==2) {
-			    if (cod ^ longbranch==0x4C)
+			    if ((cod ^ longbranch)==0x4C)
 				fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((val&0xffff)+(l_address&0xff0000)));
 			    else
 				fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((((signed short int)val)+l_address)&all_mem));
