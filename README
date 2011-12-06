@@ -769,6 +769,19 @@ Compiler directives:
     labels inside are local.
 .pend
     End of procedure
+
+.block
+    Block start
+
+            .block
+            inc count + 1
+    count   ldx #0
+            .bend
+
+    All labels inside a block are local.
+.bend
+    End of block
+
 .databank
     Set databank (65816)
 
