@@ -4,6 +4,8 @@ OBJ = 64tass.o opcodes.o misc.o
 #CFLAGS = -Wall -O3 -march=i686 -pipe -fomit-frame-pointer -fno-exceptions
 #CFLAGS = -Wall
 
+all: 64tass
+
 64tass: $(OBJ)
 
 64tass.o: 64tass.c opcodes.h misc.h
