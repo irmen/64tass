@@ -767,6 +767,19 @@ All labels inside are local.
 <dt>.pend
 <dd>End of procedure
 
+<dt>.block
+<dd>Block start
+<pre width=80>
+            .block
+            inc count + 1
+    count   ldx #0
+            .bend
+</pre>
+    All labels inside a block are local.
+
+<dt>.bend
+<dd>End of Block
+
 <dt>.databank
 <dd>Set databank (65816)
 <pre width=80>
