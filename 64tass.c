@@ -620,7 +620,7 @@ void wait_cmd(FILE* fil,int no)
 	    err_msg(ERROR______EXPECTED,nc);
 	    return;
 	}
-        if ((no==CMD_PEND) || (no==CMD_BEND)) { //.pend or .bend
+	if (no==CMD_PEND) { //.pend
 	    lin=sline;
 	    pos=ftell(fil);
 	}
@@ -657,7 +657,6 @@ void wait_cmd(FILE* fil,int no)
             case CMD_ELSIF:break;//.elsif
 	    case CMD_REPT:waitfor[++waitforp]='n';break;//.rept
 	    case CMD_PROC:if (no==CMD_PEND && wrap==waitforp) {sline=lin;fseek(fil,pos,SEEK_SET);return;}break;// .proc
-            case CMD_BLOCK:if (no==CMD_BEND && wrap==waitforp) {sline=lin;fseek(fil,pos,SEEK_SET);return;}break;// .block
 	    }
 	}
     }
@@ -869,11 +868,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%c\n":".%06lx\t\t\t\t\t%c\n",address,ident[0]);
 	    }
 	    if (wht==WHAT_COMMAND && (prm==CMD_PROC || prm==CMD_GLOBAL)) tmp=new_label(ident); //.proc or .global
-            else if (wht == WHAT_COMMAND && prm == CMD_BLOCK) {
-                static char blocklbl[0x40];
-                sprintf(blocklbl, ".block%ld", sline);
-                tmp = new_label(blocklbl);
-            } else {
+	    else {
 		strcpy(varname,procname);
                 if (procname[0]) strcat(varname,".");
 		strcat(varname, ident);
@@ -889,7 +884,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     tmp->conflicts=current_conflicts;
                     tmp->ertelmes=1;tmp->used=0;
 		    tmp->value=l_address;
-		    if (wht == WHAT_COMMAND && (prm == CMD_PROC || prm == CMD_BLOCK)) tmp->proclabel = 1; else tmp->proclabel = 0;
+		    if (wht==WHAT_COMMAND && prm==CMD_PROC) tmp->proclabel=1; else tmp->proclabel=0;
 		}
 	    }
 	    else {
@@ -1262,25 +1257,13 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 if (prm==CMD_BLOCK) { // .block
                     if (here()) goto extrachar;
                     if (tmp) {
-                        if (tmp->proclabel && pass!=1 && !procname[0]) wait_cmd(fin,CMD_BEND);//.bend
-                        else {
-                            static char blocklbl[0x40];
-                            sprintf(blocklbl, ".block%ld", sline);
-                            strcpy(procname, blocklbl);
-                            if (listing && arguments.source) {
-                                if (lastl==2) {fputc('\n',flist);lastl=1;}
-                                if (ident[0]!='-' && ident[0]!='+')
-                                    fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident);
-                                else
-                                    fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%c\n":".%06lx\t\t\t\t\t%c\n",address,ident[0]);
-                            }
-                        }
-                    }
+                        sprintf(procname, ".block%ld", sline);
+                    } /* TODO: macros, multiple files */
                     break;
                 }
                 if (prm==CMD_BEND) { //.bend
                     if (here()) goto extrachar;
-                    procname[0]=0;
+                    procname[0]=0; /* TODO: detect .bend without .block */
                     break;
                 }
 		if (prm==CMD_DATABANK) { // .databank
