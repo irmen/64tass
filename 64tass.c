@@ -97,14 +97,17 @@ const char* command[]={"byte"   ,"text", "ptext", "char" ,"shift","shiftl" ,"nul
                         "next"   ,"if"   ,"else"  ,"fi"    ,"elsif","rept"   ,"include","binary","comment","endc",
                         "page"   ,"endp" ,"logical","here" ,"as"   ,"al"     ,"xs"    ,"xl"     ,"error"  ,"proc",
                         "pend"   ,"databank","dpage","fill","global","warn"  ,"enc"   ,"endif"  , "ifne"  , "ifeq",
-                        "ifpl"   , "ifmi","cerror","cwarn", "align","assert", "check", "cpu", "option"};
+                        "ifpl"   , "ifmi","cerror","cwarn", "align","assert", "check", "cpu", "option",
+                        "block"  , "bend"
+};
 enum {
     CMD_BYTE, CMD_TEXT, CMD_PTEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFT2, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
     CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL,
     CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE,
-    CMD_FILL, CMD_GLOBAL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION
+    CMD_FILL, CMD_GLOBAL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION,
+    CMD_BLOCK, CMD_BEND
 };
-#define COMMANDS 54
+#define COMMANDS 56
 
 // ---------------------------------------------------------------------------
 
@@ -617,7 +620,7 @@ void wait_cmd(FILE* fil,int no)
 	    err_msg(ERROR______EXPECTED,nc);
 	    return;
 	}
-	if (no==CMD_PEND) { //.pend
+        if ((no==CMD_PEND) || (no==CMD_BEND)) { //.pend or .bend
 	    lin=sline;
 	    pos=ftell(fil);
 	}
@@ -654,6 +657,7 @@ void wait_cmd(FILE* fil,int no)
             case CMD_ELSIF:break;//.elsif
 	    case CMD_REPT:waitfor[++waitforp]='n';break;//.rept
 	    case CMD_PROC:if (no==CMD_PEND && wrap==waitforp) {sline=lin;fseek(fil,pos,SEEK_SET);return;}break;// .proc
+            case CMD_BLOCK:if (no==CMD_BEND && wrap==waitforp) {sline=lin;fseek(fil,pos,SEEK_SET);return;}break;// .block
 	    }
 	}
     }
@@ -865,11 +869,15 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%c\n":".%06lx\t\t\t\t\t%c\n",address,ident[0]);
 	    }
 	    if (wht==WHAT_COMMAND && (prm==CMD_PROC || prm==CMD_GLOBAL)) tmp=new_label(ident); //.proc or .global
-	    else {
+            else if (wht == WHAT_COMMAND && prm == CMD_BLOCK) {
+                static char blocklbl[0x40];
+                sprintf(blocklbl, ".block%ld", sline);
+                tmp = new_label(blocklbl);
+            } else {
 		strcpy(varname,procname);
                 if (procname[0]) strcat(varname,".");
-		strcat(varname,ident);
-		tmp=new_label(varname);
+		strcat(varname, ident);
+		tmp = new_label(varname);
 	    }
 	    if (pass==1) {
 		if (labelexists) {
@@ -881,7 +889,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     tmp->conflicts=current_conflicts;
                     tmp->ertelmes=1;tmp->used=0;
 		    tmp->value=l_address;
-		    if (wht==WHAT_COMMAND && prm==CMD_PROC) tmp->proclabel=1; else tmp->proclabel=0;
+		    if (wht == WHAT_COMMAND && (prm == CMD_PROC || prm == CMD_BLOCK)) tmp->proclabel = 1; else tmp->proclabel = 0;
 		}
 	    }
 	    else {
@@ -1251,6 +1259,30 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     procname[0]=0;
 		    break;
 		}
+                if (prm==CMD_BLOCK) { // .block
+                    if (here()) goto extrachar;
+                    if (tmp) {
+                        if (tmp->proclabel && pass!=1 && !procname[0]) wait_cmd(fin,CMD_BEND);//.bend
+                        else {
+                            static char blocklbl[0x40];
+                            sprintf(blocklbl, ".block%ld", sline);
+                            strcpy(procname, blocklbl);
+                            if (listing && arguments.source) {
+                                if (lastl==2) {fputc('\n',flist);lastl=1;}
+                                if (ident[0]!='-' && ident[0]!='+')
+                                    fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident);
+                                else
+                                    fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%c\n":".%06lx\t\t\t\t\t%c\n",address,ident[0]);
+                            }
+                        }
+                    }
+                    break;
+                }
+                if (prm==CMD_BEND) { //.bend
+                    if (here()) goto extrachar;
+                    procname[0]=0;
+                    break;
+                }
 		if (prm==CMD_DATABANK) { // .databank
 		    val=get_exp(&w,&d,&c);if (!d) fixeddig=0;
 		    if (!c) break;
