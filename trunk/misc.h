@@ -135,6 +135,7 @@ struct arguments_t {
     int casesensitive;
     int longbranch;
     int wordstart;
+    int petsym;
 };
 
 #ifdef _MISC_C_
@@ -154,6 +155,7 @@ extern unsigned long curfnum, reffile;
 extern char tolower_tab[256];
 extern const unsigned char whatis[256];
 extern unsigned char petascii(unsigned char);
+extern unsigned char petsymbolic(unsigned char*);
 extern void err_msg(unsigned char, char*);
 extern struct slabel* find_label(char*);
 extern struct slabel* new_label(char*);

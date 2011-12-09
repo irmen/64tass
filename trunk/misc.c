@@ -28,7 +28,9 @@
 #include "opcodes.h"
 #include <string.h>
 
-struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1};
+void err_msg(unsigned char no, char* prm);
+
+struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0};
 
 static void *label_tree=NULL;
 static void *macro_tree=NULL; 
@@ -61,6 +63,8 @@ const unsigned char whatis[256]={
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
+//------------------------------------------------------------------------------
+
 unsigned char petascii(unsigned char ch) {
     if (arguments.toascii) {
         if (ch>='A' && ch<='Z') ch+=0x80;
@@ -79,6 +83,190 @@ unsigned char petascii(unsigned char ch) {
     }
     return ch;
 }
+
+#define NUM_PETSYMS 0x100
+
+/* all numeric codes */
+static const char *petsym_hex[NUM_PETSYMS] = {
+    "$00","$01","$02","$03","$04","$05","$06","$07","$08","$09","$0a","$0b","$0c","$0d","$0e","$0f",
+    "$10","$11","$12","$13","$14","$15","$16","$17","$18","$19","$1a","$1b","$1c","$1d","$1e","$1f",
+    "$20","$21","$22","$23","$24","$25","$26","$27","$28","$29","$2a","$2b","$2c","$2d","$2e","$2f",
+    "$30","$31","$32","$33","$34","$35","$36","$37","$38","$39","$3a","$3b","$3c","$3d","$3e","$3f",
+    "$40","$41","$42","$43","$44","$45","$46","$47","$48","$49","$4a","$4b","$4c","$4d","$4e","$4f",
+    "$50","$51","$52","$53","$54","$55","$56","$57","$58","$59","$5a","$5b","$5c","$5d","$5e","$5f",
+    "$60","$61","$62","$63","$64","$65","$66","$67","$68","$69","$6a","$6b","$6c","$6d","$6e","$6f",
+    "$70","$71","$72","$73","$74","$75","$76","$77","$78","$79","$7a","$7b","$7c","$7d","$7e","$7f",
+    "$80","$81","$82","$83","$84","$85","$86","$87","$88","$89","$8a","$8b","$8c","$8d","$8e","$8f",
+    "$90","$91","$92","$93","$94","$95","$96","$97","$98","$99","$9a","$9b","$9c","$9d","$9e","$9f",
+    "$a0","$a1","$a2","$a3","$a4","$a5","$a6","$a7","$a8","$a9","$aa","$ab","$ac","$ad","$ae","$af",
+    "$b0","$b1","$b2","$b3","$b4","$b5","$b6","$b7","$b8","$b9","$ba","$bb","$bc","$bd","$be","$bf",
+    "$c0","$c1","$c2","$c3","$c4","$c5","$c6","$c7","$c8","$c9","$ca","$cb","$cc","$cd","$ce","$cf",
+    "$d0","$d1","$d2","$d3","$d4","$d5","$d6","$d7","$d8","$d9","$da","$db","$dc","$dd","$de","$df",
+    "$e0","$e1","$e2","$e3","$e4","$e5","$e6","$e7","$e8","$e9","$ea","$eb","$ec","$ed","$ee","$ef",
+    "$f0","$f1","$f2","$f3","$f4","$f5","$f6","$f7","$f8","$f9","$fa","$fb","$fc","$fd","$fe","$ff",
+};
+
+static const char *petsym_alt1[NUM_PETSYMS] = {
+    /* 0x00 - 0x1f */
+    "",     "",     "",     "",     "",    "wht",  "",     "",
+    "dish", "ensh", "\n",   "",     "\f",  "\n",   "swlc", "",
+    "",     "down", "rvon", "home", "del", "",     "",     "",
+    "",     "",     "",     "esc",  "red", "rght", "grn",  "blu",
+    /* 0x20 - 0x3f */
+    "space", "", "", "", "", "", "", "",
+    "",      "", "", "", "", "", "", "",
+    "",      "", "", "", "", "", "", "",
+    "",      "", "", "", "", "", "", "",
+    /* 0x40 - 0x6f */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    /* 0x60 - 0x7f */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    /* 0x80 - 0x9f */
+    "",     "orng", "",     "",     "",     "F1",   "F3",   "F5",
+    "F7",   "F2",   "F4",   "F6",   "F8",   "sret", "swuc", "",
+    "blk",  "up",   "rvof", "clr",  "inst", "brn",  "lred", "gry1",
+    "gry2", "lgrn", "lblu", "gry3", "pur",  "left", "yel",  "cyn",
+    /* 0xa0 - 0xbf */
+    "SHIFT-SPACE", "CBM-K",       "CBM-I",   "CBM-T",   "CBM-@",   "CBM-G",   "CBM-+",   "CBM-M", 
+    "CBM-POUND",   "SHIFT-POUND", "CBM-N",   "CBM-Q",   "CBM-D",   "CBM-Z",   "CBM-S",   "CBM-P",
+    "CBM-A",       "CBM-E",       "CBM-R",   "CBM-W",   "CBM-H",   "CBM-J",   "CBM-L",   "CBM-Y",
+    "CBM-U",       "CBM-O",       "SHIFT-@", "CBM-F",   "CBM-C",   "CBM-X",   "CBM-V",   "CBM-B",
+    /* 0xc0 - 0xdf */
+    "SHIFT-*",     "SHIFT-A",     "SHIFT-B", "SHIFT-C", "SHIFT-D", "SHIFT-E", "SHIFT-F", "SHIFT-G",
+    "SHIFT-H",     "SHIFT-I",     "SHIFT-J", "SHIFT-K", "SHIFT-L", "SHIFT-M", "SHIFT-N", "SHIFT-O",
+    "SHIFT-P",     "SHIFT-Q",     "SHIFT-R", "SHIFT-S", "SHIFT-T", "SHIFT-U", "SHIFT-V", "SHIFT-W",
+    "SHIFT-X",     "SHIFT-Y",     "SHIFT-Z", "SHIFT-+", "CBM--",   "SHIFT--", "SHIFT-^", "CBM-*",
+    /* 0xe0 - 0xff */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", ""
+};
+
+/* Alternate mnemonics for control codes */
+
+static const char *petsym_alt2[NUM_PETSYMS] = {
+    /* 0x00 - 0x1f */
+    "",              "",               "",       "",     "",       "wht",    "",           "",
+    "up/lo lock on", "up/lo lock off", "",       "",     "",       "return", "lower case", "",
+    "",              "down",           "rvs on", "home", "delete", "",       "",           "",
+    "",              "",               "",       "esc",  "red",    "right",  "grn",        "blu",
+    /* 0x20 - 0x3f */
+    "space", "", "", "", "", "", "", "",
+    "",      "", "", "", "", "", "", "",
+    "",      "", "", "", "", "", "", "",
+    "",      "", "", "", "", "", "", "",
+    /* 0x40 - 0x5f */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    /* 0x60 - 0x6f */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    /* 0x80 - 0x9f */
+    "",      "orange",   "",        "",      "",       "f1",           "f3",         "f5",
+    "f7",    "f2",       "f4",      "f6",    "f8",     "shift return", "upper case", "",
+    "blk",   "up",       "rvs off", "clear", "insert", "brown",        "lt red",     "grey1",
+    "grey2", "lt green", "lt blue", "grey3", "pur",    "left",         "yel",        "cyn",
+    /* 0xa0 - 0xbf */
+    "", "", "", "", "", "", "",      "",
+    "", "", "", "", "", "", "",      "",
+    "", "", "", "", "", "", "",      "",
+    "", "", "", "", "", "", "",      "",
+    /* 0xc0 - 0xdf */
+    "", "", "", "", "", "", "",      "",
+    "", "", "", "", "", "", "",      "",
+    "", "", "", "", "", "", "",      "",
+    "", "", "", "", "", "", "CBM-^", "",
+    /* 0xe0 - 0xff */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", ""
+};
+
+static const char *petsym_alt3[NUM_PETSYMS] = {
+    /* 0x00 - 0x1f */
+    "", "", "",           "", "", "", "", "",
+    "", "", "",           "", "", "", "", "",
+    "", "", "REVERSE ON", "", "", "", "", "",
+    "", "", "",           "", "", "", "", "",
+    /* 0x20 - 0x3f */
+    "space", "", "", "", "", "", "", "",
+    "",      "", "", "", "", "", "", "",
+    "",      "", "", "", "", "", "", "",
+    "",      "", "", "", "", "", "", "",
+    /* 0x40 - 0x5f */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    /* 0x60 - 0x7f */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    /* 0x80 - 0x9f */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    /* 0xa0 - 0xbf */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    /* 0xc0 - 0xdf */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    /* 0xe0 - 0xff */
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", ""
+};
+
+static int findpetsym(const char **syms, char *str)
+{
+    int n;
+    for (n = 0; n < NUM_PETSYMS; n++) {
+        if (!strcasecmp(str, syms[n])) {
+            return n;
+        }
+    }
+    return -1;
+}
+
+unsigned char petsymbolic(unsigned char *str) {
+    int n;
+    if ((n = findpetsym(petsym_hex, str)) != -1) {
+        return n;
+    }
+    if ((n = findpetsym(petsym_alt1, str)) != -1) {
+        return n;
+    }
+    if ((n = findpetsym(petsym_alt2, str)) != -1) {
+        return n;
+    }
+    if ((n = findpetsym(petsym_alt3, str)) != -1) {
+        return n;
+    }
+    err_msg(ERROR______EXPECTED, "petascii symbol");
+    return ' ';
+}
+
+//------------------------------------------------------------------------------
 
 void adderror(char *s) {
     struct serrorlist *b;
@@ -605,6 +793,7 @@ const struct argp_option options[]={
     {"nostart" 	,	'b',		0,     	0,  "Strip starting address"},
     {"wordstart",	'W',		0,     	0,  "Force 2 byte start address"},
     {"ascii" 	,	'a',		0,     	0,  "Convert ASCII to PETASCII"},
+    {"petscii-literals",'p',            0,      0,  "interpret petcat style PETASCII literals"},
     {"case-sensitive",	'C',		0,     	0,  "Case sensitive labels"},
     {		0,	'o',"<file>"	,      	0,  "Place output into <file>"},
     {		0,	'D',"<label>=<value>",     	0,  "Define <label> to <value>"},
@@ -635,6 +824,7 @@ static error_t parse_opt (int key,char *arg,struct argp_state *state)
     case 'n':arguments.nonlinear=1;break;
     case 'b':arguments.stripstart=1;break;
     case 'a':arguments.toascii=1;break;
+    case 'p':arguments.petsym=1;break;
     case 'o':arguments.output=arg;break;
     case 'D':
     {
@@ -687,7 +877,8 @@ void testarg(int argc,char *argv[]) {
 		"Usage: 64tass [OPTION...] SOURCE\n"
 		"64tass Turbo Assembler Macro\n"
 		"\n"
-		"  -a, --ascii\t\t     Convert ASCII to PETASCII\n"
+                "  -a, --ascii\t\t     Convert ASCII to PETASCII\n"
+                "  -p, --petscii-literals\t\t     interpret petcat style PETASCII literals\n"
 		"  -b, --nostart\t\t     Strip starting address\n"
 		"  -B, --long-branch\t     Automatic bxx *+3 jmp $xxxx\n"
 		"  -C, --case-sensitive\t     Case sensitive labels\n"
@@ -740,7 +931,8 @@ void testarg(int argc,char *argv[]) {
 	if (!strcmp(argv[j],"-W") || !strcmp(argv[j],"--wordstart")) {arguments.wordstart=0;continue;}
 	if (!strcmp(argv[j],"-n") || !strcmp(argv[j],"--nonlinear")) {arguments.nonlinear=1;continue;}
 	if (!strcmp(argv[j],"-b") || !strcmp(argv[j],"--nostart")) {arguments.stripstart=1;continue;}
-	if (!strcmp(argv[j],"-a") || !strcmp(argv[j],"--ascii")) {arguments.toascii=1;continue;}
+        if (!strcmp(argv[j],"-a") || !strcmp(argv[j],"--ascii")) {arguments.toascii=1;continue;}
+        if (!strcmp(argv[j],"-p") || !strcmp(argv[j],"--petscii-literals")) {arguments.petsym=1;continue;}
 	if (!strcmp(argv[j],"-B") || !strcmp(argv[j],"--long-branch")) {arguments.longbranch=1;continue;}
         if (!strcmp(argv[j],"--m65xx")) {arguments.cpumode=OPCODES_6502;continue;}
         if (!strcmp(argv[j],"-i") || !strcmp(argv[j],"--m6502")) {arguments.cpumode=OPCODES_6502i;continue;}
