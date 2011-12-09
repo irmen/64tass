@@ -152,6 +152,12 @@ lda #"a"        -> result: $A9, $61
 lda #"a"        -> result: $A9, $41
 .text "1aA"     -> result: $31, $41, $C1
 
+-p, --petscii-literals Interpret petcat style PETASCII literals
+
+Example:
+
+.text "{clear}text{return}more"
+
 -b, --nostart Strip starting address
 
 Strips the 2 or 3 byte starting address before the resulting binary. Usefull
@@ -843,6 +849,61 @@ Compiler directives:
 .assert
 .check
     Do not use these, the syntax will change in next version!
+
+-------------------------------------------------------------------------------
+
+How to convert source code written for the original turbo assembler for use
+with 64tass:
+
+Currently there are two options, either use "TMPview" by Style to convert the
+sourcefile directly, or do the following:
+
+- load turbo assembler, start (by sys9*4096 or sys8*4096 depending on version)
+- <- (arrow left) then l to load a sourcefile
+- <- (arrow left) then w to write a sourcefile in petscii format
+- convert the result to ascii using petcat
+
+the resulting file should then (with the restrictions below) assemble using the
+following commandline:
+
+64tass -p -C -a -W -i source.s -o outfile.prg
+
+-------------------------------------------------------------------------------
+
+Differences to the original turbo ass macro on the C64:
+
+Expressions and operators:
+
+  .   for bitwise or
+  :   for bitwise eor
+
+Unlike standard expressions in C/C++, there is no operator precedence.
+
+  !    denotes an expression whose value may currently or later
+        be determined as needing only 1 byte (i.e. 0-255) but
+        which should be expanded into 2 bytes.
+
+Conditional assembly unsupported PseudoOps:
+
+  .var   - defines a variable identified by the label preceeding '.var',
+           which is set to the value following the '.var'.
+  .lbl   - identifies a label that can be referenced by a .goto
+  .goto  - causes assembler to goto the label referenced and continue
+           assembling from that point on.
+
+Macros:
+
+- macro parameters are referenced by \1, \2 instead of using the pound sign
+- text arguments (@1, @2) are not supported.
+- .segment (starts a macro definition but without a block) is not supported.
+
+Misc unsupported PseudoOps:
+
+  .pron     - turn on printing
+  .proff    - turn off printing
+  .hidemac  - show unexpanded calls
+  .showmac  - show expanded calls
+  .eor      - eor output with some value
 
 -------------------------------------------------------------------------------
 
