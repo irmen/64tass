@@ -980,10 +980,12 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 
                         ignore();
                         ch=here();
+
                         if (ch=='"' || ch=='\'') {
                             quo=ch;
 			    if (pline[lpoint+1] && pline[lpoint+1]!=quo && pline[lpoint+2]==quo) goto textconst;
                             lpoint++;
+                            /* handle the string in quotes */
 			    for (;;) {
 				if (!(ch=get())) {err_msg(ERROR______EXPECTED,"End of string"); break;}
 				if (ch==quo) {
@@ -992,7 +994,28 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                                 if (ch2>=0) {
                                     pokeb(ch2);
                                 }
-                                ch2=(unsigned char)petascii(ch);
+                                /* convert character to output format */
+                                if ((arguments.petsym == 1) && (ch=='{')) {
+                                    char sym[0x10];
+                                    int n = 0;
+                                    ch=get();
+                                    while (ch!='}') {
+                                        sym[n]=ch;
+                                        n++;
+                                        if (n == 0x10) {
+                                            err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;
+                                        }
+                                        ch=get();
+                                    }
+                                    if (n == 0) {
+                                        err_msg(ERROR______EXPECTED, "petascii symbol"); goto cvege2;
+                                    }
+                                    sym[n] = 0;
+                                    ch2 = (unsigned char)petsymbolic(sym);
+                                } else {
+                                    ch2 = (unsigned char)petascii(ch);
+                                }
+
                                 if (prm==CMD_CHAR) {if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}}
                                 else if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
                                     if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
@@ -1005,6 +1028,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             }
                             goto cvege;
 			}
+
 			if (ch=='^') {
                             lpoint++;
 			    val=get_exp(&w,&d,&c);if (!d) fixeddig=0;
