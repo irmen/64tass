@@ -153,6 +153,13 @@ lda #"a"	-&gt; result: $A9, $41
 .text "1aA"	-&gt; result: $31, $41, $C1
 </pre>
 
+<h4>-p, --petscii-literals Interpret petcat style PETASCII literals</h4>
+<p></p>
+<h5>Example:</h5>
+<pre>
+.text "{clear}text{return}more"
+</pre>
+
 <h4>-b, --nostart Strip starting address</h4>
 Strips the 2 or 3 byte starting address before the resulting binary.
 Usefull for creating ROM images.
@@ -850,6 +857,61 @@ can ruin the timing of a carefuly cycle counted code.
 <dd>Do not use these, the syntax will change in next version!
 </dl>
 
+<hr>
+<h2>How to convert source code written for the original turbo assembler for use
+with 64tass</h2>
+
+Currently there are two options, either use "TMPview" by Style to convert the
+sourcefile directly, or do the following:
+<ul>
+<li>load turbo assembler, start (by sys9*4096 or sys8*4096 depending on version)
+<li><- (arrow left) then l to load a sourcefile
+<li><- (arrow left) then w to write a sourcefile in petscii format
+<li>convert the result to ascii using petcat (from the vice package)
+</ul>
+the resulting file should then (with the restrictions below) assemble using the
+following commandline:<br>
+<p>
+<tt>64tass -p -C -a -W -i source.s -o outfile.prg</tt>
+</p>
+<hr>
+<h2>Differences to the original turbo ass macro on the C64</h2>
+
+<h3>Expressions</h3>
+The original expression parser has no operator precedence (but 64tass has). That
+means that you will have to fix expressions using braces accordingly.
+
+<h3>Unsupported Operators</h3>
+<ul>
+<li>  .   for bitwise or
+<li>  :   for bitwise eor
+<li>  !   to force 16bit address
+</ul>
+
+<h3>Conditional assembly unsupported PseudoOps</h3>
+<ul>
+<li>  .var   - defines a variable identified by the label preceeding '.var',
+           which is set to the value following the '.var'.
+<li>  .lbl   - identifies a label that can be referenced by a .goto
+<li>  .goto  - causes assembler to goto the label referenced and continue
+           assembling from that point on.
+</ul>
+
+<h3>Macros</h3>
+<ul>
+<li>macro parameters are referenced by \1, \2 instead of using the pound sign
+<li>text arguments (@1, @2) are not supported.
+<li>.segment (starts a macro definition but without a block) is not supported.
+</ul>
+
+<h3>Misc unsupported PseudoOps</h3>
+<ul>
+<li>  .pron     - turn on printing
+<li>  .proff    - turn off printing
+<li>  .hidemac  - show unexpanded calls
+<li>  .showmac  - show expanded calls
+<li>  .eor      - eor output with some value
+</ul>
 <hr>
 <h2>Messages</h2>
 

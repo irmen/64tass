@@ -793,7 +793,7 @@ const struct argp_option options[]={
     {"nostart" 	,	'b',		0,     	0,  "Strip starting address"},
     {"wordstart",	'W',		0,     	0,  "Force 2 byte start address"},
     {"ascii" 	,	'a',		0,     	0,  "Convert ASCII to PETASCII"},
-    {"petscii-literals",'p',            0,      0,  "interpret petcat style PETASCII literals"},
+    {"petscii-literals",'p',            0,      0,  "Interpret petcat style PETASCII literals"},
     {"case-sensitive",	'C',		0,     	0,  "Case sensitive labels"},
     {		0,	'o',"<file>"	,      	0,  "Place output into <file>"},
     {		0,	'D',"<label>=<value>",     	0,  "Define <label> to <value>"},
@@ -878,7 +878,7 @@ void testarg(int argc,char *argv[]) {
 		"64tass Turbo Assembler Macro\n"
 		"\n"
                 "  -a, --ascii\t\t     Convert ASCII to PETASCII\n"
-                "  -p, --petscii-literals\t\t     interpret petcat style PETASCII literals\n"
+                "  -p, --petscii-literals\t\t     Interpret petcat style PETASCII literals\n"
 		"  -b, --nostart\t\t     Strip starting address\n"
 		"  -B, --long-branch\t     Automatic bxx *+3 jmp $xxxx\n"
 		"  -C, --case-sensitive\t     Case sensitive labels\n"
