@@ -263,6 +263,13 @@ Example
 
 64tass --wordstart --m65816 a.asm
 
+Compatibility Options
+
+-P, --no-precedence No operator precedence in expressions
+
+Disables operator precedence in all expressions to imitate the behaviour of the
+original turbo assembler on the C64.
+
 Target selection on command line
 
 These options will select the default architecture. It can be overridden by
@@ -861,27 +868,30 @@ sourcefile directly, or do the following:
 - load turbo assembler, start (by sys9*4096 or sys8*4096 depending on version)
 - <- (arrow left) then l to load a sourcefile
 - <- (arrow left) then w to write a sourcefile in petscii format
-- convert the result to ascii using petcat
+- convert the result to ascii using petcat (from the vice package)
 
 the resulting file should then (with the restrictions below) assemble using the
 following commandline:
 
-64tass -p -C -a -W -i source.s -o outfile.prg
+64tass -P -p -C -a -W -i source.s -o outfile.prg
 
 -------------------------------------------------------------------------------
 
 Differences to the original turbo ass macro on the C64:
 
-Expressions and operators:
+Expressions:
+
+The original expression parser has no operator precedence (but 64tass has). That
+means that you will have to fix expressions using braces accordingly.
+
+You can switch 64tass to the original behaviour using the -P, --no-precedence
+option.
+
+Unsupported Operators:
 
   .   for bitwise or
   :   for bitwise eor
-
-Unlike standard expressions in C/C++, there is no operator precedence.
-
-  !    denotes an expression whose value may currently or later
-        be determined as needing only 1 byte (i.e. 0-255) but
-        which should be expanded into 2 bytes.
+  !   to force 16bit address
 
 Conditional assembly unsupported PseudoOps:
 

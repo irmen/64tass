@@ -406,33 +406,67 @@ long get_num(int *cd, int mode) {
     }
 }
 
-int priority(char ch) {
-    switch (ch)
-    {
-    case '(':return 0;
-    case 'l':          // <
-    case 'h':          // >
-    case 'H':return 5; // `
-    case '=':
-    case '<':
-    case '>':
-    case 'o':          // !=
-    case 'g':          // >=
-    case 's':return 10;// <=
-    case '+':
-    case '-':return 15;
-    case '*':
-    case '/':
-    case 'u':return 20;// mod
-    case '|':
-    case '^':return 25;
-    case '&':return 30;
-    case 'm':          // <<
-    case 'd':return 35;// >>
-    case 'n':          // -
-    case 'i':          // ~
-    case 't':return 40;// !
-    default:return 0;
+/*
+ * get priority for operator in an expression
+ */
+static int priority(char ch) 
+{
+    if (arguments.noprecedence) {
+        switch (ch)
+        {
+            case '(':return 0;
+            case 'l':          // <
+            case 'h':          // >
+            case 'H':          // `
+            case '=':
+            case '<':
+            case '>':
+            case 'o':          // !=
+            case 'g':          // >=
+            case 's':          // <=
+            case '+':
+            case '-':
+            case '*':
+            case '/':
+            case 'u':          // mod
+            case '|':
+            case '^':
+            case '&':
+            case 'm':          // <<
+            case 'd':          // >>
+            case 'n':          // -
+            case 'i':          // ~
+            case 't':return 20;// !
+            default:return 0;
+        }
+    } else {
+        switch (ch)
+        {
+            case '(':return 0;
+            case 'l':          // <
+            case 'h':          // >
+            case 'H':return 5; // `
+            case '=':
+            case '<':
+            case '>':
+            case 'o':          // !=
+            case 'g':          // >=
+            case 's':return 10;// <=
+            case '+':
+            case '-':return 15;
+            case '*':
+            case '/':
+            case 'u':return 20;// mod
+            case '|':
+            case '^':return 25;
+            case '&':return 30;
+            case 'm':          // <<
+            case 'd':return 35;// >>
+            case 'n':          // -
+            case 'i':          // ~
+            case 't':return 40;// !
+            default:return 0;
+        }
     }
 }
 
