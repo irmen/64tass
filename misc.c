@@ -689,6 +689,9 @@ void tfree() {
 	c=c->next;
 	free(old);
     }
+    free(arguments.input);
+    free(arguments.output);
+    free(arguments.list);
 }
 #endif
 
