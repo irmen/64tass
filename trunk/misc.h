@@ -155,6 +155,7 @@ extern unsigned long curfnum, reffile;
 extern char tolower_tab[256];
 extern const unsigned char whatis[256];
 extern unsigned char petascii(unsigned char);
+extern unsigned char encode(unsigned char);
 extern unsigned char petsymbolic(unsigned char*);
 extern void err_msg(unsigned char, char*);
 extern struct slabel* find_label(char*);
