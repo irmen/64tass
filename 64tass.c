@@ -1,5 +1,5 @@
 /*
-    Turbo Assembler 6502/65C02/65816/CPU64/DTV
+    Turbo Assembler 6502/65C02/65816/DTV
     Copyright (C) <year>  <name of author>
 
    6502/65C02 Turbo Assembler  Version 1.3
@@ -8,7 +8,7 @@
    6502/65C02 Turbo Assembler  Version 1.35  ANSI C port
    (c)2000 [BiGFooT/BReeZe^2000]
   
-   6502/65C02/65816/CPU64/DTV Turbo Assembler  Version 1.4x
+   6502/65C02/65816/DTV Turbo Assembler  Version 1.4x
    (c)2001-2005 Soci/Singular (soci@c64.rulez.org)
 
     This program is free software; you can redistribute it and/or modify
@@ -65,7 +65,7 @@ static FILE* flist;             //listfile
 static char lastl=1;            //for listing (skip one line
 static int logisave=0;          // number of nested .logical
 static unsigned long* logitab;  //.logical .here
-static char longaccu=0,longindex=0,scpumode=0,cpu64mode=0,dtvmode=0;
+static char longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static unsigned char databank=0;
 static unsigned int dpage=0;
 static char fixeddig;
@@ -205,7 +205,7 @@ void pokeb(unsigned char byte) {
 	if (fixeddig) wrapwarn=1;
 	address=0;
     }
-    if ((fixeddig) && (scpumode || cpu64mode)) if (!(address & 0xffff) || !(l_address & 0xffff)) wrapwarn2=1;
+    if (fixeddig && scpumode) if (!(address & 0xffff) || !(l_address & 0xffff)) wrapwarn2=1;
 }
 
 // ---------------------------------------------------------------------------
@@ -759,13 +759,12 @@ void mtranslate(char* mpr, int nprm, char *cucc) //macro parameter expansion
 }
 
 void set_cpumode(int cpumode) {
-    all_mem=0x00ffff;scpumode=0;cpu64mode=0;dtvmode=0;
+    all_mem=0x00ffff;scpumode=0;dtvmode=0;
     switch (last_mnem=cpumode) {
     case OPCODES_6502: mnemonic=MNEMONIC6502; opcode=c6502;break;
     case OPCODES_65C02:mnemonic=MNEMONIC65C02;opcode=c65c02;break;
     case OPCODES_6502i:mnemonic=MNEMONIC6502i;opcode=c6502i;break;
     case OPCODES_65816:mnemonic=MNEMONIC65816;opcode=c65816;all_mem=0xffffff;scpumode=1;break;
-    case OPCODES_CPU64:mnemonic=MNEMONICCPU64;opcode=ccpu64;all_mem=0xffffff;cpu64mode=1;break;
     case OPCODES_65DTV02:mnemonic=MNEMONIC65DTV02;opcode=c65dtv02;dtvmode=1;break;
     }
 }
@@ -1376,7 +1375,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);
                             address&=all_mem;
                         }
-                        if ((fixeddig) && (scpumode || cpu64mode)) if (!(address & 0xffff) || !(l_address & 0xffff)) err_msg(ERROR___BANK_BORDER,NULL);
+                        if (fixeddig && scpumode) if (!(address & 0xffff) || !(l_address & 0xffff)) err_msg(ERROR___BANK_BORDER,NULL);
                     } else
                         while (db-->0) pokeb((unsigned char)val);
 		    break;
@@ -1437,7 +1436,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     else if (!strcasecmp(path,"65c02")) def=OPCODES_65C02;
                     else if (!strcasecmp(path,"6502i")) def=OPCODES_6502i;
                     else if (!strcmp(path,"65816")) def=OPCODES_65816;
-                    else if (!strcasecmp(path,"cpu64")) def=OPCODES_CPU64;
                     else if (!strcasecmp(path,"65dtv02")) def=OPCODES_65DTV02;
                     else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,ident);
                     set_cpumode(def);
@@ -1517,7 +1515,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                                     if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);
                                     address&=all_mem;
                                 }
-                                if ((fixeddig) && (scpumode || cpu64mode)) if (!(address & 0xffff) || !(l_address & 0xffff)) err_msg(ERROR___BANK_BORDER,NULL);
+                                if (fixeddig && scpumode) if (!(address & 0xffff) || !(l_address & 0xffff)) err_msg(ERROR___BANK_BORDER,NULL);
                             }
                         }
                     }
@@ -1747,7 +1745,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 	case WHAT_MNEMONIC:if (skipit[waitforp] & 1) {//skip things if needed
             int opr,mnem=prm;
             int oldlpoint=lpoint;
-	    const unsigned char* cnmemonic=&opcode[prm*25]; //current nmemonic
+	    const unsigned char* cnmemonic=&opcode[prm*24]; //current nmemonic
 	    char ln;
 	    unsigned char cod,longbranch=0;
 
@@ -1860,13 +1858,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			if (w==3) {//auto length
 			    if (d) {
 				if (cnmemonic[ADR_ZP_Y]!=____ && val>=dpage && val<(dpage+0x100)) {val-=dpage;w=0;}
-				else if (cnmemonic[ADR_ADDR_Y]!=____ && databank==(((unsigned)val) >> 16)) w=1;
-				else {
-				    w=val_length(val);
-				    if (w<2) w=2;
-				}
+				else if (databank==(((unsigned)val) >> 16)) w=1;
 			    } else {fixeddig=0;w=1;}
 			} else if (val>=dpage && val<(dpage+0x100)) val-=dpage;
+			if (w==2) w=3; // there's no lda $ffffff,y!
 			opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
 		    }// 8 Db
 		    else if (wht==WHAT_S) {
@@ -2141,7 +2136,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    case ADR_ZP_X_I: fprintf(flist," ($%02x,x)",(unsigned char)val); break;
 		    case ADR_ZP_S: fprintf(flist," $%02x,s",(unsigned char)val); break;
 		    case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(unsigned char)val); break;
-		    case ADR_LONG_Y: fprintf(flist," $%06x,y",(unsigned)(val&0xffffff)); break;
 		    case ADR_ADDR_Y: fprintf(flist," $%04x,y",(unsigned)(val&0xffff)); break;
 		    case ADR_ZP_Y: fprintf(flist," $%02x,y",(unsigned char)val); break;
 		    case ADR_ZP_LI_Y: fprintf(flist," [$%02x],y",(unsigned char)val); break;
@@ -2208,11 +2202,11 @@ int main(int argc,char *argv[]) {
     if (arguments.quiet)
     fprintf(stdout,"6502/65C02 Turbo Assembler Version 1.3  Copyright (c) 1997 Taboo Productions\n"
                    "6502/65C02 Turbo Assembler Version 1.35 ANSI C port by [BiGFooT/BReeZe^2000]\n"
-                   "6502/65C02/65816/CPU64/DTV TASM Version 1.46 Fixing by Soci/Singular 2001-2010\n"
+                   "6502/65C02/65816/DTV TASM Version 1.46 Fixing by Soci/Singular 2001-2011\n"
                    "64TASS comes with ABSOLUTELY NO WARRANTY; This is free software, and you\n"
                    "are welcome to redistribute it under certain conditions; See LICENSE!\n");
     
-    if (arguments.cpumode==OPCODES_65816 || arguments.cpumode==OPCODES_CPU64) all_mem=0xffffff;
+    if (arguments.cpumode==OPCODES_65816) all_mem=0xffffff;
     else all_mem=0x00ffff;
     full_mem=all_mem;
 
@@ -2241,7 +2235,7 @@ int main(int argc,char *argv[]) {
     if (arguments.list) {
         listing=1;
         if (!(flist=fopen(arguments.list,"wt"))) err_msg(ERROR_CANT_DUMP_LST,arguments.list);
-	fprintf(flist,"\n;6502/65C02/65816/CPU64/DTV Turbo Assembler V1.46 listing file of \"%s\"\n",arguments.input);
+	fprintf(flist,"\n;6502/65C02/65816/DTV Turbo Assembler V1.46 listing file of \"%s\"\n",arguments.input);
 	time(&t);
         fprintf(flist,";done on %s\n",ctime(&t));
 
@@ -2276,21 +2270,21 @@ int main(int argc,char *argv[]) {
 		bl_len-=bl_adr;
 		fputc(bl_len,fout);
 		fputc(bl_len >> 8,fout);
-		if (scpumode || cpu64mode) fputc(bl_len >> 16,fout);
+		if (scpumode) fputc(bl_len >> 16,fout);
 		fputc(bl_adr,fout);
 		fputc(bl_adr >> 8,fout);
-		if (scpumode || cpu64mode) fputc(bl_adr >> 16,fout);
+		if (scpumode) fputc(bl_adr >> 16,fout);
 		if (fwrite(mem64+bl_adr,bl_len,1,fout)==0) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
 		bl_adr+=bl_len;
 	    }
 	    bl_len=0;
-	    fwrite(&bl_len,2+scpumode+cpu64mode,1,fout);
+	    fwrite(&bl_len,2+scpumode,1,fout);
 	}
 	else {
 	    if (!arguments.stripstart) {
 		fputc(low_mem,fout);
 		fputc(low_mem >> 8,fout);
-		if ((scpumode || cpu64mode) && arguments.wordstart) fputc(low_mem >> 16,fout);
+		if (scpumode && arguments.wordstart) fputc(low_mem >> 16,fout);
 	    }
 	    if (fwrite(mem64+low_mem,top_mem-low_mem+1,1,fout)==0) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
 	}
