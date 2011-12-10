@@ -143,7 +143,7 @@ void readln(FILE* fle) {
             ch=fgetc(fle);
             if (feof(fle)) ch=10;
             if (ch!=10) {
-                if (ch==':') ch=32;
+                if ((ch == ':') && (!arguments.oldops)) ch=32;
                 ungetc(ch,fle);
             } else goto ide;
             sline++;break;
@@ -152,7 +152,7 @@ void readln(FILE* fle) {
         ide:
             ch=fgetc(fle);
             if (!feof(fle)) {
-                if (ch==':') ch=32;
+                if ((ch == ':') && (!arguments.oldops)) ch=32;
                 ungetc(ch,fle);
             }
             sline++;break;
@@ -163,7 +163,7 @@ void readln(FILE* fle) {
         if (!q) {
             if (ch==9) ch=32;
             if (ch==';') {ch=32;q=4;}
-            if (ch==':') {
+            if ((ch == ':') && (!arguments.oldops)) {
                 i2--;
                 if (i2) {
                     ungetc(ch,fle);
@@ -417,7 +417,7 @@ static int priority(char ch)
             case '(':return 0;
             case 'l':          // <
             case 'h':          // >
-            case 'H':          // `
+            case 'H':return 5; // `
             case '=':
             case '<':
             case '>':
@@ -436,7 +436,7 @@ static int priority(char ch)
             case 'd':          // >>
             case 'n':          // -
             case 'i':          // ~
-            case 't':return 20;// !
+            case 't':return 40;// !
             default:return 0;
         }
     } else {
@@ -540,7 +540,12 @@ long get_exp(int *wd, int *df,int *cd) {// length in bytes, defined
                 }
                 pushs('n');
                 continue;
-            case '!': pushs('t'); continue;
+            case '!': 
+                if (!arguments.oldops) {
+                    pushs('t'); continue;
+                }
+                /* TODO: ! operator (tass) forces 16bit address */
+                break;
             case '~': pushs('i'); continue;
             case '<': pushs('l'); continue;
             case '>': pushs('h'); continue;
@@ -558,15 +563,20 @@ long get_exp(int *wd, int *df,int *cd) {// length in bytes, defined
 	else {
 	    ignore();
 	    if ((ch=pline[lpoint])=='&' || ch=='|' || ch=='^' ||
-		ch=='*' || ch=='/' || ch=='+' || ch=='-' || ch=='=' ||
-		ch=='<' || ch=='>' || (ch=='!' && pline[lpoint+1]=='=')) {
+		ch=='*' || ch=='/' || ch=='+' || ch=='-' || 
+		ch=='=' || ch=='<' || ch=='>' || 
+                (ch=='.' && arguments.oldops) ||
+                (ch==':' && arguments.oldops) ||
+		(ch=='!' && pline[lpoint+1]=='=')) {
 		if (tp) tp=1;
 		if ((ch=='<') && (pline[lpoint+1]=='<')) {pushs('m'); lpoint++;}
 		else if ((ch=='>') && (pline[lpoint+1]=='>')) {pushs('d'); lpoint++;}
 		else if ((ch=='>') && (pline[lpoint+1]=='=')) {pushs('g'); lpoint++;}
 		else if ((ch=='<') && (pline[lpoint+1]=='=')) {pushs('s'); lpoint++;}
 		else if ((ch=='/') && (pline[lpoint+1]=='/')) {pushs('u'); lpoint++;}
-		else if (ch=='!') {pushs('o'); lpoint++;}
+                else if (ch=='!') {pushs('o'); lpoint++;}
+                else if (ch=='.') {pushs('|');} // bitor (tass)
+                else if (ch==':') {pushs('^');} // bitxor (tass)
 		else pushs(ch);
 		nd=0;
 		lpoint++;

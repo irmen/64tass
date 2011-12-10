@@ -137,6 +137,7 @@ struct arguments_t {
     int wordstart;
     int petsym;
     int noprecedence;
+    int oldops;
 };
 
 #ifdef _MISC_C_
