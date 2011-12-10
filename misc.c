@@ -860,14 +860,15 @@ void testarg(int argc,char *argv[]) {
 		"64tass Turbo Assembler Macro\n"
 		"\n"
                 "  -a, --ascii\t\t     Convert ASCII to PETASCII\n"
-                "  -p, --petscii-literals\t\t     Interpret petcat style PETASCII literals\n"
 		"  -b, --nostart\t\t     Strip starting address\n"
 		"  -B, --long-branch\t     Automatic bxx *+3 jmp $xxxx\n"
 		"  -C, --case-sensitive\t     Case sensitive labels\n"
-                "  -P, --no-precedence\t     No operator precedence in expressions\n"
 		"  -D <label>=<value>\t     Define <label> to <value>\n"
 		"  -n, --nonlinear\t     Generate nonlinear output file\n"
 		"  -o <file>\t\t     Place output into <file>\n"
+                "  -p, --petscii-literals     Interpret petcat style PETASCII literals\n"
+                "  -P, --no-precedence\t     No operator precedence in expressions\n"
+		"  -q, --quiet\t\t     Display errors/warnings\n"
 		"  -w, --no-warn\t\t     Suppress warnings\n"
 		"  -W, --wordstart\t     Force 2 byte start address\n"
 		"\n"
@@ -917,6 +918,7 @@ void testarg(int argc,char *argv[]) {
         if (!strcmp(argv[j],"-a") || !strcmp(argv[j],"--ascii")) {arguments.toascii=1;continue;}
         if (!strcmp(argv[j],"-p") || !strcmp(argv[j],"--petscii-literals")) {arguments.petsym=1;continue;}
         if (!strcmp(argv[j],"-P") || !strcmp(argv[j],"--no-precedence")) {arguments.noprecedence=1;continue;}
+        if (!strcmp(argv[j],"-q") || !strcmp(argv[j],"--quiet")) {arguments.quiet=0;continue;}
 	if (!strcmp(argv[j],"-B") || !strcmp(argv[j],"--long-branch")) {arguments.longbranch=1;continue;}
         if (!strcmp(argv[j],"--m65xx")) {arguments.cpumode=OPCODES_6502;continue;}
         if (!strcmp(argv[j],"-i") || !strcmp(argv[j],"--m6502")) {arguments.cpumode=OPCODES_6502i;continue;}
