@@ -208,7 +208,7 @@ static const char *petsym[] = {
    NULL
 };
 
-unsigned char petsymbolic(unsigned char *str) {
+unsigned char petsymbolic(char *str) {
     int n, n2;
     const char **syms;
 
