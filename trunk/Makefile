@@ -2,7 +2,7 @@ CC = gcc
 OBJ = 64tass.o opcodes.o misc.o
 #CFLAGS = -O2 -march=i486 -mcpu=i486 -pipe
 #CFLAGS = -Wall -O3 -march=i686 -pipe -fomit-frame-pointer -fno-exceptions
-#CFLAGS = -Wall
+CFLAGS = -g
 
 all: 64tass
 

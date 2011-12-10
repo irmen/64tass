@@ -892,16 +892,13 @@ means that you will have to fix expressions using braces accordingly.
 You can switch 64tass to the original behaviour using the <tt>-P, --no-precedence</tt>
 option.
 </p>
-<h3>Unsupported Operators</h3>
+<h3>Tass Operators</h3>
 <ul>
 <li>  .   for bitwise or
 <li>  :   for bitwise eor
+<li>  !   to force 16bit address (only as first character of expression)
 </ul>
 these two can be enabled using the <tt>-O, --compatible-ops</tt> option
-<ul>
-<li>  !   to force 16bit address
-</ul>
-this one will currently give an error if the  <tt>-O, --compatible-ops</tt> option is used.
 
 <h3>Conditional assembly unsupported PseudoOps</h3>
 <ul>

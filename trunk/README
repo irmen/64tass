@@ -886,17 +886,13 @@ That means that you will have to fix expressions using braces accordingly.
 You can switch 64tass to the original behaviour using the -P, --no-precedence
 option.
 
-Unsupported Operators
+Tass Operators
 
   * . for bitwise or
   * : for bitwise eor
+  * ! to force 16bit address (only as first character of expression)
 
 these two can be enabled using the -O, --compatible-ops option
-
-  * ! to force 16bit address
-
-this one will currently give an error if the -O, --compatible-ops option is
-used.
 
 Conditional assembly unsupported PseudoOps
 

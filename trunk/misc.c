@@ -690,8 +690,9 @@ void tfree() {
 	free(old);
     }
     free(arguments.input);
-    free(arguments.output);
+    //free(arguments.output);
     free(arguments.list);
+    free(arguments.label);
 }
 #endif
 
@@ -985,9 +986,9 @@ void testarg(int argc,char *argv[]) {
 	printf("Usage: 64tass [OPTION...] SOURCE\n");
 	ide:
 	printf("Try `64tass --help' or `64tass --usage' for more information.\n");
-        if (arguments.list) free(arguments.list);
-        if (arguments.label) free(arguments.label);
-	if (arguments.input) free(arguments.input);
+        free(arguments.list);
+        free(arguments.label);
+	free(arguments.input);
 	if (out) free(arguments.output);
 	exit(1);
     }

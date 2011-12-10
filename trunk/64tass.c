@@ -501,10 +501,9 @@ long get_exp(int *wd, int *df,int *cd) {// length in bytes, defined
     *cd=0;    // 0=error
 
     ignore();
-    if (pline[lpoint]=='@')
-    {
-	switch (lowcase(pline[++lpoint]))
-	{
+    switch (pline[lpoint]) {
+    case '@':
+	switch (lowcase(pline[++lpoint])) {
 	case 'b':*wd=0;break;
 	case 'w':*wd=1;break;
 	case 'l':*wd=2;break;
@@ -512,8 +511,16 @@ long get_exp(int *wd, int *df,int *cd) {// length in bytes, defined
 	}
         lpoint++;
 	ignore();
+        break;
+    case '!':
+        if (arguments.oldops) {
+            *wd=1;
+            lpoint++;
+            ignore();
+        }
+        break;
+    case '(': tp=1; break;
     }
-    if (pline[lpoint]=='(') tp=1;
     for (;;) {
         if (!nd) {
             int db=0;
@@ -540,12 +547,7 @@ long get_exp(int *wd, int *df,int *cd) {// length in bytes, defined
                 }
                 pushs('n');
                 continue;
-            case '!': 
-                if (!arguments.oldops) {
-                    pushs('t'); continue;
-                }
-                /* TODO: ! operator (tass) forces 16bit address */
-                break;
+            case '!': pushs('t'); continue;
             case '~': pushs('i'); continue;
             case '<': pushs('l'); continue;
             case '>': pushs('h'); continue;
