@@ -31,24 +31,22 @@
 #define ADR_ZP_X_I    10
 #define ADR_ZP_S      11
 #define ADR_ZP_S_I_Y  12
-#define ADR_LONG_Y    13
-#define ADR_ADDR_Y    14
-#define ADR_ZP_Y      15
-#define ADR_ZP_LI_Y   16
-#define ADR_ZP_I_Y    17
-#define ADR_ADDR_LI   18
-#define ADR_ZP_LI     19
-#define ADR_ADDR_I    20
-#define ADR_ZP_I      21
-#define ADR_REL_L     22
-#define ADR_REL       23
-#define ADR_MOVE      24
+#define ADR_ADDR_Y    13
+#define ADR_ZP_Y      14
+#define ADR_ZP_LI_Y   15
+#define ADR_ZP_I_Y    16
+#define ADR_ADDR_LI   17
+#define ADR_ZP_LI     18
+#define ADR_ADDR_I    19
+#define ADR_ZP_I      20
+#define ADR_REL_L     21
+#define ADR_REL       22
+#define ADR_MOVE      23
 
 #define OPCODES_65816 111
 #define OPCODES_6502 68
 #define OPCODES_65C02 79
 #define OPCODES_6502i 98
-#define OPCODES_CPU64 81
 #define OPCODES_65DTV02 89
 #define ____ 0x42
 // 0x42 =WDM                  
@@ -64,9 +62,6 @@ extern const unsigned char c65c02[];
 extern const unsigned char c6502i[];
 #define MNEMONIC6502i "adcahxalrancandanearraslasraxsbccbcsbeqbgebitbltbmibnebplbrkbvcbvsclccldcliclvcmpcpxcpydcmdcpdecdexdeyeorgccgcsgeqggegltgmignegplgvcgvsincinsinxinyisbiscjamjmpjsrlaelaslaxldaldsldxldylsrlxanoporaphaphpplaplprlarolrorrrartirtssaxsbcsbxsecsedseishashsshxshyslosrestastxstytastaxtaytsxtxatxstyaxaa";
 //                      1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98
-extern const unsigned char ccpu64[];
-#define MNEMONICCPU64 "adcandaslbccbcsbeqbgebitbltbmibnebplbrabrkbvcbvsclccldcliclvcmpcpxcpydeadecdexdeyeorgccgcsgeqggegltgmignegplgvcgvsinaincinxinyjmljmpjsljsrldaldxldylsrnoporaphaphbphpphxphyplaplbplpplxplyrolrorrtirtlrtssbcsecsedseistastxstystztaxtaytsxtxatxstya";
-//                       1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81
 extern const unsigned char c65dtv02[];
 #define MNEMONIC65DTV02 "adcalrandanearraslasrbccbcsbeqbgebitbltbmibnebplbrabrkbvcbvsclccldcliclvcmpcpxcpydcmdcpdecdexdeyeorgccgcsgeqggegltgmignegplgragvcgvsincinsinxinyisbiscjmpjsrlaxldaldxldylsrlxanoporaphaphpplaplprlarolrorrrartirtssacsaxsbcsecsedseisirslosrestastxstytaxtaytsxtxatxstyaxaa";
 //                        1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89

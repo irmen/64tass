@@ -11,8 +11,9 @@ dl.dir pre {border:1px solid silver}
 <h1>64tass v1.46 manual</h1>
 
 <p>Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
-BigFoot/Breeze, and finally added 65816 support, CPU64, DTV, illegal opcodes,
-optimizations, multi pass compile and a lot of features by Soci/Singular.</p>
+BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
+optimizations, multi pass compile and a lot of features by Soci/Singular.
+Improved Tasm compatibility, petscii codes by Groepaz.</p>
 
 <p>Compile it with "make", if argp is missing or search.h then try to add
 -DWIN32 to CFLAGS. (that workarounds these, but there's a small performance
@@ -45,7 +46,7 @@ size for .binary, anonymous forward and backward reference (+-), initial
 cop # and brk # fix, empty macro parameter fix, added .long, some constant too large
 bugfix, jmp/jsr ($ffff,x) must be in the same bank, now .cerror and .cwarn accepts parameter,
 upper byte of negative number correct now, .shiftl and .option added,
-.ptext added
+.ptext added, removed CPU64 support
 </dl>
 
 <hr>
@@ -249,7 +250,7 @@ Disables header and summary messages.
 </pre>
 
 <h4><tt>-W, --wordstart</tt> Force 2 byte start address</h4>
-It 16&nbsp;MiB address space is used for 65816 or CPU64, then the starting
+It 16&nbsp;MiB address space is used for 65816, then the starting
 address of file will be 3 bytes long. This option makes it 2 bytes long.
 <h5>Example</h5>
 <pre>
@@ -310,15 +311,6 @@ Useful for SuperCPU projects. Don't forget to use "--word-start" for small ones 
 lda $123456,x
 </pre>
 
-<h4><tt>-X, --mcpu64</tt> CPU64</h4>
-Selects CPU64. Enables extra opcodes, and full 16&nbsp;MiB address space.
-This CPU is not yet built, opcodes may change.
-<h5>Example</h5>
-<pre>
-64tass --mcpu64 a.asm
-ldx $123456
-</pre>
-
 <h3>Source listing options</h3>
 
 <h4><tt>-l &lt;file&gt;</tt> List labels into &lt;file&gt;</h4>
@@ -347,7 +339,7 @@ loop	dex
 
 result (list.txt):
 
-;6502/65C02/65816/CPU64/DTV Turbo Assembler V1.4x listing file of "a.asm"
+;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
 ;done on Fri Dec  9 19:08:55 2005
 
 
@@ -367,7 +359,7 @@ There won't be any monitor listing in the list file.
 
 result (list.txt):
 
-;6502/65C02/65816/CPU64/DTV Turbo Assembler V1.4x listing file of "a.asm"
+;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
 ;done on Fri Dec  9 19:11:43 2005
 
 
@@ -387,7 +379,7 @@ There won't be any source listing in the list file.
 
 result (list.txt):
 
-;6502/65C02/65816/CPU64/DTV Turbo Assembler V1.4x listing file of "a.asm"
+;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
 ;done on Fri Dec  9 19:13:25 2005
 
 
@@ -842,7 +834,6 @@ loop	adc #1		;padding with "nop" for DTV burst mode
 	.cpu 65c02	;CMOS 65C02
 	.cpu 6502i	;NMOS 65xx
 	.cpu 65816	;W65C816
-	.cpu cpu64	;CPU64
 	.cpu 65dtv02	;65dtv02
 	.cpu default	;cpu set on commandline
 </pre>

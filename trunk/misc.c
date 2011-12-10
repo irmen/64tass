@@ -765,7 +765,7 @@ void labelprint() {
 
 // ------------------------------------------------------------------
 #ifndef WIN32
-const char *argp_program_version="6502/65C02/65816/CPU64/DTV TASM 1.46";
+const char *argp_program_version="6502/65C02/65816/DTV TASM 1.46";
 const char *argp_program_bug_address="<soci@c64.rulez.org>";
 const char doc[]="64tass Turbo Assembler Macro";
 const char args_doc[]="SOURCE";
@@ -788,7 +788,6 @@ const struct argp_option options[]={
     {"m6502"  	,     	'i',		0,     	0,  "NMOS 65xx"},
     {"m65c02"  	,     	'c',		0,     	0,  "CMOS 65C02"},
     {"m65816"  	,     	'x',		0,     	0,  "W65C816"},
-    {"mcpu64" 	,     	'X',		0,     	0,  "CPU64"},
     {"m65dtv02"	,     	't',		0,     	0,  "65DTV02"},
     {		0,  	0,		0,     	0,  "Source listing:"},
     {"labels"	,	'l',"<file>"	,      	0,  "List labels into <file>"},
@@ -835,7 +834,6 @@ static error_t parse_opt (int key,char *arg,struct argp_state *state)
     case 'i':arguments.cpumode=OPCODES_6502i;break;
     case 'c':arguments.cpumode=OPCODES_65C02;break;
     case 'x':arguments.cpumode=OPCODES_65816;break;
-    case 'X':arguments.cpumode=OPCODES_CPU64;break;
     case 't':arguments.cpumode=OPCODES_65DTV02;break;
     case 'l':arguments.label=arg;break;
     case 'L':arguments.list=arg;break;
@@ -884,7 +882,6 @@ void testarg(int argc,char *argv[]) {
 		"      --m65xx\t\t     Standard 65xx (default)\n"
 		"  -t, --m65dtv02\t     65DTV02\n"
 		"  -x, --m65816\t\t     W65C816\n"
-		"  -X, --mcpu64\t\t     CPU64\n"
 		"\n"
 		" Source listing:\n"
 		"  -l <file>\t\t     List labels into <file>\n"
@@ -909,12 +906,12 @@ void testarg(int argc,char *argv[]) {
 		"Usage: 64tass [-abBCnwWcitxXms?V] [-D <label>=<value>] [-o <file>] [-l <file>]\n"
 		"\t    [-L <file>] [--ascii] [--nostart] [--long-branch]\n"
 		"\t    [--case-sensitive] [--nonlinear] [--no-warn] [--wordstart]\n"
-		"\t    [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--mcpu64]\n"
+		"\t    [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816]\n"
 		"\t    [--no-monitor] [--no-source] [--help] [--usage] [--version] SOURCE\n");
 	    exit(1);
 	}
 	if (!strcmp(argv[j],"-V") || !strcmp(argv[j],"--version")) {
-	    printf("6502/65C02/65816/CPU64/DTV TASM 1.46\n");
+	    printf("6502/65C02/65816/DTV TASM 1.46\n");
 	    exit(1);
 	}
 	if (!strcmp(argv[j],"-w") || !strcmp(argv[j],"--no-warn")) {arguments.warning=0;continue;}
@@ -931,7 +928,6 @@ void testarg(int argc,char *argv[]) {
         if (!strcmp(argv[j],"-i") || !strcmp(argv[j],"--m6502")) {arguments.cpumode=OPCODES_6502i;continue;}
         if (!strcmp(argv[j],"-c") || !strcmp(argv[j],"--m65c02")) {arguments.cpumode=OPCODES_65C02;continue;}
         if (!strcmp(argv[j],"-x") || !strcmp(argv[j],"--m65816")) {arguments.cpumode=OPCODES_65816;continue;}
-        if (!strcmp(argv[j],"-X") || !strcmp(argv[j],"--mcpu64")) {arguments.cpumode=OPCODES_CPU64;continue;}
         if (!strcmp(argv[j],"-t") || !strcmp(argv[j],"--m65dtv02")) {arguments.cpumode=OPCODES_65DTV02;continue;}
 	if (!strcmp(argv[j],"-l")) {
 	    j++;if (j>=argc) goto ide2;
