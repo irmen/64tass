@@ -998,22 +998,22 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                                 if ((arguments.petsym == 1) && (ch=='{')) {
                                     char sym[0x10];
                                     int n = 0;
-                                    ch=get();
-                                    while (ch!='}') {
+                                    while ((ch=get())!='}') {
+                                        if (ch == 0 || ch == quo) {
+                                            err_msg(ERROR______EXPECTED,"}"); goto cvege2;
+                                        }
                                         sym[n]=ch;
                                         n++;
                                         if (n == 0x10) {
                                             err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;
                                         }
-                                        ch=get();
-                                    }
-                                    if (n == 0) {
-                                        err_msg(ERROR______EXPECTED, "petascii symbol"); goto cvege2;
                                     }
                                     sym[n] = 0;
-                                    ch2 = (unsigned char)petsymbolic(sym);
+                                    ch2 = petsymbolic(sym);
+                                    if (ch2 == 0) goto cvege2;
+                                    ch2 = encode(ch2);
                                 } else {
-                                    ch2 = (unsigned char)petascii(ch);
+                                    ch2 = petascii(ch);
                                 }
 
                                 if (prm==CMD_CHAR) {if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}}

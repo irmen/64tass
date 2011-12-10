@@ -65,11 +65,7 @@ const unsigned char whatis[256]={
 
 //------------------------------------------------------------------------------
 
-unsigned char petascii(unsigned char ch) {
-    if (arguments.toascii) {
-        if (ch>='A' && ch<='Z') ch+=0x80;
-        if (ch>='a' && ch<='z') ch-=0x20;
-    }
+unsigned char encode(unsigned char ch) {
     switch (encoding) {
     case 1:
         if (ch<=0x1F) return ch+0x80;
@@ -84,153 +80,137 @@ unsigned char petascii(unsigned char ch) {
     return ch;
 }
 
-#define NUM_PETSYMS 0x100
-
-/* all numeric codes */
-static const char *petsym_alt1[NUM_PETSYMS] = {
-    /* 0x00 - 0x1f */
-    "",     "",     "",     "",     "",    "wht",  "",     "",
-    "dish", "ensh", "\n",   "",     "\f",  "\n",   "swlc", "",
-    "",     "down", "rvon", "home", "del", "",     "",     "",
-    "",     "",     "",     "esc",  "red", "rght", "grn",  "blu",
-    /* 0x20 - 0x3f */
-    "space", "", "", "", "", "", "", "",
-    "",      "", "", "", "", "", "", "",
-    "",      "", "", "", "", "", "", "",
-    "",      "", "", "", "", "", "", "",
-    /* 0x40 - 0x6f */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    /* 0x60 - 0x7f */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    /* 0x80 - 0x9f */
-    "",     "orng", "",     "",     "",     "F1",   "F3",   "F5",
-    "F7",   "F2",   "F4",   "F6",   "F8",   "sret", "swuc", "",
-    "blk",  "up",   "rvof", "clr",  "inst", "brn",  "lred", "gry1",
-    "gry2", "lgrn", "lblu", "gry3", "pur",  "left", "yel",  "cyn",
-    /* 0xa0 - 0xbf */
-    "SHIFT-SPACE", "CBM-K",       "CBM-I",   "CBM-T",   "CBM-@",   "CBM-G",   "CBM-+",   "CBM-M", 
-    "CBM-POUND",   "SHIFT-POUND", "CBM-N",   "CBM-Q",   "CBM-D",   "CBM-Z",   "CBM-S",   "CBM-P",
-    "CBM-A",       "CBM-E",       "CBM-R",   "CBM-W",   "CBM-H",   "CBM-J",   "CBM-L",   "CBM-Y",
-    "CBM-U",       "CBM-O",       "SHIFT-@", "CBM-F",   "CBM-C",   "CBM-X",   "CBM-V",   "CBM-B",
-    /* 0xc0 - 0xdf */
-    "SHIFT-*",     "SHIFT-A",     "SHIFT-B", "SHIFT-C", "SHIFT-D", "SHIFT-E", "SHIFT-F", "SHIFT-G",
-    "SHIFT-H",     "SHIFT-I",     "SHIFT-J", "SHIFT-K", "SHIFT-L", "SHIFT-M", "SHIFT-N", "SHIFT-O",
-    "SHIFT-P",     "SHIFT-Q",     "SHIFT-R", "SHIFT-S", "SHIFT-T", "SHIFT-U", "SHIFT-V", "SHIFT-W",
-    "SHIFT-X",     "SHIFT-Y",     "SHIFT-Z", "SHIFT-+", "CBM--",   "SHIFT--", "SHIFT-^", "CBM-*",
-    /* 0xe0 - 0xff */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", ""
-};
-
-/* Alternate mnemonics for control codes */
-
-static const char *petsym_alt2[NUM_PETSYMS] = {
-    /* 0x00 - 0x1f */
-    "",              "",               "",       "",     "",       "wht",    "",           "",
-    "up/lo lock on", "up/lo lock off", "",       "",     "",       "return", "lower case", "",
-    "",              "down",           "rvs on", "home", "delete", "",       "",           "",
-    "",              "",               "",       "esc",  "red",    "right",  "grn",        "blu",
-    /* 0x20 - 0x3f */
-    "space", "", "", "", "", "", "", "",
-    "",      "", "", "", "", "", "", "",
-    "",      "", "", "", "", "", "", "",
-    "",      "", "", "", "", "", "", "",
-    /* 0x40 - 0x5f */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    /* 0x60 - 0x6f */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    /* 0x80 - 0x9f */
-    "",      "orange",   "",        "",      "",       "f1",           "f3",         "f5",
-    "f7",    "f2",       "f4",      "f6",    "f8",     "shift return", "upper case", "",
-    "blk",   "up",       "rvs off", "clear", "insert", "brown",        "lt red",     "grey1",
-    "grey2", "lt green", "lt blue", "grey3", "pur",    "left",         "yel",        "cyn",
-    /* 0xa0 - 0xbf */
-    "", "", "", "", "", "", "",      "",
-    "", "", "", "", "", "", "",      "",
-    "", "", "", "", "", "", "",      "",
-    "", "", "", "", "", "", "",      "",
-    /* 0xc0 - 0xdf */
-    "", "", "", "", "", "", "",      "",
-    "", "", "", "", "", "", "",      "",
-    "", "", "", "", "", "", "",      "",
-    "", "", "", "", "", "", "CBM-^", "",
-    /* 0xe0 - 0xff */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", ""
-};
-
-static const char *petsym_alt3[NUM_PETSYMS] = {
-    /* 0x00 - 0x1f */
-    "", "", "",           "", "", "", "", "",
-    "", "", "",           "", "", "", "", "",
-    "", "", "REVERSE ON", "", "", "", "", "",
-    "", "", "",           "", "", "", "", "",
-    /* 0x20 - 0x3f */
-    "space", "", "", "", "", "", "", "",
-    "",      "", "", "", "", "", "", "",
-    "",      "", "", "", "", "", "", "",
-    "",      "", "", "", "", "", "", "",
-    /* 0x40 - 0x5f */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    /* 0x60 - 0x7f */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    /* 0x80 - 0x9f */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    /* 0xa0 - 0xbf */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    /* 0xc0 - 0xdf */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    /* 0xe0 - 0xff */
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", ""
-};
-
-static int findpetsym(const char **syms, char *str)
-{
-    int n;
-    for (n = 0; n < NUM_PETSYMS; n++) {
-        if (!strcasecmp(str, syms[n])) {
-            return n;
-        }
+unsigned char petascii(unsigned char ch) {
+    if (arguments.toascii) {
+        if (ch>='A' && ch<='Z') ch+=0x80;
+        if (ch>='a' && ch<='z') ch-=0x20;
     }
-    return -1;
+    return encode(ch);
 }
+
+/* PETSCII codes */
+static const char *petsym[] = {
+   "\x03" "stop",
+   "\x05" "wht",
+   "\x05" "white",
+   "\x08" "dish",
+   "\x08" "up/lo lock on",
+   "\x09" "ensh",
+   "\x09" "up/lo lock off",
+   "\x0d" "cr",
+   "\x0d" "return",
+   "\x0e" "swlc",
+   "\x0e" "lower case",
+   "\x11" "down",
+   "\x12" "rvon",
+   "\x12" "reverse on",
+   "\x12" "rvs on",
+   "\x13" "home",
+   "\x14" "del",
+   "\x14" "delete",
+   "\x1b" "esc",
+   "\x1c" "red",
+   "\x1d" "rght",
+   "\x1d" "right",
+   "\x1e" "grn",
+   "\x1e" "green",
+   "\x1f" "blu",
+   "\x1f" "blue",
+   "\x20" "space",
+   "\x5c" "pound",
+   "\x5e" "left arrow",
+   "\x5f" "up arrow",
+   "\x81" "orng",
+   "\x81" "orange",
+   "\x85" "f1",
+   "\x86" "f3",
+   "\x87" "f5",
+   "\x88" "f7",
+   "\x89" "f2",
+   "\x8a" "f4",
+   "\x8b" "f6",
+   "\x8c" "f8",
+   "\x8d" "sret",
+   "\x8d" "shift return",
+   "\x8e" "swuc",
+   "\x8e" "upper case",
+   "\x90" "blk",
+   "\x90" "black",
+   "\x91" "up",
+   "\x92" "rvof",
+   "\x92" "reverse off",
+   "\x92" "rvs off",
+   "\x93" "clr",
+   "\x93" "clear",
+   "\x94" "inst",
+   "\x94" "insert",
+   "\x95" "brn",
+   "\x95" "brown",
+   "\x96" "lred",
+   "\x96" "lt red",
+   "\x97" "gry1",
+   "\x97" "grey1",
+   "\x98" "gry2",
+   "\x98" "grey2",
+   "\x99" "lgrn",
+   "\x99" "lt green",
+   "\x9a" "lblu",
+   "\x9a" "lt blue",
+   "\x9b" "gry3",
+   "\x9b" "grey3",
+   "\x9c" "pur",
+   "\x9c" "purple",
+   "\x9d" "left",
+   "\x9e" "yel",
+   "\x9e" "yellow",
+   "\x9f" "cyn",
+   "\x9f" "cyan",
+   "\xa0" "shift-space",
+   "\xa1" "cbm-k",
+   "\xa2" "cbm-i",
+   "\xa3" "cbm-t",
+   "\xa4" "cbm-@",
+   "\xa5" "cbm-g",
+   "\xa6" "cbm-+",
+   "\xa7" "cbm-m",
+   "\xa8" "cbm-pound",
+   "\xa9" "shift-pound",
+   "\xaa" "cbm-n",
+   "\xab" "cbm-q",
+   "\xac" "cbm-d",
+   "\xad" "cbm-z",
+   "\xae" "cbm-s",
+   "\xaf" "cbm-p",
+   "\xb0" "cbm-a",
+   "\xb1" "cbm-e",
+   "\xb2" "cbm-r",
+   "\xb3" "cbm-w",
+   "\xb4" "cbm-h",
+   "\xb5" "cbm-j",
+   "\xb6" "cbm-l",
+   "\xb7" "cbm-y",
+   "\xb8" "cbm-u",
+   "\xb9" "cbm-o",
+   "\xba" "shift-@",
+   "\xbb" "cbm-f",
+   "\xbc" "cbm-c",
+   "\xbd" "cbm-x",
+   "\xbe" "cbm-v",
+   "\xbf" "cbm-b",
+   "\xc0" "shift-*",
+   "\xdb" "shift-+",
+   "\xdc" "cbm--",
+   "\xdd" "shift--",
+   "\xde" "shift-^",
+   "\xde" "cbm-^",
+   "\xdf" "cbm-*",
+   "\xff" "pi",
+   NULL
+};
 
 unsigned char petsymbolic(unsigned char *str) {
     int n, n2;
+    const char **syms;
 
     if (str[0] == '$') { /* convert {$ab} or {$a} */
         n = lowcase(str[1]);
@@ -248,17 +228,19 @@ unsigned char petsymbolic(unsigned char *str) {
             }
         }
     }
-    if ((n = findpetsym(petsym_alt1, str)) != -1) {
-        return n;
+    if (!strncasecmp(str, "shift-", 6) && str[6] >='a'
+        && str[6] <='z' && str[7] == 0) {
+        return lowcase(str[6]) - 'a' + 0xc1; /* {shift-x} */
     }
-    if ((n = findpetsym(petsym_alt2, str)) != -1) {
-        return n;
+    syms = petsym;
+    while (*syms) { /* {string} */
+        if (!strcasecmp(str, *syms + 1)) {
+            return *syms[0];
+        }
+        syms++;
     }
-    if ((n = findpetsym(petsym_alt3, str)) != -1) {
-        return n;
-    }
-    err_msg(ERROR______EXPECTED, "petascii symbol");
-    return ' ';
+    err_msg(ERROR______EXPECTED, "PETASCII symbol");
+    return 0;
 }
 
 //------------------------------------------------------------------------------
