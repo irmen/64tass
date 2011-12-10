@@ -136,6 +136,7 @@ struct arguments_t {
     int longbranch;
     int wordstart;
     int petsym;
+    int noprecedence;
 };
 
 #ifdef _MISC_C_

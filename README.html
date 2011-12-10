@@ -136,7 +136,7 @@ label
 
 <h3>Operation options</h3>
 
-<h4>-a, --ascii Convert ASCII to PETASCII</h4>
+<h4><tt>-a, --ascii</tt> Convert ASCII to PETASCII</h4>
 <p>Normally no conversion takes place, this is for backwards compatibility with
 a DOS based Turbo Assembler editor, which could create petscii files for
 6502tass. (with control characters also of course)</p>
@@ -153,18 +153,18 @@ lda #"a"	-&gt; result: $A9, $41
 .text "1aA"	-&gt; result: $31, $41, $C1
 </pre>
 
-<h4>-p, --petscii-literals Interpret petcat style PETASCII literals</h4>
+<h4><tt>-p, --petscii-literals</tt> Interpret petcat style PETASCII literals</h4>
 <p></p>
 <h5>Example:</h5>
 <pre>
 .text "{clear}text{return}more"
 </pre>
 
-<h4>-b, --nostart Strip starting address</h4>
+<h4><tt>-b, --nostart</tt> Strip starting address</h4>
 Strips the 2 or 3 byte starting address before the resulting binary.
 Usefull for creating ROM images.
 
-<h4>-B, --long-branch Automatic bxx *+3 jmp $xxxx</h4>
+<h4><tt>-B, --long-branch</tt> Automatic bxx *+3 jmp $xxxx</h4>
 Branch too long messages can be annoying sometimes, usually they'll result
 in an bxx *+5 jmp rewrite. 64tass can do this automatically if this option is
 used. But <code>BRA</code> is not converted.
@@ -184,7 +184,7 @@ jmp $1233 ;as simple workaround
 bcc $1233 ;no error, automatically converted to the above one.
 </pre>
 
-<h4>-C, --case-sensitive Case sensitive labels</h4>
+<h4><tt>-C, --case-sensitive</tt> Case sensitive labels</h4>
 Labels are non case sensitive by default, this option changes that. If defining
 labels by "-D", this option must be first.
 <h5>Example</h5>
@@ -198,7 +198,7 @@ label nop
 Label nop	;Ok, it's a different label...
 </pre>
 
-<h4>-D &lt;label&gt;=&lt;value&gt; Define &lt;label&gt; to &lt;value&gt;</h4>
+<h4><tt>-D &lt;label&gt;=&lt;value&gt;</tt> Define &lt;label&gt; to &lt;value&gt;</h4>
 Defines a label to a value. Only decimal numbers are allowed. If using case
 sensitive labels, that option must be used before.
 <h5>Example</h5>
@@ -207,7 +207,7 @@ sensitive labels, that option must be used before.
 lda #ii ;result: $a9, $02
 </pre>
 
-<h4>-n, --nonlinear Generate nonlinear output file</h4>
+<h4><tt>-n, --nonlinear</tt> Generate nonlinear output file</h4>
 Generates non-linear output for linkers.
 Format: length, address, code, length, ...
 <h5>Example</h5>
@@ -227,28 +227,28 @@ $ea	 ;code
 $00, $00 ;end marker (length=0)
 </pre>
 
-<h4>-o &lt;file&gt; Place output into &lt;file&gt;</h4>
+<h4><tt>-o &lt;file&gt;</tt> Place output into &lt;file&gt;</h4>
 The default output filename is "a.out". This option changes it.
 <h5>Example</h5>
 <pre>
 64tass a.asm -o a.prg
 </pre>
 
-<h4>-w, --no-warn Suppress warnings</h4>
+<h4><tt>-w, --no-warn</tt> Suppress warnings</h4>
 Disables warnings during compile.
 <h5>Example</h5>
 <pre>
 64tass --no-warn a.asm
 </pre>
 
-<h4>-q, --quiet Suppress messages</h4>
+<h4><tt>-q, --quiet</tt> Suppress messages</h4>
 Disables header and summary messages.
 <h5>Example</h5>
 <pre>
 64tass --quiet a.asm
 </pre>
 
-<h4>-W, --wordstart Force 2 byte start address</h4>
+<h4><tt>-W, --wordstart</tt> Force 2 byte start address</h4>
 It 16&nbsp;MiB address space is used for 65816 or CPU64, then the starting
 address of file will be 3 bytes long. This option makes it 2 bytes long.
 <h5>Example</h5>
@@ -256,10 +256,16 @@ address of file will be 3 bytes long. This option makes it 2 bytes long.
 64tass --wordstart --m65816 a.asm
 </pre>
 
+<h3>Compatibility Options</h3>
+
+<h4><tt>-P, --no-precedence</tt> No operator precedence in expressions</h4>
+Disables operator precedence in all expressions to imitate the behaviour of the
+original turbo assembler on the C64.
+
 <h3>Target selection on command line</h3>
 These options will select the default architecture. It can be overridden by using the <code>.cpu</code> directive in the source.
 
-<h4>-c, --m65c02 CMOS 65C02</h4>
+<h4><tt>-c, --m65c02</tt> CMOS 65C02</h4>
 Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.
 <h5>Example</h5>
 <pre>
@@ -267,7 +273,7 @@ Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.
 stz $d020	;65c02 instruction
 </pre>
 
-<h4>-i, --m6502 NMOS 65xx</h4>
+<h4><tt>-i, --m6502</tt> NMOS 65xx</h4>
 Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64, disk drive code, etc.
 <h5>Example</h5>
 <pre>
@@ -275,7 +281,7 @@ Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64
 lax $14		;illegal instruction
 </pre>
 
-<h4>--m65xx Standard 65xx (default)</h4>
+<h4><tt>--m65xx</tt> Standard 65xx (default)</h4>
 Selects standard 6502. For writing compatible code, no extra codes. This is the default.
 <h5>Example</h5>
 <pre>
@@ -283,7 +289,7 @@ Selects standard 6502. For writing compatible code, no extra codes. This is the 
 lda $14		;regular instructions
 </pre>
 
-<h4>-t, --m65dtv02 65DTV02</h4>
+<h4><tt>-t, --m65dtv02</tt> 65DTV02</h4>
 Selects 65DTV02. Enables extra opcodes specific to DTV.
 <h5>Example</h5>
 <pre>
@@ -291,7 +297,7 @@ Selects 65DTV02. Enables extra opcodes specific to DTV.
 sac #$00
 </pre>
 
-<h4>-x, --m65816 W65C816</h4>
+<h4><tt>-x, --m65816</tt> W65C816</h4>
 Selects 65816. Enables extra opcodes, and full 16&nbsp;MiB address space.
 Useful for SuperCPU projects. Don't forget to use "--word-start" for small ones ;)
 <h5>Example</h5>
@@ -300,7 +306,7 @@ Useful for SuperCPU projects. Don't forget to use "--word-start" for small ones 
 lda $123456,x
 </pre>
 
-<h4>-X, --mcpu64 CPU64</h4>
+<h4><tt>-X, --mcpu64</tt> CPU64</h4>
 Selects CPU64. Enables extra opcodes, and full 16&nbsp;MiB address space.
 This CPU is not yet built, opcodes may change.
 <h5>Example</h5>
@@ -311,7 +317,7 @@ ldx $123456
 
 <h3>Source listing options</h3>
 
-<h4>-l &lt;file&gt; List labels into &lt;file&gt;</h4>
+<h4><tt>-l &lt;file&gt;</tt> List labels into &lt;file&gt;</h4>
 List labels to a file. Local labels are commented out, unused ones are marked with a comment.
 <h5>Example</h5>
 <pre>
@@ -323,7 +329,7 @@ result (labels.txt):
 label           = $1000    ; *** unused
 </pre>
 
-<h4>-L &lt;file&gt; List into &lt;file&gt;</h4>
+<h4><tt>-L &lt;file&gt;</tt> List into &lt;file&gt;</h4>
 Dumps source code and compiled code into file. Useful for debugging code,
 it's much easier to identify the code in memory within the source files.
 <h5>Example</h5>
@@ -349,7 +355,7 @@ result (list.txt):
 ;******  end of code
 </pre>
 
-<h4>-m, --no-monitor Don't put monitor code into listing</h4>
+<h4><tt>-m, --no-monitor</tt> Don't put monitor code into listing</h4>
 There won't be any monitor listing in the list file.
 <h5>Example</h5>
 <pre>
@@ -369,7 +375,7 @@ result (list.txt):
 ;******  end of code
 </pre>
 
-<h4>-s, --no-source Don't put source code into listing</h4>
+<h4><tt>-s, --no-source</tt> Don't put source code into listing</h4>
 There won't be any source listing in the list file.
 <h5>Example</h5>
 <pre>
@@ -391,13 +397,13 @@ result (list.txt):
 
 <h3>Other options</h3>
 
-<h4>-?, --help Give this help list</h4>
+<h4><tt>-?, --help</tt> Give this help list</h4>
 Prints help about command line options.
 
-<h4>--usage Give a short usage message</h4>
+<h4><tt>--usage</tt> Give a short usage message</h4>
 Prints short help about command line options.
 
-<h4>-V, --version Print program version</h4>
+<h4><tt>-V, --version</tt> Print program version</h4>
 Prints program version.
 
 <hr>
@@ -872,15 +878,19 @@ sourcefile directly, or do the following:
 the resulting file should then (with the restrictions below) assemble using the
 following commandline:<br>
 <p>
-<tt>64tass -p -C -a -W -i source.s -o outfile.prg</tt>
+<tt>64tass -P -p -C -a -W -i source.s -o outfile.prg</tt>
 </p>
 <hr>
 <h2>Differences to the original turbo ass macro on the C64</h2>
 
 <h3>Expressions</h3>
+<p>
 The original expression parser has no operator precedence (but 64tass has). That
 means that you will have to fix expressions using braces accordingly.
-
+</p><p>
+You can switch 64tass to the original behaviour using the <tt>-P, --no-precedence</tt>
+option.
+</p>
 <h3>Unsupported Operators</h3>
 <ul>
 <li>  .   for bitwise or

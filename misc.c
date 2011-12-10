@@ -30,7 +30,7 @@
 
 void err_msg(unsigned char no, char* prm);
 
-struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0};
+struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
 
 static void *label_tree=NULL;
 static void *macro_tree=NULL; 
@@ -771,6 +771,7 @@ const struct argp_option options[]={
     {"wordstart",	'W',		0,     	0,  "Force 2 byte start address"},
     {"ascii" 	,	'a',		0,     	0,  "Convert ASCII to PETASCII"},
     {"petscii-literals",'p',            0,      0,  "Interpret petcat style PETASCII literals"},
+    {"no-precedence",   'P',            0,      0,  "No operator precedence in expressions"},
     {"case-sensitive",	'C',		0,     	0,  "Case sensitive labels"},
     {		0,	'o',"<file>"	,      	0,  "Place output into <file>"},
     {		0,	'D',"<label>=<value>",     	0,  "Define <label> to <value>"},
@@ -802,6 +803,7 @@ static error_t parse_opt (int key,char *arg,struct argp_state *state)
     case 'b':arguments.stripstart=1;break;
     case 'a':arguments.toascii=1;break;
     case 'p':arguments.petsym=1;break;
+    case 'P':arguments.noprecedence=1;break;
     case 'o':arguments.output=arg;break;
     case 'D':
     {
@@ -859,6 +861,7 @@ void testarg(int argc,char *argv[]) {
 		"  -b, --nostart\t\t     Strip starting address\n"
 		"  -B, --long-branch\t     Automatic bxx *+3 jmp $xxxx\n"
 		"  -C, --case-sensitive\t     Case sensitive labels\n"
+                "  -P, --no-precedence\t     No operator precedence in expressions\n"
 		"  -D <label>=<value>\t     Define <label> to <value>\n"
 		"  -n, --nonlinear\t     Generate nonlinear output file\n"
 		"  -o <file>\t\t     Place output into <file>\n"
@@ -910,6 +913,7 @@ void testarg(int argc,char *argv[]) {
 	if (!strcmp(argv[j],"-b") || !strcmp(argv[j],"--nostart")) {arguments.stripstart=1;continue;}
         if (!strcmp(argv[j],"-a") || !strcmp(argv[j],"--ascii")) {arguments.toascii=1;continue;}
         if (!strcmp(argv[j],"-p") || !strcmp(argv[j],"--petscii-literals")) {arguments.petsym=1;continue;}
+        if (!strcmp(argv[j],"-P") || !strcmp(argv[j],"--no-precedence")) {arguments.noprecedence=1;continue;}
 	if (!strcmp(argv[j],"-B") || !strcmp(argv[j],"--long-branch")) {arguments.longbranch=1;continue;}
         if (!strcmp(argv[j],"--m65xx")) {arguments.cpumode=OPCODES_6502;continue;}
         if (!strcmp(argv[j],"-i") || !strcmp(argv[j],"--m6502")) {arguments.cpumode=OPCODES_6502i;continue;}
