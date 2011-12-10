@@ -1238,7 +1238,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    if (listing)
 		    {
 			if (arguments.source && kiirva) {
-                            for (i=0; i<lcol; i++) fputc(' ',flist);
+                            for (i=0; i<lcol-2; i+=8) fputc('\t',flist);
                             if (nprm>=0) mtranslate(mprm,nprm,llist);
 			    fprintf(flist,"\t%s\n",llist);
 			} else fputc('\n',flist);
