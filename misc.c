@@ -459,7 +459,7 @@ struct slabel* find_label(char* name) {
 
 // ---------------------------------------------------------------------------
 #ifndef WIN32
-struct slabel* lastlb=NULL;
+static struct slabel* lastlb=NULL;
 struct slabel* new_label(char* name) {
     struct slabel **b;
     if (!lastlb)
@@ -529,7 +529,7 @@ struct smacro* find_macro(char* name) {
 
 // ---------------------------------------------------------------------------
 #ifndef WIN32
-struct smacro* lastma=NULL;
+static struct smacro* lastma=NULL;
 struct smacro* new_macro(char* name) {
     struct smacro **b;
     if (!lastma)
@@ -575,7 +575,7 @@ struct smacro* new_macro(char* name) {
 // ---------------------------------------------------------------------------
 
 #ifndef WIN32
-struct sfile* lastfi=NULL;
+static struct sfile* lastfi=NULL;
 FILE* openfile(char* name,char* volt) {
     struct sfile **b;
     if (!lastfi)
@@ -651,6 +651,9 @@ void tfree() {
     tdestroy(macro_tree,freemacrotree);
     tdestroy(file_tree1,freefiletree);
     tdestroy(file_tree2,freetree);
+    free(lastfi);
+    free(lastma);
+    free(lastlb);
 }
 #else
 void rlabeltree(struct slabel *a) {

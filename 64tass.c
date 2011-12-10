@@ -1871,8 +1871,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    else if (wht==WHAT_COMA) { // mvp $10,$20
 			int w2,c2,d2;
 			long val2;
-                        d2=d;
 			megint:
+                        d2=d;
 			if (!d) fixeddig=0;
                         val2=get_exp(&w2,&d,&c2);
                         if (!c2) break;
