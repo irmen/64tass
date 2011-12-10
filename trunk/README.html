@@ -262,6 +262,10 @@ address of file will be 3 bytes long. This option makes it 2 bytes long.
 Disables operator precedence in all expressions to imitate the behaviour of the
 original turbo assembler on the C64.
 
+<h4><tt>-O, --compatible-ops</tt> Enable TASS compatible operators</h4>
+Enables TASS compatible operators '.', ':' and '!' (see "differences to original
+turbo assembler" below)
+
 <h3>Target selection on command line</h3>
 These options will select the default architecture. It can be overridden by using the <code>.cpu</code> directive in the source.
 
@@ -878,10 +882,16 @@ sourcefile directly, or do the following:
 the resulting file should then (with the restrictions below) assemble using the
 following commandline:<br>
 <p>
-<tt>64tass -P -p -C -a -W -i source.s -o outfile.prg</tt>
+<tt>64tass -C -P -O -p -a -W -i source.s -o outfile.prg</tt>
 </p>
 <hr>
 <h2>Differences to the original turbo ass macro on the C64</h2>
+
+<h3>Labels</h3>
+<p>
+The original turbo assembler uses case sensitive labels, use the <tt>-C, --case-sensitive</tt>
+option to enable this behaviour.
+</p>
 
 <h3>Expressions</h3>
 <p>
@@ -895,8 +905,12 @@ option.
 <ul>
 <li>  .   for bitwise or
 <li>  :   for bitwise eor
+</ul>
+these two can be enabled using the <tt>-O, --compatible-ops</tt> option
+<ul>
 <li>  !   to force 16bit address
 </ul>
+this one will currently give an error if the  <tt>-O, --compatible-ops</tt> option is used.
 
 <h3>Conditional assembly unsupported PseudoOps</h3>
 <ul>

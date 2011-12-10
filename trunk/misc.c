@@ -30,7 +30,7 @@
 
 void err_msg(unsigned char no, char* prm);
 
-struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
+struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0,0};
 
 static void *label_tree=NULL;
 static void *macro_tree=NULL; 
@@ -778,6 +778,7 @@ const struct argp_option options[]={
     {"ascii" 	,	'a',		0,     	0,  "Convert ASCII to PETASCII"},
     {"petscii-literals",'p',            0,      0,  "Interpret petcat style PETASCII literals"},
     {"no-precedence",   'P',            0,      0,  "No operator precedence in expressions"},
+    {"compatible-ops",  'O',            0,      0,  "Enable TASS compatible operators"},
     {"case-sensitive",	'C',		0,     	0,  "Case sensitive labels"},
     {		0,	'o',"<file>"	,      	0,  "Place output into <file>"},
     {		0,	'D',"<label>=<value>",     	0,  "Define <label> to <value>"},
@@ -810,6 +811,7 @@ static error_t parse_opt (int key,char *arg,struct argp_state *state)
     case 'a':arguments.toascii=1;break;
     case 'p':arguments.petsym=1;break;
     case 'P':arguments.noprecedence=1;break;
+    case 'O':arguments.oldops=1;break;
     case 'o':arguments.output=arg;break;
     case 'D':
     {
@@ -871,6 +873,7 @@ void testarg(int argc,char *argv[]) {
 		"  -o <file>\t\t     Place output into <file>\n"
                 "  -p, --petscii-literals     Interpret petcat style PETASCII literals\n"
                 "  -P, --no-precedence\t     No operator precedence in expressions\n"
+                "  -O, --compatible-ops\t     Enable TASS compatible operators\n"
 		"  -q, --quiet\t\t     Display errors/warnings\n"
 		"  -w, --no-warn\t\t     Suppress warnings\n"
 		"  -W, --wordstart\t     Force 2 byte start address\n"
@@ -921,6 +924,7 @@ void testarg(int argc,char *argv[]) {
         if (!strcmp(argv[j],"-a") || !strcmp(argv[j],"--ascii")) {arguments.toascii=1;continue;}
         if (!strcmp(argv[j],"-p") || !strcmp(argv[j],"--petscii-literals")) {arguments.petsym=1;continue;}
         if (!strcmp(argv[j],"-P") || !strcmp(argv[j],"--no-precedence")) {arguments.noprecedence=1;continue;}
+        if (!strcmp(argv[j],"-O") || !strcmp(argv[j],"--compatible-ops")) {arguments.oldops=1;continue;}
         if (!strcmp(argv[j],"-q") || !strcmp(argv[j],"--quiet")) {arguments.quiet=0;continue;}
 	if (!strcmp(argv[j],"-B") || !strcmp(argv[j],"--long-branch")) {arguments.longbranch=1;continue;}
         if (!strcmp(argv[j],"--m65xx")) {arguments.cpumode=OPCODES_6502;continue;}
