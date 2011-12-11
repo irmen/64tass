@@ -467,13 +467,45 @@ Expressions can be used at a lot of places. Here's a list of available operators
 <hr>
 <h2>Compiler directives:</h2>
 
+<h3>Controlling the program counter</h3>
 <dl class="dir">
 <dt>*=
 <dd>Set current address
 <pre width=80>
 	*=$1000
 </pre>
+<dt>.offs
+<dd>Add compile offset to logical address
+<pre width=80>
+        .offs 100
+</pre>
+<dt>.logical
+<dd>Changes logical address. Can be nested.
+<pre width=80>
+        .logical $300
+drive   lda #$80
+        sta $00
+        jmp drive       ;jmp $300
+        rts
+        .here
+</pre>
 
+<dt>.here
+<dd>Restore logical address to physical
+
+<dt>.align
+<dd>Align code to a dividable address by skip or fill
+<pre width=80>
+        .align $100
+irq     inc $d019       ;this will be on a page boundary, after skipping bytes
+        .align 4,$ea
+loop    adc #1          ;padding with "nop" for DTV burst mode
+</pre>
+
+</dl>
+
+<h3>Data</h3>
+<dl class="dir">
 <dt>.byte
 <dd>Include 8bit unsigned byte constants, same as <code>.text</code>
 
@@ -597,12 +629,16 @@ rets	.rta $fce2
 	.long $123456
 </pre>
 
-<dt>.offs
-<dd>Add compile offset to logical address
+<dt>.fill
+<dd>Skip bytes, or fill with repeated bytes. For multibyte patterns use <code>.repeat</code>!
 <pre width=80>
-	.offs 100
+        .fill $100      ;no fill, just skip $100 bytes
+        .fill $4000,0   ;16384 bytes of 0
 </pre>
 
+</dl>
+<h3>Macros</h3>
+<dl class="dir">
 <dt>.macro
 <dd>Macro definition, it copies the macro content in.
         (so be careful with labels, better use anonymous ones)
@@ -617,6 +653,9 @@ name	.macro
 <dt>.endm
 <dd>End of macro definition
 
+</dl>
+<h3>Conditional assembly</h3>
+<dl class="dir">
 <dt>.for
 <dd>Compile loop, only anonymous references are allowed as labels inside
 <pre width=80>
@@ -674,6 +713,9 @@ name	.macro
 	.next
 </pre>
 
+</dl>
+<h3>Including files</h3>
+<dl class="dir">
 <dt>.include
 <dd>Include source file here
 <pre width=80>
@@ -692,51 +734,62 @@ not skipped then it's also loaded.
 	.binary "music.dmc",2   ;strip load address
 </pre>
 
+</dl>
+<h3>Blocks</h3>
+<dl class="dir">
+<dt>.proc
+<dd>Procedure start
+<pre width=80>
+ize     .proc 
+        nop
+cucc    nop
+        .pend
+        
+        jsr ize
+        jmp ize.cucc
+</pre>
+If "ize" is not referenced then the code won't be compiled at all!
+All labels inside are local.
+
+<dt>.pend
+<dd>End of procedure
+
+<dt>.block
+<dd>Block start
+<pre width=80>
+            .block
+            inc count + 1
+    count   ldx #0
+            .bend
+</pre>
+    All labels inside a block are local.
+
+<dt>.bend
+<dd>End of Block
+
 <dt>.comment
 <dd>Comment block start
 <pre width=80>
-	.comment
-	lda #1		;this won't be compiled
-	sta $d020
-	.endc
+        .comment
+        lda #1          ;this won't be compiled
+        sta $d020
+        .endc
 </pre>
 
 <dt>.endc
 <dd>End of comment block
 
-<dt>.page
-<dd>Gives an error on page boundary crossing, eg. for timing sensitive code.
-<pre width=80>
-	.page
-table	.byte 0,1,2,3,4,5,6,7
-	.endp
-</pre>
-
-<dt>.endp
-<dd>End of page cross checking
-
-<dt>.logical
-<dd>Changes logical address. Can be nested.
-<pre width=80>
-	.logical $300
-drive	lda #$80
-	sta $00
-	jmp drive	;jmp $300
-	rts
-	.here
-</pre>
-
-<dt>.here
-<dd>Restore logical address to physical
-
+</dl>
+<h3>65816</h3>
+<dl class="dir">
 <dt>.as
 <dd>Select 8 bit accu (65816)
 
 <dt>.al
 <dd>Select 16 bit accu (65816)
 <pre width=80>
-	.al
-	lda #$4322
+        .al
+        lda #$4322
 </pre>
 
 <dt>.xs
@@ -745,9 +798,36 @@ drive	lda #$80
 <dt>.xl
 <dd>Select 16 bit index (65816)
 <pre width=80>
-	.xl
-	ldx #$1000
+        .xl
+        ldx #$1000
 </pre>
+
+<dt>.databank
+<dd>Set databank (65816)
+<pre width=80>
+        .databank $10   ;$10xxxx
+</pre>
+
+<dt>.dpage
+<dd>Set directpage (65816/C128/DTV) (forced to page boundary for DTV)
+<pre width=80>
+        .dpage $400
+</pre>
+
+</dl>
+<h3>Controlling errors</h3>
+<dl class="dir">
+
+<dt>.page
+<dd>Gives an error on page boundary crossing, eg. for timing sensitive code.
+<pre width=80>
+        .page
+table   .byte 0,1,2,3,4,5,6,7
+        .endp
+</pre>
+
+<dt>.endp
+<dd>End of page cross checking
 
 <dt>.error
 <dd>Exit with error
@@ -773,63 +853,9 @@ drive	lda #$80
 	.cwarn *&gt;$1200,"This may not work!"
 </pre>
 
-<dt>.proc
-<dd>Procedure start
-<pre width=80>
-ize	.proc 
-	nop
-cucc	nop
-	.pend
-	
-	jsr ize
-        jmp ize.cucc
-</pre>
-If "ize" is not referenced then the code won't be compiled at all!
-All labels inside are local.
-
-<dt>.pend
-<dd>End of procedure
-
-<dt>.block
-<dd>Block start
-<pre width=80>
-            .block
-            inc count + 1
-    count   ldx #0
-            .bend
-</pre>
-    All labels inside a block are local.
-
-<dt>.bend
-<dd>End of Block
-
-<dt>.databank
-<dd>Set databank (65816)
-<pre width=80>
-        .databank $10	;$10xxxx
-</pre>
-
-<dt>.dpage
-<dd>Set directpage (65816/C128/DTV) (forced to page boundary for DTV)
-<pre width=80>
-        .dpage $400
-</pre>
-
-<dt>.fill
-<dd>Skip bytes, or fill with repeated bytes. For multibyte patterns use <code>.repeat</code>!
-<pre width=80>
-	.fill $100	;no fill, just skip $100 bytes
-	.fill $4000,0	;16384 bytes of 0
-</pre>
-
-<dt>.align
-<dd>Align code to a dividable address by skip or fill
-<pre width=80>
-	.align $100
-irq	inc $d019	;this will be on a page boundary, after skipping bytes
-	.align 4,$ea
-loop	adc #1		;padding with "nop" for DTV burst mode
-</pre>
+</dl>
+<h3>Misc</h3>
+<dl class="dir">
 
 <dt>.enc
 <dd>Text encoding, "none" or "screen" (screen code)
@@ -937,6 +963,7 @@ These can be enabled using the <tt>-O, --compatible-ops</tt> option
 <li>  .hidemac  - show unexpanded calls
 <li>  .showmac  - show expanded calls
 <li>  .eor      - eor output with some value
+<li>  .end      - terminate assembly
 </ul>
 
 <h3>Bugs</h3>
