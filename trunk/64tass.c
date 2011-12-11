@@ -2240,7 +2240,11 @@ int main(int argc,char *argv[]) {
 
     if (arguments.list) {
         listing=1;
-        if (!(flist=fopen(arguments.list,"wt"))) err_msg(ERROR_CANT_DUMP_LST,arguments.list);
+        if (arguments.list[0] == '-' && !arguments.list[1]) {
+            flist = stdout;
+        } else {
+            if (!(flist=fopen(arguments.list,"wt"))) err_msg(ERROR_CANT_DUMP_LST,arguments.list);
+        }
 	fprintf(flist,"\n;6502/65C02/65816/DTV Turbo Assembler V1.46 listing file of \"%s\"\n",arguments.input);
 	time(&t);
         fprintf(flist,";done on %s\n",ctime(&t));
@@ -2256,7 +2260,7 @@ int main(int argc,char *argv[]) {
         exitfile();
 
 	fprintf(flist,"\n;******  end of code\n");
-	fclose(flist);
+	if (flist != stdout) fclose(flist);
     }
 
     set_cpumode(arguments.cpumode);
@@ -2266,7 +2270,11 @@ int main(int argc,char *argv[]) {
     if (errors || conderrors) {status();return 1;}
 
     if (low_mem<=top_mem) {
-	if ((fout=fopen(arguments.output,"wb"))==NULL) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
+        if (arguments.output[0] == '-' && !arguments.output[1]) {
+            fout = stdout;
+        } else {
+            if ((fout=fopen(arguments.output,"wb"))==NULL) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
+        }
 	if (arguments.nonlinear) {
 	    unsigned long bl_adr=low_mem, bl_len;
 	    while (bl_adr<=top_mem) {
@@ -2294,7 +2302,7 @@ int main(int argc,char *argv[]) {
 	    }
 	    if (fwrite(mem64+low_mem,top_mem-low_mem+1,1,fout)==0) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
 	}
-	if (fclose(fout)) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
+	if (fout != stdout && fclose(fout)) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
 	status();
 	return 0;
     }
