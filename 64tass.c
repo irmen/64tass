@@ -61,7 +61,7 @@ static char ident[linelength], ident2[linelength];  //identifier (label, etc)
 static char varname[linelength];//variable (same as identifier?)
 static char path[80];           //path
 static int pagelo=-1;           //still in same page?
-static FILE* flist;             //listfile
+static FILE* flist = NULL;      //listfile
 static char lastl=1;            //for listing (skip one line
 static int logisave=0;          // number of nested .logical
 static unsigned long* logitab;  //.logical .here
@@ -852,7 +852,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		if (procname[0]) strcat(varname,".");
                 strcat(varname,ident);
                 val=get_exp(&w,&d,&c); //ellenorizve.
-                if (listing && arguments.source) {
+                if (listing && flist && arguments.source) {
                     if (nprm>=0) mtranslate(mprm,nprm,llist);
                     fprintf(flist,(all_mem==0xffff)?"=%04lx\t\t\t\t\t%s\n":"=%06lx\t\t\t\t\t%s\n",val,llist);
                 }
@@ -905,7 +905,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		continue;
 	    }
             if ((tmp2=find_macro(ident))) {lpoint--;goto as_macro;}
-	    if (listing && arguments.source && ((wht==WHAT_COMMAND && prm>CMD_LONG && prm!=CMD_PROC) || wht==WHAT_STAR || wht==WHAT_EOL || wht==WHAT_HASHMARK || wht==WHAT_EXPRESSION)) {
+	    if (listing && flist && arguments.source &&
+                ((wht==WHAT_COMMAND && prm>CMD_LONG && prm!=CMD_PROC) || wht==WHAT_STAR || wht==WHAT_EOL || wht==WHAT_HASHMARK || wht==WHAT_EXPRESSION)) {
                 if (lastl==2) {fputc('\n',flist);lastl=1;}
                 if (ident[0]!='-' && ident[0]!='+')
                     fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident);
@@ -1139,7 +1140,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             mem64[ptextaddr]=(address-ptextaddr-1) & 0xff;
                         }
                     cvege2:
-                        if (listing) {
+                        if (listing && flist) {
                             if (lastl!=2) {fputc('\n',flist);lastl=2;}
                             fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",ptextaddr);
                             lcol=25;
@@ -1163,7 +1164,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    }
 		}
 		if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA) { // .word .int .rta
-		    if (listing) {
+		    if (listing && flist) {
 			if (lastl!=2) {fputc('\n',flist);lastl=2;}
                         fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",address);
 			lcol=25;
@@ -1182,7 +1183,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                                     val=(val-1) & 0xffff;
                             }
                         }
-			if (listing) {
+			if (listing && flist) {
 			    if (lcol==1) {
                                 if (arguments.source && kiirva) {
                                     if (nprm>=0) mtranslate(mprm,nprm,llist);
@@ -1201,7 +1202,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    }
 		}
 		if (prm==CMD_LONG) { // .long
-		    if (listing) {
+		    if (listing && flist) {
 			if (lastl!=2) {fputc('\n',flist);lastl=2;}
                         fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",address);
 			lcol=25;
@@ -1214,7 +1215,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         if (d) {
                             if (val>0xffffff || val<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
                         }
-			if (listing) {
+			if (listing && flist) {
 			    if (lcol==1) {
                                 if (arguments.source && kiirva) {
                                     if (nprm>=0) mtranslate(mprm,nprm,llist);
@@ -1235,7 +1236,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    }
 		}
                 if (prm<=CMD_LONG) { // .byte .text .rta .char .int .word .long
-		    if (listing)
+		    if (listing && flist)
 		    {
 			if (arguments.source && kiirva) {
                             for (i=0; i<lcol-2; i+=8) fputc('\t',flist);
@@ -1307,7 +1308,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			if (tmp->proclabel && pass!=1 && !procname[0]) wait_cmd(fin,CMD_PEND);//.pend
                         else {
                             strcpy(procname,ident);
-                            if (listing && arguments.source) {
+                            if (listing && flist && arguments.source) {
                                 if (lastl==2) {fputc('\n',flist);lastl=1;}
                                 if (ident[0]!='-' && ident[0]!='+')
                                     fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident);
@@ -1523,7 +1524,17 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     }
 		    break;
 		}
-                if ((prm==CMD_PRON)||(prm==CMD_PROFF)||(prm==CMD_SHOWMAC)||(prm==CMD_HIDEMAC)) {
+                if (prm==CMD_PRON) {
+                    if (here()) goto extrachar;
+                    listing = (flist != NULL);
+                    break;
+                }
+                if (prm==CMD_PROFF) {
+                    if (here()) goto extrachar;
+                    listing = 0;
+                    break;
+                }
+                if (prm==CMD_SHOWMAC || prm==CMD_HIDEMAC) {
                     err_msg(ERROR_DIRECTIVE_IGN,NULL); 
                     break;
                 }
@@ -1539,7 +1550,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     lin=sline;
                     enterfile(path,lin);
                     sline=0;
-                    if (listing) {
+                    if (listing && flist) {
                         if (arguments.source) {
                             if (nprm>=0) mtranslate(mprm,nprm,llist);
                             fprintf(flist,"\t\t\t\t\t%s\n",llist);
@@ -1548,7 +1559,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     }
                     compile(path,0,0,mprm,nprm,NULL);
                     exitfile();
-                    if (listing) fprintf(flist,"\n;******  Return to file \"%s\"\n\n",&filenamelist->name);
+                    if (listing && flist) fprintf(flist,"\n;******  Return to file \"%s\"\n\n",&filenamelist->name);
 		    sline=lin;
 		    break;
 		}
@@ -1585,7 +1596,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     if ((fil=fopen(path,"rb"))==NULL) {err_msg(ERROR_CANT_FINDFILE,path);break;}
                     fseek(fil,foffset,SEEK_SET);
 		    lcol=0;
-                    if (listing) {
+                    if (listing && flist) {
                         if (arguments.source) {
                             if (nprm>=0) mtranslate(mprm,nprm,llist);
                             fprintf(flist,"\t\t\t\t\t%s\n",llist);
@@ -1596,14 +1607,14 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			int st=fread(&ch,1,1,fil);
 			if (feof(fil)) break;
 			if (!st) err_msg(ERROR_CANT_FINDFILE,path);
-			if (listing) {
+			if (listing && flist) {
                             if (!lcol) {fprintf(flist,(all_mem==0xffff)?"\n>%04lx\t ":"\n>%06lx  ",address);lcol=16;}
 			    fprintf(flist,"%02x ",(unsigned char)ch);
 			    lcol--;
 			}
 			pokeb(ch);
 		    }
-		    if (listing) fputc('\n',flist);
+		    if (listing && flist) fputc('\n',flist);
 		    fclose(fil);
 		    break;
 		}
@@ -2079,7 +2090,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     ident[3]=0;
                     if ((tmp2=find_macro(ident))) {
                         lpoint=oldlpoint;
-                        if (listing && arguments.source && ident2[0]) {
+                        if (listing && flist && arguments.source && ident2[0]) {
                             if (lastl==2) {fputc('\n',flist);lastl=1;}
                             if (ident2[0]!='-' && ident2[0]!='+')
                                 fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident2);
@@ -2104,7 +2115,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
 	    }
 
-	    if (listing) {
+	    if (listing && flist) {
 		long temp=val;
 		int i;
 

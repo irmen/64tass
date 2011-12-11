@@ -2,7 +2,6 @@ CC = gcc
 OBJ = 64tass.o opcodes.o misc.o
 #CFLAGS = -O2 -march=i486 -mcpu=i486 -pipe
 #CFLAGS = -Wall -O3 -march=i686 -pipe -fomit-frame-pointer -fno-exceptions
-CFLAGS = -g
 
 all: 64tass README
 
@@ -15,7 +14,7 @@ opcodes.o: opcodes.c opcodes.h
 misc.o: misc.c misc.h opcodes.h
 
 README: README.html
-	-w3m -dump README.html >README
+	-w3m -dump -no-graph README.html >README
 
 .PHONY: clean strip
 
