@@ -303,7 +303,8 @@ const char *terr_warning[]={
 	"Possibly incorrectly used A",
 	"Memory bank excedeed",
 	"Possible jmp ($xxff) bug",
-        "Long branch used"
+        "Long branch used",
+        "Directive ignored"
 //	"%s\n",
 };
 const char *terr_error[]={

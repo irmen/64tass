@@ -798,6 +798,17 @@ Controlling errors
 
 .endp
     End of page cross checking
+.option allow_branch_across_page
+    Switches error generation on page boundary crossing during relative branch.
+    Such a condition on 6502 adds 1 extra cycle to the execution time, which
+    can ruin the timing of a carefuly cycle counted code.
+
+            .option allow_branch_across_page = 0
+            ldx #3          ;now this will execute in
+    -       dex             ;16 cycles for sure
+            bne -
+            .option allow_branch_across_page = 1
+
 .error
     Exit with error
 
@@ -818,7 +829,7 @@ Controlling errors
 
             .cwarn *>$1200,"This may not work!"
 
-Misc
+Target
 
 .enc
     Text encoding, "none" or "screen" (screen code)
@@ -839,22 +850,21 @@ Misc
             .cpu 65dtv02    ;65dtv02
             .cpu default    ;cpu set on commandline
 
-.option allow_branch_across_page
-    Switches error generation on page boundary crossing during relative branch.
-    Such a condition on 6502 adds 1 extra cycle to the execution time, which
-    can ruin the timing of a carefuly cycle counted code.
-
-            .option allow_branch_across_page = 0
-            ldx #3          ;now this will execute in
-    -       dex             ;16 cycles for sure
-            bne -
-            .option allow_branch_across_page = 1
+Misc
 
 .global
     Do not use this, buggy!
 .assert
 .check
     Do not use these, the syntax will change in next version!
+
+Printer control
+
+.pron
+.proff
+.hidemac
+.showmac
+    ignored for compatibility
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -916,10 +926,6 @@ Macros
 
 Misc unsupported PseudoOps
 
-  • .pron - turn on printing
-  • .proff - turn off printing
-  • .hidemac - show unexpanded calls
-  • .showmac - show expanded calls
   • .eor - eor output with some value
   • .end - terminate assembly
 

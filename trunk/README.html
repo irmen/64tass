@@ -829,6 +829,18 @@ table   .byte 0,1,2,3,4,5,6,7
 <dt>.endp
 <dd>End of page cross checking
 
+<dt>.option allow_branch_across_page
+<dd>Switches error generation on page boundary crossing during relative branch.
+Such a condition on 6502 adds 1 extra cycle to the execution time, which 
+can ruin the timing of a carefuly cycle counted code.
+<pre width=80>
+        .option allow_branch_across_page = 0
+        ldx #3          ;now this will execute in
+-       dex             ;16 cycles for sure
+        bne -
+        .option allow_branch_across_page = 1
+</pre>
+
 <dt>.error
 <dd>Exit with error
 <pre width=80>
@@ -854,7 +866,7 @@ table   .byte 0,1,2,3,4,5,6,7
 </pre>
 
 </dl>
-<h3>Misc</h3>
+<h3>Target</h3>
 <dl class="dir">
 
 <dt>.enc
@@ -878,17 +890,9 @@ table   .byte 0,1,2,3,4,5,6,7
 	.cpu default	;cpu set on commandline
 </pre>
 
-<dt>.option allow_branch_across_page
-<dd>Switches error generation on page boundary crossing during relative branch.
-Such a condition on 6502 adds 1 extra cycle to the execution time, which 
-can ruin the timing of a carefuly cycle counted code.
-<pre width=80>
-	.option allow_branch_across_page = 0
-        ldx #3		;now this will execute in
--       dex		;16 cycles for sure
-        bne -
-	.option allow_branch_across_page = 1
-</pre>
+</dl>
+<h3>Misc</h3>
+<dl class="dir">
 
 <dt>.global
 <dd>Do not use this, buggy!
@@ -896,6 +900,16 @@ can ruin the timing of a carefuly cycle counted code.
 <dt>.assert
 <dt>.check
 <dd>Do not use these, the syntax will change in next version!
+
+</dl>
+<h3>Printer control</h3>
+<dl class="dir">
+
+<dt>.pron
+<dt>.proff
+<dt>.hidemac
+<dt>.showmac
+<dd>ignored for compatibility
 </dl>
 
 <hr>
@@ -958,10 +972,6 @@ These can be enabled using the <tt>-O, --compatible-ops</tt> option
 
 <h3>Misc unsupported PseudoOps</h3>
 <ul>
-<li>  .pron     - turn on printing
-<li>  .proff    - turn off printing
-<li>  .hidemac  - show unexpanded calls
-<li>  .showmac  - show expanded calls
 <li>  .eor      - eor output with some value
 <li>  .end      - terminate assembly
 </ul>
