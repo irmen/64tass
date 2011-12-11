@@ -429,6 +429,12 @@ Expressions can be used at a lot of places. Here's a list of available operators
     jsr $ab1e
 </pre>
 
+<table border="0">
+<tr><td><tt>@b</tt></td>     <td align="left">to force 8 bit address</td></tr>
+<tr><td><tt>@w</tt></td>     <td align="left">to force 16 bit address</td></tr>
+<tr><td><tt>@l</tt></td>     <td align="left">to force 24 bit address (65816)</td></tr>
+</table>
+
 <h3>boolean</h3>
 <table border="0">
 <tr><td><tt>=</tt></td>      <td align="left">equal</td></tr>
@@ -896,6 +902,9 @@ can ruin the timing of a carefuly cycle counted code.
 <h3>Misc</h3>
 <dl class="dir">
 
+<dt>.end
+<dd>Terminate assembly. Any content after this directive is ignored.
+
 <dt>.global
 <dd>Do not use this, buggy!
 
@@ -955,9 +964,6 @@ option.
 <li>  .   for bitwise or
 <li>  :   for bitwise eor
 <li>  !   to force 16&nbsp;bit address (only as first character of expression)
-<li>  @b  to force 8&nbsp;bit address
-<li>  @w  to force 16&nbsp;bit address
-<li>  @l  to force 24&nbsp;bit address
 </ul>
 These can be enabled using the <tt>-O, --compatible-ops</tt> option
 
@@ -980,7 +986,6 @@ These can be enabled using the <tt>-O, --compatible-ops</tt> option
 <h3>Misc unsupported PseudoOps</h3>
 <ul>
 <li>  .eor      - eor output with some value
-<li>  .end      - terminate assembly
 </ul>
 
 <h3>Bugs</h3>
