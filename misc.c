@@ -740,9 +740,13 @@ void kiir(const void *aa,VISIT value,int level)
 #ifndef WIN32
 void labelprint() {
     if (arguments.label) {
-	if (!(flab=fopen(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
+        if (arguments.label[0] == '-' && !arguments.label[1]) {
+            flab = stdout;
+        } else {
+            if (!(flab=fopen(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
+        }
         twalk(label_tree,kiir);
-	fclose(flab);
+	if (flab != stdout) fclose(flab);
     }
 }
 #else
@@ -756,11 +760,15 @@ void plabeltree(struct slabel *a) {
 
 void labelprint() {
     if (arguments.label) {
-	if (!(flab=fopen(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
+        if (arguments.label[0] == '-' && !arguments.label[1]) {
+            flab = stdout;
+        } else {
+            if (!(flab=fopen(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
+        }
 
         plabeltree(label_tree);
 
-	fclose(flab);
+	if (flab != stdout) fclose(flab);
     }
 }
 #endif
