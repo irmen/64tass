@@ -4,7 +4,7 @@ OBJ = 64tass.o opcodes.o misc.o
 #CFLAGS = -Wall -O3 -march=i686 -pipe -fomit-frame-pointer -fno-exceptions
 CFLAGS = -g
 
-all: 64tass
+all: 64tass README
 
 64tass: $(OBJ)
 
@@ -13,6 +13,9 @@ all: 64tass
 opcodes.o: opcodes.c opcodes.h
 
 misc.o: misc.c misc.h opcodes.h
+
+README: README.html
+	-w3m -dump README.html >README
 
 .PHONY: clean strip
 
