@@ -406,48 +406,62 @@ Prints program version.
 <h2>Expressions</h2>
 Expressions can be used at a lot of places. Here's a list of available operators:
 
-<h3><code>( )</code></h3>
-<pre>
-lda #(4+2)*3
-</pre>
-
-<h3><code>&lt;</code> &ndash; lower byte</h3>
-<h3><code>&gt;</code> &ndash; higher byte</h3>
-<h3><code>`</code> &ndash; bank byte</h3>
-<pre>
-lda #&lt;label
-ldy #&gt;label
-jsr $ab1e
-</pre>
-
-<h3><code>=</code> &ndash; equal</h3>
-<h3><code>&lt;</code> &ndash; less</h3>
-<h3><code>&gt;</code> &ndash; more</h3>
-<h3><code>!=</code> &ndash; non equal</h3>
-<h3><code>&gt;=</code> &ndash; more or equal</h3>
-<h3><code>&lt;=</code> &ndash; less or equal</h3>
+<h3></h3>
+<table border="0">
+<tr><td><tt>( )</tt></td>   <td align="left">braces</td></tr>
+</table>
 <pre width=80>
-	.if ntsc=1
-	nop
-	.fi
+    lda #(4+2)*3
 </pre>
 
-<h3><code>+</code> &ndash; add</h3>
-<h3><code>-</code> &ndash; substract</h3>
-<h3><code>*</code> &ndash; multiply</h3>
-<h3><code>/</code> &ndash; divide</h3>
-<h3><code>//</code> &ndash; modulo</h3>
-<h3><code>|</code> &ndash; or</h3>
-<h3><code>^</code> &ndash; xor</h3>
-<h3><code>&amp;</code> &ndash; and</h3>
-<h3><code>&lt;&lt;</code> &ndash; shift left</h3>
-<h3><code>&gt;&gt;</code> &ndash; shift right</h3>
-<h3><code>-</code> &ndash; negate</h3>
-<h3><code>~</code> &ndash; invert</h3>
-<h3><code>!</code> &ndash; not</h3>
+<h3>special</h3>
+<table border="0">
+<tr><td><tt>&lt;</tt></td>   <td align="left">lower byte</td></tr>
+<tr><td><tt>&gt;</tt></td>   <td align="left">higher byte</td></tr>
+<tr><td><tt>`</tt></td>      <td align="left">bank byte</td></tr>
+</table>
+
 <pre width=80>
-	lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
-	sta $d018
+    lda #&lt;label
+    ldy #&gt;label
+    jsr $ab1e
+</pre>
+
+<h3>boolean</h3>
+<table border="0">
+<tr><td><tt>=</tt></td>      <td align="left">equal</td></tr>
+<tr><td><tt>!=</tt></td>     <td align="left">non equal</td></tr>
+<tr><td><tt>&lt;</tt></td>   <td align="left">less</td></tr>
+<tr><td><tt>&gt;</tt></td>   <td align="left">more</td></tr>
+<tr><td><tt>&gt;=</tt></td>  <td align="left">more or equal</td></tr>
+<tr><td><tt>&lt;=</tt></td>  <td align="left">less or equal</td></tr>
+<tr><td><tt>!</tt></td>      <td align="left">not</td></tr>
+</table>
+
+<pre width=80>
+    .if ntsc=1
+    nop
+    .fi
+</pre>
+
+<h3>arithmetic</h3>
+<table border="0">
+<tr><td><tt>+</tt></td>       <td align="left">add</td></tr>
+<tr><td><tt>-</tt></td>       <td align="left">substract / negate</td></tr>
+<tr><td><tt>*</tt></td>       <td align="left">multiply</td></tr>
+<tr><td><tt>/</tt></td>       <td align="left">divide</td></tr>
+<tr><td><tt>//</tt></td>      <td align="left">modulo</td></tr>
+<tr><td><tt>|</tt></td>       <td align="left">bitwise or</td></tr>
+<tr><td><tt>&amp;</tt></td>   <td align="left">bitwise and</td></tr>
+<tr><td><tt>^</tt></td>       <td align="left">bitwise xor</td></tr>
+<tr><td><tt>&lt;&lt;</tt></td><td align="left">shift right</td></tr>
+<tr><td><tt>&gt;&gt;</tt></td><td align="left">shift left</td></tr>
+<tr><td><tt>~</tt></td>       <td align="left">invert bits</td></tr>
+</table>
+
+<pre width=80>
+    lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
+    sta $d018
 </pre>
 
 <hr>
@@ -898,7 +912,7 @@ option.
 <li>  :   for bitwise eor
 <li>  !   to force 16bit address (only as first character of expression)
 </ul>
-these two can be enabled using the <tt>-O, --compatible-ops</tt> option
+These can be enabled using the <tt>-O, --compatible-ops</tt> option
 
 <h3>Conditional assembly unsupported PseudoOps</h3>
 <ul>
@@ -924,6 +938,14 @@ these two can be enabled using the <tt>-O, --compatible-ops</tt> option
 <li>  .showmac  - show expanded calls
 <li>  .eor      - eor output with some value
 </ul>
+
+<h3>Bugs</h3>
+<ul>
+<li>The original turbo assembler has a bug which makes the labels used in the 
+first .block globally available. If you get a related error move the respective 
+label out of the .block
+</ul>
+
 <hr>
 <h2>Messages</h2>
 
