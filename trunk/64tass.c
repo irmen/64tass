@@ -1048,7 +1048,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
                 if (!(skipit[waitforp] & 1)) break; //skip things if needed
                 if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
-                    int ch2=-1, ch3;
+                    int ch2=-1, ch3, oldlpoint;
                     char quo;
                     unsigned long ptextaddr=address;
                     if (prm==CMD_PTEXT) pokeb(0);
@@ -1059,11 +1059,12 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 
                         if (ch=='"' || ch=='\'') {
                             quo=ch;
-			    if (pline[lpoint+1] && pline[lpoint+1]!=quo && pline[lpoint+2]==quo) goto textconst;
+                            oldlpoint=lpoint;
                             lpoint++;
+                            ch3 = petascii(quo);
+			    if (ch3 < 256 && here()==quo) {lpoint = oldlpoint;goto textconst;}
                             /* handle the string in quotes */
-			    for (;;) {
-                                ch3 = petascii(quo);
+			    for (;;ch3 = petascii(quo)) {
                                 if (ch3 >= 256) break;
 
                                 if (ch2>=0) {
