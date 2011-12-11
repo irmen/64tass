@@ -30,7 +30,7 @@
 
 void err_msg(unsigned char no, char* prm);
 
-struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0,0};
+struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
 
 static void *label_tree=NULL;
 static void *macro_tree=NULL; 
@@ -78,14 +78,6 @@ unsigned char encode(unsigned char ch) {
         if (ch==0xFF) return 0x5E;
     }
     return ch;
-}
-
-unsigned char petascii(unsigned char ch) {
-    if (arguments.toascii) {
-        if (ch>='A' && ch<='Z') ch+=0x80;
-        if (ch>='a' && ch<='z') ch-=0x20;
-    }
-    return encode(ch);
 }
 
 /* PETSCII codes */
@@ -239,7 +231,6 @@ unsigned char petsymbolic(char *str) {
         }
         syms++;
     }
-    err_msg(ERROR______EXPECTED, "PETASCII symbol");
     return 0;
 }
 
@@ -786,7 +777,6 @@ const struct argp_option options[]={
     {"nostart" 	,	'b',		0,     	0,  "Strip starting address"},
     {"wordstart",	'W',		0,     	0,  "Force 2 byte start address"},
     {"ascii" 	,	'a',		0,     	0,  "Convert ASCII to PETASCII"},
-    {"petscii-literals",'p',            0,      0,  "Interpret petcat style PETASCII literals"},
     {"no-precedence",   'P',            0,      0,  "No operator precedence in expressions"},
     {"compatible-ops",  'O',            0,      0,  "Enable TASS compatible operators"},
     {"case-sensitive",	'C',		0,     	0,  "Case sensitive labels"},
@@ -818,7 +808,6 @@ static error_t parse_opt (int key,char *arg,struct argp_state *state)
     case 'n':arguments.nonlinear=1;break;
     case 'b':arguments.stripstart=1;break;
     case 'a':arguments.toascii=1;break;
-    case 'p':arguments.petsym=1;break;
     case 'P':arguments.noprecedence=1;break;
     case 'O':arguments.oldops=1;break;
     case 'o':arguments.output=arg;break;
@@ -880,7 +869,6 @@ void testarg(int argc,char *argv[]) {
 		"  -n, --nonlinear\t     Generate nonlinear output file\n"
 		"  -o <file>\t\t     Place output into <file>\n"
                 "  -O, --compatible-ops\t     Enable TASS compatible operators\n"
-                "  -p, --petscii-literals     Interpret petcat style PETASCII literals\n"
                 "  -P, --no-precedence\t     No operator precedence in expressions\n"
 		"  -q, --quiet\t\t     Display errors/warnings\n"
 		"  -w, --no-warn\t\t     Suppress warnings\n"
@@ -929,7 +917,6 @@ void testarg(int argc,char *argv[]) {
 	if (!strcmp(argv[j],"-n") || !strcmp(argv[j],"--nonlinear")) {arguments.nonlinear=1;continue;}
 	if (!strcmp(argv[j],"-b") || !strcmp(argv[j],"--nostart")) {arguments.stripstart=1;continue;}
         if (!strcmp(argv[j],"-a") || !strcmp(argv[j],"--ascii")) {arguments.toascii=1;continue;}
-        if (!strcmp(argv[j],"-p") || !strcmp(argv[j],"--petscii-literals")) {arguments.petsym=1;continue;}
         if (!strcmp(argv[j],"-P") || !strcmp(argv[j],"--no-precedence")) {arguments.noprecedence=1;continue;}
         if (!strcmp(argv[j],"-O") || !strcmp(argv[j],"--compatible-ops")) {arguments.oldops=1;continue;}
         if (!strcmp(argv[j],"-q") || !strcmp(argv[j],"--quiet")) {arguments.quiet=0;continue;}

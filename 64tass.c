@@ -188,6 +188,38 @@ void readln(FILE* fle) {
 }
 
 // ---------------------------------------------------------------------------
+// Read a character in the current string encoding
+int petascii(char quo) {
+    char ch;
+
+    if (!here()) {err_msg(ERROR______EXPECTED,"End of string"); return 256;}
+    ch=get();
+    if (ch==quo) {
+        if (here()==quo) lpoint++; // handle 'it''s'
+        else return 257; // end of string;
+    }
+    if (arguments.toascii) {
+        if (ch>='A' && ch<='Z') ch+=0x80;
+        if (ch>='a' && ch<='z') ch-=0x20;
+
+        if (ch=='{') {
+            char sym[0x10];
+            int n = 0;
+            while ((ch=get())!='}') {
+                if (ch == 0 || ch == quo) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
+                sym[n]=ch;
+                n++;
+                if (n == 0x10) {err_msg(ERROR_CONSTNT_LARGE,NULL);return 256;}
+            }
+            sym[n] = 0;
+            ch = petsymbolic(sym);
+            if (!ch) {err_msg(ERROR______EXPECTED, "PETASCII symbol");return 256;}
+        }
+    }
+    return encode(ch);
+}
+
+// ---------------------------------------------------------------------------
 
 void pokeb(unsigned char byte) {
 
@@ -342,18 +374,16 @@ long get_num(int *cd, int mode) {
 	}
     case '"':
 	{
-            if ((ch=get()) && ch!='"') {
-		if (get()=='"') {*cd=1; return petascii(ch);}
-	    }
-	    err_msg(ERROR_EXPRES_SYNTAX,NULL);
+            val = petascii(ch);
+            if (val < 256 && get()=='"') {*cd=1; return val;}
+	    if (val != 256) err_msg(ERROR_EXPRES_SYNTAX,NULL);
 	    return 0;
 	}
     case '\'':
 	{
-            if ((ch=get()) && ch!='\'') {
-		if (get()=='\'') {*cd=1; return petascii(ch);}
-	    }
-	    err_msg(ERROR_EXPRES_SYNTAX,NULL);
+            val = petascii(ch);
+            if (val < 256 && get()=='\'') {*cd=1; return val;}
+	    if (val != 256) err_msg(ERROR_EXPRES_SYNTAX,NULL);
 	    return 0;
 	}
     case '*': *cd=1; return l_address;
@@ -1018,7 +1048,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
                 if (!(skipit[waitforp] & 1)) break; //skip things if needed
                 if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
-                    int ch2=-1;
+                    int ch2=-1, ch3;
                     char quo;
                     unsigned long ptextaddr=address;
                     if (prm==CMD_PTEXT) pokeb(0);
@@ -1033,34 +1063,13 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             lpoint++;
                             /* handle the string in quotes */
 			    for (;;) {
-				if (!(ch=get())) {err_msg(ERROR______EXPECTED,"End of string"); break;}
-				if (ch==quo) {
-				    if (pline[lpoint]==quo) lpoint++; else break;
-                                }
+                                ch3 = petascii(quo);
+                                if (ch3 >= 256) break;
+
                                 if (ch2>=0) {
                                     pokeb(ch2);
                                 }
-                                /* convert character to output format */
-                                if ((arguments.petsym == 1) && (ch=='{')) {
-                                    char sym[0x10];
-                                    int n = 0;
-                                    while ((ch=get())!='}') {
-                                        if (ch == 0 || ch == quo) {
-                                            err_msg(ERROR______EXPECTED,"}"); goto cvege2;
-                                        }
-                                        sym[n]=ch;
-                                        n++;
-                                        if (n == 0x10) {
-                                            err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;
-                                        }
-                                    }
-                                    sym[n] = 0;
-                                    ch2 = petsymbolic(sym);
-                                    if (ch2 == 0) goto cvege2;
-                                    ch2 = encode(ch2);
-                                } else {
-                                    ch2 = petascii(ch);
-                                }
+                                ch2 = ch3;
 
                                 if (prm==CMD_CHAR) {if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}}
                                 else if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
@@ -1087,7 +1096,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                                 if (ch2>=0) {
                                     pokeb(ch2);
                                 }
-                                ch2=(unsigned char)petascii(snum[i]);
+                                ch2=encode(snum[i]);
                                 if (prm==CMD_CHAR) {if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}}
                                 else if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
                                     if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
