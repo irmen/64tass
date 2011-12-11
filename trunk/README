@@ -483,10 +483,39 @@ arithmetic
 
 Compiler directives:
 
+Controlling the program counter
+
 *=
     Set current address
 
             *=$1000
+
+.offs
+    Add compile offset to logical address
+
+            .offs 100
+
+.logical
+    Changes logical address. Can be nested.
+
+            .logical $300
+    drive   lda #$80
+            sta $00
+            jmp drive       ;jmp $300
+            rts
+            .here
+
+.here
+    Restore logical address to physical
+.align
+    Align code to a dividable address by skip or fill
+
+            .align $100
+    irq     inc $d019       ;this will be on a page boundary, after skipping bytes
+            .align 4,$ea
+    loop    adc #1          ;padding with "nop" for DTV burst mode
+
+Data
 
 .byte
     Include 8bit unsigned byte constants, same as .text
@@ -599,10 +628,14 @@ Compiler directives:
 
             .long $123456
 
-.offs
-    Add compile offset to logical address
+.fill
+    Skip bytes, or fill with repeated bytes. For multibyte patterns use
+    .repeat!
 
-            .offs 100
+            .fill $100      ;no fill, just skip $100 bytes
+            .fill $4000,0   ;16384 bytes of 0
+
+Macros
 
 .macro
     Macro definition, it copies the macro content in. (so be careful with
@@ -616,6 +649,9 @@ Compiler directives:
 
 .endm
     End of macro definition
+
+Conditional assembly
+
 .for
     Compile loop, only anonymous references are allowed as labels inside
 
@@ -666,6 +702,8 @@ Compiler directives:
             nop
             .next
 
+Including files
+
 .include
     Include source file here
 
@@ -682,72 +720,7 @@ Compiler directives:
             *=$1000                 ;load music to $1000 and
             .binary "music.dmc",2   ;strip load address
 
-.comment
-    Comment block start
-
-            .comment
-            lda #1          ;this won't be compiled
-            sta $d020
-            .endc
-
-.endc
-    End of comment block
-.page
-    Gives an error on page boundary crossing, eg. for timing sensitive code.
-
-            .page
-    table   .byte 0,1,2,3,4,5,6,7
-            .endp
-
-.endp
-    End of page cross checking
-.logical
-    Changes logical address. Can be nested.
-
-            .logical $300
-    drive   lda #$80
-            sta $00
-            jmp drive       ;jmp $300
-            rts
-            .here
-
-.here
-    Restore logical address to physical
-.as
-    Select 8 bit accu (65816)
-.al
-    Select 16 bit accu (65816)
-
-            .al
-            lda #$4322
-
-.xs
-    Select 8 bit index (65816)
-.xl
-    Select 16 bit index (65816)
-
-            .xl
-            ldx #$1000
-
-.error
-    Exit with error
-
-            .error "Unfinished here..."
-
-.warn
-    Warning
-
-            .warn "FIXME: handle negative values too!"
-
-.cerror
-    Conditional exit with error
-
-            .cerror *>$1200,"Program too long!"
-
-.cwarn
-    Conditional warning
-
-            .cwarn *>$1200,"This may not work!"
+Blocks
 
 .proc
     Procedure start
@@ -775,6 +748,35 @@ Compiler directives:
     All labels inside a block are local.
 .bend
     End of Block
+.comment
+    Comment block start
+
+            .comment
+            lda #1          ;this won't be compiled
+            sta $d020
+            .endc
+
+.endc
+    End of comment block
+
+65816
+
+.as
+    Select 8 bit accu (65816)
+.al
+    Select 16 bit accu (65816)
+
+            .al
+            lda #$4322
+
+.xs
+    Select 8 bit index (65816)
+.xl
+    Select 16 bit index (65816)
+
+            .xl
+            ldx #$1000
+
 .databank
     Set databank (65816)
 
@@ -785,20 +787,38 @@ Compiler directives:
 
             .dpage $400
 
-.fill
-    Skip bytes, or fill with repeated bytes. For multibyte patterns use
-    .repeat!
+Controlling errors
 
-            .fill $100      ;no fill, just skip $100 bytes
-            .fill $4000,0   ;16384 bytes of 0
+.page
+    Gives an error on page boundary crossing, eg. for timing sensitive code.
 
-.align
-    Align code to a dividable address by skip or fill
+            .page
+    table   .byte 0,1,2,3,4,5,6,7
+            .endp
 
-            .align $100
-    irq     inc $d019       ;this will be on a page boundary, after skipping bytes
-            .align 4,$ea
-    loop    adc #1          ;padding with "nop" for DTV burst mode
+.endp
+    End of page cross checking
+.error
+    Exit with error
+
+            .error "Unfinished here..."
+
+.warn
+    Warning
+
+            .warn "FIXME: handle negative values too!"
+
+.cerror
+    Conditional exit with error
+
+            .cerror *>$1200,"Program too long!"
+
+.cwarn
+    Conditional warning
+
+            .cwarn *>$1200,"This may not work!"
+
+Misc
 
 .enc
     Text encoding, "none" or "screen" (screen code)
@@ -901,6 +921,7 @@ Misc unsupported PseudoOps
   • .hidemac - show unexpanded calls
   • .showmac - show expanded calls
   • .eor - eor output with some value
+  • .end - terminate assembly
 
 Bugs
 
