@@ -907,7 +907,10 @@ Tass Operators
 
   * . for bitwise or
   * : for bitwise eor
-  * ! to force 16bit address (only as first character of expression)
+  * ! to force 16 bit address (only as first character of expression)
+  * @b to force 8 bit address
+  * @w to force 16 bit address
+  * @l to force 24 bit address
 
 These can be enabled using the -O, --compatible-ops option
 
