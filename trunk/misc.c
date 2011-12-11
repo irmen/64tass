@@ -93,33 +93,7 @@ static const char *petsym[] = {
     "\xdc" "cbm--",
     "\xa4" "cbm-@",
     "\xde" "cbm-^",
-    "\xb0" "cbm-a",
-    "\xbf" "cbm-b",
-    "\xbc" "cbm-c",
-    "\xac" "cbm-d",
-    "\xb1" "cbm-e",
-    "\xbb" "cbm-f",
-    "\xa5" "cbm-g",
-    "\xb4" "cbm-h",
-    "\xa2" "cbm-i",
-    "\xb5" "cbm-j",
-    "\xa1" "cbm-k",
-    "\xb6" "cbm-l",
-    "\xa7" "cbm-m",
-    "\xaa" "cbm-n",
-    "\xb9" "cbm-o",
-    "\xaf" "cbm-p",
     "\xa8" "cbm-pound",
-    "\xab" "cbm-q",
-    "\xb2" "cbm-r",
-    "\xae" "cbm-s",
-    "\xa3" "cbm-t",
-    "\xb8" "cbm-u",
-    "\xbe" "cbm-v",
-    "\xb3" "cbm-w",
-    "\xbd" "cbm-x",
-    "\xb7" "cbm-y",
-    "\xad" "cbm-z",
     "\x93" "clear",
     "\x93" "clr",
     "\x0d" "cr",
@@ -200,6 +174,13 @@ static const char *petsym[] = {
     "\x9e" "yellow",
 };
 
+static const unsigned char petsymcbm[26] = {
+    0xb0, 0xbf, 0xbc, 0xac, 0xb1, 0xbb, 0xa5, 0xb4,
+    0xa2, 0xb5, 0xa1, 0xb6, 0xa7, 0xaa, 0xb9, 0xaf,
+    0xab, 0xb2, 0xae, 0xa3, 0xb8, 0xbe, 0xb3, 0xbd,
+    0xb7, 0xad 
+};
+
 unsigned char petsymbolic(char *str) {
     int n, n2;
     int also=0,felso,s4,elozo;
@@ -220,6 +201,10 @@ unsigned char petsymbolic(char *str) {
             }
         }
     }
+    if (!strncasecmp(str, "cbm-", 4) && str[4] >='a'
+        && str[4] <='z' && str[5] == 0) {
+        return petsymcbm[lowcase(str[4]) - 'a']; /* {cbm-x} */
+    }
     if (!strncasecmp(str, "shift-", 6) && str[6] >='a'
         && str[6] <='z' && str[7] == 0) {
         return lowcase(str[6]) - 'a' + 0xc1; /* {shift-x} */
@@ -233,7 +218,7 @@ unsigned char petsymbolic(char *str) {
     n=felso/2;
     for (;;) {  // do binary search
         if (!(s4=strcasecmp(str, petsym[n] + 1))) {
-            return petsym[n][0];
+            return (unsigned char)petsym[n][0];
         }
 
         elozo = n;
