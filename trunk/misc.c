@@ -114,6 +114,7 @@ static const char *petsym[] = {
    "\x5f" "left arrow",
    "\x81" "orng",
    "\x81" "orange",
+   "\x83" "run",
    "\x85" "f1",
    "\x86" "f3",
    "\x87" "f5",
@@ -223,6 +224,10 @@ unsigned char petsymbolic(char *str) {
     if (!strncasecmp(str, "shift-", 6) && str[6] >='a'
         && str[6] <='z' && str[7] == 0) {
         return lowcase(str[6]) - 'a' + 0xc1; /* {shift-x} */
+    }
+    if (!strncasecmp(str, "control-", 8) && str[8] >='a'
+        && str[8] <='z' && str[9] == 0) {
+        return lowcase(str[8]) - 'a' + 1; /* {control-x} */
     }
     syms = petsym;
     while (*syms) { /* {string} */
