@@ -142,23 +142,25 @@ label
 a DOS based Turbo Assembler editor, which could create petscii files for
 6502tass. (with control characters also of course)</p>
 <p>Using this option will convert 'a'-'z' and 'A'-'Z' into the correct petscii
-range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor.</P>
+range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor.
+It also interprets petcat style PETASCII literals and converts them to control codes.</p>
 <h5>Example:</h5>
 <pre>
 64tass a.asm
-lda #"a"	-&gt; result: $A9, $61
-.text "1aA"	-&gt; result: $31, $61, $41
+
+.0000    a9 61          lda #$61        lda #"a"
+
+>0002    31 61 41                       .text "1aA"
+>0005    7b 63 6c 65 61 72 7d 74        .text "{clear}text{return}more"
+>000e    65 78 74 7b 72 65 74 75 
+>0016    72 6e 7d 6d 6f 72 65 
 
 64tass --ascii a.asm
-lda #"a"	-&gt; result: $A9, $41
-.text "1aA"	-&gt; result: $31, $41, $C1
-</pre>
 
-<h4><tt>-p, --petscii-literals</tt> Interpret petcat style PETASCII literals</h4>
-<p></p>
-<h5>Example:</h5>
-<pre>
-.text "{clear}text{return}more"
+.0000    a9 41          lda #$41        lda #"a"
+>0002    31 41 c1                       .text "1aA"
+>0005    93 54 45 58 54 0d 4d 4f        .text "{clear}text{return}more"
+>000e    52 45 
 </pre>
 
 <h4><tt>-b, --nostart</tt> Strip starting address</h4>
@@ -929,7 +931,7 @@ sourcefile directly, or do the following:
 the resulting file should then (with the restrictions below) assemble using the
 following commandline:<br>
 <p>
-<tt>64tass -C -P -O -p -a -W -i source.s -o outfile.prg</tt>
+<tt>64tass -C -P -O -a -W -i source.s -o outfile.prg</tt>
 </p>
 <hr>
 <h2>Differences to the original turbo ass macro on the C64</h2>
