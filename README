@@ -862,6 +862,8 @@ Misc
 
 .end
     Terminate assembly. Any content after this directive is ignored.
+.eor
+    eor output with some value
 .global
     Do not use this, buggy!
 .assert
@@ -915,29 +917,30 @@ option.
 
 Tass Operators
 
+The following operators used by the original turbo assembler are not supported
+by default:
+
   • . for bitwise or
   • : for bitwise eor
   • ! to force 16 bit address (only as first character of expression)
 
 These can be enabled using the -O, --compatible-ops option
 
-Conditional assembly unsupported PseudoOps
+Directives
+
+Some directives are not implemented:
 
   • .var - defines a variable identified by the label preceeding '.var', which
     is set to the value following the '.var'.
   • .lbl - identifies a label that can be referenced by a .goto
   • .goto - causes assembler to goto the label referenced and continue
     assembling from that point on.
+  • .segment - starts a macro definition but without a block
 
 Macros
 
   • macro parameters are referenced by \1, \2 instead of using the pound sign
-  • text arguments (@1, @2) are not supported.
-  • .segment (starts a macro definition but without a block) is not supported.
-
-Misc unsupported PseudoOps
-
-  • .eor - eor output with some value
+  • Referencing to arguments as text (@1, @2) is not supported.
 
 Bugs
 
