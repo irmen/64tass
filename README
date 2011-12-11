@@ -951,6 +951,8 @@ Possible jmp ($xxff) bug
     yet another 65xx feature...
 Long branch used
     Branch too long, so long branch was used (bxx *+5 jmp)
+Directive ignored
+    An assembler directive was ignored for compatibility reasons.
 
 Errors
 
