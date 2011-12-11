@@ -905,6 +905,9 @@ can ruin the timing of a carefuly cycle counted code.
 <dt>.end
 <dd>Terminate assembly. Any content after this directive is ignored.
 
+<dt>.eor
+<dd>eor output with some value
+
 <dt>.global
 <dd>Do not use this, buggy!
 
@@ -960,6 +963,8 @@ You can switch 64tass to the original behaviour using the <tt>-P, --no-precedenc
 option.
 </p>
 <h3>Tass Operators</h3>
+The following operators used by the original turbo assembler are not supported
+by default:
 <ul>
 <li>  .   for bitwise or
 <li>  :   for bitwise eor
@@ -967,25 +972,21 @@ option.
 </ul>
 These can be enabled using the <tt>-O, --compatible-ops</tt> option
 
-<h3>Conditional assembly unsupported PseudoOps</h3>
+<h3>Directives</h3>
+Some directives are not implemented:
 <ul>
-<li>  .var   - defines a variable identified by the label preceeding '.var',
-           which is set to the value following the '.var'.
-<li>  .lbl   - identifies a label that can be referenced by a .goto
-<li>  .goto  - causes assembler to goto the label referenced and continue
-           assembling from that point on.
+<li>.var - defines a variable identified by the label preceeding '.var', which 
+is set to the value following the '.var'.
+<li>.lbl - identifies a label that can be referenced by a .goto
+<li>.goto - causes assembler to goto the label referenced and continue assembling 
+from that point on.
+<li>.segment - starts a macro definition but without a block
 </ul>
 
 <h3>Macros</h3>
 <ul>
 <li>macro parameters are referenced by \1, \2 instead of using the pound sign
-<li>text arguments (@1, @2) are not supported.
-<li>.segment (starts a macro definition but without a block) is not supported.
-</ul>
-
-<h3>Misc unsupported PseudoOps</h3>
-<ul>
-<li>  .eor      - eor output with some value
+<li>Referencing to arguments as text (@1, @2) is not supported.
 </ul>
 
 <h3>Bugs</h3>

@@ -75,6 +75,7 @@ static unsigned long current_conflicts;
 static unsigned long current_provides;
 static int allowslowbranch=1;
 static int longbranchasjmp=0;
+static int outputeor = 0; // EOR value for final output (usually 0, except changed by .eor)
 
 static char s_stack[256];
 static struct {long val; char sgn;} e_stack[256];
@@ -98,16 +99,16 @@ const char* command[]={"byte"   ,"text", "ptext", "char" ,"shift","shiftl" ,"nul
                         "page"   ,"endp" ,"logical","here" ,"as"   ,"al"     ,"xs"    ,"xl"     ,"error"  ,"proc",
                         "pend"   ,"databank","dpage","fill","global","warn"  ,"enc"   ,"endif"  , "ifne"  , "ifeq",
                         "ifpl"   , "ifmi","cerror","cwarn", "align","assert", "check", "cpu", "option",
-                        "block"  , "bend", "pron", "proff", "showmac", "hidemac", "end"
+                        "block"  , "bend", "pron", "proff", "showmac", "hidemac", "end", "eor"
 };
 enum {
     CMD_BYTE, CMD_TEXT, CMD_PTEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFT2, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
     CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL,
     CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE,
     CMD_FILL, CMD_GLOBAL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION,
-    CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END
+    CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR
 };
-#define COMMANDS 61
+#define COMMANDS 62
 
 // ---------------------------------------------------------------------------
 
@@ -219,15 +220,18 @@ int petascii(char quo) {
 }
 
 // ---------------------------------------------------------------------------
-
-void pokeb(unsigned char byte) {
+/*
+ * output one byte
+ */
+void pokeb(unsigned char byte) 
+{
 
     if (fixeddig)
     {
 	if (arguments.nonlinear) mmap[address>>3]|=(1<<(address & 7));
 	if (address<low_mem) low_mem=address;
 	if (address>top_mem) top_mem=address;
-	if (address<=full_mem) mem64[address]=byte;
+	if (address<=full_mem) mem64[address] = byte ^ outputeor;
     }
     if (wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);wrapwarn=0;}
     if (wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);wrapwarn2=0;}
@@ -1527,6 +1531,16 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     }
 		    break;
 		}
+                if (prm==CMD_EOR) {   // .eor
+                    val=get_exp(&w,&d,&c);
+                    if (!c) break;
+                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
+                    ignore();if (here()) goto extrachar;
+                    if (d) {
+                        outputeor = val;
+                    }
+                    break;
+                }
                 if (prm==CMD_END) {
                     goto end;
                 }
