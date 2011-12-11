@@ -33,7 +33,7 @@ void err_msg(unsigned char no, char* prm);
 struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
 
 static void *label_tree=NULL;
-static void *macro_tree=NULL; 
+static void *macro_tree=NULL;
 static void *file_tree1=NULL;
 #ifndef WIN32
 static void *file_tree2=NULL;
@@ -80,130 +80,129 @@ unsigned char encode(unsigned char ch) {
     return ch;
 }
 
-/* PETSCII codes */
+/* PETSCII codes, must be sorted */
 static const char *petsym[] = {
-   "\x03" "stop",
-   "\x05" "wht",
-   "\x05" "white",
-   "\x08" "dish",
-   "\x08" "up/lo lock on",
-   "\x09" "ensh",
-   "\x09" "up/lo lock off",
-   "\x0d" "cr",
-   "\x0d" "return",
-   "\x0e" "swlc",
-   "\x0e" "lower case",
-   "\x11" "down",
-   "\x12" "rvon",
-   "\x12" "reverse on",
-   "\x12" "rvs on",
-   "\x13" "home",
-   "\x14" "del",
-   "\x14" "delete",
-   "\x1b" "esc",
-   "\x1c" "red",
-   "\x1d" "rght",
-   "\x1d" "right",
-   "\x1e" "grn",
-   "\x1e" "green",
-   "\x1f" "blu",
-   "\x1f" "blue",
-   "\x20" "space",
-   "\x5c" "pound",
-   "\x5e" "up arrow",
-   "\x5f" "left arrow",
-   "\x81" "orng",
-   "\x81" "orange",
-   "\x83" "run",
-   "\x85" "f1",
-   "\x86" "f3",
-   "\x87" "f5",
-   "\x88" "f7",
-   "\x89" "f2",
-   "\x8a" "f4",
-   "\x8b" "f6",
-   "\x8c" "f8",
-   "\x8d" "sret",
-   "\x8d" "shift return",
-   "\x8e" "swuc",
-   "\x8e" "upper case",
-   "\x90" "blk",
-   "\x90" "black",
-   "\x91" "up",
-   "\x92" "rvof",
-   "\x92" "reverse off",
-   "\x92" "rvs off",
-   "\x93" "clr",
-   "\x93" "clear",
-   "\x94" "inst",
-   "\x94" "insert",
-   "\x95" "brn",
-   "\x95" "brown",
-   "\x96" "lred",
-   "\x96" "lt red",
-   "\x97" "gry1",
-   "\x97" "grey1",
-   "\x98" "gry2",
-   "\x98" "grey2",
-   "\x99" "lgrn",
-   "\x99" "lt green",
-   "\x9a" "lblu",
-   "\x9a" "lt blue",
-   "\x9b" "gry3",
-   "\x9b" "grey3",
-   "\x9c" "pur",
-   "\x9c" "purple",
-   "\x9d" "left",
-   "\x9e" "yel",
-   "\x9e" "yellow",
-   "\x9f" "cyn",
-   "\x9f" "cyan",
-   "\xa0" "shift-space",
-   "\xa1" "cbm-k",
-   "\xa2" "cbm-i",
-   "\xa3" "cbm-t",
-   "\xa4" "cbm-@",
-   "\xa5" "cbm-g",
-   "\xa6" "cbm-+",
-   "\xa7" "cbm-m",
-   "\xa8" "cbm-pound",
-   "\xa9" "shift-pound",
-   "\xaa" "cbm-n",
-   "\xab" "cbm-q",
-   "\xac" "cbm-d",
-   "\xad" "cbm-z",
-   "\xae" "cbm-s",
-   "\xaf" "cbm-p",
-   "\xb0" "cbm-a",
-   "\xb1" "cbm-e",
-   "\xb2" "cbm-r",
-   "\xb3" "cbm-w",
-   "\xb4" "cbm-h",
-   "\xb5" "cbm-j",
-   "\xb6" "cbm-l",
-   "\xb7" "cbm-y",
-   "\xb8" "cbm-u",
-   "\xb9" "cbm-o",
-   "\xba" "shift-@",
-   "\xbb" "cbm-f",
-   "\xbc" "cbm-c",
-   "\xbd" "cbm-x",
-   "\xbe" "cbm-v",
-   "\xbf" "cbm-b",
-   "\xc0" "shift-*",
-   "\xdb" "shift-+",
-   "\xdc" "cbm--",
-   "\xdd" "shift--",
-   "\xde" "shift-^",
-   "\xde" "cbm-^",
-   "\xdf" "cbm-*",
-   "\xff" "pi",
-   NULL
+    "\x90" "black",
+    "\x90" "blk",
+    "\x1f" "blu",
+    "\x1f" "blue",
+    "\x95" "brn",
+    "\x95" "brown",
+    "\xdf" "cbm-*",
+    "\xa6" "cbm-+",
+    "\xdc" "cbm--",
+    "\xa4" "cbm-@",
+    "\xde" "cbm-^",
+    "\xb0" "cbm-a",
+    "\xbf" "cbm-b",
+    "\xbc" "cbm-c",
+    "\xac" "cbm-d",
+    "\xb1" "cbm-e",
+    "\xbb" "cbm-f",
+    "\xa5" "cbm-g",
+    "\xb4" "cbm-h",
+    "\xa2" "cbm-i",
+    "\xb5" "cbm-j",
+    "\xa1" "cbm-k",
+    "\xb6" "cbm-l",
+    "\xa7" "cbm-m",
+    "\xaa" "cbm-n",
+    "\xb9" "cbm-o",
+    "\xaf" "cbm-p",
+    "\xa8" "cbm-pound",
+    "\xab" "cbm-q",
+    "\xb2" "cbm-r",
+    "\xae" "cbm-s",
+    "\xa3" "cbm-t",
+    "\xb8" "cbm-u",
+    "\xbe" "cbm-v",
+    "\xb3" "cbm-w",
+    "\xbd" "cbm-x",
+    "\xb7" "cbm-y",
+    "\xad" "cbm-z",
+    "\x93" "clear",
+    "\x93" "clr",
+    "\x0d" "cr",
+    "\x9f" "cyan",
+    "\x9f" "cyn",
+    "\x14" "del",
+    "\x14" "delete",
+    "\x08" "dish",
+    "\x11" "down",
+    "\x09" "ensh",
+    "\x1b" "esc",
+    "\x85" "f1",
+    "\x89" "f2",
+    "\x86" "f3",
+    "\x8a" "f4",
+    "\x87" "f5",
+    "\x8b" "f6",
+    "\x88" "f7",
+    "\x8c" "f8",
+    "\x1e" "green",
+    "\x97" "grey1",
+    "\x98" "grey2",
+    "\x9b" "grey3",
+    "\x1e" "grn",
+    "\x97" "gry1",
+    "\x98" "gry2",
+    "\x9b" "gry3",
+    "\x13" "home",
+    "\x94" "insert",
+    "\x94" "inst",
+    "\x9a" "lblu",
+    "\x9d" "left",
+    "\x5f" "left arrow",
+    "\x99" "lgrn",
+    "\x0e" "lower case",
+    "\x96" "lred",
+    "\x9a" "lt blue",
+    "\x99" "lt green",
+    "\x96" "lt red",
+    "\x81" "orange",
+    "\x81" "orng",
+    "\xff" "pi",
+    "\x5c" "pound",
+    "\x9c" "pur",
+    "\x9c" "purple",
+    "\x1c" "red",
+    "\x0d" "return",
+    "\x92" "reverse off",
+    "\x12" "reverse on",
+    "\x1d" "rght",
+    "\x1d" "right",
+    "\x83" "run",
+    "\x92" "rvof",
+    "\x12" "rvon",
+    "\x92" "rvs off",
+    "\x12" "rvs on",
+    "\x8d" "shift return",
+    "\xc0" "shift-*",
+    "\xdb" "shift-+",
+    "\xdd" "shift--",
+    "\xba" "shift-@",
+    "\xde" "shift-^",
+    "\xa9" "shift-pound",
+    "\xa0" "shift-space",
+    "\x20" "space",
+    "\x8d" "sret",
+    "\x03" "stop",
+    "\x0e" "swlc",
+    "\x8e" "swuc",
+    "\x91" "up",
+    "\x5e" "up arrow",
+    "\x09" "up/lo lock off",
+    "\x08" "up/lo lock on",
+    "\x8e" "upper case",
+    "\x05" "white",
+    "\x05" "wht",
+    "\x9e" "yel",
+    "\x9e" "yellow",
 };
 
 unsigned char petsymbolic(char *str) {
     int n, n2;
-    const char **syms;
+    int also=0,felso,s4,elozo;
 
     if (str[0] == '$') { /* convert {$ab} or {$a} */
         n = lowcase(str[1]);
@@ -229,12 +228,17 @@ unsigned char petsymbolic(char *str) {
         && str[8] <='z' && str[9] == 0) {
         return lowcase(str[8]) - 'a' + 1; /* {control-x} */
     }
-    syms = petsym;
-    while (*syms) { /* {string} */
-        if (!strcasecmp(str, *syms + 1)) {
-            return *syms[0];
+
+    felso=sizeof(petsym)/sizeof(petsym[0]);
+    n=felso/2;
+    for (;;) {  // do binary search
+        if (!(s4=strcasecmp(str, petsym[n] + 1))) {
+            return petsym[n][0];
         }
-        syms++;
+
+        elozo = n;
+        n = ((s4>0) ? (felso+(also=n)) : (also+(felso=n)))/2;
+        if (elozo == n) break;
     }
     return 0;
 }
@@ -443,13 +447,13 @@ struct slabel* find_label(char* name) {
 struct slabel* find_label(char* name) {
     struct slabel *b=label_tree;
     int i;
-    
+
     while (b) {
         i=strcmp(b->name,name);
         if (!i) return b;
         if (i<0) b=b->kis; else b=b->nagy;
     }
-    
+
     return NULL;
 }
 #endif
@@ -476,7 +480,7 @@ struct slabel* new_label(char* name) {
     struct slabel *b=label_tree;
     struct slabel *ob=NULL;
     int i;
-    
+
     while (b) {
         i=strcmp(b->name,name);
 	if (!i) {
@@ -486,7 +490,7 @@ struct slabel* new_label(char* name) {
         ob=b;
         if (i<0) b=ob->kis; else b=ob->nagy;
     }
-    
+
     if (!(b=malloc(sizeof (struct slabel)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
 
     if (!(b->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
@@ -514,12 +518,12 @@ struct smacro* find_macro(char* name) {
 #else
 struct smacro* find_macro(char* name) {
     struct smacro *b=macro_tree;
-    
+
     while (b) {
 	if (!strcmp(b->name,name)) return b;
 	b=b->next;
     }
-    
+
     return NULL;
 }
 #endif
@@ -547,7 +551,7 @@ struct smacro* new_macro(char* name) {
 struct smacro* new_macro(char* name) {
     struct smacro *b=macro_tree;
     struct smacro *ob=NULL;
-    
+
     while (b) {
 	if (!strcmp(b->name,name)) {
 	    labelexists=1;
@@ -556,7 +560,7 @@ struct smacro* new_macro(char* name) {
 	ob=b;
 	b=ob->next;
     }
-    
+
     b=malloc(sizeof (struct smacro));
 
     if (!(b->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
@@ -596,7 +600,7 @@ FILE* openfile(char* name,char* volt) {
 FILE* openfile(char* name,char* volt) {
     struct sfile *b=file_tree1;
     struct sfile *ob=NULL;
-    
+
     while (b) {
 	if (!strcmp(b->name,name)) {
 	    *volt=b->open;
@@ -891,7 +895,7 @@ void testarg(int argc,char *argv[]) {
 		"  -L <file>\t\t     List into <file>\n"
 		"  -m, --no-monitor\t     Don't put monitor code into listing\n"
 		"  -s, --no-source\t     Don't put source code into listing\n"
-		"\n"	      
+		"\n"	
 		" Misc:\n"
 		"\n"
 		"  -?, --help\t\t     Give this help list\n"

@@ -200,9 +200,8 @@ int petascii(char quo) {
     }
     if (arguments.toascii) {
         if (ch>='A' && ch<='Z') ch+=0x80;
-        if (ch>='a' && ch<='z') ch-=0x20;
-
-        if (ch=='{') {
+        else if (ch>='a' && ch<='z') ch-=0x20;
+        else if (ch=='{') {
             char sym[0x10];
             int n = 0;
             while ((ch=get())!='}') {
