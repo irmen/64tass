@@ -372,16 +372,10 @@ long get_num(int *cd, int mode) {
 	    return val;
 	}
     case '"':
-	{
-            val = petascii(ch);
-            if (val < 256 && get()=='"') {*cd=1; return val;}
-	    if (val != 256) err_msg(ERROR_EXPRES_SYNTAX,NULL);
-	    return 0;
-	}
     case '\'':
 	{
             val = petascii(ch);
-            if (val < 256 && get()=='\'') {*cd=1; return val;}
+            if (val < 256 && get()==ch) {*cd=1; return val;}
 	    if (val != 256) err_msg(ERROR_EXPRES_SYNTAX,NULL);
 	    return 0;
 	}
