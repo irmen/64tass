@@ -13,7 +13,7 @@ dl.dir pre {border:1px solid silver}
 <p>Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
 BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
 optimizations, multi pass compile and a lot of features by Soci/Singular.
-Improved Tasm compatibility, petscii codes by Groepaz.</p>
+Improved TASS compatibility, petscii codes by Groepaz.</p>
 
 <p>Compile it with "make", if argp is missing or search.h then try to add
 -DWIN32 to CFLAGS. (that workarounds these, but there's a small performance
@@ -89,30 +89,6 @@ ss	.word 0
 	*=$1000
 
 start	rts
-</pre>
-<p>The assembler supports anonymous labels, also called as forward (+) and backward (-) references.
-"-" means one backward, "--" means two backward, etc. also the same for forward, but with "+".
-</p>
-<pre>
-	ldy #4
--	ldx #0
--	txa
-	cmp #3
-	bcc +
-	adc #44
-+	sta $400,x
-	inx
-	bne -
-	dey
-	bne --
-</pre>
-<p>These references are also useful in macros, but this can create some nice traps, as macros are
-copied into the code, with the internal references.
-</p>
-<pre>
-	bne +		
-	#somemakro	;let's hope that this macro does
-+	nop		;not contain forward references...
 </pre>
 <p>For writing short code (4k intro, whatever) there are some special pseudo instructions. These are automatically compiled
 as relative branches when the distance is short and as jumps when longer. (<code>GEQ</code>, <code>GNE</code>, <code>GCC</code>, <code>GCS</code>, <code>GPL</code>, <code>GMI</code>, <code>GVC</code>, <code>GVS</code>)
@@ -405,6 +381,64 @@ Prints short help about command line options.
 Prints program version.
 
 <hr>
+
+<h2>General</h2>
+<p>You may put multiple statements on a line, seperated by colons. The assembler 
+will treat them as seperate lines. This does <b>not</b> work if the <tt>-O, --compatible-ops</tt>
+option is used.
+</p>
+<pre width=80>
+        nop : nop : nop
+</pre>
+
+<h2>Constants</h2>
+
+<pre width=80>
+        .byte 23        ; decimal
+        .byte $33       ; hex
+        .byte %00011111 ; binary
+
+        .text "oeU"     ; text, "" means $22
+        .text 'oeU'     ; text, '' means $27
+        .text ^2048     ; the decimal value as string (^23 is $32,$33)
+</pre>
+
+<h2>Labels</h2>
+
+<pre width=80>
+reg = $d020
+
+loop
+        inc reg
+        jmp loop
+</pre>
+
+<h3>Anonymous labels</h3>
+<p>The assembler supports anonymous labels, also called as forward (+) and backward (-) references.
+"-" means one backward, "--" means two backward, etc. also the same for forward, but with "+".
+</p>
+<pre width=80>
+        ldy #4
+-       ldx #0
+-       txa
+        cmp #3
+        bcc +
+        adc #44
++       sta $400,x
+        inx
+        bne -
+        dey
+        bne --
+</pre>
+<p>These references are also useful in macros, but this can create some nice traps, as macros are
+copied into the code, with the internal references.
+</p>
+<pre>
+        bne +           
+        #somemakro      ;let's hope that this macro does
++       nop             ;not contain forward references...
+</pre>
+
 <h2>Expressions</h2>
 Expressions can be used at a lot of places. Here's a list of available operators:
 
@@ -1001,8 +1035,21 @@ by default:
 </ul>
 These can be enabled using the <tt>-O, --compatible-ops</tt> option
 
-<h3>Directives</h3>
-Some directives are not implemented:
+<h3>Macros</h3>
+<ul>
+<li>macro parameters are referenced by \1, \2 instead of using the pound sign
+</ul>
+
+<h3>Bugs</h3>
+Some versions of the original turbo assembler had bugs that are not reproduced
+by 64tass, you will have to fix the code instead.
+<ul>
+<li>In some versions labels used in the first .block are globally available. If 
+you get a related error move the respective label out of the .block
+</ul>
+
+<h3>Unsupported directives</h3>
+Some directives are not yet implemented:
 <ul>
 <li>.var - defines a variable identified by the label preceeding '.var', which 
 is set to the value following the '.var'.
@@ -1010,18 +1057,6 @@ is set to the value following the '.var'.
 <li>.goto - causes assembler to goto the label referenced and continue assembling 
 from that point on.
 <li>.segment - starts a macro definition but without a block
-</ul>
-
-<h3>Macros</h3>
-<ul>
-<li>macro parameters are referenced by \1, \2 instead of using the pound sign
-</ul>
-
-<h3>Bugs</h3>
-<ul>
-<li>The original turbo assembler has a bug which makes the labels used in the 
-first .block globally available. If you get a related error move the respective 
-label out of the .block
 </ul>
 
 <hr>

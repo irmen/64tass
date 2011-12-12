@@ -3,7 +3,7 @@
 Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
 BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
 optimizations, multi pass compile and a lot of features by Soci/Singular.
-Improved Tasm compatibility, petscii codes by Groepaz.
+Improved TASS compatibility, petscii codes by Groepaz.
 
 Compile it with "make", if argp is missing or search.h then try to add -DWIN32
 to CFLAGS. (that workarounds these, but there's a small performance loss)
@@ -81,29 +81,6 @@ ss      .word 0
         *=$1000
 
 start   rts
-
-The assembler supports anonymous labels, also called as forward (+) and
-backward (-) references. "-" means one backward, "--" means two backward, etc.
-also the same for forward, but with "+".
-
-        ldy #4
--       ldx #0
--       txa
-        cmp #3
-        bcc +
-        adc #44
-+       sta $400,x
-        inx
-        bne -
-        dey
-        bne --
-
-These references are also useful in macros, but this can create some nice
-traps, as macros are copied into the code, with the internal references.
-
-        bne +
-        #somemakro      ;let's hope that this macro does
-+       nop             ;not contain forward references...
 
 For writing short code (4k intro, whatever) there are some special pseudo
 instructions. These are automatically compiled as relative branches when the
@@ -432,6 +409,57 @@ Prints short help about command line options.
 
 Prints program version.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+General
+
+You may put multiple statements on a line, seperated by colons. The assembler
+will treat them as seperate lines. This does not work if the -O,
+--compatible-ops option is used.
+
+        nop : nop : nop
+
+Constants
+
+        .byte 23        ; decimal
+        .byte $33       ; hex
+        .byte %00011111 ; binary
+
+        .text "oeU"     ; text, "" means $22
+        .text 'oeU'     ; text, '' means $27
+        .text ^2048     ; the decimal value as string (^23 is $32,$33)
+
+Labels
+
+reg = $d020
+
+loop
+        inc reg
+        jmp loop
+
+Anonymous labels
+
+The assembler supports anonymous labels, also called as forward (+) and
+backward (-) references. "-" means one backward, "--" means two backward, etc.
+also the same for forward, but with "+".
+
+        ldy #4
+-       ldx #0
+-       txa
+        cmp #3
+        bcc +
+        adc #44
++       sta $400,x
+        inx
+        bne -
+        dey
+        bne --
+
+These references are also useful in macros, but this can create some nice
+traps, as macros are copied into the code, with the internal references.
+
+        bne +
+        #somemakro      ;let's hope that this macro does
++       nop             ;not contain forward references...
 
 Expressions
 
@@ -953,9 +981,21 @@ by default:
 
 These can be enabled using the -O, --compatible-ops option
 
-Directives
+Macros
 
-Some directives are not implemented:
+  • macro parameters are referenced by \1, \2 instead of using the pound sign
+
+Bugs
+
+Some versions of the original turbo assembler had bugs that are not reproduced
+by 64tass, you will have to fix the code instead.
+
+  • In some versions labels used in the first .block are globally available. If
+    you get a related error move the respective label out of the .block
+
+Unsupported directives
+
+Some directives are not yet implemented:
 
   • .var - defines a variable identified by the label preceeding '.var', which
     is set to the value following the '.var'.
@@ -963,16 +1003,6 @@ Some directives are not implemented:
   • .goto - causes assembler to goto the label referenced and continue
     assembling from that point on.
   • .segment - starts a macro definition but without a block
-
-Macros
-
-  • macro parameters are referenced by \1, \2 instead of using the pound sign
-
-Bugs
-
-  • The original turbo assembler has a bug which makes the labels used in the
-    first .block globally available. If you get a related error move the
-    respective label out of the .block
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
