@@ -2260,6 +2260,7 @@ int main(int argc,char *argv[]) {
         } while (i);
     }
 
+    tinit();
     testarg(argc,argv);
 
     if (arguments.quiet)
