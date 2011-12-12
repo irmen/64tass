@@ -36,7 +36,7 @@ V1.46:
     .cwarn accepts parameter, upper byte of negative number correct now,
     .shiftl and .option added, .ptext added, removed CPU64 support
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 Usage tips
 
@@ -105,7 +105,7 @@ option.
 
 There are some other tips below in the descriptions.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 Command line options
 
@@ -408,7 +408,7 @@ Prints short help about command line options.
 -V, --version Print program version
 
 Prints program version.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 General
 
@@ -515,7 +515,7 @@ arithmetic
     lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
     sta $d018
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 Compiler directives:
 
@@ -934,7 +934,7 @@ Printer control
 .showmac
     Ignored for compatibility
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 How to convert source code written for the original turbo assembler for use
 with 64tass
@@ -942,18 +942,18 @@ with 64tass
 Currently there are two options, either use "TMPview" by Style to convert the
 sourcefile directly, or do the following:
 
-  • load turbo assembler, start (by sys9*4096 or sys8*4096 depending on
+  * load turbo assembler, start (by sys9*4096 or sys8*4096 depending on
     version)
-  • <- (arrow left) then l to load a sourcefile
-  • <- (arrow left) then w to write a sourcefile in petscii format
-  • convert the result to ascii using petcat (from the vice package)
+  * <- (arrow left) then l to load a sourcefile
+  * <- (arrow left) then w to write a sourcefile in petscii format
+  * convert the result to ascii using petcat (from the vice package)
 
 the resulting file should then (with the restrictions below) assemble using the
 following commandline:
 
 64tass -C -P -O -a -W -i source.s -o outfile.prg
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 Differences to the original turbo ass macro on the C64
 
@@ -975,36 +975,36 @@ Tass Operators
 The following operators used by the original turbo assembler are not supported
 by default:
 
-  • . for bitwise or
-  • : for bitwise eor
-  • ! to force 16 bit address (only as first character of expression)
+  * . for bitwise or
+  * : for bitwise eor
+  * ! to force 16 bit address (only as first character of expression)
 
 These can be enabled using the -O, --compatible-ops option
 
 Macros
 
-  • macro parameters are referenced by \1, \2 instead of using the pound sign
+  * macro parameters are referenced by \1, \2 instead of using the pound sign
 
 Bugs
 
 Some versions of the original turbo assembler had bugs that are not reproduced
 by 64tass, you will have to fix the code instead.
 
-  • In some versions labels used in the first .block are globally available. If
+  * In some versions labels used in the first .block are globally available. If
     you get a related error move the respective label out of the .block
 
 Unsupported directives
 
 Some directives are not yet implemented:
 
-  • .var - defines a variable identified by the label preceeding '.var', which
+  * .var - defines a variable identified by the label preceeding '.var', which
     is set to the value following the '.var'.
-  • .lbl - identifies a label that can be referenced by a .goto
-  • .goto - causes assembler to goto the label referenced and continue
+  * .lbl - identifies a label that can be referenced by a .goto
+  * .goto - causes assembler to goto the label referenced and continue
     assembling from that point on.
-  • .segment - starts a macro definition but without a block
+  * .segment - starts a macro definition but without a block
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 Messages
 
@@ -1078,7 +1078,7 @@ Ooops! Too many passes...
     With a carefuly crafted source file it's possible to create unresolvable
     situations. Fix your code.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 6502 illegal opcodes
 
@@ -1103,7 +1103,7 @@ SHX               $9e
 SHY               $9c
 SLO               $03, $07, $0f, $13, $17, $1b, $1f
 SRE               $43, $47, $4f, $53, $57, $5b, $5f
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 65C02 extra opcodes
 
@@ -1118,7 +1118,7 @@ PLY               $7a
 TRB               $14, $1c
 TSB               $04, $0c
 STZ               $64, $74, $9c, $9e
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------------------------
 
 65DTV02 extra and illegal opcodes
 

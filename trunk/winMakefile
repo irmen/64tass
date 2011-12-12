@@ -1,5 +1,6 @@
 CC = i586-mingw32msvc-gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o
+LANG = C
 CFLAGS = -Os -march=i586 -fomit-frame-pointer -fno-exceptions -fno-align-labels -fno-align-loops -fno-align-jumps -fno-align-functions -mpreferred-stack-boundary=2 -pipe
 #CFLAGS = -Wall -pipe
 
