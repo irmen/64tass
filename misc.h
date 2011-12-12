@@ -17,6 +17,7 @@
 */
 #ifndef _MISC_H_
 #define _MISC_H_
+#include "libtree.h"
 // ---------------------------------------------------------------------------
 // $00-$3f warning
 // $40-$7f error
@@ -83,10 +84,7 @@ struct slabel {
     unsigned char ertelmes;
     unsigned char proclabel;
     unsigned char used;
-#ifdef WIN32
-    struct slabel *kis;
-    struct slabel *nagy;
-#endif
+    struct avltree_node node;
 } __attribute((packed));
 
 struct smacro {
@@ -94,9 +92,7 @@ struct smacro {
     long point;
     long lin;
     char *file;
-#ifdef WIN32
-    struct smacro *next;
-#endif
+    struct avltree_node node;
 } __attribute((packed));
 
 struct sfile {
@@ -104,9 +100,7 @@ struct sfile {
     FILE *f;
     unsigned char open;
     unsigned long num;
-#ifdef WIN32
-    struct sfile *next;
-#endif
+    struct avltree_node node1, node2;
 } __attribute((packed));
 
 struct serrorlist {
@@ -166,6 +160,7 @@ extern struct smacro* new_macro(char*);
 extern FILE* openfile(char*,char*);
 extern void closefile(FILE*);
 extern void tfree();
+extern void tinit();
 extern void labelprint();
 extern void testarg(int,char **);
 extern struct arguments_t arguments;

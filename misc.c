@@ -21,9 +21,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef WIN32
-#include <search.h>
 #include <argp.h>
 #endif
+#include "libtree.h"
 #include "misc.h"
 #include "opcodes.h"
 #include <string.h>
@@ -32,12 +32,10 @@ void err_msg(unsigned char no, char* prm);
 
 struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
 
-static void *label_tree=NULL;
-static void *macro_tree=NULL;
-static void *file_tree1=NULL;
-#ifndef WIN32
-static void *file_tree2=NULL;
-#endif
+static struct avltree label_tree;
+static struct avltree macro_tree;
+static struct avltree file_tree1;
+static struct avltree file_tree2;
 struct serrorlist *errorlist=NULL,*errorlistlast=NULL;
 struct sfilenamelist *filenamelist=NULL;
 int encoding;
@@ -389,374 +387,220 @@ void err_msg(unsigned char no, char* prm) {
 }
 
 //----------------------------------------------------------------------
-#ifndef WIN32
-struct ize {char *name;};
-void freetree(void *a)
+int label_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    free(((struct ize *)a)->name);
+    struct slabel *a = avltree_container_of(aa, struct slabel, node);
+    struct slabel *b = avltree_container_of(bb, struct slabel, node);
+
+    return strcmp(a->name, b->name);
+}
+
+int macro_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    struct smacro *a = avltree_container_of(aa, struct smacro, node);
+    struct smacro *b = avltree_container_of(bb, struct smacro, node);
+
+    return strcmp(a->name, b->name);
+}
+
+int file1_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    struct sfile *a = avltree_container_of(aa, struct sfile, node1);
+    struct sfile *b = avltree_container_of(bb, struct sfile, node1);
+
+    return strcmp(a->name, b->name);
+}
+
+int file2_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    struct sfile *a = avltree_container_of(aa, struct sfile, node2);
+    struct sfile *b = avltree_container_of(bb, struct sfile, node2);
+
+    return ((long)a->f)-((long)b->f);
+}
+
+void label_free(const struct avltree_node *aa)
+{
+    struct slabel *a = avltree_container_of(aa, struct slabel, node);
+    free(a->name);
     free(a);
 }
 
-void freemacrotree(void *a)
+void macro_free(const struct avltree_node *aa)
 {
-    free(((struct smacro *)a)->name);
-    free(((struct smacro *)a)->file);
+    struct smacro *a = avltree_container_of(aa, struct smacro, node);
+    free(a->name);
+    free(a->file);
     free(a);
 }
 
-void freefiletree(void *a)
+void file_free(const struct avltree_node *aa)
 {
-    if (((struct sfile *)a)->f) fclose(((struct sfile *)a)->f);
-}
+    struct sfile *a = avltree_container_of(aa, struct sfile, node1);
 
-int label_compare(const void *aa,const void *bb)
-{
-    return strcmp(((struct ize *)aa)->name,((struct ize *)bb)->name);
+    if (a->f) fclose(a->f);
+    free(a->name);
+    free(a);
 }
-
-int file_compare(const void *aa,const void *bb)
-{
-    return ((long)((struct sfile *)aa)->f)-((long)((struct sfile *)bb)->f);
-}
-#endif
-
-#ifndef WIN32
-struct slabel* find_label(char* name) {
-    struct slabel **b;
-    struct ize a;
-    a.name=name;
-    if (!(b=tfind(&a,&label_tree,label_compare))) return NULL;
-    return *b;
-}
-#else
-struct slabel* find_label(char* name) {
-    struct slabel *b=label_tree;
-    int i;
-
-    while (b) {
-        i=strcmp(b->name,name);
-        if (!i) return b;
-        if (i<0) b=b->kis; else b=b->nagy;
-    }
-
-    return NULL;
-}
-#endif
 
 // ---------------------------------------------------------------------------
-#ifndef WIN32
-static struct slabel* lastlb=NULL;
+struct slabel* find_label(char* name) {
+    struct slabel a;
+    const struct avltree_node *c;
+    a.name=name;
+    if (!(c=avltree_lookup(&a.node, &label_tree))) return NULL;
+    return avltree_container_of(c, struct slabel, node);
+}
+
+
+// ---------------------------------------------------------------------------
+static struct slabel *lastlb=NULL;
 struct slabel* new_label(char* name) {
-    struct slabel **b;
+    struct avltree_node *b;
+    struct slabel *tmp;
     if (!lastlb)
 	if (!(lastlb=malloc(sizeof(struct slabel)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
     lastlb->name=name;
-    if (!(b=tsearch(lastlb,&label_tree,label_compare))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-    if (*b==lastlb) { //new label
+    b=avltree_insert(&lastlb->node, &label_tree);
+    if (!b) { //new label
 	if (!(lastlb->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastlb->name,name);
-	labelexists=0;lastlb=NULL;
+	labelexists=0;
+	tmp=lastlb;
+	lastlb=NULL;
+	return tmp;
     }
-    else labelexists=1;
-    return *b;            //already exists
+    labelexists=1;
+    return avltree_container_of(b, struct slabel, node);            //already exists
 }
-#else
-struct slabel* new_label(char* name) {
-    struct slabel *b=label_tree;
-    struct slabel *ob=NULL;
-    int i;
-
-    while (b) {
-        i=strcmp(b->name,name);
-	if (!i) {
-	    labelexists=1;
-	    return b;
-	}
-        ob=b;
-        if (i<0) b=ob->kis; else b=ob->nagy;
-    }
-
-    if (!(b=malloc(sizeof (struct slabel)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-
-    if (!(b->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-    strcpy(b->name,name);
-    labelexists=0;
-    b->nagy=NULL;
-    b->kis=NULL;
-    if (!label_tree) label_tree=b; else {
-        if (i<0) ob->kis=b; else ob->nagy=b;
-    }
-    return b;
-}
-#endif
 
 // ---------------------------------------------------------------------------
 
-#ifndef WIN32
 struct smacro* find_macro(char* name) {
-    struct smacro **b;
-    struct ize a;
+    struct smacro a;
+    const struct avltree_node *c;
     a.name=name;
-    if (!(b=tfind(&a,&macro_tree,label_compare))) return NULL;
-    return *b;
+    if (!(c=avltree_lookup(&a.node, &macro_tree))) return NULL;
+    return avltree_container_of(c, struct smacro, node);
 }
-#else
-struct smacro* find_macro(char* name) {
-    struct smacro *b=macro_tree;
-
-    while (b) {
-	if (!strcmp(b->name,name)) return b;
-	b=b->next;
-    }
-
-    return NULL;
-}
-#endif
 
 // ---------------------------------------------------------------------------
-#ifndef WIN32
 static struct smacro* lastma=NULL;
 struct smacro* new_macro(char* name) {
-    struct smacro **b;
+    struct avltree_node *b;
+    struct smacro *tmp;
     if (!lastma)
 	if (!(lastma=malloc(sizeof(struct smacro)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
     lastma->name=name;
-    if (!(b=tsearch(lastma,&macro_tree,label_compare))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-    if (*b==lastma) { //new label
+    b=avltree_insert(&lastma->node, &macro_tree);
+    if (!b) { //new macro
 	if (!(lastma->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastma->name,name);
 	if (!(lastma->file=malloc(strlen(&filenamelist->name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastma->file,&filenamelist->name);
-	labelexists=0;lastma=NULL;
+	labelexists=0;
+	tmp=lastma;
+	lastma=NULL;
+	return tmp;
     }
-    else labelexists=1;
-    return *b;            //already exists
+    labelexists=1;
+    return avltree_container_of(b, struct smacro, node);            //already exists
 }
-#else
-struct smacro* new_macro(char* name) {
-    struct smacro *b=macro_tree;
-    struct smacro *ob=NULL;
-
-    while (b) {
-	if (!strcmp(b->name,name)) {
-	    labelexists=1;
-	    return b;
-	}
-	ob=b;
-	b=ob->next;
-    }
-
-    b=malloc(sizeof (struct smacro));
-
-    if (!(b->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-    strcpy(b->name,name);
-    if (!(b->file=malloc(strlen(&filenamelist->name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-    strcpy(b->file,&filenamelist->name);
-    labelexists=0;
-    b->next=NULL;
-    if (!macro_tree) macro_tree=b; else ob->next=b;
-    return b;
-}
-#endif
 // ---------------------------------------------------------------------------
 
-#ifndef WIN32
-static struct sfile* lastfi=NULL;
+static struct sfile *lastfi=NULL;
 FILE* openfile(char* name,char* volt) {
-    struct sfile **b;
+    struct avltree_node *b;
+    struct sfile *tmp;
     if (!lastfi)
 	if (!(lastfi=malloc(sizeof(struct sfile)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
     lastfi->name=name;
-    if (!(b=tsearch(lastfi,&file_tree1,label_compare))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-    if (*b==lastfi) { //new label
+    b=avltree_insert(&lastfi->node1, &file_tree1);
+    if (!b) { //new file
 	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastfi->name,name);
 	lastfi->f=fopen(name,"rb");
-	if (!(b=tsearch(lastfi,&file_tree2,file_compare))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+        avltree_insert(&lastfi->node2, &file_tree2);
+        tmp = lastfi;
 	lastfi=NULL;
         *volt=0;
-        (*b)->num=curfnum++;
-    } else *volt=(*b)->open;
-    (*b)->open=1;
-    reffile=(*b)->num;
-    return (*b)->f;
-}
-#else
-FILE* openfile(char* name,char* volt) {
-    struct sfile *b=file_tree1;
-    struct sfile *ob=NULL;
-
-    while (b) {
-	if (!strcmp(b->name,name)) {
-	    *volt=b->open;
-            b->open=1;
-            reffile=b->num;
-	    return b->f;
-	}
-	ob=b;
-	b=ob->next;
+        tmp->num=curfnum++;
+    } else {
+        tmp = avltree_container_of(b, struct sfile, node1);
+        *volt=tmp->open;
     }
-    b=malloc(sizeof (struct sfile));
-
-    if (!(b->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-    strcpy(b->name,name);
-    b->f=fopen(name,"rb");
-    *volt=0;
-    b->open=1;
-    b->num=curfnum++;
-    if (!file_tree1) file_tree1=b; else ob->next=b;
-    b->next=NULL;
-    reffile=b->num;
-    return b->f;
+    tmp->open=1;
+    reffile=tmp->num;
+    return tmp->f;
 }
-#endif
 
 void closefile(FILE* f) {
-#ifndef WIN32
-    struct sfile **b,a;
+    struct avltree_node *b;
+    struct sfile *tmp, a;
     a.f=f;
-    if (!(b=tfind(&a,&file_tree2,file_compare))) return;
-    (*b)->open=0;
-#else
-    struct sfile *b=file_tree1;
-
-    while (b) {
-	if (!memcmp(&b->f,&f,sizeof (f))) {
-	    b->open=0;
-	    return;
-	}
-	b=b->next;
-    }
-    return;
-#endif
+    if (!(b=avltree_lookup(&a.node2,&file_tree2))) return;
+    tmp = avltree_container_of(b, struct sfile, node2);
+    tmp->open=0;
 }
 
-#ifndef WIN32
 void tfree() {
-    tdestroy(label_tree,freetree);
-    tdestroy(macro_tree,freemacrotree);
-    tdestroy(file_tree1,freefiletree);
-    tdestroy(file_tree2,freetree);
+    avltree_destroy(&label_tree);
+    avltree_destroy(&macro_tree);
+    avltree_destroy(&file_tree1);
     free(lastfi);
     free(lastma);
     free(lastlb);
-}
-#else
-void rlabeltree(struct slabel *a) {
-    void *old;
-    while (a) {
-	free(a->name);
-        old=a;
-        rlabeltree(a->nagy);
-	a=a->kis;
-	free(old);
-    }
-}
-
-void tfree() {
-    struct smacro *b=macro_tree;
-    struct sfile *c=file_tree1;
-    void *old;
-
-    rlabeltree(label_tree);
-
-    while (b) {
-	free(b->name);
-	free(b->file);
-	old=b;
-	b=b->next;
-	free(old);
-    }
-
-    while (c) {
-	free(c->name);
-	if (c->f) fclose(c->f);
-	old=c;
-	c=c->next;
-	free(old);
-    }
+#ifdef WIN32
     free(arguments.input);
     //free(arguments.output);
     free(arguments.list);
     free(arguments.label);
-}
 #endif
-
-#ifdef WIN32
-typedef enum
-{
-  preorder,
-  postorder,
-  endorder,
-  leaf
 }
-VISIT;
-#endif
 
-FILE *flab;
-void kiir(const void *aa,VISIT value,int level)
-{
+void tinit() {
+    avltree_init(&label_tree, label_compare, label_free);
+    avltree_init(&macro_tree, macro_compare, macro_free);
+    avltree_init(&file_tree1, file1_compare, file_free);
+    avltree_init(&file_tree2, file2_compare, NULL);
+}
+
+void labelprint() {
+    struct avltree_node *n;
     long val;
-    if (value==leaf || value==postorder) {
-#ifdef VICE
-	fprintf(flab,"al %04lx .l%s\n",(*(struct slabel **)aa)->value,(*(struct slabel **)aa)->name);
-#else
-        if (strchr((*(struct slabel **)aa)->name,'-') ||
-            strchr((*(struct slabel **)aa)->name,'+')) return;
-        if (strchr((*(struct slabel **)aa)->name,'.')) fputc(';',flab);
-	fprintf(flab,"%-16s= ",(*(struct slabel **)aa)->name);
-	if ((val=(*(struct slabel **)aa)->value)<0) fprintf(flab,"-");
-	val=(val>=0?val:-val);
-	if (val<0x100) fprintf(flab,"$%02lx",val);
-	else if (val<0x10000l) fprintf(flab,"$%04lx",val);
-	else if (val<0x1000000l) fprintf(flab,"$%06lx",val);
-	else fprintf(flab,"$%08lx",val);
-        if (!(*(struct slabel **)aa)->used) {
-            if (val<0x100) fprintf(flab,"  ");
-            if (val<0x10000l) fprintf(flab,"  ");
-            if (val<0x1000000l) fprintf(flab,"  ");
-            fprintf(flab,"; *** unused");
-        }
-        fprintf(flab,"\n");
-#endif
-    }
-}
+    struct slabel *l;
+    FILE *flab;
 
-#ifndef WIN32
-void labelprint() {
     if (arguments.label) {
         if (arguments.label[0] == '-' && !arguments.label[1]) {
             flab = stdout;
         } else {
             if (!(flab=fopen(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
         }
-        twalk(label_tree,kiir);
-	if (flab != stdout) fclose(flab);
-    }
-}
-#else
-void plabeltree(struct slabel *a) {
-    while (a) {
-        plabeltree(a->nagy);
-        kiir(&a,leaf,postorder);
-	a=a->kis;
-    }
-}
-
-void labelprint() {
-    if (arguments.label) {
-        if (arguments.label[0] == '-' && !arguments.label[1]) {
-            flab = stdout;
-        } else {
-            if (!(flab=fopen(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
+        n = avltree_first(&label_tree);
+        while (n) {
+            l = avltree_container_of(n, struct slabel, node);            //already exists
+            n = avltree_next(n);
+            if (strchr(l->name,'-') || strchr(l->name,'+')) continue;
+            if (strchr(l->name,'.')) fputc(';',flab);
+            fprintf(flab,"%-16s= ",l->name);
+            if ((val=l->value)<0) fprintf(flab,"-");
+            val=(val>=0?val:-val);
+            if (val<0x100) fprintf(flab,"$%02lx",val);
+            else if (val<0x10000l) fprintf(flab,"$%04lx",val);
+            else if (val<0x1000000l) fprintf(flab,"$%06lx",val);
+            else fprintf(flab,"$%08lx",val);
+            if (!l->used) {
+                if (val<0x100) fprintf(flab,"  ");
+                if (val<0x10000l) fprintf(flab,"  ");
+                if (val<0x1000000l) fprintf(flab,"  ");
+                fprintf(flab,"; *** unused");
+            }
+            fprintf(flab,"\n");
         }
-
-        plabeltree(label_tree);
-
 	if (flab != stdout) fclose(flab);
     }
 }
-#endif
 
 // ------------------------------------------------------------------
 #ifndef WIN32

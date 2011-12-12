@@ -1,7 +1,8 @@
 CC = gcc
-OBJ = 64tass.o opcodes.o misc.o
+OBJ = 64tass.o opcodes.o misc.o avl.o
 #CFLAGS = -O2 -march=i486 -mcpu=i486 -pipe
 #CFLAGS = -Wall -O3 -march=i686 -pipe -fomit-frame-pointer -fno-exceptions
+CFLAGS = -O2
 
 all: 64tass README
 
@@ -11,7 +12,9 @@ all: 64tass README
 
 opcodes.o: opcodes.c opcodes.h
 
-misc.o: misc.c misc.h opcodes.h
+misc.o: misc.c misc.h opcodes.h libtree.h
+
+avl.o: libtree.h
 
 README: README.html
 	-w3m -dump -no-graph README.html >README
