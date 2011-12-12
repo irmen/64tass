@@ -131,7 +131,16 @@ void status() {
 }
 
 // ---------------------------------------------------------------------------
-
+/*
+ * read one input line, filters comments (';') and breaks up statements
+ * seperated by colons (':') into seperate lines.
+ * 
+ * in:
+ *      fle - file
+ * out:
+ *      llist -
+ *      pline -
+ */
 void readln(FILE* fle) {
     int i=0,i2=0,q=0;
     char ch;
@@ -352,7 +361,7 @@ long get_num(int *cd, int mode) {
     }
     ignore();
     switch (ch=get()) {
-    case '$':
+    case '$': // hex
 	{
 	    ignore();
 	    while (((ch=lowcase(get()))>='0' && ch<='9') ||
@@ -364,7 +373,7 @@ long get_num(int *cd, int mode) {
 	    *cd=1;
 	    return val;
 	}
-    case '%':
+    case '%': // binary
 	{
 	    ignore();
 	    while (((ch=get()) & 0xfe)=='0') {
@@ -375,7 +384,7 @@ long get_num(int *cd, int mode) {
 	    *cd=1;
 	    return val;
 	}
-    case '"':
+    case '"': // string
     case '\'':
 	{
             val = petascii(ch);
@@ -383,7 +392,8 @@ long get_num(int *cd, int mode) {
 	    if (val != 256) err_msg(ERROR_EXPRES_SYNTAX,NULL);
 	    return 0;
 	}
-    case '*': *cd=1; return l_address;
+    case '*': // program counter
+        *cd=1; return l_address;
     default:
 	{
             static char ident2[linelength];
@@ -1107,7 +1117,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             }
                             goto cvege;
 			}
-
+                        /* if ^ infront of number, convert decimal value to string */
 			if (ch=='^') {
                             lpoint++;
 			    val=get_exp(&w,&d,&c);if (!d) fixeddig=0;
@@ -1762,6 +1772,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		ppoint=nprm=0;
                 ignore();
 		while ((ch=get())) {
+                    /* if ^ infront of number, convert decimal value to string */
 		    if (ch=='^') {
 			val=get_exp(&w,&d,&c);if (!d) fixeddig=0;
 			if (!c) break;
@@ -2281,6 +2292,7 @@ int main(int argc,char *argv[]) {
 //   memset(mem64,0,all_mem+1);
     if (arguments.nonlinear) memset(mmap,0,(all_mem+1) >> 3);
 
+    /* assemble the input file(s) */
     do {
         if (pass++>20) {fprintf(stderr,"Ooops! Too many passes...\n");exit(1);}
         set_cpumode(arguments.cpumode);
@@ -2296,6 +2308,7 @@ int main(int argc,char *argv[]) {
         if (conderrors && !arguments.list && pass==1) fixeddig=0;
     } while (!fixeddig || (pass==1 && !arguments.list));
 
+    /* assemble again to create listing */
     if (arguments.list) {
         listing=1;
         if (arguments.list[0] == '-' && !arguments.list[1]) {
@@ -2327,6 +2340,7 @@ int main(int argc,char *argv[]) {
 
     if (errors || conderrors) {status();return 1;}
 
+    /* output file */
     if (low_mem<=top_mem) {
         if (arguments.output[0] == '-' && !arguments.output[1]) {
             fout = stdout;
