@@ -648,6 +648,21 @@ Macros
 .macro
     Macro definition, it copies the macro content in. (so be careful with
     labels, better use anonymous ones)
+.endm
+    End of macro definition
+
+    name    .macro
+            sta $d020
+            sta $d021
+            .endm
+
+            lda #1
+            #name           ;call macro
+
+Parameter references
+
+    Parameters can be referenced by \1...\9 and \a...\z. \@ will return the
+    entire parameter list.
 
     name    .macro
             lda #\1         ;first parameter
@@ -655,8 +670,20 @@ Macros
 
             #name 23        ;call macro
 
-.endm
-    End of macro definition
+Text references
+
+    In the original turbo assembler normal references are passed by value and
+    can only appear in place of one. Text references on the other hand can
+    appear every where and will work in place of eg quoted text or opcodes and
+    labels. The first 9 parameters can be referenced as text by @1...@9.
+
+    name    .macro
+            jsr print
+            .text "@1"         ;first parameter
+            .byte 0
+            .endm
+
+            #name "wth?"       ;call macro
 
 Conditional assembly
 
@@ -940,7 +967,6 @@ Some directives are not implemented:
 Macros
 
   • macro parameters are referenced by \1, \2 instead of using the pound sign
-  • Referencing to arguments as text (@1, @2) is not supported.
 
 Bugs
 

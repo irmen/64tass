@@ -650,6 +650,22 @@ rets	.rta $fce2
 <dt>.macro
 <dd>Macro definition, it copies the macro content in.
         (so be careful with labels, better use anonymous ones)
+<dt>.endm
+<dd>End of macro definition
+
+<pre width=80>
+name    .macro
+        sta $d020
+        sta $d021
+        .endm
+
+        lda #1
+        #name           ;call macro
+</pre>
+
+<dt><h4>Parameter references</h4>
+<dd>Parameters can be referenced by <tt>\1</tt>...<tt>\9</tt> and <tt>\a</tt>...<tt>\z</tt>. 
+<tt>\@</tt> will return the entire parameter list.
 <pre width=80>
 name	.macro
 	lda #\1 	;first parameter
@@ -658,8 +674,21 @@ name	.macro
 	#name 23	;call macro
 </pre>
 
-<dt>.endm
-<dd>End of macro definition
+
+<dt><h4>Text references</h4>
+<dd>In the original turbo assembler normal references are passed by value and can
+only appear in place of one. Text references on the other hand can appear every 
+where and will work in place of eg quoted text or opcodes and labels.
+The first 9 parameters can be referenced as text by <tt>@1</tt>...<tt>@9</tt>.
+<pre width=80>
+name    .macro
+        jsr print
+        .text "@1"         ;first parameter
+        .byte 0
+        .endm
+        
+        #name "wth?"       ;call macro
+</pre>
 
 </dl>
 <h3>Conditional assembly</h3>
@@ -986,7 +1015,6 @@ from that point on.
 <h3>Macros</h3>
 <ul>
 <li>macro parameters are referenced by \1, \2 instead of using the pound sign
-<li>Referencing to arguments as text (@1, @2) is not supported.
 </ul>
 
 <h3>Bugs</h3>

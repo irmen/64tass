@@ -747,7 +747,19 @@ int get_path() {
     return 0;
 }
 
-void mtranslate(char* mpr, int nprm, char *cucc) //macro parameter expansion
+//------------------------------------------------------------------------------
+
+/*
+ * macro parameter expansion
+ * 
+ * in:
+ *   mpr:  parameters, separated by zeros
+ *   nprm: number of parameters
+ *   cucc: one line of the macro (unexpanded)
+ * out:
+ *   cucc: one line of the macro (expanded)
+*/
+void mtranslate(char* mpr, int nprm, char *cucc)
 {
     int q,p,pp,i,j;
     char ch;
@@ -755,37 +767,51 @@ void mtranslate(char* mpr, int nprm, char *cucc) //macro parameter expansion
 
     strcpy(tmp,cucc);
     q=p=0;
-    for (i=0; (ch=tmp[i]); i++) {
-	if (ch=='"' && !(q & 2)) q^=1;
-	else if (ch=='\'' && !(q & 1)) q^=2;
-	else if (!q) {
-            if (ch==';') q=4;
-	    if (ch=='\\') {
-		if (((ch=lowcase(tmp[i+1]))>='1' && ch<='9') || (ch>='a' && ch<='z')) {
-		    if ((ch=(ch<='9' ? ch-'1' : ch-'a'+9))>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
-		    for (pp=j=0; j<ch; j++) while (mpr[pp++]); //skip parameters
-		    while (mpr[pp]==32) pp++; //skip space
-		    while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
-		    if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-		    i++;continue;
-                } else if (ch=='@') {
-                    for (pp=j=0;j<nprm;j++) {
-                        while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
-                        if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                        if ((j+1)<nprm) {
-                            cucc[p++]=',';pp++;
-                        }
-                    }
+    for (i = 0; (ch = tmp[i]); i++) {
+        if (ch == '"'  && !(q & 2)) { q^=1; }
+        else if (ch == '\'' && !(q & 1)) { q^=2; }
+        else if ((ch == ';') && (!q)) { q=4; }
+        else if ((ch=='\\') && (!q)) {
+            /* normal parameter reference */
+            if (((ch=lowcase(tmp[i+1]))>='1' && ch<='9') || (ch>='a' && ch<='z')) {
+                /* \1..\9, \a..\z */
+                if ((ch=(ch<='9' ? ch-'1' : ch-'a'+9))>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
+                for (pp=j=0; j<ch; j++) while (mpr[pp++]); //skip parameters
+                while (mpr[pp]==32) pp++; //skip space
+                while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
+                if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
+                i++;continue;
+            } else if (ch=='@') {
+                /* \@ gives complete parameter list */
+                for (pp=j=0;j<nprm;j++) {
+                    while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
                     if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                    i++;continue;
-                } else ch='\\';
-	    }
-	}
-	cucc[p++]=ch;
-	if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
+                    if ((j+1)<nprm) {
+                        cucc[p++]=',';pp++;
+                    }
+                }
+                if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
+                i++;continue;
+            } else ch='\\';
+        } else if (ch=='@') {
+            /* text parameter reference */
+            if (((ch=lowcase(tmp[i+1]))>='1' && ch<='9')) {
+                /* @1..@9 */
+                if ((ch=ch-'1')>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
+                for (pp=j=0; j<ch; j++) while (mpr[pp++]); //skip parameters
+                while (mpr[pp]==32) pp++; //skip space
+                while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
+                if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
+                i++;continue;
+            } else ch='@';
+        }
+        cucc[p++]=ch;
+        if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
     }
     cucc[p]=0;
 }
+
+//------------------------------------------------------------------------------
 
 void set_cpumode(int cpumode) {
     all_mem=0x00ffff;scpumode=0;dtvmode=0;
