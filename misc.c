@@ -236,7 +236,7 @@ void adderror(char *s) {
     if (!b) {fprintf(stderr,"Out of memory\n");exit(1);}
 
     b->next=NULL;
-    strcpy(&b->name,s);
+    strcpy(b->name,s);
 
     if (!errorlist)
         errorlist=b;
@@ -251,7 +251,7 @@ void freeerrorlist(int print) {
 
     while (errorlist) {
         b=errorlist->next;
-        if (print) fprintf(stderr,"%s",&errorlist->name);
+        if (print) fprintf(stderr,"%s",errorlist->name);
         free(errorlist);
         errorlist=b;
     }
@@ -263,9 +263,8 @@ void enterfile(char *s, long l) {
     b=malloc(sizeof(struct sfilenamelist)+strlen(s));
 
     if (!b) {fprintf(stderr,"Out of memory\n");exit(1);}
-
     b->next=filenamelist;
-    strcpy(&b->name,s);
+    strcpy(b->name,s);
     b->line=l;
 
     filenamelist=b;
@@ -329,13 +328,13 @@ void err_msg(unsigned char no, char* prm) {
 
     if (filenamelist) {
 	b=filenamelist->next;
-	snprintf(line,linelength,"%s:%ld: ",&filenamelist->name,sline);
+	snprintf(line,linelength,"%s:%ld: ",filenamelist->name,sline);
     } else line[0]=0;
 
     adderror(line);
 
     while (b) {
-        snprintf(line,linelength,"(%s:%ld) ",&b->name,b2->line);
+        snprintf(line,linelength,"(%s:%ld) ",b->name,b2->line);
         adderror(line);
         b2=b;
         b=b->next;
@@ -496,8 +495,8 @@ struct smacro* new_macro(char* name) {
     if (!b) { //new macro
 	if (!(lastma->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastma->name,name);
-	if (!(lastma->file=malloc(strlen(&filenamelist->name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-        strcpy(lastma->file,&filenamelist->name);
+	if (!(lastma->file=malloc(strlen(filenamelist->name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+        strcpy(lastma->file,filenamelist->name);
 	labelexists=0;
 	tmp=lastma;
 	lastma=NULL;
@@ -609,31 +608,31 @@ const char *argp_program_bug_address="<soci@c64.rulez.org>";
 const char doc[]="64tass Turbo Assembler Macro";
 const char args_doc[]="SOURCE";
 const struct argp_option options[]={
-    {"no-warn"	, 	'w',		0,     	0,  "Suppress warnings"},
-    {"quiet"	,	'q',		0,     	0,  "Display errors/warnings"},
-    {"nonlinear",	'n',		0,     	0,  "Generate nonlinear output file"},
-    {"nostart" 	,	'b',		0,     	0,  "Strip starting address"},
-    {"wordstart",	'W',		0,     	0,  "Force 2 byte start address"},
-    {"ascii" 	,	'a',		0,     	0,  "Convert ASCII to PETASCII"},
-    {"no-precedence",   'P',            0,      0,  "No operator precedence in expressions"},
-    {"compatible-ops",  'O',            0,      0,  "Enable TASS compatible operators"},
-    {"case-sensitive",	'C',		0,     	0,  "Case sensitive labels"},
-    {		0,	'o',"<file>"	,      	0,  "Place output into <file>"},
-    {		0,	'D',"<label>=<value>",     	0,  "Define <label> to <value>"},
-    {"long-branch",	'B',		0,     	0,  "Automatic bxx *+3 jmp $xxxx"},
-    {		0,  	0,		0,     	0,  "Target selection:"},
-    {"m65xx"  	,     	1,		0,     	0,  "Standard 65xx (default)"},
-    {"m6502"  	,     	'i',		0,     	0,  "NMOS 65xx"},
-    {"m65c02"  	,     	'c',		0,     	0,  "CMOS 65C02"},
-    {"m65816"  	,     	'x',		0,     	0,  "W65C816"},
-    {"m65dtv02"	,     	't',		0,     	0,  "65DTV02"},
-    {		0,  	0,		0,     	0,  "Source listing:"},
-    {"labels"	,	'l',"<file>"	,      	0,  "List labels into <file>"},
-    {"list"	,	'L',"<file>"	,      	0,  "List into <file>"},
-    {"no-monitor",	'm',		0,      0,  "Don't put monitor code into listing"},
-    {"no-source",	's',		0,      0,  "Don't put source code into listing"},
-    {		0,  	0,		0,     	0,  "Misc:"},
-    { 0 }
+    {"no-warn"	, 	'w',		0,     	0,  "Suppress warnings", 0 },
+    {"quiet"	,	'q',		0,     	0,  "Display errors/warnings", 0 },
+    {"nonlinear",	'n',		0,     	0,  "Generate nonlinear output file", 0 },
+    {"nostart" 	,	'b',		0,     	0,  "Strip starting address", 0 },
+    {"wordstart",	'W',		0,     	0,  "Force 2 byte start address", 0 },
+    {"ascii" 	,	'a',		0,     	0,  "Convert ASCII to PETASCII", 0 },
+    {"no-precedence",   'P',            0,      0,  "No operator precedence in expressions", 0 },
+    {"compatible-ops",  'O',            0,      0,  "Enable TASS compatible operators", 0 },
+    {"case-sensitive",	'C',		0,     	0,  "Case sensitive labels", 0 },
+    {		0,	'o',"<file>"	,      	0,  "Place output into <file>", 0 },
+    {		0,	'D',"<label>=<value>",     	0,  "Define <label> to <value>", 0 },
+    {"long-branch",	'B',		0,     	0,  "Automatic bxx *+3 jmp $xxxx", 0 },
+    {		0,  	0,		0,     	0,  "Target selection:", 0 },
+    {"m65xx"  	,     	1,		0,     	0,  "Standard 65xx (default)", 0 },
+    {"m6502"  	,     	'i',		0,     	0,  "NMOS 65xx", 0 },
+    {"m65c02"  	,     	'c',		0,     	0,  "CMOS 65C02", 0 },
+    {"m65816"  	,     	'x',		0,     	0,  "W65C816", 0 },
+    {"m65dtv02"	,     	't',		0,     	0,  "65DTV02", 0 },
+    {		0,  	0,		0,     	0,  "Source listing:", 0 },
+    {"labels"	,	'l',"<file>"	,      	0,  "List labels into <file>", 0 },
+    {"list"	,	'L',"<file>"	,      	0,  "List into <file>", 0 },
+    {"no-monitor",	'm',		0,      0,  "Don't put monitor code into listing", 0 },
+    {"no-source",	's',		0,      0,  "Don't put source code into listing", 0 },
+    {		0,  	0,		0,     	0,  "Misc:", 0 },
+    { 0, 0, 0, 0, NULL, 0 }
 };
 
 static error_t parse_opt (int key,char *arg,struct argp_state *state)
@@ -684,7 +683,7 @@ static error_t parse_opt (int key,char *arg,struct argp_state *state)
     return 0;
 }
 
-const struct argp argp={options,parse_opt,args_doc,doc};
+const struct argp argp={options,parse_opt,args_doc,doc,NULL,NULL,NULL};
 
 void testarg(int argc,char *argv[]) {
     argp_parse(&argp,argc,argv,0,0,&arguments);

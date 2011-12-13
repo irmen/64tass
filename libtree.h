@@ -24,6 +24,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#if defined UINTPTR_MAX && UINTPTR_MAX == UINT64_MAX
+#undef UINTPTR_MAX
+#warning "FIXME: libtree seems broken on 64bit (using common code instead)"
+#endif
+
 /*
  * The definition has been stolen from the Linux kernel.
  */
@@ -39,6 +44,7 @@
 /*
  * AVL tree
  */
+
 #if defined UINTPTR_MAX && UINTPTR_MAX == UINT64_MAX
 
 struct avltree_node {
