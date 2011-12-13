@@ -1010,11 +1010,29 @@ following commandline:<br>
 </p>
 <hr>
 <h2>Differences to the original turbo ass macro on the C64</h2>
-
+<p>
+64tass is nearly 100% compatible with the original "turbo assembler", and supports
+most of the features of the original "turbo assembler macro". 
+The remaining notable differences are listed here:
+</p>
 <h3>Labels</h3>
 <p>
 The original turbo assembler uses case sensitive labels, use the <tt>-C, --case-sensitive</tt>
 option to enable this behaviour.
+</p>
+<p>
+Another thing worth noting is that the original turbo assembler lets you create
+an interesting ambiguous construct using a label called '<tt>a</tt>' 
+</p>
+<pre width=80>
+        lsr a    ; uses Akku ! (or does it really?)
+a
+        jmp a    ; uses the label address
+        .word a  ; uses the label address
+</pre>
+<p>
+If you get a warning like "<tt>warning: Possibly incorrectly used A "lsr a"</tt>", then there
+is such an ambiguous situation in your code and you should fix it (by renaming the label).
 </p>
 
 <h3>Expressions</h3>
@@ -1029,15 +1047,18 @@ option.
 The following operators used by the original turbo assembler are not supported
 by default:
 <ul>
-<li>  .   for bitwise or
-<li>  :   for bitwise eor
-<li>  !   to force 16&nbsp;bit address (only as first character of expression)
+<li><tt>.</tt> for bitwise or
+<li><tt>:</tt> for bitwise eor
+<li><tt>!</tt> to force 16&nbsp;bit address (only as first character of expression)
 </ul>
 These can be enabled using the <tt>-O, --compatible-ops</tt> option
 
 <h3>Macros</h3>
 <ul>
-<li>macro parameters are referenced by \1, \2 instead of using the pound sign
+<li>Macro parameters are referenced by <tt>\1...\9</tt> instead of using the pound sign
+<li>Parameters are always copied as text into the macro and not passed by value as the
+original turbo assembler does, which sometimes may lead to unexpected behaviour. You may
+need to make use of braces around arguments and/or references to fix this.
 </ul>
 
 <h3>Bugs</h3>
