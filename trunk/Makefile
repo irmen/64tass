@@ -1,13 +1,24 @@
+
+.SILENT:
+
 CC = gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o
 LANG = C
+
+# uncomment to build 32bit binary on 64bit machine
+#LDFLAGS = -m32
+
 #CFLAGS = -O2 -march=i486 -mcpu=i486 -pipe
 #CFLAGS = -Wall -O3 -march=i686 -pipe -fomit-frame-pointer -fno-exceptions
-CFLAGS = -O2
+CFLAGS = -O3 -W -Wall -Wextra -g
+#CFLAGS = -O2
+
+CFLAGS += $(LDFLAGS)
 
 all: 64tass README
 
 64tass: $(OBJ)
+#	gcc $(CFLAGS)  64tass.o opcodes.o misc.o avl.o   -o 64tass
 
 64tass.o: 64tass.c opcodes.h misc.h
 

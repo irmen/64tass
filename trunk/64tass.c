@@ -264,9 +264,12 @@ int what(int *tempno) {
             lpoint++;
 	    for (no=0; no<COMMANDS; no++)
 	    {
-		for (ch=0; ch<strlen(command[(int)no]); ch++)
-		    if (command[(int)no][(int)ch]!=lowcase(pline[lpoint+ch])) break;
-		if (ch==strlen(command[(int)no]))
+		for (ch = 0; ch < (char)strlen(command[(int)no]); ch++) {
+		    if (command[(int)no][(int)ch] != lowcase(pline[lpoint+ch])) {
+                        break;
+                    }
+                }
+		if (ch == (char)strlen(command[(int)no]))
 		{
 		    if (((ch=lowcase(pline[lpoint+strlen(command[(int)no])]))<'a' ||
 			 ch>'z') && ch!='_') {
@@ -693,7 +696,7 @@ void wait_cmd(FILE* fil,int no)
 {
     int wrap=waitforp;
     int pr,wh;
-    long lin,pos;
+    long lin = 1,pos = 0;
 
     for (;;) {
 	if (feof(fil)) {
@@ -840,23 +843,23 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
     FILE* fil;
   
     int wht,w,d,c,i;
-    int prm=0;
-    long val;
+    int prm = 0;
+    long val = 0;
 
     char ch;
 
-    long pos,lin,cnt,oldpos=-1;
+    long pos,lin = 1,cnt,oldpos=-1;
 
     char snum[12];
 
-    struct slabel* tmp;
-    struct smacro* tmp2;
+    struct slabel* tmp = NULL;
+    struct smacro* tmp2 = NULL;
 
 #ifndef WIN32
     int fflen;
     struct stat filestat;
 #endif
-    unsigned long backr_old, forwr_old, reffile_old;
+    unsigned long backr_old = 0, forwr_old = 0, reffile_old = 0;
 
     if (tpe==0) {
         backr_old=backr;
@@ -1000,8 +1003,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 if (labelexists) {
                     tmp->requires=current_requires;
                     tmp->conflicts=current_conflicts;
-                    if (tmp->value!=l_address) {
-                        tmp->value=l_address;
+                    if (tmp->value != l_address) { /* FIXME: signed vs unsigned */
+                        tmp->value = l_address;
                         fixeddig=0;
                     }
 		}
@@ -1018,7 +1021,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
                 ignore();if (here()) goto extrachar;
                 if (d) {
-                    if (val>all_mem || val<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                    if (val>all_mem || val<0) {  /* FIXME: signed vs unsigned */
+                        err_msg(ERROR_CONSTNT_LARGE,NULL); 
+                        break;
+                    }
                     address=l_address=(unsigned)val;
                 }
 		lastl=0;
@@ -1027,7 +1033,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 	case WHAT_EOL: break;
 	case WHAT_COMMAND:
 	    {
-		char lcol,kiirva; //for listing
+		char lcol = 0,kiirva = 0; //for listing
                 ignore();
 		if (prm==CMD_FI) // .fi
 		{
@@ -1308,7 +1314,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
 		    ignore();if (here()) goto extrachar;
-		    if (val>all_mem || val<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+		    if (val>all_mem || val<0) {  /* FIXME: signed vs unsigned */
+                        err_msg(ERROR_CONSTNT_LARGE,NULL); 
+                        break;
+                    }
 		    if (!(logitab=realloc(logitab,(logisave+1)*sizeof(*logitab)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
 		    logitab[logisave++]=l_address-address;
 		    l_address=(unsigned)val;
@@ -1403,7 +1412,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    val=get_exp(&w,&d,&c);if (!d) fixeddig=0;
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-		    if (val>all_mem || val<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+		    if (val>all_mem || val<0) {  /* FIXME: signed vs unsigned */
+                        err_msg(ERROR_CONSTNT_LARGE,NULL); 
+                        break;
+                    }
                     db=val;val=-1;
                     ignore();
                     if ((ch=get())) {
@@ -1449,7 +1461,9 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
                     ignore();if (get()!=',') {err_msg(ERROR______EXPECTED,","); break;}
-                    if (d && (val & current_provides)!=val) err_msg(ERROR_REQUIREMENTS_,".CHECK");
+                    if (d && (val & current_provides)!=val) {  /* FIXME: signed vs unsigned */
+                        err_msg(ERROR_REQUIREMENTS_,".CHECK");
+                    }
 		    val=get_exp(&w,&d,&c);
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
@@ -1549,7 +1563,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         ignore();if (here()) goto extrachar;
                     }
                     if (d) {
-                        if (val<1 || val>all_mem) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                        if (val<1 || val>all_mem) {  /* FIXME: signed vs unsigned */
+                            err_msg(ERROR_CONSTNT_LARGE,NULL); 
+                            break;
+                        }
                         if (l_address % val) {
                             if (fill>0)
                                 while (l_address % val) pokeb((unsigned char)fill);
@@ -1615,7 +1632,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     }
                     compile(path,0,0,mprm,nprm,NULL);
                     exitfile();
-                    if (listing && flist) fprintf(flist,"\n;******  Return to file \"%s\"\n\n",&filenamelist->name);
+                    if (listing && flist) fprintf(flist,"\n;******  Return to file \"%s\"\n\n",filenamelist->name);
 		    sline=lin;
 		    break;
 		}
@@ -1634,7 +1651,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             fsize=get_exp(&w,&d,&c);if (!d) fixeddig=0;
                             if (!c) break;
                             if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                            if (d && (fsize<0 || fsize>all_mem)) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                            if (d && (fsize<0 || fsize>all_mem)) {  /* FIXME: signed vs unsigned */
+                                err_msg(ERROR_CONSTNT_LARGE,NULL); 
+                                break;
+                            }
                             ignore();if (here()) goto extrachar;
                         }
                     }
@@ -1739,7 +1759,9 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		if (prm==CMD_ENDP) { // .endp
 		    if (here()) goto extrachar;
 		    if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
-		    if ((l_address>>8)!=pagelo) err_msg(ERROR____PAGE_ERROR,NULL);
+		    if ((l_address>>8) != pagelo) {  /* FIXME: signed vs unsigned */
+                        err_msg(ERROR____PAGE_ERROR,NULL);
+                    }
 		    pagelo=-1;
 		    break;
 		}
@@ -1817,11 +1839,11 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		break;
 	    }
 	case WHAT_MNEMONIC:if (skipit[waitforp] & 1) {//skip things if needed
-            int opr,mnem=prm;
-            int oldlpoint=lpoint;
-	    const unsigned char* cnmemonic=&opcode[prm*24]; //current nmemonic
-	    char ln;
-	    unsigned char cod,longbranch=0;
+            int opr = 0, mnem = prm;
+            int oldlpoint = lpoint;
+	    const unsigned char* cnmemonic = &opcode[prm*24]; //current nmemonic
+	    char ln = 0;
+	    unsigned char cod = 0, longbranch = 0;
 
             ignore();
 	    if (!(wht=here())) {
@@ -2364,7 +2386,7 @@ int main(int argc,char *argv[]) {
 		bl_adr+=bl_len;
 	    }
 	    bl_len=0;
-	    fwrite(&bl_len,2+scpumode,1,fout);
+	    if ((fwrite(&bl_len,2+scpumode,1,fout) == 0)) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
 	}
 	else {
 	    if (!arguments.stripstart) {

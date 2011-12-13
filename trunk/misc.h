@@ -105,13 +105,13 @@ struct sfile {
 
 struct serrorlist {
     struct serrorlist *next;
-    char name;
+    char name[1];
 } __attribute((packed));
 
 struct sfilenamelist {
     struct sfilenamelist *next;
     long line;
-    char name;
+    char name[1];
 } __attribute((packed));
 
 struct arguments_t {
