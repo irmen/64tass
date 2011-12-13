@@ -21,13 +21,7 @@
 #ifndef _LIBTREE_H
 #define _LIBTREE_H
 
-#include <stdint.h>
 #include <stddef.h>
-
-#if defined UINTPTR_MAX && UINTPTR_MAX == UINT64_MAX
-#undef UINTPTR_MAX
-#warning "FIXME: libtree seems broken on 64bit (using common code instead)"
-#endif
 
 /*
  * The definition has been stolen from the Linux kernel.
@@ -45,22 +39,11 @@
  * AVL tree
  */
 
-#if defined UINTPTR_MAX && UINTPTR_MAX == UINT64_MAX
-
-struct avltree_node {
-	struct avltree_node *left, *right;
-	uintptr_t parent;		/* balance factor [0:4] */
-} __attribute__((aligned(8)));
-
-#else
-
 struct avltree_node {
 	struct avltree_node *left, *right;
 	struct avltree_node *parent;
 	signed balance:3;		/* balance factor [-2:+2] */
 };
-
-#endif
 
 typedef int (*avltree_cmp_fn_t)(const struct avltree_node *, const struct avltree_node *);
 typedef void (*avltree_free_fn_t)(const struct avltree_node *);
