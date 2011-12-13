@@ -957,10 +957,26 @@ following commandline:
 
 Differences to the original turbo ass macro on the C64
 
+64tass is nearly 100% compatible with the original "turbo assembler", and
+supports most of the features of the original "turbo assembler macro". The
+remaining notable differences are listed here:
+
 Labels
 
 The original turbo assembler uses case sensitive labels, use the -C,
 --case-sensitive option to enable this behaviour.
+
+Another thing worth noting is that the original turbo assembler lets you create
+an interesting ambiguous construct using a label called 'a'
+
+        lsr a    ; uses Akku ! (or does it really?)
+a
+        jmp a    ; uses the label address
+        .word a  ; uses the label address
+
+If you get a warning like "warning: Possibly incorrectly used A "lsr a"", then
+there is such an ambiguous situation in your code and you should fix it (by
+renaming the label).
 
 Expressions
 
@@ -983,7 +999,11 @@ These can be enabled using the -O, --compatible-ops option
 
 Macros
 
-  * macro parameters are referenced by \1, \2 instead of using the pound sign
+  * Macro parameters are referenced by \1...\9 instead of using the pound sign
+  * Parameters are always copied as text into the macro and not passed by value
+    as the original turbo assembler does, which sometimes may lead to
+    unexpected behaviour. You may need to make use of braces around arguments
+    and/or references to fix this.
 
 Bugs
 
