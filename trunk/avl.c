@@ -21,100 +21,6 @@
 
 #include "libtree.h"
 
-
-#if !defined UINTPTR_MAX || UINTPTR_MAX != UINT64_MAX
-
-static inline int is_root(struct avltree_node *node)
-{
-	return node->parent == NULL;
-}
-
-static inline void INIT_NODE(struct avltree_node *node)
-{
-	node->left = NULL;
-	node->right = NULL;
-	node->parent = NULL;
-	node->balance = 0;
-}
-
-static inline signed get_balance(struct avltree_node *node)
-{
-	return node->balance;
-}
-
-static inline void set_balance(int balance, struct avltree_node *node)
-{
-	node->balance = balance;
-}
-
-static inline int inc_balance(struct avltree_node *node)
-{
-	return ++node->balance;
-}
-
-static inline int dec_balance(struct avltree_node *node)
-{
-	return --node->balance;
-}
-
-static inline struct avltree_node *get_parent(const struct avltree_node *node)
-{
-	return node->parent;
-}
-
-static inline void set_parent(struct avltree_node *parent,
-			      struct avltree_node *node)
-{
-	node->parent = parent;
-}
-
-#else
-
-static inline int is_root(struct avltree_node *node)
-{
-	return !(node->parent & ~7UL);
-}
-
-static inline void INIT_NODE(struct avltree_node *node)
-{
-	node->left = NULL;
-	node->right = NULL;
-	node->parent = 2;
-}
-
-static inline signed get_balance(struct avltree_node *node)
-{
-	return (int)(node->parent & 7) - 2;
-}
-
-static inline void set_balance(int balance, struct avltree_node *node)
-{
-	node->parent = (node->parent & ~7UL) | (balance + 2);
-}
-
-static inline int inc_balance(struct avltree_node *node)
-{
-	return (int)(++node->parent & 7) - 2;
-}
-
-static inline int dec_balance(struct avltree_node *node)
-{
-	return (int)(--node->parent & 7) - 2;
-}
-
-static inline struct avltree_node *get_parent(const struct avltree_node *node)
-{
-	return (struct avltree_node *)(node->parent & ~7UL);
-}
-
-static inline void set_parent(const struct avltree_node *parent,
-			      struct avltree_node *node)
-{
-	node->parent = (uintptr_t)parent | (node->parent & 7);
-}
-
-#endif
-
 /*
  * Iterators
  */
@@ -137,7 +43,7 @@ struct avltree_node *avltree_next(const struct avltree_node *node)
 	if (node->right)
 		return get_first(node->right);
 
-	while ((parent = get_parent(node)) && parent->right == node)
+	while ((parent = node->parent) && parent->right == node)
 		node = parent;
 	return parent;
 }
@@ -152,21 +58,21 @@ static void rotate_left(struct avltree_node *node, struct avltree *tree)
 {
 	struct avltree_node *p = node;
 	struct avltree_node *q = node->right; /* can't be NULL */
-	struct avltree_node *parent = get_parent(p);
+	struct avltree_node *parent = p->parent;
 
-	if (!is_root(p)) {
+	if (parent) {
 		if (parent->left == p)
 			parent->left = q;
 		else
 			parent->right = q;
 	} else
 		tree->root = q;
-	set_parent(parent, q);
-	set_parent(q, p);
+	q->parent = parent;
+	p->parent = q;
 
 	p->right = q->left;
 	if (p->right)
-		set_parent(p, p->right);
+		p->right->parent = p;
 	q->left = p;
 }
 
@@ -174,21 +80,21 @@ static void rotate_right(struct avltree_node *node, struct avltree *tree)
 {
 	struct avltree_node *p = node;
 	struct avltree_node *q = node->left; /* can't be NULL */
-	struct avltree_node *parent = get_parent(p);
+	struct avltree_node *parent = p->parent;
 
-	if (!is_root(p)) {
+	if (parent) {
 		if (parent->left == p)
 			parent->left = q;
 		else
 			parent->right = q;
 	} else
 		tree->root = q;
-	set_parent(parent, q);
-	set_parent(q, p);
+	q->parent = parent;
+	p->parent = q;
 
 	p->left = q->right;
 	if (p->left)
-		set_parent(p, p->left);
+		p->left->parent = p;
 	q->right = p;
 }
 
@@ -211,7 +117,7 @@ static inline struct avltree_node *do_lookup(const struct avltree_node *key,
 	*is_left = 0;
 
 	while (node) {
-		if (get_balance(node) != 0)
+		if (node->balance != 0)
 			*unbalanced = node;
 
 		res = tree->cmp_fn(node, key);
@@ -254,7 +160,10 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 	if (key)
 		return key;
 
-	INIT_NODE(node);
+	node->left = NULL;
+	node->right = NULL;
+	node->parent = NULL;
+	node->balance = 0;
 
 	if (!parent) {
 		tree->root = node;
@@ -269,22 +178,22 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 		if (parent == tree->last)
 			tree->last = node;
 	}
-	set_parent(parent, node);
+	node->parent = parent;
 	set_child(node, parent, is_left);
 
 	for (;;) {
 		if (parent->left == node)
-			dec_balance(parent);
+			parent->balance--;
 		else
-			inc_balance(parent);
+			parent->balance++;
 
 		if (parent == unbalanced)
 			break;
 		node = parent;
-		parent = get_parent(parent);
+		parent = parent->parent;
 	}
 
-	switch (get_balance(unbalanced)) {
+	switch (unbalanced->balance) {
 	case  1: case -1:
 		tree->height++;
 		/* fall through */
@@ -293,25 +202,25 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 	case 2: {
 		struct avltree_node *right = unbalanced->right;
 
-		if (get_balance(right) == 1) {
-			set_balance(0, unbalanced);
-			set_balance(0, right);
+		if (right->balance == 1) {
+			unbalanced->balance = 0;
+			right->balance = 0;
 		} else {
-			switch (get_balance(right->left)) {
+			switch (right->left->balance) {
 			case 1:
-				set_balance(-1, unbalanced);
-				set_balance( 0, right);
+				unbalanced->balance = -1;
+				right->balance = 0;
 				break;
 			case 0:
-				set_balance(0, unbalanced);
-				set_balance(0, right);
+				unbalanced->balance = 0;
+				right->balance = 0;
 				break;
 			case -1:
-				set_balance(0, unbalanced);
-				set_balance(1, right);
+				unbalanced->balance = 0;
+				right->balance = 1;
 				break;
 			}
-			set_balance(0, right->left);
+			right->left->balance = 0;
 
 			rotate_right(right, tree);
 		}
@@ -321,25 +230,25 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 	case -2: {
 		struct avltree_node *left = unbalanced->left;
 
-		if (get_balance(left) == -1) {
-			set_balance(0, unbalanced);
-			set_balance(0, left);
+		if (left->balance == -1) {
+			unbalanced->balance = 0;
+			left->balance = 0;
 		} else {
-			switch (get_balance(left->right)) {
+			switch (left->right->balance) {
 			case 1:
-				set_balance( 0, unbalanced);
-				set_balance(-1, left);
+				unbalanced->balance =  0;
+				left->balance = -1;
 				break;
 			case 0:
-				set_balance(0, unbalanced);
-				set_balance(0, left);
+				unbalanced->balance = 0;
+				left->balance = 0;
 				break;
 			case -1:
-				set_balance(1, unbalanced);
-				set_balance(0, left);
+				unbalanced->balance = 1;
+				left->balance = 0;
 				break;
 			}
-			set_balance(0, left->right);
+			left->right->balance = 0;
 
 			rotate_left(left, tree);
 		}
