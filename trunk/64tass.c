@@ -141,27 +141,25 @@ void status() {
  *      pline -
  */
 void readln(FILE* fle) {
-    int i=0,i2=0,q=0;
-    char ch;
+    int i=0,i2=0,q=0,ch;
 
     for (;;) {
         ch=fgetc(fle);
-        if (feof(fle)) {sline++;break;}
+        if (ch == EOF) {sline++;break;}
         if (!ch) continue;   //null?
         if (ch==13) {
             ch=fgetc(fle);
-            if (feof(fle)) ch=10;
+            if (ch == EOF) ch=10;
             if (ch!=10) {
-                if ((ch == ':') && (!arguments.oldops)) ch=32;
+                if (ch == ':' && (!arguments.oldops)) ch=32;
                 ungetc(ch,fle);
-            } else goto ide;
-            sline++;break;
+                sline++;break;
+            }
         }
         if (ch==10) {
-        ide:
             ch=fgetc(fle);
-            if (!feof(fle)) {
-                if ((ch == ':') && (!arguments.oldops)) ch=32;
+            if (ch != EOF) {
+                if (ch == ':' && (!arguments.oldops)) ch=32;
                 ungetc(ch,fle);
             }
             sline++;break;
@@ -1664,15 +1662,15 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         fprintf(flist,"\n;******  Binary include \"%s\"\n",path);
                     }
 		    for (;fsize;fsize--) {
-			int st=fread(&ch,1,1,fil);
-			if (feof(fil)) break;
-			if (!st) err_msg(ERROR_CANT_FINDFILE,path);
+			int st=fgetc(fil);
+			if (st == EOF) break;
+			if (st < 0) err_msg(ERROR_CANT_FINDFILE,path);
 			if (listing && flist) {
                             if (!lcol) {fprintf(flist,(all_mem==0xffff)?"\n>%04lx\t ":"\n>%06lx  ",address);lcol=16;}
-			    fprintf(flist,"%02x ",(unsigned char)ch);
+			    fprintf(flist,"%02x ",(unsigned char)st);
 			    lcol--;
 			}
-			pokeb(ch);
+			pokeb(st);
 		    }
 		    if (listing && flist) fputc('\n',flist);
 		    fclose(fil);
