@@ -69,7 +69,6 @@ static char longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static unsigned char databank=0;
 static unsigned int dpage=0;
 static char fixeddig;
-static char procname[linelength];
 static unsigned long current_requires;
 static unsigned long current_conflicts;
 static unsigned long current_provides;
@@ -97,7 +96,7 @@ unsigned long macrecursion;
 const char* command[]={"byte"   ,"text", "ptext", "char" ,"shift","shiftl" ,"null"  ,"rta" , "int"  , "word" , "long" ,"offs"  ,"macro"  ,"endm"   ,"for" ,
                         "next"   ,"if"   ,"else"  ,"fi"    ,"elsif","rept"   ,"include","binary","comment","endc",
                         "page"   ,"endp" ,"logical","here" ,"as"   ,"al"     ,"xs"    ,"xl"     ,"error"  ,"proc",
-                        "pend"   ,"databank","dpage","fill","global","warn"  ,"enc"   ,"endif"  , "ifne"  , "ifeq",
+                        "pend"   ,"databank","dpage","fill","warn"  ,"enc"   ,"endif"  , "ifne"  , "ifeq",
                         "ifpl"   , "ifmi","cerror","cwarn", "align","assert", "check", "cpu", "option",
                         "block"  , "bend", "pron", "proff", "showmac", "hidemac", "end", "eor"
 };
@@ -105,10 +104,10 @@ enum {
     CMD_BYTE, CMD_TEXT, CMD_PTEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFT2, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
     CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL,
     CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE,
-    CMD_FILL, CMD_GLOBAL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION,
+    CMD_FILL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION,
     CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR
 };
-#define COMMANDS 62
+#define COMMANDS 61
 
 // ---------------------------------------------------------------------------
 
@@ -413,23 +412,9 @@ long get_num(int *cd, int mode) {
 	    }
             if (get_ident('.')) return 0; //label?
         in:
-            if ((iit=strchr(ident,'.'))) {
-                *iit=0;
-                if ((tmp=find_label(ident))) {
-                    tmp->proclabel=0;
-                    tmp->used=1;
-                }
-                *iit='.';
-            }
-	    if (procname[0]) {
-		strcpy(ident2,procname);
-		strcat(ident2,".");
-		strcat(ident2,ident);
-		tmp=find_label(ident2);     //ok, local label
-	    } else tmp=NULL;
-            if (!tmp) tmp=find_label(ident);  //ok, global label
+            tmp=find_label(ident);
 	    if (pass==1) {
-                if (tmp) if (tmp->ertelmes) {*cd=1;if (!procname[0]) {tmp->proclabel=0;tmp->used=1;} return tmp->value;}
+                if (tmp && tmp->ertelmes) {*cd=1; if (current_context==&root_context) {tmp->proclabel=0;tmp->used=1;} return tmp->value;}
 		*cd=2;return 0;
 	    }
 	    else {
@@ -854,6 +839,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 
     struct slabel* tmp = NULL;
     struct smacro* tmp2 = NULL;
+    struct scontext *old_context = NULL;
 
 #ifndef WIN32
     int fflen;
@@ -914,9 +900,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
         hh: strcpy(ident2,ident);
             if (!(skipit[waitforp] & 1)) {wht=what(&prm);goto jn;} //skip things if needed
             if ((wht=what(&prm))==WHAT_EQUAL) { //variable
-		strcpy(varname,procname);
-		if (procname[0]) strcat(varname,".");
-                strcat(varname,ident);
+                strcpy(varname,ident);
                 val=get_exp(&w,&d,&c); //ellenorizve.
                 if (listing && flist && arguments.source) {
                     if (nprm>=0) mtranslate(mprm,nprm,llist);
@@ -979,13 +963,13 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 else
                     fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%c\n":".%06lx\t\t\t\t\t%c\n",address,ident[0]);
 	    }
-	    if (wht==WHAT_COMMAND && (prm==CMD_PROC || prm==CMD_GLOBAL)) tmp=new_label(ident); //.proc or .global
-	    else {
-		strcpy(varname,procname);
-                if (procname[0]) strcat(varname,".");
-		strcat(varname, ident);
-		tmp = new_label(varname);
-	    }
+	    if (wht==WHAT_COMMAND && prm==CMD_PROC) { //.proc
+                old_context = current_context;
+                if (current_context->parent) {
+                    current_context = current_context->parent;
+                }
+            }
+            tmp=new_label(ident);
 	    if (pass==1) {
 		if (labelexists) {
 		    err_msg(ERROR_DOUBLE_DEFINE,ident);
@@ -1357,9 +1341,9 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		if (prm==CMD_PROC) { // .proc
 		    if (here()) goto extrachar;
 		    if (tmp) {
-			if (tmp->proclabel && pass!=1 && !procname[0]) wait_cmd(fin,CMD_PEND);//.pend
+			if (tmp->proclabel && pass!=1 && old_context == &root_context) wait_cmd(fin,CMD_PEND);//.pend
                         else {
-                            strcpy(procname,ident);
+                            current_context=new_context(ident, current_context);
                             if (listing && flist && arguments.source) {
                                 if (lastl==2) {fputc('\n',flist);lastl=1;}
                                 if (ident[0]!='-' && ident[0]!='+')
@@ -1373,19 +1357,23 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
 		if (prm==CMD_PEND) { //.pend
 		    if (here()) goto extrachar;
-                    procname[0]=0;
+                    if (current_context->parent && current_context->name[0]!='.') {
+                        current_context = current_context->parent;
+                    } else err_msg(ERROR______EXPECTED,".proc");
 		    break;
 		}
                 if (prm==CMD_BLOCK) { // .block
                     if (here()) goto extrachar;
-                    if (tmp) {
-                        sprintf(procname, ".block%ld", sline);
-                    } /* TODO: macros, multiple files */
+                    sprintf(varname, ".%lu.%ld", reffile, sline);
+                    current_context=new_context(varname, current_context);
+                    /* TODO: macros */
                     break;
                 }
                 if (prm==CMD_BEND) { //.bend
                     if (here()) goto extrachar;
-                    procname[0]=0; /* TODO: detect .bend without .block */
+                    if (current_context->parent && current_context->name[0]=='.') {
+                        current_context = current_context->parent;
+                    } else err_msg(ERROR______EXPECTED,".block");
                     break;
                 }
 		if (prm==CMD_DATABANK) { // .databank
@@ -1469,10 +1457,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
                     ignore();if (here()) goto extrachar;
                     if (d && (val & current_provides)) err_msg(ERROR______CONFLICT,".CHECK");
-		    break;
-		}
-		if (prm==CMD_GLOBAL) { //.global
-		    if (here()) goto extrachar;
 		    break;
 		}
 		if (prm==CMD_WARN) { // .warn
@@ -2320,7 +2304,8 @@ int main(int argc,char *argv[]) {
         set_cpumode(arguments.cpumode);
 	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;procname[0]=0;conderrors=warnings=0;freeerrorlist(0);
+        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);
+        current_context=&root_context;
         /*	listing=1;flist=stderr;*/
         enterfile(arguments.input,0);
         sline=0;
@@ -2346,7 +2331,8 @@ int main(int argc,char *argv[]) {
         set_cpumode(arguments.cpumode);
 	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;procname[0]=0;conderrors=warnings=0;freeerrorlist(0);
+        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);
+        current_context=&root_context;
         enterfile(arguments.input,0);
         sline=0;
         compile(arguments.input,0,0,"",-1,NULL);

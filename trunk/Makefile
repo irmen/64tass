@@ -10,7 +10,7 @@ LANG = C
 
 #CFLAGS = -O2 -march=i486 -mcpu=i486 -pipe
 #CFLAGS = -Wall -O3 -march=i686 -pipe -fomit-frame-pointer -fno-exceptions
-CFLAGS = -O3 -W -Wall -Wextra -g
+CFLAGS = -O2 -g
 #CFLAGS = -O2
 
 CFLAGS += $(LDFLAGS)

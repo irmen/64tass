@@ -76,6 +76,14 @@
 #define WHAT_LBL        17
 #define lowcase(cch) tolower_tab[(unsigned char)cch]
 
+struct scontext {
+    char* name;
+    struct scontext *parent;
+    struct avltree contexts;
+    struct avltree tree;
+    struct avltree_node node;
+};
+
 struct slabel {
     char* name;
     long value;
@@ -157,6 +165,7 @@ extern struct slabel* find_label(char*);
 extern struct slabel* new_label(char*);
 extern struct smacro* find_macro(char*);
 extern struct smacro* new_macro(char*);
+extern struct scontext* new_context(char*, struct scontext *);
 extern FILE* openfile(char*,char*);
 extern void closefile(FILE*);
 extern void tfree();
@@ -169,6 +178,8 @@ extern void enterfile(char *,long);
 extern void exitfile();
 extern struct sfilenamelist *filenamelist;
 extern int encoding;
+extern struct scontext *current_context;
+extern struct scontext root_context;
 #endif
 
 #endif

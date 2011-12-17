@@ -919,8 +919,6 @@ Misc
     Terminate assembly. Any content after this directive is ignored.
 .eor
     eor output with some value
-.global
-    Do not use this, buggy!
 .assert
 .check
     Do not use these, the syntax will change in next version!
