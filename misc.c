@@ -32,10 +32,11 @@ void err_msg(unsigned char no, char* prm);
 
 struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
 
-static struct avltree label_tree;
 static struct avltree macro_tree;
 static struct avltree file_tree1;
 static struct avltree file_tree2;
+struct scontext root_context;
+struct scontext *current_context = &root_context;
 struct serrorlist *errorlist=NULL,*errorlistlast=NULL;
 struct sfilenamelist *filenamelist=NULL;
 int encoding;
@@ -394,6 +395,14 @@ int label_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     return strcmp(a->name, b->name);
 }
 
+int context_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    struct scontext *a = avltree_container_of(aa, struct scontext, node);
+    struct scontext *b = avltree_container_of(bb, struct scontext, node);
+
+    return strcmp(a->name, b->name);
+}
+
 int macro_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct smacro *a = avltree_container_of(aa, struct smacro, node);
@@ -425,6 +434,15 @@ void label_free(const struct avltree_node *aa)
     free(a);
 }
 
+void context_free(const struct avltree_node *aa)
+{
+    struct scontext *a = avltree_container_of(aa, struct scontext, node);
+    free(a->name);
+    avltree_destroy(&a->tree);
+    avltree_destroy(&a->contexts);
+    free(a);
+}
+
 void macro_free(const struct avltree_node *aa)
 {
     struct smacro *a = avltree_container_of(aa, struct smacro, node);
@@ -444,11 +462,42 @@ void file_free(const struct avltree_node *aa)
 
 // ---------------------------------------------------------------------------
 struct slabel* find_label(char* name) {
-    struct slabel a;
-    const struct avltree_node *c;
-    a.name=name;
-    if (!(c=avltree_lookup(&a.node, &label_tree))) return NULL;
-    return avltree_container_of(c, struct slabel, node);
+    struct slabel a, *a2;
+    struct scontext b;
+    const struct avltree_node *c, *d;
+    struct scontext *context = current_context, *context2;
+    char *n;
+    
+    while (context) {
+        b.name = name;
+        context2 = context;
+        while ((n=strchr(b.name,'.'))) {
+            *n=0;
+            c=avltree_lookup(&b.node, &context2->contexts);
+            if (c) {
+                a.name = b.name;
+                d=avltree_lookup(&a.node, &context2->tree);
+            }
+            *n='.';
+            if (!c) break;
+            if (d) {
+                a2 = avltree_container_of(d, struct slabel, node);
+                a2->proclabel = 0; a2->used = 1;
+            }
+            context2 = avltree_container_of(c, struct scontext, node);
+            b.name = n + 1;
+        }
+        if (context2) {
+            a.name = b.name;
+            d=avltree_lookup(&a.node, &context2->tree);
+            if (d) {
+                a2 = avltree_container_of(d, struct slabel, node);
+                return a2;
+            }
+        }
+        context = context->parent;
+    }
+    return NULL;
 }
 
 
@@ -460,7 +509,7 @@ struct slabel* new_label(char* name) {
     if (!lastlb)
 	if (!(lastlb=malloc(sizeof(struct slabel)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
     lastlb->name=name;
-    b=avltree_insert(&lastlb->node, &label_tree);
+    b=avltree_insert(&lastlb->node, &current_context->tree);
     if (!b) { //new label
 	if (!(lastlb->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastlb->name,name);
@@ -473,6 +522,29 @@ struct slabel* new_label(char* name) {
     return avltree_container_of(b, struct slabel, node);            //already exists
 }
 
+// ---------------------------------------------------------------------------
+static struct scontext *lastco=NULL;
+struct scontext* new_context(char* name, struct scontext *parent) {
+    struct avltree_node *b;
+    struct scontext *tmp;
+    if (!lastco)
+	if (!(lastco=malloc(sizeof(struct scontext)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+    lastco->name=name;
+    b=avltree_insert(&lastco->node, &current_context->contexts);
+    if (!b) { //new context
+	if (!(lastco->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+        strcpy(lastco->name,name);
+        avltree_init(&lastco->tree, label_compare, label_free);
+        avltree_init(&lastco->contexts, context_compare, context_free);
+        lastco->parent=parent;
+	labelexists=0;
+	tmp=lastco;
+	lastco=NULL;
+	return tmp;
+    }
+    labelexists=1;
+    return avltree_container_of(b, struct scontext, node);            //already exists
+}
 // ---------------------------------------------------------------------------
 
 struct smacro* find_macro(char* name) {
@@ -543,9 +615,11 @@ void closefile(FILE* f) {
 }
 
 void tfree() {
-    avltree_destroy(&label_tree);
+    avltree_destroy(&root_context.tree);
+    avltree_destroy(&root_context.contexts);
     avltree_destroy(&macro_tree);
     avltree_destroy(&file_tree1);
+    free(lastco);
     free(lastfi);
     free(lastma);
     free(lastlb);
@@ -558,7 +632,9 @@ void tfree() {
 }
 
 void tinit() {
-    avltree_init(&label_tree, label_compare, label_free);
+    avltree_init(&root_context.tree, label_compare, label_free);
+    avltree_init(&root_context.contexts, context_compare, context_free);
+    root_context.parent = NULL;
     avltree_init(&macro_tree, macro_compare, macro_free);
     avltree_init(&file_tree1, file1_compare, file_free);
     avltree_init(&file_tree2, file2_compare, NULL);
@@ -576,12 +652,11 @@ void labelprint() {
         } else {
             if (!(flab=fopen(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
         }
-        n = avltree_first(&label_tree);
+        n = avltree_first(&root_context.tree);
         while (n) {
             l = avltree_container_of(n, struct slabel, node);            //already exists
             n = avltree_next(n);
             if (strchr(l->name,'-') || strchr(l->name,'+')) continue;
-            if (strchr(l->name,'.')) fputc(';',flab);
             fprintf(flab,"%-16s= ",l->name);
             if ((val=l->value)<0) fprintf(flab,"-");
             val=(val>=0?val:-val);
