@@ -396,8 +396,6 @@ long get_num(int *cd, int mode) {
         *cd=1; return l_address;
     default:
 	{
-            static char ident2[linelength];
-            char *iit;
 	    lpoint--;
 	    if ((ch>='0') && (ch<='9')) { //decimal number...
 		while (((ch=get())>='0') && (ch<='9')) {
@@ -985,7 +983,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 if (labelexists) {
                     tmp->requires=current_requires;
                     tmp->conflicts=current_conflicts;
-                    if (tmp->value != l_address) { /* FIXME: signed vs unsigned */
+                    if ((unsigned long)tmp->value != l_address) {
                         tmp->value = l_address;
                         fixeddig=0;
                     }
@@ -1003,7 +1001,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
                 ignore();if (here()) goto extrachar;
                 if (d) {
-                    if (val>all_mem || val<0) {  /* FIXME: signed vs unsigned */
+                    if (val>(long)all_mem || val<0) {
                         err_msg(ERROR_CONSTNT_LARGE,NULL); 
                         break;
                     }
@@ -1296,7 +1294,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
 		    ignore();if (here()) goto extrachar;
-		    if (val>all_mem || val<0) {  /* FIXME: signed vs unsigned */
+		    if (val>(long)all_mem || val<0) {
                         err_msg(ERROR_CONSTNT_LARGE,NULL); 
                         break;
                     }
@@ -1398,7 +1396,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    val=get_exp(&w,&d,&c);if (!d) fixeddig=0;
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-		    if (val>all_mem || val<0) {  /* FIXME: signed vs unsigned */
+		    if (val>(long)all_mem || val<0) {
                         err_msg(ERROR_CONSTNT_LARGE,NULL); 
                         break;
                     }
@@ -1447,7 +1445,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
                     ignore();if (get()!=',') {err_msg(ERROR______EXPECTED,","); break;}
-                    if (d && (val & current_provides)!=val) {  /* FIXME: signed vs unsigned */
+                    if (d && (val & current_provides)!=(unsigned long)val) {
                         err_msg(ERROR_REQUIREMENTS_,".CHECK");
                     }
 		    val=get_exp(&w,&d,&c);
@@ -1545,7 +1543,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         ignore();if (here()) goto extrachar;
                     }
                     if (d) {
-                        if (val<1 || val>all_mem) {  /* FIXME: signed vs unsigned */
+                        if (val<1 || val>(long)all_mem) {
                             err_msg(ERROR_CONSTNT_LARGE,NULL); 
                             break;
                         }
@@ -1633,7 +1631,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             fsize=get_exp(&w,&d,&c);if (!d) fixeddig=0;
                             if (!c) break;
                             if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                            if (d && (fsize<0 || fsize>all_mem)) {  /* FIXME: signed vs unsigned */
+                            if (d && (fsize<0 || fsize>(long)all_mem)) {
                                 err_msg(ERROR_CONSTNT_LARGE,NULL); 
                                 break;
                             }
@@ -1741,7 +1739,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		if (prm==CMD_ENDP) { // .endp
 		    if (here()) goto extrachar;
 		    if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
-		    if ((l_address>>8) != pagelo) {  /* FIXME: signed vs unsigned */
+		    if ((l_address>>8) != (unsigned long)pagelo) {
                         err_msg(ERROR____PAGE_ERROR,NULL);
                     }
 		    pagelo=-1;
@@ -1829,14 +1827,14 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 
             ignore();
 	    if (!(wht=here())) {
-		if ((cod=cnmemonic[ADR_IMPLIED])==____) goto illegal_addressing;
+		cod=cnmemonic[ADR_IMPLIED];
 		opr=ADR_IMPLIED;w=ln=0;d=1;
 	    }  //clc
 	    // 1 Db
-	    else if (lowcase(wht)=='a' && pline[lpoint+1]==0)
+	    else if (lowcase(wht)=='a' && pline[lpoint+1]==0 && cnmemonic[ADR_ACCU]!=____)
 	    {
-		if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
-		if ((cod=cnmemonic[ADR_ACCU])==____) goto illegal_addressing;
+		cod=cnmemonic[ADR_ACCU];
+                if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
 		opr=ADR_ACCU;w=ln=0;d=1;// asl a
                 lpoint++;
 	    }
@@ -1921,24 +1919,24 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
 			if (w==3) {//auto length
 			    if (d) {
-				if (cnmemonic[ADR_ZP_X]!=____ && val>=dpage && val<(dpage+0x100)) {val-=dpage;w=0;}
+				if (cnmemonic[ADR_ZP_X]!=____ && (unsigned)val>=dpage && (unsigned)val<(dpage+0x100)) {val-=dpage;w=0;}
 				else if (cnmemonic[ADR_ADDR_X]!=____ && databank==(((unsigned)val) >> 16)) w=1;
 				else {
 				    w=val_length(val);
 				    if (w<2) w=2;
 				}
 			    } else {fixeddig=0;w=1;}
-			} else if (val>=dpage && val<(dpage+0x100)) val-=dpage;
+			} else if ((unsigned)val>=dpage && (unsigned)val<(dpage+0x100)) val-=dpage;
 			opr=ADR_ZP_X-w;ln=w+1;
 		    }// 6 Db
 		    else if (wht==WHAT_Y) {// lda $ff,y lda $ffff,y lda $ffffff,y
                         if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
 			if (w==3) {//auto length
 			    if (d) {
-				if (cnmemonic[ADR_ZP_Y]!=____ && val>=dpage && val<(dpage+0x100)) {val-=dpage;w=0;}
+				if (cnmemonic[ADR_ZP_Y]!=____ && (unsigned)val>=dpage && (unsigned)val<(dpage+0x100)) {val-=dpage;w=0;}
 				else if (databank==(((unsigned)val) >> 16)) w=1;
 			    } else {fixeddig=0;w=1;}
-			} else if (val>=dpage && val<(dpage+0x100)) val-=dpage;
+			} else if ((unsigned)val>=dpage && (unsigned)val<(dpage+0x100)) val-=dpage;
 			if (w==2) w=3; // there's no lda $ffffff,y!
 			opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
 		    }// 8 Db
@@ -2060,7 +2058,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			else {
 			    if (w==3) {//auto length
 				if (d) {
-				    if (cnmemonic[ADR_ZP]!=____ && val>=dpage && val<(dpage+0x100)) {val-=dpage;w=0;}
+				    if (cnmemonic[ADR_ZP]!=____ && (unsigned)val>=dpage && (unsigned)val<(dpage+0x100)) {val-=dpage;w=0;}
 				    else if (cnmemonic[ADR_ADDR]!=____ && databank==(((unsigned)val) >> 16)) w=1;
 				    else {
 					w=val_length(val);
@@ -2146,7 +2144,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 	    if (d) {
 		if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
                 if ((cod=cnmemonic[opr])==____) {
-                illegal_addressing:
                     memcpy(ident,&mnemonic[mnem*3],3);
                     ident[3]=0;
                     if ((tmp2=find_macro(ident))) {
