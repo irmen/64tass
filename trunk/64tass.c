@@ -1584,7 +1584,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     ignore();if (here()) goto extrachar;
                     if (d) {
                         outputeor = val;
-                    }
+                    } else fixeddig=0;
                     break;
                 }
                 if (prm==CMD_END) {
