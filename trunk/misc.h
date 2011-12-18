@@ -94,7 +94,10 @@ struct svalue {
     enum etype type;
     union {
         long num;
-        char *str;
+        struct {
+            int len;
+            unsigned char *data;
+        } str;
     };
 };
 

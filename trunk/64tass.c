@@ -197,7 +197,7 @@ void readln(FILE* fle) {
 // ---------------------------------------------------------------------------
 // Read a character in the current string encoding
 int petascii(char quo) {
-    char ch;
+    unsigned char ch;
 
     if (!here()) {err_msg(ERROR______EXPECTED,"End of string"); return 256;}
     ch=get();
@@ -387,10 +387,22 @@ int get_num(int mode, struct svalue *v) {// 0=unknown stuff, 1=ok
     case '"': // string
     case '\'':
 	{
+            static unsigned char line[linelength];  //current line data
+            unsigned int i;
+
             val = petascii(ch);
-            if (val < 256 && get()==ch) {v->type=T_INT;v->num=val;return 1;}
-	    if (val != 256) err_msg(ERROR_EXPRES_SYNTAX,NULL);
-	    return 0;
+            if (val < 256 && here()==ch) {lpoint++;v->type=T_INT;v->num=val;return 1;}
+	    if (val == 256) return 0;
+            i=0;
+            for (;val < 256 && i < sizeof(line)-1;val = petascii(ch)) {
+                line[i++]=(char)val;
+            }
+            if (val == 257) {
+                v->type=T_STR;
+                v->str.len=i;
+                v->str.data=line;
+                return 1;
+            }
 	}
     case '*': // program counter
         v->type=T_INT;v->num=l_address;return 1;
@@ -689,19 +701,10 @@ void get_exp(int *wd, int *df,int *cd, struct svalue *v) {// length in bytes, de
             v_stack[vsp-1].type = T_NONE;
         } else {err_msg(ERROR____WRONG_TYPE,NULL); return;}
     }
-    if (v_stack[0].type == T_INT) {
-        long val1 = v_stack[0].num;
-	switch (*wd)
-	{
-	case 0:if (val1>0xff) val1=-1;break;
-	case 1:if (val1>0xffff) val1=-1;break;
-	case 2:if (val1>0xffffff) val1=-1;break;
-	default:*v=v_stack[0];return;
-	}
-        if (val1>=0) {*v=v_stack[0];return;}
-	err_msg(ERROR_CONSTNT_LARGE,NULL);
-	*cd=0;
-    } else *df = 0;
+    if (v_stack[0].type == T_INT || v_stack[0].type == T_STR) {
+	*v=v_stack[0];return;
+    }
+    *df = 0;
     return;
 }
 
@@ -955,6 +958,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         tmp->conflicts=current_conflicts;
 			tmp->proclabel=0;tmp->used=0;
 			tmp->value=val;
+                        if (val.type == T_STR) {
+                            tmp->value.str.data=malloc(val.str.len);
+                            memcpy(tmp->value.str.data,val.str.data,val.str.len);
+                        }
 		    }
 		}
 		else {
@@ -965,22 +972,37 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         case T_INT:
                             if (val.type != T_INT || tmp->value.num!=val.num) {
                                 tmp->value=val;
+                                if (val.type == T_STR) {
+                                    tmp->value.str.data=malloc(val.str.len);
+                                    memcpy(tmp->value.str.data,val.str.data,val.str.len);
+                                }
                                 fixeddig=0;
                             }
                             break;
                         case T_STR:
-                            if (val.type != T_STR || strcmp(tmp->value.str, val.str)) {
-                                free(tmp->value.str);
-                                tmp->value=val;
+                            if (val.type != T_STR || tmp->value.str.len!=val.str.len || memcmp(tmp->value.str.data, val.str.data, val.str.len)) {
+                                if (val.type == T_STR) {
+                                    tmp->value.type = val.type;
+                                    tmp->value.str.len=val.str.len;
+                                    tmp->value.str.data=realloc(tmp->value.str.data, val.str.len);
+                                    memcpy(tmp->value.str.data,val.str.data,val.str.len);
+                                } else {
+                                    free(tmp->value.str.data);
+                                    tmp->value=val;
+                                }
                                 fixeddig=0;
                             }
                             break;
                         case T_NONE:
                             if (val.type != T_NONE) fixeddig=0;
                             tmp->value=val;
+                            if (val.type == T_STR) {
+                                tmp->value.str.data=malloc(val.str.len);
+                                memcpy(tmp->value.str.data,val.str.data,val.str.len);
+                            }
                             break;
                         }
-		    }
+                    }
 		}
                 continue;
             }
@@ -1033,7 +1055,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     tmp->requires=current_requires;
                     tmp->conflicts=current_conflicts;
                     if (tmp->value.type != T_INT || (unsigned long)tmp->value.num != l_address) {
-                        if (tmp->value.type == T_STR) free(tmp->value.str);
+                        if (tmp->value.type == T_STR) free(tmp->value.str.data);
                         tmp->value.type=T_INT;tmp->value.num=l_address;
                         fixeddig=0;
                     }
@@ -1096,19 +1118,19 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     switch (prm) {
                     case CMD_ELSIF:
                         waitforp--;
-                        if ((val.type == T_INT && val.num) || (val.type == T_STR && val.str[0])) skipit[waitforp]=skipit[waitforp] >> 1; else
+                        if ((val.type == T_INT && val.num) || (val.type == T_STR && val.str.len)) skipit[waitforp]=skipit[waitforp] >> 1; else
                             skipit[waitforp]=skipit[waitforp] & 2;
                         break;
                     case CMD_IF:
-                        if ((val.type == T_INT && val.num) || (val.type == T_STR && val.str[0])) skipit[waitforp]=skipit[waitforp-1] & 1; else
+                        if ((val.type == T_INT && val.num) || (val.type == T_STR && val.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
                             skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
                         break;
                     case CMD_IFEQ:
-                        if ((val.type == T_INT && !val.num) || (val.type == T_STR && !val.str[0])) skipit[waitforp]=skipit[waitforp-1] & 1; else
+                        if ((val.type == T_INT && !val.num) || (val.type == T_STR && !val.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
                             skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
                         break;
                     case CMD_IFPL:
-                        if ((val.type == T_INT && val.num>=0) || (val.type == T_STR && val.str[0])) skipit[waitforp]=skipit[waitforp-1] & 1; else
+                        if ((val.type == T_INT && val.num>=0) || (val.type == T_STR && val.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
                             skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
                         break;
                     case CMD_IFMI:
@@ -1120,42 +1142,14 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
                 if (!(skipit[waitforp] & 1)) break; //skip things if needed
                 if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
-                    int ch2=-1, ch3, oldlpoint;
-                    char quo;
+                    int ch2=-1;
                     unsigned long ptextaddr=address;
-                    if (prm==CMD_PTEXT) pokeb(0);
+                    if (prm==CMD_PTEXT) ch2=0;
                     for (;;) {
 
                         ignore();
                         ch=here();
 
-                        if (ch=='"' || ch=='\'') {
-                            quo=ch;
-                            oldlpoint=lpoint;
-                            lpoint++;
-                            ch3 = petascii(quo);
-			    if (ch3 < 256 && here()==quo) {lpoint = oldlpoint;goto textconst;}
-                            /* handle the string in quotes */
-			    for (;;ch3 = petascii(quo)) {
-                                if (ch3 >= 256) break;
-
-                                if (ch2>=0) {
-                                    pokeb(ch2);
-                                }
-                                ch2 = ch3;
-
-                                if (prm==CMD_CHAR) {if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}}
-                                else if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
-                                    if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
-                                    if (ch2>=0xc0 && ch2<0xe0) ch2-=0x60; else
-                                        if (ch2==0xff) ch2=0x7e; else
-                                            if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
-            			    if (prm==CMD_SHIFT2) ch2<<=1;
-                                } else
-                                    if (prm==CMD_NULL && !ch2) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
-                            }
-                            goto cvege;
-			}
                         /* if ^ infront of number, convert decimal value to string */
 			if (ch=='^') {
                             lpoint++;
@@ -1183,30 +1177,37 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             }
                             goto cvege;
 			}
-		    textconst:
 			get_exp(&w,&d,&c,&val); //ellenorizve.
 			if (!c) break;
                         if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                        if (val.type != T_NONE) {
-                            if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-                            if (prm==CMD_CHAR) {
-                                if (val.num>0x7f || val.num<-0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                            } else {
-                                if (val.num>0xff || val.num<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                        if (val.type != T_STR || val.str.len)
+                        do {
+                            if (ch2>=0) {
+                                pokeb(ch2);
                             }
-                        }
-                        if (ch2>=0) {
-                            pokeb(ch2);
-                        }
-                        ch2 = (val.type == T_NONE) ? 0 : (unsigned char)val.num;
-                        if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
-                            if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
-                            if (ch2>=0xc0 && ch2<0xe0) ch2-=0x60; else
-                                if (ch2==0xff) ch2=0x7e; else
-                                    if (ch2>=0x80 && d) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-			    if (prm==CMD_SHIFT2) ch2<<=1;
-                        } else
-                            if (prm==CMD_NULL && !ch2 && d) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+
+                            if (val.type == T_STR) {
+                                ch2 = *val.str.data++;
+                                val.str.len--;
+                            } else if (val.type == T_INT) {
+                                if (prm==CMD_CHAR) {
+                                    if (val.num>0x7f || val.num<-0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                                } else {
+                                    if (val.num>0xff || val.num<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                                }
+                                ch2 = (unsigned char)val.num;
+                            } else if (val.type == T_NONE) {
+                                ch2 = 0;
+                            } else {err_msg(ERROR____WRONG_TYPE,NULL); break;}
+
+                            if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
+                                if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
+                                if (ch2>=0xc0 && ch2<0xe0) ch2-=0x60; else
+                                    if (ch2==0xff) ch2=0x7e; else
+                                        if (ch2>=0x80 && d) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                                if (prm==CMD_SHIFT2) ch2<<=1;
+                            } else if (prm==CMD_NULL && !ch2 && d) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                        } while (val.type == T_STR && val.str.len);
                     cvege:
                         ignore();if ((ch=get())==',') continue;
                         if (ch) err_msg(ERROR______EXPECTED,",");
@@ -1594,7 +1595,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     if (here()==',') {
                         lpoint++;ignore();
                     } else if (here()) goto extrachar;
-                    if ((val.type == T_INT && val.num) || (val.type == T_STR && val.str[0])) err_msg((prm==CMD_CERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,&pline[lpoint]);
+                    if ((val.type == T_INT && val.num) || (val.type == T_STR && val.str.len)) err_msg((prm==CMD_CERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,&pline[lpoint]);
                     break;
                 }
 		if (prm==CMD_ENDM) { // .endm
@@ -2062,7 +2063,11 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 				    if (w<2) w=2;
 				}
                             } else w=(cnmemonic[ADR_ADDR_X]!=____);
-                        } else if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                        } else {
+                            if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                            if (databank==(adr >> 16) && w<2) adr&=0xffff;
+			    if (w<val_length(adr)) w=3;
+                        }
 			opr=ADR_ZP_X-w;ln=w+1;
 		    }// 6 Db
 		    else if (wht==WHAT_Y) {// lda $ff,y lda $ffff,y lda $ffffff,y
@@ -2072,7 +2077,11 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 				if (cnmemonic[ADR_ZP_Y]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
 				else if (databank==(adr >> 16)) w=1;
                             } else w=(cnmemonic[ADR_ADDR_Y]!=____);
-                        } else if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                        } else {
+                            if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                            if (databank==(adr >> 16) && w<2) adr&=0xffff;
+			    if (w<val_length(adr)) w=3;
+                        }
 			if (w==2) w=3; // there's no lda $ffffff,y!
 			opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
 		    }// 8 Db
@@ -2202,9 +2211,13 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 					if (w<2) w=2;
 				    }
                                 } else w=1;
+                            } else {
+                                if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+				if (databank==(adr >> 16) && w<2) adr&=0xffff;
+                                if (w<val_length(adr)) w=3;
                             }
 			    opr=ADR_ZP-w;ln=w+1; // lda $ff lda $ffff lda $ffffff
-			}
+                        }
 			brancb: lpoint--;
 		    }// 13+2 Db
 		}
