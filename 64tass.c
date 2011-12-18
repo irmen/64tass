@@ -88,9 +88,9 @@ static int waitforp=0;
 static int last_mnem;
 
 int labelexists;
-unsigned long backr, forwr, reffile;
+unsigned long reffile;
 unsigned long curfnum=1;
-unsigned long macrecursion;
+unsigned int macrecursion;
 
                        // 0       1       2        3        4         5        6         7      8         9
 const char* command[]={"byte"   ,"text", "ptext", "char" ,"shift","shiftl" ,"null"  ,"rta" , "int"  , "word" , "long" ,"offs"  ,"macro"  ,"endm"   ,"for" ,
@@ -98,16 +98,16 @@ const char* command[]={"byte"   ,"text", "ptext", "char" ,"shift","shiftl" ,"nul
                         "page"   ,"endp" ,"logical","here" ,"as"   ,"al"     ,"xs"    ,"xl"     ,"error"  ,"proc",
                         "pend"   ,"databank","dpage","fill","warn"  ,"enc"   ,"endif"  , "ifne"  , "ifeq",
                         "ifpl"   , "ifmi","cerror","cwarn", "align","assert", "check", "cpu", "option",
-                        "block"  , "bend", "pron", "proff", "showmac", "hidemac", "end", "eor"
+                        "block"  , "bend", "pron", "proff", "showmac", "hidemac", "end", "eor", "segment"
 };
 enum {
     CMD_BYTE, CMD_TEXT, CMD_PTEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFT2, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
     CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL,
     CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE,
     CMD_FILL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION,
-    CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR
+    CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT
 };
-#define COMMANDS 61
+#define COMMANDS 62
 
 // ---------------------------------------------------------------------------
 
@@ -352,10 +352,10 @@ long get_num(int *cd, int mode) {
 
     if (mode) {
         if (mode & 1) {
-            sprintf(ident,"+%lu+%lu",reffile,forwr+(mode >> 1));
+            sprintf(ident,"+%lu+%lu",reffile,current_context->forwr+(mode >> 1));
             goto in;
         } else {
-            sprintf(ident,"-%lu-%lu",reffile,backr-(mode >> 1));
+            sprintf(ident,"-%lu-%lu",reffile,current_context->backr-(mode >> 1));
             goto in;
         }
     }
@@ -696,11 +696,11 @@ void wait_cmd(FILE* fil,int no)
             if (!pr) {
                 if (here()=='-') {
                     lpoint++;if (here()!=0x20 && here()) goto baj;
-                    backr++;
+                    current_context->backr++;
                     goto hh;
                 } else if (here()=='+') {
                     lpoint++;if (here()!=0x20 && here()) goto baj;
-                    forwr++;
+                    current_context->forwr++;
                     goto hh;
                 }
             baj: lpoint--;
@@ -724,6 +724,11 @@ void wait_cmd(FILE* fil,int no)
             case CMD_ELSIF:break;//.elsif
 	    case CMD_REPT:waitfor[++waitforp]='n';break;//.rept
 	    case CMD_PROC:if (no==CMD_PEND && wrap==waitforp) {sline=lin;fseek(fil,pos,SEEK_SET);return;}break;// .proc
+	    case CMD_BLOCK:waitfor[++waitforp]='b';break;//.block
+	    case CMD_BEND:if (waitfor[waitforp]=='b') waitforp--;break;//.bend
+	    case CMD_SEGMENT: //.segment
+	    case CMD_MACRO:waitfor[++waitforp]='m';break;//.macro
+	    case CMD_ENDM:if (waitfor[waitforp]=='m') waitforp--;break;//.endm
 	    }
 	}
     }
@@ -844,9 +849,9 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
     unsigned long backr_old = 0, forwr_old = 0, reffile_old = 0;
 
     if (tpe==0) {
-        backr_old=backr;
-        forwr_old=forwr;
-        backr=forwr=1;
+        backr_old=current_context->backr;
+        forwr_old=current_context->forwr;
+        current_context->backr=current_context->forwr=1;
     }
     if (tpe==0 || tpe==1) reffile_old=reffile;
     if (fin) oldpos=ftell(fin);
@@ -880,12 +885,12 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 if (here()=='-') {
                     lpoint++;if (here()!=0x20 && here()) goto baj;
                     prm=1;
-                    sprintf(ident,"-%lu-%lu",reffile,backr++);
+                    sprintf(ident,"-%lu-%lu",reffile,current_context->backr++);
                     goto hh;
                 } else if (here()=='+') {
                     lpoint++;if (here()!=0x20 && here()) goto baj;
                     prm=1;
-                    sprintf(ident,"+%lu+%lu",reffile,forwr++);
+                    sprintf(ident,"+%lu+%lu",reffile,current_context->forwr++);
                     goto hh;
                 }
             baj:
@@ -936,7 +941,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
                 continue;
             }
-            if (wht==WHAT_COMMAND && prm==CMD_MACRO) { // .macro
+            if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) { // .macro
             do_macro:
 		ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
 		tmp2=new_macro(ident);
@@ -946,6 +951,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		else {
 		    tmp2->point=ftell(fin);
 		    tmp2->lin=sline;
+                    tmp2->type=prm;
 		}
 		wait_cmd(fin,CMD_ENDM); //.endm
 		continue;
@@ -1340,6 +1346,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			if (tmp->proclabel && pass!=1 && old_context == &root_context) wait_cmd(fin,CMD_PEND);//.pend
                         else {
                             current_context=new_context(ident, current_context);
+                            current_context->backr=current_context->forwr=1;
                             if (listing && flist && arguments.source) {
                                 if (lastl==2) {fputc('\n',flist);lastl=1;}
                                 if (ident[0]!='-' && ident[0]!='+')
@@ -1354,6 +1361,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		if (prm==CMD_PEND) { //.pend
 		    if (here()) goto extrachar;
                     if (current_context->parent && current_context->name[0]!='.') {
+                        current_context->parent->backr += current_context->backr - 1;
+                        current_context->parent->forwr += current_context->forwr - 1;
                         current_context = current_context->parent;
                     } else err_msg(ERROR______EXPECTED,".proc");
 		    break;
@@ -1362,12 +1371,15 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     if (here()) goto extrachar;
                     sprintf(varname, ".%lu.%ld", reffile, sline);
                     current_context=new_context(varname, current_context);
+                    current_context->backr=current_context->forwr=1;
                     /* TODO: macros */
                     break;
                 }
                 if (prm==CMD_BEND) { //.bend
                     if (here()) goto extrachar;
                     if (current_context->parent && current_context->name[0]=='.') {
+                        current_context->parent->backr += current_context->backr - 1;
+                        current_context->parent->forwr += current_context->forwr - 1;
                         current_context = current_context->parent;
                     } else err_msg(ERROR______EXPECTED,".block");
                     break;
@@ -1808,12 +1820,19 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 lin=sline;
                 sline=tmp2->lin;
                 macrecursion++;
+                if (tmp2->type==CMD_MACRO) {
+                    sprintf(varname, "#%lu#%ld#%d", reffile, lin, macrecursion);
+                    old_context = current_context;
+                    current_context=new_context(varname, current_context);
+                    current_context->backr=current_context->forwr=1;
+                }
                 if (macrecursion<100) {
                     enterfile(tmp2->file,lin);
                     if (strcmp(tmp2->file,nam)) compile(tmp2->file,tmp2->point,1,mparams,nprm,NULL);
                     else compile(tmp2->file,tmp2->point,3,mparams,nprm,fin);
                     exitfile();
-                } else {err_msg(ERROR__MACRECURSION,"!!!!"); break;}
+                } else err_msg(ERROR__MACRECURSION,"!!!!");
+                if (tmp2->type==CMD_MACRO) current_context = old_context;
                 macrecursion--;
                 sline=lin;
 		break;
@@ -1903,7 +1922,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
             }
             else if (wht=='.') {
                 wht=what(&prm);
-                if (wht==WHAT_COMMAND && prm==CMD_MACRO) {
+                if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
                     memcpy(ident,&mnemonic[mnem*3],3);
                     ident[3]=0;goto do_macro;
                 }
@@ -2252,8 +2271,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 end:
     if (oldpos==-1) closefile(fin); else fseek(fin,oldpos,SEEK_SET);
     if (tpe==0) {
-        backr=backr_old;
-        forwr=forwr_old;
+        current_context->backr=backr_old;
+        current_context->forwr=forwr_old;
         reffile=reffile_old;
     }
     return;

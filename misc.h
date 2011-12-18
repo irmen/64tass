@@ -79,6 +79,7 @@
 struct scontext {
     char* name;
     struct scontext *parent;
+    unsigned long backr, forwr;
     struct avltree contexts;
     struct avltree tree;
     struct avltree_node node;
@@ -100,6 +101,7 @@ struct smacro {
     long point;
     long lin;
     char *file;
+    int type;
     struct avltree_node node;
 } __attribute((packed));
 
