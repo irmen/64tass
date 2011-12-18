@@ -2319,7 +2319,7 @@ int main(int argc,char *argv[]) {
         set_cpumode(arguments.cpumode);
 	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);
+        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);outputeor=0;
         current_context=&root_context;
         /*	listing=1;flist=stderr;*/
         enterfile(arguments.input,0);
@@ -2346,7 +2346,7 @@ int main(int argc,char *argv[]) {
         set_cpumode(arguments.cpumode);
 	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);
+        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);outputeor=0;
         current_context=&root_context;
         enterfile(arguments.input,0);
         sline=0;
