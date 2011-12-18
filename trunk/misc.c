@@ -900,7 +900,7 @@ void testarg(int argc,char *argv[]) {
                 tmp=new_label(argv[j]);tmp->proclabel=0;
                 tmp->requires=0;
                 tmp->conflicts=0;
-		tmp->ertelmes=1;tmp->value=atoi(&argv[j][i+1]);
+		tmp->value.type=T_INT;tmp->value.num=atoi(&argv[j][i+1]);
 	    }
 	    continue;
 	    }
