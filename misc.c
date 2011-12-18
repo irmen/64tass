@@ -432,6 +432,7 @@ void label_free(const struct avltree_node *aa)
 {
     struct slabel *a = avltree_container_of(aa, struct slabel, node);
     free(a->name);
+    if (a->value.type == T_STR) free(a->value.str.data);
     free(a);
 }
 
@@ -676,7 +677,10 @@ void labelprint() {
                 }
                 break;
             case T_STR:
-                fprintf(flab,"\"%s\"", l->value.str);
+                for (val=0;val<l->value.str.len;val++) {
+                    if (val) fprintf(flab, ", ");
+                    fprintf(flab,"$%02x", l->value.str.data[val]);
+                }
                 if (!l->used) {
                     fprintf(flab,"; *** unused");
                 }
