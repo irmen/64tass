@@ -305,6 +305,7 @@ const char *terr_error[]={
         "Requirements not met: %s",
         "Conflict: %s",
         "Division by zero",
+        "Wrong type",
 };
 const char *terr_fatal[]={
 	"Can't locate file: %s\n",
@@ -658,17 +659,31 @@ void labelprint() {
             n = avltree_next(n);
             if (strchr(l->name,'-') || strchr(l->name,'+')) continue;
             fprintf(flab,"%-16s= ",l->name);
-            if ((val=l->value)<0) fprintf(flab,"-");
-            val=(val>=0?val:-val);
-            if (val<0x100) fprintf(flab,"$%02lx",val);
-            else if (val<0x10000l) fprintf(flab,"$%04lx",val);
-            else if (val<0x1000000l) fprintf(flab,"$%06lx",val);
-            else fprintf(flab,"$%08lx",val);
-            if (!l->used) {
-                if (val<0x100) fprintf(flab,"  ");
-                if (val<0x10000l) fprintf(flab,"  ");
-                if (val<0x1000000l) fprintf(flab,"  ");
-                fprintf(flab,"; *** unused");
+            switch (l->value.type) {
+            case T_INT:
+                val=l->value.num;
+                if (val<0) fprintf(flab,"-");
+                val=(val>=0?val:-val);
+                if (val<0x100) fprintf(flab,"$%02lx",val);
+                else if (val<0x10000l) fprintf(flab,"$%04lx",val);
+                else if (val<0x1000000l) fprintf(flab,"$%06lx",val);
+                else fprintf(flab,"$%08lx",val);
+                if (!l->used) {
+                    if (val<0x100) fprintf(flab,"  ");
+                    if (val<0x10000l) fprintf(flab,"  ");
+                    if (val<0x1000000l) fprintf(flab,"  ");
+                    fprintf(flab,"; *** unused");
+                }
+                break;
+            case T_STR:
+                fprintf(flab,"\"%s\"", l->value.str);
+                if (!l->used) {
+                    fprintf(flab,"; *** unused");
+                }
+                break;
+            default:
+                fputc('?', flab);
+                break;
             }
             fprintf(flab,"\n");
         }
@@ -736,7 +751,7 @@ static error_t parse_opt (int key,char *arg,struct argp_state *state)
             tmp=new_label(arg);tmp->proclabel=0;
             tmp->requires=0;
             tmp->conflicts=0;
-	    tmp->ertelmes=1;tmp->value=atoi(&arg[i+1]);
+	    tmp->value.type=T_INT;tmp->value.num=atoi(&arg[i+1]);
 	}
 	break;
     }

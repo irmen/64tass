@@ -44,8 +44,9 @@
 #define ERROR_REQUIREMENTS_ 0x4B
 #define ERROR______CONFLICT 0x4C
 #define ERROR_DIVISION_BY_Z 0x4D
-#define ERROR____PAGE_ERROR 0x4E
-#define ERROR__BRANCH_CROSS 0x4F
+#define ERROR____WRONG_TYPE 0x4E
+#define ERROR____PAGE_ERROR 0x4F
+#define ERROR__BRANCH_CROSS 0x50
 
 #define ERROR_CANT_FINDFILE 0x80
 #define ERROR_OUT_OF_MEMORY 0x81
@@ -85,12 +86,23 @@ struct scontext {
     struct avltree_node node;
 };
 
+enum etype {
+    T_NONE=0, T_INT, T_STR
+};
+
+struct svalue {
+    enum etype type;
+    union {
+        long num;
+        char *str;
+    };
+};
+
 struct slabel {
     char* name;
-    long value;
+    struct svalue value;
     unsigned long requires;
     unsigned long conflicts;
-    unsigned char ertelmes;
     unsigned char proclabel;
     unsigned char used;
     struct avltree_node node;
