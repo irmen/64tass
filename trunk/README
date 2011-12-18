@@ -73,12 +73,12 @@ Another useful thing is to add a basic header to your source files like the one
 below, so that the resulting file is directly runnable without additional
 compression:
 
-        *=$0801
-        .word ss,2005
-        .null $9e,^start;will be sys 4096
+        *= $0801
+        .word ss, 2005
+        .null $9e, ^start;will be sys 4096
 ss      .word 0
 
-        *=$1000
+        *= $1000
 
 start   rts
 
@@ -154,17 +154,17 @@ used. But BRA is not converted.
 Example
 
 64tass a.asm
-*=$1000
-bcc $1233 ;error...
+        *= $1000
+        bcc $1233       ;error...
 
 64tass a.asm
-*=$1000
-bcs *+5   ;opposite condition
-jmp $1233 ;as simple workaround
+        *= $1000
+        bcs *+5         ;opposite condition
+        jmp $1233       ;as simple workaround
 
 64tass --long-branch a.asm
-*=$1000
-bcc $1233 ;no error, automatically converted to the above one.
+        *= $1000
+        bcc $1233       ;no error, automatically converted to the above one.
 
 -C, --case-sensitive Case sensitive labels
 
@@ -174,12 +174,12 @@ labels by "-D", this option must be first.
 Example
 
 64tass a.asm
-label nop
-Label nop       ;double defined...
+label   nop
+Label   nop     ;double defined...
 
 64tass --case-sensitive a.asm
-label nop
-Label nop       ;Ok, it's a different label...
+label   nop
+Label   nop     ;Ok, it's a different label...
 
 -D <label>=<value> Define <label> to <value>
 
@@ -189,7 +189,7 @@ sensitive labels, that option must be used before.
 Example
 
 64tass -D ii=2 a.asm
-lda #ii ;result: $a9, $02
+        lda #ii ;result: $a9, $02
 
 -n, --nonlinear Generate nonlinear output file
 
@@ -200,9 +200,9 @@ Example
 
 64tass --nonlinear a.asm
 *=$1000
-lda #2
+        lda #2
 *=$2000
-nop
+        nop
 result:
 $02, $00 ;little endian length, 2 bytes
 $00, $10 ;little endian start $1000
@@ -269,7 +269,7 @@ Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.
 Example
 
 64tass --m65c02 a.asm
-stz $d020       ;65c02 instruction
+        stz $d020       ;65c02 instruction
 
 -i, --m6502 NMOS 65xx
 
@@ -279,7 +279,7 @@ C64, disk drive code, etc.
 Example
 
 64tass --m6502 a.asm
-lax $14         ;illegal instruction
+        lax $14         ;illegal instruction
 
 --m65xx Standard 65xx (default)
 
@@ -289,7 +289,7 @@ default.
 Example
 
 64tass --m65xx a.asm
-lda $14         ;regular instructions
+        lda $14         ;regular instructions
 
 -t, --m65dtv02 65DTV02
 
@@ -298,7 +298,7 @@ Selects 65DTV02. Enables extra opcodes specific to DTV.
 Example
 
 64tass --m65dtv02 a.asm
-sac #$00
+        sac #$00
 
 -x, --m65816 W65C816
 
@@ -308,7 +308,7 @@ SuperCPU projects. Don't forget to use "--word-start" for small ones ;)
 Example
 
 64tass --m65816 a.asm
-lda $123456,x
+        lda $123456,x
 
 Source listing options
 
@@ -320,7 +320,7 @@ with a comment.
 Example
 
 64tass -l labels.txt a.asm
-*=$1000
+        *= $1000
 label
 
 result (labels.txt):
@@ -334,7 +334,7 @@ much easier to identify the code in memory within the source files.
 Example
 
 64tass -L list.txt a.asm
-        *=$1000
+        *= $1000
         ldx #0
 loop    dex
         bne loop
@@ -430,7 +430,7 @@ Constants
 
 Labels
 
-reg = $d020
+reg     = $d020
 
 loop
         inc reg
@@ -454,7 +454,7 @@ also the same for forward, but with "+".
         dey
         bne --
 
-These references are also useful in macros, but this can create some nice
+These references are also useful in segments, but this can create some nice
 traps, as macros are copied into the code, with the internal references.
 
         bne +
@@ -468,7 +468,7 @@ operators:
 
 ( ) braces
 
-    lda #(4+2)*3
+        lda #(4+2)*3
 
 special
 
@@ -476,9 +476,9 @@ special
 > higher byte
 ` bank byte
 
-    lda #<label
-    ldy #>label
-    jsr $ab1e
+        lda #<label
+        ldy #>label
+        jsr $ab1e
 
 @b to force 8 bit address
 @w to force 16 bit address
@@ -494,9 +494,9 @@ boolean
 <= less or equal
 !  not
 
-    .if ntsc=1
-    nop
-    .fi
+        .if ntsc=1
+        nop
+        .fi
 
 arithmetic
 
@@ -512,8 +512,8 @@ arithmetic
 >> shift left
 ~  invert bits
 
-    lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
-    sta $d018
+        lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
+        sta $d018
 
 -------------------------------------------------------------------------------
 
@@ -524,7 +524,7 @@ Controlling the program counter
 *=
     Set current address
 
-            *=$1000
+            *= $1000
 
 .offs
     Add compile offset to logical address
@@ -674,18 +674,30 @@ Data
 Macros
 
 .macro
-    Macro definition, it copies the macro content in. (so be careful with
-    labels, better use anonymous ones)
+    Each invocation is a copy of the macro's content. The code is enclosed in
+    it's own block so symbols inside are non-accessible.
+.segment
+    Only copies the code segment as it is, so symbols can be used from outside,
+    but this also means multiple use will result in double defines unless
+    anonymous labels are used.
 .endm
-    End of macro definition
+    End of .macro or .segment definition
 
-    name    .macro
+    fill    .macro
+    lp      sta \1,x
+            inx
+            bne lp
+            .endm
+
+    name    .segment
             sta $d020
             sta $d021
             .endm
 
             lda #1
             #name           ;call macro
+            #fill $400
+            #fill $500
 
 Parameter references
 
@@ -707,11 +719,11 @@ Text references
 
     name    .macro
             jsr print
-            .text "@1"         ;first parameter
+            .text "@1"      ;first parameter
             .byte 0
             .endm
 
-            #name "wth?"       ;call macro
+            #name "wth?"    ;call macro
 
 Conditional assembly
 
@@ -780,7 +792,7 @@ Including files
             .binary "stuffz.bin",2 ;skip start address
             .binary "stuffz.bin",2,1000 ;skip start address, 1000 bytes max
 
-            *=$1000                 ;load music to $1000 and
+            *= $1000                        ;load music to $1000 and
             .binary "music.dmc",2   ;strip load address
 
 Blocks
@@ -803,10 +815,10 @@ Blocks
 .block
     Block start
 
-                .block
-                inc count + 1
-        count   ldx #0
-                .bend
+            .block
+            inc count + 1
+    count   ldx #0
+            .bend
 
     All labels inside a block are local.
 .bend
@@ -900,7 +912,7 @@ Target
             .enc screen     ;screencode mode
             .text "text with screencodes"
             cmp #"u"        ;compare screencode
-            .enc none       ;normal again mode
+            .enc none       ;normal mode again
             cmp #"u"        ;compare ascii
 
 .cpu
@@ -1020,7 +1032,6 @@ Some directives are not yet implemented:
   * .lbl - identifies a label that can be referenced by a .goto
   * .goto - causes assembler to goto the label referenced and continue
     assembling from that point on.
-  * .segment - starts a macro definition but without a block
 
 -------------------------------------------------------------------------------
 

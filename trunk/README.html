@@ -81,12 +81,12 @@ x64.exe demo.prg
 like the one below, so that the resulting file is directly runnable
 without additional compression:</p>
 <pre>
-	*=$0801
-	.word ss,2005
-	.null $9e,^start;will be sys 4096
-ss	.word 0
+	<b>*</b>= $0801
+	<b>.word</b> ss, 2005
+	<b>.null</b> $9e, ^start<i>;will be sys 4096</i>
+ss	<b>.word</b> 0
 
-	*=$1000
+	<b>*</b>= $1000
 
 start	rts
 </pre>
@@ -94,17 +94,17 @@ start	rts
 as relative branches when the distance is short and as jumps when longer. (<code>GEQ</code>, <code>GNE</code>, <code>GCC</code>, <code>GCS</code>, <code>GPL</code>, <code>GMI</code>, <code>GVC</code>, <code>GVS</code>)
 There's one more called <code>GRA</code> for CPUs supporting <code>BRA</code>, which is expanded to <code>BRL</code> (if available) or <code>JMP</code> (otherwise).</p>
 <pre>
-	lda #3
-	gne label	;compiled as bne, or jmp
-	nop
+	<b>lda</b> #3
+	<b>gne</b> label	<i>;compiled as bne, or jmp</i>
+	<b>nop</b>
 label
 </pre>
 <p>To avoid branch too long errors the assembler also supports long branches, it can automatically convert conditional relative branches to it's opposite and a <code>JMP</code>. This have to be enabled on the command line using the "--long-branch" option.</p>
 <pre>
-	bcc veryfar	;compiled as "bcc veryfar" or
-			;	bcs sk
-			;	jmp veryfar
-			;sk
+	<b>bcc</b> veryfar	<i>;compiled as "bcc veryfar" or</i>
+			<i>;	bcs sk</i>
+			<i>;	jmp veryfar</i>
+			<i>;sk</i>
 </pre>
 <p>There are some other tips below in the descriptions.</p>
 
@@ -150,17 +150,17 @@ used. But <code>BRA</code> is not converted.
 <h5>Example</h5>
 <pre>
 64tass a.asm
-*=$1000
-bcc $1233 ;error...
+	<b>*</b>= $1000
+	<b>bcc</b> $1233	<i>;error...</i>
 
 64tass a.asm
-*=$1000
-bcs *+5   ;opposite condition
-jmp $1233 ;as simple workaround
+	<b>*</b>= $1000
+	<b>bcs</b> *+5		<i>;opposite condition</i>
+	<b>jmp</b> $1233	<i>;as simple workaround</i>
 
 64tass --long-branch a.asm
-*=$1000
-bcc $1233 ;no error, automatically converted to the above one.
+	<b>*</b>= $1000
+	<b>bcc</b> $1233	<i>;no error, automatically converted to the above one.</i>
 </pre>
 
 <h4><tt>-C, --case-sensitive</tt> Case sensitive labels</h4>
@@ -169,12 +169,12 @@ labels by "-D", this option must be first.
 <h5>Example</h5>
 <pre>
 64tass a.asm
-label nop
-Label nop	;double defined...
+label	<b>nop</b>
+Label	<b>nop</b>	<i>;double defined...</i>
 
 64tass --case-sensitive a.asm
-label nop
-Label nop	;Ok, it's a different label...
+label	<b>nop</b>
+Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
 </pre>
 
 <h4><tt>-D &lt;label&gt;=&lt;value&gt;</tt> Define &lt;label&gt; to &lt;value&gt;</h4>
@@ -183,7 +183,7 @@ sensitive labels, that option must be used before.
 <h5>Example</h5>
 <pre>
 64tass -D ii=2 a.asm
-lda #ii ;result: $a9, $02
+	<b>lda</b> #ii <i>;result: $a9, $02</i>
 </pre>
 
 <h4><tt>-n, --nonlinear</tt> Generate nonlinear output file</h4>
@@ -193,9 +193,9 @@ Format: length, address, code, length, ...
 <pre>
 64tass --nonlinear a.asm
 *=$1000
-lda #2
+	<b>lda</b> #2
 *=$2000
-nop
+	<b>nop</b>
 result:
 $02, $00 ;little endian length, 2 bytes
 $00, $10 ;little endian start $1000
@@ -253,7 +253,7 @@ Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.
 <h5>Example</h5>
 <pre>
 64tass --m65c02 a.asm
-stz $d020	;65c02 instruction
+	<b>stz</b> $d020	<i>;65c02 instruction</i>
 </pre>
 
 <h4><tt>-i, --m6502</tt> NMOS 65xx</h4>
@@ -261,7 +261,7 @@ Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64
 <h5>Example</h5>
 <pre>
 64tass --m6502 a.asm
-lax $14		;illegal instruction
+	<b>lax</b> $14		<i>;illegal instruction</i>
 </pre>
 
 <h4><tt>--m65xx</tt> Standard 65xx (default)</h4>
@@ -269,7 +269,7 @@ Selects standard 6502. For writing compatible code, no extra codes. This is the 
 <h5>Example</h5>
 <pre>
 64tass --m65xx a.asm
-lda $14		;regular instructions
+	<b>lda</b> $14		<i>;regular instructions</i>
 </pre>
 
 <h4><tt>-t, --m65dtv02</tt> 65DTV02</h4>
@@ -277,7 +277,7 @@ Selects 65DTV02. Enables extra opcodes specific to DTV.
 <h5>Example</h5>
 <pre>
 64tass --m65dtv02 a.asm
-sac #$00
+	<b>sac</b> #$00
 </pre>
 
 <h4><tt>-x, --m65816</tt> W65C816</h4>
@@ -286,7 +286,7 @@ Useful for SuperCPU projects. Don't forget to use "--word-start" for small ones 
 <h5>Example</h5>
 <pre>
 64tass --m65816 a.asm
-lda $123456,x
+	<b>lda</b> $123456,x
 </pre>
 
 <h3>Source listing options</h3>
@@ -296,7 +296,7 @@ List labels to a file. Local labels are commented out, unused ones are marked wi
 <h5>Example</h5>
 <pre>
 64tass -l labels.txt a.asm
-*=$1000
+	<b>*</b>= $1000
 label
 
 result (labels.txt):
@@ -309,11 +309,11 @@ it's much easier to identify the code in memory within the source files.
 <h5>Example</h5>
 <pre>
 64tass -L list.txt a.asm
-	*=$1000
-	ldx #0
-loop	dex
-	bne loop
-	rts
+	<b>*</b>= $1000
+	<b>ldx</b> #0
+loop	<b>dex</b>
+	<b>bne</b> loop
+	<b>rts</b>
 
 result (list.txt):
 
@@ -388,29 +388,29 @@ will treat them as seperate lines. This does <b>not</b> work if the <tt>-O, --co
 option is used.
 </p>
 <pre width=80>
-        nop : nop : nop
+        <b>nop</b> : <b>nop</b> : <b>nop</b>
 </pre>
 
 <h2>Constants</h2>
 
 <pre width=80>
-        .byte 23        ; decimal
-        .byte $33       ; hex
-        .byte %00011111 ; binary
+        <b>.byte</b> 23        <i>; decimal</i>
+        <b>.byte</b> $33       <i>; hex</i>
+        <b>.byte</b> %00011111 <i>; binary</i>
 
-        .text "oeU"     ; text, "" means $22
-        .text 'oeU'     ; text, '' means $27
-        .text ^2048     ; the decimal value as string (^23 is $32,$33)
+        <b>.text</b> "oeU"     <i>; text, "" means $22</i>
+        <b>.text</b> 'oeU'     <i>; text, '' means $27</i>
+        <b>.text</b> ^2048     <i>; the decimal value as string (^23 is $32,$33)</i>
 </pre>
 
 <h2>Labels</h2>
 
 <pre width=80>
-reg = $d020
+reg	= $d020
 
 loop
-        inc reg
-        jmp loop
+	<b>inc</b> reg
+	<b>jmp</b> loop
 </pre>
 
 <h3>Anonymous labels</h3>
@@ -418,25 +418,25 @@ loop
 "-" means one backward, "--" means two backward, etc. also the same for forward, but with "+".
 </p>
 <pre width=80>
-        ldy #4
--       ldx #0
--       txa
-        cmp #3
-        bcc +
-        adc #44
-+       sta $400,x
-        inx
-        bne -
-        dey
-        bne --
+        <b>ldy</b> #4
+-       <b>ldx</b> #0
+-       <b>txa</b>
+        <b>cmp</b> #3
+        <b>bcc</b> +
+        <b>adc</b> #44
++       <b>sta</b> $400,x
+        <b>inx</b>
+        <b>bne</b> -
+        <b>dey</b>
+        <b>bne</b> --
 </pre>
-<p>These references are also useful in macros, but this can create some nice traps, as macros are
+<p>These references are also useful in segments, but this can create some nice traps, as macros are
 copied into the code, with the internal references.
 </p>
 <pre>
-        bne +           
+        <b>bne</b> +
         #somemakro      ;let's hope that this macro does
-+       nop             ;not contain forward references...
++       <b>nop</b>             ;not contain forward references...
 </pre>
 
 <h2>Expressions</h2>
@@ -447,7 +447,7 @@ Expressions can be used at a lot of places. Here's a list of available operators
 <tr><td><tt>( )</tt></td>   <td align="left">braces</td></tr>
 </table>
 <pre width=80>
-    lda #(4+2)*3
+	<b>lda</b> #(4+2)*3
 </pre>
 
 <h3>special</h3>
@@ -458,9 +458,9 @@ Expressions can be used at a lot of places. Here's a list of available operators
 </table>
 
 <pre width=80>
-    lda #&lt;label
-    ldy #&gt;label
-    jsr $ab1e
+	<b>lda</b> #&lt;label
+	<b>ldy</b> #&gt;label
+	<b>jsr</b> $ab1e
 </pre>
 
 <table border="0">
@@ -481,9 +481,9 @@ Expressions can be used at a lot of places. Here's a list of available operators
 </table>
 
 <pre width=80>
-    .if ntsc=1
-    nop
-    .fi
+	<b>.if</b> ntsc=1
+	<b>nop</b>
+	<b>.fi</b>
 </pre>
 
 <h3>arithmetic</h3>
@@ -502,8 +502,8 @@ Expressions can be used at a lot of places. Here's a list of available operators
 </table>
 
 <pre width=80>
-    lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
-    sta $d018
+	<b>lda</b> #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
+	<b>sta</b> $d018
 </pre>
 
 <hr>
@@ -514,22 +514,22 @@ Expressions can be used at a lot of places. Here's a list of available operators
 <dt>*=
 <dd>Set current address
 <pre width=80>
-	*=$1000
+	<b>*</b>= $1000
 </pre>
 <dt>.offs
 <dd>Add compile offset to logical address
 <pre width=80>
-        .offs 100
+	<b>.offs</b> 100
 </pre>
 <dt>.logical
 <dd>Changes logical address. Can be nested.
 <pre width=80>
-        .logical $300
-drive   lda #$80
-        sta $00
-        jmp drive       ;jmp $300
-        rts
-        .here
+        <b>.logical</b> $300
+drive   <b>lda</b> #$80
+        <b>sta</b> $00
+        <b>jmp</b> drive       <i>;jmp $300</i>
+        <b>rts</b>
+        <b>.here</b>
 </pre>
 
 <dt>.here
@@ -538,10 +538,10 @@ drive   lda #$80
 <dt>.align
 <dd>Align code to a dividable address by skip or fill
 <pre width=80>
-        .align $100
-irq     inc $d019       ;this will be on a page boundary, after skipping bytes
-        .align 4,$ea
-loop    adc #1          ;padding with "nop" for DTV burst mode
+        <b>.align</b> $100
+irq     <b>inc</b> $d019       ;this will be on a page boundary, after skipping bytes
+        <b>.align</b> 4,$ea
+loop    <b>adc</b> #1          ;padding with "nop" for DTV burst mode
 </pre>
 
 </dl>
@@ -554,17 +554,17 @@ loop    adc #1          ;padding with "nop" for DTV burst mode
 <dt>.text
 <dd>Include constants and strings:
 <pre width=80>
-	.text "oeU"	; text, "" means $22
-	.text 'oeU'	; text, '' means $27
-	.text 23, $33	; bytes
-	.text %00011111	; more bytes
-	.text ^OEU	; the decimal value as string (^23 is $32,$33)
+	<b>.text</b> "oeU"	<i>; text, "" means $22</i>
+	<b>.text</b> 'oeU'	<i>; text, '' means $27</i>
+	<b>.text</b> 23, $33	<i>; bytes</i>
+	<b>.text</b> %00011111	<i>; more bytes</i>
+	<b>.text</b> ^OEU	<i>; the decimal value as string (^23 is $32,$33)</i>
 </pre>
 
 <dt>.char
 <dd>Include 8bit signed integer constants
 <pre width=80>
-	.char -33, 57
+	<b>.char</b> -33, 57
 </pre>
 
 <dt>.shift
@@ -573,16 +573,16 @@ loop    adc #1          ;padding with "nop" for DTV burst mode
 	$7e, and everything else &gt;=$80 will cause an error. No conversion
         if screen encoding is done, &gt;=$80 will always cause an error.
 <pre width=80>
-        ldx #0
-loop	lda txt,x
-        php
-        and #$7f
-        jsr $ffd2
-        inx
-        plp
-        bpl loop
-        rts
-txt	.shift "some text"
+	<b>ldx</b> #0
+loop	<b>lda</b> txt,x
+	<b>php</b>
+	<b>and</b> #$7f
+	<b>jsr</b> $ffd2
+	<b>inx</b>
+	<b>plp</b>
+	<b>bpl</b> loop
+	<b>rts</b>
+txt	<b>.shift</b> "some text"
 </pre>
 
 <dt>.shiftl
@@ -592,120 +592,132 @@ txt	.shift "some text"
 	$7e, and everything else &gt;=$80 will cause an error. No conversion
         if screen encoding is done, &gt;=$80 will always cause an error.
 <pre width=80>
-        ldx #0
-loop	lda txt,x
-        lsr
-	sta $400,x
-        inx
-        bcc loop
-        rts
-	.enc screen
-txt	.shiftl "some text"
-	.enc none
+        <b>ldx</b> #0
+loop	<b>lda</b> txt,x
+        <b>lsr</b>
+	<b>sta</b> $400,x
+        <b>inx</b>
+        <b>bcc</b> loop
+        <b>rts</b>
+	<b>.enc</b> screen
+txt	<b>.shiftl</b> "some text"
+	<b>.enc</b> none
 </pre>
 
 <dt>.null
 <dd>Same as <code>.text</code>, but adds a null at the end, null in string is an error
 <pre width=80>
-txt	.text "lot of stuff"
-	.null "to write"
-        lda #&lt;txt
-        ldy #&gt;txt
-        jsr $ab1e
+txt	<b>.text</b> "lot of stuff"
+	<b>.null</b> "to write"
+        <b>lda</b> #&lt;txt
+        <b>ldy</b> #&gt;txt
+        <b>jsr</b> $ab1e
 </pre>
 
 <dt>.ptext
 <dd>Same as <code>.text</code>, but prepend the
 number of bytes in front of the string (pascal style string):
 <pre width=80>
-	lda #&lt;txt
-	ldx #&gt;txt
-	jsr print
-	rts
+	<b>lda</b> #&lt;txt
+	<b>ldx</b> #&gt;txt
+	<b>jsr</b> print
+	<b>rts</b>
 
-print	sta $fb
-	stx $fc
-	ldy #0
-	lda ($fb),y
-	beq null
-	tax
--	iny
-	lda ($fb),y
-	jsr $ffd2
-	dex
-	bne -
-null	rts
+print	<b>sta</b> $fb
+	<b>stx</b> $fc
+	<b>ldy</b> #0
+	<b>lda</b> ($fb),y
+	<b>beq</b> null
+	<b>tax</b>
+-	<b>iny</b>
+	<b>lda</b> ($fb),y
+	<b>jsr</b> $ffd2
+	<b>dex</b>
+	<b>bne</b> -
+null	<b>rts</b>
 
-txt	.ptext "note"
+txt	<b>.ptext</b> "note"
 </pre>
 
 <dt>.rta
 <dd>Include return address constants
 <pre width=80>
-        lda #0
-        asl
-        tax
-        lda rets+1,x
-        pha
-        lda rets,x
-        pha
-        rts
-rets	.rta $fce2
+        <b>lda</b> #0
+        <b>asl</b>
+        <b>tax</b>
+        <b>lda</b> rets+1,x
+        <b>pha</b>
+        <b>lda</b> rets,x
+        <b>pha</b>
+        <b>rts</b>
+rets	<b>.rta</b> $fce2
 </pre>
 
 <dt>.word
 <dd>Include 16bit unsigned word constants
 <pre width=80>
-	.word $2342, $4555
+	<b>.word</b> $2342, $4555
 </pre>
 
 <dt>.int
 <dd>Include 16bit signed integer constants
 <pre width=80>
-	.int -533, 4433
+	<b>.int</b> -533, 4433
 </pre>
 
 <dt>.long
 <dd>Include 24bit unsigned constants
 <pre width=80>
-	.long $123456
+	<b>.long</b> $123456
 </pre>
 
 <dt>.fill
 <dd>Skip bytes, or fill with repeated bytes. For multibyte patterns use <code>.repeat</code>!
 <pre width=80>
-        .fill $100      ;no fill, just skip $100 bytes
-        .fill $4000,0   ;16384 bytes of 0
+        <b>.fill</b> $100      ;no fill, just skip $100 bytes
+        <b>.fill</b> $4000,0   ;16384 bytes of 0
 </pre>
 
 </dl>
 <h3>Macros</h3>
 <dl class="dir">
 <dt>.macro
-<dd>Macro definition, it copies the macro content in.
-        (so be careful with labels, better use anonymous ones)
+<dd>Each invocation is a copy of the macro's content. The code is enclosed in
+it's own block so symbols inside are non-accessible.
+<dt>.segment
+<dd>Only copies the code segment as it is, so symbols can be used from
+outside, but this also means multiple use will result in double defines
+unless anonymous labels are used.
 <dt>.endm
-<dd>End of macro definition
+<dd>End of .macro or .segment definition
 
 <pre width=80>
-name    .macro
-        sta $d020
-        sta $d021
-        .endm
+fill    <b>.macro</b>
+lp      <b>sta</b> \1,x
+	<b>inx</b>
+	<b>bne</b> lp
+        <b>.endm</b>
 
-        lda #1
-        #name           ;call macro
+name    <b>.segment</b>
+        <b>sta</b> $d020
+        <b>sta</b> $d021
+        <b>.endm</b>
+
+        <b>lda</b> #1
+        #name           <i>;call macro</i>
+        #fill $400
+        #fill $500
 </pre>
 
 <dt><h4>Parameter references</h4>
 <dd>Parameters can be referenced by <tt>\1</tt>...<tt>\9</tt> and <tt>\a</tt>...<tt>\z</tt>. 
 <tt>\@</tt> will return the entire parameter list.
 <pre width=80>
-name	.macro
-	lda #\1 	;first parameter
-	.endm
+name	<b>.macro</b>
+	<b>lda</b> #\1 	<i>;first parameter</i>
+	<b>.endm</b>
 	
-	#name 23	;call macro
+	#name 23	<i>;call macro</i>
 </pre>
 
 
@@ -715,13 +727,13 @@ only appear in place of one. Text references on the other hand can appear every
 where and will work in place of eg quoted text or opcodes and labels.
 The first 9 parameters can be referenced as text by <tt>@1</tt>...<tt>@9</tt>.
 <pre width=80>
-name    .macro
-        jsr print
-        .text "@1"         ;first parameter
-        .byte 0
-        .endm
-        
-        #name "wth?"       ;call macro
+name    <b>.macro</b>
+        <b>jsr</b> print
+        <b>.text</b> "@1"	<i>;first parameter</i>
+        <b>.byte</b> 0
+        <b>.endm</b>
+
+        #name "wth?"	<i>;call macro</i>
 </pre>
 
 </dl>
@@ -730,9 +742,9 @@ name    .macro
 <dt>.for
 <dd>Compile loop, only anonymous references are allowed as labels inside
 <pre width=80>
-	.for ue=0,ue&lt;10,ue=ue+1
-	.byte ue
-	.next
+	<b>.for</b> ue=0,ue&lt;10,ue=ue+1
+	<b>.byte</b> ue
+	<b>.next</b>
 </pre>
 
 <dt>.next
@@ -748,11 +760,11 @@ name    .macro
 <dt>.ifmi
 <dd>Conditional compile, if result&lt;0
 <pre width=80>
-	.if oeu=1
-	nop
-	.else
-	lda #1
-	.fi
+	<b>.if</b> oeu=1
+	<b>nop</b>
+	<b>.else</b>
+	<b>lda</b> #1
+	<b>.fi</b>
 </pre>
 
 <dt>.else
@@ -761,15 +773,15 @@ name    .macro
 <dt>.elsif
 <dd>The inverse condition, if result!=0
 <pre width=80>
-	.if wait=2	;2 cycles
-	nop
-	.elsif wait=3	;3 cycles
-	bit $ea
-	.elsif wait=4	;4 cycles
-	bit $eaea
-	.else		;else 5 cycles
-	inc $2
-	.fi
+	<b>.if</b> wait=2	;2 cycles
+	<b>nop</b>
+	<b>.elsif</b> wait=3	;3 cycles
+	<b>bit</b> $ea
+	<b>.elsif</b> wait=4	;4 cycles
+	<b>bit</b> $eaea
+	<b>.else</b>		;else 5 cycles
+	<b>inc</b> $2
+	<b>.fi</b>
 </pre>
 
 <dt>.fi
@@ -779,9 +791,9 @@ name    .macro
 <dt>.rept
 <dd>Repeated compile, only anonymous references are allowed as labels inside
 <pre width=80>
-	.rept 100
-	nop
-	.next
+	<b>.rept</b> 100
+	<b>nop</b>
+	<b>.next</b>
 </pre>
 
 </dl>
@@ -790,19 +802,19 @@ name    .macro
 <dt>.include
 <dd>Include source file here
 <pre width=80>
-	.include macros.asm
+	<b>.include</b> macros.asm
 </pre>
 
 <dt>.binary
 <dd>Include binary data. Please note that loading address is ignored, and if 
 not skipped then it's also loaded.
 <pre width=80>
-	.binary stuffz.bin ;simple include
-	.binary "stuffz.bin",2 ;skip start address
-	.binary "stuffz.bin",2,1000 ;skip start address, 1000 bytes max
+	<b>.binary</b> stuffz.bin ;simple include
+	<b>.binary</b> "stuffz.bin",2 ;skip start address
+	<b>.binary</b> "stuffz.bin",2,1000 ;skip start address, 1000 bytes max
 	
-	*=$1000			;load music to $1000 and
-	.binary "music.dmc",2   ;strip load address
+	<b>*</b>= $1000			;load music to $1000 and
+	<b>.binary</b> "music.dmc",2   ;strip load address
 </pre>
 
 </dl>
@@ -811,13 +823,13 @@ not skipped then it's also loaded.
 <dt>.proc
 <dd>Procedure start
 <pre width=80>
-ize     .proc 
-        nop
-cucc    nop
-        .pend
+ize     <b>.proc</b> 
+        <b>nop</b>
+cucc    <b>nop</b>
+        <b>.pend</b>
         
-        jsr ize
-        jmp ize.cucc
+        <b>jsr</b> ize
+        <b>jmp</b> ize.cucc
 </pre>
 If "ize" is not referenced then the code won't be compiled at all!
 All labels inside are local.
@@ -828,10 +840,10 @@ All labels inside are local.
 <dt>.block
 <dd>Block start
 <pre width=80>
-            .block
-            inc count + 1
-    count   ldx #0
-            .bend
+	<b>.block</b>
+	<b>inc</b> count + 1
+count	<b>ldx</b> #0
+	<b>.bend</b>
 </pre>
     All labels inside a block are local.
 
@@ -841,10 +853,10 @@ All labels inside are local.
 <dt>.comment
 <dd>Comment block start
 <pre width=80>
-        .comment
+        <b>.comment</b><i>
         lda #1          ;this won't be compiled
         sta $d020
-        .endc
+        </i><b>.endc</b>
 </pre>
 
 <dt>.endc
@@ -859,8 +871,8 @@ All labels inside are local.
 <dt>.al
 <dd>Select 16 bit accu (65816)
 <pre width=80>
-        .al
-        lda #$4322
+        <b>.al</b>
+        <b>lda</b> #$4322
 </pre>
 
 <dt>.xs
@@ -869,20 +881,20 @@ All labels inside are local.
 <dt>.xl
 <dd>Select 16 bit index (65816)
 <pre width=80>
-        .xl
-        ldx #$1000
+        <b>.xl</b>
+        <b>ldx</b> #$1000
 </pre>
 
 <dt>.databank
 <dd>Set databank (65816)
 <pre width=80>
-        .databank $10   ;$10xxxx
+        <b>.databank</b> $10   ;$10xxxx
 </pre>
 
 <dt>.dpage
 <dd>Set directpage (65816/C128/DTV) (forced to page boundary for DTV)
 <pre width=80>
-        .dpage $400
+        <b>.dpage</b> $400
 </pre>
 
 </dl>
@@ -892,9 +904,9 @@ All labels inside are local.
 <dt>.page
 <dd>Gives an error on page boundary crossing, eg. for timing sensitive code.
 <pre width=80>
-        .page
-table   .byte 0,1,2,3,4,5,6,7
-        .endp
+        <b>.page</b>
+table   <b>.byte</b> 0,1,2,3,4,5,6,7
+        <b>.endp</b>
 </pre>
 
 <dt>.endp
@@ -905,35 +917,35 @@ table   .byte 0,1,2,3,4,5,6,7
 Such a condition on 6502 adds 1 extra cycle to the execution time, which 
 can ruin the timing of a carefuly cycle counted code.
 <pre width=80>
-        .option allow_branch_across_page = 0
-        ldx #3          ;now this will execute in
--       dex             ;16 cycles for sure
-        bne -
-        .option allow_branch_across_page = 1
+        <b>.option</b> allow_branch_across_page = 0
+        <b>ldx</b> #3          ;now this will execute in
+-       <b>dex</b>             ;16 cycles for sure
+        <b>bne</b> -
+        <b>.option</b> allow_branch_across_page = 1
 </pre>
 
 <dt>.error
 <dd>Exit with error
 <pre width=80>
-	.error "Unfinished here..."
+	<b>.error</b> "Unfinished here..."
 </pre>
 
 <dt>.warn
 <dd>Warning
 <pre width=80>
-	.warn "FIXME: handle negative values too!"
+	<b>.warn</b> "FIXME: handle negative values too!"
 </pre>
 
 <dt>.cerror
 <dd>Conditional exit with error
 <pre width=80>
-	.cerror *&gt;$1200,"Program too long!"
+	<b>.cerror</b> *&gt;$1200,"Program too long!"
 </pre>
 
 <dt>.cwarn
 <dd>Conditional warning
 <pre width=80>
-	.cwarn *&gt;$1200,"This may not work!"
+	<b>.cwarn</b> *&gt;$1200,"This may not work!"
 </pre>
 
 </dl>
@@ -943,22 +955,22 @@ can ruin the timing of a carefuly cycle counted code.
 <dt>.enc
 <dd>Text encoding, "none" or "screen" (screen code)
 <pre width=80>
-        .enc screen	;screencode mode
-        .text "text with screencodes"
-        cmp #"u"	;compare screencode
-        .enc none	;normal again mode
-        cmp #"u"	;compare ascii
+        <b>.enc</b> screen	<i>;screencode mode</i>
+        <b>.text</b> "text with screencodes"
+        <b>cmp</b> #"u"	<i>;compare screencode</i>
+        <b>.enc</b> none	<i>;normal mode again</i>
+        <b>cmp</b> #"u"	<i>;compare ascii</i>
 </pre>
 
 <dt>.cpu
 <dd>Selects cpu
 <pre width=80>
-	.cpu 6502	;standard 65xx
-	.cpu 65c02	;CMOS 65C02
-	.cpu 6502i	;NMOS 65xx
-	.cpu 65816	;W65C816
-	.cpu 65dtv02	;65dtv02
-	.cpu default	;cpu set on commandline
+	<b>.cpu</b> 6502	<i>;standard 65xx</i>
+	<b>.cpu</b> 65c02	<i>;CMOS 65C02</i>
+	<b>.cpu</b> 6502i	<i>;NMOS 65xx</i>
+	<b>.cpu</b> 65816	<i>;W65C816</i>
+	<b>.cpu</b> 65dtv02	<i>;65dtv02</i>
+	<b>.cpu</b> default	<i>;cpu set on commandline</i>
 </pre>
 
 </dl>
@@ -1022,10 +1034,10 @@ Another thing worth noting is that the original turbo assembler lets you create
 an interesting ambiguous construct using a label called '<tt>a</tt>' 
 </p>
 <pre width=80>
-        lsr a    ; uses Akku ! (or does it really?)
+        <b>lsr a</b>    ; uses Akku ! (or does it really?)
 a
-        jmp a    ; uses the label address
-        .word a  ; uses the label address
+        <b>jmp</b> a    ; uses the label address
+        <b>.word</b> a  ; uses the label address
 </pre>
 <p>
 If you get a warning like "<tt>warning: Possibly incorrectly used A "lsr a"</tt>", then there
@@ -1074,7 +1086,6 @@ is set to the value following the '.var'.
 <li>.lbl - identifies a label that can be referenced by a .goto
 <li>.goto - causes assembler to goto the label referenced and continue assembling 
 from that point on.
-<li>.segment - starts a macro definition but without a block
 </ul>
 
 <hr>
