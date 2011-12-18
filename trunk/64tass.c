@@ -410,7 +410,7 @@ long get_num(int *cd, int mode) {
         in:
             tmp=find_label(ident);
 	    if (pass==1) {
-                if (tmp && tmp->ertelmes) {*cd=1; if (current_context==&root_context) {tmp->proclabel=0;tmp->used=1;} return tmp->value;}
+                if (tmp && tmp->ertelmes) {*cd=1;tmp->proclabel=0;tmp->used=1;return tmp->value;}
 		*cd=2;return 0;
 	    }
 	    else {
@@ -1345,6 +1345,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    if (tmp) {
 			if (tmp->proclabel && pass!=1 && old_context == &root_context) wait_cmd(fin,CMD_PEND);//.pend
                         else {
+		            tmp->used=!tmp->proclabel;tmp->proclabel=1;
                             current_context=new_context(ident, current_context);
                             current_context->backr=current_context->forwr=1;
                             if (listing && flist && arguments.source) {
