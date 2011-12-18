@@ -46,13 +46,14 @@ const unsigned char *opcode;    //opcodes
 #define nestinglevel 256
 int errors=0,conderrors=0,warnings=0, wrapwarn=0, wrapwarn2=0;
 long sline;      //current line
-static unsigned long low_mem,top_mem;
 static unsigned long all_mem, full_mem;
 static int pass=0;      //pass
 static int listing=0;   //listing
 static int foundopcode;   //listing
-static unsigned char* mem64=NULL;//c64mem
-static unsigned char* mmap=NULL; //c64 memory map
+static unsigned char* memdata=NULL;//Linear memory dump
+static unsigned long memdatap = 0, memdatasize = 0, memblocklastp = 0, memblocklaststart = 0;
+static struct smemblock {unsigned long size;unsigned long memp;unsigned long start;} *memblocks; //starts and sizes
+static unsigned long memblockp = 0, memblocksize = 0;
 unsigned long address=0,l_address=0; //address, logical address
 char pline[linelength];  //current line data
 static char llist[linelength];  //current line for listing
@@ -115,16 +116,29 @@ void status() {
     freeerrorlist(1);
     errors+=conderrors;
     if (arguments.quiet) {
+        unsigned long i, start, end;
         fprintf(stdout,"Error messages:    ");
         if (errors) fprintf(stdout,"%i\n",errors); else fprintf(stdout,"None\n");
         fprintf(stdout,"Warning messages:  ");
         if (warnings) fprintf(stdout,"%i\n",warnings); else fprintf(stdout,"None\n");
         fprintf(stdout,"Passes:            %i\n",pass);
-        fprintf(stdout,"Range:             ");
-        if (low_mem<=top_mem) fprintf(stdout,(full_mem==0xffff)?"$%04lx-$%04lx\n\n":"$%06lx-$%06lx\n\n",low_mem,top_mem);else fprintf(stdout,"None\n");
+        if (memblockp) {
+            start = memblocks[0].start;
+            end = memblocks[0].start + memblocks[0].size;
+            for (i=1;i<memblockp;i++) {
+                if (memblocks[i].start != end) {
+                    fprintf(stdout,"Memory range:      ");
+                    fprintf(stdout,(full_mem==0xffff)?"$%04lx-$%04lx\n":"$%06lx-$%06lx\n",start,end-1);
+                    start = memblocks[i].start;
+                }
+                end = memblocks[i].start + memblocks[i].size;
+            }
+            fprintf(stdout,"Memory range:      ");
+            fprintf(stdout,(full_mem==0xffff)?"$%04lx-$%04lx\n\n":"$%06lx-$%06lx\n\n",start,end-1);
+        } else fprintf(stdout,"Memory range:      None\n\n");
     }
-    if (mem64) free(mem64);			// free codemem
-    if (mmap) free(mmap);				// free memorymap
+    free(memdata);		        	// free codemem
+    free(memblocks);				// free memorymap
 
     tfree();
 }
@@ -229,15 +243,70 @@ int petascii(char quo) {
 /*
  * output one byte
  */
+void memjmp(unsigned long adr) {
+    if (memdatap == memblocklastp) {
+        memblocklaststart = adr;
+        return;
+    }
+    if (memblockp>=memblocksize) {
+        memblocksize+=64;
+        memblocks=realloc(memblocks, memblocksize*sizeof(*memblocks));
+        if (!memblocks) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+    }
+    memblocks[memblockp].size = memdatap-memblocklastp;
+    memblocks[memblockp].memp = memblocklastp;
+    memblocks[memblockp++].start = memblocklaststart;
+    memblocklastp = memdatap;
+    memblocklaststart = adr;
+}
+
+int memblockcomp(const void *a, const void *b) {
+    struct smemblock *aa=(struct smemblock *)a;
+    struct smemblock *bb=(struct smemblock *)b;
+    return aa->start-bb->start;
+}
+
+void memcomp(void) {
+    unsigned long i, j, k;
+    memjmp(0);
+    if (memblockp<2) return;
+    
+    for (k = j = 0; j < memblockp; j++) {
+        if (memblocks[j].size) {
+            for (i = j + 1; i < memblockp; i++) if (memblocks[i].size) {
+                if (memblocks[j].start <= memblocks[i].start
+                        && memblocks[j].start + memblocks[j].size > memblocks[i].start) {
+                    unsigned long overlap = memblocks[j].start + memblocks[j].size - memblocks[i].start;
+                    if (overlap > memblocks[i].size) overlap = memblocks[i].size;
+                    memcpy(memdata + memblocks[j].memp + memblocks[i].start - memblocks[j].start, memdata + memblocks[i].memp, overlap);
+                    memblocks[i].size-=overlap;
+                    memblocks[i].memp+=overlap;
+                    memblocks[i].start+=overlap;
+                }
+            }
+            if (j!=k) memblocks[k]=memblocks[j];
+            k++;
+        }
+    }
+    memblockp = k;
+    qsort(memblocks, memblockp, sizeof(*memblocks), memblockcomp);
+}
+
+// ---------------------------------------------------------------------------
+/*
+ * output one byte
+ */
 void pokeb(unsigned char byte) 
 {
 
     if (fixeddig)
     {
-	if (arguments.nonlinear) mmap[address>>3]|=(1<<(address & 7));
-	if (address<low_mem) low_mem=address;
-	if (address>top_mem) top_mem=address;
-	if (address<=full_mem) mem64[address] = byte ^ outputeor;
+        if (memdatap>=memdatasize) {
+            memdatasize+=0x1000;
+            memdata=realloc(memdata, memdatasize);
+            if (!memdata) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+        }
+	memdata[memdatap++] = byte ^ outputeor;
     }
     if (wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);wrapwarn=0;}
     if (wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);wrapwarn2=0;}
@@ -245,6 +314,7 @@ void pokeb(unsigned char byte)
     if (address>all_mem) {
 	if (fixeddig) wrapwarn=1;
 	address=0;
+        memjmp(address);
     }
     if (fixeddig && scpumode) if (!(address & 0xffff) || !(l_address & 0xffff)) wrapwarn2=1;
 }
@@ -1080,7 +1150,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         err_msg(ERROR_CONSTNT_LARGE,NULL); 
                         break;
                     }
-                    address=l_address=ch2;
+                    if (address!=ch2 || l_address!=ch2) {
+                        address=l_address=ch2;
+                        memjmp(address);
+                    }
                 }
 		lastl=0;
 		break;
@@ -1143,7 +1216,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 if (!(skipit[waitforp] & 1)) break; //skip things if needed
                 if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
                     int ch2=-1;
-                    unsigned long ptextaddr=address;
+                    unsigned long ptextaddr=memdatap;
                     if (prm==CMD_PTEXT) ch2=0;
                     for (;;) {
 
@@ -1220,10 +1293,9 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             pokeb(0);
                         }
                         if (prm==CMD_PTEXT) {
-                            if ((address>ptextaddr && address-ptextaddr>0x100) ||
-                                (address<ptextaddr && address+all_mem-ptextaddr>0xff)) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
+                            if (memdatap-ptextaddr>0x100) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
 
-                            mem64[ptextaddr]=(address-ptextaddr-1) & 0xff;
+                            memdata[ptextaddr]=memdatap-ptextaddr-1;
                         }
                     cvege2:
                         if (listing && flist) {
@@ -1231,15 +1303,14 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",ptextaddr);
                             lcol=25;
                             kiirva=1;
-                            while (ptextaddr!=address) {
-                                ch2=mem64[ptextaddr];
-                                ptextaddr=(ptextaddr+1) & all_mem;
+                            while (ptextaddr!=memdatap) {
+                                ch2=memdata[ptextaddr++];
                                 if (lcol==1) {
                                     if (arguments.source && kiirva) {
                                         if (nprm>=0) mtranslate(mprm,nprm,llist);
                                         fprintf(flist,"\t%s\n",llist);kiirva=0;
                                     } else fputc('\n',flist);
-                                    fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",ptextaddr);lcol=25;
+                                    fprintf(flist,(all_mem==0xffff)?">%04lx\t ":">%06lx  ",(address-memdatap+ptextaddr) & all_mem);lcol=25;
                                 }
                                 fprintf(flist,"%02x ",(unsigned char)ch2);
     
@@ -1345,10 +1416,16 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     ignore();if (here()) goto extrachar;
                     if (val.type != T_NONE) {
                         if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-                        address+=val.num;
-                        if (address>all_mem) {
-                            if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);
-                            address&=all_mem;
+                        if (val.num) {
+                            if (fixeddig && scpumode) {
+                                if (((address + val.num)^address) & ~0xffff) wrapwarn2=1;
+                            }
+                            address+=val.num;
+                            if (address>all_mem) {
+                                if (fixeddig) wrapwarn=1;
+                                address&=all_mem;
+                            }
+                            memjmp(address);
                         }
                     }
 		    break;
@@ -1497,13 +1574,21 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                         } else ch = 0;
                         while (db-->0) pokeb((unsigned char)ch);
                     } else {
-                        l_address+=db;l_address&=all_mem;
+                        if (fixeddig && scpumode) {
+                            if (((address + db)^address) & ~0xffff) wrapwarn2=1;
+                            if (((l_address + db)^l_address) & ~0xffff) wrapwarn2=1;
+                        }
+                        l_address+=db;
+                        if (l_address>all_mem) {
+                            if (fixeddig) wrapwarn=1;
+                            l_address&=all_mem;
+                        }
                         address+=db;
                         if (address>all_mem) {
-                            if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);
+                            if (fixeddig) wrapwarn=1;
                             address&=all_mem;
                         }
-                        if (fixeddig && scpumode) if (!(address & 0xffff) || !(l_address & 0xffff)) err_msg(ERROR___BANK_BORDER,NULL);
+                        memjmp(address);
                     }
 		    break;
 		}
@@ -1577,14 +1662,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     else if (!strcasecmp(path,"65dtv02")) def=OPCODES_65DTV02;
                     else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,ident);
                     set_cpumode(def);
-                    if (full_mem<all_mem) {
-                        if (!(mem64=realloc(mem64,all_mem+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-                        if (arguments.nonlinear) {
-                            if (!(mmap=realloc(mmap,(all_mem+1) >> 3))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-                            memset(mmap+full_mem,0,(all_mem-full_mem) >> 3);
-                        }
-                        full_mem=all_mem;
-                    }
 		    break;
 		}
                 if (prm==CMD_CERROR || prm==CMD_CWARN) { // .cerror
@@ -1661,13 +1738,23 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             while (l_address % align) pokeb((unsigned char)fill);
                         else {
                             align-=l_address % align;
-                            l_address+=align;l_address&=all_mem;
-                            address+=align;
-                            if (address>all_mem) {
-                                if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);
-                                address&=all_mem;
+                            if (align) {
+                                if (fixeddig && scpumode) {
+                                    if (((address + align)^address) & ~0xffff) wrapwarn2=1;
+                                    if (((l_address + align)^l_address) & ~0xffff) wrapwarn2=1;
+                                }
+                                l_address+=align;
+                                if (l_address>all_mem) {
+                                    if (fixeddig) wrapwarn=1;
+                                    l_address&=all_mem;
+                                }
+                                address+=align;
+                                if (address>all_mem) {
+                                    if (fixeddig) wrapwarn=1;
+                                    address&=all_mem;
+                                }
+                                memjmp(address);
                             }
-                            if (fixeddig && scpumode) if (!(address & 0xffff) || !(l_address & 0xffff)) err_msg(ERROR___BANK_BORDER,NULL);
                         }
                     }
 		    break;
@@ -2438,25 +2525,20 @@ int main(int argc,char *argv[]) {
 
     if (arguments.quiet) fprintf(stdout,"\nAssembling file:   %s\n",arguments.input);
 
-    if (!(mem64=malloc(all_mem+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-    if (arguments.nonlinear) if (!(mmap=malloc((all_mem+1) >> 3))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-//   memset(mem64,0,all_mem+1);
-    if (arguments.nonlinear) memset(mmap,0,(all_mem+1) >> 3);
-
     /* assemble the input file(s) */
     do {
         if (pass++>20) {fprintf(stderr,"Ooops! Too many passes...\n");exit(1);}
         set_cpumode(arguments.cpumode);
-	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
+	address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
         fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);outputeor=0;
-        current_context=&root_context;
+        current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
         /*	listing=1;flist=stderr;*/
         enterfile(arguments.input,0);
         sline=0;
         compile(arguments.input,0,0,"",-1,NULL);
         exitfile();
-        if (errors) {status();return 1;}
+        if (errors) {memcomp();status();return 1;}
         if (conderrors && !arguments.list && pass==1) fixeddig=0;
     } while (!fixeddig || (pass==1 && !arguments.list));
 
@@ -2474,18 +2556,18 @@ int main(int argc,char *argv[]) {
 
         pass++;
         set_cpumode(arguments.cpumode);
-	address=l_address=databank=dpage=longaccu=longindex=0;low_mem=full_mem;top_mem=0;encoding=0;wrapwarn=0;wrapwarn2=0;
+	address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
         fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);outputeor=0;
-        current_context=&root_context;
+        current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
         enterfile(arguments.input,0);
         sline=0;
         compile(arguments.input,0,0,"",-1,NULL);
         exitfile();
-
 	fprintf(flist,"\n;******  end of code\n");
 	if (flist != stdout) fclose(flist);
     }
+    memcomp();
 
     set_cpumode(arguments.cpumode);
 
@@ -2494,42 +2576,66 @@ int main(int argc,char *argv[]) {
     if (errors || conderrors) {status();return 1;}
 
     /* output file */
-    if (low_mem<=top_mem) {
+    if (memdatap) {
+        unsigned long i, start, last, size;
         if (arguments.output[0] == '-' && !arguments.output[1]) {
             fout = stdout;
         } else {
             if ((fout=fopen(arguments.output,"wb"))==NULL) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
         }
-	if (arguments.nonlinear) {
-	    unsigned long bl_adr=low_mem, bl_len;
-	    while (bl_adr<=top_mem) {
-		while (bl_adr<full_mem && !(mmap[(bl_adr)>>3] & (1<<((bl_adr) & 7)))) bl_adr++;
-		bl_len=bl_adr;
-		while (bl_len<full_mem && (mmap[(bl_len)>>3] & (1<<((bl_len) & 7)))) bl_len++;
-		bl_len-=bl_adr;
-		fputc(bl_len,fout);
-		fputc(bl_len >> 8,fout);
-		if (scpumode) fputc(bl_len >> 16,fout);
-		fputc(bl_adr,fout);
-		fputc(bl_adr >> 8,fout);
-		if (scpumode) fputc(bl_adr >> 16,fout);
-		if (fwrite(mem64+bl_adr,bl_len,1,fout)==0) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
-		bl_adr+=bl_len;
-	    }
-	    bl_len=0;
-	    if ((fwrite(&bl_len,2+scpumode,1,fout) == 0)) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
-	}
-	else {
-	    if (!arguments.stripstart) {
-		fputc(low_mem,fout);
-		fputc(low_mem >> 8,fout);
-		if (scpumode && arguments.wordstart) fputc(low_mem >> 16,fout);
-	    }
-	    if (fwrite(mem64+low_mem,top_mem-low_mem+1,1,fout)==0) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
-	}
-	if (fout != stdout && fclose(fout)) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
-	status();
-	return 0;
+        clearerr(fout);
+        if (memblockp) {
+            start = memblocks[0].start;
+            size = memblocks[0].size;
+            last = 0;
+            for (i=1;i<memblockp;i++) {
+                if (memblocks[i].start != start + size) {
+                    if (arguments.nonlinear) {
+                        fputc(size,fout);
+                        fputc(size >> 8,fout);
+                        if (scpumode) fputc(size >> 16,fout);
+                    }
+                    if (!arguments.stripstart || arguments.nonlinear) {
+                        fputc(start,fout);
+                        fputc(start >> 8,fout);
+                        if (scpumode) fputc(start >> 16,fout);
+                    }
+                    while (last<i) {
+                        fwrite(memdata+memblocks[last].memp,memblocks[last].size,1,fout);
+                        last++;
+                    }
+                    if (!arguments.nonlinear) {
+                        size = memblocks[i].start - start - size;
+                        while (size--) fputc(0, fout);
+                    }
+                    start = memblocks[i].start;
+                    size = 0;
+                }
+                size += memblocks[i].size;
+            }
+            if (arguments.nonlinear) {
+                fputc(size,fout);
+                fputc(size >> 8,fout);
+                if (scpumode) fputc(size >> 16,fout);
+            }
+            if ((!arguments.stripstart && !last) || arguments.nonlinear) {
+                fputc(start,fout);
+                fputc(start >> 8,fout);
+                if (scpumode) fputc(start >> 16,fout);
+            }
+            while (last<i) {
+                fwrite(memdata+memblocks[last].memp,memblocks[last].size,1,fout);
+                last++;
+            }
+        }
+        if (arguments.nonlinear) {
+            fputc(0,fout);
+            fputc(0,fout);
+            if (scpumode) fputc(0 ,fout);
+        }
+        if (ferror(fout)) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
+	if (fout != stdout) fclose(fout);
     }
+    status();
     return 0;
 }
