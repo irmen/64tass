@@ -1945,7 +1945,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 				    w=val_length(val);
 				    if (w<2) w=2;
 				}
-			    } else {fixeddig=0;w=1;}
+			    } else {fixeddig=0;w=(cnmemonic[ADR_ADDR_X]!=____);}
 			} else if ((unsigned)val>=dpage && (unsigned)val<(dpage+0x100)) val-=dpage;
 			opr=ADR_ZP_X-w;ln=w+1;
 		    }// 6 Db
@@ -1955,7 +1955,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			    if (d) {
 				if (cnmemonic[ADR_ZP_Y]!=____ && (unsigned)val>=dpage && (unsigned)val<(dpage+0x100)) {val-=dpage;w=0;}
 				else if (databank==(((unsigned)val) >> 16)) w=1;
-			    } else {fixeddig=0;w=1;}
+			    } else {fixeddig=0;w=(cnmemonic[ADR_ADDR_Y]!=____);}
 			} else if ((unsigned)val>=dpage && (unsigned)val<(dpage+0x100)) val-=dpage;
 			if (w==2) w=3; // there's no lda $ffffff,y!
 			opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
