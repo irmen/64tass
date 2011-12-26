@@ -154,20 +154,20 @@ struct sencoding ascii_encoding[] = {
 
 /* PETSCII codes, must be sorted */
 static const char *petsym[] = {
+    "\x07" "bell", /* c128 */
     "\x90" "black",
     "\x90" "blk",
     "\x1f" "blu",
     "\x1f" "blue",
     "\x95" "brn",
     "\x95" "brown",
-    "\xdf" "cbm-*",
-    "\xa6" "cbm-+",
-    "\xdc" "cbm--",
-    "\xa4" "cbm-@",
-    "\xde" "cbm-^",
     "\xa8" "cbm-pound",
+    "\xde" "cbm-up arrow",
     "\x93" "clear",
     "\x93" "clr",
+    "\x06" "control-left arrow",
+    "\x1c" "control-pound",
+    "\x1e" "control-up arrow",
     "\x0d" "cr",
     "\x9f" "cyan",
     "\x9f" "cyn",
@@ -178,6 +178,9 @@ static const char *petsym[] = {
     "\x09" "ensh",
     "\x1b" "esc",
     "\x85" "f1",
+    "\x82" "f10", /* dolphin dos */
+    "\x84" "f11", /* dolphin dos */
+    "\x8f" "f12", /* dolphin dos */
     "\x89" "f2",
     "\x86" "f3",
     "\x8a" "f4",
@@ -185,7 +188,11 @@ static const char *petsym[] = {
     "\x8b" "f6",
     "\x88" "f7",
     "\x8c" "f8",
+    "\x80" "f9", /* dolphin dos */
     "\x1e" "green",
+    "\x97" "gray1",
+    "\x98" "gray2",
+    "\x9b" "gray3",
     "\x97" "grey1",
     "\x98" "grey2",
     "\x9b" "grey3",
@@ -193,12 +200,14 @@ static const char *petsym[] = {
     "\x97" "gry1",
     "\x98" "gry2",
     "\x9b" "gry3",
+    "\x84" "help", /* c128 help */
     "\x13" "home",
     "\x94" "insert",
     "\x94" "inst",
     "\x9a" "lblu",
     "\x9d" "left",
     "\x5f" "left arrow",
+    "\x0a" "lf", /* c128 */
     "\x99" "lgrn",
     "\x0e" "lower case",
     "\x96" "lred",
@@ -223,18 +232,15 @@ static const char *petsym[] = {
     "\x92" "rvs off",
     "\x12" "rvs on",
     "\x8d" "shift return",
-    "\xc0" "shift-*",
-    "\xdb" "shift-+",
-    "\xdd" "shift--",
-    "\xba" "shift-@",
-    "\xde" "shift-^",
     "\xa9" "shift-pound",
     "\xa0" "shift-space",
+    "\xde" "shift-up arrow",
     "\x20" "space",
     "\x8d" "sret",
     "\x03" "stop",
     "\x0e" "swlc",
     "\x8e" "swuc",
+    "\x09" "tab", /* c128 */
     "\x91" "up",
     "\x5e" "up arrow",
     "\x09" "up/lo lock off",
@@ -253,7 +259,7 @@ static const unsigned char petsymcbm[26] = {
     0xb7, 0xad 
 };
 
-unsigned char petsymbolic(char *str) {
+int petsymbolic(char *str) {
     int n, n2;
     int also=0,felso,s4,elozo;
 
@@ -273,17 +279,66 @@ unsigned char petsymbolic(char *str) {
             }
         }
     }
-    if (!strncasecmp(str, "cbm-", 4) && str[4] >='a'
-        && str[4] <='z' && str[5] == 0) {
-        return petsymcbm[lowcase(str[4]) - 'a']; /* {cbm-x} */
+    if (str[0] >= '0' && str[0] <= '9') { /* convert {255} */
+        n = str[0] - '0';
+        if (!str[1]) return (unsigned char)n;
+        if (str[1] >= '0' && str[1] <= '9') {
+            n = (n * 10) + str[1] - '0';
+            if (!str[2]) return (unsigned char)n;
+            if (str[2] >= '0' && str[2] <= '9') {
+                n = (n * 10) + str[1] - '0';
+                if (n < 256) return (unsigned char)n;
+            }
+        }
     }
-    if (!strncasecmp(str, "shift-", 6) && str[6] >='a'
-        && str[6] <='z' && str[7] == 0) {
-        return lowcase(str[6]) - 'a' + 0xc1; /* {shift-x} */
+    if (!strncasecmp(str, "cbm-", 4) && str[4] && str[5] == 0) {
+        n=lowcase(str[4]);/* {cbm-x} */
+        if (n >='a' && n <='z') return petsymcbm[n - 'a']; 
+        if (n >='2' && n <='8') return (unsigned char)(n - '2' + 0x95); 
+        switch (n) {
+        case '1': return 0x81;
+        case '@': return 0xa4;
+        case '+': return 0xa6;
+        case '-': return 0xdc;
+        case '^': return 0xde;
+        case '*': return 0xdf;
+        }
     }
-    if (!strncasecmp(str, "control-", 8) && str[8] >='a'
-        && str[8] <='z' && str[9] == 0) {
-        return lowcase(str[8]) - 'a' + 1; /* {control-x} */
+    if (!strncasecmp(str, "shift-", 6) && str[6] && str[7] == 0) {
+        n = lowcase(str[6]); /* {shift-x} */
+        if (n >='a' && n <='z') return (unsigned char)(n - 'a' + 0xc1);
+        if (n >='1' && n <='9') return (unsigned char)(n - '0' + 0x20);
+        switch (n) {
+        case '*': return 0xc0;
+        case '+': return 0xdb;
+        case '^': return 0xde;
+        case '-': return 0xdd;
+        case '@': return 0xba;
+        case ',': return '<';
+        case '.': return '>';
+        case '/': return '?';
+        case ':': return '[';
+        case ';': return ']';
+        }
+    }
+    if (!strncasecmp(str, "control-", 8) && str[8] && str[9] == 0) {
+        n = lowcase(str[8]);
+        if (n >='a' && n <= 'z') return (unsigned char)(n - 'a' + 1); /* {control-x} */
+        switch (n) {
+        case ':': return 0x1b;
+        case ';': return 0x1d;
+        case '=': return 0x1f;
+        case '@': return 0x00;
+        case '0': return 0x92;
+        case '1': return 0x90;
+        case '3': return 0x1c;
+        case '4': return 0x9f;
+        case '5': return 0x9c;
+        case '6': return 0x1e;
+        case '7': return 0x1f;
+        case '8': return 0x9e;
+        case '9': return 0x12;
+        }
     }
 
     felso=sizeof(petsym)/sizeof(petsym[0]);
@@ -297,7 +352,7 @@ unsigned char petsymbolic(char *str) {
         n = ((s4>0) ? (felso+(also=n)) : (also+(felso=n)))/2;
         if (elozo == n) break;
     }
-    return 0;
+    return -1;
 }
 
 //------------------------------------------------------------------------------
