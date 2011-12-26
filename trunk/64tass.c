@@ -42,6 +42,8 @@
 static char *mnemonic;    //mnemonics
 const unsigned char *opcode;    //opcodes
 
+static struct sencoding *actual_encoding = ascii_encoding;
+
 #define linelength 4096
 #define nestinglevel 256
 int errors=0,conderrors=0,warnings=0, wrapwarn=0, wrapwarn2=0;
@@ -49,7 +51,6 @@ long sline;      //current line
 static unsigned long all_mem, full_mem;
 static int pass=0;      //pass
 static int listing=0;   //listing
-static int foundopcode;   //listing
 static unsigned char* memdata=NULL;//Linear memory dump
 static unsigned long memdatap = 0, memdatasize = 0, memblocklastp = 0, memblocklaststart = 0;
 static struct smemblock {unsigned long size;unsigned long memp;unsigned long start;} *memblocks; //starts and sizes
@@ -65,7 +66,8 @@ static int pagelo=-1;           //still in same page?
 static FILE* flist = NULL;      //listfile
 static char lastl=1;            //for listing (skip one line
 static int logisave=0;          // number of nested .logical
-static unsigned long* logitab;  //.logical .here
+static unsigned long* logitab = NULL;  //.logical .here
+static int logisize=0;
 static char longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static unsigned char databank=0;
 static unsigned int dpage=0;
@@ -90,7 +92,6 @@ static int last_mnem;
 
 int labelexists;
 unsigned long reffile;
-unsigned long curfnum=1;
 unsigned int macrecursion;
 
                        // 0       1       2        3        4         5        6         7      8         9
@@ -139,6 +140,7 @@ void status() {
     }
     free(memdata);		        	// free codemem
     free(memblocks);				// free memorymap
+    free(logitab);
 
     tfree();
 }
@@ -154,87 +156,82 @@ void status() {
  *      llist -
  *      pline -
  */
-void readln(FILE* fle) {
+void readln(struct sfile* fle) {
     int i=0,i2=0,q=0,ch;
 
     for (;;) {
-        ch=fgetc(fle);
-        if (ch == EOF) {sline++;break;}
-        if (!ch) continue;   //null?
-        if (ch==13) {
-            ch=fgetc(fle);
-            if (ch == EOF) ch=10;
-            if (ch!=10) {
-                if (ch == ':' && (!arguments.oldops)) ch=32;
-                ungetc(ch,fle);
-                sline++;break;
-            }
-        }
-        if (ch==10) {
-            ch=fgetc(fle);
-            if (ch != EOF) {
-                if (ch == ':' && (!arguments.oldops)) ch=32;
-                ungetc(ch,fle);
-            }
-            sline++;break;
-        }
+        if (fle->linebuflen==fle->currentp || !(ch=fle->linebuf[fle->currentp++])) {sline++;break;}// eof?
         llist[i2++]=ch;
         if (ch=='\'' && !(q & 5)) q^=2;
         if (ch=='"' && !(q & 6)) q^=1;
         if (!q) {
             if (ch==9) ch=32;
-            if (ch==';') {ch=32;q=4;}
-            if ((ch == ':') && (!arguments.oldops)) {
+            if (ch==';') q=4;
+            else if (ch== ':' && !arguments.oldops) {
                 i2--;
-                if (i2) {
-                    ungetc(ch,fle);
-                    sline++;
-                    break;
-                }
-                sline--;
-                goto at;
+                break;
             }
         }
         if (!(q & 4)) {
             pline[i]=ch;
             i++;
         }
-    at:
         if (i2==sizeof(pline)-1) {sline++;pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);}
     }
     llist[i2]=0;
     if (i)
-        while (pline[i-1]==' ') i--;
-    pline[i]=lpoint=foundopcode=0;
+        while (pline[i-1]==0x20) i--;
+    pline[i]=lpoint=0;
 }
 
 // ---------------------------------------------------------------------------
 // Read a character in the current string encoding
 int petascii(char quo) {
-    unsigned char ch;
+    int ch;
 
-    if (!here()) {err_msg(ERROR______EXPECTED,"End of string"); return 256;}
-    ch=get();
+    if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of string"); return 256;}
+    if (ch & 0x80) lpoint+=utf8in((unsigned char *)pline + lpoint, &ch); else lpoint++;
     if (ch==quo) {
         if (here()==quo) lpoint++; // handle 'it''s'
         else return 257; // end of string;
     }
     if (arguments.toascii) {
-        if (ch>='A' && ch<='Z') ch+=0x80;
-        else if (ch>='a' && ch<='z') ch-=0x20;
-        else if (ch=='{') {
-            char sym[0x10];
-            int n = 0;
-            while ((ch=get())!='}') {
-                if (ch == 0 || ch == quo) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
-                sym[n]=ch;
-                n++;
-                if (n == 0x10) {err_msg(ERROR_CONSTNT_LARGE,NULL);return 256;}
+        int n;
+        int also=0,felso,s4,elozo;
+
+        felso=actual_encoding[0].offset + 1;
+        n=felso/2;
+        for (;;) {  // do binary search
+            s4=ch-actual_encoding[n].start;
+            if (s4 >= 0 && ch <= actual_encoding[n].end) {
+                if (actual_encoding[n].offset < 0) {
+                    char sym[0x10];
+                    int end = -actual_encoding[n].offset;
+                    int n;
+                    
+                    for (n=0;;) {
+                        if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
+                        if (ch & 0x80) lpoint+=utf8in((unsigned char *)pline + lpoint, &ch); else lpoint++;
+                        if (ch == end) break;
+                        if (ch == quo) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
+                        sym[n]=ch;
+                        n++;
+                        if (n == 0x10) {err_msg(ERROR_CONSTNT_LARGE,NULL);return 256;}
+                    }
+                    sym[n] = 0;
+                    ch = petsymbolic(sym);
+                    if (!ch) {err_msg(ERROR______EXPECTED, "PETASCII symbol");return 256;}
+                    return encode(ch);
+                }
+                return encode((unsigned char)(s4 + actual_encoding[n].offset));
             }
-            sym[n] = 0;
-            ch = petsymbolic(sym);
-            if (!ch) {err_msg(ERROR______EXPECTED, "PETASCII symbol");return 256;}
+
+            elozo = n;
+            n = ((s4>0) ? (felso+(also=n)) : (also+(felso=n)))/2;
+            if (elozo == n) break;
         }
+        err_msg(ERROR___UNKNOWN_CHR, (char *)ch);
+        ch = 0;
     }
     return encode(ch);
 }
@@ -319,10 +316,31 @@ void pokeb(unsigned char byte)
     if (fixeddig && scpumode) if (!(address & 0xffff) || !(l_address & 0xffff)) wrapwarn2=1;
 }
 
+int lookup_opcode(char *pline) {
+    char s2,s3,*p, ch;
+    int also=0,felso,s4,elozo, no;
+
+    ch=lowcase(pline[0]);
+    no=(felso=last_mnem)/2;
+    if (ch && (s2=lowcase(pline[1])) && (s3=lowcase(pline[2])) && !pline[3])
+        for (;;) {  // do binary search
+            if (!(s4=ch-*(p=mnemonic+no*3)))
+                if (!(s4=s2-*(++p)))
+                    if (!(s4=s3-*(++p)))
+                    {
+                        return no;
+                    }
+
+            elozo=no;
+            if (elozo==(no=((s4>0) ? (felso+(also=no)) : (also+(felso=no)) )/2)) break;
+        }
+    return -1;
+}
+
 // ---------------------------------------------------------------------------
 int what(int *tempno) {
     char ch;
-    int no;
+    int no, l;
 
     ignore();
     switch (ch=whatis[(int)here()]) {
@@ -331,16 +349,16 @@ int what(int *tempno) {
             lpoint++;
 	    for (no=0; no<COMMANDS; no++)
 	    {
-		for (ch = 0; ch < (char)strlen(command[(int)no]); ch++) {
-		    if (command[(int)no][(int)ch] != lowcase(pline[lpoint+ch])) {
+		for (l = 0; command[no][l]; l++) {
+		    if (command[no][l] != (pline[lpoint+l] | 0x20)) {
                         break;
                     }
                 }
-		if (ch == (char)strlen(command[(int)no]))
+		if (!command[no][l])
 		{
-		    if (((ch=lowcase(pline[lpoint+strlen(command[(int)no])]))<'a' ||
+		    if (((ch=lowcase(pline[lpoint+l]))<'a' ||
 			 ch>'z') && ch!='_') {
-                        lpoint+=strlen(command[(int)no]);
+                        lpoint+=l;
                         if (no==CMD_ENDIF) no=CMD_FI; else
                         if (no==CMD_IFNE) no=CMD_IF;
                         *tempno=no;
@@ -354,36 +372,13 @@ int what(int *tempno) {
     case WHAT_COMA:
 	lpoint++;
         ignore();
-	switch (lowcase(get()))
-	{
+	switch (get() | 0x20) {
 	case 'y': return WHAT_Y;
 	case 'x': ignore();if (get()==')') return WHAT_XZ; else {lpoint--; return WHAT_X;}
 	case 's': ignore();if (get()==')') return WHAT_SZ; else {lpoint--; return WHAT_S;}
 	default: lpoint--;return WHAT_COMA;
 	}
     case WHAT_CHAR:
-	if (!foundopcode) {
-	    char s1,s2,s3,*p;
-	    int also=0,felso,s4,elozo;
-
-	    ch=lowcase(here());
-	    no=(felso=last_mnem)/2;
-	    if (((s1=lowcase(pline[lpoint+3]))==0x20 || !s1) &&
-		(s2=lowcase(pline[lpoint+1])) && (s3=lowcase(pline[lpoint+2])))
-		for (;;) {  // do binary search
-		    if (!(s4=ch-*(p=mnemonic+no*3)))
-			if (!(s4=s2-*(++p)))
-			    if (!(s4=s3-*(++p)))
-			    {
-				lpoint+=3;
-				*tempno=no;foundopcode=1;
-				return WHAT_MNEMONIC;
-			    }
-
-		    elozo=no;
-		    if (elozo==(no=((s4>0) ? (felso+(also=no)) : (also+(felso=no)) )/2)) break;
-		}
-	}
     case WHAT_LBL:
             *tempno=1;return WHAT_EXPRESSION;
     case WHAT_EXPRESSION://tempno=1 if label, 0 if expression
@@ -516,60 +511,58 @@ int get_num(int mode, struct svalue *v) {// 0=unknown stuff, 1=ok
 static int priority(char ch) 
 {
     if (arguments.noprecedence) {
-        switch (ch)
-        {
-            case '(':return 0;
-            case 'l':          // <
-            case 'h':          // >
-            case 'H':return 5; // `
-            case '=':
-            case '<':
-            case '>':
-            case 'o':          // !=
-            case 'g':          // >=
-            case 's':          // <=
-            case '+':
-            case '-':
-            case '*':
-            case '/':
-            case 'u':          // mod
-            case '|':
-            case '^':
-            case '&':
-            case 'm':          // <<
-            case 'd':          // >>
-            case 'n':          // -
-            case 'i':          // ~
-            case 't':return 40;// !
-            default:return 0;
+        switch (ch) {
+        case '(':return 0;
+        case 'l':          // <
+        case 'h':          // >
+        case 'H':return 5; // `
+        case '=':
+        case '<':
+        case '>':
+        case 'o':          // !=
+        case 'g':          // >=
+        case 's':          // <=
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+        case 'u':          // mod
+        case '|':
+        case '^':
+        case '&':
+        case 'm':          // <<
+        case 'd':          // >>
+        case 'n':          // -
+        case 'i':          // ~
+        case 't':return 40;// !
+        default:return 0;
         }
     } else {
-        switch (ch)
-        {
-            case '(':return 0;
-            case 'l':          // <
-            case 'h':          // >
-            case 'H':return 5; // `
-            case '=':
-            case '<':
-            case '>':
-            case 'o':          // !=
-            case 'g':          // >=
-            case 's':return 10;// <=
-            case '+':
-            case '-':return 15;
-            case '*':
-            case '/':
-            case 'u':return 20;// mod
-            case '|':
-            case '^':return 25;
-            case '&':return 30;
-            case 'm':          // <<
-            case 'd':return 35;// >>
-            case 'n':          // -
-            case 'i':          // ~
-            case 't':return 40;// !
-            default:return 0;
+        switch (ch) {
+        case '(':return 0;
+        case 'l':          // <
+        case 'h':          // >
+        case 'H':return 5; // `
+        case '=':
+        case '<':
+        case '>':
+        case 'o':          // !=
+        case 'g':          // >=
+        case 's':return 10;// <=
+        case '+':
+        case '-':return 15;
+        case '*':
+        case '/':
+        case 'u':return 20;// mod
+        case '|':
+        case '^':return 25;
+        case '&':return 30;
+        case 'm':          // <<
+        case 'd':return 35;// >>
+        case 'n':          // -
+        case 'i':          // ~
+        case 't':return 40;// !
+        default:return 0;
         }
     }
 }
@@ -606,7 +599,7 @@ void get_exp(int *wd, int *df,int *cd, struct svalue *v) {// length in bytes, de
     v->type = T_NONE;
 
     ignore();
-    switch (pline[lpoint]) {
+    switch (here()) {
     case '@':
 	switch (lowcase(pline[++lpoint])) {
 	case 'b':*wd=0;break;
@@ -778,14 +771,14 @@ void get_exp(int *wd, int *df,int *cd, struct svalue *v) {// length in bytes, de
     return;
 }
 
-void wait_cmd(FILE* fil,int no)
+void wait_cmd(struct sfile *fil, int no)
 {
     int wrap=waitforp;
     int pr,wh;
     long lin = 1,pos = 0;
 
     for (;;) {
-	if (feof(fil)) {
+	if (fil->linebuflen==fil->currentp) { // eof?
 	    char nc[20];
 	    strcpy(nc,".");
 	    strcat(nc,command[no]);
@@ -794,7 +787,7 @@ void wait_cmd(FILE* fil,int no)
 	}
 	if (no==CMD_PEND) { //.pend
 	    lin=sline;
-	    pos=ftell(fil);
+	    pos=fil->currentp;
 	}
 	readln(fil);
 	if ((wh=what(&pr))==WHAT_EXPRESSION) {
@@ -816,8 +809,7 @@ void wait_cmd(FILE* fil,int no)
 	}
 	if (wh==WHAT_COMMAND) {
 	    if (pr==no && wrap==waitforp) return;
-	    switch (pr)
-	    {
+	    switch (pr) {
 	    case CMD_FOR:waitfor[++waitforp]='n';break;//.for
 	    case CMD_NEXT:if (waitfor[waitforp]=='n') waitforp--;break;//.next
 	    case CMD_IFEQ:
@@ -828,7 +820,7 @@ void wait_cmd(FILE* fil,int no)
             case CMD_FI:if (waitfor[waitforp]=='e' || waitfor[waitforp]=='f') waitforp--;break;//.fi
             case CMD_ELSIF:break;//.elsif
 	    case CMD_REPT:waitfor[++waitforp]='n';break;//.rept
-	    case CMD_PROC:if (no==CMD_PEND && wrap==waitforp) {sline=lin;fseek(fil,pos,SEEK_SET);return;}break;// .proc
+	    case CMD_PROC:if (no==CMD_PEND && wrap==waitforp) {sline=lin;fil->currentp=pos;return;}break;// .proc
 	    case CMD_BLOCK:waitfor[++waitforp]='b';break;//.block
 	    case CMD_BEND:if (waitfor[waitforp]=='b') waitforp--;break;//.bend
 	    case CMD_SEGMENT: //.segment
@@ -842,9 +834,9 @@ void wait_cmd(FILE* fil,int no)
 int get_path() {
     int i=0,q=1;
     ignore();
-    if (pline[lpoint]=='\"') {lpoint++;q=0;}
-    while (pline[lpoint] && (pline[lpoint]!='\"' || q) && i<80) path[i++]=get();
-    if (i==80 || (!q && pline[lpoint]!='\"')) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
+    if (here()=='\"') {lpoint++;q=0;}
+    while (here() && (here()!='\"' || q) && i<80) path[i++]=get();
+    if (i==80 || (!q && here()!='\"')) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
     if (!q) lpoint++;
     path[i]=0;
     ignore();
@@ -881,7 +873,7 @@ void mtranslate(char* mpr, int nprm, char *cucc)
                 /* \1..\9, \a..\z */
                 if ((ch=(ch<='9' ? ch-'1' : ch-'a'+9))>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
                 for (pp=j=0; j<ch; j++) while (mpr[pp++]); //skip parameters
-                while (mpr[pp]==32) pp++; //skip space
+                while (mpr[pp]==0x20) pp++; //skip space
                 while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
                 if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
                 i++;continue;
@@ -903,7 +895,7 @@ void mtranslate(char* mpr, int nprm, char *cucc)
                 /* @1..@9 */
                 if ((ch=ch-'1')>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
                 for (pp=j=0; j<ch; j++) while (mpr[pp++]); //skip parameters
-                while (mpr[pp]==32) pp++; //skip space
+                while (mpr[pp]==0x20) pp++; //skip space
                 while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
                 if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
                 i++;continue;
@@ -928,7 +920,7 @@ void set_cpumode(int cpumode) {
     }
 }
 
-void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
+void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin) // "",0
 {
     char mparams[256];
     FILE* fil;
@@ -959,19 +951,18 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
         current_context->backr=current_context->forwr=1;
     }
     if (tpe==0 || tpe==1) reffile_old=reffile;
-    if (fin) oldpos=ftell(fin);
+    if (fin) oldpos=fin->currentp;
     else {
         char volt;
 	if ((fin=openfile(nam,&volt))==NULL) err_msg(ERROR_CANT_FINDFILE,nam);
 	if (volt) {
-	    if (tpe==1 || tpe==3) oldpos=ftell(fin);
+	    if (tpe==1 || tpe==3) oldpos=fin->currentp;
 	    else err_msg(ERROR_FILERECURSION,NULL);
         }
-        if (tpe==1) reffile=reffile_old;
      }
-    if (fseek(fin,fpos,SEEK_SET)) err_msg(ERROR_CANT_FINDFILE,"[Compile - fseek()]");
+    fin->currentp=fpos;
     for (;;) {
-	if (feof(fin))
+	if (fin->linebuflen==fin->currentp) // eof?
 	{
             switch (tpe) {
             case 3:
@@ -1003,6 +994,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 continue;
             } //not label
             get_ident('_');                                           //get label
+            if ((prm=lookup_opcode(ident))>=0) goto as_opcode;
         hh: strcpy(ident2,ident);
             if (!(skipit[waitforp] & 1)) {wht=what(&prm);goto jn;} //skip things if needed
             if ((wht=what(&prm))==WHAT_EQUAL) { //variable
@@ -1084,16 +1076,17 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    if (pass==1) {err_msg(ERROR_DOUBLE_DEFINE,ident); continue;}
 		}
 		else {
-		    tmp2->point=ftell(fin);
+		    tmp2->point=fin->currentp;
 		    tmp2->lin=sline;
                     tmp2->type=prm;
+                    tmp2->file=fin;
 		}
 		wait_cmd(fin,CMD_ENDM); //.endm
 		continue;
 	    }
             if ((tmp2=find_macro(ident))) {lpoint--;goto as_macro;}
 	    if (listing && flist && arguments.source &&
-                ((wht==WHAT_COMMAND && prm>CMD_LONG && prm!=CMD_PROC) || wht==WHAT_STAR || wht==WHAT_EOL || wht==WHAT_HASHMARK || wht==WHAT_EXPRESSION)) {
+                ((wht==WHAT_COMMAND && prm>CMD_LONG && prm!=CMD_PROC) || wht==WHAT_STAR || wht==WHAT_EOL || wht==WHAT_HASHMARK)) {
                 if (lastl==2) {fputc('\n',flist);lastl=1;}
                 if (ident[0]!='-' && ident[0]!='+')
                     fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident);
@@ -1185,7 +1178,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			if (!c) break;
 			if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
 			ignore();if (here()) goto extrachar;
-                	if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");wait_cmd(fin,CMD_FI);break;}
+                	if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");val.type=T_NONE;}
 		    } else val.type=T_NONE;
                     waitfor[++waitforp]='e';
                     switch (prm) {
@@ -1432,6 +1425,11 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		}
 		if (prm==CMD_LOGICAL) { // .logical
                     unsigned long ch2;
+                    if (logisave+1 >= logisize) {
+                        logisize += 16;
+                        if (!(logitab=realloc(logitab,logisize*sizeof(*logitab)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+                    }
+		    logitab[logisave++]=0;
 		    get_exp(&w,&d,&c,&val);if (!d) fixeddig=0;
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
@@ -1444,8 +1442,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                             break;
                         }
                     } else ch2=l_address;
-		    if (!(logitab=realloc(logitab,(logisave+1)*sizeof(*logitab)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-		    logitab[logisave++]=l_address-address;
+		    logitab[logisave-1]=l_address-address;
                     l_address=ch2;
 		    break;
 		}
@@ -1453,7 +1450,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    if (here()) goto extrachar;
 		    if (!logisave) {err_msg(ERROR______EXPECTED,".LOGICAL"); break;}
 		    l_address=address+logitab[--logisave];
-		    logitab=realloc(logitab,logisave*sizeof(*logitab));
 		    break;
 		}
 		if (prm==CMD_AS) { // .as
@@ -1695,7 +1691,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     if (val.type != T_NONE) {
                         if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
                         lin=sline;
-                        pos=ftell(fin);
+                        pos=fin->currentp;
                         enterfile(nam,lin);
                         for (cnt=0; cnt<val.num; cnt++) {
                             compile(nam,pos,2,mprm,nprm,fin);
@@ -1902,7 +1898,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 		    strcpy(expr,&pline[lpoint]);
 		    strcpy(pline,expr);
 		    lin=sline;
-                    pos=ftell(fin);
+                    pos=fin->currentp;
                     enterfile(nam,lin);
 		    for (;;) {
 			lpoint=0;
@@ -1971,7 +1967,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 	    }
 	case WHAT_HASHMARK:if (skipit[waitforp] & 1) //skip things if needed
 	    {                   //macro stuff
-		int ppoint;
+		int ppoint, nprm;
                 if (get_ident2('_')) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                 if (!(tmp2=find_macro(ident))) {err_msg(ERROR___NOT_DEFINED,ident); break;}
             as_macro:
@@ -1995,7 +1991,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
 			for (;;) {
 			    if (!(ch=get())) {err_msg(ERROR______EXPECTED,"End of string"); break;}
 			    if (ch==quo) {
-				if (pline[lpoint]!=quo) break;
+				if (here()!=quo) break;
                                 lpoint++;
 			    }
 			    mparams[ppoint++]=ch;
@@ -2021,9 +2017,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                     current_context->backr=current_context->forwr=1;
                 }
                 if (macrecursion<100) {
-                    enterfile(tmp2->file,lin);
-                    if (strcmp(tmp2->file,nam)) compile(tmp2->file,tmp2->point,1,mparams,nprm,NULL);
-                    else compile(tmp2->file,tmp2->point,3,mparams,nprm,fin);
+                    enterfile(tmp2->file->name,lin);
+                    compile(tmp2->file->name,tmp2->point,(tmp2->file!=fin)?1:3,mparams,nprm,tmp2->file);
                     exitfile();
                 } else err_msg(ERROR__MACRECURSION,"!!!!");
                 if (tmp2->type==CMD_MACRO) current_context = old_context;
@@ -2031,463 +2026,479 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,FILE* fin) // "",0
                 sline=lin;
 		break;
 	    }
-	case WHAT_MNEMONIC:if (skipit[waitforp] & 1) {//skip things if needed
-            int opr = 0, mnem = prm;
-            int oldlpoint = lpoint;
-	    const unsigned char* cnmemonic = &opcode[prm*24]; //current nmemonic
-	    char ln = 0;
-	    unsigned char cod = 0, longbranch = 0;
-            unsigned long adr = 0;
-
-            ignore();
-	    if (!(wht=here())) {
-		cod=cnmemonic[ADR_IMPLIED];
-		opr=ADR_IMPLIED;w=ln=0;d=1;
-	    }  //clc
-	    // 1 Db
-	    else if (lowcase(wht)=='a' && pline[lpoint+1]==0 && cnmemonic[ADR_ACCU]!=____)
-	    {
-		cod=cnmemonic[ADR_ACCU];
-                if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
-		opr=ADR_ACCU;w=ln=0;d=1;// asl a
-                lpoint++;
-	    }
-	    // 2 Db
-	    else if (wht=='#') {
-                lpoint++;
-		get_exp(&w,&d,&c,&val); //ellenorizve.
-		if (!c) break;
-		if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-
-		ln=1;
-		if ((cod=cnmemonic[ADR_IMMEDIATE])==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {// cpx cpy ldx ldy
-		    if (longindex) ln++;
-		}
-		else if (cod==0xF4) ln=2; //pea #$ffff
-		else if (cod!=0xC2 && cod!=0xE2) {//not sep rep=all accu
-		    if (longaccu) ln++;
-                }
-                if (dtvmode && cod==0x02) longbranch=0x40;//hack
-
-		if (val.type != T_NONE) {
-		    if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-                    adr=val.num;
-		    if (w==3) w=val_length(adr);//auto length
-		    if (w>=ln) w=3; //const too large
-		    opr=ADR_IMMEDIATE;// lda #
-		} else fixeddig=0;
-	    }
-	    // 3 Db
-	    else if (wht=='[') {
-                lpoint++;
-		get_exp(&w,&d,&c,&val); //ellenorizve.
-		if (!c) break;
-		if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-		ignore();if (get()!=']') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-		if ((wht=what(&prm))==WHAT_Y) {
-                    if (val.type != T_NONE) {
-                        if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-			adr = val.num - dpage;
-			if (w==3) w=val_length(adr);//auto length
-			if (w) w=3;// there's no lda [$ffff],y lda [$ffffff],y!
-			opr=ADR_ZP_LI_Y;
-		    } else fixeddig=0;
-                    ln=1; // lda [$ff],y
-		}
-		else if (wht==WHAT_EOL) {
-		    if (cnmemonic[ADR_ADDR_LI]==0xDC) { // jmp [$ffff]
-                        if (val.type != T_NONE) {
-                            if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-                            adr = val.num;
-			    if (w==3) {
-				w=val_length(adr);//auto length
-				if (!w) w=1;
-			    }
-			    if (w!=1) w=3; // there's no jmp [$ffffff]!
-                            opr=ADR_ADDR_LI;
-			} else fixeddig=0;
-                        ln=2;// jmp [$ffff]
-		    }
-		    else {
-                        if (val.type != T_NONE) {
-                            if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-			    adr = val.num - dpage;
-			    if (w==3) w=val_length(adr);//auto length
-			    if (w) w=3; // there's no lda [$ffff] lda [$ffffff]!
-                            opr=ADR_ZP_LI;
-			} else fixeddig=0;
-                        ln=1;// lda [$ff]
-		    }             
-                    lpoint--;
-		}
-            }
-            else if (wht=='.') {
-                wht=what(&prm);
-                if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
-                    memcpy(ident,&mnemonic[mnem*3],3);
-                    ident[3]=0;goto do_macro;
-                }
-                err_msg(ERROR_GENERL_SYNTAX,NULL);break;
-            }
-	    else {
-		if (whatis[wht]!=WHAT_EXPRESSION && whatis[wht]!=WHAT_CHAR && wht!='_' && wht!='*') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-		get_exp(&w,&d,&c,&val);if (!d) fixeddig=0; //ellenorizve.
-		if (!c) break;
-                if (val.type != T_NONE) {
-                    if(val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-                    adr = val.num;
-                }
-            meg:
-		if (c==1) {
-		    if ((wht=what(&prm))==WHAT_X) {// lda $ff,x lda $ffff,x lda $ffffff,x
-                        if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
-                        if (w==3) {//auto length
-                            if (val.type != T_NONE) {
-				if (cnmemonic[ADR_ZP_X]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
-				else if (cnmemonic[ADR_ADDR_X]!=____ && databank==(adr >> 16)) w=1;
-				else {
-				    w=val_length(adr);
-				    if (w<2) w=2;
-				}
-                            } else w=(cnmemonic[ADR_ADDR_X]!=____);
-                        } else {
-                            if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
-                            if (databank==(adr >> 16) && w<2) adr&=0xffff;
-			    if (w<val_length(adr)) w=3;
-                        }
-			opr=ADR_ZP_X-w;ln=w+1;
-		    }// 6 Db
-		    else if (wht==WHAT_Y) {// lda $ff,y lda $ffff,y lda $ffffff,y
-                        if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
-                        if (w==3) {//auto length
-                            if (val.type != T_NONE) {
-				if (cnmemonic[ADR_ZP_Y]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
-				else if (databank==(adr >> 16)) w=1;
-                            } else w=(cnmemonic[ADR_ADDR_Y]!=____);
-                        } else {
-                            if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
-                            if (databank==(adr >> 16) && w<2) adr&=0xffff;
-			    if (w<val_length(adr)) w=3;
-                        }
-			if (w==2) w=3; // there's no lda $ffffff,y!
-			opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
-		    }// 8 Db
-		    else if (wht==WHAT_S) {
-                        if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
-                        if (val.type != T_NONE) {
-			    if (w==3) w=val_length(adr);//auto length
-			    if (w) w=3; // there's no lda $ffffff,s or lda $ffff,s!
-			    opr=ADR_ZP_S;
-			}
-			ln=1; // lda $ff,s
-		    }// 9 Db
-		    else if (wht==WHAT_COMA) { // mvp $10,$20
-			int w2,c2,d2;
-			struct svalue val2;
-			megint:
-                        d2=d;
-                        get_exp(&w2,&d,&c2,&val2);if (!d) fixeddig=0;
-                        if (!c2) break;
-                        if (c2==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                        if (val2.type != T_NONE && val2.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-                        if (cnmemonic[ADR_REL]!=____) {
-                            long valx,valx2;
-                            if (val.type != T_NONE && val2.type != T_NONE) {
-                                valx=val.num-l_address-2;
-                                valx2=val2.num-l_address-2;
-                                if ((valx<-128 || valx>127) && valx2>=-128 && valx2<=127) {
-                                    val=val2;
-                                    adr = val.num;
-                                    c=c2;
-                                    w=w2;
-                                } else d=d2;
-                            } else {
-                                if (d2) d=d2;
-                                else {
-                                    val=val2;
-                                    if (val2.type != T_NONE) adr = val.num;
-                                    c=c2;w=w2;
-                                }
-                            }
-                            goto meg;
-                        }
-                        adr <<= 8;
-                        if (val.type != T_NONE && val2.type != T_NONE) {
-                            if (w==3) w=val_length(adr);//auto length
-                            if (w2==3) w2=val_length(val2.num);//auto length
-                            if (w || w2) w=3; // only byte operands...
-                            opr=ADR_MOVE;
-                            adr|=val2.num;
-                        }
-			ln=2;
-		    }// 10 Db
-		    else if (wht==WHAT_EOL) {
-			if (cnmemonic[ADR_REL]!=____) {
-			    ln=1;
-                            if (val.type != T_NONE) {
-				if (fixeddig && (l_address >> 16)!=(adr >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
-				adr=(adr-l_address-2) & 0xffff;
-				if (adr<0xFF80 && adr>0x007F) {
-				    if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
-					if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
-					    longbranch=0x20;ln=4;
-                                	    if (scpumode && !longbranchasjmp) {
-                                        	adr=0x8203+(((adr-3) & 0xffff) << 16);
-                                    	    } else {
-                                        	adr=0x4C03+(((adr+l_address+2) & 0xffff) << 16);
-                                    	    }
-					} else {//bra
-                                	    if (scpumode && !longbranchasjmp) {
-						longbranch=cnmemonic[ADR_REL]^0x82;
-						adr=(adr-1) & 0xffff;
-                                    		ln=2;
-                                    	    } else {
-						longbranch=cnmemonic[ADR_REL]^0x4C;
-                                        	adr=(adr+l_address+2) & 0xffff;ln=2;
-                                    	    }
-					}    
-					if (fixeddig) err_msg(ERROR___LONG_BRANCH,NULL);
-				    } else {
-					if (cnmemonic[ADR_ADDR]!=____) {
-					    adr=(adr+l_address+2) & 0xffff;
-					    opr=ADR_ADDR;w=1;ln=2;goto brancb;}
-					else if (cnmemonic[ADR_REL_L]!=____) {//gra
-					    adr=(adr-1) & 0xffff;
-					    opr=ADR_REL_L;w=1;ln=2;goto brancb;}
-					else if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);
-				    }
-				}
-                                if (fixeddig) {
-                                    if (!longbranch && ((l_address+2) & 0xff00)!=((l_address+2+adr) & 0xff00)) {
-                                        if (!allowslowbranch) err_msg(ERROR__BRANCH_CROSS,NULL);
-                                    }
-                                }
-				opr=ADR_REL;w=0;// bne
-			    }
-			}
-			else if (cnmemonic[ADR_REL_L]!=____) {
-                            if (val.type != T_NONE) {
-				if (fixeddig && (l_address >> 16)!=(adr >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
-                                adr=(adr-l_address-3) & 0xffff;
-				opr=ADR_REL_L;w=1;//brl
-			    }
-			    ln=2;
-			}
-			else if (cnmemonic[ADR_LONG]==0x5C || cnmemonic[ADR_LONG]==0x22) {
-                            if (w==3) {
-                                if (cnmemonic[ADR_ADDR]==____) w=2; // jml jsl
-                                else {
-                                    if (val.type != T_NONE) {
-                                        if ((l_address >> 16)==(adr >> 16)) w=1;
-                                        else {
-                                            w=val_length(adr);
-                                            if (w<2) w=2; // in another bank
-                                        }
-                                    } else w=1;
-                                }
-                            }
-			    opr=ADR_ZP-w;ln=w+1;
-			}
-			else {
-                            if (w==3) {//auto length
-                                if (val.type != T_NONE) {
-				    if (cnmemonic[ADR_ZP]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
-				    else if (cnmemonic[ADR_ADDR]!=____ && databank==(adr >> 16)) w=1;
-				    else {
-					w=val_length(adr);
-					if (w<2) w=2;
-				    }
-                                } else w=1;
-                            } else {
-                                if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
-				if (databank==(adr >> 16) && w<2) adr&=0xffff;
-                                if (w<val_length(adr)) w=3;
-                            }
-			    opr=ADR_ZP-w;ln=w+1; // lda $ff lda $ffff lda $ffffff
-                        }
-			brancb: lpoint--;
-		    }// 13+2 Db
-		}
-		else if (c==2) {
-		    if ((wht=what(&prm))==WHAT_SZ) {
-			if ((wht=what(&prm))!=WHAT_Y) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                        if (val.type != T_NONE) {
-			    if (w==3) w=val_length(adr);//auto length
-			    if (w) w=3; // there's no lda ($ffffff,s),y or lda ($ffff,s),y!
-			    opr=ADR_ZP_S_I_Y;
-			}
-			ln=1; // lda ($ff,s),y
-		    } // 16 Db
-		    else {
-			if (wht!=WHAT_XZ) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-			if (cnmemonic[ADR_ADDR_X_I]==0x7C || cnmemonic[ADR_ADDR_X_I]==0xFC) {// jmp ($ffff,x) jsr ($ffff,x)
-                            if (val.type != T_NONE) {
-				if ((l_address >> 16)==(adr >> 16)) w=1; else w=3; // only same program bank!
-				opr=ADR_ADDR_X_I;
-			    }
-			    ln=2; // jmp ($ffff,x)
-			}
-			else {
-                            if (val.type != T_NONE) {
-				adr-=dpage;
-				if (w==3) w=val_length(adr);//auto length
-				if (w) w=3; // there's no lda ($ffff,x) lda ($ffffff,x)!
-				opr=ADR_ZP_X_I;
-			    }
-			    ln=1; // lda ($ff,x)
-			}
-		    } // 18 Db
-		}
-		else {
-		    if ((wht=what(&prm))==WHAT_Y) {
-                        if (val.type != T_NONE) {
-			    adr-=dpage;
-			    if (w==3) w=val_length(adr);
-			    if (w) w=3;
-			    opr=ADR_ZP_I_Y;
-			}
-			ln=1; // lda ($ff),y
-		    } // 19 Db
-		    else if (wht==WHAT_EOL) {
-			if (cnmemonic[ADR_ADDR_I]==0x6C) {// jmp ($ffff)
-                            if (val.type != T_NONE) {
-				if (fixeddig) {
-				    if (w==3) {
-					w=val_length(adr);//auto length
-					if (!w) w=1;
-				    }
-				    if (w!=1) w=3; // there's no jmp ($ffffff)!
-				    if (!scpumode && (adr & 0xff)==0xff) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
-				} else w=1;
-				opr=ADR_ADDR_I;
-			    }
-			    ln=2; // jmp ($ffff)
-			}
-			else {
-                            if (val.type != T_NONE) {
-				adr-=dpage;
-				if (w==3) w=val_length(adr);//auto length
-				if (w) w=3; // there's no lda ($ffff) lda ($ffffff)!
-				opr=ADR_ZP_I;
-			    }
-			    ln=1; // lda ($ff)
-			}
-                        lpoint--;
-		    } // 21 Db
-		}
-	    } 
-	    if (here()) {extrachar:err_msg(ERROR_EXTRA_CHAR_OL,NULL); break;}
-
-	    if (d) {
-		if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                if ((cod=cnmemonic[opr])==____) {
-                    memcpy(ident,&mnemonic[mnem*3],3);
-                    ident[3]=0;
-                    if ((tmp2=find_macro(ident))) {
-                        lpoint=oldlpoint;
-                        if (listing && flist && arguments.source && ident2[0]) {
-                            if (lastl==2) {fputc('\n',flist);lastl=1;}
-                            if (ident2[0]!='-' && ident2[0]!='+')
-                                fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident2);
-                            else
-                                fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%c\n":".%06lx\t\t\t\t\t%c\n",address,ident2[0]);
-                        }
-                        goto as_macro;
-                    }
-                    err_msg(ERROR_ILLEGAL_OPERA,NULL);
-                    break;
-                }
-	    }
-	    {
-		unsigned long temp=adr;
-		pokeb(cod ^ longbranch);
-		switch (ln)
-		{
-		case 4:pokeb((unsigned char)temp);temp>>=8;
-		case 3:pokeb((unsigned char)temp);temp>>=8;
-		case 2:pokeb((unsigned char)temp);temp>>=8;
-		case 1:pokeb((unsigned char)temp);
-		}
-	    }
-
-	    if (listing && flist) {
-		unsigned long temp=adr;
-		int i;
-
-		if (lastl!=1) {fputc('\n',flist);lastl=1;}
-                fprintf(flist,(all_mem==0xffff)?".%04lx\t %02x":".%06lx  %02x",address-ln-1,(unsigned char)(cod ^ longbranch));
-
-                for (i=0;i<ln;i++) {fprintf(flist," %02x",(unsigned char)temp);temp>>=8;}
-                if (ln<2) fputc('\t',flist);
-                fputc('\t',flist);
-
-                if (arguments.monitor) {
-                    for (i=0;i<3;i++) fputc(mnemonic[mnem*3+i],flist);
-
-		    switch (opr) {
-		    case ADR_IMPLIED: fprintf(flist,"\t"); break;
-		    case ADR_ACCU: fprintf(flist," a\t"); break;
-		    case ADR_IMMEDIATE:
-			{
-			    if (ln==1) fprintf(flist," #$%02x",(unsigned char)adr);
-			    else fprintf(flist," #$%04x",(unsigned)(adr&0xffff));
-			    break;
-			}
-		    case ADR_LONG: fprintf(flist," $%06x",(unsigned)(adr&0xffffff)); break;
-		    case ADR_ADDR: 
-		        if (cnmemonic[ADR_LONG]==0x5C || cnmemonic[ADR_LONG]==0x22)
-		            fprintf(flist," $%06x",(unsigned)(adr&0xffff)+(unsigned)(l_address&0xff0000));
-			else
-		            fprintf(flist," $%04x",(unsigned)(adr&0xffff));
-			break;
-		    case ADR_ZP: fprintf(flist," $%02x\t",(unsigned char)adr); break;
-		    case ADR_LONG_X: fprintf(flist," $%06x,x",(unsigned)(adr&0xffffff)); break;
-		    case ADR_ADDR_X: fprintf(flist," $%04x,x",(unsigned)(adr&0xffff)); break;
-		    case ADR_ZP_X: fprintf(flist," $%02x,x",(unsigned char)adr); break;
-		    case ADR_ADDR_X_I: fprintf(flist,(all_mem==0xffff)?" ($%04x,x)":" ($%06x,x)",(unsigned)(adr&0xffff)+(unsigned)(l_address&0xff0000)); break;
-		    case ADR_ZP_X_I: fprintf(flist," ($%02x,x)",(unsigned char)adr); break;
-		    case ADR_ZP_S: fprintf(flist," $%02x,s",(unsigned char)adr); break;
-		    case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(unsigned char)adr); break;
-		    case ADR_ADDR_Y: fprintf(flist," $%04x,y",(unsigned)(adr&0xffff)); break;
-		    case ADR_ZP_Y: fprintf(flist," $%02x,y",(unsigned char)adr); break;
-		    case ADR_ZP_LI_Y: fprintf(flist," [$%02x],y",(unsigned char)adr); break;
-		    case ADR_ZP_I_Y: fprintf(flist," ($%02x),y",(unsigned char)adr); break;
-		    case ADR_ADDR_LI: fprintf(flist," [$%04x]",(unsigned)(adr&0xffff)); break;
-		    case ADR_ZP_LI: fprintf(flist," [$%02x]",(unsigned char)adr); break;
-		    case ADR_ADDR_I: fprintf(flist," ($%04x)",(unsigned)(adr&0xffff)); break;
-		    case ADR_ZP_I: fprintf(flist," ($%02x)",(unsigned char)adr); break;
-		    case ADR_REL:
-                        if (ln==1) fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((((signed char)adr)+l_address)&all_mem));
-                        else if (ln==2) {
-			    if ((cod ^ longbranch)==0x4C)
-				fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((adr&0xffff)+(l_address&0xff0000)));
-			    else
-				fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((((signed short int)adr)+l_address)&all_mem));
-		        }
-                        else fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)(((adr >> 16)&0xffff)+(l_address&0xff0000)));
-			break;
-		    case ADR_REL_L: fprintf(flist," $%06x",(unsigned)((((signed short)adr)+l_address)&0xffffff)); break;
-		    case ADR_MOVE: fprintf(flist," $%02x,$%02x",(unsigned char)adr,(unsigned char)(adr>>8));
-		    }
-		} else if (arguments.source) fputc('\t',flist);
-                if (arguments.source) {
-                    if (nprm>=0) mtranslate(mprm,nprm,llist);
-                    fprintf(flist,"\t%s\n",llist);
-                } else fputc('\n',flist);
-	    }
-	    break;
-        }
         case WHAT_EXPRESSION:
             if (skipit[waitforp] & 1) {
                 get_ident2('_');
-                if ((tmp2=find_macro(ident))) goto as_macro;
+                if ((prm=lookup_opcode(ident))>=0) {
+                    int opr, mnem;
+                    int oldlpoint;
+                    const unsigned char* cnmemonic; //current nmemonic
+                    char ln;
+                    unsigned char cod, longbranch;
+                    unsigned long adr;
+                as_opcode:
+                    if (!(skipit[waitforp] & 1)) break;//skip things if needed
+
+                    opr = 0;mnem = prm;
+                    oldlpoint = lpoint;
+                    cnmemonic = &opcode[prm*24];
+                    ln = 0; cod = 0; longbranch = 0; adr = 0;
+
+                    ignore();
+                    if (!(wht=here())) {
+                        cod=cnmemonic[ADR_IMPLIED];
+                        opr=ADR_IMPLIED;w=ln=0;d=1;
+                    }  //clc
+                    // 1 Db
+                    else if (lowcase(wht)=='a' && pline[lpoint+1]==0 && cnmemonic[ADR_ACCU]!=____)
+                    {
+                        cod=cnmemonic[ADR_ACCU];
+                        if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
+                        opr=ADR_ACCU;w=ln=0;d=1;// asl a
+                        lpoint++;
+                    }
+                    // 2 Db
+                    else if (wht=='#') {
+                        lpoint++;
+                        get_exp(&w,&d,&c,&val); //ellenorizve.
+                        if (!c) break;
+                        if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+
+                        ln=1;
+                        if ((cod=cnmemonic[ADR_IMMEDIATE])==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {// cpx cpy ldx ldy
+                            if (longindex) ln++;
+                        }
+                        else if (cod==0xF4) ln=2; //pea #$ffff
+                        else if (cod!=0xC2 && cod!=0xE2) {//not sep rep=all accu
+                            if (longaccu) ln++;
+                        }
+                        if (dtvmode && cod==0x02) longbranch=0x40;//hack
+
+                        if (val.type != T_NONE) {
+                            if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
+                            adr=val.num;
+                            if (w==3) w=val_length(adr);//auto length
+                            if (w>=ln) w=3; //const too large
+                            opr=ADR_IMMEDIATE;// lda #
+                        } else fixeddig=0;
+                    }
+                    // 3 Db
+                    else if (wht=='[') {
+                        lpoint++;
+                        get_exp(&w,&d,&c,&val); //ellenorizve.
+                        if (!c) break;
+                        if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                        ignore();if (get()!=']') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                        if ((wht=what(&prm))==WHAT_Y) {
+                            if (val.type != T_NONE) {
+                                if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
+                                adr = val.num - dpage;
+                                if (w==3) w=val_length(adr);//auto length
+                                if (w) w=3;// there's no lda [$ffff],y lda [$ffffff],y!
+                                opr=ADR_ZP_LI_Y;
+                            } else fixeddig=0;
+                            ln=1; // lda [$ff],y
+                        }
+                        else if (wht==WHAT_EOL) {
+                            if (cnmemonic[ADR_ADDR_LI]==0xDC) { // jmp [$ffff]
+                                if (val.type != T_NONE) {
+                                    if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
+                                    adr = val.num;
+                                    if (w==3) {
+                                        w=val_length(adr);//auto length
+                                        if (!w) w=1;
+                                    }
+                                    if (w!=1) w=3; // there's no jmp [$ffffff]!
+                                    opr=ADR_ADDR_LI;
+                                } else fixeddig=0;
+                                ln=2;// jmp [$ffff]
+                            }
+                            else {
+                                if (val.type != T_NONE) {
+                                    if (val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
+                                    adr = val.num - dpage;
+                                    if (w==3) w=val_length(adr);//auto length
+                                    if (w) w=3; // there's no lda [$ffff] lda [$ffffff]!
+                                    opr=ADR_ZP_LI;
+                                } else fixeddig=0;
+                                ln=1;// lda [$ff]
+                            }             
+                            lpoint--;
+                        }
+                    }
+                    else if (wht=='.') {
+                        wht=what(&prm);
+                        if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
+                            memcpy(ident,&mnemonic[mnem*3],3);
+                            ident[3]=0;goto do_macro;
+                        }
+                        err_msg(ERROR_GENERL_SYNTAX,NULL);break;
+                    }
+                    else {
+                        if (whatis[wht]!=WHAT_EXPRESSION && whatis[wht]!=WHAT_CHAR && wht!='_' && wht!='*') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                        get_exp(&w,&d,&c,&val);if (!d) fixeddig=0; //ellenorizve.
+                        if (!c) break;
+                        if (val.type != T_NONE) {
+                            if(val.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
+                            adr = val.num;
+                        }
+                    meg:
+                        if (c==1) {
+                            if ((wht=what(&prm))==WHAT_X) {// lda $ff,x lda $ffff,x lda $ffffff,x
+                                if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
+                                if (w==3) {//auto length
+                                    if (val.type != T_NONE) {
+                                        if (cnmemonic[ADR_ZP_X]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
+                                        else if (cnmemonic[ADR_ADDR_X]!=____ && databank==(adr >> 16)) w=1;
+                                        else {
+                                            w=val_length(adr);
+                                            if (w<2) w=2;
+                                        }
+                                    } else w=(cnmemonic[ADR_ADDR_X]!=____);
+                                } else {
+                                    if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                                    if (databank==(adr >> 16) && w<2) adr&=0xffff;
+                                    if (w<val_length(adr)) w=3;
+                                }
+                                opr=ADR_ZP_X-w;ln=w+1;
+                            }// 6 Db
+                            else if (wht==WHAT_Y) {// lda $ff,y lda $ffff,y lda $ffffff,y
+                                if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
+                                if (w==3) {//auto length
+                                    if (val.type != T_NONE) {
+                                        if (cnmemonic[ADR_ZP_Y]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
+                                        else if (databank==(adr >> 16)) w=1;
+                                    } else w=(cnmemonic[ADR_ADDR_Y]!=____);
+                                } else {
+                                    if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                                    if (databank==(adr >> 16) && w<2) adr&=0xffff;
+                                    if (w<val_length(adr)) w=3;
+                                }
+                                if (w==2) w=3; // there's no lda $ffffff,y!
+                                opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
+                            }// 8 Db
+                            else if (wht==WHAT_S) {
+                                if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
+                                if (val.type != T_NONE) {
+                                    if (w==3) w=val_length(adr);//auto length
+                                    if (w) w=3; // there's no lda $ffffff,s or lda $ffff,s!
+                                    opr=ADR_ZP_S;
+                                }
+                                ln=1; // lda $ff,s
+                            }// 9 Db
+                            else if (wht==WHAT_COMA) { // mvp $10,$20
+                                int w2,c2,d2;
+                                struct svalue val2;
+                                megint:
+                                d2=d;
+                                get_exp(&w2,&d,&c2,&val2);if (!d) fixeddig=0;
+                                if (!c2) break;
+                                if (c2==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                                if (val2.type != T_NONE && val2.type != T_INT) {err_msg(ERROR____WRONG_TYPE,NULL); break;}
+                                if (cnmemonic[ADR_REL]!=____) {
+                                    long valx,valx2;
+                                    if (val.type != T_NONE && val2.type != T_NONE) {
+                                        valx=val.num-l_address-2;
+                                        valx2=val2.num-l_address-2;
+                                        if ((valx<-128 || valx>127) && valx2>=-128 && valx2<=127) {
+                                            val=val2;
+                                            adr = val.num;
+                                            c=c2;
+                                            w=w2;
+                                        } else d=d2;
+                                    } else {
+                                        if (d2) d=d2;
+                                        else {
+                                            val=val2;
+                                            if (val2.type != T_NONE) adr = val.num;
+                                            c=c2;w=w2;
+                                        }
+                                    }
+                                    goto meg;
+                                }
+                                adr <<= 8;
+                                if (val.type != T_NONE && val2.type != T_NONE) {
+                                    if (w==3) w=val_length(adr);//auto length
+                                    if (w2==3) w2=val_length(val2.num);//auto length
+                                    if (w || w2) w=3; // only byte operands...
+                                    opr=ADR_MOVE;
+                                    adr|=val2.num;
+                                }
+                                ln=2;
+                            }// 10 Db
+                            else if (wht==WHAT_EOL) {
+                                if (cnmemonic[ADR_REL]!=____) {
+                                    ln=1;
+                                    if (val.type != T_NONE) {
+                                        if (fixeddig && (l_address >> 16)!=(adr >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
+                                        adr=(adr-l_address-2) & 0xffff;
+                                        if (adr<0xFF80 && adr>0x007F) {
+                                            if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
+                                                if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
+                                                    longbranch=0x20;ln=4;
+                                                    if (scpumode && !longbranchasjmp) {
+                                                        adr=0x8203+(((adr-3) & 0xffff) << 16);
+                                                    } else {
+                                                        adr=0x4C03+(((adr+l_address+2) & 0xffff) << 16);
+                                                    }
+                                                } else {//bra
+                                                    if (scpumode && !longbranchasjmp) {
+                                                        longbranch=cnmemonic[ADR_REL]^0x82;
+                                                        adr=(adr-1) & 0xffff;
+                                                        ln=2;
+                                                    } else {
+                                                        longbranch=cnmemonic[ADR_REL]^0x4C;
+                                                        adr=(adr+l_address+2) & 0xffff;ln=2;
+                                                    }
+                                                }    
+                                                if (fixeddig) err_msg(ERROR___LONG_BRANCH,NULL);
+                                            } else {
+                                                if (cnmemonic[ADR_ADDR]!=____) {
+                                                    adr=(adr+l_address+2) & 0xffff;
+                                                    opr=ADR_ADDR;w=1;ln=2;goto brancb;}
+                                                else if (cnmemonic[ADR_REL_L]!=____) {//gra
+                                                    adr=(adr-1) & 0xffff;
+                                                    opr=ADR_REL_L;w=1;ln=2;goto brancb;}
+                                                else if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);
+                                            }
+                                        }
+                                        if (fixeddig) {
+                                            if (!longbranch && ((l_address+2) & 0xff00)!=((l_address+2+adr) & 0xff00)) {
+                                                if (!allowslowbranch) err_msg(ERROR__BRANCH_CROSS,NULL);
+                                            }
+                                        }
+                                        opr=ADR_REL;w=0;// bne
+                                    }
+                                }
+                                else if (cnmemonic[ADR_REL_L]!=____) {
+                                    if (val.type != T_NONE) {
+                                        if (fixeddig && (l_address >> 16)!=(adr >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
+                                        adr=(adr-l_address-3) & 0xffff;
+                                        opr=ADR_REL_L;w=1;//brl
+                                    }
+                                    ln=2;
+                                }
+                                else if (cnmemonic[ADR_LONG]==0x5C || cnmemonic[ADR_LONG]==0x22) {
+                                    if (w==3) {
+                                        if (cnmemonic[ADR_ADDR]==____) w=2; // jml jsl
+                                        else {
+                                            if (val.type != T_NONE) {
+                                                if ((l_address >> 16)==(adr >> 16)) w=1;
+                                                else {
+                                                    w=val_length(adr);
+                                                    if (w<2) w=2; // in another bank
+                                                }
+                                            } else w=1;
+                                        }
+                                    }
+                                    opr=ADR_ZP-w;ln=w+1;
+                                }
+                                else {
+                                    if (w==3) {//auto length
+                                        if (val.type != T_NONE) {
+                                            if (cnmemonic[ADR_ZP]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
+                                            else if (cnmemonic[ADR_ADDR]!=____ && databank==(adr >> 16)) w=1;
+                                            else {
+                                                w=val_length(adr);
+                                                if (w<2) w=2;
+                                            }
+                                        } else w=1;
+                                    } else {
+                                        if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                                        if (databank==(adr >> 16) && w<2) adr&=0xffff;
+                                        if (w<val_length(adr)) w=3;
+                                    }
+                                    opr=ADR_ZP-w;ln=w+1; // lda $ff lda $ffff lda $ffffff
+                                }
+                                brancb: lpoint--;
+                            }// 13+2 Db
+                        }
+                        else if (c==2) {
+                            if ((wht=what(&prm))==WHAT_SZ) {
+                                if ((wht=what(&prm))!=WHAT_Y) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                                if (val.type != T_NONE) {
+                                    if (w==3) w=val_length(adr);//auto length
+                                    if (w) w=3; // there's no lda ($ffffff,s),y or lda ($ffff,s),y!
+                                    opr=ADR_ZP_S_I_Y;
+                                }
+                                ln=1; // lda ($ff,s),y
+                            } // 16 Db
+                            else {
+                                if (wht!=WHAT_XZ) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                                if (cnmemonic[ADR_ADDR_X_I]==0x7C || cnmemonic[ADR_ADDR_X_I]==0xFC) {// jmp ($ffff,x) jsr ($ffff,x)
+                                    if (val.type != T_NONE) {
+                                        if ((l_address >> 16)==(adr >> 16)) w=1; else w=3; // only same program bank!
+                                        opr=ADR_ADDR_X_I;
+                                    }
+                                    ln=2; // jmp ($ffff,x)
+                                }
+                                else {
+                                    if (val.type != T_NONE) {
+                                        adr-=dpage;
+                                        if (w==3) w=val_length(adr);//auto length
+                                        if (w) w=3; // there's no lda ($ffff,x) lda ($ffffff,x)!
+                                        opr=ADR_ZP_X_I;
+                                    }
+                                    ln=1; // lda ($ff,x)
+                                }
+                            } // 18 Db
+                        }
+                        else {
+                            if ((wht=what(&prm))==WHAT_Y) {
+                                if (val.type != T_NONE) {
+                                    adr-=dpage;
+                                    if (w==3) w=val_length(adr);
+                                    if (w) w=3;
+                                    opr=ADR_ZP_I_Y;
+                                }
+                                ln=1; // lda ($ff),y
+                            } // 19 Db
+                            else if (wht==WHAT_EOL) {
+                                if (cnmemonic[ADR_ADDR_I]==0x6C) {// jmp ($ffff)
+                                    if (val.type != T_NONE) {
+                                        if (fixeddig) {
+                                            if (w==3) {
+                                                w=val_length(adr);//auto length
+                                                if (!w) w=1;
+                                            }
+                                            if (w!=1) w=3; // there's no jmp ($ffffff)!
+                                            if (!scpumode && (adr & 0xff)==0xff) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
+                                        } else w=1;
+                                        opr=ADR_ADDR_I;
+                                    }
+                                    ln=2; // jmp ($ffff)
+                                }
+                                else {
+                                    if (val.type != T_NONE) {
+                                        adr-=dpage;
+                                        if (w==3) w=val_length(adr);//auto length
+                                        if (w) w=3; // there's no lda ($ffff) lda ($ffffff)!
+                                        opr=ADR_ZP_I;
+                                    }
+                                    ln=1; // lda ($ff)
+                                }
+                                lpoint--;
+                            } // 21 Db
+                        }
+                    } 
+                    if (here()) {extrachar:err_msg(ERROR_EXTRA_CHAR_OL,NULL); break;}
+
+                    if (d) {
+                        if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                        if ((cod=cnmemonic[opr])==____) {
+                            memcpy(ident,&mnemonic[mnem*3],3);
+                            ident[3]=0;
+                            if ((tmp2=find_macro(ident))) {
+                                lpoint=oldlpoint;
+                                if (listing && flist && arguments.source && ident2[0]) {
+                                    if (lastl==2) {fputc('\n',flist);lastl=1;}
+                                    if (ident2[0]!='-' && ident2[0]!='+')
+                                        fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident2);
+                                    else
+                                        fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%c\n":".%06lx\t\t\t\t\t%c\n",address,ident2[0]);
+                                }
+                                goto as_macro;
+                            }
+                            err_msg(ERROR_ILLEGAL_OPERA,NULL);
+                            break;
+                        }
+                    }
+                    {
+                        unsigned long temp=adr;
+                        pokeb(cod ^ longbranch);
+                        switch (ln)
+                        {
+                        case 4:pokeb((unsigned char)temp);temp>>=8;
+                        case 3:pokeb((unsigned char)temp);temp>>=8;
+                        case 2:pokeb((unsigned char)temp);temp>>=8;
+                        case 1:pokeb((unsigned char)temp);
+                        }
+                    }
+
+                    if (listing && flist) {
+                        unsigned long temp=adr;
+                        int i;
+
+                        if (lastl!=1) {fputc('\n',flist);lastl=1;}
+                        fprintf(flist,(all_mem==0xffff)?".%04lx\t %02x":".%06lx  %02x",address-ln-1,(unsigned char)(cod ^ longbranch));
+
+                        for (i=0;i<ln;i++) {fprintf(flist," %02x",(unsigned char)temp);temp>>=8;}
+                        if (ln<2) fputc('\t',flist);
+                        fputc('\t',flist);
+
+                        if (arguments.monitor) {
+                            for (i=0;i<3;i++) fputc(mnemonic[mnem*3+i],flist);
+
+                            switch (opr) {
+                            case ADR_IMPLIED: fprintf(flist,"\t"); break;
+                            case ADR_ACCU: fprintf(flist," a\t"); break;
+                            case ADR_IMMEDIATE:
+                                {
+                                    if (ln==1) fprintf(flist," #$%02x",(unsigned char)adr);
+                                    else fprintf(flist," #$%04x",(unsigned)(adr&0xffff));
+                                    break;
+                                }
+                            case ADR_LONG: fprintf(flist," $%06x",(unsigned)(adr&0xffffff)); break;
+                            case ADR_ADDR: 
+                                if (cnmemonic[ADR_LONG]==0x5C || cnmemonic[ADR_LONG]==0x22)
+                                    fprintf(flist," $%06x",(unsigned)(adr&0xffff)+(unsigned)(l_address&0xff0000));
+                                else
+                                    fprintf(flist," $%04x",(unsigned)(adr&0xffff));
+                                break;
+                            case ADR_ZP: fprintf(flist," $%02x\t",(unsigned char)adr); break;
+                            case ADR_LONG_X: fprintf(flist," $%06x,x",(unsigned)(adr&0xffffff)); break;
+                            case ADR_ADDR_X: fprintf(flist," $%04x,x",(unsigned)(adr&0xffff)); break;
+                            case ADR_ZP_X: fprintf(flist," $%02x,x",(unsigned char)adr); break;
+                            case ADR_ADDR_X_I: fprintf(flist,(all_mem==0xffff)?" ($%04x,x)":" ($%06x,x)",(unsigned)(adr&0xffff)+(unsigned)(l_address&0xff0000)); break;
+                            case ADR_ZP_X_I: fprintf(flist," ($%02x,x)",(unsigned char)adr); break;
+                            case ADR_ZP_S: fprintf(flist," $%02x,s",(unsigned char)adr); break;
+                            case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(unsigned char)adr); break;
+                            case ADR_ADDR_Y: fprintf(flist," $%04x,y",(unsigned)(adr&0xffff)); break;
+                            case ADR_ZP_Y: fprintf(flist," $%02x,y",(unsigned char)adr); break;
+                            case ADR_ZP_LI_Y: fprintf(flist," [$%02x],y",(unsigned char)adr); break;
+                            case ADR_ZP_I_Y: fprintf(flist," ($%02x),y",(unsigned char)adr); break;
+                            case ADR_ADDR_LI: fprintf(flist," [$%04x]",(unsigned)(adr&0xffff)); break;
+                            case ADR_ZP_LI: fprintf(flist," [$%02x]",(unsigned char)adr); break;
+                            case ADR_ADDR_I: fprintf(flist," ($%04x)",(unsigned)(adr&0xffff)); break;
+                            case ADR_ZP_I: fprintf(flist," ($%02x)",(unsigned char)adr); break;
+                            case ADR_REL:
+                                if (ln==1) fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((((signed char)adr)+l_address)&all_mem));
+                                else if (ln==2) {
+                                    if ((cod ^ longbranch)==0x4C)
+                                        fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((adr&0xffff)+(l_address&0xff0000)));
+                                    else
+                                        fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)((((signed short int)adr)+l_address)&all_mem));
+                                }
+                                else fprintf(flist,(all_mem==0xffff)?" $%04x":" $%06x",(unsigned)(((adr >> 16)&0xffff)+(l_address&0xff0000)));
+                                break;
+                            case ADR_REL_L: fprintf(flist," $%06x",(unsigned)((((signed short)adr)+l_address)&0xffffff)); break;
+                            case ADR_MOVE: fprintf(flist," $%02x,$%02x",(unsigned char)adr,(unsigned char)(adr>>8));
+                            }
+                        } else if (arguments.source) fputc('\t',flist);
+                        if (arguments.source) {
+                            if (nprm>=0) mtranslate(mprm,nprm,llist);
+                            fprintf(flist,"\t%s\n",llist);
+                        } else fputc('\n',flist);
+                    }
+                    break;
+                }
+                if ((tmp2=find_macro(ident))) {
+                    if (listing && flist && arguments.source && ident2[0]) {
+                        if (lastl==2) {fputc('\n',flist);lastl=1;}
+                        if (ident2[0]!='-' && ident2[0]!='+')
+                            fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,ident2);
+                        else
+                            fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%c\n":".%06lx\t\t\t\t\t%c\n",address,ident2[0]);
+                    }
+                    goto as_macro;
+                }
             }
             // fall through
 	default: if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
 	}
     }
 end:
-    if (oldpos==-1) closefile(fin); else fseek(fin,oldpos,SEEK_SET);
+    if (oldpos==-1) closefile(fin); else fin->currentp=oldpos;
     if (tpe==0) {
         current_context->backr=backr_old;
         current_context->forwr=forwr_old;
@@ -2498,16 +2509,7 @@ end:
 
 int main(int argc,char *argv[]) {
     time_t t;
-
     FILE* fout;
-
-    {
-        unsigned char i=0;
-        do {
-            tolower_tab[i]=(i>='A' && i<='Z')?i+0x20:i;
-            i++;
-        } while (i);
-    }
 
     tinit();
     testarg(argc,argv);
@@ -2532,7 +2534,7 @@ int main(int argc,char *argv[]) {
 	address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
         fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);outputeor=0;
-        current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+        current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;logisave=0;
         /*	listing=1;flist=stderr;*/
         enterfile(arguments.input,0);
         sline=0;
@@ -2559,7 +2561,7 @@ int main(int argc,char *argv[]) {
 	address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
         current_provides=0xffffffff;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
         fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);outputeor=0;
-        current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+        current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;logisave=0;
         enterfile(arguments.input,0);
         sline=0;
         compile(arguments.input,0,0,"",-1,NULL);

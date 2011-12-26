@@ -45,8 +45,9 @@
 #define ERROR______CONFLICT 0x4C
 #define ERROR_DIVISION_BY_Z 0x4D
 #define ERROR____WRONG_TYPE 0x4E
-#define ERROR____PAGE_ERROR 0x4F
-#define ERROR__BRANCH_CROSS 0x50
+#define ERROR___UNKNOWN_CHR 0x4F
+#define ERROR____PAGE_ERROR 0x50
+#define ERROR__BRANCH_CROSS 0x51
 
 #define ERROR_CANT_FINDFILE 0x80
 #define ERROR_OUT_OF_MEMORY 0x81
@@ -61,7 +62,6 @@
 #define ERROR_UNKNOWN_OPTIO 0x8A
 
 #define WHAT_EXPRESSION 1
-#define WHAT_MNEMONIC   2
 #define WHAT_HASHMARK   3
 #define WHAT_X          4
 #define WHAT_Y          5
@@ -75,7 +75,7 @@
 #define WHAT_SZ         14
 #define WHAT_CHAR       16
 #define WHAT_LBL        17
-#define lowcase(cch) tolower_tab[(unsigned char)cch]
+static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 struct scontext {
     char* name;
@@ -111,21 +111,23 @@ struct slabel {
     struct avltree_node node;
 } __attribute((packed));
 
+struct sfile {
+    char *name;
+    unsigned char *linebuf;
+    unsigned long linebuflen;
+    unsigned long currentp;
+    unsigned char open;
+    unsigned long num;
+    struct avltree_node node;
+} __attribute((packed));
+
 struct smacro {
     char *name;
     long point;
     long lin;
-    char *file;
+    struct sfile *file;
     int type;
     struct avltree_node node;
-} __attribute((packed));
-
-struct sfile {
-    char *name;
-    FILE *f;
-    unsigned char open;
-    unsigned long num;
-    struct avltree_node node1, node2;
 } __attribute((packed));
 
 struct serrorlist {
@@ -159,6 +161,12 @@ struct arguments_t {
     int oldops;
 };
 
+struct sencoding {
+    int start;
+    int end;
+    int offset;
+};
+
 #ifdef _MISC_C_
 extern long sline;
 extern int errors,conderrors,warnings;
@@ -166,14 +174,13 @@ extern unsigned long l_address;
 extern char pline[];
 extern int labelexists;
 extern void status();
-extern unsigned long curfnum, reffile;
+extern unsigned long reffile;
 #endif
 
 #ifdef _MAIN_C_
-#define ignore() while(pline[lpoint]==' ') lpoint++
+#define ignore() while(pline[lpoint]==0x20) lpoint++
 #define get() pline[lpoint++]
 #define here() pline[lpoint]
-extern char tolower_tab[256];
 extern const unsigned char whatis[256];
 extern unsigned char encode(unsigned char);
 extern unsigned char petsymbolic(char*);
@@ -183,8 +190,8 @@ extern struct slabel* new_label(char*);
 extern struct smacro* find_macro(char*);
 extern struct smacro* new_macro(char*);
 extern struct scontext* new_context(char*, struct scontext *);
-extern FILE* openfile(char*,char*);
-extern void closefile(FILE*);
+extern struct sfile *openfile(char*,char*);
+extern void closefile(struct sfile*);
 extern void tfree();
 extern void tinit();
 extern void labelprint();
@@ -197,6 +204,10 @@ extern struct sfilenamelist *filenamelist;
 extern int encoding;
 extern struct scontext *current_context;
 extern struct scontext root_context;
+extern int utf8in(unsigned char *c, int *out);
+extern struct sencoding no_encoding[];
+extern struct sencoding screen_encoding[];
+extern struct sencoding ascii_encoding[];
 #endif
 
 #endif
