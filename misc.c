@@ -33,8 +33,7 @@ void err_msg(unsigned char no, char* prm);
 struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
 
 static struct avltree macro_tree;
-static struct avltree file_tree1;
-static struct avltree file_tree2;
+static struct avltree file_tree;
 struct scontext root_context;
 struct scontext *current_context = &root_context;
 struct serrorlist *errorlist=NULL,*errorlistlast=NULL;
@@ -46,7 +45,7 @@ unsigned char tolower_tab[256];
 const unsigned char whatis[256]={
     WHAT_EOL,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_HASHMARK,WHAT_EXPRESSION,WHAT_EXPRESSION,0,0,WHAT_EXPRESSION,0,WHAT_STAR,WHAT_EXPRESSION,WHAT_COMA,WHAT_EXPRESSION,WHAT_COMMAND,0,
+    0,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_HASHMARK,WHAT_EXPRESSION,WHAT_EXPRESSION,0,WHAT_EXPRESSION,WHAT_EXPRESSION,0,WHAT_STAR,WHAT_EXPRESSION,WHAT_COMA,WHAT_EXPRESSION,WHAT_COMMAND,0,
     WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_EXPRESSION,0,0,WHAT_EXPRESSION,WHAT_EQUAL,WHAT_EXPRESSION,0,
     WHAT_EXPRESSION,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,
     WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,WHAT_CHAR,0,0,0,0,WHAT_LBL,
@@ -78,6 +77,80 @@ unsigned char encode(unsigned char ch) {
     }
     return ch;
 }
+
+struct sencoding no_encoding[] = {
+    {-1, -1, 1},
+    {0x00, 0xff, 0x00},
+};
+
+struct sencoding screen_encoding[] = {
+    {-1, -1, 8},
+    {0x00, 0x1F, 0x80},
+    {0x20, 0x3F, 0x20},
+    {0x40, 0x5F, 0x00},
+    {0x60, 0x7F, 0x40},
+    {0x80, 0x9F, 0x80},
+    {0xA0, 0xBF, 0x60},
+    {0xC0, 0xFE, 0x40},
+    {0xFF, 0xFF, 0x5E},
+};
+
+struct sencoding ascii_encoding[] = {
+    {-1, -1, 53},
+    {0x20, 0x40, 0x20},// -@
+    {0x41, 0x5a, 0xc1},//A-Z
+    {0x5b, 0x5b, 0x5b},//[
+    {0x5d, 0x5d, 0x5d},//]
+    {0x61, 0x7a, 0x41},//a-z
+    {0x7b, 0x7b, -0x7d},// {code}
+    {0xa3, 0xa3, 0x5c},// £
+    {0x03c0, 0x03c0, 0xff},// π
+    {0x2190, 0x2190, 0x5f},// ←
+    {0x2191, 0x2191, 0x5e},// ↑
+    {0x2500, 0x2500, 0xc0},// ─
+    {0x2502, 0x2502, 0xdd},// │
+    {0x250c, 0x250c, 0xb0},// ┌
+    {0x2510, 0x2510, 0xae},// ┐
+    {0x2514, 0x2514, 0xad},// └
+    {0x2518, 0x2518, 0xbd},// ┘
+    {0x251c, 0x251c, 0xab},// ├
+    {0x2524, 0x2524, 0xb3},// ┤
+    {0x252c, 0x252c, 0xb2},// ┬
+    {0x2534, 0x2534, 0xb1},// ┴
+    {0x253c, 0x253c, 0xdb},// ┼
+    {0x256d, 0x256d, 0xd5},// ╭
+    {0x256e, 0x256e, 0xc9},// ╮
+    {0x256f, 0x256f, 0xcb},// ╯
+    {0x2570, 0x2570, 0xca},// ╰
+    {0x2571, 0x2571, 0xce},// ╱
+    {0x2572, 0x2572, 0xcd},// ╲
+    {0x2573, 0x2573, 0xd6},// ╳
+    {0x2581, 0x2581, 0xa4},// ▁
+    {0x2582, 0x2582, 0xaf},// ▂
+    {0x2583, 0x2583, 0xb9},// ▃
+    {0x2584, 0x2584, 0xa2},// ▄
+    {0x258c, 0x258c, 0xa1},// ▌
+    {0x258d, 0x258d, 0xb5},// ▍
+    {0x258e, 0x258e, 0xb4},// ▎
+    {0x258f, 0x258f, 0xa5},// ▏
+    {0x2592, 0x2592, 0xa6},// ▒
+    {0x2594, 0x2594, 0xa3},// ▔
+    {0x2595, 0x2595, 0xa7},// ▕
+    {0x2596, 0x2596, 0xbb},// ▖
+    {0x2597, 0x2597, 0xac},// ▗
+    {0x2598, 0x2598, 0xbe},// ▘
+    {0x259a, 0x259a, 0xbf},// ▚
+    {0x259d, 0x259d, 0xbc},// ▝
+    {0x25cb, 0x25cb, 0xd7},// ○
+    {0x25cf, 0x25cf, 0xd1},// ●
+    {0x25e4, 0x25e4, 0xa9},// ◤
+    {0x25e5, 0x25e5, 0xdf},// ◥
+    {0x2660, 0x2660, 0xc1},// ♠
+    {0x2663, 0x2663, 0xd8},// ♣
+    {0x2665, 0x2665, 0xd3},// ♥
+    {0x2666, 0x2666, 0xda},// ♦
+    {0x2713, 0x2713, 0xba},// ✓
+};
 
 /* PETSCII codes, must be sorted */
 static const char *petsym[] = {
@@ -306,6 +379,7 @@ const char *terr_error[]={
         "Conflict: %s",
         "Division by zero",
         "Wrong type",
+        "Unknown character $%02x",
 };
 const char *terr_fatal[]={
 	"Can't locate file: %s\n",
@@ -412,20 +486,12 @@ int macro_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     return strcmp(a->name, b->name);
 }
 
-int file1_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    struct sfile *a = avltree_container_of(aa, struct sfile, node1);
-    struct sfile *b = avltree_container_of(bb, struct sfile, node1);
+    struct sfile *a = avltree_container_of(aa, struct sfile, node);
+    struct sfile *b = avltree_container_of(bb, struct sfile, node);
 
     return strcmp(a->name, b->name);
-}
-
-int file2_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    struct sfile *a = avltree_container_of(aa, struct sfile, node2);
-    struct sfile *b = avltree_container_of(bb, struct sfile, node2);
-
-    return ((long)a->f)-((long)b->f);
 }
 
 void label_free(const struct avltree_node *aa)
@@ -449,15 +515,14 @@ void macro_free(const struct avltree_node *aa)
 {
     struct smacro *a = avltree_container_of(aa, struct smacro, node);
     free(a->name);
-    free(a->file);
     free(a);
 }
 
 void file_free(const struct avltree_node *aa)
 {
-    struct sfile *a = avltree_container_of(aa, struct sfile, node1);
+    struct sfile *a = avltree_container_of(aa, struct sfile, node);
 
-    if (a->f) fclose(a->f);
+    free(a->linebuf);
     free(a->name);
     free(a);
 }
@@ -569,8 +634,6 @@ struct smacro* new_macro(char* name) {
     if (!b) { //new macro
 	if (!(lastma->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastma->name,name);
-	if (!(lastma->file=malloc(strlen(filenamelist->name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-        strcpy(lastma->file,filenamelist->name);
 	labelexists=0;
 	tmp=lastma;
 	lastma=NULL;
@@ -580,47 +643,235 @@ struct smacro* new_macro(char* name) {
     return avltree_container_of(b, struct smacro, node);            //already exists
 }
 // ---------------------------------------------------------------------------
+int utf8in(char *c, int *out) { /* only for internal use with validated utf-8! */
+    int ch = (unsigned char)c[0], i, j;
+
+    if (ch < 0xe0) {
+        ch ^= 0xc0;i = 2;
+    } else if (ch < 0xf0) {
+        ch ^= 0xe0;i = 3;
+    } else if (ch < 0xf8) {
+        ch ^= 0xf0;i = 4;
+    } else if (ch < 0xfc) {
+        ch ^= 0xf8;i = 5;
+    } else {
+        ch ^= 0xfc;i = 6;
+    }
+
+    for (j = 1;j < i; j++) {
+        ch = (ch << 6) ^ (unsigned char)c[j] ^ 0x80;
+    }
+    *out = ch;
+    return i;
+}
+
+static unsigned char *utf8out(int i, unsigned char *c) {
+    if (!i) {
+        *c++=0xc0;
+        *c++=0x80;
+	return c;
+    }
+    if (i < 0x80) {
+        *c++=i;
+	return c;
+    }
+    if (i < 0x800) {
+        *c++=0xc0 | (i >> 6);
+        *c++=0x80 | (i & 0x3f);
+	return c;
+    }
+    if (i < 0x10000) {
+        *c++=0xe0 | (i >> 12);
+        *c++=0x80 | ((i >> 6) & 0x3f);
+        *c++=0x80 | (i & 0x3f);
+	return c;
+    }
+    if (i < 0x200000) {
+        *c++=0xf0 | (i >> 18);
+        *c++=0x80 | ((i >> 12) & 0x3f);
+        *c++=0x80 | ((i >> 6) & 0x3f);
+        *c++=0x80 | (i & 0x3f);
+	return c;
+    }
+    if (i < 0x4000000) {
+        *c++=0xf0 | (i >> 24);
+        *c++=0x80 | ((i >> 18) & 0x3f);
+        *c++=0x80 | ((i >> 12) & 0x3f);
+        *c++=0x80 | ((i >> 6) & 0x3f);
+        *c++=0x80 | (i & 0x3f);
+	return c;
+    }
+    if (i & 0x7fffffff) return c;
+    *c++=0xf0 | (i >> 30);
+    *c++=0x80 | ((i >> 24) & 0x3f);
+    *c++=0x80 | ((i >> 18) & 0x3f);
+    *c++=0x80 | ((i >> 12) & 0x3f);
+    *c++=0x80 | ((i >> 6) & 0x3f);
+    *c++=0x80 | (i & 0x3f);
+    return c;
+}
 
 static struct sfile *lastfi=NULL;
-FILE* openfile(char* name,char* volt) {
+static unsigned long curfnum=1;
+struct sfile* openfile(char* name,char* volt) {
     struct avltree_node *b;
     struct sfile *tmp;
     if (!lastfi)
 	if (!(lastfi=malloc(sizeof(struct sfile)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
     lastfi->name=name;
-    b=avltree_insert(&lastfi->node1, &file_tree1);
+    b=avltree_insert(&lastfi->node, &file_tree);
     if (!b) { //new file
+	int type = 0, lastchar;
+        FILE *f;
+
 	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastfi->name,name);
-	lastfi->f=fopen(name,"rb");
-        avltree_insert(&lastfi->node2, &file_tree2);
+	lastfi->linebuf=NULL;
+	lastfi->linebuflen=0;
+	lastfi->currentp=0;
+	f=fopen(name,"rb");
+        if (!f) {
+            lastfi=NULL;
+            return NULL;
+        }
+        lastchar=fgetc(f);
+        ungetc(lastchar, f); 
+        if (!lastchar) type=2; /* most likely */
+
+	do {
+	    int i=0,ch = 0, ch2;
+	    unsigned char *pline;
+	    if (lastfi->currentp + linelength > lastfi->linebuflen) {
+		lastfi->linebuflen += 0x1000;
+		lastfi->linebuf=realloc(lastfi->linebuf, lastfi->linebuflen);
+	    }
+	    pline=&lastfi->linebuf[lastfi->currentp];
+	    for (;;) {
+		lastchar = ch;
+		switch (type) {
+		case 0: // utf-8
+		    ch=fgetc(f);
+		    if (ch < 0) break;
+
+		    if (ch < 0x80) {
+			i = 0;
+		    } else if (ch < 0xc0) {
+			ch = 0xfffd;i = 0;
+		    } else if (ch < 0xe0) {
+			ch ^= 0xc0;i = 1;
+		    } else if (ch < 0xf0) {
+			ch ^= 0xe0;i = 2;
+		    } else if (ch < 0xf8) {
+			ch ^= 0xf0;i = 3;
+		    } else if (ch < 0xfc) {
+			ch ^= 0xf8;i = 4;
+		    } else if (ch < 0xfe) {
+			ch ^= 0xfc;i = 5;
+		    } else {
+			ch2=fgetc(f);
+			if (ch == 0xff && ch2 == 0xfe) {
+			    type = 1;continue;
+			}
+			if (ch == 0xfe && ch2 == 0xff) {
+			    type = 2;continue;
+			}
+                        ungetc(ch2, f); 
+			ch = 0xfffd;i = 0;
+		    }
+
+		    for (;i;i--) {
+			ch2 = fgetc(f);
+			if (ch2 < 0x80 || ch2 >= 0xc0) {
+			    ungetc(ch2, f); 
+			    ch = 0xfffd;
+			    break;
+			}
+			ch = (ch << 6) ^ ch2 ^ 0x80;
+		    }
+		    break;
+		case 1: // utf-16 le
+		    ch=fgetc(f);
+		    ch2=fgetc(f);
+		    if (ch2 == EOF) break;
+                    ch |= ch2 << 8;
+		    if (ch == 0xfffe) {
+			type = 2;
+			continue;
+		    }
+		    break;
+		case 2: // utf-16 be
+		    ch2=fgetc(f);
+		    ch=fgetc(f);
+		    if (ch == EOF) break;
+                    ch |= ch2 << 8;
+		    if (ch == 0xfffe) {
+			type = 1;
+			continue;
+		    }
+		    break;
+		}
+		if (ch == 0xfeff) continue;
+		if (type) {
+		    if (ch >= 0xd800 && ch < 0xdc00) {
+			if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
+                        ch = 0xfffd;
+                    } else if (ch >= 0xdc00 && ch < 0xe000) {
+			if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+			    ch = 0x361dc00 ^ ch ^ (lastchar << 10);
+			} else
+			    ch = 0xfffd;
+                    } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+			ch = 0xfffd;
+		    }
+		}
+
+		if (ch == EOF) break;
+		if (ch == 10) {
+		    if (lastchar == 13) continue;
+		    break;
+		}
+		if (ch == 13) {
+		    break;
+		}
+		pline = utf8out(ch, pline);
+		if (pline > &lastfi->linebuf[lastfi->currentp + linelength - 6]) {pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);break;}
+	    }
+	    i = pline - &lastfi->linebuf[lastfi->currentp];
+	    pline=&lastfi->linebuf[lastfi->currentp];
+	    if (i)
+		while (i && pline[i-1]==' ') i--;
+	    pline[i++] = 0;
+	    lastfi->currentp += i;
+	
+	    if (ch == EOF) break;
+	} while (1);
+        fclose(f);
+	lastfi->linebuflen = lastfi->currentp;
+	lastfi->linebuf=realloc(lastfi->linebuf, lastfi->linebuflen);
+	lastfi->currentp = 0;
+
         tmp = lastfi;
 	lastfi=NULL;
         *volt=0;
         tmp->num=curfnum++;
     } else {
-        tmp = avltree_container_of(b, struct sfile, node1);
+        tmp = avltree_container_of(b, struct sfile, node);
         *volt=tmp->open;
     }
     tmp->open=1;
     reffile=tmp->num;
-    return tmp->f;
+    return tmp;
 }
 
-void closefile(FILE* f) {
-    struct avltree_node *b;
-    struct sfile *tmp, a;
-    a.f=f;
-    if (!(b=avltree_lookup(&a.node2,&file_tree2))) return;
-    tmp = avltree_container_of(b, struct sfile, node2);
-    tmp->open=0;
+void closefile(struct sfile* f) {
+    f->open=0;
 }
 
 void tfree() {
     avltree_destroy(&root_context.tree);
     avltree_destroy(&root_context.contexts);
     avltree_destroy(&macro_tree);
-    avltree_destroy(&file_tree1);
+    avltree_destroy(&file_tree);
     free(lastco);
     free(lastfi);
     free(lastma);
@@ -631,6 +882,7 @@ void tfree() {
     free(arguments.list);
     free(arguments.label);
 #endif
+    while (filenamelist) exitfile(); 
 }
 
 void tinit() {
@@ -638,8 +890,7 @@ void tinit() {
     avltree_init(&root_context.contexts, context_compare, context_free);
     root_context.parent = NULL;
     avltree_init(&macro_tree, macro_compare, macro_free);
-    avltree_init(&file_tree1, file1_compare, file_free);
-    avltree_init(&file_tree2, file2_compare, NULL);
+    avltree_init(&file_tree, file_compare, file_free);
 }
 
 void labelprint() {
