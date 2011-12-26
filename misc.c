@@ -784,7 +784,8 @@ struct sfile* openfile(char* name,char* volt) {
 	lastfi->linebuf=NULL;
 	lastfi->linebuflen=0;
 	lastfi->currentp=0;
-	f=fopen(name,"rb");
+        if (name[0]=='-' && !name[1]) f=stdin;
+        else f=fopen(name,"rb");
         if (!f) {
             lastfi=NULL;
             return NULL;
@@ -900,7 +901,7 @@ struct sfile* openfile(char* name,char* volt) {
 	
 	    if (ch == EOF) break;
 	} while (1);
-        fclose(f);
+        if (f!=stdin) fclose(f);
 	lastfi->linebuflen = lastfi->currentp;
 	lastfi->linebuf=realloc(lastfi->linebuf, lastfi->linebuflen);
 	lastfi->currentp = 0;
