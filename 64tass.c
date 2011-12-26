@@ -220,7 +220,7 @@ int petascii(char quo) {
                     }
                     sym[n] = 0;
                     ch = petsymbolic(sym);
-                    if (!ch) {err_msg(ERROR______EXPECTED, "PETASCII symbol");return 256;}
+                    if (ch < 0) {err_msg(ERROR______EXPECTED, "PETASCII symbol");return 256;}
                     return encode(ch);
                 }
                 return encode((unsigned char)(s4 + actual_encoding[n].offset));
@@ -515,7 +515,8 @@ static int priority(char ch)
         case '(':return 0;
         case 'l':          // <
         case 'h':          // >
-        case 'H':return 5; // `
+        case 'H':          // `
+        case 'S':return 5; // ^
         case '=':
         case '<':
         case '>':
@@ -542,7 +543,8 @@ static int priority(char ch)
         case '(':return 0;
         case 'l':          // <
         case 'h':          // >
-        case 'H':return 5; // `
+        case 'H':          // `
+        case 'S':return 5; // ^
         case '=':
         case '<':
         case '>':
@@ -568,7 +570,7 @@ static int priority(char ch)
 }
 
 void pushs(char ch) {
-    if ((ch=='n' || ch=='t' || ch=='i' || ch=='l' || ch=='h' || ch=='H') && ssp &&
+    if ((ch=='n' || ch=='t' || ch=='i' || ch=='l' || ch=='h' || ch=='H' || ch=='S') && ssp &&
 	priority(s_stack[ssp-1])==priority(ch)) { s_stack[ssp++]=ch; return; }
     if (!ssp || priority(s_stack[ssp-1])<priority(ch)) {
 	s_stack[ssp++]=ch;
@@ -591,6 +593,7 @@ void get_exp(int *wd, int *df,int *cd, struct svalue *v) {// length in bytes, de
     struct svalue val;
     int i,nd=0,tp=0;
     char ch;
+    static char snum[12];
 
     ssp=esp=0;
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
@@ -650,6 +653,7 @@ void get_exp(int *wd, int *df,int *cd, struct svalue *v) {// length in bytes, de
             case '<': pushs('l'); continue;
             case '>': pushs('h'); continue;
             case '`': pushs('H'); continue;
+            case '^': pushs('S'); continue;
             }
 	    lpoint--;
             if (!get_num(0, &val)) return;
@@ -708,10 +712,17 @@ void get_exp(int *wd, int *df,int *cd, struct svalue *v) {// length in bytes, de
         else if (v_stack[vsp-1].type == T_INT) {
             long val1 = v_stack[vsp-1].num;
             long val2;
+
             switch (ch) {
             case 'l': val1&=255; break;
             case 'h': val1=(val1 >> 8) & 255; break;
             case 'H': val1=(val1 >> 16) & 255; break;
+            case 'S': 
+                v_stack[vsp-1].type = T_STR;
+                sprintf(snum,"%ld",val1);
+                v_stack[vsp-1].str.data=(unsigned char *)snum;
+                v_stack[vsp-1].str.len=strlen(snum);
+                continue;
             case 'n': val1=-val1; break;
             case 'i': val1=~val1; break;
             case 't': val1=!val1; break;
@@ -932,8 +943,6 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
     char ch;
 
     long pos,lin = 1,cnt,oldpos=-1;
-
-    char snum[12];
 
     struct slabel* tmp = NULL;
     struct smacro* tmp2 = NULL;
@@ -1216,34 +1225,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                         ignore();
                         ch=here();
 
-                        /* if ^ infront of number, convert decimal value to string */
-			if (ch=='^') {
-                            lpoint++;
-			    get_exp(&w,&d,&c,&val);if (!d) fixeddig=0;
-			    if (!c) break;
-			    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-
-			    if (val.type == T_INT) sprintf(snum,"%ld",val.num);
-                            else if (val.type == T_NONE) snum[0]=0;
-                            else {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-
-                            for(i=0; snum[i]; i++) {
-                                if (ch2>=0) {
-                                    pokeb(ch2);
-                                }
-                                ch2=encode(snum[i]);
-                                if (prm==CMD_CHAR) {if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}}
-                                else if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
-                                    if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
-                                    if (ch2>=0xc0 && ch2<0xe0) ch2-=0x60; else
-                                        if (ch2==0xff) ch2=0x7e; else
-                                            if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto cvege2;}
-				    if (prm==CMD_SHIFT2) ch2<<=1;
-                                }
-                            }
-                            goto cvege;
-			}
-			get_exp(&w,&d,&c,&val); //ellenorizve.
+			get_exp(&w,&d,&c,&val); if (!d) fixeddig=0; //ellenorizve.
 			if (!c) break;
                         if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
                         if (val.type != T_STR || val.str.len)
@@ -1274,7 +1256,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                                 if (prm==CMD_SHIFT2) ch2<<=1;
                             } else if (prm==CMD_NULL && !ch2 && d) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
                         } while (val.type == T_STR && val.str.len);
-                    cvege:
+                
                         ignore();if ((ch=get())==',') continue;
                         if (ch) err_msg(ERROR______EXPECTED,",");
                         if (ch2>=0) {
@@ -1976,6 +1958,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
 		while ((ch=get())) {
                     /* if ^ infront of number, convert decimal value to string */
 		    if (ch=='^') {
+                        char snum[12];
+
 			get_exp(&w,&d,&c,&val);if (!d) fixeddig=0;
 			if (!c) break;
 			if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}

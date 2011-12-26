@@ -183,7 +183,7 @@ extern unsigned long reffile;
 #define here() pline[lpoint]
 extern const unsigned char whatis[256];
 extern unsigned char encode(unsigned char);
-extern unsigned char petsymbolic(char*);
+extern int petsymbolic(char*);
 extern void err_msg(unsigned char, char*);
 extern struct slabel* find_label(char*);
 extern struct slabel* new_label(char*);
