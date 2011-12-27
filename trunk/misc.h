@@ -18,6 +18,7 @@
 #ifndef _MISC_H_
 #define _MISC_H_
 #include "libtree.h"
+#define VERSION "1.46"
 // ---------------------------------------------------------------------------
 // $00-$3f warning
 // $40-$7f error
@@ -60,6 +61,8 @@
 #define ERROR__MACRECURSION 0x88
 #define ERROR___UNKNOWN_CPU 0x89
 #define ERROR_UNKNOWN_OPTIO 0x8A
+#define ERROR_TOO_MANY_PASS 0x8B
+#define ERROR__TOO_MANY_ERR 0x8C
 
 #define WHAT_EXPRESSION 1
 #define WHAT_HASHMARK   3
@@ -87,7 +90,7 @@ struct scontext {
 };
 
 enum etype {
-    T_NONE=0, T_INT, T_STR
+    T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR
 };
 
 struct svalue {
@@ -175,6 +178,7 @@ extern char pline[];
 extern int labelexists;
 extern void status();
 extern unsigned long reffile;
+extern int pass;
 #endif
 
 #ifdef _MAIN_C_
