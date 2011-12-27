@@ -61,7 +61,7 @@ static char llist[linelength];  //current line for listing
 static int lpoint;              //position in current line
 static char ident[linelength], ident2[linelength];  //identifier (label, etc)
 static char varname[linelength];//variable (same as identifier?)
-static char path[80];           //path
+static char path[linelength];   //path
 static int pagelo=-1;           //still in same page?
 static FILE* flist = NULL;      //listfile
 enum {
@@ -995,19 +995,21 @@ void wait_cmd(struct sfile *fil, int no)
 }
 
 int get_path(char *base) {
-    int i=0,q=1;
+    int q=1;
+    unsigned int i=0;
     if (base) {
         char *c=strrchr(base,'/');
         if (c) {
             i=c-base+1;
+            if (i>=sizeof(path)) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
             memcpy(path,base,i);
         }
     }
     ignore();
     if (!here()) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
     if (here()=='\"') {lpoint++;q=0;}
-    while (here() && (here()!='\"' || q) && i<80) path[i++]=get();
-    if (i==80 || (!q && here()!='\"')) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
+    while (here() && (here()!='\"' || q) && i<sizeof(path)) path[i++]=get();
+    if (i>=sizeof(path) || (!q && here()!='\"')) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
     if (!q) lpoint++;
     path[i]=0;
     ignore();
@@ -1125,6 +1127,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
 	    else err_msg(ERROR_FILERECURSION,NULL);
         }
      }
+    nam = fin->name;
     fin->currentp=fpos;
     for (;;) {
 	if (fin->linebuflen==fin->currentp) // eof?
