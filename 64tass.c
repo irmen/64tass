@@ -2683,7 +2683,7 @@ int main(int argc,char *argv[]) {
                         fputc(size >> 8,fout);
                         if (scpumode) fputc(size >> 16,fout);
                     }
-                    if (!arguments.stripstart || arguments.nonlinear) {
+                    if ((!arguments.stripstart && !last) || arguments.nonlinear) {
                         fputc(start,fout);
                         fputc(start >> 8,fout);
                         if (scpumode) fputc(start >> 16,fout);
