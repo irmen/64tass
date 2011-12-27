@@ -286,7 +286,7 @@ int petsymbolic(char *str) {
             n = (n * 10) + str[1] - '0';
             if (!str[2]) return (unsigned char)n;
             if (str[2] >= '0' && str[2] <= '9') {
-                n = (n * 10) + str[1] - '0';
+                n = (n * 10) + str[2] - '0';
                 if (n < 256) return (unsigned char)n;
             }
         }
@@ -296,7 +296,9 @@ int petsymbolic(char *str) {
         if (n >='a' && n <='z') return petsymcbm[n - 'a']; 
         if (n >='2' && n <='8') return (unsigned char)(n - '2' + 0x95); 
         switch (n) {
+        case '0': return '0';
         case '1': return 0x81;
+        case '9': return ')';
         case '@': return 0xa4;
         case '+': return 0xa6;
         case '-': return 0xdc;
@@ -309,6 +311,7 @@ int petsymbolic(char *str) {
         if (n >='a' && n <='z') return (unsigned char)(n - 'a' + 0xc1);
         if (n >='1' && n <='9') return (unsigned char)(n - '0' + 0x20);
         switch (n) {
+        case '0': return '0';
         case '*': return 0xc0;
         case '+': return 0xdb;
         case '^': return 0xde;
@@ -331,6 +334,7 @@ int petsymbolic(char *str) {
         case '@': return 0x00;
         case '0': return 0x92;
         case '1': return 0x90;
+        case '2': return 0x05;
         case '3': return 0x1c;
         case '4': return 0x9f;
         case '5': return 0x9c;
@@ -447,7 +451,9 @@ const char *terr_fatal[]={
 	"File recursion\n",
 	"Macro recursion too deep\n",
         "Unknown CPU: %s\n",
-        "Unknown option: %s\n"
+        "Unknown option: %s\n",
+        "Too many passes\n",
+        "Too many errors\n"
 };
 
 void err_msg(unsigned char no, char* prm) {
@@ -455,7 +461,12 @@ void err_msg(unsigned char no, char* prm) {
     struct sfilenamelist *b=NULL, *b2=filenamelist;
     char *p;
 
-    if (!arguments.warning && no<0x40) return;
+    if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
+
+    if (!arguments.warning && no<0x40) {
+        warnings++;
+        return;
+    }
 
     if (filenamelist) {
 	b=filenamelist->next;
@@ -512,8 +523,6 @@ void err_msg(unsigned char no, char* prm) {
         snprintf(line,linelength," \"%s\"\n",p);
     }
     if (no!=ERROR__USER_DEFINED) adderror(line);
-
-    if (errors==100) {adderror("Too many errors\n"); status(); exit(1);}
 }
 
 //----------------------------------------------------------------------
@@ -604,7 +613,7 @@ struct slabel* find_label(char* name) {
             if (!c) break;
             if (d) {
                 a2 = avltree_container_of(d, struct slabel, node);
-                a2->proclabel = 0; a2->used = 1;
+                a2->proclabel = 0; a2->used = pass;
             }
             context2 = avltree_container_of(c, struct scontext, node);
             b.name = n + 1;
@@ -790,6 +799,7 @@ struct sfile* openfile(char* name,char* volt) {
             lastfi=NULL;
             return NULL;
         }
+        if (arguments.quiet) fprintf(stdout, "Assembling file:   %s\n",name);
         lastchar=fgetc(f);
         ungetc(lastchar, f); 
         if (!lastchar) type=2; /* most likely */
@@ -968,6 +978,7 @@ void labelprint() {
             if (strchr(l->name,'-') || strchr(l->name,'+')) continue;
             fprintf(flab,"%-16s= ",l->name);
             switch (l->value.type) {
+            case T_CHR:
             case T_INT:
                 val=l->value.num;
                 if (val<0) fprintf(flab,"-");
@@ -976,7 +987,7 @@ void labelprint() {
                 else if (val<0x10000l) fprintf(flab,"$%04lx",val);
                 else if (val<0x1000000l) fprintf(flab,"$%06lx",val);
                 else fprintf(flab,"$%08lx",val);
-                if (!l->used) {
+                if (l->used<pass) {
                     if (val<0x100) fprintf(flab,"  ");
                     if (val<0x10000l) fprintf(flab,"  ");
                     if (val<0x1000000l) fprintf(flab,"  ");
@@ -988,7 +999,7 @@ void labelprint() {
                     if (val) fprintf(flab, ", ");
                     fprintf(flab,"$%02x", l->value.str.data[val]);
                 }
-                if (!l->used) {
+                if (l->used<pass) {
                     fprintf(flab,"; *** unused");
                 }
                 break;
@@ -1004,7 +1015,7 @@ void labelprint() {
 
 // ------------------------------------------------------------------
 #ifndef WIN32
-const char *argp_program_version="6502/65C02/65816/DTV TASM 1.46";
+const char *argp_program_version="6502/65C02/65816/DTV TASM " VERSION;
 const char *argp_program_bug_address="<soci@c64.rulez.org>";
 const char doc[]="64tass Turbo Assembler Macro";
 const char args_doc[]="SOURCE";
@@ -1147,7 +1158,7 @@ void testarg(int argc,char *argv[]) {
 	    exit(1);
 	}
 	if (!strcmp(argv[j],"-V") || !strcmp(argv[j],"--version")) {
-	    printf("6502/65C02/65816/DTV TASM 1.46\n");
+	    printf("6502/65C02/65816/DTV TASM " VERSION "\n");
 	    exit(1);
 	}
 	if (!strcmp(argv[j],"-w") || !strcmp(argv[j],"--no-warn")) {arguments.warning=0;continue;}
