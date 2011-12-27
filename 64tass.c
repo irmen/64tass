@@ -2063,7 +2063,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
 		if (prm==CMD_ENDP) { // .endp
 		    if (here()) goto extrachar;
 		    if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
-		    if ((l_address>>8) != (unsigned long)pagelo) {
+		    if ((l_address>>8) != (unsigned long)pagelo && fixeddig) {
                         err_msg(ERROR____PAGE_ERROR,NULL);
                     }
 		    pagelo=-1;
