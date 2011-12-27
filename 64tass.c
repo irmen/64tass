@@ -994,9 +994,17 @@ void wait_cmd(struct sfile *fil, int no)
     }
 }
 
-int get_path() {
+int get_path(char *base) {
     int i=0,q=1;
+    if (base) {
+        char *c=strrchr(base,'/');
+        if (c) {
+            i=c-base+1;
+            memcpy(path,base,i);
+        }
+    }
     ignore();
+    if (!here()) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
     if (here()=='\"') {lpoint++;q=0;}
     while (here() && (here()!='\"' || q) && i<80) path[i++]=get();
     if (i==80 || (!q && here()!='\"')) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
@@ -1537,7 +1545,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                         }
                     } else if (prm==CMD_BINARY) { // .binary
                         long foffset=0,fsize=all_mem+1;
-                        if (get_path()) break;
+                        if (get_path(nam)) break;
                         if ((ch=get())) {
                             if (ch!=',') goto extrachar;
                             get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
@@ -1821,7 +1829,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
 		    break;
 		}
                 if (prm==CMD_ENC) { // .enc
-                    get_path();
+                    if (get_path(NULL)) break;
                     if (!strcasecmp(path,"none")) encoding=0;
                     else
                         if (!strcasecmp(path,"screen")) encoding=1;
@@ -1831,7 +1839,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
 		}
                 if (prm==CMD_CPU) { // .cpu
                     int def;
-                    get_path();
+                    if (get_path(NULL)) break;
                     def=arguments.cpumode;
                     if (!strcmp(path,"6502")) def=OPCODES_6502;
                     else if (!strcasecmp(path,"65c02")) def=OPCODES_65C02;
@@ -1969,7 +1977,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
 		    break;
 		}
 		if (prm==CMD_INCLUDE) { // .include
-                    if (get_path()) break;
+                    if (get_path(nam)) break;
                     if (here()) goto extrachar;
                     lin=sline;
                     enterfile(path,lin);
