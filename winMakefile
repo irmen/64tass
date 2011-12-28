@@ -1,5 +1,5 @@
 CC = i586-mingw32msvc-gcc
-OBJ = 64tass.o opcodes.o misc.o avl.o
+OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o
 LANG = C
 CFLAGS = -Os -march=i586 -fomit-frame-pointer -fno-exceptions -fno-align-labels -fno-align-loops -fno-align-jumps -fno-align-functions -mpreferred-stack-boundary=2 -pipe
 #CFLAGS = -Wall -pipe
@@ -10,9 +10,11 @@ CFLAGS = -Os -march=i586 -fomit-frame-pointer -fno-exceptions -fno-align-labels 
 
 opcodes.o: opcodes.c opcodes.h
 
-misc.o: misc.c misc.h opcodes.h libtree.h
+misc.o: misc.c misc.h opcodes.h libtree.h getopt.h
 
 avl.o: libtree.h
+
+my_getopt.o: my_getopt.c getopt.h my_getopt.h
 
 .PHONY: clean strip
 

@@ -20,17 +20,15 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef WIN32
-#include <argp.h>
-#endif
 #include "libtree.h"
 #include "misc.h"
 #include "opcodes.h"
 #include <string.h>
+#include "getopt.h"
 
 void err_msg(unsigned char no, char* prm);
 
-struct arguments_t arguments={1,1,0,0,0,NULL,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
+struct arguments_t arguments={1,1,0,0,0,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
 
 static struct avltree macro_tree;
 static struct avltree file_tree;
@@ -785,7 +783,7 @@ struct sfile* openfile(char* name,char* volt) {
     lastfi->name=name;
     b=avltree_insert(&lastfi->node, &file_tree);
     if (!b) { //new file
-	int type = 0, lastchar;
+	enum {UNKNOWN, UTF8, UTF16LE, UTF16BE, ISO1} type = UNKNOWN, lastchar;
         FILE *f;
 
 	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
@@ -802,10 +800,10 @@ struct sfile* openfile(char* name,char* volt) {
         if (arguments.quiet) fprintf(stdout, "Assembling file:   %s\n",name);
         lastchar=fgetc(f);
         ungetc(lastchar, f); 
-        if (!lastchar) type=2; /* most likely */
+        if (!lastchar) type=UTF16BE; /* most likely */
 
 	do {
-	    int i=0,ch = 0, ch2;
+	    int i=0, j, ch = 0, ch2;
 	    unsigned char *pline;
 	    if (lastfi->currentp + linelength > lastfi->linebuflen) {
 		lastfi->linebuflen += 0x1000;
@@ -813,83 +811,107 @@ struct sfile* openfile(char* name,char* volt) {
 	    }
 	    pline=&lastfi->linebuf[lastfi->currentp];
 	    for (;;) {
-		lastchar = ch;
-		switch (type) {
-		case 0: // utf-8
-		    ch=fgetc(f);
-		    if (ch < 0) break;
+                if (arguments.toascii) {
+                    lastchar = ch;
+                    switch (type) {
+                        case UNKNOWN:
+                        case UTF8:
+                            ch=fgetc(f);
+                            if (ch < 0) break;
 
-		    if (ch < 0x80) {
-			i = 0;
-		    } else if (ch < 0xc0) {
-			ch = 0xfffd;i = 0;
-		    } else if (ch < 0xe0) {
-			ch ^= 0xc0;i = 1;
-		    } else if (ch < 0xf0) {
-			ch ^= 0xe0;i = 2;
-		    } else if (ch < 0xf8) {
-			ch ^= 0xf0;i = 3;
-		    } else if (ch < 0xfc) {
-			ch ^= 0xf8;i = 4;
-		    } else if (ch < 0xfe) {
-			ch ^= 0xfc;i = 5;
-		    } else {
-			ch2=fgetc(f);
-			if (ch == 0xff && ch2 == 0xfe) {
-			    type = 1;continue;
-			}
-			if (ch == 0xfe && ch2 == 0xff) {
-			    type = 2;continue;
-			}
-                        ungetc(ch2, f); 
-			ch = 0xfffd;i = 0;
-		    }
+                            if (ch < 0x80) {
+                                i = 0;
+                            } else if (ch < 0xc0) {
+                                if (type == UNKNOWN) {
+                                    type = ISO1; break;
+                                }
+                                ch = 0xfffd; i = 0;
+                            } else if (ch < 0xe0) {
+                                ch ^= 0xc0;i = 1;
+                            } else if (ch < 0xf0) {
+                                ch ^= 0xe0;i = 2;
+                            } else if (ch < 0xf8) {
+                                ch ^= 0xf0;i = 3;
+                            } else if (ch < 0xfc) {
+                                ch ^= 0xf8;i = 4;
+                            } else if (ch < 0xfe) {
+                                ch ^= 0xfc;i = 5;
+                            } else {
+                                ch2=fgetc(f);
+                                if (ch == 0xff && ch2 == 0xfe) {
+                                    type = UTF16LE;continue;
+                                }
+                                if (ch == 0xfe && ch2 == 0xff) {
+                                    type = UTF16BE;continue;
+                                }
+                                ungetc(ch2, f); 
+                                if (type == UNKNOWN) {
+                                    type = ISO1; break;
+                                }
+                                ch = 0xfffd; i = 0;
+                            }
 
-		    for (;i;i--) {
-			ch2 = fgetc(f);
-			if (ch2 < 0x80 || ch2 >= 0xc0) {
-			    ungetc(ch2, f); 
-			    ch = 0xfffd;
-			    break;
-			}
-			ch = (ch << 6) ^ ch2 ^ 0x80;
-		    }
-		    break;
-		case 1: // utf-16 le
-		    ch=fgetc(f);
-		    ch2=fgetc(f);
-		    if (ch2 == EOF) break;
-                    ch |= ch2 << 8;
-		    if (ch == 0xfffe) {
-			type = 2;
-			continue;
-		    }
-		    break;
-		case 2: // utf-16 be
-		    ch2=fgetc(f);
-		    ch=fgetc(f);
-		    if (ch == EOF) break;
-                    ch |= ch2 << 8;
-		    if (ch == 0xfffe) {
-			type = 1;
-			continue;
-		    }
-		    break;
-		}
-		if (ch == 0xfeff) continue;
-		if (type) {
-		    if (ch >= 0xd800 && ch < 0xdc00) {
-			if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
-                        ch = 0xfffd;
-                    } else if (ch >= 0xdc00 && ch < 0xe000) {
-			if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-			    ch = 0x361dc00 ^ ch ^ (lastchar << 10);
-			} else
-			    ch = 0xfffd;
-                    } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-			ch = 0xfffd;
-		    }
-		}
+                            for (j = i; i; i--) {
+                                ch2 = fgetc(f);
+                                if (ch2 < 0x80 || ch2 >= 0xc0) {
+                                    if (type == UNKNOWN) {
+                                        type = ISO1;
+                                        i = (j - i) * 6;
+                                        pline = utf8out(((~0x7f >> j) & 0xff) | (ch >> i), pline);
+                                        for (;i; i-= 6) {
+                                            pline = utf8out(((ch >> (i-6)) & 0x3f) | 0x80, pline);
+                                        }
+                                        ch = ch2; j = 0;
+                                        break;
+                                    }
+                                    ungetc(ch2, f);
+                                    ch = 0xfffd;break;
+                                }
+                                ch = (ch << 6) ^ ch2 ^ 0x80;
+                            }
+                            if (j) type = UTF8;
+                            break;
+                        case UTF16LE:
+                            ch=fgetc(f);
+                            ch2=fgetc(f);
+                            if (ch2 == EOF) break;
+                            ch |= ch2 << 8;
+                            if (ch == 0xfffe) {
+                                type = UTF16BE;
+                                continue;
+                            }
+                            break;
+                        case UTF16BE:
+                            ch2=fgetc(f);
+                            ch=fgetc(f);
+                            if (ch == EOF) break;
+                            ch |= ch2 << 8;
+                            if (ch == 0xfffe) {
+                                type = UTF16LE;
+                                continue;
+                            }
+                            break;
+                        case ISO1:
+                            ch=fgetc(f);
+                            break;
+                    }
+                    if (ch == 0xfeff) continue;
+                    if (type != UTF8) {
+                        if (ch >= 0xd800 && ch < 0xdc00) {
+                            if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
+                            ch = 0xfffd;
+                        } else if (ch >= 0xdc00 && ch < 0xe000) {
+                            if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                                ch = 0x361dc00 ^ ch ^ (lastchar << 10);
+                            } else
+                                ch = 0xfffd;
+                        } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                            ch = 0xfffd;
+                        }
+                    }
+                } else {
+                    ch = fgetc(f);
+                }
 
 		if (ch == EOF) break;
 		if (ch == 10) {
@@ -942,12 +964,6 @@ void tfree() {
     free(lastfi);
     free(lastma);
     free(lastlb);
-#ifdef WIN32
-    free(arguments.input);
-    //free(arguments.output);
-    free(arguments.list);
-    free(arguments.label);
-#endif
     while (filenamelist) exitfile(); 
 }
 
@@ -1014,228 +1030,135 @@ void labelprint() {
 }
 
 // ------------------------------------------------------------------
-#ifndef WIN32
-const char *argp_program_version="6502/65C02/65816/DTV TASM " VERSION;
-const char *argp_program_bug_address="<soci@c64.rulez.org>";
-const char doc[]="64tass Turbo Assembler Macro";
-const char args_doc[]="SOURCE";
-const struct argp_option options[]={
-    {"no-warn"	, 	'w',		0,     	0,  "Suppress warnings", 0 },
-    {"quiet"	,	'q',		0,     	0,  "Display errors/warnings", 0 },
-    {"nonlinear",	'n',		0,     	0,  "Generate nonlinear output file", 0 },
-    {"nostart" 	,	'b',		0,     	0,  "Strip starting address", 0 },
-    {"wordstart",	'W',		0,     	0,  "Force 2 byte start address", 0 },
-    {"ascii" 	,	'a',		0,     	0,  "Convert ASCII to PETASCII", 0 },
-    {"no-precedence",   'P',            0,      0,  "No operator precedence in expressions", 0 },
-    {"compatible-ops",  'O',            0,      0,  "Enable TASS compatible operators", 0 },
-    {"case-sensitive",	'C',		0,     	0,  "Case sensitive labels", 0 },
-    {		0,	'o',"<file>"	,      	0,  "Place output into <file>", 0 },
-    {		0,	'D',"<label>=<value>",     	0,  "Define <label> to <value>", 0 },
-    {"long-branch",	'B',		0,     	0,  "Automatic bxx *+3 jmp $xxxx", 0 },
-    {		0,  	0,		0,     	0,  "Target selection:", 0 },
-    {"m65xx"  	,     	1,		0,     	0,  "Standard 65xx (default)", 0 },
-    {"m6502"  	,     	'i',		0,     	0,  "NMOS 65xx", 0 },
-    {"m65c02"  	,     	'c',		0,     	0,  "CMOS 65C02", 0 },
-    {"m65816"  	,     	'x',		0,     	0,  "W65C816", 0 },
-    {"m65dtv02"	,     	't',		0,     	0,  "65DTV02", 0 },
-    {		0,  	0,		0,     	0,  "Source listing:", 0 },
-    {"labels"	,	'l',"<file>"	,      	0,  "List labels into <file>", 0 },
-    {"list"	,	'L',"<file>"	,      	0,  "List into <file>", 0 },
-    {"no-monitor",	'm',		0,      0,  "Don't put monitor code into listing", 0 },
-    {"no-source",	's',		0,      0,  "Don't put source code into listing", 0 },
-    {		0,  	0,		0,     	0,  "Misc:", 0 },
-    { 0, 0, 0, 0, NULL, 0 }
+const char *short_options= "wqnbWaPOCBicxtl:L:msVo:D:";
+
+const struct option long_options[]={
+    {"no-warn"	        , no_argument      , 0,	'w'},
+    {"quiet"	        , no_argument      , 0,	'q'},
+    {"nonlinear"        , no_argument      , 0,	'n'},
+    {"nostart" 	        , no_argument      , 0,	'b'},
+    {"wordstart"        , no_argument      , 0,	'W'},
+    {"ascii" 	        , no_argument      , 0,	'a'},
+    {"no-precedence"    , no_argument      , 0, 'P'},
+    {"compatible-ops"   , no_argument      , 0, 'O'},
+    {"case-sensitive"   , no_argument      , 0,	'C'},
+    {"long-branch"      , no_argument      , 0,	'B'},
+    {"m65xx"  	        , no_argument      , 0,   1},
+    {"m6502"  	        , no_argument      , 0,	'i'},
+    {"m65c02"  	        , no_argument      , 0,	'c'},
+    {"m65816"  	        , no_argument      , 0,	'x'},
+    {"m65dtv02"	        , no_argument      , 0, 't'},
+    {"labels"	        , required_argument, 0,	'l'},
+    {"list"	        , required_argument, 0,	'L'},
+    {"no-monitor"       , no_argument      , 0,	'm'},
+    {"no-source"        , no_argument      , 0, 's'},
+    {"version"          , no_argument      , 0, 'V'},
+    {"usage"            , no_argument      , 0,  2},
+    {"help"             , no_argument      , 0,  3},
+    { 0, 0, 0, 0}
 };
 
-static error_t parse_opt (int key,char *arg,struct argp_state *state)
-{
-    switch (key)
-    {
-    case 'w':arguments.warning=0;break;
-    case 'q':arguments.quiet=0;break;
-    case 'W':arguments.wordstart=0;break;
-    case 'n':arguments.nonlinear=1;break;
-    case 'b':arguments.stripstart=1;break;
-    case 'a':arguments.toascii=1;break;
-    case 'P':arguments.noprecedence=1;break;
-    case 'O':arguments.oldops=1;break;
-    case 'o':arguments.output=arg;break;
-    case 'D':
-    {
-	struct slabel* tmp;
-	int i=0;
-	while (arg[i] && arg[i]!='=') {
-            if (!arguments.casesensitive) arg[i]=lowcase(arg[i]);
-	    i++;
-	}
-	if (arg[i]=='=') {
-            arg[i]=0;
-            tmp=new_label(arg);tmp->proclabel=0;
-            tmp->requires=0;
-            tmp->conflicts=0;
-	    tmp->value.type=T_INT;tmp->value.num=atoi(&arg[i+1]);
-	}
-	break;
-    }
-    case 'B':arguments.longbranch=1;break;
-    case 1:arguments.cpumode=OPCODES_6502;break;
-    case 'i':arguments.cpumode=OPCODES_6502i;break;
-    case 'c':arguments.cpumode=OPCODES_65C02;break;
-    case 'x':arguments.cpumode=OPCODES_65816;break;
-    case 't':arguments.cpumode=OPCODES_65DTV02;break;
-    case 'l':arguments.label=arg;break;
-    case 'L':arguments.list=arg;break;
-    case 'm':arguments.monitor=0;break;
-    case 's':arguments.source=0;break;
-    case 'C':arguments.casesensitive=1;break;
-    case ARGP_KEY_ARG:if (state->arg_num) argp_usage(state);arguments.input=arg;break;
-    case ARGP_KEY_END:if (!state->arg_num) argp_usage(state);break;
-    default:return ARGP_ERR_UNKNOWN;
-    }
-    return 0;
-}
+int testarg(int argc,char *argv[]) {
+    int opt, longind;
+    
+    while ((opt = getopt_long_only(argc, argv, short_options, long_options, &longind)) != -1)
+        switch (opt)
+        {
+            case 'w':arguments.warning=0;break;
+            case 'q':arguments.quiet=0;break;
+            case 'W':arguments.wordstart=0;break;
+            case 'n':arguments.nonlinear=1;break;
+            case 'b':arguments.stripstart=1;break;
+            case 'a':arguments.toascii=1;break;
+            case 'P':arguments.noprecedence=1;break;
+            case 'O':arguments.oldops=1;break;
+            case 'o':arguments.output=optarg;break;
+            case 'D':
+                {
+                    struct slabel* tmp;
+                    int i=0;
+                    while (optarg[i] && optarg[i]!='=') {
+                        if (!arguments.casesensitive) optarg[i]=lowcase(optarg[i]);
+                        i++;
+                    }
+                    if (optarg[i]=='=') {
+                        optarg[i]=0;
+                        tmp=new_label(optarg);tmp->proclabel=0;
+                        tmp->requires=0;
+                        tmp->conflicts=0;
+                        tmp->value.type=T_INT;tmp->value.num=atoi(&optarg[i+1]);
+                        optarg[i]='=';
+                    }
+                    break;
+                }
+            case 'B':arguments.longbranch=1;break;
+            case 1:arguments.cpumode=OPCODES_6502;break;
+            case 'i':arguments.cpumode=OPCODES_6502i;break;
+            case 'c':arguments.cpumode=OPCODES_65C02;break;
+            case 'x':arguments.cpumode=OPCODES_65816;break;
+            case 't':arguments.cpumode=OPCODES_65DTV02;break;
+            case 'l':arguments.label=optarg;break;
+            case 'L':arguments.list=optarg;break;
+            case 'm':arguments.monitor=0;break;
+            case 's':arguments.source=0;break;
+            case 'C':arguments.casesensitive=1;break;
+            case 2:printf(
+	       "Usage: 64tass [-abBCnOPqwWcitxms?V] [-D <label>=<value>] [-o <file>]\n"
+	       "	[-l <file>] [-L <file>] [--ascii] [--nostart] [--long-branch]\n"
+	       "	[--case-sensitive] [--nonlinear] [--compatible-ops]\n"
+	       "	[--no-precedence] [--quiet] [--no-warn] [--wordstart] [--m65c02]\n"
+	       "	[--m6502] [--m65xx] [--m65dtv02] [--m65816] [--labels=<file>]\n"
+	       "	[--list=<file>] [--no-monitor] [--no-source] [--help] [--usage]\n"
+	       "	[--version] SOURCES\n");exit(0);
 
-const struct argp argp={options,parse_opt,args_doc,doc,NULL,NULL,NULL};
-
-void testarg(int argc,char *argv[]) {
-    argp_parse(&argp,argc,argv,0,0,&arguments);
-}
-#else
-void testarg(int argc,char *argv[]) {
-    int j,out=0;
-    for (j=1;j<argc;j++)
-    {
-	if (!strcmp(argv[j],"-?") || !strcmp(argv[j],"--help")) {
-	    printf(
-		"Usage: 64tass [OPTION...] SOURCE\n"
-		"64tass Turbo Assembler Macro\n"
-		"\n"
-                "  -a, --ascii\t\t     Convert ASCII to PETASCII\n"
-		"  -b, --nostart\t\t     Strip starting address\n"
-		"  -B, --long-branch\t     Automatic bxx *+3 jmp $xxxx\n"
-		"  -C, --case-sensitive\t     Case sensitive labels\n"
-		"  -D <label>=<value>\t     Define <label> to <value>\n"
-		"  -n, --nonlinear\t     Generate nonlinear output file\n"
-		"  -o <file>\t\t     Place output into <file>\n"
-                "  -O, --compatible-ops\t     Enable TASS compatible operators\n"
-                "  -P, --no-precedence\t     No operator precedence in expressions\n"
-		"  -q, --quiet\t\t     Display errors/warnings\n"
-		"  -w, --no-warn\t\t     Suppress warnings\n"
-		"  -W, --wordstart\t     Force 2 byte start address\n"
-		"\n"
-		" Target selection:\n"
-		"  -c, --m65c02\t\t     CMOS 65C02\n"
-		"  -i, --m6502\t\t     NMOS 65xx\n"
-		"      --m65xx\t\t     Standard 65xx (default)\n"
-		"  -t, --m65dtv02\t     65DTV02\n"
-		"  -x, --m65816\t\t     W65C816\n"
-		"\n"
-		" Source listing:\n"
-		"  -l <file>\t\t     List labels into <file>\n"
-		"  -L <file>\t\t     List into <file>\n"
-		"  -m, --no-monitor\t     Don't put monitor code into listing\n"
-		"  -s, --no-source\t     Don't put source code into listing\n"
-		"\n"	
-		" Misc:\n"
-		"\n"
-		"  -?, --help\t\t     Give this help list\n"
-		"      --usage\t\t     Give a short usage message\n"
-		"  -V, --version\t\t     Print program version\n"
-		"\n"
-		"Mandatory or optional arguments to long options are also mandatory or optional\n"
-		"for any corresponding short options.\n"
-		"\n"
-		"Report bugs to <soci@c64.rulez.org>.\n");
-	    exit(1);
-	}
-	if (!strcmp(argv[j],"--usage")) {
-	    printf(
-		"Usage: 64tass [-abBCnwWcitxXms?V] [-D <label>=<value>] [-o <file>] [-l <file>]\n"
-		"\t    [-L <file>] [--ascii] [--nostart] [--long-branch]\n"
-		"\t    [--case-sensitive] [--nonlinear] [--no-warn] [--wordstart]\n"
-		"\t    [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816]\n"
-		"\t    [--no-monitor] [--no-source] [--help] [--usage] [--version] SOURCE\n");
-	    exit(1);
-	}
-	if (!strcmp(argv[j],"-V") || !strcmp(argv[j],"--version")) {
-	    printf("6502/65C02/65816/DTV TASM " VERSION "\n");
-	    exit(1);
-	}
-	if (!strcmp(argv[j],"-w") || !strcmp(argv[j],"--no-warn")) {arguments.warning=0;continue;}
-	if (!strcmp(argv[j],"-W") || !strcmp(argv[j],"--wordstart")) {arguments.wordstart=0;continue;}
-	if (!strcmp(argv[j],"-n") || !strcmp(argv[j],"--nonlinear")) {arguments.nonlinear=1;continue;}
-	if (!strcmp(argv[j],"-b") || !strcmp(argv[j],"--nostart")) {arguments.stripstart=1;continue;}
-        if (!strcmp(argv[j],"-a") || !strcmp(argv[j],"--ascii")) {arguments.toascii=1;continue;}
-        if (!strcmp(argv[j],"-P") || !strcmp(argv[j],"--no-precedence")) {arguments.noprecedence=1;continue;}
-        if (!strcmp(argv[j],"-O") || !strcmp(argv[j],"--compatible-ops")) {arguments.oldops=1;continue;}
-        if (!strcmp(argv[j],"-q") || !strcmp(argv[j],"--quiet")) {arguments.quiet=0;continue;}
-	if (!strcmp(argv[j],"-B") || !strcmp(argv[j],"--long-branch")) {arguments.longbranch=1;continue;}
-        if (!strcmp(argv[j],"--m65xx")) {arguments.cpumode=OPCODES_6502;continue;}
-        if (!strcmp(argv[j],"-i") || !strcmp(argv[j],"--m6502")) {arguments.cpumode=OPCODES_6502i;continue;}
-        if (!strcmp(argv[j],"-c") || !strcmp(argv[j],"--m65c02")) {arguments.cpumode=OPCODES_65C02;continue;}
-        if (!strcmp(argv[j],"-x") || !strcmp(argv[j],"--m65816")) {arguments.cpumode=OPCODES_65816;continue;}
-        if (!strcmp(argv[j],"-t") || !strcmp(argv[j],"--m65dtv02")) {arguments.cpumode=OPCODES_65DTV02;continue;}
-	if (!strcmp(argv[j],"-l")) {
-	    j++;if (j>=argc) goto ide2;
-	    if (arguments.label) goto ide3;
-	    arguments.label=malloc(strlen(argv[j])+1);
-	    strcpy(arguments.label,argv[j]);
-	    continue;
-	}
-	if (!strcmp(argv[j],"-L")) {
-	    j++;if (j>=argc) goto ide2;
-	    if (arguments.list) goto ide3;
-	    arguments.list=malloc(strlen(argv[j])+1);
-	    strcpy(arguments.list,argv[j]);
-	    continue;
-	}
-	if (!strcmp(argv[j],"-m") || !strcmp(argv[j],"--no-monitor")) {arguments.monitor=0;continue;}
-	if (!strcmp(argv[j],"-s") || !strcmp(argv[j],"--no-source")) {arguments.source=0;continue;}
-	if (!strcmp(argv[j],"-C") || !strcmp(argv[j],"--case-sensitive")) {arguments.casesensitive=1;continue;}
-        if (!strcmp(argv[j],"-o")) {
-	    j++;if (j>=argc) goto ide2;
-	    if (out) goto ide3;
-	    arguments.output=malloc(strlen(argv[j])+1);
-	    strcpy(arguments.output,argv[j]);
-	    out=1;
-	    continue;
-	}
-        if (!strcmp(argv[j],"-D")) {
-	    struct slabel* tmp;
-	    int i=0;
-	    j++;if (j>=argc) {
-		ide2:
-		printf("64tass: option requires an argument -- %c\n",argv[j-1][1]);
-		goto ide;
-	    }
-
-	    while (argv[j][i] && argv[j][i]!='=') {
-        	if (!arguments.casesensitive) argv[j][i]=lowcase(argv[j][i]);
-		i++;
-	    }
-	    if (argv[j][i]=='=') {
-        	argv[j][i]=0;
-                tmp=new_label(argv[j]);tmp->proclabel=0;
-                tmp->requires=0;
-                tmp->conflicts=0;
-		tmp->value.type=T_INT;tmp->value.num=atoi(&argv[j][i+1]);
-	    }
-	    continue;
-	    }
-	if (arguments.input) goto ide3;
-	arguments.input=malloc(strlen(argv[j])+1);
-	strcpy(arguments.input,argv[j]);
+            case 'V':printf("64tass Turbo Assembler Macro V" VERSION "\n");exit(0);
+            case 3:
+            case '?':if (optopt=='?' || opt==3) { printf(
+	       "Usage: 64tass [OPTIONS...] SOURCES\n"
+	       "64tass Turbo Assembler Macro V" VERSION "\n"
+	       "\n"			
+	       "  -a, --ascii		Source is not in PETASCII\n"
+	       "  -b, --nostart		Strip starting address\n"
+	       "  -B, --long-branch	Automatic bxx *+3 jmp $xxxx\n"
+	       "  -C, --case-sensitive	Case sensitive labels\n"
+	       "  -D <label>=<value>	Define <label> to <value>\n"
+	       "  -n, --nonlinear	Generate nonlinear output file\n"
+	       "  -o <file>		Place output into <file>\n"
+	       "  -O, --compatible-ops	Enable TASS compatible operators\n"
+	       "  -P, --no-precedence	No operator precedence in expressions\n"
+	       "  -q, --quiet		Display errors/warnings\n"
+	       "  -w, --no-warn		Suppress warnings\n"
+	       "  -W, --wordstart	Force 2 byte start address\n"
+	       "\n"
+	       " Target selection:\n"
+	       "  -c, --m65c02		CMOS 65C02\n"
+	       "  -i, --m6502		NMOS 65xx\n"
+	       "      --m65xx		Standard 65xx (default)\n"
+	       "  -t, --m65dtv02	65DTV02\n"
+	       "  -x, --m65816		W65C816\n"
+	       "\n"
+	       " Source listing:\n"
+	       "  -l, --labels=<file>	List labels into <file>\n"
+	       "  -L, --list=<file>	List into <file>\n"
+	       "  -m, --no-monitor	Don't put monitor code into listing\n"
+	       "  -s, --no-source	Don't put source code into listing\n"
+	       "\n"
+	       " Misc:\n"
+	       "  -?, --help		Give this help list\n"
+	       "      --usage		Give a short usage message\n"
+	       "  -V, --version		Print program version\n"
+	       "\n"
+	       "Mandatory or optional arguments to long options are also mandatory or optional\n"
+	       "for any corresponding short options.\n"
+	       "\n"
+	       "Report bugs to <soci" "\x40" "c64.rulez.org>.\n");exit(0);}
+            default:fprintf(stderr,
+                "Try `64tass --help' or `64tass --usage' for more information.\n");exit(1);
+        }
+    if (argc <= optind) {
+        fprintf(stderr,
+            "Usage: 64tass [OPTIONS...] SOURCES\n"
+            "Try `64tass --help' or `64tass --usage' for more information.\n");exit(1);
     }
-    if (!arguments.input) {
-	ide3:
-	printf("Usage: 64tass [OPTION...] SOURCE\n");
-	ide:
-	printf("Try `64tass --help' or `64tass --usage' for more information.\n");
-        free(arguments.list);
-        free(arguments.label);
-	free(arguments.input);
-	if (out) free(arguments.output);
-	exit(1);
-    }
+    return optind;
 }
-#endif

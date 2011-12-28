@@ -9,7 +9,7 @@
    (c)2000 [BiGFooT/BReeZe^2000]
   
    6502/65C02/65816/DTV Turbo Assembler  Version 1.4x
-   (c)2001-2005 Soci/Singular (soci@c64.rulez.org)
+   (c)2001-2011 Soci/Singular (soci@c64.rulez.org)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <sys/stat.h>
 #include <time.h>
 
 #include "opcodes.h"
@@ -108,7 +107,7 @@ const char* command[]={"byte"   ,"text", "ptext", "char" ,"shift","shiftl" ,"nul
                         "block"  , "bend", "pron", "proff", "showmac", "hidemac", "end", "eor", "segment"
 };
 enum {
-    CMD_BYTE, CMD_TEXT, CMD_PTEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFT2, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
+    CMD_BYTE, CMD_TEXT, CMD_PTEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFTL, CMD_NULL, CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
     CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL,
     CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE,
     CMD_FILL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION,
@@ -165,31 +164,52 @@ void status() {
  *      pline -
  */
 void readln(struct sfile* fle) {
-    int i=0,i2=0,q=0,ch;
+    unsigned i = 0, q = 0;
+    long l = fle->currentp;
+    unsigned char *c = fle->linebuf + fle->currentp;
 
-    for (;;) {
-        if (fle->linebuflen==fle->currentp || !(ch=fle->linebuf[fle->currentp++])) {sline++;break;}// eof?
-        llist[i2++]=ch;
-        if (ch=='\'' && !(q & 5)) q^=2;
-        if (ch=='"' && !(q & 6)) q^=1;
-        if (!q) {
-            if (ch==9) ch=32;
-            if (ch==';') q=4;
-            else if (ch== ':' && !arguments.oldops) {
-                i2--;
-                break;
+    if (fle->linebuflen!=fle->currentp) {
+        for (; i < sizeof(pline) - 1; i++) {
+            switch (pline[i]=c[i]) {
+                case '\'': if (!(q & 5)) q^=2;continue;
+                case '"': if (!(q & 6)) q^=1;continue;
+                case '\t': if (!q) pline[i]=32;continue;
+                case ';':
+                    if (q) continue;
+                    fle->currentp += strlen((char *)c + i);
+                case 0:goto end;
+                case ':': if (!q && !arguments.oldops) goto end;
             }
         }
-        if (!(q & 4)) {
-            pline[i]=ch;
-            i++;
-        }
-        if (i2==sizeof(pline)-1) {sline++;pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);}
+        pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);
+end:    fle->currentp += i + 1;sline++;
     }
-    llist[i2]=0;
-    if (i)
-        while (pline[i-1]==0x20) i--;
+    while (i && pline[i-1]==0x20) i--;
     pline[i]=lpoint=0;
+    if (listing) {
+        i = fle->currentp - l;
+        if (i) i--;
+        memcpy(llist, fle->linebuf + l, i);
+        llist[i]=0;
+    }
+}
+
+void printllist(FILE *f) {
+    char *c = llist, *last, *n;
+    int ch;
+    last = c;
+    while ((ch = *c)) {
+        if (ch & 0x80) n=c+utf8in(c, &ch); else n=c+1;
+        if ((ch < 0x20 || ch > 0x7e) && ch!=9) {
+            fwrite(last, c - last, 1, f);
+            fprintf(f, "{$%x}", ch);
+            last=n;
+        }
+        c = n;
+    }
+    *c='\n';
+    fwrite(last, c - last + 1, 1, f);
+    *c=0;
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +218,7 @@ int petascii(char quo) {
     int ch;
 
     if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of string"); return 256;}
-    if (ch & 0x80) lpoint+=utf8in((unsigned char *)pline + lpoint, &ch); else lpoint++;
+    if (ch & 0x80) lpoint+=utf8in(pline + lpoint, &ch); else lpoint++;
     if (ch==quo) {
         if (here()==quo) lpoint++; // handle 'it''s'
         else return 257; // end of string;
@@ -219,7 +239,7 @@ int petascii(char quo) {
                     
                     for (n=0;;) {
                         if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
-                        if (ch & 0x80) lpoint+=utf8in((unsigned char *)pline + lpoint, &ch); else lpoint++;
+                        if (ch & 0x80) lpoint+=utf8in(pline + lpoint, &ch); else lpoint++;
                         if (ch == end) break;
                         if (ch == quo) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
                         sym[n]=ch;
@@ -407,9 +427,9 @@ int get_ident2(unsigned char allowed) {
 }
 
 int get_ident(unsigned char allowed) {
-    int v,code;
+    int code;
  
-    if ((v=what(&code))!=WHAT_EXPRESSION || !code) {
+    if (what(&code)!=WHAT_EXPRESSION || !code) {
 	err_msg(ERROR_EXPRES_SYNTAX,NULL);
 	return 1;
     }
@@ -912,13 +932,11 @@ void get_exp(int *wd, int *df,int *cd, struct svalue *v, enum etype type) {// le
                     v->type = T_INT;
                     v->num = 0;
                     for (i=v_stack[0].str.len;i;i--) v->num = (v->num << 8) | v_stack[0].str.data[i-1];
-                    return;
                 } else {
                     *cd=0;
                     err_msg(ERROR_CONSTNT_LARGE,NULL);
-                    return;
                 }
-                break;
+                return;
             case T_CHR:
                 v->type = T_INT;
             case T_INT:
@@ -1179,10 +1197,11 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                     if (nprm>=0) mtranslate(mprm,nprm,llist);
                     if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
                     if (val.type == T_INT || val.type == T_CHR) {
-                        fprintf(flist,(all_mem==0xffff)?"=%04lx\t\t\t\t\t%s\n":"=%06lx\t\t\t\t\t%s\n",val.num,llist);
+                        fprintf(flist,(all_mem==0xffff)?"=%04lx\t\t\t\t\t":"=%06lx\t\t\t\t\t",val.num);
                     } else {
-                        fprintf(flist,"=\t\t\t\t\t%s\n",llist);
+                        fprintf(flist,"=\t\t\t\t\t");
                     }
+                    printllist(flist);
                 }
 		if (pass==1) {
 		    if (labelexists) {
@@ -1310,9 +1329,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                 if (listing && flist && arguments.source) {
                     lastl=LIST_NONE;
                     if (ident2[0] && tmp->used>=pass-1)
-                        fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,llist);
+                        fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t":".%06lx\t\t\t\t\t",address);
                     else
-                        fprintf(flist,"\n\t\t\t\t\t%s\n",llist);
+                        fprintf(flist,"\n\t\t\t\t\t");
+                    printllist(flist);
                 }
                 if (val.type != T_NONE) {
                     ch2=val.num;
@@ -1330,7 +1350,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
 	case WHAT_EOL:
             if (listing && flist && arguments.source && (skipit[waitforp] & 1) && ident2[0] && tmp->used>=pass-1) {
                 if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,llist);
+                fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t":".%06lx\t\t\t\t\t",address);
+                printllist(flist);
             }
             break;
 	case WHAT_COMMAND:
@@ -1343,7 +1364,8 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                         case CMD_ALIGN:
                         case CMD_OFFS:
                             if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
-                            fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,llist);
+                            fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t":".%06lx\t\t\t\t\t",address);
+                            printllist(flist);
                         case CMD_BINARY:
                             break;
                         case CMD_PROC:break;
@@ -1361,9 +1383,10 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                         case CMD_INCLUDE:
                             if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
                             if (ident2[0] && tmp->used>=pass-1)
-                                fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t%s\n":".%06lx\t\t\t\t\t%s\n",address,llist);
+                                fprintf(flist,(all_mem==0xffff)?".%04lx\t\t\t\t\t":".%06lx\t\t\t\t\t",address);
                             else
-                                fprintf(flist,"\t\t\t\t\t%s\n",llist);
+                                fprintf(flist,"\t\t\t\t\t");
+                            printllist(flist);
                             break;
                         default:
                             if (ident2[0] && tmp->used>=pass-1) {
@@ -1456,12 +1479,9 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                                         ch2 = 0;
                                     } else {err_msg(ERROR____WRONG_TYPE,NULL); break;}
 
-                                    if (prm==CMD_SHIFT || prm==CMD_SHIFT2) {
-                                        if (encoding==1 && ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                                        if (ch2>=0xc0 && ch2<0xe0) ch2-=0x60; else
-                                            if (ch2==0xff) ch2=0x7e; else
-                                                if (ch2>=0x80 && d) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                                        if (prm==CMD_SHIFT2) ch2<<=1;
+                                    if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
+                                        if (ch2>=0x80) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
+                                        if (prm==CMD_SHIFTL) ch2<<=1;
                                     } else if (prm==CMD_NULL && !ch2 && d) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
                                 } while (val.type == T_STR && val.str.len);
 
@@ -1469,7 +1489,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                             if (ch) err_msg(ERROR______EXPECTED,",");
                             if (ch2>=0) {
                                 if (prm==CMD_SHIFT) ch2|=0x80;
-                                if (prm==CMD_SHIFT2) ch2|=0x01;
+                                if (prm==CMD_SHIFTL) ch2|=0x01;
                                 pokeb(ch2);
                             }
                             if (prm==CMD_NULL) {
@@ -1592,7 +1612,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                             if (lcol==1) {
                                 if (arguments.source && kiirva) {
                                     if (nprm>=0) mtranslate(mprm,nprm,llist);
-                                    fprintf(flist,"\t%s\n",llist);kiirva=0;
+                                    fputc('\t', flist);printllist(flist);kiirva=0;
                                 } else fputc('\n',flist);
                                 fprintf(flist,(all_mem==0xffff)?">%04lx\t":">%06lx ",(address-memdatap+ptextaddr) & all_mem);lcol=49;
                             }
@@ -1604,7 +1624,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
 			if (arguments.source && kiirva) {
                             for (i=0; i<lcol-1; i+=8) fputc('\t',flist);
                             if (nprm>=0) mtranslate(mprm,nprm,llist);
-			    fprintf(flist,"\t%s\n",llist);
+                            fputc('\t', flist);printllist(flist);
 			} else fputc('\n',flist);
 		    }
 		    break;
@@ -2580,7 +2600,7 @@ void compile(char* nam,long fpos,char tpe,char* mprm,int nprm,struct sfile* fin)
                         } else if (arguments.source) fputc('\t',flist);
                         if (arguments.source) {
                             if (nprm>=0) mtranslate(mprm,nprm,llist);
-                            fprintf(flist,"\t%s\n",llist);
+                            fputc('\t', flist);printllist(flist);
                         } else fputc('\n',flist);
                     }
                     break;
@@ -2604,9 +2624,10 @@ end:
 int main(int argc,char *argv[]) {
     time_t t;
     FILE* fout;
+    int optind, i;
 
     tinit();
-    testarg(argc,argv);
+    optind = testarg(argc,argv);
 
     if (arguments.quiet)
     fprintf(stdout,"6502/65C02 Turbo Assembler Version 1.3  Copyright (c) 1997 Taboo Productions\n"
@@ -2618,44 +2639,50 @@ int main(int argc,char *argv[]) {
     /* assemble the input file(s) */
     do {
         if (pass++>20) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
-        set_cpumode(arguments.cpumode);
-	address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
-        current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);outputeor=0;
-        current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;logisave=0;
-        /*	listing=1;flist=stderr;*/
-        enterfile(arguments.input,0);
-        sline=0;
-        compile(arguments.input,0,0,"",-1,NULL);
-        exitfile();
+        fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
+        for (i = optind; i<argc; i++) {
+            set_cpumode(arguments.cpumode);
+            address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
+            current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
+            waitfor[waitforp=0]=0;skipit[0]=1;sline=0;outputeor=0;
+            current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;logisave=0;
+            /*	listing=1;flist=stderr;*/
+            enterfile(argv[i],0);
+            compile(argv[i],0,0,"",-1,NULL);
+            exitfile();
+        }
         if (errors) {memcomp();status();return 1;}
         if (conderrors && !arguments.list && pass==1) fixeddig=0;
     } while (!fixeddig || (pass==1 && !arguments.list));
 
     /* assemble again to create listing */
     if (arguments.list) {
+        char **argv2 = argv;
         listing=1;
         if (arguments.list[0] == '-' && !arguments.list[1]) {
             flist = stdout;
         } else {
             if (!(flist=fopen(arguments.list,"wt"))) err_msg(ERROR_CANT_DUMP_LST,arguments.list);
         }
-	fprintf(flist,"\n;6502/65C02/65816/DTV Turbo Assembler V" VERSION " listing file of \"%s\"\n",arguments.input);
-	time(&t);
-        fprintf(flist,";done on %s",ctime(&t));
-        lastl=LIST_NONE;
+	fprintf(flist,"\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;");
+        while (*argv2) fprintf(flist," %s", *argv2++);
+	time(&t); fprintf(flist,"\n; %s",ctime(&t));
 
         pass++;
-        set_cpumode(arguments.cpumode);
-	address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
-        current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-        fixeddig=1;waitfor[waitforp=0]=0;skipit[0]=1;sline=0;conderrors=warnings=0;freeerrorlist(0);outputeor=0;
-        current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;logisave=0;
-        enterfile(arguments.input,0);
-        sline=0;
-        compile(arguments.input,0,0,"",-1,NULL);
-        exitfile();
-	fprintf(flist,"\n;******  end of code\n");
+        fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
+        for (i = optind; i<argc; i++) {
+            fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);
+            lastl=LIST_NONE;
+            set_cpumode(arguments.cpumode);
+            address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
+            current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
+            waitfor[waitforp=0]=0;skipit[0]=1;sline=0;outputeor=0;
+            current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;logisave=0;
+            enterfile(argv[i],0);
+            compile(argv[i],0,0,"",-1,NULL);
+            exitfile();
+        }
+	fprintf(flist,"\n;******  End of listing\n");
 	if (flist != stdout) fclose(flist);
     }
     memcomp();
