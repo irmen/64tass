@@ -2640,13 +2640,22 @@ int main(int argc,char *argv[]) {
     do {
         if (pass++>20) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
-        for (i = optind; i<argc; i++) {
+        memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+        for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
             waitfor[waitforp=0]=0;skipit[0]=1;sline=0;outputeor=0;
-            current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;logisave=0;
+            current_context=&root_context;logisave=0;
             /*	listing=1;flist=stderr;*/
+            if (i == optind - 1) {
+                enterfile("<command line>",0);
+                compile("",0,0,"",-1,NULL);
+                exitfile();
+                memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+                continue;
+            }
+            memjmp(address);
             enterfile(argv[i],0);
             compile(argv[i],0,0,"",-1,NULL);
             exitfile();
@@ -2670,14 +2679,25 @@ int main(int argc,char *argv[]) {
 
         pass++;
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
-        for (i = optind; i<argc; i++) {
-            fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);
+        memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+        for (i = optind - 1; i<argc; i++) {
+            if (i >= optind) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
             address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
             waitfor[waitforp=0]=0;skipit[0]=1;sline=0;outputeor=0;
-            current_context=&root_context;memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;logisave=0;
+            current_context=&root_context;logisave=0;
+
+            if (i == optind - 1) {
+                enterfile("<command line>",0);
+                compile("",0,0,"",-1,NULL);
+                exitfile();
+                memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+                continue;
+            }
+            memjmp(address);
+
             enterfile(argv[i],0);
             compile(argv[i],0,0,"",-1,NULL);
             exitfile();

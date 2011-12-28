@@ -791,151 +791,155 @@ struct sfile* openfile(char* name,char* volt) {
 	lastfi->linebuf=NULL;
 	lastfi->linebuflen=0;
 	lastfi->currentp=0;
-        if (name[0]=='-' && !name[1]) f=stdin;
-        else f=fopen(name,"rb");
-        if (!f) {
-            lastfi=NULL;
-            return NULL;
-        }
-        if (arguments.quiet) fprintf(stdout, "Assembling file:   %s\n",name);
-        lastchar=fgetc(f);
-        ungetc(lastchar, f); 
-        if (!lastchar) type=UTF16BE; /* most likely */
+        if (name[0]) {
+            if (name[0]=='-' && !name[1]) f=stdin;
+            else f=fopen(name,"rb");
+            if (!f) {
+                lastfi=NULL;
+                return NULL;
+            }
+            if (arguments.quiet) fprintf(stdout, "Assembling file:   %s\n",name);
+            lastchar=fgetc(f);
+            ungetc(lastchar, f); 
+            if (!lastchar) type=UTF16BE; /* most likely */
 
-	do {
-	    int i=0, j, ch = 0, ch2;
-	    unsigned char *pline;
-	    if (lastfi->currentp + linelength > lastfi->linebuflen) {
-		lastfi->linebuflen += 0x1000;
-		lastfi->linebuf=realloc(lastfi->linebuf, lastfi->linebuflen);
-	    }
-	    pline=&lastfi->linebuf[lastfi->currentp];
-	    for (;;) {
-                if (arguments.toascii) {
-                    lastchar = ch;
-                    switch (type) {
-                        case UNKNOWN:
-                        case UTF8:
-                            ch=fgetc(f);
-                            if (ch < 0) break;
-
-                            if (ch < 0x80) {
-                                i = 0;
-                            } else if (ch < 0xc0) {
-                                if (type == UNKNOWN) {
-                                    type = ISO1; break;
-                                }
-                                ch = 0xfffd; i = 0;
-                            } else if (ch < 0xe0) {
-                                ch ^= 0xc0;i = 1;
-                            } else if (ch < 0xf0) {
-                                ch ^= 0xe0;i = 2;
-                            } else if (ch < 0xf8) {
-                                ch ^= 0xf0;i = 3;
-                            } else if (ch < 0xfc) {
-                                ch ^= 0xf8;i = 4;
-                            } else if (ch < 0xfe) {
-                                ch ^= 0xfc;i = 5;
-                            } else {
-                                ch2=fgetc(f);
-                                if (ch == 0xff && ch2 == 0xfe) {
-                                    type = UTF16LE;continue;
-                                }
-                                if (ch == 0xfe && ch2 == 0xff) {
-                                    type = UTF16BE;continue;
-                                }
-                                ungetc(ch2, f); 
-                                if (type == UNKNOWN) {
-                                    type = ISO1; break;
-                                }
-                                ch = 0xfffd; i = 0;
-                            }
-
-                            for (j = i; i; i--) {
-                                ch2 = fgetc(f);
-                                if (ch2 < 0x80 || ch2 >= 0xc0) {
-                                    if (type == UNKNOWN) {
-                                        type = ISO1;
-                                        i = (j - i) * 6;
-                                        pline = utf8out(((~0x7f >> j) & 0xff) | (ch >> i), pline);
-                                        for (;i; i-= 6) {
-                                            pline = utf8out(((ch >> (i-6)) & 0x3f) | 0x80, pline);
-                                        }
-                                        ch = ch2; j = 0;
-                                        break;
-                                    }
-                                    ungetc(ch2, f);
-                                    ch = 0xfffd;break;
-                                }
-                                ch = (ch << 6) ^ ch2 ^ 0x80;
-                            }
-                            if (j) type = UTF8;
-                            break;
-                        case UTF16LE:
-                            ch=fgetc(f);
-                            ch2=fgetc(f);
-                            if (ch2 == EOF) break;
-                            ch |= ch2 << 8;
-                            if (ch == 0xfffe) {
-                                type = UTF16BE;
-                                continue;
-                            }
-                            break;
-                        case UTF16BE:
-                            ch2=fgetc(f);
-                            ch=fgetc(f);
-                            if (ch == EOF) break;
-                            ch |= ch2 << 8;
-                            if (ch == 0xfffe) {
-                                type = UTF16LE;
-                                continue;
-                            }
-                            break;
-                        case ISO1:
-                            ch=fgetc(f);
-                            break;
-                    }
-                    if (ch == 0xfeff) continue;
-                    if (type != UTF8) {
-                        if (ch >= 0xd800 && ch < 0xdc00) {
-                            if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
-                            ch = 0xfffd;
-                        } else if (ch >= 0xdc00 && ch < 0xe000) {
-                            if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                ch = 0x361dc00 ^ ch ^ (lastchar << 10);
-                            } else
-                                ch = 0xfffd;
-                        } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                            ch = 0xfffd;
-                        }
-                    }
-                } else {
-                    ch = fgetc(f);
+            do {
+                int i=0, j, ch = 0, ch2;
+                unsigned char *pline;
+                if (lastfi->currentp + linelength > lastfi->linebuflen) {
+                    lastfi->linebuflen += linelength;
+                    lastfi->linebuf=realloc(lastfi->linebuf, lastfi->linebuflen);
                 }
+                pline=&lastfi->linebuf[lastfi->currentp];
+                for (;;) {
+                    if (arguments.toascii) {
+                        lastchar = ch;
+                        switch (type) {
+                            case UNKNOWN:
+                            case UTF8:
+                                ch=fgetc(f);
+                                if (ch < 0) break;
 
-		if (ch == EOF) break;
-		if (ch == 10) {
-		    if (lastchar == 13) continue;
-		    break;
-		}
-		if (ch == 13) {
-		    break;
-		}
-		pline = utf8out(ch, pline);
-		if (pline > &lastfi->linebuf[lastfi->currentp + linelength - 6]) {pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);break;}
-	    }
-	    i = pline - &lastfi->linebuf[lastfi->currentp];
-	    pline=&lastfi->linebuf[lastfi->currentp];
-	    if (i)
-		while (i && pline[i-1]==' ') i--;
-	    pline[i++] = 0;
-	    lastfi->currentp += i;
-	
-	    if (ch == EOF) break;
-	} while (1);
-        if (f!=stdin) fclose(f);
-	lastfi->linebuflen = lastfi->currentp;
-	lastfi->linebuf=realloc(lastfi->linebuf, lastfi->linebuflen);
+                                if (ch < 0x80) {
+                                    i = 0;
+                                } else if (ch < 0xc0) {
+                                    if (type == UNKNOWN) {
+                                        type = ISO1; break;
+                                    }
+                                    ch = 0xfffd; i = 0;
+                                } else if (ch < 0xe0) {
+                                    ch ^= 0xc0;i = 1;
+                                } else if (ch < 0xf0) {
+                                    ch ^= 0xe0;i = 2;
+                                } else if (ch < 0xf8) {
+                                    ch ^= 0xf0;i = 3;
+                                } else if (ch < 0xfc) {
+                                    ch ^= 0xf8;i = 4;
+                                } else if (ch < 0xfe) {
+                                    ch ^= 0xfc;i = 5;
+                                } else {
+                                    ch2=fgetc(f);
+                                    if (ch == 0xff && ch2 == 0xfe) {
+                                        type = UTF16LE;continue;
+                                    }
+                                    if (ch == 0xfe && ch2 == 0xff) {
+                                        type = UTF16BE;continue;
+                                    }
+                                    ungetc(ch2, f); 
+                                    if (type == UNKNOWN) {
+                                        type = ISO1; break;
+                                    }
+                                    ch = 0xfffd; i = 0;
+                                }
+
+                                for (j = i; i; i--) {
+                                    ch2 = fgetc(f);
+                                    if (ch2 < 0x80 || ch2 >= 0xc0) {
+                                        if (type == UNKNOWN) {
+                                            type = ISO1;
+                                            i = (j - i) * 6;
+                                            pline = utf8out(((~0x7f >> j) & 0xff) | (ch >> i), pline);
+                                            for (;i; i-= 6) {
+                                                pline = utf8out(((ch >> (i-6)) & 0x3f) | 0x80, pline);
+                                            }
+                                            ch = ch2; j = 0;
+                                            break;
+                                        }
+                                        ungetc(ch2, f);
+                                        ch = 0xfffd;break;
+                                    }
+                                    ch = (ch << 6) ^ ch2 ^ 0x80;
+                                }
+                                if (j) type = UTF8;
+                                break;
+                            case UTF16LE:
+                                ch=fgetc(f);
+                                ch2=fgetc(f);
+                                if (ch2 == EOF) break;
+                                ch |= ch2 << 8;
+                                if (ch == 0xfffe) {
+                                    type = UTF16BE;
+                                    continue;
+                                }
+                                break;
+                            case UTF16BE:
+                                ch2=fgetc(f);
+                                ch=fgetc(f);
+                                if (ch == EOF) break;
+                                ch |= ch2 << 8;
+                                if (ch == 0xfffe) {
+                                    type = UTF16LE;
+                                    continue;
+                                }
+                                break;
+                            case ISO1:
+                                ch=fgetc(f);
+                                break;
+                        }
+                        if (ch == 0xfeff) continue;
+                        if (type != UTF8) {
+                            if (ch >= 0xd800 && ch < 0xdc00) {
+                                if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
+                                ch = 0xfffd;
+                            } else if (ch >= 0xdc00 && ch < 0xe000) {
+                                if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                                    ch = 0x361dc00 ^ ch ^ (lastchar << 10);
+                                } else
+                                    ch = 0xfffd;
+                            } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                                ch = 0xfffd;
+                            }
+                        }
+                    } else {
+                        ch = fgetc(f);
+                    }
+
+                    if (ch == EOF) break;
+                    if (ch == 10) {
+                        if (lastchar == 13) continue;
+                        break;
+                    }
+                    if (ch == 13) {
+                        break;
+                    }
+                    pline = utf8out(ch, pline);
+                    if (pline > &lastfi->linebuf[lastfi->currentp + linelength - 6*6]) {
+                        err_msg(ERROR_LINE_TOO_LONG,NULL);ch=EOF;break;
+                    }
+                }
+                i = pline - &lastfi->linebuf[lastfi->currentp];
+                pline=&lastfi->linebuf[lastfi->currentp];
+                if (i)
+                    while (i && pline[i-1]==' ') i--;
+                pline[i++] = 0;
+                lastfi->currentp += i;
+
+                if (ch == EOF) break;
+            } while (1);
+            if (f!=stdin) fclose(f);
+            lastfi->linebuflen = lastfi->currentp;
+            lastfi->linebuf=realloc(lastfi->linebuf, lastfi->linebuflen);
+        }
 	lastfi->currentp = 0;
 
         tmp = lastfi;
@@ -1030,7 +1034,7 @@ void labelprint() {
 }
 
 // ------------------------------------------------------------------
-const char *short_options= "wqnbWaPOCBicxtl:L:msVo:D:";
+const char *short_options= "wqnbWaPOCBicxtl:L:msV?o:D:";
 
 const struct option long_options[]={
     {"no-warn"	        , no_argument      , 0,	'w'},
@@ -1060,6 +1064,9 @@ const struct option long_options[]={
 
 int testarg(int argc,char *argv[]) {
     int opt, longind;
+    char i;
+    struct sfile *fin=openfile("",&i);
+    enum {UNKNOWN, UTF8, ISO1} type = UNKNOWN;
     
     while ((opt = getopt_long_only(argc, argv, short_options, long_options, &longind)) != -1)
         switch (opt)
@@ -1075,21 +1082,71 @@ int testarg(int argc,char *argv[]) {
             case 'o':arguments.output=optarg;break;
             case 'D':
                 {
-                    struct slabel* tmp;
-                    int i=0;
-                    while (optarg[i] && optarg[i]!='=') {
-                        if (!arguments.casesensitive) optarg[i]=lowcase(optarg[i]);
-                        i++;
+                    unsigned char *pline = fin->linebuf + fin->currentp, *c = (unsigned char *)optarg;
+                    int ch = 0, ch2, i, j;
+
+                    if (fin->currentp + linelength > fin->linebuflen) {
+                        fin->linebuflen += linelength;
+                        if (!(fin->linebuf=realloc(fin->linebuf, fin->linebuflen))) exit(1);
                     }
-                    if (optarg[i]=='=') {
-                        optarg[i]=0;
-                        tmp=new_label(optarg);tmp->proclabel=0;
-                        tmp->requires=0;
-                        tmp->conflicts=0;
-                        tmp->value.type=T_INT;tmp->value.num=atoi(&optarg[i+1]);
-                        optarg[i]='=';
+                    pline=&fin->linebuf[fin->currentp];
+                    while (*c) {
+                        switch (type) {
+                        case UNKNOWN:
+                        case UTF8:
+                            ch=*c++;
+                            if (ch < 0) break;
+
+                            if (ch < 0x80) {
+                                i = 0;
+                            } else if (ch < 0xc0) {
+                                if (type == UNKNOWN) {
+                                    type = ISO1; break;
+                                }
+                                ch = 0xfffd; i = 0;
+                            } else if (ch < 0xe0) {
+                                ch ^= 0xc0;i = 1;
+                            } else if (ch < 0xf0) {
+                                ch ^= 0xe0;i = 2;
+                            } else if (ch < 0xf8) {
+                                ch ^= 0xf0;i = 3;
+                            } else if (ch < 0xfc) {
+                                ch ^= 0xf8;i = 4;
+                            } else if (ch < 0xfe) {
+                                ch ^= 0xfc;i = 5;
+                            } else {
+                                type = ISO1; break;
+                            }
+
+                            for (j = i; i; i--) {
+                                ch2 = *c++;
+                                if (ch2 < 0x80 || ch2 >= 0xc0) {
+                                    if (type == UNKNOWN) {
+                                        type = ISO1;
+                                        i = (j - i) * 6;
+                                        pline = utf8out(((~0x7f >> j) & 0xff) | (ch >> i), pline);
+                                        for (;i; i-= 6) {
+                                            pline = utf8out(((ch >> (i-6)) & 0x3f) | 0x80, pline);
+                                        }
+                                        ch = ch2; j = 0;
+                                        break;
+                                    }
+                                    c--;
+                                    ch = 0xfffd;break;
+                                }
+                                ch = (ch << 6) ^ ch2 ^ 0x80;
+                            }
+                            if (j) type = UTF8;
+                            break;
+                        case ISO1:
+                            ch=*c++;
+                            break;
+                        }
+                        pline = utf8out(ch, pline);
+                        if (pline > &fin->linebuf[fin->currentp + linelength - 6*6]) break;
                     }
-                    break;
+                    *pline++ = 0;
+                    fin->currentp = pline - fin->linebuf;
                 }
             case 'B':arguments.longbranch=1;break;
             case 1:arguments.cpumode=OPCODES_6502;break;
@@ -1155,6 +1212,8 @@ int testarg(int argc,char *argv[]) {
             default:fprintf(stderr,
                 "Try `64tass --help' or `64tass --usage' for more information.\n");exit(1);
         }
+    closefile(fin); fin->linebuflen = fin->currentp; fin->currentp = 0;
+    if (fin->linebuf && !(fin->linebuf=realloc(fin->linebuf, fin->linebuflen))) exit(1);
     if (argc <= optind) {
         fprintf(stderr,
             "Usage: 64tass [OPTIONS...] SOURCES\n"

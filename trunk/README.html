@@ -160,8 +160,7 @@ used. But <code>BRA</code> is not converted.
 </pre>
 
 <h4><tt>-C, --case-sensitive</tt> Case sensitive labels</h4>
-Labels are non case sensitive by default, this option changes that. If defining
-labels by "-D", this option must be first.
+Labels are non case sensitive by default, this option changes that.
 <h5>Example</h5>
 <pre>
 64tass a.asm
@@ -174,8 +173,8 @@ Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
 </pre>
 
 <h4><tt>-D &lt;label&gt;=&lt;value&gt;</tt> Define &lt;label&gt; to &lt;value&gt;</h4>
-Defines a label to a value. Only decimal numbers are allowed. If using case
-sensitive labels, that option must be used before.
+Defines a label to a value. Same syntax is allowed as in source files. Be careful with
+string quoting, the shell might eat some of the characters.
 <h5>Example</h5>
 <pre>
 64tass -D ii=2 a.asm
