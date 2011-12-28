@@ -112,7 +112,7 @@ struct slabel {
     unsigned char proclabel;
     unsigned char used;
     struct avltree_node node;
-} __attribute((packed));
+};
 
 struct sfile {
     char *name;
@@ -122,7 +122,7 @@ struct sfile {
     unsigned char open;
     unsigned long num;
     struct avltree_node node;
-} __attribute((packed));
+};
 
 struct smacro {
     char *name;
@@ -131,18 +131,18 @@ struct smacro {
     struct sfile *file;
     int type;
     struct avltree_node node;
-} __attribute((packed));
+};
 
 struct serrorlist {
     struct serrorlist *next;
     char name[1];
-} __attribute((packed));
+};
 
 struct sfilenamelist {
     struct sfilenamelist *next;
     long line;
     char name[1];
-} __attribute((packed));
+};
 
 struct arguments_t {
     int warning;
@@ -150,7 +150,6 @@ struct arguments_t {
     int nonlinear;
     int stripstart;
     int toascii;
-    char *input;
     char *output;
     int cpumode;
     char *label;
@@ -170,7 +169,6 @@ struct sencoding {
     int offset;
 };
 
-#ifdef _MISC_C_
 extern long sline;
 extern int errors,conderrors,warnings;
 extern unsigned long l_address;
@@ -179,12 +177,12 @@ extern int labelexists;
 extern void status();
 extern unsigned long reffile;
 extern int pass;
-#endif
 
 #ifdef _MAIN_C_
 #define ignore() while(pline[lpoint]==0x20) lpoint++
 #define get() pline[lpoint++]
 #define here() pline[lpoint]
+#endif
 extern const unsigned char whatis[256];
 extern unsigned char encode(unsigned char);
 extern int petsymbolic(char*);
@@ -199,7 +197,7 @@ extern void closefile(struct sfile*);
 extern void tfree();
 extern void tinit();
 extern void labelprint();
-extern void testarg(int,char **);
+extern int testarg(int,char **);
 extern struct arguments_t arguments;
 extern void freeerrorlist(int);
 extern void enterfile(char *,long);
@@ -208,10 +206,9 @@ extern struct sfilenamelist *filenamelist;
 extern int encoding;
 extern struct scontext *current_context;
 extern struct scontext root_context;
-extern int utf8in(unsigned char *c, int *out);
+extern int utf8in(char *c, int *out);
 extern struct sencoding no_encoding[];
 extern struct sencoding screen_encoding[];
 extern struct sencoding ascii_encoding[];
-#endif
 
 #endif

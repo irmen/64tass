@@ -13,13 +13,8 @@ dl.dir pre {border:1px solid silver}
 <p>Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
 BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
 optimizations, multi pass compile and a lot of features by Soci/Singular.
-Improved TASS compatibility, petscii codes by Groepaz.</p>
-
-<p>Compile it with "make", if argp is missing or search.h then try to add
--DWIN32 to CFLAGS. (that workarounds these, but there's a small performance
-loss)</p>
-
-<p>On non-GNU systems try "make -f Makefile2" to compile.</p>
+Improved TASS compatibility, petscii codes by Groepaz.
+my_getopt command-line argument parser by Benjamin Sittler.</p>
 
 <p>Syntax is the same as the well known Turbo Assembler on c64, so you can
 port your sources easy by only replacing the CR at the end of each line.</p>
@@ -45,8 +40,9 @@ size for .binary, anonymous forward and backward reference (+-), initial
 <dd>Bank byte operator, label before conditional compile instruction bugfix
 cop # and brk # fix, empty macro parameter fix, added .long, some constant too large
 bugfix, jmp/jsr ($ffff,x) must be in the same bank, now .cerror and .cwarn accepts parameter,
-upper byte of negative number correct now, .shiftl and .option added,
-.ptext added, removed CPU64 support
+upper byte of negative number correct now
+<dt>V1.46+:
+<dd>.shiftl and .option added, .ptext added, removed CPU64 support
 </dl>
 
 <hr>
