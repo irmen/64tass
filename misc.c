@@ -1142,6 +1142,7 @@ int testarg(int argc,char *argv[]) {
                             ch=*c++;
                             break;
                         }
+                        if (ch == 0xfeff) continue;
                         pline = utf8out(ch, pline);
                         if (pline > &fin->linebuf[fin->currentp + linelength - 6*6]) break;
                     }
