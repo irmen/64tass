@@ -20,27 +20,25 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "libtree.h"
 #include "misc.h"
 #include "opcodes.h"
-#include <string.h>
 #include "getopt.h"
 
-void err_msg(unsigned char no, char* prm);
+void err_msg(enum errors_e, char*);
 
-struct arguments_t arguments={1,1,0,0,0,"a.out",OPCODES_6502,NULL,NULL,1,1,0,0,1,0,0};
+struct arguments_t arguments={1,1,0,0,0,1,1,0,0,1,0,0,"a.out",OPCODES_6502,NULL,NULL};
 
 static struct avltree macro_tree;
 static struct avltree file_tree;
 struct scontext root_context;
 struct scontext *current_context = &root_context;
-struct serrorlist *errorlist=NULL,*errorlistlast=NULL;
+static struct serrorlist *errorlist=NULL,*errorlistlast=NULL;
 struct sfilenamelist *filenamelist=NULL;
-int encoding;
+unsigned int encoding;
 
-unsigned char tolower_tab[256];
-
-const unsigned char whatis[256]={
+const uint8_t whatis[256]={
     WHAT_EOL,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,WHAT_EXPRESSION,WHAT_EXPRESSION,WHAT_HASHMARK,WHAT_EXPRESSION,WHAT_EXPRESSION,0,WHAT_EXPRESSION,WHAT_EXPRESSION,0,WHAT_STAR,WHAT_EXPRESSION,WHAT_COMA,WHAT_EXPRESSION,WHAT_COMMAND,0,
@@ -61,7 +59,7 @@ const unsigned char whatis[256]={
 
 //------------------------------------------------------------------------------
 
-unsigned char encode(unsigned char ch) {
+uint_fast8_t encode(uint_fast8_t ch) {
     switch (encoding) {
     case 1:
         if (ch<=0x1F) return ch+0x80;
@@ -257,7 +255,7 @@ static const unsigned char petsymcbm[26] = {
     0xb7, 0xad 
 };
 
-int petsymbolic(char *str) {
+uint_fast16_t petsymbolic(char *str) {
     int n, n2;
     int also=0,felso,s4,elozo;
 
@@ -279,20 +277,20 @@ int petsymbolic(char *str) {
     }
     if (str[0] >= '0' && str[0] <= '9') { /* convert {255} */
         n = str[0] - '0';
-        if (!str[1]) return (unsigned char)n;
+        if (!str[1]) return (uint8_t)n;
         if (str[1] >= '0' && str[1] <= '9') {
             n = (n * 10) + str[1] - '0';
-            if (!str[2]) return (unsigned char)n;
+            if (!str[2]) return (uint8_t)n;
             if (str[2] >= '0' && str[2] <= '9') {
                 n = (n * 10) + str[2] - '0';
-                if (n < 256) return (unsigned char)n;
+                if (n < 256) return (uint8_t)n;
             }
         }
     }
     if (!strncasecmp(str, "cbm-", 4) && str[4] && str[5] == 0) {
         n=lowcase(str[4]);/* {cbm-x} */
         if (n >='a' && n <='z') return petsymcbm[n - 'a']; 
-        if (n >='2' && n <='8') return (unsigned char)(n - '2' + 0x95); 
+        if (n >='2' && n <='8') return (uint8_t)(n - '2' + 0x95); 
         switch (n) {
         case '0': return '0';
         case '1': return 0x81;
@@ -306,8 +304,8 @@ int petsymbolic(char *str) {
     }
     if (!strncasecmp(str, "shift-", 6) && str[6] && str[7] == 0) {
         n = lowcase(str[6]); /* {shift-x} */
-        if (n >='a' && n <='z') return (unsigned char)(n - 'a' + 0xc1);
-        if (n >='1' && n <='9') return (unsigned char)(n - '0' + 0x20);
+        if (n >='a' && n <='z') return (uint8_t)(n - 'a' + 0xc1);
+        if (n >='1' && n <='9') return (uint8_t)(n - '0' + 0x20);
         switch (n) {
         case '0': return '0';
         case '*': return 0xc0;
@@ -324,7 +322,7 @@ int petsymbolic(char *str) {
     }
     if (!strncasecmp(str, "control-", 8) && str[8] && str[9] == 0) {
         n = lowcase(str[8]);
-        if (n >='a' && n <= 'z') return (unsigned char)(n - 'a' + 1); /* {control-x} */
+        if (n >='a' && n <= 'z') return (uint8_t)(n - 'a' + 1); /* {control-x} */
         switch (n) {
         case ':': return 0x1b;
         case ';': return 0x1d;
@@ -347,14 +345,14 @@ int petsymbolic(char *str) {
     n=felso/2;
     for (;;) {  // do binary search
         if (!(s4=strcasecmp(str, petsym[n] + 1))) {
-            return (unsigned char)petsym[n][0];
+            return (uint8_t)petsym[n][0];
         }
 
         elozo = n;
         n = ((s4>0) ? (felso+(also=n)) : (also+(felso=n)))/2;
         if (elozo == n) break;
     }
-    return -1;
+    return 256;
 }
 
 //------------------------------------------------------------------------------
@@ -364,7 +362,7 @@ void adderror(char *s) {
 
     b=malloc(sizeof(struct serrorlist)+strlen(s));
 
-    if (!b) {fprintf(stderr,"Out of memory\n");exit(1);}
+    if (!b) {fputs("Out of memory\n", stderr);exit(1);}
 
     b->next=NULL;
     strcpy(b->name,s);
@@ -382,20 +380,20 @@ void freeerrorlist(int print) {
 
     while (errorlist) {
         b=errorlist->next;
-        if (print) fprintf(stderr,"%s",errorlist->name);
+        if (print) fputs(errorlist->name, stderr);
         free(errorlist);
         errorlist=b;
     }
 }
 
-void enterfile(char *s, long l) {
+void enterfile(char *s, uint32_t l) {
     struct sfilenamelist *b;
 
-    b=malloc(sizeof(struct sfilenamelist)+strlen(s));
+    b=malloc(sizeof(struct sfilenamelist));
 
-    if (!b) {fprintf(stderr,"Out of memory\n");exit(1);}
+    if (!b) {fputs("Out of memory\n", stderr);exit(1);}
     b->next=filenamelist;
-    strcpy(b->name,s);
+    b->name=s;
     b->line=l;
 
     filenamelist=b;
@@ -411,53 +409,53 @@ void exitfile() {
 
 #define linelength 4096
 
-const char *terr_warning[]={
-	"Top of memory excedeed",
-	"Possibly incorrectly used A",
-	"Memory bank excedeed",
-	"Possible jmp ($xxff) bug",
-        "Long branch used",
-        "Directive ignored"
-//	"%s\n",
+static const char *terr_warning[]={
+    "Top of memory excedeed",
+    "Possibly incorrectly used A",
+    "Memory bank excedeed",
+    "Possible jmp ($xxff) bug",
+    "Long branch used",
+    "Directive ignored"
+//  "%s\n",
 };
-const char *terr_error[]={
-	"Double defined %s",
-	"Not defined %s",
-	"Extra characters on line",
-	"Constant too large",
-	"General syntax",
-	"%s expected",
-	"Expression syntax",
-	"Branch too far",
-        "Missing argument",
-        "Illegal operand",
-        "Unknown encoding: %s",
-        "Requirements not met: %s",
-        "Conflict: %s",
-        "Division by zero",
-        "Wrong type",
-        "Unknown character $%02x",
+static const char *terr_error[]={
+    "Double defined %s",
+    "Not defined %s",
+    "Extra characters on line",
+    "Constant too large",
+    "General syntax",
+    "%s expected",
+    "Expression syntax",
+    "Branch too far",
+    "Missing argument",
+    "Illegal operand",
+    "Unknown encoding: %s",
+    "Requirements not met: %s",
+    "Conflict: %s",
+    "Division by zero",
+    "Wrong type",
+    "Unknown character $%02x",
 };
-const char *terr_fatal[]={
-	"Can't locate file: %s\n",
-	"Out of memory\n",
-	"Can't write object file: %s\n",
-	"Line too long\n",
-	"Can't write listing file: %s\n",
-	"Can't write label file: %s\n",
-	"%s\n",
-	"File recursion\n",
-	"Macro recursion too deep\n",
-        "Unknown CPU: %s\n",
-        "Unknown option: %s\n",
-        "Too many passes\n",
-        "Too many errors\n"
+static const char *terr_fatal[]={
+    "Can't locate file: %s\n",
+    "Out of memory\n",
+    "Can't write object file: %s\n",
+    "Line too long\n",
+    "Can't write listing file: %s\n",
+    "Can't write label file: %s\n",
+    "%s\n",
+    "File recursion\n",
+    "Macro recursion too deep\n",
+    "Unknown CPU: %s\n",
+    "Unknown option: %s\n",
+    "Too many passes\n",
+    "Too many errors\n"
 };
 
-void err_msg(unsigned char no, char* prm) {
+void err_msg(enum errors_e no, char* prm) {
     char line[linelength];
     struct sfilenamelist *b=NULL, *b2=filenamelist;
-    char *p;
+    uint8_t *p;
 
     if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
 
@@ -468,13 +466,13 @@ void err_msg(unsigned char no, char* prm) {
 
     if (filenamelist) {
 	b=filenamelist->next;
-	snprintf(line,linelength,"%s:%ld: ",filenamelist->name,sline);
+	snprintf(line,linelength,"%s:%u: ",filenamelist->name,sline);
     } else line[0]=0;
 
     adderror(line);
 
     while (b) {
-        snprintf(line,linelength,"(%s:%ld) ",b->name,b2->line);
+        snprintf(line,linelength,"(%s:%u) ",b->name,b2->line);
         adderror(line);
         b2=b;
         b=b->next;
@@ -486,7 +484,7 @@ void err_msg(unsigned char no, char* prm) {
     }
     else if (no<0x80) {
         if (no==ERROR____PAGE_ERROR) {
-            snprintf(line,linelength,"Page error at $%06lx",l_address);
+            snprintf(line,linelength,"Page error at $%06x",l_address);
             conderrors++;
         }
         else if (no==ERROR__BRANCH_CROSS) {
@@ -524,7 +522,7 @@ void err_msg(unsigned char no, char* prm) {
 }
 
 //----------------------------------------------------------------------
-int label_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static int label_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct slabel *a = avltree_container_of(aa, struct slabel, node);
     struct slabel *b = avltree_container_of(bb, struct slabel, node);
@@ -532,7 +530,7 @@ int label_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     return strcmp(a->name, b->name);
 }
 
-int context_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static int context_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct scontext *a = avltree_container_of(aa, struct scontext, node);
     struct scontext *b = avltree_container_of(bb, struct scontext, node);
@@ -540,7 +538,7 @@ int context_compare(const struct avltree_node *aa, const struct avltree_node *bb
     return strcmp(a->name, b->name);
 }
 
-int macro_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static int macro_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct smacro *a = avltree_container_of(aa, struct smacro, node);
     struct smacro *b = avltree_container_of(bb, struct smacro, node);
@@ -548,7 +546,7 @@ int macro_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     return strcmp(a->name, b->name);
 }
 
-int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+static int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct sfile *a = avltree_container_of(aa, struct sfile, node);
     struct sfile *b = avltree_container_of(bb, struct sfile, node);
@@ -556,15 +554,15 @@ int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     return strcmp(a->name, b->name);
 }
 
-void label_free(const struct avltree_node *aa)
+static void label_free(const struct avltree_node *aa)
 {
     struct slabel *a = avltree_container_of(aa, struct slabel, node);
     free(a->name);
-    if (a->value.type == T_STR) free(a->value.str.data);
+    if (a->value.type == T_STR) free(a->value.u.str.data);
     free(a);
 }
 
-void context_free(const struct avltree_node *aa)
+static void context_free(const struct avltree_node *aa)
 {
     struct scontext *a = avltree_container_of(aa, struct scontext, node);
     free(a->name);
@@ -573,18 +571,18 @@ void context_free(const struct avltree_node *aa)
     free(a);
 }
 
-void macro_free(const struct avltree_node *aa)
+static void macro_free(const struct avltree_node *aa)
 {
     struct smacro *a = avltree_container_of(aa, struct smacro, node);
     free(a->name);
     free(a);
 }
 
-void file_free(const struct avltree_node *aa)
+static void file_free(const struct avltree_node *aa)
 {
     struct sfile *a = avltree_container_of(aa, struct sfile, node);
 
-    free(a->linebuf);
+    free(a->data);
     free(a->name);
     free(a);
 }
@@ -611,7 +609,7 @@ struct slabel* find_label(char* name) {
             if (!c) break;
             if (d) {
                 a2 = avltree_container_of(d, struct slabel, node);
-                a2->proclabel = 0; a2->used = pass;
+                a2->proclabel = 0; a2->pass = pass;
             }
             context2 = avltree_container_of(c, struct scontext, node);
             b.name = n + 1;
@@ -705,8 +703,10 @@ struct smacro* new_macro(char* name) {
     return avltree_container_of(b, struct smacro, node);            //already exists
 }
 // ---------------------------------------------------------------------------
-int utf8in(char *c, int *out) { /* only for internal use with validated utf-8! */
-    int ch = (unsigned char)c[0], i, j;
+unsigned int utf8in(uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
+    uint32_t ch;
+    int i, j;
+    ch = c[0];
 
     if (ch < 0xe0) {
         ch ^= 0xc0;i = 2;
@@ -721,13 +721,13 @@ int utf8in(char *c, int *out) { /* only for internal use with validated utf-8! *
     }
 
     for (j = 1;j < i; j++) {
-        ch = (ch << 6) ^ (unsigned char)c[j] ^ 0x80;
+        ch = (ch << 6) ^ c[j] ^ 0x80;
     }
     *out = ch;
     return i;
 }
 
-static unsigned char *utf8out(int i, unsigned char *c) {
+static uint8_t *utf8out(uint32_t i, uint8_t *c) {
     if (!i) {
         *c++=0xc0;
         *c++=0x80;
@@ -763,7 +763,7 @@ static unsigned char *utf8out(int i, unsigned char *c) {
         *c++=0x80 | (i & 0x3f);
 	return c;
     }
-    if (i & 0x7fffffff) return c;
+    if (i & ~0x7fffffff) return c;
     *c++=0xf0 | (i >> 30);
     *c++=0x80 | ((i >> 24) & 0x3f);
     *c++=0x80 | ((i >> 18) & 0x3f);
@@ -774,8 +774,8 @@ static unsigned char *utf8out(int i, unsigned char *c) {
 }
 
 static struct sfile *lastfi=NULL;
-static unsigned long curfnum=1;
-struct sfile* openfile(char* name,char* volt) {
+static uint16_t curfnum=1;
+struct sfile* openfile(char* name) {
     struct avltree_node *b;
     struct sfile *tmp;
     if (!lastfi)
@@ -783,14 +783,16 @@ struct sfile* openfile(char* name,char* volt) {
     lastfi->name=name;
     b=avltree_insert(&lastfi->node, &file_tree);
     if (!b) { //new file
-	enum {UNKNOWN, UTF8, UTF16LE, UTF16BE, ISO1} type = UNKNOWN, lastchar;
+	enum {UNKNOWN, UTF8, UTF16LE, UTF16BE, ISO1} type = UNKNOWN;
+        int ch;
         FILE *f;
 
 	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastfi->name,name);
-	lastfi->linebuf=NULL;
-	lastfi->linebuflen=0;
-	lastfi->currentp=0;
+	lastfi->data=NULL;
+	lastfi->len=0;
+	lastfi->p=0;
+        lastfi->open=0;
         if (name[0]) {
             if (name[0]=='-' && !name[1]) f=stdin;
             else f=fopen(name,"rb");
@@ -798,27 +800,28 @@ struct sfile* openfile(char* name,char* volt) {
                 lastfi=NULL;
                 return NULL;
             }
-            if (arguments.quiet) fprintf(stdout, "Assembling file:   %s\n",name);
-            lastchar=fgetc(f);
-            ungetc(lastchar, f); 
-            if (!lastchar) type=UTF16BE; /* most likely */
+            if (arguments.quiet) printf("Assembling file:   %s\n",name);
+            ch=fgetc(f);
+            ungetc(ch, f); 
+            if (!ch) type=UTF16BE; /* most likely */
 
             do {
-                int i=0, j, ch = 0, ch2;
-                unsigned char *pline;
-                if (lastfi->currentp + linelength > lastfi->linebuflen) {
-                    lastfi->linebuflen += linelength;
-                    lastfi->linebuf=realloc(lastfi->linebuf, lastfi->linebuflen);
+                int i, j, ch2;
+                uint8_t *pline;
+                uint32_t c = 0, lastchar;
+                if (lastfi->p + linelength > lastfi->len) {
+                    lastfi->len += linelength;
+                    lastfi->data=realloc(lastfi->data, lastfi->len);
                 }
-                pline=&lastfi->linebuf[lastfi->currentp];
+                pline=&lastfi->data[lastfi->p];
                 for (;;) {
+                    lastchar = c;
                     if (arguments.toascii) {
-                        lastchar = ch;
                         switch (type) {
                             case UNKNOWN:
                             case UTF8:
-                                ch=fgetc(f);
-                                if (ch < 0) break;
+                                c = ch = fgetc(f);
+                                if (ch == EOF) break;
 
                                 if (ch < 0x80) {
                                     i = 0;
@@ -826,30 +829,30 @@ struct sfile* openfile(char* name,char* volt) {
                                     if (type == UNKNOWN) {
                                         type = ISO1; break;
                                     }
-                                    ch = 0xfffd; i = 0;
+                                    c = 0xfffd; i = 0;
                                 } else if (ch < 0xe0) {
-                                    ch ^= 0xc0;i = 1;
+                                    c ^= 0xc0;i = 1;
                                 } else if (ch < 0xf0) {
-                                    ch ^= 0xe0;i = 2;
+                                    c ^= 0xe0;i = 2;
                                 } else if (ch < 0xf8) {
-                                    ch ^= 0xf0;i = 3;
+                                    c ^= 0xf0;i = 3;
                                 } else if (ch < 0xfc) {
-                                    ch ^= 0xf8;i = 4;
+                                    c ^= 0xf8;i = 4;
                                 } else if (ch < 0xfe) {
-                                    ch ^= 0xfc;i = 5;
+                                    c ^= 0xfc;i = 5;
                                 } else {
-                                    ch2=fgetc(f);
-                                    if (ch == 0xff && ch2 == 0xfe) {
-                                        type = UTF16LE;continue;
-                                    }
-                                    if (ch == 0xfe && ch2 == 0xff) {
-                                        type = UTF16BE;continue;
-                                    }
-                                    ungetc(ch2, f); 
                                     if (type == UNKNOWN) {
+                                        ch2=fgetc(f);
+                                        if (ch == 0xff && ch2 == 0xfe) {
+                                            type = UTF16LE;continue;
+                                        }
+                                        if (ch == 0xfe && ch2 == 0xff) {
+                                            type = UTF16BE;continue;
+                                        }
+                                        ungetc(ch2, f); 
                                         type = ISO1; break;
                                     }
-                                    ch = 0xfffd; i = 0;
+                                    c = 0xfffd; i = 0;
                                 }
 
                                 for (j = i; i; i--) {
@@ -858,105 +861,102 @@ struct sfile* openfile(char* name,char* volt) {
                                         if (type == UNKNOWN) {
                                             type = ISO1;
                                             i = (j - i) * 6;
-                                            pline = utf8out(((~0x7f >> j) & 0xff) | (ch >> i), pline);
+                                            pline = utf8out(((~0x7f >> j) & 0xff) | (c >> i), pline);
                                             for (;i; i-= 6) {
-                                                pline = utf8out(((ch >> (i-6)) & 0x3f) | 0x80, pline);
+                                                pline = utf8out(((c >> (i-6)) & 0x3f) | 0x80, pline);
                                             }
-                                            ch = ch2; j = 0;
+                                            c = ch2; j = 0;
                                             break;
                                         }
                                         ungetc(ch2, f);
-                                        ch = 0xfffd;break;
+                                        c = 0xfffd;break;
                                     }
-                                    ch = (ch << 6) ^ ch2 ^ 0x80;
+                                    c = (c << 6) ^ ch2 ^ 0x80;
                                 }
                                 if (j) type = UTF8;
                                 break;
                             case UTF16LE:
-                                ch=fgetc(f);
-                                ch2=fgetc(f);
-                                if (ch2 == EOF) break;
-                                ch |= ch2 << 8;
-                                if (ch == 0xfffe) {
+                                c = fgetc(f);
+                                ch = fgetc(f);
+                                if (ch == EOF) break;
+                                c |= ch << 8;
+                                if (c == 0xfffe) {
                                     type = UTF16BE;
                                     continue;
                                 }
                                 break;
                             case UTF16BE:
-                                ch2=fgetc(f);
-                                ch=fgetc(f);
+                                c = fgetc(f) << 8;
+                                ch = fgetc(f);
                                 if (ch == EOF) break;
-                                ch |= ch2 << 8;
-                                if (ch == 0xfffe) {
+                                c |= ch;
+                                if (c == 0xfffe) {
                                     type = UTF16LE;
                                     continue;
                                 }
                                 break;
                             case ISO1:
-                                ch=fgetc(f);
+                                c = ch = fgetc(f);
                                 break;
                         }
-                        if (ch == 0xfeff) continue;
+                        if (c == 0xfeff) continue;
                         if (type != UTF8) {
-                            if (ch >= 0xd800 && ch < 0xdc00) {
+                            if (c >= 0xd800 && c < 0xdc00) {
                                 if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
-                                ch = 0xfffd;
-                            } else if (ch >= 0xdc00 && ch < 0xe000) {
+                                c = 0xfffd;
+                            } else if (c >= 0xdc00 && c < 0xe000) {
                                 if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                    ch = 0x361dc00 ^ ch ^ (lastchar << 10);
+                                    c ^= 0x361dc00 ^ (lastchar << 10);
                                 } else
-                                    ch = 0xfffd;
+                                    c = 0xfffd;
                             } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                ch = 0xfffd;
+                                c = 0xfffd;
                             }
                         }
                     } else {
-                        ch = fgetc(f);
+                        c = ch = fgetc(f);
                     }
 
                     if (ch == EOF) break;
-                    if (ch == 10) {
+                    if (c == 10) {
                         if (lastchar == 13) continue;
                         break;
-                    }
-                    if (ch == 13) {
+                    } else if (c == 13) {
                         break;
                     }
-                    pline = utf8out(ch, pline);
-                    if (pline > &lastfi->linebuf[lastfi->currentp + linelength - 6*6]) {
+                    if (c && c < 0x80) *pline++ = c; else pline = utf8out(c, pline);
+                    if (pline > &lastfi->data[lastfi->p + linelength - 6*6]) {
                         err_msg(ERROR_LINE_TOO_LONG,NULL);ch=EOF;break;
                     }
                 }
-                i = pline - &lastfi->linebuf[lastfi->currentp];
-                pline=&lastfi->linebuf[lastfi->currentp];
+                i = pline - &lastfi->data[lastfi->p];
+                pline=&lastfi->data[lastfi->p];
                 if (i)
                     while (i && pline[i-1]==' ') i--;
                 pline[i++] = 0;
-                lastfi->currentp += i;
+                lastfi->p += i;
 
                 if (ch == EOF) break;
             } while (1);
             if (f!=stdin) fclose(f);
-            lastfi->linebuflen = lastfi->currentp;
-            lastfi->linebuf=realloc(lastfi->linebuf, lastfi->linebuflen);
+            lastfi->len = lastfi->p;
+            lastfi->data=realloc(lastfi->data, lastfi->len);
         }
-	lastfi->currentp = 0;
+	lastfi->p = 0;
 
         tmp = lastfi;
 	lastfi=NULL;
-        *volt=0;
-        tmp->num=curfnum++;
+        tmp->uid=curfnum++;
     } else {
         tmp = avltree_container_of(b, struct sfile, node);
-        *volt=tmp->open;
     }
-    tmp->open=1;
-    reffile=tmp->num;
+    tmp->open++;
+    reffile=tmp->uid;
     return tmp;
 }
 
 void closefile(struct sfile* f) {
-    f->open=0;
+    if (f->open) f->open--;
 }
 
 void tfree() {
@@ -981,7 +981,6 @@ void tinit() {
 
 void labelprint() {
     struct avltree_node *n;
-    long val;
     struct slabel *l;
     FILE *flab;
 
@@ -1000,43 +999,48 @@ void labelprint() {
             switch (l->value.type) {
             case T_CHR:
             case T_INT:
-                val=l->value.num;
-                if (val<0) fprintf(flab,"-");
-                val=(val>=0?val:-val);
-                if (val<0x100) fprintf(flab,"$%02lx",val);
-                else if (val<0x10000l) fprintf(flab,"$%04lx",val);
-                else if (val<0x1000000l) fprintf(flab,"$%06lx",val);
-                else fprintf(flab,"$%08lx",val);
-                if (l->used<pass) {
-                    if (val<0x100) fprintf(flab,"  ");
-                    if (val<0x10000l) fprintf(flab,"  ");
-                    if (val<0x1000000l) fprintf(flab,"  ");
-                    fprintf(flab,"; *** unused");
+                {
+                    int32_t val;
+                    val=l->value.u.num;
+                    if (val<0) {fputc('-', flab);val=-val;}
+                    if (val<0x100) fprintf(flab,"$%02x",val);
+                    else if (val<0x10000) fprintf(flab,"$%04x",val);
+                    else if (val<0x1000000) fprintf(flab,"$%06x",val);
+                    else fprintf(flab,"$%08x",val);
+                    if (l->pass<pass) {
+                        if (val<0x100) fputs("  ", flab);
+                        if (val<0x10000) fputs("  ", flab);
+                        if (val<0x1000000) fputs("  ", flab);
+                        fputs("; *** unused", flab);
+                    }
+                    break;
                 }
-                break;
             case T_STR:
-                for (val=0;val<l->value.str.len;val++) {
-                    if (val) fprintf(flab, ", ");
-                    fprintf(flab,"$%02x", l->value.str.data[val]);
+                {
+                    uint32_t val;
+                    for (val=0;val<l->value.u.str.len;val++) {
+                        if (val) fputs(", ", flab);
+                        fprintf(flab,"$%02x", l->value.u.str.data[val]);
+                    }
+                    if (l->pass<pass) {
+                        fputs("; *** unused", flab);
+                    }
+                    break;
                 }
-                if (l->used<pass) {
-                    fprintf(flab,"; *** unused");
-                }
-                break;
             default:
                 fputc('?', flab);
                 break;
             }
-            fprintf(flab,"\n");
+            fputc('\n', flab);
         }
 	if (flab != stdout) fclose(flab);
     }
 }
 
 // ------------------------------------------------------------------
-const char *short_options= "wqnbWaPOCBicxtl:L:msV?o:D:";
+static const char *short_options= "wqnbWaPOCBicxtl:L:msV?o:D:";
 
-const struct option long_options[]={
+static const struct option long_options[]={
     {"no-warn"	        , no_argument      , 0,	'w'},
     {"quiet"	        , no_argument      , 0,	'q'},
     {"nonlinear"        , no_argument      , 0,	'n'},
@@ -1062,10 +1066,8 @@ const struct option long_options[]={
     { 0, 0, 0, 0}
 };
 
-int testarg(int argc,char *argv[]) {
+int testarg(int argc,char *argv[],struct sfile *fin) {
     int opt, longind;
-    char i;
-    struct sfile *fin=openfile("",&i);
     enum {UNKNOWN, UTF8, ISO1} type = UNKNOWN;
     
     while ((opt = getopt_long_only(argc, argv, short_options, long_options, &longind)) != -1)
@@ -1082,21 +1084,20 @@ int testarg(int argc,char *argv[]) {
             case 'o':arguments.output=optarg;break;
             case 'D':
                 {
-                    unsigned char *pline = fin->linebuf + fin->currentp, *c = (unsigned char *)optarg;
-                    int ch = 0, ch2, i, j;
+                    uint8_t *c = (uint8_t *)optarg;
+                    uint8_t *pline=&fin->data[fin->p], ch2;
+                    int i, j;
+                    uint32_t ch = 0;
 
-                    if (fin->currentp + linelength > fin->linebuflen) {
-                        fin->linebuflen += linelength;
-                        if (!(fin->linebuf=realloc(fin->linebuf, fin->linebuflen))) exit(1);
+                    if (fin->p + linelength > fin->len) {
+                        fin->len += linelength;
+                        if (!(fin->data=realloc(fin->data, fin->len))) exit(1);
                     }
-                    pline=&fin->linebuf[fin->currentp];
-                    while (*c) {
+                    pline=&fin->data[fin->p];
+                    while ((ch=*c++)) {
                         switch (type) {
                         case UNKNOWN:
                         case UTF8:
-                            ch=*c++;
-                            if (ch < 0) break;
-
                             if (ch < 0x80) {
                                 i = 0;
                             } else if (ch < 0xc0) {
@@ -1137,17 +1138,15 @@ int testarg(int argc,char *argv[]) {
                                 ch = (ch << 6) ^ ch2 ^ 0x80;
                             }
                             if (j) type = UTF8;
-                            break;
+                            if (ch == 0xfeff) continue;
                         case ISO1:
-                            ch=*c++;
                             break;
                         }
-                        if (ch == 0xfeff) continue;
-                        pline = utf8out(ch, pline);
-                        if (pline > &fin->linebuf[fin->currentp + linelength - 6*6]) break;
+                        if (ch && ch < 0x80) *pline++ = ch; else pline = utf8out(ch, pline);
+                        if (pline > &fin->data[fin->p + linelength - 6*6]) break;
                     }
                     *pline++ = 0;
-                    fin->currentp = pline - fin->linebuf;
+                    fin->p = pline - fin->data;
                 }
             case 'B':arguments.longbranch=1;break;
             case 1:arguments.cpumode=OPCODES_6502;break;
@@ -1160,18 +1159,18 @@ int testarg(int argc,char *argv[]) {
             case 'm':arguments.monitor=0;break;
             case 's':arguments.source=0;break;
             case 'C':arguments.casesensitive=1;break;
-            case 2:printf(
+            case 2:puts(
 	       "Usage: 64tass [-abBCnOPqwWcitxms?V] [-D <label>=<value>] [-o <file>]\n"
 	       "	[-l <file>] [-L <file>] [--ascii] [--nostart] [--long-branch]\n"
 	       "	[--case-sensitive] [--nonlinear] [--compatible-ops]\n"
 	       "	[--no-precedence] [--quiet] [--no-warn] [--wordstart] [--m65c02]\n"
 	       "	[--m6502] [--m65xx] [--m65dtv02] [--m65816] [--labels=<file>]\n"
 	       "	[--list=<file>] [--no-monitor] [--no-source] [--help] [--usage]\n"
-	       "	[--version] SOURCES\n");exit(0);
+	       "	[--version] SOURCES");exit(0);
 
-            case 'V':printf("64tass Turbo Assembler Macro V" VERSION "\n");exit(0);
+            case 'V':puts("64tass Turbo Assembler Macro V" VERSION);exit(0);
             case 3:
-            case '?':if (optopt=='?' || opt==3) { printf(
+            case '?':if (optopt=='?' || opt==3) { puts(
 	       "Usage: 64tass [OPTIONS...] SOURCES\n"
 	       "64tass Turbo Assembler Macro V" VERSION "\n"
 	       "\n"			
@@ -1209,16 +1208,14 @@ int testarg(int argc,char *argv[]) {
 	       "Mandatory or optional arguments to long options are also mandatory or optional\n"
 	       "for any corresponding short options.\n"
 	       "\n"
-	       "Report bugs to <soci" "\x40" "c64.rulez.org>.\n");exit(0);}
-            default:fprintf(stderr,
-                "Try `64tass --help' or `64tass --usage' for more information.\n");exit(1);
+	       "Report bugs to <soci" "\x40" "c64.rulez.org>.");exit(0);}
+            default:fputs("Try `64tass --help' or `64tass --usage' for more information.\n", stderr);exit(1);
         }
-    closefile(fin); fin->linebuflen = fin->currentp; fin->currentp = 0;
-    if (fin->linebuf && !(fin->linebuf=realloc(fin->linebuf, fin->linebuflen))) exit(1);
+    closefile(fin); fin->len = fin->p; fin->p = 0;
+    if (fin->data && !(fin->data=realloc(fin->data, fin->len))) exit(1);
     if (argc <= optind) {
-        fprintf(stderr,
-            "Usage: 64tass [OPTIONS...] SOURCES\n"
-            "Try `64tass --help' or `64tass --usage' for more information.\n");exit(1);
+        fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
+              "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);exit(1);
     }
     return optind;
 }

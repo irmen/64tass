@@ -18,51 +18,54 @@
 #ifndef _MISC_H_
 #define _MISC_H_
 #include "libtree.h"
+#include "stdint.h"
 #define VERSION "1.46"
 // ---------------------------------------------------------------------------
 // $00-$3f warning
 // $40-$7f error
 // $80-$bf fatal
-#define ERROR_TOP_OF_MEMORY 0x00
-#define ERROR_A_USED_AS_LBL 0x01
-#define ERROR___BANK_BORDER 0x02
-#define ERROR______JUMP_BUG 0x03
-#define ERROR___LONG_BRANCH 0x04
-#define ERROR_DIRECTIVE_IGN 0x05
-#define ERROR_WUSER_DEFINED 0x06
+enum errors_e {
+    ERROR_TOP_OF_MEMORY=0x00,
+    ERROR_A_USED_AS_LBL,
+    ERROR___BANK_BORDER,
+    ERROR______JUMP_BUG,
+    ERROR___LONG_BRANCH,
+    ERROR_DIRECTIVE_IGN,
+    ERROR_WUSER_DEFINED,
 
-#define ERROR_DOUBLE_DEFINE 0x40
-#define ERROR___NOT_DEFINED 0x41
-#define ERROR_EXTRA_CHAR_OL 0x42
-#define ERROR_CONSTNT_LARGE 0x43
-#define ERROR_GENERL_SYNTAX 0x44
-#define ERROR______EXPECTED 0x45
-#define ERROR_EXPRES_SYNTAX 0x46
-#define ERROR_BRANCH_TOOFAR 0x47
-#define ERROR_MISSING_ARGUM 0x48
-#define ERROR_ILLEGAL_OPERA 0x49
-#define ERROR_UNKNOWN_ENCOD 0x4A
-#define ERROR_REQUIREMENTS_ 0x4B
-#define ERROR______CONFLICT 0x4C
-#define ERROR_DIVISION_BY_Z 0x4D
-#define ERROR____WRONG_TYPE 0x4E
-#define ERROR___UNKNOWN_CHR 0x4F
-#define ERROR____PAGE_ERROR 0x50
-#define ERROR__BRANCH_CROSS 0x51
+    ERROR_DOUBLE_DEFINE=0x40,
+    ERROR___NOT_DEFINED,
+    ERROR_EXTRA_CHAR_OL,
+    ERROR_CONSTNT_LARGE,
+    ERROR_GENERL_SYNTAX,
+    ERROR______EXPECTED,
+    ERROR_EXPRES_SYNTAX,
+    ERROR_BRANCH_TOOFAR,
+    ERROR_MISSING_ARGUM,
+    ERROR_ILLEGAL_OPERA,
+    ERROR_UNKNOWN_ENCOD,
+    ERROR_REQUIREMENTS_,
+    ERROR______CONFLICT,
+    ERROR_DIVISION_BY_Z,
+    ERROR____WRONG_TYPE,
+    ERROR___UNKNOWN_CHR,
+    ERROR____PAGE_ERROR,
+    ERROR__BRANCH_CROSS,
 
-#define ERROR_CANT_FINDFILE 0x80
-#define ERROR_OUT_OF_MEMORY 0x81
-#define ERROR_CANT_WRTE_OBJ 0x82
-#define ERROR_LINE_TOO_LONG 0x83
-#define ERROR_CANT_DUMP_LST 0x84
-#define ERROR_CANT_DUMP_LBL 0x85
-#define ERROR__USER_DEFINED 0x86
-#define ERROR_FILERECURSION 0x87
-#define ERROR__MACRECURSION 0x88
-#define ERROR___UNKNOWN_CPU 0x89
-#define ERROR_UNKNOWN_OPTIO 0x8A
-#define ERROR_TOO_MANY_PASS 0x8B
-#define ERROR__TOO_MANY_ERR 0x8C
+    ERROR_CANT_FINDFILE=0x80,
+    ERROR_OUT_OF_MEMORY,
+    ERROR_CANT_WRTE_OBJ,
+    ERROR_LINE_TOO_LONG,
+    ERROR_CANT_DUMP_LST,
+    ERROR_CANT_DUMP_LBL,
+    ERROR__USER_DEFINED,
+    ERROR_FILERECURSION,
+    ERROR__MACRECURSION,
+    ERROR___UNKNOWN_CPU,
+    ERROR_UNKNOWN_OPTIO,
+    ERROR_TOO_MANY_PASS,
+    ERROR__TOO_MANY_ERR
+};
 
 #define WHAT_EXPRESSION 1
 #define WHAT_HASHMARK   3
@@ -78,56 +81,57 @@
 #define WHAT_SZ         14
 #define WHAT_CHAR       16
 #define WHAT_LBL        17
+
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 struct scontext {
     char* name;
     struct scontext *parent;
-    unsigned long backr, forwr;
+    uint32_t backr, forwr;
     struct avltree contexts;
     struct avltree tree;
     struct avltree_node node;
 };
 
-enum etype {
+enum type_e {
     T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR
 };
 
 struct svalue {
-    enum etype type;
+    enum type_e type;
     union {
-        long num;
+        int32_t num;
         struct {
-            int len;
-            unsigned char *data;
+            uint32_t len;
+            uint8_t *data;
         } str;
-    };
+    } u;
 };
 
 struct slabel {
     char* name;
     struct svalue value;
-    unsigned long requires;
-    unsigned long conflicts;
-    unsigned char proclabel;
-    unsigned char used;
+    uint32_t requires;
+    uint32_t conflicts;
+    unsigned proclabel:1;
+    uint8_t pass;
     struct avltree_node node;
 };
 
 struct sfile {
     char *name;
-    unsigned char *linebuf;
-    unsigned long linebuflen;
-    unsigned long currentp;
-    unsigned char open;
-    unsigned long num;
+    uint8_t *data;    /* data */
+    uint32_t len;     /* length */
+    uint32_t p;       /* current point */
+    unsigned open:1;  /* open/not open */
+    uint16_t uid;     /* uid */
     struct avltree_node node;
 };
 
 struct smacro {
     char *name;
-    long point;
-    long lin;
+    uint32_t p;
+    uint32_t sline;
     struct sfile *file;
     int type;
     struct avltree_node node;
@@ -140,73 +144,73 @@ struct serrorlist {
 
 struct sfilenamelist {
     struct sfilenamelist *next;
-    long line;
-    char name[1];
+    uint32_t line;
+    char *name;
 };
 
 struct arguments_t {
-    int warning;
-    int quiet;
-    int nonlinear;
-    int stripstart;
-    int toascii;
+    unsigned warning:1;
+    unsigned quiet:1;
+    unsigned nonlinear:1;
+    unsigned stripstart:1;
+    unsigned toascii:1;
+    unsigned monitor:1;
+    unsigned source:1;
+    unsigned casesensitive:1;
+    unsigned longbranch:1;
+    unsigned wordstart:1;
+    unsigned noprecedence:1;
+    unsigned oldops:1;
     char *output;
-    int cpumode;
+    uint8_t cpumode;
     char *label;
     char *list;
-    int monitor;
-    int source;
-    int casesensitive;
-    int longbranch;
-    int wordstart;
-    int noprecedence;
-    int oldops;
 };
 
 struct sencoding {
-    int start;
-    int end;
-    int offset;
+    uint32_t start;
+    uint32_t end;
+    int16_t offset;
 };
 
-extern long sline;
-extern int errors,conderrors,warnings;
-extern unsigned long l_address;
-extern char pline[];
+extern uint32_t sline;
+extern unsigned int errors,conderrors,warnings;
+extern uint32_t l_address;
+extern uint8_t pline[];
 extern int labelexists;
 extern void status();
-extern unsigned long reffile;
-extern int pass;
+extern uint16_t reffile;
+extern uint8_t pass;
 
 #ifdef _MAIN_C_
 #define ignore() while(pline[lpoint]==0x20) lpoint++
 #define get() pline[lpoint++]
 #define here() pline[lpoint]
 #endif
-extern const unsigned char whatis[256];
-extern unsigned char encode(unsigned char);
-extern int petsymbolic(char*);
-extern void err_msg(unsigned char, char*);
+extern const uint8_t whatis[256];
+extern uint_fast8_t encode(uint_fast8_t);
+extern uint_fast16_t petsymbolic(char*);
+extern void err_msg(enum errors_e, char*);
 extern struct slabel* find_label(char*);
 extern struct slabel* new_label(char*);
 extern struct smacro* find_macro(char*);
 extern struct smacro* new_macro(char*);
 extern struct scontext* new_context(char*, struct scontext *);
-extern struct sfile *openfile(char*,char*);
+extern struct sfile *openfile(char*);
 extern void closefile(struct sfile*);
 extern void tfree();
 extern void tinit();
 extern void labelprint();
-extern int testarg(int,char **);
+extern int testarg(int,char **,struct sfile *);
 extern struct arguments_t arguments;
 extern void freeerrorlist(int);
-extern void enterfile(char *,long);
+extern void enterfile(char *,uint32_t);
 extern void exitfile();
 extern struct sfilenamelist *filenamelist;
-extern int encoding;
+extern unsigned int encoding;
 extern struct scontext *current_context;
 extern struct scontext root_context;
-extern int utf8in(char *c, int *out);
+extern unsigned int utf8in(uint8_t *c, uint32_t *out);
 extern struct sencoding no_encoding[];
 extern struct sencoding screen_encoding[];
 extern struct sencoding ascii_encoding[];
