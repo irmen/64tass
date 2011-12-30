@@ -38,7 +38,7 @@
 #include "opcodes.h"
 #include "misc.h"
 
-static char *mnemonic;    //mnemonics
+static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
 
 static struct sencoding *actual_encoding = ascii_encoding;
@@ -46,7 +46,7 @@ static struct sencoding *actual_encoding = ascii_encoding;
 #define linelength 4096
 #define nestinglevel 256
 unsigned int errors=0,conderrors=0,warnings=0;
-static unsigned int wrapwarn=0, wrapwarn2=0;
+static int wrapwarn=0, wrapwarn2=0;
 uint32_t sline;      //current line
 static uint32_t all_mem;
 uint8_t pass=0;      //pass
@@ -65,12 +65,11 @@ static char path[linelength];   //path
 static int pagelo=-1;           //still in same page?
 static FILE* flist = NULL;      //listfile
 static enum { LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU } lastl = LIST_CODE;
-static uint16_t logisave=0;          // number of nested .logical
+static uint16_t logisave=0, logisize = 0;          // number of nested .logical
 static int32_t* logitab = NULL;  //.logical .here
-static int logisize=0;
-static char longaccu=0,longindex=0,scpumode=0,dtvmode=0;
-static unsigned char databank=0;
-static unsigned int dpage=0;
+static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
+static uint8_t databank=0;
+static uint16_t dpage=0;
 static int fixeddig;
 static uint32_t current_requires, current_conflicts, current_provides;
 static int allowslowbranch=1;
@@ -151,6 +150,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x05" "shiftl",
     "\x39" "showmac",
     "\x01" "text",
+    "\x3e" "var",
     "\x27" "warn",
     "\x09" "word",
     "\x20" "xl",
@@ -166,7 +166,7 @@ enum command_e {
     CMD_PEND, CMD_DATABANK, CMD_DPAGE, CMD_FILL, CMD_WARN, CMD_ENC, CMD_ENDIF,
     CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN,
     CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION, CMD_BLOCK, CMD_BEND, CMD_PRON,
-    CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT,
+    CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR
 };
 
 // ---------------------------------------------------------------------------
@@ -219,7 +219,7 @@ void status() {
 static void readln(struct sfile* fle) {
     unsigned int i = 0;
     uint_fast8_t q = 0;
-    uint32_t l = fle->p;
+    size_t l = fle->p;
     uint8_t *c = &fle->data[fle->p];
 
     if (fle->len != fle->p) {
@@ -398,7 +398,8 @@ static void pokeb(uint8_t byte)
 }
 
 static int lookup_opcode(char *pline) {
-    char s2,s3,*p, ch;
+    char s2,s3, ch;
+    const char *p;
     int s4;
     unsigned int also=0,felso,elozo, no;
 
@@ -580,13 +581,17 @@ static int get_num(int mode, struct svalue *v) {// 0=unknown stuff, 1=ok
         in:
             tmp=find_label(ident);
 	    if (pass==1) {
-                if (tmp) {tmp->proclabel=0;tmp->pass=pass;*v=tmp->value;}
+                if (tmp) {
+                    tmp->proclabel=0;tmp->pass=pass;*v=tmp->value;
+                    if (tmp->varlabel && tmp->upass!=pass) err_msg(ERROR___NOT_DEFINED,ident);
+                }
 		return 1;
 	    }
 	    else {
                 if (tmp) {
                     if ((tmp->requires & current_provides)!=tmp->requires) err_msg(ERROR_REQUIREMENTS_,ident);
                     if (tmp->conflicts & current_provides) err_msg(ERROR______CONFLICT,ident);
+                    if (tmp->varlabel && tmp->upass!=pass) err_msg(ERROR___NOT_DEFINED,ident);
                     tmp->proclabel=0;tmp->pass=pass;*v=tmp->value;return 1;
                 }
                 if (mode) err_msg(ERROR___NOT_DEFINED,(mode & 1)?"+":"-");
@@ -1023,7 +1028,7 @@ static void wait_cmd(struct sfile *fil, int no)
     uint8_t wrap=waitforp;
     int pr,wh;
     uint32_t lin = 1;
-    uint32_t pos = 0;
+    size_t pos = 0;
 
     for (;;) {
 	if (fil->len == fil->p) { // eof?
@@ -1169,12 +1174,54 @@ static void mtranslate(char* mpr, uint_fast8_t nprm, uint8_t *cucc)
 static void set_cpumode(uint_fast8_t cpumode) {
     all_mem=0xffff;scpumode=0;dtvmode=0;
     switch (last_mnem=cpumode) {
-    case OPCODES_6502:mnemonic=MNEMONIC6502;opcode=c6502;break;
     case OPCODES_65C02:mnemonic=MNEMONIC65C02;opcode=c65c02;break;
     case OPCODES_6502i:mnemonic=MNEMONIC6502i;opcode=c6502i;break;
     case OPCODES_65816:mnemonic=MNEMONIC65816;opcode=c65816;all_mem=0xffffff;scpumode=1;break;
     case OPCODES_65DTV02:mnemonic=MNEMONIC65DTV02;opcode=c65dtv02;dtvmode=1;break;
+    default: mnemonic=MNEMONIC6502;opcode=c6502;break;
     }
+}
+
+void var_assign(struct slabel *tmp, struct svalue *val, int fix) {
+    switch (tmp->value.type) {
+    case T_CHR:
+    case T_INT:
+        if ((val->type != T_INT && val->type != T_CHR) || tmp->value.u.num!=val->u.num) {
+            tmp->value=*val;
+            if (val->type == T_STR) {
+                tmp->value.u.str.data=malloc(val->u.str.len);
+                memcpy(tmp->value.u.str.data,val->u.str.data,val->u.str.len);
+            }
+            fixeddig=fix;
+        } else tmp->value.type = val->type;
+        break;
+    case T_STR:
+        if (val->type != T_STR || tmp->value.u.str.len!=val->u.str.len || memcmp(tmp->value.u.str.data, val->u.str.data, val->u.str.len)) {
+            if (val->type == T_STR) {
+                tmp->value.type = val->type;
+                tmp->value.u.str.len=val->u.str.len;
+                tmp->value.u.str.data=realloc(tmp->value.u.str.data, val->u.str.len);
+                memcpy(tmp->value.u.str.data,val->u.str.data,val->u.str.len);
+            } else {
+                free(tmp->value.u.str.data);
+                tmp->value=*val;
+            }
+            fixeddig=fix;
+        }
+        break;
+    case T_NONE:
+        if (val->type != T_NONE) fixeddig=fix;
+        tmp->value=*val;
+        if (val->type == T_STR) {
+            tmp->value.u.str.data=malloc(val->u.str.len);
+            memcpy(tmp->value.u.str.data,val->u.str.data,val->u.str.len);
+        }
+        break;
+    case T_TSTR: /* not possible here */
+        exit(1);
+        break;
+    }
+    tmp->upass=pass;
 }
 
 static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",0
@@ -1263,7 +1310,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                     else {
                         tmp->requires=current_requires;
                         tmp->conflicts=current_conflicts;
-			tmp->proclabel=0;tmp->pass=pass;
+			tmp->proclabel=0;tmp->varlabel=0;tmp->upass=tmp->pass=pass;
 			tmp->value=val;
                         if (val.type == T_STR) {
                             tmp->value.u.str.data=malloc(val.u.str.len);
@@ -1275,46 +1322,47 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                     if (labelexists) {
                         tmp->requires=current_requires;
                         tmp->conflicts=current_conflicts;
-                        switch (tmp->value.type) {
-                        case T_CHR:
-                        case T_INT:
-                            if ((val.type != T_INT && val.type != T_CHR) || tmp->value.u.num!=val.u.num) {
-                                tmp->value=val;
-                                if (val.type == T_STR) {
-                                    tmp->value.u.str.data=malloc(val.u.str.len);
-                                    memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
-                                }
-                                fixeddig=0;
-                            } else tmp->value.type = val.type;
-                            break;
-                        case T_STR:
-                            if (val.type != T_STR || tmp->value.u.str.len!=val.u.str.len || memcmp(tmp->value.u.str.data, val.u.str.data, val.u.str.len)) {
-                                if (val.type == T_STR) {
-                                    tmp->value.type = val.type;
-                                    tmp->value.u.str.len=val.u.str.len;
-                                    tmp->value.u.str.data=realloc(tmp->value.u.str.data, val.u.str.len);
-                                    memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
-                                } else {
-                                    free(tmp->value.u.str.data);
-                                    tmp->value=val;
-                                }
-                                fixeddig=0;
-                            }
-                            break;
-                        case T_NONE:
-                            if (val.type != T_NONE) fixeddig=0;
-                            tmp->value=val;
-                            if (val.type == T_STR) {
-                                tmp->value.u.str.data=malloc(val.u.str.len);
-                                memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
-                            }
-                            break;
-                        case T_TSTR: /* not possible here */
-                            exit(1);
-                            break;
-                        }
+                        var_assign(tmp, &val, 0);
                     }
 		}
+                continue;
+            }
+            if (wht==WHAT_COMMAND && prm==CMD_VAR) { //variable
+                strcpy(varname,ident);
+                get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
+		if (!c) continue;
+		if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); continue;}
+		ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
+		tmp=new_label(varname);
+                if (listing && flist && arguments.source && tmp->pass+1>=pass) {
+                    if (nprm>=0) mtranslate(mprm,nprm,llist);
+                    if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
+                    if (val.type == T_INT || val.type == T_CHR) {
+                        fprintf(flist,"=%x\t\t\t\t\t",val.u.num);
+                    } else {
+                        fputs("=\t\t\t\t\t", flist);
+                    }
+                    printllist(flist);
+                }
+                if (labelexists) {
+                    if (!tmp->varlabel) {
+                        err_msg(ERROR_DOUBLE_DEFINE,varname);
+                        continue;
+                    }
+                    tmp->requires=current_requires;
+                    tmp->conflicts=current_conflicts;
+                    var_assign(tmp, &val, fixeddig);
+                } else {
+                    tmp->requires=current_requires;
+                    tmp->conflicts=current_conflicts;
+                    tmp->proclabel=0;tmp->varlabel=1;tmp->upass=tmp->pass=pass;
+                    tmp->value=val;
+                    if (val.type == T_STR) {
+                        tmp->value.u.str.data=malloc(val.u.str.len);
+                        memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
+                    }
+                    if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                }
                 continue;
             }
             if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) { // .macro
@@ -1349,20 +1397,23 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                 else {
                     tmp->requires=current_requires;
                     tmp->conflicts=current_conflicts;
-                    tmp->pass=pass;
+                    tmp->upass=tmp->pass=pass;
 		    tmp->value.type=T_INT;tmp->value.u.num=l_address;
 		    if (wht==WHAT_COMMAND && prm==CMD_PROC) tmp->proclabel=1; else tmp->proclabel=0;
+                    tmp->varlabel=0;
 		}
 	    }
 	    else {
                 if (labelexists) {
-                    tmp->requires=current_requires;
-                    tmp->conflicts=current_conflicts;
-                    if ((tmp->value.type != T_INT && tmp->value.type != T_CHR) || (uint32_t)tmp->value.u.num != l_address) {
-                        if (tmp->value.type == T_STR) free(tmp->value.u.str.data);
+                    if (tmp->value.type != T_INT || tmp->varlabel) { /* should not happen */
+                        err_msg(ERROR_DOUBLE_DEFINE,ident);
+                        continue;
+                    } else if ((uint32_t)tmp->value.u.num != l_address) {
                         tmp->value.u.num=l_address;
                         fixeddig=0;
                     }
+                    tmp->requires=current_requires;
+                    tmp->conflicts=current_conflicts;
                     tmp->value.type=T_INT;
 		}
 	    }
@@ -1824,7 +1875,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                     ignore();
                     if (val.type != T_NONE) {
                         db=val.u.num;
-                        if (db>all_mem) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
+                        if (db>(all_mem+1)) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
                     }
                     if ((ch=get())) {
                         if (ch!=',') goto extrachar;
@@ -1886,7 +1937,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
                     ignore();if (get()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                     if (val.type != T_NONE) {
-                        if ((val.u.num & current_provides)!=(uint32_t)val.u.num) {err_msg(ERROR_REQUIREMENTS_,".CHECK");break;}
+                        if ((val.u.num & current_provides) ^ val.u.num) {err_msg(ERROR_REQUIREMENTS_,".CHECK");break;}
                     }
 		    get_exp(&w,&d,&c,&val,T_INT);
 		    if (!c) break;
@@ -1954,7 +2005,8 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
 		    ignore();if (here()) goto extrachar;
                     cnt = 0;
                     if (val.type != T_NONE) {
-                        uint32_t pos = fin->p, lin = sline;
+                        size_t pos = fin->p;
+                        uint32_t lin = sline;
                         for (; cnt<val.u.num; cnt++) {
                             sline=lin;fin->p=pos;
                             compile(2,mprm,nprm,fin);
@@ -2077,7 +2129,8 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
 		    break;
 		}
 		if (prm==CMD_FOR) { // .for
-                    uint32_t pos, lin;
+                    size_t pos;
+                    uint32_t lin;
 		    int apoint, bpoint = -1;
                     uint8_t expr[linelength];
                     struct slabel *var;
@@ -2089,13 +2142,26 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
 			get_exp(&w,&d,&c,&val,T_NONE);
 			if (!c) break;
 			if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-			if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for start");break;}
                         var=new_label(varname);
-                        var->requires=current_requires;
-                        var->conflicts=current_conflicts;
-			if (!labelexists) var->proclabel=0;
-			var->value=val;
-                        if (pass==1) var->pass=pass;
+                        if (labelexists) {
+                            if (!var->varlabel) {
+                                err_msg(ERROR_DOUBLE_DEFINE,varname);
+                                break;
+                            }
+                            var->requires=current_requires;
+                            var->conflicts=current_conflicts;
+                            var_assign(var, &val, fixeddig);
+                        } else {
+                            var->requires=current_requires;
+                            var->conflicts=current_conflicts;
+                            var->proclabel=0;var->varlabel=1;var->upass=var->pass=pass;
+                            var->value=val;
+                            if (val.type == T_STR) {
+                                var->value.u.str.data=malloc(val.u.str.len);
+                                memcpy(var->value.u.str.data,val.u.str.data,val.u.str.len);
+                            }
+                            if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                        }
 			wht=what(&prm);
 		    }
 		    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X) lpoint--; else
@@ -2118,10 +2184,19 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                             if (!here()) bpoint = 0;
                             else {
                                 var=new_label(ident);
-                                var->requires=current_requires;
-                                var->conflicts=current_conflicts;
-                                if (!labelexists) var->proclabel=0;
-                                if (pass==1) var->pass=pass;
+                                if (labelexists) {
+                                    if (!var->varlabel) {
+                                        err_msg(ERROR_DOUBLE_DEFINE,varname);
+                                        break;
+                                    }
+                                    var->requires=current_requires;
+                                    var->conflicts=current_conflicts;
+                                } else {
+                                    var->requires=current_requires;
+                                    var->conflicts=current_conflicts;
+                                    var->proclabel=0;var->varlabel=1;var->upass=var->pass=pass;
+                                    var->value.type=T_NONE;
+                                }
                                 bpoint=lpoint;
                             }
                         }
@@ -2134,7 +2209,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                             if (!c) break;
                             if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
                             ignore();if (here()) goto extrachar;
-                            var->value=val;
+                            var_assign(var, &val, fixeddig);
                         }
                     }
                     wait_cmd(fin,CMD_NEXT);
@@ -2213,7 +2288,8 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                     current_context->backr=current_context->forwr=1;
                 }
                 if (macrecursion<100) {
-                    uint32_t oldpos = tmp2->file->p, lin = sline;
+                    size_t oldpos = tmp2->file->p;
+                    uint32_t lin = sline;
                     enterfile(tmp2->file->name, sline);
                     tmp2->file->p = tmp2->p; sline = tmp2->sline;
                     compile((tmp2->file!=fin)?1:3,mparams,nprm,tmp2->file);
@@ -2341,7 +2417,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                                 if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
                                 if (w==3) {//auto length
                                     if (val.type != T_NONE) {
-                                        if (cnmemonic[ADR_ZP_X]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
+                                        if (cnmemonic[ADR_ZP_X]!=____ && adr >= dpage && adr - dpage < 0x100) {adr-=dpage;w=0;}
                                         else if (cnmemonic[ADR_ADDR_X]!=____ && databank==(adr >> 16)) w=1;
                                         else {
                                             w=val_length(adr);
@@ -2349,7 +2425,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                                         }
                                     } else w=(cnmemonic[ADR_ADDR_X]!=____);
                                 } else {
-                                    if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                                    if (!w && adr >= dpage && adr - dpage < 0x100) adr-=dpage;
                                     if (databank==(adr >> 16) && w<2) adr&=0xffff;
                                     if (w<val_length(adr)) w=3;
                                 }
@@ -2359,11 +2435,11 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                                 if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
                                 if (w==3) {//auto length
                                     if (val.type != T_NONE) {
-                                        if (cnmemonic[ADR_ZP_Y]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
+                                        if (cnmemonic[ADR_ZP_Y]!=____ && adr >= dpage && adr - dpage < 0x100) {adr-=dpage;w=0;}
                                         else if (databank==(adr >> 16)) w=1;
                                     } else w=(cnmemonic[ADR_ADDR_Y]!=____);
                                 } else {
-                                    if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                                    if (!w && adr >= dpage && adr - dpage < 0x100) adr-=dpage;
                                     if (databank==(adr >> 16) && w<2) adr&=0xffff;
                                     if (w<val_length(adr)) w=3;
                                 }
@@ -2488,7 +2564,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                                 else {
                                     if (w==3) {//auto length
                                         if (val.type != T_NONE) {
-                                            if (cnmemonic[ADR_ZP]!=____ && adr>=dpage && adr<(dpage+0x100)) {adr-=dpage;w=0;}
+                                            if (cnmemonic[ADR_ZP]!=____ && adr>=dpage && adr - dpage < 0x100) {adr-=dpage;w=0;}
                                             else if (cnmemonic[ADR_ADDR]!=____ && databank==(adr >> 16)) w=1;
                                             else {
                                                 w=val_length(adr);
@@ -2496,7 +2572,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                                             }
                                         } else w=1;
                                     } else {
-                                        if (!w && adr>=dpage && adr<(dpage+0x100)) adr-=dpage;
+                                        if (!w && adr>=dpage && adr -  dpage < 0x100) adr-=dpage;
                                         if (databank==(adr >> 16) && w<2) adr&=0xffff;
                                         if (w<val_length(adr)) w=3;
                                     }

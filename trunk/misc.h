@@ -102,7 +102,7 @@ struct svalue {
     union {
         int32_t num;
         struct {
-            uint32_t len;
+            size_t len;
             uint8_t *data;
         } str;
     } u;
@@ -114,23 +114,25 @@ struct slabel {
     uint32_t requires;
     uint32_t conflicts;
     unsigned proclabel:1;
+    unsigned varlabel:1;
     uint8_t pass;
+    uint8_t upass;
     struct avltree_node node;
 };
 
 struct sfile {
     char *name;
     uint8_t *data;    /* data */
-    uint32_t len;     /* length */
-    uint32_t p;       /* current point */
-    unsigned open:1;  /* open/not open */
+    size_t len;       /* length */
+    size_t p;         /* current point */
+    uint16_t open;    /* open/not open */
     uint16_t uid;     /* uid */
     struct avltree_node node;
 };
 
 struct smacro {
     char *name;
-    uint32_t p;
+    size_t p;
     uint32_t sline;
     struct sfile *file;
     int type;

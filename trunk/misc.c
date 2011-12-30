@@ -1017,7 +1017,7 @@ void labelprint() {
                 }
             case T_STR:
                 {
-                    uint32_t val;
+                    size_t val;
                     for (val=0;val<l->value.u.str.len;val++) {
                         if (val) fputs(", ", flab);
                         fprintf(flab,"$%02x", l->value.u.str.data[val]);

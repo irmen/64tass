@@ -44,7 +44,7 @@ editor. As a minimum the source filename must be given on command line.
 
 There are also some useful parameters which are described later.
 
-For comfortable compiling I use such "Makefile"s (for make):
+For comfortable compiling I use such `Makefile's (for make):
 
 demo.prg: source.asm makros.asm pic.drp music.bin
         64tass -C -a -B -i source.asm -o demo.prg
@@ -92,7 +92,7 @@ label
 
 To avoid branch too long errors the assembler also supports long branches, it
 can automatically convert conditional relative branches to it's opposite and a
-JMP. This have to be enabled on the command line using the "--long-branch"
+JMP. This have to be enabled on the command line using the `--long-branch'
 option.
 
         bcc veryfar     ;compiled as "bcc veryfar" or
@@ -112,7 +112,7 @@ Operation options
 
 Normally no conversion takes place, this is for backwards compatibility with a
 DOS based Turbo Assembler editor, which could create petscii files for
-6502tass. (with control characters also of course)
+6502tass. (including control characters of course)
 
 Using this option will convert 'a'-'z' and 'A'-'Z' into the correct petscii
 range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor. It
@@ -195,9 +195,9 @@ Generates non-linear output for linkers. Format: length, address, code, length,
 Example
 
 64tass --nonlinear a.asm
-*=$1000
+        *= $1000
         lda #2
-*=$2000
+        *= $2000
         nop
 result:
 $02, $00 ;little endian length, 2 bytes
@@ -210,7 +210,7 @@ $00, $00 ;end marker (length=0)
 
 -o <file> Place output into <file>
 
-The default output filename is "a.out". This option changes it.
+The default output filename is `a.out'. This option changes it.
 
 Example
 
@@ -250,8 +250,8 @@ original turbo assembler on the C64.
 
 -O, --compatible-ops Enable TASS compatible operators
 
-Enables TASS compatible operators '.', ':' and '!' (see "differences to
-original turbo assembler" below)
+Enables TASS compatible operators `.', `:' and `!' (see `differences to
+original turbo assembler' below)
 
 Target selection on command line
 
@@ -299,7 +299,7 @@ Example
 -x, --m65816 W65C816
 
 Selects 65816. Enables extra opcodes, and full 16 MiB address space. Useful for
-SuperCPU projects. Don't forget to use "--word-start" for small ones ;)
+SuperCPU projects. Don't forget to use `--word-start' for small ones ;)
 
 Example
 
@@ -421,10 +421,15 @@ Constants
         .byte %00011111 ; binary
 
         .text "oeU"     ; text, "" means $22
-        .text 'oeU'     ; text, '' means $27
+        .text 'it''s'   ; text, '' means $27
         .text ^2048     ; the decimal value as string (^23 is $32,$33)
 
 Labels
+
+Normal labels can be defined at the start of each line and hold the logical
+address of that line, or the value after the equal sign. Each of them is uniq
+and can't be redefined. Labels can be forward referenced, the assembler will
+make as many passes as required to resolve them to a stable value.
 
 reg     = $d020
 
@@ -432,11 +437,22 @@ loop
         inc reg
         jmp loop
 
+Variables
+
+Variables are redefinable, because their value will be non stable, so forward
+referencing is not allowed.
+
+variabl .var 1
+        .rept 10
+        .byte variabl
+variabl .var variabl+1
+        .next
+
 Anonymous labels
 
 The assembler supports anonymous labels, also called as forward (+) and
-backward (-) references. "-" means one backward, "--" means two backward, etc.
-also the same for forward, but with "+".
+backward (-) references. `-' means one backward, `--' means two backward, etc.
+also the same for forward, but with `+'.
 
         ldy #4
 -       ldx #0
@@ -454,7 +470,7 @@ These references are also useful in segments, but this can create a nice traps,
 as segments are copied into the code, with the internal references.
 
         bne +
-        #somemakro      ;let's hope that this macro does
+        #somemakro      ;let's hope that this segment does
 +       nop             ;not contain forward references...
 
 Expressions
@@ -566,10 +582,8 @@ Data
             .char -33, 57
 
 .shift
-    Same as .text, but the last byte is "shifted". Characters in range $c0-$df
-    are converted to $60-$7f, $ff is converted to $7e, and everything else >=
-    $80 will cause an error. No conversion if screen encoding is done, >=$80
-    will always cause an error.
+    Same as .text, but the last byte will have highest bit set. Any character
+    which already has the most significiant bit set will cause an error.
 
             ldx #0
     loop    lda txt,x
@@ -583,10 +597,9 @@ Data
     txt     .shift "some text"
 
 .shiftl
-    Same as .text, but all bytes a shifted to left, and the last character has
-    the lowest bit set. Characters in range $c0-$df are converted to $60-$7f,
-    $ff is converted to $7e, and everything else >=$80 will cause an error. No
-    conversion if screen encoding is done, >=$80 will always cause an error.
+    Same as .text, but all bytes are shifted to left, and the last character
+    gets the lowest bit set. Any character which already has the most
+    significiant bit set will cause an error as this would be cut off.
 
             ldx #0
     loop    lda txt,x
@@ -734,13 +747,13 @@ Conditional assembly
     End of compile loop (.rept or .for)
 .if
 .ifne
-    Conditional compile, if result!=0
+    Conditional compile, if result is not 0
 .ifeq
-    Conditional compile, if result=0
+    Conditional compile, if result is 0
 .ifpl
-    Conditional compile, if result>=0
+    Conditional compile, if result is greater or equal 0
 .ifmi
-    Conditional compile, if result<0
+    Conditional compile, if result is less than 0
 
             .if oeu=1
             nop
@@ -784,12 +797,12 @@ Including files
     Include binary data. Please note that loading address is ignored, and if
     not skipped then it's also loaded.
 
-            .binary stuffz.bin ;simple include
-            .binary "stuffz.bin",2 ;skip start address
+            .binary stuffz.bin          ;simple include
+            .binary "stuffz.bin",2      ;skip start address
             .binary "stuffz.bin",2,1000 ;skip start address, 1000 bytes max
 
-            *= $1000                        ;load music to $1000 and
-            .binary "music.dmc",2   ;strip load address
+            *= $1000                    ;load music to $1000 and
+            .binary "music.dmc",2       ;strip load address
 
 Blocks
 
@@ -804,7 +817,7 @@ Blocks
             jsr ize
             jmp ize.cucc
 
-    If "ize" is not referenced then the code won't be compiled at all! All
+    If `ize' is not referenced then the code won't be compiled at all! All
     labels inside are local.
 .pend
     End of procedure
@@ -903,7 +916,7 @@ Controlling errors
 Target
 
 .enc
-    Text encoding, "none" or "screen" (screen code)
+    Text encoding, `none' or `screen' (screen code)
 
             .enc screen     ;screencode mode
             .text "text with screencodes"
@@ -926,7 +939,11 @@ Misc
 .end
     Terminate assembly. Any content after this directive is ignored.
 .eor
-    eor output with some value
+    Eor output with some 8 bit value. Useful for reverse screencode text for
+    example, or for silly `encryption'.
+.var
+    Defines a variable identified by the label preceeding, which is set to the
+    value following.
 .assert
 .check
     Do not use these, the syntax will change in next version!
@@ -945,7 +962,7 @@ Printer control
 How to convert source code written for the original turbo assembler for use
 with 64tass
 
-Currently there are two options, either use "TMPview" by Style to convert the
+Currently there are two options, either use `TMPview' by Style to convert the
 sourcefile directly, or do the following:
 
   * load turbo assembler, start (by sys9*4096 or sys8*4096 depending on
@@ -963,8 +980,8 @@ following commandline:
 
 Differences to the original turbo ass macro on the C64
 
-64tass is nearly 100% compatible with the original "turbo assembler", and
-supports most of the features of the original "turbo assembler macro". The
+64tass is nearly 100% compatible with the original `turbo assembler', and
+supports most of the features of the original `turbo assembler macro'. The
 remaining notable differences are listed here:
 
 Labels
@@ -973,14 +990,14 @@ The original turbo assembler uses case sensitive labels, use the -C,
 --case-sensitive option to enable this behaviour.
 
 Another thing worth noting is that the original turbo assembler lets you create
-an interesting ambiguous construct using a label called 'a'
+an interesting ambiguous construct using a label called `a'.
 
         lsr a    ; uses Akku ! (or does it really?)
 a
         jmp a    ; uses the label address
         .word a  ; uses the label address
 
-If you get a warning like "warning: Possibly incorrectly used A "lsr a"", then
+If you get a warning like `warning: Possibly incorrectly used A "lsr a"', then
 there is such an ambiguous situation in your code and you should fix it (by
 renaming the label).
 
@@ -1023,8 +1040,6 @@ Unsupported directives
 
 Some directives are not yet implemented:
 
-  * .var - defines a variable identified by the label preceeding '.var', which
-    is set to the value following the '.var'.
   * .lbl - identifies a label that can be referenced by a .goto
   * .goto - causes assembler to goto the label referenced and continue
     assembling from that point on.
