@@ -5,6 +5,9 @@
 dt {margin-top:0.5em}
 dl.dir dt {font-family:monospace}
 dl.dir pre {border:1px solid silver}
+body {width:50em;}
+h1, h2, h3, h4, h5 {font-family:sans}
+hr {border: 1pt solid black;background:black;}
 </style>
 </head>
 <body>
@@ -32,7 +35,7 @@ performance improvement for win32, .binary fix for win32
 <dd>Added .rta, .char, .int, .null, .shift, .elsif, .cerror, .cwarn, .align,
 and .cpu, nested conditional compile bugfix, added .ifeq, .ifne, .ifpl,
 .ifmi and .endif for compatibility, label list fixes, offset and maximum
-size for .binary, anonymous forward and backward reference (+-), initial
+size for .binary, anonymous forward and backward reference (<tt>+-</tt>), initial
 65DTV02 support (needs more info), added missing 65c02 opcodes.
 <dt>V1.45c:
 <dd>Compile fixes for SunOs and other non-GNU systems. (no stdint.h there...)
@@ -109,7 +112,9 @@ label
 
 <h3>Operation options</h3>
 
-<h4><tt>-a, --ascii</tt> Convert ASCII to PETASCII</h4>
+<dl class="dir">
+<dt>-a, --ascii
+<dd>Convert ASCII to PETASCII
 <p>Normally no conversion takes place, this is for backwards compatibility with
 a DOS based Turbo Assembler editor, which could create petscii files for
 6502tass. (including control characters of course)</p>
@@ -135,14 +140,16 @@ It also interprets petcat style PETASCII literals and converts them to control c
 &gt;000e    52 45
 </pre>
 
-<h4><tt>-b, --nostart</tt> Strip starting address</h4>
-Strips the 2 or 3 byte starting address before the resulting binary.
-Usefull for creating ROM images.
+<dt>-b, --nostart
+<dd>Strip starting address
+<p>Strips the 2 or 3 byte starting address before the resulting binary.
+Usefull for creating ROM images.</p>
 
-<h4><tt>-B, --long-branch</tt> Automatic bxx *+3 jmp $xxxx</h4>
-Branch too long messages can be annoying sometimes, usually they'll result
+<dt>-B, --long-branch
+<dd>Automatic bxx *+3 jmp $xxxx
+<p>Branch too long messages can be annoying sometimes, usually they'll result
 in an bxx *+5 jmp rewrite. 64tass can do this automatically if this option is
-used. But <code>BRA</code> is not converted.
+used. But <code>BRA</code> is not converted.</p>
 <h5>Example</h5>
 <pre>
 64tass a.asm
@@ -159,8 +166,9 @@ used. But <code>BRA</code> is not converted.
 	<b>bcc</b> $1233	<i>;no error, automatically converted to the above one.</i>
 </pre>
 
-<h4><tt>-C, --case-sensitive</tt> Case sensitive labels</h4>
-Labels are non case sensitive by default, this option changes that.
+<dt>-C, --case-sensitive
+<dd>Case sensitive labels
+<p>Labels are non case sensitive by default, this option changes that.</p>
 <h5>Example</h5>
 <pre>
 64tass a.asm
@@ -172,18 +180,20 @@ label   <b>nop</b>
 Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
 </pre>
 
-<h4><tt>-D &lt;label&gt;=&lt;value&gt;</tt> Define &lt;label&gt; to &lt;value&gt;</h4>
-Defines a label to a value. Same syntax is allowed as in source files. Be careful with
-string quoting, the shell might eat some of the characters.
+<dt>-D &lt;label&gt;=&lt;value&gt;
+<dd>Define &lt;label&gt; to &lt;value&gt;
+<p>Defines a label to a value. Same syntax is allowed as in source files. Be careful with
+string quoting, the shell might eat some of the characters.</p>
 <h5>Example</h5>
 <pre>
 64tass -D ii=2 a.asm
 	<b>lda</b> #ii <i>;result: $a9, $02</i>
 </pre>
 
-<h4><tt>-n, --nonlinear</tt> Generate nonlinear output file</h4>
-Generates non-linear output for linkers.
-Format: length, address, code, length, ...
+<dt>-n, --nonlinear
+<dd>Generate nonlinear output file
+<p>Generates non-linear output for linkers.
+Format: length, address, code, length, ...</p>
 <h5>Example</h5>
 <pre>
 64tass --nonlinear a.asm
@@ -201,93 +211,112 @@ $ea	 ;code
 $00, $00 ;end marker (length=0)
 </pre>
 
-<h4><tt>-o &lt;file&gt;</tt> Place output into &lt;file&gt;</h4>
-The default output filename is <q>a.out</q>. This option changes it.
+<dt>-o &lt;file&gt;
+<dd>Place output into &lt;file&gt;
+<p>The default output filename is <q>a.out</q>. This option changes it.</p>
 <h5>Example</h5>
 <pre>
 64tass a.asm -o a.prg
 </pre>
 
-<h4><tt>-w, --no-warn</tt> Suppress warnings</h4>
-Disables warnings during compile.
+<dt>-w, --no-warn
+<dd>Suppress warnings
+<p>Disables warnings during compile.</p>
 <h5>Example</h5>
 <pre>
 64tass --no-warn a.asm
 </pre>
 
-<h4><tt>-q, --quiet</tt> Suppress messages</h4>
-Disables header and summary messages.
+<dt>-q, --quiet
+<dd>Suppress messages
+<p>Disables header and summary messages.</p>
 <h5>Example</h5>
 <pre>
 64tass --quiet a.asm
 </pre>
 
-<h4><tt>-W, --wordstart</tt> Force 2 byte start address</h4>
-It 16&nbsp;MiB address space is used for 65816, then the starting
-address of file will be 3 bytes long. This option makes it 2 bytes long.
+<dt>-W, --wordstart
+<dd>Force 2 byte start address
+<p>It 16&nbsp;MiB address space is used for 65816, then the starting
+address of file will be 3 bytes long. This option makes it 2 bytes long.</p>
 <h5>Example</h5>
 <pre>
 64tass --wordstart --m65816 a.asm
 </pre>
+</dl>
 
 <h3>Compatibility Options</h3>
 
-<h4><tt>-P, --no-precedence</tt> No operator precedence in expressions</h4>
-Disables operator precedence in all expressions to imitate the behaviour of the
-original turbo assembler on the C64.
+<dl class="dir">
+<dt>-P, --no-precedence
+<dd>No operator precedence in expressions
+<p>Disables operator precedence in all expressions to imitate the behaviour of the
+original turbo assembler on the C64.</p>
 
-<h4><tt>-O, --compatible-ops</tt> Enable TASS compatible operators</h4>
-Enables TASS compatible operators <q>.</q>, <q>:</q> and <q>!</q> (see <q>differences to original
-turbo assembler</q> below)
+<dt>-O, --compatible-ops
+<dd>Enable TASS compatible operators
+<p>Enables TASS compatible operators <q>.</q>, <q>:</q> and <q>!</q> (see <q>differences to original
+turbo assembler</q> below)</p>
+</dl>
 
 <h3>Target selection on command line</h3>
-These options will select the default architecture. It can be overridden by using the <code>.cpu</code> directive in the source.
+<p>These options will select the default architecture. It can be overridden by
+using the <code>.cpu</code> directive in the source.</p>
 
-<h4><tt>-c, --m65c02</tt> CMOS 65C02</h4>
-Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.
+<dl class="dir">
+<dt>-c, --m65c02
+<dd>CMOS 65C02
+<p>Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
 <h5>Example</h5>
 <pre>
 64tass --m65c02 a.asm
 	<b>stz</b> $d020	<i>;65c02 instruction</i>
 </pre>
 
-<h4><tt>-i, --m6502</tt> NMOS 65xx</h4>
-Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64, disk drive code, etc.
+<dt>-i, --m6502
+<dd>NMOS 65xx
+<p>Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64, disk drive code, etc.</p>
 <h5>Example</h5>
 <pre>
 64tass --m6502 a.asm
 	<b>lax</b> $14		<i>;illegal instruction</i>
 </pre>
 
-<h4><tt>--m65xx</tt> Standard 65xx (default)</h4>
-Selects standard 6502. For writing compatible code, no extra codes. This is the default.
+<dt>--m65xx
+<dd>Standard 65xx (default)
+<p>Selects standard 6502. For writing compatible code, no extra codes. This is the default.</p>
 <h5>Example</h5>
 <pre>
 64tass --m65xx a.asm
 	<b>lda</b> $14		<i>;regular instructions</i>
 </pre>
 
-<h4><tt>-t, --m65dtv02</tt> 65DTV02</h4>
-Selects 65DTV02. Enables extra opcodes specific to DTV.
+<dt>-t, --m65dtv02
+<dd>65DTV02
+<p>Selects 65DTV02. Enables extra opcodes specific to DTV.</p>
 <h5>Example</h5>
 <pre>
 64tass --m65dtv02 a.asm
 	<b>sac</b> #$00
 </pre>
 
-<h4><tt>-x, --m65816</tt> W65C816</h4>
-Selects 65816. Enables extra opcodes, and full 16&nbsp;MiB address space.
-Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones ;)
+<dt>-x, --m65816
+<dd>W65C816
+<p>Selects 65816. Enables extra opcodes, and full 16&nbsp;MiB address space.
+Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones ;)</p>
 <h5>Example</h5>
 <pre>
 64tass --m65816 a.asm
 	<b>lda</b> $123456,x
 </pre>
+</dl>
 
 <h3>Source listing options</h3>
 
-<h4><tt>-l &lt;file&gt;</tt> List labels into &lt;file&gt;</h4>
-List labels to a file. Local labels are commented out, unused ones are marked with a comment.
+<dl class="dir">
+<dt>-l &lt;file&gt;
+<dd>List labels into &lt;file&gt;
+<p>List labels to a file. Local labels are commented out, unused ones are marked with a comment.</p>
 <h5>Example</h5>
 <pre>
 64tass -l labels.txt a.asm
@@ -298,9 +327,10 @@ result (labels.txt):
 label           = $1000    ; *** unused
 </pre>
 
-<h4><tt>-L &lt;file&gt;</tt> List into &lt;file&gt;</h4>
-Dumps source code and compiled code into file. Useful for debugging code,
-it's much easier to identify the code in memory within the source files.
+<dt>-L &lt;file&gt;
+<dd>List into &lt;file&gt;
+<p>Dumps source code and compiled code into file. Useful for debugging code,
+it's much easier to identify the code in memory within the source files.</p>
 <h5>Example</h5>
 <pre>
 64tass -L list.txt a.asm
@@ -324,8 +354,9 @@ result (list.txt):
 ;******  end of code
 </pre>
 
-<h4><tt>-m, --no-monitor</tt> Don't put monitor code into listing</h4>
-There won't be any monitor listing in the list file.
+<dt>-m, --no-monitor
+<dd>Don't put monitor code into listing
+<p>There won't be any monitor listing in the list file.</p>
 <h5>Example</h5>
 <pre>
 64tass --no-monitor -L list.txt a.asm
@@ -344,8 +375,9 @@ result (list.txt):
 ;******  end of code
 </pre>
 
-<h4><tt>-s, --no-source</tt> Don't put source code into listing</h4>
-There won't be any source listing in the list file.
+<dt>-s, --no-source
+<dd>Don't put source code into listing</h4>
+<p>There won't be any source listing in the list file.</p>
 <h5>Example</h5>
 <pre>
 64tass --no-source -L list.txt a.asm
@@ -363,17 +395,23 @@ result (list.txt):
 
 ;******  end of code
 </pre>
+</dl>
 
 <h3>Other options</h3>
 
-<h4><tt>-?, --help</tt> Give this help list</h4>
-Prints help about command line options.
+<dl class="dir">
+<dt>-?, --help
+<dd>Give this help list
+<p>Prints help about command line options.</p>
 
-<h4><tt>--usage</tt> Give a short usage message</h4>
-Prints short help about command line options.
+<dt>--usage
+<dd>Give a short usage message
+<p>Prints short help about command line options.</p>
 
-<h4><tt>-V, --version</tt> Print program version</h4>
-Prints program version.
+<dt>-V, --version
+<dd>Print program version
+<p>Prints program version.</p>
+</dl>
 
 <hr>
 
@@ -447,15 +485,15 @@ copied into the code, with the internal references.
 </p>
 <pre>
 	<b>bne</b> +
-	#somemakro      ;let's hope that this segment does
-+	<b>nop</b>             ;not contain forward references...
+        #somemakro      <i>;let's hope that this segment does</i>
++	<b>nop</b>             <i>;not contain forward references...</i>
 </pre>
 
 <h2>Expressions</h2>
 Expressions can be used at a lot of places. Here's a list of available operators:
 
 <table border="0">
-<tr><td><tt>( )</tt>   <td align="left">braces
+<tr><td width="50"><tt>( )</tt>   <td align="left">braces
 </table>
 <pre width=80>
 	<b>lda</b> #(4+2)*3
@@ -463,7 +501,7 @@ Expressions can be used at a lot of places. Here's a list of available operators
 
 <h3>special</h3>
 <table border="0">
-<tr><td><tt>&lt;</tt>   <td align="left">lower byte
+<tr><td width="50"><tt>&lt;</tt>   <td align="left">lower byte
 <tr><td><tt>&gt;</tt>   <td align="left">higher byte
 <tr><td><tt>`</tt>      <td align="left">bank byte
 </table>
@@ -475,14 +513,14 @@ Expressions can be used at a lot of places. Here's a list of available operators
 </pre>
 
 <table border="0">
-<tr><td><tt>@b</tt>     <td align="left">to force 8 bit address
+<tr><td width="50"><tt>@b</tt>     <td align="left">to force 8 bit address
 <tr><td><tt>@w</tt>     <td align="left">to force 16 bit address
 <tr><td><tt>@l</tt>     <td align="left">to force 24 bit address (65816)
 </table>
 
 <h3>boolean</h3>
 <table border="0">
-<tr><td><tt>=</tt>      <td align="left">equal
+<tr><td width="50"><tt>=</tt>      <td align="left">equal
 <tr><td><tt>!=</tt>     <td align="left">non equal
 <tr><td><tt>&lt;</tt>   <td align="left">less
 <tr><td><tt>&gt;</tt>   <td align="left">more
@@ -869,8 +907,26 @@ count	<b>ldx</b> #0
 <dt>.endc
 <dd>End of comment block
 
+<dt>.lbl
+<dd>Creates a special jump label that can be referenced by <code>.goto</code>
+
+<dt>.goto
+<dd>Causes assembler to continue assembling from the jump label. No
+forward references of course, handle with care. Typically used in
+classic TASM sources for creating loops.
+
+<pre width=80>
+i	<b>.var</b> 100
+loop	<b>.lbl</b>
+        <b>nop</b>
+i       <b>.var</b> i - 1
+        <b>.ifne</b> i
+        <b>.goto</b> loop       <i>;generates 100 nops</i>
+        <b>.fi</b>
+</pre>
+
 </dl>
-<h3>65816</h3>
+<h3>65816 related</h3>
 <dl class="dir">
 <dt>.as
 <dd>Select 8 bit accu (65816)
@@ -925,8 +981,8 @@ Such a condition on 6502 adds 1 extra cycle to the execution time, which
 can ruin the timing of a carefuly cycle counted code.
 <pre width=80>
 	<b>.option</b> allow_branch_across_page = 0
-	<b>ldx</b> #3          ;now this will execute in
--       <b>dex</b>             ;16 cycles for sure
+        <b>ldx</b> #3          <i>;now this will execute in</i>
+-       <b>dex</b>             <i>;16 cycles for sure</i>
 	<b>bne</b> -
 	<b>.option</b> allow_branch_across_page = 1
 </pre>
@@ -1046,7 +1102,7 @@ Another thing worth noting is that the original turbo assembler lets you create
 an interesting ambiguous construct using a label called <q>a</q>.
 </p>
 <pre width=80>
-	<b>lsr a</b>    ; uses Akku ! (or does it really?)
+	<b>lsr a</b>    ; uses accu ! (or does it really?)
 a
 	<b>jmp</b> a    ; uses the label address
 	<b>.word</b> a  ; uses the label address
@@ -1076,7 +1132,7 @@ These can be enabled using the <tt>-O, --compatible-ops</tt> option
 
 <h3>Macros</h3>
 <ul>
-<li>Macro parameters are referenced by <tt>\1...\9</tt> instead of using the pound sign
+<li>Macro parameters are referenced by <tt>\1</tt>...<tt>\9</tt> instead of using the pound sign
 <li>Parameters are always copied as text into the macro and not passed by value as the
 original turbo assembler does, which sometimes may lead to unexpected behaviour. You may
 need to make use of braces around arguments and/or references to fix this.
@@ -1090,14 +1146,6 @@ by 64tass, you will have to fix the code instead.
 you get a related error move the respective label out of the .block
 </ul>
 
-<h3>Unsupported directives</h3>
-Some directives are not yet implemented:
-<ul>
-<li>.lbl - identifies a label that can be referenced by a .goto
-<li>.goto - causes assembler to goto the label referenced and continue assembling
-from that point on.
-</ul>
-
 <hr>
 <h2>Messages</h2>
 
@@ -1106,7 +1154,7 @@ from that point on.
 <dt>Top of memory excedeed
 <dd>compile continues at the bottom ($0000)
 <dt>Possibly incorrectly used A
-<dd>do not use "a" as label
+<dd>do not use <q>a</q> as label
 <dt>Memory bank excedeed
 <dd>compile continues in the next 64&nbsp;KiB bank, however execution may not
 <dt>Possible jmp ($xxff) bug

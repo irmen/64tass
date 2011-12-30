@@ -108,302 +108,328 @@ Command line options
 
 Operation options
 
--a, --ascii Convert ASCII to PETASCII
+-a, --ascii
+    Convert ASCII to PETASCII
 
-Normally no conversion takes place, this is for backwards compatibility with a
-DOS based Turbo Assembler editor, which could create petscii files for
-6502tass. (including control characters of course)
+    Normally no conversion takes place, this is for backwards compatibility
+    with a DOS based Turbo Assembler editor, which could create petscii files
+    for 6502tass. (including control characters of course)
 
-Using this option will convert 'a'-'z' and 'A'-'Z' into the correct petscii
-range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor. It
-also interprets petcat style PETASCII literals and converts them to control
-codes.
+    Using this option will convert 'a'-'z' and 'A'-'Z' into the correct petscii
+    range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor.
+    It also interprets petcat style PETASCII literals and converts them to
+    control codes.
 
-Example:
+    Example:
 
-64tass a.asm
+    64tass a.asm
 
-.0000    a9 61          lda #$61        lda #"a"
+    .0000    a9 61          lda #$61        lda #"a"
 
->0002    31 61 41                       .text "1aA"
->0005    7b 63 6c 65 61 72 7d 74        .text "{clear}text{return}more"
->000e    65 78 74 7b 72 65 74 75
->0016    72 6e 7d 6d 6f 72 65
+    >0002    31 61 41                       .text "1aA"
+    >0005    7b 63 6c 65 61 72 7d 74        .text "{clear}text{return}more"
+    >000e    65 78 74 7b 72 65 74 75
+    >0016    72 6e 7d 6d 6f 72 65
 
-64tass --ascii a.asm
+    64tass --ascii a.asm
 
-.0000    a9 41          lda #$41        lda #"a"
->0002    31 41 c1                       .text "1aA"
->0005    93 54 45 58 54 0d 4d 4f        .text "{clear}text{return}more"
->000e    52 45
+    .0000    a9 41          lda #$41        lda #"a"
+    >0002    31 41 c1                       .text "1aA"
+    >0005    93 54 45 58 54 0d 4d 4f        .text "{clear}text{return}more"
+    >000e    52 45
 
--b, --nostart Strip starting address
+-b, --nostart
+    Strip starting address
 
-Strips the 2 or 3 byte starting address before the resulting binary. Usefull
-for creating ROM images.
+    Strips the 2 or 3 byte starting address before the resulting binary.
+    Usefull for creating ROM images.
 
--B, --long-branch Automatic bxx *+3 jmp $xxxx
+-B, --long-branch
+    Automatic bxx *+3 jmp $xxxx
 
-Branch too long messages can be annoying sometimes, usually they'll result in
-an bxx *+5 jmp rewrite. 64tass can do this automatically if this option is
-used. But BRA is not converted.
+    Branch too long messages can be annoying sometimes, usually they'll result
+    in an bxx *+5 jmp rewrite. 64tass can do this automatically if this option
+    is used. But BRA is not converted.
 
-Example
+    Example
 
-64tass a.asm
-        *= $1000
-        bcc $1233       ;error...
+    64tass a.asm
+            *= $1000
+            bcc $1233       ;error...
 
-64tass a.asm
-        *= $1000
-        bcs *+5         ;opposite condition
-        jmp $1233       ;as simple workaround
+    64tass a.asm
+            *= $1000
+            bcs *+5         ;opposite condition
+            jmp $1233       ;as simple workaround
 
-64tass --long-branch a.asm
-        *= $1000
-        bcc $1233       ;no error, automatically converted to the above one.
+    64tass --long-branch a.asm
+            *= $1000
+            bcc $1233       ;no error, automatically converted to the above one.
 
--C, --case-sensitive Case sensitive labels
+-C, --case-sensitive
+    Case sensitive labels
 
-Labels are non case sensitive by default, this option changes that.
+    Labels are non case sensitive by default, this option changes that.
 
-Example
+    Example
 
-64tass a.asm
-label   nop
-Label   nop     ;double defined...
+    64tass a.asm
+    label   nop
+    Label   nop     ;double defined...
 
-64tass --case-sensitive a.asm
-label   nop
-Label   nop     ;Ok, it's a different label...
+    64tass --case-sensitive a.asm
+    label   nop
+    Label   nop     ;Ok, it's a different label...
 
--D <label>=<value> Define <label> to <value>
+-D <label>=<value>
+    Define <label> to <value>
 
-Defines a label to a value. Same syntax is allowed as in source files. Be
-careful with string quoting, the shell might eat some of the characters.
+    Defines a label to a value. Same syntax is allowed as in source files. Be
+    careful with string quoting, the shell might eat some of the characters.
 
-Example
+    Example
 
-64tass -D ii=2 a.asm
-        lda #ii ;result: $a9, $02
+    64tass -D ii=2 a.asm
+            lda #ii ;result: $a9, $02
 
--n, --nonlinear Generate nonlinear output file
+-n, --nonlinear
+    Generate nonlinear output file
 
-Generates non-linear output for linkers. Format: length, address, code, length,
-...
+    Generates non-linear output for linkers. Format: length, address, code,
+    length, ...
 
-Example
+    Example
 
-64tass --nonlinear a.asm
-        *= $1000
-        lda #2
-        *= $2000
-        nop
-result:
-$02, $00 ;little endian length, 2 bytes
-$00, $10 ;little endian start $1000
-$a9, $02 ;code
-$01, $00 ;little endian length, 1 byte
-$00, $20 ;little endian start $2000
-$ea      ;code
-$00, $00 ;end marker (length=0)
+    64tass --nonlinear a.asm
+            *= $1000
+            lda #2
+            *= $2000
+            nop
+    result:
+    $02, $00 ;little endian length, 2 bytes
+    $00, $10 ;little endian start $1000
+    $a9, $02 ;code
+    $01, $00 ;little endian length, 1 byte
+    $00, $20 ;little endian start $2000
+    $ea      ;code
+    $00, $00 ;end marker (length=0)
 
--o <file> Place output into <file>
+-o <file>
+    Place output into <file>
 
-The default output filename is `a.out'. This option changes it.
+    The default output filename is `a.out'. This option changes it.
 
-Example
+    Example
 
-64tass a.asm -o a.prg
+    64tass a.asm -o a.prg
 
--w, --no-warn Suppress warnings
+-w, --no-warn
+    Suppress warnings
 
-Disables warnings during compile.
+    Disables warnings during compile.
 
-Example
+    Example
 
-64tass --no-warn a.asm
+    64tass --no-warn a.asm
 
--q, --quiet Suppress messages
+-q, --quiet
+    Suppress messages
 
-Disables header and summary messages.
+    Disables header and summary messages.
 
-Example
+    Example
 
-64tass --quiet a.asm
+    64tass --quiet a.asm
 
--W, --wordstart Force 2 byte start address
+-W, --wordstart
+    Force 2 byte start address
 
-It 16 MiB address space is used for 65816, then the starting address of file
-will be 3 bytes long. This option makes it 2 bytes long.
+    It 16 MiB address space is used for 65816, then the starting address of
+    file will be 3 bytes long. This option makes it 2 bytes long.
 
-Example
+    Example
 
-64tass --wordstart --m65816 a.asm
+    64tass --wordstart --m65816 a.asm
 
 Compatibility Options
 
--P, --no-precedence No operator precedence in expressions
+-P, --no-precedence
+    No operator precedence in expressions
 
-Disables operator precedence in all expressions to imitate the behaviour of the
-original turbo assembler on the C64.
+    Disables operator precedence in all expressions to imitate the behaviour of
+    the original turbo assembler on the C64.
 
--O, --compatible-ops Enable TASS compatible operators
+-O, --compatible-ops
+    Enable TASS compatible operators
 
-Enables TASS compatible operators `.', `:' and `!' (see `differences to
-original turbo assembler' below)
+    Enables TASS compatible operators `.', `:' and `!' (see `differences to
+    original turbo assembler' below)
 
 Target selection on command line
 
 These options will select the default architecture. It can be overridden by
 using the .cpu directive in the source.
 
--c, --m65c02 CMOS 65C02
+-c, --m65c02
+    CMOS 65C02
 
-Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.
+    Selects 65c02. Enables extra opcodes and addressing modes specific to this
+    CPU.
 
-Example
+    Example
 
-64tass --m65c02 a.asm
-        stz $d020       ;65c02 instruction
+    64tass --m65c02 a.asm
+            stz $d020       ;65c02 instruction
 
--i, --m6502 NMOS 65xx
+-i, --m6502
+    NMOS 65xx
 
-Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for
-C64, disk drive code, etc.
+    Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding
+    for C64, disk drive code, etc.
 
-Example
+    Example
 
-64tass --m6502 a.asm
-        lax $14         ;illegal instruction
+    64tass --m6502 a.asm
+            lax $14         ;illegal instruction
 
---m65xx Standard 65xx (default)
+--m65xx
+    Standard 65xx (default)
 
-Selects standard 6502. For writing compatible code, no extra codes. This is the
-default.
+    Selects standard 6502. For writing compatible code, no extra codes. This is
+    the default.
 
-Example
+    Example
 
-64tass --m65xx a.asm
-        lda $14         ;regular instructions
+    64tass --m65xx a.asm
+            lda $14         ;regular instructions
 
--t, --m65dtv02 65DTV02
+-t, --m65dtv02
+    65DTV02
 
-Selects 65DTV02. Enables extra opcodes specific to DTV.
+    Selects 65DTV02. Enables extra opcodes specific to DTV.
 
-Example
+    Example
 
-64tass --m65dtv02 a.asm
-        sac #$00
+    64tass --m65dtv02 a.asm
+            sac #$00
 
--x, --m65816 W65C816
+-x, --m65816
+    W65C816
 
-Selects 65816. Enables extra opcodes, and full 16 MiB address space. Useful for
-SuperCPU projects. Don't forget to use `--word-start' for small ones ;)
+    Selects 65816. Enables extra opcodes, and full 16 MiB address space. Useful
+    for SuperCPU projects. Don't forget to use `--word-start' for small ones ;)
 
-Example
+    Example
 
-64tass --m65816 a.asm
-        lda $123456,x
+    64tass --m65816 a.asm
+            lda $123456,x
 
 Source listing options
 
--l <file> List labels into <file>
+-l <file>
+    List labels into <file>
 
-List labels to a file. Local labels are commented out, unused ones are marked
-with a comment.
+    List labels to a file. Local labels are commented out, unused ones are
+    marked with a comment.
 
-Example
+    Example
 
-64tass -l labels.txt a.asm
-        *= $1000
-label
+    64tass -l labels.txt a.asm
+            *= $1000
+    label
 
-result (labels.txt):
-label           = $1000    ; *** unused
+    result (labels.txt):
+    label           = $1000    ; *** unused
 
--L <file> List into <file>
+-L <file>
+    List into <file>
 
-Dumps source code and compiled code into file. Useful for debugging code, it's
-much easier to identify the code in memory within the source files.
+    Dumps source code and compiled code into file. Useful for debugging code,
+    it's much easier to identify the code in memory within the source files.
 
-Example
+    Example
 
-64tass -L list.txt a.asm
-        *= $1000
-        ldx #0
-loop    dex
-        bne loop
-        rts
+    64tass -L list.txt a.asm
+            *= $1000
+            ldx #0
+    loop    dex
+            bne loop
+            rts
 
-result (list.txt):
+    result (list.txt):
 
-;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
-;done on Fri Dec  9 19:08:55 2005
-
-
-.1000    a2 00          ldx #$00                ldx #0
-.1002    ca             dex             loop    dex
-.1003    d0 fd          bne $1002               bne loop
-.1005    60             rts                     rts
-
-;******  end of code
-
--m, --no-monitor Don't put monitor code into listing
-
-There won't be any monitor listing in the list file.
-
-Example
-
-64tass --no-monitor -L list.txt a.asm
-
-result (list.txt):
-
-;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
-;done on Fri Dec  9 19:11:43 2005
+    ;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
+    ;done on Fri Dec  9 19:08:55 2005
 
 
-.1000    a2 00                                  ldx #0
-.1002    ca                             loop    dex
-.1003    d0 fd                                  bne loop
-.1005    60                                     rts
+    .1000    a2 00          ldx #$00                ldx #0
+    .1002    ca             dex             loop    dex
+    .1003    d0 fd          bne $1002               bne loop
+    .1005    60             rts                     rts
 
-;******  end of code
+    ;******  end of code
 
--s, --no-source Don't put source code into listing
+-m, --no-monitor
+    Don't put monitor code into listing
 
-There won't be any source listing in the list file.
+    There won't be any monitor listing in the list file.
 
-Example
+    Example
 
-64tass --no-source -L list.txt a.asm
+    64tass --no-monitor -L list.txt a.asm
 
-result (list.txt):
+    result (list.txt):
 
-;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
-;done on Fri Dec  9 19:13:25 2005
+    ;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
+    ;done on Fri Dec  9 19:11:43 2005
 
 
-.1000    a2 00          ldx #$00
-.1002    ca             dex
-.1003    d0 fd          bne $1002
-.1005    60             rts
+    .1000    a2 00                                  ldx #0
+    .1002    ca                             loop    dex
+    .1003    d0 fd                                  bne loop
+    .1005    60                                     rts
 
-;******  end of code
+    ;******  end of code
+
+-s, --no-source
+    Don't put source code into listing
+
+    There won't be any source listing in the list file.
+
+    Example
+
+    64tass --no-source -L list.txt a.asm
+
+    result (list.txt):
+
+    ;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
+    ;done on Fri Dec  9 19:13:25 2005
+
+
+    .1000    a2 00          ldx #$00
+    .1002    ca             dex
+    .1003    d0 fd          bne $1002
+    .1005    60             rts
+
+    ;******  end of code
 
 Other options
 
--?, --help Give this help list
+-?, --help
+    Give this help list
 
-Prints help about command line options.
+    Prints help about command line options.
 
---usage Give a short usage message
+--usage
+    Give a short usage message
 
-Prints short help about command line options.
+    Prints short help about command line options.
 
--V, --version Print program version
+-V, --version
+    Print program version
 
-Prints program version.
+    Prints program version.
+
 -------------------------------------------------------------------------------
 
 General
@@ -478,33 +504,33 @@ Expressions
 Expressions can be used at a lot of places. Here's a list of available
 operators:
 
-( ) braces
+( )     braces
 
         lda #(4+2)*3
 
 special
 
-< lower byte
-> higher byte
-` bank byte
+<       lower byte
+>       higher byte
+`       bank byte
 
         lda #<label
         ldy #>label
         jsr $ab1e
 
-@b to force 8 bit address
-@w to force 16 bit address
-@l to force 24 bit address (65816)
+@b      to force 8 bit address
+@w      to force 16 bit address
+@l      to force 24 bit address (65816)
 
 boolean
 
-=  equal
-!= non equal
-<  less
->  more
->= more or equal
-<= less or equal
-!  not
+=       equal
+!=      non equal
+<       less
+>       more
+>=      more or equal
+<=      less or equal
+!       not
 
         .if ntsc=1
         nop
@@ -842,8 +868,22 @@ Blocks
 
 .endc
     End of comment block
+.lbl
+    Creates a special jump label that can be referenced by .goto
+.goto
+    Causes assembler to continue assembling from the jump label. No forward
+    references of course, handle with care. Typically used in classic TASM
+    sources for creating loops.
 
-65816
+    i       .var 100
+    loop    .lbl
+            nop
+    i       .var i - 1
+            .ifne i
+            .goto loop       ;generates 100 nops
+            .fi
+
+65816 related
 
 .as
     Select 8 bit accu (65816)
@@ -992,7 +1032,7 @@ The original turbo assembler uses case sensitive labels, use the -C,
 Another thing worth noting is that the original turbo assembler lets you create
 an interesting ambiguous construct using a label called `a'.
 
-        lsr a    ; uses Akku ! (or does it really?)
+        lsr a    ; uses accu ! (or does it really?)
 a
         jmp a    ; uses the label address
         .word a  ; uses the label address
@@ -1036,14 +1076,6 @@ by 64tass, you will have to fix the code instead.
   * In some versions labels used in the first .block are globally available. If
     you get a related error move the respective label out of the .block
 
-Unsupported directives
-
-Some directives are not yet implemented:
-
-  * .lbl - identifies a label that can be referenced by a .goto
-  * .goto - causes assembler to goto the label referenced and continue
-    assembling from that point on.
-
 -------------------------------------------------------------------------------
 
 Messages
@@ -1053,7 +1085,7 @@ Warnings
 Top of memory excedeed
     compile continues at the bottom ($0000)
 Possibly incorrectly used A
-    do not use "a" as label
+    do not use `a' as label
 Memory bank excedeed
     compile continues in the next 64 KiB bank, however execution may not
 Possible jmp ($xxff) bug
