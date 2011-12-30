@@ -41,7 +41,7 @@
 static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
 
-static struct sencoding *actual_encoding = ascii_encoding;
+static struct encoding_s *actual_encoding = ascii_encoding;
 
 #define linelength 4096
 #define nestinglevel 256
@@ -53,7 +53,7 @@ uint8_t pass=0;      //pass
 static int listing=0;   //listing
 static uint8_t *memdata=NULL;//Linear memory dump
 static uint32_t memdatap = 0, memdatasize = 0, memblocklastp = 0, memblocklaststart = 0;
-static struct smemblock {uint32_t size;uint32_t memp;uint32_t start;} *memblocks; //starts and sizes
+static struct memblock_s {uint32_t size;uint32_t memp;uint32_t start;} *memblocks; //starts and sizes
 static unsigned int memblockp = 0, memblocksize = 0;
 uint32_t address=0, l_address=0; //address, logical address
 uint8_t pline[linelength];  //current line data
@@ -77,8 +77,8 @@ static int longbranchasjmp=0;
 static uint8_t outputeor = 0; // EOR value for final output (usually 0, except changed by .eor)
 
 static char s_stack[256];
-static struct {struct svalue val; char sgn;} e_stack[256];
-static struct svalue v_stack[256];
+static struct {struct value_s val; char sgn;} e_stack[256];
+static struct value_s v_stack[256];
 static unsigned int ssp,esp,vsp;
 
 static char waitfor[nestinglevel];
@@ -121,6 +121,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x12" "fi",
     "\x26" "fill",
     "\x0e" "for",
+    "\x40" "goto",
     "\x1c" "here",
     "\x3a" "hidemac",
     "\x10" "if",
@@ -130,6 +131,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x2c" "ifpl",
     "\x15" "include",
     "\x08" "int",
+    "\x3f" "lbl",
     "\x1b" "logical",
     "\x0a" "long",
     "\x0c" "macro",
@@ -166,7 +168,8 @@ enum command_e {
     CMD_PEND, CMD_DATABANK, CMD_DPAGE, CMD_FILL, CMD_WARN, CMD_ENC, CMD_ENDIF,
     CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN,
     CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION, CMD_BLOCK, CMD_BEND, CMD_PRON,
-    CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR
+    CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT,
+    CMD_VAR, CMD_LBL, CMD_GOTO,
 };
 
 // ---------------------------------------------------------------------------
@@ -216,7 +219,7 @@ void status() {
  *      llist -
  *      pline -
  */
-static void readln(struct sfile* fle) {
+static void readln(struct file_s *fle) {
     unsigned int i = 0;
     uint_fast8_t q = 0;
     size_t l = fle->p;
@@ -283,7 +286,7 @@ static uint_fast16_t petascii(uint8_t quo) {
         felso=actual_encoding[0].offset + 1;
         n=felso/2;
         for (;;) {  // do binary search
-            struct sencoding *e = &actual_encoding[n];
+            struct encoding_s *e = &actual_encoding[n];
             if (ch >= e->start && ch <= e->end) {
                 if (e->offset < 0) {
                     char sym[0x10];
@@ -339,8 +342,8 @@ static void memjmp(uint32_t adr) {
 }
 
 static int memblockcomp(const void *a, const void *b) {
-    struct smemblock *aa=(struct smemblock *)a;
-    struct smemblock *bb=(struct smemblock *)b;
+    struct memblock_s *aa=(struct memblock_s *)a;
+    struct memblock_s *bb=(struct memblock_s *)b;
     return aa->start-bb->start;
 }
 
@@ -500,9 +503,9 @@ static int get_ident(char allowed) {
     return get_ident2(allowed);
 }
 
-static int get_num(int mode, struct svalue *v) {// 0=unknown stuff, 1=ok
+static int get_num(int mode, struct value_s *v) {// 0=unknown stuff, 1=ok
     int32_t val=0;            //md=0, define it, md=1 error if not exist
-    struct slabel* tmp;
+    struct label_s *tmp;
     char ch;
 
     v->type=T_NONE;
@@ -687,8 +690,8 @@ static uint_fast8_t val_length(int32_t val)
         return 3;
 }
 
-static void get_exp(int *wd, int *df,int *cd, struct svalue *v, enum type_e type) {// length in bytes, defined
-    struct svalue val;
+static void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// length in bytes, defined
+    struct value_s val;
     int nd=0,tp=0;
     unsigned int i;
     char ch;
@@ -1023,7 +1026,7 @@ static void get_exp(int *wd, int *df,int *cd, struct svalue *v, enum type_e type
     return;
 }
 
-static void wait_cmd(struct sfile *fil, int no)
+static void wait_cmd(struct file_s *fil, int no)
 {
     uint8_t wrap=waitforp;
     int pr,wh;
@@ -1033,7 +1036,11 @@ static void wait_cmd(struct sfile *fil, int no)
     for (;;) {
 	if (fil->len == fil->p) { // eof?
 	    char nc[20] = {'.',0};
-	    strcat(nc,command[no]);
+            unsigned int i;
+            for (i=0;i<sizeof(command)/sizeof(command[0])-1;i++) {
+                if (command[i][0]==no) break;
+            }
+	    strcat(nc,command[i]+1);
 	    err_msg(ERROR______EXPECTED,nc);
 	    return;
 	}
@@ -1182,7 +1189,7 @@ static void set_cpumode(uint_fast8_t cpumode) {
     }
 }
 
-void var_assign(struct slabel *tmp, struct svalue *val, int fix) {
+void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     switch (tmp->value.type) {
     case T_CHR:
     case T_INT:
@@ -1224,17 +1231,17 @@ void var_assign(struct slabel *tmp, struct svalue *val, int fix) {
     tmp->upass=pass;
 }
 
-static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",0
+static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct file_s *fin) // "",0
 {
     int wht,w,d,c;
     int prm = 0;
-    struct svalue val;
+    struct value_s val;
 
     char ch;
 
-    struct slabel* tmp = NULL;
-    struct smacro* tmp2 = NULL;
-    struct scontext *old_context = NULL;
+    struct label_s *tmp = NULL;
+    struct macro_s *tmp2 = NULL;
+    struct context_s *old_context = NULL;
 
     uint32_t backr_old = 0, forwr_old = 0;
     uint16_t reffile_old = 0;
@@ -1327,60 +1334,88 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
 		}
                 continue;
             }
-            if (wht==WHAT_COMMAND && prm==CMD_VAR) { //variable
-                strcpy(varname,ident);
-                get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
-		if (!c) continue;
-		if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); continue;}
-		ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
-		tmp=new_label(varname);
-                if (listing && flist && arguments.source && tmp->pass+1>=pass) {
-                    if (nprm>=0) mtranslate(mprm,nprm,llist);
-                    if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
-                    if (val.type == T_INT || val.type == T_CHR) {
-                        fprintf(flist,"=%x\t\t\t\t\t",val.u.num);
+            if (wht==WHAT_COMMAND) {
+                if (prm==CMD_VAR) { //variable
+                    strcpy(varname,ident);
+                    get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
+                    if (!c) continue;
+                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); continue;}
+                    ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
+                    tmp=new_label(varname);
+                    if (listing && flist && arguments.source && tmp->pass+1>=pass) {
+                        if (nprm>=0) mtranslate(mprm,nprm,llist);
+                        if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
+                        if (val.type == T_INT || val.type == T_CHR) {
+                            fprintf(flist,"=%x\t\t\t\t\t",val.u.num);
+                        } else {
+                            fputs("=\t\t\t\t\t", flist);
+                        }
+                        printllist(flist);
+                    }
+                    if (labelexists) {
+                        if (!tmp->varlabel) {
+                            err_msg(ERROR_DOUBLE_DEFINE,varname);
+                            continue;
+                        }
+                        tmp->requires=current_requires;
+                        tmp->conflicts=current_conflicts;
+                        var_assign(tmp, &val, fixeddig);
                     } else {
+                        tmp->requires=current_requires;
+                        tmp->conflicts=current_conflicts;
+                        tmp->proclabel=0;tmp->varlabel=1;tmp->upass=tmp->pass=pass;
+                        tmp->value=val;
+                        if (val.type == T_STR) {
+                            tmp->value.u.str.data=malloc(val.u.str.len);
+                            memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
+                        }
+                        if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                    }
+                    continue;
+                }
+                if (prm==CMD_LBL) { //variable
+                    struct jump_s *tmp2;
+                    if (here()) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                    if (listing && flist && arguments.source) {
+                        if (nprm>=0) mtranslate(mprm,nprm,llist);
+                        if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
                         fputs("=\t\t\t\t\t", flist);
+                        printllist(flist);
                     }
-                    printllist(flist);
+                    tmp2 = new_jump(ident);
+                    if (pass==1) {
+                        if (labelexists) {
+                            err_msg(ERROR_DOUBLE_DEFINE,ident);
+                        } else {
+                            tmp2->sline = sline;
+                            tmp2->file = fin;
+                            tmp2->p = fin->p;
+                        }
+                    } else {
+                        if (labelexists) {
+                            if (tmp2->sline != sline || tmp2->file != fin || tmp2->p != fin->p)
+                                err_msg(ERROR_DOUBLE_DEFINE,ident); /* moved?! */
+                        }
+                    }
+                    continue;
                 }
-                if (labelexists) {
-                    if (!tmp->varlabel) {
-                        err_msg(ERROR_DOUBLE_DEFINE,varname);
-                        continue;
+                if (prm==CMD_MACRO || prm==CMD_SEGMENT) { // .macro
+                do_macro:
+                    ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
+                    tmp2=new_macro(ident);
+                    if (labelexists) {
+                        if (pass==1) {err_msg(ERROR_DOUBLE_DEFINE,ident); continue;}
                     }
-                    tmp->requires=current_requires;
-                    tmp->conflicts=current_conflicts;
-                    var_assign(tmp, &val, fixeddig);
-                } else {
-                    tmp->requires=current_requires;
-                    tmp->conflicts=current_conflicts;
-                    tmp->proclabel=0;tmp->varlabel=1;tmp->upass=tmp->pass=pass;
-                    tmp->value=val;
-                    if (val.type == T_STR) {
-                        tmp->value.u.str.data=malloc(val.u.str.len);
-                        memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
+                    else {
+                        tmp2->p=fin->p;
+                        tmp2->sline=sline;
+                        tmp2->type=prm;
+                        tmp2->file=fin;
                     }
-                    if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                    wait_cmd(fin,CMD_ENDM); //.endm
+                    continue;
                 }
-                continue;
             }
-            if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) { // .macro
-            do_macro:
-		ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
-		tmp2=new_macro(ident);
-		if (labelexists) {
-		    if (pass==1) {err_msg(ERROR_DOUBLE_DEFINE,ident); continue;}
-		}
-		else {
-		    tmp2->p=fin->p;
-		    tmp2->sline=sline;
-                    tmp2->type=prm;
-                    tmp2->file=fin;
-		}
-		wait_cmd(fin,CMD_ENDM); //.endm
-		continue;
-	    }
             if ((tmp2=find_macro(ident))) {lpoint--;ident2[0]=0;goto as_macro;}
 	    if (wht==WHAT_COMMAND && prm==CMD_PROC) { //.proc
                 old_context = current_context;
@@ -2007,6 +2042,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                     if (val.type != T_NONE) {
                         size_t pos = fin->p;
                         uint32_t lin = sline;
+
                         for (; cnt<val.u.num; cnt++) {
                             sline=lin;fin->p=pos;
                             compile(2,mprm,nprm,fin);
@@ -2101,7 +2137,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
 		    break;
 		}
 		if (prm==CMD_INCLUDE) { // .include
-                    struct sfile *f;
+                    struct file_s *f;
                     if (get_path(fin->name)) break;
                     if (here()) goto extrachar;
                     if (listing && flist) {
@@ -2133,7 +2169,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                     uint32_t lin;
 		    int apoint, bpoint = -1;
                     uint8_t expr[linelength];
-                    struct slabel *var;
+                    struct label_s *var;
 
 		    if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
 			if (get_ident('_')) break;
@@ -2241,6 +2277,17 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                     if (!strcasecmp(ident,"allow_branch_across_page")) allowslowbranch=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
                     else if (!strcasecmp(ident,"auto_longbranch_as_jmp")) longbranchasjmp=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
                     else err_msg(ERROR_UNKNOWN_OPTIO,ident);
+		    break;
+		}
+		if (prm==CMD_GOTO) { // .goto
+                    struct jump_s *tmp2;
+                    get_ident('_');
+                    ignore();if (here()) goto extrachar;
+                    tmp2 = find_jump(ident);
+                    if (tmp2 && tmp2->file == fin) {
+                        sline = tmp2->sline;
+                        fin->p = tmp2->p;
+                    } else err_msg(ERROR___NOT_DEFINED,ident);
 		    break;
 		}
 	    }
@@ -2457,7 +2504,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct sfile* fin) // "",
                             }// 9 Db
                             else if (wht==WHAT_COMA) { // mvp $10,$20
                                 int w2,c2,d2;
-                                struct svalue val2;
+                                struct value_s val2;
                                 megint:
                                 d2=d;
                                 get_exp(&w2,&d,&c2,&val2,T_INT);if (!d) fixeddig=0;
@@ -2762,7 +2809,7 @@ int main(int argc,char *argv[]) {
     time_t t;
     FILE* fout;
     int optind, i;
-    struct sfile *fin, *f;
+    struct file_s *fin, *f;
 
     tinit();
 

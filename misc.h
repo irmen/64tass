@@ -84,12 +84,13 @@ enum errors_e {
 
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
-struct scontext {
+struct context_s {
     char* name;
-    struct scontext *parent;
+    struct context_s *parent;
     uint32_t backr, forwr;
     struct avltree contexts;
-    struct avltree tree;
+    struct avltree label_tree;
+    struct avltree jump_tree;
     struct avltree_node node;
 };
 
@@ -97,7 +98,7 @@ enum type_e {
     T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR
 };
 
-struct svalue {
+struct value_s {
     enum type_e type;
     union {
         int32_t num;
@@ -108,9 +109,9 @@ struct svalue {
     } u;
 };
 
-struct slabel {
+struct label_s {
     char* name;
-    struct svalue value;
+    struct value_s value;
     uint32_t requires;
     uint32_t conflicts;
     unsigned proclabel:1;
@@ -120,7 +121,7 @@ struct slabel {
     struct avltree_node node;
 };
 
-struct sfile {
+struct file_s {
     char *name;
     uint8_t *data;    /* data */
     size_t len;       /* length */
@@ -130,27 +131,35 @@ struct sfile {
     struct avltree_node node;
 };
 
-struct smacro {
+struct macro_s {
     char *name;
     size_t p;
     uint32_t sline;
-    struct sfile *file;
+    struct file_s *file;
     int type;
     struct avltree_node node;
 };
 
-struct serrorlist {
-    struct serrorlist *next;
+struct jump_s {
+    char *name;
+    size_t p;
+    uint32_t sline;
+    struct file_s *file;
+    struct avltree_node node;
+};
+
+struct errorlist_s {
+    struct errorlist_s *next;
     char name[1];
 };
 
-struct sfilenamelist {
-    struct sfilenamelist *next;
+struct filenamelist_s {
+    struct filenamelist_s *next;
     uint32_t line;
     char *name;
 };
 
-struct arguments_t {
+struct arguments_s {
     unsigned warning:1;
     unsigned quiet:1;
     unsigned nonlinear:1;
@@ -169,7 +178,7 @@ struct arguments_t {
     char *list;
 };
 
-struct sencoding {
+struct encoding_s {
     uint32_t start;
     uint32_t end;
     int16_t offset;
@@ -193,28 +202,30 @@ extern const uint8_t whatis[256];
 extern uint_fast8_t encode(uint_fast8_t);
 extern uint_fast16_t petsymbolic(char*);
 extern void err_msg(enum errors_e, char*);
-extern struct slabel* find_label(char*);
-extern struct slabel* new_label(char*);
-extern struct smacro* find_macro(char*);
-extern struct smacro* new_macro(char*);
-extern struct scontext* new_context(char*, struct scontext *);
-extern struct sfile *openfile(char*);
-extern void closefile(struct sfile*);
+extern struct label_s *find_label(char*);
+extern struct label_s *new_label(char*);
+extern struct macro_s *find_macro(char*);
+extern struct macro_s *new_macro(char*);
+extern struct jump_s *find_jump(char*);
+extern struct jump_s *new_jump(char*);
+extern struct context_s *new_context(char*, struct context_s *);
+extern struct file_s *openfile(char*);
+extern void closefile(struct file_s*);
 extern void tfree();
 extern void tinit();
 extern void labelprint();
-extern int testarg(int,char **,struct sfile *);
-extern struct arguments_t arguments;
+extern int testarg(int,char **,struct file_s *);
+extern struct arguments_s arguments;
 extern void freeerrorlist(int);
 extern void enterfile(char *,uint32_t);
 extern void exitfile();
-extern struct sfilenamelist *filenamelist;
+extern struct filenamelist_s *filenamelist;
 extern unsigned int encoding;
-extern struct scontext *current_context;
-extern struct scontext root_context;
+extern struct context_s *current_context;
+extern struct context_s root_context;
 extern unsigned int utf8in(uint8_t *c, uint32_t *out);
-extern struct sencoding no_encoding[];
-extern struct sencoding screen_encoding[];
-extern struct sencoding ascii_encoding[];
+extern struct encoding_s no_encoding[];
+extern struct encoding_s screen_encoding[];
+extern struct encoding_s ascii_encoding[];
 
 #endif
