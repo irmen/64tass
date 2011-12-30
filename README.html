@@ -53,7 +53,7 @@ As a minimum the source filename must be given on command line.</p>
 64tass src.asm
 </pre>
 <p>There are also some useful parameters which are described later.</p>
-<p>For comfortable compiling I use such "Makefile"s (for make):</p>
+<p>For comfortable compiling I use such <q>Makefile</q>s (for make):</p>
 <pre>
 demo.prg: source.asm makros.asm pic.drp music.bin
 	64tass -C -a -B -i source.asm -o demo.prg
@@ -63,28 +63,28 @@ For cross development with VICE here's another Makefile example:</p>
 <pre>
 demo.prg: source.asm makros.asm pic.drp music.bin
 	64tass -C -a -B -i source.asm -o demo.tmp
-	pucrunch -ffast -x 2048 demo.tmp >demo.prg
+	pucrunch -ffast -x 2048 demo.tmp &gt;demo.prg
 	killall x64 || true
 	x64 demo.prg
 </pre>
 <p>Of course it's not much harder to create something similar for win32 (make.bat):</p>
 <pre>
 64tass.exe -C -a -B -i source.asm -o demo.tmp
-pucrunch.exe -ffast -x 2048 demo.tmp >demo.prg
+pucrunch.exe -ffast -x 2048 demo.tmp &gt;demo.prg
 x64.exe demo.prg
 </pre>
 <p>Another useful thing is to add a basic header to your source files
 like the one below, so that the resulting file is directly runnable
 without additional compression:</p>
 <pre>
-	<b>*</b>= $0801
+        <b>*=</b> $0801
 	<b>.word</b> ss, 2005
 	<b>.null</b> $9e, ^start<i>;will be sys 4096</i>
 ss	<b>.word</b> 0
 
-	<b>*</b>= $1000
+        <b>*=</b> $1000
 
-start	rts
+start	<b>rts</b>
 </pre>
 <p>For writing short code (4k intro, whatever) there are some special pseudo instructions. These are automatically compiled
 as relative branches when the distance is short and as jumps when longer. (<code>GEQ</code>, <code>GNE</code>, <code>GCC</code>, <code>GCS</code>, <code>GPL</code>, <code>GMI</code>, <code>GVC</code>, <code>GVS</code>)
@@ -95,7 +95,7 @@ There's one more called <code>GRA</code> for CPUs supporting <code>BRA</code>, w
 	<b>nop</b>
 label
 </pre>
-<p>To avoid branch too long errors the assembler also supports long branches, it can automatically convert conditional relative branches to it's opposite and a <code>JMP</code>. This have to be enabled on the command line using the "--long-branch" option.</p>
+<p>To avoid branch too long errors the assembler also supports long branches, it can automatically convert conditional relative branches to it's opposite and a <code>JMP</code>. This have to be enabled on the command line using the <q>--long-branch</q> option.</p>
 <pre>
 	<b>bcc</b> veryfar	<i>;compiled as "bcc veryfar" or</i>
 			<i>;	bcs sk</i>
@@ -112,7 +112,7 @@ label
 <h4><tt>-a, --ascii</tt> Convert ASCII to PETASCII</h4>
 <p>Normally no conversion takes place, this is for backwards compatibility with
 a DOS based Turbo Assembler editor, which could create petscii files for
-6502tass. (with control characters also of course)</p>
+6502tass. (including control characters of course)</p>
 <p>Using this option will convert 'a'-'z' and 'A'-'Z' into the correct petscii
 range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor.
 It also interprets petcat style PETASCII literals and converts them to control codes.</p>
@@ -122,17 +122,17 @@ It also interprets petcat style PETASCII literals and converts them to control c
 
 .0000    a9 61          lda #$61        lda #"a"
 
->0002    31 61 41                       .text "1aA"
->0005    7b 63 6c 65 61 72 7d 74        .text "{clear}text{return}more"
->000e    65 78 74 7b 72 65 74 75 
->0016    72 6e 7d 6d 6f 72 65 
+&gt;0002    31 61 41                       .text "1aA"
+&gt;0005    7b 63 6c 65 61 72 7d 74        .text "{clear}text{return}more"
+&gt;000e    65 78 74 7b 72 65 74 75
+&gt;0016    72 6e 7d 6d 6f 72 65
 
 64tass --ascii a.asm
 
 .0000    a9 41          lda #$41        lda #"a"
->0002    31 41 c1                       .text "1aA"
->0005    93 54 45 58 54 0d 4d 4f        .text "{clear}text{return}more"
->000e    52 45 
+&gt;0002    31 41 c1                       .text "1aA"
+&gt;0005    93 54 45 58 54 0d 4d 4f        .text "{clear}text{return}more"
+&gt;000e    52 45
 </pre>
 
 <h4><tt>-b, --nostart</tt> Strip starting address</h4>
@@ -146,16 +146,16 @@ used. But <code>BRA</code> is not converted.
 <h5>Example</h5>
 <pre>
 64tass a.asm
-	<b>*</b>= $1000
+        <b>*=</b> $1000
 	<b>bcc</b> $1233	<i>;error...</i>
 
 64tass a.asm
-	<b>*</b>= $1000
+        <b>*=</b> $1000
 	<b>bcs</b> *+5		<i>;opposite condition</i>
 	<b>jmp</b> $1233	<i>;as simple workaround</i>
 
 64tass --long-branch a.asm
-	<b>*</b>= $1000
+	<b>*=</b> $1000
 	<b>bcc</b> $1233	<i>;no error, automatically converted to the above one.</i>
 </pre>
 
@@ -168,7 +168,7 @@ label	<b>nop</b>
 Label	<b>nop</b>	<i>;double defined...</i>
 
 64tass --case-sensitive a.asm
-label	<b>nop</b>
+label   <b>nop</b>
 Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
 </pre>
 
@@ -187,9 +187,9 @@ Format: length, address, code, length, ...
 <h5>Example</h5>
 <pre>
 64tass --nonlinear a.asm
-*=$1000
+        <b>*=</b> $1000
 	<b>lda</b> #2
-*=$2000
+        <b>*=</b> $2000
 	<b>nop</b>
 result:
 $02, $00 ;little endian length, 2 bytes
@@ -202,7 +202,7 @@ $00, $00 ;end marker (length=0)
 </pre>
 
 <h4><tt>-o &lt;file&gt;</tt> Place output into &lt;file&gt;</h4>
-The default output filename is "a.out". This option changes it.
+The default output filename is <q>a.out</q>. This option changes it.
 <h5>Example</h5>
 <pre>
 64tass a.asm -o a.prg
@@ -237,8 +237,8 @@ Disables operator precedence in all expressions to imitate the behaviour of the
 original turbo assembler on the C64.
 
 <h4><tt>-O, --compatible-ops</tt> Enable TASS compatible operators</h4>
-Enables TASS compatible operators '.', ':' and '!' (see "differences to original
-turbo assembler" below)
+Enables TASS compatible operators <q>.</q>, <q>:</q> and <q>!</q> (see <q>differences to original
+turbo assembler</q> below)
 
 <h3>Target selection on command line</h3>
 These options will select the default architecture. It can be overridden by using the <code>.cpu</code> directive in the source.
@@ -277,7 +277,7 @@ Selects 65DTV02. Enables extra opcodes specific to DTV.
 
 <h4><tt>-x, --m65816</tt> W65C816</h4>
 Selects 65816. Enables extra opcodes, and full 16&nbsp;MiB address space.
-Useful for SuperCPU projects. Don't forget to use "--word-start" for small ones ;)
+Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones ;)
 <h5>Example</h5>
 <pre>
 64tass --m65816 a.asm
@@ -291,7 +291,7 @@ List labels to a file. Local labels are commented out, unused ones are marked wi
 <h5>Example</h5>
 <pre>
 64tass -l labels.txt a.asm
-	<b>*</b>= $1000
+	<b>*=</b> $1000
 label
 
 result (labels.txt):
@@ -304,7 +304,7 @@ it's much easier to identify the code in memory within the source files.
 <h5>Example</h5>
 <pre>
 64tass -L list.txt a.asm
-	<b>*</b>= $1000
+	<b>*=</b> $1000
 	<b>ldx</b> #0
 loop	<b>dex</b>
 	<b>bne</b> loop
@@ -357,9 +357,9 @@ result (list.txt):
 
 
 .1000	 a2 00		ldx #$00
-.1002	 ca		dex	
+.1002	 ca		dex
 .1003	 d0 fd		bne $1002
-.1005	 60		rts	
+.1005	 60		rts
 
 ;******  end of code
 </pre>
@@ -378,68 +378,84 @@ Prints program version.
 <hr>
 
 <h2>General</h2>
-<p>You may put multiple statements on a line, seperated by colons. The assembler 
+<p>You may put multiple statements on a line, seperated by colons. The assembler
 will treat them as seperate lines. This does <b>not</b> work if the <tt>-O, --compatible-ops</tt>
 option is used.
 </p>
 <pre width=80>
-        <b>nop</b> : <b>nop</b> : <b>nop</b>
+	<b>nop</b> : <b>nop</b> : <b>nop</b>
 </pre>
 
 <h2>Constants</h2>
 
 <pre width=80>
-        <b>.byte</b> 23        <i>; decimal</i>
-        <b>.byte</b> $33       <i>; hex</i>
-        <b>.byte</b> %00011111 <i>; binary</i>
+	<b>.byte</b> 23        <i>; decimal</i>
+	<b>.byte</b> $33       <i>; hex</i>
+	<b>.byte</b> %00011111 <i>; binary</i>
 
-        <b>.text</b> "oeU"     <i>; text, "" means $22</i>
-        <b>.text</b> 'oeU'     <i>; text, '' means $27</i>
-        <b>.text</b> ^2048     <i>; the decimal value as string (^23 is $32,$33)</i>
+	<b>.text</b> "oeU"     <i>; text, "" means $22</i>
+	<b>.text</b> 'it''s'   <i>; text, '' means $27</i>
+	<b>.text</b> ^2048     <i>; the decimal value as string (^23 is $32,$33)</i>
 </pre>
 
 <h2>Labels</h2>
 
+<p>Normal labels can be defined at the start of each line and hold the logical
+address of that line, or the value after the equal sign. Each of them is uniq and
+can't be redefined. Labels can be forward referenced, the assembler will make as
+many passes as required to resolve them to a stable value.</p>
+
 <pre width=80>
-reg	= $d020
+reg	<b>=</b> $d020
 
 loop
 	<b>inc</b> reg
 	<b>jmp</b> loop
 </pre>
 
+<h3>Variables</h3>
+
+<p>Variables are redefinable, because their value will be non stable, so forward referencing is not allowed.</p>
+
+<pre width=80>
+variabl	<b>.var</b> 1
+	<b>.rept</b> 10
+	<b>.byte</b> variabl
+variabl	<b>.var</b> variabl+1
+	<b>.next</b>
+</pre>
+
 <h3>Anonymous labels</h3>
-<p>The assembler supports anonymous labels, also called as forward (+) and backward (-) references.
-"-" means one backward, "--" means two backward, etc. also the same for forward, but with "+".
+<p>The assembler supports anonymous labels, also called as forward (<tt>+</tt>) and backward (<tt>-</tt>) references.
+<q><tt>-</tt></q> means one backward, <q><tt>--</tt></q> means two backward, etc. also the same for forward, but with <q><tt>+</tt></q>.
 </p>
 <pre width=80>
-        <b>ldy</b> #4
+	<b>ldy</b> #4
 -       <b>ldx</b> #0
 -       <b>txa</b>
-        <b>cmp</b> #3
-        <b>bcc</b> +
-        <b>adc</b> #44
+	<b>cmp</b> #3
+	<b>bcc</b> +
+	<b>adc</b> #44
 +       <b>sta</b> $400,x
-        <b>inx</b>
-        <b>bne</b> -
-        <b>dey</b>
-        <b>bne</b> --
+	<b>inx</b>
+	<b>bne</b> -
+	<b>dey</b>
+	<b>bne</b> --
 </pre>
 <p>These references are also useful in segments, but this can create a nice traps, as segments are
 copied into the code, with the internal references.
 </p>
 <pre>
-        <b>bne</b> +
-        #somemakro      ;let's hope that this macro does
-+       <b>nop</b>             ;not contain forward references...
+	<b>bne</b> +
+	#somemakro      ;let's hope that this segment does
++	<b>nop</b>             ;not contain forward references...
 </pre>
 
 <h2>Expressions</h2>
 Expressions can be used at a lot of places. Here's a list of available operators:
 
-<h3></h3>
 <table border="0">
-<tr><td><tt>( )</tt></td>   <td align="left">braces</td></tr>
+<tr><td><tt>( )</tt>   <td align="left">braces
 </table>
 <pre width=80>
 	<b>lda</b> #(4+2)*3
@@ -447,9 +463,9 @@ Expressions can be used at a lot of places. Here's a list of available operators
 
 <h3>special</h3>
 <table border="0">
-<tr><td><tt>&lt;</tt></td>   <td align="left">lower byte</td></tr>
-<tr><td><tt>&gt;</tt></td>   <td align="left">higher byte</td></tr>
-<tr><td><tt>`</tt></td>      <td align="left">bank byte</td></tr>
+<tr><td><tt>&lt;</tt>   <td align="left">lower byte
+<tr><td><tt>&gt;</tt>   <td align="left">higher byte
+<tr><td><tt>`</tt>      <td align="left">bank byte
 </table>
 
 <pre width=80>
@@ -459,20 +475,20 @@ Expressions can be used at a lot of places. Here's a list of available operators
 </pre>
 
 <table border="0">
-<tr><td><tt>@b</tt></td>     <td align="left">to force 8 bit address</td></tr>
-<tr><td><tt>@w</tt></td>     <td align="left">to force 16 bit address</td></tr>
-<tr><td><tt>@l</tt></td>     <td align="left">to force 24 bit address (65816)</td></tr>
+<tr><td><tt>@b</tt>     <td align="left">to force 8 bit address
+<tr><td><tt>@w</tt>     <td align="left">to force 16 bit address
+<tr><td><tt>@l</tt>     <td align="left">to force 24 bit address (65816)
 </table>
 
 <h3>boolean</h3>
 <table border="0">
-<tr><td><tt>=</tt></td>      <td align="left">equal</td></tr>
-<tr><td><tt>!=</tt></td>     <td align="left">non equal</td></tr>
-<tr><td><tt>&lt;</tt></td>   <td align="left">less</td></tr>
-<tr><td><tt>&gt;</tt></td>   <td align="left">more</td></tr>
-<tr><td><tt>&gt;=</tt></td>  <td align="left">more or equal</td></tr>
-<tr><td><tt>&lt;=</tt></td>  <td align="left">less or equal</td></tr>
-<tr><td><tt>!</tt></td>      <td align="left">not</td></tr>
+<tr><td><tt>=</tt>      <td align="left">equal
+<tr><td><tt>!=</tt>     <td align="left">non equal
+<tr><td><tt>&lt;</tt>   <td align="left">less
+<tr><td><tt>&gt;</tt>   <td align="left">more
+<tr><td><tt>&gt;=</tt>  <td align="left">more or equal
+<tr><td><tt>&lt;=</tt>  <td align="left">less or equal
+<tr><td><tt>!</tt>      <td align="left">not
 </table>
 
 <pre width=80>
@@ -483,21 +499,21 @@ Expressions can be used at a lot of places. Here's a list of available operators
 
 <h3>arithmetic</h3>
 <table border="0">
-<tr><td><tt>+</tt></td>       <td align="left">add</td></tr>
-<tr><td><tt>-</tt></td>       <td align="left">substract / negate</td></tr>
-<tr><td><tt>*</tt></td>       <td align="left">multiply</td></tr>
-<tr><td><tt>/</tt></td>       <td align="left">divide</td></tr>
-<tr><td><tt>//</tt></td>      <td align="left">modulo</td></tr>
-<tr><td><tt>|</tt></td>       <td align="left">bitwise or</td></tr>
-<tr><td><tt>&amp;</tt></td>   <td align="left">bitwise and</td></tr>
-<tr><td><tt>^</tt></td>       <td align="left">bitwise xor</td></tr>
-<tr><td><tt>&lt;&lt;</tt></td><td align="left">shift right</td></tr>
-<tr><td><tt>&gt;&gt;</tt></td><td align="left">shift left</td></tr>
-<tr><td><tt>~</tt></td>       <td align="left">invert bits</td></tr>
+<tr><td><tt>+</tt>       <td align="left">add
+<tr><td><tt>-</tt>       <td align="left">substract / negate
+<tr><td><tt>*</tt>       <td align="left">multiply
+<tr><td><tt>/</tt>       <td align="left">divide
+<tr><td><tt>//</tt>      <td align="left">modulo
+<tr><td><tt>|</tt>       <td align="left">bitwise or
+<tr><td><tt>&amp;</tt>   <td align="left">bitwise and
+<tr><td><tt>^</tt>       <td align="left">bitwise xor
+<tr><td><tt>&lt;&lt;</tt><td align="left">shift right
+<tr><td><tt>&gt;&gt;</tt><td align="left">shift left
+<tr><td><tt>~</tt>       <td align="left">invert bits
 </table>
 
 <pre width=80>
-	<b>lda</b> #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
+	<b>lda</b> #((bitmap &amp; $2000) &gt;&gt; 10) | ((screen &amp; $3c00) &gt;&gt; 6)
 	<b>sta</b> $d018
 </pre>
 
@@ -509,7 +525,7 @@ Expressions can be used at a lot of places. Here's a list of available operators
 <dt>*=
 <dd>Set current address
 <pre width=80>
-	<b>*</b>= $1000
+	<b>*=</b> $1000
 </pre>
 <dt>.offs
 <dd>Add compile offset to logical address
@@ -519,12 +535,12 @@ Expressions can be used at a lot of places. Here's a list of available operators
 <dt>.logical
 <dd>Changes logical address. Can be nested.
 <pre width=80>
-        <b>.logical</b> $300
+	<b>.logical</b> $300
 drive   <b>lda</b> #$80
-        <b>sta</b> $00
-        <b>jmp</b> drive       <i>;jmp $300</i>
-        <b>rts</b>
-        <b>.here</b>
+	<b>sta</b> $00
+	<b>jmp</b> drive       <i>;jmp $300</i>
+	<b>rts</b>
+	<b>.here</b>
 </pre>
 
 <dt>.here
@@ -533,9 +549,9 @@ drive   <b>lda</b> #$80
 <dt>.align
 <dd>Align code to a dividable address by skip or fill
 <pre width=80>
-        <b>.align</b> $100
+	<b>.align</b> $100
 irq     <b>inc</b> $d019       ;this will be on a page boundary, after skipping bytes
-        <b>.align</b> 4,$ea
+	<b>.align</b> 4,$ea
 loop    <b>adc</b> #1          ;padding with "nop" for DTV burst mode
 </pre>
 
@@ -563,10 +579,8 @@ loop    <b>adc</b> #1          ;padding with "nop" for DTV burst mode
 </pre>
 
 <dt>.shift
-<dd>Same as <code>.text</code>, but the last byte is "shifted". Characters
-	in range $c0-$df are converted to $60-$7f, $ff is converted to
-	$7e, and everything else &gt;=$80 will cause an error. No conversion
-        if screen encoding is done, &gt;=$80 will always cause an error.
+<dd>Same as <code>.text</code>, but the last byte will have highest bit set.
+Any character which already has the most significiant bit set will cause an error.
 <pre width=80>
 	<b>ldx</b> #0
 loop	<b>lda</b> txt,x
@@ -581,19 +595,17 @@ txt	<b>.shift</b> "some text"
 </pre>
 
 <dt>.shiftl
-<dd>Same as <code>.text</code>, but all bytes a shifted to left, and the last
-        character has the lowest bit set. Characters
-	in range $c0-$df are converted to $60-$7f, $ff is converted to
-	$7e, and everything else &gt;=$80 will cause an error. No conversion
-        if screen encoding is done, &gt;=$80 will always cause an error.
+<dd>Same as <code>.text</code>, but all bytes are shifted to left, and the last
+character gets the lowest bit set. Any character which already has the most significiant
+bit set will cause an error as this would be cut off.
 <pre width=80>
-        <b>ldx</b> #0
+	<b>ldx</b> #0
 loop	<b>lda</b> txt,x
-        <b>lsr</b>
+	<b>lsr</b>
 	<b>sta</b> $400,x
-        <b>inx</b>
-        <b>bcc</b> loop
-        <b>rts</b>
+	<b>inx</b>
+	<b>bcc</b> loop
+	<b>rts</b>
 	<b>.enc</b> screen
 txt	<b>.shiftl</b> "some text"
 	<b>.enc</b> none
@@ -604,9 +616,9 @@ txt	<b>.shiftl</b> "some text"
 <pre width=80>
 txt	<b>.text</b> "lot of stuff"
 	<b>.null</b> "to write"
-        <b>lda</b> #&lt;txt
-        <b>ldy</b> #&gt;txt
-        <b>jsr</b> $ab1e
+	<b>lda</b> #&lt;txt
+	<b>ldy</b> #&gt;txt
+	<b>jsr</b> $ab1e
 </pre>
 
 <dt>.ptext
@@ -637,14 +649,14 @@ txt	<b>.ptext</b> "note"
 <dt>.rta
 <dd>Include return address constants
 <pre width=80>
-        <b>lda</b> #0
-        <b>asl</b>
-        <b>tax</b>
-        <b>lda</b> rets+1,x
-        <b>pha</b>
-        <b>lda</b> rets,x
-        <b>pha</b>
-        <b>rts</b>
+	<b>lda</b> #0
+	<b>asl</b>
+	<b>tax</b>
+	<b>lda</b> rets+1,x
+	<b>pha</b>
+	<b>lda</b> rets,x
+	<b>pha</b>
+	<b>rts</b>
 rets	<b>.rta</b> $fce2
 </pre>
 
@@ -669,8 +681,8 @@ rets	<b>.rta</b> $fce2
 <dt>.fill
 <dd>Skip bytes, or fill with repeated bytes. For multibyte patterns use <code>.repeat</code>!
 <pre width=80>
-        <b>.fill</b> $100      ;no fill, just skip $100 bytes
-        <b>.fill</b> $4000,0   ;16384 bytes of 0
+	<b>.fill</b> $100      ;no fill, just skip $100 bytes
+	<b>.fill</b> $4000,0   ;16384 bytes of 0
 </pre>
 
 </dl>
@@ -691,44 +703,44 @@ fill    <b>.macro</b>
 lp      <b>sta</b> \1,x
 	<b>inx</b>
 	<b>bne</b> lp
-        <b>.endm</b>
+	<b>.endm</b>
 
 name    <b>.segment</b>
-        <b>sta</b> $d020
-        <b>sta</b> $d021
-        <b>.endm</b>
+	<b>sta</b> $d020
+	<b>sta</b> $d021
+	<b>.endm</b>
 
-        <b>lda</b> #1
-        #name           <i>;call macro</i>
-        #fill $400
-        #fill $500
+	<b>lda</b> #1
+	#name           <i>;call macro</i>
+	#fill $400
+	#fill $500
 </pre>
 
 <dt><h4>Parameter references</h4>
-<dd>Parameters can be referenced by <tt>\1</tt>...<tt>\9</tt> and <tt>\a</tt>...<tt>\z</tt>. 
+<dd>Parameters can be referenced by <tt>\1</tt>...<tt>\9</tt> and <tt>\a</tt>...<tt>\z</tt>.
 <tt>\@</tt> will return the entire parameter list.
 <pre width=80>
 name	<b>.macro</b>
 	<b>lda</b> #\1 	<i>;first parameter</i>
 	<b>.endm</b>
-	
+
 	#name 23	<i>;call macro</i>
 </pre>
 
 
 <dt><h4>Text references</h4>
 <dd>In the original turbo assembler normal references are passed by value and can
-only appear in place of one. Text references on the other hand can appear every 
+only appear in place of one. Text references on the other hand can appear every
 where and will work in place of eg quoted text or opcodes and labels.
 The first 9 parameters can be referenced as text by <tt>@1</tt>...<tt>@9</tt>.
 <pre width=80>
 name    <b>.macro</b>
-        <b>jsr</b> print
-        <b>.text</b> "@1"	<i>;first parameter</i>
-        <b>.byte</b> 0
-        <b>.endm</b>
+	<b>jsr</b> print
+	<b>.text</b> "@1"	<i>;first parameter</i>
+	<b>.byte</b> 0
+	<b>.endm</b>
 
-        #name "wth?"	<i>;call macro</i>
+	#name "wth?"	<i>;call macro</i>
 </pre>
 
 </dl>
@@ -747,13 +759,13 @@ name    <b>.macro</b>
 
 <dt>.if
 <dt>.ifne
-<dd>Conditional compile, if result!=0
+<dd>Conditional compile, if result is not 0
 <dt>.ifeq
-<dd>Conditional compile, if result=0
+<dd>Conditional compile, if result is 0
 <dt>.ifpl
-<dd>Conditional compile, if result&gt;=0
+<dd>Conditional compile, if result is greater or equal 0
 <dt>.ifmi
-<dd>Conditional compile, if result&lt;0
+<dd>Conditional compile, if result is less than 0
 <pre width=80>
 	<b>.if</b> oeu=1
 	<b>nop</b>
@@ -801,15 +813,15 @@ name    <b>.macro</b>
 </pre>
 
 <dt>.binary
-<dd>Include binary data. Please note that loading address is ignored, and if 
+<dd>Include binary data. Please note that loading address is ignored, and if
 not skipped then it's also loaded.
 <pre width=80>
-	<b>.binary</b> stuffz.bin ;simple include
-	<b>.binary</b> "stuffz.bin",2 ;skip start address
-	<b>.binary</b> "stuffz.bin",2,1000 ;skip start address, 1000 bytes max
-	
-	<b>*</b>= $1000			;load music to $1000 and
-	<b>.binary</b> "music.dmc",2   ;strip load address
+        <b>.binary</b> stuffz.bin          <i>;simple include</i>
+	<b>.binary</b> "stuffz.bin",2      <i>;skip start address</i>
+        <b>.binary</b> "stuffz.bin",2,1000 <i>;skip start address, 1000 bytes max</i>
+
+        <b>*=</b> $1000	            <i>;load music to $1000 and</i>
+	<b>.binary</b> "music.dmc",2       <i>;strip load address</i>
 </pre>
 
 </dl>
@@ -818,15 +830,15 @@ not skipped then it's also loaded.
 <dt>.proc
 <dd>Procedure start
 <pre width=80>
-ize     <b>.proc</b> 
-        <b>nop</b>
+ize     <b>.proc</b>
+	<b>nop</b>
 cucc    <b>nop</b>
-        <b>.pend</b>
-        
-        <b>jsr</b> ize
-        <b>jmp</b> ize.cucc
+	<b>.pend</b>
+
+	<b>jsr</b> ize
+	<b>jmp</b> ize.cucc
 </pre>
-If "ize" is not referenced then the code won't be compiled at all!
+If <q>ize</q> is not referenced then the code won't be compiled at all!
 All labels inside are local.
 
 <dt>.pend
@@ -848,10 +860,10 @@ count	<b>ldx</b> #0
 <dt>.comment
 <dd>Comment block start
 <pre width=80>
-        <b>.comment</b><i>
-        lda #1          ;this won't be compiled
-        sta $d020
-        </i><b>.endc</b>
+	<b>.comment</b><i>
+	lda #1          ;this won't be compiled
+	sta $d020
+	</i><b>.endc</b>
 </pre>
 
 <dt>.endc
@@ -866,8 +878,8 @@ count	<b>ldx</b> #0
 <dt>.al
 <dd>Select 16 bit accu (65816)
 <pre width=80>
-        <b>.al</b>
-        <b>lda</b> #$4322
+	<b>.al</b>
+	<b>lda</b> #$4322
 </pre>
 
 <dt>.xs
@@ -876,20 +888,20 @@ count	<b>ldx</b> #0
 <dt>.xl
 <dd>Select 16 bit index (65816)
 <pre width=80>
-        <b>.xl</b>
-        <b>ldx</b> #$1000
+	<b>.xl</b>
+	<b>ldx</b> #$1000
 </pre>
 
 <dt>.databank
 <dd>Set databank (65816)
 <pre width=80>
-        <b>.databank</b> $10   ;$10xxxx
+	<b>.databank</b> $10   ;$10xxxx
 </pre>
 
 <dt>.dpage
 <dd>Set directpage (65816/C128/DTV) (forced to page boundary for DTV)
 <pre width=80>
-        <b>.dpage</b> $400
+	<b>.dpage</b> $400
 </pre>
 
 </dl>
@@ -899,9 +911,9 @@ count	<b>ldx</b> #0
 <dt>.page
 <dd>Gives an error on page boundary crossing, eg. for timing sensitive code.
 <pre width=80>
-        <b>.page</b>
+	<b>.page</b>
 table   <b>.byte</b> 0,1,2,3,4,5,6,7
-        <b>.endp</b>
+	<b>.endp</b>
 </pre>
 
 <dt>.endp
@@ -909,14 +921,14 @@ table   <b>.byte</b> 0,1,2,3,4,5,6,7
 
 <dt>.option allow_branch_across_page
 <dd>Switches error generation on page boundary crossing during relative branch.
-Such a condition on 6502 adds 1 extra cycle to the execution time, which 
+Such a condition on 6502 adds 1 extra cycle to the execution time, which
 can ruin the timing of a carefuly cycle counted code.
 <pre width=80>
-        <b>.option</b> allow_branch_across_page = 0
-        <b>ldx</b> #3          ;now this will execute in
+	<b>.option</b> allow_branch_across_page = 0
+	<b>ldx</b> #3          ;now this will execute in
 -       <b>dex</b>             ;16 cycles for sure
-        <b>bne</b> -
-        <b>.option</b> allow_branch_across_page = 1
+	<b>bne</b> -
+	<b>.option</b> allow_branch_across_page = 1
 </pre>
 
 <dt>.error
@@ -948,13 +960,13 @@ can ruin the timing of a carefuly cycle counted code.
 <dl class="dir">
 
 <dt>.enc
-<dd>Text encoding, "none" or "screen" (screen code)
+<dd>Text encoding, <q>none</q> or <q>screen</q> (screen code)
 <pre width=80>
-        <b>.enc</b> screen	<i>;screencode mode</i>
-        <b>.text</b> "text with screencodes"
-        <b>cmp</b> #"u"	<i>;compare screencode</i>
-        <b>.enc</b> none	<i>;normal mode again</i>
-        <b>cmp</b> #"u"	<i>;compare ascii</i>
+	<b>.enc</b> screen	<i>;screencode mode</i>
+	<b>.text</b> "text with screencodes"
+	<b>cmp</b> #"u"	<i>;compare screencode</i>
+	<b>.enc</b> none	<i>;normal mode again</i>
+	<b>cmp</b> #"u"	<i>;compare ascii</i>
 </pre>
 
 <dt>.cpu
@@ -976,7 +988,12 @@ can ruin the timing of a carefuly cycle counted code.
 <dd>Terminate assembly. Any content after this directive is ignored.
 
 <dt>.eor
-<dd>eor output with some value
+<dd>Eor output with some 8 bit value. Useful for reverse screencode text for example,
+or for silly <q>encryption</q>.
+
+<dt>.var
+<dd>Defines a variable identified by the label preceeding, which
+is set to the value following.
 
 <dt>.assert
 <dt>.check
@@ -999,7 +1016,7 @@ can ruin the timing of a carefuly cycle counted code.
 <h2>How to convert source code written for the original turbo assembler for use
 with 64tass</h2>
 
-Currently there are two options, either use "TMPview" by Style to convert the
+Currently there are two options, either use <q>TMPview</q> by Style to convert the
 sourcefile directly, or do the following:
 <ul>
 <li>load turbo assembler, start (by sys9*4096 or sys8*4096 depending on version)
@@ -1015,8 +1032,8 @@ following commandline:<br>
 <hr>
 <h2>Differences to the original turbo ass macro on the C64</h2>
 <p>
-64tass is nearly 100% compatible with the original "turbo assembler", and supports
-most of the features of the original "turbo assembler macro". 
+64tass is nearly 100% compatible with the original <q>turbo assembler</q>, and supports
+most of the features of the original <q>turbo assembler macro</q>.
 The remaining notable differences are listed here:
 </p>
 <h3>Labels</h3>
@@ -1026,16 +1043,16 @@ option to enable this behaviour.
 </p>
 <p>
 Another thing worth noting is that the original turbo assembler lets you create
-an interesting ambiguous construct using a label called '<tt>a</tt>' 
+an interesting ambiguous construct using a label called <q>a</q>.
 </p>
 <pre width=80>
-        <b>lsr a</b>    ; uses Akku ! (or does it really?)
+	<b>lsr a</b>    ; uses Akku ! (or does it really?)
 a
-        <b>jmp</b> a    ; uses the label address
-        <b>.word</b> a  ; uses the label address
+	<b>jmp</b> a    ; uses the label address
+	<b>.word</b> a  ; uses the label address
 </pre>
 <p>
-If you get a warning like "<tt>warning: Possibly incorrectly used A "lsr a"</tt>", then there
+If you get a warning like <q><tt>warning: Possibly incorrectly used A "lsr a"</tt></q>, then there
 is such an ambiguous situation in your code and you should fix it (by renaming the label).
 </p>
 
@@ -1069,17 +1086,15 @@ need to make use of braces around arguments and/or references to fix this.
 Some versions of the original turbo assembler had bugs that are not reproduced
 by 64tass, you will have to fix the code instead.
 <ul>
-<li>In some versions labels used in the first .block are globally available. If 
+<li>In some versions labels used in the first .block are globally available. If
 you get a related error move the respective label out of the .block
 </ul>
 
 <h3>Unsupported directives</h3>
 Some directives are not yet implemented:
 <ul>
-<li>.var - defines a variable identified by the label preceeding '.var', which 
-is set to the value following the '.var'.
 <li>.lbl - identifies a label that can be referenced by a .goto
-<li>.goto - causes assembler to goto the label referenced and continue assembling 
+<li>.goto - causes assembler to goto the label referenced and continue assembling
 from that point on.
 </ul>
 
