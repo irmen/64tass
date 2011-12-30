@@ -680,6 +680,7 @@ struct context_s *new_context(char* name, struct context_s *parent) {
         strcpy(lastco->name,name);
         avltree_init(&lastco->label_tree, label_compare, label_free);
         avltree_init(&lastco->contexts, context_compare, context_free);
+        avltree_init(&lastco->jump_tree, jump_compare, jump_free);
         lastco->parent=parent;
 	labelexists=0;
 	tmp=lastco;
