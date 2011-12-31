@@ -26,7 +26,20 @@
 #include "opcodes.h"
 #include "getopt.h"
 
-void err_msg(enum errors_e, char*);
+static struct {
+    size_t p;
+    size_t len;
+    char *data;
+} error_list = {0,0,NULL};
+
+static struct {
+    size_t p;
+    size_t len;
+    struct {
+        uint32_t line;
+        const char *name;
+    } *data;
+} file_list = {0,0,NULL};
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,0,"a.out",OPCODES_6502,NULL,NULL};
 
@@ -34,8 +47,6 @@ static struct avltree macro_tree;
 static struct avltree file_tree;
 struct context_s root_context;
 struct context_s *current_context = &root_context;
-static struct errorlist_s *errorlist=NULL,*errorlistlast=NULL;
-struct filenamelist_s *filenamelist=NULL;
 unsigned int encoding;
 
 const uint8_t whatis[256]={
@@ -255,7 +266,7 @@ static const unsigned char petsymcbm[26] = {
     0xb7, 0xad 
 };
 
-uint_fast16_t petsymbolic(char *str) {
+uint_fast16_t petsymbolic(const char *str) {
     int n, n2;
     int also=0,felso,s4,elozo;
 
@@ -357,54 +368,40 @@ uint_fast16_t petsymbolic(char *str) {
 
 //------------------------------------------------------------------------------
 
-void adderror(char *s) {
-    struct errorlist_s *b;
+static void adderror(const char *s) {
+    unsigned int len;
 
-    b=malloc(sizeof(struct errorlist_s)+strlen(s));
-
-    if (!b) {fputs("Out of memory\n", stderr);exit(1);}
-
-    b->next=NULL;
-    strcpy(b->name,s);
-
-    if (!errorlist)
-        errorlist=b;
-    else
-        errorlistlast->next=b;
-
-    errorlistlast=b;
+    len = strlen(s) + 1;
+    if (len + error_list.p > error_list.len) {
+        error_list.len += (len > 0x200) ? len : 0x200;
+        error_list.data = realloc(error_list.data, error_list.len);
+        if (!error_list.data) {fputs("Out of memory\n", stderr);exit(1);}
+    }
+    memcpy(error_list.data + error_list.p, s, len);
+    error_list.p += len - 1;
 }
 
 void freeerrorlist(int print) {
-    struct errorlist_s *b;
-
-    while (errorlist) {
-        b=errorlist->next;
-        if (print) fputs(errorlist->name, stderr);
-        free(errorlist);
-        errorlist=b;
+    if (print) {
+        fwrite(error_list.data, error_list.p, 1, stderr);
     }
+    error_list.p = 0;
 }
 
-void enterfile(char *s, uint32_t l) {
-    struct filenamelist_s *b;
+void enterfile(const char *s, uint32_t l) {
 
-    b=malloc(sizeof(struct filenamelist_s));
-
-    if (!b) {fputs("Out of memory\n", stderr);exit(1);}
-    b->next=filenamelist;
-    b->name=s;
-    b->line=l;
-
-    filenamelist=b;
+    if (file_list.p >= file_list.len) {
+        file_list.len += 16;
+        file_list.data = realloc(file_list.data, file_list.len * sizeof(*file_list.data));
+        if (!file_list.data) {fputs("Out of memory\n", stderr);exit(1);}
+    }
+    file_list.data[file_list.p].name=s;
+    file_list.data[file_list.p].line=l;
+    file_list.p++;
 }
 
-void exitfile() {
-    struct filenamelist_s *b;
-
-    b=filenamelist;
-    filenamelist=b->next;
-    free(b);
+void exitfile(void) {
+    if (file_list.p) file_list.p--;
 }
 
 #define linelength 4096
@@ -452,9 +449,9 @@ static const char *terr_fatal[]={
     "Too many errors\n"
 };
 
-void err_msg(enum errors_e no, char* prm) {
+void err_msg(enum errors_e no, const char* prm) {
     char line[linelength];
-    struct filenamelist_s *b=NULL, *b2=filenamelist;
+    unsigned int i;
     uint8_t *p;
 
     if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
@@ -464,18 +461,14 @@ void err_msg(enum errors_e no, char* prm) {
         return;
     }
 
-    if (filenamelist) {
-	b=filenamelist->next;
-	snprintf(line,linelength,"%s:%u: ",filenamelist->name,sline);
-    } else line[0]=0;
-
-    adderror(line);
-
-    while (b) {
-        snprintf(line,linelength,"(%s:%u) ",b->name,b2->line);
+    if (file_list.p) {
+	snprintf(line,linelength,"%s:%u: ", file_list.data[file_list.p - 1].name, sline);
         adderror(line);
-        b2=b;
-        b=b->next;
+    }
+
+    for (i = file_list.p; i > 1; i--) {
+        snprintf(line,linelength,"(%s:%u) ", file_list.data[file_list.p - 2].name, file_list.data[file_list.p - 1].line);
+        adderror(line);
     }
 
     if (no<0x40) {
@@ -648,7 +641,7 @@ struct label_s *find_label(char* name) {
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
 struct label_s *new_label(char* name) {
-    struct avltree_node *b;
+    const struct avltree_node *b;
     struct label_s *tmp;
     if (!lastlb)
 	if (!(lastlb=malloc(sizeof(struct label_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
@@ -669,7 +662,7 @@ struct label_s *new_label(char* name) {
 // ---------------------------------------------------------------------------
 static struct context_s *lastco=NULL;
 struct context_s *new_context(char* name, struct context_s *parent) {
-    struct avltree_node *b;
+    const struct avltree_node *b;
     struct context_s *tmp;
     if (!lastco)
 	if (!(lastco=malloc(sizeof(struct context_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
@@ -703,7 +696,7 @@ struct jump_s *find_jump(char* name) {
 
 static struct jump_s *lastjp=NULL;
 struct jump_s *new_jump(char* name) {
-    struct avltree_node *b;
+    const struct avltree_node *b;
     struct jump_s *tmp;
     if (!lastjp)
 	if (!(lastjp=malloc(sizeof(struct jump_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
@@ -733,7 +726,7 @@ struct macro_s *find_macro(char* name) {
 // ---------------------------------------------------------------------------
 static struct macro_s *lastma=NULL;
 struct macro_s *new_macro(char* name) {
-    struct avltree_node *b;
+    const struct avltree_node *b;
     struct macro_s *tmp;
     if (!lastma)
 	if (!(lastma=malloc(sizeof(struct macro_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
@@ -751,7 +744,7 @@ struct macro_s *new_macro(char* name) {
     return avltree_container_of(b, struct macro_s, node);            //already exists
 }
 // ---------------------------------------------------------------------------
-unsigned int utf8in(uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
+unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
     uint32_t ch;
     int i, j;
     ch = c[0];
@@ -824,7 +817,7 @@ static uint8_t *utf8out(uint32_t i, uint8_t *c) {
 static struct file_s *lastfi=NULL;
 static uint16_t curfnum=1;
 struct file_s *openfile(char* name) {
-    struct avltree_node *b;
+    const struct avltree_node *b;
     struct file_s *tmp;
     if (!lastfi)
 	if (!(lastfi=malloc(sizeof(struct file_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
@@ -1007,7 +1000,7 @@ void closefile(struct file_s *f) {
     if (f->open) f->open--;
 }
 
-void tfree() {
+void tfree(void) {
     avltree_destroy(&root_context.label_tree);
     avltree_destroy(&root_context.jump_tree);
     avltree_destroy(&root_context.contexts);
@@ -1018,10 +1011,11 @@ void tfree() {
     free(lastma);
     free(lastlb);
     free(lastjp);
-    while (filenamelist) exitfile(); 
+    free(file_list.data);
+    free(error_list.data);
 }
 
-void tinit() {
+void tinit(void) {
     avltree_init(&root_context.label_tree, label_compare, label_free);
     avltree_init(&root_context.jump_tree, jump_compare, jump_free);
     avltree_init(&root_context.contexts, context_compare, context_free);
@@ -1030,9 +1024,9 @@ void tinit() {
     avltree_init(&file_tree, file_compare, file_free);
 }
 
-void labelprint() {
-    struct avltree_node *n;
-    struct label_s *l;
+void labelprint(void) {
+    const struct avltree_node *n;
+    const struct label_s *l;
     FILE *flab;
 
     if (arguments.label) {
@@ -1135,7 +1129,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 'o':arguments.output=optarg;break;
             case 'D':
                 {
-                    uint8_t *c = (uint8_t *)optarg;
+                    const uint8_t *c = (uint8_t *)optarg;
                     uint8_t *pline=&fin->data[fin->p], ch2;
                     int i, j;
                     uint32_t ch = 0;

@@ -42,6 +42,7 @@ static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
 
 static struct encoding_s *actual_encoding = ascii_encoding;
+struct memblock_s {size_t p, len;uint32_t start;}; //starts and sizes
 
 #define linelength 4096
 #define nestinglevel 256
@@ -51,10 +52,10 @@ uint32_t sline;      //current line
 static uint32_t all_mem;
 uint8_t pass=0;      //pass
 static int listing=0;   //listing
-static uint8_t *memdata=NULL;//Linear memory dump
-static uint32_t memdatap = 0, memdatasize = 0, memblocklastp = 0, memblocklaststart = 0;
-static struct memblock_s {uint32_t size;uint32_t memp;uint32_t start;} *memblocks; //starts and sizes
-static unsigned int memblockp = 0, memblocksize = 0;
+static struct {size_t p, len;uint8_t *data;} mem = {0, 0, NULL};//Linear memory dump
+static size_t memblocklastp = 0;
+static uint32_t memblocklaststart = 0;
+static struct {unsigned int p, len;struct memblock_s *data;} memblocks = {0, 0, NULL};
 uint32_t address=0, l_address=0; //address, logical address
 uint8_t pline[linelength];  //current line data
 static uint8_t llist[linelength];  //current line for listing
@@ -65,8 +66,7 @@ static char path[linelength];   //path
 static int pagelo=-1;           //still in same page?
 static FILE* flist = NULL;      //listfile
 static enum { LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU } lastl = LIST_CODE;
-static uint16_t logisave=0, logisize = 0;          // number of nested .logical
-static int32_t* logitab = NULL;  //.logical .here
+static struct {uint16_t p, len; int32_t *data;} logitab = {0,0,NULL};  //.logical .here
 static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static uint8_t databank=0;
 static uint16_t dpage=0;
@@ -174,7 +174,7 @@ enum command_e {
 
 // ---------------------------------------------------------------------------
 
-void status() {
+void status(void) {
     freeerrorlist(1);
     errors+=conderrors;
     if (arguments.quiet) {
@@ -186,24 +186,24 @@ void status() {
         printf("Warning messages:  ");
         if (warnings) printf("%u\n", warnings); else puts("None");
         printf("Passes:            %u\n",pass);
-        if (memblockp) {
-            start = memblocks[0].start;
-            end = memblocks[0].start + memblocks[0].size;
-            for (i=1;i<memblockp;i++) {
-                if (memblocks[i].start != end) {
+        if (memblocks.p) {
+            start = memblocks.data[0].start;
+            end = memblocks.data[0].start + memblocks.data[0].len;
+            for (i=1;i<memblocks.p;i++) {
+                if (memblocks.data[i].start != end) {
                     sprintf(temp, "$%04x", start);
                     printf("Memory range:    %7s-$%04x\n",temp,end-1);
-                    start = memblocks[i].start;
+                    start = memblocks.data[i].start;
                 }
-                end = memblocks[i].start + memblocks[i].size;
+                end = memblocks.data[i].start + memblocks.data[i].len;
             }
             sprintf(temp, "$%04x", start);
             printf("Memory range:    %7s-$%04x\n",temp,end-1);
         } else puts("Memory range:      None");
     }
-    free(memdata);		        	// free codemem
-    free(memblocks);				// free memorymap
-    free(logitab);
+    free(mem.data);		        	// free codemem
+    free(memblocks.data);				// free memorymap
+    free(logitab.data);
 
     tfree();
 }
@@ -223,7 +223,7 @@ static void readln(struct file_s *fle) {
     unsigned int i = 0;
     uint_fast8_t q = 0;
     size_t l = fle->p;
-    uint8_t *c = &fle->data[fle->p];
+    const uint8_t *c = &fle->data[fle->p];
 
     if (fle->len != fle->p) {
         for (; i < sizeof(pline) - 1; i++) {
@@ -325,52 +325,53 @@ static uint_fast16_t petascii(uint8_t quo) {
  * output one byte
  */
 static void memjmp(uint32_t adr) {
-    if (memdatap == memblocklastp) {
+    if (mem.p == memblocklastp) {
         memblocklaststart = adr;
         return;
     }
-    if (memblockp>=memblocksize) {
-        memblocksize+=64;
-        memblocks=realloc(memblocks, memblocksize*sizeof(*memblocks));
-        if (!memblocks) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+    if (memblocks.p>=memblocks.len) {
+        memblocks.len+=64;
+        memblocks.data=realloc(memblocks.data, memblocks.len*sizeof(*memblocks.data));
+        if (!memblocks.data) err_msg(ERROR_OUT_OF_MEMORY,NULL);
     }
-    memblocks[memblockp].size = memdatap-memblocklastp;
-    memblocks[memblockp].memp = memblocklastp;
-    memblocks[memblockp++].start = memblocklaststart;
-    memblocklastp = memdatap;
+    memblocks.data[memblocks.p].len = mem.p-memblocklastp;
+    memblocks.data[memblocks.p].p = memblocklastp;
+    memblocks.data[memblocks.p++].start = memblocklaststart;
+    memblocklastp = mem.p;
     memblocklaststart = adr;
 }
 
 static int memblockcomp(const void *a, const void *b) {
-    struct memblock_s *aa=(struct memblock_s *)a;
-    struct memblock_s *bb=(struct memblock_s *)b;
+    const struct memblock_s *aa=(struct memblock_s *)a;
+    const struct memblock_s *bb=(struct memblock_s *)b;
     return aa->start-bb->start;
 }
 
 static void memcomp(void) {
     unsigned int i, j, k;
     memjmp(0);
-    if (memblockp<2) return;
+    if (memblocks.p<2) return;
 
-    for (k = j = 0; j < memblockp; j++) {
-        if (memblocks[j].size) {
-            for (i = j + 1; i < memblockp; i++) if (memblocks[i].size) {
-                if (memblocks[j].start <= memblocks[i].start
-                        && memblocks[j].start + memblocks[j].size > memblocks[i].start) {
-                    uint32_t overlap = memblocks[j].start + memblocks[j].size - memblocks[i].start;
-                    if (overlap > memblocks[i].size) overlap = memblocks[i].size;
-                    memcpy(memdata + memblocks[j].memp + memblocks[i].start - memblocks[j].start, memdata + memblocks[i].memp, overlap);
-                    memblocks[i].size-=overlap;
-                    memblocks[i].memp+=overlap;
-                    memblocks[i].start+=overlap;
+    for (k = j = 0; j < memblocks.p; j++) {
+        const struct memblock_s *bj = &memblocks.data[j];
+        if (bj->len) {
+            for (i = j + 1; i < memblocks.p; i++) if (memblocks.data[i].len) {
+                struct memblock_s *bi = &memblocks.data[i];
+                if (bj->start <= bi->start && bj->start + bj->len > bi->start) {
+                    uint32_t overlap = bj->start + bj->len - bi->start;
+                    if (overlap > bi->len) overlap = bi->len;
+                    memcpy(mem.data + bj->p + bi->start - bj->start, mem.data + bi->p, overlap);
+                    bi->len-=overlap;
+                    bi->p+=overlap;
+                    bi->start+=overlap;
                 }
             }
-            if (j!=k) memblocks[k]=memblocks[j];
+            if (j!=k) memblocks.data[k]=*bj;
             k++;
         }
     }
-    memblockp = k;
-    qsort(memblocks, memblockp, sizeof(*memblocks), memblockcomp);
+    memblocks.p = k;
+    qsort(memblocks.data, memblocks.p, sizeof(*memblocks.data), memblockcomp);
 }
 
 // ---------------------------------------------------------------------------
@@ -382,12 +383,12 @@ static void pokeb(uint8_t byte)
 
     if (fixeddig)
     {
-        if (memdatap>=memdatasize) {
-            memdatasize+=0x1000;
-            memdata=realloc(memdata, memdatasize);
-            if (!memdata) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+        if (mem.p>=mem.len) {
+            mem.len+=0x1000;
+            mem.data=realloc(mem.data, mem.len);
+            if (!mem.data) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         }
-	memdata[memdatap++] = byte ^ outputeor;
+	mem.data[mem.p++] = byte ^ outputeor;
     }
     if (wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);wrapwarn=0;}
     if (wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);wrapwarn2=0;}
@@ -400,7 +401,7 @@ static void pokeb(uint8_t byte)
     if (fixeddig && scpumode) if (!(address & 0xffff) || !(l_address & 0xffff)) wrapwarn2=1;
 }
 
-static int lookup_opcode(char *pline) {
+static int lookup_opcode(const char *pline) {
     char s2,s3, ch;
     const char *p;
     int s4;
@@ -1090,7 +1091,7 @@ static void wait_cmd(struct file_s *fil, int no)
     }
 }
 
-static int get_path(char *base) {
+static int get_path(const char *base) {
     int q=1;
     unsigned int i=0;
     if (base) {
@@ -1124,7 +1125,7 @@ static int get_path(char *base) {
  * out:
  *   cucc: one line of the macro (expanded)
 */
-static void mtranslate(char* mpr, uint_fast8_t nprm, uint8_t *cucc)
+static void mtranslate(const char* mpr, uint_fast8_t nprm, uint8_t *cucc)
 {
     uint_fast8_t q;
     uint_fast16_t p, pp, i, j;
@@ -1189,7 +1190,7 @@ static void set_cpumode(uint_fast8_t cpumode) {
     }
 }
 
-void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
+void var_assign(struct label_s *tmp, const struct value_s *val, int fix) {
     switch (tmp->value.type) {
     case T_CHR:
     case T_INT:
@@ -1231,7 +1232,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     tmp->upass=pass;
 }
 
-static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct file_s *fin) // "",0
+static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin) // "",0
 {
     int wht,w,d,c;
     int prm = 0;
@@ -1584,7 +1585,7 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct file_s *fin) // ""
 		}
                 if (!(skipit[waitforp] & 1)) break; //skip things if needed
                 if (prm<=CMD_LONG || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
-                    uint32_t ptextaddr=memdatap;
+                    size_t ptextaddr=mem.p;
 
                     if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
                         int16_t ch2=-1;
@@ -1633,9 +1634,9 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct file_s *fin) // ""
                                 pokeb(0);
                             }
                             if (prm==CMD_PTEXT) {
-                                if (memdatap-ptextaddr>0x100) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
+                                if (mem.p-ptextaddr>0x100) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
 
-                                memdata[ptextaddr]=memdatap-ptextaddr-1;
+                                mem.data[ptextaddr]=mem.p-ptextaddr-1;
                             }
                             break;
                         }
@@ -1744,18 +1745,18 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct file_s *fin) // ""
                     if (listing && flist) {
                         unsigned int i, lcol, kiirva;
                         if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
-                        fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-memdatap+ptextaddr) & all_mem);
+                        fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);
                         lcol=arguments.source?25:49;
                         kiirva=1;
-                        while (ptextaddr!=memdatap) {
+                        while (ptextaddr!=mem.p) {
                             if (lcol==1) {
                                 if (arguments.source && kiirva) {
                                     if (nprm>=0) mtranslate(mprm,nprm,llist);
                                     fputc('\t', flist);printllist(flist);kiirva=0;
                                 } else fputc('\n',flist);
-                                fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-memdatap+ptextaddr) & all_mem);lcol=49;
+                                fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);lcol=49;
                             }
-                            fprintf(flist," %02x", memdata[ptextaddr++]);
+                            fprintf(flist," %02x", mem.data[ptextaddr++]);
 
                             lcol-=3;
                         }
@@ -1789,11 +1790,11 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct file_s *fin) // ""
 		    break;
 		}
 		if (prm==CMD_LOGICAL) { // .logical
-                    if (logisave+1 >= logisize) {
-                        logisize += 16;
-                        if (!(logitab=realloc(logitab,logisize*sizeof(*logitab)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+                    if (logitab.p >= logitab.len) {
+                        logitab.len += 16;
+                        if (!(logitab.data=realloc(logitab.data,logitab.len*sizeof(*logitab.data)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
                     }
-		    logitab[logisave++]=l_address-address;
+		    logitab.data[logitab.p++]=l_address-address;
 		    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
@@ -1809,8 +1810,8 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct file_s *fin) // ""
 		}
 		if (prm==CMD_HERE) { // .here
 		    if (here()) goto extrachar;
-		    if (!logisave) {err_msg(ERROR______EXPECTED,".LOGICAL"); break;}
-		    l_address=address+logitab[--logisave];
+		    if (!logitab.p) {err_msg(ERROR______EXPECTED,".LOGICAL"); break;}
+		    l_address=address+logitab.data[--logitab.p];
 		    break;
 		}
 		if (prm==CMD_AS) { // .as
@@ -2150,9 +2151,8 @@ static void compile(uint8_t tpe,char* mprm,int8_t nprm,struct file_s *fin) // ""
                     } else {
                         uint32_t lin = sline;
 
-                        enterfile(path,sline);
-                        sline=0;
-                        f->p=0;
+                        enterfile(f->name,sline);
+                        sline=0; f->p=0;
                         compile(0,mprm,nprm,f);
                         sline = lin;
                         exitfile();
@@ -2827,20 +2827,20 @@ int main(int argc,char *argv[]) {
     do {
         if (pass++>20) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
-        memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+        mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
         for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
             waitfor[waitforp=0]=0;skipit[0]=1;sline=0;outputeor=0;
-            current_context=&root_context;logisave=0;
+            current_context=&root_context;logitab.p=0;
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
                 enterfile("<command line>",0);
                 fin->p = 0;
                 compile(0,"",-1,fin);
                 exitfile();
-                memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+                mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
                 continue;
             }
             memjmp(address);
@@ -2870,7 +2870,7 @@ int main(int argc,char *argv[]) {
 
         pass++;
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
-        memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+        mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
         for (i = optind - 1; i<argc; i++) {
             if (i >= optind) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
             lastl=LIST_NONE;
@@ -2878,14 +2878,14 @@ int main(int argc,char *argv[]) {
             address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
             waitfor[waitforp=0]=0;skipit[0]=1;sline=0;outputeor=0;
-            current_context=&root_context;logisave=0;
+            current_context=&root_context;logitab.p=0;
 
             if (i == optind - 1) {
                 enterfile("<command line>",0);
                 fin->p = 0;
                 compile(0,"",-1,fin);
                 exitfile();
-                memdatap=0;memblocklastp=0;memblockp=0;memblocklaststart=0;
+                mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
                 continue;
             }
             memjmp(address);
@@ -2909,7 +2909,7 @@ int main(int argc,char *argv[]) {
     if (errors || conderrors) {status();return 1;}
 
     /* output file */
-    if (memdatap) {
+    if (mem.p) {
         uint32_t start, last, size;
         unsigned int i;
         if (arguments.output[0] == '-' && !arguments.output[1]) {
@@ -2918,12 +2918,12 @@ int main(int argc,char *argv[]) {
             if ((fout=fopen(arguments.output,"wb"))==NULL) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
         }
         clearerr(fout);
-        if (memblockp) {
-            start = memblocks[0].start;
-            size = memblocks[0].size;
+        if (memblocks.p) {
+            start = memblocks.data[0].start;
+            size = memblocks.data[0].len;
             last = 0;
-            for (i=1;i<memblockp;i++) {
-                if (memblocks[i].start != start + size) {
+            for (i=1;i<memblocks.p;i++) {
+                if (memblocks.data[i].start != start + size) {
                     if (arguments.nonlinear) {
                         fputc(size,fout);
                         fputc(size >> 8,fout);
@@ -2935,17 +2935,17 @@ int main(int argc,char *argv[]) {
                         if (scpumode) fputc(start >> 16,fout);
                     }
                     while (last<i) {
-                        fwrite(memdata+memblocks[last].memp,memblocks[last].size,1,fout);
+                        fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
                         last++;
                     }
                     if (!arguments.nonlinear) {
-                        size = memblocks[i].start - start - size;
+                        size = memblocks.data[i].start - start - size;
                         while (size--) fputc(0, fout);
                     }
-                    start = memblocks[i].start;
+                    start = memblocks.data[i].start;
                     size = 0;
                 }
-                size += memblocks[i].size;
+                size += memblocks.data[i].len;
             }
             if (arguments.nonlinear) {
                 fputc(size,fout);
@@ -2958,7 +2958,7 @@ int main(int argc,char *argv[]) {
                 if (scpumode) fputc(start >> 16,fout);
             }
             while (last<i) {
-                fwrite(memdata+memblocks[last].memp,memblocks[last].size,1,fout);
+                fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
                 last++;
             }
         }
