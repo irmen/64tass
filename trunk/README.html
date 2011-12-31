@@ -243,20 +243,12 @@ address of file will be 3 bytes long. This option makes it 2 bytes long.</p>
 <pre>
 64tass --wordstart --m65816 a.asm
 </pre>
-</dl>
 
-<h3>Compatibility Options</h3>
-
-<dl class="dir">
-<dt>-P, --no-precedence
-<dd>No operator precedence in expressions
-<p>Disables operator precedence in all expressions to imitate the behaviour of the
-original turbo assembler on the C64.</p>
-
-<dt>-O, --compatible-ops
-<dd>Enable TASS compatible operators
-<p>Enables TASS compatible operators <q>.</q>, <q>:</q> and <q>!</q> (see <q>differences to original
-turbo assembler</q> below)</p>
+<dt>-T, --tasm-compatible
+<dd>Enable TASM compatible operators and precedence
+<p>Switches the expression evaluator into compatibility mode. This
+enables <q>.</q>, <q>:</q> and <q>!</q> operators and disables 64tass specific extensions, disables precedence handling
+and forces 16&nbsp;bit unsigned evaluation (see <q>differences to original Turbo Assembler</q> below)</p>
 </dl>
 
 <h3>Target selection on command line</h3>
@@ -417,7 +409,7 @@ result (list.txt):
 
 <h2>General</h2>
 <p>You may put multiple statements on a line, seperated by colons. The assembler
-will treat them as seperate lines. This does <b>not</b> work if the <tt>-O, --compatible-ops</tt>
+will treat them as seperate lines. This does <b>not</b> work if the <tt>-T, --tasm-compatible</tt>
 option is used.
 </p>
 <pre width=80>
@@ -485,7 +477,7 @@ copied into the code, with the internal references.
 </p>
 <pre>
 	<b>bne</b> +
-        #somemakro      <i>;let's hope that this segment does</i>
+	#somemakro      <i>;let's hope that this segment does</i>
 +	<b>nop</b>             <i>;not contain forward references...</i>
 </pre>
 
@@ -493,7 +485,7 @@ copied into the code, with the internal references.
 Expressions can be used at a lot of places. Here's a list of available operators:
 
 <table border="0">
-<tr><td width="50"><tt>( )</tt>   <td align="left">braces
+<tr><td width="60"><tt>( )</tt>   <td align="left">braces
 </table>
 <pre width=80>
 	<b>lda</b> #(4+2)*3
@@ -501,9 +493,9 @@ Expressions can be used at a lot of places. Here's a list of available operators
 
 <h3>special</h3>
 <table border="0">
-<tr><td width="50"><tt>&lt;</tt>   <td align="left">lower byte
-<tr><td><tt>&gt;</tt>   <td align="left">higher byte
-<tr><td><tt>`</tt>      <td align="left">bank byte
+<tr><td width="60"><tt>&lt;</tt><td align="left">lower byte
+<tr><td><tt>&gt;</tt><td align="left">higher byte
+<tr><td><tt>`</tt><td align="left">bank byte
 </table>
 
 <pre width=80>
@@ -513,20 +505,27 @@ Expressions can be used at a lot of places. Here's a list of available operators
 </pre>
 
 <table border="0">
-<tr><td width="50"><tt>@b</tt>     <td align="left">to force 8 bit address
-<tr><td><tt>@w</tt>     <td align="left">to force 16 bit address
-<tr><td><tt>@l</tt>     <td align="left">to force 24 bit address (65816)
+<tr><td width="60"><tt>@b</tt><td align="left">to force 8 bit address
+<tr><td><tt>@w</tt><td align="left">to force 16 bit address
+<tr><td><tt>@l</tt><td align="left">to force 24 bit address (65816)
 </table>
 
 <h3>boolean</h3>
 <table border="0">
-<tr><td width="50"><tt>=</tt>      <td align="left">equal
-<tr><td><tt>!=</tt>     <td align="left">non equal
-<tr><td><tt>&lt;</tt>   <td align="left">less
-<tr><td><tt>&gt;</tt>   <td align="left">more
-<tr><td><tt>&gt;=</tt>  <td align="left">more or equal
-<tr><td><tt>&lt;=</tt>  <td align="left">less or equal
-<tr><td><tt>!</tt>      <td align="left">not
+<tr><td width="60"><tt>x || y</tt><td align="left">or
+<tr><td><tt>x ^^ y </tt><td align="left">exclusive or
+<tr><td><tt>x &amp;&amp; y</tt><td align="left">and
+<tr><td><tt>!x</tt><td align="left">not
+</table>
+
+<h3>compare</h3>
+<table border="0">
+<tr><td width="60"><tt>x = y</tt><td align="left">equal
+<tr><td><tt>x != y</tt><td align="left">non equal
+<tr><td><tt>x &lt; y</tt><td align="left">less
+<tr><td><tt>x &gt; y</tt><td align="left">more
+<tr><td><tt>x &gt;= y</tt><td align="left">more or equal
+<tr><td><tt>x &lt;= y</tt><td align="left">less or equal
 </table>
 
 <pre width=80>
@@ -535,25 +534,32 @@ Expressions can be used at a lot of places. Here's a list of available operators
 	<b>.fi</b>
 </pre>
 
-<h3>arithmetic</h3>
+<h3>bitwise</h3>
 <table border="0">
-<tr><td><tt>+</tt>       <td align="left">add
-<tr><td><tt>-</tt>       <td align="left">substract / negate
-<tr><td><tt>*</tt>       <td align="left">multiply
-<tr><td><tt>/</tt>       <td align="left">divide
-<tr><td><tt>//</tt>      <td align="left">modulo
-<tr><td><tt>|</tt>       <td align="left">bitwise or
-<tr><td><tt>&amp;</tt>   <td align="left">bitwise and
-<tr><td><tt>^</tt>       <td align="left">bitwise xor
-<tr><td><tt>&lt;&lt;</tt><td align="left">shift right
-<tr><td><tt>&gt;&gt;</tt><td align="left">shift left
-<tr><td><tt>~</tt>       <td align="left">invert bits
+<tr><td width="60"><tt>x | y</tt><td align="left">bitwise or
+<tr><td><tt>x ^ y</tt><td align="left">bitwise xor
+<tr><td><tt>x &amp; y</tt><td align="left">bitwise and
+<tr><td><tt>x &lt;&lt; y</tt><td align="left">logical shift left
+<tr><td><tt>x &gt;&gt; y</tt><td align="left">logical shift right
+<tr><td><tt>x &gt;&gt;&gt; y</tt><td align="left">arithmetic shift right
+<tr><td><tt>~x</tt><td align="left">invert bits
 </table>
 
 <pre width=80>
 	<b>lda</b> #((bitmap &amp; $2000) &gt;&gt; 10) | ((screen &amp; $3c00) &gt;&gt; 6)
 	<b>sta</b> $d018
 </pre>
+
+<h3>arithmetic</h3>
+<table border="0">
+<tr><td width="60"><tt>x + y</tt><td align="left">add
+<tr><td><tt>x - y</tt><td align="left">substract
+<tr><td><tt>x * y</tt><td align="left">multiply
+<tr><td><tt>x / y</tt><td align="left">divide
+<tr><td><tt>x // y</tt><td align="left">modulo
+<tr><td><tt>-x</tt><td align="left">negate
+<tr><td><tt>+x</tt><td align="left">unchanged
+</table>
 
 <hr>
 <h2>Compiler directives:</h2>
@@ -1083,13 +1089,13 @@ sourcefile directly, or do the following:
 the resulting file should then (with the restrictions below) assemble using the
 following commandline:<br>
 <p>
-<tt>64tass -C -P -O -a -W -i source.s -o outfile.prg</tt>
+<tt>64tass -C -T -a -W -i source.s -o outfile.prg</tt>
 </p>
 <hr>
 <h2>Differences to the original turbo ass macro on the C64</h2>
 <p>
-64tass is nearly 100% compatible with the original <q>turbo assembler</q>, and supports
-most of the features of the original <q>turbo assembler macro</q>.
+64tass is nearly 100% compatible with the original <q>Turbo Assembler</q>, and supports
+most of the features of the original <q>Turbo Assembler Macro</q>.
 The remaining notable differences are listed here:
 </p>
 <h3>Labels</h3>
@@ -1112,23 +1118,23 @@ If you get a warning like <q><tt>warning: Possibly incorrectly used A "lsr a"</t
 is such an ambiguous situation in your code and you should fix it (by renaming the label).
 </p>
 
-<h3>Expressions</h3>
-<p>
-The original expression parser has no operator precedence (but 64tass has). That
-means that you will have to fix expressions using braces accordingly.
-</p><p>
-You can switch 64tass to the original behaviour using the <tt>-P, --no-precedence</tt>
-option.
-</p>
-<h3>Tass Operators</h3>
-The following operators used by the original turbo assembler are not supported
-by default:
+<h3>Expression evaluation</h3>
+
+<p>There are a few differences which can be worked around by the <tt>-T, --tasm-compatible</tt> option.
+These are:</p>
+
+<p>The original expression parser has no operator precedence, but 64tass has. That
+means that you will have to fix expressions using braces accordingly, for example
+<code>1+2*3</code> becomes <code>(1+2)*3</code>.</p>
+
+<p>The following operators used by the original Turbo Assembler are different:</p>
 <ul>
-<li><tt>.</tt> for bitwise or
-<li><tt>:</tt> for bitwise eor
-<li><tt>!</tt> to force 16&nbsp;bit address (only as first character of expression)
+<li><tt>.</tt> for bitwise or, now <tt>|</tt>
+<li><tt>:</tt> for bitwise eor, now <tt>^</tt>
+<li><tt>!</tt> to force 16&nbsp;bit address, now <tt>@w</tt>
 </ul>
-These can be enabled using the <tt>-O, --compatible-ops</tt> option
+
+<p>The default expression evaluation is not limited to 16 bit unsigned numbers anymore.</p>
 
 <h3>Macros</h3>
 <ul>

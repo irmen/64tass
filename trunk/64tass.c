@@ -37,14 +37,13 @@
 
 #include "opcodes.h"
 #include "misc.h"
+#include "eval.h"
 
 static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
 
-static struct encoding_s *actual_encoding = ascii_encoding;
 struct memblock_s {size_t p, len;uint32_t start;}; //starts and sizes
 
-#define linelength 4096
 #define nestinglevel 256
 unsigned int errors=0,conderrors=0,warnings=0;
 static int wrapwarn=0, wrapwarn2=0;
@@ -59,8 +58,8 @@ static struct {unsigned int p, len;struct memblock_s *data;} memblocks = {0, 0, 
 uint32_t address=0, l_address=0; //address, logical address
 uint8_t pline[linelength];  //current line data
 static uint8_t llist[linelength];  //current line for listing
-static unsigned int lpoint;              //position in current line
-static char ident[linelength], ident2[linelength];  //identifier (label, etc)
+unsigned int lpoint;              //position in current line
+char ident[linelength], ident2[linelength];  //identifier (label, etc)
 static char varname[linelength];//variable (same as identifier?)
 static char path[linelength];   //path
 static int pagelo=-1;           //still in same page?
@@ -71,15 +70,10 @@ static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static uint8_t databank=0;
 static uint16_t dpage=0;
 static int fixeddig;
-static uint32_t current_requires, current_conflicts, current_provides;
+uint32_t current_requires, current_conflicts, current_provides;
 static int allowslowbranch=1;
 static int longbranchasjmp=0;
 static uint8_t outputeor = 0; // EOR value for final output (usually 0, except changed by .eor)
-
-static char s_stack[256];
-static struct {struct value_s val; char sgn;} e_stack[256];
-static struct value_s v_stack[256];
-static unsigned int ssp,esp,vsp;
 
 static char waitfor[nestinglevel];
 static uint8_t skipit[nestinglevel];
@@ -235,7 +229,7 @@ static void readln(struct file_s *fle) {
                     if (q) continue;
                     fle->p += strlen((char *)c + i);
                 case 0:goto end;
-                case ':': if (!q && !arguments.oldops) goto end;
+                case ':': if (!q && !arguments.tasmcomp) goto end;
             }
         }
         pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);
@@ -267,57 +261,6 @@ static void printllist(FILE *f) {
     *c='\n';
     fwrite(last, c - last + 1, 1, f);
     *c=0;
-}
-
-// ---------------------------------------------------------------------------
-// Read a character in the current string encoding
-static uint_fast16_t petascii(uint8_t quo) {
-    uint32_t ch;
-
-    if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of string"); return 256;}
-    if (ch & 0x80) lpoint+=utf8in(pline + lpoint, &ch); else lpoint++;
-    if (ch==quo) {
-        if (here()==quo) lpoint++; // handle 'it''s'
-        else return 257; // end of string;
-    }
-    if (arguments.toascii) {
-        unsigned int n, also=0,felso,elozo;
-
-        felso=actual_encoding[0].offset + 1;
-        n=felso/2;
-        for (;;) {  // do binary search
-            struct encoding_s *e = &actual_encoding[n];
-            if (ch >= e->start && ch <= e->end) {
-                if (e->offset < 0) {
-                    char sym[0x10];
-                    uint_fast8_t n, end = -e->offset;
-                    uint_fast16_t c;
-
-                    for (n=0;;) {
-                        if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
-                        if (ch & 0x80) lpoint+=utf8in(pline + lpoint, &ch); else lpoint++;
-                        if (ch == end) break;
-                        if (ch == quo) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
-                        sym[n]=ch;
-                        n++;
-                        if (n == 0x10) {err_msg(ERROR_CONSTNT_LARGE,NULL);return 256;}
-                    }
-                    sym[n] = 0;
-                    c = petsymbolic(sym);
-                    if (c > 255) {err_msg(ERROR______EXPECTED, "PETASCII symbol");return 256;}
-                    return encode((uint8_t)c);
-                }
-                return encode((uint8_t)(ch - e->start + e->offset));
-            }
-
-            elozo = n;
-            n = ((ch > e->start) ? (felso+(also=n)) : (also+(felso=n)))/2;
-            if (elozo == n) break;
-        }
-        err_msg(ERROR___UNKNOWN_CHR, (char *)ch);
-        ch = 0;
-    }
-    return encode(ch);
 }
 
 // ---------------------------------------------------------------------------
@@ -494,7 +437,7 @@ static int get_ident2(char allowed) {
     return 0;
 }
 
-static int get_ident(char allowed) {
+int get_ident(char allowed) {
     int code;
 
     if (what(&code)!=WHAT_EXPRESSION || !code) {
@@ -504,184 +447,6 @@ static int get_ident(char allowed) {
     return get_ident2(allowed);
 }
 
-static int get_num(int mode, struct value_s *v) {// 0=unknown stuff, 1=ok
-    int32_t val=0;            //md=0, define it, md=1 error if not exist
-    struct label_s *tmp;
-    char ch;
-
-    v->type=T_NONE;
-
-    if (mode) {
-        if (mode & 1) {
-            sprintf(ident,"+%u+%u",reffile,current_context->forwr+(mode >> 1));
-            goto in;
-        } else {
-            sprintf(ident,"-%u-%u",reffile,current_context->backr-(mode >> 1));
-            goto in;
-        }
-    }
-    ignore();
-    switch (ch=get()) {
-    case '$': // hex
-	{
-	    ignore();
-	    while (((ch=lowcase(get()))>='0' && ch<='9') ||
-		   (ch>='a' && ch<='f')) {
-		if (val>0x7ffffffl) {err_msg(ERROR_CONSTNT_LARGE,NULL); return 0;}
-		val=(val<<4)+(ch=ch<='9' ? ch-'0' : ch-'a'+10);
-	    }
-	    lpoint--;
-            v->type=T_INT;v->u.num=val;
-	    return 1;
-	}
-    case '%': // binary
-	{
-	    ignore();
-	    while (((ch=get()) & 0xfe)=='0') {
-		if (val>0x3fffffffl) {err_msg(ERROR_CONSTNT_LARGE,NULL); return 0;}
-		val=(val<<1)+ch-'0';
-	    }
-	    lpoint--;
-            v->type=T_INT;v->u.num=val;
-	    return 1;
-	}
-    case '"': // string
-    case '\'':
-	{
-            uint8_t line[linelength];  //current line data
-            unsigned int i;
-            uint_fast16_t val;
-
-            val = petascii((uint8_t)ch);
-            if (val < 256 && here()==ch) {lpoint++;v->type=T_CHR;v->u.num=val;return 1;}
-	    if (val == 256) return 0;
-            i=0;
-            for (;val < 256 && i < sizeof(line)-1;val = petascii((uint8_t)ch)) {
-                line[i++]=(uint8_t)val;
-            }
-            if (val == 257) {
-                v->type=T_TSTR;
-                v->u.str.len=i;
-                v->u.str.data=malloc(i);
-                memcpy(v->u.str.data, line, i);
-                return 1;
-            }
-	}
-    case '*': // program counter
-        v->type=T_INT;v->u.num=l_address;return 1;
-    default:
-	{
-	    lpoint--;
-	    if ((ch>='0') && (ch<='9')) { //decimal number...
-		while (((ch=get())>='0') && (ch<='9')) {
-		    if (val>(0x7fffffffl-ch+'0')/10) {err_msg(ERROR_CONSTNT_LARGE,NULL);v->type=T_NONE;return 0;}
-		    val=(val*10)+ch-'0';
-		}
-		lpoint--;
-                v->type=T_INT;v->u.num=val;
-		return 1;
-	    }
-            if (get_ident('.')) return 0; //label?
-        in:
-            tmp=find_label(ident);
-	    if (pass==1) {
-                if (tmp) {
-                    tmp->proclabel=0;tmp->pass=pass;*v=tmp->value;
-                    if (tmp->varlabel && tmp->upass!=pass) err_msg(ERROR___NOT_DEFINED,ident);
-                }
-		return 1;
-	    }
-	    else {
-                if (tmp) {
-                    if ((tmp->requires & current_provides)!=tmp->requires) err_msg(ERROR_REQUIREMENTS_,ident);
-                    if (tmp->conflicts & current_provides) err_msg(ERROR______CONFLICT,ident);
-                    if (tmp->varlabel && tmp->upass!=pass) err_msg(ERROR___NOT_DEFINED,ident);
-                    tmp->proclabel=0;tmp->pass=pass;*v=tmp->value;return 1;
-                }
-                if (mode) err_msg(ERROR___NOT_DEFINED,(mode & 1)?"+":"-");
-                else
-                    err_msg(ERROR___NOT_DEFINED,ident); //never reached
-	    }
-	}
-    }
-    return 0;
-}
-
-/*
- * get priority for operator in an expression
- */
-static int priority(char ch)
-{
-    if (arguments.noprecedence) {
-        switch (ch) {
-        case '(':return 0;
-        case 'l':          // <
-        case 'h':          // >
-        case 'H':          // `
-        case 'S':return 5; // ^
-        case '=':
-        case '<':
-        case '>':
-        case 'o':          // !=
-        case 'g':          // >=
-        case 's':          // <=
-        case '+':
-        case '-':
-        case '*':
-        case '/':
-        case 'u':          // mod
-        case '|':
-        case '^':
-        case '&':
-        case 'm':          // <<
-        case 'd':          // >>
-        case 'n':          // -
-        case 'i':          // ~
-        case 't':return 40;// !
-        default:return 0;
-        }
-    } else {
-        switch (ch) {
-        case '(':return 0;
-        case 'l':          // <
-        case 'h':          // >
-        case 'H':          // `
-        case 'S':return 5; // ^
-        case '=':
-        case '<':
-        case '>':
-        case 'o':          // !=
-        case 'g':          // >=
-        case 's':return 10;// <=
-        case '+':
-        case '-':return 15;
-        case '*':
-        case '/':
-        case 'u':return 20;// mod
-        case '|':
-        case '^':return 25;
-        case '&':return 30;
-        case 'm':          // <<
-        case 'd':return 35;// >>
-        case 'n':          // -
-        case 'i':          // ~
-        case 't':return 40;// !
-        default:return 0;
-        }
-    }
-}
-
-static void pushs(char ch) {
-    if ((ch=='n' || ch=='t' || ch=='i' || ch=='l' || ch=='h' || ch=='H' || ch=='S') && ssp &&
-	priority(s_stack[ssp-1])==priority(ch)) { s_stack[ssp++]=ch; return; }
-    if (!ssp || priority(s_stack[ssp-1])<priority(ch)) {
-	s_stack[ssp++]=ch;
-	return;
-    }
-    while (ssp && priority(s_stack[ssp-1])>=priority(ch)) e_stack[esp++].sgn=s_stack[--ssp];
-    s_stack[ssp++]=ch;
-}
-
 static uint_fast8_t val_length(int32_t val)
 {
         if (val<0) return 3;
@@ -689,342 +454,6 @@ static uint_fast8_t val_length(int32_t val)
         if (val<0x10000) return 1;
 	if (val<0x1000000) return 2;
         return 3;
-}
-
-static void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// length in bytes, defined
-    struct value_s val;
-    int nd=0,tp=0;
-    unsigned int i;
-    char ch;
-    static uint8_t line[linelength];  //current line data
-
-    ssp=esp=0;
-    *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
-    *df=1;    // 1=result is ok, result is not yet known
-    *cd=0;    // 0=error
-    v->type = T_NONE;
-
-    ignore();
-    switch (here()) {
-    case '@':
-	switch (lowcase(pline[++lpoint])) {
-	case 'b':*wd=0;break;
-	case 'w':*wd=1;break;
-	case 'l':*wd=2;break;
-	default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); return;
-	}
-        lpoint++;
-	ignore();
-        break;
-    case '!':
-        if (arguments.oldops) {
-            *wd=1;
-            lpoint++;
-            ignore();
-        }
-        break;
-    case '(': tp=1; break;
-    }
-    for (;;) {
-        if (!nd) {
-            int db=0;
-            ignore();
-            ch=get();
-            switch (ch) {
-            case '(': s_stack[ssp++]='('; continue;
-            case '+':
-            ba: ch=here();
-                db++;
-                if (!(ch>='0' && ch<='9') && ch!='$' && ch!='"' && ch!='\'' && ch!='%' && ch!='(' && ch!='_' && !(ch>='a' && ch<='z') && !(ch>='A' && ch<='Z')) {
-                    if (ch=='+') {lpoint++;goto ba;}
-                    if (!get_num(db*2-1, &val)) {
-                        for (i=0; i<esp; i++) if (e_stack[i].sgn==' ' && e_stack[i].val.type == T_TSTR) free(e_stack[i].val.u.str.data);
-                        return;
-                    }
-                    goto ide;
-                }
-                continue;
-            case '-':
-            ba2:ch=here();
-                db++;
-                if (!(ch>='0' && ch<='9') && ch!='$' && ch!='"' && ch!='\'' && ch!='%' && ch!='(' && ch!='_' && !(ch>='a' && ch<='z') && !(ch>='A' && ch<='Z')) {
-                    if (ch=='-') {lpoint++;goto ba2;}
-                    if (!get_num(db*2, &val)) {
-                        for (i=0; i<esp; i++) if (e_stack[i].sgn==' ' && e_stack[i].val.type == T_TSTR) free(e_stack[i].val.u.str.data);
-                        return;
-                    }
-                    goto ide;
-                }
-                pushs('n');
-                continue;
-            case '!': pushs('t'); continue;
-            case '~': pushs('i'); continue;
-            case '<': pushs('l'); continue;
-            case '>': pushs('h'); continue;
-            case '`': pushs('H'); continue;
-            case '^': pushs('S'); continue;
-            }
-	    lpoint--;
-            if (!get_num(0, &val)) {
-                for (i=0; i<esp; i++) if (e_stack[i].sgn==' ' && e_stack[i].val.type == T_TSTR) free(e_stack[i].val.u.str.data);
-                return;
-            }
-        ide:
-	    e_stack[esp].val=val;
-	    e_stack[esp++].sgn=' ';
-	    nd=1;
-	}
-	else {
-	    ignore();
-	    if ((ch=pline[lpoint])=='&' || ch=='|' || ch=='^' ||
-		ch=='*' || ch=='/' || ch=='+' || ch=='-' ||
-		ch=='=' || ch=='<' || ch=='>' ||
-                (ch=='.' && arguments.oldops) ||
-                (ch==':' && arguments.oldops) ||
-		(ch=='!' && pline[lpoint+1]=='=')) {
-		if (tp) tp=1;
-		if ((ch=='<') && (pline[lpoint+1]=='<')) {pushs('m'); lpoint++;}
-		else if ((ch=='>') && (pline[lpoint+1]=='>')) {pushs('d'); lpoint++;}
-		else if ((ch=='>') && (pline[lpoint+1]=='=')) {pushs('g'); lpoint++;}
-		else if ((ch=='<') && (pline[lpoint+1]=='=')) {pushs('s'); lpoint++;}
-		else if ((ch=='/') && (pline[lpoint+1]=='/')) {pushs('u'); lpoint++;}
-                else if (ch=='!') {pushs('o'); lpoint++;}
-                else if (ch=='.') {pushs('|');} // bitor (tass)
-                else if (ch==':') {pushs('^');} // bitxor (tass)
-		else pushs(ch);
-		nd=0;
-		lpoint++;
-		continue;
-	    }
-	    if (ch==')') {
-		while ((ssp) && (s_stack[ssp-1]!='('))
-		    e_stack[esp++].sgn=s_stack[--ssp];
-		lpoint++;
-		if (ssp==1 && tp) tp=2;
-		if (!ssp) goto syntaxe;
-		ssp--;
-		continue;
-	    }
-	    while ((ssp) && (s_stack[ssp-1]!='('))
-		e_stack[esp++].sgn=s_stack[--ssp];
-	    if (!ssp) {
-		if (tp==2) *cd=3; else *cd=1;
-		break;
-	    }
-	    if (ssp>1) goto syntaxe;
-	    if (tp) *cd=2;
-	    else {
-            syntaxe:
-                err_msg(ERROR_EXPRES_SYNTAX,NULL);
-                for (i=0; i<esp; i++) if (e_stack[i].sgn==' ' && e_stack[i].val.type == T_TSTR) free(e_stack[i].val.u.str.data);
-                return;
-            }
-	    break;
-	}
-    }
-    vsp=0;
-    for (i=0; i<esp; i++) {
-	if ((ch=e_stack[i].sgn)==' ')
-	    v_stack[vsp++]=e_stack[i].val;
-        else if (v_stack[vsp-1].type == T_INT) {
-            int32_t val1;
-            int32_t val2;
-        reint:
-            val1 = v_stack[vsp-1].u.num;
-            switch (ch) {
-            case 'l': val1 &= 255; break;
-            case 'h': val1 = (val1 >> 8) & 255; break;
-            case 'H': val1 = (val1 >> 16) & 255; break;
-            case 'S':
-                if (v_stack[vsp-1].type == T_CHR) {
-                    line[0]=v_stack[vsp-1].u.num;
-                    line[1]=0;
-                } else sprintf((char *)line,"%d",val1);
-                v_stack[vsp-1].type = T_TSTR;
-                v_stack[vsp-1].u.str.len=strlen((char *)line);
-                v_stack[vsp-1].u.str.data=malloc(v_stack[vsp-1].u.str.len);
-                memcpy(v_stack[vsp-1].u.str.data, line, v_stack[vsp-1].u.str.len);
-                continue;
-            case 'n': val1 = -val1; break;
-            case 'i': val1 = ~val1; break;
-            case 't': val1 = !val1; break;
-            default:
-                if (v_stack[vsp-2].type != T_INT && v_stack[vsp-2].type != T_CHR) {
-                    if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-                    if (v_stack[vsp-2].type != T_NONE) err_msg(ERROR____WRONG_TYPE,NULL);
-                    vsp--;v_stack[vsp-1].type = T_NONE;
-                    continue;
-                }
-                v_stack[vsp-2].type = T_INT;
-                val2 = v_stack[vsp-2].u.num;
-                switch (ch) {
-                case '=': val1 = (val2 == val1); break;
-                case 'o': val1 = (val2 != val1); break;
-                case '<': val1 = (val2 < val1); break;
-                case '>': val1 = (val2 > val1); break;
-                case 'g': val1 = (val2 >= val1); break;
-                case 's': val1 = (val2 <= val1); break;
-                case '*': val1 *= val2; break;
-                case '/': if (!val1) {err_msg(ERROR_DIVISION_BY_Z,NULL); vsp--;v_stack[vsp-1].type = T_NONE;continue;} else val1=val2 / val1; break;
-                case 'u': if (!val1) {err_msg(ERROR_DIVISION_BY_Z,NULL); vsp--;v_stack[vsp-1].type = T_NONE;continue;} else val1=val2 % val1; break;
-                case '+': val1 += val2; break;
-                case '-': val1 = val2 - val1; break;
-                case '&': val1 &= val2; break;
-                case '|': val1 |= val2; break;
-                case '^': val1 ^= val2; break;
-                case 'm': val1 = val2 << val1; break;
-                case 'd': val1 = val2 >> val1; break;
-                }
-                vsp--;
-            }
-            v_stack[vsp-1].type = T_INT;
-            v_stack[vsp-1].u.num = val1;
-	} else if (v_stack[vsp-1].type == T_CHR) {
-            switch (ch) {
-            case 'l':
-            case 'h':
-            case 'H':
-            case 'S':
-            case 'n':
-            case 'i':
-            case 't': goto reint;
-            }
-            if (v_stack[vsp-2].type == T_INT || v_stack[vsp-2].type == T_CHR || v_stack[vsp-2].type == T_NONE) goto reint;
-            if (v_stack[vsp-2].type == T_STR || v_stack[vsp-2].type == T_TSTR) {
-                line[0]=v_stack[vsp-1].u.num;
-                v_stack[vsp-1].type = T_STR;
-                v_stack[vsp-1].u.str.len = 1;
-                v_stack[vsp-1].u.str.data = line;
-                goto restr;
-            }
-            err_msg(ERROR____WRONG_TYPE,NULL);
-            continue;
-	} else if (v_stack[vsp-1].type == T_STR || v_stack[vsp-1].type == T_TSTR) {
-            int32_t val1;
-            switch (ch) {
-            case 'l':
-            case 'h':
-            case 'H':
-            case 'S':
-            case 'n':
-            case 'i':
-                v_stack[vsp-1].type = T_NONE;
-                err_msg(ERROR____WRONG_TYPE,NULL);
-                continue;
-            case 't':
-                v_stack[vsp-1].type = T_INT;
-                v_stack[vsp-1].u.num = !v_stack[vsp-1].u.str.len;
-                continue;
-            }
-            if (v_stack[vsp-2].type == T_CHR) {
-                line[0]=v_stack[vsp-2].u.num;
-                v_stack[vsp-2].type = T_STR;
-                v_stack[vsp-2].u.str.len = 1;
-                v_stack[vsp-2].u.str.data = line;
-            }
-        restr:
-            if (v_stack[vsp-2].type != T_STR && v_stack[vsp-2].type != T_TSTR) {
-                if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-                if (v_stack[vsp-2].type != T_NONE) err_msg(ERROR____WRONG_TYPE,NULL);
-                vsp--;v_stack[vsp-1].type = T_NONE;
-                continue;
-            }
-            switch (ch) {
-            case '=': val1=(v_stack[vsp-2].u.str.len == v_stack[vsp-1].u.str.len) && !memcmp(v_stack[vsp-2].u.str.data, v_stack[vsp-1].u.str.data, v_stack[vsp-1].u.str.len); break;
-            case 'o': val1=(v_stack[vsp-2].u.str.len != v_stack[vsp-1].u.str.len) || memcmp(v_stack[vsp-2].u.str.data, v_stack[vsp-1].u.str.data, v_stack[vsp-1].u.str.len); break;
-            case '<':
-                val1=memcmp(v_stack[vsp-2].u.str.data, v_stack[vsp-1].u.str.data, (v_stack[vsp-1].u.str.len < v_stack[vsp-2].u.str.len)?v_stack[vsp-1].u.str.len:v_stack[vsp-2].u.str.len);
-                if (val1==0) val1 = (v_stack[vsp-2].u.str.len < v_stack[vsp-1].u.str.len);
-                else val1 = val1 < 0;
-                break;
-            case '>':
-                val1=memcmp(v_stack[vsp-2].u.str.data, v_stack[vsp-1].u.str.data, (v_stack[vsp-1].u.str.len < v_stack[vsp-2].u.str.len)?v_stack[vsp-1].u.str.len:v_stack[vsp-2].u.str.len);
-                if (val1==0) val1 = (v_stack[vsp-2].u.str.len > v_stack[vsp-1].u.str.len);
-                else val1 = val1 > 0;
-                break;
-            case 's':
-                val1=memcmp(v_stack[vsp-2].u.str.data, v_stack[vsp-1].u.str.data, (v_stack[vsp-1].u.str.len < v_stack[vsp-2].u.str.len)?v_stack[vsp-1].u.str.len:v_stack[vsp-2].u.str.len);
-                if (val1==0) val1 = (v_stack[vsp-2].u.str.len <= v_stack[vsp-1].u.str.len);
-                else val1 = val1 <= 0;
-                break;
-            case 'g':
-                val1=memcmp(v_stack[vsp-2].u.str.data, v_stack[vsp-1].u.str.data, (v_stack[vsp-1].u.str.len < v_stack[vsp-2].u.str.len)?v_stack[vsp-1].u.str.len:v_stack[vsp-2].u.str.len);
-                if (val1==0) val1 = (v_stack[vsp-2].u.str.len >= v_stack[vsp-1].u.str.len);
-                else val1 = val1 >= 0;
-                break;
-            default:
-                err_msg(ERROR____WRONG_TYPE,NULL);
-                if (v_stack[vsp-1].type == T_TSTR) free(v_stack[vsp-1].u.str.data);
-                if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-                vsp--;v_stack[vsp-1].type = T_NONE;
-                continue;
-            }
-            if (v_stack[vsp-1].type == T_TSTR) free(v_stack[vsp-1].u.str.data);
-            if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-            vsp--;
-            v_stack[vsp-1].type = T_INT;
-            v_stack[vsp-1].u.num = val1;
-	} else if (v_stack[vsp-1].type == T_NONE) {
-            switch (ch) {
-            case '=':
-            case 'o':
-            case '<':
-            case '>':
-            case 'g':
-            case 's':
-            case '*':
-            case '/':
-            case 'u':
-            case '+':
-            case '-':
-            case '&':
-            case '|':
-            case '^':
-            case 'm':
-            case 'd':
-                if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-                vsp--; break;
-            }
-            v_stack[vsp-1].type = T_NONE;
-        } else err_msg(ERROR____WRONG_TYPE,NULL);
-    }
-    if (v_stack[0].type == T_TSTR) {
-        if (v_stack[0].u.str.len<=linelength) memcpy(line, v_stack[0].u.str.data, v_stack[0].u.str.len);
-        free(v_stack[0].u.str.data);
-        v_stack[0].u.str.data = line;
-        v_stack[0].type = T_STR;
-    }
-    if (v_stack[0].type == T_INT || v_stack[0].type == T_CHR || v_stack[0].type == T_STR) {
-        if (type == T_NONE) {
-            *v=v_stack[0];
-            return;
-        }
-        if (type == T_INT)
-            switch (v_stack[0].type) {
-            case T_STR:
-                if (v_stack[0].u.str.len < 5) {
-                    v->type = T_INT;
-                    v->u.num = 0;
-                    for (i=v_stack[0].u.str.len;i;i--) v->u.num = (v->u.num << 8) | v_stack[0].u.str.data[i-1];
-                } else {
-                    *cd=0;
-                    err_msg(ERROR_CONSTNT_LARGE,NULL);
-                }
-                return;
-            case T_CHR:
-                v->type = T_INT;
-            case T_INT:
-                *v=v_stack[0];
-                return;
-            default:
-                break;
-        }
-        *cd=0;
-        err_msg(ERROR____WRONG_TYPE,NULL);
-        return;
-    }
-    *df = 0;
-    return;
 }
 
 static void wait_cmd(struct file_s *fil, int no)
@@ -1573,11 +1002,11 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
                         break;
                     case CMD_IFPL:
-                        if (((val.type == T_INT || val.type == T_CHR) && val.u.num>=0) || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
+                        if ((val.type == T_INT && (arguments.tasmcomp ? (~val.u.num & 0x8000) : (val.u.num>=0))) || val.type == T_CHR || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
                             skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
                         break;
                     case CMD_IFMI:
-                        if ((val.type == T_INT || val.type == T_CHR) && val.u.num<0) skipit[waitforp]=skipit[waitforp-1] & 1; else
+                        if (val.type == T_INT && (arguments.tasmcomp ? (val.u.num & 0x8000) : (val.u.num < 0))) skipit[waitforp]=skipit[waitforp-1] & 1; else
                             skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
                         break;
                     }

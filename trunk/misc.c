@@ -41,7 +41,7 @@ static struct {
     } *data;
 } file_list = {0,0,NULL};
 
-struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,0,"a.out",OPCODES_6502,NULL,NULL};
+struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,"a.out",OPCODES_6502,NULL,NULL};
 
 static struct avltree macro_tree;
 static struct avltree file_tree;
@@ -403,8 +403,6 @@ void enterfile(const char *s, uint32_t l) {
 void exitfile(void) {
     if (file_list.p) file_list.p--;
 }
-
-#define linelength 4096
 
 static const char *terr_warning[]={
     "Top of memory excedeed",
@@ -1083,31 +1081,30 @@ void labelprint(void) {
 }
 
 // ------------------------------------------------------------------
-static const char *short_options= "wqnbWaPOCBicxtl:L:msV?o:D:";
+static const char *short_options= "wqnbWaTCBicxtl:L:msV?o:D:";
 
 static const struct option long_options[]={
-    {"no-warn"	        , no_argument      , 0,	'w'},
-    {"quiet"	        , no_argument      , 0,	'q'},
-    {"nonlinear"        , no_argument      , 0,	'n'},
-    {"nostart" 	        , no_argument      , 0,	'b'},
-    {"wordstart"        , no_argument      , 0,	'W'},
-    {"ascii" 	        , no_argument      , 0,	'a'},
-    {"no-precedence"    , no_argument      , 0, 'P'},
-    {"compatible-ops"   , no_argument      , 0, 'O'},
-    {"case-sensitive"   , no_argument      , 0,	'C'},
-    {"long-branch"      , no_argument      , 0,	'B'},
-    {"m65xx"  	        , no_argument      , 0,   1},
-    {"m6502"  	        , no_argument      , 0,	'i'},
-    {"m65c02"  	        , no_argument      , 0,	'c'},
-    {"m65816"  	        , no_argument      , 0,	'x'},
-    {"m65dtv02"	        , no_argument      , 0, 't'},
-    {"labels"	        , required_argument, 0,	'l'},
-    {"list"	        , required_argument, 0,	'L'},
-    {"no-monitor"       , no_argument      , 0,	'm'},
+    {"no-warn"          , no_argument      , 0, 'w'},
+    {"quiet"            , no_argument      , 0, 'q'},
+    {"nonlinear"        , no_argument      , 0, 'n'},
+    {"nostart"          , no_argument      , 0, 'b'},
+    {"wordstart"        , no_argument      , 0, 'W'},
+    {"ascii"            , no_argument      , 0, 'a'},
+    {"tasm-compatible"  , no_argument      , 0, 'T'},
+    {"case-sensitive"   , no_argument      , 0, 'C'},
+    {"long-branch"      , no_argument      , 0, 'B'},
+    {"m65xx"            , no_argument      , 0,   1},
+    {"m6502"            , no_argument      , 0, 'i'},
+    {"m65c02"           , no_argument      , 0, 'c'},
+    {"m65816"           , no_argument      , 0, 'x'},
+    {"m65dtv02"         , no_argument      , 0, 't'},
+    {"labels"           , required_argument, 0, 'l'},
+    {"list"             , required_argument, 0, 'L'},
+    {"no-monitor"       , no_argument      , 0, 'm'},
     {"no-source"        , no_argument      , 0, 's'},
     {"version"          , no_argument      , 0, 'V'},
-    {"usage"            , no_argument      , 0,  2},
-    {"help"             , no_argument      , 0,  3},
+    {"usage"            , no_argument      , 0,   2},
+    {"help"             , no_argument      , 0,   3},
     { 0, 0, 0, 0}
 };
 
@@ -1124,8 +1121,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 'n':arguments.nonlinear=1;break;
             case 'b':arguments.stripstart=1;break;
             case 'a':arguments.toascii=1;break;
-            case 'P':arguments.noprecedence=1;break;
-            case 'O':arguments.oldops=1;break;
+            case 'T':arguments.tasmcomp=1;break;
             case 'o':arguments.output=optarg;break;
             case 'D':
                 {
@@ -1205,11 +1201,11 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 's':arguments.source=0;break;
             case 'C':arguments.casesensitive=1;break;
             case 2:puts(
-	       "Usage: 64tass [-abBCnOPqwWcitxms?V] [-D <label>=<value>] [-o <file>]\n"
+	       "Usage: 64tass [-abBCnTqwWcitxms?V] [-D <label>=<value>] [-o <file>]\n"
 	       "	[-l <file>] [-L <file>] [--ascii] [--nostart] [--long-branch]\n"
-	       "	[--case-sensitive] [--nonlinear] [--compatible-ops]\n"
-	       "	[--no-precedence] [--quiet] [--no-warn] [--wordstart] [--m65c02]\n"
-	       "	[--m6502] [--m65xx] [--m65dtv02] [--m65816] [--labels=<file>]\n"
+	       "	[--case-sensitive] [--nonlinear] [--tasm-compatible]\n"
+	       "	[--quiet] [--no-warn] [--wordstart] [--m65c02] [--m6502]\n"
+	       "	[--m65xx] [--m65dtv02] [--m65816] [--labels=<file>]\n"
 	       "	[--list=<file>] [--no-monitor] [--no-source] [--help] [--usage]\n"
 	       "	[--version] SOURCES");exit(0);
 
@@ -1226,9 +1222,8 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
 	       "  -D <label>=<value>	Define <label> to <value>\n"
 	       "  -n, --nonlinear	Generate nonlinear output file\n"
 	       "  -o <file>		Place output into <file>\n"
-	       "  -O, --compatible-ops	Enable TASS compatible operators\n"
-	       "  -P, --no-precedence	No operator precedence in expressions\n"
 	       "  -q, --quiet		Display errors/warnings\n"
+	       "  -T, --tasm-compatible Enable TASM compatible mode\n"
 	       "  -w, --no-warn		Suppress warnings\n"
 	       "  -W, --wordstart	Force 2 byte start address\n"
 	       "\n"
