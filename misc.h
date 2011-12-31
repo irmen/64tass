@@ -159,8 +159,7 @@ struct arguments_s {
     unsigned casesensitive:1;
     unsigned longbranch:1;
     unsigned wordstart:1;
-    unsigned noprecedence:1;
-    unsigned oldops:1;
+    unsigned tasmcomp:1;
     const char *output;
     uint8_t cpumode;
     const char *label;
@@ -174,6 +173,7 @@ struct encoding_s {
 };
 
 extern uint32_t sline;
+extern unsigned int lpoint; 
 extern unsigned int errors,conderrors,warnings;
 extern uint32_t l_address;
 extern uint8_t pline[];
@@ -182,11 +182,11 @@ extern void status(void);
 extern uint16_t reffile;
 extern uint8_t pass;
 
-#ifdef _MAIN_C_
 #define ignore() while(pline[lpoint]==0x20) lpoint++
 #define get() pline[lpoint++]
 #define here() pline[lpoint]
-#endif
+#define linelength 4096
+
 extern const uint8_t whatis[256];
 extern uint_fast8_t encode(uint_fast8_t);
 extern uint_fast16_t petsymbolic(const char*);
@@ -215,5 +215,7 @@ extern unsigned int utf8in(const uint8_t *c, uint32_t *out);
 extern struct encoding_s no_encoding[];
 extern struct encoding_s screen_encoding[];
 extern struct encoding_s ascii_encoding[];
+extern uint32_t current_requires, current_conflicts, current_provides;
+extern int get_ident(char);
 
 #endif

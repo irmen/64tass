@@ -251,19 +251,13 @@ Operation options
 
     64tass --wordstart --m65816 a.asm
 
-Compatibility Options
+-T, --tasm-compatible
+    Enable TASM compatible operators and precedence
 
--P, --no-precedence
-    No operator precedence in expressions
-
-    Disables operator precedence in all expressions to imitate the behaviour of
-    the original turbo assembler on the C64.
-
--O, --compatible-ops
-    Enable TASS compatible operators
-
-    Enables TASS compatible operators `.', `:' and `!' (see `differences to
-    original turbo assembler' below)
+    Switches the expression evaluator into compatibility mode. This enables
+    `.', `:' and `!' operators and disables 64tass specific extensions,
+    disables precedence handling and forces 16 bit unsigned evaluation (see
+    `differences to original Turbo Assembler' below)
 
 Target selection on command line
 
@@ -435,8 +429,8 @@ Other options
 General
 
 You may put multiple statements on a line, seperated by colons. The assembler
-will treat them as seperate lines. This does not work if the -O,
---compatible-ops option is used.
+will treat them as seperate lines. This does not work if the -T,
+--tasm-compatible option is used.
 
         nop : nop : nop
 
@@ -504,54 +498,66 @@ Expressions
 Expressions can be used at a lot of places. Here's a list of available
 operators:
 
-( )     braces
+( )      braces
 
         lda #(4+2)*3
 
 special
 
-<       lower byte
->       higher byte
-`       bank byte
+<        lower byte
+>        higher byte
+`        bank byte
 
         lda #<label
         ldy #>label
         jsr $ab1e
 
-@b      to force 8 bit address
-@w      to force 16 bit address
-@l      to force 24 bit address (65816)
+@b       to force 8 bit address
+@w       to force 16 bit address
+@l       to force 24 bit address (65816)
 
 boolean
 
-=       equal
-!=      non equal
-<       less
->       more
->=      more or equal
-<=      less or equal
-!       not
+x || y   or
+x ^^ y   exclusive or
+x && y   and
+!x       not
+
+compare
+
+x = y    equal
+x != y   non equal
+x < y    less
+x > y    more
+x >= y   more or equal
+x <= y   less or equal
 
         .if ntsc=1
         nop
         .fi
 
-arithmetic
+bitwise
 
-+  add
--  substract / negate
-*  multiply
-/  divide
-// modulo
-|  bitwise or
-&  bitwise and
-^  bitwise xor
-<< shift right
->> shift left
-~  invert bits
+x | y    bitwise or
+x ^ y    bitwise xor
+x & y    bitwise and
+x << y   logical shift left
+x >> y   logical shift right
+x >>> y  arithmetic shift right
+~x       invert bits
 
         lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
         sta $d018
+
+arithmetic
+
+x + y    add
+x - y    substract
+x * y    multiply
+x / y    divide
+x // y   modulo
+-x       negate
++x       unchanged
 
 -------------------------------------------------------------------------------
 
@@ -1014,14 +1020,14 @@ sourcefile directly, or do the following:
 the resulting file should then (with the restrictions below) assemble using the
 following commandline:
 
-64tass -C -P -O -a -W -i source.s -o outfile.prg
+64tass -C -T -a -W -i source.s -o outfile.prg
 
 -------------------------------------------------------------------------------
 
 Differences to the original turbo ass macro on the C64
 
-64tass is nearly 100% compatible with the original `turbo assembler', and
-supports most of the features of the original `turbo assembler macro'. The
+64tass is nearly 100% compatible with the original `Turbo Assembler', and
+supports most of the features of the original `Turbo Assembler Macro'. The
 remaining notable differences are listed here:
 
 Labels
@@ -1041,24 +1047,23 @@ If you get a warning like `warning: Possibly incorrectly used A "lsr a"', then
 there is such an ambiguous situation in your code and you should fix it (by
 renaming the label).
 
-Expressions
+Expression evaluation
 
-The original expression parser has no operator precedence (but 64tass has).
-That means that you will have to fix expressions using braces accordingly.
+There are a few differences which can be worked around by the -T,
+--tasm-compatible option. These are:
 
-You can switch 64tass to the original behaviour using the -P, --no-precedence
-option.
+The original expression parser has no operator precedence, but 64tass has. That
+means that you will have to fix expressions using braces accordingly, for
+example 1+2*3 becomes (1+2)*3.
 
-Tass Operators
+The following operators used by the original Turbo Assembler are different:
 
-The following operators used by the original turbo assembler are not supported
-by default:
+  * . for bitwise or, now |
+  * : for bitwise eor, now ^
+  * ! to force 16 bit address, now @w
 
-  * . for bitwise or
-  * : for bitwise eor
-  * ! to force 16 bit address (only as first character of expression)
-
-These can be enabled using the -O, --compatible-ops option
+The default expression evaluation is not limited to 16 bit unsigned numbers
+anymore.
 
 Macros
 
