@@ -1840,7 +1840,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                         ignore();if (get()!=']') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if ((wht=what(&prm))==WHAT_Y) {
                             if (val.type != T_NONE) {
-                                adr = val.u.num - dpage;
+                                adr = (uint16_t)(val.u.num - dpage) | (adr && ~0xffff);
                                 if (w==3) w=val_length(adr);//auto length
                                 if (w) w=3;// there's no lda [$ffff],y lda [$ffffff],y!
                                 opr=ADR_ZP_LI_Y;
@@ -1862,7 +1862,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             }
                             else {
                                 if (val.type != T_NONE) {
-                                    adr = val.u.num - dpage;
+                                    adr = (uint16_t)(val.u.num - dpage) | (adr && ~0xffff);
                                     if (w==3) w=val_length(adr);//auto length
                                     if (w) w=3; // there's no lda [$ffff] lda [$ffffff]!
                                     opr=ADR_ZP_LI;
@@ -1893,7 +1893,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                 if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
                                 if (w==3) {//auto length
                                     if (val.type != T_NONE) {
-                                        if (cnmemonic[ADR_ZP_X]!=____ && adr >= dpage && adr - dpage < 0x100) {adr-=dpage;w=0;}
+                                        if (cnmemonic[ADR_ZP_X]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
                                         else if (cnmemonic[ADR_ADDR_X]!=____ && databank==(adr >> 16)) w=1;
                                         else {
                                             w=val_length(adr);
@@ -1901,7 +1901,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                         }
                                     } else w=(cnmemonic[ADR_ADDR_X]!=____);
                                 } else {
-                                    if (!w && adr >= dpage && adr - dpage < 0x100) adr-=dpage;
+                                    if (!w && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) adr=(uint16_t)(adr - dpage);
                                     if (databank==(adr >> 16) && w<2) adr&=0xffff;
                                     if (w<val_length(adr)) w=3;
                                 }
@@ -1911,11 +1911,11 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                 if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
                                 if (w==3) {//auto length
                                     if (val.type != T_NONE) {
-                                        if (cnmemonic[ADR_ZP_Y]!=____ && adr >= dpage && adr - dpage < 0x100) {adr-=dpage;w=0;}
+                                        if (cnmemonic[ADR_ZP_Y]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
                                         else if (databank==(adr >> 16)) w=1;
                                     } else w=(cnmemonic[ADR_ADDR_Y]!=____);
                                 } else {
-                                    if (!w && adr >= dpage && adr - dpage < 0x100) adr-=dpage;
+                                    if (!w && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) adr=(uint16_t)(adr - dpage);
                                     if (databank==(adr >> 16) && w<2) adr&=0xffff;
                                     if (w<val_length(adr)) w=3;
                                 }
@@ -2040,7 +2040,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                 else {
                                     if (w==3) {//auto length
                                         if (val.type != T_NONE) {
-                                            if (cnmemonic[ADR_ZP]!=____ && adr>=dpage && adr - dpage < 0x100) {adr-=dpage;w=0;}
+                                            if (cnmemonic[ADR_ZP]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
                                             else if (cnmemonic[ADR_ADDR]!=____ && databank==(adr >> 16)) w=1;
                                             else {
                                                 w=val_length(adr);
@@ -2048,7 +2048,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                             }
                                         } else w=1;
                                     } else {
-                                        if (!w && adr>=dpage && adr -  dpage < 0x100) adr-=dpage;
+                                        if (!w && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) adr=(uint16_t)(adr - dpage);
                                         if (databank==(adr >> 16) && w<2) adr&=0xffff;
                                         if (w<val_length(adr)) w=3;
                                     }
@@ -2078,7 +2078,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                 }
                                 else {
                                     if (val.type != T_NONE) {
-                                        adr-=dpage;
+                                        adr=(uint16_t)(adr - dpage) | (adr & ~0xffff);
                                         if (w==3) w=val_length(adr);//auto length
                                         if (w) w=3; // there's no lda ($ffff,x) lda ($ffffff,x)!
                                         opr=ADR_ZP_X_I;
@@ -2090,7 +2090,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                         else {
                             if ((wht=what(&prm))==WHAT_Y) {
                                 if (val.type != T_NONE) {
-                                    adr-=dpage;
+                                    adr=(uint16_t)(adr - dpage) | (adr & ~0xffff);
                                     if (w==3) w=val_length(adr);
                                     if (w) w=3;
                                     opr=ADR_ZP_I_Y;
@@ -2114,7 +2114,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                 }
                                 else {
                                     if (val.type != T_NONE) {
-                                        adr-=dpage;
+                                        adr=(uint16_t)(adr - dpage) | (adr & ~0xffff);
                                         if (w==3) w=val_length(adr);//auto length
                                         if (w) w=3; // there's no lda ($ffff) lda ($ffffff)!
                                         opr=ADR_ZP_I;
