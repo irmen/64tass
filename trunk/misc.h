@@ -110,7 +110,7 @@ struct value_s {
 };
 
 struct label_s {
-    char* name;
+    char *name;
     struct value_s value;
     uint32_t requires;
     uint32_t conflicts;
@@ -144,19 +144,8 @@ struct jump_s {
     char *name;
     size_t p;
     uint32_t sline;
-    struct file_s *file;
+    const struct file_s *file;
     struct avltree_node node;
-};
-
-struct errorlist_s {
-    struct errorlist_s *next;
-    char name[1];
-};
-
-struct filenamelist_s {
-    struct filenamelist_s *next;
-    uint32_t line;
-    char *name;
 };
 
 struct arguments_s {
@@ -172,10 +161,10 @@ struct arguments_s {
     unsigned wordstart:1;
     unsigned noprecedence:1;
     unsigned oldops:1;
-    char *output;
+    const char *output;
     uint8_t cpumode;
-    char *label;
-    char *list;
+    const char *label;
+    const char *list;
 };
 
 struct encoding_s {
@@ -189,7 +178,7 @@ extern unsigned int errors,conderrors,warnings;
 extern uint32_t l_address;
 extern uint8_t pline[];
 extern int labelexists;
-extern void status();
+extern void status(void);
 extern uint16_t reffile;
 extern uint8_t pass;
 
@@ -200,8 +189,8 @@ extern uint8_t pass;
 #endif
 extern const uint8_t whatis[256];
 extern uint_fast8_t encode(uint_fast8_t);
-extern uint_fast16_t petsymbolic(char*);
-extern void err_msg(enum errors_e, char*);
+extern uint_fast16_t petsymbolic(const char*);
+extern void err_msg(enum errors_e, const char*);
 extern struct label_s *find_label(char*);
 extern struct label_s *new_label(char*);
 extern struct macro_s *find_macro(char*);
@@ -211,19 +200,18 @@ extern struct jump_s *new_jump(char*);
 extern struct context_s *new_context(char*, struct context_s *);
 extern struct file_s *openfile(char*);
 extern void closefile(struct file_s*);
-extern void tfree();
-extern void tinit();
-extern void labelprint();
+extern void tfree(void);
+extern void tinit(void);
+extern void labelprint(void);
 extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
 extern void freeerrorlist(int);
-extern void enterfile(char *,uint32_t);
-extern void exitfile();
-extern struct filenamelist_s *filenamelist;
+extern void enterfile(const char *,uint32_t);
+extern void exitfile(void);
 extern unsigned int encoding;
 extern struct context_s *current_context;
 extern struct context_s root_context;
-extern unsigned int utf8in(uint8_t *c, uint32_t *out);
+extern unsigned int utf8in(const uint8_t *c, uint32_t *out);
 extern struct encoding_s no_encoding[];
 extern struct encoding_s screen_encoding[];
 extern struct encoding_s ascii_encoding[];
