@@ -2106,7 +2106,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                                 if (!w) w=1;
                                             }
                                             if (w!=1) w=3; // there's no jmp ($ffffff)!
-                                            if (!scpumode && (adr & 0xff)==0xff) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
+                                            if ((opcode!=c65816 && opcode!=c65c02) && (adr & 0xff)==0xff) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
                                         } else w=1;
                                         opr=ADR_ADDR_I;
                                     }
