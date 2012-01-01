@@ -1802,40 +1802,41 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 
                     ignore();
                     if (!(wht=here())) {
-                        cod=cnmemonic[ADR_IMPLIED];
                         opr=(cnmemonic[ADR_ACCU]==cnmemonic[ADR_IMPLIED])?ADR_ACCU:ADR_IMPLIED;w=ln=0;d=1;
                     }  //clc
                     // 1 Db
                     else if (lowcase(wht)=='a' && pline[lpoint+1]==0 && cnmemonic[ADR_ACCU]!=____)
                     {
-                        cod=cnmemonic[ADR_ACCU];
                         if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
                         opr=ADR_ACCU;w=ln=0;d=1;// asl a
                         lpoint++;
                     }
                     // 2 Db
                     else if (wht=='#') {
-                        lpoint++;
-                        get_exp(&w,&d,&c,&val,T_INT); //ellenorizve.
-                        if (!c) break;
-                        if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                        if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____) {
+                            while (here()) lpoint++;ln=w=d=1;
+                        } else {
+                            lpoint++;
+                            get_exp(&w,&d,&c,&val,T_INT); //ellenorizve.
+                            if (!c) break;
+                            if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
 
-                        ln=1;
-                        if ((cod=cnmemonic[ADR_IMMEDIATE])==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {// cpx cpy ldx ldy
-                            if (longindex && scpumode) ln++;
-                        }
-                        else if (cod==0xF4) ln=2; //pea #$ffff
-                        else if (cod!=0xC2 && cod!=0xE2) {//not sep rep=all accu
-                            if (longaccu && scpumode) ln++;
-                        }
-                        if (dtvmode && cod==0x02) longbranch=0x40;//hack
+                            ln=1;
+                            if (cod==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {// cpx cpy ldx ldy
+                                if (longindex && scpumode) ln++;
+                            }
+                            else if (cod==0xF4) ln=2; //pea #$ffff
+                            else if (cod!=0xC2 && cod!=0xE2) {//not sep rep=all accu
+                                if (longaccu && scpumode) ln++;
+                            }
+                            if (dtvmode && cod==0x02) longbranch=0x40;//hack
 
-                        if (val.type != T_NONE) {
-                            adr=val.u.num;
-                            if (w==3) w=val_length(adr);//auto length
-                            if (w>=ln) w=3; //const too large
-                            opr=ADR_IMMEDIATE;// lda #
-                        } else fixeddig=0;
+                            if (val.type != T_NONE) {
+                                adr=val.u.num;
+                                if (w==3) w=val_length(adr);//auto length
+                                if (w>=ln) w=3; //const too large
+                            } else fixeddig=0;
+                        }
                     }
                     // 3 Db
                     else if (wht=='[') {
@@ -1978,7 +1979,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             }// 10 Db
                             else if (wht==WHAT_EOL) {
                                 if (cnmemonic[ADR_REL]!=____) {
-                                    ln=1;
+                                    ln=1;opr=ADR_REL;
                                     if (val.type != T_NONE) {
                                         if (fixeddig && (l_address >> 16)!=(adr >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
                                         adr=(uint16_t)(adr-l_address-2);
@@ -1994,8 +1995,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                                 } else {//bra
                                                     if (scpumode && !longbranchasjmp) {
                                                         longbranch=cnmemonic[ADR_REL]^0x82;
-                                                        adr=(uint16_t)(adr-1);
-                                                        ln=2;
+                                                        adr=(uint16_t)(adr-1); ln=2;
                                                     } else {
                                                         longbranch=cnmemonic[ADR_REL]^0x4C;
                                                         adr=(uint16_t)(adr+l_address+2);ln=2;
@@ -2005,28 +2005,26 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                             } else {
                                                 if (cnmemonic[ADR_ADDR]!=____) {
                                                     adr=(uint16_t)(adr+l_address+2);
-                                                    opr=ADR_ADDR;w=1;ln=2;goto brancb;}
+                                                    opr=ADR_ADDR;ln=2;}
                                                 else if (cnmemonic[ADR_REL_L]!=____) {//gra
                                                     adr=(uint16_t)(adr-1);
-                                                    opr=ADR_REL_L;w=1;ln=2;goto brancb;}
+                                                    opr=ADR_REL_L;ln=2;}
                                                 else if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);
                                             }
-                                        }
-                                        if (fixeddig) {
+                                        } else if (fixeddig) {
                                             if (!longbranch && ((l_address+2) & 0xff00)!=((l_address+2+adr) & 0xff00)) {
                                                 if (!allowslowbranch) err_msg(ERROR__BRANCH_CROSS,NULL);
                                             }
                                         }
-                                        opr=ADR_REL;w=0;// bne
                                     }
+                                    w=0;// bne
                                 }
                                 else if (cnmemonic[ADR_REL_L]!=____) {
                                     if (val.type != T_NONE) {
                                         if (fixeddig && (l_address >> 16)!=(adr >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
                                         adr=(uint16_t)(adr-l_address-3);
-                                        opr=ADR_REL_L;w=1;//brl
                                     }
-                                    ln=2;
+                                    ln=2;opr=ADR_REL_L;w=1;//brl
                                 }
                                 else if (cnmemonic[ADR_LONG]==0x5C) {
                                     if (w==3) {
@@ -2052,9 +2050,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                             if (!w) w=1; // there's no jsr $ff
                                         }
                                         if (w!=1) w=3; // there's no jsr $ffffff!
-                                        opr=ADR_ADDR;
                                     }
-                                    ln=2;
+                                    opr=ADR_ADDR;ln=2;
                                 }
                                 else {
                                     if (w==3) {//auto length
@@ -2073,7 +2070,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                     }
                                     opr=ADR_ZP-w;ln=w+1; // lda $ff lda $ffff lda $ffffff
                                 }
-                                brancb: lpoint--;
+                                lpoint--;
                             }// 13+2 Db
                         }
                         else if (c==2) {
@@ -2226,7 +2223,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                         fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000));
                                 }
                                 else {
-                                    if ((cod ^ longbranch)==0x4C)
+                                    if ((uint16_t)adr==0x4C03)
                                         fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)(adr >> 16)) | (l_address & 0xff0000));
                                     else
                                         fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)((adr >> 16)+l_address) | (l_address & 0xff0000));
