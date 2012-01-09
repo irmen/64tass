@@ -228,12 +228,12 @@ static void readln(struct file_s *fle) {
                 case ';':
                     if (q) continue;
                     fle->p += strlen((char *)c + i);
-                case 0:goto end;
+                case 0:sline++;goto end;
                 case ':': if (!q && !arguments.tasmcomp) goto end;
             }
         }
         pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);
-end:    fle->p += i + 1;sline++;
+end:    fle->p += i + 1;
     }
     while (i && pline[i-1]==0x20) i--;
     pline[i]=lpoint=0;
