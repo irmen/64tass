@@ -1741,7 +1741,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                     enum opr_e opr;
                     int mnem, oldlpoint;
                     const uint8_t *cnmemonic; //current nmemonic
-                    uint_fast8_t ln;
+                    int_fast8_t ln;
                     uint8_t cod, longbranch;
                     uint32_t adr;
                 as_opcode:
@@ -1940,45 +1940,69 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             }// 10 Db
                             else if (wht==WHAT_EOL) {
                                 if (cnmemonic[ADR_REL]!=____) {
+                                    struct label_s *var;
+                                    sprintf(varname,"*%d*%d", reffile, sline);
+                                    var=new_label(varname);
                                     ln=1;opr=ADR_REL;
                                     if (val.type != T_NONE) {
+                                        uint16_t oadr = adr;
                                         if (fixeddig && (l_address >> 16)!=(adr >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
-                                        adr=(uint16_t)(adr-l_address-2);
+
+                                        if (labelexists && adr >= (unsigned)var->value.u.num) {
+                                            adr=(uint16_t)(adr-var->value.u.num);
+                                        } else {
+                                            adr=(uint16_t)(adr-l_address-2);labelexists=0;
+                                        }
                                         if (adr<0xFF80 && adr>0x007F) {
                                             if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
                                                 if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
                                                     longbranch=0x20;ln=4;
                                                     if (scpumode && !longbranchasjmp) {
-                                                        adr=0x8203+(((adr-3) & 0xffff) << 16);
+                                                        if (!labelexists) adr=(uint16_t)(adr-3);
+                                                        adr=0x8203+(adr << 16);
                                                     } else {
-                                                        adr=0x4C03+(((adr+l_address+2) & 0xffff) << 16);
+                                                        adr=0x4C03+(oadr << 16);
                                                     }
                                                 } else {//bra
                                                     if (scpumode && !longbranchasjmp) {
                                                         longbranch=cnmemonic[ADR_REL]^0x82;
-                                                        adr=(uint16_t)(adr-1); ln=2;
+                                                        if (!labelexists) adr=(uint16_t)(adr-1);
+                                                        ln=2;
                                                     } else {
                                                         longbranch=cnmemonic[ADR_REL]^0x4C;
-                                                        adr=(uint16_t)(adr+l_address+2);ln=2;
+                                                        adr=oadr;ln=2;
                                                     }
                                                 }
                                                 if (fixeddig) err_msg(ERROR___LONG_BRANCH,NULL);
                                             } else {
                                                 if (cnmemonic[ADR_ADDR]!=____) {
-                                                    adr=(uint16_t)(adr+l_address+2);
-                                                    opr=ADR_ADDR;ln=2;}
-                                                else if (cnmemonic[ADR_REL_L]!=____) {//gra
-                                                    adr=(uint16_t)(adr-1);
-                                                    opr=ADR_REL_L;ln=2;}
-                                                else if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);
+                                                    if (scpumode && !longbranchasjmp) {
+                                                        longbranch=cnmemonic[ADR_REL]^0x82;
+                                                        if (!labelexists) adr=(uint16_t)(adr-1);
+                                                    } else {
+                                                        adr=oadr;
+                                                        opr=ADR_ADDR;
+                                                    }
+                                                    ln=2;
+                                                } else if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);
                                             }
-                                        } else if (fixeddig) {
-                                            if (!longbranch && ((l_address+2) & 0xff00)!=((l_address+2+adr) & 0xff00)) {
-                                                if (!allowslowbranch) err_msg(ERROR__BRANCH_CROSS,NULL);
+                                        } else {
+                                            if (fixeddig) {
+                                                if (!longbranch && ((l_address+2) & 0xff00)!=(oadr & 0xff00)) {
+                                                    if (!allowslowbranch) err_msg(ERROR__BRANCH_CROSS,NULL);
+                                                }
+                                            }
+                                            if (cnmemonic[ADR_ADDR]!=____) {
+                                                if (adr==0) ln=-1;
+                                                else if (adr==1 && (cnmemonic[ADR_REL] & 0x1f)==0x10) {
+                                                ln=0;longbranch=0x20;adr=0x10000;
+                                                }
                                             }
                                         }
                                     }
                                     w=0;// bne
+
+                                    var->value.u.num=l_address + 1 + ln;
                                 }
                                 else if (cnmemonic[ADR_REL_L]!=____) {
                                     if (val.type != T_NONE) {
@@ -2117,7 +2141,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             break;
                         }
                     }
-                    {
+                    if (ln>=0) {
                         uint32_t temp=adr;
                         pokeb(cod ^ longbranch);
                         switch (ln)
@@ -2134,9 +2158,11 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                         unsigned int i;
 
                         if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                        fprintf(flist,(all_mem==0xffff)?".%04x\t %02x":".%06x  %02x",(address-ln-1) & all_mem, cod ^ longbranch ^ outputeor);
-
-                        for (i=0;i<ln;i++) {fprintf(flist," %02x",(uint8_t)temp ^ outputeor);temp>>=8;}
+                        fprintf(flist,(all_mem==0xffff)?".%04x\t":".%06x ",(address-ln-1) & all_mem);
+                        if (ln>=0) {
+                            fprintf(flist," %02x", cod ^ longbranch ^ outputeor);
+                            for (i=0;i<(unsigned)ln;i++) {fprintf(flist," %02x",(uint8_t)temp ^ outputeor);temp>>=8;}
+                        }
                         if (ln<2) fputc('\t',flist);
                         fputc('\t',flist);
 
