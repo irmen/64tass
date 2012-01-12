@@ -75,7 +75,10 @@ static int allowslowbranch=1;
 static int longbranchasjmp=0;
 static uint8_t outputeor = 0; // EOR value for final output (usually 0, except changed by .eor)
 
-static char waitfor[nestinglevel];
+static struct {
+    char what;
+    uint32_t line;
+} waitfor[nestinglevel];
 static uint8_t skipit[nestinglevel];
 static uint8_t waitforp=0;
 
@@ -456,70 +459,6 @@ static uint_fast8_t val_length(int32_t val)
         return 3;
 }
 
-static void wait_cmd(struct file_s *fil, int no)
-{
-    uint8_t wrap=waitforp;
-    int pr,wh;
-    uint32_t lin = 1;
-    size_t pos = 0;
-
-    for (;;) {
-	if (fil->len == fil->p) { // eof?
-	    char nc[20] = {'.',0};
-            unsigned int i;
-            for (i=0;i<sizeof(command)/sizeof(command[0])-1;i++) {
-                if (command[i][0]==no) break;
-            }
-	    strcat(nc,command[i]+1);
-	    err_msg(ERROR______EXPECTED,nc);
-	    return;
-	}
-	if (no==CMD_PEND) { //.pend
-	    lin=sline;
-	    pos=fil->p;
-	}
-	readln(fil);
-	if ((wh=what(&pr))==WHAT_EXPRESSION) {
-            if (!pr) {
-                if (here()=='-') {
-                    lpoint++;if (here()!=0x20 && here()) goto baj;
-                    current_context->backr++;
-                    goto hh;
-                } else if (here()=='+') {
-                    lpoint++;if (here()!=0x20 && here()) goto baj;
-                    current_context->forwr++;
-                    goto hh;
-                }
-            baj: lpoint--;
-            }
-            get_ident('_');   //skip label
-            hh:
-	    wh=what(&pr);
-	}
-	if (wh==WHAT_COMMAND) {
-	    if (pr==no && wrap==waitforp) return;
-	    switch (pr) {
-	    case CMD_FOR:waitfor[++waitforp]='n';break;//.for
-	    case CMD_NEXT:if (waitfor[waitforp]=='n') waitforp--;break;//.next
-	    case CMD_IFEQ:
-	    case CMD_IFPL:
-	    case CMD_IFMI:
-            case CMD_IF:waitfor[++waitforp]='e';break;//.if
-            case CMD_ELSE:if (waitfor[waitforp]=='e') waitfor[waitforp]='f';break;//.else
-            case CMD_FI:if (waitfor[waitforp]=='e' || waitfor[waitforp]=='f') waitforp--;break;//.fi
-            case CMD_ELSIF:break;//.elsif
-	    case CMD_REPT:waitfor[++waitforp]='n';break;//.rept
-	    case CMD_PROC:if (no==CMD_PEND && wrap==waitforp) {sline=lin;fil->p=pos;return;}break;// .proc
-	    case CMD_BLOCK:waitfor[++waitforp]='b';break;//.block
-	    case CMD_BEND:if (waitfor[waitforp]=='b') waitforp--;break;//.bend
-	    case CMD_SEGMENT: //.segment
-	    case CMD_MACRO:waitfor[++waitforp]='m';break;//.macro
-	    case CMD_ENDM:if (waitfor[waitforp]=='m') waitforp--;break;//.endm
-	    }
-	}
-    }
-}
-
 static int get_path(const char *base) {
     int q=1;
     unsigned int i=0;
@@ -675,6 +614,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 
     uint32_t backr_old = 0, forwr_old = 0;
     uint16_t reffile_old = 0;
+    uint8_t oldwaitforp = waitforp;
 
     if (tpe==0) {
         backr_old=current_context->backr;
@@ -683,17 +623,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
     }
     if (tpe==0 || tpe==1) reffile_old=reffile;
 
-    for (;;) {
-	if (fin->len == fin->p) // eof?
-	{
-            switch (tpe) {
-            case 3:
-	    case 1:err_msg(ERROR______EXPECTED,".ENDM"); break;
-	    case 2:err_msg(ERROR______EXPECTED,".NEXT");
-	    }
-	    break;
-	}
-
+    while (fin->len != fin->p) {
 	readln(fin);
 	if (nprm>=0) mtranslate(mprm,nprm,pline); //expand macro parameters, if any
 
@@ -831,6 +761,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                 }
                 if (prm==CMD_MACRO || prm==CMD_SEGMENT) { // .macro
                 do_macro:
+                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
                     ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
                     tmp2=new_macro(ident);
                     if (labelexists) {
@@ -842,17 +773,10 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                         tmp2->type=prm;
                         tmp2->file=fin;
                     }
-                    wait_cmd(fin,CMD_ENDM); //.endm
                     continue;
                 }
             }
             if ((tmp2=find_macro(ident))) {lpoint--;ident2[0]=0;goto as_macro;}
-	    if (wht==WHAT_COMMAND && prm==CMD_PROC) { //.proc
-                old_context = current_context;
-                if (current_context->parent) {
-                    current_context = current_context->parent;
-                }
-            }
             tmp=new_label(ident);
 	    if (pass==1) {
 		if (labelexists) {
@@ -962,23 +886,29 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             }
                     }
                 }
+		if (prm==CMD_ENDC) { // .endc
+                    if (waitfor[waitforp].what!='c') {err_msg(ERROR______EXPECTED,".COMMENT"); break;}
+		    waitforp--;
+                    if (here()) goto extrachar;
+                    break;
+                } else if (waitfor[waitforp].what=='c') break;
 		if (prm==CMD_FI) // .fi
 		{
-                    if (waitfor[waitforp]!='e' && waitfor[waitforp]!='f') {err_msg(ERROR______EXPECTED,".IF"); break;}
-		    if (here()) goto extrachar;
+                    if (waitfor[waitforp].what!='e' && waitfor[waitforp].what!='f') {err_msg(ERROR______EXPECTED,".IF"); break;}
 		    waitforp--;
+		    if (here()) goto extrachar;
                     break;
 		}
 		if (prm==CMD_ELSE) { // .else
-		    if (waitfor[waitforp]=='f') {err_msg(ERROR______EXPECTED,".FI"); break;}
-		    if (waitfor[waitforp]!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
+		    if (waitfor[waitforp].what=='f') {err_msg(ERROR______EXPECTED,".FI"); break;}
+		    if (waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
 		    if (here()) goto extrachar;
 		    skipit[waitforp]=skipit[waitforp] >> 1;
-		    waitfor[waitforp]='f';
+		    waitfor[waitforp].what='f';waitfor[waitforp].line=sline;
                     break;
 		}
 		if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
-		    if (prm==CMD_ELSIF && waitfor[waitforp]!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
+		    if (prm==CMD_ELSIF && waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
 		    if (((skipit[waitforp]==1) && prm!=CMD_ELSIF) || ((skipit[waitforp]==2) && prm==CMD_ELSIF)) {
 			get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
 			if (!c) break;
@@ -986,7 +916,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 			ignore();if (here()) goto extrachar;
                 	if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");val.type=T_NONE;}
 		    } else val.type=T_NONE;
-                    waitfor[++waitforp]='e';
+                    waitfor[++waitforp].what='e';waitfor[waitforp].line=sline;
                     switch (prm) {
                     case CMD_ELSIF:
                         waitforp--;
@@ -1012,7 +942,40 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                     }
 		    break;
 		}
-                if (!(skipit[waitforp] & 1)) break; //skip things if needed
+		if (prm==CMD_ENDM) { // .endm
+                    if (waitfor[waitforp].what!='m') {err_msg(ERROR______EXPECTED,".MACRO or .SEGMENT"); break;}
+		    waitforp--;
+                    if (here()) goto extrachar;
+                    if (tpe==1 || tpe==3) goto end;
+                    break;
+		}
+		if (prm==CMD_NEXT) { // .next
+                    if (waitfor[waitforp].what!='n') {err_msg(ERROR______EXPECTED,".FOR or .REPT"); break;}
+		    waitforp--;
+                    if (here()) goto extrachar;
+                    if (tpe==2) goto end;
+                    break;
+		}
+		if (prm==CMD_PEND) { //.pend
+                    if (waitfor[waitforp].what!='p') {err_msg(ERROR______EXPECTED,".PROC"); break;}
+                    if (skipit[waitforp] & 1) {
+                        if (current_context->parent && current_context->name[0]!='.') {
+                            current_context->parent->backr += current_context->backr - 1;
+                            current_context->parent->forwr += current_context->forwr - 1;
+                            current_context = current_context->parent;
+                        } else err_msg(ERROR______EXPECTED,".proc");
+                    }
+		    waitforp--;
+		    if (here()) goto extrachar;
+		    break;
+		}
+                if (!(skipit[waitforp] & 1)) {
+                    if (prm==CMD_MACRO || prm==CMD_SEGMENT) { waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0; break; }
+                    if (prm==CMD_FOR || prm==CMD_REPT) { waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0; break; }
+                    if (prm==CMD_COMMENT) { waitfor[++waitforp].what='c';waitfor[waitforp].line=sline;skipit[waitforp]=0; break; }
+                    if (prm==CMD_PROC) {waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0; break; }
+                    break; //skip things if needed
+                }
                 if (prm<=CMD_LONG || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
                     size_t ptextaddr=mem.p;
 
@@ -1274,10 +1237,12 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		    break;
 		}
 		if (prm==CMD_PROC) { // .proc
-		    if (here()) goto extrachar;
 		    if (tmp) {
-			if (tmp->proclabel && pass!=1 && old_context == &root_context) wait_cmd(fin,CMD_PEND);//.pend
+			if (tmp->proclabel && pass!=1) {
+                            waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                        }
                         else {
+                            waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=1;
 		            tmp->proclabel=1;
                             current_context=new_context(ident, current_context);
                             current_context->backr=current_context->forwr=1;
@@ -1287,15 +1252,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             }
                         }
 		    }
-		    break;
-		}
-		if (prm==CMD_PEND) { //.pend
 		    if (here()) goto extrachar;
-                    if (current_context->parent && current_context->name[0]!='.') {
-                        current_context->parent->backr += current_context->backr - 1;
-                        current_context->parent->forwr += current_context->forwr - 1;
-                        current_context = current_context->parent;
-                    } else err_msg(ERROR______EXPECTED,".proc");
 		    break;
 		}
                 if (prm==CMD_BLOCK) { // .block
@@ -1456,21 +1413,11 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                     if (((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len)) err_msg((prm==CMD_CERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
                     break;
                 }
-		if (prm==CMD_ENDM) { // .endm
-		    if (tpe==1 || tpe==3) { // .macro
-			if (here()) goto extrachar;
-                        goto end;
-		    } else {err_msg(ERROR______EXPECTED,".MACRO"); break;}
-		}
-		if (prm==CMD_NEXT) { // .next
-		    if (tpe==2) { //.rept .for
-			if (here()) goto extrachar;
-                        goto end;
-		    } else {err_msg(ERROR______EXPECTED,".FOR or .REPT"); break;}
-		}
 		if (prm==CMD_REPT) { // .rept
                     int32_t cnt;
-		    get_exp(&w,&d,&c,&val,T_INT);if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for count");wait_cmd(fin,CMD_NEXT);break;}
+                    waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+		    get_exp(&w,&d,&c,&val,T_INT);
+                    if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for count");break;}
 		    if (!c) break;
 		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
 		    ignore();if (here()) goto extrachar;
@@ -1479,12 +1426,13 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                         size_t pos = fin->p;
                         uint32_t lin = sline;
 
+                        if (cnt<val.u.num) waitforp--;
                         for (; cnt<val.u.num; cnt++) {
                             sline=lin;fin->p=pos;
+                            waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
                             compile(2,mprm,nprm,fin);
                         }
                     }
-	            if (cnt == 0) wait_cmd(fin,CMD_NEXT);
 		    break;
 		}
                 if (prm==CMD_ALIGN) { // .align
@@ -1566,10 +1514,9 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                     err_msg(ERROR_DIRECTIVE_IGN,NULL);
                     break;
                 }
-		if (prm==CMD_ENDC) {err_msg(ERROR______EXPECTED,".COMMENT"); break;} // .endc
 		if (prm==CMD_COMMENT) { // .comment
+                    waitfor[++waitforp].what='c';waitfor[waitforp].line=sline;skipit[waitforp]=0;
                     if (here()) goto extrachar;
-		    wait_cmd(fin,CMD_ENDC);
 		    break;
 		}
 		if (prm==CMD_INCLUDE) { // .include
@@ -1600,12 +1547,13 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		    break;
 		}
 		if (prm==CMD_FOR) { // .for
-                    size_t pos;
-                    uint32_t lin;
+                    size_t pos, xpos;
+                    uint32_t lin, xlin;
 		    int apoint, bpoint = -1;
                     uint8_t expr[linelength];
                     struct label_s *var;
 
+                    waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
 		    if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
 			if (get_ident('_')) break;
 			ignore();if (get()!='=') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
@@ -1638,7 +1586,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X) lpoint--; else
 			if (wht!=WHAT_COMA) {err_msg(ERROR______EXPECTED,","); break;}
 
-		    lin=sline; pos=fin->p; apoint=lpoint;
+		    xlin=lin=sline; xpos=pos=fin->p; apoint=lpoint;
                     strcpy((char *)expr, (char *)pline);var = NULL;
 		    for (;;) {
 			lpoint=apoint;
@@ -1671,7 +1619,9 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                 bpoint=lpoint;
                             }
                         }
+                        waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
 			compile(2,mprm,nprm,fin);
+                        xpos = fin->p; xlin= sline;
 			strcpy((char *)pline, (char *)expr);
 			sline=lin;fin->p=pos;
                         if (bpoint) {
@@ -1683,7 +1633,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             var_assign(var, &val, fixeddig);
                         }
                     }
-                    wait_cmd(fin,CMD_NEXT);
+                    if (pos!=xpos || lin!=xlin) waitforp--;
+                    sline=xlin;fin->p=xpos;
 		    break;
 		}
 		if (prm==CMD_ENDP) { // .endp
@@ -1774,6 +1725,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                     uint32_t lin = sline;
                     enterfile(tmp2->file->name, sline);
                     tmp2->file->p = tmp2->p; sline = tmp2->sline;
+                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=1;
                     compile((tmp2->file!=fin)?1:3,mparams,nprm,tmp2->file);
                     exitfile();
                     sline = lin; tmp2->file->p = oldpos;
@@ -1793,7 +1745,16 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                     uint8_t cod, longbranch;
                     uint32_t adr;
                 as_opcode:
-                    if (!(skipit[waitforp] & 1)) break;//skip things if needed
+                    if (!(skipit[waitforp] & 1)) {
+                        ignore();
+                        if (here()=='.') {
+                            wht=what(&prm);
+                            if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
+                                waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                            }
+                        }
+                        break;//skip things if needed
+                    }
 
                     opr = 0;mnem = prm;
                     oldlpoint = lpoint;
@@ -2241,8 +2202,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                     break;
                 }
                 if ((tmp2=find_macro(ident))) goto as_macro;
-            }
-            // fall through
+            }            // fall through
 	default: if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
 	}
     }
@@ -2251,6 +2211,19 @@ end:
         current_context->backr=backr_old;
         current_context->forwr=forwr_old;
         reffile=reffile_old;
+    }
+    while (oldwaitforp < waitforp) {
+        uint32_t os = sline;
+        sline = waitfor[waitforp].line;
+        switch (waitfor[waitforp--].what) {
+        case 'e':
+        case 'f': err_msg(ERROR______EXPECTED,".FI"); break;
+        case 'm': err_msg(ERROR______EXPECTED,".ENDM"); break;
+        case 'n': err_msg(ERROR______EXPECTED,".NEXT"); break;
+        case 'p': err_msg(ERROR______EXPECTED,".PEND"); break;
+        case 'c': err_msg(ERROR______EXPECTED,".ENDC"); break;
+        }
+        sline = os;
     }
     return;
 }
@@ -2282,7 +2255,7 @@ int main(int argc,char *argv[]) {
             set_cpumode(arguments.cpumode);
             address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0]=0;skipit[0]=1;sline=0;outputeor=0;
+            waitfor[waitforp=0].what=0;skipit[0]=1;sline=0;outputeor=0;
             current_context=&root_context;logitab.p=0;
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
@@ -2327,7 +2300,7 @@ int main(int argc,char *argv[]) {
             set_cpumode(arguments.cpumode);
             address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0]=0;skipit[0]=1;sline=0;outputeor=0;
+            waitfor[waitforp=0].what=0;skipit[0]=1;sline=0;outputeor=0;
             current_context=&root_context;logitab.p=0;
 
             if (i == optind - 1) {
