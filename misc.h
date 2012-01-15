@@ -121,6 +121,13 @@ struct label_s {
     struct avltree_node node;
 };
 
+struct star_s {
+    uint32_t line;
+    uint32_t addr;
+    struct avltree tree;
+    struct avltree_node node;
+};
+
 struct file_s {
     char *name;
     uint8_t *data;    /* data */
@@ -128,6 +135,7 @@ struct file_s {
     size_t p;         /* current point */
     uint16_t open;    /* open/not open */
     uint16_t uid;     /* uid */
+    struct avltree star;
     struct avltree_node node;
 };
 
@@ -144,6 +152,7 @@ struct jump_s {
     char *name;
     size_t p;
     uint32_t sline;
+    uint8_t waitforp;
     const struct file_s *file;
     struct avltree_node node;
 };
@@ -172,10 +181,13 @@ struct encoding_s {
     int16_t offset;
 };
 
-extern uint32_t sline;
+extern uint32_t sline, vline;
 extern unsigned int lpoint; 
+extern struct file_s *cfile; 
+extern struct avltree *star_tree;
+extern int fixeddig;
 extern unsigned int errors,conderrors,warnings;
-extern uint32_t l_address;
+extern uint32_t star;
 extern uint8_t pline[];
 extern int labelexists;
 extern void status(void);
@@ -197,6 +209,7 @@ extern struct macro_s *find_macro(char*);
 extern struct macro_s *new_macro(char*);
 extern struct jump_s *find_jump(char*);
 extern struct jump_s *new_jump(char*);
+extern struct star_s *new_star(uint32_t);
 extern struct context_s *new_context(char*, struct context_s *);
 extern struct file_s *openfile(char*);
 extern void closefile(struct file_s*);

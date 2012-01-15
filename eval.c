@@ -160,6 +160,17 @@ static int get_label(int mode, struct value_s *v) {// 0=unknown stuff, 1=ok
     return 0;
 }
 
+static void get_star(struct value_s *v) {
+    struct star_s *tmp;
+
+    tmp=new_star(vline);
+    if (labelexists && tmp->addr != star) {
+        fixeddig=0;
+    }
+    tmp->addr=star;
+    v->type=T_INT;v->u.num=star;
+}
+
 /*
  * get priority for operator in an expression
  */
@@ -244,7 +255,7 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
             case '$': lpoint++;large|=get_hex(&o_out[outp].val);goto pushval;
             case '%': lpoint++;large|=get_bin(&o_out[outp].val);goto pushval;
             case '"': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
-            case '*': lpoint++;o_out[outp].val.type=T_INT;o_out[outp].val.u.num=l_address;goto pushval;
+            case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
             }
             if (ch>='0' && ch<='9') { large|=get_dec(&o_out[outp].val);
             pushval:
@@ -449,7 +460,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case '%': lpoint++;large|=get_bin(&o_out[outp].val);goto pushval;
             case '"':
             case '\'': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
-            case '*': lpoint++;o_out[outp].val.type=T_INT;o_out[outp].val.u.num=l_address;goto pushval;
+            case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
             default: 
                 if (ch>='0' && ch<='9') { large|=get_dec(&o_out[outp].val);
                 pushval: o_out[outp++].oper=' ';nd = 1;continue;

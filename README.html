@@ -89,22 +89,56 @@ ss	<b>.word</b> 0
 
 start	<b>rts</b>
 </pre>
-<p>For writing short code (4k intro, whatever) there are some special pseudo instructions. These are automatically compiled
-as relative branches when the distance is short and as jumps when longer. (<code>GEQ</code>, <code>GNE</code>, <code>GCC</code>, <code>GCS</code>, <code>GPL</code>, <code>GMI</code>, <code>GVC</code>, <code>GVS</code>)
-There's one more called <code>GRA</code> for CPUs supporting <code>BRA</code>, which is expanded to <code>BRL</code> (if available) or <code>JMP</code> (otherwise).</p>
+
+<p>For writing short code there are some special pseudo instructions for always
+taken branches. These are automatically compiled as relative branches when the
+jump distance is short enough and as <code>JMP</code> or <code>BRL</code> when
+longer. The names are derived from conditional branches and are:
+<code>GEQ</code>, <code>GNE</code>, <code>GCC</code>, <code>GCS</code>,
+<code>GPL</code>, <code>GMI</code>, <code>GVC</code>, and <code>GVS</code>.</p>
+
+<p>There's one more called <code>GRA</code> for CPUs supporting
+<code>BRA</code>, which is expanded to <code>BRL</code> (if available) or
+<code>JMP</code>.</p>
+
 <pre>
-	<b>lda</b> #3
-	<b>gne</b> label	<i>;compiled as bne, or jmp</i>
-	<b>nop</b>
-label
+.0000    a9 03          lda #$03        in1     <b>lda</b> #3
+.0002    d0 02          gne $0006               <b>gne</b> at          <i>;branch always</i>
+.0004    a9 02          lda #$02        in2     <b>lda</b> #2
+.0006    4c 00 10       gne $1000       at      <b>gne</b> $1000       <i>;branch further</i>
 </pre>
-<p>To avoid branch too long errors the assembler also supports long branches, it can automatically convert conditional relative branches to it's opposite and a <code>JMP</code>. This have to be enabled on the command line using the <q>--long-branch</q> option.</p>
+
+<p>If the branch would skip only one byte then the opposite condition is compiled
+and only the first byte is emitted. This is now a never executed jump, and the
+relative distance byte after the opcode is the jumped over byte.</p>
+
+<p>If the branch would not skip anything at all then no code is generated.</p>
+
 <pre>
-	<b>bcc</b> veryfar	<i>;compiled as "bcc veryfar" or</i>
-			<i>;	bcs sk</i>
-			<i>;	jmp veryfar</i>
-			<i>;sk</i>
+.0009                   geq $0009               <b>geq</b> in3         <i>;zero length "branch"</i>
+.0009    18             clc             in3     <b>clc</b>
+.000a    b0             gcc $000c               <b>gcc</b> at2         <i>;one byte skip, as bcs</i>
+.000b    38             sec             in4     <b>sec</b>             <i>;sec is skipped!</i>
+.000c    20 0f 00       jsr $000f       at2     <b>jsr</b> func
+.000f                                   func
 </pre>
+
+<p>Please note that expressions like <code>Gxx *+2</code> or <code>Gxx
+*+3</code> are not allowed as the compiler can't figure out if it has to create
+no code at all, the 1 byte variant or the 2 byte one. Therefore use normal or
+anonymous labels defined after the jump instruction when jumping forward!</p>
+
+<p>To avoid branch too long errors the assembler also supports long branches,
+it can automatically convert conditional relative branches to it's opposite and
+a <code>JMP</code> or <code>BRL</code>. This can be enabled on the command
+line using the <q>--long-branch</q> option.</p>
+
+<pre>
+.0000    ea             nop                     <b>nop</b>
+.0001    b0 03 4c 00 10 bcc $1000               <b>bcc</b> $1000      <i>;long branch</i>
+.0006    ea             nop                     <b>nop</b>
+</pre>
+
 <p>There are some other tips below in the descriptions.</p>
 
 <hr>
