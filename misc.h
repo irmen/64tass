@@ -31,6 +31,7 @@ enum errors_e {
     ERROR______JUMP_BUG,
     ERROR___LONG_BRANCH,
     ERROR_DIRECTIVE_IGN,
+    ERROR_LABEL_NOT_LEF,
     ERROR_WUSER_DEFINED,
 
     ERROR_DOUBLE_DEFINE=0x40,
@@ -204,6 +205,7 @@ extern uint_fast8_t encode(uint_fast8_t);
 extern uint_fast16_t petsymbolic(const char*);
 extern void err_msg(enum errors_e, const char*);
 extern struct label_s *find_label(char*);
+extern struct label_s *find_label2(char*);
 extern struct label_s *new_label(char*);
 extern struct macro_s *find_macro(char*);
 extern struct macro_s *new_macro(char*);

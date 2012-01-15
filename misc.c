@@ -410,7 +410,8 @@ static const char *terr_warning[]={
     "Memory bank excedeed",
     "Possible jmp ($xxff) bug",
     "Long branch used",
-    "Directive ignored"
+    "Directive ignored",
+    "Label not on left side",
 //  "%s\n",
 };
 static const char *terr_error[]={
@@ -652,6 +653,14 @@ struct label_s *find_label(char* name) {
     return NULL;
 }
 
+struct label_s *find_label2(char* name) {
+    const struct avltree_node *b;
+    struct label_s tmp;
+    tmp.name=name;
+    b=avltree_lookup(&tmp.node, &current_context->label_tree);
+    if (!b) return NULL;
+    return avltree_container_of(b, struct label_s, node);
+}
 
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
