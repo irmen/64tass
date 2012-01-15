@@ -778,8 +778,12 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     continue;
                 }
             }
-            if ((tmp2=find_macro(ident))) {lpoint--;ident2[0]=0;goto as_macro;}
-            tmp=new_label(ident);
+            tmp=find_label2(ident);
+            if (tmp) labelexists=1;
+            else {
+                if ((tmp2=find_macro(ident))) {lpoint--;ident2[0]=0;goto as_macro;}
+                tmp=new_label(ident);
+            }
 	    if (pass==1) {
 		if (labelexists) {
 		    err_msg(ERROR_DOUBLE_DEFINE,ident);
@@ -808,6 +812,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     tmp->value.type=T_INT;
 		}
 	    }
+            if (pline[0] == 0x20) err_msg(ERROR_LABEL_NOT_LEF,NULL);
 	}
 	jn:
 	switch (wht) {
