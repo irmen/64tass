@@ -219,7 +219,7 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
     struct {struct value_s val; char oper;} o_out[256];
     struct value_s v_stack[256];
     char o_oper[256];
-    uint8_t outp = 0, operp = 0, vsp, db;
+    uint8_t outp = 0, operp = 0, vsp;
     unsigned int conv=0;
     int large=0;
 
@@ -240,18 +240,6 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
         if (!nd) {
             switch (ch) {
             case '(': o_oper[operp++] = ch; lpoint++;continue;
-            case '+': db = 1;
-                while ((ch=pline[lpoint+db])=='+') db++;
-                if (!(ch>='0' && ch<='9') && ch!='$' && ch!='"' && ch!='%' && ch!='(' && ch!='_' && !(ch>='a' && ch<='z') && !(ch>='A' && ch<='Z')) {
-                    lpoint += db; db = db * 2 - 1; goto ide;
-                }
-                break;
-            case '-': db = 1;
-                while ((ch=pline[lpoint+db])=='-') db++;
-                if (!(ch>='0' && ch<='9') && ch!='$' && ch!='"' && ch!='%' && ch!='(' && ch!='_' && !(ch>='a' && ch<='z') && !(ch>='A' && ch<='Z')) {
-                    lpoint += db; db = db * 2; goto ide;
-                }
-                break;
             case '$': lpoint++;large|=get_hex(&o_out[outp].val);goto pushval;
             case '%': lpoint++;large|=get_bin(&o_out[outp].val);goto pushval;
             case '"': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
@@ -265,9 +253,7 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
                 }
                 o_out[outp++].oper=' ';nd = 1;continue;
             }
-            db = 0;
-            ide:
-            if (!get_label(db, &o_out[outp].val)) {
+            if (!get_label(0, &o_out[outp].val)) {
             errget:
                 for (i=0; i<outp; i++) if (o_out[i].oper==' ' && o_out[i].val.type == T_TSTR) free(o_out[i].val.u.str.data);
                 return;
