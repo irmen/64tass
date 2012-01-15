@@ -47,7 +47,7 @@ struct memblock_s {size_t p, len;uint32_t start;}; //starts and sizes
 #define nestinglevel 256
 unsigned int errors=0,conderrors=0,warnings=0;
 static int wrapwarn=0, wrapwarn2=0;
-uint32_t sline;      //current line
+uint32_t sline, vline;      //current line
 static uint32_t all_mem;
 uint8_t pass=0;      //pass
 static int listing=0;   //listing
@@ -55,7 +55,7 @@ static struct {size_t p, len;uint8_t *data;} mem = {0, 0, NULL};//Linear memory 
 static size_t memblocklastp = 0;
 static uint32_t memblocklaststart = 0;
 static struct {unsigned int p, len;struct memblock_s *data;} memblocks = {0, 0, NULL};
-uint32_t address=0, l_address=0; //address, logical address
+uint32_t address=0, l_address=0, star=0; //address, logical address
 uint8_t pline[linelength];  //current line data
 static uint8_t llist[linelength];  //current line for listing
 unsigned int lpoint;              //position in current line
@@ -69,7 +69,7 @@ static struct {uint16_t p, len; int32_t *data;} logitab = {0,0,NULL};  //.logica
 static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static uint8_t databank=0;
 static uint16_t dpage=0;
-static int fixeddig;
+int fixeddig;
 uint32_t current_requires, current_conflicts, current_provides;
 static int allowslowbranch=1;
 static int longbranchasjmp=0;
@@ -86,6 +86,8 @@ static unsigned int last_mnem;
 
 int labelexists;
 uint16_t reffile;
+struct file_s *cfile;
+struct avltree *star_tree = NULL;
 static uint_fast8_t macrecursion;
 
 static const char* command[]={ /* must be sorted, first char is the ID */
@@ -216,13 +218,13 @@ void status(void) {
  *      llist -
  *      pline -
  */
-static void readln(struct file_s *fle) {
+static inline void readln() {
     unsigned int i = 0;
     uint_fast8_t q = 0;
-    size_t l = fle->p;
-    const uint8_t *c = &fle->data[fle->p];
+    size_t l = cfile->p;
+    const uint8_t *c = &cfile->data[cfile->p];
 
-    if (fle->len != fle->p) {
+    if (cfile->len != cfile->p) {
         for (; i < sizeof(pline) - 1; i++) {
             switch (pline[i]=c[i]) {
                 case '\'': if (!(q & 5)) q^=2;continue;
@@ -230,20 +232,20 @@ static void readln(struct file_s *fle) {
                 case '\t': if (!q) pline[i]=32;continue;
                 case ';':
                     if (q) continue;
-                    fle->p += strlen((char *)c + i);
-                case 0:sline++;goto end;
-                case ':': if (!q && !arguments.tasmcomp) goto end;
+                    cfile->p += strlen((char *)c + i);
+                case 0:sline++;vline++;goto end;
+                case ':': if (!q && !arguments.tasmcomp) {vline++;goto end;}
             }
         }
         pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);
-end:    fle->p += i + 1;
+end:    cfile->p += i + 1;
     }
     while (i && pline[i-1]==0x20) i--;
     pline[i]=lpoint=0;
     if (listing) {
-        i = fle->p - l;
+        i = cfile->p - l;
         if (i) i--;
-        memcpy(llist, &fle->data[l], i);
+        memcpy(llist, &cfile->data[l], i);
         llist[i]=0;
     }
 }
@@ -600,7 +602,7 @@ void var_assign(struct label_s *tmp, const struct value_s *val, int fix) {
     tmp->upass=pass;
 }
 
-static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin) // "",0
+static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
 {
     int wht,w,d,c;
     int prm = 0;
@@ -623,8 +625,9 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
     }
     if (tpe==0 || tpe==1) reffile_old=reffile;
 
-    while (fin->len != fin->p) {
-	readln(fin);
+    while (cfile->len != cfile->p) {
+        star=l_address;
+	readln(cfile);
 	if (nprm>=0) mtranslate(mprm,nprm,pline); //expand macro parameters, if any
 
         ident2[0]=0;
@@ -743,19 +746,18 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                         printllist(flist);
                     }
                     tmp2 = new_jump(ident);
-                    if (pass==1) {
-                        if (labelexists) {
+                    if (labelexists) {
+                        if (tmp2->sline != sline
+                            || tmp2->waitforp != waitforp
+                            || tmp2->file != cfile
+                            || tmp2->p != cfile->p) {
                             err_msg(ERROR_DOUBLE_DEFINE,ident);
-                        } else {
-                            tmp2->sline = sline;
-                            tmp2->file = fin;
-                            tmp2->p = fin->p;
                         }
                     } else {
-                        if (labelexists) {
-                            if (tmp2->sline != sline || tmp2->file != fin || tmp2->p != fin->p)
-                                err_msg(ERROR_DOUBLE_DEFINE,ident); /* moved?! */
-                        }
+                        tmp2->sline = sline;
+                        tmp2->waitforp = waitforp;
+                        tmp2->file = cfile;
+                        tmp2->p = cfile->p;
                     }
                     continue;
                 }
@@ -768,10 +770,10 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                         if (pass==1) {err_msg(ERROR_DOUBLE_DEFINE,ident); continue;}
                     }
                     else {
-                        tmp2->p=fin->p;
+                        tmp2->p=cfile->p;
                         tmp2->sline=sline;
                         tmp2->type=prm;
-                        tmp2->file=fin;
+                        tmp2->file=cfile;
                     }
                     continue;
                 }
@@ -1105,7 +1107,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                     } else if (prm==CMD_BINARY) { // .binary
                         uint32_t foffset=0,fsize=all_mem+1;
                         FILE* fil;
-                        if (get_path(fin->name)) break;
+                        if (get_path(cfile->name)) break;
                         if ((ch=get())) {
                             if (ch!=',') goto extrachar;
                             get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
@@ -1257,7 +1259,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		}
                 if (prm==CMD_BLOCK) { // .block
                     if (here()) goto extrachar;
-                    sprintf(varname, ".%u.%u", reffile, sline);
+                    sprintf(varname, ".%x.%u", (unsigned)star_tree, vline);
                     current_context=new_context(varname, current_context);
                     current_context->backr=current_context->forwr=1;
                     break;
@@ -1423,14 +1425,24 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		    ignore();if (here()) goto extrachar;
                     cnt = 0;
                     if (val.type != T_NONE) {
-                        size_t pos = fin->p;
+                        size_t pos = cfile->p;
                         uint32_t lin = sline;
 
-                        if (cnt<val.u.num) waitforp--;
-                        for (; cnt<val.u.num; cnt++) {
-                            sline=lin;fin->p=pos;
-                            waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                            compile(2,mprm,nprm,fin);
+                        if (cnt<val.u.num) {
+                            struct star_s *s = new_star(vline);
+                            struct avltree *stree_old = star_tree;
+                            uint32_t ovline = vline;
+
+                            waitforp--;
+                            if (labelexists && s->addr != star) fixeddig=0;
+                            s->addr = star;
+                            star_tree = &s->tree;vline=0;
+                            for (; cnt<val.u.num; cnt++) {
+                                sline=lin;cfile->p=pos;
+                                waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                                compile(2,mprm,nprm);
+                            }
+                            star_tree = stree_old; vline = ovline;
                         }
                     }
 		    break;
@@ -1521,27 +1533,32 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		}
 		if (prm==CMD_INCLUDE) { // .include
                     struct file_s *f;
-                    if (get_path(fin->name)) break;
+                    if (get_path(cfile->name)) break;
                     if (here()) goto extrachar;
                     if (listing && flist) {
                         fprintf(flist,"\n;******  Processing file \"%s\"\n",path);
                         lastl=LIST_NONE;
                     }
-                    f = openfile(path);
-                    if (f->open>1) {
+                    f = cfile;
+                    cfile = openfile(path);
+                    if (cfile->open>1) {
                         err_msg(ERROR_FILERECURSION,NULL);
                     } else {
                         uint32_t lin = sline;
+                        uint32_t vlin = vline;
+                        struct avltree *stree_old = star_tree;
 
-                        enterfile(f->name,sline);
-                        sline=0; f->p=0;
-                        compile(0,mprm,nprm,f);
-                        sline = lin;
+                        enterfile(cfile->name,sline);
+                        sline = vline = 0; cfile->p=0;
+                        star_tree = &cfile->star;
+                        compile(0,mprm,nprm);
+                        sline = lin; vline = vlin;
+                        star_tree = stree_old;
                         exitfile();
                     }
-                    closefile(f);
+                    closefile(cfile);cfile = f;
                     if (listing && flist) {
-                        fprintf(flist,"\n;******  Return to file \"%s\"\n",fin->name);
+                        fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->name);
                         lastl=LIST_NONE;
                     }
 		    break;
@@ -1552,6 +1569,9 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		    int apoint, bpoint = -1;
                     uint8_t expr[linelength];
                     struct label_s *var;
+                    struct star_s *s;
+                    struct avltree *stree_old;
+                    uint32_t ovline;
 
                     waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
 		    if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
@@ -1586,7 +1606,11 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X) lpoint--; else
 			if (wht!=WHAT_COMA) {err_msg(ERROR______EXPECTED,","); break;}
 
-		    xlin=lin=sline; xpos=pos=fin->p; apoint=lpoint;
+                    s = new_star(vline); stree_old = star_tree; ovline = vline;
+                    if (labelexists && s->addr != star) fixeddig=0;
+                    s->addr = star;
+                    star_tree = &s->tree;vline=0;
+		    xlin=lin=sline; xpos=pos=cfile->p; apoint=lpoint;
                     strcpy((char *)expr, (char *)pline);var = NULL;
 		    for (;;) {
 			lpoint=apoint;
@@ -1620,10 +1644,10 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             }
                         }
                         waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-			compile(2,mprm,nprm,fin);
-                        xpos = fin->p; xlin= sline;
+			compile(2,mprm,nprm);
+                        xpos = cfile->p; xlin= sline;
 			strcpy((char *)pline, (char *)expr);
-			sline=lin;fin->p=pos;
+			sline=lin;cfile->p=pos;
                         if (bpoint) {
                             lpoint=bpoint;
                             get_exp(&w,&d,&c,&val,T_NONE);
@@ -1634,14 +1658,15 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                         }
                     }
                     if (pos!=xpos || lin!=xlin) waitforp--;
-                    sline=xlin;fin->p=xpos;
+                    sline=xlin;cfile->p=xpos;
+                    star_tree = stree_old; vline = ovline;
 		    break;
 		}
 		if (prm==CMD_ENDP) { // .endp
 		    if (here()) goto extrachar;
 		    if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
 		    if ((l_address>>8) != (uint32_t)pagelo && fixeddig) {
-                        err_msg(ERROR____PAGE_ERROR,NULL);
+                        err_msg(ERROR____PAGE_ERROR,(const char *)l_address);
                     }
 		    pagelo=-1;
 		    break;
@@ -1667,12 +1692,26 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		}
 		if (prm==CMD_GOTO) { // .goto
                     struct jump_s *tmp2;
+                    int noerr = 1;
                     get_ident('_');
                     ignore();if (here()) goto extrachar;
                     tmp2 = find_jump(ident);
-                    if (tmp2 && tmp2->file == fin) {
-                        sline = tmp2->sline;
-                        fin->p = tmp2->p;
+                    if (tmp2 && tmp2->file == cfile) {
+                        uint8_t oldwaitforp = waitforp;
+                        while (tmp2->waitforp < waitforp) {
+                            uint32_t os = sline;
+                            sline = waitfor[waitforp].line;
+                            switch (waitfor[waitforp--].what) {
+                            case 'm': err_msg(ERROR______EXPECTED,".ENDM"); noerr = 0; break;
+                            case 'n': err_msg(ERROR______EXPECTED,".NEXT"); noerr = 0; break;
+                            case 'p': err_msg(ERROR______EXPECTED,".PEND"); noerr = 0; break;
+                            }
+                            sline = os;
+                        }
+                        if (noerr) {
+                            sline = tmp2->sline;
+                            cfile->p = tmp2->p;
+                        } else waitforp = oldwaitforp;
                     } else err_msg(ERROR___NOT_DEFINED,ident);
 		    break;
 		}
@@ -1715,7 +1754,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
 		}
                 macrecursion++;
                 if (tmp2->type==CMD_MACRO) {
-                    sprintf(varname, "#%u#%d#%d", reffile, sline, macrecursion);
+                    sprintf(varname, "#%x#%d", (unsigned)star_tree, vline);
                     old_context = current_context;
                     current_context=new_context(varname, current_context);
                     current_context->backr=current_context->forwr=1;
@@ -1723,11 +1762,21 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                 if (macrecursion<100) {
                     size_t oldpos = tmp2->file->p;
                     uint32_t lin = sline;
+                    struct file_s *f;
+                    struct star_s *s = new_star(vline);
+                    struct avltree *stree_old = star_tree;
+                    uint32_t ovline = vline;
+
+                    if (labelexists && s->addr != star) fixeddig=0;
+                    s->addr = star;
+                    star_tree = &s->tree;vline=0;
                     enterfile(tmp2->file->name, sline);
                     tmp2->file->p = tmp2->p; sline = tmp2->sline;
                     waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                    compile((tmp2->file!=fin)?1:3,mparams,nprm,tmp2->file);
-                    exitfile();
+                    f = cfile; cfile = tmp2->file;
+                    compile((f!=cfile)?1:3,mparams,nprm);
+                    exitfile(); cfile = f;
+                    star_tree = stree_old; vline = ovline;
                     sline = lin; tmp2->file->p = oldpos;
                 } else err_msg(ERROR__MACRECURSION,"!!!!");
                 if (tmp2->type==CMD_MACRO) current_context = old_context;
@@ -1940,18 +1989,18 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                             }// 10 Db
                             else if (wht==WHAT_EOL) {
                                 if (cnmemonic[ADR_REL]!=____) {
-                                    struct label_s *var;
-                                    sprintf(varname,"*%d*%d", reffile, sline);
-                                    var=new_label(varname);
+                                    struct star_s *s;
+                                    int olabelexists;
+                                    s=new_star(vline+1);olabelexists=labelexists;
                                     ln=1;opr=ADR_REL;
                                     if (val.type != T_NONE) {
                                         uint16_t oadr = adr;
-                                        if (fixeddig && (l_address >> 16)!=(adr >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
+                                        if (fixeddig && (l_address >> 16)!=(adr >> 16)) err_msg(ERROR_BRANCH_TOOFAR,NULL);
 
-                                        if (labelexists && adr >= (unsigned)var->value.u.num) {
-                                            adr=(uint16_t)(adr-var->value.u.num);
+                                        if (labelexists && adr >= s->addr) {
+                                            adr=(uint16_t)(adr - s->addr);
                                         } else {
-                                            adr=(uint16_t)(adr-l_address-2);labelexists=0;
+                                            adr=(uint16_t)(adr - l_address - 2);labelexists=0;
                                         }
                                         if (adr<0xFF80 && adr>0x007F) {
                                             if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
@@ -2001,8 +2050,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm,struct file_s *fin)
                                         }
                                     }
                                     w=0;// bne
-
-                                    var->value.u.num=l_address + 1 + ln;
+                                    if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) fixeddig=0;
+                                    s->addr = (star + 1 + ln) & all_mem;
                                 }
                                 else if (cnmemonic[ADR_REL_L]!=____) {
                                     if (val.type != T_NONE) {
@@ -2258,7 +2307,7 @@ int main(int argc,char *argv[]) {
     time_t t;
     FILE* fout;
     int optind, i;
-    struct file_s *fin, *f;
+    struct file_s *fin;
 
     tinit();
 
@@ -2279,25 +2328,29 @@ int main(int argc,char *argv[]) {
         mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
         for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
-            address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
+            address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;skipit[0]=1;sline=0;outputeor=0;
+            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;
             current_context=&root_context;logitab.p=0;
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
                 enterfile("<command line>",0);
-                fin->p = 0;
-                compile(0,"",-1,fin);
+                fin->p = 0; cfile = fin;
+                star_tree=&fin->star;
+                compile(0,"",-1);
                 exitfile();
                 mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
                 continue;
             }
             memjmp(address);
             enterfile(argv[i],0);
-            f = openfile(argv[i]);
-            f->p = 0;
-            compile(0,"",-1,f);
-            closefile(f);
+            cfile = openfile(argv[i]);
+            if (cfile) {
+                cfile->p = 0;
+                star_tree=&cfile->star;
+                compile(0,"",-1);
+                closefile(cfile);
+            }
             exitfile();
         }
         if (errors) {memcomp();status();return 1;}
@@ -2324,15 +2377,16 @@ int main(int argc,char *argv[]) {
             if (i >= optind) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
-            address=l_address=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
+            address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;skipit[0]=1;sline=0;outputeor=0;
+            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;
             current_context=&root_context;logitab.p=0;
 
             if (i == optind - 1) {
                 enterfile("<command line>",0);
-                fin->p = 0;
-                compile(0,"",-1,fin);
+                fin->p = 0; cfile = fin;
+                star_tree=&fin->star;
+                compile(0,"",-1);
                 exitfile();
                 mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
                 continue;
@@ -2340,15 +2394,19 @@ int main(int argc,char *argv[]) {
             memjmp(address);
 
             enterfile(argv[i],0);
-            f = openfile(argv[i]);
-            f->p = 0;
-            compile(0,"",-1,f);
-            closefile(f);
+            cfile = openfile(argv[i]);
+            if (cfile) {
+                cfile->p = 0;
+                star_tree=&cfile->star;
+                compile(0,"",-1);
+                closefile(cfile);
+            }
             exitfile();
         }
 	fputs("\n;******  End of listing\n", flist);
 	if (flist != stdout) fclose(flist);
     }
+    if (!fixeddig) err_msg(ERROR_TOO_MANY_PASS, NULL);
     memcomp();
 
     set_cpumode(arguments.cpumode);

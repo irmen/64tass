@@ -475,7 +475,7 @@ void err_msg(enum errors_e no, const char* prm) {
     }
     else if (no<0x80) {
         if (no==ERROR____PAGE_ERROR) {
-            snprintf(line,linelength,"Page error at $%06x",l_address);
+            snprintf(line,linelength,"Page error at $%06x",(uint32_t)prm);
             conderrors++;
         }
         else if (no==ERROR__BRANCH_CROSS) {
@@ -553,6 +553,14 @@ static int jump_compare(const struct avltree_node *aa, const struct avltree_node
     return strcmp(a->name, b->name);
 }
 
+static int star_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    struct star_s *a = avltree_container_of(aa, struct star_s, node);
+    struct star_s *b = avltree_container_of(bb, struct star_s, node);
+
+    return a->line - b->line;
+}
+
 static void label_free(const struct avltree_node *aa)
 {
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
@@ -582,6 +590,7 @@ static void file_free(const struct avltree_node *aa)
 {
     struct file_s *a = avltree_container_of(aa, struct file_s, node);
 
+    avltree_destroy(&a->star);
     free(a->data);
     free(a->name);
     free(a);
@@ -592,6 +601,14 @@ static void jump_free(const struct avltree_node *aa)
     struct jump_s *a = avltree_container_of(aa, struct jump_s, node);
 
     free(a->name);
+    free(a);
+}
+
+static void star_free(const struct avltree_node *aa)
+{
+    struct star_s *a = avltree_container_of(aa, struct star_s, node);
+
+    avltree_destroy(&a->tree);
     free(a);
 }
 
@@ -710,6 +727,25 @@ struct jump_s *new_jump(char* name) {
     }
     labelexists=1;
     return avltree_container_of(b, struct jump_s, node);            //already exists
+}
+
+static struct star_s *lastst=NULL;
+struct star_s *new_star(uint32_t line) {
+    const struct avltree_node *b;
+    struct star_s *tmp;
+    if (!lastst)
+	if (!(lastst=malloc(sizeof(struct star_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+    lastst->line=line;
+    b=avltree_insert(&lastst->node, star_tree);
+    if (!b) { //new label
+	labelexists=0;
+        avltree_init(&lastst->tree, star_compare, star_free);
+	tmp=lastst;
+	lastst=NULL;
+	return tmp;
+    }
+    labelexists=1;
+    return avltree_container_of(b, struct star_s, node);            //already exists
 }
 // ---------------------------------------------------------------------------
 
@@ -832,11 +868,13 @@ struct file_s *openfile(char* name) {
 	lastfi->len=0;
 	lastfi->p=0;
         lastfi->open=0;
+        avltree_init(&lastfi->star, star_compare, star_free);
         if (name[0]) {
             if (name[0]=='-' && !name[1]) f=stdin;
             else f=fopen(name,"rb");
             if (!f) {
                 lastfi=NULL;
+                err_msg(ERROR_CANT_FINDFILE,name);
                 return NULL;
             }
             if (arguments.quiet) printf("Assembling file:   %s\n",name);
@@ -1009,6 +1047,7 @@ void tfree(void) {
     free(lastma);
     free(lastlb);
     free(lastjp);
+    free(lastst);
     free(file_list.data);
     free(error_list.data);
 }
