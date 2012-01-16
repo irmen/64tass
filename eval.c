@@ -140,7 +140,7 @@ static int get_label(int mode, struct value_s *v) {// 0=unknown stuff, 1=ok
     tmp=find_label(ident);
     if (pass==1) {
         if (tmp) {
-            tmp->proclabel=0;tmp->pass=pass;*v=tmp->value;
+            tmp->ref=1;tmp->pass=pass;*v=tmp->value;
             if (tmp->varlabel && tmp->upass!=pass) err_msg(ERROR___NOT_DEFINED,ident);
         }
         return 1;
@@ -150,7 +150,7 @@ static int get_label(int mode, struct value_s *v) {// 0=unknown stuff, 1=ok
             if ((tmp->requires & current_provides)!=tmp->requires) err_msg(ERROR_REQUIREMENTS_,ident);
             if (tmp->conflicts & current_provides) err_msg(ERROR______CONFLICT,ident);
             if (tmp->varlabel && tmp->upass!=pass) err_msg(ERROR___NOT_DEFINED,ident);
-            tmp->proclabel=0;tmp->pass=pass;*v=tmp->value;return 1;
+            tmp->ref=1;tmp->pass=pass;*v=tmp->value;return 1;
         }
         if (mode) err_msg(ERROR___NOT_DEFINED,(mode & 1)?"+":"-");
         else
@@ -713,22 +713,23 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             v_stack[vsp-1].type = T_INT;
             v_stack[vsp-1].u.num = val1;
 	} else if (v_stack[vsp-1].type == T_NONE) {
-            if (v_stack[vsp-2].type == T_INT) { /* short circuit evaluation */
-                if ((ch=='A' && !v_stack[vsp-2].u.num) || (ch=='O' && v_stack[vsp-2].u.num)) {
-                    vsp--;
-                    v_stack[vsp-1].u.num=(ch=='O');
-                    continue;
-                }
-            }
             switch (ch) {
+            case 'A':
+            case 'O':
+                if (v_stack[vsp-2].type == T_INT) { /* short circuit evaluation */
+                    if ((ch=='A' && !v_stack[vsp-2].u.num) || (ch=='O' && v_stack[vsp-2].u.num)) {
+                        vsp--;
+                        v_stack[vsp-1].u.num=(ch=='O');
+                        continue;
+                    }
+                }
+                /* fall through */
             case '=':
             case 'o':
             case '<':
             case '>':
             case 'g':
             case 's':
-            case 'A':
-            case 'O':
             case 'X':
             case '*':
             case '/':

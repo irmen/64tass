@@ -617,6 +617,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
     uint32_t backr_old = 0, forwr_old = 0;
     uint16_t reffile_old = 0;
     uint8_t oldwaitforp = waitforp;
+    unsigned wasref;
 
     if (tpe==0) {
         backr_old=current_context->backr;
@@ -630,7 +631,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
 	readln(cfile);
 	if (nprm>=0) mtranslate(mprm,nprm,pline); //expand macro parameters, if any
 
-        ident2[0]=0;
+        ident2[0]=wasref=0;
 	if ((wht=what(&prm))==WHAT_EXPRESSION) {
             if (!prm) {
                 if (here()=='-') {
@@ -662,7 +663,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
 		if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); continue;}
 		ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
 		tmp=new_label(varname);
-                if (listing && flist && arguments.source && tmp->pass+1>=pass) {
+                if (listing && flist && arguments.source && tmp->ref) {
                     if (nprm>=0) mtranslate(mprm,nprm,llist);
                     if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
                     if (val.type == T_INT || val.type == T_CHR) {
@@ -672,6 +673,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     }
                     printllist(flist);
                 }
+                tmp->ref=0;
 		if (pass==1) {
 		    if (labelexists) {
 			err_msg(ERROR_DOUBLE_DEFINE,varname);
@@ -680,7 +682,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     else {
                         tmp->requires=current_requires;
                         tmp->conflicts=current_conflicts;
-			tmp->proclabel=0;tmp->varlabel=0;tmp->upass=tmp->pass=pass;
+			tmp->upass=tmp->pass=pass;
 			tmp->value=val;
                         if (val.type == T_STR) {
                             tmp->value.u.str.data=malloc(val.u.str.len);
@@ -705,7 +707,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); continue;}
                     ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
                     tmp=new_label(varname);
-                    if (listing && flist && arguments.source && tmp->pass+1>=pass) {
+                    if (listing && flist && arguments.source && tmp->ref) {
                         if (nprm>=0) mtranslate(mprm,nprm,llist);
                         if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
                         if (val.type == T_INT || val.type == T_CHR) {
@@ -715,6 +717,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         }
                         printllist(flist);
                     }
+                    tmp->ref=0;
                     if (labelexists) {
                         if (!tmp->varlabel) {
                             err_msg(ERROR_DOUBLE_DEFINE,varname);
@@ -726,7 +729,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     } else {
                         tmp->requires=current_requires;
                         tmp->conflicts=current_conflicts;
-                        tmp->proclabel=0;tmp->varlabel=1;tmp->upass=tmp->pass=pass;
+                        tmp->varlabel=1;tmp->upass=tmp->pass=pass;
                         tmp->value=val;
                         if (val.type == T_STR) {
                             tmp->value.u.str.data=malloc(val.u.str.len);
@@ -794,8 +797,6 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     tmp->conflicts=current_conflicts;
                     tmp->upass=tmp->pass=pass;
 		    tmp->value.type=T_INT;tmp->value.u.num=l_address;
-		    if (wht==WHAT_COMMAND && prm==CMD_PROC) tmp->proclabel=1; else tmp->proclabel=0;
-                    tmp->varlabel=0;
 		}
 	    }
 	    else {
@@ -812,6 +813,23 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     tmp->value.type=T_INT;
 		}
 	    }
+            if (wht==WHAT_COMMAND && prm==CMD_PROC) { // .proc
+                waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;
+                if (!tmp->ref && pass != 1) skipit[waitforp]=0;
+                else {
+                    skipit[waitforp]=1;
+                    current_context=new_context(ident, current_context);
+                    current_context->backr=current_context->forwr=1;
+                    if (listing && flist && arguments.source) {
+                        if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                        fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
+                    }
+                    tmp->ref=0;
+                }
+                if (here()) goto extrachar;
+                continue;
+            }
+            wasref=tmp->ref;tmp->ref=0;
             if (pline[0] == 0x20) err_msg(ERROR_LABEL_NOT_LEF,NULL);
 	}
 	jn:
@@ -826,7 +844,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 ignore();if (here()) goto extrachar;
                 if (listing && flist && arguments.source) {
                     lastl=LIST_NONE;
-                    if (ident2[0] && tmp->pass+1>=pass)
+                    if (wasref)
                         fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                     else
                         fputs("\n\t\t\t\t\t", flist);
@@ -847,7 +865,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
 	    }
             break;
 	case WHAT_EOL:
-            if (listing && flist && arguments.source && (skipit[waitforp] & 1) && ident2[0] && tmp->pass+1>=pass) {
+            if (listing && flist && arguments.source && (skipit[waitforp] & 1) && wasref) {
                 if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
                 fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                 printllist(flist);
@@ -880,14 +898,14 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         case CMD_CPU:
                         case CMD_INCLUDE:
                             if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                            if (ident2[0] && tmp->pass+1>=pass)
+                            if (wasref)
                                 fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                             else
                                 fputs("\t\t\t\t\t", flist);
                             printllist(flist);
                             break;
                         default:
-                            if (ident2[0] && tmp->pass+1>=pass) {
+                            if (wasref) {
                                 if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
                                 fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                             }
@@ -1245,25 +1263,6 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
 		    err_msg(ERROR__USER_DEFINED,(char *)&pline[lpoint]);
 		    break;
 		}
-		if (prm==CMD_PROC) { // .proc
-		    if (tmp) {
-			if (tmp->proclabel && pass!=1) {
-                            waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0;
-                        }
-                        else {
-                            waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-		            tmp->proclabel=1;
-                            current_context=new_context(ident, current_context);
-                            current_context->backr=current_context->forwr=1;
-                            if (listing && flist && arguments.source) {
-                                if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
-                            }
-                        }
-		    }
-		    if (here()) goto extrachar;
-		    break;
-		}
                 if (prm==CMD_BLOCK) { // .block
                     if (here()) goto extrachar;
                     sprintf(varname, ".%x.%u", (unsigned)star_tree, vline);
@@ -1600,7 +1599,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         } else {
                             var->requires=current_requires;
                             var->conflicts=current_conflicts;
-                            var->proclabel=0;var->varlabel=1;var->upass=var->pass=pass;
+                            var->varlabel=1;var->upass=var->pass=pass;
                             var->value=val;
                             if (val.type == T_STR) {
                                 var->value.u.str.data=malloc(val.u.str.len);
@@ -1644,7 +1643,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                                 } else {
                                     var->requires=current_requires;
                                     var->conflicts=current_conflicts;
-                                    var->proclabel=0;var->varlabel=1;var->upass=var->pass=pass;
+                                    var->varlabel=1;var->upass=var->pass=pass;
                                     var->value.type=T_NONE;
                                 }
                                 bpoint=lpoint;
@@ -1722,6 +1721,16 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     } else err_msg(ERROR___NOT_DEFINED,ident);
 		    break;
 		}
+                if (prm==CMD_MACRO || prm==CMD_SEGMENT) {
+                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    err_msg(ERROR___NOT_DEFINED,ident);
+                    break;
+                }
+                if (prm==CMD_PROC) {
+                    waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    err_msg(ERROR___NOT_DEFINED,ident);
+                    break;
+                }
 	    }
 	case WHAT_HASHMARK:if (skipit[waitforp] & 1) //skip things if needed
 	    {                   //macro stuff
@@ -1731,7 +1740,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 if (get_ident2('_')) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                 if (!(tmp2=find_macro(ident))) {err_msg(ERROR___NOT_DEFINED,ident); break;}
             as_macro:
-                if (listing && flist && arguments.source && ident2[0] && tmp->pass+1>=pass) {
+                if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
                     fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                 }

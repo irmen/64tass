@@ -115,7 +115,7 @@ struct label_s {
     struct value_s value;
     uint32_t requires;
     uint32_t conflicts;
-    unsigned proclabel:1;
+    unsigned ref:1;
     unsigned varlabel:1;
     uint8_t pass;
     uint8_t upass;

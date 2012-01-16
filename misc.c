@@ -635,7 +635,7 @@ struct label_s *find_label(char* name) {
             if (!c) break;
             if (d) {
                 a2 = avltree_container_of(d, struct label_s, node);
-                a2->proclabel = 0; a2->pass = pass;
+                a2->ref = 1; a2->pass = pass;
             }
             context2 = avltree_container_of(c, struct context_s, node);
             b.name = n + 1;
@@ -674,6 +674,7 @@ struct label_s *new_label(char* name) {
     if (!b) { //new label
 	if (!(lastlb->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastlb->name,name);
+        lastlb->varlabel=lastlb->ref=0;
 	labelexists=0;
 	tmp=lastlb;
 	lastlb=NULL;
