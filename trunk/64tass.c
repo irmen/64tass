@@ -909,24 +909,26 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
 		if (prm==CMD_ELSE) { // .else
 		    if (waitfor[waitforp].what=='f') {err_msg(ERROR______EXPECTED,".FI"); break;}
 		    if (waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
-		    if (here()) goto extrachar;
 		    skipit[waitforp]=skipit[waitforp] >> 1;
 		    waitfor[waitforp].what='f';waitfor[waitforp].line=sline;
+		    if (here()) goto extrachar;
                     break;
 		}
 		if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
-		    if (prm==CMD_ELSIF && waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
-		    if (((skipit[waitforp]==1) && prm!=CMD_ELSIF) || ((skipit[waitforp]==2) && prm==CMD_ELSIF)) {
+                    uint8_t skwait = skipit[waitforp];
+		    if (prm==CMD_ELSIF) {
+                        if (waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
+                    } else waitfor[++waitforp].what='e';
+                    waitfor[waitforp].line=sline;
+		    if (((skwait==1) && prm!=CMD_ELSIF) || ((skwait==2) && prm==CMD_ELSIF)) {
 			get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
 			if (!c) break;
 			if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
 			ignore();if (here()) goto extrachar;
                 	if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");val.type=T_NONE;}
 		    } else val.type=T_NONE;
-                    waitfor[++waitforp].what='e';waitfor[waitforp].line=sline;
                     switch (prm) {
                     case CMD_ELSIF:
-                        waitforp--;
                         if (((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp] >> 1; else
                             skipit[waitforp]=skipit[waitforp] & 2;
                         break;
