@@ -139,6 +139,12 @@ line using the <q>--long-branch</q> option.</p>
 .0006    ea             nop                     <b>nop</b>
 </pre>
 
+<p>Please note that forward jump expressions like <code>Bxx *+130</code>,
+<code>Bxx *+131</code> and <code>Bxx *+132</code> are not allowed as the
+compiler can't decide between a short/long branch. Of course these destinations
+can be used, but only with normal or anonymous labels defined after the jump
+instruction.</p>
+
 <p>There are some other tips below in the descriptions.</p>
 
 <hr>
@@ -574,8 +580,8 @@ Expressions can be used at a lot of places. Here's a list of available operators
 <tr><td><tt>x ^ y</tt><td align="left">bitwise xor
 <tr><td><tt>x &amp; y</tt><td align="left">bitwise and
 <tr><td><tt>x &lt;&lt; y</tt><td align="left">logical shift left
-<tr><td><tt>x &gt;&gt; y</tt><td align="left">logical shift right
-<tr><td><tt>x &gt;&gt;&gt; y</tt><td align="left">arithmetic shift right
+<tr><td><tt>x &gt;&gt; y</tt><td align="left">arithmetic shift right
+<tr><td><tt>x &gt;&gt;&gt; y</tt><td align="left">logical shift right
 <tr><td><tt>~x</tt><td align="left">invert bits
 </table>
 
@@ -591,6 +597,7 @@ Expressions can be used at a lot of places. Here's a list of available operators
 <tr><td><tt>x * y</tt><td align="left">multiply
 <tr><td><tt>x / y</tt><td align="left">divide
 <tr><td><tt>x // y</tt><td align="left">modulo
+<tr><td><tt>x ** y</tt><td align="left">exponentiation
 <tr><td><tt>-x</tt><td align="left">negate
 <tr><td><tt>+x</tt><td align="left">unchanged
 </table>

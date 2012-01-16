@@ -196,17 +196,18 @@ static int priority(char ch)
     case '^':return 7;
     case '&':return 8;
     case 'm':          // <<
-    case 'D':          // >>>
-    case 'd':return 9; // >>
+    case 'D':          // >>
+    case 'd':return 9; // >>>
     case '+':
     case '-':return 10;
     case '*':
     case '/':
-    case '%':return 11;// mod
+    case '%':return 11;// %
+    case 'E':return 12;// **
     case 'n':          // -
-    case 'p':return 12;// +
-    case 'i':return 13;// ~
-    case 't':return 14;// !
+    case 'p':return 13;// +
+    case 'i':return 14;// ~
+    case 't':return 15;// !
     }
 }
 
@@ -473,7 +474,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case '&': if (pline[lpoint+1] == '&') {lpoint++;ch = 'A';} goto push2;
             case '|': if (pline[lpoint+1] == '|') {lpoint++;ch = 'O';} goto push2;
             case '^': if (pline[lpoint+1] == '^') {lpoint++;ch = 'X';} goto push2;
-            case '*': goto push2;
+            case '*': if (pline[lpoint+1] == '*') {lpoint++;ch = 'E';} goto push2;
             case '%': goto push2;
             case '/': if (pline[lpoint+1] == '/') {lpoint++;ch = '%';} goto push2;
             case '+': goto push2;
@@ -497,7 +498,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case '>':
                 switch (pline[lpoint+1]) {
                 case '<': lpoint++;ch = 'o'; break;
-                case '>': lpoint++;if (pline[lpoint+1] == '>') {lpoint++;ch = 'D';} else ch = 'd'; break;
+                case '>': lpoint++;if (pline[lpoint+1] == '>') {lpoint++;ch = 'd';} else ch = 'D'; break;
                 case '=': lpoint++;ch = 'g'; break;
                 }
                 goto push2;
@@ -583,9 +584,36 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 case '&': val1 &= val2; break;
                 case '|': val1 |= val2; break;
                 case '^': val1 ^= val2; break;
-                case 'm': val1 = val2 << val1; break;
-                case 'd': val1 = (unsigned)val2 >> val1; break;
-                case 'D': val1 = val2 >> val1; break;
+                case 'm':
+                    if (val1 >= (signed)sizeof(val2)*8 || val1 <= -(signed)sizeof(val2)*8) val1=0;
+                    else val1 = (val1 > 0) ? (val2 << val1) : (signed)((unsigned)val2 >> (-val1));
+                    break;
+                case 'd': 
+                    if (val1 >= (signed)sizeof(val2)*8 || val1 <= -(signed)sizeof(val2)*8) val1=0;
+                    else val1 = (val1 > 0) ? (signed)((unsigned)val2 >> val1) : (val2 << (-val1));
+                    break;
+                case 'D': 
+                    if (val1 >= (signed)sizeof(val2)*8) val1 = (val2 > 0) ? 0 : -1;
+                    if (val1 <= -(signed)sizeof(val2)*8) val1 = 0;
+                    else if (val2 >= 0) val1 = (val1 > 0) ? (val2 >> val1) : (val2 << (-val1));
+                    else val1 = ~((val1 > 0) ? ((~val2) >> val1) : ((~val2) << (-val1)));
+                    break;
+                case 'E': 
+                    {
+                        int32_t res = 1;
+
+                        if (val1 < 0) {
+                            if (!val2) {err_msg(ERROR_DIVISION_BY_Z,NULL); res = 0x7fffffff; large=1;}
+                            else res = 0;
+                        } else {
+                            while (val1) {
+                                if (val1 & 1) res *= val2;
+                                val2 *= val2;
+                                val1 >>= 1;
+                            }
+                        }
+                        val1 = res;
+                    }
                 }
                 vsp--;
             }
@@ -700,6 +728,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case 'm':
             case 'd':
             case 'D':
+            case 'E':
                 if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
                 vsp--; break;
             }

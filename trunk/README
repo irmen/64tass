@@ -120,6 +120,11 @@ option.
 .0001    b0 03 4c 00 10 bcc $1000               bcc $1000      ;long branch
 .0006    ea             nop                     nop
 
+Please note that forward jump expressions like Bxx *+130, Bxx *+131 and Bxx
+*+132 are not allowed as the compiler can't decide between a short/long branch.
+Of course these destinations can be used, but only with normal or anonymous
+labels defined after the jump instruction.
+
 There are some other tips below in the descriptions.
 
 -------------------------------------------------------------------------------
@@ -562,8 +567,8 @@ x | y    bitwise or
 x ^ y    bitwise xor
 x & y    bitwise and
 x << y   logical shift left
-x >> y   logical shift right
-x >>> y  arithmetic shift right
+x >> y   arithmetic shift right
+x >>> y  logical shift right
 ~x       invert bits
 
         lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
@@ -576,6 +581,7 @@ x - y    substract
 x * y    multiply
 x / y    divide
 x // y   modulo
+x ** y   exponentiation
 -x       negate
 +x       unchanged
 
