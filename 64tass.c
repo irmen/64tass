@@ -56,8 +56,7 @@ static size_t memblocklastp = 0;
 static uint32_t memblocklaststart = 0;
 static struct {unsigned int p, len;struct memblock_s *data;} memblocks = {0, 0, NULL};
 uint32_t address=0, l_address=0, star=0; //address, logical address
-uint8_t pline[linelength];  //current line data
-static uint8_t llist[linelength];  //current line for listing
+const uint8_t *pline, *llist;  //current line data
 unsigned int lpoint;              //position in current line
 char ident[linelength], ident2[linelength];  //identifier (label, etc)
 static char varname[linelength];//variable (same as identifier?)
@@ -207,65 +206,39 @@ void status(void) {
     tfree();
 }
 
-// ---------------------------------------------------------------------------
-/*
- * read one input line, filters comments (';') and breaks up statements
- * seperated by colons (':') into seperate lines.
- *
- * in:
- *      fle - file
- * out:
- *      llist -
- *      pline -
- */
-static inline void readln() {
-    unsigned int i = 0;
+static void nextln() {
     uint_fast8_t q = 0;
-    size_t l = cfile->p;
-    const uint8_t *c = &cfile->data[cfile->p];
 
-    if (cfile->len != cfile->p) {
-        for (; i < sizeof(pline) - 1; i++) {
-            switch (pline[i]=c[i]) {
-                case '\'': if (!(q & 5)) q^=2;continue;
-                case '"': if (!(q & 6)) q^=1;continue;
-                case '\t': if (!q) pline[i]=32;continue;
-                case ';':
-                    if (q) continue;
-                    cfile->p += strlen((char *)c + i);
-                case 0:sline++;vline++;goto end;
-                case ':': if (!q && !arguments.tasmcomp) {vline++;goto end;}
-            }
+    for (;;lpoint++) {
+        switch (here()) {
+        case '\'': if (!(q & 1)) q^=2;continue;
+        case '"': if (!(q & 2)) q^=1;continue;
+        case ':': if (!q && !arguments.tasmcomp) return; 
+        case ';':
+        case 0: return;
         }
-        pline[i]=0;err_msg(ERROR_LINE_TOO_LONG,NULL);
-end:    cfile->p += i + 1;
-    }
-    while (i && pline[i-1]==0x20) i--;
-    pline[i]=lpoint=0;
-    if (listing) {
-        i = cfile->p - l;
-        if (i) i--;
-        memcpy(llist, &cfile->data[l], i);
-        llist[i]=0;
     }
 }
 
 static void printllist(FILE *f) {
-    uint8_t *c = llist, *last, *n;
+    const uint8_t *c = llist, *last, *n;
     uint32_t ch;
-    last = c;
-    while ((ch = *c)) {
-        if (ch & 0x80) n=c+utf8in(c, &ch); else n=c+1;
-        if ((ch < 0x20 || ch > 0x7e) && ch!=9) {
-            fwrite(last, c - last, 1, f);
-            fprintf(f, "{$%x}", ch);
-            last=n;
+    if (c) {
+        last = c;
+        while ((ch = *c)) {
+            if (ch & 0x80) n=c+utf8in(c, &ch); else n=c+1;
+            if ((ch < 0x20 || ch > 0x7e) && ch!=9) {
+                fwrite(last, c - last, 1, f);
+                fprintf(f, "{$%x}", ch);
+                last=n;
+            }
+            c = n;
         }
-        c = n;
+        while (c > last && (c[-1] == 0x20 || c[-1] == 0x09)) c--;
+        fwrite(last, c - last, 1, f);
+        llist=NULL;
     }
-    *c='\n';
-    fwrite(last, c - last + 1, 1, f);
-    *c=0;
+    fputc('\n', f);
 }
 
 // ---------------------------------------------------------------------------
@@ -349,15 +322,15 @@ static void pokeb(uint8_t byte)
     if (fixeddig && scpumode) if (!(address & 0xffff) || !(l_address & 0xffff)) wrapwarn2=1;
 }
 
-static int lookup_opcode(const char *pline) {
+static int lookup_opcode(const char *s) {
     char s2,s3, ch;
     const char *p;
     int s4;
     unsigned int also=0,felso,elozo, no;
 
-    ch=lowcase(pline[0]);
+    ch=lowcase(s[0]);
     no=(felso=last_mnem)/2;
-    if (ch && (s2=lowcase(pline[1])) && (s3=lowcase(pline[2])) && !pline[3])
+    if (ch && (s2=lowcase(s[1])) && (s3=lowcase(s[2])) && !s[3])
         for (;;) {  // do binary search
             if (!(s4=ch-*(p=mnemonic+no*3)))
                 if (!(s4=s2-*(++p)))
@@ -417,9 +390,9 @@ static int what(int *tempno) {
 	lpoint++;
         ignore();
 	switch (get() | 0x20) {
-	case 'y': return WHAT_Y;
-	case 'x': ignore();if (get()==')') return WHAT_XZ; else {lpoint--; return WHAT_X;}
-	case 's': ignore();if (get()==')') return WHAT_SZ; else {lpoint--; return WHAT_S;}
+	case 'y': ignore();return WHAT_Y;
+	case 'x': ignore();if (here()==')') {lpoint++;ignore();return WHAT_XZ;} else return WHAT_X;
+	case 's': ignore();if (here()==')') {lpoint++;ignore();return WHAT_SZ;} else return WHAT_S;
 	default: lpoint--;return WHAT_COMA;
 	}
     case WHAT_CHAR:
@@ -427,6 +400,9 @@ static int what(int *tempno) {
             *tempno=1;return WHAT_EXPRESSION;
     case WHAT_EXPRESSION://tempno=1 if label, 0 if expression
 	    *tempno=0;return WHAT_EXPRESSION;
+    case WHAT_COLON: if (arguments.tasmcomp) {lpoint++;return 0;}
+    case WHAT_COMMENT:
+    case WHAT_EOL:return ch;
     default:lpoint++;return ch;
     }
 }
@@ -463,7 +439,7 @@ static uint_fast8_t val_length(int32_t val)
 
 static int get_path(const char *base) {
     int q=1;
-    unsigned int i=0;
+    unsigned int i=0, i2;
     if (base) {
         char *c=strrchr(base,'/');
         if (c) {
@@ -472,14 +448,15 @@ static int get_path(const char *base) {
             memcpy(path,base,i);
         }
     }
+    i2 = i;
     ignore();
-    if (!here()) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
     if (here()=='\"') {lpoint++;q=0;}
-    while (here() && (here()!='\"' || q) && i<sizeof(path)) path[i++]=get();
+    while (here() && (here()!=';' || !q) && (here()!=':' || !q || arguments.tasmcomp) && (here()!='\"' || q) && i<sizeof(path)) path[i++]=get();
     if (i>=sizeof(path) || (!q && here()!='\"')) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
-    if (!q) lpoint++;
+    if (!q) lpoint++; else while (i && (path[i-1]==0x20 || path[i-1]==0x09)) i--;
     path[i]=0;
     ignore();
+    if (i <= i2) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
     return 0;
 }
 
@@ -495,13 +472,13 @@ static int get_path(const char *base) {
  * out:
  *   cucc: one line of the macro (expanded)
 */
-static void mtranslate(const char* mpr, uint_fast8_t nprm, uint8_t *cucc)
+static inline void mtranslate(const char* mpr, uint_fast8_t nprm, const uint8_t *tmp)
 {
     uint_fast8_t q;
     uint_fast16_t p, pp, i, j;
-    char tmp[linelength], ch;
+    uint8_t ch;
+    static uint8_t cucc[linelength];
 
-    strcpy(tmp,(char *)cucc);
     q=p=0;
     for (i = 0; (ch = tmp[i]); i++) {
         if (ch == '"'  && !(q & 2)) { q^=1; }
@@ -513,7 +490,7 @@ static void mtranslate(const char* mpr, uint_fast8_t nprm, uint8_t *cucc)
                 /* \1..\9, \a..\z */
                 if ((j=(ch<='9' ? ch-'1' : ch-'a'+9))>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
                 for (pp=0; j; j--) while (mpr[pp++]); //skip parameters
-                while (mpr[pp]==0x20) pp++; //skip space
+                while (mpr[pp]==0x20 || mpr[pp]==0x09) pp++; //skip space
                 while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
                 if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
                 i++;continue;
@@ -535,7 +512,7 @@ static void mtranslate(const char* mpr, uint_fast8_t nprm, uint8_t *cucc)
                 /* @1..@9 */
                 if ((j=ch-'1')>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
                 for (pp=0; j; j--) while (mpr[pp++]); //skip parameters
-                while (mpr[pp]==0x20) pp++; //skip space
+                while (mpr[pp]==0x20 || mpr[pp]==0x09) pp++; //skip space
                 while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
                 if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
                 i++;continue;
@@ -545,6 +522,7 @@ static void mtranslate(const char* mpr, uint_fast8_t nprm, uint8_t *cucc)
         if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
     }
     cucc[p]=0;
+    pline = cucc;
 }
 
 //------------------------------------------------------------------------------
@@ -618,6 +596,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
     uint16_t reffile_old = 0;
     uint8_t oldwaitforp = waitforp;
     unsigned wasref;
+    int nobreak = 1;
 
     if (tpe==0) {
         backr_old=current_context->backr;
@@ -626,89 +605,43 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
     }
     if (tpe==0 || tpe==1) reffile_old=reffile;
 
-    while (cfile->len != cfile->p) {
-        star=l_address;
-	readln(cfile);
-	if (nprm>=0) mtranslate(mprm,nprm,pline); //expand macro parameters, if any
-
-        ident2[0]=wasref=0;
-	if ((wht=what(&prm))==WHAT_EXPRESSION) {
-            if (!prm) {
-                if (here()=='-') {
-                    lpoint++;if (here()!=0x20 && here()) goto baj;
-                    prm=1;
-                    sprintf(ident,"-%u-%u",reffile,current_context->backr++);
-                    ident2[0]='-';ident2[1]=0;
-                    goto hh;
-                } else if (here()=='+') {
-                    lpoint++;if (here()!=0x20 && here()) goto baj;
-                    prm=1;
-                    sprintf(ident,"+%u+%u",reffile,current_context->forwr++);
-                    ident2[0]='+';ident2[1]=0;
-                    goto hh;
-                }
-            baj:
-                err_msg(ERROR_GENERL_SYNTAX,NULL);
-                continue;
-            } //not label
-            get_ident('_');                                           //get label
-            if ((prm=lookup_opcode(ident))>=0) goto as_opcode;
-            if (listing) strcpy(ident2,ident);
-        hh:
-            if (!(skipit[waitforp] & 1)) {wht=what(&prm);goto jn;} //skip things if needed
-            if ((wht=what(&prm))==WHAT_EQUAL) { //variable
-                strcpy(varname,ident);
-                get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
-		if (!c) continue;
-		if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); continue;}
-		ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
-		tmp=new_label(varname);
-                if (listing && flist && arguments.source && tmp->ref) {
-                    if (nprm>=0) mtranslate(mprm,nprm,llist);
-                    if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
-                    if (val.type == T_INT || val.type == T_CHR) {
-                        fprintf(flist,"=%x\t\t\t\t\t",val.u.num);
-                    } else {
-                        fputs("=\t\t\t\t\t", flist);
-                    }
-                    printllist(flist);
-                }
-                tmp->ref=0;
-		if (pass==1) {
-		    if (labelexists) {
-			err_msg(ERROR_DOUBLE_DEFINE,varname);
-			continue;
-		    }
-                    else {
-                        tmp->requires=current_requires;
-                        tmp->conflicts=current_conflicts;
-			tmp->upass=tmp->pass=pass;
-			tmp->value=val;
-                        if (val.type == T_STR) {
-                            tmp->value.u.str.data=malloc(val.u.str.len);
-                            memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
+    while (cfile->len != cfile->p && nobreak) {
+        pline = cfile->data + cfile->p; lpoint = 0; sline++;vline++; cfile->p += strlen((char *)pline) + 1;
+        if (nprm>=0) mtranslate(mprm,nprm,pline); //expand macro parameters, if any
+        llist = pline;
+        while (nobreak) {
+            int notfirst = (here() == 0x20 || here()==0x09);
+            star=l_address;
+            ident2[0]=wasref=0;
+            if ((wht=what(&prm))==WHAT_EXPRESSION) {
+                if (!prm) {
+                    if (here()=='-' || here()=='+') {
+                        ident2[0]=here();ident2[1]=0;
+                        lpoint++;if (here()!=0x20 && here()!=0x09 && here()!=';' && (here()!=':' || arguments.tasmcomp) && here()) goto baj;
+                        prm=1;
+                        if (ident2[0]=='-') {
+                            sprintf(ident,"-%u-%u",reffile,current_context->backr++);
+                        } else {
+                            sprintf(ident,"+%u+%u",reffile,current_context->forwr++);
                         }
-		    }
-		}
-		else {
-                    if (labelexists) {
-                        tmp->requires=current_requires;
-                        tmp->conflicts=current_conflicts;
-                        var_assign(tmp, &val, 0);
+                        goto hh;
                     }
-		}
-                continue;
-            }
-            if (wht==WHAT_COMMAND) {
-                if (prm==CMD_VAR) { //variable
+                baj:
+                    if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL);
+                    goto breakerr;
+                } //not label
+                get_ident('_');                                           //get label
+                if ((prm=lookup_opcode(ident))>=0) goto as_opcode;
+                if (listing) strcpy(ident2,ident);
+            hh:
+                if (!(skipit[waitforp] & 1)) {wht=what(&prm);goto jn;} //skip things if needed
+                if ((wht=what(&prm))==WHAT_EQUAL) { //variable
                     strcpy(varname,ident);
                     get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
-                    if (!c) continue;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); continue;}
-                    ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
+                    if (!c) goto breakerr;
+                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL);goto breakerr;}
                     tmp=new_label(varname);
                     if (listing && flist && arguments.source && tmp->ref) {
-                        if (nprm>=0) mtranslate(mprm,nprm,llist);
                         if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
                         if (val.type == T_INT || val.type == T_CHR) {
                             fprintf(flist,"=%x\t\t\t\t\t",val.u.num);
@@ -718,782 +651,521 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         printllist(flist);
                     }
                     tmp->ref=0;
-                    if (labelexists) {
-                        if (!tmp->varlabel) {
-                            err_msg(ERROR_DOUBLE_DEFINE,varname);
-                            continue;
+                    if (pass==1) {
+                        if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,varname);
+                        else {
+                            tmp->requires=current_requires;
+                            tmp->conflicts=current_conflicts;
+                            tmp->upass=tmp->pass=pass;
+                            tmp->value=val;
+                            if (val.type == T_STR) {
+                                tmp->value.u.str.data=malloc(val.u.str.len);
+                                memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
+                            }
                         }
-                        tmp->requires=current_requires;
-                        tmp->conflicts=current_conflicts;
-                        var_assign(tmp, &val, fixeddig);
                     } else {
+                        if (labelexists) {
+                            tmp->requires=current_requires;
+                            tmp->conflicts=current_conflicts;
+                            var_assign(tmp, &val, 0);
+                        }
+                    }
+                    goto finish;
+                }
+                if (wht==WHAT_COMMAND) {
+                    if (prm==CMD_VAR) { //variable
+                        strcpy(varname,ident);
+                        get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL);goto breakerr;}
+                        tmp=new_label(varname);
+                        if (listing && flist && arguments.source && tmp->ref) {
+                            if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
+                            if (val.type == T_INT || val.type == T_CHR) {
+                                fprintf(flist,"=%x\t\t\t\t\t",val.u.num);
+                            } else {
+                                fputs("=\t\t\t\t\t", flist);
+                            }
+                            printllist(flist);
+                        }
+                        tmp->ref=0;
+                        if (labelexists) {
+                            if (!tmp->varlabel) err_msg(ERROR_DOUBLE_DEFINE,varname);
+                            else {
+                                tmp->requires=current_requires;
+                                tmp->conflicts=current_conflicts;
+                                var_assign(tmp, &val, fixeddig);
+                            }
+                        } else {
+                            tmp->requires=current_requires;
+                            tmp->conflicts=current_conflicts;
+                            tmp->varlabel=1;tmp->upass=tmp->pass=pass;
+                            tmp->value=val;
+                            if (val.type == T_STR) {
+                                tmp->value.u.str.data=malloc(val.u.str.len);
+                                memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
+                            }
+                            if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                        }
+                        goto finish;
+                    }
+                    if (prm==CMD_LBL) { //variable
+                        struct jump_s *tmp2;
+                        if (listing && flist && arguments.source) {
+                            if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
+                            fputs("=\t\t\t\t\t", flist);
+                            printllist(flist);
+                        }
+                        tmp2 = new_jump(ident);
+                        if (labelexists) {
+                            if (tmp2->sline != sline
+                                || tmp2->waitforp != waitforp
+                                || tmp2->file != cfile
+                                || tmp2->p != cfile->p) {
+                                err_msg(ERROR_DOUBLE_DEFINE,ident);
+                            }
+                        } else {
+                            tmp2->sline = sline;
+                            tmp2->waitforp = waitforp;
+                            tmp2->file = cfile;
+                            tmp2->p = cfile->p;
+                        }
+                        goto finish;
+                    }
+                    if (prm==CMD_MACRO || prm==CMD_SEGMENT) { // .macro
+                    do_macro:
+                        waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                        tmp2=new_macro(ident);
+                        if (labelexists) {
+                            if (tmp2->p!=cfile->p
+                             || tmp2->sline!=sline
+                             || tmp2->type!=prm
+                             || tmp2->file!=cfile) {
+                                err_msg(ERROR_DOUBLE_DEFINE,ident);
+                            }
+                        } else {
+                            tmp2->p=cfile->p;
+                            tmp2->sline=sline;
+                            tmp2->type=prm;
+                            tmp2->file=cfile;
+                        }
+                        goto finish;
+                    }
+                }
+                tmp=find_label2(ident);
+                if (tmp) labelexists=1;
+                else {
+                    if ((tmp2=find_macro(ident))) {lpoint--;ident2[0]=0;goto as_macro;}
+                    tmp=new_label(ident);
+                }
+                if (pass==1) {
+                    if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,ident);
+                    else {
                         tmp->requires=current_requires;
                         tmp->conflicts=current_conflicts;
-                        tmp->varlabel=1;tmp->upass=tmp->pass=pass;
-                        tmp->value=val;
-                        if (val.type == T_STR) {
-                            tmp->value.u.str.data=malloc(val.u.str.len);
-                            memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
-                        }
-                        if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                        tmp->upass=tmp->pass=pass;
+                        tmp->value.type=T_INT;tmp->value.u.num=l_address;
                     }
-                    continue;
+                } else {
+                    if (labelexists) {
+                        if (tmp->value.type != T_INT || tmp->varlabel) { /* should not happen */
+                            err_msg(ERROR_DOUBLE_DEFINE,ident);
+                        } else {
+                            if ((uint32_t)tmp->value.u.num != l_address) {
+                                tmp->value.u.num=l_address;
+                                fixeddig=0;
+                            }
+                            tmp->requires=current_requires;
+                            tmp->conflicts=current_conflicts;
+                            tmp->value.type=T_INT;
+                        }
+                    }
                 }
-                if (prm==CMD_LBL) { //variable
-                    struct jump_s *tmp2;
-                    if (here()) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                if (wht==WHAT_COMMAND && prm==CMD_PROC) { // .proc
+                    waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;
+                    if (!tmp->ref && pass != 1) skipit[waitforp]=0;
+                    else {
+                        skipit[waitforp]=1;
+                        current_context=new_context(ident, current_context);
+                        current_context->backr=current_context->forwr=1;
+                        if (listing && flist && arguments.source) {
+                            if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
+                        }
+                        tmp->ref=0;
+                    }
+                    goto finish;
+                }
+                wasref=tmp->ref;tmp->ref=0;
+                if (notfirst) err_msg(ERROR_LABEL_NOT_LEF,NULL);
+            }
+            jn:
+            switch (wht) {
+            case WHAT_STAR:if (skipit[waitforp] & 1) //skip things if needed
+                {
+                    ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
+                    lpoint++;
+                    wrapwarn=0;wrapwarn2=0;
+                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                    if (!c) goto breakerr;
+                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
                     if (listing && flist && arguments.source) {
-                        if (nprm>=0) mtranslate(mprm,nprm,llist);
-                        if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
-                        fputs("=\t\t\t\t\t", flist);
+                        lastl=LIST_NONE;
+                        if (wasref)
+                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
+                        else
+                            fputs("\n\t\t\t\t\t", flist);
                         printllist(flist);
                     }
-                    tmp2 = new_jump(ident);
-                    if (labelexists) {
-                        if (tmp2->sline != sline
-                            || tmp2->waitforp != waitforp
-                            || tmp2->file != cfile
-                            || tmp2->p != cfile->p) {
-                            err_msg(ERROR_DOUBLE_DEFINE,ident);
-                        }
-                    } else {
-                        tmp2->sline = sline;
-                        tmp2->waitforp = waitforp;
-                        tmp2->file = cfile;
-                        tmp2->p = cfile->p;
-                    }
-                    continue;
-                }
-                if (prm==CMD_MACRO || prm==CMD_SEGMENT) { // .macro
-                do_macro:
-                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
-                    ignore();if (here()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL); continue;}
-                    tmp2=new_macro(ident);
-                    if (labelexists) {
-                        if (pass==1) {err_msg(ERROR_DOUBLE_DEFINE,ident); continue;}
-                    }
-                    else {
-                        tmp2->p=cfile->p;
-                        tmp2->sline=sline;
-                        tmp2->type=prm;
-                        tmp2->file=cfile;
-                    }
-                    continue;
-                }
-            }
-            tmp=find_label2(ident);
-            if (tmp) labelexists=1;
-            else {
-                if ((tmp2=find_macro(ident))) {lpoint--;ident2[0]=0;goto as_macro;}
-                tmp=new_label(ident);
-            }
-	    if (pass==1) {
-		if (labelexists) {
-		    err_msg(ERROR_DOUBLE_DEFINE,ident);
-		    continue;
-		}
-                else {
-                    tmp->requires=current_requires;
-                    tmp->conflicts=current_conflicts;
-                    tmp->upass=tmp->pass=pass;
-		    tmp->value.type=T_INT;tmp->value.u.num=l_address;
-		}
-	    }
-	    else {
-                if (labelexists) {
-                    if (tmp->value.type != T_INT || tmp->varlabel) { /* should not happen */
-                        err_msg(ERROR_DOUBLE_DEFINE,ident);
-                        continue;
-                    } else if ((uint32_t)tmp->value.u.num != l_address) {
-                        tmp->value.u.num=l_address;
-                        fixeddig=0;
-                    }
-                    tmp->requires=current_requires;
-                    tmp->conflicts=current_conflicts;
-                    tmp->value.type=T_INT;
-		}
-	    }
-            if (wht==WHAT_COMMAND && prm==CMD_PROC) { // .proc
-                waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;
-                if (!tmp->ref && pass != 1) skipit[waitforp]=0;
-                else {
-                    skipit[waitforp]=1;
-                    current_context=new_context(ident, current_context);
-                    current_context->backr=current_context->forwr=1;
-                    if (listing && flist && arguments.source) {
-                        if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                        fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
-                    }
-                    tmp->ref=0;
-                }
-                if (here()) goto extrachar;
-                continue;
-            }
-            wasref=tmp->ref;tmp->ref=0;
-            if (pline[0] == 0x20) err_msg(ERROR_LABEL_NOT_LEF,NULL);
-	}
-	jn:
-	switch (wht) {
-	case WHAT_STAR:if (skipit[waitforp] & 1) //skip things if needed
-	    {
-		ignore();if (get()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
-		wrapwarn=0;wrapwarn2=0;
-		get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-		if (!c) break;
-		if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                ignore();if (here()) goto extrachar;
-                if (listing && flist && arguments.source) {
-                    lastl=LIST_NONE;
-                    if (wasref)
-                        fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
-                    else
-                        fputs("\n\t\t\t\t\t", flist);
-                    printllist(flist);
-                }
-                if (val.type != T_NONE) {
-                    uint32_t ch2;
-                    if (val.u.num & ~all_mem) {
-                        err_msg(ERROR_CONSTNT_LARGE,NULL);
-                        break;
-                    }
-                    ch2=(uint32_t)val.u.num;
-                    if (address!=ch2 || l_address!=ch2) {
-                        address=l_address=ch2;
-                        memjmp(address);
-                    }
-                }
-	    }
-            break;
-	case WHAT_EOL:
-            if (listing && flist && arguments.source && (skipit[waitforp] & 1) && wasref) {
-                if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
-                printllist(flist);
-            }
-            break;
-	case WHAT_COMMAND:
-	    {
-                ignore();
-                if (listing && flist && arguments.source && (skipit[waitforp] & 1) && prm>=CMD_LONG) {
-                    switch (prm) {
-                        case CMD_FILL:
-                        case CMD_ALIGN:
-                        case CMD_OFFS:
-                            if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
-                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
-                            printllist(flist);
-                        case CMD_BINARY:
-                            break;
-                        case CMD_PROC:break;
-                        case CMD_AS:
-                        case CMD_AL:
-                        case CMD_XS:
-                        case CMD_XL:
-                        case CMD_DATABANK:
-                        case CMD_DPAGE:
-                        case CMD_LOGICAL:
-                        case CMD_HERE:
-                        case CMD_ENC:
-                        case CMD_EOR:
-                        case CMD_CPU:
-                        case CMD_INCLUDE:
-                            if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                            if (wasref)
-                                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
-                            else
-                                fputs("\t\t\t\t\t", flist);
-                            printllist(flist);
-                            break;
-                        default:
-                            if (wasref) {
-                                if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
-                            }
-                    }
-                }
-		if (prm==CMD_ENDC) { // .endc
-                    if (waitfor[waitforp].what!='c') {err_msg(ERROR______EXPECTED,".COMMENT"); break;}
-		    waitforp--;
-                    if (here()) goto extrachar;
-                    break;
-                } else if (waitfor[waitforp].what=='c') break;
-		if (prm==CMD_FI) // .fi
-		{
-                    if (waitfor[waitforp].what!='e' && waitfor[waitforp].what!='f') {err_msg(ERROR______EXPECTED,".IF"); break;}
-		    waitforp--;
-		    if (here()) goto extrachar;
-                    break;
-		}
-		if (prm==CMD_ELSE) { // .else
-		    if (waitfor[waitforp].what=='f') {err_msg(ERROR______EXPECTED,".FI"); break;}
-		    if (waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
-		    skipit[waitforp]=skipit[waitforp] >> 1;
-		    waitfor[waitforp].what='f';waitfor[waitforp].line=sline;
-		    if (here()) goto extrachar;
-                    break;
-		}
-		if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
-                    uint8_t skwait = skipit[waitforp];
-		    if (prm==CMD_ELSIF) {
-                        if (waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
-                    } else waitfor[++waitforp].what='e';
-                    waitfor[waitforp].line=sline;
-		    if (((skwait==1) && prm!=CMD_ELSIF) || ((skwait==2) && prm==CMD_ELSIF)) {
-			get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
-			if (!c) break;
-			if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-			ignore();if (here()) goto extrachar;
-                	if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");val.type=T_NONE;}
-		    } else val.type=T_NONE;
-                    switch (prm) {
-                    case CMD_ELSIF:
-                        if (((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp] >> 1; else
-                            skipit[waitforp]=skipit[waitforp] & 2;
-                        break;
-                    case CMD_IF:
-                        if (((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
-                            skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
-                        break;
-                    case CMD_IFEQ:
-                        if (((val.type == T_INT || val.type == T_CHR) && !val.u.num) || (val.type == T_STR && !val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
-                            skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
-                        break;
-                    case CMD_IFPL:
-                        if ((val.type == T_INT && (arguments.tasmcomp ? (~val.u.num & 0x8000) : (val.u.num>=0))) || val.type == T_CHR || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
-                            skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
-                        break;
-                    case CMD_IFMI:
-                        if (val.type == T_INT && (arguments.tasmcomp ? (val.u.num & 0x8000) : (val.u.num < 0))) skipit[waitforp]=skipit[waitforp-1] & 1; else
-                            skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
-                        break;
-                    }
-		    break;
-		}
-		if (prm==CMD_ENDM) { // .endm
-                    if (waitfor[waitforp].what!='m') {err_msg(ERROR______EXPECTED,".MACRO or .SEGMENT"); break;}
-		    waitforp--;
-                    if (here()) goto extrachar;
-                    if (tpe==1 || tpe==3) goto end;
-                    break;
-		}
-		if (prm==CMD_NEXT) { // .next
-                    if (waitfor[waitforp].what!='n') {err_msg(ERROR______EXPECTED,".FOR or .REPT"); break;}
-		    waitforp--;
-                    if (here()) goto extrachar;
-                    if (tpe==2) goto end;
-                    break;
-		}
-		if (prm==CMD_PEND) { //.pend
-                    if (waitfor[waitforp].what!='p') {err_msg(ERROR______EXPECTED,".PROC"); break;}
-                    if (skipit[waitforp] & 1) {
-                        if (current_context->parent && current_context->name[0]!='.') {
-                            current_context->parent->backr += current_context->backr - 1;
-                            current_context->parent->forwr += current_context->forwr - 1;
-                            current_context = current_context->parent;
-                        } else err_msg(ERROR______EXPECTED,".proc");
-                    }
-		    waitforp--;
-		    if (here()) goto extrachar;
-		    break;
-		}
-                if (!(skipit[waitforp] & 1)) {
-                    if (prm==CMD_MACRO || prm==CMD_SEGMENT) { waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0; break; }
-                    if (prm==CMD_FOR || prm==CMD_REPT) { waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0; break; }
-                    if (prm==CMD_COMMENT) { waitfor[++waitforp].what='c';waitfor[waitforp].line=sline;skipit[waitforp]=0; break; }
-                    if (prm==CMD_PROC) {waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0; break; }
-                    break; //skip things if needed
-                }
-                if (prm<=CMD_LONG || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
-                    size_t ptextaddr=mem.p;
-
-                    if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
-                        int16_t ch2=-1;
-                        int large=0;
-                        if (prm==CMD_PTEXT) ch2=0;
-                        for (;;) {
-                            get_exp(&w,&d,&c,&val,T_NONE); if (!d) fixeddig=0; //ellenorizve.
-                            if (!c) break;
-                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                            if (d && w!=3 && w!=0) {err_msg(ERROR_ILLEGAL_OPERA,NULL);break;}
-                            if (val.type != T_STR || val.u.str.len)
-                                do {
-                                    if (ch2>=0) {
-                                        pokeb(ch2);
-                                    }
-
-                                    if (val.type == T_STR) {
-                                        ch2 = *val.u.str.data++;
-                                        val.u.str.len--;
-                                    } else if (val.type == T_INT) {
-                                        if (prm==CMD_CHAR) {
-                                            if (val.u.num>0x7f || val.u.num<-0x80) large=1;
-                                        } else {
-                                            if (val.u.num & ~0xff) large=1;
-                                        }
-                                        ch2 = (uint8_t)val.u.num;
-                                    } else if (val.type == T_CHR) {
-                                        ch2 = (uint8_t)val.u.num;
-                                    } else if (val.type == T_NONE) {
-                                        ch2 = 0;
-                                    } else {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-
-                                    if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
-                                        if (ch2>=0x80) large=1;
-                                        if (prm==CMD_SHIFTL) ch2<<=1;
-                                    } else if (prm==CMD_NULL && !ch2 && d) large=1;
-                                } while (val.type == T_STR && val.u.str.len);
-
-                            ignore();if ((ch=get())==',') continue;
-                            if (ch2>=0) {
-                                if (prm==CMD_SHIFT) ch2|=0x80;
-                                if (prm==CMD_SHIFTL) ch2|=0x01;
-                                pokeb(ch2);
-                            }
-                            if (prm==CMD_NULL) {
-                                pokeb(0);
-                            }
-                            if (prm==CMD_PTEXT) {
-                                if (mem.p-ptextaddr>0x100) large=1;
-
-                                mem.data[ptextaddr]=mem.p-ptextaddr-1;
-                            }
-                            if (ch) {err_msg(ERROR______EXPECTED,",");break;}
-                            if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
-                            break;
-                        }
-                    } else if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA) { // .word .int .rta
-                        uint16_t ch2;
-                        int large=0;
-
-                        for (;;) {
-                            get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
-                            if (!c) break;
-                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                            if (d && w!=3 && w!=1) {err_msg(ERROR_ILLEGAL_OPERA,NULL);break;}
-                            if (val.type == T_STR && val.u.str.len < 5) {
-                                ch2 = 0;
-                                if (val.u.str.len>0) ch2 = val.u.str.data[0];
-                                if (val.u.str.len>1) ch2 |= val.u.str.data[1] << 8;
-                                if (val.u.str.len>2) large=1;
-                            } else if (val.type == T_INT) {
-                                if (prm==CMD_INT) {
-                                    if (val.u.num>0x7fff || val.u.num<-0x8000) large=1;
-                                    ch2 = (uint16_t)val.u.num;
-                                } else {
-                                    if (val.u.num & ~0xffff) large=1;
-                                    ch2 = (uint16_t)val.u.num;
-                                    if (prm==CMD_RTA) ch2--;
-                                }
-                            } else if (val.type == T_CHR) {
-                                ch2 = (uint8_t)val.u.num;
-                            } else if (val.type == T_NONE) {
-                                ch2 = 0;
-                            } else {err_msg(ERROR____WRONG_TYPE,NULL); break;}
-
-                            pokeb((uint8_t)ch2);
-                            pokeb((uint8_t)(ch2>>8));
-                            ignore();if ((ch=get())==',') continue;
-                            if (ch) {err_msg(ERROR______EXPECTED,",");break;}
-                            if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
-                            break;
-                        }
-                    } else if (prm==CMD_LONG) { // .long
-                        uint32_t ch2;
-                        int large=0;
-
-                        for (;;) {
-                            get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
-                            if (!c) break;
-                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                            if (d && w!=3 && w!=2) {err_msg(ERROR_ILLEGAL_OPERA,NULL);break;}
-                            if (val.type == T_STR && val.u.str.len < 5) {
-                                ch2 = 0;
-                                if (val.u.str.len>0) ch2 = val.u.str.data[0];
-                                if (val.u.str.len>1) ch2 |= val.u.str.data[1] << 8;
-                                if (val.u.str.len>2) ch2 |= val.u.str.data[2] << 16;
-                                if (val.u.str.len>3) large=1;
-                            } else if (val.type == T_INT) {
-                                if (val.u.num & ~0xffffff) large=1;
-                                ch2 = (uint32_t)val.u.num;
-                            } else if (val.type == T_CHR) {
-                                ch2 = (uint8_t)val.u.num;
-                            } else if (val.type == T_NONE) {
-                                ch2 = 0;
-                            } else { err_msg(ERROR____WRONG_TYPE,NULL); break; }
-
-                            pokeb((uint8_t)ch2);
-                            pokeb((uint8_t)(ch2>>8));
-                            pokeb((uint8_t)(ch2>>16));
-                            ignore();if ((ch=get())==',') continue;
-                            if (ch) {err_msg(ERROR______EXPECTED,",");break;}
-                            if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
-                            break;
-                        }
-                    } else if (prm==CMD_BINARY) { // .binary
-                        uint32_t foffset=0,fsize=all_mem+1;
-                        FILE* fil;
-                        if (get_path(cfile->name)) break;
-                        if ((ch=get())) {
-                            if (ch!=',') goto extrachar;
-                            get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                            if (!c) break;
-                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                            ignore();
-                            if (val.type != T_NONE) {
-                                if (val.u.num<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                                foffset = val.u.num;
-                            }
-                            if ((ch=get())) {
-                                if (ch!=',') goto extrachar;
-                                get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                                if (!c) break;
-                                if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                                ignore();if (here()) goto extrachar;
-                                if (val.type != T_NONE) {
-                                    if (val.u.num<0 || (uint32_t)val.u.num>(all_mem+1)) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
-                                    fsize = val.u.num;
-                                }
-                            }
-                        }
-
-                        if ((fil=fopen(path,"rb"))==NULL) {err_msg(ERROR_CANT_FINDFILE,path);break;}
-                        fseek(fil,foffset,SEEK_SET);
-                        for (;fsize;fsize--) {
-                            int st=fgetc(fil);
-                            if (st == EOF) break;
-                            if (st < 0) err_msg(ERROR_CANT_FINDFILE,path);
-                            pokeb((uint8_t)st);
-                        }
-                        fclose(fil);
-                    }
-
-                    if (listing && flist) {
-                        unsigned int i, lcol, kiirva;
-                        if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
-                        fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);
-                        lcol=arguments.source?25:49;
-                        kiirva=1;
-                        while (ptextaddr!=mem.p) {
-                            if (lcol==1) {
-                                if (arguments.source && kiirva) {
-                                    if (nprm>=0) mtranslate(mprm,nprm,llist);
-                                    fputc('\t', flist);printllist(flist);kiirva=0;
-                                } else fputc('\n',flist);
-                                fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);lcol=49;
-                            }
-                            fprintf(flist," %02x", mem.data[ptextaddr++]);
-
-                            lcol-=3;
-                        }
-		
-			if (arguments.source && kiirva) {
-                            for (i=0; i<lcol-1; i+=8) fputc('\t',flist);
-                            if (nprm>=0) mtranslate(mprm,nprm,llist);
-                            fputc('\t', flist);printllist(flist);
-			} else fputc('\n',flist);
-		    }
-		    break;
-		}
-		if (prm==CMD_OFFS) {   // .offs
-		    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0; //ellenorizve.
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                    ignore();if (here()) goto extrachar;
-                    if (val.type != T_NONE) {
-                        if (val.u.num) {
-                            if (fixeddig && scpumode) {
-                                if (((address + val.u.num)^address) & ~0xffff) wrapwarn2=1;
-                            }
-                            address+=val.u.num;
-                            if (address>all_mem) {
-                                if (fixeddig) wrapwarn=1;
-                                address&=all_mem;
-                            }
-                            memjmp(address);
-                        }
-                    }
-		    break;
-		}
-		if (prm==CMD_LOGICAL) { // .logical
-                    if (logitab.p >= logitab.len) {
-                        logitab.len += 16;
-                        if (!(logitab.data=realloc(logitab.data,logitab.len*sizeof(*logitab.data)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-                    }
-		    logitab.data[logitab.p++]=l_address-address;
-		    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-		    ignore();if (here()) goto extrachar;
                     if (val.type != T_NONE) {
                         if (val.u.num & ~all_mem) {
                             err_msg(ERROR_CONSTNT_LARGE,NULL);
-                            break;
-                        }
-                        l_address=val.u.num;
-                    }
-		    break;
-		}
-		if (prm==CMD_HERE) { // .here
-		    if (here()) goto extrachar;
-		    if (!logitab.p) {err_msg(ERROR______EXPECTED,".LOGICAL"); break;}
-		    l_address=address+logitab.data[--logitab.p];
-		    break;
-		}
-		if (prm==CMD_AS) { // .as
-		    if (here()) goto extrachar;
-                    longaccu=0;
-		    break;
-		}
-		if (prm==CMD_AL) { // .al
-		    if (here()) goto extrachar;
-                    longaccu=1;
-		    break;
-		}
-		if (prm==CMD_XS) { // .xs
-		    if (here()) goto extrachar;
-		    longindex=0;
-		    break;
-		}
-		if (prm==CMD_XL) { // .xl
-		    if (here()) goto extrachar;
-		    longindex=1;
-		    break;
-		}
-		if (prm==CMD_ERROR) { // .error
-		    err_msg(ERROR__USER_DEFINED,(char *)&pline[lpoint]);
-		    break;
-		}
-                if (prm==CMD_BLOCK) { // .block
-                    if (here()) goto extrachar;
-                    sprintf(varname, ".%x.%u", (unsigned)star_tree, vline);
-                    current_context=new_context(varname, current_context);
-                    current_context->backr=current_context->forwr=1;
-                    break;
-                }
-                if (prm==CMD_BEND) { //.bend
-                    if (here()) goto extrachar;
-                    if (current_context->parent && current_context->name[0]=='.') {
-                        current_context->parent->backr += current_context->backr - 1;
-                        current_context->parent->forwr += current_context->forwr - 1;
-                        current_context = current_context->parent;
-                    } else err_msg(ERROR______EXPECTED,".block");
-                    break;
-                }
-		if (prm==CMD_DATABANK) { // .databank
-		    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-		    ignore();if (here()) goto extrachar;
-                    if (val.type != T_NONE) {
-                        if (val.u.num & ~0xff) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                        databank=val.u.num;
-                    }
-		    break;
-		}
-		if (prm==CMD_DPAGE) { // .dpage
-		    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-		    ignore();if (here()) goto extrachar;
-                    if (val.type != T_NONE) {
-                        if (val.u.num & ~0xffff) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                        if (dtvmode) dpage=val.u.num & 0xff00;
-                        else dpage=val.u.num;
-                    }
-		    break;
-		}
-		if (prm==CMD_FILL) { // .fill
-                    uint32_t db = 0;
-                    uint8_t ch;
-		    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                    ignore();
-                    if (val.type != T_NONE) {
-                        db=val.u.num;
-                        if (db>(all_mem+1)) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
-                    }
-                    if ((ch=get())) {
-                        if (ch!=',') goto extrachar;
-                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                        if (!c) break;
-                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                        ignore();if (here()) goto extrachar;
-                        if (val.type != T_NONE) {
-                            if (val.u.num & ~0xff) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                            ch = (uint8_t)val.u.num;
-                        } else ch = 0;
-                        while (db-->0) pokeb(ch);
-                    } else {
-                        if (fixeddig && scpumode) {
-                            if (((address + db)^address) & ~0xffff) wrapwarn2=1;
-                            if (((l_address + db)^l_address) & ~0xffff) wrapwarn2=1;
-                        }
-                        l_address+=db;
-                        if (l_address>all_mem) {
-                            if (fixeddig) wrapwarn=1;
-                            l_address&=all_mem;
-                        }
-                        address+=db;
-                        if (address>all_mem) {
-                            if (fixeddig) wrapwarn=1;
-                            address&=all_mem;
-                        }
-                        memjmp(address);
-                    }
-		    break;
-		}
-		if (prm==CMD_ASSERT) { // .assert
-		    get_exp(&w,&d,&c,&val,T_INT);
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                    ignore();if (get()!=',') {err_msg(ERROR______EXPECTED,","); break;}
-                    if (val.type != T_NONE) {
-                        current_provides=val.u.num;
-                    } else current_provides=~0;
-		    get_exp(&w,&d,&c,&val,T_INT);
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                    ignore();if (get()!=',') {err_msg(ERROR______EXPECTED,","); break;}
-                    if (val.type != T_NONE) {
-                        current_requires=val.u.num;
-                    } else current_requires=0;
-		    get_exp(&w,&d,&c,&val,T_INT);
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                    ignore();if (here()) goto extrachar;
-                    if (val.type != T_NONE) {
-                        current_conflicts=val.u.num;
-                    } else current_conflicts=0;
-		    break;
-		}
-		if (prm==CMD_CHECK) { // .check
-		    get_exp(&w,&d,&c,&val,T_INT);
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                    ignore();if (get()!=',') {err_msg(ERROR______EXPECTED,","); break;}
-                    if (val.type != T_NONE) {
-                        if ((val.u.num & current_provides) ^ val.u.num) {err_msg(ERROR_REQUIREMENTS_,".CHECK");break;}
-                    }
-		    get_exp(&w,&d,&c,&val,T_INT);
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                    ignore();if (here()) goto extrachar;
-                    if (val.type != T_NONE) {
-                        if (val.u.num & current_provides) err_msg(ERROR______CONFLICT,".CHECK");
-                    }
-		    break;
-		}
-		if (prm==CMD_WARN) { // .warn
-		    err_msg(ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
-		    break;
-		}
-                if (prm==CMD_ENC) { // .enc
-                    if (get_path(NULL)) break;
-                    if (!strcasecmp(path,"none")) encoding=0;
-                    else
-                        if (!strcasecmp(path,"screen")) encoding=1;
-                        else
-                            err_msg(ERROR_UNKNOWN_ENCOD,ident);
-		    break;
-		}
-                if (prm==CMD_CPU) { // .cpu
-                    int def;
-                    if (get_path(NULL)) break;
-                    def=arguments.cpumode;
-                    if (!strcmp(path,"6502")) def=OPCODES_6502;
-                    else if (!strcasecmp(path,"65c02")) def=OPCODES_65C02;
-                    else if (!strcasecmp(path,"6502i")) def=OPCODES_6502i;
-                    else if (!strcmp(path,"65816")) def=OPCODES_65816;
-                    else if (!strcasecmp(path,"65dtv02")) def=OPCODES_65DTV02;
-                    else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,ident);
-                    set_cpumode(def);
-		    break;
-		}
-                if (prm==CMD_CERROR || prm==CMD_CWARN) { // .cerror
-		    get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                    ignore();
-                    if (here()==',') {
-                        lpoint++;ignore();
-                    } else if (here()) goto extrachar;
-                    if (((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len)) err_msg((prm==CMD_CERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
-                    break;
-                }
-		if (prm==CMD_REPT) { // .rept
-                    int32_t cnt;
-                    waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
-		    get_exp(&w,&d,&c,&val,T_INT);
-                    if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for count");break;}
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-		    ignore();if (here()) goto extrachar;
-                    cnt = 0;
-                    if (val.type != T_NONE) {
-                        size_t pos = cfile->p;
-                        uint32_t lin = sline;
-
-                        if (cnt<val.u.num) {
-                            struct star_s *s = new_star(vline);
-                            struct avltree *stree_old = star_tree;
-                            uint32_t ovline = vline;
-
-                            waitforp--;
-                            if (labelexists && s->addr != star) fixeddig=0;
-                            s->addr = star;
-                            star_tree = &s->tree;vline=0;
-                            for (; cnt<val.u.num; cnt++) {
-                                sline=lin;cfile->p=pos;
-                                waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                                compile(2,mprm,nprm);
+                        } else {
+                            uint32_t ch2=(uint32_t)val.u.num;
+                            if (address!=ch2 || l_address!=ch2) {
+                                address=l_address=ch2;
+                                memjmp(address);
                             }
-                            star_tree = stree_old; vline = ovline;
                         }
                     }
-		    break;
-		}
-                if (prm==CMD_ALIGN) { // .align
-                    int align, fill=-1;
-		    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
+                }
+                break;
+            case WHAT_COLON:
+                vline++;
+                break;
+            case WHAT_COMMENT:
+            case WHAT_EOL:
+                if (listing && flist && arguments.source && (skipit[waitforp] & 1) && wasref) {
+                    if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                    fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
+                    printllist(flist);
+                }
+                break;
+            case WHAT_COMMAND:
+                {
                     ignore();
-                    if (val.type != T_NONE) {
-                        if (val.u.num<1 || val.u.num>(int32_t)all_mem) {
-                            err_msg(ERROR_CONSTNT_LARGE,NULL);
+                    if (listing && flist && arguments.source && (skipit[waitforp] & 1) && prm>=CMD_LONG) {
+                        switch (prm) {
+                            case CMD_FILL:
+                            case CMD_ALIGN:
+                            case CMD_OFFS:
+                                if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
+                                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
+                                printllist(flist);
+                            case CMD_BINARY:
+                                break;
+                            case CMD_PROC:break;
+                            case CMD_AS:
+                            case CMD_AL:
+                            case CMD_XS:
+                            case CMD_XL:
+                            case CMD_DATABANK:
+                            case CMD_DPAGE:
+                            case CMD_LOGICAL:
+                            case CMD_HERE:
+                            case CMD_ENC:
+                            case CMD_EOR:
+                            case CMD_CPU:
+                            case CMD_INCLUDE:
+                                if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                                if (wasref)
+                                    fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
+                                else
+                                    fputs("\t\t\t\t\t", flist);
+                                printllist(flist);
+                                break;
+                            default:
+                                if (wasref) {
+                                    if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                                    fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
+                                }
+                        }
+                    }
+                    if (prm==CMD_ENDC) { // .endc
+                        if (waitfor[waitforp].what!='c') err_msg(ERROR______EXPECTED,".COMMENT");
+                        else waitforp--;
+                        break;
+                    } else if (waitfor[waitforp].what=='c') break;
+                    if (prm==CMD_FI) // .fi
+                    {
+                        if (waitfor[waitforp].what!='e' && waitfor[waitforp].what!='f') err_msg(ERROR______EXPECTED,".IF");
+                        else waitforp--;
+                        break;
+                    }
+                    if (prm==CMD_ELSE) { // .else
+                        if (waitfor[waitforp].what=='f') {err_msg(ERROR______EXPECTED,".FI"); break;}
+                        if (waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
+                        skipit[waitforp]=skipit[waitforp] >> 1;
+                        waitfor[waitforp].what='f';waitfor[waitforp].line=sline;
+                        break;
+                    }
+                    if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
+                        uint8_t skwait = skipit[waitforp];
+                        if (prm==CMD_ELSIF) {
+                            if (waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
+                        } else waitfor[++waitforp].what='e';
+                        waitfor[waitforp].line=sline;
+                        if (((skwait==1) && prm!=CMD_ELSIF) || ((skwait==2) && prm==CMD_ELSIF)) {
+                            get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
+                            if (!c) goto breakerr;
+                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                            if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");val.type=T_NONE;}
+                        } else val.type=T_NONE;
+                        switch (prm) {
+                        case CMD_ELSIF:
+                            if (((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp] >> 1; else
+                                skipit[waitforp]=skipit[waitforp] & 2;
+                            break;
+                        case CMD_IF:
+                            if (((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
+                                skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
+                            break;
+                        case CMD_IFEQ:
+                            if (((val.type == T_INT || val.type == T_CHR) && !val.u.num) || (val.type == T_STR && !val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
+                                skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
+                            break;
+                        case CMD_IFPL:
+                            if ((val.type == T_INT && (arguments.tasmcomp ? (~val.u.num & 0x8000) : (val.u.num>=0))) || val.type == T_CHR || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
+                                skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
+                            break;
+                        case CMD_IFMI:
+                            if (val.type == T_INT && (arguments.tasmcomp ? (val.u.num & 0x8000) : (val.u.num < 0))) skipit[waitforp]=skipit[waitforp-1] & 1; else
+                                skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
                             break;
                         }
-                        align = val.u.num;
-                    } else align = 1;
-                    if ((ch=get())) {
-                        int d2;
-                        if (ch!=',') goto extrachar;
-                        get_exp(&w,&d2,&c,&val,T_INT);if (!d2) fixeddig=0;
-                        if (!c) break;
-                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                        ignore();if (here()) goto extrachar;
-                        if (val.type != T_NONE) {
-                            if (val.u.num & ~0xff) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                            fill = val.u.num;
-                        } else fill = 0;
+                        break;
                     }
-                    if (align>1 && (l_address % align)) {
-                        if (fill>0)
-                            while (l_address % align) pokeb((unsigned char)fill);
-                        else {
-                            align-=l_address % align;
-                            if (align) {
+                    if (prm==CMD_ENDM) { // .endm
+                        if (waitfor[waitforp].what!='m') {err_msg(ERROR______EXPECTED,".MACRO or .SEGMENT"); break;}
+                        waitforp--;
+                        if (tpe==1 || tpe==3) nobreak=0;
+                        break;
+                    }
+                    if (prm==CMD_NEXT) { // .next
+                        if (waitfor[waitforp].what!='n') {err_msg(ERROR______EXPECTED,".FOR or .REPT"); break;}
+                        waitforp--;
+                        if (tpe==2) nobreak=0;
+                        break;
+                    }
+                    if (prm==CMD_PEND) { //.pend
+                        if (waitfor[waitforp].what!='p') {err_msg(ERROR______EXPECTED,".PROC"); break;}
+                        if (skipit[waitforp] & 1) {
+                            if (current_context->parent && current_context->name[0]!='.') {
+                                current_context->parent->backr += current_context->backr - 1;
+                                current_context->parent->forwr += current_context->forwr - 1;
+                                current_context = current_context->parent;
+                            } else err_msg(ERROR______EXPECTED,".proc");
+                        }
+                        waitforp--;
+                        break;
+                    }
+                    if (!(skipit[waitforp] & 1)) {
+                        switch (prm) {
+                        case CMD_MACRO:
+                        case CMD_SEGMENT: waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
+                        case CMD_FOR:
+                        case CMD_REPT: waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
+                        case CMD_COMMENT: waitfor[++waitforp].what='c';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
+                        case CMD_PROC: waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
+                        }
+                        break;//skip things if needed
+                    }
+                    if (prm<=CMD_LONG || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
+                        size_t ptextaddr=mem.p;
+
+                        if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
+                            int16_t ch2=-1;
+                            int large=0;
+                            if (prm==CMD_PTEXT) ch2=0;
+                            for (;;) {
+                                get_exp(&w,&d,&c,&val,T_NONE); if (!d) fixeddig=0; //ellenorizve.
+                                if (!c) goto breakerr;
+                                if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                                if (val.type != T_STR || val.u.str.len)
+                                    do {
+                                        if (ch2>=0) pokeb(ch2);
+
+                                        if (val.type == T_STR) {
+                                            ch2 = *val.u.str.data++;
+                                            val.u.str.len--;
+                                        } else if (val.type == T_INT) {
+                                            if (prm==CMD_CHAR) {
+                                                if (val.u.num>0x7f || val.u.num<-0x80) large=1;
+                                            } else {
+                                                if (val.u.num & ~0xff) large=1;
+                                            }
+                                            ch2 = (uint8_t)val.u.num;
+                                        } else if (val.type == T_CHR) {
+                                            ch2 = (uint8_t)val.u.num;
+                                        } else if (val.type == T_NONE) {
+                                            ch2 = 0;
+                                        } else {
+                                            ch2 = 0; err_msg(ERROR____WRONG_TYPE,NULL);
+                                        }
+
+                                        if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
+                                            if (ch2>=0x80) large=1;
+                                            if (prm==CMD_SHIFTL) ch2<<=1;
+                                        } else if (prm==CMD_NULL && !ch2 && d) large=1;
+                                    } while (val.type == T_STR && val.u.str.len);
+
+                                ignore();if (here()==',') {lpoint++;continue;}
+                                if (ch2>=0) {
+                                    if (prm==CMD_SHIFT) ch2|=0x80;
+                                    if (prm==CMD_SHIFTL) ch2|=0x01;
+                                    pokeb(ch2);
+                                }
+                                if (prm==CMD_NULL) {
+                                    pokeb(0);
+                                }
+                                if (prm==CMD_PTEXT) {
+                                    if (mem.p-ptextaddr>0x100) large=1;
+
+                                    mem.data[ptextaddr]=mem.p-ptextaddr-1;
+                                }
+                                if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                                break;
+                            }
+                        } else if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA) { // .word .int .rta
+                            uint16_t ch2;
+                            int large=0;
+
+                            for (;;) {
+                                get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
+                                if (!c) goto breakerr;
+                                if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                                if (val.type == T_STR && val.u.str.len < 5) {
+                                    ch2 = 0;
+                                    if (val.u.str.len>0) ch2 = val.u.str.data[0];
+                                    if (val.u.str.len>1) ch2 |= val.u.str.data[1] << 8;
+                                    if (val.u.str.len>2) large=1;
+                                } else if (val.type == T_INT) {
+                                    if (prm==CMD_INT) {
+                                        if (val.u.num>0x7fff || val.u.num<-0x8000) large=1;
+                                        ch2 = (uint16_t)val.u.num;
+                                    } else {
+                                        if (val.u.num & ~0xffff) large=1;
+                                        ch2 = (uint16_t)val.u.num;
+                                        if (prm==CMD_RTA) ch2--;
+                                    }
+                                } else if (val.type == T_CHR) {
+                                    ch2 = (uint8_t)val.u.num;
+                                } else if (val.type == T_NONE) {
+                                    ch2 = 0;
+                                } else {
+                                    ch2 = 0; err_msg(ERROR____WRONG_TYPE,NULL);
+                                }
+
+                                pokeb((uint8_t)ch2);
+                                pokeb((uint8_t)(ch2>>8));
+                                ignore();if (here()==',') {lpoint++;continue;}
+                                if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                                break;
+                            }
+                        } else if (prm==CMD_LONG) { // .long
+                            uint32_t ch2;
+                            int large=0;
+
+                            for (;;) {
+                                get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
+                                if (!c) goto breakerr;
+                                if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                                if (val.type == T_STR && val.u.str.len < 5) {
+                                    ch2 = 0;
+                                    if (val.u.str.len>0) ch2 = val.u.str.data[0];
+                                    if (val.u.str.len>1) ch2 |= val.u.str.data[1] << 8;
+                                    if (val.u.str.len>2) ch2 |= val.u.str.data[2] << 16;
+                                    if (val.u.str.len>3) large=1;
+                                } else if (val.type == T_INT) {
+                                    if (val.u.num & ~0xffffff) large=1;
+                                    ch2 = (uint32_t)val.u.num;
+                                } else if (val.type == T_CHR) {
+                                    ch2 = (uint8_t)val.u.num;
+                                } else if (val.type == T_NONE) {
+                                    ch2 = 0;
+                                } else { 
+                                    ch2 = 0; err_msg(ERROR____WRONG_TYPE,NULL);
+                                }
+
+                                pokeb((uint8_t)ch2);
+                                pokeb((uint8_t)(ch2>>8));
+                                pokeb((uint8_t)(ch2>>16));
+                                ignore();if (here()==',') {lpoint++;continue;}
+                                if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                                break;
+                            }
+                        } else if (prm==CMD_BINARY) { // .binary
+                            uint32_t foffset=0,fsize=all_mem+1;
+                            FILE* fil;
+                            if (get_path(cfile->name)) goto breakerr;
+                            if (here()==',') {
+                                lpoint++;
+                                get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                                if (!c) goto breakerr;
+                                if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                                ignore();
+                                if (val.type != T_NONE) {
+                                    if (val.u.num<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
+                                    foffset = val.u.num;
+                                }
+                                ignore();
+                                if (here()==',') {
+                                    lpoint++;
+                                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                                    if (!c) goto breakerr;
+                                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                                    if (val.type != T_NONE) {
+                                        if (val.u.num<0 || (uint32_t)val.u.num>(all_mem+1)) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
+                                        fsize = val.u.num;
+                                    }
+                                }
+                            }
+
+                            if ((fil=fopen(path,"rb"))==NULL) {err_msg(ERROR_CANT_FINDFILE,path);goto breakerr;}
+                            fseek(fil,foffset,SEEK_SET);
+                            for (;fsize;fsize--) {
+                                int st=fgetc(fil);
+                                if (st == EOF) break;
+                                if (st < 0) err_msg(ERROR_CANT_FINDFILE,path);
+                                pokeb((uint8_t)st);
+                            }
+                            fclose(fil);
+                        }
+
+                        if (listing && flist) {
+                            unsigned int i, lcol;
+                            if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
+                            fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);
+                            lcol=arguments.source?25:49;
+                            while (ptextaddr!=mem.p) {
+                                if (lcol==1) {
+                                    if (arguments.source && llist) {
+                                        fputc('\t', flist);printllist(flist);
+                                    } else fputc('\n',flist);
+                                    fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);lcol=49;
+                                }
+                                fprintf(flist," %02x", mem.data[ptextaddr++]);
+
+                                lcol-=3;
+                            }
+                    
+                            if (arguments.source && llist) {
+                                for (i=0; i<lcol-1; i+=8) fputc('\t',flist);
+                                fputc('\t', flist);printllist(flist);
+                            } else fputc('\n',flist);
+                        }
+                        break;
+                    }
+                    if (prm==CMD_OFFS) {   // .offs
+                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0; //ellenorizve.
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (val.type != T_NONE) {
+                            if (val.u.num) {
                                 if (fixeddig && scpumode) {
-                                    if (((address + align)^address) & ~0xffff) wrapwarn2=1;
-                                    if (((l_address + align)^l_address) & ~0xffff) wrapwarn2=1;
+                                    if (((address + val.u.num)^address) & ~0xffff) wrapwarn2=1;
                                 }
-                                l_address+=align;
-                                if (l_address>all_mem) {
-                                    if (fixeddig) wrapwarn=1;
-                                    l_address&=all_mem;
-                                }
-                                address+=align;
+                                address+=val.u.num;
                                 if (address>all_mem) {
                                     if (fixeddig) wrapwarn=1;
                                     address&=all_mem;
@@ -1501,803 +1173,1087 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                                 memjmp(address);
                             }
                         }
+                        break;
                     }
-		    break;
-		}
-                if (prm==CMD_EOR) {   // .eor
-                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                    if (!c) break;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                    ignore();if (here()) goto extrachar;
-                    if (val.type != T_NONE) {
-                        if (val.u.num & ~0xff) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                        outputeor = val.u.num;
-                    } else outputeor = 0;
-                    break;
-                }
-                if (prm==CMD_END) {
-                    goto end;
-                }
-                if (prm==CMD_PRON) {
-                    if (here()) goto extrachar;
-                    listing = (flist != NULL);
-                    break;
-                }
-                if (prm==CMD_PROFF) {
-                    if (here()) goto extrachar;
-                    listing = 0;
-                    break;
-                }
-                if (prm==CMD_SHOWMAC || prm==CMD_HIDEMAC) {
-                    err_msg(ERROR_DIRECTIVE_IGN,NULL);
-                    break;
-                }
-		if (prm==CMD_COMMENT) { // .comment
-                    waitfor[++waitforp].what='c';waitfor[waitforp].line=sline;skipit[waitforp]=0;
-                    if (here()) goto extrachar;
-		    break;
-		}
-		if (prm==CMD_INCLUDE) { // .include
-                    struct file_s *f;
-                    if (get_path(cfile->name)) break;
-                    if (here()) goto extrachar;
-                    if (listing && flist) {
-                        fprintf(flist,"\n;******  Processing file \"%s\"\n",path);
-                        lastl=LIST_NONE;
-                    }
-                    f = cfile;
-                    cfile = openfile(path);
-                    if (cfile->open>1) {
-                        err_msg(ERROR_FILERECURSION,NULL);
-                    } else {
-                        uint32_t lin = sline;
-                        uint32_t vlin = vline;
-                        struct avltree *stree_old = star_tree;
-
-                        enterfile(cfile->name,sline);
-                        sline = vline = 0; cfile->p=0;
-                        star_tree = &cfile->star;
-                        compile(0,mprm,nprm);
-                        sline = lin; vline = vlin;
-                        star_tree = stree_old;
-                        exitfile();
-                    }
-                    closefile(cfile);cfile = f;
-                    if (listing && flist) {
-                        fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->name);
-                        lastl=LIST_NONE;
-                    }
-		    break;
-		}
-		if (prm==CMD_FOR) { // .for
-                    size_t pos, xpos;
-                    uint32_t lin, xlin;
-		    int apoint, bpoint = -1;
-                    uint8_t expr[linelength];
-                    struct label_s *var;
-                    struct star_s *s;
-                    struct avltree *stree_old;
-                    uint32_t ovline;
-
-                    waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
-		    if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
-			if (get_ident('_')) break;
-			ignore();if (get()!='=') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-			strcpy(varname,ident);
-			get_exp(&w,&d,&c,&val,T_NONE);
-			if (!c) break;
-			if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                        var=new_label(varname);
-                        if (labelexists) {
-                            if (!var->varlabel) {
-                                err_msg(ERROR_DOUBLE_DEFINE,varname);
-                                break;
-                            }
-                            var->requires=current_requires;
-                            var->conflicts=current_conflicts;
-                            var_assign(var, &val, fixeddig);
-                        } else {
-                            var->requires=current_requires;
-                            var->conflicts=current_conflicts;
-                            var->varlabel=1;var->upass=var->pass=pass;
-                            var->value=val;
-                            if (val.type == T_STR) {
-                                var->value.u.str.data=malloc(val.u.str.len);
-                                memcpy(var->value.u.str.data,val.u.str.data,val.u.str.len);
-                            }
-                            if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                    if (prm==CMD_LOGICAL) { // .logical
+                        if (logitab.p >= logitab.len) {
+                            logitab.len += 16;
+                            if (!(logitab.data=realloc(logitab.data,logitab.len*sizeof(*logitab.data)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
                         }
-			wht=what(&prm);
-		    }
-		    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X) lpoint--; else
-			if (wht!=WHAT_COMA) {err_msg(ERROR______EXPECTED,","); break;}
-
-                    s = new_star(vline); stree_old = star_tree; ovline = vline;
-                    if (labelexists && s->addr != star) fixeddig=0;
-                    s->addr = star;
-                    star_tree = &s->tree;vline=0;
-		    xlin=lin=sline; xpos=pos=cfile->p; apoint=lpoint;
-                    strcpy((char *)expr, (char *)pline);var = NULL;
-		    for (;;) {
-			lpoint=apoint;
-			get_exp(&w,&d,&c,&val,T_NONE);
-			if (!c) break;
-			if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-			if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
-                        if (((val.type == T_INT || val.type == T_CHR) && !val.u.num) || (val.type == T_STR && !val.u.str.len)) break;
-                        if (bpoint < 0) {
-                            ignore();if (get()!=',') {err_msg(ERROR______EXPECTED,","); break;}
-                            if (get_ident('_')) break;
-                            ignore();if (get()!='=') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                            ignore();
-                            if (!here()) bpoint = 0;
+                        logitab.data[logitab.p++]=l_address-address;
+                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (val.type != T_NONE) {
+                            if (val.u.num & ~all_mem) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                            else l_address=val.u.num;
+                        }
+                        break;
+                    }
+                    if (prm==CMD_HERE) { // .here
+                        if (!logitab.p) err_msg(ERROR______EXPECTED,".LOGICAL");
+                        else l_address=address+logitab.data[--logitab.p];
+                        break;
+                    }
+                    if (prm==CMD_AS) { // .as
+                        longaccu=0;
+                        break;
+                    }
+                    if (prm==CMD_AL) { // .al
+                        longaccu=1;
+                        break;
+                    }
+                    if (prm==CMD_XS) { // .xs
+                        longindex=0;
+                        break;
+                    }
+                    if (prm==CMD_XL) { // .xl
+                        longindex=1;
+                        break;
+                    }
+                    if (prm==CMD_ERROR) { // .error
+                        err_msg(ERROR__USER_DEFINED,(char *)&pline[lpoint]);
+                        nextln();
+                        break;
+                    }
+                    if (prm==CMD_BLOCK) { // .block
+                        sprintf(varname, ".%x.%u", (unsigned)star_tree, vline);
+                        current_context=new_context(varname, current_context);
+                        current_context->backr=current_context->forwr=1;
+                        break;
+                    }
+                    if (prm==CMD_BEND) { //.bend
+                        if (current_context->parent && current_context->name[0]=='.') {
+                            current_context->parent->backr += current_context->backr - 1;
+                            current_context->parent->forwr += current_context->forwr - 1;
+                            current_context = current_context->parent;
+                        } else err_msg(ERROR______EXPECTED,".block");
+                        break;
+                    }
+                    if (prm==CMD_DATABANK) { // .databank
+                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (val.type != T_NONE) {
+                            if (val.u.num & ~0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                            else databank=val.u.num;
+                        }
+                        break;
+                    }
+                    if (prm==CMD_DPAGE) { // .dpage
+                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (val.type != T_NONE) {
+                            if (val.u.num & ~0xffff) err_msg(ERROR_CONSTNT_LARGE,NULL);
                             else {
-                                var=new_label(ident);
-                                if (labelexists) {
-                                    if (!var->varlabel) {
-                                        err_msg(ERROR_DOUBLE_DEFINE,varname);
-                                        break;
-                                    }
-                                    var->requires=current_requires;
-                                    var->conflicts=current_conflicts;
-                                } else {
-                                    var->requires=current_requires;
-                                    var->conflicts=current_conflicts;
-                                    var->varlabel=1;var->upass=var->pass=pass;
-                                    var->value.type=T_NONE;
-                                }
-                                bpoint=lpoint;
+                                if (dtvmode) dpage=val.u.num & 0xff00;
+                                else dpage=val.u.num;
                             }
                         }
-                        waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-			compile(2,mprm,nprm);
-                        xpos = cfile->p; xlin= sline;
-			strcpy((char *)pline, (char *)expr);
-			sline=lin;cfile->p=pos;
-                        if (bpoint) {
-                            lpoint=bpoint;
+                        break;
+                    }
+                    if (prm==CMD_FILL) { // .fill
+                        uint32_t db = 0;
+                        uint8_t ch;
+                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (val.type != T_NONE) {
+                            db=val.u.num;
+                            if (db>(all_mem+1)) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
+                        }
+                        ignore();
+                        if (here()==',') {
+                            lpoint++;
+                            get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                            if (!c) goto breakerr;
+                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                            if (val.type != T_NONE) {
+                                if (val.u.num & ~0xff) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
+                                ch = (uint8_t)val.u.num;
+                            } else ch = 0;
+                            while (db-->0) pokeb(ch);
+                        } else {
+                            if (fixeddig && scpumode) {
+                                if (((address + db)^address) & ~0xffff) wrapwarn2=1;
+                                if (((l_address + db)^l_address) & ~0xffff) wrapwarn2=1;
+                            }
+                            l_address+=db;
+                            if (l_address>all_mem) {
+                                if (fixeddig) wrapwarn=1;
+                                l_address&=all_mem;
+                            }
+                            address+=db;
+                            if (address>all_mem) {
+                                if (fixeddig) wrapwarn=1;
+                                address&=all_mem;
+                            }
+                            memjmp(address);
+                        }
+                        break;
+                    }
+                    if (prm==CMD_ASSERT) { // .assert
+                        get_exp(&w,&d,&c,&val,T_INT);
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,",");goto breakerr;}
+                        lpoint++;
+                        if (val.type != T_NONE) {
+                            current_provides=val.u.num;
+                        } else current_provides=~0;
+                        get_exp(&w,&d,&c,&val,T_INT);
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,",");goto breakerr;}
+                        lpoint++;
+                        if (val.type != T_NONE) {
+                            current_requires=val.u.num;
+                        } else current_requires=0;
+                        get_exp(&w,&d,&c,&val,T_INT);
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (val.type != T_NONE) {
+                            current_conflicts=val.u.num;
+                        } else current_conflicts=0;
+                        break;
+                    }
+                    if (prm==CMD_CHECK) { // .check
+                        get_exp(&w,&d,&c,&val,T_INT);
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,",");goto breakerr;}
+                        lpoint++;
+                        if (val.type != T_NONE) {
+                            if ((val.u.num & current_provides) ^ val.u.num) err_msg(ERROR_REQUIREMENTS_,".CHECK");
+                        }
+                        get_exp(&w,&d,&c,&val,T_INT);
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (val.type != T_NONE) {
+                            if (val.u.num & current_provides) err_msg(ERROR______CONFLICT,".CHECK");
+                        }
+                        break;
+                    }
+                    if (prm==CMD_WARN) { // .warn
+                        err_msg(ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
+                        nextln();
+                        break;
+                    }
+                    if (prm==CMD_ENC) { // .enc
+                        if (get_path(NULL)) goto breakerr;
+                        if (!strcasecmp(path,"none")) encoding=0;
+                        else
+                            if (!strcasecmp(path,"screen")) encoding=1;
+                            else
+                                err_msg(ERROR_UNKNOWN_ENCOD,ident);
+                        break;
+                    }
+                    if (prm==CMD_CPU) { // .cpu
+                        int def;
+                        if (get_path(NULL)) goto breakerr;
+                        def=arguments.cpumode;
+                        if (!strcmp(path,"6502")) def=OPCODES_6502;
+                        else if (!strcasecmp(path,"65c02")) def=OPCODES_65C02;
+                        else if (!strcasecmp(path,"6502i")) def=OPCODES_6502i;
+                        else if (!strcmp(path,"65816")) def=OPCODES_65816;
+                        else if (!strcasecmp(path,"65dtv02")) def=OPCODES_65DTV02;
+                        else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,ident);
+                        set_cpumode(def);
+                        break;
+                    }
+                    if (prm==CMD_CERROR || prm==CMD_CWARN) { // .cerror
+                        get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        ignore();
+                        if (here()==',') {
+                            lpoint++;ignore();
+                        }
+                        if (((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len)) err_msg((prm==CMD_CERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
+                        nextln();
+                        break;
+                    }
+                    if (prm==CMD_REPT) { // .rept
+                        int32_t cnt;
+                        waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                        get_exp(&w,&d,&c,&val,T_INT);
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for count");val.type=T_NONE;}
+                        cnt = 0;
+                        if (val.type != T_NONE) {
+                            size_t pos = cfile->p;
+                            uint32_t lin = sline;
+
+                            if (cnt<val.u.num) {
+                                struct star_s *s = new_star(vline);
+                                struct avltree *stree_old = star_tree;
+                                uint32_t ovline = vline;
+
+                                waitforp--;
+                                if (labelexists && s->addr != star) fixeddig=0;
+                                s->addr = star;
+                                star_tree = &s->tree;vline=0;
+                                for (; cnt<val.u.num; cnt++) {
+                                    sline=lin;cfile->p=pos;
+                                    waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                                    compile(2,mprm,nprm);
+                                }
+                                star_tree = stree_old; vline = ovline;
+                            }
+                        }
+                        break;
+                    }
+                    if (prm==CMD_ALIGN) { // .align
+                        int align, fill=-1;
+                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (val.type != T_NONE) {
+                            if (val.u.num<1 || val.u.num>(int32_t)all_mem) {
+                                err_msg(ERROR_CONSTNT_LARGE,NULL);
+                                goto breakerr;
+                            }
+                            align = val.u.num;
+                        } else align = 1;
+                        ignore();
+                        if (here()==',') {
+                            int d2;
+                            lpoint++;
+                            get_exp(&w,&d2,&c,&val,T_INT);if (!d2) fixeddig=0;
+                            if (!c) goto breakerr;
+                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                            if (val.type != T_NONE) {
+                                if (val.u.num & ~0xff) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
+                                fill = val.u.num;
+                            } else fill = 0;
+                        }
+                        if (align>1 && (l_address % align)) {
+                            if (fill>0)
+                                while (l_address % align) pokeb((unsigned char)fill);
+                            else {
+                                align-=l_address % align;
+                                if (align) {
+                                    if (fixeddig && scpumode) {
+                                        if (((address + align)^address) & ~0xffff) wrapwarn2=1;
+                                        if (((l_address + align)^l_address) & ~0xffff) wrapwarn2=1;
+                                    }
+                                    l_address+=align;
+                                    if (l_address>all_mem) {
+                                        if (fixeddig) wrapwarn=1;
+                                        l_address&=all_mem;
+                                    }
+                                    address+=align;
+                                    if (address>all_mem) {
+                                        if (fixeddig) wrapwarn=1;
+                                        address&=all_mem;
+                                    }
+                                    memjmp(address);
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    if (prm==CMD_EOR) {   // .eor
+                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (val.type != T_NONE) {
+                            if (val.u.num & ~0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                            else outputeor = val.u.num;
+                        } else outputeor = 0;
+                        break;
+                    }
+                    if (prm==CMD_END) {
+                        nobreak=0;
+                        break;
+                    }
+                    if (prm==CMD_PRON) {
+                        listing = (flist != NULL);
+                        break;
+                    }
+                    if (prm==CMD_PROFF) {
+                        listing = 0;
+                        break;
+                    }
+                    if (prm==CMD_SHOWMAC || prm==CMD_HIDEMAC) {
+                        err_msg(ERROR_DIRECTIVE_IGN,NULL);
+                        break;
+                    }
+                    if (prm==CMD_COMMENT) { // .comment
+                        waitfor[++waitforp].what='c';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                        break;
+                    }
+                    if (prm==CMD_INCLUDE) { // .include
+                        struct file_s *f;
+                        if (get_path(cfile->name)) goto breakerr;
+                        if (listing && flist) {
+                            fprintf(flist,"\n;******  Processing file \"%s\"\n",path);
+                            lastl=LIST_NONE;
+                        }
+                        f = cfile;
+                        cfile = openfile(path);
+                        if (cfile->open>1) {
+                            err_msg(ERROR_FILERECURSION,NULL);
+                        } else {
+                            uint32_t lin = sline;
+                            uint32_t vlin = vline;
+                            struct avltree *stree_old = star_tree;
+
+                            enterfile(cfile->name,sline);
+                            sline = vline = 0; cfile->p=0;
+                            star_tree = &cfile->star;
+                            compile(0,mprm,nprm);
+                            sline = lin; vline = vlin;
+                            star_tree = stree_old;
+                            exitfile();
+                        }
+                        closefile(cfile);cfile = f;
+                        if (listing && flist) {
+                            fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->name);
+                            lastl=LIST_NONE;
+                        }
+                        break;
+                    }
+                    if (prm==CMD_FOR) { // .for
+                        size_t pos, xpos;
+                        uint32_t lin, xlin;
+                        int apoint, bpoint = -1;
+                        uint8_t expr[linelength];
+                        struct label_s *var;
+                        struct star_s *s;
+                        struct avltree *stree_old;
+                        uint32_t ovline;
+
+                        waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                        if (strlen((char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
+                        if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
+                            if (get_ident('_')) goto breakerr;
+                            ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
+                            lpoint++;
+                            strcpy(varname,ident);
+                            get_exp(&w,&d,&c,&val,T_NONE);
+                            if (!c) goto breakerr;
+                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                            var=new_label(varname);
+                            if (labelexists) {
+                                if (!var->varlabel) err_msg(ERROR_DOUBLE_DEFINE,varname);
+                                else {
+                                    var->requires=current_requires;
+                                    var->conflicts=current_conflicts;
+                                    var_assign(var, &val, fixeddig);
+                                }
+                            } else {
+                                var->requires=current_requires;
+                                var->conflicts=current_conflicts;
+                                var->varlabel=1;var->upass=var->pass=pass;
+                                var->value=val;
+                                if (val.type == T_STR) {
+                                    var->value.u.str.data=malloc(val.u.str.len);
+                                    memcpy(var->value.u.str.data,val.u.str.data,val.u.str.len);
+                                }
+                                if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                            }
+                            wht=what(&prm);
+                        }
+                        if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X) lpoint--; else
+                            if (wht!=WHAT_COMA) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+
+                        s = new_star(vline); stree_old = star_tree; ovline = vline;
+                        if (labelexists && s->addr != star) fixeddig=0;
+                        s->addr = star;
+                        star_tree = &s->tree;vline=0;
+                        xlin=lin=sline; xpos=pos=cfile->p; apoint=lpoint;
+                        strcpy((char *)expr, (char *)pline);var = NULL;
+                        for (;;) {
+                            lpoint=apoint;
                             get_exp(&w,&d,&c,&val,T_NONE);
                             if (!c) break;
                             if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                            ignore();if (here()) goto extrachar;
-                            var_assign(var, &val, fixeddig);
-                        }
-                    }
-                    if (pos!=xpos || lin!=xlin) waitforp--;
-                    sline=xlin;cfile->p=xpos;
-                    star_tree = stree_old; vline = ovline;
-		    break;
-		}
-		if (prm==CMD_ENDP) { // .endp
-		    if (here()) goto extrachar;
-		    if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
-		    if ((l_address>>8) != (uint32_t)pagelo && fixeddig) {
-                        err_msg(ERROR____PAGE_ERROR,(const char *)l_address);
-                    }
-		    pagelo=-1;
-		    break;
-		}
-		if (prm==CMD_PAGE) { // .page
-		    if (here()) goto extrachar;
-		    if (pagelo!=-1) {err_msg(ERROR______EXPECTED,".ENDP"); break;}
-		    pagelo=(l_address>>8);
-		    break;
-		}
-		if (prm==CMD_OPTION) { // .option
-                    get_ident('_');
-                    ignore();if (get()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
-                    get_exp(&w,&d,&c,&val,T_NONE);
-		    if (!c) break;
-		    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-		    ignore();if (here()) goto extrachar;
-                    if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for option");break;}
-                    if (!strcasecmp(ident,"allow_branch_across_page")) allowslowbranch=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
-                    else if (!strcasecmp(ident,"auto_longbranch_as_jmp")) longbranchasjmp=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
-                    else err_msg(ERROR_UNKNOWN_OPTIO,ident);
-		    break;
-		}
-		if (prm==CMD_GOTO) { // .goto
-                    struct jump_s *tmp2;
-                    int noerr = 1;
-                    get_ident('_');
-                    ignore();if (here()) goto extrachar;
-                    tmp2 = find_jump(ident);
-                    if (tmp2 && tmp2->file == cfile) {
-                        uint8_t oldwaitforp = waitforp;
-                        while (tmp2->waitforp < waitforp) {
-                            uint32_t os = sline;
-                            sline = waitfor[waitforp].line;
-                            switch (waitfor[waitforp--].what) {
-                            case 'm': err_msg(ERROR______EXPECTED,".ENDM"); noerr = 0; break;
-                            case 'n': err_msg(ERROR______EXPECTED,".NEXT"); noerr = 0; break;
-                            case 'p': err_msg(ERROR______EXPECTED,".PEND"); noerr = 0; break;
-                            }
-                            sline = os;
-                        }
-                        if (noerr) {
-                            sline = tmp2->sline;
-                            cfile->p = tmp2->p;
-                        } else waitforp = oldwaitforp;
-                    } else err_msg(ERROR___NOT_DEFINED,ident);
-		    break;
-		}
-                if (prm==CMD_MACRO || prm==CMD_SEGMENT) {
-                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
-                    err_msg(ERROR___NOT_DEFINED,ident);
-                    break;
-                }
-                if (prm==CMD_PROC) {
-                    waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0;
-                    err_msg(ERROR___NOT_DEFINED,ident);
-                    break;
-                }
-	    }
-	case WHAT_HASHMARK:if (skipit[waitforp] & 1) //skip things if needed
-	    {                   //macro stuff
-		int ppoint, nprm;
-                char mparams[256];
-
-                if (get_ident2('_')) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                if (!(tmp2=find_macro(ident))) {err_msg(ERROR___NOT_DEFINED,ident); break;}
-            as_macro:
-                if (listing && flist && arguments.source && wasref) {
-                    if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                    fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
-                }
-		ppoint=nprm=0;
-                ignore();
-		while ((ch=get())) {
-                    if (ch=='"' || ch=='\'') {
-                        char quo=ch;
-			for (;;) {
-			    if (!(ch=get())) {err_msg(ERROR______EXPECTED,"End of string"); break;}
-			    if (ch==quo) {
-				if (here()!=quo) break;
+                            if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
+                            if (((val.type == T_INT || val.type == T_CHR) && !val.u.num) || (val.type == T_STR && !val.u.str.len)) break;
+                            if (bpoint < 0) {
+                                ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                                 lpoint++;
-			    }
-			    mparams[ppoint++]=ch;
-			}
-		    }
-		    else {
-			do mparams[ppoint++]=ch; while ((ch=get())!=',' && ch);
-			lpoint--;
-		    }
-		    nprm++;
-                    mparams[ppoint++]=0;
-                    ignore();
-                    if (!(ch=get())) break;
-		    if (ch!=',') {err_msg(ERROR______EXPECTED,","); break;}
-		}
-                macrecursion++;
-                if (tmp2->type==CMD_MACRO) {
-                    sprintf(varname, "#%x#%d", (unsigned)star_tree, vline);
-                    old_context = current_context;
-                    current_context=new_context(varname, current_context);
-                    current_context->backr=current_context->forwr=1;
-                }
-                if (macrecursion<100) {
-                    size_t oldpos = tmp2->file->p;
-                    uint32_t lin = sline;
-                    struct file_s *f;
-                    struct star_s *s = new_star(vline);
-                    struct avltree *stree_old = star_tree;
-                    uint32_t ovline = vline;
-
-                    if (labelexists && s->addr != star) fixeddig=0;
-                    s->addr = star;
-                    star_tree = &s->tree;vline=0;
-                    enterfile(tmp2->file->name, sline);
-                    tmp2->file->p = tmp2->p; sline = tmp2->sline;
-                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                    f = cfile; cfile = tmp2->file;
-                    compile((f!=cfile)?1:3,mparams,nprm);
-                    exitfile(); cfile = f;
-                    star_tree = stree_old; vline = ovline;
-                    sline = lin; tmp2->file->p = oldpos;
-                } else err_msg(ERROR__MACRECURSION,"!!!!");
-                if (tmp2->type==CMD_MACRO) current_context = old_context;
-                macrecursion--;
-		break;
-	    }
-        case WHAT_EXPRESSION:
-            if (skipit[waitforp] & 1) {
-                get_ident2('_');
-                if ((prm=lookup_opcode(ident))>=0) {
-                    enum opr_e opr;
-                    int mnem, oldlpoint;
-                    const uint8_t *cnmemonic; //current nmemonic
-                    int_fast8_t ln;
-                    uint8_t cod, longbranch;
-                    uint32_t adr;
-                as_opcode:
-                    if (!(skipit[waitforp] & 1)) {
-                        ignore();
-                        if (here()=='.') {
-                            wht=what(&prm);
-                            if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
-                                waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                                if (get_ident('_')) break;
+                                ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
+                                lpoint++;
+                                ignore();
+                                if (!here() || (here()==':' && !arguments.tasmcomp) || here()==';') bpoint = 0;
+                                else {
+                                    var=new_label(ident);
+                                    if (labelexists) {
+                                        if (!var->varlabel) {
+                                            err_msg(ERROR_DOUBLE_DEFINE,varname);
+                                            break;
+                                        }
+                                        var->requires=current_requires;
+                                        var->conflicts=current_conflicts;
+                                    } else {
+                                        var->requires=current_requires;
+                                        var->conflicts=current_conflicts;
+                                        var->varlabel=1;var->upass=var->pass=pass;
+                                        var->value.type=T_NONE;
+                                    }
+                                    bpoint=lpoint;
+                                }
+                            }
+                            waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                            compile(2,mprm,nprm);
+                            xpos = cfile->p; xlin= sline;
+                            pline = expr;
+                            sline=lin;cfile->p=pos;
+                            if (bpoint) {
+                                lpoint=bpoint;
+                                get_exp(&w,&d,&c,&val,T_NONE);
+                                if (!c) break;
+                                if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
+                                var_assign(var, &val, fixeddig);
                             }
                         }
-                        break;//skip things if needed
+                        if (pos!=xpos || lin!=xlin) waitforp--;
+                        sline=xlin;cfile->p=xpos;
+                        star_tree = stree_old; vline = ovline;
+                        nextln();
+                        break;
                     }
+                    if (prm==CMD_ENDP) { // .endp
+                        if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
+                        if ((l_address>>8) != (uint32_t)pagelo && fixeddig) {
+                            err_msg(ERROR____PAGE_ERROR,(const char *)l_address);
+                        }
+                        pagelo=-1;
+                        break;
+                    }
+                    if (prm==CMD_PAGE) { // .page
+                        if (pagelo!=-1) err_msg(ERROR______EXPECTED,".ENDP");
+                        else pagelo=(l_address>>8);
+                        break;
+                    }
+                    if (prm==CMD_OPTION) { // .option
+                        get_ident('_');
+                        ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
+                        lpoint++;
+                        get_exp(&w,&d,&c,&val,T_NONE);
+                        if (!c) goto breakerr;
+                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for option");goto breakerr;}
+                        if (!strcasecmp(ident,"allow_branch_across_page")) allowslowbranch=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
+                        else if (!strcasecmp(ident,"auto_longbranch_as_jmp")) longbranchasjmp=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
+                        else err_msg(ERROR_UNKNOWN_OPTIO,ident);
+                        break;
+                    }
+                    if (prm==CMD_GOTO) { // .goto
+                        struct jump_s *tmp2;
+                        int noerr = 1;
+                        get_ident('_');
+                        tmp2 = find_jump(ident);
+                        if (tmp2 && tmp2->file == cfile) {
+                            uint8_t oldwaitforp = waitforp;
+                            while (tmp2->waitforp < waitforp) {
+                                uint32_t os = sline;
+                                sline = waitfor[waitforp].line;
+                                switch (waitfor[waitforp--].what) {
+                                case 'm': err_msg(ERROR______EXPECTED,".ENDM"); noerr = 0; break;
+                                case 'n': err_msg(ERROR______EXPECTED,".NEXT"); noerr = 0; break;
+                                case 'p': err_msg(ERROR______EXPECTED,".PEND"); noerr = 0; break;
+                                }
+                                sline = os;
+                            }
+                            if (noerr) {
+                                sline = tmp2->sline;
+                                cfile->p = tmp2->p;
+                            } else waitforp = oldwaitforp;
+                        } else err_msg(ERROR___NOT_DEFINED,ident);
+                        break;
+                    }
+                    if (prm==CMD_MACRO || prm==CMD_SEGMENT) {
+                        waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                        err_msg(ERROR___NOT_DEFINED,ident);
+                        break;
+                    }
+                    if (prm==CMD_PROC) {
+                        waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                        err_msg(ERROR___NOT_DEFINED,ident);
+                        break;
+                    }
+                }
+            case WHAT_HASHMARK:if (skipit[waitforp] & 1) //skip things if needed
+                {                   //macro stuff
+                    int ppoint, nprm;
+                    char mparams[256];
 
-                    opr = 0;mnem = prm;
-                    oldlpoint = lpoint;
-                    cnmemonic = &opcode[prm*24];
-                    ln = 0; cod = 0; longbranch = 0; adr = 0;
-
+                    if (get_ident2('_')) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(tmp2=find_macro(ident))) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
+                as_macro:
+                    if (listing && flist && arguments.source && wasref) {
+                        if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                        fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
+                    }
+                    ppoint=nprm=0;
                     ignore();
-                    if (!(wht=here())) {
-                        opr=(cnmemonic[ADR_ACCU]==cnmemonic[ADR_IMPLIED])?ADR_ACCU:ADR_IMPLIED;w=ln=0;d=1;
-                    }  //clc
-                    // 1 Db
-                    else if (lowcase(wht)=='a' && pline[lpoint+1]==0 && cnmemonic[ADR_ACCU]!=____)
-                    {
-                        if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
-                        opr=ADR_ACCU;w=ln=0;d=1;// asl a
+                    while ((ch=here()) && ch!=';' && (ch!=':' || arguments.tasmcomp)) {
+                        lpoint++;
+                        if (ch=='"' || ch=='\'') {
+                            char quo=ch;
+                            for (;;) {
+                                if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of string"); goto breakerr;}
+                                lpoint++;
+                                if (ch==quo) {
+                                    if (here()!=quo) break;
+                                    lpoint++;
+                                }
+                                mparams[ppoint++]=ch;
+                            }
+                        }
+                        else {
+                            do mparams[ppoint++]=ch; while ((ch=get())!=',' && ch && (ch != ':' || arguments.tasmcomp) && ch != ';');
+                            lpoint--;
+                        }
+                        nprm++;
+                        mparams[ppoint++]=0;
+                        ignore();
+                        if (!here() || (here()==':' && !arguments.tasmcomp) || here()==';') break;
+                        if (here()!=',') {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                         lpoint++;
                     }
-                    // 2 Db
-                    else if (wht=='#') {
-                        if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____) {
-                            while (here()) lpoint++;ln=w=d=1;
-                        } else {
+                    macrecursion++;
+                    if (tmp2->type==CMD_MACRO) {
+                        sprintf(varname, "#%x#%d", (unsigned)star_tree, vline);
+                        old_context = current_context;
+                        current_context=new_context(varname, current_context);
+                        current_context->backr=current_context->forwr=1;
+                    }
+                    if (macrecursion<100) {
+                        size_t oldpos = tmp2->file->p;
+                        uint32_t lin = sline;
+                        struct file_s *f;
+                        struct star_s *s = new_star(vline);
+                        struct avltree *stree_old = star_tree;
+                        uint32_t ovline = vline;
+
+                        if (labelexists && s->addr != star) fixeddig=0;
+                        s->addr = star;
+                        star_tree = &s->tree;vline=0;
+                        enterfile(tmp2->file->name, sline);
+                        tmp2->file->p = tmp2->p; sline = tmp2->sline;
+                        waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                        f = cfile; cfile = tmp2->file;
+                        compile((f!=cfile)?1:3,mparams,nprm);
+                        exitfile(); cfile = f;
+                        star_tree = stree_old; vline = ovline;
+                        sline = lin; tmp2->file->p = oldpos;
+                    } else err_msg(ERROR__MACRECURSION,"!!!!");
+                    if (tmp2->type==CMD_MACRO) current_context = old_context;
+                    macrecursion--;
+                    break;
+                }
+            case WHAT_EXPRESSION:
+                if (skipit[waitforp] & 1) {
+                    get_ident2('_');
+                    if ((prm=lookup_opcode(ident))>=0) {
+                        enum opr_e opr;
+                        int mnem, oldlpoint;
+                        const uint8_t *cnmemonic; //current nmemonic
+                        int_fast8_t ln;
+                        uint8_t cod, longbranch;
+                        uint32_t adr;
+                    as_opcode:
+                        if (!(skipit[waitforp] & 1)) {
+                            ignore();
+                            if (here()=='.') {
+                                wht=what(&prm);
+                                if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
+                                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                                }
+                            }
+                            break;//skip things if needed
+                        }
+
+                        opr = 0;mnem = prm;
+                        oldlpoint = lpoint;
+                        cnmemonic = &opcode[prm*24];
+                        ln = 0; cod = 0; longbranch = 0; adr = 0;
+
+                        ignore();
+                        if (!(wht=here()) || (here()==':' && !arguments.tasmcomp) || wht==';') {
+                            opr=(cnmemonic[ADR_ACCU]==cnmemonic[ADR_IMPLIED])?ADR_ACCU:ADR_IMPLIED;w=ln=0;d=1;
+                        }  //clc
+                        // 1 Db
+                        else if (lowcase(wht)=='a' && cnmemonic[ADR_ACCU]!=____ && (!pline[lpoint+1] || (pline[lpoint+1]==':' && !arguments.tasmcomp) || pline[lpoint+1]==';' || pline[lpoint+1]==0x20 || pline[lpoint+1]==0x09))
+                        {
+                            unsigned int opoint=lpoint;
+                            lpoint++;ignore();
+                            if (here() && (here()!=':' || arguments.tasmcomp) && here()!=';') {lpoint=opoint;goto nota;}
+                            if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
+                            opr=ADR_ACCU;w=ln=0;d=1;// asl a
+                        }
+                        // 2 Db
+                        else if (wht=='#') {
+                            if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____) {
+                                nextln();ln=w=d=1;
+                            } else {
+                                lpoint++;
+                                get_exp(&w,&d,&c,&val,T_INT); //ellenorizve.
+                                if (!c) goto breakerr;
+                                if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+
+                                ln=1;
+                                if (cod==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {// cpx cpy ldx ldy
+                                    if (longindex && scpumode) ln++;
+                                }
+                                else if (cod==0xF4) ln=2; //pea #$ffff
+                                else if (cod!=0xC2 && cod!=0xE2) {//not sep rep=all accu
+                                    if (longaccu && scpumode) ln++;
+                                }
+                                if (dtvmode && cod==0x02) longbranch=0x40;//hack
+
+                                if (val.type != T_NONE) {
+                                    adr=val.u.num;
+                                    if (w==3) w=val_length(adr);//auto length
+                                    if (w>=ln) w=3; //const too large
+                                } else fixeddig=0;
+                            }
+                        }
+                        // 3 Db
+                        else if (wht=='[') {
                             lpoint++;
                             get_exp(&w,&d,&c,&val,T_INT); //ellenorizve.
-                            if (!c) break;
-                            if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-
-                            ln=1;
-                            if (cod==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {// cpx cpy ldx ldy
-                                if (longindex && scpumode) ln++;
-                            }
-                            else if (cod==0xF4) ln=2; //pea #$ffff
-                            else if (cod!=0xC2 && cod!=0xE2) {//not sep rep=all accu
-                                if (longaccu && scpumode) ln++;
-                            }
-                            if (dtvmode && cod==0x02) longbranch=0x40;//hack
-
-                            if (val.type != T_NONE) {
-                                adr=val.u.num;
-                                if (w==3) w=val_length(adr);//auto length
-                                if (w>=ln) w=3; //const too large
-                            } else fixeddig=0;
-                        }
-                    }
-                    // 3 Db
-                    else if (wht=='[') {
-                        lpoint++;
-                        get_exp(&w,&d,&c,&val,T_INT); //ellenorizve.
-                        if (!c) break;
-                        if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                        ignore();if (get()!=']') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                        if ((wht=what(&prm))==WHAT_Y) {
-                            if (val.type != T_NONE) {
-                                adr = (uint16_t)(val.u.num - dpage) | (adr && ~0xffff);
-                                if (w==3) w=val_length(adr);//auto length
-                                if (w) w=3;// there's no lda [$ffff],y lda [$ffffff],y!
-                                opr=ADR_ZP_LI_Y;
-                            } else fixeddig=0;
-                            ln=1; // lda [$ff],y
-                        }
-                        else if (wht==WHAT_EOL) {
-                            if (cnmemonic[ADR_ADDR_LI]==0xDC) { // jmp [$ffff]
-                                if (val.type != T_NONE) {
-                                    adr = val.u.num;
-                                    if (w==3) {
-                                        w=val_length(adr);//auto length
-                                        if (!w) w=1;
-                                    }
-                                    if (w!=1) w=3; // there's no jmp [$ffffff]!
-                                    opr=ADR_ADDR_LI;
-                                } else fixeddig=0;
-                                ln=2;// jmp [$ffff]
-                            }
-                            else {
+                            if (!c) goto breakerr;
+                            if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                            ignore();if (here()!=']') {err_msg(ERROR______EXPECTED,"]"); goto breakerr;}
+                            lpoint++;
+                            if ((wht=what(&prm))==WHAT_Y) {
                                 if (val.type != T_NONE) {
                                     adr = (uint16_t)(val.u.num - dpage) | (adr && ~0xffff);
                                     if (w==3) w=val_length(adr);//auto length
-                                    if (w) w=3; // there's no lda [$ffff] lda [$ffffff]!
-                                    opr=ADR_ZP_LI;
+                                    if (w) w=3;// there's no lda [$ffff],y lda [$ffffff],y!
+                                    opr=ADR_ZP_LI_Y;
                                 } else fixeddig=0;
-                                ln=1;// lda [$ff]
+                                ln=1; // lda [$ff],y
                             }
-                            lpoint--;
-                        }
-                    }
-                    else if (wht=='.') {
-                        wht=what(&prm);
-                        if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
-                            memcpy(ident,&mnemonic[mnem*3],3);
-                            ident[3]=0;goto do_macro;
-                        }
-                        err_msg(ERROR_GENERL_SYNTAX,NULL);break;
-                    }
-                    else {
-                        if (whatis[wht]!=WHAT_EXPRESSION && whatis[wht]!=WHAT_CHAR && wht!='_' && wht!='*') {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0; //ellenorizve.
-                        if (!c) break;
-                        if (val.type != T_NONE) {
-                            adr = val.u.num;
-                        }
-                    meg:
-                        if (c==1) {
-                            if ((wht=what(&prm))==WHAT_X) {// lda $ff,x lda $ffff,x lda $ffffff,x
-                                if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
-                                if (w==3) {//auto length
+                            else if (wht==WHAT_EOL || wht==WHAT_COLON || wht==WHAT_COMMENT) {
+                                if (cnmemonic[ADR_ADDR_LI]==0xDC) { // jmp [$ffff]
                                     if (val.type != T_NONE) {
-                                        if (cnmemonic[ADR_ZP_X]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
-                                        else if (cnmemonic[ADR_ADDR_X]!=____ && databank==(adr >> 16)) w=1;
-                                        else {
-                                            w=val_length(adr);
-                                            if (w<2) w=2;
-                                        }
-                                    } else w=(cnmemonic[ADR_ADDR_X]!=____);
-                                } else {
-                                    if (!w && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) adr=(uint16_t)(adr - dpage);
-                                    if (databank==(adr >> 16) && w<2) adr&=0xffff;
-                                    if (w<val_length(adr)) w=3;
-                                }
-                                opr=ADR_ZP_X-w;ln=w+1;
-                            }// 6 Db
-                            else if (wht==WHAT_Y) {// lda $ff,y lda $ffff,y lda $ffffff,y
-                                if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
-                                if (w==3) {//auto length
-                                    if (val.type != T_NONE) {
-                                        if (cnmemonic[ADR_ZP_Y]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
-                                        else if (databank==(adr >> 16)) w=1;
-                                    } else w=(cnmemonic[ADR_ADDR_Y]!=____);
-                                } else {
-                                    if (!w && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) adr=(uint16_t)(adr - dpage);
-                                    if (databank==(adr >> 16) && w<2) adr&=0xffff;
-                                    if (w<val_length(adr)) w=3;
-                                }
-                                if (w==2) w=3; // there's no lda $ffffff,y!
-                                opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
-                            }// 8 Db
-                            else if (wht==WHAT_S) {
-                                if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
-                                if (val.type != T_NONE) {
-                                    if (w==3) w=val_length(adr);//auto length
-                                    if (w) w=3; // there's no lda $ffffff,s or lda $ffff,s!
-                                    opr=ADR_ZP_S;
-                                }
-                                ln=1; // lda $ff,s
-                            }// 9 Db
-                            else if (wht==WHAT_COMA) { // mvp $10,$20
-                                int w2,c2,d2;
-                                struct value_s val2;
-                                megint:
-                                d2=d;
-                                get_exp(&w2,&d,&c2,&val2,T_INT);if (!d) fixeddig=0;
-                                if (!c2) break;
-                                if (c2==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                                if (cnmemonic[ADR_REL]!=____) {
-                                    int32_t valx,valx2;
-                                    if (val.type != T_NONE && val2.type != T_NONE) {
-                                        valx=val.u.num-l_address-2;
-                                        valx2=val2.u.num-l_address-2;
-                                        if ((valx<-128 || valx>127) && valx2>=-128 && valx2<=127) {
-                                            val=val2;
-                                            adr = val.u.num;
-                                            c=c2;
-                                            w=w2;
-                                        } else d=d2;
-                                    } else {
-                                        if (d2) d=d2;
-                                        else {
-                                            val=val2;
-                                            if (val2.type != T_NONE) adr = val.u.num;
-                                            c=c2;w=w2;
-                                        }
-                                    }
-                                    goto meg;
-                                }
-                                adr <<= 8;
-                                if (val.type != T_NONE && val2.type != T_NONE) {
-                                    if (w==3) w=val_length(adr);//auto length
-                                    if (w2==3) w2=val_length(val2.u.num);//auto length
-                                    if (w || w2) w=3; // only byte operands...
-                                    opr=ADR_MOVE;
-                                    adr|=val2.u.num;
-                                }
-                                ln=2;
-                            }// 10 Db
-                            else if (wht==WHAT_EOL) {
-                                if (cnmemonic[ADR_REL]!=____) {
-                                    struct star_s *s;
-                                    int olabelexists;
-                                    s=new_star(vline+1);olabelexists=labelexists;
-                                    ln=1;opr=ADR_REL;
-                                    if (val.type != T_NONE) {
-                                        uint16_t oadr = adr;
-                                        if (fixeddig && (l_address >> 16)!=(adr >> 16)) err_msg(ERROR_BRANCH_TOOFAR,NULL);
-
-                                        if (labelexists && adr >= s->addr) {
-                                            adr=(uint16_t)(adr - s->addr);
-                                        } else {
-                                            adr=(uint16_t)(adr - l_address - 2);labelexists=0;
-                                        }
-                                        if (adr<0xFF80 && adr>0x007F) {
-                                            if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
-                                                if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
-                                                    longbranch=0x20;ln=4;
-                                                    if (scpumode && !longbranchasjmp) {
-                                                        if (!labelexists) adr=(uint16_t)(adr-3);
-                                                        adr=0x8203+(adr << 16);
-                                                    } else {
-                                                        adr=0x4C03+(oadr << 16);
-                                                    }
-                                                } else {//bra
-                                                    if (scpumode && !longbranchasjmp) {
-                                                        longbranch=cnmemonic[ADR_REL]^0x82;
-                                                        if (!labelexists) adr=(uint16_t)(adr-1);
-                                                        ln=2;
-                                                    } else {
-                                                        longbranch=cnmemonic[ADR_REL]^0x4C;
-                                                        adr=oadr;ln=2;
-                                                    }
-                                                }
-                                                if (fixeddig) err_msg(ERROR___LONG_BRANCH,NULL);
-                                            } else {
-                                                if (cnmemonic[ADR_ADDR]!=____) {
-                                                    if (scpumode && !longbranchasjmp) {
-                                                        longbranch=cnmemonic[ADR_REL]^0x82;
-                                                        if (!labelexists) adr=(uint16_t)(adr-1);
-                                                    } else {
-                                                        adr=oadr;
-                                                        opr=ADR_ADDR;
-                                                    }
-                                                    ln=2;
-                                                } else if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);
-                                            }
-                                        } else {
-                                            if (fixeddig) {
-                                                if (!longbranch && ((l_address+2) & 0xff00)!=(oadr & 0xff00)) {
-                                                    if (!allowslowbranch) err_msg(ERROR__BRANCH_CROSS,NULL);
-                                                }
-                                            }
-                                            if (cnmemonic[ADR_ADDR]!=____) {
-                                                if (adr==0) ln=-1;
-                                                else if (adr==1 && (cnmemonic[ADR_REL] & 0x1f)==0x10) {
-                                                ln=0;longbranch=0x20;adr=0x10000;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    w=0;// bne
-                                    if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) fixeddig=0;
-                                    s->addr = (star + 1 + ln) & all_mem;
-                                }
-                                else if (cnmemonic[ADR_REL_L]!=____) {
-                                    if (val.type != T_NONE) {
-                                        if (fixeddig && (l_address >> 16)!=(adr >> 16)) {err_msg(ERROR_BRANCH_TOOFAR,NULL); break;}
-                                        adr=(uint16_t)(adr-l_address-3);
-                                    }
-                                    ln=2;opr=ADR_REL_L;w=1;//brl
-                                }
-                                else if (cnmemonic[ADR_LONG]==0x5C) {
-                                    if (w==3) {
-                                        if (cnmemonic[ADR_ADDR]==____) w=2; // jml
-                                        else {
-                                            if (val.type != T_NONE) {
-                                                if ((l_address >> 16)==(adr >> 16)) w=1;
-                                                else {
-                                                    w=val_length(adr);
-                                                    if (w<2) w=2; // in another bank
-                                                }
-                                            } else w=1;
-                                        }
-                                    }
-                                    opr=ADR_ZP-w;ln=w+1;
-                                }
-                                else if (cnmemonic[ADR_ADDR]==0x20) {
-                                    if (val.type != T_NONE) {
-                                        if (fixeddig && (l_address >> 16)!=(adr >> 16)) err_msg(ERROR_BRANCH_TOOFAR,NULL);
-                                        adr^=(l_address & ~0xffff);
+                                        adr = val.u.num;
                                         if (w==3) {
                                             w=val_length(adr);//auto length
-                                            if (!w) w=1; // there's no jsr $ff
+                                            if (!w) w=1;
                                         }
-                                        if (w!=1) w=3; // there's no jsr $ffffff!
-                                    }
-                                    opr=ADR_ADDR;ln=2;
+                                        if (w!=1) w=3; // there's no jmp [$ffffff]!
+                                        opr=ADR_ADDR_LI;
+                                    } else fixeddig=0;
+                                    ln=2;// jmp [$ffff]
                                 }
                                 else {
+                                    if (val.type != T_NONE) {
+                                        adr = (uint16_t)(val.u.num - dpage) | (adr && ~0xffff);
+                                        if (w==3) w=val_length(adr);//auto length
+                                        if (w) w=3; // there's no lda [$ffff] lda [$ffffff]!
+                                        opr=ADR_ZP_LI;
+                                    } else fixeddig=0;
+                                    ln=1;// lda [$ff]
+                                }
+                            }
+                        }
+                        else if (wht=='.') {
+                            wht=what(&prm);
+                            if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
+                                memcpy(ident,&mnemonic[mnem*3],3);
+                                ident[3]=0;goto do_macro;
+                            }
+                            err_msg(ERROR_GENERL_SYNTAX,NULL);goto breakerr;
+                        }
+                        else {
+                            if (whatis[wht]!=WHAT_EXPRESSION && whatis[wht]!=WHAT_CHAR && wht!='_' && wht!='*') {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        nota:
+                            get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0; //ellenorizve.
+                            if (!c) goto breakerr;
+                            if (val.type != T_NONE) {
+                                adr = val.u.num;
+                            }
+                        meg:
+                            if (c==1) {
+                                if ((wht=what(&prm))==WHAT_X) {// lda $ff,x lda $ffff,x lda $ffffff,x
+                                    if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
                                     if (w==3) {//auto length
                                         if (val.type != T_NONE) {
-                                            if (cnmemonic[ADR_ZP]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
-                                            else if (cnmemonic[ADR_ADDR]!=____ && databank==(adr >> 16)) w=1;
+                                            if (cnmemonic[ADR_ZP_X]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
+                                            else if (cnmemonic[ADR_ADDR_X]!=____ && databank==(adr >> 16)) w=1;
                                             else {
                                                 w=val_length(adr);
                                                 if (w<2) w=2;
                                             }
-                                        } else w=1;
+                                        } else w=(cnmemonic[ADR_ADDR_X]!=____);
                                     } else {
                                         if (!w && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) adr=(uint16_t)(adr - dpage);
                                         if (databank==(adr >> 16) && w<2) adr&=0xffff;
                                         if (w<val_length(adr)) w=3;
                                     }
-                                    opr=ADR_ZP-w;ln=w+1; // lda $ff lda $ffff lda $ffffff
-                                }
-                                lpoint--;
-                            }// 13+2 Db
-                        }
-                        else if (c==2) {
-                            if ((wht=what(&prm))==WHAT_SZ) {
-                                if ((wht=what(&prm))!=WHAT_Y) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                                if (val.type != T_NONE) {
-                                    if (w==3) w=val_length(adr);//auto length
-                                    if (w) w=3; // there's no lda ($ffffff,s),y or lda ($ffff,s),y!
-                                    opr=ADR_ZP_S_I_Y;
-                                }
-                                ln=1; // lda ($ff,s),y
-                            } // 16 Db
-                            else {
-                                if (wht!=WHAT_XZ) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                                if (cnmemonic[ADR_ADDR_X_I]==0x7C || cnmemonic[ADR_ADDR_X_I]==0xFC) {// jmp ($ffff,x) jsr ($ffff,x)
-                                    if (val.type != T_NONE) {
-                                        if ((l_address >> 16)==(adr >> 16)) w=1; else w=3; // only same program bank!
-                                        opr=ADR_ADDR_X_I;
+                                    opr=ADR_ZP_X-w;ln=w+1;
+                                }// 6 Db
+                                else if (wht==WHAT_Y) {// lda $ff,y lda $ffff,y lda $ffffff,y
+                                    if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
+                                    if (w==3) {//auto length
+                                        if (val.type != T_NONE) {
+                                            if (cnmemonic[ADR_ZP_Y]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
+                                            else if (databank==(adr >> 16)) w=1;
+                                        } else w=(cnmemonic[ADR_ADDR_Y]!=____);
+                                    } else {
+                                        if (!w && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) adr=(uint16_t)(adr - dpage);
+                                        if (databank==(adr >> 16) && w<2) adr&=0xffff;
+                                        if (w<val_length(adr)) w=3;
                                     }
-                                    ln=2; // jmp ($ffff,x)
-                                }
-                                else {
+                                    if (w==2) w=3; // there's no lda $ffffff,y!
+                                    opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
+                                }// 8 Db
+                                else if (wht==WHAT_S) {
+                                    if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
                                     if (val.type != T_NONE) {
-                                        adr=(uint16_t)(adr - dpage) | (adr & ~0xffff);
                                         if (w==3) w=val_length(adr);//auto length
-                                        if (w) w=3; // there's no lda ($ffff,x) lda ($ffffff,x)!
-                                        opr=ADR_ZP_X_I;
+                                        if (w) w=3; // there's no lda $ffffff,s or lda $ffff,s!
+                                        opr=ADR_ZP_S;
                                     }
-                                    ln=1; // lda ($ff,x)
-                                }
-                            } // 18 Db
-                        }
-                        else {
-                            if ((wht=what(&prm))==WHAT_Y) {
-                                if (val.type != T_NONE) {
-                                    adr=(uint16_t)(adr - dpage) | (adr & ~0xffff);
-                                    if (w==3) w=val_length(adr);
-                                    if (w) w=3;
-                                    opr=ADR_ZP_I_Y;
-                                }
-                                ln=1; // lda ($ff),y
-                            } // 19 Db
-                            else if (wht==WHAT_EOL) {
-                                if (cnmemonic[ADR_ADDR_I]==0x6C) {// jmp ($ffff)
-                                    if (val.type != T_NONE) {
-                                        if (fixeddig) {
+                                    ln=1; // lda $ff,s
+                                }// 9 Db
+                                else if (wht==WHAT_COMA) { // mvp $10,$20
+                                    int w2,c2,d2;
+                                    struct value_s val2;
+                                    megint:
+                                    d2=d;
+                                    get_exp(&w2,&d,&c2,&val2,T_INT);if (!d) fixeddig=0;
+                                    if (!c2) goto breakerr;
+                                    if (c2==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                    if (cnmemonic[ADR_REL]!=____) {
+                                        int32_t valx,valx2;
+                                        if (val.type != T_NONE && val2.type != T_NONE) {
+                                            valx=val.u.num-l_address-2;
+                                            valx2=val2.u.num-l_address-2;
+                                            if ((valx<-128 || valx>127) && valx2>=-128 && valx2<=127) {
+                                                val=val2;
+                                                adr = val.u.num;
+                                                c=c2;
+                                                w=w2;
+                                            } else d=d2;
+                                        } else {
+                                            if (d2) d=d2;
+                                            else {
+                                                val=val2;
+                                                if (val2.type != T_NONE) adr = val.u.num;
+                                                c=c2;w=w2;
+                                            }
+                                        }
+                                        goto meg;
+                                    }
+                                    adr <<= 8;
+                                    if (val.type != T_NONE && val2.type != T_NONE) {
+                                        if (w==3) w=val_length(adr);//auto length
+                                        if (w2==3) w2=val_length(val2.u.num);//auto length
+                                        if (w || w2) w=3; // only byte operands...
+                                        opr=ADR_MOVE;
+                                        adr|=val2.u.num;
+                                    }
+                                    ln=2;
+                                }// 10 Db
+                                else if (wht==WHAT_EOL || wht==WHAT_COLON || wht==WHAT_COMMENT) {
+                                    if (cnmemonic[ADR_REL]!=____) {
+                                        struct star_s *s;
+                                        int olabelexists;
+                                        s=new_star(vline+1);olabelexists=labelexists;
+                                        ln=1;opr=ADR_REL;
+                                        if (val.type != T_NONE) {
+                                            uint16_t oadr = adr;
+                                            if (fixeddig && (l_address >> 16)!=(adr >> 16)) err_msg(ERROR_BRANCH_TOOFAR,NULL);
+
+                                            if (labelexists && adr >= s->addr) {
+                                                adr=(uint16_t)(adr - s->addr);
+                                            } else {
+                                                adr=(uint16_t)(adr - l_address - 2);labelexists=0;
+                                            }
+                                            if (adr<0xFF80 && adr>0x007F) {
+                                                if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
+                                                    if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
+                                                        longbranch=0x20;ln=4;
+                                                        if (scpumode && !longbranchasjmp) {
+                                                            if (!labelexists) adr=(uint16_t)(adr-3);
+                                                            adr=0x8203+(adr << 16);
+                                                        } else {
+                                                            adr=0x4C03+(oadr << 16);
+                                                        }
+                                                    } else {//bra
+                                                        if (scpumode && !longbranchasjmp) {
+                                                            longbranch=cnmemonic[ADR_REL]^0x82;
+                                                            if (!labelexists) adr=(uint16_t)(adr-1);
+                                                            ln=2;
+                                                        } else {
+                                                            longbranch=cnmemonic[ADR_REL]^0x4C;
+                                                            adr=oadr;ln=2;
+                                                        }
+                                                    }
+                                                    if (fixeddig) err_msg(ERROR___LONG_BRANCH,NULL);
+                                                } else {
+                                                    if (cnmemonic[ADR_ADDR]!=____) {
+                                                        if (scpumode && !longbranchasjmp) {
+                                                            longbranch=cnmemonic[ADR_REL]^0x82;
+                                                            if (!labelexists) adr=(uint16_t)(adr-1);
+                                                        } else {
+                                                            adr=oadr;
+                                                            opr=ADR_ADDR;
+                                                        }
+                                                        ln=2;
+                                                    } else if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);
+                                                }
+                                            } else {
+                                                if (fixeddig) {
+                                                    if (!longbranch && ((l_address+2) & 0xff00)!=(oadr & 0xff00)) {
+                                                        if (!allowslowbranch) err_msg(ERROR__BRANCH_CROSS,NULL);
+                                                    }
+                                                }
+                                                if (cnmemonic[ADR_ADDR]!=____) {
+                                                    if (adr==0) ln=-1;
+                                                    else if (adr==1 && (cnmemonic[ADR_REL] & 0x1f)==0x10) {
+                                                    ln=0;longbranch=0x20;adr=0x10000;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        w=0;// bne
+                                        if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) fixeddig=0;
+                                        s->addr = (star + 1 + ln) & all_mem;
+                                    }
+                                    else if (cnmemonic[ADR_REL_L]!=____) {
+                                        if (val.type != T_NONE) {
+                                            if (fixeddig && (l_address >> 16)!=(adr >> 16)) err_msg(ERROR_BRANCH_TOOFAR,NULL);
+                                            adr=(uint16_t)(adr-l_address-3);
+                                        }
+                                        ln=2;opr=ADR_REL_L;w=1;//brl
+                                    }
+                                    else if (cnmemonic[ADR_LONG]==0x5C) {
+                                        if (w==3) {
+                                            if (cnmemonic[ADR_ADDR]==____) w=2; // jml
+                                            else {
+                                                if (val.type != T_NONE) {
+                                                    if ((l_address >> 16)==(adr >> 16)) w=1;
+                                                    else {
+                                                        w=val_length(adr);
+                                                        if (w<2) w=2; // in another bank
+                                                    }
+                                                } else w=1;
+                                            }
+                                        }
+                                        opr=ADR_ZP-w;ln=w+1;
+                                    }
+                                    else if (cnmemonic[ADR_ADDR]==0x20) {
+                                        if (val.type != T_NONE) {
+                                            if (fixeddig && (l_address >> 16)!=(adr >> 16)) err_msg(ERROR_BRANCH_TOOFAR,NULL);
+                                            adr^=(l_address & ~0xffff);
                                             if (w==3) {
                                                 w=val_length(adr);//auto length
-                                                if (!w) w=1;
+                                                if (!w) w=1; // there's no jsr $ff
                                             }
-                                            if (w!=1) w=3; // there's no jmp ($ffffff)!
-                                            if ((opcode!=c65816 && opcode!=c65c02) && (adr & 0xff)==0xff) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
-                                        } else w=1;
-                                        opr=ADR_ADDR_I;
+                                            if (w!=1) w=3; // there's no jsr $ffffff!
+                                        }
+                                        opr=ADR_ADDR;ln=2;
                                     }
-                                    ln=2; // jmp ($ffff)
-                                }
+                                    else {
+                                        if (w==3) {//auto length
+                                            if (val.type != T_NONE) {
+                                                if (cnmemonic[ADR_ZP]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
+                                                else if (cnmemonic[ADR_ADDR]!=____ && databank==(adr >> 16)) w=1;
+                                                else {
+                                                    w=val_length(adr);
+                                                    if (w<2) w=2;
+                                                }
+                                            } else w=1;
+                                        } else {
+                                            if (!w && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) adr=(uint16_t)(adr - dpage);
+                                            if (databank==(adr >> 16) && w<2) adr&=0xffff;
+                                            if (w<val_length(adr)) w=3;
+                                        }
+                                        opr=ADR_ZP-w;ln=w+1; // lda $ff lda $ffff lda $ffffff
+                                    }
+                                }// 13+2 Db
+                            }
+                            else if (c==2) {
+                                if ((wht=what(&prm))==WHAT_SZ) {
+                                    if ((wht=what(&prm))!=WHAT_Y) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                    if (val.type != T_NONE) {
+                                        if (w==3) w=val_length(adr);//auto length
+                                        if (w) w=3; // there's no lda ($ffffff,s),y or lda ($ffff,s),y!
+                                        opr=ADR_ZP_S_I_Y;
+                                    }
+                                    ln=1; // lda ($ff,s),y
+                                } // 16 Db
                                 else {
+                                    if (wht!=WHAT_XZ) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                    if (cnmemonic[ADR_ADDR_X_I]==0x7C || cnmemonic[ADR_ADDR_X_I]==0xFC) {// jmp ($ffff,x) jsr ($ffff,x)
+                                        if (val.type != T_NONE) {
+                                            if ((l_address >> 16)==(adr >> 16)) w=1; else w=3; // only same program bank!
+                                            opr=ADR_ADDR_X_I;
+                                        }
+                                        ln=2; // jmp ($ffff,x)
+                                    }
+                                    else {
+                                        if (val.type != T_NONE) {
+                                            adr=(uint16_t)(adr - dpage) | (adr & ~0xffff);
+                                            if (w==3) w=val_length(adr);//auto length
+                                            if (w) w=3; // there's no lda ($ffff,x) lda ($ffffff,x)!
+                                            opr=ADR_ZP_X_I;
+                                        }
+                                        ln=1; // lda ($ff,x)
+                                    }
+                                } // 18 Db
+                            }
+                            else {
+                                if ((wht=what(&prm))==WHAT_Y) {
                                     if (val.type != T_NONE) {
                                         adr=(uint16_t)(adr - dpage) | (adr & ~0xffff);
-                                        if (w==3) w=val_length(adr);//auto length
-                                        if (w) w=3; // there's no lda ($ffff) lda ($ffffff)!
-                                        opr=ADR_ZP_I;
+                                        if (w==3) w=val_length(adr);
+                                        if (w) w=3;
+                                        opr=ADR_ZP_I_Y;
                                     }
-                                    ln=1; // lda ($ff)
-                                }
-                                lpoint--;
-                            } // 21 Db
-                        }
-                    }
-                    if (here()) {extrachar:err_msg(ERROR_EXTRA_CHAR_OL,NULL); break;}
-
-                    if (d) {
-                        if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); break;}
-                        if ((cod=cnmemonic[opr])==____) {
-                            memcpy(ident,&mnemonic[mnem*3],3);
-                            ident[3]=0;
-                            if ((tmp2=find_macro(ident))) {
-                                lpoint=oldlpoint;
-                                goto as_macro;
+                                    ln=1; // lda ($ff),y
+                                } // 19 Db
+                                else if (wht==WHAT_EOL || wht==WHAT_COLON || wht==WHAT_COMMENT) {
+                                    if (cnmemonic[ADR_ADDR_I]==0x6C) {// jmp ($ffff)
+                                        if (val.type != T_NONE) {
+                                            if (fixeddig) {
+                                                if (w==3) {
+                                                    w=val_length(adr);//auto length
+                                                    if (!w) w=1;
+                                                }
+                                                if (w!=1) w=3; // there's no jmp ($ffffff)!
+                                                if ((opcode!=c65816 && opcode!=c65c02) && (adr & 0xff)==0xff) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
+                                            } else w=1;
+                                            opr=ADR_ADDR_I;
+                                        }
+                                        ln=2; // jmp ($ffff)
+                                    }
+                                    else {
+                                        if (val.type != T_NONE) {
+                                            adr=(uint16_t)(adr - dpage) | (adr & ~0xffff);
+                                            if (w==3) w=val_length(adr);//auto length
+                                            if (w) w=3; // there's no lda ($ffff) lda ($ffffff)!
+                                            opr=ADR_ZP_I;
+                                        }
+                                        ln=1; // lda ($ff)
+                                    }
+                                } // 21 Db
                             }
-                            err_msg(ERROR_ILLEGAL_OPERA,NULL);
-                            break;
                         }
-                    }
-                    if (ln>=0) {
-                        uint32_t temp=adr;
-                        pokeb(cod ^ longbranch);
-                        switch (ln)
-                        {
-                        case 4:pokeb((uint8_t)temp);temp>>=8;
-                        case 3:pokeb((uint8_t)temp);temp>>=8;
-                        case 2:pokeb((uint8_t)temp);temp>>=8;
-                        case 1:pokeb((uint8_t)temp);
-                        }
-                    }
 
-                    if (listing && flist) {
-                        uint32_t temp=adr;
-                        unsigned int i;
-
-                        if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                        fprintf(flist,(all_mem==0xffff)?".%04x\t":".%06x ",(address-ln-1) & all_mem);
-                        if (ln>=0) {
-                            fprintf(flist," %02x", cod ^ longbranch ^ outputeor);
-                            for (i=0;i<(unsigned)ln;i++) {fprintf(flist," %02x",(uint8_t)temp ^ outputeor);temp>>=8;}
-                        }
-                        if (ln<2) fputc('\t',flist);
-                        fputc('\t',flist);
-
-                        if (arguments.monitor) {
-                            for (i=0;i<3;i++) fputc(mnemonic[mnem*3+i],flist);
-
-                            switch (opr) {
-                            case ADR_IMPLIED: fputc('\t', flist); break;
-                            case ADR_ACCU: fputs(" a\t", flist); break;
-                            case ADR_IMMEDIATE:
-                                {
-                                    if (ln==1) fprintf(flist," #$%02x",(uint8_t)adr);
-                                    else fprintf(flist," #$%04x",(uint16_t)adr);
-                                    break;
+                        if (d) {
+                            if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
+                            if ((cod=cnmemonic[opr])==____) {
+                                memcpy(ident,&mnemonic[mnem*3],3);
+                                ident[3]=0;
+                                if ((tmp2=find_macro(ident))) {
+                                    lpoint=oldlpoint;
+                                    goto as_macro;
                                 }
-                            case ADR_LONG: fprintf(flist," $%06x",(uint32_t)(adr&0xffffff)); break;
-                            case ADR_ADDR:
-                                if (cnmemonic[ADR_ADDR]==0x20 || cnmemonic[ADR_ADDR]==0x4c)
-                                    fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
-                                else
-                                    fprintf(flist,databank?" $%06x":" $%04x",(uint16_t)adr | (databank << 16));
-                                break;
-                            case ADR_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x\t":" $%04x",(uint16_t)(adr+dpage)); break;
-                            case ADR_LONG_X: fprintf(flist," $%06x,x",(uint32_t)(adr&0xffffff)); break;
-                            case ADR_ADDR_X: fprintf(flist,databank?" $%06x,x":" $%04x,x",(uint16_t)adr | (databank << 16)); break;
-                            case ADR_ZP_X: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,x":" $%04x,x",(uint16_t)(adr+dpage)); break;
-                            case ADR_ADDR_X_I: fprintf(flist,(l_address&0xff0000)?" ($%06x,x)":" ($%04x,x)",((uint16_t)adr) | (l_address&0xff0000)); break;
-                            case ADR_ZP_X_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x,x)":" ($%04x,x)",(uint16_t)(adr+dpage)); break;
-                            case ADR_ZP_S: fprintf(flist," $%02x,s",(uint8_t)adr); break;
-                            case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(uint8_t)adr); break;
-                            case ADR_ADDR_Y: fprintf(flist,databank?" $%06x,y":" $%04x,y",(uint16_t)adr | (databank << 16)); break;
-                            case ADR_ZP_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,y":" $%04x,y",(uint16_t)(adr+dpage)); break;
-                            case ADR_ZP_LI_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x],y":" [$%04x],y",(uint16_t)(adr+dpage)); break;
-                            case ADR_ZP_I_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x),y":" ($%04x),y",(uint16_t)(adr+dpage)); break;
-                            case ADR_ADDR_LI: fprintf(flist," [$%04x]",(uint16_t)adr); break;
-                            case ADR_ZP_LI: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x]":" [$%04x]",(uint16_t)(adr+dpage)); break;
-                            case ADR_ADDR_I: fprintf(flist," ($%04x)",(uint16_t)adr); break;
-                            case ADR_ZP_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x)":" ($%04x)",(uint16_t)(adr+dpage)); break;
-                            case ADR_REL:
-                                if (ln==1) fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(((int8_t)adr)+l_address) | (l_address & 0xff0000));
-                                else if (ln==2) {
-                                    if ((cod ^ longbranch)==0x4C)
+                                err_msg(ERROR_ILLEGAL_OPERA,NULL);
+                                goto breakerr;
+                            }
+                        }
+                        if (ln>=0) {
+                            uint32_t temp=adr;
+                            pokeb(cod ^ longbranch);
+                            switch (ln)
+                            {
+                            case 4:pokeb((uint8_t)temp);temp>>=8;
+                            case 3:pokeb((uint8_t)temp);temp>>=8;
+                            case 2:pokeb((uint8_t)temp);temp>>=8;
+                            case 1:pokeb((uint8_t)temp);
+                            }
+                        }
+
+                        if (listing && flist) {
+                            uint32_t temp=adr;
+                            unsigned int i;
+
+                            if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                            fprintf(flist,(all_mem==0xffff)?".%04x\t":".%06x ",(address-ln-1) & all_mem);
+                            if (ln>=0) {
+                                fprintf(flist," %02x", cod ^ longbranch ^ outputeor);
+                                for (i=0;i<(unsigned)ln;i++) {fprintf(flist," %02x",(uint8_t)temp ^ outputeor);temp>>=8;}
+                            }
+                            if (ln<2) fputc('\t',flist);
+                            fputc('\t',flist);
+
+                            if (arguments.monitor) {
+                                for (i=0;i<3;i++) fputc(mnemonic[mnem*3+i],flist);
+
+                                switch (opr) {
+                                case ADR_IMPLIED: fputc('\t', flist); break;
+                                case ADR_ACCU: fputs(" a\t", flist); break;
+                                case ADR_IMMEDIATE:
+                                    {
+                                        if (ln==1) fprintf(flist," #$%02x",(uint8_t)adr);
+                                        else fprintf(flist," #$%04x",(uint16_t)adr);
+                                        break;
+                                    }
+                                case ADR_LONG: fprintf(flist," $%06x",(uint32_t)(adr&0xffffff)); break;
+                                case ADR_ADDR:
+                                    if (cnmemonic[ADR_ADDR]==0x20 || cnmemonic[ADR_ADDR]==0x4c)
                                         fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
                                     else
-                                        fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000));
+                                        fprintf(flist,databank?" $%06x":" $%04x",(uint16_t)adr | (databank << 16));
+                                    break;
+                                case ADR_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x\t":" $%04x",(uint16_t)(adr+dpage)); break;
+                                case ADR_LONG_X: fprintf(flist," $%06x,x",(uint32_t)(adr&0xffffff)); break;
+                                case ADR_ADDR_X: fprintf(flist,databank?" $%06x,x":" $%04x,x",(uint16_t)adr | (databank << 16)); break;
+                                case ADR_ZP_X: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,x":" $%04x,x",(uint16_t)(adr+dpage)); break;
+                                case ADR_ADDR_X_I: fprintf(flist,(l_address&0xff0000)?" ($%06x,x)":" ($%04x,x)",((uint16_t)adr) | (l_address&0xff0000)); break;
+                                case ADR_ZP_X_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x,x)":" ($%04x,x)",(uint16_t)(adr+dpage)); break;
+                                case ADR_ZP_S: fprintf(flist," $%02x,s",(uint8_t)adr); break;
+                                case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(uint8_t)adr); break;
+                                case ADR_ADDR_Y: fprintf(flist,databank?" $%06x,y":" $%04x,y",(uint16_t)adr | (databank << 16)); break;
+                                case ADR_ZP_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,y":" $%04x,y",(uint16_t)(adr+dpage)); break;
+                                case ADR_ZP_LI_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x],y":" [$%04x],y",(uint16_t)(adr+dpage)); break;
+                                case ADR_ZP_I_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x),y":" ($%04x),y",(uint16_t)(adr+dpage)); break;
+                                case ADR_ADDR_LI: fprintf(flist," [$%04x]",(uint16_t)adr); break;
+                                case ADR_ZP_LI: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x]":" [$%04x]",(uint16_t)(adr+dpage)); break;
+                                case ADR_ADDR_I: fprintf(flist," ($%04x)",(uint16_t)adr); break;
+                                case ADR_ZP_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x)":" ($%04x)",(uint16_t)(adr+dpage)); break;
+                                case ADR_REL:
+                                    if (ln==1) fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(((int8_t)adr)+l_address) | (l_address & 0xff0000));
+                                    else if (ln==2) {
+                                        if ((cod ^ longbranch)==0x4C)
+                                            fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
+                                        else
+                                            fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000));
+                                    }
+                                    else {
+                                        if ((uint16_t)adr==0x4C03)
+                                            fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)(adr >> 16)) | (l_address & 0xff0000));
+                                        else
+                                            fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)((adr >> 16)+l_address) | (l_address & 0xff0000));
+                                    }
+                                    break;
+                                case ADR_REL_L: fprintf(flist,(l_address & 0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000)); break;
+                                case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
                                 }
-                                else {
-                                    if ((uint16_t)adr==0x4C03)
-                                        fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)(adr >> 16)) | (l_address & 0xff0000));
-                                    else
-                                        fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)((adr >> 16)+l_address) | (l_address & 0xff0000));
-                                }
-                                break;
-                            case ADR_REL_L: fprintf(flist,(l_address & 0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000)); break;
-                            case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
-                            }
-                        } else if (arguments.source) fputc('\t',flist);
-                        if (arguments.source) {
-                            if (nprm>=0) mtranslate(mprm,nprm,llist);
-                            fputc('\t', flist);printllist(flist);
-                        } else fputc('\n',flist);
+                            } else if (arguments.source) fputc('\t',flist);
+                            if (arguments.source) {
+                                fputc('\t', flist);printllist(flist);
+                            } else fputc('\n',flist);
+                        }
+                        break;
                     }
-                    break;
-                }
-                if ((tmp2=find_macro(ident))) goto as_macro;
-            }            // fall through
-	default: if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
-	}
+                    if ((tmp2=find_macro(ident))) goto as_macro;
+                }            // fall through
+            default: if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
+            }
+        finish:
+            ignore();if (!here() || here()==';') break;
+            if (here()!=':' || arguments.tasmcomp) {
+                if (skipit[waitforp] & 1) err_msg(ERROR_EXTRA_CHAR_OL,NULL); 
+            breakerr:
+                nextln();continue;
+            } else lpoint++;
+        }
     }
-end:
     if (tpe==0) {
         current_context->backr=backr_old;
         current_context->forwr=forwr_old;
