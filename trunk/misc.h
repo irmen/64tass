@@ -78,8 +78,10 @@ enum errors_e {
 #define WHAT_EOL        9
 #define WHAT_STAR       10
 #define WHAT_COMA       11
+#define WHAT_COLON      12
 #define WHAT_S          13
 #define WHAT_SZ         14
+#define WHAT_COMMENT    15
 #define WHAT_CHAR       16
 #define WHAT_LBL        17
 
@@ -189,13 +191,13 @@ extern struct avltree *star_tree;
 extern int fixeddig;
 extern unsigned int errors,conderrors,warnings;
 extern uint32_t star;
-extern uint8_t pline[];
+extern const uint8_t *pline;
 extern int labelexists;
 extern void status(void);
 extern uint16_t reffile;
 extern uint8_t pass;
 
-#define ignore() while(pline[lpoint]==0x20) lpoint++
+#define ignore() while(pline[lpoint]==0x20 || pline[lpoint]==0x09) lpoint++
 #define get() pline[lpoint++]
 #define here() pline[lpoint]
 #define linelength 4096
