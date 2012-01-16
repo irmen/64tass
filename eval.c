@@ -560,7 +560,13 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             default:
                 if (v_stack[vsp-2].type != T_INT && v_stack[vsp-2].type != T_CHR) {
                     if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-                    if (v_stack[vsp-2].type != T_NONE) err_msg(ERROR____WRONG_TYPE,NULL);
+                    if (v_stack[vsp-2].type == T_NONE) {
+                        if ((ch=='A' && !val1) || (ch=='O' && val1)) {
+                            vsp--; v_stack[vsp-1].u.num=(ch=='O');
+                            v_stack[vsp-1].type = T_INT;
+                            continue;
+                        }
+                    } else err_msg(ERROR____WRONG_TYPE,NULL);
                     vsp--;v_stack[vsp-1].type = T_NONE;
                     continue;
                 }
@@ -707,6 +713,13 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             v_stack[vsp-1].type = T_INT;
             v_stack[vsp-1].u.num = val1;
 	} else if (v_stack[vsp-1].type == T_NONE) {
+            if (v_stack[vsp-2].type == T_INT) { /* short circuit evaluation */
+                if ((ch=='A' && !v_stack[vsp-2].u.num) || (ch=='O' && v_stack[vsp-2].u.num)) {
+                    vsp--;
+                    v_stack[vsp-1].u.num=(ch=='O');
+                    continue;
+                }
+            }
             switch (ch) {
             case '=':
             case 'o':
