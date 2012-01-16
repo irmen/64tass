@@ -466,7 +466,7 @@ void err_msg(enum errors_e no, const char* prm) {
     }
 
     for (i = file_list.p; i > 1; i--) {
-        snprintf(line,linelength,"(%s:%u) ", file_list.data[file_list.p - 2].name, file_list.data[file_list.p - 1].line);
+        snprintf(line,linelength,"(%s:%u) ", file_list.data[i - 2].name, file_list.data[i - 1].line);
         adderror(line);
     }
 
