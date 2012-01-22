@@ -451,14 +451,6 @@ Other options
 
 -------------------------------------------------------------------------------
 
-General
-
-You may put multiple statements on a line, seperated by colons. The assembler
-will treat them as seperate lines. This does not work if the -T,
---tasm-compatible option is used.
-
-        nop : nop : nop
-
 Constants
 
         .byte 23        ; decimal
