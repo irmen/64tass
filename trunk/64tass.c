@@ -206,19 +206,6 @@ void status(void) {
     tfree();
 }
 
-static void nextln() {
-    uint_fast8_t q = 0;
-
-    for (;;lpoint++) {
-        switch (here()) {
-        case '\'': if (!(q & 1)) q^=2;continue;
-        case '"': if (!(q & 2)) q^=1;continue;
-        case ';':
-        case 0: return;
-        }
-    }
-}
-
 static void printllist(FILE *f) {
     const uint8_t *c = llist, *last, *n;
     uint32_t ch;
@@ -1206,8 +1193,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 }
                 if (prm==CMD_ERROR) { // .error
                     err_msg(ERROR__USER_DEFINED,(char *)&pline[lpoint]);
-                    nextln();
-                    break;
+                    goto breakerr;
                 }
                 if (prm==CMD_BLOCK) { // .block
                     sprintf(varname, ".%x.%u", (unsigned)star_tree, vline);
@@ -1330,8 +1316,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 }
                 if (prm==CMD_WARN) { // .warn
                     err_msg(ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
-                    nextln();
-                    break;
+                    goto breakerr;
                 }
                 if (prm==CMD_ENC) { // .enc
                     if (get_path(NULL)) goto breakerr;
@@ -1364,8 +1349,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         lpoint++;ignore();
                     }
                     if (((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len)) err_msg((prm==CMD_CERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
-                    nextln();
-                    break;
+                    goto breakerr;
                 }
                 if (prm==CMD_REPT) { // .rept
                     int32_t cnt;
@@ -1607,8 +1591,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     if (pos!=xpos || lin!=xlin) waitforp--;
                     sline=xlin;cfile->p=xpos;
                     star_tree = stree_old; vline = ovline;
-                    nextln();
-                    break;
+                    goto breakerr;
                 }
                 if (prm==CMD_ENDP) { // .endp
                     if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
@@ -1784,7 +1767,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     // 2 Db
                     else if (wht=='#') {
                         if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____) {
-                            nextln();ln=w=d=1;
+                            lpoint += strlen((char *)pline + lpoint);ln=w=d=1;
                         } else {
                             lpoint++;
                             get_exp(&w,&d,&c,&val,T_INT); //ellenorizve.
