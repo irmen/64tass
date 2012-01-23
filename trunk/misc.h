@@ -50,6 +50,7 @@ enum errors_e {
     ERROR_DIVISION_BY_Z,
     ERROR____WRONG_TYPE,
     ERROR___UNKNOWN_CHR,
+    ERROR___NOT_ALLOWED,
     ERROR____PAGE_ERROR,
     ERROR__BRANCH_CROSS,
 
@@ -108,7 +109,7 @@ struct value_s {
 };
 
 enum label_e {
-    L_LABEL, L_VAR
+    L_LABEL, L_VAR, L_STRUCT
 };
 
 struct label_s {

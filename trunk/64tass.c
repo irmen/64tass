@@ -61,14 +61,14 @@ unsigned int lpoint;              //position in current line
 char ident[linelength], ident2[linelength];  //identifier (label, etc)
 static char varname[linelength];//variable (same as identifier?)
 static char path[linelength];   //path
-static int pagelo=-1;           //still in same page?
+static int32_t pagelo=-1;           //still in same page?
 static FILE* flist = NULL;      //listfile
 static enum { LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU } lastl = LIST_CODE;
 static struct {uint16_t p, len; int32_t *data;} logitab = {0,0,NULL};  //.logical .here
 static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static uint8_t databank=0;
 static uint16_t dpage=0;
-int fixeddig;
+int fixeddig, dooutput;
 uint32_t current_requires, current_conflicts, current_provides;
 static int allowslowbranch=1;
 static int longbranchasjmp=0;
@@ -88,7 +88,7 @@ uint16_t reffile;
 uint32_t backr, forwr;
 struct file_s *cfile;
 struct avltree *star_tree = NULL;
-static uint_fast8_t macrecursion;
+static uint_fast8_t macrecursion, structrecursion;
 
 static const char* command[]={ /* must be sorted, first char is the ID */
     "\x1e" "al",
@@ -107,6 +107,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x2f" "cwarn",
     "\x24" "databank",
     "\x25" "dpage",
+    "\x43" "dstruct",
     "\x11" "else",
     "\x13" "elsif",
     "\x28" "enc",
@@ -115,6 +116,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x29" "endif",
     "\x0d" "endm",
     "\x1a" "endp",
+    "\x42" "ends",
     "\x3c" "eor",
     "\x21" "error",
     "\x12" "fi",
@@ -150,6 +152,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x04" "shift",
     "\x05" "shiftl",
     "\x39" "showmac",
+    "\x41" "struct",
     "\x01" "text",
     "\x3e" "var",
     "\x27" "warn",
@@ -168,7 +171,7 @@ enum command_e {
     CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN,
     CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION, CMD_BLOCK, CMD_BEND, CMD_PRON,
     CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT,
-    CMD_VAR, CMD_LBL, CMD_GOTO,
+    CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT, CMD_ENDS, CMD_DSTRUCT
 };
 
 // ---------------------------------------------------------------------------
@@ -289,7 +292,7 @@ static void memcomp(void) {
 static void pokeb(uint8_t byte)
 {
 
-    if (fixeddig)
+    if (fixeddig && dooutput)
     {
         if (mem.p>=mem.len) {
             mem.len+=0x1000;
@@ -566,7 +569,34 @@ void var_assign(struct label_s *tmp, const struct value_s *val, int fix) {
     tmp->upass=pass;
 }
 
-static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
+static void compile(const char*,int8_t);
+
+static void macro_recurse(const char* mprm,int8_t nprm, char t, struct macro_s *tmp2) {
+    macrecursion++;
+    if (macrecursion<100) {
+        size_t oldpos = tmp2->file->p;
+        uint32_t lin = sline;
+        struct file_s *f;
+        struct star_s *s = new_star(vline);
+        struct avltree *stree_old = star_tree;
+        uint32_t ovline = vline;
+
+        if (labelexists && s->addr != star) fixeddig=0;
+        s->addr = star;
+        star_tree = &s->tree;vline=0;
+        enterfile(tmp2->file->name, sline);
+        tmp2->file->p = tmp2->p; sline = tmp2->sline;
+        waitfor[++waitforp].what=t;waitfor[waitforp].line=sline;skipit[waitforp]=1;
+        f = cfile; cfile = tmp2->file;
+        compile(mprm,nprm);
+        exitfile(); cfile = f;
+        star_tree = stree_old; vline = ovline;
+        sline = lin; tmp2->file->p = oldpos;
+    } else err_msg(ERROR__MACRECURSION,"!!!!");
+    macrecursion--;
+}
+
+static void compile(const char* mprm,int8_t nprm) // "",0
 {
     int wht,w,d,c;
     int prm = 0;
@@ -650,7 +680,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 goto finish;
             }
             if (wht==WHAT_COMMAND) {
-                if (prm==CMD_VAR) { //variable
+                switch (prm) {
+                case CMD_VAR: //variable
                     strcpy(varname,ident);
                     get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
                     if (!c) goto breakerr;
@@ -685,33 +716,34 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
                     }
                     goto finish;
-                }
-                if (prm==CMD_LBL) { //variable
-                    struct jump_s *tmp2;
-                    if (listing && flist && arguments.source) {
-                        if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
-                        fputs("=\t\t\t\t\t", flist);
-                        printllist(flist);
-                    }
-                    tmp2 = new_jump(ident);
-                    if (labelexists) {
-                        if (tmp2->sline != sline
-                            || tmp2->waitforp != waitforp
-                            || tmp2->file != cfile
-                            || tmp2->p != cfile->p
-                            || tmp2->parent != current_context) {
-                            err_msg(ERROR_DOUBLE_DEFINE,ident);
+                case CMD_LBL:
+                    { //variable
+                        struct jump_s *tmp2;
+                        if (listing && flist && arguments.source) {
+                            if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
+                            fputs("=\t\t\t\t\t", flist);
+                            printllist(flist);
                         }
-                    } else {
-                        tmp2->sline = sline;
-                        tmp2->waitforp = waitforp;
-                        tmp2->file = cfile;
-                        tmp2->p = cfile->p;
-                        tmp2->parent = current_context;
+                        tmp2 = new_jump(ident);
+                        if (labelexists) {
+                            if (tmp2->sline != sline
+                                    || tmp2->waitforp != waitforp
+                                    || tmp2->file != cfile
+                                    || tmp2->p != cfile->p
+                                    || tmp2->parent != current_context) {
+                                err_msg(ERROR_DOUBLE_DEFINE,ident);
+                            }
+                        } else {
+                            tmp2->sline = sline;
+                            tmp2->waitforp = waitforp;
+                            tmp2->file = cfile;
+                            tmp2->p = cfile->p;
+                            tmp2->parent = current_context;
+                        }
+                        goto finish;
                     }
-                    goto finish;
-                }
-                if (prm==CMD_MACRO || prm==CMD_SEGMENT) { // .macro
+                case CMD_MACRO:// .macro
+                case CMD_SEGMENT:
                     waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
                     tmp2=new_macro(ident);
                     if (labelexists) {
@@ -728,6 +760,69 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         tmp2->file=cfile;
                     }
                     goto finish;
+                case CMD_STRUCT:
+                    {
+                        struct label_s *old_context=current_context;
+                        uint32_t old_address = address, old_laddress = l_address;
+                        int old_dooutput = dooutput;
+                        waitfor[++waitforp].what='s';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                        tmp2=new_macro(ident);
+                        if (labelexists) {
+                            if (tmp2->p!=cfile->p
+                             || tmp2->sline!=sline
+                             || tmp2->type!=prm
+                             || tmp2->file!=cfile) {
+                                err_msg(ERROR_DOUBLE_DEFINE,ident);
+                            }
+                        } else {
+                            tmp2->p=cfile->p;
+                            tmp2->sline=sline;
+                            tmp2->type=prm;
+                            tmp2->file=cfile;
+                        }
+                        tmp=new_label(ident, L_STRUCT);
+                        if (pass==1) {
+                            if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,ident);
+                            else {
+                                tmp->requires=0;
+                                tmp->conflicts=0;
+                                tmp->upass=tmp->pass=pass;
+                                tmp->value.type=T_INT;tmp->value.u.num=l_address;
+                            }
+                        } else {
+                            if (labelexists) {
+                                if (tmp->value.type != T_INT || tmp->type != L_STRUCT) { /* should not happen */
+                                    err_msg(ERROR_DOUBLE_DEFINE,ident);
+                                } else {
+                                    if ((uint32_t)tmp->value.u.num != l_address) {
+                                        tmp->value.u.num=l_address;
+                                        fixeddig=0;
+                                    }
+                                    tmp->requires=0;
+                                    tmp->conflicts=0;
+                                    tmp->value.type=T_INT;
+                                }
+                            }
+                        }
+                        current_context=tmp;
+                        tmp->ref=0;
+                        if (!structrecursion) {address = l_address = 0;dooutput = 0;memjmp(0);}
+                        if (listing && flist && arguments.source) {
+                            if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
+                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
+                            printllist(flist);
+                        }
+                        structrecursion++;
+                        if (structrecursion<100) {
+                            waitforp--;
+                            waitfor[++waitforp].what='S';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                            compile(mprm,nprm);
+                            current_context = old_context; 
+                        } else err_msg(ERROR__MACRECURSION,"!!!!");
+                        structrecursion--;
+                        if (!structrecursion) {address = old_address; l_address = old_laddress; dooutput = old_dooutput; memjmp(address);}
+                        goto finish;
+                    }
                 }
             }
             tmp=find_label2(ident, &current_context->members);
@@ -759,32 +854,53 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     }
                 }
             }
-            if (wht==WHAT_COMMAND && prm==CMD_PROC) { // .proc
-                waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;
-                if (!tmp->ref && pass != 1) skipit[waitforp]=0;
-                else {
-                    skipit[waitforp]=1;
+            if (pline[lpoint-1]!=':' && (pline[0]==0x20 || pline[0]==0x09)) err_msg(ERROR_LABEL_NOT_LEF,NULL);
+            if (wht==WHAT_COMMAND) { // .proc
+                switch (prm) {
+                case CMD_PROC:
+                    waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;
+                    if (!tmp->ref && pass != 1) skipit[waitforp]=0;
+                    else {
+                        skipit[waitforp]=1;
+                        current_context=tmp;
+                        if (listing && flist && arguments.source) {
+                            if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
+                        }
+                        tmp->ref=0;
+                    }
+                    goto finish;
+                case CMD_BLOCK: // .block
+                    waitfor[++waitforp].what='b';waitfor[waitforp].line=sline;skipit[waitforp]=1;
                     current_context=tmp;
                     if (listing && flist && arguments.source) {
                         if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
                         fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                     }
                     tmp->ref=0;
+                    goto finish;
+                case CMD_DSTRUCT: // .dstruct
+                    {
+                        struct label_s *oldcontext = current_context;
+                        current_context=tmp;
+                        if (listing && flist && arguments.source) {
+                            if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
+                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
+                            printllist(flist);
+                        }
+                        tmp->ref=0;
+                        ignore();
+                        if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(tmp2=find_macro(ident)) || tmp2->type!=CMD_STRUCT) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
+                        structrecursion++;
+                        macro_recurse(mprm,nprm,'S',tmp2);
+                        structrecursion--;
+                        current_context=oldcontext;
+                        goto finish;
+                    }
                 }
-                goto finish;
-            }
-            if (wht==WHAT_COMMAND && prm==CMD_BLOCK) { // .block
-                waitfor[++waitforp].what='b';waitfor[waitforp].line=sline;
-                current_context=tmp;
-                if (listing && flist && arguments.source) {
-                    if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
-                    fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
-                }
-                tmp->ref=0;
-                goto finish;
             }
             wasref=tmp->ref;tmp->ref=0;
-            if (pline[lpoint-1]!=':' && (pline[0]==0x20 || pline[0]==0x09)) err_msg(ERROR_LABEL_NOT_LEF,NULL);
         }
         jn:
         switch (wht) {
@@ -804,7 +920,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         fputs("\n\t\t\t\t\t", flist);
                     printllist(flist);
                 }
-                if (val.type != T_NONE) {
+                if (structrecursion) err_msg(ERROR___NOT_ALLOWED, "*=");
+                else if (val.type != T_NONE) {
                     if (val.u.num & ~all_mem) {
                         err_msg(ERROR_CONSTNT_LARGE,NULL);
                     } else {
@@ -833,6 +950,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         case CMD_FILL:
                         case CMD_ALIGN:
                         case CMD_OFFS:
+                        case CMD_ENDS:
+                        case CMD_STRUCT:
                             if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                             printllist(flist);
@@ -920,15 +1039,19 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_ENDM) { // .endm
-                    if (waitfor[waitforp].what!='m') {err_msg(ERROR______EXPECTED,".MACRO or .SEGMENT"); break;}
-                    waitforp--;
-                    if (tpe==1 || tpe==3) nobreak=0;
+                    if (waitfor[waitforp].what=='m') {
+                        waitforp--;
+                    } else if (waitfor[waitforp].what=='M') {
+                        waitforp--; nobreak=0;
+                    } else err_msg(ERROR______EXPECTED,".MACRO or .SEGMENT");
                     break;
                 }
                 if (prm==CMD_NEXT) { // .next
-                    if (waitfor[waitforp].what!='n') {err_msg(ERROR______EXPECTED,".FOR or .REPT"); break;}
-                    waitforp--;
-                    if (tpe==2) nobreak=0;
+                    if (waitfor[waitforp].what=='n') {
+                        waitforp--;
+                    } else if (waitfor[waitforp].what=='N') {
+                        waitforp--; nobreak=0;
+                    } else err_msg(ERROR______EXPECTED,".FOR or .REPT");
                     break;
                 }
                 if (prm==CMD_PEND) { //.pend
@@ -941,8 +1064,28 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     waitforp--;
                     break;
                 }
+                if (prm==CMD_ENDS) { // .ends
+                    if (waitfor[waitforp].what=='s') {
+                        waitforp--;
+                    } else if (waitfor[waitforp].what=='S') {
+                        waitforp--; nobreak=0;
+                    } else err_msg(ERROR______EXPECTED,".STRUCT"); break;
+                    break;
+                }
+                if (prm==CMD_ENDP) { // .endp
+                    if (waitfor[waitforp].what!='P') {err_msg(ERROR______EXPECTED,".ENDP"); break;}
+                    waitforp--;
+                    if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
+                    if ((l_address>>8) != (uint32_t)pagelo && fixeddig) {
+                        err_msg(ERROR____PAGE_ERROR,(const char *)l_address);
+                    }
+                    pagelo=-1;
+                    break;
+                }
                 if (!(skipit[waitforp] & 1)) {
                     switch (prm) {
+                    case CMD_PAGE: waitfor[++waitforp].what='P';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
+                    case CMD_STRUCT: waitfor[++waitforp].what='s';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
                     case CMD_MACRO:
                     case CMD_SEGMENT: waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
                     case CMD_FOR:
@@ -954,6 +1097,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 }
                 if (prm<=CMD_LONG || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
                     size_t ptextaddr=mem.p;
+                    uint32_t myaddr = address;
 
                     if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
                         int16_t ch2=-1;
@@ -1003,7 +1147,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                             if (prm==CMD_PTEXT) {
                                 if (mem.p-ptextaddr>0x100) large=1;
 
-                                mem.data[ptextaddr]=mem.p-ptextaddr-1;
+                                if (fixeddig && dooutput) mem.data[ptextaddr]=mem.p-ptextaddr-1;
                             }
                             if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
                             break;
@@ -1117,19 +1261,21 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     if (listing && flist) {
                         unsigned int i, lcol;
                         if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
-                        fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);
                         lcol=arguments.source?25:49;
-                        while (ptextaddr!=mem.p) {
-                            if (lcol==1) {
-                                if (arguments.source && llist) {
-                                    fputc('\t', flist);printllist(flist);
-                                } else fputc('\n',flist);
-                                fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);lcol=49;
-                            }
-                            fprintf(flist," %02x", mem.data[ptextaddr++]);
+                        if (dooutput) {
+                            fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);
+                            while (ptextaddr!=mem.p) {
+                                if (lcol==1) {
+                                    if (arguments.source && llist) {
+                                        fputc('\t', flist);printllist(flist);
+                                    } else fputc('\n',flist);
+                                    fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);lcol=49;
+                                }
+                                fprintf(flist," %02x", mem.data[ptextaddr++]);
 
-                            lcol-=3;
-                        }
+                                lcol-=3;
+                            }
+                        } else fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr & all_mem);
                 
                         if (arguments.source && llist) {
                             for (i=0; i<lcol-1; i+=8) fputc('\t',flist);
@@ -1142,6 +1288,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0; //ellenorizve.
                     if (!c) goto breakerr;
                     if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".OFFS");
                     if (val.type != T_NONE) {
                         if (val.u.num) {
                             if (fixeddig && scpumode) {
@@ -1166,6 +1313,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
                     if (!c) goto breakerr;
                     if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".LOGICAL");
                     if (val.type != T_NONE) {
                         if (val.u.num & ~all_mem) err_msg(ERROR_CONSTNT_LARGE,NULL);
                         else l_address=val.u.num;
@@ -1174,6 +1322,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 }
                 if (prm==CMD_HERE) { // .here
                     if (!logitab.p) err_msg(ERROR______EXPECTED,".LOGICAL");
+                    else if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".HERE");
                     else l_address=address+logitab.data[--logitab.p];
                     break;
                 }
@@ -1374,8 +1523,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                             star_tree = &s->tree;vline=0;
                             for (; cnt<val.u.num; cnt++) {
                                 sline=lin;cfile->p=pos;
-                                waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                                compile(2,mprm,nprm);
+                                waitfor[++waitforp].what='N';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                                compile(mprm,nprm);
                             }
                             star_tree = stree_old; vline = ovline;
                         }
@@ -1387,6 +1536,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
                     if (!c) goto breakerr;
                     if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
                     if (val.type != T_NONE) {
                         if (val.u.num<1 || val.u.num>(int32_t)all_mem) {
                             err_msg(ERROR_CONSTNT_LARGE,NULL);
@@ -1484,7 +1634,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         star_tree = &cfile->star;
                         backr = forwr = 0;
                         reffile=cfile->uid;
-                        compile(0,mprm,nprm);
+                        compile(mprm,nprm);
                         sline = lin; vline = vlin;
                         star_tree = stree_old;
                         backr = old_backr; forwr = old_forwr;
@@ -1581,8 +1731,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                                 bpoint=lpoint;
                             }
                         }
-                        waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                        compile(2,mprm,nprm);
+                        waitfor[++waitforp].what='N';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                        compile(mprm,nprm);
                         xpos = cfile->p; xlin= sline;
                         pline = expr;
                         sline=lin;cfile->p=pos;
@@ -1599,15 +1749,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     star_tree = stree_old; vline = ovline;
                     goto breakerr;
                 }
-                if (prm==CMD_ENDP) { // .endp
-                    if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
-                    if ((l_address>>8) != (uint32_t)pagelo && fixeddig) {
-                        err_msg(ERROR____PAGE_ERROR,(const char *)l_address);
-                    }
-                    pagelo=-1;
-                    break;
-                }
                 if (prm==CMD_PAGE) { // .page
+                    waitfor[++waitforp].what='P';waitfor[waitforp].line=sline;skipit[waitforp]=1;
                     if (pagelo!=-1) err_msg(ERROR______EXPECTED,".ENDP");
                     else pagelo=(l_address>>8);
                     break;
@@ -1636,10 +1779,15 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                             uint32_t os = sline;
                             sline = waitfor[waitforp].line;
                             switch (waitfor[waitforp--].what) {
+                            case 'M':
                             case 'm': err_msg(ERROR______EXPECTED,".ENDM"); noerr = 0; break;
+                            case 'N':
                             case 'n': err_msg(ERROR______EXPECTED,".NEXT"); noerr = 0; break;
                             case 'p': err_msg(ERROR______EXPECTED,".PEND"); noerr = 0; break;
                             case 'b': err_msg(ERROR______EXPECTED,".BEND"); noerr = 0; break;
+                            case 'S':
+                            case 's': err_msg(ERROR______EXPECTED,".ENDS"); noerr = 0; break;
+                            case 'P': err_msg(ERROR______EXPECTED,".ENDP"); noerr = 0; break;
                             }
                             sline = os;
                         }
@@ -1658,6 +1806,25 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 if (prm==CMD_PROC) {
                     waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0;
                     err_msg(ERROR___NOT_DEFINED,ident);
+                    break;
+                }
+                if (prm==CMD_STRUCT) {
+                    waitfor[++waitforp].what='s';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    structrecursion++;
+                    if (structrecursion<100) {
+                        waitforp--;
+                        waitfor[++waitforp].what='S';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                        compile(mprm,nprm);
+                    } else err_msg(ERROR__MACRECURSION,"!!!!");
+                    structrecursion--;
+                    break;
+                }
+                if (prm==CMD_DSTRUCT) { 
+                    if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(tmp2=find_macro(ident)) || tmp2->type!=CMD_STRUCT) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
+                    structrecursion++;
+                    macro_recurse(mprm,nprm,'S',tmp2);
+                    structrecursion--;
                     break;
                 }
             }
@@ -1701,35 +1868,14 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     if (here()!=',') {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     lpoint++;
                 }
-                macrecursion++;
                 if (tmp2->type==CMD_MACRO) {
                     sprintf(varname, "#%x#%x", (unsigned)star_tree, vline);
                     old_context = current_context;
                     current_context=new_label(varname, L_LABEL);
                     current_context->value.type = T_NONE;
                 } else old_context = NULL;
-                if (macrecursion<100) {
-                    size_t oldpos = tmp2->file->p;
-                    uint32_t lin = sline;
-                    struct file_s *f;
-                    struct star_s *s = new_star(vline);
-                    struct avltree *stree_old = star_tree;
-                    uint32_t ovline = vline;
-
-                    if (labelexists && s->addr != star) fixeddig=0;
-                    s->addr = star;
-                    star_tree = &s->tree;vline=0;
-                    enterfile(tmp2->file->name, sline);
-                    tmp2->file->p = tmp2->p; sline = tmp2->sline;
-                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                    f = cfile; cfile = tmp2->file;
-                    compile((f!=cfile)?1:3,mparams,nprm);
-                    exitfile(); cfile = f;
-                    star_tree = stree_old; vline = ovline;
-                    sline = lin; tmp2->file->p = oldpos;
-                } else err_msg(ERROR__MACRECURSION,"!!!!");
+                macro_recurse(mparams,nprm,'M',tmp2);
                 if (tmp2->type==CMD_MACRO) current_context = old_context;
-                macrecursion--;
                 break;
             }
         case WHAT_EXPRESSION:
@@ -2132,67 +2278,68 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
 
                         if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
                         fprintf(flist,(all_mem==0xffff)?".%04x\t":".%06x ",(address-ln-1) & all_mem);
-                        if (ln>=0) {
-                            fprintf(flist," %02x", cod ^ longbranch ^ outputeor);
-                            for (i=0;i<(unsigned)ln;i++) {fprintf(flist," %02x",(uint8_t)temp ^ outputeor);temp>>=8;}
-                        }
-                        if (ln<2) fputc('\t',flist);
-                        fputc('\t',flist);
-
-                        if (arguments.monitor) {
-                            for (i=0;i<3;i++) fputc(mnemonic[mnem*3+i],flist);
-
-                            switch (opr) {
-                            case ADR_IMPLIED: fputc('\t', flist); break;
-                            case ADR_ACCU: fputs(" a\t", flist); break;
-                            case ADR_IMMEDIATE:
-                                {
-                                    if (ln==1) fprintf(flist," #$%02x",(uint8_t)adr);
-                                    else fprintf(flist," #$%04x",(uint16_t)adr);
-                                    break;
-                                }
-                            case ADR_LONG: fprintf(flist," $%06x",(uint32_t)(adr&0xffffff)); break;
-                            case ADR_ADDR:
-                                if (cnmemonic[ADR_ADDR]==0x20 || cnmemonic[ADR_ADDR]==0x4c)
-                                    fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
-                                else
-                                    fprintf(flist,databank?" $%06x":" $%04x",(uint16_t)adr | (databank << 16));
-                                break;
-                            case ADR_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x\t":" $%04x",(uint16_t)(adr+dpage)); break;
-                            case ADR_LONG_X: fprintf(flist," $%06x,x",(uint32_t)(adr&0xffffff)); break;
-                            case ADR_ADDR_X: fprintf(flist,databank?" $%06x,x":" $%04x,x",(uint16_t)adr | (databank << 16)); break;
-                            case ADR_ZP_X: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,x":" $%04x,x",(uint16_t)(adr+dpage)); break;
-                            case ADR_ADDR_X_I: fprintf(flist,(l_address&0xff0000)?" ($%06x,x)":" ($%04x,x)",((uint16_t)adr) | (l_address&0xff0000)); break;
-                            case ADR_ZP_X_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x,x)":" ($%04x,x)",(uint16_t)(adr+dpage)); break;
-                            case ADR_ZP_S: fprintf(flist," $%02x,s",(uint8_t)adr); break;
-                            case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(uint8_t)adr); break;
-                            case ADR_ADDR_Y: fprintf(flist,databank?" $%06x,y":" $%04x,y",(uint16_t)adr | (databank << 16)); break;
-                            case ADR_ZP_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,y":" $%04x,y",(uint16_t)(adr+dpage)); break;
-                            case ADR_ZP_LI_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x],y":" [$%04x],y",(uint16_t)(adr+dpage)); break;
-                            case ADR_ZP_I_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x),y":" ($%04x),y",(uint16_t)(adr+dpage)); break;
-                            case ADR_ADDR_LI: fprintf(flist," [$%04x]",(uint16_t)adr); break;
-                            case ADR_ZP_LI: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x]":" [$%04x]",(uint16_t)(adr+dpage)); break;
-                            case ADR_ADDR_I: fprintf(flist," ($%04x)",(uint16_t)adr); break;
-                            case ADR_ZP_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x)":" ($%04x)",(uint16_t)(adr+dpage)); break;
-                            case ADR_REL:
-                                if (ln==1) fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(((int8_t)adr)+l_address) | (l_address & 0xff0000));
-                                else if (ln==2) {
-                                    if ((cod ^ longbranch)==0x4C)
-                                        fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
-                                    else
-                                        fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000));
-                                }
-                                else {
-                                    if ((uint16_t)adr==0x4C03)
-                                        fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)(adr >> 16)) | (l_address & 0xff0000));
-                                    else
-                                        fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)((adr >> 16)+l_address) | (l_address & 0xff0000));
-                                }
-                                break;
-                            case ADR_REL_L: fprintf(flist,(l_address & 0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000)); break;
-                            case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
+                        if (dooutput) {
+                            if (ln>=0) {
+                                fprintf(flist," %02x", cod ^ longbranch ^ outputeor);
+                                for (i=0;i<(unsigned)ln;i++) {fprintf(flist," %02x",(uint8_t)temp ^ outputeor);temp>>=8;}
                             }
-                        } else if (arguments.source) fputc('\t',flist);
+                            if (ln<2) fputc('\t',flist);
+                            fputc('\t',flist);
+                            if (arguments.monitor) {
+                                for (i=0;i<3;i++) fputc(mnemonic[mnem*3+i],flist);
+
+                                switch (opr) {
+                                    case ADR_IMPLIED: fputc('\t', flist); break;
+                                    case ADR_ACCU: fputs(" a\t", flist); break;
+                                    case ADR_IMMEDIATE:
+                                                   {
+                                                       if (ln==1) fprintf(flist," #$%02x",(uint8_t)adr);
+                                                       else fprintf(flist," #$%04x",(uint16_t)adr);
+                                                       break;
+                                                   }
+                                    case ADR_LONG: fprintf(flist," $%06x",(uint32_t)(adr&0xffffff)); break;
+                                    case ADR_ADDR:
+                                                   if (cnmemonic[ADR_ADDR]==0x20 || cnmemonic[ADR_ADDR]==0x4c)
+                                                       fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
+                                                   else
+                                                       fprintf(flist,databank?" $%06x":" $%04x",(uint16_t)adr | (databank << 16));
+                                                   break;
+                                    case ADR_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x\t":" $%04x",(uint16_t)(adr+dpage)); break;
+                                    case ADR_LONG_X: fprintf(flist," $%06x,x",(uint32_t)(adr&0xffffff)); break;
+                                    case ADR_ADDR_X: fprintf(flist,databank?" $%06x,x":" $%04x,x",(uint16_t)adr | (databank << 16)); break;
+                                    case ADR_ZP_X: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,x":" $%04x,x",(uint16_t)(adr+dpage)); break;
+                                    case ADR_ADDR_X_I: fprintf(flist,(l_address&0xff0000)?" ($%06x,x)":" ($%04x,x)",((uint16_t)adr) | (l_address&0xff0000)); break;
+                                    case ADR_ZP_X_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x,x)":" ($%04x,x)",(uint16_t)(adr+dpage)); break;
+                                    case ADR_ZP_S: fprintf(flist," $%02x,s",(uint8_t)adr); break;
+                                    case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(uint8_t)adr); break;
+                                    case ADR_ADDR_Y: fprintf(flist,databank?" $%06x,y":" $%04x,y",(uint16_t)adr | (databank << 16)); break;
+                                    case ADR_ZP_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,y":" $%04x,y",(uint16_t)(adr+dpage)); break;
+                                    case ADR_ZP_LI_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x],y":" [$%04x],y",(uint16_t)(adr+dpage)); break;
+                                    case ADR_ZP_I_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x),y":" ($%04x),y",(uint16_t)(adr+dpage)); break;
+                                    case ADR_ADDR_LI: fprintf(flist," [$%04x]",(uint16_t)adr); break;
+                                    case ADR_ZP_LI: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x]":" [$%04x]",(uint16_t)(adr+dpage)); break;
+                                    case ADR_ADDR_I: fprintf(flist," ($%04x)",(uint16_t)adr); break;
+                                    case ADR_ZP_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x)":" ($%04x)",(uint16_t)(adr+dpage)); break;
+                                    case ADR_REL:
+                                                   if (ln==1) fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(((int8_t)adr)+l_address) | (l_address & 0xff0000));
+                                                   else if (ln==2) {
+                                                       if ((cod ^ longbranch)==0x4C)
+                                                           fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
+                                                       else
+                                                           fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000));
+                                                   }
+                                                   else {
+                                                       if ((uint16_t)adr==0x4C03)
+                                                           fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)(adr >> 16)) | (l_address & 0xff0000));
+                                                       else
+                                                           fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)((adr >> 16)+l_address) | (l_address & 0xff0000));
+                                                   }
+                                                   break;
+                                    case ADR_REL_L: fprintf(flist,(l_address & 0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000)); break;
+                                    case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
+                                }
+                            } else if (arguments.source) fputc('\t',flist);
+                        } else if (arguments.source) fputs("\t\t\t", flist);
                         if (arguments.source) {
                             fputc('\t', flist);printllist(flist);
                         } else fputc('\n',flist);
@@ -2216,11 +2363,16 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
         switch (waitfor[waitforp--].what) {
         case 'e':
         case 'f': err_msg(ERROR______EXPECTED,".FI"); break;
+        case 'P': err_msg(ERROR______EXPECTED,".ENDP"); break;
+        case 'M':
         case 'm': err_msg(ERROR______EXPECTED,".ENDM"); break;
+        case 'N':
         case 'n': err_msg(ERROR______EXPECTED,".NEXT"); break;
         case 'p': err_msg(ERROR______EXPECTED,".PEND"); break;
         case 'b': err_msg(ERROR______EXPECTED,".BEND"); break;
         case 'c': err_msg(ERROR______EXPECTED,".ENDC"); break;
+        case 'S':
+        case 's': err_msg(ERROR______EXPECTED,".ENDS"); break;
         }
         sline = os;
     }
@@ -2253,8 +2405,8 @@ int main(int argc,char *argv[]) {
         for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
-            current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;
+            current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=structrecursion=0;allowslowbranch=1;
+            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
             current_context=&root_label;logitab.p=0;
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
@@ -2262,7 +2414,7 @@ int main(int argc,char *argv[]) {
                 fin->p = 0; cfile = fin;
                 star_tree=&fin->star;
                 reffile=cfile->uid;
-                compile(0,"",-1);
+                compile("",-1);
                 exitfile();
                 mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
                 continue;
@@ -2274,7 +2426,7 @@ int main(int argc,char *argv[]) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
                 reffile=cfile->uid;
-                compile(0,"",-1);
+                compile("",-1);
                 closefile(cfile);
             }
             exitfile();
@@ -2304,8 +2456,8 @@ int main(int argc,char *argv[]) {
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
             address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
-            current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;
+            current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=structrecursion=0;allowslowbranch=1;
+            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
             current_context=&root_label;logitab.p=0;
 
             if (i == optind - 1) {
@@ -2313,7 +2465,7 @@ int main(int argc,char *argv[]) {
                 fin->p = 0; cfile = fin;
                 star_tree=&fin->star;
                 reffile=cfile->uid;
-                compile(0,"",-1);
+                compile("",-1);
                 exitfile();
                 mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
                 continue;
@@ -2326,7 +2478,7 @@ int main(int argc,char *argv[]) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
                 reffile=cfile->uid;
-                compile(0,"",-1);
+                compile("",-1);
                 closefile(cfile);
             }
             exitfile();
