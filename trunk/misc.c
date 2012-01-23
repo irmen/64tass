@@ -44,9 +44,10 @@ static struct {
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,"a.out",OPCODES_6502,NULL,NULL};
 
 static struct avltree macro_tree;
+static struct avltree jump_tree;
 static struct avltree file_tree;
-struct context_s root_context;
-struct context_s *current_context = &root_context;
+struct label_s root_label;
+struct label_s *current_context = &root_label;
 unsigned int encoding;
 
 const uint8_t whatis[256]={
@@ -522,14 +523,6 @@ static int label_compare(const struct avltree_node *aa, const struct avltree_nod
     return strcmp(a->name, b->name);
 }
 
-static int context_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    struct context_s *a = avltree_container_of(aa, struct context_s, node);
-    struct context_s *b = avltree_container_of(bb, struct context_s, node);
-
-    return strcmp(a->name, b->name);
-}
-
 static int macro_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct macro_s *a = avltree_container_of(aa, struct macro_s, node);
@@ -566,17 +559,8 @@ static void label_free(const struct avltree_node *aa)
 {
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
     free(a->name);
+    avltree_destroy(&a->members);
     if (a->value.type == T_STR) free(a->value.u.str.data);
-    free(a);
-}
-
-static void context_free(const struct avltree_node *aa)
-{
-    struct context_s *a = avltree_container_of(aa, struct context_s, node);
-    free(a->name);
-    avltree_destroy(&a->label_tree);
-    avltree_destroy(&a->jump_tree);
-    avltree_destroy(&a->contexts);
     free(a);
 }
 
@@ -615,66 +599,44 @@ static void star_free(const struct avltree_node *aa)
 
 // ---------------------------------------------------------------------------
 struct label_s *find_label(char* name) {
-    struct label_s a, *a2;
-    struct context_s b;
-    const struct avltree_node *c, *d;
-    struct context_s *context = current_context, *context2;
-    char *n;
+    const struct avltree_node *b;
+    struct label_s *context = current_context;
+    struct label_s tmp;
+    tmp.name=name;
     
     while (context) {
-        b.name = name;
-        context2 = context;
-        while ((n=strchr(b.name,'.'))) {
-            *n=0;
-            c=avltree_lookup(&b.node, &context2->contexts);
-            if (c) {
-                a.name = b.name;
-                d=avltree_lookup(&a.node, &context2->label_tree);
-            }
-            *n='.';
-            if (!c) break;
-            if (d) {
-                a2 = avltree_container_of(d, struct label_s, node);
-                a2->ref = 1; a2->pass = pass;
-            }
-            context2 = avltree_container_of(c, struct context_s, node);
-            b.name = n + 1;
-        }
-        if (context2) {
-            a.name = b.name;
-            d=avltree_lookup(&a.node, &context2->label_tree);
-            if (d) {
-                a2 = avltree_container_of(d, struct label_s, node);
-                return a2;
-            }
-        }
+        b=avltree_lookup(&tmp.node, &context->members);
+        if (b) return avltree_container_of(b, struct label_s, node);
         context = context->parent;
     }
     return NULL;
 }
 
-struct label_s *find_label2(char* name) {
+struct label_s *find_label2(char* name, struct avltree *tree) {
     const struct avltree_node *b;
     struct label_s tmp;
     tmp.name=name;
-    b=avltree_lookup(&tmp.node, &current_context->label_tree);
+    b=avltree_lookup(&tmp.node, tree);
     if (!b) return NULL;
     return avltree_container_of(b, struct label_s, node);
 }
 
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
-struct label_s *new_label(char* name) {
+struct label_s *new_label(char* name, enum label_e type) {
     const struct avltree_node *b;
     struct label_s *tmp;
     if (!lastlb)
 	if (!(lastlb=malloc(sizeof(struct label_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
     lastlb->name=name;
-    b=avltree_insert(&lastlb->node, &current_context->label_tree);
+    b=avltree_insert(&lastlb->node, &current_context->members);
     if (!b) { //new label
 	if (!(lastlb->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastlb->name,name);
-        lastlb->varlabel=lastlb->ref=0;
+        lastlb->type = type;
+        lastlb->parent=current_context;
+        lastlb->ref=0;
+        avltree_init(&lastlb->members, label_compare, label_free);
 	labelexists=0;
 	tmp=lastlb;
 	lastlb=NULL;
@@ -685,37 +647,12 @@ struct label_s *new_label(char* name) {
 }
 
 // ---------------------------------------------------------------------------
-static struct context_s *lastco=NULL;
-struct context_s *new_context(char* name, struct context_s *parent) {
-    const struct avltree_node *b;
-    struct context_s *tmp;
-    if (!lastco)
-	if (!(lastco=malloc(sizeof(struct context_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-    lastco->name=name;
-    b=avltree_insert(&lastco->node, &current_context->contexts);
-    if (!b) { //new context
-	if (!(lastco->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-        strcpy(lastco->name,name);
-        avltree_init(&lastco->label_tree, label_compare, label_free);
-        avltree_init(&lastco->contexts, context_compare, context_free);
-        avltree_init(&lastco->jump_tree, jump_compare, jump_free);
-        lastco->parent=parent;
-	labelexists=0;
-	tmp=lastco;
-	lastco=NULL;
-	return tmp;
-    }
-    labelexists=1;
-    return avltree_container_of(b, struct context_s, node);            //already exists
-}
-
-// ---------------------------------------------------------------------------
 
 struct jump_s *find_jump(char* name) {
     struct jump_s a;
     const struct avltree_node *c;
     a.name=name;
-    if (!(c=avltree_lookup(&a.node, &current_context->jump_tree))) return NULL;
+    if (!(c=avltree_lookup(&a.node, &jump_tree))) return NULL;
     return avltree_container_of(c, struct jump_s, node);
 }
 
@@ -726,7 +663,7 @@ struct jump_s *new_jump(char* name) {
     if (!lastjp)
 	if (!(lastjp=malloc(sizeof(struct jump_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
     lastjp->name=name;
-    b=avltree_insert(&lastjp->node, &current_context->jump_tree);
+    b=avltree_insert(&lastjp->node, &jump_tree);
     if (!b) { //new label
 	if (!(lastjp->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy(lastjp->name,name);
@@ -1038,7 +975,6 @@ struct file_s *openfile(char* name) {
         tmp = avltree_container_of(b, struct file_s, node);
     }
     tmp->open++;
-    reffile=tmp->uid;
     return tmp;
 }
 
@@ -1047,12 +983,10 @@ void closefile(struct file_s *f) {
 }
 
 void tfree(void) {
-    avltree_destroy(&root_context.label_tree);
-    avltree_destroy(&root_context.jump_tree);
-    avltree_destroy(&root_context.contexts);
+    avltree_destroy(&root_label.members);
     avltree_destroy(&macro_tree);
+    avltree_destroy(&jump_tree);
     avltree_destroy(&file_tree);
-    free(lastco);
     free(lastfi);
     free(lastma);
     free(lastlb);
@@ -1063,11 +997,12 @@ void tfree(void) {
 }
 
 void tinit(void) {
-    avltree_init(&root_context.label_tree, label_compare, label_free);
-    avltree_init(&root_context.jump_tree, jump_compare, jump_free);
-    avltree_init(&root_context.contexts, context_compare, context_free);
-    root_context.parent = NULL;
+    root_label.type = T_NONE;
+    root_label.parent = NULL;
+    root_label.name = NULL;
+    avltree_init(&root_label.members, label_compare, label_free);
     avltree_init(&macro_tree, macro_compare, macro_free);
+    avltree_init(&jump_tree, jump_compare, jump_free);
     avltree_init(&file_tree, file_compare, file_free);
 }
 
@@ -1082,7 +1017,7 @@ void labelprint(void) {
         } else {
             if (!(flab=fopen(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
         }
-        n = avltree_first(&root_context.label_tree);
+        n = avltree_first(&root_label.members);
         while (n) {
             l = avltree_container_of(n, struct label_s, node);            //already exists
             n = avltree_next(n);

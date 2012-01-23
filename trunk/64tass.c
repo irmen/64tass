@@ -85,6 +85,7 @@ static unsigned int last_mnem;
 
 int labelexists;
 uint16_t reffile;
+uint32_t backr, forwr;
 struct file_s *cfile;
 struct avltree *star_tree = NULL;
 static uint_fast8_t macrecursion;
@@ -392,25 +393,25 @@ static int what(int *tempno) {
     }
 }
 
-static int get_ident2(char allowed) {
+static int get_ident2(void) {
     unsigned int i=0;
     uint8_t ch;
     if (arguments.casesensitive)
-	while ((whatis[ch=here()]==WHAT_CHAR) || (ch>='0' && ch<='9') || ch==allowed || ch=='_') {ident[i++]=ch; lpoint++; }
+	while ((whatis[ch=here()]==WHAT_CHAR) || (ch>='0' && ch<='9') || ch=='_') {ident[i++]=ch; lpoint++; }
     else
-	while (((ch=lowcase(pline[lpoint]))>='a' && ch<='z') || (ch>='0' && ch<='9') || ch==allowed || ch=='_') { ident[i++]=ch; lpoint++; }
+	while (((ch=lowcase(pline[lpoint]))>='a' && ch<='z') || (ch>='0' && ch<='9') || ch=='_') { ident[i++]=ch; lpoint++; }
     ident[i]=0;
-    return 0;
+    return i == 0;
 }
 
-int get_ident(char allowed) {
+int get_ident(void) {
     int code;
 
     if (what(&code)!=WHAT_EXPRESSION || !code) {
 	err_msg(ERROR_EXPRES_SYNTAX,NULL);
 	return 1;
     }
-    return get_ident2(allowed);
+    return get_ident2();
 }
 
 static uint_fast8_t val_length(int32_t val)
@@ -558,7 +559,7 @@ void var_assign(struct label_s *tmp, const struct value_s *val, int fix) {
             memcpy(tmp->value.u.str.data,val->u.str.data,val->u.str.len);
         }
         break;
-    case T_TSTR: /* not possible here */
+    default: /* not possible here */
         exit(1);
         break;
     }
@@ -575,20 +576,10 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
 
     struct label_s *tmp = NULL;
     struct macro_s *tmp2 = NULL;
-    struct context_s *old_context = NULL;
 
-    uint32_t backr_old = 0, forwr_old = 0;
-    uint16_t reffile_old = 0;
     uint8_t oldwaitforp = waitforp;
     unsigned wasref;
     int nobreak = 1;
-
-    if (tpe==0) {
-        backr_old=current_context->backr;
-        forwr_old=current_context->forwr;
-        current_context->backr=current_context->forwr=1;
-    }
-    if (tpe==0 || tpe==1) reffile_old=reffile;
 
     while (cfile->len != cfile->p && nobreak) {
         pline = cfile->data + cfile->p; lpoint = 0; sline++;vline++; cfile->p += strlen((char *)pline) + 1;
@@ -603,9 +594,9 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     lpoint++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) goto baj;
                     prm=1;
                     if (ident2[0]=='-') {
-                        sprintf(ident,"-%u-%u",reffile,current_context->backr++);
+                        sprintf(ident,"-%x-%x", reffile, backr++);
                     } else {
-                        sprintf(ident,"+%u+%u",reffile,current_context->forwr++);
+                        sprintf(ident,"+%x+%x", reffile, forwr++);
                     }
                     goto hh;
                 }
@@ -613,7 +604,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL);
                 goto breakerr;
             } //not label
-            get_ident('_');                                           //get label
+            get_ident();                                           //get label
             if ((prm=lookup_opcode(ident))>=0) goto as_opcode;
             if (listing) strcpy(ident2,ident);
         hh:
@@ -623,7 +614,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
                 if (!c) goto breakerr;
                 if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL);goto breakerr;}
-                tmp=new_label(varname);
+                tmp=new_label(varname, L_LABEL);
                 if (listing && flist && arguments.source && tmp->ref) {
                     if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
                     if (val.type == T_INT || val.type == T_CHR) {
@@ -661,7 +652,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
                     if (!c) goto breakerr;
                     if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL);goto breakerr;}
-                    tmp=new_label(varname);
+                    tmp=new_label(varname, L_VAR);
                     if (listing && flist && arguments.source && tmp->ref) {
                         if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
                         if (val.type == T_INT || val.type == T_CHR) {
@@ -673,7 +664,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     }
                     tmp->ref=0;
                     if (labelexists) {
-                        if (!tmp->varlabel) err_msg(ERROR_DOUBLE_DEFINE,varname);
+                        if (tmp->type != L_VAR) err_msg(ERROR_DOUBLE_DEFINE,varname);
                         else {
                             tmp->requires=current_requires;
                             tmp->conflicts=current_conflicts;
@@ -682,7 +673,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     } else {
                         tmp->requires=current_requires;
                         tmp->conflicts=current_conflicts;
-                        tmp->varlabel=1;tmp->upass=tmp->pass=pass;
+                        tmp->upass=tmp->pass=pass;
                         tmp->value=val;
                         if (val.type == T_STR) {
                             tmp->value.u.str.data=malloc(val.u.str.len);
@@ -704,7 +695,8 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         if (tmp2->sline != sline
                             || tmp2->waitforp != waitforp
                             || tmp2->file != cfile
-                            || tmp2->p != cfile->p) {
+                            || tmp2->p != cfile->p
+                            || tmp2->parent != current_context) {
                             err_msg(ERROR_DOUBLE_DEFINE,ident);
                         }
                     } else {
@@ -712,6 +704,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         tmp2->waitforp = waitforp;
                         tmp2->file = cfile;
                         tmp2->p = cfile->p;
+                        tmp2->parent = current_context;
                     }
                     goto finish;
                 }
@@ -735,11 +728,11 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     goto finish;
                 }
             }
-            tmp=find_label2(ident);
+            tmp=find_label2(ident, &current_context->members);
             if (tmp) labelexists=1;
             else {
                 if ((tmp2=find_macro(ident))) {lpoint--;ident2[0]=0;goto as_macro;}
-                tmp=new_label(ident);
+                tmp=new_label(ident, L_LABEL);
             }
             if (pass==1) {
                 if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,ident);
@@ -751,7 +744,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 }
             } else {
                 if (labelexists) {
-                    if (tmp->value.type != T_INT || tmp->varlabel) { /* should not happen */
+                    if (tmp->value.type != T_INT || tmp->type != L_LABEL) { /* should not happen */
                         err_msg(ERROR_DOUBLE_DEFINE,ident);
                     } else {
                         if ((uint32_t)tmp->value.u.num != l_address) {
@@ -769,8 +762,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 if (!tmp->ref && pass != 1) skipit[waitforp]=0;
                 else {
                     skipit[waitforp]=1;
-                    current_context=new_context(ident, current_context);
-                    current_context->backr=current_context->forwr=1;
+                    current_context=tmp;
                     if (listing && flist && arguments.source) {
                         if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
                         fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
@@ -780,7 +772,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 goto finish;
             }
             wasref=tmp->ref;tmp->ref=0;
-            if (pline[0]) err_msg(ERROR_LABEL_NOT_LEF,NULL);
+            if (pline[0]==0x20 || pline[0]==0x09) err_msg(ERROR_LABEL_NOT_LEF,NULL);
         }
         jn:
         switch (wht) {
@@ -930,9 +922,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 if (prm==CMD_PEND) { //.pend
                     if (waitfor[waitforp].what!='p') {err_msg(ERROR______EXPECTED,".PROC"); break;}
                     if (skipit[waitforp] & 1) {
-                        if (current_context->parent && current_context->name[0]!='.') {
-                            current_context->parent->backr += current_context->backr - 1;
-                            current_context->parent->forwr += current_context->forwr - 1;
+                        if (current_context->parent) {
                             current_context = current_context->parent;
                         } else err_msg(ERROR______EXPECTED,".proc");
                     }
@@ -1196,15 +1186,13 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     goto breakerr;
                 }
                 if (prm==CMD_BLOCK) { // .block
-                    sprintf(varname, ".%x.%u", (unsigned)star_tree, vline);
-                    current_context=new_context(varname, current_context);
-                    current_context->backr=current_context->forwr=1;
+                    sprintf(varname, ".%x.%x", (unsigned)star_tree, vline);
+                    current_context=new_label(varname, L_LABEL);
+                    current_context->value.type = T_NONE;
                     break;
                 }
                 if (prm==CMD_BEND) { //.bend
-                    if (current_context->parent && current_context->name[0]=='.') {
-                        current_context->parent->backr += current_context->backr - 1;
-                        current_context->parent->forwr += current_context->forwr - 1;
+                    if (current_context->parent) {
                         current_context = current_context->parent;
                     } else err_msg(ERROR______EXPECTED,".block");
                     break;
@@ -1476,16 +1464,21 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         uint32_t lin = sline;
                         uint32_t vlin = vline;
                         struct avltree *stree_old = star_tree;
+                        uint32_t old_backr = backr, old_forwr = forwr;
 
                         enterfile(cfile->name,sline);
                         sline = vline = 0; cfile->p=0;
                         star_tree = &cfile->star;
+                        backr = forwr = 0;
+                        reffile=cfile->uid;
                         compile(0,mprm,nprm);
                         sline = lin; vline = vlin;
                         star_tree = stree_old;
+                        backr = old_backr; forwr = old_forwr;
                         exitfile();
                     }
                     closefile(cfile);cfile = f;
+                    reffile=cfile->uid;
                     if (listing && flist) {
                         fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->name);
                         lastl=LIST_NONE;
@@ -1505,16 +1498,16 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
                     if (strlen((char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
                     if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
-                        if (get_ident('_')) goto breakerr;
+                        if (get_ident()) goto breakerr;
                         ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                         lpoint++;
                         strcpy(varname,ident);
                         get_exp(&w,&d,&c,&val,T_NONE);
                         if (!c) goto breakerr;
                         if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                        var=new_label(varname);
+                        var=new_label(varname, L_VAR);
                         if (labelexists) {
-                            if (!var->varlabel) err_msg(ERROR_DOUBLE_DEFINE,varname);
+                            if (var->type != L_VAR) err_msg(ERROR_DOUBLE_DEFINE,varname);
                             else {
                                 var->requires=current_requires;
                                 var->conflicts=current_conflicts;
@@ -1523,7 +1516,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         } else {
                             var->requires=current_requires;
                             var->conflicts=current_conflicts;
-                            var->varlabel=1;var->upass=var->pass=pass;
+                            var->upass=var->pass=pass;
                             var->value=val;
                             if (val.type == T_STR) {
                                 var->value.u.str.data=malloc(val.u.str.len);
@@ -1552,15 +1545,15 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         if (bpoint < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                             lpoint++;
-                            if (get_ident('_')) break;
+                            if (get_ident()) break;
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
                             lpoint++;
                             ignore();
                             if (!here() || here()==';') bpoint = 0;
                             else {
-                                var=new_label(ident);
+                                var=new_label(ident, L_VAR);
                                 if (labelexists) {
-                                    if (!var->varlabel) {
+                                    if (var->type != L_VAR) {
                                         err_msg(ERROR_DOUBLE_DEFINE,varname);
                                         break;
                                     }
@@ -1569,7 +1562,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                                 } else {
                                     var->requires=current_requires;
                                     var->conflicts=current_conflicts;
-                                    var->varlabel=1;var->upass=var->pass=pass;
+                                    var->upass=var->pass=pass;
                                     var->value.type=T_NONE;
                                 }
                                 bpoint=lpoint;
@@ -1607,7 +1600,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_OPTION) { // .option
-                    get_ident('_');
+                    get_ident();
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
                     lpoint++;
                     get_exp(&w,&d,&c,&val,T_NONE);
@@ -1622,9 +1615,9 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 if (prm==CMD_GOTO) { // .goto
                     struct jump_s *tmp2;
                     int noerr = 1;
-                    get_ident('_');
+                    get_ident();
                     tmp2 = find_jump(ident);
-                    if (tmp2 && tmp2->file == cfile) {
+                    if (tmp2 && tmp2->file == cfile && tmp2->parent == current_context) {
                         uint8_t oldwaitforp = waitforp;
                         while (tmp2->waitforp < waitforp) {
                             uint32_t os = sline;
@@ -1658,8 +1651,9 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
             {                   //macro stuff
                 int ppoint, nprm;
                 char mparams[256];
+                struct label_s *old_context;
 
-                if (get_ident2('_')) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 if (!(tmp2=find_macro(ident))) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
@@ -1695,11 +1689,11 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 }
                 macrecursion++;
                 if (tmp2->type==CMD_MACRO) {
-                    sprintf(varname, "#%x#%d", (unsigned)star_tree, vline);
+                    sprintf(varname, "#%x#%x", (unsigned)star_tree, vline);
                     old_context = current_context;
-                    current_context=new_context(varname, current_context);
-                    current_context->backr=current_context->forwr=1;
-                }
+                    current_context=new_label(varname, L_LABEL);
+                    current_context->value.type = T_NONE;
+                } else old_context = NULL;
                 if (macrecursion<100) {
                     size_t oldpos = tmp2->file->p;
                     uint32_t lin = sline;
@@ -1726,7 +1720,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
             }
         case WHAT_EXPRESSION:
             if (skipit[waitforp] & 1) {
-                get_ident2('_');
+                get_ident2();
                 if ((prm=lookup_opcode(ident))>=0) {
                     enum opr_e opr;
                     int mnem, oldlpoint;
@@ -2226,11 +2220,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
     breakerr:
         continue;
     }
-    if (tpe==0) {
-        current_context->backr=backr_old;
-        current_context->forwr=forwr_old;
-        reffile=reffile_old;
-    }
+
     while (oldwaitforp < waitforp) {
         uint32_t os = sline;
         sline = waitfor[waitforp].line;
@@ -2274,13 +2264,14 @@ int main(int argc,char *argv[]) {
             set_cpumode(arguments.cpumode);
             address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;
-            current_context=&root_context;logitab.p=0;
+            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;
+            current_context=&root_label;logitab.p=0;
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
                 enterfile("<command line>",0);
                 fin->p = 0; cfile = fin;
                 star_tree=&fin->star;
+                reffile=cfile->uid;
                 compile(0,"",-1);
                 exitfile();
                 mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
@@ -2292,6 +2283,7 @@ int main(int argc,char *argv[]) {
             if (cfile) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
+                reffile=cfile->uid;
                 compile(0,"",-1);
                 closefile(cfile);
             }
@@ -2299,7 +2291,7 @@ int main(int argc,char *argv[]) {
         }
         if (errors) {memcomp();status();return 1;}
         if (conderrors && !arguments.list && pass==1) fixeddig=0;
-    } while (!fixeddig || (pass==1 && !arguments.list));
+    } while (!fixeddig || pass==1);
 
     /* assemble again to create listing */
     if (arguments.list) {
@@ -2323,13 +2315,14 @@ int main(int argc,char *argv[]) {
             set_cpumode(arguments.cpumode);
             address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~0;current_requires=0;current_conflicts=0;macrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;
-            current_context=&root_context;logitab.p=0;
+            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;
+            current_context=&root_label;logitab.p=0;
 
             if (i == optind - 1) {
                 enterfile("<command line>",0);
                 fin->p = 0; cfile = fin;
                 star_tree=&fin->star;
+                reffile=cfile->uid;
                 compile(0,"",-1);
                 exitfile();
                 mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
@@ -2342,6 +2335,7 @@ int main(int argc,char *argv[]) {
             if (cfile) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
+                reffile=cfile->uid;
                 compile(0,"",-1);
                 closefile(cfile);
             }

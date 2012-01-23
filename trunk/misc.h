@@ -87,18 +87,8 @@ enum errors_e {
 
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
-struct context_s {
-    char* name;
-    struct context_s *parent;
-    uint32_t backr, forwr;
-    struct avltree contexts;
-    struct avltree label_tree;
-    struct avltree jump_tree;
-    struct avltree_node node;
-};
-
 enum type_e {
-    T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR
+    T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR, T_IDENT, T_IDENTREF, T_FORWR, T_BACKR
 };
 
 struct value_s {
@@ -109,19 +99,31 @@ struct value_s {
             size_t len;
             uint8_t *data;
         } str;
+        struct {
+            size_t len;
+            const uint8_t *name;
+        } ident;
+        struct label_s *label;
     } u;
+};
+
+enum label_e {
+    L_LABEL, L_VAR
 };
 
 struct label_s {
     char *name;
+    enum label_e type;
+    struct avltree_node node;
+
     struct value_s value;
     uint32_t requires;
     uint32_t conflicts;
     unsigned ref:1;
-    unsigned varlabel:1;
     uint8_t pass;
     uint8_t upass;
-    struct avltree_node node;
+    struct label_s *parent;
+    struct avltree members;
 };
 
 struct star_s {
@@ -157,6 +159,7 @@ struct jump_s {
     uint32_t sline;
     uint8_t waitforp;
     const struct file_s *file;
+    const struct label_s *parent;
     struct avltree_node node;
 };
 
@@ -195,6 +198,7 @@ extern const uint8_t *pline;
 extern int labelexists;
 extern void status(void);
 extern uint16_t reffile;
+extern uint32_t backr, forwr;
 extern uint8_t pass;
 
 #define ignore() while(pline[lpoint]==0x20 || pline[lpoint]==0x09) lpoint++
@@ -207,14 +211,13 @@ extern uint_fast8_t encode(uint_fast8_t);
 extern uint_fast16_t petsymbolic(const char*);
 extern void err_msg(enum errors_e, const char*);
 extern struct label_s *find_label(char*);
-extern struct label_s *find_label2(char*);
-extern struct label_s *new_label(char*);
+extern struct label_s *find_label2(char*, struct avltree *);
+extern struct label_s *new_label(char*, enum label_e);
 extern struct macro_s *find_macro(char*);
 extern struct macro_s *new_macro(char*);
 extern struct jump_s *find_jump(char*);
 extern struct jump_s *new_jump(char*);
 extern struct star_s *new_star(uint32_t);
-extern struct context_s *new_context(char*, struct context_s *);
 extern struct file_s *openfile(char*);
 extern void closefile(struct file_s*);
 extern void tfree(void);
@@ -226,13 +229,12 @@ extern void freeerrorlist(int);
 extern void enterfile(const char *,uint32_t);
 extern void exitfile(void);
 extern unsigned int encoding;
-extern struct context_s *current_context;
-extern struct context_s root_context;
+extern struct label_s *current_context, root_label;
 extern unsigned int utf8in(const uint8_t *c, uint32_t *out);
 extern struct encoding_s no_encoding[];
 extern struct encoding_s screen_encoding[];
 extern struct encoding_s ascii_encoding[];
 extern uint32_t current_requires, current_conflicts, current_provides;
-extern int get_ident(char);
+extern int get_ident(void);
 
 #endif
