@@ -784,7 +784,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 goto finish;
             }
             wasref=tmp->ref;tmp->ref=0;
-            if (pline[0]==0x20 || pline[0]==0x09) err_msg(ERROR_LABEL_NOT_LEF,NULL);
+            if (pline[lpoint-1]!=':' && (pline[0]==0x20 || pline[0]==0x09)) err_msg(ERROR_LABEL_NOT_LEF,NULL);
         }
         jn:
         switch (wht) {
