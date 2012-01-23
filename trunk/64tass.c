@@ -787,15 +787,15 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                 tmp->requires=0;
                                 tmp->conflicts=0;
                                 tmp->upass=tmp->pass=pass;
-                                tmp->value.type=T_INT;tmp->value.u.num=l_address;
+                                tmp->value.type=T_INT;tmp->value.u.num=0;
                             }
                         } else {
                             if (labelexists) {
                                 if (tmp->value.type != T_INT || tmp->type != L_STRUCT) { /* should not happen */
                                     err_msg(ERROR_DOUBLE_DEFINE,ident);
                                 } else {
-                                    if ((uint32_t)tmp->value.u.num != l_address) {
-                                        tmp->value.u.num=l_address;
+                                    if ((uint32_t)tmp->value.u.num != 0) {
+                                        tmp->value.u.num=0;
                                         fixeddig=0;
                                     }
                                     tmp->requires=0;
