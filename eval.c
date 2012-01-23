@@ -196,6 +196,8 @@ static int priority(char ch)
 {
     switch (ch) {
     default:
+    case 'I':          // a[
+    case '[':          // [a]
     case '(':return 0;
     case 'l':          // <
     case 'h':          // >
@@ -408,7 +410,7 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
 }
 
 void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// length in bytes, defined
-    int nd=0,tp=0;
+    int nd=0;
     unsigned int i;
     char ch;
     static uint8_t line[linelength];  //current line data
@@ -427,8 +429,9 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
     *df=1;    // 1=result is ok, result is not yet known
-    *cd=0;    // 0=error
+    *cd=0;    // 0=error, 1=ok, 2=(a, 3=(), 4=[]
     v->type = T_NONE;
+    o_oper[0]=0;
 
     ignore();
     switch (here()) {
@@ -442,13 +445,15 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         lpoint++;
 	ignore();
         break;
-    case '(': tp=1; break;
     }
     for (;;) {
         ignore();ch = here();
         if (!nd) {
             switch (ch) {
+            case '[':
             case '(': o_oper[operp++] = ch; lpoint++;continue;
+            case ')': goto syntaxe;
+            case ']': goto syntaxe;
             case '+': db = 1;
                 while ((ch=pline[lpoint+db])=='+') db++;
                 if (!(ch>='0' && ch<='9') && ch!='$' && ch!='"' && ch!='\'' && ch!='%' && ch!='(' && ch!='_' && !(ch>='a' && ch<='z') && !(ch>='A' && ch<='Z')) {
@@ -483,6 +488,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 o_out[outp].val.u.ident.name = pline + lpoint;
                 while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint++;
                 o_out[outp].val.u.ident.len = pline + lpoint - o_out[outp].val.u.ident.name;
+                if (!o_out[outp].val.u.ident.len) goto syntaxe;
                 o_out[outp].val.type = T_IDENT;
                 o_out[outp++].oper=' ';
                 nd = 1;
@@ -496,6 +502,8 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
 	}
 	else {
             switch (ch) {
+            case '(': goto syntaxe;
+            case '[': ch = 'I';goto push2;
             case '&': if (pline[lpoint+1] == '&') {lpoint++;ch = 'A';} goto push2;
             case '|': if (pline[lpoint+1] == '|') {lpoint++;ch = 'O';} goto push2;
             case '^': if (pline[lpoint+1] == '^') {lpoint++;ch = 'X';} goto push2;
@@ -507,7 +515,6 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case '.': goto push2;
             case '=': if (pline[lpoint+1] == '=') lpoint++;
             push2:
-		if (tp) tp=1;
                 prec = priority(ch);
                 while (operp && prec <= priority(o_oper[operp-1])) o_out[outp++].oper=o_oper[--operp];
                 o_oper[operp++] = ch;
@@ -532,27 +539,50 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 if (pline[lpoint+1]=='=') {lpoint++;ch = 'o';goto push2;}
                 break;
             case ')':
-		while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
+                while (operp && o_oper[operp-1] != '(') {
+                    if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
+                    o_out[outp++].oper=o_oper[--operp];
+                }
 		lpoint++;
-		if (operp==1 && tp) tp=2;
-		if (!operp) goto syntaxe;
-		operp--;
+                if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
+                operp--;
+		continue;
+            case ']':
+                while (operp && o_oper[operp-1] != '[') {
+                    if (o_oper[operp-1]=='(') {err_msg(ERROR______EXPECTED,"["); goto error;}
+                    o_out[outp++].oper=o_oper[--operp];
+                    if (o_oper[operp] == 'I') break;
+                }
+		lpoint++;
+                if (o_oper[operp] == 'I') continue;
+                if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
+                operp--;
 		continue;
 	    }
-	    while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
-	    if (!operp) {
-		if (tp==2) *cd=3; else *cd=1;
-		break;
-	    }
-	    if (operp>1) goto syntaxe;
-	    if (tp) *cd=2;
-	    else {
-            syntaxe:
-                err_msg(ERROR_EXPRES_SYNTAX,NULL);
-                for (i=0; i<outp; i++) if (o_out[i].oper==' ' && o_out[i].val.type == T_TSTR) free(o_out[i].val.u.str.data);
-                return;
+            if (o_oper[0]=='(') {
+                if (!operp) {*cd=3;break;}
+                while (operp && o_oper[operp-1] != '(') {
+                    if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
+                    o_out[outp++].oper=o_oper[--operp];
+                }
+                if (operp==1) {*cd=2; break;}
+                err_msg(ERROR______EXPECTED,")"); goto error;
+            } else if (o_oper[0]=='[') {
+                if (!operp) {*cd=4;break;}
+                err_msg(ERROR______EXPECTED,"]"); goto error;
+            } else {
+                while (operp) {
+                    if (o_oper[operp-1] == '(') {err_msg(ERROR______EXPECTED,")"); goto error;}
+                    if (o_oper[operp-1] == '[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"]"); goto error;}
+                    o_out[outp++].oper=o_oper[--operp];
+                }
+                if (!operp) {*cd=1;break;}
             }
-	    break;
+        syntaxe:
+            err_msg(ERROR_EXPRES_SYNTAX,NULL);
+        error:
+            for (i=0; i<outp; i++) if (o_out[i].oper==' ' && o_out[i].val.type == T_TSTR) free(o_out[i].val.u.str.data);
+            return;
 	}
     }
     vsp = 0;
@@ -740,6 +770,8 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                     val1 = res;
                 }
                 break;
+            case 'I': val1 = ((unsigned)val1 >> val2) & 1;
+                break;
             default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);continue;
             }
             v1->val.type = T_INT; v1->val.u.num = val1; continue;
@@ -791,6 +823,16 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 case 'O': val = (v1->val.u.str.len || v2->val.u.str.len); goto strcomp;
                 case 'X': val = (!v1->val.u.str.len ^ !v2->val.u.str.len); goto strcomp;
                 default: err_msg(ERROR____WRONG_TYPE,NULL);goto errtype;
+            }
+        }
+        if (t1 == T_STR && t2 == T_CHR) t2 = T_INT;
+        if (t1 == T_STR && t2 == T_INT) {
+            if (ch=='I') {
+                val=0;
+                if (v2->val.u.num >= 0 && (unsigned)v2->val.u.num < v1->val.u.str.len) val = v1->val.u.str.data[v2->val.u.num];
+                else err_msg(ERROR_CONSTNT_LARGE,NULL);
+                if (v1->val.type == T_TSTR) free(v1->val.u.str.data);
+                v1->val.type = T_CHR; v1->val.u.num = val;continue;
             }
         }
         err_msg(ERROR____WRONG_TYPE,NULL);goto errtype;

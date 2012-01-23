@@ -1786,46 +1786,6 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         }
                     }
                     // 3 Db
-                    else if (wht=='[') {
-                        lpoint++;
-                        get_exp(&w,&d,&c,&val,T_INT); //ellenorizve.
-                        if (!c) goto breakerr;
-                        if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        ignore();if (here()!=']') {err_msg(ERROR______EXPECTED,"]"); goto breakerr;}
-                        lpoint++;
-                        if ((wht=what(&prm))==WHAT_Y) {
-                            if (val.type != T_NONE) {
-                                adr = (uint16_t)(val.u.num - dpage) | (adr && ~0xffff);
-                                if (w==3) w=val_length(adr);//auto length
-                                if (w) w=3;// there's no lda [$ffff],y lda [$ffffff],y!
-                                opr=ADR_ZP_LI_Y;
-                            } else fixeddig=0;
-                            ln=1; // lda [$ff],y
-                        }
-                        else if (wht==WHAT_EOL || wht==WHAT_COMMENT) {
-                            if (cnmemonic[ADR_ADDR_LI]==0xDC) { // jmp [$ffff]
-                                if (val.type != T_NONE) {
-                                    adr = val.u.num;
-                                    if (w==3) {
-                                        w=val_length(adr);//auto length
-                                        if (!w) w=1;
-                                    }
-                                    if (w!=1) w=3; // there's no jmp [$ffffff]!
-                                    opr=ADR_ADDR_LI;
-                                } else fixeddig=0;
-                                ln=2;// jmp [$ffff]
-                            }
-                            else {
-                                if (val.type != T_NONE) {
-                                    adr = (uint16_t)(val.u.num - dpage) | (adr && ~0xffff);
-                                    if (w==3) w=val_length(adr);//auto length
-                                    if (w) w=3; // there's no lda [$ffff] lda [$ffffff]!
-                                    opr=ADR_ZP_LI;
-                                } else fixeddig=0;
-                                ln=1;// lda [$ff]
-                            }
-                        }
-                    }
                     else if (wht=='.') {
                         wht=what(&prm);
                         if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
@@ -2074,7 +2034,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                                 }
                             } // 18 Db
                         }
-                        else {
+                        else if (c==3) {
                             if ((wht=what(&prm))==WHAT_Y) {
                                 if (val.type != T_NONE) {
                                     adr=(uint16_t)(adr - dpage) | (adr & ~0xffff);
@@ -2109,6 +2069,39 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                                     ln=1; // lda ($ff)
                                 }
                             } // 21 Db
+                        } else {
+                            if ((wht=what(&prm))==WHAT_Y) {
+                                if (val.type != T_NONE) {
+                                    adr = (uint16_t)(val.u.num - dpage) | (adr && ~0xffff);
+                                    if (w==3) w=val_length(adr);//auto length
+                                    if (w) w=3;// there's no lda [$ffff],y lda [$ffffff],y!
+                                    opr=ADR_ZP_LI_Y;
+                                } else fixeddig=0;
+                                ln=1; // lda [$ff],y
+                            }
+                            else if (wht==WHAT_EOL || wht==WHAT_COMMENT) {
+                                if (cnmemonic[ADR_ADDR_LI]==0xDC) { // jmp [$ffff]
+                                    if (val.type != T_NONE) {
+                                        adr = val.u.num;
+                                        if (w==3) {
+                                            w=val_length(adr);//auto length
+                                            if (!w) w=1;
+                                        }
+                                        if (w!=1) w=3; // there's no jmp [$ffffff]!
+                                        opr=ADR_ADDR_LI;
+                                    } else fixeddig=0;
+                                    ln=2;// jmp [$ffff]
+                                }
+                                else {
+                                    if (val.type != T_NONE) {
+                                        adr = (uint16_t)(val.u.num - dpage) | (adr && ~0xffff);
+                                        if (w==3) w=val_length(adr);//auto length
+                                        if (w) w=3; // there's no lda [$ffff] lda [$ffffff]!
+                                        opr=ADR_ZP_LI;
+                                    } else fixeddig=0;
+                                    ln=1;// lda [$ff]
+                                }
+                            }
                         }
                     }
 
