@@ -605,7 +605,10 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 goto breakerr;
             } //not label
             get_ident();                                           //get label
-            if ((prm=lookup_opcode(ident))>=0) goto as_opcode;
+            if (here()==':') lpoint++;
+            else if ((prm=lookup_opcode(ident))>=0) {
+                if (skipit[waitforp] & 1) goto as_opcode; else continue;
+            }
             if (listing) strcpy(ident2,ident);
         hh:
             if (!(skipit[waitforp] & 1)) {wht=what(&prm);goto jn;} //skip things if needed
@@ -709,7 +712,6 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     goto finish;
                 }
                 if (prm==CMD_MACRO || prm==CMD_SEGMENT) { // .macro
-                do_macro:
                     waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
                     tmp2=new_macro(ident);
                     if (labelexists) {
@@ -1741,16 +1743,6 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     uint8_t cod, longbranch;
                     uint32_t adr;
                 as_opcode:
-                    if (!(skipit[waitforp] & 1)) {
-                        ignore();
-                        if (here()=='.') {
-                            wht=what(&prm);
-                            if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
-                                waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
-                            }
-                        }
-                        break;//skip things if needed
-                    }
 
                     opr = 0;mnem = prm;
                     oldlpoint = lpoint;
@@ -1798,14 +1790,6 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                         }
                     }
                     // 3 Db
-                    else if (wht=='.') {
-                        wht=what(&prm);
-                        if (wht==WHAT_COMMAND && (prm==CMD_MACRO || prm==CMD_SEGMENT)) {
-                            memcpy(ident,&mnemonic[mnem*3],3);
-                            ident[3]=0;goto do_macro;
-                        }
-                        err_msg(ERROR_GENERL_SYNTAX,NULL);goto breakerr;
-                    }
                     else {
                         if (whatis[wht]!=WHAT_EXPRESSION && whatis[wht]!=WHAT_CHAR && wht!='_' && wht!='*') {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     nota:
