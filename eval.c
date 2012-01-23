@@ -196,7 +196,6 @@ static int priority(char ch)
 {
     switch (ch) {
     default:
-    case 'I':          // a[
     case '[':          // [a]
     case '(':return 0;
     case 'l':          // <
@@ -224,11 +223,12 @@ static int priority(char ch)
     case '/':
     case '%':return 11;// %
     case 'E':return 12;// **
+    case '.':          // .
+    case 'I':return 13;// a[
     case 'n':          // -
-    case 'p':return 13;// +
-    case '~':return 14;// ~
-    case '!':return 15;// !
-    case '.':return 16;// .
+    case 'p':return 14;// +
+    case '~':return 15;// ~
+    case '!':return 16;// !
     }
 }
 
@@ -829,8 +829,13 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         if (t1 == T_STR && t2 == T_INT) {
             if (ch=='I') {
                 val=0;
-                if (v2->val.u.num >= 0 && (unsigned)v2->val.u.num < v1->val.u.str.len) val = v1->val.u.str.data[v2->val.u.num];
-                else err_msg(ERROR_CONSTNT_LARGE,NULL);
+                if (v2->val.u.num >= 0) {
+                    if ((unsigned)v2->val.u.num < v1->val.u.str.len) val = v1->val.u.str.data[v2->val.u.num];
+                    else err_msg(ERROR_CONSTNT_LARGE,NULL);
+                } else {
+                    if ((unsigned)-v2->val.u.num <= v1->val.u.str.len) val = v1->val.u.str.data[v1->val.u.str.len + v2->val.u.num];
+                    else err_msg(ERROR_CONSTNT_LARGE,NULL);
+                }
                 if (v1->val.type == T_TSTR) free(v1->val.u.str.data);
                 v1->val.type = T_CHR; v1->val.u.num = val;continue;
             }
