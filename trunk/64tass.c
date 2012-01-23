@@ -771,6 +771,16 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                 }
                 goto finish;
             }
+            if (wht==WHAT_COMMAND && prm==CMD_BLOCK) { // .block
+                waitfor[++waitforp].what='b';waitfor[waitforp].line=sline;
+                current_context=tmp;
+                if (listing && flist && arguments.source) {
+                    if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                    fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
+                }
+                tmp->ref=0;
+                goto finish;
+            }
             wasref=tmp->ref;tmp->ref=0;
             if (pline[0]==0x20 || pline[0]==0x09) err_msg(ERROR_LABEL_NOT_LEF,NULL);
         }
@@ -1192,6 +1202,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_BEND) { //.bend
+                    if (waitfor[waitforp].what=='b') waitforp--;
                     if (current_context->parent) {
                         current_context = current_context->parent;
                     } else err_msg(ERROR______EXPECTED,".block");
@@ -1626,6 +1637,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
                             case 'm': err_msg(ERROR______EXPECTED,".ENDM"); noerr = 0; break;
                             case 'n': err_msg(ERROR______EXPECTED,".NEXT"); noerr = 0; break;
                             case 'p': err_msg(ERROR______EXPECTED,".PEND"); noerr = 0; break;
+                            case 'b': err_msg(ERROR______EXPECTED,".BEND"); noerr = 0; break;
                             }
                             sline = os;
                         }
@@ -2223,6 +2235,7 @@ static void compile(uint8_t tpe,const char* mprm,int8_t nprm) // "",0
         case 'm': err_msg(ERROR______EXPECTED,".ENDM"); break;
         case 'n': err_msg(ERROR______EXPECTED,".NEXT"); break;
         case 'p': err_msg(ERROR______EXPECTED,".PEND"); break;
+        case 'b': err_msg(ERROR______EXPECTED,".BEND"); break;
         case 'c': err_msg(ERROR______EXPECTED,".ENDC"); break;
         }
         sline = os;
