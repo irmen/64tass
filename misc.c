@@ -1023,7 +1023,11 @@ void labelprint(void) {
             l = avltree_container_of(n, struct label_s, node);            //already exists
             n = avltree_next(n);
             if (strchr(l->name,'-') || strchr(l->name,'+')) continue;
-            fprintf(flab,"%-16s= ",l->name);
+            switch (l->type) {
+            case L_VAR: fprintf(flab,"%-15s .var ",l->name);break;
+            case L_STRUCT: continue;
+            default: fprintf(flab,"%-16s= ",l->name);break;
+            }
             switch (l->value.type) {
             case T_CHR:
             case T_INT:
