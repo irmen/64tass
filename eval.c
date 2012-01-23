@@ -597,6 +597,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         case '.':
             v2 = v1; v1 = values[--vsp-1];
             if (vsp == 0) goto syntaxe;
+            if (v1->val.type == T_NONE) goto errtype;
             if (v1->val.type == T_IDENT) {
                 copy_name(&v1->val);
                 v1->val.u.label = find_label(ident);

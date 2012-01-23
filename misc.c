@@ -432,6 +432,7 @@ static const char *terr_error[]={
     "Division by zero",
     "Wrong type",
     "Unknown character $%02x",
+    "Not allowed here: %s",
 };
 static const char *terr_fatal[]={
     "Can't locate file: %s\n",
