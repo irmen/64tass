@@ -38,6 +38,9 @@
 #define WHAT_CHAR       16
 #define WHAT_LBL        17
 
+typedef uint_fast32_t line_t;
+typedef uint_fast32_t address_t;
+
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 enum type_e {
@@ -65,7 +68,7 @@ enum label_e {
 };
 
 struct label_s {
-    char *name;
+    const char *name;
     enum label_e type;
     struct avltree_node node;
 
@@ -80,14 +83,14 @@ struct label_s {
 };
 
 struct star_s {
-    uint32_t line;
-    uint32_t addr;
+    line_t line;
+    address_t addr;
     struct avltree tree;
     struct avltree_node node;
 };
 
 struct file_s {
-    char *name;
+    const char *name;
     uint8_t *data;    /* data */
     size_t len;       /* length */
     size_t p;         /* current point */
@@ -98,18 +101,18 @@ struct file_s {
 };
 
 struct macro_s {
-    char *name;
+    const char *name;
     size_t p;
-    uint32_t sline;
+    line_t sline;
     struct file_s *file;
     int type;
     struct avltree_node node;
 };
 
 struct jump_s {
-    char *name;
+    const char *name;
     size_t p;
-    uint32_t sline;
+    line_t sline;
     uint8_t waitforp;
     const struct file_s *file;
     const struct label_s *parent;
@@ -140,13 +143,13 @@ struct encoding_s {
     int16_t offset;
 };
 
-extern uint32_t sline, vline;
+extern line_t sline, vline;
 extern unsigned int lpoint; 
 extern struct file_s *cfile; 
 extern struct avltree *star_tree;
 extern int fixeddig;
 extern unsigned int errors,conderrors,warnings;
-extern uint32_t star;
+extern address_t star;
 extern const uint8_t *pline;
 extern int labelexists;
 extern void status(void);
@@ -169,7 +172,7 @@ extern struct macro_s *find_macro(char*);
 extern struct macro_s *new_macro(char*);
 extern struct jump_s *find_jump(char*);
 extern struct jump_s *new_jump(char*);
-extern struct star_s *new_star(uint32_t);
+extern struct star_s *new_star(line_t);
 extern struct file_s *openfile(char*);
 extern void closefile(struct file_s*);
 extern void tfree(void);

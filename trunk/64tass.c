@@ -43,19 +43,20 @@
 static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
 
-struct memblock_s {size_t p, len;uint32_t start;}; //starts and sizes
+struct memblock_s {size_t p, len;address_t start;}; //starts and sizes
 
 #define nestinglevel 256
 static int wrapwarn=0, wrapwarn2=0;
-uint32_t sline, vline;      //current line
-static uint32_t all_mem;
+line_t sline, vline;      //current line
+static address_t all_mem;
 uint8_t pass=0;      //pass
 static int listing=0;   //listing
 static struct {size_t p, len;uint8_t *data;} mem = {0, 0, NULL};//Linear memory dump
 static size_t memblocklastp = 0;
-static uint32_t memblocklaststart = 0;
+static address_t memblocklaststart = 0;
 static struct {unsigned int p, len;struct memblock_s *data;} memblocks = {0, 0, NULL};
-uint32_t address=0, l_address=0, star=0; //address, logical address
+static address_t address=0, l_address=0; //address, logical address
+address_t star=0;
 const uint8_t *pline, *llist;  //current line data
 unsigned int lpoint;              //position in current line
 char ident[linelength], ident2[linelength];  //identifier (label, etc)
@@ -76,7 +77,7 @@ static uint8_t outputeor = 0; // EOR value for final output (usually 0, except c
 
 static struct {
     char what;
-    uint32_t line;
+    line_t line;
 } waitfor[nestinglevel];
 static uint8_t skipit[nestinglevel];
 static uint8_t waitforp=0;
@@ -180,7 +181,7 @@ void status(void) {
     freeerrorlist(1);
     errors+=conderrors;
     if (arguments.quiet) {
-        uint32_t start, end;
+        address_t start, end;
         unsigned int i;
         char temp[10];
         printf("Error messages:    ");
@@ -193,14 +194,14 @@ void status(void) {
             end = memblocks.data[0].start + memblocks.data[0].len;
             for (i=1;i<memblocks.p;i++) {
                 if (memblocks.data[i].start != end) {
-                    sprintf(temp, "$%04x", start);
-                    printf("Memory range:    %7s-$%04x\n",temp,end-1);
+                    sprintf(temp, "$%04x", (unsigned)start);
+                    printf("Memory range:    %7s-$%04x\n", temp, (unsigned)end-1);
                     start = memblocks.data[i].start;
                 }
                 end = memblocks.data[i].start + memblocks.data[i].len;
             }
-            sprintf(temp, "$%04x", start);
-            printf("Memory range:    %7s-$%04x\n",temp,end-1);
+            sprintf(temp, "$%04x", (unsigned)start);
+            printf("Memory range:    %7s-$%04x\n", temp, (unsigned)end-1);
         } else puts("Memory range:      None");
     }
     free(mem.data);		        	// free codemem
@@ -235,7 +236,7 @@ static void printllist(FILE *f) {
 /*
  * output one byte
  */
-static void memjmp(uint32_t adr) {
+static void memjmp(address_t adr) {
     if (mem.p == memblocklastp) {
         memblocklaststart = adr;
         return;
@@ -269,9 +270,9 @@ static void memcomp(void) {
             for (i = j + 1; i < memblocks.p; i++) if (memblocks.data[i].len) {
                 struct memblock_s *bi = &memblocks.data[i];
                 if (bj->start <= bi->start && bj->start + bj->len > bi->start) {
-                    uint32_t overlap = bj->start + bj->len - bi->start;
+                    size_t overlap = bj->start + bj->len - bi->start;
                     if (overlap > bi->len) overlap = bi->len;
-                    memcpy(mem.data + bj->p + bi->start - bj->start, mem.data + bi->p, overlap);
+                    memcpy(mem.data + bj->p + (unsigned)(bi->start - bj->start), mem.data + bi->p, overlap);
                     bi->len-=overlap;
                     bi->p+=overlap;
                     bi->start+=overlap;
@@ -575,19 +576,20 @@ static void macro_recurse(const char* mprm,int8_t nprm, char t, struct macro_s *
     macrecursion++;
     if (macrecursion<100) {
         size_t oldpos = tmp2->file->p;
-        uint32_t lin = sline;
+        line_t lin = sline;
         struct file_s *f;
         struct star_s *s = new_star(vline);
         struct avltree *stree_old = star_tree;
-        uint32_t ovline = vline;
+        line_t ovline = vline;
 
         if (labelexists && s->addr != star) fixeddig=0;
         s->addr = star;
         star_tree = &s->tree;vline=0;
         enterfile(tmp2->file->name, sline);
-        tmp2->file->p = tmp2->p; sline = tmp2->sline;
+        sline = tmp2->sline;
         waitfor[++waitforp].what=t;waitfor[waitforp].line=sline;skipit[waitforp]=1;
         f = cfile; cfile = tmp2->file;
+        cfile->p = tmp2->p;
         compile(mprm,nprm);
         exitfile(); cfile = f;
         star_tree = stree_old; vline = ovline;
@@ -763,7 +765,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 case CMD_STRUCT:
                     {
                         struct label_s *old_context=current_context;
-                        uint32_t old_address = address, old_laddress = l_address;
+                        address_t old_address = address, old_laddress = l_address;
                         int old_dooutput = dooutput;
                         waitfor[++waitforp].what='s';waitfor[waitforp].line=sline;skipit[waitforp]=1;
                         tmp2=new_macro(ident);
@@ -794,7 +796,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                 if (tmp->value.type != T_INT || tmp->type != L_STRUCT) { /* should not happen */
                                     err_msg(ERROR_DOUBLE_DEFINE,ident);
                                 } else {
-                                    if ((uint32_t)tmp->value.u.num != 0) {
+                                    if (tmp->value.u.num != 0) {
                                         tmp->value.u.num=0;
                                         fixeddig=0;
                                     }
@@ -844,7 +846,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (tmp->value.type != T_INT || tmp->type != L_LABEL) { /* should not happen */
                         err_msg(ERROR_DOUBLE_DEFINE,ident);
                     } else {
-                        if ((uint32_t)tmp->value.u.num != l_address) {
+                        if ((address_t)tmp->value.u.num != l_address) {
                             tmp->value.u.num=l_address;
                             fixeddig=0;
                         }
@@ -925,7 +927,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (val.u.num & ~all_mem) {
                         err_msg(ERROR_CONSTNT_LARGE,NULL);
                     } else {
-                        uint32_t ch2=(uint32_t)val.u.num;
+                        address_t ch2=(address_t)val.u.num;
                         if (address!=ch2 || l_address!=ch2) {
                             address=l_address=ch2;
                             memjmp(address);
@@ -1076,7 +1078,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (waitfor[waitforp].what!='P') {err_msg(ERROR______EXPECTED,".ENDP"); break;}
                     waitforp--;
                     if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
-                    if ((l_address>>8) != (uint32_t)pagelo && fixeddig) {
+                    if ((l_address>>8) != (address_t)pagelo && fixeddig) {
                         err_msg(ERROR____PAGE_ERROR,(const char *)l_address);
                     }
                     pagelo=-1;
@@ -1097,7 +1099,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 }
                 if (prm<=CMD_LONG || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
                     size_t ptextaddr=mem.p;
-                    uint32_t myaddr = address;
+                    address_t myaddr = address;
 
                     if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
                         int16_t ch2=-1;
@@ -1196,7 +1198,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             break;
                         }
                     } else if (prm==CMD_BINARY) { // .binary
-                        uint32_t foffset=0,fsize=all_mem+1;
+                        long foffset=0;
+                        address_t fsize = all_mem+1;
                         FILE* fil;
                         if (get_path(cfile->name)) goto breakerr;
                         if (here()==',') {
@@ -1216,7 +1219,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                 if (!c) goto breakerr;
                                 if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
                                 if (val.type != T_NONE) {
-                                    if (val.u.num<0 || (uint32_t)val.u.num>(all_mem+1)) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
+                                    if (val.u.num<0 || (address_t)val.u.num > fsize) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
                                     fsize = val.u.num;
                                 }
                             }
@@ -1322,7 +1325,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     goto breakerr;
                 }
                 if (prm==CMD_BLOCK) { // .block
-                    sprintf(varname, ".%x.%x", (unsigned)star_tree, vline);
+                    sprintf(varname, ".%x.%x", (unsigned)star_tree, (unsigned)vline);
                     current_context=new_label(varname, L_LABEL);
                     current_context->value.type = T_NONE;
                     break;
@@ -1358,7 +1361,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_FILL) { // .fill
-                    uint32_t db = 0;
+                    address_t db = 0;
                     uint8_t ch;
                     get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
                     if (!c) goto breakerr;
@@ -1487,10 +1490,10 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (val.type != T_NONE) {
                         if (cnt<val.u.num) {
                             size_t pos = cfile->p;
-                            uint32_t lin = sline;
+                            line_t lin = sline;
                             struct star_s *s = new_star(vline);
                             struct avltree *stree_old = star_tree;
-                            uint32_t ovline = vline;
+                            line_t ovline = vline;
 
                             waitforp--;
                             if (labelexists && s->addr != star) fixeddig=0;
@@ -1599,8 +1602,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (cfile->open>1) {
                         err_msg(ERROR_FILERECURSION,NULL);
                     } else {
-                        uint32_t lin = sline;
-                        uint32_t vlin = vline;
+                        line_t lin = sline;
+                        line_t vlin = vline;
                         struct avltree *stree_old = star_tree;
                         uint32_t old_backr = backr, old_forwr = forwr;
 
@@ -1625,13 +1628,13 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 }
                 if (prm==CMD_FOR) { // .for
                     size_t pos, xpos;
-                    uint32_t lin, xlin;
+                    line_t lin, xlin;
                     int apoint, bpoint = -1;
                     uint8_t expr[linelength];
                     struct label_s *var;
                     struct star_s *s;
                     struct avltree *stree_old;
-                    uint32_t ovline;
+                    line_t ovline;
 
                     waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
                     if (strlen((char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
@@ -1751,7 +1754,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (tmp2 && tmp2->file == cfile && tmp2->parent == current_context) {
                         uint8_t oldwaitforp = waitforp;
                         while (tmp2->waitforp < waitforp) {
-                            uint32_t os = sline;
+                            line_t os = sline;
                             sline = waitfor[waitforp].line;
                             switch (waitfor[waitforp--].what) {
                             case 'M':
@@ -1844,7 +1847,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     lpoint++;
                 }
                 if (tmp2->type==CMD_MACRO) {
-                    sprintf(varname, "#%x#%x", (unsigned)star_tree, vline);
+                    sprintf(varname, "#%x#%x", (unsigned)star_tree, (unsigned)vline);
                     old_context = current_context;
                     current_context=new_label(varname, L_LABEL);
                     current_context->value.type = T_NONE;
@@ -2333,7 +2336,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
     }
 
     while (oldwaitforp < waitforp) {
-        uint32_t os = sline;
+        line_t os = sline;
         sline = waitfor[waitforp].line;
         switch (waitfor[waitforp--].what) {
         case 'e':
@@ -2472,8 +2475,9 @@ int main(int argc,char *argv[]) {
 
     /* output file */
     if (mem.p) {
-        uint32_t start, last, size;
-        unsigned int i;
+        address_t start;
+        size_t size;
+        unsigned int i, last;
         if (arguments.output[0] == '-' && !arguments.output[1]) {
             fout = stdout;
         } else {

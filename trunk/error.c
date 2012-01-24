@@ -28,7 +28,7 @@ static struct {
     size_t p;
     size_t len;
     struct {
-        uint32_t line;
+        line_t line;
         const char *name;
     } *data;
 } file_list = {0,0,NULL};
@@ -39,15 +39,15 @@ static struct {
     char *data;
 } error_list = {0,0,NULL};
 
-void enterfile(const char *s, uint32_t l) {
+void enterfile(const char *name, line_t line) {
 
     if (file_list.p >= file_list.len) {
         file_list.len += 16;
         file_list.data = realloc(file_list.data, file_list.len * sizeof(*file_list.data));
         if (!file_list.data) {fputs("Out of memory\n", stderr);exit(1);}
     }
-    file_list.data[file_list.p].name=s;
-    file_list.data[file_list.p].line=l;
+    file_list.data[file_list.p].name=name;
+    file_list.data[file_list.p].line=line;
     file_list.p++;
 }
 
@@ -125,13 +125,13 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
 
     if (file_list.p) {
         adderror(file_list.data[file_list.p - 1].name);
-	sprintf(line,":%u:%u: ", sline, lpoint + 1); adderror(line);
+	sprintf(line,":%u:%u: ", (unsigned)sline, lpoint + 1); adderror(line);
     }
 
     for (i = file_list.p; i > 1; i--) {
         adderror("(");
         adderror(file_list.data[i - 2].name);
-        sprintf(line,":%u) ", file_list.data[i - 1].line);
+        sprintf(line,":%u) ", (unsigned)file_list.data[i - 1].line);
         adderror(line);
     }
 
@@ -143,7 +143,7 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
     else if (no<0x80) {
         if (no==ERROR____PAGE_ERROR) {
             adderror("Page error at $"); 
-            sprintf(line,"%06x",(uint32_t)prm); adderror(line);
+            sprintf(line,"%06x",(unsigned)prm); adderror(line);
             conderrors++;
         }
         else if (no==ERROR__BRANCH_CROSS) {
