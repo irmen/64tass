@@ -1151,7 +1151,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
 
                                 if (fixeddig && dooutput) mem.data[ptextaddr]=mem.p-ptextaddr-1;
                             }
-                            if (large) err_msg2(ERROR_CONSTNT_LARGE,NULL, sline, large);
+                            if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                             break;
                         }
                     } else if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA || prm==CMD_LONG) { // .word .int .rta .long
@@ -1192,7 +1192,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             pokeb((uint8_t)(ch2>>8));
                             if (prm==CMD_LONG) pokeb((uint8_t)(ch2>>16));
                             if (here()==',') {lpoint++;continue;}
-                            if (large) err_msg2(ERROR_CONSTNT_LARGE,NULL, sline, large);
+                            if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                             break;
                         }
                     } else if (prm==CMD_BINARY) { // .binary

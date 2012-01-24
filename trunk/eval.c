@@ -277,7 +277,7 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
             pushval:
                 if (o_out[outp].val.type == T_INT && (o_out[outp].val.u.num & ~0xffff)) {
                 pushlarge:
-                    err_msg2(ERROR_CONSTNT_LARGE,NULL,sline,epoint);large=1;
+                    err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
                     o_out[outp].val.u.num = 0xffff;
                 }
                 o_out[outp].epoint=epoint;
@@ -359,7 +359,7 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
                     val2 = values[vsp-2]->val.u.num;
                     switch (ch) {
                     case '*': val1 *= val2; break;
-                    case '/': if (!val1) {err_msg(ERROR_DIVISION_BY_Z,NULL); val1 = 0xffff;large=1;} else val1=val2 / val1; break;
+                    case '/': if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, values[vsp-1]->epoint); val1 = 0xffff;large=1;} else val1=val2 / val1; break;
                     case '+': val1 += val2; break;
                     case '-': val1 = val2 - val1; break;
                     case '&': val1 &= val2; break;
@@ -454,7 +454,6 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
 	default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); return;
 	}
         lpoint++;
-	ignore();
         break;
     }
     for (;;) {
@@ -494,7 +493,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 if (ch>='0' && ch<='9') {
                     if (get_dec(&o_out[outp].val)) {
                     pushlarge:
-                        err_msg2(ERROR_CONSTNT_LARGE,NULL,sline,epoint);large=1;
+                        err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
                     }
                 pushval: 
                     o_out[outp].epoint=epoint;
@@ -632,6 +631,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                     copy_name(&v2->val);
                     v1->val.u.label = find_label2(ident, &v1->val.u.label->members);
                     v1->val.type = touch_label(v1->val.u.label);
+                    v1->epoint=v2->epoint;
                     continue;
                 } else err_msg_wrong_type(v2->val.type, v2->epoint);
             } else err_msg_wrong_type(v1->val.type, v1->epoint);
@@ -748,9 +748,9 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case 'O': val1 = ( val1 || val2);break;
             case 'X': val1 = (!val1 ^ !val2);break;
             case '*': val1 = ( val1 *  val2);break;
-            case '/': if (!val2) {err_msg(ERROR_DIVISION_BY_Z,NULL); val1 = 0x7fffffff; large=1;}
+            case '/': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = 0x7fffffff; large=1;}
                 else  val1 = ( val1 /  val2); break;
-            case '%': if (!val2) {err_msg(ERROR_DIVISION_BY_Z,NULL); val1 = 0x7fffffff; large=1;}
+            case '%': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = 0x7fffffff; large=1;}
                 else  val1 = ( val1 %  val2); break;
             case '+': val1 = ( val1 +  val2);break;
             case '-': val1 = ( val1 -  val2);break;
@@ -776,7 +776,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                     int32_t res = 1;
 
                     if (val2 < 0) {
-                        if (!val1) {err_msg(ERROR_DIVISION_BY_Z,NULL); res = 0x7fffffff; large=1;}
+                        if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); res = 0x7fffffff; large=1;}
                         else res = 0;
                     } else {
                         while (val2) {
@@ -800,13 +800,13 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         if (t1 == T_CHR && t2 == T_STR) {
             line[0]=v1->val.u.num;
             t1 = v1->val.type = T_STR;
-            v1->val.u.str.data = (uint8_t *)&line;
+            v1->val.u.str.data = (uint8_t *)&line[0];
             v1->val.u.str.len = 1;
         }
         if (t1 == T_STR && t2 == T_CHR) {
-            line[0]=v2->val.u.num;
+            line[1]=v2->val.u.num;
             t2 = v2->val.type = T_STR;
-            v2->val.u.str.data = (uint8_t *)&line;
+            v2->val.u.str.data = (uint8_t *)&line[1];
             v2->val.u.str.len = 1;
         }
         if (t1 == T_STR && t2 == T_STR) {
@@ -849,10 +849,10 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 val=0;
                 if (v2->val.u.num >= 0) {
                     if ((unsigned)v2->val.u.num < v1->val.u.str.len) val = v1->val.u.str.data[v2->val.u.num];
-                    else err_msg(ERROR_CONSTNT_LARGE,NULL);
+                    else err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint);
                 } else {
                     if ((unsigned)-v2->val.u.num <= v1->val.u.str.len) val = v1->val.u.str.data[v1->val.u.str.len + v2->val.u.num];
-                    else err_msg(ERROR_CONSTNT_LARGE,NULL);
+                    else err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint);
                 }
                 if (v1->val.type == T_TSTR) free(v1->val.u.str.data);
                 v1->val.type = T_CHR; v1->val.u.num = val;continue;
@@ -881,13 +881,11 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             switch (v->type) {
             case T_STR:
                 if (v->u.str.len < 5) {
-                    v->type = T_INT;
-                    v->u.num = 0;
-                    for (i=values[0]->val.u.str.len;i;i--) v->u.num = (v->u.num << 8) | values[0]->val.u.str.data[i-1];
-                    return;
+                    i = v->u.str.len; v->u.num = 0;
+                    while (i) v->u.num = (v->u.num << 8) | line[--i];
+                } else {
+                    *cd=0; err_msg2(ERROR_CONSTNT_LARGE, NULL, values[0]->epoint);
                 }
-                *cd=0; err_msg(ERROR_CONSTNT_LARGE,NULL);
-                return;
             case T_CHR:
                 v->type = T_INT;
             case T_INT:
