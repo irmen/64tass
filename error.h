@@ -72,7 +72,7 @@ enum errors_e {
 };
 
 extern void err_msg(enum errors_e, const char*);
-extern void err_msg2(enum errors_e, const char*, uint32_t, unsigned int);
+extern void err_msg2(enum errors_e, const char*, unsigned int);
 extern void err_msg_wrong_type(enum type_e, unsigned int);
 extern void freeerrorlist(int);
 extern void enterfile(const char *, uint32_t);

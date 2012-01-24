@@ -112,7 +112,7 @@ static const char *terr_fatal[]={
     "Too many errors\n"
 };
 
-void err_msg2(enum errors_e no, const char* prm, uint32_t sline, unsigned int lpoint) {
+void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
     char line[linelength];
     unsigned int i;
 
@@ -171,7 +171,7 @@ void err_msg2(enum errors_e no, const char* prm, uint32_t sline, unsigned int lp
 }
 
 void err_msg(enum errors_e no, const char* prm) {
-    err_msg2(no,prm, sline, lpoint);
+    err_msg2(no,prm, lpoint);
 }
 
 void err_msg_wrong_type(enum type_e type, unsigned int epoint) {
@@ -181,14 +181,14 @@ void err_msg_wrong_type(enum type_e type, unsigned int epoint) {
     case T_CHR: name = "<char>";break;
     case T_TSTR:
     case T_STR: name = "<string>";break;
-    case T_UNDEF: err_msg2(ERROR___NOT_DEFINED, "", sline, epoint);return;
+    case T_UNDEF: err_msg2(ERROR___NOT_DEFINED, "", epoint);return;
     case T_IDENT: name = "<ident>";break;
     case T_IDENTREF: name = "<identref>";break;
     case T_NONE: name = "<none>";break;
     case T_BACKR: name = "<backr>";break;
     case T_FORWR: name = "<forwr>";break;
     }
-    err_msg2(ERROR____WRONG_TYPE, name, sline, epoint);
+    err_msg2(ERROR____WRONG_TYPE, name, epoint);
 }
 
 void freeerrorlist(int print) {
