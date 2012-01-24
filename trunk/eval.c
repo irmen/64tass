@@ -238,7 +238,7 @@ static int priority(char ch)
 }
 
 static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// length in bytes, defined
-    int nd=0,tp=0;
+    int nd=0;
     unsigned int i;
     char ch;
     static uint8_t line[linelength];  //current line data
@@ -253,15 +253,14 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
     *df=1;    // 1=result is ok, result is not yet known
-    *cd=0;    // 0=error
+    *cd=0;    // 0=error, 1=ok, 2=(a, 3=()
     v->type = T_NONE;
 
     ignore();
     switch (here()) {
-    case '!':*wd=1;lpoint++;ignore();break;
-    case '<':conv=1;lpoint++;ignore();break;
-    case '>':conv=2;lpoint++;ignore();break;
-    case '(': tp=1; break;
+    case '!':*wd=1;lpoint++;break;
+    case '<':conv=1;lpoint++;break;
+    case '>':conv=2;lpoint++;break;
     }
     for (;;) {
         ignore();ch = here(); epoint=lpoint;
@@ -294,6 +293,7 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
             continue;
 	}
 	else {
+            while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
             switch (ch) {
             case '&':
             case '.':
@@ -302,16 +302,12 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
             case '/':
             case '+':
             case '-': 
-		if (tp) tp=1;
-                while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
                 o_oper[operp++] = ch;
 		nd=0;
 		lpoint++;
 		continue;
             case ')':
-		while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
-		if (operp==1 && tp) tp=2;
-		if (!operp) goto syntaxe;
+                if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
 		lpoint++;
 		operp--;
 		continue;
@@ -320,20 +316,17 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
             case ',': break;
             default: goto syntaxe;
 	    }
-	    while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
-	    if (!operp) {
-		if (tp==2) *cd=3; else *cd=1;
-		break;
-	    }
-	    if (operp>1) goto syntaxe;
-	    if (tp) *cd=2;
-	    else {
-            syntaxe:
-                err_msg(ERROR_EXPRES_SYNTAX,NULL);
-                for (i=0; i<outp; i++) if (o_out[i].oper==' ' && o_out[i].val.type == T_TSTR) free(o_out[i].val.u.str.data);
-                return;
+            if (o_oper[0]=='(') {
+                if (!operp) {*cd=3;break;}
+                if (operp==1 && ch == ',') {*cd=2; break;}
             }
-	    break;
+            if (!operp) {*cd=1;break;}
+            err_msg(ERROR______EXPECTED,")"); goto error;
+        syntaxe:
+            err_msg(ERROR_EXPRES_SYNTAX,NULL);
+        error:
+            for (i=0; i<outp; i++) if (o_out[i].oper==' ' && o_out[i].val.type == T_TSTR) free(o_out[i].val.u.str.data);
+            return;
 	}
     }
     vsp = 0;
@@ -352,11 +345,9 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
             case T_CHR:
             case T_INT:
                 {
-                    uint16_t val1;
-                    uint16_t val2;
+                    uint16_t val1 = values[vsp-1]->val.u.num;
+                    uint16_t val2 = values[vsp-2]->val.u.num;
 
-                    val1 = values[vsp-1]->val.u.num;
-                    val2 = values[vsp-2]->val.u.num;
                     switch (ch) {
                     case '*': val1 *= val2; break;
                     case '/': if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, values[vsp-1]->epoint); val1 = 0xffff;large=1;} else val1=val2 / val1; break;
@@ -367,7 +358,6 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
                     case ':': val1 ^= val2; break;
                     }
                     vsp--;
-
                     values[vsp-1]->val.type = T_INT;
                     values[vsp-1]->val.u.num = val1;
                     continue;
@@ -580,11 +570,13 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
 	    }
             if (o_oper[0]=='(') {
                 if (!operp) {*cd=3;break;}
-                while (operp && o_oper[operp-1] != '(') {
-                    if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
-                    o_out[outp++].oper=o_oper[--operp];
+                if (ch == ',') {
+                    while (operp && o_oper[operp-1] != '(') {
+                        if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
+                        o_out[outp++].oper=o_oper[--operp];
+                    }
+                    if (operp==1) {*cd=2; break;}
                 }
-                if (operp==1) {*cd=2; break;}
                 err_msg(ERROR______EXPECTED,")"); goto error;
             } else if (o_oper[0]=='[') {
                 if (!operp) {*cd=4;break;}

@@ -437,7 +437,7 @@ static void star_free(const struct avltree_node *aa)
 }
 
 // ---------------------------------------------------------------------------
-struct label_s *find_label(char* name) {
+struct label_s *find_label(const char* name) {
     const struct avltree_node *b;
     struct label_s *context = current_context;
     struct label_s tmp;
@@ -451,7 +451,7 @@ struct label_s *find_label(char* name) {
     return NULL;
 }
 
-struct label_s *find_label2(char* name, struct avltree *tree) {
+struct label_s *find_label2(const char* name, const struct avltree *tree) {
     const struct avltree_node *b;
     struct label_s tmp;
     tmp.name=name;
@@ -462,7 +462,7 @@ struct label_s *find_label2(char* name, struct avltree *tree) {
 
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
-struct label_s *new_label(char* name, enum label_e type) {
+struct label_s *new_label(const char* name, enum label_e type) {
     const struct avltree_node *b;
     struct label_s *tmp;
     if (!lastlb)
@@ -487,7 +487,7 @@ struct label_s *new_label(char* name, enum label_e type) {
 
 // ---------------------------------------------------------------------------
 
-struct jump_s *find_jump(char* name) {
+struct jump_s *find_jump(const char* name) {
     struct jump_s a;
     const struct avltree_node *c;
     a.name=name;
@@ -496,7 +496,7 @@ struct jump_s *find_jump(char* name) {
 }
 
 static struct jump_s *lastjp=NULL;
-struct jump_s *new_jump(char* name) {
+struct jump_s *new_jump(const char* name) {
     const struct avltree_node *b;
     struct jump_s *tmp;
     if (!lastjp)
@@ -535,7 +535,7 @@ struct star_s *new_star(line_t line) {
 }
 // ---------------------------------------------------------------------------
 
-struct macro_s *find_macro(char* name) {
+struct macro_s *find_macro(const char* name) {
     struct macro_s a;
     const struct avltree_node *c;
     a.name=name;
@@ -545,7 +545,7 @@ struct macro_s *find_macro(char* name) {
 
 // ---------------------------------------------------------------------------
 static struct macro_s *lastma=NULL;
-struct macro_s *new_macro(char* name) {
+struct macro_s *new_macro(const char* name) {
     const struct avltree_node *b;
     struct macro_s *tmp;
     if (!lastma)
@@ -636,7 +636,7 @@ static uint8_t *utf8out(uint32_t i, uint8_t *c) {
 
 static struct file_s *lastfi=NULL;
 static uint16_t curfnum=1;
-struct file_s *openfile(char* name) {
+struct file_s *openfile(const char* name) {
     const struct avltree_node *b;
     struct file_s *tmp;
     if (!lastfi)
