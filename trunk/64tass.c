@@ -38,6 +38,7 @@
 #include "opcodes.h"
 #include "misc.h"
 #include "eval.h"
+#include "error.h"
 
 static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
@@ -45,7 +46,6 @@ static const uint8_t *opcode;    //opcodes
 struct memblock_s {size_t p, len;uint32_t start;}; //starts and sizes
 
 #define nestinglevel 256
-unsigned int errors=0,conderrors=0,warnings=0;
 static int wrapwarn=0, wrapwarn2=0;
 uint32_t sline, vline;      //current line
 static uint32_t all_mem;
@@ -1102,40 +1102,42 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
                         int16_t ch2=-1;
                         int large=0;
+                        unsigned int epoint;
                         if (prm==CMD_PTEXT) ch2=0;
                         for (;;) {
+                            ignore(); epoint = lpoint;
                             get_exp(&w,&d,&c,&val,T_NONE); if (!d) fixeddig=0; //ellenorizve.
                             if (!c) goto breakerr;
                             if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                            if (val.type != T_STR || val.u.str.len)
+                            if (val.type != T_STR || val.u.str.len) {
                                 do {
                                     if (ch2>=0) pokeb(ch2);
 
-                                    if (val.type == T_STR) {
+                                    switch (val.type) {
+                                    case T_STR:
                                         ch2 = *val.u.str.data++;
                                         val.u.str.len--;
-                                    } else if (val.type == T_INT) {
+                                        break;
+                                    case T_INT:
                                         if (prm==CMD_CHAR) {
-                                            if (val.u.num>0x7f || val.u.num<-0x80) large=1;
+                                            if (val.u.num>0x7f || val.u.num<-0x80) large=epoint;
                                         } else {
-                                            if (val.u.num & ~0xff) large=1;
+                                            if (val.u.num & ~0xff) large=epoint;
                                         }
+                                    case T_CHR:
                                         ch2 = (uint8_t)val.u.num;
-                                    } else if (val.type == T_CHR) {
-                                        ch2 = (uint8_t)val.u.num;
-                                    } else if (val.type == T_NONE) {
-                                        ch2 = 0;
-                                    } else {
-                                        ch2 = 0; err_msg(ERROR____WRONG_TYPE,NULL);
+                                        break;
+                                    default: err_msg(ERROR____WRONG_TYPE,NULL);
+                                    case T_NONE: ch2 = 0; 
                                     }
 
                                     if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
-                                        if (ch2>=0x80) large=1;
+                                        if (ch2>=0x80) large=epoint;
                                         if (prm==CMD_SHIFTL) ch2<<=1;
-                                    } else if (prm==CMD_NULL && !ch2 && d) large=1;
+                                    } else if (prm==CMD_NULL && !ch2 && d) large=epoint;
                                 } while (val.type == T_STR && val.u.str.len);
-
-                            ignore();if (here()==',') {lpoint++;continue;}
+                            }
+                            if (here()==',') {lpoint++;continue;}
                             if (ch2>=0) {
                                 if (prm==CMD_SHIFT) ch2|=0x80;
                                 if (prm==CMD_SHIFTL) ch2|=0x01;
@@ -1145,79 +1147,52 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                 pokeb(0);
                             }
                             if (prm==CMD_PTEXT) {
-                                if (mem.p-ptextaddr>0x100) large=1;
+                                if (mem.p-ptextaddr>0x100) large=epoint;
 
                                 if (fixeddig && dooutput) mem.data[ptextaddr]=mem.p-ptextaddr-1;
                             }
-                            if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                            if (large) err_msg2(ERROR_CONSTNT_LARGE,NULL, sline, large);
                             break;
                         }
-                    } else if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA) { // .word .int .rta
+                    } else if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA || prm==CMD_LONG) { // .word .int .rta .long
                         uint16_t ch2;
                         int large=0;
-
+                        unsigned int epoint;
                         for (;;) {
+                            ignore(); epoint = lpoint;
                             get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
                             if (!c) goto breakerr;
                             if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                            if (val.type == T_STR && val.u.str.len < 5) {
+                            switch (val.type) {
+                            case T_STR:
                                 ch2 = 0;
-                                if (val.u.str.len>0) ch2 = val.u.str.data[0];
-                                if (val.u.str.len>1) ch2 |= val.u.str.data[1] << 8;
-                                if (val.u.str.len>2) large=1;
-                            } else if (val.type == T_INT) {
-                                if (prm==CMD_INT) {
-                                    if (val.u.num>0x7fff || val.u.num<-0x8000) large=1;
-                                    ch2 = (uint16_t)val.u.num;
-                                } else {
-                                    if (val.u.num & ~0xffff) large=1;
-                                    ch2 = (uint16_t)val.u.num;
-                                    if (prm==CMD_RTA) ch2--;
+                                switch (val.u.str.len) {
+                                default: large = epoint;
+                                case 3: ch2 |= val.u.str.data[1] << 16; if (prm!=CMD_LONG) large = epoint;
+                                case 2: ch2 |= val.u.str.data[1] << 8;
+                                case 1: ch2 |= val.u.str.data[0];
+                                case 0: break;
                                 }
-                            } else if (val.type == T_CHR) {
-                                ch2 = (uint8_t)val.u.num;
-                            } else if (val.type == T_NONE) {
-                                ch2 = 0;
-                            } else {
-                                ch2 = 0; err_msg(ERROR____WRONG_TYPE,NULL);
+                                break;
+                            case T_INT:
+                                switch (prm) {
+                                case CMD_INT: if (val.u.num>0x7fff || val.u.num<-0x8000) large=epoint;break;
+                                case CMD_LONG: if (val.u.num & ~0xffffff) large=epoint; break;
+                                default: if (val.u.num & ~0xffff) large=epoint;
+                                }
+                            case T_CHR:
+                                ch2 = (uint16_t)val.u.num;
+                                break;
+                            default: err_msg(ERROR____WRONG_TYPE,NULL);
+                            case T_NONE: ch2 = 0; 
                             }
+                            if (prm==CMD_RTA) ch2--;
 
                             pokeb((uint8_t)ch2);
                             pokeb((uint8_t)(ch2>>8));
-                            ignore();if (here()==',') {lpoint++;continue;}
-                            if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
-                            break;
-                        }
-                    } else if (prm==CMD_LONG) { // .long
-                        uint32_t ch2;
-                        int large=0;
-
-                        for (;;) {
-                            get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
-                            if (!c) goto breakerr;
-                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                            if (val.type == T_STR && val.u.str.len < 5) {
-                                ch2 = 0;
-                                if (val.u.str.len>0) ch2 = val.u.str.data[0];
-                                if (val.u.str.len>1) ch2 |= val.u.str.data[1] << 8;
-                                if (val.u.str.len>2) ch2 |= val.u.str.data[2] << 16;
-                                if (val.u.str.len>3) large=1;
-                            } else if (val.type == T_INT) {
-                                if (val.u.num & ~0xffffff) large=1;
-                                ch2 = (uint32_t)val.u.num;
-                            } else if (val.type == T_CHR) {
-                                ch2 = (uint8_t)val.u.num;
-                            } else if (val.type == T_NONE) {
-                                ch2 = 0;
-                            } else { 
-                                ch2 = 0; err_msg(ERROR____WRONG_TYPE,NULL);
-                            }
-
-                            pokeb((uint8_t)ch2);
-                            pokeb((uint8_t)(ch2>>8));
-                            pokeb((uint8_t)(ch2>>16));
-                            ignore();if (here()==',') {lpoint++;continue;}
-                            if (large) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                            if (prm==CMD_LONG) pokeb((uint8_t)(ch2>>16));
+                            if (here()==',') {lpoint++;continue;}
+                            if (large) err_msg2(ERROR_CONSTNT_LARGE,NULL, sline, large);
                             break;
                         }
                     } else if (prm==CMD_BINARY) { // .binary

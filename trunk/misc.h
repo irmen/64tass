@@ -20,54 +20,6 @@
 #include "libtree.h"
 #include "stdint.h"
 #define VERSION "1.46"
-// ---------------------------------------------------------------------------
-// $00-$3f warning
-// $40-$7f error
-// $80-$bf fatal
-enum errors_e {
-    ERROR_TOP_OF_MEMORY=0x00,
-    ERROR_A_USED_AS_LBL,
-    ERROR___BANK_BORDER,
-    ERROR______JUMP_BUG,
-    ERROR___LONG_BRANCH,
-    ERROR_DIRECTIVE_IGN,
-    ERROR_LABEL_NOT_LEF,
-    ERROR_WUSER_DEFINED,
-
-    ERROR_DOUBLE_DEFINE=0x40,
-    ERROR___NOT_DEFINED,
-    ERROR_EXTRA_CHAR_OL,
-    ERROR_CONSTNT_LARGE,
-    ERROR_GENERL_SYNTAX,
-    ERROR______EXPECTED,
-    ERROR_EXPRES_SYNTAX,
-    ERROR_BRANCH_TOOFAR,
-    ERROR_MISSING_ARGUM,
-    ERROR_ILLEGAL_OPERA,
-    ERROR_UNKNOWN_ENCOD,
-    ERROR_REQUIREMENTS_,
-    ERROR______CONFLICT,
-    ERROR_DIVISION_BY_Z,
-    ERROR____WRONG_TYPE,
-    ERROR___UNKNOWN_CHR,
-    ERROR___NOT_ALLOWED,
-    ERROR____PAGE_ERROR,
-    ERROR__BRANCH_CROSS,
-
-    ERROR_CANT_FINDFILE=0x80,
-    ERROR_OUT_OF_MEMORY,
-    ERROR_CANT_WRTE_OBJ,
-    ERROR_LINE_TOO_LONG,
-    ERROR_CANT_DUMP_LST,
-    ERROR_CANT_DUMP_LBL,
-    ERROR__USER_DEFINED,
-    ERROR_FILERECURSION,
-    ERROR__MACRECURSION,
-    ERROR___UNKNOWN_CPU,
-    ERROR_UNKNOWN_OPTIO,
-    ERROR_TOO_MANY_PASS,
-    ERROR__TOO_MANY_ERR
-};
 
 #define WHAT_EXPRESSION 1
 #define WHAT_HASHMARK   3
@@ -89,7 +41,7 @@ enum errors_e {
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 enum type_e {
-    T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR, T_IDENT, T_IDENTREF, T_FORWR, T_BACKR
+    T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR, T_IDENT, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF
 };
 
 struct value_s {
@@ -210,7 +162,6 @@ extern uint8_t pass;
 extern const uint8_t whatis[256];
 extern uint_fast8_t encode(uint_fast8_t);
 extern uint_fast16_t petsymbolic(const char*);
-extern void err_msg(enum errors_e, const char*);
 extern struct label_s *find_label(char*);
 extern struct label_s *find_label2(char*, struct avltree *);
 extern struct label_s *new_label(char*, enum label_e);
@@ -226,9 +177,6 @@ extern void tinit(void);
 extern void labelprint(void);
 extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
-extern void freeerrorlist(int);
-extern void enterfile(const char *,uint32_t);
-extern void exitfile(void);
 extern unsigned int encoding;
 extern struct label_s *current_context, root_label;
 extern unsigned int utf8in(const uint8_t *c, uint32_t *out);

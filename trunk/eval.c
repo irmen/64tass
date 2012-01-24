@@ -1,7 +1,26 @@
+/*
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+*/
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "misc.h"
+#include "error.h"
 
 extern char ident[];
 
@@ -19,7 +38,6 @@ static int get_hex(struct value_s *v) {
         lpoint++;
     }
     v->u.num=val;
-    if (large) {v->u.num=0x7fffffff;err_msg(ERROR_CONSTNT_LARGE,NULL);}
     return large;
 }
 
@@ -34,7 +52,6 @@ static int get_bin(struct value_s *v) {
         lpoint++;
     }
     v->u.num=val;
-    if (large) {v->u.num=0x7fffffff;err_msg(ERROR_CONSTNT_LARGE,NULL); }
     return large;
 }
 
@@ -49,7 +66,6 @@ static int get_dec(struct value_s *v) {
         lpoint++;
     }
     v->u.num=val;
-    if (large) {v->u.num=0x7fffffff;err_msg(ERROR_CONSTNT_LARGE,NULL); }
     return large;
 }
 
@@ -124,20 +140,13 @@ static void get_string(struct value_s *v, char ch) {
     v->type=T_NONE;return;
 }
 
-static int touch_label(struct label_s *tmp) {
+static enum type_e touch_label(struct label_s *tmp) {
 
     if (tmp) {
         tmp->ref=1;tmp->pass=pass;
-        if (tmp->type != L_VAR || tmp->upass==pass) return 0;
+        if (tmp->type != L_VAR || tmp->upass==pass) return T_IDENTREF;
     }
-    if (pass != 1) {
-        if (ident[0]=='-' || ident[0]=='+')
-            err_msg(ERROR___NOT_DEFINED, (ident[0]=='-') ? "-" : "+");
-        else
-            err_msg(ERROR___NOT_DEFINED,ident);
-    }
-
-    return 1;
+    return T_UNDEF;
 }
 
 static void copy_name(struct value_s *val) {
@@ -164,17 +173,13 @@ static enum type_e try_resolv(struct value_s *val) {
         copy_name(val);
     ident:
         val->u.label = find_label(ident);
-        if (touch_label(val->u.label)) {
-            val->type = T_NONE;
-            return T_NONE;
-        }
-        val->type = T_IDENTREF;
+        val->type = touch_label(val->u.label);
     }
     if (val->type == T_IDENTREF) {
         if ((val->u.label->requires & current_provides)!=val->u.label->requires) err_msg(ERROR_REQUIREMENTS_,ident);
         if (val->u.label->conflicts & current_provides) err_msg(ERROR______CONFLICT,ident);
         *val = val->u.label->value;
-    }
+    } else if (val->type == T_UNDEF && pass == 1) val->type = T_NONE;
     return val->type;
 }
 
@@ -238,12 +243,13 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
     char ch;
     static uint8_t line[linelength];  //current line data
 
-    struct {struct value_s val; char oper;} o_out[256];
-    struct value_s v_stack[256];
+    struct {struct value_s val; char oper;unsigned int epoint;} o_out[256], *values[256];
     char o_oper[256];
     uint8_t outp = 0, operp = 0, vsp;
     unsigned int conv=0;
     int large=0;
+    enum type_e t1, t2;
+    unsigned int epoint;
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
     *df=1;    // 1=result is ok, result is not yet known
@@ -258,41 +264,44 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
     case '(': tp=1; break;
     }
     for (;;) {
-        ignore();ch = here();
+        ignore();ch = here(); epoint=lpoint;
         if (!nd) {
             switch (ch) {
             case '(': o_oper[operp++] = ch; lpoint++;continue;
-            case '$': lpoint++;large|=get_hex(&o_out[outp].val);goto pushval;
-            case '%': lpoint++;large|=get_bin(&o_out[outp].val);goto pushval;
+            case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
+            case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
             case '"': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
             case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
             }
-            if (ch>='0' && ch<='9') { large|=get_dec(&o_out[outp].val);
+            if (ch>='0' && ch<='9') { if (get_dec(&o_out[outp].val)) goto pushlarge;
             pushval:
                 if (o_out[outp].val.type == T_INT && (o_out[outp].val.u.num & ~0xffff)) {
-                    err_msg(ERROR_CONSTNT_LARGE,NULL);
+                pushlarge:
+                    err_msg2(ERROR_CONSTNT_LARGE,NULL,sline,epoint);large=1;
                     o_out[outp].val.u.num = 0xffff;
                 }
+                o_out[outp].epoint=epoint;
                 o_out[outp++].oper=' ';nd = 1;continue;
             }
             o_out[outp].val.u.ident.name = pline + lpoint;
             while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint++;
             o_out[outp].val.u.ident.len = pline + lpoint - o_out[outp].val.u.ident.name;
+            if (!o_out[outp].val.u.ident.len) goto syntaxe;
             o_out[outp].val.type = T_IDENT;
+            o_out[outp].epoint=epoint;
             o_out[outp++].oper=' ';
             nd = 1;
             continue;
 	}
 	else {
             switch (ch) {
-            case '&': goto push2;
-            case '.': goto push2;
-            case ':': goto push2;
-            case '*': goto push2;
-            case '/': goto push2;
-            case '+': goto push2;
-            case '-': goto push2;
-            push2:
+            case '&':
+            case '.':
+            case ':':
+            case '*':
+            case '/':
+            case '+':
+            case '-': 
 		if (tp) tp=1;
                 while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
                 o_oper[operp++] = ch;
@@ -301,11 +310,15 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
 		continue;
             case ')':
 		while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
-		lpoint++;
 		if (operp==1 && tp) tp=2;
 		if (!operp) goto syntaxe;
+		lpoint++;
 		operp--;
 		continue;
+            case 0:
+            case ';':
+            case ',': break;
+            default: goto syntaxe;
 	    }
 	    while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
 	    if (!operp) {
@@ -326,86 +339,83 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
     vsp = 0;
     for (i=0;i<outp;i++) {
 	if ((ch=o_out[i].oper)==' ') {
-            v_stack[vsp++]=o_out[i].val;
+            values[vsp++]=&o_out[i];
             continue;
         }
         if (vsp < 2) goto syntaxe;
-        try_resolv(&v_stack[vsp-1]);
-        try_resolv(&v_stack[vsp-2]);
-        if (v_stack[vsp-1].type == T_INT) {
-            uint16_t val1;
-            uint16_t val2;
-        reint:
-            val1 = v_stack[vsp-1].u.num;
-            if (v_stack[vsp-2].type != T_INT && v_stack[vsp-2].type != T_CHR) {
-                if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-                if (v_stack[vsp-2].type != T_NONE) err_msg(ERROR____WRONG_TYPE,NULL);
-                vsp--;v_stack[vsp-1].type = T_NONE;
-                continue;
-            }
-            v_stack[vsp-2].type = T_INT;
-            val2 = v_stack[vsp-2].u.num;
-            switch (ch) {
-            case '*': val1 *= val2; break;
-            case '/': if (!val1) {err_msg(ERROR_DIVISION_BY_Z,NULL); val1 = 0xffff;large=1;} else val1=val2 / val1; break;
-            case '+': val1 += val2; break;
-            case '-': val1 = val2 - val1; break;
-            case '&': val1 &= val2; break;
-            case '.': val1 |= val2; break;
-            case ':': val1 ^= val2; break;
-            }
-            vsp--;
+        t1 = try_resolv(&values[vsp-1]->val);
+        t2 = try_resolv(&values[vsp-2]->val);
+        switch (t1) {
+        case T_CHR:
+        case T_INT:
+            switch (t2) {
+            case T_CHR:
+            case T_INT:
+                {
+                    uint16_t val1;
+                    uint16_t val2;
 
-            v_stack[vsp-1].type = T_INT;
-            v_stack[vsp-1].u.num = val1;
-	} else if (v_stack[vsp-1].type == T_CHR) {
-            if (v_stack[vsp-2].type == T_INT || v_stack[vsp-2].type == T_CHR || v_stack[vsp-2].type == T_NONE) goto reint;
-            if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-            vsp--; v_stack[vsp-1].type = T_NONE;
-            err_msg(ERROR____WRONG_TYPE,NULL);
-            continue;
-	} else if (v_stack[vsp-1].type == T_STR || v_stack[vsp-1].type == T_TSTR) {
-            if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-            vsp--; v_stack[vsp-1].type = T_NONE;
-            err_msg(ERROR____WRONG_TYPE,NULL);
-            continue;
-	} else if (v_stack[vsp-1].type == T_NONE) {
-            if (v_stack[vsp-2].type == T_TSTR) free(v_stack[vsp-2].u.str.data);
-            if (v_stack[vsp-2].type != T_NONE) err_msg(ERROR____WRONG_TYPE,NULL);
-            vsp--; v_stack[vsp-1].type = T_NONE;
-            continue;
-        } else {vsp--; v_stack[vsp-1].type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);}
-    }
-    try_resolv(&v_stack[0]);
-    if (v_stack[0].type == T_TSTR) {
-        if (v_stack[0].u.str.len<=linelength) memcpy(line, v_stack[0].u.str.data, v_stack[0].u.str.len);
-        free(v_stack[0].u.str.data);
-        v_stack[0].u.str.data = line;
-        v_stack[0].type = T_STR;
-    }
-    if (v_stack[0].type == T_INT || v_stack[0].type == T_CHR || v_stack[0].type == T_STR) {
-        if (large) *cd=0;
-        if (type == T_NONE) {
-            *v=v_stack[0];
-            return;
+                    val1 = values[vsp-1]->val.u.num;
+                    val2 = values[vsp-2]->val.u.num;
+                    switch (ch) {
+                    case '*': val1 *= val2; break;
+                    case '/': if (!val1) {err_msg(ERROR_DIVISION_BY_Z,NULL); val1 = 0xffff;large=1;} else val1=val2 / val1; break;
+                    case '+': val1 += val2; break;
+                    case '-': val1 = val2 - val1; break;
+                    case '&': val1 &= val2; break;
+                    case '.': val1 |= val2; break;
+                    case ':': val1 ^= val2; break;
+                    }
+                    vsp--;
+
+                    values[vsp-1]->val.type = T_INT;
+                    values[vsp-1]->val.u.num = val1;
+                    continue;
+                }
+            default: err_msg_wrong_type(t2, values[vsp-2]->epoint);
+            case T_NONE:break;
+            }
+            break;
+        case T_TSTR:
+            free(values[vsp-1]->val.u.str.data);
+        default:
+            err_msg_wrong_type(t1, values[vsp-1]->epoint);
+        case T_NONE:break;
         }
-        if (type == T_INT)
-            switch (v_stack[0].type) {
+        if (t2 == T_TSTR) free(values[vsp-2]->val.u.str.data);
+        vsp--; values[vsp-1]->val.type = T_NONE; continue;
+    }
+    if (large) *cd=0;
+
+    *v=values[0]->val;
+    try_resolv(v);
+    switch (v->type) {
+    case T_TSTR:
+        if (v->u.str.len<=linelength) memcpy(line, v->u.str.data, v->u.str.len);
+        free(v->u.str.data);
+        v->u.str.data = line;
+        v->type = T_STR;
+    case T_STR:
+    case T_INT:
+    case T_CHR:
+        if (type == T_NONE) return;
+        if (type == T_INT) {
+            switch (v->type) {
             case T_CHR:
                 v->type = T_INT;
             case T_INT:
-                *v=v_stack[0];
                 if (conv==1) v->u.num = (uint8_t)v->u.num;
                 if (conv==2) v->u.num = (uint8_t)(v->u.num >> 8);
                 return;
             default:
                 break;
+            }
         }
-        *cd=0;
-        err_msg(ERROR____WRONG_TYPE,NULL);
-        return;
+    default:
+        err_msg_wrong_type(v->type, values[0]->epoint);
+        *cd=0; v->type = T_NONE;break;
+    case T_NONE: *df = 0; break;
     }
-    *df = 0;
     return;
 }
 
@@ -415,12 +425,13 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
     char ch;
     static uint8_t line[linelength];  //current line data
 
-    struct {struct value_s val; char oper;} o_out[256], *values[256], *v1, *v2;
+    struct {struct value_s val; char oper;unsigned int epoint;} o_out[256], *values[256], *v1, *v2;
     char o_oper[256];
     uint8_t outp = 0, operp = 0, vsp, prec, db;
     int large=0;
     int32_t val;
     enum type_e t1, t2;
+    unsigned int epoint;
 
     if (arguments.tasmcomp) {
         get_exp_compat(wd,df,cd,v,type);
@@ -447,13 +458,11 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         break;
     }
     for (;;) {
-        ignore();ch = here();
+        ignore();ch = here(); epoint = lpoint;
         if (!nd) {
             switch (ch) {
             case '[':
             case '(': o_oper[operp++] = ch; lpoint++;continue;
-            case ')': goto syntaxe;
-            case ']': goto syntaxe;
             case '+': db = 1;
                 while ((ch=pline[lpoint+db])=='+') db++;
                 if (!(ch>='0' && ch<='9') && ch!='$' && ch!='"' && ch!='\'' && ch!='%' && ch!='(' && ch!='_' && !(ch>='a' && ch<='z') && !(ch>='A' && ch<='Z')) {
@@ -476,20 +485,28 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case '>': ch = 'h'; break;
             case '`': ch = 'H'; break;
             case '^': ch = 'S'; break;
-            case '$': lpoint++;large|=get_hex(&o_out[outp].val);goto pushval;
-            case '%': lpoint++;large|=get_bin(&o_out[outp].val);goto pushval;
+            case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
+            case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
             case '"':
             case '\'': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
             case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
             default: 
-                if (ch>='0' && ch<='9') { large|=get_dec(&o_out[outp].val);
-                pushval: o_out[outp++].oper=' ';nd = 1;continue;
+                if (ch>='0' && ch<='9') {
+                    if (get_dec(&o_out[outp].val)) {
+                    pushlarge:
+                        err_msg2(ERROR_CONSTNT_LARGE,NULL,sline,epoint);large=1;
+                    }
+                pushval: 
+                    o_out[outp].epoint=epoint;
+                    o_out[outp++].oper=' ';nd = 1;
+                    continue;
                 }
                 o_out[outp].val.u.ident.name = pline + lpoint;
                 while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint++;
                 o_out[outp].val.u.ident.len = pline + lpoint - o_out[outp].val.u.ident.name;
                 if (!o_out[outp].val.u.ident.len) goto syntaxe;
                 o_out[outp].val.type = T_IDENT;
+                o_out[outp].epoint=epoint;
                 o_out[outp++].oper=' ';
                 nd = 1;
                 continue;
@@ -502,7 +519,6 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
 	}
 	else {
             switch (ch) {
-            case '(': goto syntaxe;
             case '[': ch = 'I';goto push2;
             case '&': if (pline[lpoint+1] == '&') {lpoint++;ch = 'A';} goto push2;
             case '|': if (pline[lpoint+1] == '|') {lpoint++;ch = 'O';} goto push2;
@@ -558,6 +574,10 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
                 operp--;
 		continue;
+            case 0:
+            case ';':
+            case ',': break;
+            default: goto syntaxe;
 	    }
             if (o_oper[0]=='(') {
                 if (!operp) {*cd=3;break;}
@@ -601,22 +621,21 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             if (v1->val.type == T_IDENT) {
                 copy_name(&v1->val);
                 v1->val.u.label = find_label(ident);
-                if (touch_label(v1->val.u.label)) {
+                v1->val.type = touch_label(v1->val.u.label);
+                if (v1->val.type == T_UNDEF && pass == 1) {
                     v1->val.type = T_NONE;
-                    continue;
+                    goto errtype;
                 }
-                v1->val.type = T_IDENTREF;
             }
-            if (v2->val.type == T_IDENT && v1->val.type == T_IDENTREF) {
-                copy_name(&v2->val);
-                v1->val.u.label = find_label2(ident, &v1->val.u.label->members);
-                if (touch_label(v1->val.u.label)) {
-                    v1->val.type = T_NONE;
+            if (v1->val.type == T_IDENTREF) {
+                if (v2->val.type == T_IDENT) {
+                    copy_name(&v2->val);
+                    v1->val.u.label = find_label2(ident, &v1->val.u.label->members);
+                    v1->val.type = touch_label(v1->val.u.label);
                     continue;
-                }
-                v1->val.type = T_IDENTREF;continue;
-            }
-            err_msg(ERROR____WRONG_TYPE,NULL);goto errtype;
+                } else err_msg_wrong_type(v2->val.type, v2->epoint);
+            } else err_msg_wrong_type(v1->val.type, v1->epoint);
+            goto errtype;
         }
 
         switch (ch) {
@@ -625,7 +644,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case T_INT:
             case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)v1->val.u.num;continue;
             case T_TSTR: free(v1->val.u.str.data);
-            default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);
+            default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         case 'h':
@@ -633,7 +652,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case T_INT:
             case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)(v1->val.u.num >> 8);continue;
             case T_TSTR: free(v1->val.u.str.data);
-            default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);
+            default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         case 'H':
@@ -641,7 +660,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case T_INT:
             case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)(v1->val.u.num >> 16);continue;
             case T_TSTR: free(v1->val.u.str.data);
-            default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);
+            default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         case 'S':
@@ -659,7 +678,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 memcpy(v1->val.u.str.data, line, v1->val.u.str.len);
                 continue;
             case T_TSTR: free(v1->val.u.str.data);
-            default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);
+            default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         case 'p':
@@ -667,7 +686,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case T_INT:
             case T_CHR: v1->val.type = T_INT;continue;
             case T_TSTR: free(v1->val.u.str.data);
-            default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);
+            default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         case 'n':
@@ -675,7 +694,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case T_INT:
             case T_CHR: v1->val.type = T_INT; v1->val.u.num = -v1->val.u.num;continue;
             case T_TSTR: free(v1->val.u.str.data);
-            default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);
+            default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         case '~':
@@ -683,7 +702,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
             case T_INT:
             case T_CHR: v1->val.type = T_INT; v1->val.u.num = ~v1->val.u.num;continue;
             case T_TSTR: free(v1->val.u.str.data);
-            default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);
+            default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         case '!':
@@ -695,17 +714,15 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 v1->val.type = T_INT;
                 v1->val.u.num = !v1->val.u.str.len;
                 continue;
-            default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);
+            default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         }
         v2 = v1; v1 = values[--vsp-1];
         if (vsp == 0) goto syntaxe;
-        try_resolv(&v1->val);
-        try_resolv(&v2->val);
+        t1 = try_resolv(&v1->val);
+        t2 = try_resolv(&v2->val);
 
-        t1 = v1->val.type;
-        t2 = v2->val.type;
         if (t1 == T_NONE || t2 == T_NONE) {
         errtype:
             if (v1->val.type == T_TSTR) free(v1->val.u.str.data);
@@ -773,7 +790,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 break;
             case 'I': val1 = ((unsigned)val1 >> val2) & 1;
                 break;
-            default: v1->val.type = T_NONE; err_msg(ERROR____WRONG_TYPE,NULL);continue;
+            default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;continue;
             }
             v1->val.type = T_INT; v1->val.u.num = val1; continue;
         }
@@ -823,7 +840,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 case 'A': val = (v1->val.u.str.len && v2->val.u.str.len); goto strcomp;
                 case 'O': val = (v1->val.u.str.len || v2->val.u.str.len); goto strcomp;
                 case 'X': val = (!v1->val.u.str.len ^ !v2->val.u.str.len); goto strcomp;
-                default: err_msg(ERROR____WRONG_TYPE,NULL);goto errtype;
+                default: err_msg_wrong_type(v1->val.type, v1->epoint); goto errtype;
             }
         }
         if (t1 == T_STR && t2 == T_CHR) t2 = T_INT;
@@ -841,47 +858,49 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 v1->val.type = T_CHR; v1->val.u.num = val;continue;
             }
         }
-        err_msg(ERROR____WRONG_TYPE,NULL);goto errtype;
+        if (t2 == T_UNDEF) err_msg_wrong_type(v2->val.type, v2->epoint); 
+        else err_msg_wrong_type(v1->val.type, v1->epoint);
+        goto errtype;
     }
+    if (large) *cd=0;
 
-    try_resolv(&values[0]->val);
-    if (values[0]->val.type == T_TSTR) {
-        if (values[0]->val.u.str.len<=linelength) memcpy(line, values[0]->val.u.str.data, values[0]->val.u.str.len);
-        free(values[0]->val.u.str.data);
-        values[0]->val.u.str.data = line;
-        values[0]->val.type = T_STR;
-    }
-    if (values[0]->val.type == T_INT || values[0]->val.type == T_CHR || values[0]->val.type == T_STR) {
-        if (large) *cd=0;
-        if (type == T_NONE) {
-            *v=values[0]->val;
-            return;
-        }
-        if (type == T_INT)
-            switch (values[0]->val.type) {
+    *v=values[0]->val;
+    try_resolv(v);
+
+    switch (v->type) {
+    case T_TSTR:
+        if (v->u.str.len <= linelength) memcpy(line, v->u.str.data, v->u.str.len);
+        free(v->u.str.data);
+        v->u.str.data = line;
+        v->type = T_STR;
+    case T_STR:
+    case T_INT:
+    case T_CHR:
+        if (type == T_NONE) return;
+        if (type == T_INT) {
+            switch (v->type) {
             case T_STR:
-                if (values[0]->val.u.str.len < 5) {
+                if (v->u.str.len < 5) {
                     v->type = T_INT;
                     v->u.num = 0;
                     for (i=values[0]->val.u.str.len;i;i--) v->u.num = (v->u.num << 8) | values[0]->val.u.str.data[i-1];
-                } else {
-                    *cd=0;
-                    err_msg(ERROR_CONSTNT_LARGE,NULL);
+                    return;
                 }
+                *cd=0; err_msg(ERROR_CONSTNT_LARGE,NULL);
                 return;
             case T_CHR:
                 v->type = T_INT;
             case T_INT:
-                *v=values[0]->val;
                 return;
             default:
                 break;
+            }
         }
-        *cd=0;
-        err_msg(ERROR____WRONG_TYPE,NULL);
-        return;
+    default:
+        err_msg_wrong_type(v->type, values[0]->epoint);
+        *cd=0; v->type = T_NONE;break;
+    case T_NONE: *df = 0; break;
     }
-    *df = 0;
     return;
 }
 

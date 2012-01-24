@@ -25,21 +25,7 @@
 #include "misc.h"
 #include "opcodes.h"
 #include "getopt.h"
-
-static struct {
-    size_t p;
-    size_t len;
-    char *data;
-} error_list = {0,0,NULL};
-
-static struct {
-    size_t p;
-    size_t len;
-    struct {
-        uint32_t line;
-        const char *name;
-    } *data;
-} file_list = {0,0,NULL};
+#include "error.h"
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,"a.out",OPCODES_6502,NULL,NULL};
 
@@ -365,154 +351,6 @@ uint_fast16_t petsymbolic(const char *str) {
         if (elozo == n) break;
     }
     return 256;
-}
-
-//------------------------------------------------------------------------------
-
-static void adderror(const char *s) {
-    unsigned int len;
-
-    len = strlen(s) + 1;
-    if (len + error_list.p > error_list.len) {
-        error_list.len += (len > 0x200) ? len : 0x200;
-        error_list.data = realloc(error_list.data, error_list.len);
-        if (!error_list.data) {fputs("Out of memory\n", stderr);exit(1);}
-    }
-    memcpy(error_list.data + error_list.p, s, len);
-    error_list.p += len - 1;
-}
-
-void freeerrorlist(int print) {
-    if (print) {
-        fwrite(error_list.data, error_list.p, 1, stderr);
-    }
-    error_list.p = 0;
-}
-
-void enterfile(const char *s, uint32_t l) {
-
-    if (file_list.p >= file_list.len) {
-        file_list.len += 16;
-        file_list.data = realloc(file_list.data, file_list.len * sizeof(*file_list.data));
-        if (!file_list.data) {fputs("Out of memory\n", stderr);exit(1);}
-    }
-    file_list.data[file_list.p].name=s;
-    file_list.data[file_list.p].line=l;
-    file_list.p++;
-}
-
-void exitfile(void) {
-    if (file_list.p) file_list.p--;
-}
-
-static const char *terr_warning[]={
-    "Top of memory excedeed",
-    "Possibly incorrectly used A",
-    "Memory bank excedeed",
-    "Possible jmp ($xxff) bug",
-    "Long branch used",
-    "Directive ignored",
-    "Label not on left side",
-//  "%s\n",
-};
-static const char *terr_error[]={
-    "Double defined %s",
-    "Not defined %s",
-    "Extra characters on line",
-    "Constant too large",
-    "General syntax",
-    "%s expected",
-    "Expression syntax",
-    "Branch too far",
-    "Missing argument",
-    "Illegal operand",
-    "Unknown encoding: %s",
-    "Requirements not met: %s",
-    "Conflict: %s",
-    "Division by zero",
-    "Wrong type",
-    "Unknown character $%02x",
-    "Not allowed here: %s",
-};
-static const char *terr_fatal[]={
-    "Can't locate file: %s\n",
-    "Out of memory\n",
-    "Can't write object file: %s\n",
-    "Line too long\n",
-    "Can't write listing file: %s\n",
-    "Can't write label file: %s\n",
-    "%s\n",
-    "File recursion\n",
-    "Macro recursion too deep\n",
-    "Unknown CPU: %s\n",
-    "Unknown option: %s\n",
-    "Too many passes\n",
-    "Too many errors\n"
-};
-
-void err_msg(enum errors_e no, const char* prm) {
-    char line[linelength];
-    unsigned int i;
-    const uint8_t *p;
-
-    if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
-
-    if (!arguments.warning && no<0x40) {
-        warnings++;
-        return;
-    }
-
-    if (file_list.p) {
-	snprintf(line,linelength,"%s:%u:%u: ", file_list.data[file_list.p - 1].name, sline, lpoint);
-        adderror(line);
-    }
-
-    for (i = file_list.p; i > 1; i--) {
-        snprintf(line,linelength,"(%s:%u) ", file_list.data[i - 2].name, file_list.data[i - 1].line);
-        adderror(line);
-    }
-
-    if (no<0x40) {
-        snprintf(line,linelength,"warning: %s",(no==ERROR_WUSER_DEFINED)?prm:terr_warning[no]);
-        warnings++;
-    }
-    else if (no<0x80) {
-        if (no==ERROR____PAGE_ERROR) {
-            snprintf(line,linelength,"Page error at $%06x",(uint32_t)prm);
-            conderrors++;
-        }
-        else if (no==ERROR__BRANCH_CROSS) {
-            snprintf(line,linelength,"Branch crosses page");
-            conderrors++;
-        }
-        else {
-            snprintf(line,linelength,terr_error[no & 63],prm);
-            if (no==ERROR_BRANCH_TOOFAR || no==ERROR_CONSTNT_LARGE) conderrors++;
-            else errors++;
-        }
-    }
-    else {
-        adderror("[**Fatal**] ");
-        snprintf(line,linelength,terr_fatal[no & 63],prm);
-        if (no==ERROR__USER_DEFINED) conderrors++; else
-        {
-            adderror(line);
-            errors++;
-            status();exit(1);
-        }
-    }
-
-    adderror(line);
-    if (no==ERROR_WUSER_DEFINED && *prm) {
-        snprintf(line,linelength,"\n");
-    }
-    else {
-        p=pline;
-        while (*p==0x20) p++;
-
-        snprintf(line,linelength," \"%s\"\n",p);
-    }
-    if (no!=ERROR__USER_DEFINED) adderror(line);
 }
 
 //----------------------------------------------------------------------
@@ -993,8 +831,7 @@ void tfree(void) {
     free(lastlb);
     free(lastjp);
     free(lastst);
-    free(file_list.data);
-    free(error_list.data);
+    err_destroy();
 }
 
 void tinit(void) {
