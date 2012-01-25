@@ -23,7 +23,7 @@ all: 64tass README
 64tass.o: 64tass.c opcodes.h misc.h libtree.h eval.h error.h
 avl.o: avl.c libtree.h
 error.o: error.c error.h misc.h libtree.h
-eval.o: eval.c misc.h libtree.h error.h
+eval.o: eval.c eval.h misc.h libtree.h error.h
 misc.o: misc.c libtree.h misc.h opcodes.h getopt.h my_getopt.h error.h
 my_getopt.o: my_getopt.c my_getopt.h
 opcodes.o: opcodes.c opcodes.h
