@@ -207,7 +207,7 @@ void status(void) {
     free(mem.data);		        	// free codemem
     free(memblocks.data);				// free memorymap
     free(logitab.data);
-
+    free_values();
     tfree();
 }
 
@@ -545,9 +545,12 @@ void var_assign(struct label_s *tmp, const struct value_s *val, int fix) {
         if (val->type != T_STR || tmp->value.u.str.len!=val->u.str.len || memcmp(tmp->value.u.str.data, val->u.str.data, val->u.str.len)) {
             if (val->type == T_STR) {
                 tmp->value.type = val->type;
-                tmp->value.u.str.len=val->u.str.len;
-                tmp->value.u.str.data=realloc(tmp->value.u.str.data, val->u.str.len);
-                memcpy(tmp->value.u.str.data,val->u.str.data,val->u.str.len);
+                if (tmp->value.u.str.len != val->u.str.len) {
+                    tmp->value.u.str.len = val->u.str.len;
+                    tmp->value.u.str.data = realloc(tmp->value.u.str.data, val->u.str.len);
+                    if (!tmp->value.u.str.data) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+                }
+                memcpy(tmp->value.u.str.data, val->u.str.data, val->u.str.len);
             } else {
                 free(tmp->value.u.str.data);
                 tmp->value=*val;
@@ -600,7 +603,7 @@ static void macro_recurse(const char* mprm,int8_t nprm, char t, struct macro_s *
 
 static void compile(const char* mprm,int8_t nprm) // "",0
 {
-    int wht,w,d,c;
+    int wht,w;
     int prm = 0;
     struct value_s val;
 
@@ -646,9 +649,9 @@ static void compile(const char* mprm,int8_t nprm) // "",0
             if (!(skipit[waitforp] & 1)) {wht=what(&prm);goto jn;} //skip things if needed
             if ((wht=what(&prm))==WHAT_EQUAL) { //variable
                 strcpy(varname,ident);
-                get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
-                if (!c) goto breakerr;
-                if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL);goto breakerr;}
+                if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                eval_finish();
                 tmp=new_label(varname, L_LABEL);
                 if (listing && flist && arguments.source && tmp->ref) {
                     if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
@@ -665,12 +668,9 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     else {
                         tmp->requires=current_requires;
                         tmp->conflicts=current_conflicts;
-                        tmp->upass=tmp->pass=pass;
-                        tmp->value=val;
-                        if (val.type == T_STR) {
-                            tmp->value.u.str.data=malloc(val.u.str.len);
-                            memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
-                        }
+                        tmp->pass=pass;
+                        tmp->value.type=T_NONE;
+                        var_assign(tmp, &val, fixeddig);
                     }
                 } else {
                     if (labelexists) {
@@ -685,9 +685,9 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 switch (prm) {
                 case CMD_VAR: //variable
                     strcpy(varname,ident);
-                    get_exp(&w,&d,&c,&val, T_NONE); //ellenorizve.
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL);goto breakerr;}
+                    if (!get_exp(&w, 0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    eval_finish();
                     tmp=new_label(varname, L_VAR);
                     if (listing && flist && arguments.source && tmp->ref) {
                         if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
@@ -709,13 +709,10 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     } else {
                         tmp->requires=current_requires;
                         tmp->conflicts=current_conflicts;
-                        tmp->upass=tmp->pass=pass;
-                        tmp->value=val;
-                        if (val.type == T_STR) {
-                            tmp->value.u.str.data=malloc(val.u.str.len);
-                            memcpy(tmp->value.u.str.data,val.u.str.data,val.u.str.len);
-                        }
-                        if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                        tmp->pass=pass;
+                        tmp->value.type=T_NONE;
+                        var_assign(tmp, &val, fixeddig);
+                        if (val.type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
                     }
                     goto finish;
                 case CMD_LBL:
@@ -911,9 +908,9 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                 lpoint++;
                 wrapwarn=0;wrapwarn2=0;
-                get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                if (!c) goto breakerr;
-                if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                if (!get_exp(&w,0)) goto breakerr;
+                if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                eval_finish();
                 if (listing && flist && arguments.source) {
                     lastl=LIST_NONE;
                     if (wasref)
@@ -923,7 +920,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     printllist(flist);
                 }
                 if (structrecursion) err_msg(ERROR___NOT_ALLOWED, "*=");
-                else if (val.type != T_NONE) {
+                else if (val.type == T_NONE) fixeddig = 0;
+                else {
                     if (val.u.num & ~all_mem) {
                         err_msg(ERROR_CONSTNT_LARGE,NULL);
                     } else {
@@ -1011,10 +1009,10 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     } else waitfor[++waitforp].what='e';
                     waitfor[waitforp].line=sline;
                     if (((skwait==1) && prm!=CMD_ELSIF) || ((skwait==2) && prm==CMD_ELSIF)) {
-                        get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
-                        if (!c) goto breakerr;
-                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                        if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");val.type=T_NONE;}
+                        if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                        if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        eval_finish();
+                        if (val.type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used for condition");
                     } else val.type=T_NONE;
                     switch (prm) {
                     case CMD_ELSIF:
@@ -1106,11 +1104,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         int large=0;
                         unsigned int epoint;
                         if (prm==CMD_PTEXT) ch2=0;
-                        for (;;) {
-                            ignore(); epoint = lpoint;
-                            get_exp(&w,&d,&c,&val,T_NONE); if (!d) fixeddig=0; //ellenorizve.
-                            if (!c) goto breakerr;
-                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (!get_exp(&w,0)) goto breakerr;
+                        while (get_val(&val, T_NONE, &epoint)) {
                             if (val.type != T_STR || val.u.str.len) {
                                 do {
                                     if (ch2>=0) pokeb(ch2);
@@ -1130,41 +1125,34 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                         ch2 = (uint8_t)val.u.num;
                                         break;
                                     default: err_msg(ERROR____WRONG_TYPE,NULL);
-                                    case T_NONE: ch2 = 0; 
+                                    case T_NONE: ch2 = fixeddig = 0;
                                     }
 
                                     if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
                                         if (ch2>=0x80) large=epoint;
                                         if (prm==CMD_SHIFTL) ch2<<=1;
-                                    } else if (prm==CMD_NULL && !ch2 && d) large=epoint;
+                                    } else if (prm==CMD_NULL && !ch2 && val.type != T_NONE) large=epoint;
                                 } while (val.type == T_STR && val.u.str.len);
                             }
-                            if (here()==',') {lpoint++;continue;}
-                            if (ch2>=0) {
-                                if (prm==CMD_SHIFT) ch2|=0x80;
-                                if (prm==CMD_SHIFTL) ch2|=0x01;
-                                pokeb(ch2);
-                            }
-                            if (prm==CMD_NULL) {
-                                pokeb(0);
-                            }
-                            if (prm==CMD_PTEXT) {
-                                if (mem.p-ptextaddr>0x100) large=epoint;
-
-                                if (fixeddig && dooutput) mem.data[ptextaddr]=mem.p-ptextaddr-1;
-                            }
-                            if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
-                            break;
                         }
+                        if (ch2>=0) {
+                            if (prm==CMD_SHIFT) ch2|=0x80;
+                            if (prm==CMD_SHIFTL) ch2|=0x01;
+                            pokeb(ch2);
+                        }
+                        if (prm==CMD_NULL) pokeb(0);
+                        if (prm==CMD_PTEXT) {
+                            if (mem.p-ptextaddr>0x100) large=epoint;
+
+                            if (fixeddig && dooutput) mem.data[ptextaddr]=mem.p-ptextaddr-1;
+                        }
+                        if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA || prm==CMD_LONG) { // .word .int .rta .long
                         uint16_t ch2;
                         int large=0;
                         unsigned int epoint;
-                        for (;;) {
-                            ignore(); epoint = lpoint;
-                            get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
-                            if (!c) goto breakerr;
-                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                        while (get_val(&val, T_NONE, &epoint)) {
                             switch (val.type) {
                             case T_STR:
                                 ch2 = 0;
@@ -1186,17 +1174,15 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                 ch2 = (uint16_t)val.u.num;
                                 break;
                             default: err_msg(ERROR____WRONG_TYPE,NULL);
-                            case T_NONE: ch2 = 0; 
+                            case T_NONE: ch2 = fixeddig = 0; 
                             }
                             if (prm==CMD_RTA) ch2--;
 
                             pokeb((uint8_t)ch2);
                             pokeb((uint8_t)(ch2>>8));
                             if (prm==CMD_LONG) pokeb((uint8_t)(ch2>>16));
-                            if (here()==',') {lpoint++;continue;}
-                            if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
-                            break;
                         }
+                        if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm==CMD_BINARY) { // .binary
                         long foffset=0;
                         address_t fsize = all_mem+1;
@@ -1204,25 +1190,22 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         if (get_path(cfile->name)) goto breakerr;
                         if (here()==',') {
                             lpoint++;
-                            get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                            if (!c) goto breakerr;
-                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                            ignore();
-                            if (val.type != T_NONE) {
-                                if (val.u.num<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
-                                foffset = val.u.num;
-                            }
-                            ignore();
-                            if (here()==',') {
-                                lpoint++;
-                                get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                                if (!c) goto breakerr;
-                                if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                                if (val.type != T_NONE) {
-                                    if (val.u.num<0 || (address_t)val.u.num > fsize) {err_msg(ERROR_CONSTNT_LARGE,NULL);break;}
-                                    fsize = val.u.num;
+                            if (!get_exp(&w,0)) goto breakerr;
+                            if (get_val(&val, T_INT, NULL)) {
+                                if (val.type == T_NONE) fixeddig = 0;
+                                else {
+                                    if (val.u.num<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
+                                    foffset = val.u.num;
+                                }
+                                if (get_val(&val, T_INT, NULL)) {
+                                    if (val.type == T_NONE) fixeddig = 0;
+                                    else {
+                                        if (val.u.num<0 || (address_t)val.u.num > fsize) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                                        else fsize = val.u.num;
+                                    }
                                 }
                             }
+                            eval_finish();
                         }
 
                         if ((fil=fopen(path,"rb"))==NULL) {err_msg(ERROR_CANT_FINDFILE,path);goto breakerr;}
@@ -1263,22 +1246,21 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_OFFS) {   // .offs
-                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0; //ellenorizve.
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    eval_finish();
                     if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".OFFS");
-                    if (val.type != T_NONE) {
-                        if (val.u.num) {
-                            if (fixeddig && scpumode) {
-                                if (((address + val.u.num)^address) & ~0xffff) wrapwarn2=1;
-                            }
-                            address+=val.u.num;
-                            if (address>all_mem) {
-                                if (fixeddig) wrapwarn=1;
-                                address&=all_mem;
-                            }
-                            memjmp(address);
+                    if (val.type == T_NONE) fixeddig = 0;
+                    else if (val.u.num) {
+                        if (fixeddig && scpumode) {
+                            if (((address + val.u.num)^address) & ~0xffff) wrapwarn2=1;
                         }
+                        address+=val.u.num;
+                        if (address>all_mem) {
+                            if (fixeddig) wrapwarn=1;
+                            address&=all_mem;
+                        }
+                        memjmp(address);
                     }
                     break;
                 }
@@ -1288,11 +1270,12 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         if (!(logitab.data=realloc(logitab.data,logitab.len*sizeof(*logitab.data)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
                     }
                     logitab.data[logitab.p++]=l_address-address;
-                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    eval_finish();
                     if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".LOGICAL");
-                    if (val.type != T_NONE) {
+                    if (val.type == T_NONE) fixeddig = 0;
+                    else {
                         if (val.u.num & ~all_mem) err_msg(ERROR_CONSTNT_LARGE,NULL);
                         else l_address=val.u.num;
                     }
@@ -1338,20 +1321,22 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_DATABANK) { // .databank
-                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    if (val.type != T_NONE) {
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    eval_finish();
+                    if (val.type == T_NONE) fixeddig = 0;
+                    else {
                         if (val.u.num & ~0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
                         else databank=val.u.num;
                     }
                     break;
                 }
                 if (prm==CMD_DPAGE) { // .dpage
-                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    if (val.type != T_NONE) {
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    eval_finish();
+                    if (val.type == T_NONE) fixeddig = 0;
+                    else {
                         if (val.u.num & ~0xffff) err_msg(ERROR_CONSTNT_LARGE,NULL);
                         else {
                             if (dtvmode) dpage=val.u.num & 0xff00;
@@ -1363,23 +1348,20 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 if (prm==CMD_FILL) { // .fill
                     address_t db = 0;
                     uint8_t ch;
-                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    if (val.type != T_NONE) {
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val.type == T_NONE) fixeddig = 0;
+                    else {
                         db=val.u.num;
                         if (db>(all_mem+1)) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
                     }
-                    ignore();
-                    if (here()==',') {
+                    if (get_val(&val, T_INT, NULL)) {
                         lpoint++;
-                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                        if (!c) goto breakerr;
-                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                        if (val.type != T_NONE) {
-                            if (val.u.num & ~0xff) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
+                        if (val.type == T_NONE) ch = fixeddig = 0;
+                        else {
+                            if (val.u.num & ~0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
                             ch = (uint8_t)val.u.num;
-                        } else ch = 0;
+                        }
                         while (db-->0) pokeb(ch);
                     } else {
                         if (fixeddig && scpumode) {
@@ -1398,48 +1380,32 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         }
                         memjmp(address);
                     }
+                    eval_finish();
                     break;
                 }
                 if (prm==CMD_ASSERT) { // .assert
-                    get_exp(&w,&d,&c,&val,T_INT);
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,",");goto breakerr;}
-                    lpoint++;
-                    if (val.type != T_NONE) {
-                        current_provides=val.u.num;
-                    } else current_provides=~0;
-                    get_exp(&w,&d,&c,&val,T_INT);
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,",");goto breakerr;}
-                    lpoint++;
-                    if (val.type != T_NONE) {
-                        current_requires=val.u.num;
-                    } else current_requires=0;
-                    get_exp(&w,&d,&c,&val,T_INT);
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    if (val.type != T_NONE) {
-                        current_conflicts=val.u.num;
-                    } else current_conflicts=0;
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val.type == T_NONE) {fixeddig = 0;current_provides=~0;}
+                    else current_provides=val.u.num;
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (val.type == T_NONE) fixeddig = current_requires = 0;
+                    else current_requires=val.u.num;
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (val.type == T_NONE) fixeddig = current_conflicts = 0;
+                    else current_conflicts=val.u.num;
+                    eval_finish();
                     break;
                 }
                 if (prm==CMD_CHECK) { // .check
-                    get_exp(&w,&d,&c,&val,T_INT);
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,",");goto breakerr;}
-                    lpoint++;
-                    if (val.type != T_NONE) {
-                        if ((val.u.num & current_provides) ^ val.u.num) err_msg(ERROR_REQUIREMENTS_,".CHECK");
-                    }
-                    get_exp(&w,&d,&c,&val,T_INT);
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    if (val.type != T_NONE) {
-                        if (val.u.num & current_provides) err_msg(ERROR______CONFLICT,".CHECK");
-                    }
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val.type == T_NONE) fixeddig = 0;
+                    else if ((val.u.num & current_provides) ^ val.u.num) err_msg(ERROR_REQUIREMENTS_,".CHECK");
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (val.type == T_NONE) fixeddig = 0;
+                    else if (val.u.num & current_provides) err_msg(ERROR______CONFLICT,".CHECK");
+                    eval_finish();
                     break;
                 }
                 if (prm==CMD_WARN) { // .warn
@@ -1469,10 +1435,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_CERROR || prm==CMD_CWARN) { // .cerror
-                    get_exp(&w,&d,&c,&val,T_NONE); //ellenorizve.
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    ignore();
+                    if (!get_exp(&w, 1)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (here()==',') {
                         lpoint++;ignore();
                     }
@@ -1482,10 +1446,10 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 if (prm==CMD_REPT) { // .rept
                     int32_t cnt;
                     waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
-                    get_exp(&w,&d,&c,&val,T_INT);
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for count");val.type=T_NONE;}
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    eval_finish();
+                    if (val.type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used for count");
                     cnt = 0;
                     if (val.type != T_NONE) {
                         if (cnt<val.u.num) {
@@ -1510,33 +1474,27 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_ALIGN) { // .align
-                    int align, fill=-1;
-                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                    int align = 1, fill=-1;
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
-                    if (val.type != T_NONE) {
-                        if (val.u.num<1 || val.u.num>(int32_t)all_mem) {
-                            err_msg(ERROR_CONSTNT_LARGE,NULL);
-                            goto breakerr;
-                        }
-                        align = val.u.num;
-                    } else align = 1;
-                    ignore();
-                    if (here()==',') {
-                        int d2;
-                        lpoint++;
-                        get_exp(&w,&d2,&c,&val,T_INT);if (!d2) fixeddig=0;
-                        if (!c) goto breakerr;
-                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                        if (val.type != T_NONE) {
-                            if (val.u.num & ~0xff) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
-                            fill = val.u.num;
-                        } else fill = 0;
+                    if (val.type == T_NONE) fixeddig = 0;
+                    else {
+                        if (val.u.num<1 || val.u.num>(int32_t)all_mem) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                        else align = val.u.num;
                     }
+                    if (get_val(&val, T_INT, NULL)) {
+                        lpoint++;
+                        if (val.type == T_NONE) fixeddig = fill = 0;
+                        else {
+                            if (val.u.num & ~0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                            fill = (uint8_t)val.u.num;
+                        }
+                    }
+                    eval_finish();
                     if (align>1 && (l_address % align)) {
                         if (fill>0)
-                            while (l_address % align) pokeb((unsigned char)fill);
+                            while (l_address % align) pokeb((uint8_t)fill);
                         else {
                             align-=l_address % align;
                             if (align) {
@@ -1561,13 +1519,14 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_EOR) {   // .eor
-                    get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0;
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    if (val.type != T_NONE) {
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    eval_finish();
+                    if (val.type == T_NONE) fixeddig = outputeor = 0;
+                    else {
                         if (val.u.num & ~0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
                         else outputeor = val.u.num;
-                    } else outputeor = 0;
+                    }
                     break;
                 }
                 if (prm==CMD_END) {
@@ -1643,9 +1602,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                         lpoint++;
                         strcpy(varname,ident);
-                        get_exp(&w,&d,&c,&val,T_NONE);
-                        if (!c) goto breakerr;
-                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
+                        if (!get_exp(&w,1)) goto breakerr; //ellenorizve.
+                        if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         var=new_label(varname, L_VAR);
                         if (labelexists) {
                             if (var->type != L_VAR) err_msg(ERROR_DOUBLE_DEFINE,varname);
@@ -1657,13 +1615,10 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         } else {
                             var->requires=current_requires;
                             var->conflicts=current_conflicts;
-                            var->upass=var->pass=pass;
-                            var->value=val;
-                            if (val.type == T_STR) {
-                                var->value.u.str.data=malloc(val.u.str.len);
-                                memcpy(var->value.u.str.data,val.u.str.data,val.u.str.len);
-                            }
-                            if (!d) err_msg(ERROR___NOT_DEFINED,"argument used");
+                            var->pass=pass;
+                            var->value.type=T_NONE;
+                            var_assign(var, &val, fixeddig);
+                            if (val.type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
                         }
                         wht=what(&prm);
                     }
@@ -1678,10 +1633,9 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     strcpy((char *)expr, (char *)pline);var = NULL;
                     for (;;) {
                         lpoint=apoint;
-                        get_exp(&w,&d,&c,&val,T_NONE);
-                        if (!c) break;
-                        if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
-                        if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
+                        if (!get_exp(&w,1)) break; //ellenorizve.
+                        if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                        if (val.type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
                         if (((val.type == T_INT || val.type == T_CHR) && !val.u.num) || (val.type == T_STR && !val.u.str.len)) break;
                         if (bpoint < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
@@ -1716,9 +1670,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         sline=lin;cfile->p=pos;
                         if (bpoint) {
                             lpoint=bpoint;
-                            get_exp(&w,&d,&c,&val,T_NONE);
-                            if (!c) break;
-                            if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); break;}
+                            if (!get_exp(&w,1)) break; //ellenorizve.
+                            if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                             var_assign(var, &val, fixeddig);
                         }
                     }
@@ -1737,10 +1690,10 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     get_ident();
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
                     lpoint++;
-                    get_exp(&w,&d,&c,&val,T_NONE);
-                    if (!c) goto breakerr;
-                    if (c==2) {err_msg(ERROR_EXPRES_SYNTAX,NULL); goto breakerr;}
-                    if (!d) {err_msg(ERROR___NOT_DEFINED,"argument used for option");goto breakerr;}
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    eval_finish();
+                    if (val.type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for option");goto breakerr;}
                     if (!strcasecmp(ident,"allow_branch_across_page")) allowslowbranch=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
                     else if (!strcasecmp(ident,"auto_longbranch_as_jmp")) longbranchasjmp=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
                     else err_msg(ERROR_UNKNOWN_OPTIO,ident);
@@ -1866,6 +1819,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     int_fast8_t ln;
                     uint8_t cod, longbranch;
                     uint32_t adr;
+                    int d;
                 as_opcode:
 
                     opr = 0;mnem = prm;
@@ -1892,9 +1846,10 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             lpoint += strlen((char *)pline + lpoint);ln=w=d=1;
                         } else {
                             lpoint++;
-                            get_exp(&w,&d,&c,&val,T_INT); //ellenorizve.
-                            if (!c) goto breakerr;
-                            if (c==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                            if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                            if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                            eval_finish();
+                            d = (val.type != T_NONE);
 
                             ln=1;
                             if (cod==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {// cpx cpy ldx ldy
@@ -1915,17 +1870,16 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     }
                     // 3 Db
                     else {
+                        int c;
                         if (whatis[wht]!=WHAT_EXPRESSION && whatis[wht]!=WHAT_CHAR && wht!='_' && wht!='*') {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     nota:
-                        get_exp(&w,&d,&c,&val,T_INT);if (!d) fixeddig=0; //ellenorizve.
-                        if (!c) goto breakerr;
-                        if (val.type != T_NONE) {
-                            adr = val.u.num;
-                        }
-                    meg:
+                        if (!(c=get_exp(&w, cnmemonic[ADR_REL]==____ && cnmemonic[ADR_MOVE]==____))) goto breakerr; //ellenorizve.
+                        if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (val.type == T_NONE) d = fixeddig = 0;
+                        else {adr = val.u.num;d = 1;}
+
                         if (c==1) {
                             if ((wht=what(&prm))==WHAT_X) {// lda $ff,x lda $ffff,x lda $ffffff,x
-                                if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
                                 if (w==3) {//auto length
                                     if (val.type != T_NONE) {
                                         if (cnmemonic[ADR_ZP_X]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
@@ -1943,7 +1897,6 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                 opr=ADR_ZP_X-w;ln=w+1;
                             }// 6 Db
                             else if (wht==WHAT_Y) {// lda $ff,y lda $ffff,y lda $ffffff,y
-                                if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
                                 if (w==3) {//auto length
                                     if (val.type != T_NONE) {
                                         if (cnmemonic[ADR_ZP_Y]!=____ && adr < 0x10000 && (uint16_t)(adr - dpage) < 0x100) {adr=(uint16_t)(adr - dpage);w=0;}
@@ -1958,7 +1911,6 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                 opr=ADR_ZP_Y-w;ln=w+1; // ldx $ff,y lda $ffff,y
                             }// 8 Db
                             else if (wht==WHAT_S) {
-                                if (cnmemonic[ADR_REL]!=____) {lpoint--;goto megint;}
                                 if (val.type != T_NONE) {
                                     if (w==3) w=val_length(adr);//auto length
                                     if (w) w=3; // there's no lda $ffffff,s or lda $ffff,s!
@@ -1966,107 +1918,97 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                 }
                                 ln=1; // lda $ff,s
                             }// 9 Db
-                            else if (wht==WHAT_COMA) { // mvp $10,$20
-                                int w2,c2,d2;
-                                struct value_s val2;
-                                megint:
-                                d2=d;
-                                get_exp(&w2,&d,&c2,&val2,T_INT);if (!d) fixeddig=0;
-                                if (!c2) goto breakerr;
-                                if (c2==2) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                                if (cnmemonic[ADR_REL]!=____) {
-                                    int32_t valx,valx2;
-                                    if (val.type != T_NONE && val2.type != T_NONE) {
-                                        valx=val.u.num-l_address-2;
-                                        valx2=val2.u.num-l_address-2;
-                                        if ((valx<-128 || valx>127) && valx2>=-128 && valx2<=127) {
-                                            val=val2;
-                                            adr = val.u.num;
-                                            c=c2;
-                                            w=w2;
-                                        } else d=d2;
-                                    } else {
-                                        if (d2) d=d2;
-                                        else {
-                                            val=val2;
-                                            if (val2.type != T_NONE) adr = val.u.num;
-                                            c=c2;w=w2;
-                                        }
-                                    }
-                                    goto meg;
-                                }
-                                adr <<= 8;
-                                if (val.type != T_NONE && val2.type != T_NONE) {
-                                    if (w==3) w=val_length(adr);//auto length
-                                    if (w2==3) w2=val_length(val2.u.num);//auto length
-                                    if (w || w2) w=3; // only byte operands...
-                                    opr=ADR_MOVE;
-                                    adr|=val2.u.num;
-                                }
-                                ln=2;
-                            }// 10 Db
                             else if (wht==WHAT_EOL || wht==WHAT_COMMENT) {
-                                if (cnmemonic[ADR_REL]!=____) {
+                                if (cnmemonic[ADR_MOVE]!=____) {
+                                    struct value_s val2;
+                                    ln = 2; opr=ADR_MOVE;
+                                    if (get_val(&val2, T_INT, NULL)) {
+                                        adr <<= 8;
+                                        if (val.type != T_NONE && val2.type != T_NONE) {
+                                            if (w==3) w=val_length(val.u.num);//auto length
+                                            if (w || val_length(val2.u.num)) w=3; // only byte operands...
+                                            adr|=val2.u.num;
+                                        }
+                                    } else {err_msg(ERROR_ILLEGAL_OPERA,NULL);goto breakerr;}
+                                } else if (cnmemonic[ADR_REL]!=____) {
                                     struct star_s *s;
                                     int olabelexists;
+                                    uint8_t min = 10;
+                                    uint32_t joadr = adr;
+                                    int_fast8_t joln = 1;
+                                    uint8_t jolongbranch = longbranch;
+                                    enum opr_e joopr = ADR_REL;
+                                    enum errors_e err = ERROR_WUSER_DEFINED; 
                                     s=new_star(vline+1);olabelexists=labelexists;
-                                    ln=1;opr=ADR_REL;
-                                    if (val.type != T_NONE) {
-                                        uint16_t oadr = adr;
-                                        if (fixeddig && (l_address >> 16)!=(adr >> 16)) err_msg(ERROR_BRANCH_TOOFAR,NULL);
 
-                                        if (labelexists && adr >= s->addr) {
-                                            adr=(uint16_t)(adr - s->addr);
-                                        } else {
-                                            adr=(uint16_t)(adr - l_address - 2);labelexists=0;
-                                        }
-                                        if (adr<0xFF80 && adr>0x007F) {
-                                            if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
-                                                if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
-                                                    longbranch=0x20;ln=4;
-                                                    if (scpumode && !longbranchasjmp) {
-                                                        if (!labelexists) adr=(uint16_t)(adr-3);
-                                                        adr=0x8203+(adr << 16);
-                                                    } else {
-                                                        adr=0x4C03+(oadr << 16);
-                                                    }
-                                                } else {//bra
-                                                    if (scpumode && !longbranchasjmp) {
-                                                        longbranch=cnmemonic[ADR_REL]^0x82;
-                                                        if (!labelexists) adr=(uint16_t)(adr-1);
-                                                        ln=2;
-                                                    } else {
-                                                        longbranch=cnmemonic[ADR_REL]^0x4C;
-                                                        adr=oadr;ln=2;
-                                                    }
-                                                }
-                                                if (fixeddig) err_msg(ERROR___LONG_BRANCH,NULL);
+                                    for (;c;c=get_val(&val, T_INT, NULL)) {
+                                        if (val.type != T_NONE) {
+                                            uint16_t oadr = val.u.num;
+                                            adr = val.u.num;
+                                            labelexists = olabelexists;
+
+                                            if (labelexists && adr >= s->addr) {
+                                                adr=(uint16_t)(adr - s->addr);
                                             } else {
-                                                if (cnmemonic[ADR_ADDR]!=____) {
-                                                    if (scpumode && !longbranchasjmp) {
-                                                        longbranch=cnmemonic[ADR_REL]^0x82;
-                                                        if (!labelexists) adr=(uint16_t)(adr-1);
-                                                    } else {
-                                                        adr=oadr;
-                                                        opr=ADR_ADDR;
+                                                adr=(uint16_t)(adr - l_address - 2);labelexists=0;
+                                            }
+                                            ln=1;opr=ADR_REL;longbranch=0;
+                                            if ((l_address >> 16)!=(adr >> 16)) { err = ERROR_BRANCH_TOOFAR; continue; }
+                                            if (adr<0xFF80 && adr>0x007F) {
+                                                if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
+                                                    if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
+                                                        longbranch=0x20;ln=4;
+                                                        if (scpumode && !longbranchasjmp) {
+                                                            if (!labelexists) adr=(uint16_t)(adr-3);
+                                                            adr=0x8203+(adr << 16);
+                                                        } else {
+                                                            adr=0x4C03+(oadr << 16);
+                                                        }
+                                                    } else {//bra
+                                                        if (scpumode && !longbranchasjmp) {
+                                                            longbranch=cnmemonic[ADR_REL]^0x82;
+                                                            if (!labelexists) adr=(uint16_t)(adr-1);
+                                                            ln=2;
+                                                        } else {
+                                                            longbranch=cnmemonic[ADR_REL]^0x4C;
+                                                            adr=oadr;ln=2;
+                                                        }
                                                     }
-                                                    ln=2;
-                                                } else if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);
-                                            }
-                                        } else {
-                                            if (fixeddig) {
-                                                if (!longbranch && ((l_address+2) & 0xff00)!=(oadr & 0xff00)) {
-                                                    if (!allowslowbranch) err_msg(ERROR__BRANCH_CROSS,NULL);
+                                                    //err = ERROR___LONG_BRANCH;
+                                                } else {
+                                                    if (cnmemonic[ADR_ADDR]!=____) {
+                                                        if (scpumode && !longbranchasjmp) {
+                                                            longbranch=cnmemonic[ADR_REL]^0x82;
+                                                            if (!labelexists) adr=(uint16_t)(adr-1);
+                                                        } else {
+                                                            adr=oadr;
+                                                            opr=ADR_ADDR;
+                                                        }
+                                                        ln=2;
+                                                    } else {err = ERROR_BRANCH_TOOFAR;continue;}
+                                                }
+                                            } else {
+                                                if (fixeddig) {
+                                                    if (!longbranch && ((l_address+2) & 0xff00)!=(oadr & 0xff00)) {
+                                                        if (!allowslowbranch) {err=ERROR__BRANCH_CROSS;continue;}
+                                                    }
+                                                }
+                                                if (cnmemonic[ADR_ADDR]!=____) {
+                                                    if (adr==0) ln=-1;
+                                                    else if (adr==1 && (cnmemonic[ADR_REL] & 0x1f)==0x10) {
+                                                        ln=0;longbranch=0x20;adr=0x10000;
+                                                    }
                                                 }
                                             }
-                                            if (cnmemonic[ADR_ADDR]!=____) {
-                                                if (adr==0) ln=-1;
-                                                else if (adr==1 && (cnmemonic[ADR_REL] & 0x1f)==0x10) {
-                                                ln=0;longbranch=0x20;adr=0x10000;
-                                                }
+                                            if (ln < min) {
+                                                min = ln;
+                                                joopr = opr; joadr = adr; joln = ln; jolongbranch = longbranch;
                                             }
+                                            err = ERROR_WUSER_DEFINED;
                                         }
                                     }
+                                    opr = joopr; adr = joadr; ln = joln; longbranch = jolongbranch;
+                                    if (fixeddig && min == 10 && err != ERROR_WUSER_DEFINED) err_msg(err, NULL);
                                     w=0;// bne
                                     if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) fixeddig=0;
                                     s->addr = (star + 1 + ln) & all_mem;
@@ -2223,6 +2165,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                 }
                             }
                         }
+                        eval_finish();
                     }
 
                     if (d) {

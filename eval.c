@@ -19,6 +19,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "eval.h"
 #include "misc.h"
 #include "error.h"
 
@@ -203,140 +204,186 @@ static int priority(char ch)
     default:
     case '[':          // [a]
     case '(':return 0;
+    case ',':return 1;
     case 'l':          // <
     case 'h':          // >
     case 'H':          // `
-    case 'S':return 1; // ^
-    case 'O':return 2; // ||
-    case 'X':return 3; // ^^
-    case 'A':return 4; // &&
+    case 'S':return 2; // ^
+    case 'O':return 3; // ||
+    case 'X':return 4; // ^^
+    case 'A':return 5; // &&
     case '=':
     case 'o':          // !=
     case '<':
     case '>':
     case 'g':          // >=
-    case 's':return 5; // <=
-    case '|':return 6;
-    case '^':return 7;
-    case '&':return 8;
+    case 's':return 6; // <=
+    case '|':return 7;
+    case '^':return 8;
+    case '&':return 9;
     case 'm':          // <<
     case 'D':          // >>
-    case 'd':return 9; // >>>
+    case 'd':return 10; // >>>
     case '+':
-    case '-':return 10;
+    case '-':return 11;
     case '*':
     case '/':
-    case '%':return 11;// %
-    case 'E':return 12;// **
+    case '%':return 12;// %
+    case 'E':return 13;// **
     case '.':          // .
-    case 'I':return 13;// a[
+    case 'I':return 14;// a[
     case 'n':          // -
-    case 'p':return 14;// +
-    case '~':return 15;// ~
-    case '!':return 16;// !
+    case 'p':return 15;// +
+    case '~':return 16;// ~
+    case '!':return 17;// !
     }
 }
 
-static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// length in bytes, defined
-    int nd=0;
-    unsigned int i;
-    char ch;
-    static uint8_t line[linelength];  //current line data
+static struct values_s **values = NULL;
+static size_t values_size=0;
+static size_t values_len=0;
+static size_t values_p=0;
 
-    struct {struct value_s val; char oper;unsigned int epoint;} o_out[256], *values[256];
-    char o_oper[256];
+static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
+    int cd;
+    unsigned int i;
+    char ch, conv;
+
+    static struct values_s o_out[256];
+    char o_oper[256] = {0};
     uint8_t outp = 0, operp = 0, vsp;
-    unsigned int conv=0;
     int large=0;
     enum type_e t1, t2;
-    unsigned int epoint;
+    unsigned int epoint, cpoint = 0;
+    values_len = values_p = 0;
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
-    *df=1;    // 1=result is ok, result is not yet known
-    *cd=0;    // 0=error, 1=ok, 2=(a, 3=()
-    v->type = T_NONE;
-
+    cd=0;     // 0=error, 1=ok, 2=(a, 3=()
+rest:
     ignore();
+    conv = 0;
     switch (here()) {
     case '!':*wd=1;lpoint++;break;
-    case '<':conv=1;lpoint++;break;
-    case '>':conv=2;lpoint++;break;
+    case '<':
+    case '>': conv = here();cpoint = lpoint; lpoint++;break; 
     }
     for (;;) {
         ignore();ch = here(); epoint=lpoint;
-        if (!nd) {
-            switch (ch) {
-            case '(': o_oper[operp++] = ch; lpoint++;continue;
-            case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
-            case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
-            case '"': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
-            case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
+
+        switch (ch) {
+        case '(': o_oper[operp++] = ch; lpoint++;continue;
+        case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
+        case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
+        case '"': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
+        case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
+        }
+        if (ch>='0' && ch<='9') { if (get_dec(&o_out[outp].val)) goto pushlarge;
+        pushval:
+            if (o_out[outp].val.type == T_INT && (o_out[outp].val.u.num & ~0xffff)) {
+            pushlarge:
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
+                o_out[outp].val.u.num = 0xffff;
             }
-            if (ch>='0' && ch<='9') { if (get_dec(&o_out[outp].val)) goto pushlarge;
-            pushval:
-                if (o_out[outp].val.type == T_INT && (o_out[outp].val.u.num & ~0xffff)) {
-                pushlarge:
-                    err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
-                    o_out[outp].val.u.num = 0xffff;
-                }
-                o_out[outp].epoint=epoint;
-                o_out[outp++].oper=' ';nd = 1;continue;
-            }
-            o_out[outp].val.u.ident.name = pline + lpoint;
+        } else {
             while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint++;
-            o_out[outp].val.u.ident.len = pline + lpoint - o_out[outp].val.u.ident.name;
-            if (!o_out[outp].val.u.ident.len) goto syntaxe;
+            if (epoint == lpoint) goto syntaxe;
+            o_out[outp].val.u.ident.name = pline + epoint;
+            o_out[outp].val.u.ident.len = lpoint - epoint;
             o_out[outp].val.type = T_IDENT;
-            o_out[outp].epoint=epoint;
-            o_out[outp++].oper=' ';
-            nd = 1;
-            continue;
-	}
-	else {
-            while (operp && o_oper[operp-1] != '(') o_out[outp++].oper=o_oper[--operp];
-            switch (ch) {
-            case '&':
-            case '.':
-            case ':':
-            case '*':
-            case '/':
-            case '+':
-            case '-': 
-                o_oper[operp++] = ch;
-		nd=0;
-		lpoint++;
-		continue;
-            case ')':
-                if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
-		lpoint++;
-		operp--;
-		continue;
-            case 0:
-            case ';':
-            case ',': break;
-            default: goto syntaxe;
-	    }
-            if (o_oper[0]=='(') {
-                if (!operp) {*cd=3;break;}
-                if (operp==1 && ch == ',') {*cd=2; break;}
+        }
+        o_out[outp++].epoint=epoint;
+    other:
+        ignore();ch = here(); epoint=lpoint;
+	
+        while (operp && o_oper[operp-1] != '(') {o_out[outp].val.type = T_OPER; o_out[outp++].val.u.oper=o_oper[--operp];}
+        switch (ch) {
+        case ',':
+            if (conv) {
+                o_out[outp].epoint = cpoint;
+                o_out[outp].val.type = T_OPER;
+                o_out[outp++].val.u.oper = conv;
             }
-            if (!operp) {*cd=1;break;}
-            err_msg(ERROR______EXPECTED,")"); goto error;
-        syntaxe:
-            err_msg(ERROR_EXPRES_SYNTAX,NULL);
-        error:
-            for (i=0; i<outp; i++) if (o_out[i].oper==' ' && o_out[i].val.type == T_TSTR) free(o_out[i].val.u.str.data);
-            return;
-	}
+            if (stop) break;
+            o_oper[operp++] = ch;
+            lpoint++;
+            goto rest;
+        case '&':
+        case '.':
+        case ':':
+        case '*':
+        case '/':
+        case '+':
+        case '-': 
+            o_oper[operp++] = ch;
+            lpoint++;
+            continue;
+        case ')':
+            if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
+            lpoint++;
+            operp--;
+            goto other;
+        case 0:
+        case ';':
+            if (conv) {
+                o_out[outp].epoint = cpoint;
+                o_out[outp].val.type = T_OPER;
+                o_out[outp++].val.u.oper = conv;
+            }
+            break;
+        default: goto syntaxe;
+        }
+        if (stop && o_oper[0]=='(') {
+            if (!operp) {cd=3;break;}
+            if (operp==1 && ch == ',') {cd=2; break;}
+        }
+        if (!operp) {cd=1;break;}
+        err_msg(ERROR______EXPECTED,")"); goto error;
+    syntaxe:
+        err_msg(ERROR_EXPRES_SYNTAX,NULL);
+    error:
+        for (i=0; i<outp; i++) if (o_out[i].val.type == T_TSTR) free(o_out[i].val.u.str.data);
+        return 0;
     }
     vsp = 0;
     for (i=0;i<outp;i++) {
-	if ((ch=o_out[i].oper)==' ') {
+	if (o_out[i].val.type != T_OPER) {
+            if (vsp >= values_size) {
+                values_size += 16;
+                values = realloc(values, sizeof(struct values_s *)*values_size);
+            }
             values[vsp++]=&o_out[i];
             continue;
         }
-        if (vsp < 2) goto syntaxe;
+        ch = o_out[i].val.u.oper;
+        if (ch==',') continue;
+        if (vsp < 1) goto syntaxe;
         t1 = try_resolv(&values[vsp-1]->val);
+        if (ch == '<' || ch == '>') {
+            switch (t1) {
+            case T_CHR:
+            case T_INT:
+                {
+                    uint16_t val1 = values[vsp-1]->val.u.num;
+
+                    switch (ch) {
+                    case '>': val1 >>= 8;
+                    case '<': val1 = (uint8_t)val1; break;
+                    }
+                    values[vsp-1]->val.type = T_INT;
+                    values[vsp-1]->val.u.num = val1;
+                    break;
+                }
+            case T_TSTR:
+                free(values[vsp-1]->val.u.str.data);
+            default:
+                err_msg_wrong_type(t1, values[vsp-1]->epoint);
+                values[vsp-1]->val.type = T_NONE; 
+            case T_NONE:break;
+            }
+            values[vsp-1]->epoint = o_out[i].epoint;
+            continue;
+        }
+        if (vsp < 2) goto syntaxe;
         t2 = try_resolv(&values[vsp-2]->val);
         switch (t1) {
         case T_CHR:
@@ -375,9 +422,18 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
         if (t2 == T_TSTR) free(values[vsp-2]->val.u.str.data);
         vsp--; values[vsp-1]->val.type = T_NONE; continue;
     }
-    if (large) *cd=0;
+    if (large) cd=0;
+    values_len = vsp;
+    return cd;
+}
 
-    *v=values[0]->val;
+int get_val_compat(struct value_s *v, enum type_e type, unsigned int *epoint) {// length in bytes, defined
+    static uint8_t line[linelength];  //current line data
+
+    if (values_p >= values_len) return 0;
+
+    if (epoint) *epoint = values[values_p]->epoint;
+    *v=values[values_p++]->val;
     try_resolv(v);
     switch (v->type) {
     case T_TSTR:
@@ -388,35 +444,90 @@ static void get_exp_compat(int *wd, int *df,int *cd, struct value_s *v, enum typ
     case T_STR:
     case T_INT:
     case T_CHR:
-        if (type == T_NONE) return;
+        if (type == T_NONE) return 1;
         if (type == T_INT) {
             switch (v->type) {
             case T_CHR:
                 v->type = T_INT;
             case T_INT:
-                if (conv==1) v->u.num = (uint8_t)v->u.num;
-                if (conv==2) v->u.num = (uint8_t)(v->u.num >> 8);
-                return;
+                return 1;
             default:
                 break;
             }
         }
     default:
-        err_msg_wrong_type(v->type, values[0]->epoint);
-        *cd=0; v->type = T_NONE;break;
-    case T_NONE: *df = 0; break;
+        err_msg_wrong_type(v->type, values[values_p-1]->epoint);
+        v->type = T_NONE;break;
+    case T_NONE: break;
     }
-    return;
+    return 1;
 }
 
-void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// length in bytes, defined
-    int nd=0;
+void eval_finish(void) {
+    if (values_p >= values_len) return;
+    lpoint = values[values_p]->epoint;
+}
+
+int get_val(struct value_s *v, enum type_e type, unsigned int *epoint) {// length in bytes, defined
+    static uint8_t line[linelength];  //current line data
+    unsigned int i;
+
+    if (arguments.tasmcomp) {
+        return get_val_compat(v, type, epoint);
+    }
+
+    if (values_p >= values_len) return 0;
+
+    if (epoint) *epoint = values[values_p]->epoint;
+    *v=values[values_p++]->val;
+    try_resolv(v);
+
+    switch (v->type) {
+    case T_TSTR:
+        if (v->u.str.len <= linelength) memcpy(line, v->u.str.data, v->u.str.len);
+        free(v->u.str.data);
+        v->u.str.data = line;
+        v->type = T_STR;
+    case T_STR:
+    case T_INT:
+    case T_CHR:
+        if (type == T_NONE) return 1;
+        if (type == T_INT) {
+            switch (v->type) {
+            case T_STR:
+                if (v->u.str.len < 5) {
+                    i = v->u.str.len; v->u.num = 0;
+                    while (i) v->u.num = (v->u.num << 8) | line[--i];
+                } else {
+                    err_msg2(ERROR_CONSTNT_LARGE, NULL, values[values_p-1]->epoint);
+                    v->type = T_NONE;return 1;
+                }
+            case T_CHR:
+                v->type = T_INT;
+            case T_INT:
+                return 1;
+            default:
+                break;
+            }
+        }
+    default:
+        err_msg_wrong_type(v->type, values[values_p-1]->epoint);
+        v->type = T_NONE;break;
+    case T_NONE: break;
+    }
+    return 1;
+}
+
+int get_exp(int *wd, int stop) {// length in bytes, defined
+    int cd;
     unsigned int i;
     char ch;
     static uint8_t line[linelength];  //current line data
 
-    struct {struct value_s val; char oper;unsigned int epoint;} o_out[256], *values[256], *v1, *v2;
-    char o_oper[256];
+    static struct values_s o_out[256];
+    struct values_s *v1, *v2;
+    char o_oper[256] = {0};
+    unsigned int epoints[256];
     uint8_t outp = 0, operp = 0, vsp, prec, db;
     int large=0;
     int32_t val;
@@ -424,15 +535,12 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
     unsigned int epoint;
 
     if (arguments.tasmcomp) {
-        get_exp_compat(wd,df,cd,v,type);
-        return;
+        return get_exp_compat(wd, stop);
     }
+    values_len = values_p = 0;
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
-    *df=1;    // 1=result is ok, result is not yet known
-    *cd=0;    // 0=error, 1=ok, 2=(a, 3=(), 4=[]
-    v->type = T_NONE;
-    o_oper[0]=0;
+    cd=0;    // 0=error, 1=ok, 2=(a, 3=(), 4=[]
 
     ignore();
     switch (here()) {
@@ -441,167 +549,171 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
 	case 'b':*wd=0;break;
 	case 'w':*wd=1;break;
 	case 'l':*wd=2;break;
-	default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); return;
+	default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); return 0;
 	}
         lpoint++;
         break;
     }
     for (;;) {
         ignore();ch = here(); epoint = lpoint;
-        if (!nd) {
-            switch (ch) {
-            case '[':
-            case '(': o_oper[operp++] = ch; lpoint++;continue;
-            case '+': db = 1;
-                while ((ch=pline[lpoint+db])=='+') db++;
-                if (!(ch>='0' && ch<='9') && ch!='$' && ch!='"' && ch!='\'' && ch!='%' && ch!='(' && ch!='_' && !(ch>='a' && ch<='z') && !(ch>='A' && ch<='Z')) {
-                    lpoint += db;
-                    o_out[outp].val.u.num = db;
-                    o_out[outp].val.type = T_FORWR;goto pushval;
+        switch (ch) {
+        case '[':
+        case '(': o_oper[operp++] = ch; lpoint++;continue;
+        case '+': ch = 'p'; break;
+        case '-': ch = 'n'; break;
+        case '!': break;
+        case '~': break;
+        case '<': ch = 'l'; break;
+        case '>': ch = 'h'; break;
+        case '`': ch = 'H'; break;
+        case '^': ch = 'S'; break;
+        case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
+        case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
+        case '"':
+        case '\'': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
+        case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
+        default: 
+            if (ch>='0' && ch<='9') {
+                if (get_dec(&o_out[outp].val)) {
+                pushlarge:
+                    err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
                 }
-                ch = 'p'; break;
-            case '-': db = 1;
-                while ((ch=pline[lpoint+db])=='-') db++;
-                if (!(ch>='0' && ch<='9') && ch!='$' && ch!='"' && ch!='\'' && ch!='%' && ch!='(' && ch!='_' && !(ch>='a' && ch<='z') && !(ch>='A' && ch<='Z')) {
-                    lpoint += db;
-                    o_out[outp].val.u.num = db;
-                    o_out[outp].val.type = T_BACKR;goto pushval;
-                }
-                ch = 'n'; break;
-            case '!': break;
-            case '~': break;
-            case '<': ch = 'l'; break;
-            case '>': ch = 'h'; break;
-            case '`': ch = 'H'; break;
-            case '^': ch = 'S'; break;
-            case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
-            case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
-            case '"':
-            case '\'': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
-            case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
-            default: 
-                if (ch>='0' && ch<='9') {
-                    if (get_dec(&o_out[outp].val)) {
-                    pushlarge:
-                        err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
-                    }
-                pushval: 
-                    o_out[outp].epoint=epoint;
-                    o_out[outp++].oper=' ';nd = 1;
-                    continue;
-                }
-                o_out[outp].val.u.ident.name = pline + lpoint;
-                while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint++;
-                o_out[outp].val.u.ident.len = pline + lpoint - o_out[outp].val.u.ident.name;
-                if (!o_out[outp].val.u.ident.len) goto syntaxe;
+            pushval: 
+                o_out[outp++].epoint=epoint;
+                goto other;
+            }
+            while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint++;
+            if (epoint != lpoint) {
+                o_out[outp].val.u.ident.name = pline + epoint;
+                o_out[outp].val.u.ident.len = lpoint - epoint;
                 o_out[outp].val.type = T_IDENT;
-                o_out[outp].epoint=epoint;
-                o_out[outp++].oper=' ';
-                nd = 1;
-                continue;
+                o_out[outp++].epoint=epoint;
+                goto other;
+            }
+            db = operp;
+            while (operp && o_oper[operp-1] == 'p') operp--;
+            if (db != operp) {
+                o_out[outp].val.u.num = db - operp;
+                o_out[outp].val.type = T_FORWR;
+                epoint = epoints[operp];
+                goto pushval;
+            }
+            while (operp && o_oper[operp-1] == 'n') operp--;
+            if (db != operp) {
+                o_out[outp].val.u.num = db - operp;
+                o_out[outp].val.type = T_BACKR;
+                epoint = epoints[operp];
+                goto pushval;
+            }
+            goto syntaxe;
+        }
+        lpoint++;
+        prec = priority(ch);
+        while (operp && prec < priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
+        epoints[operp] = epoint;
+        o_oper[operp++] = ch;
+        continue;
+    other:
+        ignore();ch = here(); epoint = lpoint;
+        switch (ch) {
+        case ',': if (stop) break;goto push2;
+        case '[': ch = 'I';goto push2;
+        case '&': if (pline[lpoint+1] == '&') {lpoint++;ch = 'A';} goto push2;
+        case '|': if (pline[lpoint+1] == '|') {lpoint++;ch = 'O';} goto push2;
+        case '^': if (pline[lpoint+1] == '^') {lpoint++;ch = 'X';} goto push2;
+        case '*': if (pline[lpoint+1] == '*') {lpoint++;ch = 'E';} goto push2;
+        case '%': goto push2;
+        case '/': if (pline[lpoint+1] == '/') {lpoint++;ch = '%';} goto push2;
+        case '+': goto push2;
+        case '-': goto push2;
+        case '.': goto push2;
+        case '=': if (pline[lpoint+1] == '=') lpoint++;
+        push2:
+            prec = priority(ch);
+            while (operp && prec <= priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
+            o_oper[operp++] = ch;
+            lpoint++;
+            continue;
+        case '<': 
+            switch (pline[lpoint+1]) {
+            case '>': lpoint++;ch = 'o'; break;
+            case '<': lpoint++;ch = 'm'; break;
+            case '=': lpoint++;ch = 's'; break;
+            }
+            goto push2;
+        case '>':
+            switch (pline[lpoint+1]) {
+            case '<': lpoint++;ch = 'o'; break;
+            case '>': lpoint++;if (pline[lpoint+1] == '>') {lpoint++;ch = 'd';} else ch = 'D'; break;
+            case '=': lpoint++;ch = 'g'; break;
+            }
+            goto push2;
+        case '!':
+            if (pline[lpoint+1]=='=') {lpoint++;ch = 'o';goto push2;}
+            goto syntaxe;
+        case ')':
+            while (operp && o_oper[operp-1] != '(') {
+                if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
+                o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
             }
             lpoint++;
-            prec = priority(ch);
-            while (operp && prec < priority(o_oper[operp-1])) o_out[outp++].oper=o_oper[--operp];
-            o_oper[operp++] = ch;
-            continue;
-	}
-	else {
-            switch (ch) {
-            case '[': ch = 'I';goto push2;
-            case '&': if (pline[lpoint+1] == '&') {lpoint++;ch = 'A';} goto push2;
-            case '|': if (pline[lpoint+1] == '|') {lpoint++;ch = 'O';} goto push2;
-            case '^': if (pline[lpoint+1] == '^') {lpoint++;ch = 'X';} goto push2;
-            case '*': if (pline[lpoint+1] == '*') {lpoint++;ch = 'E';} goto push2;
-            case '%': goto push2;
-            case '/': if (pline[lpoint+1] == '/') {lpoint++;ch = '%';} goto push2;
-            case '+': goto push2;
-            case '-': goto push2;
-            case '.': goto push2;
-            case '=': if (pline[lpoint+1] == '=') lpoint++;
-            push2:
-                prec = priority(ch);
-                while (operp && prec <= priority(o_oper[operp-1])) o_out[outp++].oper=o_oper[--operp];
-                o_oper[operp++] = ch;
-		nd=0;
-		lpoint++;
-		continue;
-            case '<': 
-                switch (pline[lpoint+1]) {
-                case '>': lpoint++;ch = 'o'; break;
-                case '<': lpoint++;ch = 'm'; break;
-                case '=': lpoint++;ch = 's'; break;
-                }
-                goto push2;
-            case '>':
-                switch (pline[lpoint+1]) {
-                case '<': lpoint++;ch = 'o'; break;
-                case '>': lpoint++;if (pline[lpoint+1] == '>') {lpoint++;ch = 'd';} else ch = 'D'; break;
-                case '=': lpoint++;ch = 'g'; break;
-                }
-                goto push2;
-            case '!':
-                if (pline[lpoint+1]=='=') {lpoint++;ch = 'o';goto push2;}
-                break;
-            case ')':
+            if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
+            operp--;
+            goto other;
+        case ']':
+            while (operp && o_oper[operp-1] != '[') {
+                if (o_oper[operp-1]=='(') {err_msg(ERROR______EXPECTED,"["); goto error;}
+                o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
+                if (o_oper[operp] == 'I') break;
+            }
+            lpoint++;
+            if (o_oper[operp] == 'I') goto other;
+            if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
+            operp--;
+            goto other;
+        case 0:
+        case ';': break;
+        default: goto syntaxe;
+        }
+        if (stop && o_oper[0]=='(') {
+            if (!operp) {cd=3;break;}
+            if (ch == ',') {
                 while (operp && o_oper[operp-1] != '(') {
                     if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
-                    o_out[outp++].oper=o_oper[--operp];
+                    o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
                 }
-		lpoint++;
-                if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
-                operp--;
-		continue;
-            case ']':
-                while (operp && o_oper[operp-1] != '[') {
-                    if (o_oper[operp-1]=='(') {err_msg(ERROR______EXPECTED,"["); goto error;}
-                    o_out[outp++].oper=o_oper[--operp];
-                    if (o_oper[operp] == 'I') break;
-                }
-		lpoint++;
-                if (o_oper[operp] == 'I') continue;
-                if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
-                operp--;
-		continue;
-            case 0:
-            case ';':
-            case ',': break;
-            default: goto syntaxe;
-	    }
-            if (o_oper[0]=='(') {
-                if (!operp) {*cd=3;break;}
-                if (ch == ',') {
-                    while (operp && o_oper[operp-1] != '(') {
-                        if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
-                        o_out[outp++].oper=o_oper[--operp];
-                    }
-                    if (operp==1) {*cd=2; break;}
-                }
-                err_msg(ERROR______EXPECTED,")"); goto error;
-            } else if (o_oper[0]=='[') {
-                if (!operp) {*cd=4;break;}
-                err_msg(ERROR______EXPECTED,"]"); goto error;
-            } else {
-                while (operp) {
-                    if (o_oper[operp-1] == '(') {err_msg(ERROR______EXPECTED,")"); goto error;}
-                    if (o_oper[operp-1] == '[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"]"); goto error;}
-                    o_out[outp++].oper=o_oper[--operp];
-                }
-                if (!operp) {*cd=1;break;}
+                if (operp==1) {cd=2; break;}
             }
-        syntaxe:
-            err_msg(ERROR_EXPRES_SYNTAX,NULL);
-        error:
-            for (i=0; i<outp; i++) if (o_out[i].oper==' ' && o_out[i].val.type == T_TSTR) free(o_out[i].val.u.str.data);
-            return;
-	}
+            err_msg(ERROR______EXPECTED,")"); goto error;
+        } else if (stop && o_oper[0]=='[') {
+            if (!operp) {cd=4;break;}
+            err_msg(ERROR______EXPECTED,"]"); goto error;
+        } else {
+            while (operp) {
+                if (o_oper[operp-1] == '(') {err_msg(ERROR______EXPECTED,")"); goto error;}
+                if (o_oper[operp-1] == '[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"]"); goto error;}
+                o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
+            }
+            if (!operp) {cd=1;break;}
+        }
+    syntaxe:
+        err_msg(ERROR_EXPRES_SYNTAX,NULL);
+    error:
+        for (i=0; i<outp; i++) if (o_out[i].val.type == T_TSTR) free(o_out[i].val.u.str.data);
+        return 0;
     }
     vsp = 0;
     for (i=0;i<outp;i++) {
-	if ((ch=o_out[i].oper)==' ') {
+	if (o_out[i].val.type != T_OPER) {
+            if (vsp >= values_size) {
+                values_size += 16;
+                values = realloc(values, sizeof(struct values_s *)*values_size);
+            }
             values[vsp++]=&o_out[i];
             continue;
         }
+        ch = o_out[i].val.u.oper;
+        if (ch==',') continue;
         if (vsp == 0) goto syntaxe;
         v1 = values[vsp-1];
         switch (ch) {
@@ -634,7 +746,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         case 'l':
             switch (try_resolv(&v1->val)) {
             case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)v1->val.u.num;continue;
+            case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)v1->val.u.num;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -642,7 +754,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         case 'h':
             switch (try_resolv(&v1->val)) {
             case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)(v1->val.u.num >> 8);continue;
+            case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)(v1->val.u.num >> 8);v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -650,7 +762,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         case 'H':
             switch (try_resolv(&v1->val)) {
             case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)(v1->val.u.num >> 16);continue;
+            case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)(v1->val.u.num >> 16);v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -668,6 +780,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
                 v1->val.u.str.len=strlen((char *)line);
                 v1->val.u.str.data=malloc(v1->val.u.str.len);
                 memcpy(v1->val.u.str.data, line, v1->val.u.str.len);
+                v1->epoint = o_out[i].epoint;
                 continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
@@ -676,7 +789,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         case 'p':
             switch (try_resolv(&v1->val)) {
             case T_INT:
-            case T_CHR: v1->val.type = T_INT;continue;
+            case T_CHR: v1->val.type = T_INT;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -684,7 +797,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         case 'n':
             switch (try_resolv(&v1->val)) {
             case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = -v1->val.u.num;continue;
+            case T_CHR: v1->val.type = T_INT; v1->val.u.num = -v1->val.u.num;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -692,7 +805,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         case '~':
             switch (try_resolv(&v1->val)) {
             case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = ~v1->val.u.num;continue;
+            case T_CHR: v1->val.type = T_INT; v1->val.u.num = ~v1->val.u.num;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -700,7 +813,7 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         case '!':
             switch (try_resolv(&v1->val)) {
             case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = !v1->val.u.num;continue;
+            case T_CHR: v1->val.type = T_INT; v1->val.u.num = !v1->val.u.num;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             case T_STR:
                 v1->val.type = T_INT;
@@ -854,43 +967,11 @@ void get_exp(int *wd, int *df,int *cd, struct value_s *v, enum type_e type) {// 
         else err_msg_wrong_type(v1->val.type, v1->epoint);
         goto errtype;
     }
-    if (large) *cd=0;
-
-    *v=values[0]->val;
-    try_resolv(v);
-
-    switch (v->type) {
-    case T_TSTR:
-        if (v->u.str.len <= linelength) memcpy(line, v->u.str.data, v->u.str.len);
-        free(v->u.str.data);
-        v->u.str.data = line;
-        v->type = T_STR;
-    case T_STR:
-    case T_INT:
-    case T_CHR:
-        if (type == T_NONE) return;
-        if (type == T_INT) {
-            switch (v->type) {
-            case T_STR:
-                if (v->u.str.len < 5) {
-                    i = v->u.str.len; v->u.num = 0;
-                    while (i) v->u.num = (v->u.num << 8) | line[--i];
-                } else {
-                    *cd=0; err_msg2(ERROR_CONSTNT_LARGE, NULL, values[0]->epoint);
-                }
-            case T_CHR:
-                v->type = T_INT;
-            case T_INT:
-                return;
-            default:
-                break;
-            }
-        }
-    default:
-        err_msg_wrong_type(v->type, values[0]->epoint);
-        *cd=0; v->type = T_NONE;break;
-    case T_NONE: *df = 0; break;
-    }
-    return;
+    if (large) cd=0;
+    values_len = vsp;
+    return cd;
 }
 
+void free_values(void) {
+    free(values);
+}

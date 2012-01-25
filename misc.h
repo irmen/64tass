@@ -44,7 +44,7 @@ typedef uint_fast32_t address_t;
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 enum type_e {
-    T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR, T_IDENT, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF
+    T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR, T_IDENT, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER
 };
 
 struct value_s {
@@ -60,6 +60,7 @@ struct value_s {
             const uint8_t *name;
         } ident;
         struct label_s *label;
+        char oper;
     } u;
 };
 
