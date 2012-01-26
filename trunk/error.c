@@ -98,6 +98,7 @@ static const char *terr_error[]={
 };
 static const char *terr_fatal[]={
     "Can't locate file: %s\n",
+    "Error reading file: %s\n",
     "Out of memory\n",
     "Can't write object file: %s\n",
     "Line too long\n",
