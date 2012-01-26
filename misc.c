@@ -664,7 +664,7 @@ struct file_s *openfile(const char* name) {
                 return NULL;
             }
             if (arguments.quiet) printf("Assembling file:   %s\n",name);
-            ch=fgetc(f);
+            ch=getc(f);
             ungetc(ch, f); 
             if (!ch) type=UTF16BE; /* most likely */
 
@@ -673,7 +673,7 @@ struct file_s *openfile(const char* name) {
                 uint8_t *pline;
                 uint32_t c = 0, lastchar;
                 if (lastfi->p + linelength > lastfi->len) {
-                    lastfi->len += linelength;
+                    lastfi->len += linelength * 2;
                     lastfi->data=realloc(lastfi->data, lastfi->len);
                 }
                 pline=&lastfi->data[lastfi->p];
@@ -681,86 +681,85 @@ struct file_s *openfile(const char* name) {
                     lastchar = c;
                     if (arguments.toascii) {
                         switch (type) {
-                            case UNKNOWN:
-                            case UTF8:
-                                c = ch = fgetc(f);
-                                if (ch == EOF) break;
+                        case UNKNOWN:
+                        case UTF8:
+                            c = ch = getc(f);
+                            if (ch == EOF) break;
 
-                                if (ch < 0x80) {
-                                    i = 0;
-                                } else if (ch < 0xc0) {
-                                    if (type == UNKNOWN) {
-                                        type = ISO1; break;
-                                    }
-                                    c = 0xfffd; i = 0;
-                                } else if (ch < 0xe0) {
-                                    c ^= 0xc0;i = 1;
-                                } else if (ch < 0xf0) {
-                                    c ^= 0xe0;i = 2;
-                                } else if (ch < 0xf8) {
-                                    c ^= 0xf0;i = 3;
-                                } else if (ch < 0xfc) {
-                                    c ^= 0xf8;i = 4;
-                                } else if (ch < 0xfe) {
-                                    c ^= 0xfc;i = 5;
-                                } else {
-                                    if (type == UNKNOWN) {
-                                        ch2=fgetc(f);
-                                        if (ch == 0xff && ch2 == 0xfe) {
-                                            type = UTF16LE;continue;
-                                        }
-                                        if (ch == 0xfe && ch2 == 0xff) {
-                                            type = UTF16BE;continue;
-                                        }
-                                        ungetc(ch2, f); 
-                                        type = ISO1; break;
-                                    }
-                                    c = 0xfffd; i = 0;
+                            if (ch < 0x80) goto done;
+                            if (ch < 0xc0) {
+                                if (type == UNKNOWN) {
+                                    type = ISO1; break;
                                 }
+                                c = 0xfffd; break;
+                            } else if (ch < 0xe0) {
+                                c ^= 0xc0;i = 1;
+                            } else if (ch < 0xf0) {
+                                c ^= 0xe0;i = 2;
+                            } else if (ch < 0xf8) {
+                                c ^= 0xf0;i = 3;
+                            } else if (ch < 0xfc) {
+                                c ^= 0xf8;i = 4;
+                            } else if (ch < 0xfe) {
+                                c ^= 0xfc;i = 5;
+                            } else {
+                                if (type == UNKNOWN) {
+                                    ch2=getc(f);
+                                    if (ch == 0xff && ch2 == 0xfe) {
+                                        type = UTF16LE;continue;
+                                    }
+                                    if (ch == 0xfe && ch2 == 0xff) {
+                                        type = UTF16BE;continue;
+                                    }
+                                    ungetc(ch2, f); 
+                                    type = ISO1; break;
+                                }
+                                c = 0xfffd; break;
+                            }
 
-                                for (j = i; i; i--) {
-                                    ch2 = fgetc(f);
-                                    if (ch2 < 0x80 || ch2 >= 0xc0) {
-                                        if (type == UNKNOWN) {
-                                            type = ISO1;
-                                            i = (j - i) * 6;
-                                            pline = utf8out(((~0x7f >> j) & 0xff) | (c >> i), pline);
-                                            for (;i; i-= 6) {
-                                                pline = utf8out(((c >> (i-6)) & 0x3f) | 0x80, pline);
-                                            }
-                                            c = ch2; j = 0;
-                                            break;
+                            for (j = i; i; i--) {
+                                ch2 = getc(f);
+                                if (ch2 < 0x80 || ch2 >= 0xc0) {
+                                    if (type == UNKNOWN) {
+                                        type = ISO1;
+                                        i = (j - i) * 6;
+                                        pline = utf8out(((~0x7f >> j) & 0xff) | (c >> i), pline);
+                                        for (;i; i-= 6) {
+                                            pline = utf8out(((c >> (i-6)) & 0x3f) | 0x80, pline);
                                         }
-                                        ungetc(ch2, f);
-                                        c = 0xfffd;break;
+                                        c = ch2; j = 0;
+                                        break;
                                     }
-                                    c = (c << 6) ^ ch2 ^ 0x80;
+                                    ungetc(ch2, f);
+                                    c = 0xfffd;break;
                                 }
-                                if (j) type = UTF8;
-                                break;
-                            case UTF16LE:
-                                c = fgetc(f);
-                                ch = fgetc(f);
-                                if (ch == EOF) break;
-                                c |= ch << 8;
-                                if (c == 0xfffe) {
-                                    type = UTF16BE;
-                                    continue;
-                                }
-                                break;
-                            case UTF16BE:
-                                c = fgetc(f) << 8;
-                                ch = fgetc(f);
-                                if (ch == EOF) break;
-                                c |= ch;
-                                if (c == 0xfffe) {
-                                    type = UTF16LE;
-                                    continue;
-                                }
-                                break;
-                            case ISO1:
-                                c = ch = fgetc(f);
-                                break;
+                                c = (c << 6) ^ ch2 ^ 0x80;
+                            }
+                            if (j) type = UTF8;
+                            break;
+                        case UTF16LE:
+                            c = getc(f);
+                            ch = getc(f);
+                            if (ch == EOF) break;
+                            c |= ch << 8;
+                            if (c == 0xfffe) {
+                                type = UTF16BE;
+                                continue;
+                            }
+                            break;
+                        case UTF16BE:
+                            c = getc(f) << 8;
+                            ch = getc(f);
+                            if (ch == EOF) break;
+                            c |= ch;
+                            if (c == 0xfffe) {
+                                type = UTF16LE;
+                                continue;
+                            }
+                            break;
+                        case ISO1:
+                            c = ch = getc(f);
+                            goto done;
                         }
                         if (c == 0xfeff) continue;
                         if (type != UTF8) {
@@ -776,11 +775,10 @@ struct file_s *openfile(const char* name) {
                                 c = 0xfffd;
                             }
                         }
-                    } else {
-                        c = ch = fgetc(f);
-                    }
+                    } else c = ch = getc(f);
 
                     if (ch == EOF) break;
+                done:
                     if (c == 10) {
                         if (lastchar == 13) continue;
                         break;
@@ -801,6 +799,7 @@ struct file_s *openfile(const char* name) {
 
                 if (ch == EOF) break;
             } while (1);
+            if (ferror(f)) err_msg(ERROR__READING_FILE,name);
             if (f!=stdin) fclose(f);
             lastfi->len = lastfi->p;
             lastfi->data=realloc(lastfi->data, lastfi->len);
@@ -871,7 +870,7 @@ void labelprint(void) {
                 {
                     int32_t val;
                     val=l->value.u.num;
-                    if (val<0) {fputc('-', flab);val=-val;}
+                    if (val<0) {putc('-', flab);val=-val;}
                     if (val<0x100) fprintf(flab,"$%02x",val);
                     else if (val<0x10000) fprintf(flab,"$%04x",val);
                     else if (val<0x1000000) fprintf(flab,"$%06x",val);
@@ -897,10 +896,10 @@ void labelprint(void) {
                     break;
                 }
             default:
-                fputc('?', flab);
+                putc('?', flab);
                 break;
             }
-            fputc('\n', flab);
+            putc('\n', flab);
         }
 	if (flab != stdout) fclose(flab);
     }

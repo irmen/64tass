@@ -229,7 +229,7 @@ static void printllist(FILE *f) {
         fwrite(last, c - last, 1, f);
         llist=NULL;
     }
-    fputc('\n', f);
+    putc('\n', f);
 }
 
 // ---------------------------------------------------------------------------
@@ -654,7 +654,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 eval_finish();
                 tmp=new_label(varname, L_LABEL);
                 if (listing && flist && arguments.source && tmp->ref) {
-                    if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
+                    if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                     if (val.type == T_INT || val.type == T_CHR) {
                         fprintf(flist,"=%x\t\t\t\t\t",val.u.num);
                     } else {
@@ -690,7 +690,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     eval_finish();
                     tmp=new_label(varname, L_VAR);
                     if (listing && flist && arguments.source && tmp->ref) {
-                        if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
+                        if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                         if (val.type == T_INT || val.type == T_CHR) {
                             fprintf(flist,"=%x\t\t\t\t\t",val.u.num);
                         } else {
@@ -719,7 +719,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     { //variable
                         struct jump_s *tmp2;
                         if (listing && flist && arguments.source) {
-                            if (lastl!=LIST_EQU) {fputc('\n',flist);lastl=LIST_EQU;}
+                            if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                             fputs("=\t\t\t\t\t", flist);
                             printllist(flist);
                         }
@@ -807,7 +807,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         tmp->ref=0;
                         if (!structrecursion) {address = l_address = 0;dooutput = 0;memjmp(0);}
                         if (listing && flist && arguments.source) {
-                            if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
+                            if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                             printllist(flist);
                         }
@@ -863,7 +863,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         skipit[waitforp]=1;
                         current_context=tmp;
                         if (listing && flist && arguments.source) {
-                            if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                            if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                             fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                         }
                         tmp->ref=0;
@@ -873,7 +873,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     waitfor[++waitforp].what='b';waitfor[waitforp].line=sline;skipit[waitforp]=1;
                     current_context=tmp;
                     if (listing && flist && arguments.source) {
-                        if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                        if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                         fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                     }
                     tmp->ref=0;
@@ -883,7 +883,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         struct label_s *oldcontext = current_context;
                         current_context=tmp;
                         if (listing && flist && arguments.source) {
-                            if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
+                            if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                             printllist(flist);
                         }
@@ -937,7 +937,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
         case WHAT_COMMENT:
         case WHAT_EOL:
             if (listing && flist && arguments.source && (skipit[waitforp] & 1) && wasref) {
-                if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                 fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                 printllist(flist);
             }
@@ -952,7 +952,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         case CMD_OFFS:
                         case CMD_ENDS:
                         case CMD_STRUCT:
-                            if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
+                            if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                             printllist(flist);
                         case CMD_BINARY:
@@ -970,7 +970,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         case CMD_EOR:
                         case CMD_CPU:
                         case CMD_INCLUDE:
-                            if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                            if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                             if (wasref)
                                 fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                             else
@@ -979,7 +979,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             break;
                         default:
                             if (wasref) {
-                                if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                                if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                                 fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                             }
                     }
@@ -1211,25 +1211,25 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         if ((fil=fopen(path,"rb"))==NULL) {err_msg(ERROR_CANT_FINDFILE,path);goto breakerr;}
                         fseek(fil,foffset,SEEK_SET);
                         for (;fsize;fsize--) {
-                            int st=fgetc(fil);
+                            int st=getc(fil);
                             if (st == EOF) break;
-                            if (st < 0) err_msg(ERROR_CANT_FINDFILE,path);
                             pokeb((uint8_t)st);
                         }
+                        if (ferror(fil)) err_msg(ERROR__READING_FILE,path);
                         fclose(fil);
                     }
 
                     if (listing && flist) {
                         unsigned int i, lcol;
-                        if (lastl!=LIST_DATA) {fputc('\n',flist);lastl=LIST_DATA;}
+                        if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                         lcol=arguments.source?25:49;
                         if (dooutput) {
                             fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);
                             while (ptextaddr!=mem.p) {
                                 if (lcol==1) {
                                     if (arguments.source && llist) {
-                                        fputc('\t', flist);printllist(flist);
-                                    } else fputc('\n',flist);
+                                        putc('\t', flist);printllist(flist);
+                                    } else putc('\n',flist);
                                     fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);lcol=49;
                                 }
                                 fprintf(flist," %02x", mem.data[ptextaddr++]);
@@ -1239,9 +1239,9 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         } else fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr & all_mem);
                 
                         if (arguments.source && llist) {
-                            for (i=0; i<lcol-1; i+=8) fputc('\t',flist);
-                            fputc('\t', flist);printllist(flist);
-                        } else fputc('\n',flist);
+                            for (i=0; i<lcol-1; i+=8) putc('\t',flist);
+                            putc('\t', flist);printllist(flist);
+                        } else putc('\n',flist);
                     }
                     break;
                 }
@@ -1769,7 +1769,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 if (!(tmp2=find_macro(ident))) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
-                    if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                    if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                     fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                 }
                 ppoint=nprm=0;
@@ -2197,20 +2197,20 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         uint32_t temp=adr;
                         unsigned int i;
 
-                        if (lastl!=LIST_CODE) {fputc('\n',flist);lastl=LIST_CODE;}
+                        if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                         fprintf(flist,(all_mem==0xffff)?".%04x\t":".%06x ",(address-ln-1) & all_mem);
                         if (dooutput) {
                             if (ln>=0) {
                                 fprintf(flist," %02x", cod ^ longbranch ^ outputeor);
                                 for (i=0;i<(unsigned)ln;i++) {fprintf(flist," %02x",(uint8_t)temp ^ outputeor);temp>>=8;}
                             }
-                            if (ln<2) fputc('\t',flist);
-                            fputc('\t',flist);
+                            if (ln<2) putc('\t',flist);
+                            putc('\t',flist);
                             if (arguments.monitor) {
-                                for (i=0;i<3;i++) fputc(mnemonic[mnem*3+i],flist);
+                                for (i=0;i<3;i++) putc(mnemonic[mnem*3+i],flist);
 
                                 switch (opr) {
-                                    case ADR_IMPLIED: fputc('\t', flist); break;
+                                    case ADR_IMPLIED: putc('\t', flist); break;
                                     case ADR_ACCU: fputs(" a\t", flist); break;
                                     case ADR_IMMEDIATE:
                                                    {
@@ -2259,11 +2259,11 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                     case ADR_REL_L: fprintf(flist,(l_address & 0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000)); break;
                                     case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
                                 }
-                            } else if (arguments.source) fputc('\t',flist);
+                            } else if (arguments.source) putc('\t',flist);
                         } else if (arguments.source) fputs("\t\t\t", flist);
                         if (arguments.source) {
-                            fputc('\t', flist);printllist(flist);
-                        } else fputc('\n',flist);
+                            putc('\t', flist);printllist(flist);
+                        } else putc('\n',flist);
                     }
                     break;
                 }
@@ -2434,14 +2434,14 @@ int main(int argc,char *argv[]) {
             for (i=1;i<memblocks.p;i++) {
                 if (memblocks.data[i].start != start + size) {
                     if (arguments.nonlinear) {
-                        fputc(size,fout);
-                        fputc(size >> 8,fout);
-                        if (scpumode) fputc(size >> 16,fout);
+                        putc(size,fout);
+                        putc(size >> 8,fout);
+                        if (scpumode) putc(size >> 16,fout);
                     }
                     if ((!arguments.stripstart && !last) || arguments.nonlinear) {
-                        fputc(start,fout);
-                        fputc(start >> 8,fout);
-                        if (scpumode) fputc(start >> 16,fout);
+                        putc(start,fout);
+                        putc(start >> 8,fout);
+                        if (scpumode) putc(start >> 16,fout);
                     }
                     while (last<i) {
                         fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
@@ -2449,7 +2449,7 @@ int main(int argc,char *argv[]) {
                     }
                     if (!arguments.nonlinear) {
                         size = memblocks.data[i].start - start - size;
-                        while (size--) fputc(0, fout);
+                        while (size--) putc(0, fout);
                     }
                     start = memblocks.data[i].start;
                     size = 0;
@@ -2457,14 +2457,14 @@ int main(int argc,char *argv[]) {
                 size += memblocks.data[i].len;
             }
             if (arguments.nonlinear) {
-                fputc(size,fout);
-                fputc(size >> 8,fout);
-                if (scpumode) fputc(size >> 16,fout);
+                putc(size,fout);
+                putc(size >> 8,fout);
+                if (scpumode) putc(size >> 16,fout);
             }
             if ((!arguments.stripstart && !last) || arguments.nonlinear) {
-                fputc(start,fout);
-                fputc(start >> 8,fout);
-                if (scpumode) fputc(start >> 16,fout);
+                putc(start,fout);
+                putc(start >> 8,fout);
+                if (scpumode) putc(start >> 16,fout);
             }
             while (last<i) {
                 fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
@@ -2472,9 +2472,9 @@ int main(int argc,char *argv[]) {
             }
         }
         if (arguments.nonlinear) {
-            fputc(0,fout);
-            fputc(0,fout);
-            if (scpumode) fputc(0 ,fout);
+            putc(0,fout);
+            putc(0,fout);
+            if (scpumode) putc(0 ,fout);
         }
         if (ferror(fout)) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
 	if (fout != stdout) fclose(fout);
