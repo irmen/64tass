@@ -1935,7 +1935,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                                                 adr=(uint16_t)(adr - l_address - 2);labelexists=0;
                                             }
                                             ln=1;opr=ADR_REL;longbranch=0;
-                                            if ((l_address >> 16)!=(adr >> 16)) { err = ERROR_BRANCH_TOOFAR; continue; }
+                                            if (((uval_t)l_address ^ (uval_t)val.u.num) & ~(uval_t)0xffff) { err = ERROR_BRANCH_TOOFAR; continue; }
                                             if (adr<0xFF80 && adr>0x007F) {
                                                 if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
                                                     if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
