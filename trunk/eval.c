@@ -28,45 +28,51 @@ extern char ident[];
 static struct encoding_s *actual_encoding = ascii_encoding;
 
 static int get_hex(struct value_s *v) {
-    uint32_t val=0;
-    int large=0;
+    uval_t val=0;
+    unsigned int large;
     ignore();
-    v->type=T_INT;
-    while ((uint8_t)(here() ^ '0') < 10 || (uint8_t)((here() | 0x20)-'a') < 6 ) {
-        if (val & 0xf8000000) large=1;
+    while (here()==0x30) lpoint++;
+    large=lpoint;
+    while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
         val=(val << 4)+(here() & 15);
         if (here() & 0x40) val+=9;
         lpoint++;
     }
     v->u.num=val;
-    return large;
+    v->type=T_INT;
+    return lpoint - large > sizeof(val)*2;
 }
 
 static int get_bin(struct value_s *v) {
-    uint32_t val=0;
-    int large=0;
+    uval_t val=0;
+    unsigned int large;
     ignore();
-    v->type=T_INT;
+    while (here()==0x30) lpoint++;
+    large=lpoint;
     while ((here() & 0xfe)=='0') {
-        if (val & 0x40000000) large=1;
         val=(val << 1) | (here() & 1);
         lpoint++;
     }
     v->u.num=val;
-    return large;
+    v->type=T_INT;
+    return lpoint - large > sizeof(val)*8;
 }
 
 static int get_dec(struct value_s *v) {
-    uint32_t val=0;
+    uval_t val=0;
     int large=0;
-    v->type=T_INT;
+    while (here()=='0') lpoint++;
     while ((uint8_t)(here() ^ '0') < 10) {
-        if (val > 0x7fffffff/10) large=1;
+        if (val >= ((uval_t)1 << (8*sizeof(val)-1)) / 5) {
+            if (val == ((uval_t)1 << (8*sizeof(val)-1)) / 5) {
+               if ((here() & 15) > (((uval_t)1 << (8*sizeof(val)-1)) % 5)*2) large = 1;
+            } else large=1;
+        }
         val=(val*10)+(here() & 15);
-        if (val & 0x80000000) large=1;
         lpoint++;
     }
     v->u.num=val;
+    v->type=T_INT;
     return large;
 }
 
@@ -163,11 +169,11 @@ static void copy_name(struct value_s *val) {
 
 static enum type_e try_resolv(struct value_s *val) {
     if (val->type == T_FORWR) {
-        sprintf(ident,"+%x+%x", reffile, forwr + val->u.num - 1);
+        sprintf(ident,"+%x+%x", reffile, forwr + val->u.ref - 1);
         goto ident;
     }
     if (val->type == T_BACKR) {
-        sprintf(ident,"-%x-%x", reffile, backr - val->u.num);
+        sprintf(ident,"-%x-%x", reffile, backr - val->u.ref);
         goto ident;
     }
     if (val->type == T_IDENT) {
@@ -530,7 +536,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     unsigned int epoints[256];
     uint8_t outp = 0, operp = 0, vsp, prec, db;
     int large=0;
-    int32_t val;
+    ival_t val;
     enum type_e t1, t2;
     unsigned int epoint;
 
@@ -593,14 +599,14 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             db = operp;
             while (operp && o_oper[operp-1] == 'p') operp--;
             if (db != operp) {
-                o_out[outp].val.u.num = db - operp;
+                o_out[outp].val.u.ref = db - operp;
                 o_out[outp].val.type = T_FORWR;
                 epoint = epoints[operp];
                 goto pushval;
             }
             while (operp && o_oper[operp-1] == 'n') operp--;
             if (db != operp) {
-                o_out[outp].val.u.num = db - operp;
+                o_out[outp].val.u.ref = db - operp;
                 o_out[outp].val.type = T_BACKR;
                 epoint = epoints[operp];
                 goto pushval;
@@ -840,8 +846,8 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         if (t1 == T_INT && t2 == T_CHR) t2 = T_INT;
 
         if (t1 == T_INT && t2 == T_INT) {
-            int32_t val1 = v1->val.u.num;
-            int32_t val2 = v2->val.u.num;
+            ival_t val1 = v1->val.u.num;
+            ival_t val2 = v2->val.u.num;
             switch (ch) {
             case '=': val1 = ( val1 == val2);break;
             case 'o': val1 = ( val1 != val2);break;
@@ -853,9 +859,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case 'O': val1 = ( val1 || val2);break;
             case 'X': val1 = (!val1 ^ !val2);break;
             case '*': val1 = ( val1 *  val2);break;
-            case '/': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = 0x7fffffff; large=1;}
+            case '/': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = (~(uval_t)0) >> 1; large=1;}
                 else  val1 = ( val1 /  val2); break;
-            case '%': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = 0x7fffffff; large=1;}
+            case '%': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = (~(uval_t)0) >> 1; large=1;}
                 else  val1 = ( val1 %  val2); break;
             case '+': val1 = ( val1 +  val2);break;
             case '-': val1 = ( val1 -  val2);break;
@@ -863,25 +869,25 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case '|': val1 = ( val1 |  val2);break;
             case '^': val1 = ( val1 ^  val2);break;
             case 'm':
-                if (val2 >= (signed)sizeof(val1)*8 || val2 <= -(signed)sizeof(val1)*8) val1=0;
-                else val1 = (val2 > 0) ? (val1 << val2) : (signed)((unsigned)val1 >> (-val2));
+                if (val2 >= (ival_t)sizeof(val1)*8 || val2 <= -(ival_t)sizeof(val1)*8) val1=0;
+                else val1 = (val2 > 0) ? (val1 << val2) : (ival_t)((uval_t)val1 >> (-val2));
                 break;
             case 'd': 
-                if (val2 >= (signed)sizeof(val1)*8 || val2 <= -(signed)sizeof(val1)*8) val1=0;
-                else val1 = (val2 > 0) ? (signed)((unsigned)val1 >> val2) : (val1 << (-val2));
+                if (val2 >= (ival_t)sizeof(val1)*8 || val2 <= -(ival_t)sizeof(val1)*8) val1=0;
+                else val1 = (val2 > 0) ? (ival_t)((uval_t)val1 >> val2) : (val1 << (-val2));
                 break;
             case 'D': 
-                if (val2 >= (signed)sizeof(val1)*8) val1 = (val1 > 0) ? 0 : -1;
-                if (val2 <= -(signed)sizeof(val1)*8) val1 = 0;
+                if (val2 >= (ival_t)sizeof(val1)*8) val1 = (val1 > 0) ? 0 : -1;
+                if (val2 <= -(ival_t)sizeof(val1)*8) val1 = 0;
                 else if (val1 >= 0) val1 = (val2 > 0) ? (val1 >> val2) : (val1 << (-val2));
                 else val1 = ~((val2 > 0) ? ((~val1) >> val2) : ((~val1) << (-val2)));
                 break;
             case 'E': 
                 {
-                    int32_t res = 1;
+                    ival_t res = 1;
 
                     if (val2 < 0) {
-                        if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); res = 0x7fffffff; large=1;}
+                        if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); res = (~(uval_t)0) >> 1; large=1;}
                         else res = 0;
                     } else {
                         while (val2) {
@@ -893,7 +899,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     val1 = res;
                 }
                 break;
-            case 'I': val1 = ((unsigned)val1 >> val2) & 1;
+            case 'I': val1 = ((uval_t)val1 >> val2) & 1;
                 break;
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;continue;
             }
@@ -953,10 +959,10 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             if (ch=='I') {
                 val=0;
                 if (v2->val.u.num >= 0) {
-                    if ((unsigned)v2->val.u.num < v1->val.u.str.len) val = v1->val.u.str.data[v2->val.u.num];
+                    if ((uval_t)v2->val.u.num < v1->val.u.str.len) val = v1->val.u.str.data[v2->val.u.num];
                     else err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint);
                 } else {
-                    if ((unsigned)-v2->val.u.num <= v1->val.u.str.len) val = v1->val.u.str.data[v1->val.u.str.len + v2->val.u.num];
+                    if ((uval_t)-v2->val.u.num <= v1->val.u.str.len) val = v1->val.u.str.data[v1->val.u.str.len + v2->val.u.num];
                     else err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint);
                 }
                 if (v1->val.type == T_TSTR) free(v1->val.u.str.data);

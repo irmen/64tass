@@ -40,6 +40,8 @@
 
 typedef uint_fast32_t line_t;
 typedef uint_fast32_t address_t;
+typedef int32_t ival_t;
+typedef uint32_t uval_t;
 
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
@@ -50,7 +52,7 @@ enum type_e {
 struct value_s {
     enum type_e type;
     union {
-        int32_t num;
+        ival_t num;
         struct {
             size_t len;
             uint8_t *data;
@@ -61,6 +63,7 @@ struct value_s {
         } ident;
         struct label_s *label;
         char oper;
+        uint8_t ref;
     } u;
 };
 
@@ -74,8 +77,8 @@ struct label_s {
     struct avltree_node node;
 
     struct value_s value;
-    uint32_t requires;
-    uint32_t conflicts;
+    uval_t requires;
+    uval_t conflicts;
     unsigned ref:1;
     uint8_t pass;
     uint8_t upass;
@@ -187,7 +190,7 @@ extern unsigned int utf8in(const uint8_t *c, uint32_t *out);
 extern struct encoding_s no_encoding[];
 extern struct encoding_s screen_encoding[];
 extern struct encoding_s ascii_encoding[];
-extern uint32_t current_requires, current_conflicts, current_provides;
+extern uval_t current_requires, current_conflicts, current_provides;
 extern int get_ident(void);
 
 #endif
