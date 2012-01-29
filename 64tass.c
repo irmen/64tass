@@ -89,9 +89,21 @@ uint16_t reffile;
 uint32_t backr, forwr;
 struct file_s *cfile;
 struct avltree *star_tree = NULL;
-static uint_fast8_t macrecursion, structrecursion;
+static uint_fast8_t structrecursion;
 static int unionmode;
 static address_t unionstart, unionend, l_unionstart, l_unionend;
+
+struct {
+    uint8_t p, len;
+    struct {
+        size_t len, size;
+        struct {
+            size_t len;
+            const uint8_t *data;
+        } *param, all;
+        uint8_t *pline;
+    } *params, *current;
+} macro_parameters = {0, 0, NULL, NULL};
 
 static const char* command[]={ /* must be sorted, first char is the ID */
     "\x1e" "al",
@@ -215,6 +227,14 @@ void status(void) {
     free(logitab.data);
     free_values();
     tfree();
+    {
+        int8_t i;
+        for (i = 0; i < macro_parameters.len; i++) {
+            free(macro_parameters.params[i].pline);
+            free(macro_parameters.params[i].param);
+        }
+        free(macro_parameters.params);
+    }
 }
 
 static void printllist(FILE *f) {
@@ -459,57 +479,55 @@ static int get_path(const char *base) {
  * out:
  *   cucc: one line of the macro (expanded)
 */
-static inline void mtranslate(const char* mpr, uint_fast8_t nprm, const uint8_t *tmp)
+static inline void mtranslate()
 {
     uint_fast8_t q;
-    uint_fast16_t p, pp, i, j;
-    uint8_t ch;
-    static uint8_t cucc[linelength];
+    uint_fast16_t p, j;
+    uint8_t ch, *cucc = macro_parameters.current->pline;
 
     q=p=0;
-    for (i = 0; (ch = tmp[i]); i++) {
+    for (; (ch = here()); lpoint++) {
         if (ch == '"'  && !(q & 2)) { q^=1; }
         else if (ch == '\'' && !(q & 1)) { q^=2; }
         else if ((ch == ';') && (!q)) { q=4; }
         else if ((ch=='\\') && (!q)) {
             /* normal parameter reference */
-            if (((ch=lowcase(tmp[i+1]))>='1' && ch<='9') || (ch>='a' && ch<='z')) {
+            if (((ch=lowcase(pline[lpoint+1])) >= '1' && ch <= '9') || (ch >= 'a' && ch <= 'z')) {
                 /* \1..\9, \a..\z */
-                if ((j=(ch<='9' ? ch-'1' : ch-'a'+9))>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
-                for (pp=0; j; j--) while (mpr[pp++]); //skip parameters
-                while (mpr[pp]==0x20 || mpr[pp]==0x09) pp++; //skip space
-                while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
-                if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                i++;continue;
+                if ((j=(ch<='9' ? ch-'1' : ch-'a'+9)) >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
+                if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
+                else {
+                    memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
+                    p += macro_parameters.current->param[j].len;
+                }
+                lpoint++;continue;
             } else if (ch=='@') {
                 /* \@ gives complete parameter list */
-                for (pp=j=0;j<nprm;j++) {
-                    while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
-                    if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                    if ((j+1)<nprm) {
-                        cucc[p++]=',';pp++;
-                    }
+                if (p + macro_parameters.current->all.len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
+                else {
+                    memcpy(cucc + p, macro_parameters.current->all.data, macro_parameters.current->all.len);
+                    p += macro_parameters.current->all.len;
                 }
-                if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                i++;continue;
+                lpoint++;continue;
             } else ch='\\';
         } else if (ch=='@') {
             /* text parameter reference */
-            if (((ch=lowcase(tmp[i+1]))>='1' && ch<='9')) {
+            if (((ch=lowcase(pline[lpoint+1]))>='1' && ch<='9')) {
                 /* @1..@9 */
-                if ((j=ch-'1')>=nprm) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
-                for (pp=0; j; j--) while (mpr[pp++]); //skip parameters
-                while (mpr[pp]==0x20 || mpr[pp]==0x09) pp++; //skip space
-                while (mpr[pp] && p<linelength) cucc[p++]=mpr[pp++];//copy
-                if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                i++;continue;
+                if ((j=ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
+                if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
+                else {
+                    memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
+                    p += macro_parameters.current->param[j].len;
+                }
+                lpoint++;continue;
             } else ch='@';
         }
         cucc[p++]=ch;
         if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
     }
     cucc[p]=0;
-    pline = cucc;
+    pline = cucc; lpoint = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -570,11 +588,58 @@ void var_assign(struct label_s *tmp, const struct value_s *val, int fix) {
     tmp->upass=pass;
 }
 
-static void compile(const char*,int8_t);
+static void compile(void);
 
-static void macro_recurse(const char* mprm,int8_t nprm, char t, struct macro_s *tmp2) {
-    macrecursion++;
-    if (macrecursion<100) {
+static void macro_recurse(char t, struct macro_s *tmp2) {
+    if (macro_parameters.p>100) {
+        err_msg(ERROR__MACRECURSION,"!!!!");
+        return;
+    }
+    if (macro_parameters.p >= macro_parameters.len) {
+        macro_parameters.len += 1;
+        macro_parameters.params = realloc(macro_parameters.params, sizeof(*macro_parameters.params) * macro_parameters.len);
+        if (!macro_parameters.params) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+        macro_parameters.params[macro_parameters.p].param = NULL;
+        macro_parameters.params[macro_parameters.p].size = 0;
+        macro_parameters.params[macro_parameters.p].pline = malloc(linelength);
+    }
+    macro_parameters.current = &macro_parameters.params[macro_parameters.p];
+    macro_parameters.p++;
+    {
+        uint_fast8_t q = 0, ch;
+        unsigned int opoint, npoint;
+        size_t p = 0;
+
+        ignore(); opoint = lpoint;
+        if (here() && here()!=';') {
+            do {
+                unsigned int opoint, npoint;
+                ignore(); opoint = lpoint;
+                while ((ch=here()) && (q || (ch!=';' && ch!=','))) {
+                    if (ch == '"'  && !(q & 2)) { q^=1; }
+                    else if (ch == '\'' && !(q & 1)) { q^=2; }
+                    lpoint++;
+                }
+                if (p >= macro_parameters.current->size) {
+                    macro_parameters.current->size += 4;
+                    macro_parameters.current->param = realloc(macro_parameters.current->param, sizeof(*macro_parameters.current->param) * macro_parameters.current->size);
+                    if (!macro_parameters.current->param) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+                }
+                macro_parameters.current->param[p].data = pline + opoint;
+                npoint = lpoint;
+                while (npoint > opoint && (pline[npoint-1] == 0x20 || pline[npoint-1] == 0x09)) npoint--;
+                macro_parameters.current->param[p].len = npoint - opoint;
+                p++;
+                if (ch == ',') lpoint++;
+            } while (ch == ',');
+        }
+        macro_parameters.current->len = p;
+        macro_parameters.current->all.data = pline + opoint;
+        npoint = lpoint;
+        while (npoint > opoint && (pline[npoint-1] == 0x20 || pline[npoint-1] == 0x09)) npoint--;
+        macro_parameters.current->all.len = npoint - opoint;
+    }
+    {
         size_t oldpos = tmp2->file->p;
         line_t lin = sline;
         struct file_s *f;
@@ -590,21 +655,20 @@ static void macro_recurse(const char* mprm,int8_t nprm, char t, struct macro_s *
         waitfor[++waitforp].what=t;waitfor[waitforp].line=sline;skipit[waitforp]=1;
         f = cfile; cfile = tmp2->file;
         cfile->p = tmp2->p;
-        compile(mprm,nprm);
+        compile();
         exitfile(); cfile = f;
         star_tree = stree_old; vline = ovline;
         sline = lin; tmp2->file->p = oldpos;
-    } else err_msg(ERROR__MACRECURSION,"!!!!");
-    macrecursion--;
+    }
+    macro_parameters.p--;
+    if (macro_parameters.p) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
 }
 
-static void compile(const char* mprm,int8_t nprm) // "",0
+static void compile(void) 
 {
     int wht,w;
     int prm = 0;
     struct value_s val;
-
-    char ch;
 
     struct label_s *tmp = NULL;
     struct macro_s *tmp2 = NULL;
@@ -615,7 +679,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
 
     while (cfile->len != cfile->p && nobreak) {
         pline = cfile->data + cfile->p; lpoint = 0; sline++;vline++; cfile->p += strlen((char *)pline) + 1;
-        if (nprm>=0) mtranslate(mprm,nprm,pline); //expand macro parameters, if any
+        if (macro_parameters.p) mtranslate(); //expand macro parameters, if any
         llist = pline;
         star=l_address;
         ident2[0]=wasref=0;
@@ -828,7 +892,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             l_unionstart = l_unionend = l_address;
                             waitforp--;
                             waitfor[++waitforp].what=(prm==CMD_STRUCT)?'S':'U';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                            compile(mprm,nprm);
+                            compile();
                             current_context = old_context; 
                             unionmode = old_unionmode;
                             unionstart = old_unionstart; unionend = old_unionend;
@@ -843,7 +907,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
             tmp=find_label2(ident, &current_context->members);
             if (tmp) labelexists=1;
             else {
-                if ((tmp2=find_macro(ident))) {lpoint--;ident2[0]=0;goto as_macro;}
+                if ((tmp2=find_macro(ident)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {lpoint--;ident2[0]=0;goto as_macro;}
                 tmp=new_label(ident, L_LABEL);
             }
             if (pass==1) {
@@ -915,7 +979,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (!(tmp2=find_macro(ident)) || tmp2->type!=((prm==CMD_DSTRUCT)?CMD_STRUCT:CMD_UNION)) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
                         structrecursion++;
-                        macro_recurse(mprm,nprm,(prm==CMD_DSTRUCT)?'S':'U',tmp2);
+                        macro_recurse((prm==CMD_DSTRUCT)?'S':'U',tmp2);
                         structrecursion--;
                         current_context=oldcontext;
                         unionmode = old_unionmode;
@@ -1501,7 +1565,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             for (; cnt<val.u.num; cnt++) {
                                 sline=lin;cfile->p=pos;
                                 waitfor[++waitforp].what='N';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                                compile(mprm,nprm);
+                                compile();
                             }
                             star_tree = stree_old; vline = ovline;
                         }
@@ -1606,7 +1670,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         star_tree = &cfile->star;
                         backr = forwr = 0;
                         reffile=cfile->uid;
-                        compile(mprm,nprm);
+                        compile();
                         sline = lin; vline = vlin;
                         star_tree = stree_old;
                         backr = old_backr; forwr = old_forwr;
@@ -1699,7 +1763,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             }
                         }
                         waitfor[++waitforp].what='N';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                        compile(mprm,nprm);
+                        compile();
                         xpos = cfile->p; xlin= sline;
                         pline = expr;
                         sline=lin;cfile->p=pos;
@@ -1784,7 +1848,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (structrecursion<100) {
                         waitforp--;
                         waitfor[++waitforp].what='S';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                        compile(mprm,nprm);
+                        compile();
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
                     structrecursion--;
                     unionmode = old_unionmode;
@@ -1802,7 +1866,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (structrecursion<100) {
                         waitforp--;
                         waitfor[++waitforp].what='U';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                        compile(mprm,nprm);
+                        compile();
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
                     structrecursion--;
                     unionmode = old_unionmode;
@@ -1816,7 +1880,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (!(tmp2=find_macro(ident)) || tmp2->type!=CMD_STRUCT) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
                     structrecursion++;
-                    macro_recurse(mprm,nprm,'S',tmp2);
+                    macro_recurse('S',tmp2);
                     structrecursion--;
                     unionmode = old_unionmode;
                     break;
@@ -1829,7 +1893,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (!(tmp2=find_macro(ident)) || tmp2->type!=CMD_UNION) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
                     structrecursion++;
-                    macro_recurse(mprm,nprm,'U',tmp2);
+                    macro_recurse('U',tmp2);
                     structrecursion--;
                     unionmode = old_unionmode;
                     unionstart = old_unionstart; unionend = old_unionend;
@@ -1838,8 +1902,6 @@ static void compile(const char* mprm,int8_t nprm) // "",0
             }
         case WHAT_HASHMARK:if (skipit[waitforp] & 1) //skip things if needed
             {                   //macro stuff
-                int ppoint, nprm;
-                char mparams[256];
                 struct label_s *old_context;
 
                 if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1849,40 +1911,13 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                     fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                 }
-                ppoint=nprm=0;
-                ignore();
-                while ((ch=here()) && ch!=';') {
-                    lpoint++;
-                    if (ch=='"' || ch=='\'') {
-                        char quo=ch;
-                        for (;;) {
-                            if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of string"); goto breakerr;}
-                            lpoint++;
-                            if (ch==quo) {
-                                if (here()!=quo) break;
-                                lpoint++;
-                            }
-                            mparams[ppoint++]=ch;
-                        }
-                    }
-                    else {
-                        do mparams[ppoint++]=ch; while ((ch=get())!=',' && ch && ch != ';');
-                        lpoint--;
-                    }
-                    nprm++;
-                    mparams[ppoint++]=0;
-                    ignore();
-                    if (!here() || here()==';') break;
-                    if (here()!=',') {err_msg(ERROR______EXPECTED,","); goto breakerr;}
-                    lpoint++;
-                }
                 if (tmp2->type==CMD_MACRO) {
                     sprintf(varname, "#%x#%x", (unsigned)star_tree, (unsigned)vline);
                     old_context = current_context;
                     current_context=new_label(varname, L_LABEL);
                     current_context->value.type = T_NONE;
                 } else old_context = NULL;
-                macro_recurse(mparams,nprm,'M',tmp2);
+                macro_recurse('M',tmp2);
                 if (tmp2->type==CMD_MACRO) current_context = old_context;
                 break;
             }
@@ -2235,7 +2270,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         if ((cod=cnmemonic[opr])==____) {
                             memcpy(ident,&mnemonic[mnem*3],3);
                             ident[3]=0;
-                            if ((tmp2=find_macro(ident))) {
+                            if ((tmp2=find_macro(ident)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {
                                 lpoint=oldlpoint;
                                 goto as_macro;
                             }
@@ -2329,7 +2364,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     }
                     break;
                 }
-                if ((tmp2=find_macro(ident))) goto as_macro;
+                if ((tmp2=find_macro(ident)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) goto as_macro;
             }            // fall through
         default: if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
         }
@@ -2390,16 +2425,17 @@ int main(int argc,char *argv[]) {
         for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
-            current_provides=~(uval_t)0;current_requires=0;current_conflicts=0;macrecursion=structrecursion=0;allowslowbranch=1;
+            current_provides=~(uval_t)0;current_requires=0;current_conflicts=0;structrecursion=0;allowslowbranch=1;
             waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
             current_context=&root_label;logitab.p=0;
+            macro_parameters.p = 0;
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
                 enterfile("<command line>",0);
                 fin->p = 0; cfile = fin;
                 star_tree=&fin->star;
                 reffile=cfile->uid;
-                compile("",-1);
+                compile();
                 exitfile();
                 mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
                 continue;
@@ -2411,7 +2447,7 @@ int main(int argc,char *argv[]) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
                 reffile=cfile->uid;
-                compile("",-1);
+                compile();
                 closefile(cfile);
             }
             exitfile();
@@ -2441,16 +2477,17 @@ int main(int argc,char *argv[]) {
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
             address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
-            current_provides=~(uval_t)0;current_requires=0;current_conflicts=0;macrecursion=structrecursion=0;allowslowbranch=1;
+            current_provides=~(uval_t)0;current_requires=0;current_conflicts=0;structrecursion=0;allowslowbranch=1;
             waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
             current_context=&root_label;logitab.p=0;
+            macro_parameters.p = 0;
 
             if (i == optind - 1) {
                 enterfile("<command line>",0);
                 fin->p = 0; cfile = fin;
                 star_tree=&fin->star;
                 reffile=cfile->uid;
-                compile("",-1);
+                compile();
                 exitfile();
                 mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
                 continue;
@@ -2463,7 +2500,7 @@ int main(int argc,char *argv[]) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
                 reffile=cfile->uid;
-                compile("",-1);
+                compile();
                 closefile(cfile);
             }
             exitfile();
