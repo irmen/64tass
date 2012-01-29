@@ -189,6 +189,7 @@ void err_msg_wrong_type(enum type_e type, unsigned int epoint) {
     case T_BACKR: name = "<backr>";break;
     case T_FORWR: name = "<forwr>";break;
     case T_OPER: name = "<operator>";break;
+    case T_FUNC: name = "<function>";break;
     }
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
 }

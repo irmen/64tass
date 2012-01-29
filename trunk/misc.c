@@ -861,6 +861,7 @@ void labelprint(void) {
             if (strchr(l->name,'-') || strchr(l->name,'+')) continue;
             switch (l->type) {
             case L_VAR: fprintf(flab,"%-15s .var ",l->name);break;
+            case L_UNION:
             case L_STRUCT: continue;
             default: fprintf(flab,"%-16s= ",l->name);break;
             }
