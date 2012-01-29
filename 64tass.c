@@ -90,6 +90,8 @@ uint32_t backr, forwr;
 struct file_s *cfile;
 struct avltree *star_tree = NULL;
 static uint_fast8_t macrecursion, structrecursion;
+static int unionmode;
+static address_t unionstart, unionend, l_unionstart, l_unionend;
 
 static const char* command[]={ /* must be sorted, first char is the ID */
     "\x1e" "al",
@@ -109,6 +111,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x24" "databank",
     "\x25" "dpage",
     "\x43" "dstruct",
+    "\x46" "dunion",
     "\x11" "else",
     "\x13" "elsif",
     "\x28" "enc",
@@ -118,6 +121,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x0d" "endm",
     "\x1a" "endp",
     "\x42" "ends",
+    "\x45" "endu",
     "\x3c" "eor",
     "\x21" "error",
     "\x12" "fi",
@@ -155,6 +159,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x39" "showmac",
     "\x41" "struct",
     "\x01" "text",
+    "\x44" "union",
     "\x3e" "var",
     "\x27" "warn",
     "\x09" "word",
@@ -172,7 +177,8 @@ enum command_e {
     CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN,
     CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION, CMD_BLOCK, CMD_BEND, CMD_PRON,
     CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT,
-    CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT, CMD_ENDS, CMD_DSTRUCT
+    CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT, CMD_ENDS, CMD_DSTRUCT, CMD_UNION,
+    CMD_ENDU, CMD_DUNION
 };
 
 // ---------------------------------------------------------------------------
@@ -613,6 +619,15 @@ static void compile(const char* mprm,int8_t nprm) // "",0
         llist = pline;
         star=l_address;
         ident2[0]=wasref=0;
+        if (unionmode) {
+            if (address > unionend) unionend = address;
+            if (l_address > l_unionend) l_unionend = l_address;
+            l_address = l_unionstart;
+            if (address != unionstart) {
+                address = unionstart;
+                memjmp(address);
+            }
+        }
         if ((wht=what(&prm))==WHAT_EXPRESSION) {
             if (!prm) {
                 if (here()=='-' || here()=='+') {
@@ -751,11 +766,12 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     }
                     goto finish;
                 case CMD_STRUCT:
+                case CMD_UNION:
                     {
                         struct label_s *old_context=current_context;
                         address_t old_address = address, old_laddress = l_address;
                         int old_dooutput = dooutput;
-                        waitfor[++waitforp].what='s';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                        waitfor[++waitforp].what=(prm==CMD_STRUCT)?'s':'u';waitfor[waitforp].line=sline;skipit[waitforp]=1;
                         tmp2=new_macro(ident);
                         if (labelexists) {
                             if (tmp2->p!=cfile->p
@@ -770,7 +786,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             tmp2->type=prm;
                             tmp2->file=cfile;
                         }
-                        tmp=new_label(ident, L_STRUCT);
+                        tmp=new_label(ident, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);
                         if (pass==1) {
                             if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,ident);
                             else {
@@ -781,7 +797,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             }
                         } else {
                             if (labelexists) {
-                                if (tmp->value.type != T_INT || tmp->type != L_STRUCT) { /* should not happen */
+                                if (tmp->value.type != T_INT || tmp->type != ((prm==CMD_STRUCT)?L_STRUCT:L_UNION)) { /* should not happen */
                                     err_msg(ERROR_DOUBLE_DEFINE,ident);
                                 } else {
                                     if (tmp->value.u.num != 0) {
@@ -804,10 +820,19 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         }
                         structrecursion++;
                         if (structrecursion<100) {
+                            int old_unionmode = unionmode;
+                            address_t old_unionstart = unionstart, old_unionend = unionend;
+                            address_t old_l_unionstart = l_unionstart, old_l_unionend = l_unionend;
+                            unionmode = (prm==CMD_UNION);
+                            unionstart = unionend = address;
+                            l_unionstart = l_unionend = l_address;
                             waitforp--;
-                            waitfor[++waitforp].what='S';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                            waitfor[++waitforp].what=(prm==CMD_STRUCT)?'S':'U';waitfor[waitforp].line=sline;skipit[waitforp]=1;
                             compile(mprm,nprm);
                             current_context = old_context; 
+                            unionmode = old_unionmode;
+                            unionstart = old_unionstart; unionend = old_unionend;
+                            l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
                         } else err_msg(ERROR__MACRECURSION,"!!!!");
                         structrecursion--;
                         if (!structrecursion) {address = old_address; l_address = old_laddress; dooutput = old_dooutput; memjmp(address);}
@@ -870,8 +895,15 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     tmp->ref=0;
                     goto finish;
                 case CMD_DSTRUCT: // .dstruct
+                case CMD_DUNION:
                     {
                         struct label_s *oldcontext = current_context;
+                        int old_unionmode = unionmode;
+                        address_t old_unionstart = unionstart, old_unionend = unionend;
+                        address_t old_l_unionstart = l_unionstart, old_l_unionend = l_unionend;
+                        unionmode = (prm==CMD_DUNION);
+                        unionstart = unionend = address;
+                        l_unionstart = l_unionend = l_address;
                         current_context=tmp;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
@@ -881,11 +913,14 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         tmp->ref=0;
                         ignore();
                         if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        if (!(tmp2=find_macro(ident)) || tmp2->type!=CMD_STRUCT) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
+                        if (!(tmp2=find_macro(ident)) || tmp2->type!=((prm==CMD_DSTRUCT)?CMD_STRUCT:CMD_UNION)) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
                         structrecursion++;
-                        macro_recurse(mprm,nprm,'S',tmp2);
+                        macro_recurse(mprm,nprm,(prm==CMD_DSTRUCT)?'S':'U',tmp2);
                         structrecursion--;
                         current_context=oldcontext;
+                        unionmode = old_unionmode;
+                        unionstart = old_unionstart; unionend = old_unionend;
+                        l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
                         goto finish;
                     }
                 }
@@ -944,6 +979,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         case CMD_OFFS:
                         case CMD_ENDS:
                         case CMD_STRUCT:
+                        case CMD_ENDU:
+                        case CMD_UNION:
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                             printllist(flist);
@@ -1062,6 +1099,14 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     } else if (waitfor[waitforp].what=='S') {
                         waitforp--; nobreak=0;
                     } else err_msg(ERROR______EXPECTED,".STRUCT"); break;
+                    break;
+                }
+                if (prm==CMD_ENDU) { // .ends
+                    if (waitfor[waitforp].what=='u') {
+                        waitforp--; l_address = l_unionend; if (address != unionend) {address = unionend; memjmp(address);}
+                    } else if (waitfor[waitforp].what=='U') {
+                        waitforp--; nobreak=0; l_address = l_unionend; if (address != unionend) {address = unionend; memjmp(address);}
+                    } else err_msg(ERROR______EXPECTED,".UNION"); break;
                     break;
                 }
                 if (prm==CMD_ENDP) { // .endp
@@ -1708,6 +1753,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                             case 'b': err_msg(ERROR______EXPECTED,".BEND"); noerr = 0; break;
                             case 'S':
                             case 's': err_msg(ERROR______EXPECTED,".ENDS"); noerr = 0; break;
+                            case 'U':
+                            case 'u': err_msg(ERROR______EXPECTED,".ENDU"); noerr = 0; break;
                             case 'P': err_msg(ERROR______EXPECTED,".ENDP"); noerr = 0; break;
                             }
                             sline = os;
@@ -1730,6 +1777,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     break;
                 }
                 if (prm==CMD_STRUCT) {
+                    int old_unionmode = unionmode;
+                    unionmode = 0;
                     waitfor[++waitforp].what='s';waitfor[waitforp].line=sline;skipit[waitforp]=0;
                     structrecursion++;
                     if (structrecursion<100) {
@@ -1738,14 +1787,52 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         compile(mprm,nprm);
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
                     structrecursion--;
+                    unionmode = old_unionmode;
+                    break;
+                }
+                if (prm==CMD_UNION) {
+                    int old_unionmode = unionmode;
+                    address_t old_unionstart = unionstart, old_unionend = unionend;
+                    address_t old_l_unionstart = l_unionstart, old_l_unionend = l_unionend;
+                    unionmode = 1;
+                    unionstart = unionend = address;
+                    l_unionstart = l_unionend = l_address;
+                    waitfor[++waitforp].what='u';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    structrecursion++;
+                    if (structrecursion<100) {
+                        waitforp--;
+                        waitfor[++waitforp].what='U';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                        compile(mprm,nprm);
+                    } else err_msg(ERROR__MACRECURSION,"!!!!");
+                    structrecursion--;
+                    unionmode = old_unionmode;
+                    unionstart = old_unionstart; unionend = old_unionend;
+                    l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
                     break;
                 }
                 if (prm==CMD_DSTRUCT) { 
+                    int old_unionmode = unionmode;
+                    unionmode = 0;
                     if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (!(tmp2=find_macro(ident)) || tmp2->type!=CMD_STRUCT) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
                     structrecursion++;
                     macro_recurse(mprm,nprm,'S',tmp2);
                     structrecursion--;
+                    unionmode = old_unionmode;
+                    break;
+                }
+                if (prm==CMD_DUNION) { 
+                    int old_unionmode = unionmode;
+                    address_t old_unionstart = unionstart, old_unionend = unionend;
+                    unionmode = 1;
+                    unionstart = unionend = address;
+                    if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(tmp2=find_macro(ident)) || tmp2->type!=CMD_UNION) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
+                    structrecursion++;
+                    macro_recurse(mprm,nprm,'U',tmp2);
+                    structrecursion--;
+                    unionmode = old_unionmode;
+                    unionstart = old_unionstart; unionend = old_unionend;
                     break;
                 }
             }
@@ -2269,6 +2356,8 @@ static void compile(const char* mprm,int8_t nprm) // "",0
         case 'c': err_msg(ERROR______EXPECTED,".ENDC"); break;
         case 'S':
         case 's': err_msg(ERROR______EXPECTED,".ENDS"); break;
+        case 'U':
+        case 'u': err_msg(ERROR______EXPECTED,".ENDU"); break;
         }
         sline = os;
     }
