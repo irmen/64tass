@@ -485,6 +485,75 @@ int get_val(struct value_s *v, enum type_e type, unsigned int *epoint) {// lengt
     return 1;
 }
 
+static void functions(struct values_s **vals, unsigned int args) {
+    struct value_s *v1 = &vals[0]->val;
+
+    if (v1->u.ident.len == 3 && !memcmp(v1->u.ident.name, "len", 3)) {
+        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0]->epoint); else
+        switch (try_resolv(&vals[1]->val)) {
+        case T_TSTR:
+        case T_STR:
+            v1->u.num = vals[1]->val.u.str.len;
+            v1->type = T_INT;
+            break;
+        case T_CHR:
+            v1->u.num = 1;
+            v1->type = T_INT;
+            break;
+        default: err_msg_wrong_type(vals[1]->val.type, vals[1]->epoint);
+        case T_NONE: return;
+        }
+        return;
+    }
+    else if (v1->u.ident.len == 3 && !memcmp(v1->u.ident.name, "min", 3)) {
+        ival_t min = 0;
+        if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0]->epoint);
+        else {
+            int volt = 1;
+            while (args) {
+                switch (try_resolv(&vals[args]->val)) {
+                case T_INT:
+                case T_CHR:
+                    if (volt || vals[args]->val.u.num < min) min = vals[args]->val.u.num;
+                    volt = 0;
+                    break;
+                default: err_msg_wrong_type(vals[args]->val.type, vals[args]->epoint);
+                case T_NONE:
+                    return;
+                }
+                args--;
+            }
+            v1->u.num = min;
+            v1->type = T_INT;
+        }
+        return;
+    }
+    else if (v1->u.ident.len == 3 && !memcmp(v1->u.ident.name, "max", 3)) {
+        ival_t max = 0;
+        if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0]->epoint);
+        else {
+            int volt = 1;
+            while (args) {
+                switch (try_resolv(&vals[args]->val)) {
+                case T_INT:
+                case T_CHR:
+                    if (volt || vals[args]->val.u.num > max) max = vals[args]->val.u.num;
+                    volt = 0;
+                    break;
+                default: err_msg_wrong_type(vals[args]->val.type, vals[args]->epoint);
+                case T_NONE:
+                    return;
+                }
+                args--;
+            }
+            v1->u.num = max;
+            v1->type = T_INT;
+        }
+        return;
+    }
+    err_msg2(ERROR___NOT_DEFINED,"function", vals[0]->epoint);
+}
+
 int get_exp(int *wd, int stop) {// length in bytes, defined
     int cd;
     unsigned int i;
@@ -553,8 +622,11 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             if (epoint != lpoint) {
                 o_out[outp].val.u.ident.name = pline + epoint;
                 o_out[outp].val.u.ident.len = lpoint - epoint;
-                o_out[outp].val.type = T_IDENT;
+                o_out[outp].val.type = (ch=='(')?T_FUNC : T_IDENT;
                 o_out[outp++].epoint=epoint;
+                if (ch=='(') {
+                    o_oper[operp++] = 'F'; continue;
+                }
                 goto other;
             }
             db = operp;
@@ -626,6 +698,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             lpoint++;
             if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
             operp--;
+            if (operp && o_oper[operp-1]=='F') {
+                o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
+            }
             goto other;
         case ']':
             while (operp && o_oper[operp-1] != '[') {
@@ -707,6 +782,21 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 } else err_msg_wrong_type(v2->val.type, v2->epoint);
             } else err_msg_wrong_type(v1->val.type, v1->epoint);
             goto errtype;
+        case 'F':
+            {
+                unsigned int args = 0;
+                while (v1->val.type != T_FUNC) {
+                    args++;
+                    v1 = values[vsp-1-args];
+                }
+                v1->val.type = T_NONE;
+                functions(&values[vsp-1-args], args);
+                while (args--) {
+                    if (values[vsp-1]->val.type == T_TSTR) free(values[vsp-1]->val.u.str.data);
+                    vsp--;
+                }
+                continue;
+            }
         }
 
         switch (ch) {
