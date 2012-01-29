@@ -935,6 +935,7 @@ static void compile(const char* mprm,int8_t nprm) // "",0
             break;
         case WHAT_COMMAND:
             {
+                unsigned int epoint;
                 ignore();
                 if (listing && flist && arguments.source && (skipit[waitforp] & 1) && prm>=CMD_LONG) {
                     switch (prm) {
@@ -1093,7 +1094,6 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
                         int16_t ch2=-1;
                         int large=0;
-                        unsigned int epoint;
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0)) goto breakerr;
                         while (get_val(&val, T_NONE, &epoint)) {
@@ -1141,7 +1141,6 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     } else if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA || prm==CMD_LONG) { // .word .int .rta .long
                         uint16_t ch2;
                         int large=0;
-                        unsigned int epoint;
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         while (get_val(&val, T_NONE, &epoint)) {
                             switch (val.type) {
@@ -1182,16 +1181,16 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                         if (here()==',') {
                             lpoint++;
                             if (!get_exp(&w,0)) goto breakerr;
-                            if (get_val(&val, T_INT, NULL)) {
+                            if (get_val(&val, T_INT, &epoint)) {
                                 if (val.type == T_NONE) fixeddig = 0;
                                 else {
-                                    if (val.u.num<0) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
+                                    if (val.u.num<0) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); goto breakerr;}
                                     foffset = val.u.num;
                                 }
-                                if (get_val(&val, T_INT, NULL)) {
+                                if (get_val(&val, T_INT, &epoint)) {
                                     if (val.type == T_NONE) fixeddig = 0;
                                     else {
-                                        if (val.u.num<0 || (address_t)val.u.num > fsize) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                                        if (val.u.num<0 || (address_t)val.u.num > fsize) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
                                         else fsize = val.u.num;
                                     }
                                 }
@@ -1262,12 +1261,12 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     }
                     logitab.data[logitab.p++]=l_address-address;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!get_val(&val, T_INT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".LOGICAL");
                     if (val.type == T_NONE) fixeddig = 0;
                     else {
-                        if ((uval_t)val.u.num & ~(uval_t)all_mem) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                        if ((uval_t)val.u.num & ~(uval_t)all_mem) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else l_address=(uval_t)val.u.num;
                     }
                     break;
@@ -1313,22 +1312,22 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 }
                 if (prm==CMD_DATABANK) { // .databank
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!get_val(&val, T_INT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val.type == T_NONE) fixeddig = 0;
                     else {
-                        if ((uval_t)val.u.num & ~(uval_t)0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                        if ((uval_t)val.u.num & ~(uval_t)0xff) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else databank=val.u.num;
                     }
                     break;
                 }
                 if (prm==CMD_DPAGE) { // .dpage
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!get_val(&val, T_INT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val.type == T_NONE) fixeddig = 0;
                     else {
-                        if ((uval_t)val.u.num & ~(uval_t)0xffff) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                        if ((uval_t)val.u.num & ~(uval_t)0xffff) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
                         else {
                             if (dtvmode) dpage=val.u.num & 0xff00;
                             else dpage=val.u.num;
@@ -1340,17 +1339,17 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     address_t db = 0;
                     uint8_t ch;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!get_val(&val, T_INT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val.type == T_NONE) fixeddig = 0;
                     else {
                         db=val.u.num;
-                        if (db>(all_mem+1)) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
+                        if (db>(all_mem+1)) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);goto breakerr;}
                     }
-                    if (get_val(&val, T_INT, NULL)) {
+                    if (get_val(&val, T_INT, &epoint)) {
                         lpoint++;
                         if (val.type == T_NONE) ch = fixeddig = 0;
                         else {
-                            if ((uval_t)val.u.num & ~(uval_t)0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                            if ((uval_t)val.u.num & ~(uval_t)0xff) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             ch = (uint8_t)val.u.num;
                         }
                         while (db-->0) pokeb(ch);
@@ -1438,9 +1437,9 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     int cnt;
                     waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!get_val(&val, T_INT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    if (val.type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used for count");
+                    if (val.type == T_NONE) err_msg2(ERROR___NOT_DEFINED, "repeat count", epoint);
                     cnt = 0;
                     if (val.type != T_NONE) {
                         if (cnt<val.u.num) {
@@ -1467,18 +1466,18 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 if (prm==CMD_ALIGN) { // .align
                     int align = 1, fill=-1;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!get_val(&val, T_INT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
                     if (val.type == T_NONE) fixeddig = 0;
                     else {
-                        if (!val.u.num || ((uval_t)val.u.num & ~(uval_t)all_mem)) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                        if (!val.u.num || ((uval_t)val.u.num & ~(uval_t)all_mem)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else align = val.u.num;
                     }
-                    if (get_val(&val, T_INT, NULL)) {
+                    if (get_val(&val, T_INT, &epoint)) {
                         lpoint++;
                         if (val.type == T_NONE) fixeddig = fill = 0;
                         else {
-                            if ((uval_t)val.u.num & ~(uval_t)0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                            if ((uval_t)val.u.num & ~(uval_t)0xff) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             fill = (uint8_t)val.u.num;
                         }
                     }
@@ -1511,11 +1510,11 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                 }
                 if (prm==CMD_EOR) {   // .eor
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                    if (!get_val(&val, T_INT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!get_val(&val, T_INT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val.type == T_NONE) fixeddig = outputeor = 0;
                     else {
-                        if ((uval_t)val.u.num & ~(uval_t)0xff) err_msg(ERROR_CONSTNT_LARGE,NULL);
+                        if ((uval_t)val.u.num & ~(uval_t)0xff) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else outputeor = val.u.num;
                     }
                     break;
@@ -1682,9 +1681,9 @@ static void compile(const char* mprm,int8_t nprm) // "",0
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
                     lpoint++;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                    if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!get_val(&val, T_NONE, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    if (val.type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for option");goto breakerr;}
+                    if (val.type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used for option", epoint);goto breakerr;}
                     if (!strcasecmp(ident,"allow_branch_across_page")) allowslowbranch=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
                     else if (!strcasecmp(ident,"auto_longbranch_as_jmp")) longbranchasjmp=(((val.type == T_INT || val.type == T_CHR) && val.u.num) || (val.type == T_STR && val.u.str.len));
                     else err_msg(ERROR_UNKNOWN_OPTIO,ident);

@@ -433,42 +433,6 @@ rest:
     return cd;
 }
 
-int get_val_compat(struct value_s *v, enum type_e type, unsigned int *epoint) {// length in bytes, defined
-    static uint8_t line[linelength];  //current line data
-
-    if (values_p >= values_len) return 0;
-
-    if (epoint) *epoint = values[values_p]->epoint;
-    *v=values[values_p++]->val;
-    try_resolv(v);
-    switch (v->type) {
-    case T_TSTR:
-        if (v->u.str.len<=linelength) memcpy(line, v->u.str.data, v->u.str.len);
-        free(v->u.str.data);
-        v->u.str.data = line;
-        v->type = T_STR;
-    case T_STR:
-    case T_INT:
-    case T_CHR:
-        if (type == T_NONE) return 1;
-        if (type == T_INT) {
-            switch (v->type) {
-            case T_CHR:
-                v->type = T_INT;
-            case T_INT:
-                return 1;
-            default:
-                break;
-            }
-        }
-    default:
-        err_msg_wrong_type(v->type, values[values_p-1]->epoint);
-        v->type = T_NONE;break;
-    case T_NONE: break;
-    }
-    return 1;
-}
-
 void eval_finish(void) {
     if (values_p >= values_len) return;
     lpoint = values[values_p]->epoint;
@@ -477,10 +441,6 @@ void eval_finish(void) {
 int get_val(struct value_s *v, enum type_e type, unsigned int *epoint) {// length in bytes, defined
     static uint8_t line[linelength];  //current line data
     unsigned int i;
-
-    if (arguments.tasmcomp) {
-        return get_val_compat(v, type, epoint);
-    }
 
     if (values_p >= values_len) return 0;
 
@@ -501,6 +461,7 @@ int get_val(struct value_s *v, enum type_e type, unsigned int *epoint) {// lengt
         if (type == T_INT) {
             switch (v->type) {
             case T_STR:
+                if (arguments.tasmcomp) break;
                 if (v->u.str.len < 5) {
                     i = v->u.str.len; v->u.num = 0;
                     while (i) v->u.num = (v->u.num << 8) | line[--i];
