@@ -68,7 +68,7 @@ struct value_s {
 };
 
 enum label_e {
-    L_LABEL, L_VAR, L_STRUCT
+    L_LABEL, L_VAR, L_STRUCT, L_UNION
 };
 
 struct label_s {
