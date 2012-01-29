@@ -1,10 +1,12 @@
 <html>
 <head>
 <title>64tass v1.46 manual</title>
-<style>
+<style type="text/css">
 dt {margin-top:0.5em}
 dl.dir dt {font-family:monospace}
-dl.dir pre {border:1px solid silver}
+legend {font-family:sans;padding-left:1ex;padding-right:1ex}
+fieldset {border:1px solid silver}
+fieldset pre {margin:0px;}
 body {width:50em;}
 h1, h2, h3, h4, h5 {font-family:sans}
 hr {border: 1pt solid black;background:black;}
@@ -161,7 +163,8 @@ a DOS based Turbo Assembler editor, which could create petscii files for
 <p>Using this option will convert 'a'-'z' and 'A'-'Z' into the correct petscii
 range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor.
 It also interprets petcat style PETASCII literals and converts them to control codes.</p>
-<h5>Example:</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass a.asm
 
@@ -179,6 +182,7 @@ It also interprets petcat style PETASCII literals and converts them to control c
 &gt;0005    93 54 45 58 54 0d 4d 4f        .text "{clear}text{return}more"
 &gt;000e    52 45
 </pre>
+</fieldset>
 
 <dt>-b, --nostart
 <dd>Strip starting address
@@ -190,7 +194,8 @@ Usefull for creating ROM images.</p>
 <p>Branch too long messages can be annoying sometimes, usually they'll result
 in an bxx *+5 jmp rewrite. 64tass can do this automatically if this option is
 used. But <code>BRA</code> is not converted.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass a.asm
         <b>*=</b> $1000
@@ -205,11 +210,13 @@ used. But <code>BRA</code> is not converted.</p>
 	<b>*=</b> $1000
 	<b>bcc</b> $1233	<i>;no error, automatically converted to the above one.</i>
 </pre>
+</fieldset>
 
 <dt>-C, --case-sensitive
 <dd>Case sensitive labels
 <p>Labels are non case sensitive by default, this option changes that.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass a.asm
 label	<b>nop</b>
@@ -219,22 +226,26 @@ Label	<b>nop</b>	<i>;double defined...</i>
 label   <b>nop</b>
 Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
 </pre>
+</fieldset>
 
 <dt>-D &lt;label&gt;=&lt;value&gt;
 <dd>Define &lt;label&gt; to &lt;value&gt;
 <p>Defines a label to a value. Same syntax is allowed as in source files. Be careful with
 string quoting, the shell might eat some of the characters.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass -D ii=2 a.asm
 	<b>lda</b> #ii <i>;result: $a9, $02</i>
 </pre>
+</fieldset>
 
 <dt>-n, --nonlinear
 <dd>Generate nonlinear output file
 <p>Generates non-linear output for linkers.
 Format: length, address, code, length, ...</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --nonlinear a.asm
         <b>*=</b> $1000
@@ -250,39 +261,48 @@ $00, $20 ;little endian start $2000
 $ea	 ;code
 $00, $00 ;end marker (length=0)
 </pre>
+</fieldset>
 
 <dt>-o &lt;file&gt;
 <dd>Place output into &lt;file&gt;
 <p>The default output filename is <q>a.out</q>. This option changes it.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass a.asm -o a.prg
 </pre>
+</fieldset>
 
 <dt>-w, --no-warn
 <dd>Suppress warnings
 <p>Disables warnings during compile.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --no-warn a.asm
 </pre>
+</fieldset>
 
 <dt>-q, --quiet
 <dd>Suppress messages
 <p>Disables header and summary messages.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --quiet a.asm
 </pre>
+</fieldset>
 
 <dt>-W, --wordstart
 <dd>Force 2 byte start address
 <p>It 16&nbsp;MiB address space is used for 65816, then the starting
 address of file will be 3 bytes long. This option makes it 2 bytes long.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --wordstart --m65816 a.asm
 </pre>
+</fieldset>
 
 <dt>-T, --tasm-compatible
 <dd>Enable TASM compatible operators and precedence
@@ -299,48 +319,58 @@ using the <code>.cpu</code> directive in the source.</p>
 <dt>-c, --m65c02
 <dd>CMOS 65C02
 <p>Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --m65c02 a.asm
 	<b>stz</b> $d020	<i>;65c02 instruction</i>
 </pre>
+</fieldset>
 
 <dt>-i, --m6502
 <dd>NMOS 65xx
 <p>Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64, disk drive code, etc.</p>
-<h5>Example</h5>
+<legend>Example</legend>
+<fieldset>
 <pre>
 64tass --m6502 a.asm
 	<b>lax</b> $14		<i>;illegal instruction</i>
 </pre>
+</fieldset>
 
 <dt>--m65xx
 <dd>Standard 65xx (default)
 <p>Selects standard 6502. For writing compatible code, no extra codes. This is the default.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --m65xx a.asm
 	<b>lda</b> $14		<i>;regular instructions</i>
 </pre>
+</fieldset>
 
 <dt>-t, --m65dtv02
 <dd>65DTV02
 <p>Selects 65DTV02. Enables extra opcodes specific to DTV.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --m65dtv02 a.asm
 	<b>sac</b> #$00
 </pre>
+</fieldset>
 
 <dt>-x, --m65816
 <dd>W65C816
 <p>Selects 65816. Enables extra opcodes, and full 16&nbsp;MiB address space.
 Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones ;)</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --m65816 a.asm
 	<b>lda</b> $123456,x
 </pre>
+</fieldset>
 </dl>
 
 <h3>Source listing options</h3>
@@ -349,7 +379,8 @@ Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small 
 <dt>-l &lt;file&gt;
 <dd>List labels into &lt;file&gt;
 <p>List labels to a file. Local labels are commented out, unused ones are marked with a comment.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass -l labels.txt a.asm
 	<b>*=</b> $1000
@@ -358,12 +389,14 @@ label
 result (labels.txt):
 label           = $1000    ; *** unused
 </pre>
+</fieldset>
 
 <dt>-L &lt;file&gt;
 <dd>List into &lt;file&gt;
 <p>Dumps source code and compiled code into file. Useful for debugging code,
 it's much easier to identify the code in memory within the source files.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass -L list.txt a.asm
 	<b>*=</b> $1000
@@ -385,11 +418,13 @@ result (list.txt):
 
 ;******  end of code
 </pre>
+</fieldset>
 
 <dt>-m, --no-monitor
 <dd>Don't put monitor code into listing
 <p>There won't be any monitor listing in the list file.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --no-monitor -L list.txt a.asm
 
@@ -406,11 +441,13 @@ result (list.txt):
 
 ;******  end of code
 </pre>
+</fieldset>
 
 <dt>-s, --no-source
-<dd>Don't put source code into listing</h4>
+<dd>Don't put source code into listing
 <p>There won't be any source listing in the list file.</p>
-<h5>Example</h5>
+<fieldset>
+<legend>Example</legend>
 <pre>
 64tass --no-source -L list.txt a.asm
 
@@ -427,6 +464,7 @@ result (list.txt):
 
 ;******  end of code
 </pre>
+</fieldset>
 </dl>
 
 <h3>Other options</h3>
@@ -447,18 +485,6 @@ result (list.txt):
 
 <hr>
 
-<h2>Constants</h2>
-
-<pre width=80>
-	<b>.byte</b> 23        <i>; decimal</i>
-	<b>.byte</b> $33       <i>; hex</i>
-	<b>.byte</b> %00011111 <i>; binary</i>
-
-	<b>.text</b> "oeU"     <i>; text, "" means $22</i>
-	<b>.text</b> 'it''s'   <i>; text, '' means $27</i>
-	<b>.text</b> ^2048     <i>; the decimal value as string (^23 is $32,$33)</i>
-</pre>
-
 <h2>Labels</h2>
 
 <p>Normal labels can be defined at the start of each line and hold the logical
@@ -476,7 +502,7 @@ loop
 
 <h3>Variables</h3>
 
-<p>Variables are redefinable, because their value will be non stable, so forward referencing is not allowed.</p>
+<p>Variables are redefinable, and as their value will be non stable forward referencing is not allowed.</p>
 
 <pre width=80>
 variabl	<b>.var</b> 1
@@ -513,21 +539,61 @@ copied into the code, with the internal references.
 </pre>
 
 <h2>Expressions</h2>
-Expressions can be used at a lot of places. Here's a list of available operators:
 
-<table border="0">
-<tr><td width="60"><tt>( )</tt>   <td align="left">braces
-</table>
+<p>Numeric constants of decimal (<code>0-9</code>), hexadecimal
+(<code>$</code>) and binary (<code>%</code>) are accepted. String constants are 
+enclosed in quotation marks. To enter the quotation mark itself in the string
+just double it. Single letter strings are character constants and represent their
+numeric values in numeric expressions.</p>
+
+<pre width=80>
+	<b>.byte</b> 23        <i>; decimal</i>
+	<b>.byte</b> $33       <i>; hex</i>
+	<b>.byte</b> %00011111 <i>; binary</i>
+
+	<b>.text</b> "oeU"     <i>; text, "" means $22</i>
+	<b>.text</b> 'it''s'   <i>; text, '' means $27</i>
+</pre>
+
+<p>Parenthesis (<code>( )</code>) and brackets can be used to override
+(<code>[ ]</code>) operator precedence. Don't forget that they also
+denote indirect addressing mode for certain opcodes.</p>
+
 <pre width=80>
 	<b>lda</b> #(4+2)*3
 </pre>
 
-<h3>special</h3>
-<table border="0">
-<tr><td width="60"><tt>&lt;</tt><td align="left">lower byte
-<tr><td><tt>&gt;</tt><td align="left">higher byte
-<tr><td><tt>`</tt><td align="left">bank byte
-</table>
+<p>The dot (<code>.</code>) operator can be used to reference
+member elements of structs and unions.</p>
+
+<pre width=80>
+	<b>lda</b> storage.len
+</pre>
+
+<p>Built in functions are identifiers following parentheses. They accept
+variable number of parameters separated by comma.</p>
+
+<dl class="dir">
+<dt>len(x)
+<dd>Length of string
+<dt>min(a, b, ...)
+<dd>Minimum of numeric values.
+<dt>max(a, b, ...)
+<dd>Maximum of numeric values.
+</dl>
+
+<p>Square brackets after a string variable are used
+to extract single characters from string. Indexing
+starts at 0, negative indexes are counted from the end
+of string.</p>
+
+<pre width=80>
+	<b>lda</b> #name[4]
+</pre>
+
+<p>Single bytes of numeric values can be extracted
+by the lower byte (<code>&lt;</code>), higher byte (<code>&gt;</code>)
+and bank byte (<code>`</code>) operators.</p>
 
 <pre width=80>
 	<b>lda</b> #&lt;label
@@ -535,13 +601,17 @@ Expressions can be used at a lot of places. Here's a list of available operators
 	<b>jsr</b> $ab1e
 </pre>
 
+<p>Special addressing mode forcing operators in front of an expression can be
+used to make sure the expected addressing mode is used.</p>
+
 <table border="0">
 <tr><td width="60"><tt>@b</tt><td align="left">to force 8 bit address
 <tr><td><tt>@w</tt><td align="left">to force 16 bit address
 <tr><td><tt>@l</tt><td align="left">to force 24 bit address (65816)
 </table>
 
-<h3>boolean</h3>
+<p>Boolean operators give 0 or 1 as a result.</p>
+
 <table border="0">
 <tr><td width="60"><tt>x || y</tt><td align="left">or
 <tr><td><tt>x ^^ y </tt><td align="left">exclusive or
@@ -549,7 +619,8 @@ Expressions can be used at a lot of places. Here's a list of available operators
 <tr><td><tt>!x</tt><td align="left">not
 </table>
 
-<h3>compare</h3>
+<p>Comparison operators result in 1 or 0 depending on the result.</p>
+
 <table border="0">
 <tr><td width="60"><tt>x = y</tt><td align="left">equal
 <tr><td><tt>x != y</tt><td align="left">non equal
@@ -565,7 +636,8 @@ Expressions can be used at a lot of places. Here's a list of available operators
 	<b>.fi</b>
 </pre>
 
-<h3>bitwise</h3>
+<p>There's a variety of bitwise operations available.</p>
+
 <table border="0">
 <tr><td width="60"><tt>x | y</tt><td align="left">bitwise or
 <tr><td><tt>x ^ y</tt><td align="left">bitwise xor
@@ -581,7 +653,8 @@ Expressions can be used at a lot of places. Here's a list of available operators
 	<b>sta</b> $d018
 </pre>
 
-<h3>arithmetic</h3>
+<p>And the regular arithmetic operations are supported as well.</p>
+
 <table border="0">
 <tr><td width="60"><tt>x + y</tt><td align="left">add
 <tr><td><tt>x - y</tt><td align="left">substract
@@ -597,18 +670,24 @@ Expressions can be used at a lot of places. Here's a list of available operators
 <h2>Compiler directives:</h2>
 
 <h3>Controlling the program counter</h3>
+
+<p>There are two address counters. One is used for placing the data in memory, the
+other one called logical address, and it's what the labels will be set or what
+the special star label gets when referenced.</p>
+
 <dl class="dir">
 <dt>*=
-<dd>Set current address
+<dd>Set both compile address and logical address
 <pre width=80>
 	<b>*=</b> $1000
 </pre>
 <dt>.offs
-<dd>Add compile offset to logical address
+<dd>Add a compile offset to logical address.
 <pre width=80>
 	<b>.offs</b> 100
 </pre>
 <dt>.logical
+<dt>.here
 <dd>Changes logical address. Can be nested.
 <pre width=80>
 	<b>.logical</b> $300
@@ -618,9 +697,6 @@ drive   <b>lda</b> #$80
 	<b>rts</b>
 	<b>.here</b>
 </pre>
-
-<dt>.here
-<dd>Restore logical address to physical
 
 <dt>.align
 <dd>Align code to a dividable address by skip or fill
@@ -633,10 +709,10 @@ loop    <b>adc</b> #1          ;padding with "nop" for DTV burst mode
 
 </dl>
 
-<h3>Data</h3>
+<h3>Dumping data</h3>
 <dl class="dir">
 <dt>.byte
-<dd>Include 8bit unsigned byte constants, same as <code>.text</code>
+<dd>Include 8&nbsp;bit unsigned byte constants, same as <code>.text</code>
 
 <dt>.text
 <dd>Include constants and strings:
@@ -649,7 +725,7 @@ loop    <b>adc</b> #1          ;padding with "nop" for DTV burst mode
 </pre>
 
 <dt>.char
-<dd>Include 8bit signed integer constants
+<dd>Include 8&nbsp;bit signed integer constants
 <pre width=80>
 	<b>.char</b> -33, 57
 </pre>
@@ -699,7 +775,7 @@ txt	<b>.text</b> "lot of stuff"
 
 <dt>.ptext
 <dd>Same as <code>.text</code>, but prepend the
-number of bytes in front of the string (pascal style string):
+number of bytes in front of the string (pascal style string). Longer than 255 bytes are not allowed.
 <pre width=80>
 	<b>lda</b> #&lt;txt
 	<b>ldx</b> #&gt;txt
@@ -723,7 +799,7 @@ txt	<b>.ptext</b> "note"
 </pre>
 
 <dt>.rta
-<dd>Include return address constants
+<dd>Include return address constants, which are one byte less than the original.
 <pre width=80>
 	<b>lda</b> #0
 	<b>asl</b>
@@ -737,31 +813,98 @@ rets	<b>.rta</b> $fce2
 </pre>
 
 <dt>.word
-<dd>Include 16bit unsigned word constants
+<dd>Include 16&nbsp;bit unsigned word constants
 <pre width=80>
 	<b>.word</b> $2342, $4555
 </pre>
 
 <dt>.int
-<dd>Include 16bit signed integer constants
+<dd>Include 16&nbsp;bit signed integer constants
 <pre width=80>
 	<b>.int</b> -533, 4433
 </pre>
 
 <dt>.long
-<dd>Include 24bit unsigned constants
+<dd>Include 24&nbsp;bit unsigned constants
 <pre width=80>
 	<b>.long</b> $123456
 </pre>
 
 <dt>.fill
-<dd>Skip bytes, or fill with repeated bytes. For multibyte patterns use <code>.repeat</code>!
+<dd>Skip bytes, or fill with repeated bytes. For multi byte patterns use <code>.repeat</code>!
 <pre width=80>
-	<b>.fill</b> $100      ;no fill, just skip $100 bytes
-	<b>.fill</b> $4000,0   ;16384 bytes of 0
+        <b>.fill</b> $100      <i>;no fill, just skip $100 bytes</i>
+        <b>.fill</b> $4000,0   <i>;16384 bytes of 0</i>
 </pre>
-
 </dl>
+
+<h3>Structured data</h3>
+
+<p>Structures can be defined to organize sequential data definitions, which can
+be reused later many times. The offset of fields are available by using the
+definition's name as a base, and the fields themselves by using the instance
+name before the dot operator. The length of a struct is the sum of lengths of
+all items.</p>
+
+<dl class="dir">
+<dt>.struct
+<dd>Start structure definition
+<dt>.ends
+<dd>Finish structure definition
+<dt>.dstruct
+<dd>Create instance of struct
+
+<pre width=80>
+        <b>.struct</b>         <i>;anonymous struct</i>
+x       <b>.byte</b> 0         <i>;labels are visible</i>
+y       <b>.byte</b> 0         <i>;content compiled here</i>
+        <b>.ends</b>           <i>;useful inside unions</i>
+
+nn_s    <b>.struct</b>         <i>;named struct</i>
+x       <b>.byte</b> 0         <i>;labels are not visible</i>
+y       <b>.byte</b> 0         <i>;no content is compiled here</i>
+        <b>.ends</b>           <i>;it's just a definition</i>
+
+nn      <b>.dstruct</b> nn_s   <i>;struct instance, content here</i>
+
+        <b>lda</b> nn.x        <i>;access internal fields</i>
+        <b>ldy</b> #nn_s.x     <i>;get offset of field</i>
+</pre>
+</dl>
+
+<p>Unions are similar to structs, except each line will start on the same
+address where the definition was done. The length of the union is the length of
+it's longest item. The offset of fields are available by using the definition's
+name as a base, and the fields themselves by using the instance name before the
+dot operator. These offsets and references mostly point to the start of the
+union, unless internal anonymous structs are used.</p>
+
+<dl class="dir">
+<dt>.union
+<dd>Start structure definition
+<dt>.endu
+<dd>Finish structure definition
+<dt>.dunion
+<dd>Create instance of struct
+
+<pre width=80>
+        <b>.union</b>          <i>;anonymous struct</i>
+x       <b>.byte</b> 0         <i>;labels are visible</i>
+y       <b>.word</b> 0         <i>;content compiled here</i>
+	<b>.endu</b>
+
+nn_u    <b>.union</b>          <i>;named union</i>
+x       <b>.byte</b> 0         <i>;labels are not visible</i>
+y       <b>.word</b> 0         <i>;no content is compiled here</i>
+        <b>.endu</b>           <i>;it's just a definition</i>
+
+nn      <b>.dunion</b> nn_u    <i>;union instance here</i>
+
+        <b>lda</b> nn.x        <i>;access internal fields</i>
+        <b>ldy</b> #nn_u.x     <i>;get offset of field</i>
+</pre>
+</dl>
+
 <h3>Macros</h3>
 <dl class="dir">
 <dt>.macro
@@ -812,27 +955,15 @@ The first 9 parameters can be referenced as text by <tt>@1</tt>...<tt>@9</tt>.
 <pre width=80>
 name    <b>.macro</b>
 	<b>jsr</b> print
-	<b>.text</b> "@1"	<i>;first parameter</i>
-	<b>.byte</b> 0
+	<b>.null</b> "Hello @1!"<i>;first parameter</i>
 	<b>.endm</b>
 
-	#name "wth?"	<i>;call macro</i>
+	#name wth?	<i>;call macro</i>
 </pre>
 
 </dl>
 <h3>Conditional assembly</h3>
 <dl class="dir">
-<dt>.for
-<dd>Compile loop, only anonymous references are allowed as labels inside
-<pre width=80>
-	<b>.for</b> ue=0,ue&lt;10,ue=ue+1
-	<b>.byte</b> ue
-	<b>.next</b>
-</pre>
-
-<dt>.next
-<dd>End of compile loop (<code>.rept</code> or <code>.for</code>)
-
 <dt>.if
 <dt>.ifne
 <dd>Conditional compile, if result is not 0
@@ -842,6 +973,10 @@ name    <b>.macro</b>
 <dd>Conditional compile, if result is greater or equal 0
 <dt>.ifmi
 <dd>Conditional compile, if result is less than 0
+<dt>.fi
+<dt>.endif
+<dd>End of conditional compile
+
 <pre width=80>
 	<b>.if</b> oeu=1
 	<b>nop</b>
@@ -851,10 +986,10 @@ name    <b>.macro</b>
 </pre>
 
 <dt>.else
-<dd>The inverse condition
+<dd>Compile, if the previous conditions were not true.
 
 <dt>.elsif
-<dd>The inverse condition, if result!=0
+<dd>Conditional compile, if the previous conditions were not true and the result is not 0.
 <pre width=80>
 	<b>.if</b> wait=2	;2 cycles
 	<b>nop</b>
@@ -867,16 +1002,39 @@ name    <b>.macro</b>
 	<b>.fi</b>
 </pre>
 
-<dt>.fi
-<dt>.endif
-<dd>End of conditional compile
+<dt>.for
+<dt>.next
+<dd>Compile loop, only anonymous references are allowed as labels inside
+<pre width=80>
+	<b>.for</b> ue=0,ue&lt;10,ue=ue+1
+	<b>.byte</b> ue
+	<b>.next</b>
+</pre>
 
 <dt>.rept
+<dt>.next
 <dd>Repeated compile, only anonymous references are allowed as labels inside
 <pre width=80>
 	<b>.rept</b> 100
 	<b>nop</b>
 	<b>.next</b>
+</pre>
+
+<dt>.lbl
+<dd>Creates a special jump label that can be referenced by <code>.goto</code>
+<dt>.goto
+<dd>Causes assembler to continue assembling from the jump label. No
+forward references of course, handle with care. Typically used in
+classic TASM sources for creating loops.
+
+<pre width=80>
+i	<b>.var</b> 100
+loop	<b>.lbl</b>
+        <b>nop</b>
+i       <b>.var</b> i - 1
+        <b>.ifne</b> i
+        <b>.goto</b> loop       <i>;generates 100 nops</i>
+        <b>.fi</b>
 </pre>
 
 </dl>
@@ -905,6 +1063,8 @@ not skipped then it's also loaded.
 <dl class="dir">
 <dt>.proc
 <dd>Procedure start
+<dt>.pend
+<dd>End of procedure
 <pre width=80>
 ize     <b>.proc</b>
 	<b>nop</b>
@@ -917,11 +1077,10 @@ cucc    <b>nop</b>
 If <q>ize</q> is not referenced then the code won't be compiled at all!
 All labels inside are local.
 
-<dt>.pend
-<dd>End of procedure
-
 <dt>.block
 <dd>Block start
+<dt>.bend
+<dd>End of Block
 <pre width=80>
 	<b>.block</b>
 	<b>inc</b> count + 1
@@ -930,37 +1089,16 @@ count	<b>ldx</b> #0
 </pre>
     All labels inside a block are local.
 
-<dt>.bend
-<dd>End of Block
 
 <dt>.comment
 <dd>Comment block start
+<dt>.endc
+<dd>End of comment block
 <pre width=80>
 	<b>.comment</b><i>
 	lda #1          ;this won't be compiled
 	sta $d020
 	</i><b>.endc</b>
-</pre>
-
-<dt>.endc
-<dd>End of comment block
-
-<dt>.lbl
-<dd>Creates a special jump label that can be referenced by <code>.goto</code>
-
-<dt>.goto
-<dd>Causes assembler to continue assembling from the jump label. No
-forward references of course, handle with care. Typically used in
-classic TASM sources for creating loops.
-
-<pre width=80>
-i	<b>.var</b> 100
-loop	<b>.lbl</b>
-        <b>nop</b>
-i       <b>.var</b> i - 1
-        <b>.ifne</b> i
-        <b>.goto</b> loop       <i>;generates 100 nops</i>
-        <b>.fi</b>
 </pre>
 
 </dl>
@@ -970,7 +1108,7 @@ i       <b>.var</b> i - 1
 <dd>Select 8 bit accu (65816)
 
 <dt>.al
-<dd>Select 16 bit accu (65816)
+<dd>Select 16 bit accu (65816). Immediate constants of a register using opcodes will use 16 bits.
 <pre width=80>
 	<b>.al</b>
 	<b>lda</b> #$4322
@@ -980,20 +1118,23 @@ i       <b>.var</b> i - 1
 <dd>Select 8 bit index (65816)
 
 <dt>.xl
-<dd>Select 16 bit index (65816)
+<dd>Select 16 bit index (65816). Immediate constants of x and y register using opcodes will use 16 bits.
 <pre width=80>
 	<b>.xl</b>
 	<b>ldx</b> #$1000
 </pre>
 
 <dt>.databank
-<dd>Set databank (65816)
+<dd>Set databank (65816). Absolute addressing is used only for symbols in this
+bank, anything else (except direct page) is using long addressing.
 <pre width=80>
 	<b>.databank</b> $10   ;$10xxxx
 </pre>
 
 <dt>.dpage
-<dd>Set directpage (65816/C128/DTV) (forced to page boundary for DTV)
+<dd>Set directpage (65816/C128/DTV) (forced to page boundary for DTV). Direct
+page addressing is only used for addresses in the following 256 byte range, anything
+else is using absolute or long addressing.
 <pre width=80>
 	<b>.dpage</b> $400
 </pre>
@@ -1004,14 +1145,14 @@ i       <b>.var</b> i - 1
 
 <dt>.page
 <dd>Gives an error on page boundary crossing, eg. for timing sensitive code.
+<dt>.endp
+<dd>End of page cross checking
+
 <pre width=80>
 	<b>.page</b>
 table   <b>.byte</b> 0,1,2,3,4,5,6,7
 	<b>.endp</b>
 </pre>
-
-<dt>.endp
-<dd>End of page cross checking
 
 <dt>.option allow_branch_across_page
 <dd>Switches error generation on page boundary crossing during relative branch.
