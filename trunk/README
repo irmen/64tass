@@ -145,7 +145,7 @@ Operation options
     It also interprets petcat style PETASCII literals and converts them to
     control codes.
 
-    Example:
+    Example
 
     64tass a.asm
 
@@ -451,16 +451,6 @@ Other options
 
 -------------------------------------------------------------------------------
 
-Constants
-
-        .byte 23        ; decimal
-        .byte $33       ; hex
-        .byte %00011111 ; binary
-
-        .text "oeU"     ; text, "" means $22
-        .text 'it''s'   ; text, '' means $27
-        .text ^2048     ; the decimal value as string (^23 is $32,$33)
-
 Labels
 
 Normal labels can be defined at the start of each line and hold the logical
@@ -476,7 +466,7 @@ loop
 
 Variables
 
-Variables are redefinable, because their value will be non stable, so forward
+Variables are redefinable, and as their value will be non stable forward
 referencing is not allowed.
 
 variabl .var 1
@@ -512,35 +502,67 @@ as segments are copied into the code, with the internal references.
 
 Expressions
 
-Expressions can be used at a lot of places. Here's a list of available
-operators:
+Numeric constants of decimal (0-9), hexadecimal ($) and binary (%) are
+accepted. String constants are enclosed in quotation marks. To enter the
+quotation mark itself in the string just double it. Single letter strings are
+character constants and represent their numeric values in numeric expressions.
 
-( )      braces
+        .byte 23        ; decimal
+        .byte $33       ; hex
+        .byte %00011111 ; binary
+
+        .text "oeU"     ; text, "" means $22
+        .text 'it''s'   ; text, '' means $27
+
+Parenthesis (( )) and brackets can be used to override ([ ]) operator
+precedence. Don't forget that they also denote indirect addressing mode for
+certain opcodes.
 
         lda #(4+2)*3
 
-special
+The dot (.) operator can be used to reference member elements of structs and
+unions.
 
-<        lower byte
->        higher byte
-`        bank byte
+        lda storage.len
+
+Built in functions are identifiers following parentheses. They accept variable
+number of parameters separated by comma.
+
+len(x)
+    Length of string
+min(a, b, ...)
+    Minimum of numeric values.
+max(a, b, ...)
+    Maximum of numeric values.
+
+Square brackets after a string variable are used to extract single characters
+from string. Indexing starts at 0, negative indexes are counted from the end of
+string.
+
+        lda #name[4]
+
+Single bytes of numeric values can be extracted by the lower byte (<), higher
+byte (>) and bank byte (`) operators.
 
         lda #<label
         ldy #>label
         jsr $ab1e
 
+Special addressing mode forcing operators in front of an expression can be used
+to make sure the expected addressing mode is used.
+
 @b       to force 8 bit address
 @w       to force 16 bit address
 @l       to force 24 bit address (65816)
 
-boolean
+Boolean operators give 0 or 1 as a result.
 
 x || y   or
 x ^^ y   exclusive or
 x && y   and
 !x       not
 
-compare
+Comparison operators result in 1 or 0 depending on the result.
 
 x = y    equal
 x != y   non equal
@@ -553,7 +575,7 @@ x <= y   less or equal
         nop
         .fi
 
-bitwise
+There's a variety of bitwise operations available.
 
 x | y    bitwise or
 x ^ y    bitwise xor
@@ -566,7 +588,7 @@ x >>> y  logical shift right
         lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
         sta $d018
 
-arithmetic
+And the regular arithmetic operations are supported as well.
 
 x + y    add
 x - y    substract
@@ -583,17 +605,22 @@ Compiler directives:
 
 Controlling the program counter
 
+There are two address counters. One is used for placing the data in memory, the
+other one called logical address, and it's what the labels will be set or what
+the special star label gets when referenced.
+
 *=
-    Set current address
+    Set both compile address and logical address
 
             *= $1000
 
 .offs
-    Add compile offset to logical address
+    Add a compile offset to logical address.
 
             .offs 100
 
 .logical
+.here
     Changes logical address. Can be nested.
 
             .logical $300
@@ -603,8 +630,6 @@ Controlling the program counter
             rts
             .here
 
-.here
-    Restore logical address to physical
 .align
     Align code to a dividable address by skip or fill
 
@@ -613,10 +638,10 @@ Controlling the program counter
             .align 4,$ea
     loop    adc #1          ;padding with "nop" for DTV burst mode
 
-Data
+Dumping data
 
 .byte
-    Include 8bit unsigned byte constants, same as .text
+    Include 8 bit unsigned byte constants, same as .text
 .text
     Include constants and strings:
 
@@ -627,7 +652,7 @@ Data
             .text ^OEU      ; the decimal value as string (^23 is $32,$33)
 
 .char
-    Include 8bit signed integer constants
+    Include 8 bit signed integer constants
 
             .char -33, 57
 
@@ -673,7 +698,7 @@ Data
 
 .ptext
     Same as .text, but prepend the number of bytes in front of the string
-    (pascal style string):
+    (pascal style string). Longer than 255 bytes are not allowed.
 
             lda #<txt
             ldx #>txt
@@ -696,7 +721,8 @@ Data
     txt     .ptext "note"
 
 .rta
-    Include return address constants
+    Include return address constants, which are one byte less than the
+    original.
 
             lda #0
             asl
@@ -709,26 +735,85 @@ Data
     rets    .rta $fce2
 
 .word
-    Include 16bit unsigned word constants
+    Include 16 bit unsigned word constants
 
             .word $2342, $4555
 
 .int
-    Include 16bit signed integer constants
+    Include 16 bit signed integer constants
 
             .int -533, 4433
 
 .long
-    Include 24bit unsigned constants
+    Include 24 bit unsigned constants
 
             .long $123456
 
 .fill
-    Skip bytes, or fill with repeated bytes. For multibyte patterns use
+    Skip bytes, or fill with repeated bytes. For multi byte patterns use
     .repeat!
 
             .fill $100      ;no fill, just skip $100 bytes
             .fill $4000,0   ;16384 bytes of 0
+
+Structured data
+
+Structures can be defined to organize sequential data definitions, which can be
+reused later many times. The offset of fields are available by using the
+definition's name as a base, and the fields themselves by using the instance
+name before the dot operator. The length of a struct is the sum of lengths of
+all items.
+
+.struct
+    Start structure definition
+.ends
+    Finish structure definition
+.dstruct
+    Create instance of struct
+
+            .struct         ;anonymous struct
+    x       .byte 0         ;labels are visible
+    y       .byte 0         ;content compiled here
+            .ends           ;useful inside unions
+
+    nn_s    .struct         ;named struct
+    x       .byte 0         ;labels are not visible
+    y       .byte 0         ;no content is compiled here
+            .ends           ;it's just a definition
+
+    nn      .dstruct nn_s   ;struct instance, content here
+
+            lda nn.x        ;access internal fields
+            ldy #nn_s.x     ;get offset of field
+
+Unions are similar to structs, except each line will start on the same address
+where the definition was done. The length of the union is the length of it's
+longest item. The offset of fields are available by using the definition's name
+as a base, and the fields themselves by using the instance name before the dot
+operator. These offsets and references mostly point to the start of the union,
+unless internal anonymous structs are used.
+
+.union
+    Start structure definition
+.endu
+    Finish structure definition
+.dunion
+    Create instance of struct
+
+            .union          ;anonymous struct
+    x       .byte 0         ;labels are visible
+    y       .word 0         ;content compiled here
+            .endu
+
+    nn_u    .union          ;named union
+    x       .byte 0         ;labels are not visible
+    y       .word 0         ;no content is compiled here
+            .endu           ;it's just a definition
+
+    nn      .dunion nn_u    ;union instance here
+
+            lda nn.x        ;access internal fields
+            ldy #nn_u.x     ;get offset of field
 
 Macros
 
@@ -778,23 +863,13 @@ Text references
 
     name    .macro
             jsr print
-            .text "@1"      ;first parameter
-            .byte 0
+            .null "Hello @1!";first parameter
             .endm
 
-            #name "wth?"    ;call macro
+            #name wth?      ;call macro
 
 Conditional assembly
 
-.for
-    Compile loop, only anonymous references are allowed as labels inside
-
-            .for ue=0,ue<10,ue=ue+1
-            .byte ue
-            .next
-
-.next
-    End of compile loop (.rept or .for)
 .if
 .ifne
     Conditional compile, if result is not 0
@@ -804,6 +879,9 @@ Conditional assembly
     Conditional compile, if result is greater or equal 0
 .ifmi
     Conditional compile, if result is less than 0
+.fi
+.endif
+    End of conditional compile
 
             .if oeu=1
             nop
@@ -812,9 +890,10 @@ Conditional assembly
             .fi
 
 .else
-    The inverse condition
+    Compile, if the previous conditions were not true.
 .elsif
-    The inverse condition, if result!=0
+    Conditional compile, if the previous conditions were not true and the
+    result is not 0.
 
             .if wait=2      ;2 cycles
             nop
@@ -826,15 +905,36 @@ Conditional assembly
             inc $2
             .fi
 
-.fi
-.endif
-    End of conditional compile
+.for
+.next
+    Compile loop, only anonymous references are allowed as labels inside
+
+            .for ue=0,ue<10,ue=ue+1
+            .byte ue
+            .next
+
 .rept
+.next
     Repeated compile, only anonymous references are allowed as labels inside
 
             .rept 100
             nop
             .next
+
+.lbl
+    Creates a special jump label that can be referenced by .goto
+.goto
+    Causes assembler to continue assembling from the jump label. No forward
+    references of course, handle with care. Typically used in classic TASM
+    sources for creating loops.
+
+    i       .var 100
+    loop    .lbl
+            nop
+    i       .var i - 1
+            .ifne i
+            .goto loop       ;generates 100 nops
+            .fi
 
 Including files
 
@@ -858,6 +958,8 @@ Blocks
 
 .proc
     Procedure start
+.pend
+    End of procedure
 
     ize     .proc
             nop
@@ -869,10 +971,10 @@ Blocks
 
     If `ize' is not referenced then the code won't be compiled at all! All
     labels inside are local.
-.pend
-    End of procedure
 .block
     Block start
+.bend
+    End of Block
 
             .block
             inc count + 1
@@ -880,39 +982,23 @@ Blocks
             .bend
 
     All labels inside a block are local.
-.bend
-    End of Block
 .comment
     Comment block start
+.endc
+    End of comment block
 
             .comment
             lda #1          ;this won't be compiled
             sta $d020
             .endc
 
-.endc
-    End of comment block
-.lbl
-    Creates a special jump label that can be referenced by .goto
-.goto
-    Causes assembler to continue assembling from the jump label. No forward
-    references of course, handle with care. Typically used in classic TASM
-    sources for creating loops.
-
-    i       .var 100
-    loop    .lbl
-            nop
-    i       .var i - 1
-            .ifne i
-            .goto loop       ;generates 100 nops
-            .fi
-
 65816 related
 
 .as
     Select 8 bit accu (65816)
 .al
-    Select 16 bit accu (65816)
+    Select 16 bit accu (65816). Immediate constants of a register using opcodes
+    will use 16 bits.
 
             .al
             lda #$4322
@@ -920,18 +1006,22 @@ Blocks
 .xs
     Select 8 bit index (65816)
 .xl
-    Select 16 bit index (65816)
+    Select 16 bit index (65816). Immediate constants of x and y register using
+    opcodes will use 16 bits.
 
             .xl
             ldx #$1000
 
 .databank
-    Set databank (65816)
+    Set databank (65816). Absolute addressing is used only for symbols in this
+    bank, anything else (except direct page) is using long addressing.
 
             .databank $10   ;$10xxxx
 
 .dpage
-    Set directpage (65816/C128/DTV) (forced to page boundary for DTV)
+    Set directpage (65816/C128/DTV) (forced to page boundary for DTV). Direct
+    page addressing is only used for addresses in the following 256 byte range,
+    anything else is using absolute or long addressing.
 
             .dpage $400
 
@@ -939,13 +1029,13 @@ Controlling errors
 
 .page
     Gives an error on page boundary crossing, eg. for timing sensitive code.
+.endp
+    End of page cross checking
 
             .page
     table   .byte 0,1,2,3,4,5,6,7
             .endp
 
-.endp
-    End of page cross checking
 .option allow_branch_across_page
     Switches error generation on page boundary crossing during relative branch.
     Such a condition on 6502 adds 1 extra cycle to the execution time, which
