@@ -860,8 +860,6 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     val1 = res;
                 }
                 break;
-            case 'I': val1 = ((uval_t)val1 >> val2) & 1;
-                break;
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;continue;
             }
             v1->val.type = T_INT; v1->val.u.num = val1; continue;
