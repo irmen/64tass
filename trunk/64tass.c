@@ -614,12 +614,18 @@ static void macro_recurse(char t, struct macro_s *tmp2) {
 
         ignore(); opoint = lpoint;
         if (here() && here()!=';') {
+            char par[256];
+            uint8_t pp = 0;
             do {
                 unsigned int opoint, npoint;
                 ignore(); opoint = lpoint;
-                while ((ch=here()) && (q || (ch!=';' && ch!=','))) {
+                while ((ch=here()) && (q || (ch!=';' && (ch!=',' || pp)))) {
                     if (ch == '"'  && !(q & 2)) { q^=1; }
                     else if (ch == '\'' && !(q & 1)) { q^=2; }
+                    if (!q) {
+                        if (ch == '(' || ch =='[') par[pp++]=ch;
+                        else if (pp && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='['))) pp--;
+                    }
                     lpoint++;
                 }
                 if (p >= macro_parameters.current->size) {
