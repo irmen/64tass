@@ -587,6 +587,9 @@ x >>> y  logical shift right
 
         lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
         sta $d018
+        lda $d015
+        and #~%00100000
+        sta $d015
 
 And the regular arithmetic operations are supported as well.
 
