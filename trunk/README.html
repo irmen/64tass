@@ -651,6 +651,9 @@ used to make sure the expected addressing mode is used.</p>
 <pre width=80>
 	<b>lda</b> #((bitmap &amp; $2000) &gt;&gt; 10) | ((screen &amp; $3c00) &gt;&gt; 6)
 	<b>sta</b> $d018
+        <b>lda</b> $d015
+        <b>and</b> #~%00100000
+        <b>sta</b> $d015
 </pre>
 
 <p>And the regular arithmetic operations are supported as well.</p>

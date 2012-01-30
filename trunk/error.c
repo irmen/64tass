@@ -178,7 +178,9 @@ void err_msg(enum errors_e no, const char* prm) {
 void err_msg_wrong_type(enum type_e type, unsigned int epoint) {
     const char *name = NULL;
     switch (type) {
-    case T_INT: name = "<int>";break;
+    case T_SINT: name = "<sint>";break;
+    case T_UINT: name = "<uint>";break;
+    case T_NUM: name = "<num>";break;
     case T_CHR: name = "<char>";break;
     case T_TSTR:
     case T_STR: name = "<string>";break;

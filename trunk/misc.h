@@ -46,13 +46,16 @@ typedef uint32_t uval_t;
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 enum type_e {
-    T_NONE=0, T_INT, T_CHR, T_STR, T_TSTR, T_IDENT, T_FUNC, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER
+    T_NONE=0, T_SINT, T_UINT, T_NUM, T_CHR, T_STR, T_TSTR, T_IDENT, T_FUNC, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER
 };
 
 struct value_s {
     enum type_e type;
     union {
-        ival_t num;
+        struct {
+            uint8_t len;
+            ival_t val;
+        } num;
         struct {
             size_t len;
             uint8_t *data;

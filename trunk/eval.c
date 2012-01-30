@@ -27,6 +27,21 @@ extern char ident[];
 
 static struct encoding_s *actual_encoding = ascii_encoding;
 
+void set_uint(struct value_s *v, uval_t val) {
+    v->u.num.val=val;
+    v->u.num.len = 1;
+    while (val & ~(uval_t)0xff) {val>>=8;v->u.num.len++;}
+    v->type=T_UINT;
+}
+
+void set_int(struct value_s *v, ival_t val) {
+    v->u.num.val=val;
+    v->u.num.len = 1;
+    if (val < 0) val = ~val;
+    while ((uval_t)val & ~(uval_t)0x7f) {val>>=8;v->u.num.len++;}
+    v->type=T_SINT;
+}
+
 static int get_hex(struct value_s *v) {
     uval_t val=0;
     unsigned int large;
@@ -38,9 +53,11 @@ static int get_hex(struct value_s *v) {
         if (here() & 0x40) val+=9;
         lpoint++;
     }
-    v->u.num=val;
-    v->type=T_INT;
-    return lpoint - large > sizeof(val)*2;
+    v->u.num.val=val;
+    v->u.num.len=(lpoint - large)/2;
+    v->u.num.len|=!v->u.num.len;
+    v->type=T_NUM;
+    return v->u.num.len > sizeof(val);
 }
 
 static int get_bin(struct value_s *v) {
@@ -53,9 +70,11 @@ static int get_bin(struct value_s *v) {
         val=(val << 1) | (here() & 1);
         lpoint++;
     }
-    v->u.num=val;
-    v->type=T_INT;
-    return lpoint - large > sizeof(val)*8;
+    v->u.num.val=val;
+    v->u.num.len=(lpoint - large)/8;
+    v->u.num.len|=!v->u.num.len;
+    v->type=T_NUM;
+    return v->u.num.len > sizeof(val);
 }
 
 static int get_dec(struct value_s *v) {
@@ -71,8 +90,7 @@ static int get_dec(struct value_s *v) {
         val=(val*10)+(here() & 15);
         lpoint++;
     }
-    v->u.num=val;
-    v->type=T_INT;
+    set_uint(v, val);
     return large;
 }
 
@@ -131,7 +149,7 @@ static void get_string(struct value_s *v, char ch) {
     uint_fast16_t val;
 
     val = petascii((uint8_t)ch);
-    if (val < 256 && here()==ch) {lpoint++;v->type=T_CHR;v->u.num=val;return;}
+    if (val < 256 && here()==ch) {lpoint++;v->type=T_CHR;v->u.num.val=val;v->u.num.len=1;return;}
     if (val == 256) {v->type=T_NONE;return;}
     i=0;
     for (;val < 256 && i < sizeof(line)-1;val = petascii((uint8_t)ch)) {
@@ -198,7 +216,7 @@ static void get_star(struct value_s *v) {
         fixeddig=0;
     }
     tmp->addr=star;
-    v->type=T_INT;v->u.num=star;
+    set_uint(v, star);
 }
 
 /*
@@ -285,10 +303,10 @@ rest:
         }
         if (ch>='0' && ch<='9') { if (get_dec(&o_out[outp].val)) goto pushlarge;
         pushval:
-            if (o_out[outp].val.type == T_INT && (o_out[outp].val.u.num & ~0xffff)) {
+            if ((o_out[outp].val.type == T_SINT || o_out[outp].val.type == T_UINT || o_out[outp].val.type == T_NUM) && (o_out[outp].val.u.num.val & ~0xffff)) {
             pushlarge:
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
-                o_out[outp].val.u.num = 0xffff;
+                o_out[outp].val.u.num.val = 0xffff;
             }
         } else {
             while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint++;
@@ -367,16 +385,17 @@ rest:
         if (ch == '<' || ch == '>') {
             switch (t1) {
             case T_CHR:
-            case T_INT:
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
                 {
-                    uint16_t val1 = values[vsp-1]->val.u.num;
+                    uint16_t val1 = values[vsp-1]->val.u.num.val;
 
                     switch (ch) {
                     case '>': val1 >>= 8;
                     case '<': val1 = (uint8_t)val1; break;
                     }
-                    values[vsp-1]->val.type = T_INT;
-                    values[vsp-1]->val.u.num = val1;
+                    set_uint(&values[vsp-1]->val, val1);
                     break;
                 }
             case T_TSTR:
@@ -393,13 +412,17 @@ rest:
         t2 = try_resolv(&values[vsp-2]->val);
         switch (t1) {
         case T_CHR:
-        case T_INT:
+        case T_SINT:
+        case T_UINT:
+        case T_NUM:
             switch (t2) {
             case T_CHR:
-            case T_INT:
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
                 {
-                    uint16_t val1 = values[vsp-1]->val.u.num;
-                    uint16_t val2 = values[vsp-2]->val.u.num;
+                    uint16_t val1 = values[vsp-1]->val.u.num.val;
+                    uint16_t val2 = values[vsp-2]->val.u.num.val;
 
                     switch (ch) {
                     case '*': val1 *= val2; break;
@@ -411,8 +434,7 @@ rest:
                     case ':': val1 ^= val2; break;
                     }
                     vsp--;
-                    values[vsp-1]->val.type = T_INT;
-                    values[vsp-1]->val.u.num = val1;
+                    set_uint(&values[vsp-1]->val, val1);
                     continue;
                 }
             default: err_msg_wrong_type(t2, values[vsp-2]->epoint);
@@ -455,23 +477,27 @@ int get_val(struct value_s *v, enum type_e type, unsigned int *epoint) {// lengt
         v->u.str.data = line;
         v->type = T_STR;
     case T_STR:
-    case T_INT:
+    case T_SINT:
+    case T_UINT:
+    case T_NUM:
     case T_CHR:
         if (type == T_NONE) return 1;
-        if (type == T_INT) {
+        if (type == T_SINT || type == T_UINT || type == T_NUM) {
             switch (v->type) {
             case T_STR:
                 if (arguments.tasmcomp) break;
                 if (v->u.str.len < 5) {
-                    i = v->u.str.len; v->u.num = 0;
-                    while (i) v->u.num = (v->u.num << 8) | line[--i];
+                    i = v->u.str.len; v->u.num.val = 0;v->u.num.len = i;
+                    while (i) v->u.num.val = (v->u.num.val << 8) | line[--i];
                 } else {
                     err_msg2(ERROR_CONSTNT_LARGE, NULL, values[values_p-1]->epoint);
                     v->type = T_NONE;return 1;
                 }
             case T_CHR:
-                v->type = T_INT;
-            case T_INT:
+                v->type = type;
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
                 return 1;
             default:
                 break;
@@ -493,12 +519,12 @@ static void functions(struct values_s **vals, unsigned int args) {
         switch (try_resolv(&vals[1]->val)) {
         case T_TSTR:
         case T_STR:
-            v1->u.num = vals[1]->val.u.str.len;
-            v1->type = T_INT;
+            set_uint(v1, vals[1]->val.u.str.len);
             break;
         case T_CHR:
-            v1->u.num = 1;
-            v1->type = T_INT;
+            v1->u.num.val = 1;
+            v1->u.num.len=1;
+            v1->type = T_UINT;
             break;
         default: err_msg_wrong_type(vals[1]->val.type, vals[1]->epoint);
         case T_NONE: return;
@@ -512,9 +538,11 @@ static void functions(struct values_s **vals, unsigned int args) {
             int volt = 1;
             while (args) {
                 switch (try_resolv(&vals[args]->val)) {
-                case T_INT:
+                case T_SINT:
+                case T_UINT:
+                case T_NUM:
                 case T_CHR:
-                    if (volt || vals[args]->val.u.num < min) min = vals[args]->val.u.num;
+                    if (volt || vals[args]->val.u.num.val < min) min = vals[args]->val.u.num.val;
                     volt = 0;
                     break;
                 default: err_msg_wrong_type(vals[args]->val.type, vals[args]->epoint);
@@ -523,8 +551,7 @@ static void functions(struct values_s **vals, unsigned int args) {
                 }
                 args--;
             }
-            v1->u.num = min;
-            v1->type = T_INT;
+            set_int(v1, min);
         }
         return;
     }
@@ -535,9 +562,11 @@ static void functions(struct values_s **vals, unsigned int args) {
             int volt = 1;
             while (args) {
                 switch (try_resolv(&vals[args]->val)) {
-                case T_INT:
+                case T_SINT:
+                case T_UINT:
+                case T_NUM:
                 case T_CHR:
-                    if (volt || vals[args]->val.u.num > max) max = vals[args]->val.u.num;
+                    if (volt || vals[args]->val.u.num.val > max) max = vals[args]->val.u.num.val;
                     volt = 0;
                     break;
                 default: err_msg_wrong_type(vals[args]->val.type, vals[args]->epoint);
@@ -546,8 +575,7 @@ static void functions(struct values_s **vals, unsigned int args) {
                 }
                 args--;
             }
-            v1->u.num = max;
-            v1->type = T_INT;
+            set_int(v1, max);
         }
         return;
     }
@@ -800,37 +828,45 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         }
 
         switch (ch) {
-        case 'l':
+        case 'l': // <
             switch (try_resolv(&v1->val)) {
-            case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)v1->val.u.num;v1->epoint = o_out[i].epoint;continue;
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
+            case T_CHR: v1->val.type = T_UINT; v1->val.u.num.val = (uint8_t)v1->val.u.num.val;v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
-        case 'h':
+        case 'h': // >
             switch (try_resolv(&v1->val)) {
-            case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)(v1->val.u.num >> 8);v1->epoint = o_out[i].epoint;continue;
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
+            case T_CHR: v1->val.type = T_UINT; v1->val.u.num.val = (uint8_t)(v1->val.u.num.val >> 8);v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
-        case 'H':
+        case 'H': // `
             switch (try_resolv(&v1->val)) {
-            case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = (uint8_t)(v1->val.u.num >> 16);v1->epoint = o_out[i].epoint;continue;
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
+            case T_CHR: v1->val.type = T_UINT; v1->val.u.num.val = (uint8_t)(v1->val.u.num.val >> 16);v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
-        case 'S':
+        case 'S': // ^
             switch (try_resolv(&v1->val)) {
-            case T_INT:
-                sprintf((char *)line,"%d", v1->val.u.num);
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
+                sprintf((char *)line,"%d", v1->val.u.num.val);
                 goto totstr;
             case T_CHR:
-                line[0]=v1->val.u.num;
+                line[0]=v1->val.u.num.val;
                 line[1]=0;
             totstr:
                 v1->val.type = T_TSTR;
@@ -843,38 +879,47 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
-        case 'p':
+        case 'p': // +
             switch (try_resolv(&v1->val)) {
-            case T_INT:
-            case T_CHR: v1->val.type = T_INT;v1->epoint = o_out[i].epoint;continue;
+            case T_UINT:
+            case T_CHR: v1->val.type = T_SINT;
+            case T_SINT:
+            case T_NUM: v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
-        case 'n':
+        case 'n': // -
             switch (try_resolv(&v1->val)) {
-            case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = -v1->val.u.num;v1->epoint = o_out[i].epoint;continue;
+            case T_UINT:
+            case T_CHR: v1->val.type = T_SINT;
+            case T_SINT:
+            case T_NUM: v1->val.u.num.val = -v1->val.u.num.val;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         case '~':
             switch (try_resolv(&v1->val)) {
-            case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = ~v1->val.u.num;v1->epoint = o_out[i].epoint;continue;
+            case T_SINT:
+            case T_UINT:
+            case T_NUM:
+            case T_CHR: v1->val.type = T_NUM; v1->val.u.num.val = ~v1->val.u.num.val;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
             }
         case '!':
             switch (try_resolv(&v1->val)) {
-            case T_INT:
-            case T_CHR: v1->val.type = T_INT; v1->val.u.num = !v1->val.u.num;v1->epoint = o_out[i].epoint;continue;
+            case T_SINT:
+            case T_UINT:
+            case T_NUM:
+            case T_CHR: v1->val.type = T_UINT; v1->val.u.num.val = !v1->val.u.num.val;v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             case T_STR:
-                v1->val.type = T_INT;
-                v1->val.u.num = !v1->val.u.str.len;
+                v1->val.type = T_UINT;
+                v1->val.u.num.val = !v1->val.u.str.len;
+                v1->val.u.num.len = 1;
                 continue;
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -892,13 +937,21 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             v1->val.type = T_NONE;
             continue;
         }
-        if (t1 == T_CHR && t2 == T_CHR) t1 = T_INT;
-        if (t1 == T_CHR && t2 == T_INT) t1 = T_INT;
-        if (t1 == T_INT && t2 == T_CHR) t2 = T_INT;
+        if (t1 == T_NUM && (t2 == T_SINT || t2 == T_UINT)) t1 = t2;
+        if (t2 == T_NUM && (t1 == T_SINT || t1 == T_UINT)) t2 = t1;
+        if (t1 == T_NUM && t2 == T_CHR) t1 = T_UINT;
+        if (t2 == T_NUM && t1 == T_CHR) t2 = T_UINT;
+        if (t1 == T_UINT && t2 == T_SINT) t1 = T_SINT;
+        if (t1 == T_SINT && t2 == T_UINT) t2 = T_SINT;
+        if (t1 == T_CHR && t2 == T_CHR) t1 = T_UINT;
+        if (t1 == T_CHR && t2 == T_UINT) t1 = T_UINT;
+        if (t1 == T_CHR && t2 == T_SINT) t1 = T_SINT;
+        if (t1 == T_UINT && t2 == T_CHR) t2 = T_UINT;
+        if (t1 == T_SINT && t2 == T_CHR) t2 = T_SINT;
 
-        if (t1 == T_INT && t2 == T_INT) {
-            ival_t val1 = v1->val.u.num;
-            ival_t val2 = v2->val.u.num;
+        if ((t1 == T_SINT && t2 == T_SINT) || (t1 == T_UINT && t2 == T_UINT) || (t1 == T_NUM && t2 == T_NUM)) {
+            ival_t val1 = v1->val.u.num.val;
+            ival_t val2 = v2->val.u.num.val;
             switch (ch) {
             case '=': val1 = ( val1 == val2);break;
             case 'o': val1 = ( val1 != val2);break;
@@ -952,19 +1005,20 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 break;
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;continue;
             }
-            v1->val.type = T_INT; v1->val.u.num = val1; continue;
+            if (t1 == T_SINT) set_int(&v1->val, val1); else {set_uint(&v1->val, val1); v1->val.type = t1;}
+            continue;
         }
 
         if (t1 == T_TSTR) t1 = T_STR;
         if (t2 == T_TSTR) t2 = T_STR;
         if (t1 == T_CHR && t2 == T_STR) {
-            line[0]=v1->val.u.num;
+            line[0]=v1->val.u.num.val;
             t1 = v1->val.type = T_STR;
             v1->val.u.str.data = (uint8_t *)&line[0];
             v1->val.u.str.len = 1;
         }
         if (t1 == T_STR && t2 == T_CHR) {
-            line[1]=v2->val.u.num;
+            line[1]=v2->val.u.num.val;
             t2 = v2->val.type = T_STR;
             v2->val.u.str.data = (uint8_t *)&line[1];
             v2->val.u.str.len = 1;
@@ -976,7 +1030,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 strcomp:
                     if (v1->val.type == T_TSTR) free(v1->val.u.str.data);
                     if (v2->val.type == T_TSTR) free(v2->val.u.str.data);
-                    v1->val.type = T_INT; v1->val.u.num = val;
+                    v1->val.type = T_UINT; v1->val.u.num.val = val; v1->val.u.num.len = 1;
                     continue;
                 case 'o':
                     val = (v1->val.u.str.len != v2->val.u.str.len) || memcmp(v1->val.u.str.data, v2->val.u.str.data, v1->val.u.str.len);
@@ -1003,19 +1057,19 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 default: err_msg_wrong_type(v1->val.type, v1->epoint); goto errtype;
             }
         }
-        if (t1 == T_STR && t2 == T_CHR) t2 = T_INT;
-        if (t1 == T_STR && t2 == T_INT) {
+        if (t1 == T_STR && t2 == T_CHR) t2 = T_UINT;
+        if (t1 == T_STR && (t2 == T_SINT || t2 == T_UINT || t2 == T_NUM)) {
             if (ch=='I') {
                 val=0;
-                if (v2->val.u.num >= 0) {
-                    if ((uval_t)v2->val.u.num < v1->val.u.str.len) val = v1->val.u.str.data[v2->val.u.num];
+                if (v2->val.u.num.val >= 0) {
+                    if ((uval_t)v2->val.u.num.val < v1->val.u.str.len) val = v1->val.u.str.data[v2->val.u.num.val];
                     else err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint);
                 } else {
-                    if ((uval_t)-v2->val.u.num <= v1->val.u.str.len) val = v1->val.u.str.data[v1->val.u.str.len + v2->val.u.num];
+                    if ((uval_t)-v2->val.u.num.val <= v1->val.u.str.len) val = v1->val.u.str.data[v1->val.u.str.len + v2->val.u.num.val];
                     else err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint);
                 }
                 if (v1->val.type == T_TSTR) free(v1->val.u.str.data);
-                v1->val.type = T_CHR; v1->val.u.num = val;continue;
+                v1->val.type = T_CHR; v1->val.u.num.val = val;v1->val.u.num.len = 1;continue;
             }
         }
         if (t2 == T_UNDEF) err_msg_wrong_type(v2->val.type, v2->epoint); 
