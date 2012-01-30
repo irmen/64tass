@@ -867,10 +867,11 @@ void labelprint(void) {
             }
             switch (l->value.type) {
             case T_CHR:
-            case T_INT:
+            case T_UINT:
+            case T_SINT:
                 {
                     int32_t val;
-                    val=l->value.u.num;
+                    val=l->value.u.num.val;
                     if (val<0) {putc('-', flab);val=-val;}
                     if (val<0x100) fprintf(flab,"$%02x",val);
                     else if (val<0x10000) fprintf(flab,"$%04x",val);
