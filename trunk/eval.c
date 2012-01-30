@@ -833,7 +833,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_UINT:
             case T_SINT:
             case T_NUM:
-            case T_CHR: v1->val.type = T_UINT; v1->val.u.num.val = (uint8_t)v1->val.u.num.val;v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
+            case T_CHR: v1->val.type = T_NUM; v1->val.u.num.val = (uint8_t)v1->val.u.num.val;v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -843,7 +843,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_UINT:
             case T_SINT:
             case T_NUM:
-            case T_CHR: v1->val.type = T_UINT; v1->val.u.num.val = (uint8_t)(v1->val.u.num.val >> 8);v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
+            case T_CHR: v1->val.type = T_NUM; v1->val.u.num.val = (uint8_t)(v1->val.u.num.val >> 8);v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -853,7 +853,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_UINT:
             case T_SINT:
             case T_NUM:
-            case T_CHR: v1->val.type = T_UINT; v1->val.u.num.val = (uint8_t)(v1->val.u.num.val >> 16);v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
+            case T_CHR: v1->val.type = T_NUM; v1->val.u.num.val = (uint8_t)(v1->val.u.num.val >> 16);v1->val.u.num.len=1;v1->epoint = o_out[i].epoint;continue;
             case T_TSTR: free(v1->val.u.str.data);
             default: err_msg_wrong_type(v1->val.type, v1->epoint); v1->val.type = T_NONE;
             case T_NONE: continue;
@@ -937,21 +937,14 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             v1->val.type = T_NONE;
             continue;
         }
-        if (t1 == T_NUM && (t2 == T_SINT || t2 == T_UINT)) t1 = t2;
-        if (t2 == T_NUM && (t1 == T_SINT || t1 == T_UINT)) t2 = t1;
-        if (t1 == T_NUM && t2 == T_CHR) t1 = T_UINT;
-        if (t2 == T_NUM && t1 == T_CHR) t2 = T_UINT;
-        if (t1 == T_UINT && t2 == T_SINT) t1 = T_SINT;
-        if (t1 == T_SINT && t2 == T_UINT) t2 = T_SINT;
-        if (t1 == T_CHR && t2 == T_CHR) t1 = T_UINT;
-        if (t1 == T_CHR && t2 == T_UINT) t1 = T_UINT;
-        if (t1 == T_CHR && t2 == T_SINT) t1 = T_SINT;
-        if (t1 == T_UINT && t2 == T_CHR) t2 = T_UINT;
-        if (t1 == T_SINT && t2 == T_CHR) t2 = T_SINT;
 
-        if ((t1 == T_SINT && t2 == T_SINT) || (t1 == T_UINT && t2 == T_UINT) || (t1 == T_NUM && t2 == T_NUM)) {
+        if ((t1 <= T_SINT && t2 <= T_SINT)) {
             ival_t val1 = v1->val.u.num.val;
             ival_t val2 = v2->val.u.num.val;
+
+            if (t1 == T_CHR) t1 = T_UINT;
+            if (t2 < t1) t2 = t1;
+
             switch (ch) {
             case '=': val1 = ( val1 == val2);break;
             case 'o': val1 = ( val1 != val2);break;
@@ -964,9 +957,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case 'X': val1 = (!val1 ^ !val2);break;
             case '*': val1 = ( val1 *  val2);break;
             case '/': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = (~(uval_t)0) >> 1; large=1;}
-                else  val1 = ( val1 /  val2); break;
+                else if (t2==T_SINT) val1 = ( val1 / val2); else val1 = ( (uval_t)val1 / (uval_t)val2);  break;
             case '%': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = (~(uval_t)0) >> 1; large=1;}
-                else  val1 = ( val1 %  val2); break;
+                else if (t2==T_SINT) val1 = ( val1 % val2); else val1 = ( (uval_t)val1 % (uval_t)val2); break;
             case '+': val1 = ( val1 +  val2);break;
             case '-': val1 = ( val1 -  val2);break;
             case '&': val1 = ( val1 &  val2);break;
@@ -976,15 +969,17 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 if (val2 >= (ival_t)sizeof(val1)*8 || val2 <= -(ival_t)sizeof(val1)*8) val1=0;
                 else val1 = (val2 > 0) ? (val1 << val2) : (ival_t)((uval_t)val1 >> (-val2));
                 break;
+            case 'D': 
+                if (t1 == T_SINT) {
+                    if (val2 >= (ival_t)sizeof(val1)*8) val1 = (val1 > 0) ? 0 : -1;
+                    if (val2 <= -(ival_t)sizeof(val1)*8) val1 = 0;
+                    else if (val1 >= 0) val1 = (val2 > 0) ? (val1 >> val2) : (val1 << (-val2));
+                    else val1 = ~((val2 > 0) ? ((~val1) >> val2) : ((~val1) << (-val2)));
+                    break;
+                }
             case 'd': 
                 if (val2 >= (ival_t)sizeof(val1)*8 || val2 <= -(ival_t)sizeof(val1)*8) val1=0;
                 else val1 = (val2 > 0) ? (ival_t)((uval_t)val1 >> val2) : (val1 << (-val2));
-                break;
-            case 'D': 
-                if (val2 >= (ival_t)sizeof(val1)*8) val1 = (val1 > 0) ? 0 : -1;
-                if (val2 <= -(ival_t)sizeof(val1)*8) val1 = 0;
-                else if (val1 >= 0) val1 = (val2 > 0) ? (val1 >> val2) : (val1 << (-val2));
-                else val1 = ~((val2 > 0) ? ((~val1) >> val2) : ((~val1) << (-val2)));
                 break;
             case 'E': 
                 {
