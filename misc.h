@@ -71,7 +71,7 @@ struct value_s {
 };
 
 enum label_e {
-    L_LABEL, L_VAR, L_STRUCT, L_UNION
+    L_LABEL, L_CONST, L_VAR, L_STRUCT, L_UNION
 };
 
 struct label_s {
@@ -80,6 +80,7 @@ struct label_s {
     struct avltree_node node;
 
     struct value_s value;
+    size_t size;
     uval_t requires;
     uval_t conflicts;
     unsigned ref:1;
