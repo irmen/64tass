@@ -474,7 +474,7 @@ struct label_s *new_label(const char* name, enum label_e type) {
         strcpy((char *)lastlb->name,name);
         lastlb->type = type;
         lastlb->parent=current_context;
-        lastlb->ref=0;
+        lastlb->ref=lastlb->size=0;
         avltree_init(&lastlb->members, label_compare, label_free);
 	labelexists=0;
 	tmp=lastlb;

@@ -62,10 +62,8 @@ unsigned int lpoint;              //position in current line
 char ident[linelength], ident2[linelength];  //identifier (label, etc)
 static char varname[linelength];//variable (same as identifier?)
 static char path[linelength];   //path
-static int32_t pagelo=-1;           //still in same page?
 static FILE* flist = NULL;      //listfile
 static enum { LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU } lastl = LIST_CODE;
-static struct {uint16_t p, len; address_t *data;} logitab = {0,0,NULL};  //.logical .here
 static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static uint8_t databank=0;
 static uint16_t dpage=0;
@@ -78,8 +76,12 @@ static uint8_t outputeor = 0; // EOR value for final output (usually 0, except c
 static struct {
     char what;
     line_t line;
+    address_t addr;
+    address_t laddr;
+    struct label_s *label;
+    uint8_t skip;
 } waitfor[nestinglevel];
-static uint8_t skipit[nestinglevel];
+
 static uint8_t waitforp=0;
 
 static unsigned int last_mnem;
@@ -224,7 +226,6 @@ void status(void) {
     }
     free(mem.data);		        	// free codemem
     free(memblocks.data);				// free memorymap
-    free(logitab.data);
     free_values();
     tfree();
     {
@@ -256,6 +257,21 @@ static void printllist(FILE *f) {
         llist=NULL;
     }
     putc('\n', f);
+}
+
+static void new_waitfor(char what) {
+    waitfor[++waitforp].what = what;
+    waitfor[waitforp].line = sline;
+    waitfor[waitforp].label = NULL;
+    waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1;
+}
+
+static void set_size(struct label_s *var, size_t size) {
+    size &= all_mem;
+    if (var->size != size) {
+        var->size = size;
+        fixeddig = 0;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -660,7 +676,7 @@ static void macro_recurse(char t, struct macro_s *tmp2) {
         star_tree = &s->tree;vline=0;
         enterfile(tmp2->file->name, sline);
         sline = tmp2->sline;
-        waitfor[++waitforp].what=t;waitfor[waitforp].line=sline;skipit[waitforp]=1;
+        new_waitfor(t);
         f = cfile; cfile = tmp2->file;
         cfile->p = tmp2->p;
         compile();
@@ -678,8 +694,9 @@ static void compile(void)
     int prm = 0;
     struct value_s val;
 
-    struct label_s *tmp = NULL;
+    struct label_s *newlabel = NULL;
     struct macro_s *tmp2 = NULL;
+    address_t oaddr = 0;
 
     uint8_t oldwaitforp = waitforp;
     unsigned wasref;
@@ -689,7 +706,7 @@ static void compile(void)
         pline = cfile->data + cfile->p; lpoint = 0; sline++;vline++; cfile->p += strlen((char *)pline) + 1;
         if (macro_parameters.p) mtranslate(); //expand macro parameters, if any
         llist = pline;
-        star=l_address;
+        star=l_address;newlabel = NULL;
         ident2[0]=wasref=0;
         if (unionmode) {
             if (address > unionend) unionend = address;
@@ -714,24 +731,24 @@ static void compile(void)
                     goto hh;
                 }
             baj:
-                if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL);
+                if (waitfor[waitforp].skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL);
                 goto breakerr;
             } //not label
             get_ident();                                           //get label
             if (here()==':') lpoint++;
             else if ((prm=lookup_opcode(ident))>=0) {
-                if (skipit[waitforp] & 1) goto as_opcode; else continue;
+                if (waitfor[waitforp].skip & 1) goto as_opcode; else continue;
             }
             if (listing) strcpy(ident2,ident);
         hh:
-            if (!(skipit[waitforp] & 1)) {wht=what(&prm);goto jn;} //skip things if needed
+            if (!(waitfor[waitforp].skip & 1)) {wht=what(&prm);goto jn;} //skip things if needed
             if ((wht=what(&prm))==WHAT_EQUAL) { //variable
                 strcpy(varname,ident);
                 if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                 if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
-                tmp=new_label(varname, L_LABEL);
-                if (listing && flist && arguments.source && tmp->ref) {
+                newlabel=new_label(varname, L_CONST);oaddr=address;
+                if (listing && flist && arguments.source && newlabel->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                     if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM ||val.type == T_CHR) {
                         fprintf(flist,"=%x\t\t\t\t\t",(uval_t)val.u.num.val);
@@ -740,21 +757,21 @@ static void compile(void)
                     }
                     printllist(flist);
                 }
-                tmp->ref=0;
+                newlabel->ref=0;
                 if (pass==1) {
                     if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,varname);
                     else {
-                        tmp->requires=current_requires;
-                        tmp->conflicts=current_conflicts;
-                        tmp->pass=pass;
-                        tmp->value.type=T_NONE;
-                        var_assign(tmp, &val, fixeddig);
+                        newlabel->requires=current_requires;
+                        newlabel->conflicts=current_conflicts;
+                        newlabel->pass=pass;
+                        newlabel->value.type=T_NONE;
+                        var_assign(newlabel, &val, fixeddig);
                     }
                 } else {
                     if (labelexists) {
-                        tmp->requires=current_requires;
-                        tmp->conflicts=current_conflicts;
-                        var_assign(tmp, &val, 0);
+                        newlabel->requires=current_requires;
+                        newlabel->conflicts=current_conflicts;
+                        var_assign(newlabel, &val, 0);
                     }
                 }
                 goto finish;
@@ -766,8 +783,8 @@ static void compile(void)
                     if (!get_exp(&w, 0)) goto breakerr; //ellenorizve.
                     if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    tmp=new_label(varname, L_VAR);
-                    if (listing && flist && arguments.source && tmp->ref) {
+                    newlabel=new_label(varname, L_VAR);oaddr=address;
+                    if (listing && flist && arguments.source && newlabel->ref) {
                         if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                         if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM || val.type == T_CHR) {
                             fprintf(flist,"=%x\t\t\t\t\t",(uval_t)val.u.num.val);
@@ -776,20 +793,20 @@ static void compile(void)
                         }
                         printllist(flist);
                     }
-                    tmp->ref=0;
+                    newlabel->ref=0;
                     if (labelexists) {
-                        if (tmp->type != L_VAR) err_msg(ERROR_DOUBLE_DEFINE,varname);
+                        if (newlabel->type != L_VAR) err_msg(ERROR_DOUBLE_DEFINE,varname);
                         else {
-                            tmp->requires=current_requires;
-                            tmp->conflicts=current_conflicts;
-                            var_assign(tmp, &val, fixeddig);
+                            newlabel->requires=current_requires;
+                            newlabel->conflicts=current_conflicts;
+                            var_assign(newlabel, &val, fixeddig);
                         }
                     } else {
-                        tmp->requires=current_requires;
-                        tmp->conflicts=current_conflicts;
-                        tmp->pass=pass;
-                        tmp->value.type=T_NONE;
-                        var_assign(tmp, &val, fixeddig);
+                        newlabel->requires=current_requires;
+                        newlabel->conflicts=current_conflicts;
+                        newlabel->pass=pass;
+                        newlabel->value.type=T_NONE;
+                        var_assign(newlabel, &val, fixeddig);
                         if (val.type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
                     }
                     goto finish;
@@ -821,7 +838,7 @@ static void compile(void)
                     }
                 case CMD_MACRO:// .macro
                 case CMD_SEGMENT:
-                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    new_waitfor('m');waitfor[waitforp].skip=0;
                     tmp2=new_macro(ident);
                     if (labelexists) {
                         if (tmp2->p!=cfile->p
@@ -843,47 +860,49 @@ static void compile(void)
                         struct label_s *old_context=current_context;
                         address_t old_address = address, old_laddress = l_address;
                         int old_dooutput = dooutput;
-                        waitfor[++waitforp].what=(prm==CMD_STRUCT)?'s':'u';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                        tmp2=new_macro(ident);
-                        if (labelexists) {
-                            if (tmp2->p!=cfile->p
-                             || tmp2->sline!=sline
-                             || tmp2->type!=prm
-                             || tmp2->file!=cfile) {
-                                err_msg(ERROR_DOUBLE_DEFINE,ident);
+                        new_waitfor((prm==CMD_STRUCT)?'s':'u');waitfor[waitforp].skip=0;
+                        if (!structrecursion) {
+                            tmp2=new_macro(ident);
+                            if (labelexists) {
+                                if (tmp2->p!=cfile->p
+                                        || tmp2->sline!=sline
+                                        || tmp2->type!=prm
+                                        || tmp2->file!=cfile) {
+                                    err_msg(ERROR_DOUBLE_DEFINE,ident);
+                                }
+                            } else {
+                                tmp2->p=cfile->p;
+                                tmp2->sline=sline;
+                                tmp2->type=prm;
+                                tmp2->file=cfile;
                             }
-                        } else {
-                            tmp2->p=cfile->p;
-                            tmp2->sline=sline;
-                            tmp2->type=prm;
-                            tmp2->file=cfile;
                         }
-                        tmp=new_label(ident, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);
+                        newlabel=new_label(ident, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);
                         if (pass==1) {
                             if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,ident);
                             else {
-                                tmp->requires=0;
-                                tmp->conflicts=0;
-                                tmp->upass=tmp->pass=pass;
-                                tmp->value.type=T_UINT;tmp->value.u.num.val=0;tmp->value.u.num.len=1;
+                                newlabel->requires=0;
+                                newlabel->conflicts=0;
+                                newlabel->upass=newlabel->pass=pass;
+                                newlabel->value.type=T_UINT;newlabel->value.u.num.val=0;newlabel->value.u.num.len=1;
                             }
                         } else {
                             if (labelexists) {
-                                if (tmp->value.type != T_UINT || tmp->type != ((prm==CMD_STRUCT)?L_STRUCT:L_UNION)) { /* should not happen */
+                                if (newlabel->value.type != T_UINT || newlabel->type != ((prm==CMD_STRUCT)?L_STRUCT:L_UNION)) { /* should not happen */
                                     err_msg(ERROR_DOUBLE_DEFINE,ident);
                                 } else {
-                                    if (tmp->value.u.num.val != 0) {
-                                        tmp->value.u.num.val=0;tmp->value.u.num.len=1;
+                                    if (newlabel->value.u.num.val != 0) {
+                                        newlabel->value.u.num.val=0;newlabel->value.u.num.len=1;
                                         fixeddig=0;
                                     }
-                                    tmp->requires=0;
-                                    tmp->conflicts=0;
-                                    tmp->value.type=T_UINT;
+                                    newlabel->requires=0;
+                                    newlabel->conflicts=0;
+                                    newlabel->value.type=T_UINT;
                                 }
                             }
                         }
-                        current_context=tmp;
-                        tmp->ref=0;
+                        current_context=newlabel;
+                        newlabel->ref=0;
                         if (!structrecursion) {address = l_address = 0;dooutput = 0;memjmp(0);}
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
@@ -899,7 +918,7 @@ static void compile(void)
                             unionstart = unionend = address;
                             l_unionstart = l_unionend = l_address;
                             waitforp--;
-                            waitfor[++waitforp].what=(prm==CMD_STRUCT)?'S':'U';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                            new_waitfor((prm==CMD_STRUCT)?'S':'U');waitfor[waitforp].skip=1;
                             compile();
                             current_context = old_context; 
                             unionmode = old_unionmode;
@@ -907,37 +926,40 @@ static void compile(void)
                             l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
                         } else err_msg(ERROR__MACRECURSION,"!!!!");
                         structrecursion--;
-                        if (!structrecursion) {address = old_address; l_address = old_laddress; dooutput = old_dooutput; memjmp(address);}
+                        if (!structrecursion) {set_size(newlabel, address);address = old_address; l_address = old_laddress; dooutput = old_dooutput; memjmp(address);}
+                        else set_size(newlabel, address - old_address);
+			newlabel = NULL;
                         goto finish;
                     }
                 }
             }
-            tmp=find_label2(ident, &current_context->members);
-            if (tmp) labelexists=1;
+            newlabel=find_label2(ident, &current_context->members);
+            if (newlabel) labelexists=1;
             else {
                 if ((tmp2=find_macro(ident)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {lpoint--;ident2[0]=0;goto as_macro;}
-                tmp=new_label(ident, L_LABEL);
+                newlabel=new_label(ident, L_LABEL);
             }
+            oaddr=address;
             if (pass==1) {
                 if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,ident);
                 else {
-                    tmp->requires=current_requires;
-                    tmp->conflicts=current_conflicts;
-                    tmp->upass=tmp->pass=pass;
-                    set_uint(&tmp->value, l_address);
+                    newlabel->requires=current_requires;
+                    newlabel->conflicts=current_conflicts;
+                    newlabel->upass=newlabel->pass=pass;
+                    set_uint(&newlabel->value, l_address);
                 }
             } else {
                 if (labelexists) {
-                    if (tmp->value.type != T_UINT || tmp->type != L_LABEL) { /* should not happen */
+                    if (newlabel->value.type != T_UINT || newlabel->type != L_LABEL) { /* should not happen */
                         err_msg(ERROR_DOUBLE_DEFINE,ident);
                     } else {
-                        if ((uval_t)tmp->value.u.num.val != l_address) {
-                            set_uint(&tmp->value, l_address);
+                        if ((uval_t)newlabel->value.u.num.val != l_address) {
+                            set_uint(&newlabel->value, l_address);
                             fixeddig=0;
                         }
-                        tmp->requires=current_requires;
-                        tmp->conflicts=current_conflicts;
-                        tmp->value.type=T_UINT;
+                        newlabel->requires=current_requires;
+                        newlabel->conflicts=current_conflicts;
+                        newlabel->value.type=T_UINT;
                     }
                 }
             }
@@ -945,26 +967,27 @@ static void compile(void)
             if (wht==WHAT_COMMAND) { // .proc
                 switch (prm) {
                 case CMD_PROC:
-                    waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;
-                    if (!tmp->ref && pass != 1) skipit[waitforp]=0;
+                    new_waitfor('r');waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = address;
+                    if (!newlabel->ref && pass != 1) waitfor[waitforp].skip=0;
                     else {
-                        skipit[waitforp]=1;
-                        current_context=tmp;
+                        current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                             fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                         }
-                        tmp->ref=0;
+                        newlabel->ref=0;
                     }
+                    newlabel = NULL;
                     goto finish;
                 case CMD_BLOCK: // .block
-                    waitfor[++waitforp].what='b';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                    current_context=tmp;
+                    new_waitfor('B');
+                    current_context=newlabel;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = address;
                     if (listing && flist && arguments.source) {
                         if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                         fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                     }
-                    tmp->ref=0;
+                    newlabel->ref=0;
+                    newlabel = NULL;
                     goto finish;
                 case CMD_DSTRUCT: // .dstruct
                 case CMD_DUNION:
@@ -976,13 +999,13 @@ static void compile(void)
                         unionmode = (prm==CMD_DUNION);
                         unionstart = unionend = address;
                         l_unionstart = l_unionend = l_address;
-                        current_context=tmp;
+                        current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                             printllist(flist);
                         }
-                        tmp->ref=0;
+                        newlabel->ref=0;
                         ignore();
                         if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (!(tmp2=find_macro(ident)) || tmp2->type!=((prm==CMD_DSTRUCT)?CMD_STRUCT:CMD_UNION)) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
@@ -997,11 +1020,11 @@ static void compile(void)
                     }
                 }
             }
-            wasref=tmp->ref;tmp->ref=0;
+            wasref=newlabel->ref;newlabel->ref=0;
         }
         jn:
         switch (wht) {
-        case WHAT_STAR:if (skipit[waitforp] & 1) //skip things if needed
+        case WHAT_STAR:if (waitfor[waitforp].skip & 1) //skip things if needed
             {
                 ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                 lpoint++;
@@ -1034,7 +1057,7 @@ static void compile(void)
             break;
         case WHAT_COMMENT:
         case WHAT_EOL:
-            if (listing && flist && arguments.source && (skipit[waitforp] & 1) && wasref) {
+            if (listing && flist && arguments.source && (waitfor[waitforp].skip & 1) && wasref) {
                 if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                 fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",address);
                 printllist(flist);
@@ -1044,7 +1067,7 @@ static void compile(void)
             {
                 unsigned int epoint;
                 ignore();
-                if (listing && flist && arguments.source && (skipit[waitforp] & 1) && prm>=CMD_LONG) {
+                if (listing && flist && arguments.source && (waitfor[waitforp].skip & 1) && prm>=CMD_LONG) {
                     switch (prm) {
                         case CMD_FILL:
                         case CMD_ALIGN:
@@ -1099,15 +1122,15 @@ static void compile(void)
                 if (prm==CMD_ELSE) { // .else
                     if (waitfor[waitforp].what=='f') {err_msg(ERROR______EXPECTED,".FI"); break;}
                     if (waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
-                    skipit[waitforp]=skipit[waitforp] >> 1;
+                    waitfor[waitforp].skip=waitfor[waitforp].skip >> 1;
                     waitfor[waitforp].what='f';waitfor[waitforp].line=sline;
                     break;
                 }
                 if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
-                    uint8_t skwait = skipit[waitforp];
+                    uint8_t skwait = waitfor[waitforp].skip;
                     if (prm==CMD_ELSIF) {
                         if (waitfor[waitforp].what!='e') {err_msg(ERROR______EXPECTED,".IF"); break;}
-                    } else waitfor[++waitforp].what='e';
+                    } else new_waitfor('e');
                     waitfor[waitforp].line=sline;
                     if (((skwait==1) && prm!=CMD_ELSIF) || ((skwait==2) && prm==CMD_ELSIF)) {
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
@@ -1117,24 +1140,24 @@ static void compile(void)
                     } else val.type=T_NONE;
                     switch (prm) {
                     case CMD_ELSIF:
-                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp] >> 1; else
-                            skipit[waitforp]=skipit[waitforp] & 2;
+                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp].skip >> 1; else
+                            waitfor[waitforp].skip=waitfor[waitforp].skip & 2;
                         break;
                     case CMD_IF:
-                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
-                            skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
+                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
+                            waitfor[waitforp].skip=(waitfor[waitforp-1].skip & 1) << 1;
                         break;
                     case CMD_IFEQ:
-                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && !val.u.num.val) || (val.type == T_STR && !val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
-                            skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
+                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && !val.u.num.val) || (val.type == T_STR && !val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
+                            waitfor[waitforp].skip=(waitfor[waitforp-1].skip & 1) << 1;
                         break;
                     case CMD_IFPL:
-                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && (arguments.tasmcomp ? (~val.u.num.val & 0x8000) : (val.u.num.val>=0))) || val.type == T_CHR || (val.type == T_STR && val.u.str.len)) skipit[waitforp]=skipit[waitforp-1] & 1; else
-                            skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
+                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && (arguments.tasmcomp ? (~val.u.num.val & 0x8000) : (val.u.num.val>=0))) || val.type == T_CHR || (val.type == T_STR && val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
+                            waitfor[waitforp].skip=(waitfor[waitforp-1].skip & 1) << 1;
                         break;
                     case CMD_IFMI:
-                        if ((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && (arguments.tasmcomp ? (val.u.num.val & 0x8000) : (val.u.num.val < 0))) skipit[waitforp]=skipit[waitforp-1] & 1; else
-                            skipit[waitforp]=(skipit[waitforp-1] & 1) << 1;
+                        if ((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && (arguments.tasmcomp ? (val.u.num.val & 0x8000) : (val.u.num.val < 0))) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
+                            waitfor[waitforp].skip=(waitfor[waitforp-1].skip & 1) << 1;
                         break;
                     }
                     break;
@@ -1156,11 +1179,13 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_PEND) { //.pend
-                    if (waitfor[waitforp].what!='p') {err_msg(ERROR______EXPECTED,".PROC"); break;}
-                    if (skipit[waitforp] & 1) {
+                    if (waitfor[waitforp].what!='r') {err_msg(ERROR______EXPECTED,".PROC"); break;}
+                    if (waitfor[waitforp].skip & 1) {
                         if (current_context->parent) {
                             current_context = current_context->parent;
                         } else err_msg(ERROR______EXPECTED,".proc");
+			lastl=LIST_NONE;
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, address - waitfor[waitforp].addr);
                     }
                     waitforp--;
                     break;
@@ -1173,7 +1198,7 @@ static void compile(void)
                     } else err_msg(ERROR______EXPECTED,".STRUCT"); break;
                     break;
                 }
-                if (prm==CMD_ENDU) { // .ends
+                if (prm==CMD_ENDU) { // .endu
                     if (waitfor[waitforp].what=='u') {
                         waitforp--; l_address = l_unionend; if (address != unionend) {address = unionend; memjmp(address);}
                     } else if (waitfor[waitforp].what=='U') {
@@ -1182,25 +1207,39 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_ENDP) { // .endp
-                    if (waitfor[waitforp].what!='P') {err_msg(ERROR______EXPECTED,".ENDP"); break;}
-                    waitforp--;
-                    if (pagelo==-1) {err_msg(ERROR______EXPECTED,".PAGE"); break;}
-                    if ((l_address>>8) != (address_t)pagelo && fixeddig) {
-                        err_msg(ERROR____PAGE_ERROR,(const char *)l_address);
-                    }
-                    pagelo=-1;
+                    if (waitfor[waitforp].what=='p') {
+                        waitforp--;
+                    } else if (waitfor[waitforp].what=='P') {
+			if ((l_address & ~0xff) != (waitfor[waitforp].laddr & ~0xff) && fixeddig) {
+				err_msg(ERROR____PAGE_ERROR,(const char *)l_address);
+			}
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, address - waitfor[waitforp].addr);
+                        waitforp--;
+                    } else err_msg(ERROR______EXPECTED,".PAGE"); break;
                     break;
                 }
-                if (!(skipit[waitforp] & 1)) {
+                if (prm==CMD_HERE) { // .here
+                    if (waitfor[waitforp].what=='l') {
+                        waitforp--;
+                    } else if (waitfor[waitforp].what=='L') {
+			l_address = address + waitfor[waitforp].laddr;
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, address - waitfor[waitforp].addr);
+                        waitforp--;
+                    } else err_msg(ERROR______EXPECTED,".LOGICAL"); break;
+                    break;
+                }
+                if (!(waitfor[waitforp].skip & 1)) {
                     switch (prm) {
-                    case CMD_PAGE: waitfor[++waitforp].what='P';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
-                    case CMD_STRUCT: waitfor[++waitforp].what='s';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
+                    case CMD_BLOCK: new_waitfor('b'); break;
+                    case CMD_LOGICAL: new_waitfor('l'); break;
+                    case CMD_PAGE: new_waitfor('p'); break;
+                    case CMD_STRUCT: new_waitfor('s'); break;
                     case CMD_MACRO:
-                    case CMD_SEGMENT: waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
+                    case CMD_SEGMENT: new_waitfor('m'); break;
                     case CMD_FOR:
-                    case CMD_REPT: waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
-                    case CMD_COMMENT: waitfor[++waitforp].what='c';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
-                    case CMD_PROC: waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0; break;
+                    case CMD_REPT: new_waitfor('n'); break;
+                    case CMD_COMMENT: new_waitfor('c'); break;
+                    case CMD_PROC: new_waitfor('r'); break;
                     }
                     break;//skip things if needed
                 }
@@ -1362,14 +1401,19 @@ static void compile(void)
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!get_val(&val, T_SINT, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".OFFS");
                     if (val.type == T_NONE) fixeddig = 0;
                     else if (val.u.num.val) {
                         if (fixeddig && scpumode) {
                             if (((address + val.u.num.val)^address) & ~(address_t)0xffff) wrapwarn2=1;
                         }
-                        address+=val.u.num.val;
-                        if (address>all_mem) {
+                        if (structrecursion) {
+                            if (val.u.num.val < 0) err_msg(ERROR___NOT_ALLOWED, ".OFFS");
+                            else {
+                                l_address+=val.u.num.val;
+                                address+=val.u.num.val;
+                            }
+                        } else address+=val.u.num.val;
+                        if (address & ~all_mem) {
                             if (fixeddig) wrapwarn=1;
                             address&=all_mem;
                         }
@@ -1378,11 +1422,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_LOGICAL) { // .logical
-                    if (logitab.p >= logitab.len) {
-                        logitab.len += 16;
-                        if (!(logitab.data=realloc(logitab.data,logitab.len*sizeof(*logitab.data)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
-                    }
-                    logitab.data[logitab.p++]=l_address-address;
+                    new_waitfor('L');waitfor[waitforp].laddr = l_address - address;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = address;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!get_val(&val, T_UINT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
@@ -1392,12 +1432,7 @@ static void compile(void)
                         if ((uval_t)val.u.num.val & ~(uval_t)all_mem) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else l_address=(uval_t)val.u.num.val;
                     }
-                    break;
-                }
-                if (prm==CMD_HERE) { // .here
-                    if (!logitab.p) err_msg(ERROR______EXPECTED,".LOGICAL");
-                    else if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".HERE");
-                    else l_address=address+logitab.data[--logitab.p];
+                    newlabel = NULL;
                     break;
                 }
                 if (prm==CMD_AS) { // .as
@@ -1421,16 +1456,21 @@ static void compile(void)
                     goto breakerr;
                 }
                 if (prm==CMD_BLOCK) { // .block
+		    new_waitfor('B');
                     sprintf(varname, ".%x.%x", (unsigned)star_tree, (unsigned)vline);
                     current_context=new_label(varname, L_LABEL);
                     current_context->value.type = T_NONE;
                     break;
                 }
                 if (prm==CMD_BEND) { //.bend
-                    if (waitfor[waitforp].what=='b') waitforp--;
-                    if (current_context->parent) {
-                        current_context = current_context->parent;
-                    } else err_msg(ERROR______EXPECTED,".block");
+                    if (waitfor[waitforp].what=='b') {
+                        waitforp--;
+                    } else if (waitfor[waitforp].what=='B') {
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, address - waitfor[waitforp].addr);
+			if (current_context->parent) current_context = current_context->parent;
+			else err_msg(ERROR______EXPECTED,".block");
+			waitforp--;
+                    } else err_msg(ERROR______EXPECTED,".BLOCK"); break;
                     break;
                 }
                 if (prm==CMD_DATABANK) { // .databank
@@ -1558,7 +1598,7 @@ static void compile(void)
                 }
                 if (prm==CMD_REPT) { // .rept
                     int cnt;
-                    waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    new_waitfor('n');waitfor[waitforp].skip=0;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!get_val(&val, T_UINT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
@@ -1578,7 +1618,7 @@ static void compile(void)
                             star_tree = &s->tree;vline=0;
                             for (; cnt<val.u.num.val; cnt++) {
                                 sline=lin;cfile->p=pos;
-                                waitfor[++waitforp].what='N';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                                new_waitfor('N');waitfor[waitforp].skip=1;
                                 compile();
                             }
                             star_tree = stree_old; vline = ovline;
@@ -1659,7 +1699,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_COMMENT) { // .comment
-                    waitfor[++waitforp].what='c';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    new_waitfor('c');waitfor[waitforp].skip=0;
                     break;
                 }
                 if (prm==CMD_INCLUDE) { // .include
@@ -1708,7 +1748,7 @@ static void compile(void)
                     struct avltree *stree_old;
                     line_t ovline;
 
-                    waitfor[++waitforp].what='n';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    new_waitfor('n');waitfor[waitforp].skip=0;
                     if (strlen((char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
                     if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
                         if (get_ident()) goto breakerr;
@@ -1776,7 +1816,7 @@ static void compile(void)
                                 bpoint=lpoint;
                             }
                         }
-                        waitfor[++waitforp].what='N';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                        new_waitfor('N');waitfor[waitforp].skip=1;
                         compile();
                         xpos = cfile->p; xlin= sline;
                         pline = expr;
@@ -1794,9 +1834,8 @@ static void compile(void)
                     goto breakerr;
                 }
                 if (prm==CMD_PAGE) { // .page
-                    waitfor[++waitforp].what='P';waitfor[waitforp].line=sline;skipit[waitforp]=1;
-                    if (pagelo!=-1) err_msg(ERROR______EXPECTED,".ENDP");
-                    else pagelo=(l_address>>8);
+                    new_waitfor('P');waitfor[waitforp].addr = address;waitfor[waitforp].laddr = l_address;waitfor[waitforp].label=newlabel;
+                    newlabel=NULL;
                     break;
                 }
                 if (prm==CMD_OPTION) { // .option
@@ -1827,13 +1866,17 @@ static void compile(void)
                             case 'm': err_msg(ERROR______EXPECTED,".ENDM"); noerr = 0; break;
                             case 'N':
                             case 'n': err_msg(ERROR______EXPECTED,".NEXT"); noerr = 0; break;
-                            case 'p': err_msg(ERROR______EXPECTED,".PEND"); noerr = 0; break;
+                            case 'r': err_msg(ERROR______EXPECTED,".PEND"); noerr = 0; break;
+			    case 'B':
                             case 'b': err_msg(ERROR______EXPECTED,".BEND"); noerr = 0; break;
                             case 'S':
                             case 's': err_msg(ERROR______EXPECTED,".ENDS"); noerr = 0; break;
                             case 'U':
                             case 'u': err_msg(ERROR______EXPECTED,".ENDU"); noerr = 0; break;
-                            case 'P': err_msg(ERROR______EXPECTED,".ENDP"); noerr = 0; break;
+			    case 'P':
+                            case 'p': err_msg(ERROR______EXPECTED,".ENDP"); noerr = 0; break;
+                            case 'L':
+                            case 'l': err_msg(ERROR______EXPECTED,".HERE"); noerr = 0; break;
                             }
                             sline = os;
                         }
@@ -1845,23 +1888,23 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_MACRO || prm==CMD_SEGMENT) {
-                    waitfor[++waitforp].what='m';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    new_waitfor('m');waitfor[waitforp].skip=0;
                     err_msg(ERROR___NOT_DEFINED,ident);
                     break;
                 }
                 if (prm==CMD_PROC) {
-                    waitfor[++waitforp].what='p';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    new_waitfor('r');waitfor[waitforp].skip=0;waitfor[waitforp].addr=address;
                     err_msg(ERROR___NOT_DEFINED,ident);
                     break;
                 }
                 if (prm==CMD_STRUCT) {
                     int old_unionmode = unionmode;
                     unionmode = 0;
-                    waitfor[++waitforp].what='s';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    new_waitfor('s');waitfor[waitforp].skip=0;
                     structrecursion++;
                     if (structrecursion<100) {
                         waitforp--;
-                        waitfor[++waitforp].what='S';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                        new_waitfor('S');waitfor[waitforp].skip=1;
                         compile();
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
                     structrecursion--;
@@ -1875,11 +1918,11 @@ static void compile(void)
                     unionmode = 1;
                     unionstart = unionend = address;
                     l_unionstart = l_unionend = l_address;
-                    waitfor[++waitforp].what='u';waitfor[waitforp].line=sline;skipit[waitforp]=0;
+                    new_waitfor('u');waitfor[waitforp].skip=0;
                     structrecursion++;
                     if (structrecursion<100) {
                         waitforp--;
-                        waitfor[++waitforp].what='U';waitfor[waitforp].line=sline;skipit[waitforp]=1;
+                        new_waitfor('U');waitfor[waitforp].skip=1;
                         compile();
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
                     structrecursion--;
@@ -1914,7 +1957,7 @@ static void compile(void)
                     break;
                 }
             }
-        case WHAT_HASHMARK:if (skipit[waitforp] & 1) //skip things if needed
+        case WHAT_HASHMARK:if (waitfor[waitforp].skip & 1) //skip things if needed
             {                   //macro stuff
                 struct label_s *old_context;
 
@@ -1936,7 +1979,7 @@ static void compile(void)
                 break;
             }
         case WHAT_EXPRESSION:
-            if (skipit[waitforp] & 1) {
+            if (waitfor[waitforp].skip & 1) {
                 enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_NONE } adrgen;
 
                 get_ident2();
@@ -2106,7 +2149,7 @@ static void compile(void)
                                                 }
                                             } else {
                                                 if (fixeddig) {
-                                                    if (!longbranch && ((l_address+2) & 0xff00)!=(oadr & 0xff00)) {
+                                                    if (!longbranch && ((uint16_t)(l_address+2) & 0xff00)!=(oadr & 0xff00)) {
                                                         if (!allowslowbranch) {err=ERROR__BRANCH_CROSS;continue;}
                                                     }
                                                 }
@@ -2321,54 +2364,54 @@ static void compile(void)
                                 for (i=0;i<3;i++) putc(mnemonic[mnem*3+i],flist);
 
                                 switch (opr) {
-                                    case ADR_IMPLIED: putc('\t', flist); break;
-                                    case ADR_ACCU: fputs(" a\t", flist); break;
-                                    case ADR_IMMEDIATE:
-                                                   {
-                                                       if (ln==1) fprintf(flist," #$%02x",(uint8_t)adr);
-                                                       else fprintf(flist," #$%04x",(uint16_t)adr);
-                                                       break;
-                                                   }
-                                    case ADR_LONG: fprintf(flist," $%06x",(uint32_t)(adr&0xffffff)); break;
-                                    case ADR_ADDR:
-                                                   if (cnmemonic[ADR_ADDR]==0x20 || cnmemonic[ADR_ADDR]==0x4c)
-                                                       fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
-                                                   else
-                                                       fprintf(flist,databank?" $%06x":" $%04x",(uint16_t)adr | (databank << 16));
-                                                   break;
-                                    case ADR_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x\t":" $%04x",(uint16_t)(adr+dpage)); break;
-                                    case ADR_LONG_X: fprintf(flist," $%06x,x",(uint32_t)(adr&0xffffff)); break;
-                                    case ADR_ADDR_X: fprintf(flist,databank?" $%06x,x":" $%04x,x",(uint16_t)adr | (databank << 16)); break;
-                                    case ADR_ZP_X: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,x":" $%04x,x",(uint16_t)(adr+dpage)); break;
-                                    case ADR_ADDR_X_I: fprintf(flist,(l_address&0xff0000)?" ($%06x,x)":" ($%04x,x)",((uint16_t)adr) | (l_address&0xff0000)); break;
-                                    case ADR_ZP_X_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x,x)":" ($%04x,x)",(uint16_t)(adr+dpage)); break;
-                                    case ADR_ZP_S: fprintf(flist," $%02x,s",(uint8_t)adr); break;
-                                    case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(uint8_t)adr); break;
-                                    case ADR_ADDR_Y: fprintf(flist,databank?" $%06x,y":" $%04x,y",(uint16_t)adr | (databank << 16)); break;
-                                    case ADR_ZP_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,y":" $%04x,y",(uint16_t)(adr+dpage)); break;
-                                    case ADR_ZP_LI_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x],y":" [$%04x],y",(uint16_t)(adr+dpage)); break;
-                                    case ADR_ZP_I_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x),y":" ($%04x),y",(uint16_t)(adr+dpage)); break;
-                                    case ADR_ADDR_LI: fprintf(flist," [$%04x]",(uint16_t)adr); break;
-                                    case ADR_ZP_LI: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x]":" [$%04x]",(uint16_t)(adr+dpage)); break;
-                                    case ADR_ADDR_I: fprintf(flist," ($%04x)",(uint16_t)adr); break;
-                                    case ADR_ZP_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x)":" ($%04x)",(uint16_t)(adr+dpage)); break;
-                                    case ADR_REL:
-                                                   if (ln==1) fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(((int8_t)adr)+l_address) | (l_address & 0xff0000));
-                                                   else if (ln==2) {
-                                                       if ((cod ^ longbranch)==0x4C)
-                                                           fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
-                                                       else
-                                                           fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000));
-                                                   }
-                                                   else {
-                                                       if ((uint16_t)adr==0x4C03)
-                                                           fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)(adr >> 16)) | (l_address & 0xff0000));
-                                                       else
-                                                           fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)((adr >> 16)+l_address) | (l_address & 0xff0000));
-                                                   }
-                                                   break;
-                                    case ADR_REL_L: fprintf(flist,(l_address & 0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000)); break;
-                                    case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
+                                case ADR_IMPLIED: putc('\t', flist); break;
+                                case ADR_ACCU: fputs(" a\t", flist); break;
+                                case ADR_IMMEDIATE: {
+                                    if (ln==1) fprintf(flist," #$%02x",(uint8_t)adr);
+                                    else fprintf(flist," #$%04x",(uint16_t)adr);
+                                    break;
+                                }
+                                case ADR_LONG: fprintf(flist," $%06x",(uint32_t)(adr&0xffffff)); break;
+                                case ADR_ADDR: {
+                                    if (cnmemonic[ADR_ADDR]==0x20 || cnmemonic[ADR_ADDR]==0x4c)
+                                        fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
+                                    else fprintf(flist,databank?" $%06x":" $%04x",(uint16_t)adr | (databank << 16));
+                                    break;
+                                }
+                                case ADR_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x\t":" $%04x",(uint16_t)(adr+dpage)); break;
+                                case ADR_LONG_X: fprintf(flist," $%06x,x",(uint32_t)(adr&0xffffff)); break;
+                                case ADR_ADDR_X: fprintf(flist,databank?" $%06x,x":" $%04x,x",(uint16_t)adr | (databank << 16)); break;
+                                case ADR_ZP_X: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,x":" $%04x,x",(uint16_t)(adr+dpage)); break;
+                                case ADR_ADDR_X_I: fprintf(flist,(l_address&0xff0000)?" ($%06x,x)":" ($%04x,x)",((uint16_t)adr) | (l_address&0xff0000)); break;
+                                case ADR_ZP_X_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x,x)":" ($%04x,x)",(uint16_t)(adr+dpage)); break;
+                                case ADR_ZP_S: fprintf(flist," $%02x,s",(uint8_t)adr); break;
+                                case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(uint8_t)adr); break;
+                                case ADR_ADDR_Y: fprintf(flist,databank?" $%06x,y":" $%04x,y",(uint16_t)adr | (databank << 16)); break;
+                                case ADR_ZP_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,y":" $%04x,y",(uint16_t)(adr+dpage)); break;
+                                case ADR_ZP_LI_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x],y":" [$%04x],y",(uint16_t)(adr+dpage)); break;
+                                case ADR_ZP_I_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x),y":" ($%04x),y",(uint16_t)(adr+dpage)); break;
+                                case ADR_ADDR_LI: fprintf(flist," [$%04x]",(uint16_t)adr); break;
+                                case ADR_ZP_LI: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x]":" [$%04x]",(uint16_t)(adr+dpage)); break;
+                                case ADR_ADDR_I: fprintf(flist," ($%04x)",(uint16_t)adr); break;
+                                case ADR_ZP_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x)":" ($%04x)",(uint16_t)(adr+dpage)); break;
+                                case ADR_REL: {
+                                    if (ln==1) fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(((int8_t)adr)+l_address) | (l_address & 0xff0000));
+                                    else if (ln==2) {
+                                        if ((cod ^ longbranch)==0x4C)
+                                            fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (l_address & 0xff0000));
+                                        else
+                                            fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000));
+                                    }
+                                    else {
+                                        if ((uint16_t)adr==0x4C03)
+                                            fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)(adr >> 16)) | (l_address & 0xff0000));
+                                        else
+                                            fprintf(flist,(l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)((adr >> 16)+l_address) | (l_address & 0xff0000));
+                                    }
+                                    break;
+                                }
+                                case ADR_REL_L: fprintf(flist,(l_address & 0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+l_address) | (l_address & 0xff0000)); break;
+                                case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
                                 }
                             } else if (arguments.source) putc('\t',flist);
                         } else if (arguments.source) fputs("\t\t\t", flist);
@@ -2380,12 +2423,12 @@ static void compile(void)
                 }
                 if ((tmp2=find_macro(ident)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) goto as_macro;
             }            // fall through
-        default: if (skipit[waitforp] & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
+        default: if (waitfor[waitforp].skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
         }
     finish:
-        ignore();if (!here() || here()==';') continue;
-        if (skipit[waitforp] & 1) err_msg(ERROR_EXTRA_CHAR_OL,NULL); 
+        ignore();if (here() && here()!=';' && (waitfor[waitforp].skip & 1)) err_msg(ERROR_EXTRA_CHAR_OL,NULL); 
     breakerr:
+        if (newlabel) set_size(newlabel, address - oaddr);
         continue;
     }
 
@@ -2395,18 +2438,22 @@ static void compile(void)
         switch (waitfor[waitforp--].what) {
         case 'e':
         case 'f': err_msg(ERROR______EXPECTED,".FI"); break;
-        case 'P': err_msg(ERROR______EXPECTED,".ENDP"); break;
+	case 'P':
+        case 'p': err_msg(ERROR______EXPECTED,".ENDP"); break;
         case 'M':
         case 'm': err_msg(ERROR______EXPECTED,".ENDM"); break;
         case 'N':
         case 'n': err_msg(ERROR______EXPECTED,".NEXT"); break;
-        case 'p': err_msg(ERROR______EXPECTED,".PEND"); break;
+        case 'r': err_msg(ERROR______EXPECTED,".PEND"); break;
+	case 'B':
         case 'b': err_msg(ERROR______EXPECTED,".BEND"); break;
         case 'c': err_msg(ERROR______EXPECTED,".ENDC"); break;
         case 'S':
         case 's': err_msg(ERROR______EXPECTED,".ENDS"); break;
         case 'U':
         case 'u': err_msg(ERROR______EXPECTED,".ENDU"); break;
+        case 'L':
+        case 'l': err_msg(ERROR______EXPECTED,".HERE"); break;
         }
         sline = os;
     }
@@ -2440,8 +2487,8 @@ int main(int argc,char *argv[]) {
             set_cpumode(arguments.cpumode);
             address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~(uval_t)0;current_requires=0;current_conflicts=0;structrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
-            current_context=&root_label;logitab.p=0;
+            waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
+            current_context=&root_label;
             macro_parameters.p = 0;
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
@@ -2492,8 +2539,8 @@ int main(int argc,char *argv[]) {
             set_cpumode(arguments.cpumode);
             address=l_address=star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             current_provides=~(uval_t)0;current_requires=0;current_conflicts=0;structrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;skipit[0]=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
-            current_context=&root_label;logitab.p=0;
+            waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
+            current_context=&root_label;
             macro_parameters.p = 0;
 
             if (i == optind - 1) {

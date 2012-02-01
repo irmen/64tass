@@ -84,7 +84,7 @@ static int get_dec(struct value_s *v) {
     while ((uint8_t)(here() ^ '0') < 10) {
         if (val >= ((uval_t)1 << (8*sizeof(val)-1)) / 5) {
             if (val == ((uval_t)1 << (8*sizeof(val)-1)) / 5) {
-               if ((here() & 15) > (((uval_t)1 << (8*sizeof(val)-1)) % 5)*2) large = 1;
+               if ((uval_t)(here() & 15) > (((uval_t)1 << (8*sizeof(val)-1)) % 5)*2) large = 1;
             } else large=1;
         }
         val=(val*10)+(here() & 15);
@@ -185,7 +185,7 @@ static void copy_name(struct value_s *val) {
     ident[len] = 0;
 }
 
-static enum type_e try_resolv(struct value_s *val) {
+static void try_resolv_ident(struct value_s *val) {
     if (val->type == T_FORWR) {
         sprintf(ident,"+%x+%x", reffile, forwr + val->u.ref - 1);
         goto ident;
@@ -200,11 +200,19 @@ static enum type_e try_resolv(struct value_s *val) {
         val->u.label = find_label(ident);
         val->type = touch_label(val->u.label);
     }
+}
+
+static void try_resolv_identref(struct value_s *val) {
     if (val->type == T_IDENTREF) {
         if ((val->u.label->requires & current_provides)!=val->u.label->requires) err_msg(ERROR_REQUIREMENTS_,ident);
         if (val->u.label->conflicts & current_provides) err_msg(ERROR______CONFLICT,ident);
         *val = val->u.label->value;
     } else if (val->type == T_UNDEF && pass == 1) val->type = T_NONE;
+}
+
+static enum type_e try_resolv(struct value_s *val) {
+    try_resolv_ident(val);
+    try_resolv_identref(val);
     return val->type;
 }
 
@@ -576,6 +584,30 @@ static void functions(struct values_s **vals, unsigned int args) {
                 args--;
             }
             set_int(v1, max);
+        }
+        return;
+    }
+    else if (v1->u.ident.len == 4 && !memcmp(v1->u.ident.name, "size", 4)) {
+        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0]->epoint);
+        else {
+	    try_resolv_ident(&vals[1]->val);
+	    switch (vals[1]->val.type) {
+	    case T_IDENTREF:
+                switch (vals[1]->val.u.label->type) {
+                case L_LABEL:
+                case L_STRUCT:
+                case L_UNION:
+                    set_uint(v1, vals[1]->val.u.label->size);
+                    break;
+                default: try_resolv_identref(&vals[1]->val);err_msg_wrong_type(vals[1]->val.type, vals[1]->epoint);
+                }
+                break;
+	    default: err_msg_wrong_type(vals[1]->val.type, vals[1]->epoint);
+	    case T_NONE:
+		return;
+            case T_UNDEF:
+                if (pass == 1) v1->type = T_NONE; else v1->type = T_UNDEF;
+	    }
         }
         return;
     }
