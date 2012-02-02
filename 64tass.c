@@ -307,17 +307,26 @@ static void memcomp(void) {
     if (memblocks.p<2) return;
 
     for (k = j = 0; j < memblocks.p; j++) {
-        const struct memblock_s *bj = &memblocks.data[j];
+        struct memblock_s *bj = &memblocks.data[j];
         if (bj->len) {
             for (i = j + 1; i < memblocks.p; i++) if (memblocks.data[i].len) {
                 struct memblock_s *bi = &memblocks.data[i];
-                if (bj->start <= bi->start && bj->start + bj->len > bi->start) {
-                    size_t overlap = bj->start + bj->len - bi->start;
+                if (bj->start <= bi->start && (bj->start + bj->len) > bi->start) {
+                    size_t overlap = (bj->start + bj->len) - bi->start;
                     if (overlap > bi->len) overlap = bi->len;
                     memcpy(mem.data + bj->p + (unsigned)(bi->start - bj->start), mem.data + bi->p, overlap);
                     bi->len-=overlap;
                     bi->p+=overlap;
                     bi->start+=overlap;
+                    continue;
+                }
+                if (bi->start <= bj->start && (bi->start + bi->len) > bj->start) {
+                    size_t overlap = bj->start - bi->start;
+                    if (overlap > bj->len) overlap = bj->len;
+                    bj->start+=overlap;
+                    bj->p+=overlap;
+                    bj->len-=overlap;
+                    if (!bj->len) { *bj=*bi; bi->len = 0; }
                 }
             }
             if (j!=k) memblocks.data[k]=*bj;
@@ -688,7 +697,7 @@ static void macro_recurse(char t, struct macro_s *tmp2) {
     if (macro_parameters.p) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
 }
 
-static void compile(void) 
+static void compile(void)
 {
     int wht,w;
     int prm = 0;
@@ -920,7 +929,7 @@ static void compile(void)
                             waitforp--;
                             new_waitfor((prm==CMD_STRUCT)?'S':'U');waitfor[waitforp].skip=1;
                             compile();
-                            current_context = old_context; 
+                            current_context = old_context;
                             unionmode = old_unionmode;
                             unionstart = old_unionstart; unionend = old_unionend;
                             l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
@@ -1326,7 +1335,7 @@ static void compile(void)
                                 ch2 = (uint16_t)val.u.num.val;
                                 break;
                             default: err_msg(ERROR____WRONG_TYPE,NULL);
-                            case T_NONE: ch2 = fixeddig = 0; 
+                            case T_NONE: ch2 = fixeddig = 0;
                             }
                             if (prm==CMD_RTA) ch2--;
 
@@ -1389,7 +1398,7 @@ static void compile(void)
                                 lcol-=3;
                             }
                         } else fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr & all_mem);
-                
+
                         if (arguments.source && llist) {
                             for (i=0; i<lcol-1; i+=8) putc('\t',flist);
                             putc('\t', flist);printllist(flist);
@@ -1931,7 +1940,7 @@ static void compile(void)
                     l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
                     break;
                 }
-                if (prm==CMD_DSTRUCT) { 
+                if (prm==CMD_DSTRUCT) {
                     int old_unionmode = unionmode;
                     unionmode = 0;
                     if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1942,7 +1951,7 @@ static void compile(void)
                     unionmode = old_unionmode;
                     break;
                 }
-                if (prm==CMD_DUNION) { 
+                if (prm==CMD_DUNION) {
                     int old_unionmode = unionmode;
                     address_t old_unionstart = unionstart, old_unionend = unionend;
                     unionmode = 1;
@@ -2033,7 +2042,7 @@ static void compile(void)
                             if (dtvmode && cod==0x02) longbranch=0x40;//hack
 
                             if (w==3) w = ln - 1;
-                            else if (w != ln - 1) w = 3; 
+                            else if (w != ln - 1) w = 3;
                             if (val.type != T_NONE) {
                                 if (!w && ln == 1 && ((val.u.num.len <= 1 && val.type == T_NUM) || !((uval_t)val.u.num.val & ~(uval_t)0xff))) adr = (uval_t)val.u.num.val;
                                 else if (w == 1 && ln == 2 && ((val.u.num.len <= 2 && val.type == T_NUM) || !((uval_t)val.u.num.val & ~(uval_t)0xffff))) adr = (uval_t)val.u.num.val;
@@ -2098,7 +2107,7 @@ static void compile(void)
                                     int_fast8_t joln = 1;
                                     uint8_t jolongbranch = longbranch;
                                     enum opr_e joopr = ADR_REL;
-                                    enum errors_e err = ERROR_WUSER_DEFINED; 
+                                    enum errors_e err = ERROR_WUSER_DEFINED;
                                     s=new_star(vline+1);olabelexists=labelexists;
 
                                     for (;c;c=get_val(&val, T_UINT, NULL)) {
@@ -2426,7 +2435,7 @@ static void compile(void)
         default: if (waitfor[waitforp].skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
         }
     finish:
-        ignore();if (here() && here()!=';' && (waitfor[waitforp].skip & 1)) err_msg(ERROR_EXTRA_CHAR_OL,NULL); 
+        ignore();if (here() && here()!=';' && (waitfor[waitforp].skip & 1)) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     breakerr:
         if (newlabel) set_size(newlabel, address - oaddr);
         continue;
