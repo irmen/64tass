@@ -714,9 +714,6 @@ loop    <b>adc</b> #1          ;padding with "nop" for DTV burst mode
 
 <h3>Dumping data</h3>
 <dl class="dir">
-<dt>.byte
-<dd>Include 8&nbsp;bit unsigned byte constants, same as <code>.text</code>
-
 <dt>.text
 <dd>Include constants and strings:
 <pre width=80>
@@ -725,6 +722,13 @@ loop    <b>adc</b> #1          ;padding with "nop" for DTV burst mode
 	<b>.text</b> 23, $33	<i>; bytes</i>
 	<b>.text</b> %00011111	<i>; more bytes</i>
 	<b>.text</b> ^OEU	<i>; the decimal value as string (^23 is $32,$33)</i>
+</pre>
+
+<dt>.byte
+<dd>Include 8&nbsp;bit unsigned byte constants, same as <code>.text</code>
+<pre width=80>
+	<b>.byte</b> 255	<i>; $ff</i>
+	<b>.byte</b> ?	        <i>; reserve 1 byte of space</i>
 </pre>
 
 <dt>.char
@@ -819,6 +823,7 @@ rets	<b>.rta</b> $fce2
 <dd>Include 16&nbsp;bit unsigned word constants
 <pre width=80>
 	<b>.word</b> $2342, $4555
+	<b>.word</b> ?	        <i>; reserve 2 bytes of space</i>
 </pre>
 
 <dt>.int
@@ -831,12 +836,13 @@ rets	<b>.rta</b> $fce2
 <dd>Include 24&nbsp;bit unsigned constants
 <pre width=80>
 	<b>.long</b> $123456
+	<b>.long</b> ?	        <i>; reserve 3 bytes of space</i>
 </pre>
 
 <dt>.fill
 <dd>Skip bytes, or fill with repeated bytes. For multi byte patterns use <code>.repeat</code>!
 <pre width=80>
-        <b>.fill</b> $100      <i>;no fill, just skip $100 bytes</i>
+        <b>.fill</b> $100      <i>;no fill, just reserve $100 bytes</i>
         <b>.fill</b> $4000,0   <i>;16384 bytes of 0</i>
 </pre>
 </dl>

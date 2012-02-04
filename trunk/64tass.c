@@ -295,6 +295,24 @@ static void memjmp(address_t adr) {
     memblocklaststart = adr;
 }
 
+static void memskip(address_t db) {
+    if (fixeddig && scpumode) {
+        if (((address + db)^address) & ~(address_t)0xffff) wrapwarn2=1;
+        if (((l_address + db)^l_address) & ~(address_t)0xffff) wrapwarn2=1;
+    }
+    l_address+=db;
+    if (l_address>all_mem) {
+        if (fixeddig) wrapwarn=1;
+        l_address&=all_mem;
+    }
+    address+=db;
+    if (address>all_mem) {
+        if (fixeddig) wrapwarn=1;
+        address&=all_mem;
+    }
+    memjmp(address);
+}
+
 static int memblockcomp(const void *a, const void *b) {
     const struct memblock_s *aa=(struct memblock_s *)a;
     const struct memblock_s *bb=(struct memblock_s *)b;
@@ -601,7 +619,8 @@ void var_assign(struct label_s *tmp, const struct value_s *val, int fix) {
         }
         break;
     case T_NONE:
-        if (val->type != T_NONE) fixeddig=fix;
+    case T_GAP:
+        if (val->type != tmp->value.type) fixeddig=fix;
         tmp->value=*val;
         if (val->type == T_STR) {
             tmp->value.u.str.data=malloc(val->u.str.len);
@@ -1254,7 +1273,8 @@ static void compile(void)
                 }
                 if (prm<=CMD_LONG || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
                     size_t ptextaddr=mem.p;
-                    address_t myaddr = address;
+                    unsigned int omemp = memblocks.p;
+                    size_t uninit = 0;
 
                     if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
                         int16_t ch2=-1;
@@ -1265,9 +1285,13 @@ static void compile(void)
                         while (get_val(&val, T_NONE, &epoint)) {
                             if (val.type != T_STR || val.u.str.len) {
                                 do {
-                                    if (ch2>=0) pokeb(ch2);
+                                    if (ch2>=0) {
+                                        if (uninit) { memskip(uninit); uninit = 0; }
+                                        pokeb(ch2);
+                                    }
 
                                     switch (val.type) {
+                                    case T_GAP:ch2 = -1; uninit++; break;
                                     case T_STR:
                                         ch2 = *val.u.str.data++;
                                         val.u.str.len--;
@@ -1285,7 +1309,7 @@ static void compile(void)
                                     case T_CHR:
                                         ch2 = (uint8_t)val.u.num.val;
                                         break;
-                                    default: err_msg(ERROR____WRONG_TYPE,NULL);
+                                    default: err_msg_wrong_type(val.type, epoint);
                                     case T_NONE: ch2 = fixeddig = 0;
                                     }
 
@@ -1296,6 +1320,7 @@ static void compile(void)
                                 } while (val.type == T_STR && val.u.str.len);
                             }
                         }
+                        if (uninit) memskip(uninit);
                         if (ch2>=0) {
                             if (prm==CMD_SHIFT) ch2|=0x80;
                             if (prm==CMD_SHIFTL) ch2|=0x01;
@@ -1315,6 +1340,7 @@ static void compile(void)
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         while (get_val(&val, T_NONE, &epoint)) {
                             switch (val.type) {
+                            case T_GAP:uninit += (prm==CMD_LONG) ? 3 : 2;continue;
                             case T_STR:
                                 ch2 = 0;
                                 switch (val.u.str.len) {
@@ -1336,15 +1362,17 @@ static void compile(void)
                             case T_CHR:
                                 ch2 = (uint16_t)val.u.num.val;
                                 break;
-                            default: err_msg(ERROR____WRONG_TYPE,NULL);
+                            default: err_msg_wrong_type(val.type, epoint);
                             case T_NONE: ch2 = fixeddig = 0;
                             }
                             if (prm==CMD_RTA) ch2--;
 
+                            if (uninit) {memskip(uninit);uninit = 0;}
                             pokeb((uint8_t)ch2);
                             pokeb((uint8_t)(ch2>>8));
                             if (prm==CMD_LONG) pokeb((uint8_t)(ch2>>16));
                         }
+                        if (uninit) memskip(uninit);
                         if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm==CMD_BINARY) { // .binary
                         long foffset=0;
@@ -1384,27 +1412,44 @@ static void compile(void)
 
                     if (listing && flist) {
                         unsigned int i, lcol;
-                        if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                        lcol=arguments.source?25:49;
-                        if (dooutput) {
-                            fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);
-                            while (ptextaddr!=mem.p) {
-                                if (lcol==1) {
-                                    if (arguments.source && llist) {
-                                        putc('\t', flist);printllist(flist);
-                                    } else putc('\n',flist);
-                                    fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ",(address-mem.p+ptextaddr) & all_mem);lcol=49;
+                        address_t myaddr;
+                        size_t len;
+                        for (;omemp <= memblocks.p;omemp++) {
+                            lcol=arguments.source?25:49;
+                            if (omemp < memblocks.p) {
+                                len = memblocks.data[omemp].len - (ptextaddr - memblocks.data[omemp].p);
+                                myaddr = (memblocks.data[omemp].start + memblocks.data[omemp].len - len) & all_mem;
+                            } else {
+                                myaddr = memblocklaststart;
+                                len = mem.p - ptextaddr;
+                                if (!len) {
+                                    if (!llist) continue;
+                                    if (omemp) myaddr = (memblocks.data[omemp-1].start + memblocks.data[omemp-1].len) & all_mem;
                                 }
-                                fprintf(flist," %02x", mem.data[ptextaddr++]);
-
-                                lcol-=3;
                             }
-                        } else fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr & all_mem);
+                            if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
+                            if (dooutput) {
+                                fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr);
+                                while (len) {
+                                    if (lcol==1) {
+                                        if (arguments.source && llist) {
+                                            putc('\t', flist);printllist(flist);
+                                        } else putc('\n',flist);
+                                        fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr);lcol=49;
+                                    }
+                                    fprintf(flist," %02x", mem.data[ptextaddr++]);
+                                    myaddr = (myaddr + 1) & all_mem;
 
-                        if (arguments.source && llist) {
-                            for (i=0; i<lcol-1; i+=8) putc('\t',flist);
-                            putc('\t', flist);printllist(flist);
-                        } else putc('\n',flist);
+                                    lcol-=3;
+                                    len--;
+                                }
+                            } else fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr);
+
+                            if (arguments.source && llist) {
+                                for (i=0; i<lcol-1; i+=8) putc('\t',flist);
+                                putc('\t', flist);printllist(flist);
+                            } else putc('\n',flist);
+                        }
                     }
                     break;
                 }
@@ -1528,23 +1573,7 @@ static void compile(void)
                             ch = (uint8_t)val.u.num.val;
                         }
                         while (db-->0) pokeb(ch);
-                    } else {
-                        if (fixeddig && scpumode) {
-                            if (((address + db)^address) & ~(address_t)0xffff) wrapwarn2=1;
-                            if (((l_address + db)^l_address) & ~(address_t)0xffff) wrapwarn2=1;
-                        }
-                        l_address+=db;
-                        if (l_address>all_mem) {
-                            if (fixeddig) wrapwarn=1;
-                            l_address&=all_mem;
-                        }
-                        address+=db;
-                        if (address>all_mem) {
-                            if (fixeddig) wrapwarn=1;
-                            address&=all_mem;
-                        }
-                        memjmp(address);
-                    }
+                    } else memskip(db);
                     eval_finish();
                     break;
                 }
@@ -1662,23 +1691,7 @@ static void compile(void)
                             while (l_address % align) pokeb((uint8_t)fill);
                         else {
                             align-=l_address % align;
-                            if (align) {
-                                if (fixeddig && scpumode) {
-                                    if (((address + align)^address) & ~(address_t)0xffff) wrapwarn2=1;
-                                    if (((l_address + align)^l_address) & ~(address_t)0xffff) wrapwarn2=1;
-                                }
-                                l_address+=align;
-                                if (l_address>all_mem) {
-                                    if (fixeddig) wrapwarn=1;
-                                    l_address&=all_mem;
-                                }
-                                address+=align;
-                                if (address>all_mem) {
-                                    if (fixeddig) wrapwarn=1;
-                                    address&=all_mem;
-                                }
-                                memjmp(address);
-                            }
+                            if (align) memskip(align);
                         }
                     }
                     break;

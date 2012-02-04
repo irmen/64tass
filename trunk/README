@@ -643,8 +643,6 @@ the special star label gets when referenced.
 
 Dumping data
 
-.byte
-    Include 8 bit unsigned byte constants, same as .text
 .text
     Include constants and strings:
 
@@ -653,6 +651,12 @@ Dumping data
             .text 23, $33   ; bytes
             .text %00011111 ; more bytes
             .text ^OEU      ; the decimal value as string (^23 is $32,$33)
+
+.byte
+    Include 8 bit unsigned byte constants, same as .text
+
+            .byte 255       ; $ff
+            .byte ?         ; reserve 1 byte of space
 
 .char
     Include 8 bit signed integer constants
@@ -741,6 +745,7 @@ Dumping data
     Include 16 bit unsigned word constants
 
             .word $2342, $4555
+            .word ?         ; reserve 2 bytes of space
 
 .int
     Include 16 bit signed integer constants
@@ -751,12 +756,13 @@ Dumping data
     Include 24 bit unsigned constants
 
             .long $123456
+            .long ?         ; reserve 3 bytes of space
 
 .fill
     Skip bytes, or fill with repeated bytes. For multi byte patterns use
     .repeat!
 
-            .fill $100      ;no fill, just skip $100 bytes
+            .fill $100      ;no fill, just reserve $100 bytes
             .fill $4000,0   ;16384 bytes of 0
 
 Structured data

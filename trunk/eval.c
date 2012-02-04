@@ -489,6 +489,7 @@ int get_val(struct value_s *v, enum type_e type, unsigned int *epoint) {// lengt
     case T_UINT:
     case T_NUM:
     case T_CHR:
+    case T_GAP:
         if (type == T_NONE) return 1;
         if (type == T_SINT || type == T_UINT || type == T_NUM) {
             switch (v->type) {
@@ -668,6 +669,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '"':
         case '\'': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
         case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
+        case '?': lpoint++;o_out[outp].val.type = T_GAP;goto pushval;
         default: 
             if (ch>='0' && ch<='9') {
                 if (get_dec(&o_out[outp].val)) {
