@@ -725,7 +725,7 @@ loop    <b>adc</b> #1          ;padding with "nop" for DTV burst mode
 </pre>
 
 <dt>.byte
-<dd>Include 8&nbsp;bit unsigned byte constants, same as <code>.text</code>
+<dd>Include 8&nbsp;bit unsigned byte constants
 <pre width=80>
 	<b>.byte</b> 255	<i>; $ff</i>
 	<b>.byte</b> ?	        <i>; reserve 1 byte of space</i>
@@ -837,6 +837,19 @@ rets	<b>.rta</b> $fce2
 <pre width=80>
 	<b>.long</b> $123456
 	<b>.long</b> ?	        <i>; reserve 3 bytes of space</i>
+</pre>
+
+<dt>.dint
+<dd>Include 32&nbsp;bit signed integer constants
+<pre width=80>
+	<b>.dint</b> -533, 4433
+</pre>
+
+<dt>.dword
+<dd>Include 32&nbsp;bit unsigned constants
+<pre width=80>
+	<b>.dword</b> $12345678
+	<b>.dword</b> ?	        <i>; reserve 4 bytes of space</i>
 </pre>
 
 <dt>.fill
