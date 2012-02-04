@@ -638,7 +638,7 @@ the special star label gets when referenced.
 
             .align $100
     irq     inc $d019       ;this will be on a page boundary, after skipping bytes
-            .align 4,$ea
+            .align 4, $ea
     loop    adc #1          ;padding with "nop" for DTV burst mode
 
 Dumping data
@@ -767,14 +767,14 @@ Dumping data
     Include 32 bit unsigned constants
 
             .dword $12345678
-            .dword ?                ; reserve 4 bytes of space
+            .dword ?        ; reserve 4 bytes of space
 
 .fill
     Skip bytes, or fill with repeated bytes. For multi byte patterns use
     .repeat!
 
             .fill $100      ;no fill, just reserve $100 bytes
-            .fill $4000,0   ;16384 bytes of 0
+            .fill $4000, 0  ;16384 bytes of 0
 
 Structured data
 
