@@ -204,8 +204,10 @@ static void try_resolv_ident(struct value_s *val) {
 
 static void try_resolv_identref(struct value_s *val) {
     if (val->type == T_IDENTREF) {
-        if ((val->u.label->requires & current_provides)!=val->u.label->requires) err_msg(ERROR_REQUIREMENTS_,ident);
-        if (val->u.label->conflicts & current_provides) err_msg(ERROR______CONFLICT,ident);
+        if (pass != 1) {
+            if ((val->u.label->requires & current_provides)!=val->u.label->requires) err_msg(ERROR_REQUIREMENTS_,ident);
+            if (val->u.label->conflicts & current_provides) err_msg(ERROR______CONFLICT,ident);
+        }
         *val = val->u.label->value;
     } else if (val->type == T_UNDEF && pass == 1) val->type = T_NONE;
 }
