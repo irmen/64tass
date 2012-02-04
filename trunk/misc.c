@@ -474,7 +474,7 @@ struct label_s *new_label(const char* name, enum label_e type) {
         strcpy((char *)lastlb->name,name);
         lastlb->type = type;
         lastlb->parent=current_context;
-        lastlb->ref=lastlb->size=0;
+        lastlb->ref=lastlb->size=lastlb->esize=0;
         avltree_init(&lastlb->members, label_compare, label_free);
 	labelexists=0;
 	tmp=lastlb;
@@ -655,11 +655,13 @@ struct file_s *openfile(const char* name) {
 	lastfi->p=0;
         lastfi->open=0;
         avltree_init(&lastfi->star, star_compare, star_free);
+        tmp = lastfi;
+        lastfi=NULL;
         if (name[0]) {
             if (name[0]=='-' && !name[1]) f=stdin;
             else f=fopen(name,"rb");
             if (!f) {
-                lastfi=NULL;
+                lastfi=tmp;
                 err_msg(ERROR_CANT_FINDFILE,name);
                 return NULL;
             }
@@ -672,11 +674,12 @@ struct file_s *openfile(const char* name) {
                 int i, j, ch2;
                 uint8_t *pline;
                 uint32_t c = 0, lastchar;
-                if (lastfi->p + linelength > lastfi->len) {
-                    lastfi->len += linelength * 2;
-                    lastfi->data=realloc(lastfi->data, lastfi->len);
+
+                if (tmp->p + linelength > tmp->len) {
+                    tmp->len += linelength * 2;
+                    tmp->data=realloc(tmp->data, tmp->len);
                 }
-                pline=&lastfi->data[lastfi->p];
+                pline=&tmp->data[tmp->p];
                 for (;;) {
                     lastchar = c;
                     if (arguments.toascii) {
@@ -786,28 +789,26 @@ struct file_s *openfile(const char* name) {
                         break;
                     }
                     if (c && c < 0x80) *pline++ = c; else pline = utf8out(c, pline);
-                    if (pline > &lastfi->data[lastfi->p + linelength - 6*6]) {
+                    if (pline > &tmp->data[tmp->p + linelength - 6*6]) {
                         err_msg(ERROR_LINE_TOO_LONG,NULL);ch=EOF;break;
                     }
                 }
-                i = pline - &lastfi->data[lastfi->p];
-                pline=&lastfi->data[lastfi->p];
+                i = pline - &tmp->data[tmp->p];
+                pline=&tmp->data[tmp->p];
                 if (i)
                     while (i && pline[i-1]==' ') i--;
                 pline[i++] = 0;
-                lastfi->p += i;
+                tmp->p += i;
 
                 if (ch == EOF) break;
             } while (1);
             if (ferror(f)) err_msg(ERROR__READING_FILE,name);
             if (f!=stdin) fclose(f);
-            lastfi->len = lastfi->p;
-            lastfi->data=realloc(lastfi->data, lastfi->len);
+            tmp->len = tmp->p;
+            tmp->data=realloc(tmp->data, tmp->len);
         }
-	lastfi->p = 0;
+	tmp->p = 0;
 
-        tmp = lastfi;
-	lastfi=NULL;
         tmp->uid=curfnum++;
     } else {
         tmp = avltree_container_of(b, struct file_s, node);

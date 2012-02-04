@@ -1259,6 +1259,7 @@ static void compile(void)
                     if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
                         int16_t ch2=-1;
                         int large=0;
+                        if (newlabel) newlabel->esize = 1;
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0)) goto breakerr;
                         while (get_val(&val, T_NONE, &epoint)) {
@@ -1310,6 +1311,7 @@ static void compile(void)
                     } else if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA || prm==CMD_LONG) { // .word .int .rta .long
                         uint16_t ch2;
                         int large=0;
+                        if (newlabel) newlabel->esize = (prm==CMD_LONG) ? 3 : 2;
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         while (get_val(&val, T_NONE, &epoint)) {
                             switch (val.type) {
@@ -1510,6 +1512,7 @@ static void compile(void)
                 if (prm==CMD_FILL) { // .fill
                     address_t db = 0;
                     uint8_t ch;
+                    if (newlabel) newlabel->esize = 1;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!get_val(&val, T_UINT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val.type == T_NONE) fixeddig = 0;

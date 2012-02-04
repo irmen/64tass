@@ -959,8 +959,17 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         }
         v2 = v1; v1 = values[--vsp-1];
         if (vsp == 0) goto syntaxe;
-        t1 = try_resolv(&v1->val);
         t2 = try_resolv(&v2->val);
+        try_resolv_ident(&v1->val);
+        if (ch == 'I' && v1->val.type == T_IDENTREF
+            && v1->val.u.label->type == L_LABEL && v1->val.u.label->esize && t2 <= T_SINT) {
+            uint8_t size = v1->val.u.label->esize;
+            try_resolv_identref(&v1->val);
+            v1->val.u.num.val += v2->val.u.num.val * size;
+            continue;
+        }
+        try_resolv_identref(&v1->val);
+        t1 = v1->val.type;
 
         if (t1 == T_NONE || t2 == T_NONE) {
         errtype:
