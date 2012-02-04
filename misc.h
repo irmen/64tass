@@ -84,6 +84,7 @@ struct label_s {
     uval_t requires;
     uval_t conflicts;
     unsigned ref:1;
+    uint8_t esize;
     uint8_t pass;
     uint8_t upass;
     struct label_s *parent;
