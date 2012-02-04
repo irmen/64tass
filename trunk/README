@@ -653,7 +653,7 @@ Dumping data
             .text ^OEU      ; the decimal value as string (^23 is $32,$33)
 
 .byte
-    Include 8 bit unsigned byte constants, same as .text
+    Include 8 bit unsigned byte constants
 
             .byte 255       ; $ff
             .byte ?         ; reserve 1 byte of space
@@ -757,6 +757,17 @@ Dumping data
 
             .long $123456
             .long ?         ; reserve 3 bytes of space
+
+.dint
+    Include 32 bit signed integer constants
+
+            .dint -533, 4433
+
+.dword
+    Include 32 bit unsigned constants
+
+            .dword $12345678
+            .dword ?                ; reserve 4 bytes of space
 
 .fill
     Skip bytes, or fill with repeated bytes. For multi byte patterns use

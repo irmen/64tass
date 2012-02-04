@@ -108,91 +108,93 @@ struct {
 } macro_parameters = {0, 0, NULL, NULL};
 
 static const char* command[]={ /* must be sorted, first char is the ID */
-    "\x1e" "al",
-    "\x30" "align",
-    "\x1d" "as",
-    "\x31" "assert",
-    "\x36" "bend",
-    "\x16" "binary",
-    "\x35" "block",
-    "\x00" "byte",
-    "\x2e" "cerror",
-    "\x03" "char",
-    "\x32" "check",
-    "\x17" "comment",
-    "\x33" "cpu",
-    "\x2f" "cwarn",
-    "\x24" "databank",
-    "\x25" "dpage",
-    "\x43" "dstruct",
-    "\x46" "dunion",
-    "\x11" "else",
-    "\x13" "elsif",
-    "\x28" "enc",
-    "\x3b" "end",
-    "\x18" "endc",
-    "\x29" "endif",
-    "\x0d" "endm",
-    "\x1a" "endp",
-    "\x42" "ends",
-    "\x45" "endu",
-    "\x3c" "eor",
-    "\x21" "error",
-    "\x12" "fi",
-    "\x26" "fill",
-    "\x0e" "for",
-    "\x40" "goto",
-    "\x1c" "here",
-    "\x3a" "hidemac",
-    "\x10" "if",
-    "\x2b" "ifeq",
-    "\x2d" "ifmi",
-    "\x2a" "ifne",
-    "\x2c" "ifpl",
-    "\x15" "include",
+    "\x20" "al",
+    "\x32" "align",
+    "\x1f" "as",
+    "\x33" "assert",
+    "\x38" "bend",
+    "\x18" "binary",
+    "\x37" "block",
+    "\x05" "byte",
+    "\x30" "cerror",
+    "\x06" "char",
+    "\x34" "check",
+    "\x19" "comment",
+    "\x35" "cpu",
+    "\x31" "cwarn",
+    "\x26" "databank",
+    "\x0b" "dint",
+    "\x27" "dpage",
+    "\x45" "dstruct",
+    "\x48" "dunion",
+    "\x0c" "dword",
+    "\x13" "else",
+    "\x15" "elsif",
+    "\x2a" "enc",
+    "\x3d" "end",
+    "\x1a" "endc",
+    "\x2b" "endif",
+    "\x0f" "endm",
+    "\x1c" "endp",
+    "\x44" "ends",
+    "\x47" "endu",
+    "\x3e" "eor",
+    "\x23" "error",
+    "\x14" "fi",
+    "\x28" "fill",
+    "\x10" "for",
+    "\x42" "goto",
+    "\x1e" "here",
+    "\x3c" "hidemac",
+    "\x12" "if",
+    "\x2d" "ifeq",
+    "\x2f" "ifmi",
+    "\x2c" "ifne",
+    "\x2e" "ifpl",
+    "\x17" "include",
     "\x08" "int",
-    "\x3f" "lbl",
-    "\x1b" "logical",
+    "\x41" "lbl",
+    "\x1d" "logical",
     "\x0a" "long",
-    "\x0c" "macro",
-    "\x0f" "next",
-    "\x06" "null",
-    "\x0b" "offs",
-    "\x34" "option",
-    "\x19" "page",
-    "\x23" "pend",
-    "\x22" "proc",
-    "\x38" "proff",
-    "\x37" "pron",
-    "\x02" "ptext",
-    "\x14" "rept",
+    "\x0e" "macro",
+    "\x11" "next",
+    "\x04" "null",
+    "\x0d" "offs",
+    "\x36" "option",
+    "\x1b" "page",
+    "\x25" "pend",
+    "\x24" "proc",
+    "\x3a" "proff",
+    "\x39" "pron",
+    "\x01" "ptext",
+    "\x16" "rept",
     "\x07" "rta",
-    "\x3d" "segment",
-    "\x04" "shift",
-    "\x05" "shiftl",
-    "\x39" "showmac",
-    "\x41" "struct",
-    "\x01" "text",
-    "\x44" "union",
-    "\x3e" "var",
-    "\x27" "warn",
+    "\x3f" "segment",
+    "\x02" "shift",
+    "\x03" "shiftl",
+    "\x3b" "showmac",
+    "\x43" "struct",
+    "\x00" "text",
+    "\x46" "union",
+    "\x40" "var",
+    "\x29" "warn",
     "\x09" "word",
-    "\x20" "xl",
-    "\x1f" "xs",
+    "\x22" "xl",
+    "\x21" "xs",
 };
 
 enum command_e {
-    CMD_BYTE=0, CMD_TEXT, CMD_PTEXT, CMD_CHAR, CMD_SHIFT, CMD_SHIFTL, CMD_NULL,
-    CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_OFFS, CMD_MACRO, CMD_ENDM,
-    CMD_FOR, CMD_NEXT, CMD_IF, CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT,
-    CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP,
-    CMD_LOGICAL, CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC,
-    CMD_PEND, CMD_DATABANK, CMD_DPAGE, CMD_FILL, CMD_WARN, CMD_ENC, CMD_ENDIF,
-    CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN,
-    CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION, CMD_BLOCK, CMD_BEND, CMD_PRON,
-    CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT,
-    CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT, CMD_ENDS, CMD_DSTRUCT, CMD_UNION,
-    CMD_ENDU, CMD_DUNION
+    CMD_TEXT=0, CMD_PTEXT, CMD_SHIFT, CMD_SHIFTL, CMD_NULL, CMD_BYTE, CMD_CHAR, 
+    CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_DINT, CMD_DWORD, CMD_OFFS,
+    CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF, CMD_ELSE, CMD_FI,
+    CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC,
+    CMD_PAGE, CMD_ENDP, CMD_LOGICAL, CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL,
+    CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE, CMD_FILL, CMD_WARN,
+    CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR,
+    CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION,
+    CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC,
+    CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT,
+    CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU, CMD_DUNION
 };
 
 // ---------------------------------------------------------------------------
@@ -1095,7 +1097,7 @@ static void compile(void)
             {
                 unsigned int epoint;
                 ignore();
-                if (listing && flist && arguments.source && (waitfor[waitforp].skip & 1) && prm>=CMD_LONG) {
+                if (listing && flist && arguments.source && (waitfor[waitforp].skip & 1) && prm>CMD_DWORD) {
                     switch (prm) {
                         case CMD_FILL:
                         case CMD_ALIGN:
@@ -1271,12 +1273,12 @@ static void compile(void)
                     }
                     break;//skip things if needed
                 }
-                if (prm<=CMD_LONG || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
+                if (prm<=CMD_DWORD || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
                     size_t ptextaddr=mem.p;
                     unsigned int omemp = memblocks.p;
                     size_t uninit = 0;
 
-                    if (prm<CMD_RTA) {    // .byte .text .ptext .char .shift .shift2 .null
+                    if (prm<CMD_BYTE) {    // .text .ptext .shift .shift2 .null
                         int16_t ch2=-1;
                         int large=0;
                         if (newlabel) newlabel->esize = 1;
@@ -1300,11 +1302,7 @@ static void compile(void)
                                     case T_UINT:
                                     case T_SINT:
                                         if (val.type != T_NUM || val.u.num.len > 1) {
-                                            if (prm==CMD_CHAR) {
-                                                if (((uval_t)val.u.num.val & ~(uval_t)0x7f) && (~(uval_t)val.u.num.val & ~(uval_t)0x7f)) large=epoint;
-                                            } else {
-                                                if ((uval_t)val.u.num.val & ~(uval_t)0xff) large=epoint;
-                                            }
+                                            if ((uval_t)val.u.num.val & ~(uval_t)0xff) large=epoint;
                                         }
                                     case T_CHR:
                                         ch2 = (uint8_t)val.u.num.val;
@@ -1333,20 +1331,21 @@ static void compile(void)
                             if (fixeddig && dooutput) mem.data[ptextaddr]=mem.p-ptextaddr-1;
                         }
                         if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
-                    } else if (prm==CMD_WORD || prm==CMD_INT || prm==CMD_RTA || prm==CMD_LONG) { // .word .int .rta .long
-                        uint16_t ch2;
+                    } else if (prm<=CMD_DWORD) { // .word .int .rta .long
+                        uint32_t ch2;
                         int large=0;
-                        if (newlabel) newlabel->esize = (prm==CMD_LONG) ? 3 : 2;
+                        if (newlabel) newlabel->esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         while (get_val(&val, T_NONE, &epoint)) {
                             switch (val.type) {
-                            case T_GAP:uninit += (prm==CMD_LONG) ? 3 : 2;continue;
+                            case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
                             case T_STR:
                                 ch2 = 0;
                                 switch (val.u.str.len) {
                                 default: large = epoint;
-                                case 3: ch2 |= val.u.str.data[1] << 16; if (prm!=CMD_LONG) large = epoint;
-                                case 2: ch2 |= val.u.str.data[1] << 8;
+                                case 4: ch2 |= val.u.str.data[3] << 24; if (prm<CMD_DINT) large = epoint;
+                                case 3: ch2 |= val.u.str.data[2] << 16; if (prm<CMD_LONG) large = epoint;
+                                case 2: ch2 |= val.u.str.data[1] << 8; if (prm<CMD_RTA) large = epoint;
                                 case 1: ch2 |= val.u.str.data[0];
                                 case 0: break;
                                 }
@@ -1355,12 +1354,16 @@ static void compile(void)
                             case T_SINT:
                             case T_UINT:
                                 switch (prm) {
+                                case CMD_CHAR: if ((val.u.num.len > 1 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0x7f) && (~(uval_t)val.u.num.val & ~(uval_t)0x7f)) large=epoint;break;
+                                case CMD_BYTE: if ((val.u.num.len > 1 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0xff)) large=epoint; break;
                                 case CMD_INT: if ((val.u.num.len > 2 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0x7fff) && (~(uval_t)val.u.num.val & ~(uval_t)0x7fff)) large=epoint;break;
                                 case CMD_LONG: if ((val.u.num.len > 3 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0xffffff)) large=epoint; break;
+                                case CMD_DINT: if ((val.u.num.len > 4 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0x7fffffff) && (~(uval_t)val.u.num.val & ~(uval_t)0x7fffffff)) large=epoint;break;
+                                case CMD_DWORD: if ((val.u.num.len > 4 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0xffffffff)) large=epoint; break;
                                 default: if ((val.u.num.len > 2 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0xffff)) large=epoint;
                                 }
                             case T_CHR:
-                                ch2 = (uint16_t)val.u.num.val;
+                                ch2 = (uval_t)val.u.num.val;
                                 break;
                             default: err_msg_wrong_type(val.type, epoint);
                             case T_NONE: ch2 = fixeddig = 0;
@@ -1369,8 +1372,9 @@ static void compile(void)
 
                             if (uninit) {memskip(uninit);uninit = 0;}
                             pokeb((uint8_t)ch2);
-                            pokeb((uint8_t)(ch2>>8));
-                            if (prm==CMD_LONG) pokeb((uint8_t)(ch2>>16));
+                            if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
+                            if (prm>=CMD_LONG) pokeb((uint8_t)(ch2>>16));
+                            if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
                         }
                         if (uninit) memskip(uninit);
                         if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
