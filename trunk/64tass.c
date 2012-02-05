@@ -1998,10 +1998,13 @@ static void compile(void)
                     fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",address,ident2);
                 }
                 if (tmp2->type==CMD_MACRO) {
-                    sprintf(varname, "#%x#%x", (unsigned)star_tree, (unsigned)vline);
                     old_context = current_context;
-                    current_context=new_label(varname, L_LABEL);
-                    current_context->value.type = T_NONE;
+                    if (newlabel) current_context=newlabel;
+                    else {
+                        sprintf(varname, "#%x#%x", (unsigned)star_tree, (unsigned)vline);
+                        current_context=new_label(varname, L_LABEL);
+                        current_context->value.type = T_NONE;
+                    }
                 } else old_context = NULL;
                 macro_recurse('M',tmp2);
                 if (tmp2->type==CMD_MACRO) current_context = old_context;
