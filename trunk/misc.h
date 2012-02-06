@@ -91,6 +91,21 @@ struct label_s {
     struct avltree members;
 };
 
+struct section_s {
+    const char *name;
+    struct avltree_node node;
+
+    uval_t requires;
+    uval_t conflicts;
+    uval_t provides;
+    address_t start;
+    address_t l_start;
+    address_t address;
+    address_t l_address;
+    struct section_s *parent;
+    struct avltree members;
+};
+
 struct star_s {
     line_t line;
     address_t addr;
@@ -177,6 +192,8 @@ extern uint_fast16_t petsymbolic(const char*);
 extern struct label_s *find_label(const char*);
 extern struct label_s *find_label2(const char*, const struct avltree *);
 extern struct label_s *new_label(const char*, enum label_e);
+extern struct section_s *new_section(const char*);
+extern struct section_s *find_section(const char*);
 extern struct macro_s *find_macro(const char*);
 extern struct macro_s *new_macro(const char*);
 extern struct jump_s *find_jump(const char*);
@@ -191,11 +208,11 @@ extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
 extern unsigned int encoding;
 extern struct label_s *current_context, root_label;
+extern struct section_s *current_section, root_section;
 extern unsigned int utf8in(const uint8_t *c, uint32_t *out);
 extern struct encoding_s no_encoding[];
 extern struct encoding_s screen_encoding[];
 extern struct encoding_s ascii_encoding[];
-extern uval_t current_requires, current_conflicts, current_provides;
 extern int get_ident(void);
 
 #endif

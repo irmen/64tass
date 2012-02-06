@@ -34,6 +34,8 @@ static struct avltree jump_tree;
 static struct avltree file_tree;
 struct label_s root_label;
 struct label_s *current_context = &root_label;
+struct section_s root_section;
+struct section_s *current_section = &root_section;
 unsigned int encoding;
 
 const uint8_t whatis[256]={
@@ -362,6 +364,14 @@ static int label_compare(const struct avltree_node *aa, const struct avltree_nod
     return strcmp(a->name, b->name);
 }
 
+static int section_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    struct section_s *a = avltree_container_of(aa, struct section_s, node);
+    struct section_s *b = avltree_container_of(bb, struct section_s, node);
+
+    return strcmp(a->name, b->name);
+}
+
 static int macro_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct macro_s *a = avltree_container_of(aa, struct macro_s, node);
@@ -400,6 +410,14 @@ static void label_free(const struct avltree_node *aa)
     free((char *)a->name);
     avltree_destroy(&a->members);
     if (a->value.type == T_STR) free(a->value.u.str.data);
+    free(a);
+}
+
+static void section_free(const struct avltree_node *aa)
+{
+    struct section_s *a = avltree_container_of(aa, struct section_s, node);
+    free((char *)a->name);
+    avltree_destroy(&a->members);
     free(a);
 }
 
@@ -486,6 +504,30 @@ struct label_s *new_label(const char* name, enum label_e type) {
 }
 
 // ---------------------------------------------------------------------------
+static struct section_s *lastsc=NULL;
+struct section_s *new_section(const char* name) {
+    const struct avltree_node *b;
+    struct section_s *tmp;
+    if (!lastsc)
+	if (!(lastsc=malloc(sizeof(struct section_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+    lastsc->name=name;
+    b=avltree_insert(&lastsc->node, &current_section->members);
+    if (!b) { //new label
+	if (!(lastsc->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+        strcpy((char *)lastsc->name,name);
+        lastsc->parent=current_section;
+        lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
+        lastsc->address=lastsc->l_address=0;
+        avltree_init(&lastsc->members, section_compare, section_free);
+	labelexists=0;
+	tmp=lastsc;
+	lastsc=NULL;
+	return tmp;
+    }
+    labelexists=1;
+    return avltree_container_of(b, struct section_s, node);            //already exists
+}
+// ---------------------------------------------------------------------------
 
 struct jump_s *find_jump(const char* name) {
     struct jump_s a;
@@ -541,6 +583,20 @@ struct macro_s *find_macro(const char* name) {
     a.name=name;
     if (!(c=avltree_lookup(&a.node, &macro_tree))) return NULL;
     return avltree_container_of(c, struct macro_s, node);
+}
+
+struct section_s *find_section(const char* name) {
+    const struct avltree_node *b;
+    struct section_s *context = current_section;
+    struct section_s tmp;
+    tmp.name=name;
+    
+    while (context) {
+        b=avltree_lookup(&tmp.node, &context->members);
+        if (b) return avltree_container_of(b, struct section_s, node);
+        context = context->parent;
+    }
+    return NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -823,6 +879,7 @@ void closefile(struct file_s *f) {
 
 void tfree(void) {
     avltree_destroy(&root_label.members);
+    avltree_destroy(&root_section.members);
     avltree_destroy(&macro_tree);
     avltree_destroy(&jump_tree);
     avltree_destroy(&file_tree);
@@ -831,6 +888,7 @@ void tfree(void) {
     free(lastlb);
     free(lastjp);
     free(lastst);
+    free(lastsc);
     err_destroy();
 }
 
@@ -838,7 +896,10 @@ void tinit(void) {
     root_label.type = T_NONE;
     root_label.parent = NULL;
     root_label.name = NULL;
+    root_section.parent = NULL;
+    root_section.name = NULL;
     avltree_init(&root_label.members, label_compare, label_free);
+    avltree_init(&root_section.members, section_compare, section_free);
     avltree_init(&macro_tree, macro_compare, macro_free);
     avltree_init(&jump_tree, jump_compare, jump_free);
     avltree_init(&file_tree, file_compare, file_free);
