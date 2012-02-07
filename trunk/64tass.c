@@ -58,8 +58,6 @@ static struct {unsigned int p, len;struct memblock_s *data;} memblocks = {0, 0, 
 address_t star=0;
 const uint8_t *pline, *llist;  //current line data
 unsigned int lpoint;              //position in current line
-char ident[linelength], ident2[linelength];  //identifier (label, etc)
-static char varname[linelength];//variable (same as identifier?)
 static char path[linelength];   //path
 static FILE* flist = NULL;      //listfile
 static enum { LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU } lastl = LIST_CODE;
@@ -76,10 +74,8 @@ static struct {
     line_t line;
     address_t addr;
     address_t laddr;
-    union {
-        struct label_s *label;
-        struct section_s *section;
-    } u;
+    struct label_s *label;
+    struct section_s *section;
     uint8_t skip;
 } waitfor[nestinglevel];
 
@@ -269,7 +265,7 @@ static void printllist(FILE *f) {
 static void new_waitfor(char what) {
     waitfor[++waitforp].what = what;
     waitfor[waitforp].line = sline;
-    waitfor[waitforp].u.label = NULL;
+    waitfor[waitforp].label = NULL;
     waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1;
 }
 
@@ -473,7 +469,7 @@ static int what(int *tempno) {
     }
 }
 
-static int get_ident2(void) {
+static int get_ident2(char *ident) {
     unsigned int i=0;
     uint8_t ch;
     if (arguments.casesensitive)
@@ -484,14 +480,14 @@ static int get_ident2(void) {
     return i == 0;
 }
 
-int get_ident(void) {
+static int get_ident(char *ident) {
     int code;
 
     if (what(&code)!=WHAT_EXPRESSION || !code) {
 	err_msg(ERROR_EXPRES_SYNTAX,NULL);
 	return 1;
     }
-    return get_ident2();
+    return get_ident2(ident);
 }
 
 static int get_path(const char *base) {
@@ -736,13 +732,15 @@ static void compile(void)
     uint8_t oldwaitforp = waitforp;
     unsigned wasref;
     int nobreak = 1;
+    char labelname[linelength], labelname2[linelength];
+    unsigned int epoint;
 
     while (cfile->len != cfile->p && nobreak) {
         pline = cfile->data + cfile->p; lpoint = 0; sline++;vline++; cfile->p += strlen((char *)pline) + 1;
         if (macro_parameters.p) mtranslate(); //expand macro parameters, if any
         llist = pline;
         star=current_section->l_address;newlabel = NULL;
-        ident2[0]=wasref=0;
+        labelname2[0]=wasref=0;ignore();epoint=lpoint;
         if (unionmode) {
             if (current_section->address > unionend) unionend = current_section->address;
             if (current_section->l_address > l_unionend) l_unionend = current_section->l_address;
@@ -753,36 +751,35 @@ static void compile(void)
             }
         }
         if ((wht=what(&prm))==WHAT_EXPRESSION) {
+            int islabel;
             if (!prm) {
                 if (here()=='-' || here()=='+') {
-                    ident2[0]=here();ident2[1]=0;
+                    labelname2[0]=here();labelname2[1]=0;
                     lpoint++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) goto baj;
-                    prm=1;
-                    if (ident2[0]=='-') {
-                        sprintf(ident,"-%x-%x", reffile, backr++);
+                    if (labelname2[0]=='-') {
+                        sprintf(labelname,"-%x-%x", reffile, backr++);
                     } else {
-                        sprintf(ident,"+%x+%x", reffile, forwr++);
+                        sprintf(labelname,"+%x+%x", reffile, forwr++);
                     }
-                    goto hh;
+                    islabel = 1;goto hh;
                 }
             baj:
-                if (waitfor[waitforp].skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL);
+                if (waitfor[waitforp].skip & 1) err_msg2(ERROR_GENERL_SYNTAX,NULL, epoint);
                 goto breakerr;
             } //not label
-            get_ident();                                           //get label
-            if (here()==':') lpoint++;
-            else if ((prm=lookup_opcode(ident))>=0) {
+            get_ident(labelname);islabel = (here()==':');
+            if (islabel) lpoint++;
+            else if ((prm=lookup_opcode(labelname))>=0) {
                 if (waitfor[waitforp].skip & 1) goto as_opcode; else continue;
             }
-            if (listing) strcpy(ident2,ident);
+            if (listing) strcpy(labelname2, labelname);
         hh:
             if (!(waitfor[waitforp].skip & 1)) {wht=what(&prm);goto jn;} //skip things if needed
             if ((wht=what(&prm))==WHAT_EQUAL) { //variable
-                strcpy(varname,ident);
                 if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                 if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
-                newlabel=new_label(varname, L_CONST);oaddr=current_section->address;
+                newlabel=new_label(labelname, L_CONST);oaddr=current_section->address;
                 if (listing && flist && arguments.source && newlabel->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                     if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM ||val.type == T_CHR) {
@@ -794,7 +791,7 @@ static void compile(void)
                 }
                 newlabel->ref=0;
                 if (pass==1) {
-                    if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,varname);
+                    if (labelexists) err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                     else {
                         newlabel->requires=current_section->requires;
                         newlabel->conflicts=current_section->conflicts;
@@ -814,11 +811,10 @@ static void compile(void)
             if (wht==WHAT_COMMAND) {
                 switch (prm) {
                 case CMD_VAR: //variable
-                    strcpy(varname,ident);
                     if (!get_exp(&w, 0)) goto breakerr; //ellenorizve.
                     if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    newlabel=new_label(varname, L_VAR);oaddr=current_section->address;
+                    newlabel=new_label(labelname, L_VAR);oaddr=current_section->address;
                     if (listing && flist && arguments.source && newlabel->ref) {
                         if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                         if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM || val.type == T_CHR) {
@@ -830,7 +826,7 @@ static void compile(void)
                     }
                     newlabel->ref=0;
                     if (labelexists) {
-                        if (newlabel->type != L_VAR) err_msg(ERROR_DOUBLE_DEFINE,varname);
+                        if (newlabel->type != L_VAR) err_msg2(ERROR_DOUBLE_DEFINE, labelname, epoint);
                         else {
                             newlabel->requires=current_section->requires;
                             newlabel->conflicts=current_section->conflicts;
@@ -853,14 +849,14 @@ static void compile(void)
                             fputs("=\t\t\t\t\t", flist);
                             printllist(flist);
                         }
-                        tmp2 = new_jump(ident);
+                        tmp2 = new_jump(labelname);
                         if (labelexists) {
                             if (tmp2->sline != sline
                                     || tmp2->waitforp != waitforp
                                     || tmp2->file != cfile
                                     || tmp2->p != cfile->p
                                     || tmp2->parent != current_context) {
-                                err_msg(ERROR_DOUBLE_DEFINE,ident);
+                                err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                             }
                         } else {
                             tmp2->sline = sline;
@@ -874,13 +870,13 @@ static void compile(void)
                 case CMD_MACRO:// .macro
                 case CMD_SEGMENT:
                     new_waitfor('m');waitfor[waitforp].skip=0;
-                    tmp2=new_macro(ident);
+                    tmp2=new_macro(labelname);
                     if (labelexists) {
                         if (tmp2->p!=cfile->p
                          || tmp2->sline!=sline
                          || tmp2->type!=prm
                          || tmp2->file!=cfile) {
-                            err_msg(ERROR_DOUBLE_DEFINE,ident);
+                            err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                         }
                     } else {
                         tmp2->p=cfile->p;
@@ -897,13 +893,13 @@ static void compile(void)
                         int old_dooutput = dooutput;
                         new_waitfor((prm==CMD_STRUCT)?'s':'u');waitfor[waitforp].skip=0;
                         if (!structrecursion) {
-                            tmp2=new_macro(ident);
+                            tmp2=new_macro(labelname);
                             if (labelexists) {
                                 if (tmp2->p!=cfile->p
                                         || tmp2->sline!=sline
                                         || tmp2->type!=prm
                                         || tmp2->file!=cfile) {
-                                    err_msg(ERROR_DOUBLE_DEFINE,ident);
+                                    err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                                 }
                             } else {
                                 tmp2->p=cfile->p;
@@ -912,9 +908,9 @@ static void compile(void)
                                 tmp2->file=cfile;
                             }
                         }
-                        newlabel=new_label(ident, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);
+                        newlabel=new_label(labelname, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);
                         if (pass==1) {
-                            if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,ident);
+                            if (labelexists) err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                             else {
                                 newlabel->requires=0;
                                 newlabel->conflicts=0;
@@ -924,7 +920,7 @@ static void compile(void)
                         } else {
                             if (labelexists) {
                                 if (newlabel->value.type != T_UINT || newlabel->type != ((prm==CMD_STRUCT)?L_STRUCT:L_UNION)) { /* should not happen */
-                                    err_msg(ERROR_DOUBLE_DEFINE,ident);
+                                    err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                                 } else {
                                     if (newlabel->value.u.num.val != 0) {
                                         newlabel->value.u.num.val=0;newlabel->value.u.num.len=1;
@@ -966,17 +962,30 @@ static void compile(void)
 			newlabel = NULL;
                         goto finish;
                     }
+                case CMD_SECTION:
+                    {
+                        struct section_s *tmp;
+                        char sectionname[linelength];
+                        new_waitfor('t');waitfor[waitforp].section=current_section;
+                        ignore();epoint=lpoint;
+                        if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(tmp=find_section(sectionname))) {err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;}
+                        waitfor[waitforp].what = 'T';
+                        current_section = tmp;
+                        memjmp(current_section->address);
+                        break;
+                    }
                 }
             }
-            newlabel=find_label2(ident, &current_context->members);
+            newlabel=find_label2(labelname, &current_context->members);
             if (newlabel) labelexists=1;
             else {
-                if ((tmp2=find_macro(ident)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {lpoint--;ident2[0]=0;goto as_macro;}
-                newlabel=new_label(ident, L_LABEL);
+                if (!islabel && (tmp2=find_macro(labelname)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {lpoint--;labelname2[0]=0;goto as_macro;}
+                newlabel=new_label(labelname, L_LABEL);
             }
             oaddr=current_section->address;
             if (pass==1) {
-                if (labelexists) err_msg(ERROR_DOUBLE_DEFINE,ident);
+                if (labelexists) err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                 else {
                     newlabel->requires=current_section->requires;
                     newlabel->conflicts=current_section->conflicts;
@@ -986,7 +995,7 @@ static void compile(void)
             } else {
                 if (labelexists) {
                     if (newlabel->value.type != T_UINT || newlabel->type != L_LABEL) { /* should not happen */
-                        err_msg(ERROR_DOUBLE_DEFINE,ident);
+                        err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                     } else {
                         if ((uval_t)newlabel->value.u.num.val != current_section->l_address) {
                             set_uint(&newlabel->value, current_section->l_address);
@@ -998,17 +1007,17 @@ static void compile(void)
                     }
                 }
             }
-            if (pline[lpoint-1]!=':' && (pline[0]==0x20 || pline[0]==0x09)) err_msg(ERROR_LABEL_NOT_LEF,NULL);
+            if (epoint && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
             if (wht==WHAT_COMMAND) { // .proc
                 switch (prm) {
                 case CMD_PROC:
-                    new_waitfor('r');waitfor[waitforp].u.label=newlabel;waitfor[waitforp].addr = current_section->address;
+                    new_waitfor('r');waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
                     if (!newlabel->ref && pass != 1) waitfor[waitforp].skip=0;
                     else {
                         current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,ident2);
+                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,labelname2);
                         }
                         newlabel->ref=0;
                     }
@@ -1016,10 +1025,10 @@ static void compile(void)
                     goto finish;
                 case CMD_BLOCK: // .block
                     new_waitfor('B');
-                    current_context=newlabel;waitfor[waitforp].u.label=newlabel;waitfor[waitforp].addr = current_section->address;
+                    current_context=newlabel;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
                     if (listing && flist && arguments.source) {
                         if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                        fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,ident2);
+                        fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,labelname2);
                     }
                     newlabel->ref=0;
                     newlabel = NULL;
@@ -1041,9 +1050,9 @@ static void compile(void)
                             printllist(flist);
                         }
                         newlabel->ref=0;
-                        ignore();
-                        if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        if (!(tmp2=find_macro(ident)) || tmp2->type!=((prm==CMD_DSTRUCT)?CMD_STRUCT:CMD_UNION)) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
+                        ignore();epoint=lpoint;
+                        if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(tmp2=find_macro(labelname)) || tmp2->type!=((prm==CMD_DSTRUCT)?CMD_STRUCT:CMD_UNION)) {err_msg2(ERROR___NOT_DEFINED,labelname,epoint); goto breakerr;}
                         structrecursion++;
                         macro_recurse((prm==CMD_DSTRUCT)?'S':'U',tmp2);
                         structrecursion--;
@@ -1100,7 +1109,6 @@ static void compile(void)
             break;
         case WHAT_COMMAND:
             {
-                unsigned int epoint;
                 ignore();
                 if (listing && flist && arguments.source && (waitfor[waitforp].skip & 1) && prm>CMD_DWORD) {
                     switch (prm) {
@@ -1139,7 +1147,7 @@ static void compile(void)
                         default:
                             if (wasref) {
                                 if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,ident2);
+                                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,labelname2);
                             }
                     }
                 }
@@ -1220,7 +1228,7 @@ static void compile(void)
                             current_context = current_context->parent;
                         } else err_msg(ERROR______EXPECTED,".proc");
 			lastl=LIST_NONE;
-			if (waitfor[waitforp].u.label) set_size(waitfor[waitforp].u.label, current_section->address - waitfor[waitforp].addr);
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
                     }
                     waitforp--;
                     break;
@@ -1235,12 +1243,14 @@ static void compile(void)
                 }
                 if (prm==CMD_SEND) { // .send
                     if (waitfor[waitforp].what=='t') {
-                        waitforp--;get_ident2();
+                        waitforp--;get_ident2(labelname);
                     } else if (waitfor[waitforp].what=='T') {
-                        if (!get_ident2()) {
-                            if (strcmp(ident, current_section->name)) err_msg(ERROR______EXPECTED,current_section->name);
+                        ignore();epoint=lpoint;
+                        if (!get_ident2(labelname)) {
+                            if (strcmp(labelname, current_section->name)) err_msg2(ERROR______EXPECTED,current_section->name,epoint);
                         }
-                        current_section = waitfor[waitforp].u.section;
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
+                        current_section = waitfor[waitforp].section;
                         memjmp(current_section->address);
                         waitforp--;
                     } else err_msg(ERROR______EXPECTED,".SECTION or .DSECTION");
@@ -1261,7 +1271,7 @@ static void compile(void)
 			if ((current_section->l_address & ~0xff) != (waitfor[waitforp].laddr & ~0xff) && fixeddig) {
 				err_msg(ERROR____PAGE_ERROR,(const char *)current_section->l_address);
 			}
-			if (waitfor[waitforp].u.label) set_size(waitfor[waitforp].u.label, current_section->address - waitfor[waitforp].addr);
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
                         waitforp--;
                     } else err_msg(ERROR______EXPECTED,".PAGE"); break;
                     break;
@@ -1271,7 +1281,7 @@ static void compile(void)
                         waitforp--;
                     } else if (waitfor[waitforp].what=='L') {
 			current_section->l_address = current_section->address + waitfor[waitforp].laddr;
-			if (waitfor[waitforp].u.label) set_size(waitfor[waitforp].u.label, current_section->address - waitfor[waitforp].addr);
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
                         waitforp--;
                     } else err_msg(ERROR______EXPECTED,".LOGICAL"); break;
                     break;
@@ -1502,7 +1512,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_LOGICAL) { // .logical
-                    new_waitfor('L');waitfor[waitforp].laddr = current_section->l_address - current_section->address;waitfor[waitforp].u.label=newlabel;waitfor[waitforp].addr = current_section->address;
+                    new_waitfor('L');waitfor[waitforp].laddr = current_section->l_address - current_section->address;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!get_val(&val, T_UINT, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
@@ -1537,8 +1547,8 @@ static void compile(void)
                 }
                 if (prm==CMD_BLOCK) { // .block
 		    new_waitfor('B');
-                    sprintf(varname, ".%x.%x", (unsigned)star_tree, (unsigned)vline);
-                    current_context=new_label(varname, L_LABEL);
+                    sprintf(labelname, ".%x.%x", (unsigned)star_tree, (unsigned)vline);
+                    current_context=new_label(labelname, L_LABEL);
                     current_context->value.type = T_NONE;
                     break;
                 }
@@ -1546,7 +1556,7 @@ static void compile(void)
                     if (waitfor[waitforp].what=='b') {
                         waitforp--;
                     } else if (waitfor[waitforp].what=='B') {
-			if (waitfor[waitforp].u.label) set_size(waitfor[waitforp].u.label, current_section->address - waitfor[waitforp].addr);
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
 			if (current_context->parent) current_context = current_context->parent;
 			else err_msg(ERROR______EXPECTED,".block");
 			waitforp--;
@@ -1636,7 +1646,7 @@ static void compile(void)
                     else
                         if (!strcasecmp(path,"screen")) encoding=1;
                         else
-                            err_msg(ERROR_UNKNOWN_ENCOD,ident);
+                            err_msg(ERROR_UNKNOWN_ENCOD,path);
                     break;
                 }
                 if (prm==CMD_CPU) { // .cpu
@@ -1648,7 +1658,7 @@ static void compile(void)
                     else if (!strcasecmp(path,"6502i")) def=OPCODES_6502i;
                     else if (!strcmp(path,"65816")) def=OPCODES_65816;
                     else if (!strcasecmp(path,"65dtv02")) def=OPCODES_65DTV02;
-                    else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,ident);
+                    else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,path);
                     set_cpumode(def);
                     break;
                 }
@@ -1800,15 +1810,14 @@ static void compile(void)
                     new_waitfor('n');waitfor[waitforp].skip=0;
                     if (strlen((char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
                     if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
-                        if (get_ident()) goto breakerr;
+                        if (get_ident(labelname)) goto breakerr;
                         ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                         lpoint++;
-                        strcpy(varname,ident);
                         if (!get_exp(&w,1)) goto breakerr; //ellenorizve.
                         if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        var=new_label(varname, L_VAR);
+                        var=new_label(labelname, L_VAR);
                         if (labelexists) {
-                            if (var->type != L_VAR) err_msg(ERROR_DOUBLE_DEFINE,varname);
+                            if (var->type != L_VAR) err_msg(ERROR_DOUBLE_DEFINE,labelname);
                             else {
                                 var->requires=current_section->requires;
                                 var->conflicts=current_section->conflicts;
@@ -1842,16 +1851,16 @@ static void compile(void)
                         if (bpoint < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                             lpoint++;
-                            if (get_ident()) break;
+                            if (get_ident(labelname)) break;
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
                             lpoint++;
                             ignore();
                             if (!here() || here()==';') bpoint = 0;
                             else {
-                                var=new_label(ident, L_VAR);
+                                var=new_label(labelname, L_VAR);
                                 if (labelexists) {
                                     if (var->type != L_VAR) {
-                                        err_msg(ERROR_DOUBLE_DEFINE,varname);
+                                        err_msg(ERROR_DOUBLE_DEFINE,labelname);
                                         break;
                                     }
                                     var->requires=current_section->requires;
@@ -1883,28 +1892,28 @@ static void compile(void)
                     goto breakerr;
                 }
                 if (prm==CMD_PAGE) { // .page
-                    new_waitfor('P');waitfor[waitforp].addr = current_section->address;waitfor[waitforp].laddr = current_section->l_address;waitfor[waitforp].u.label=newlabel;
+                    new_waitfor('P');waitfor[waitforp].addr = current_section->address;waitfor[waitforp].laddr = current_section->l_address;waitfor[waitforp].label=newlabel;
                     newlabel=NULL;
                     break;
                 }
                 if (prm==CMD_OPTION) { // .option
-                    get_ident();
+                    get_ident(labelname);
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
                     lpoint++;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!get_val(&val, T_NONE, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val.type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used for option", epoint);goto breakerr;}
-                    if (!strcasecmp(ident,"allow_branch_across_page")) allowslowbranch=(((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len));
-                    else if (!strcasecmp(ident,"auto_longbranch_as_jmp")) longbranchasjmp=(((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len));
-                    else err_msg(ERROR_UNKNOWN_OPTIO,ident);
+                    if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=(((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len));
+                    else if (!strcasecmp(labelname,"auto_longbranch_as_jmp")) longbranchasjmp=(((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len));
+                    else err_msg(ERROR_UNKNOWN_OPTIO,labelname);
                     break;
                 }
                 if (prm==CMD_GOTO) { // .goto
                     struct jump_s *tmp2;
                     int noerr = 1;
-                    get_ident();
-                    tmp2 = find_jump(ident);
+                    get_ident(labelname);
+                    tmp2 = find_jump(labelname);
                     if (tmp2 && tmp2->file == cfile && tmp2->parent == current_context) {
                         uint8_t oldwaitforp = waitforp;
                         while (tmp2->waitforp < waitforp) {
@@ -1935,17 +1944,17 @@ static void compile(void)
                             sline = tmp2->sline;
                             cfile->p = tmp2->p;
                         } else waitforp = oldwaitforp;
-                    } else err_msg(ERROR___NOT_DEFINED,ident);
+                    } else err_msg(ERROR___NOT_DEFINED,labelname);
                     break;
                 }
                 if (prm==CMD_MACRO || prm==CMD_SEGMENT) {
                     new_waitfor('m');waitfor[waitforp].skip=0;
-                    err_msg(ERROR___NOT_DEFINED,ident);
+                    err_msg(ERROR___NOT_DEFINED,"");
                     break;
                 }
                 if (prm==CMD_PROC) {
                     new_waitfor('r');waitfor[waitforp].skip=0;waitfor[waitforp].addr=current_section->address;
-                    err_msg(ERROR___NOT_DEFINED,ident);
+                    err_msg(ERROR___NOT_DEFINED,"");
                     break;
                 }
                 if (prm==CMD_STRUCT) {
@@ -1985,8 +1994,9 @@ static void compile(void)
                 if (prm==CMD_DSTRUCT) {
                     int old_unionmode = unionmode;
                     unionmode = 0;
-                    if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (!(tmp2=find_macro(ident)) || tmp2->type!=CMD_STRUCT) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
+                    ignore();epoint=lpoint;
+                    if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(tmp2=find_macro(labelname)) || tmp2->type!=CMD_STRUCT) {err_msg2(ERROR___NOT_DEFINED,labelname,epoint); goto breakerr;}
                     structrecursion++;
                     macro_recurse('S',tmp2);
                     structrecursion--;
@@ -1998,8 +2008,9 @@ static void compile(void)
                     address_t old_unionstart = unionstart, old_unionend = unionend;
                     unionmode = 1;
                     unionstart = unionend = current_section->address;
-                    if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (!(tmp2=find_macro(ident)) || tmp2->type!=CMD_UNION) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
+                    ignore();epoint=lpoint;
+                    if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(tmp2=find_macro(labelname)) || tmp2->type!=CMD_UNION) {err_msg2(ERROR___NOT_DEFINED,labelname,epoint); goto breakerr;}
                     structrecursion++;
                     macro_recurse('U',tmp2);
                     structrecursion--;
@@ -2010,13 +2021,13 @@ static void compile(void)
                 if (prm==CMD_DSECTION) {
                     struct section_s *tmp2;
                     new_waitfor('t');
-                    ignore();
-                    if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp2=new_section(ident);
-                    if (labelexists && pass == 1) err_msg(ERROR_DOUBLE_DEFINE,ident);
+                    ignore();epoint=lpoint;
+                    if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    tmp2=new_section(labelname);
+                    if (labelexists && pass == 1) err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                     else {
                         address_t t;
-                        waitfor[waitforp].what='T';waitfor[waitforp].u.section=current_section;
+                        waitfor[waitforp].what='T';waitfor[waitforp].section=current_section;
                         if (!labelexists) {
                             tmp2->start = tmp2->address = current_section->address;
                             tmp2->l_start = tmp2->l_address = current_section->l_address;
@@ -2038,12 +2049,17 @@ static void compile(void)
                 }
                 if (prm==CMD_SECTION) {
                     struct section_s *tmp;
-                    new_waitfor('t');waitfor[waitforp].u.section=current_section;
-                    if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (!(tmp=find_section(ident))) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
-                    waitfor[waitforp].what = 'T';
-                    current_section = tmp;
-                    memjmp(current_section->address);
+                    char sectionname[linelength];
+                    if (newlabel) {waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;}
+                    else {
+                        new_waitfor('t');waitfor[waitforp].section=current_section;
+                        ignore();epoint=lpoint;
+                        if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(tmp=find_section(sectionname))) {err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;}
+                        waitfor[waitforp].what = 'T';
+                        current_section = tmp;
+                        memjmp(current_section->address);
+                    }
                     newlabel = NULL;
                     break;
                 }
@@ -2052,19 +2068,19 @@ static void compile(void)
             {                   //macro stuff
                 struct label_s *old_context;
 
-                if (get_ident2()) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (!(tmp2=find_macro(ident))) {err_msg(ERROR___NOT_DEFINED,ident); goto breakerr;}
+                if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (!(tmp2=find_macro(labelname))) {err_msg(ERROR___NOT_DEFINED,labelname); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                    fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,ident2);
+                    fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,labelname2);
                 }
                 if (tmp2->type==CMD_MACRO) {
                     old_context = current_context;
                     if (newlabel) current_context=newlabel;
                     else {
-                        sprintf(varname, "#%x#%x", (unsigned)star_tree, (unsigned)vline);
-                        current_context=new_label(varname, L_LABEL);
+                        sprintf(labelname, "#%x#%x", (unsigned)star_tree, (unsigned)vline);
+                        current_context=new_label(labelname, L_LABEL);
                         current_context->value.type = T_NONE;
                     }
                 } else old_context = NULL;
@@ -2076,8 +2092,8 @@ static void compile(void)
             if (waitfor[waitforp].skip & 1) {
                 enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_NONE } adrgen;
 
-                get_ident2();
-                if ((prm=lookup_opcode(ident))>=0) {
+                get_ident2(labelname);
+                if ((prm=lookup_opcode(labelname))>=0) {
                     enum opr_e opr;
                     int mnem, oldlpoint;
                     const uint8_t *cnmemonic; //current nmemonic
@@ -2419,9 +2435,9 @@ static void compile(void)
                     if (d) {
                         if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
                         if ((cod=cnmemonic[opr])==____) {
-                            memcpy(ident,&mnemonic[mnem*3],3);
-                            ident[3]=0;
-                            if ((tmp2=find_macro(ident)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {
+                            memcpy(labelname,&mnemonic[mnem*3],3);
+                            labelname[3]=0;
+                            if ((tmp2=find_macro(labelname)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {
                                 lpoint=oldlpoint;
                                 goto as_macro;
                             }
@@ -2515,7 +2531,7 @@ static void compile(void)
                     }
                     break;
                 }
-                if ((tmp2=find_macro(ident)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) goto as_macro;
+                if ((tmp2=find_macro(labelname)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) goto as_macro;
             }            // fall through
         default: if (waitfor[waitforp].skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
         }
