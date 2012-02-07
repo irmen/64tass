@@ -102,6 +102,7 @@ struct section_s {
     address_t l_start;
     address_t address;
     address_t l_address;
+    unsigned int dooutput:1;
     struct section_s *parent;
     struct avltree members;
 };
