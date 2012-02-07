@@ -718,7 +718,6 @@ struct file_s *openfile(const char* name) {
             if (name[0]=='-' && !name[1]) f=stdin;
             else f=fopen(name,"rb");
             if (!f) {
-                lastfi=tmp;
                 err_msg(ERROR_CANT_FINDFILE,name);
                 return NULL;
             }
