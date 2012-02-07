@@ -23,8 +23,6 @@
 #include "misc.h"
 #include "error.h"
 
-extern char ident[];
-
 static struct encoding_s *actual_encoding = ascii_encoding;
 
 void set_uint(struct value_s *v, uval_t val) {
@@ -174,7 +172,7 @@ static enum type_e touch_label(struct label_s *tmp) {
     return T_UNDEF;
 }
 
-static void copy_name(struct value_s *val) {
+static void copy_name(struct value_s *val, char *ident) {
     unsigned int len = val->u.ident.len;
     if (len > linelength - 1) len = linelength - 1;
     if (arguments.casesensitive) memcpy(ident, val->u.ident.name, len);
@@ -186,6 +184,7 @@ static void copy_name(struct value_s *val) {
 }
 
 static void try_resolv_ident(struct value_s *val) {
+    char ident[linelength];
     if (val->type == T_FORWR) {
         sprintf(ident,"+%x+%x", reffile, forwr + val->u.ref - 1);
         goto ident;
@@ -195,7 +194,7 @@ static void try_resolv_ident(struct value_s *val) {
         goto ident;
     }
     if (val->type == T_IDENT) {
-        copy_name(val);
+        copy_name(val, ident);
     ident:
         val->u.label = find_label(ident);
         val->type = touch_label(val->u.label);
@@ -205,8 +204,8 @@ static void try_resolv_ident(struct value_s *val) {
 static void try_resolv_identref(struct value_s *val) {
     if (val->type == T_IDENTREF) {
         if (pass != 1) {
-            if ((val->u.label->requires & current_section->provides)!=val->u.label->requires) err_msg(ERROR_REQUIREMENTS_,ident);
-            if (val->u.label->conflicts & current_section->provides) err_msg(ERROR______CONFLICT,ident);
+            if ((val->u.label->requires & current_section->provides)!=val->u.label->requires) err_msg(ERROR_REQUIREMENTS_,val->u.label->name);
+            if (val->u.label->conflicts & current_section->provides) err_msg(ERROR______CONFLICT,val->u.label->name);
         }
         *val = val->u.label->value;
     } else if (val->type == T_UNDEF && pass == 1) val->type = T_NONE;
@@ -824,28 +823,31 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         v1 = values[vsp-1];
         switch (ch) {
         case '.':
-            v2 = v1; v1 = values[--vsp-1];
-            if (vsp == 0) goto syntaxe;
-            if (v1->val.type == T_NONE) goto errtype;
-            if (v1->val.type == T_IDENT) {
-                copy_name(&v1->val);
-                v1->val.u.label = find_label(ident);
-                v1->val.type = touch_label(v1->val.u.label);
-                if (v1->val.type == T_UNDEF && pass == 1) {
-                    v1->val.type = T_NONE;
-                    goto errtype;
-                }
-            }
-            if (v1->val.type == T_IDENTREF) {
-                if (v2->val.type == T_IDENT) {
-                    copy_name(&v2->val);
-                    v1->val.u.label = find_label2(ident, &v1->val.u.label->members);
+            {
+                char ident[linelength];
+                v2 = v1; v1 = values[--vsp-1];
+                if (vsp == 0) goto syntaxe;
+                if (v1->val.type == T_NONE) goto errtype;
+                if (v1->val.type == T_IDENT) {
+                    copy_name(&v1->val, ident);
+                    v1->val.u.label = find_label(ident);
                     v1->val.type = touch_label(v1->val.u.label);
-                    v1->epoint=v2->epoint;
-                    continue;
-                } else err_msg_wrong_type(v2->val.type, v2->epoint);
-            } else err_msg_wrong_type(v1->val.type, v1->epoint);
-            goto errtype;
+                    if (v1->val.type == T_UNDEF && pass == 1) {
+                        v1->val.type = T_NONE;
+                        goto errtype;
+                    }
+                }
+                if (v1->val.type == T_IDENTREF) {
+                    if (v2->val.type == T_IDENT) {
+                        copy_name(&v2->val, ident);
+                        v1->val.u.label = find_label2(ident, &v1->val.u.label->members);
+                        v1->val.type = touch_label(v1->val.u.label);
+                        v1->epoint=v2->epoint;
+                        continue;
+                    } else err_msg_wrong_type(v2->val.type, v2->epoint);
+                } else err_msg_wrong_type(v1->val.type, v1->epoint);
+                goto errtype;
+            }
         case 'F':
             {
                 unsigned int args = 0;

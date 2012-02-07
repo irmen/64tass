@@ -213,6 +213,5 @@ extern unsigned int utf8in(const uint8_t *c, uint32_t *out);
 extern struct encoding_s no_encoding[];
 extern struct encoding_s screen_encoding[];
 extern struct encoding_s ascii_encoding[];
-extern int get_ident(void);
 
 #endif
