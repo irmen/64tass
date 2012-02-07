@@ -1482,7 +1482,7 @@ static void compile(void)
                                     lcol-=3;
                                     len--;
                                 }
-                            } else fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr);
+                            } else fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", current_section->address);
 
                             if (arguments.source && llist) {
                                 for (i=0; i<lcol-1; i+=8) putc('\t',flist);
