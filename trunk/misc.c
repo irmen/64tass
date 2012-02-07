@@ -518,6 +518,7 @@ struct section_s *new_section(const char* name) {
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->address=lastsc->l_address=0;
+        lastsc->dooutput=1;
         avltree_init(&lastsc->members, section_compare, section_free);
 	labelexists=0;
 	tmp=lastsc;

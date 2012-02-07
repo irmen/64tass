@@ -64,7 +64,7 @@ static enum { LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU } lastl = LIST_CODE;
 static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static uint8_t databank=0;
 static uint16_t dpage=0;
-int fixeddig, dooutput;
+int fixeddig;
 static int allowslowbranch=1;
 static int longbranchasjmp=0;
 static uint8_t outputeor = 0; // EOR value for final output (usually 0, except changed by .eor)
@@ -365,7 +365,7 @@ static void memcomp(void) {
 static void pokeb(uint8_t byte)
 {
 
-    if (fixeddig && dooutput)
+    if (fixeddig && current_section->dooutput)
     {
         if (mem.p>=mem.len) {
             mem.len+=0x1000;
@@ -889,10 +889,15 @@ static void compile(void)
                 case CMD_UNION:
                     {
                         struct label_s *old_context=current_context;
-                        address_t old_address = current_section->address, old_laddress = current_section->l_address;
-                        int old_dooutput = dooutput;
+                        struct section_s new;
                         new_waitfor((prm==CMD_STRUCT)?'s':'u');waitfor[waitforp].skip=0;
                         if (!structrecursion) {
+                            new.parent = current_section;
+                            new.provides=~(uval_t)0;new.requires=new.conflicts=0;
+                            new.start=new.l_start=new.address=new.l_address=0;
+                            new.dooutput=0;new.name=NULL;memjmp(0);
+                            current_section = &new;
+
                             tmp2=new_macro(labelname);
                             if (labelexists) {
                                 if (tmp2->p!=cfile->p
@@ -908,7 +913,7 @@ static void compile(void)
                                 tmp2->file=cfile;
                             }
                         }
-                        newlabel=new_label(labelname, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);
+                        newlabel=new_label(labelname, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);oaddr = current_section->address;
                         if (pass==1) {
                             if (labelexists) err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                             else {
@@ -934,7 +939,6 @@ static void compile(void)
                         }
                         current_context=newlabel;
                         newlabel->ref=0;
-                        if (!structrecursion) {current_section->address = current_section->l_address = 0;dooutput = 0;memjmp(0);}
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",current_section->address);
@@ -957,8 +961,8 @@ static void compile(void)
                             l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
                         } else err_msg(ERROR__MACRECURSION,"!!!!");
                         structrecursion--;
-                        if (!structrecursion) {set_size(newlabel, current_section->address);current_section->address = old_address; current_section->l_address = old_laddress; dooutput = old_dooutput; memjmp(current_section->address);}
-                        else set_size(newlabel, current_section->address - old_address);
+                        set_size(newlabel, current_section->address - oaddr);
+                        if (!structrecursion) {current_section = new.parent; memjmp(current_section->address);}
 			newlabel = NULL;
                         goto finish;
                     }
@@ -967,6 +971,7 @@ static void compile(void)
                         struct section_s *tmp;
                         char sectionname[linelength];
                         new_waitfor('t');waitfor[waitforp].section=current_section;
+                        if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
                         ignore();epoint=lpoint;
                         if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (!(tmp=find_section(sectionname))) {err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;}
@@ -1358,7 +1363,7 @@ static void compile(void)
                         if (prm==CMD_PTEXT) {
                             if (mem.p-ptextaddr>0x100) large=epoint;
 
-                            if (fixeddig && dooutput) mem.data[ptextaddr]=mem.p-ptextaddr-1;
+                            if (fixeddig && current_section->dooutput) mem.data[ptextaddr]=mem.p-ptextaddr-1;
                         }
                         if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm<=CMD_DWORD) { // .word .int .rta .long
@@ -1462,7 +1467,7 @@ static void compile(void)
                                 }
                             }
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            if (dooutput) {
+                            if (current_section->dooutput) {
                                 fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr);
                                 while (len) {
                                     if (lcol==1) {
@@ -2021,6 +2026,7 @@ static void compile(void)
                 if (prm==CMD_DSECTION) {
                     struct section_s *tmp2;
                     new_waitfor('t');
+                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".DSECTION");
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     tmp2=new_section(labelname);
@@ -2053,6 +2059,7 @@ static void compile(void)
                     if (newlabel) {waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;}
                     else {
                         new_waitfor('t');waitfor[waitforp].section=current_section;
+                        if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
                         ignore();epoint=lpoint;
                         if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (!(tmp=find_section(sectionname))) {err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;}
@@ -2463,7 +2470,7 @@ static void compile(void)
 
                         if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                         fprintf(flist,(all_mem==0xffff)?".%04x\t":".%06x ",(current_section->address-ln-1) & all_mem);
-                        if (dooutput) {
+                        if (current_section->dooutput) {
                             if (ln>=0) {
                                 fprintf(flist," %02x", cod ^ longbranch ^ outputeor);
                                 for (i=0;i<(unsigned)ln;i++) {fprintf(flist," %02x",(uint8_t)temp ^ outputeor);temp>>=8;}
@@ -2599,11 +2606,12 @@ int main(int argc,char *argv[]) {
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             structrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
+            waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
+            current_section->dooutput=1;
             macro_parameters.p = 0;
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
@@ -2654,11 +2662,12 @@ int main(int argc,char *argv[]) {
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
             structrecursion=0;allowslowbranch=1;
-            waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;dooutput=1;
+            waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
+            current_section->dooutput=1;
             macro_parameters.p = 0;
 
             if (i == optind - 1) {
