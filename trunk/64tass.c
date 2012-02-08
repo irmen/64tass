@@ -970,6 +970,7 @@ static void compile(void)
                     {
                         struct section_s *tmp;
                         char sectionname[linelength];
+                        unsigned int epoint;
                         new_waitfor('t');waitfor[waitforp].section=current_section;
                         if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
                         ignore();epoint=lpoint;
