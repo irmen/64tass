@@ -920,7 +920,8 @@ void labelprint(void) {
         while (n) {
             l = avltree_container_of(n, struct label_s, node);            //already exists
             n = avltree_next(n);
-            if (strchr(l->name,'-') || strchr(l->name,'+')) continue;
+            if (l->name[0]=='-' || l->name[0]=='+') continue;
+            if (l->name[0]=='.' || l->name[0]=='#') continue;
             switch (l->type) {
             case L_VAR: fprintf(flab,"%-15s .var ",l->name);break;
             case L_UNION:
@@ -929,12 +930,15 @@ void labelprint(void) {
             }
             switch (l->value.type) {
             case T_CHR:
-            case T_UINT:
-            case T_SINT:
                 {
-                    int32_t val;
-                    val=l->value.u.num.val;
-                    if (val<0) {putc('-', flab);val=-val;}
+                    uval_t val = l->value.u.num.val;
+                    fprintf(flab,"'{$%02x}'",val);
+                    if (l->pass<pass) fputs("; *** unused", flab);
+                    break;
+                }
+            case T_NUM:
+                {
+                    uval_t val = l->value.u.num.val;
                     if (val<0x100) fprintf(flab,"$%02x",val);
                     else if (val<0x10000) fprintf(flab,"$%04x",val);
                     else if (val<0x1000000) fprintf(flab,"$%06x",val);
@@ -947,13 +951,28 @@ void labelprint(void) {
                     }
                     break;
                 }
+            case T_UINT:
+                {
+                    uval_t val = l->value.u.num.val;
+                    fprintf(flab,"%u", val);
+                    if (l->pass<pass) fputs("; *** unused", flab);
+                    break;
+                }
+            case T_SINT:
+                {
+                    ival_t val = l->value.u.num.val;
+                    fprintf(flab,"%+d",val);
+                    if (l->pass<pass) fputs("; *** unused", flab);
+                    break;
+                }
             case T_STR:
                 {
                     size_t val;
+                    fputc('"', flab);
                     for (val=0;val<l->value.u.str.len;val++) {
-                        if (val) fputs(", ", flab);
-                        fprintf(flab,"$%02x", l->value.u.str.data[val]);
+                        fprintf(flab,"{$%02x}", l->value.u.str.data[val]);
                     }
+                    fputc('"', flab);
                     if (l->pass<pass) {
                         fputs("; *** unused", flab);
                     }
