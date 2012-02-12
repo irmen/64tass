@@ -997,10 +997,11 @@ static void compile(void)
                     newlabel->conflicts=current_section->conflicts;
                     newlabel->upass=newlabel->pass=pass;
                     set_uint(&newlabel->value, current_section->l_address);
+                    newlabel->value.type = T_NUM;
                 }
             } else {
                 if (labelexists) {
-                    if (newlabel->value.type != T_UINT || newlabel->type != L_LABEL) { /* should not happen */
+                    if (newlabel->value.type != T_NUM || newlabel->type != L_LABEL) { /* should not happen */
                         err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                     } else {
                         if ((uval_t)newlabel->value.u.num.val != current_section->l_address) {
@@ -1009,7 +1010,7 @@ static void compile(void)
                         }
                         newlabel->requires=current_section->requires;
                         newlabel->conflicts=current_section->conflicts;
-                        newlabel->value.type=T_UINT;
+                        newlabel->value.type=T_NUM;
                     }
                 }
             }
