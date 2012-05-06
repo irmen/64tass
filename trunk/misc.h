@@ -21,22 +21,10 @@
 #include "stdint.h"
 #define VERSION "1.46"
 
-#define WHAT_EXPRESSION 1
-#define WHAT_HASHMARK   3
-#define WHAT_X          4
-#define WHAT_Y          5
-#define WHAT_XZ         6
-#define WHAT_COMMAND    7
-#define WHAT_EQUAL      8
-#define WHAT_EOL        9
-#define WHAT_STAR       10
-#define WHAT_COMA       11
-#define WHAT_COLON      12
-#define WHAT_S          13
-#define WHAT_SZ         14
-#define WHAT_COMMENT    15
-#define WHAT_CHAR       16
-#define WHAT_LBL        17
+enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_X, WHAT_Y, WHAT_XZ, WHAT_R, WHAT_RZ,
+    WHAT_COMMAND, WHAT_EQUAL, WHAT_EOL, WHAT_STAR, WHAT_COMA, WHAT_COLON,
+    WHAT_S, WHAT_SZ, WHAT_COMMENT, WHAT_CHAR, WHAT_LBL
+};
 
 typedef uint_fast32_t line_t;
 typedef uint_fast32_t address_t;

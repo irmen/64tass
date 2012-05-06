@@ -1106,6 +1106,7 @@ Target
             .cpu 6502i      ;NMOS 65xx
             .cpu 65816      ;W65C816
             .cpu 65dtv02    ;65dtv02
+            .cpu 65el02     ;65el02
             .cpu default    ;cpu set on commandline
 
 Misc

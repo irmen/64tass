@@ -989,7 +989,7 @@ void labelprint(void) {
 }
 
 // ------------------------------------------------------------------
-static const char *short_options= "wqnbWaTCBicxtl:L:msV?o:D:";
+static const char *short_options= "wqnbWaTCBicxtel:L:msV?o:D:";
 
 static const struct option long_options[]={
     {"no-warn"          , no_argument      , 0, 'w'},
@@ -1006,6 +1006,7 @@ static const struct option long_options[]={
     {"m65c02"           , no_argument      , 0, 'c'},
     {"m65816"           , no_argument      , 0, 'x'},
     {"m65dtv02"         , no_argument      , 0, 't'},
+    {"m65el02"          , no_argument      , 0, 'e'},
     {"labels"           , required_argument, 0, 'l'},
     {"list"             , required_argument, 0, 'L'},
     {"no-monitor"       , no_argument      , 0, 'm'},
@@ -1103,17 +1104,18 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 'c':arguments.cpumode=OPCODES_65C02;break;
             case 'x':arguments.cpumode=OPCODES_65816;break;
             case 't':arguments.cpumode=OPCODES_65DTV02;break;
+            case 'e':arguments.cpumode=OPCODES_65EL02;break;
             case 'l':arguments.label=optarg;break;
             case 'L':arguments.list=optarg;break;
             case 'm':arguments.monitor=0;break;
             case 's':arguments.source=0;break;
             case 'C':arguments.casesensitive=1;break;
             case 2:puts(
-	       "Usage: 64tass [-abBCnTqwWcitxms?V] [-D <label>=<value>] [-o <file>]\n"
+	       "Usage: 64tass [-abBCnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
 	       "	[-l <file>] [-L <file>] [--ascii] [--nostart] [--long-branch]\n"
 	       "	[--case-sensitive] [--nonlinear] [--tasm-compatible]\n"
 	       "	[--quiet] [--no-warn] [--wordstart] [--m65c02] [--m6502]\n"
-	       "	[--m65xx] [--m65dtv02] [--m65816] [--labels=<file>]\n"
+	       "	[--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--labels=<file>]\n"
 	       "	[--list=<file>] [--no-monitor] [--no-source] [--help] [--usage]\n"
 	       "	[--version] SOURCES");exit(0);
 
@@ -1141,6 +1143,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
 	       "      --m65xx		Standard 65xx (default)\n"
 	       "  -t, --m65dtv02	65DTV02\n"
 	       "  -x, --m65816		W65C816\n"
+	       "  -e, --m65el02		65EL02\n"
 	       "\n"
 	       " Source listing:\n"
 	       "  -l, --labels=<file>	List labels into <file>\n"
