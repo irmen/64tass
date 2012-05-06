@@ -1607,7 +1607,6 @@ static void compile(void)
                         if (db>(all_mem+1)) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);goto breakerr;}
                     }
                     if (get_val(&val, T_UINT, &epoint)) {
-                        lpoint++;
                         if (val.type == T_NONE) ch = fixeddig = 0;
                         else {
                             if ((val.type != T_NUM || val.u.num.len > 1) && ((uval_t)val.u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -1719,7 +1718,6 @@ static void compile(void)
                         else align = val.u.num.val;
                     }
                     if (get_val(&val, T_NUM, &epoint)) {
-                        lpoint++;
                         if (val.type == T_NONE) fixeddig = fill = 0;
                         else {
                             if ((val.u.num.len > 1 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
