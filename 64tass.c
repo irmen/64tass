@@ -6,7 +6,7 @@
    (c)1996 Taboo Productions, Marek Matula
 
    6502/65C02 Turbo Assembler  Version 1.35  ANSI C port
-   (c)2000 [BiGFooT/BReeZe^2000]
+   (c)2000 BiGFooT/BReeZe^2000
 
    6502/65C02/65816/DTV Turbo Assembler  Version 1.4x
    (c)2001-2011 Soci/Singular (soci@c64.rulez.org)
@@ -456,6 +456,7 @@ static int what(int *tempno) {
 	case 'y': ignore();return WHAT_Y;
 	case 'x': ignore();if (here()==')') {lpoint++;ignore();return WHAT_XZ;} else return WHAT_X;
 	case 's': ignore();if (here()==')') {lpoint++;ignore();return WHAT_SZ;} else return WHAT_S;
+	case 'r': ignore();if (here()==')') {lpoint++;ignore();return WHAT_RZ;} else return WHAT_R;
 	default: lpoint--;return WHAT_COMA;
 	}
     case WHAT_CHAR:
@@ -585,6 +586,7 @@ static void set_cpumode(uint_fast8_t cpumode) {
     case OPCODES_6502i:mnemonic=MNEMONIC6502i;opcode=c6502i;break;
     case OPCODES_65816:mnemonic=MNEMONIC65816;opcode=c65816;all_mem=0xffffff;scpumode=1;break;
     case OPCODES_65DTV02:mnemonic=MNEMONIC65DTV02;opcode=c65dtv02;dtvmode=1;break;
+    case OPCODES_65EL02:mnemonic=MNEMONIC65EL02;opcode=c65el02;break;
     default: mnemonic=MNEMONIC6502;opcode=c6502;break;
     }
 }
@@ -1664,6 +1666,7 @@ static void compile(void)
                     else if (!strcasecmp(path,"6502i")) def=OPCODES_6502i;
                     else if (!strcmp(path,"65816")) def=OPCODES_65816;
                     else if (!strcasecmp(path,"65dtv02")) def=OPCODES_65DTV02;
+                    else if (!strcasecmp(path,"65el02")) def=OPCODES_65EL02;
                     else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,path);
                     set_cpumode(def);
                     break;
@@ -1838,7 +1841,7 @@ static void compile(void)
                         }
                         wht=what(&prm);
                     }
-                    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X) lpoint--; else
+                    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X || wht==WHAT_R) lpoint--; else
                         if (wht!=WHAT_COMA) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
 
                     s = new_star(vline); stree_old = star_tree; ovline = vline;
@@ -2112,7 +2115,7 @@ static void compile(void)
 
                     opr = 0;mnem = prm;
                     oldlpoint = lpoint;
-                    cnmemonic = &opcode[prm*24];
+                    cnmemonic = &opcode[prm*26];
                     ln = 0; cod = 0; longbranch = 0; adr = 0; adrgen = AG_NONE;
 
                     ignore();
@@ -2130,7 +2133,7 @@ static void compile(void)
                     }
                     // 2 Db
                     else if (wht=='#') {
-                        if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____) {
+                        if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____ && prm) { // 0x69 hack
                             lpoint += strlen((char *)pline + lpoint);ln=w=d=1;
                         } else {
                             lpoint++;
@@ -2147,7 +2150,6 @@ static void compile(void)
                             else if (cod!=0xC2 && cod!=0xE2) {//not sep rep=all accu
                                 if (longaccu && scpumode) ln++;
                             }
-                            if (dtvmode && cod==0x02) longbranch=0x40;//hack
 
                             if (w==3) w = ln - 1;
                             else if (w != ln - 1) w = 3;
@@ -2189,6 +2191,9 @@ static void compile(void)
                                 break;
                             case WHAT_S:
                                 adrgen = AG_BYTE; opr=ADR_ZP_S; // lda $ff,s
+                                break;
+                            case WHAT_R:
+                                adrgen = AG_BYTE; opr=ADR_ZP_R; // lda $ff,r
                                 break;
                             case WHAT_EOL:
                             case WHAT_COMMENT:
@@ -2330,6 +2335,10 @@ static void compile(void)
                                 if ((wht=what(&prm))!=WHAT_Y) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                 adrgen = AG_BYTE; opr=ADR_ZP_S_I_Y; // lda ($ff,s),y
                                 break;
+                            case WHAT_RZ:
+                                if ((wht=what(&prm))!=WHAT_Y) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                adrgen = AG_BYTE; opr=ADR_ZP_R_I_Y; // lda ($ff,r),y
+                                break;
                             case WHAT_XZ:
                                 if (cnmemonic[ADR_ADDR_X_I]==0x7C || cnmemonic[ADR_ADDR_X_I]==0xFC) {// jmp ($ffff,x) jsr ($ffff,x)
                                     adrgen = AG_PB; opr=ADR_ADDR_X_I; // jmp ($ffff,x)
@@ -2348,7 +2357,7 @@ static void compile(void)
                             case WHAT_EOL:
                             case WHAT_COMMENT:
                                 if (cnmemonic[ADR_ADDR_I]==0x6C) {// jmp ($ffff)
-                                    if (fixeddig && opcode!=c65816 && opcode!=c65c02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
+                                    if (fixeddig && opcode!=c65816 && opcode!=c65c02 && opcode!=c65el02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
                                     adrgen = AG_B0; opr=ADR_ADDR_I; // jmp ($ffff)
                                 } else {
                                     adrgen = AG_ZP; opr=ADR_ZP_I; // lda ($ff)
@@ -2441,7 +2450,7 @@ static void compile(void)
 
                     if (d) {
                         if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
-                        if ((cod=cnmemonic[opr])==____) {
+                        if ((cod=cnmemonic[opr])==____ && (prm || opr!=ADR_IMMEDIATE)) { // 0x69 hack
                             memcpy(labelname,&mnemonic[mnem*3],3);
                             labelname[3]=0;
                             if ((tmp2=find_macro(labelname)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {
@@ -2503,6 +2512,8 @@ static void compile(void)
                                 case ADR_ZP_X_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x,x)":" ($%04x,x)",(uint16_t)(adr+dpage)); break;
                                 case ADR_ZP_S: fprintf(flist," $%02x,s",(uint8_t)adr); break;
                                 case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(uint8_t)adr); break;
+                                case ADR_ZP_R: fprintf(flist," $%02x,r",(uint8_t)adr); break;
+                                case ADR_ZP_R_I_Y: fprintf(flist," ($%02x,r),y",(uint8_t)adr); break;
                                 case ADR_ADDR_Y: fprintf(flist,databank?" $%06x,y":" $%04x,y",(uint16_t)adr | (databank << 16)); break;
                                 case ADR_ZP_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,y":" $%04x,y",(uint16_t)(adr+dpage)); break;
                                 case ADR_ZP_LI_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x],y":" [$%04x],y",(uint16_t)(adr+dpage)); break;
@@ -2592,8 +2603,9 @@ int main(int argc,char *argv[]) {
 
     if (arguments.quiet)
         puts("6502/65C02 Turbo Assembler Version 1.3  Copyright (c) 1997 Taboo Productions\n"
-             "6502/65C02 Turbo Assembler Version 1.35 ANSI C port by [BiGFooT/BReeZe^2000]\n"
-             "6502/65C02/65816/DTV TASM Version " VERSION " Fixing by Soci/Singular 2001-2011\n"
+             "6502/65C02 Turbo Assembler Version 1.35 ANSI C port by BiGFooT/BReeZe^2000\n"
+             "6502/65C02/65816/DTV TASM Version " VERSION " Fixing by Soci/Singular 2001-2012\n"
+             "65EL02 support by BiGFooT/BReeZe^Chorus^Resource 2012\n"
              "64TASS comes with ABSOLUTELY NO WARRANTY; This is free software, and you\n"
              "are welcome to redistribute it under certain conditions; See LICENSE!\n");
 
