@@ -117,7 +117,7 @@ addresses.</p>
 relocated, and the length must be known to copy it there. Here's
 an example:</p>
 <pre width=80>
-        <b>ldx</b> #len(<span class="l">zpcode</span>)-<span>1</span><i>;calculate length</i>
+        <b>ldx</b> #size(<span class="l">zpcode</span>)-<span>1</span><i>;calculate length</i>
 -       <b>lda</b> <span class="l">zpcode</span>,x
         <b>sta</b> <span class="l">wrbyte</span>,x
         <b>dex</b>             <i>;install to zeropage</i>
