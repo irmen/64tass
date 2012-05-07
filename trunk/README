@@ -95,7 +95,7 @@ at those addresses.
 What about some code running on zero page for speed? It needs to be relocated,
 and the length must be known to copy it there. Here's an example:
 
-        ldx #len(zpcode)-1;calculate length
+        ldx #size(zpcode)-1;calculate length
 -       lda zpcode,x
         sta wrbyte,x
         dex             ;install to zeropage
