@@ -561,22 +561,29 @@ using the .cpu directive in the source.
             .text "oeU"     ; text, "" means $22
             .text 'it''s'   ; text, '' means $27
 
-    Parenthesis (( )) and brackets can be used to override ([ ]) operator
+    Parenthesis (( )) and brackets ([ ]) can be used to override operator
     precedence. Don't forget that they also denote indirect addressing mode for
     certain opcodes.
 
             lda #(4+2)*3
 
     The dot (.) operator can be used to reference member elements of structs
-    and unions.
+    and unions by their address.
 
             lda storage.len
+
+    Brackets ([ ]) operator can be used to reference member elements of arrays
+    by their address, indexing starts at 0.
+
+            lda myarr[2],y
+            ldx myarr[2]+1,y
+    myarr   .word 542,722,373,443
 
     Built in functions are identifiers following parentheses. They accept
     variable number of parameters separated by comma.
 
     len(x)
-        Length of string
+        Length of string.
     min(a, b, ...)
         Minimum of numeric values.
     max(a, b, ...)

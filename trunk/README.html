@@ -608,8 +608,8 @@ numeric values in numeric expressions.</p>
         <b class="d">.text</b> <span class="s">'it''s'</span>   <i>; text, '' means $27</i>
 </pre>
 
-<p>Parenthesis (<code>( )</code>) and brackets can be used to override
-(<code>[ ]</code>) operator precedence. Don't forget that they also
+<p>Parenthesis (<code>( )</code>) and brackets (<code>[ ]</code>) can be
+used to override operator precedence. Don't forget that they also
 denote indirect addressing mode for certain opcodes.</p>
 
 <pre width=80>
@@ -617,10 +617,19 @@ denote indirect addressing mode for certain opcodes.</p>
 </pre>
 
 <p>The dot (<code>.</code>) operator can be used to reference
-member elements of structs and unions.</p>
+member elements of structs and unions by their address.</p>
 
 <pre width=80>
         <b>lda</b> <span class="l">storage</span>.<span class="l">len</span>
+</pre>
+
+<p>Brackets (<code>[</code> <code>]</code>) operator can be used to reference
+member elements of arrays by their address, indexing starts at 0.</p>
+
+<pre width=80>
+        <b>lda</b> <span class="l">myarr</span>[<span>2</span>],y
+        <b>ldx</b> <span class="l">myarr</span>[<span>2</span>]+<span>1</span>,y
+myarr   <b class="d">.word</b> <span>542</span>,<span>722</span>,<span>373</span>,<span>443</span>
 </pre>
 
 <p>Built in functions are identifiers following parentheses. They accept
@@ -628,7 +637,7 @@ variable number of parameters separated by comma.</p>
 
 <dl class="dir">
 <dt>len(x)
-<dd>Length of string
+<dd>Length of string.
 <dt>min(a, b, ...)
 <dd>Minimum of numeric values.
 <dt>max(a, b, ...)

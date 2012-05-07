@@ -1421,6 +1421,7 @@ static void compile(void)
                         long foffset=0;
                         address_t fsize = all_mem+1;
                         FILE* fil;
+                        if (newlabel) newlabel->esize = 1;
                         if (get_path(cfile->name)) goto breakerr;
                         if (here()==',') {
                             lpoint++;
