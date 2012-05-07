@@ -65,7 +65,7 @@ As a minimum the source filename must be given on command line.</p>
 64tass src.asm
 </pre>
 <p>There are also some useful parameters which are described later.</p>
-<p>For comfortable compiling I use such <q>Makefile</q>s (for make):</p>
+<p>For comfortable compiling I use such <q>Makefile</q>s (for <a href="http://en.wikipedia.org/wiki/Make_%28software%29">make</a>):</p>
 <pre>
 demo.prg: source.asm makros.asm pic.drp music.bin
 	64tass -C -a -B -i source.asm -o demo.prg
@@ -90,13 +90,48 @@ like the one below, so that the resulting file is directly runnable
 without additional compression:</p>
 <pre>
         <b>*=</b> <span>$0801</span>
-        <b class="d">.word</b> <span class="l">ss</span>, <span>2005</span>
+        <b class="d">.word</b> <span class="l">ss</span>, <span>2005</span>   <i>;pointer, line number</i>
         <b class="d">.null</b> <span>$9e</span>, ^<span class="l">start</span><i>;will be sys 4096</i>
-ss	<b class="d">.word</b> <span>0</span>
+ss	<b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
 
         <b>*=</b> <span>$1000</span>
 
 start	<b>rts</b>
+</pre>
+
+<p>A frequently comming up question is, how to automatically allocate
+memory, without hacks like <code>*=*+1</code>? Sure
+there's <code>.byte</code> and friends for variables with initial values
+but what about zero page, or RAM outside of program area? The solution
+is to not use an initial value by using '<code>?</code>' or not
+giving a fill byte value to <code>.fill</code>.</p>
+<pre>
+        <b>*=</b> <span>$02</span>
+p1	<b class="d">.word</b> <span>?</span>         <i>;a zero page pointer</i>
+temp	<b class="d">.fill</b> <span>10</span>        <i>;a 10 byte temporary area</i>
+</pre>
+<p>Space allocated this way
+is not saved in the output as there's no data to save at those
+addresses.</p>
+<p>What about some code running on zero page for speed? It needs to be
+relocated, and the length must be known to copy it there. Here's
+an example:</p>
+<pre width=80>
+        <b>ldx</b> #len(<span class="l">zpcode</span>)-<span>1</span><i>;calculate length</i>
+-       <b>lda</b> <span class="l">zpcode</span>,x
+        <b>sta</b> <span class="l">wrbyte</span>,x
+        <b>dex</b>             <i>;install to zeropage</i>
+        <b>bpl</b> <span class="l">-</span>
+        <b>jsr</b> <span class="l">wrbyte</span>
+        <b>rts</b>
+<i>;code continues here but is compiled to run from $02</i>
+zpcode  <b class="k">.logical</b> <span>$02</span>
+wrbyte  <b>sta</b> <span>$ffff</span>       <i>;quick byte writer at $02</i>
+        <b>inc</b> <span class="l">wrbyte</span>+<span>1</span>
+        <b>bne</b> <span class="l">+</span>
+        <b>inc</b> <span class="l">wrbyte</span>+<span>2</span>
++	<b>rts</b>
+	<b class="k">.here</b>
 </pre>
 
 <p>For writing short code there are some special pseudo instructions for always
@@ -322,6 +357,17 @@ and forces 16&nbsp;bit unsigned evaluation (see <q>differences to original Turbo
 <p>These options will select the default architecture. It can be overridden by
 using the <code>.cpu</code> directive in the source.</p>
 
+<dt>--m65xx
+<dd>Standard 65xx (default)
+<p>Selects standard 6502. For writing compatible code, no extra codes. This is the default.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --m65xx a.asm
+        <b>lda</b> <span>$14</span>		<i>;regular instructions</i>
+</pre>
+</fieldset>
+
 <dl class="dir">
 <dt>-c, --m65c02
 <dd>CMOS 65C02
@@ -345,17 +391,6 @@ using the <code>.cpu</code> directive in the source.</p>
 </pre>
 </fieldset>
 
-<dt>--m65xx
-<dd>Standard 65xx (default)
-<p>Selects standard 6502. For writing compatible code, no extra codes. This is the default.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --m65xx a.asm
-        <b>lda</b> <span>$14</span>		<i>;regular instructions</i>
-</pre>
-</fieldset>
-
 <dt>-t, --m65dtv02
 <dd>65DTV02
 <p>Selects 65DTV02. Enables extra opcodes specific to DTV.</p>
@@ -376,6 +411,17 @@ Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small 
 <pre>
 64tass --m65816 a.asm
         <b>lda</b> <span>$123456</span>,x
+</pre>
+</fieldset>
+
+<dt>-e, --m65el02
+<dd>65EL02
+<p>Selects 65EL02. Enables extra opcodes, useful <a href="http://www.eloraam.com/nonwp/redcpu.php">RedPower CPU</a> projects. Probably you'll need <q>--nostart</q> as well.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --m65el02 a.asm
+        <b>lda</b> <span>0</span>,r
 </pre>
 </fieldset>
 </dl>
@@ -1076,10 +1122,11 @@ i       <b class="k">.var</b> <span class="l">i</span> - <span>1</span>
 </pre>
 
 <dt>.binary
-<dd>Include binary data. Please note that loading address is ignored, and if
-not skipped then it's also loaded.
+<dd>Include binary data. Please note that <q>loading address</q> is ignored, and if
+not skipped then it's also loaded as data. By using offset and length it's possible to
+break out chunks of data from a file separately, like bitmap and colors for example.
 <pre width=80>
-        <b class="d">.binary</b> stuffz.bin          <i>;simple include</i>
+        <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>        <i>;simple include, all bytes</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>,<span>2</span>      <i>;skip start address</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>,<span>2</span>,<span>1000</span> <i>;skip start address, 1000 bytes max</i>
 
