@@ -2252,6 +2252,8 @@ static void compile(void)
                                                             longbranch=cnmemonic[ADR_REL]^0x82;
                                                             if (!labelexists) adr=(uint16_t)(adr-1);
                                                             ln=2;
+                                                        } else if (cnmemonic[ADR_REL] == 0x82 && opcode==c65el02) {
+                                                            err = ERROR_BRANCH_TOOFAR;continue; //rer not a branch
                                                         } else {
                                                             longbranch=cnmemonic[ADR_REL]^0x4C;
                                                             adr=oadr;ln=2;
