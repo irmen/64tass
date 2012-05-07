@@ -1,8 +1,11 @@
-CC = i586-mingw32msvc-gcc
+CC = i686-w64-mingw32-gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o
 LANG = C
-CFLAGS = -Os -march=i586 -fomit-frame-pointer -fno-exceptions -fno-align-labels -fno-align-loops -fno-align-jumps -fno-align-functions -mpreferred-stack-boundary=2 -pipe
-#CFLAGS = -Wall -pipe
+CFLAGS = -O2 -march=i586 -W -Wall -Wextra
+LDFLAGS = -s
+CFLAGS += $(LDFLAGS)
+
+.SILENT:
 
 64tass: $(OBJ)
 
@@ -14,10 +17,7 @@ misc.o: misc.c libtree.h misc.h opcodes.h getopt.h my_getopt.h error.h
 my_getopt.o: my_getopt.c my_getopt.h
 opcodes.o: opcodes.c opcodes.h
 
-.PHONY: clean strip
+.PHONY: clean
 
 clean:
 	rm -f $(OBJ) 64tass *~
-
-strip:
-	/usr/i586-mingw32msvc/bin/strip -R .comment -R .note -R .note.ABI-tag 64tass
