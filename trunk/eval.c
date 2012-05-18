@@ -235,6 +235,7 @@ static int priority(char ch)
 {
     switch (ch) {
     default:
+    case 'I':          // a[
     case '[':          // [a]
     case '(':return 0;
     case ',':return 1;
@@ -263,8 +264,7 @@ static int priority(char ch)
     case '/':
     case '%':return 12;// %
     case 'E':return 13;// **
-    case '.':          // .
-    case 'I':return 14;// a[
+    case '.':return 14;// .
     case 'n':          // -
     case 'p':return 15;// +
     case '~':return 16;// ~
