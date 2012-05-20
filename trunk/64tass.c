@@ -217,14 +217,14 @@ void status(void) {
             end = memblocks.data[0].start + memblocks.data[0].len;
             for (i=1;i<memblocks.p;i++) {
                 if (memblocks.data[i].start != end) {
-                    sprintf(temp, "$%04x", (unsigned)start);
-                    printf("Memory range:    %7s-$%04x\n", temp, (unsigned)end-1);
+                    sprintf(temp, "$%04" PRIaddress, start);
+                    printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
                     start = memblocks.data[i].start;
                 }
                 end = memblocks.data[i].start + memblocks.data[i].len;
             }
-            sprintf(temp, "$%04x", (unsigned)start);
-            printf("Memory range:    %7s-$%04x\n", temp, (unsigned)end-1);
+            sprintf(temp, "$%04" PRIaddress, start);
+            printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
         } else puts("Memory range:      None");
     }
     free(mem.data);		        	// free codemem
@@ -785,7 +785,7 @@ static void compile(void)
                 if (listing && flist && arguments.source && newlabel->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                     if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM ||val.type == T_CHR) {
-                        fprintf(flist,"=%x\t\t\t\t\t",(uval_t)val.u.num.val);
+                        fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val.u.num.val);
                     } else {
                         fputs("=\t\t\t\t\t", flist);
                     }
@@ -820,7 +820,7 @@ static void compile(void)
                     if (listing && flist && arguments.source && newlabel->ref) {
                         if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                         if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM || val.type == T_CHR) {
-                            fprintf(flist,"=%x\t\t\t\t\t",(uval_t)val.u.num.val);
+                            fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val.u.num.val);
                         } else {
                             fputs("=\t\t\t\t\t", flist);
                         }
@@ -943,7 +943,7 @@ static void compile(void)
                         newlabel->ref=0;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",current_section->address);
+                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
                             printllist(flist);
                         }
                         structrecursion++;
@@ -1026,7 +1026,7 @@ static void compile(void)
                         current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,labelname2);
+                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
                         }
                         newlabel->ref=0;
                     }
@@ -1037,7 +1037,7 @@ static void compile(void)
                     current_context=newlabel;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
                     if (listing && flist && arguments.source) {
                         if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                        fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,labelname2);
+                        fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
                     }
                     newlabel->ref=0;
                     newlabel = NULL;
@@ -1055,7 +1055,7 @@ static void compile(void)
                         current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",current_section->address);
+                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
                             printllist(flist);
                         }
                         newlabel->ref=0;
@@ -1088,7 +1088,7 @@ static void compile(void)
                 if (listing && flist && arguments.source) {
                     lastl=LIST_NONE;
                     if (wasref)
-                        fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",current_section->address);
+                        fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
                     else
                         fputs("\n\t\t\t\t\t", flist);
                     printllist(flist);
@@ -1112,7 +1112,7 @@ static void compile(void)
         case WHAT_EOL:
             if (listing && flist && arguments.source && (waitfor[waitforp].skip & 1) && wasref) {
                 if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",current_section->address);
+                fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
                 printllist(flist);
             }
             break;
@@ -1129,7 +1129,7 @@ static void compile(void)
                         case CMD_ENDU:
                         case CMD_UNION:
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",current_section->address);
+                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
                             printllist(flist);
                         case CMD_BINARY:
                             break;
@@ -1148,7 +1148,7 @@ static void compile(void)
                         case CMD_INCLUDE:
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                             if (wasref)
-                                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t":".%06x\t\t\t\t\t",current_section->address);
+                                fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
                             else
                                 fputs("\t\t\t\t\t", flist);
                             printllist(flist);
@@ -1156,7 +1156,7 @@ static void compile(void)
                         default:
                             if (wasref) {
                                 if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                                fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,labelname2);
+                                fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
                             }
                     }
                 }
@@ -1473,13 +1473,13 @@ static void compile(void)
                             }
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             if (current_section->dooutput) {
-                                fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr);
+                                fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", myaddr);
                                 while (len) {
                                     if (lcol==1) {
                                         if (arguments.source && llist) {
                                             putc('\t', flist);printllist(flist);
                                         } else putc('\n',flist);
-                                        fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", myaddr);lcol=49;
+                                        fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", myaddr);lcol=49;
                                     }
                                     fprintf(flist," %02x", mem.data[ptextaddr++]);
                                     myaddr = (myaddr + 1) & all_mem;
@@ -1487,7 +1487,7 @@ static void compile(void)
                                     lcol-=3;
                                     len--;
                                 }
-                            } else fprintf(flist,(all_mem==0xffff)?">%04x\t":">%06x ", current_section->address);
+                            } else fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", current_section->address);
 
                             if (arguments.source && llist) {
                                 for (i=0; i<lcol-1; i+=8) putc('\t',flist);
@@ -1557,7 +1557,7 @@ static void compile(void)
                 }
                 if (prm==CMD_BLOCK) { // .block
 		    new_waitfor('B');
-                    sprintf(labelname, ".%x.%x", (unsigned)star_tree, (unsigned)vline);
+                    sprintf(labelname, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
                     current_context=new_label(labelname, L_LABEL);
                     current_context->value.type = T_NONE;
                     break;
@@ -2084,13 +2084,13 @@ static void compile(void)
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                    fprintf(flist,(all_mem==0xffff)?".%04x\t\t\t\t\t%s\n":".%06x\t\t\t\t\t%s\n",current_section->address,labelname2);
+                    fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
                 }
                 if (tmp2->type==CMD_MACRO) {
                     old_context = current_context;
                     if (newlabel) current_context=newlabel;
                     else {
-                        sprintf(labelname, "#%x#%x", (unsigned)star_tree, (unsigned)vline);
+                        sprintf(labelname, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                         current_context=new_label(labelname, L_LABEL);
                         current_context->value.type = T_NONE;
                     }
@@ -2481,7 +2481,7 @@ static void compile(void)
                         unsigned int i;
 
                         if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                        fprintf(flist,(all_mem==0xffff)?".%04x\t":".%06x ",(current_section->address-ln-1) & all_mem);
+                        fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t":".%06" PRIaddress " ",(current_section->address-ln-1) & all_mem);
                         if (current_section->dooutput) {
                             if (ln>=0) {
                                 fprintf(flist," %02x", cod ^ longbranch ^ outputeor);
@@ -2503,7 +2503,7 @@ static void compile(void)
                                 case ADR_LONG: fprintf(flist," $%06x",(uint32_t)(adr&0xffffff)); break;
                                 case ADR_ADDR: {
                                     if (cnmemonic[ADR_ADDR]==0x20 || cnmemonic[ADR_ADDR]==0x4c)
-                                        fprintf(flist,(current_section->l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (current_section->l_address & 0xff0000));
+                                        fprintf(flist,(current_section->l_address&0xff0000)?" $%06" PRIaddress:" $%04" PRIaddress,((uint16_t)adr) | (current_section->l_address & 0xff0000));
                                     else fprintf(flist,databank?" $%06x":" $%04x",(uint16_t)adr | (databank << 16));
                                     break;
                                 }
@@ -2511,7 +2511,7 @@ static void compile(void)
                                 case ADR_LONG_X: fprintf(flist," $%06x,x",(uint32_t)(adr&0xffffff)); break;
                                 case ADR_ADDR_X: fprintf(flist,databank?" $%06x,x":" $%04x,x",(uint16_t)adr | (databank << 16)); break;
                                 case ADR_ZP_X: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,x":" $%04x,x",(uint16_t)(adr+dpage)); break;
-                                case ADR_ADDR_X_I: fprintf(flist,(current_section->l_address&0xff0000)?" ($%06x,x)":" ($%04x,x)",((uint16_t)adr) | (current_section->l_address&0xff0000)); break;
+                                case ADR_ADDR_X_I: fprintf(flist,(current_section->l_address&0xff0000)?" ($%06" PRIaddress ",x)":" ($%04" PRIaddress ",x)",((uint16_t)adr) | (current_section->l_address&0xff0000)); break;
                                 case ADR_ZP_X_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x,x)":" ($%04x,x)",(uint16_t)(adr+dpage)); break;
                                 case ADR_ZP_S: fprintf(flist," $%02x,s",(uint8_t)adr); break;
                                 case ADR_ZP_S_I_Y: fprintf(flist," ($%02x,s),y",(uint8_t)adr); break;
@@ -2526,22 +2526,22 @@ static void compile(void)
                                 case ADR_ADDR_I: fprintf(flist," ($%04x)",(uint16_t)adr); break;
                                 case ADR_ZP_I: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x)":" ($%04x)",(uint16_t)(adr+dpage)); break;
                                 case ADR_REL: {
-                                    if (ln==1) fprintf(flist,(current_section->l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(((int8_t)adr)+current_section->l_address) | (current_section->l_address & 0xff0000));
+                                    if (ln==1) fprintf(flist,(current_section->l_address&0xff0000)?" $%06" PRIaddress:" $%04" PRIaddress,(uint16_t)(((int8_t)adr)+current_section->l_address) | (current_section->l_address & 0xff0000));
                                     else if (ln==2) {
                                         if ((cod ^ longbranch)==0x4C)
-                                            fprintf(flist,(current_section->l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)adr) | (current_section->l_address & 0xff0000));
+                                            fprintf(flist,(current_section->l_address&0xff0000)?" $%06" PRIaddress:" $%04" PRIaddress,((uint16_t)adr) | (current_section->l_address & 0xff0000));
                                         else
-                                            fprintf(flist,(current_section->l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+current_section->l_address) | (current_section->l_address & 0xff0000));
+                                            fprintf(flist,(current_section->l_address&0xff0000)?" $%06" PRIaddress:" $%04" PRIaddress,(uint16_t)(adr+current_section->l_address) | (current_section->l_address & 0xff0000));
                                     }
                                     else {
                                         if ((uint16_t)adr==0x4C03)
-                                            fprintf(flist,(current_section->l_address&0xff0000)?" $%06x":" $%04x",((uint16_t)(adr >> 16)) | (current_section->l_address & 0xff0000));
+                                            fprintf(flist,(current_section->l_address&0xff0000)?" $%06" PRIaddress:" $%04" PRIaddress,((uint16_t)(adr >> 16)) | (current_section->l_address & 0xff0000));
                                         else
-                                            fprintf(flist,(current_section->l_address&0xff0000)?" $%06x":" $%04x",(uint16_t)((adr >> 16)+current_section->l_address) | (current_section->l_address & 0xff0000));
+                                            fprintf(flist,(current_section->l_address&0xff0000)?" $%06" PRIaddress:" $%04" PRIaddress,(uint16_t)((adr >> 16)+current_section->l_address) | (current_section->l_address & 0xff0000));
                                     }
                                     break;
                                 }
-                                case ADR_REL_L: fprintf(flist,(current_section->l_address & 0xff0000)?" $%06x":" $%04x",(uint16_t)(adr+current_section->l_address) | (current_section->l_address & 0xff0000)); break;
+                                case ADR_REL_L: fprintf(flist,(current_section->l_address & 0xff0000)?" $%06" PRIaddress:" $%04" PRIaddress,(uint16_t)(adr+current_section->l_address) | (current_section->l_address & 0xff0000)); break;
                                 case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
                                 }
                             } else if (arguments.source) putc('\t',flist);

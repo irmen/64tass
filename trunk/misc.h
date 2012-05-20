@@ -18,7 +18,8 @@
 #ifndef _MISC_H_
 #define _MISC_H_
 #include "libtree.h"
-#include "stdint.h"
+#include <stdint.h>
+#include <inttypes.h>
 #define VERSION "1.46"
 
 enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_X, WHAT_Y, WHAT_XZ, WHAT_R, WHAT_RZ,
@@ -27,9 +28,15 @@ enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_X, WHAT_Y, WHAT_XZ, WHAT_R, W
 };
 
 typedef uint_fast32_t line_t;
+#define PRIuline PRIuFAST32
+#define PRIxline PRIxFAST32
 typedef uint_fast32_t address_t;
+#define PRIaddress PRIxFAST32
 typedef int32_t ival_t;
+#define PRIdval PRId32
 typedef uint32_t uval_t;
+#define PRIxval PRIx32
+#define PRIuval PRIu32
 
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 

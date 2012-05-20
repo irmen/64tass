@@ -126,13 +126,13 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
 
     if (file_list.p) {
         adderror(file_list.data[file_list.p - 1].name);
-	sprintf(line,":%u:%u: ", (unsigned)sline, lpoint + 1); adderror(line);
+	sprintf(line,":%" PRIuline ":%u: ", sline, lpoint + 1); adderror(line);
     }
 
     for (i = file_list.p; i > 1; i--) {
         adderror("(");
         adderror(file_list.data[i - 2].name);
-        sprintf(line,":%u) ", (unsigned)file_list.data[i - 1].line);
+        sprintf(line,":%" PRIuline ") ", file_list.data[i - 1].line);
         adderror(line);
     }
 
@@ -144,7 +144,7 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
     else if (no<0x80) {
         if (no==ERROR____PAGE_ERROR) {
             adderror("Page error at $"); 
-            sprintf(line,"%06x",(unsigned)prm); adderror(line);
+            sprintf(line,"%06" PRIaddress,(address_t)prm); adderror(line);
             conderrors++;
         }
         else if (no==ERROR__BRANCH_CROSS) {
