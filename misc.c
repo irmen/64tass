@@ -932,17 +932,17 @@ void labelprint(void) {
             case T_CHR:
                 {
                     uval_t val = l->value.u.num.val;
-                    fprintf(flab,"'{$%02x}'",val);
+                    fprintf(flab,"'{$%02" PRIxval "}'",val);
                     if (l->pass<pass) fputs("; *** unused", flab);
                     break;
                 }
             case T_NUM:
                 {
                     uval_t val = l->value.u.num.val;
-                    if (val<0x100) fprintf(flab,"$%02x",val);
-                    else if (val<0x10000) fprintf(flab,"$%04x",val);
-                    else if (val<0x1000000) fprintf(flab,"$%06x",val);
-                    else fprintf(flab,"$%08x",val);
+                    if (val<0x100) fprintf(flab,"$%02" PRIxval, val);
+                    else if (val<0x10000) fprintf(flab,"$%04" PRIxval, val);
+                    else if (val<0x1000000) fprintf(flab,"$%06" PRIxval, val);
+                    else fprintf(flab,"$%08" PRIxval, val);
                     if (l->pass<pass) {
                         if (val<0x100) fputs("  ", flab);
                         if (val<0x10000) fputs("  ", flab);
@@ -954,14 +954,14 @@ void labelprint(void) {
             case T_UINT:
                 {
                     uval_t val = l->value.u.num.val;
-                    fprintf(flab,"%u", val);
+                    fprintf(flab,"%" PRIuval, val);
                     if (l->pass<pass) fputs("; *** unused", flab);
                     break;
                 }
             case T_SINT:
                 {
                     ival_t val = l->value.u.num.val;
-                    fprintf(flab,"%+d",val);
+                    fprintf(flab,"%+" PRIdval,val);
                     if (l->pass<pass) fputs("; *** unused", flab);
                     break;
                 }

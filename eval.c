@@ -901,7 +901,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_UINT:
             case T_SINT:
             case T_NUM:
-                sprintf((char *)line,"%d", v1->val.u.num.val);
+                sprintf((char *)line,"%" PRIdval, v1->val.u.num.val);
                 goto totstr;
             case T_CHR:
                 line[0]=v1->val.u.num.val;
