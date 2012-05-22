@@ -26,66 +26,66 @@
 static struct encoding_s *actual_encoding = ascii_encoding;
 
 void set_uint(struct value_s *v, uval_t val) {
-    v->u.num.val=val;
+    v->u.num.val = val;
     v->u.num.len = 1;
     while (val & ~(uval_t)0xff) {val>>=8;v->u.num.len++;}
-    v->type=T_UINT;
+    v->type = T_UINT;
 }
 
 void set_int(struct value_s *v, ival_t val) {
-    v->u.num.val=val;
+    v->u.num.val = val;
     v->u.num.len = 1;
     if (val < 0) val = ~val;
-    while ((uval_t)val & ~(uval_t)0x7f) {val>>=8;v->u.num.len++;}
-    v->type=T_SINT;
+    while ((uval_t)val & ~(uval_t)0x7f) {val >>= 8;v->u.num.len++;}
+    v->type = T_SINT;
 }
 
 static int get_hex(struct value_s *v) {
-    uval_t val=0;
-    unsigned int large;
+    uval_t val = 0;
+    unsigned int start;
     ignore();
-    while (here()==0x30) lpoint++;
-    large=lpoint;
+    while (here() == 0x30) lpoint++;
+    start = lpoint;
     while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
-        val=(val << 4)+(here() & 15);
-        if (here() & 0x40) val+=9;
+        val = (val << 4) + (here() & 15);
+        if (here() & 0x40) val += 9;
         lpoint++;
     }
-    v->u.num.val=val;
-    v->u.num.len=(lpoint - large)/2;
-    v->u.num.len|=!v->u.num.len;
-    v->type=T_NUM;
+    v->u.num.val = val;
+    v->u.num.len = (lpoint - start + 1) / 2;
+    v->u.num.len |= !v->u.num.len;
+    v->type = T_NUM;
     return v->u.num.len > sizeof(val);
 }
 
 static int get_bin(struct value_s *v) {
-    uval_t val=0;
-    unsigned int large;
+    uval_t val = 0;
+    unsigned int start;
     ignore();
-    while (here()==0x30) lpoint++;
-    large=lpoint;
-    while ((here() & 0xfe)=='0') {
-        val=(val << 1) | (here() & 1);
+    while (here() == 0x30) lpoint++;
+    start = lpoint;
+    while ((here() & 0xfe) == '0') {
+        val = (val << 1) | (here() & 1);
         lpoint++;
     }
-    v->u.num.val=val;
-    v->u.num.len=(lpoint - large)/8;
-    v->u.num.len|=!v->u.num.len;
-    v->type=T_NUM;
+    v->u.num.val = val;
+    v->u.num.len = (lpoint - start + 7) / 8;
+    v->u.num.len |= !v->u.num.len;
+    v->type = T_NUM;
     return v->u.num.len > sizeof(val);
 }
 
 static int get_dec(struct value_s *v) {
-    uval_t val=0;
-    int large=0;
-    while (here()=='0') lpoint++;
+    uval_t val = 0;
+    int large = 0;
+    while (here() == '0') lpoint++;
     while ((uint8_t)(here() ^ '0') < 10) {
-        if (val >= ((uval_t)1 << (8*sizeof(val)-1)) / 5) {
-            if (val == ((uval_t)1 << (8*sizeof(val)-1)) / 5) {
-               if ((uval_t)(here() & 15) > (((uval_t)1 << (8*sizeof(val)-1)) % 5)*2) large = 1;
-            } else large=1;
+        if (val >= ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
+            if (val == ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
+               if ((uval_t)(here() & 15) > (((uval_t)1 << (8 * sizeof(val) - 1)) % 5) * 2) large = 1;
+            } else large = 1;
         }
-        val=(val*10)+(here() & 15);
+        val=(val * 10) + (here() & 15);
         lpoint++;
     }
     set_uint(v, val);
@@ -95,14 +95,14 @@ static int get_dec(struct value_s *v) {
 static uint_fast16_t petascii(uint8_t quo) {
     uint32_t ch;
 
-    if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of string"); return 256;}
-    if (ch & 0x80) lpoint+=utf8in(pline + lpoint, &ch); else lpoint++;
-    if (ch==quo) {
-        if (here()==quo && !arguments.tasmcomp) lpoint++; // handle 'it''s'
+    if (!(ch = here())) {err_msg(ERROR______EXPECTED,"End of string"); return 256;}
+    if (ch & 0x80) lpoint += utf8in(pline + lpoint, &ch); else lpoint++;
+    if (ch == quo) {
+        if (here() == quo && !arguments.tasmcomp) lpoint++; // handle 'it''s'
         else return 257; // end of string;
     }
     if (arguments.toascii) {
-        unsigned int n, also=0,felso,elozo;
+        unsigned int n, also = 0,felso,elozo;
 
         felso=actual_encoding[0].offset + 1;
         n=felso/2;
@@ -115,11 +115,11 @@ static uint_fast16_t petascii(uint8_t quo) {
                     uint_fast16_t c;
 
                     for (n=0;;) {
-                        if (!(ch=here())) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
-                        if (ch & 0x80) lpoint+=utf8in(pline + lpoint, &ch); else lpoint++;
+                        if (!(ch = here())) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
+                        if (ch & 0x80) lpoint += utf8in(pline + lpoint, &ch); else lpoint++;
                         if (ch == end) break;
                         if (ch == quo) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
-                        sym[n]=ch;
+                        sym[n] = ch;
                         n++;
                         if (n == 0x10) {err_msg(ERROR_CONSTNT_LARGE,NULL);return 256;}
                     }
@@ -132,7 +132,7 @@ static uint_fast16_t petascii(uint8_t quo) {
             }
 
             elozo = n;
-            n = ((ch > e->start) ? (felso+(also=n)) : (also+(felso=n)))/2;
+            n = ((ch > e->start) ? (felso + (also = n)) : (also + (felso = n)))/2;
             if (elozo == n) break;
         }
         err_msg(ERROR___UNKNOWN_CHR, (char *)ch);
@@ -147,20 +147,20 @@ static void get_string(struct value_s *v, char ch) {
     uint_fast16_t val;
 
     val = petascii((uint8_t)ch);
-    if (val < 256 && here()==ch) {lpoint++;v->type=T_CHR;v->u.num.val=val;v->u.num.len=1;return;}
-    if (val == 256) {v->type=T_NONE;return;}
-    i=0;
+    if (val < 256 && here() == ch) {lpoint++;v->type = T_CHR;v->u.num.val = val;v->u.num.len = 1;return;}
+    if (val == 256) {v->type = T_NONE;return;}
+    i = 0;
     for (;val < 256 && i < sizeof(line)-1;val = petascii((uint8_t)ch)) {
         line[i++]=(uint8_t)val;
     }
     if (val == 257) {
-        v->type=T_TSTR;
-        v->u.str.len=i;
-        v->u.str.data=malloc(i);
+        v->type = T_TSTR;
+        v->u.str.len = i;
+        v->u.str.data = malloc(i);
         memcpy(v->u.str.data, line, i);
         return;
     }
-    v->type=T_NONE;return;
+    v->type = T_NONE;return;
 }
 
 static enum type_e touch_label(struct label_s *tmp) {
