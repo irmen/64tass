@@ -232,7 +232,7 @@ void status(void) {
     free_values();
     tfree();
     {
-        int8_t i;
+        int i;
         for (i = 0; i < macro_parameters.len; i++) {
             free(macro_parameters.params[i].pline);
             free(macro_parameters.params[i].param);
@@ -2216,7 +2216,7 @@ static void compile(void)
                                 } else if (cnmemonic[ADR_REL]!=____) {
                                     struct star_s *s;
                                     int olabelexists;
-                                    uint8_t min = 10;
+                                    int_fast8_t min = 10;
                                     uint32_t joadr = adr;
                                     int_fast8_t joln = 1;
                                     uint8_t jolongbranch = longbranch;
