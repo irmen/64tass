@@ -141,7 +141,7 @@ static uint_fast16_t petascii(uint8_t quo) {
     return encode(ch);
 }
 
-static void get_string(struct value_s *v, char ch) {
+static void get_string(struct value_s *v, uint8_t ch) {
     uint8_t line[linelength];  //current line data
     unsigned int i;
     uint_fast16_t val;
