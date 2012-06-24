@@ -929,13 +929,6 @@ void labelprint(void) {
             default: fprintf(flab,"%-16s= ",l->name);break;
             }
             switch (l->value.type) {
-            case T_CHR:
-                {
-                    uval_t val = l->value.u.num.val;
-                    fprintf(flab,"'{$%02" PRIxval "}'",val);
-                    if (l->pass<pass) fputs("; *** unused", flab);
-                    break;
-                }
             case T_NUM:
                 {
                     uval_t val = l->value.u.num.val;

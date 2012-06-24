@@ -41,7 +41,7 @@ typedef uint32_t uval_t;
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 enum type_e {
-    T_NONE, T_CHR, T_NUM, T_UINT, T_SINT, T_STR, T_TSTR, T_GAP, T_IDENT, T_FUNC, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER
+    T_NONE, T_NUM, T_UINT, T_SINT, T_STR, T_TSTR, T_GAP, T_IDENT, T_FUNC, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER
 };
 
 struct value_s {

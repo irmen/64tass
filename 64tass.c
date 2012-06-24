@@ -593,11 +593,10 @@ static void set_cpumode(uint_fast8_t cpumode) {
 
 void var_assign(struct label_s *tmp, const struct value_s *val, int fix) {
     switch (tmp->value.type) {
-    case T_CHR:
     case T_UINT:
     case T_SINT:
     case T_NUM:
-        if ((val->type != T_UINT && val->type != T_SINT && val->type != T_NUM &&val->type != T_CHR) || tmp->value.u.num.val!=val->u.num.val) {
+        if ((val->type != T_UINT && val->type != T_SINT && val->type != T_NUM) || tmp->value.u.num.val!=val->u.num.val) {
             tmp->value=*val;
             if (val->type == T_STR) {
                 tmp->value.u.str.data=malloc(val->u.str.len);
@@ -784,7 +783,7 @@ static void compile(void)
                 newlabel=new_label(labelname, L_CONST);oaddr=current_section->address;
                 if (listing && flist && arguments.source && newlabel->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                    if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM ||val.type == T_CHR) {
+                    if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM) {
                         fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val.u.num.val);
                     } else {
                         fputs("=\t\t\t\t\t", flist);
@@ -819,7 +818,7 @@ static void compile(void)
                     newlabel=new_label(labelname, L_VAR);oaddr=current_section->address;
                     if (listing && flist && arguments.source && newlabel->ref) {
                         if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                        if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM || val.type == T_CHR) {
+                        if (val.type == T_UINT || val.type == T_SINT || val.type == T_NUM) {
                             fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val.u.num.val);
                         } else {
                             fputs("=\t\t\t\t\t", flist);
@@ -1192,19 +1191,19 @@ static void compile(void)
                     } else val.type=T_NONE;
                     switch (prm) {
                     case CMD_ELSIF:
-                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp].skip >> 1; else
+                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp].skip >> 1; else
                             waitfor[waitforp].skip=waitfor[waitforp].skip & 2;
                         break;
                     case CMD_IF:
-                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
+                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
                             waitfor[waitforp].skip=(waitfor[waitforp-1].skip & 1) << 1;
                         break;
                     case CMD_IFEQ:
-                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && !val.u.num.val) || (val.type == T_STR && !val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
+                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && !val.u.num.val) || (val.type == T_STR && !val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
                             waitfor[waitforp].skip=(waitfor[waitforp-1].skip & 1) << 1;
                         break;
                     case CMD_IFPL:
-                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && (arguments.tasmcomp ? (~val.u.num.val & 0x8000) : (val.u.num.val>=0))) || val.type == T_CHR || (val.type == T_STR && val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
+                        if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && (arguments.tasmcomp ? (~val.u.num.val & 0x8000) : (val.u.num.val>=0))) || (val.type == T_STR && val.u.str.len)) waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1; else
                             waitfor[waitforp].skip=(waitfor[waitforp-1].skip & 1) << 1;
                         break;
                     case CMD_IFMI:
@@ -1325,8 +1324,9 @@ static void compile(void)
                         if (!get_exp(&w,0)) goto breakerr;
                         while (get_val(&val, T_NONE, &epoint)) {
                             if (val.type != T_STR || val.u.str.len) {
+                                size_t i = 0;
                                 do {
-                                    if (ch2>=0) {
+                                    if (ch2 >= 0) {
                                         if (uninit) { memskip(uninit); uninit = 0; }
                                         pokeb(ch2);
                                     }
@@ -1334,8 +1334,8 @@ static void compile(void)
                                     switch (val.type) {
                                     case T_GAP:ch2 = -1; uninit++; break;
                                     case T_STR:
-                                        ch2 = *val.u.str.data++;
-                                        val.u.str.len--;
+                                        ch2 = petascii(&i, &val);
+                                        if (ch2 > 255) i = val.u.str.len;
                                         break;
                                     case T_NUM:
                                     case T_UINT:
@@ -1343,7 +1343,6 @@ static void compile(void)
                                         if (val.type != T_NUM || val.u.num.len > 1) {
                                             if ((uval_t)val.u.num.val & ~(uval_t)0xff) large=epoint;
                                         }
-                                    case T_CHR:
                                         ch2 = (uint8_t)val.u.num.val;
                                         break;
                                     default: err_msg_wrong_type(val.type, epoint);
@@ -1354,7 +1353,7 @@ static void compile(void)
                                         if (ch2>=0x80) large=epoint;
                                         if (prm==CMD_SHIFTL) ch2<<=1;
                                     } else if (prm==CMD_NULL && !ch2 && val.type != T_NONE) large=epoint;
-                                } while (val.type == T_STR && val.u.str.len);
+                                } while (val.type == T_STR && val.u.str.len > i);
                             }
                         }
                         if (uninit) memskip(uninit);
@@ -1379,16 +1378,7 @@ static void compile(void)
                             switch (val.type) {
                             case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
                             case T_STR:
-                                ch2 = 0;
-                                switch (val.u.str.len) {
-                                default: large = epoint;
-                                case 4: ch2 |= val.u.str.data[3] << 24; if (prm<CMD_DINT) large = epoint;
-                                case 3: ch2 |= val.u.str.data[2] << 16; if (prm<CMD_LONG) large = epoint;
-                                case 2: ch2 |= val.u.str.data[1] << 8; if (prm<CMD_RTA) large = epoint;
-                                case 1: ch2 |= val.u.str.data[0];
-                                case 0: break;
-                                }
-                                break;
+                                if (str_to_num(&val)) large = epoint;
                             case T_NUM:
                             case T_SINT:
                             case T_UINT:
@@ -1401,7 +1391,6 @@ static void compile(void)
                                 case CMD_DWORD: if ((val.u.num.len > 4 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0xffffffff)) large=epoint; break;
                                 default: if ((val.u.num.len > 2 || val.type != T_NUM) && ((uval_t)val.u.num.val & ~(uval_t)0xffff)) large=epoint;
                                 }
-                            case T_CHR:
                                 ch2 = (uval_t)val.u.num.val;
                                 break;
                             default: err_msg_wrong_type(val.type, epoint);
@@ -1678,7 +1667,7 @@ static void compile(void)
                     if (here()==',') {
                         lpoint++;ignore();
                     }
-                    if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) err_msg((prm==CMD_CERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
+                    if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) err_msg((prm==CMD_CERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
                     goto breakerr;
                 }
                 if (prm==CMD_REPT) { // .rept
@@ -1856,7 +1845,7 @@ static void compile(void)
                         if (!get_exp(&w,1)) break; //ellenorizve.
                         if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if (val.type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
-                        if (((val.type == T_UINT || val.type == T_SINT || val.type == T_NUM || val.type == T_CHR) && !val.u.num.val) || (val.type == T_STR && !val.u.str.len)) break;
+                        if (((val.type == T_UINT || val.type == T_SINT || val.type == T_NUM) && !val.u.num.val) || (val.type == T_STR && !val.u.str.len)) break;
                         if (bpoint < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                             lpoint++;
@@ -1913,8 +1902,8 @@ static void compile(void)
                     if (!get_val(&val, T_NONE, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val.type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used for option", epoint);goto breakerr;}
-                    if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=(((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len));
-                    else if (!strcasecmp(labelname,"auto_longbranch_as_jmp")) longbranchasjmp=(((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM || val.type == T_CHR) && val.u.num.val) || (val.type == T_STR && val.u.str.len));
+                    if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=(((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && val.u.num.val) || (val.type == T_STR && val.u.str.len));
+                    else if (!strcasecmp(labelname,"auto_longbranch_as_jmp")) longbranchasjmp=(((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && val.u.num.val) || (val.type == T_STR && val.u.str.len));
                     else err_msg(ERROR_UNKNOWN_OPTIO,labelname);
                     break;
                 }
