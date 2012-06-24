@@ -2674,6 +2674,10 @@ int main(int argc,char *argv[]) {
             if (!(flist=fopen(arguments.list,"wt"))) err_msg(ERROR_CANT_DUMP_LST,arguments.list);
         }
 	fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
+        if (*argv2) {
+            char *new = strrchr(*argv2, '/');
+            if (new) *argv2 = new + 1;
+        }
         while (*argv2) fprintf(flist," %s", *argv2++);
 	time(&t); fprintf(flist,"\n; %s",ctime(&t));
 
