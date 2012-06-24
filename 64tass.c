@@ -491,17 +491,9 @@ static int get_ident(char *ident) {
     return get_ident2(ident);
 }
 
-static int get_path(const char *base) {
+static int get_hack(void) {
     int q=1;
     unsigned int i=0, i2;
-    if (base) {
-        char *c=strrchr(base,'/');
-        if (c) {
-            i=c-base+1;
-            if (i>=sizeof(path)) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
-            memcpy(path,base,i);
-        }
-    }
     i2 = i;
     ignore();
     if (here()=='\"') {lpoint++;q=0;}
@@ -511,6 +503,20 @@ static int get_path(const char *base) {
     path[i]=0;
     ignore();
     if (i <= i2) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
+    return 0;
+}
+
+static int get_path(struct value_s *v, const char *base) {
+    unsigned int i=0;
+    char *c=strrchr(base,'/');
+    if (c) {
+        i=c-base+1;
+        if (i>=sizeof(path)) {err_msg(ERROR_CONSTNT_LARGE,NULL); return 1;}
+        memcpy(path,base,i);
+    }
+    if (i + v->u.str.len + 1 >= sizeof(path)) {err_msg(ERROR_CONSTNT_LARGE,NULL); return 1;}
+    memcpy(path + i, v->u.str.data, v->u.str.len);
+    path[i + v->u.str.len] = 0;
     return 0;
 }
 
@@ -1407,40 +1413,46 @@ static void compile(void)
                         if (uninit) memskip(uninit);
                         if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm==CMD_BINARY) { // .binary
-                        long foffset=0;
+                        long foffset = 0;
+                        int nameok = 0;
                         address_t fsize = all_mem+1;
                         FILE* fil;
                         if (newlabel) newlabel->esize = 1;
-                        if (get_path(cfile->name)) goto breakerr;
-                        if (here()==',') {
-                            lpoint++;
-                            if (!get_exp(&w,0)) goto breakerr;
+                        if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                        if (!get_val(&val, T_NONE, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (val.type == T_NONE) fixeddig = 0;
+                        else {
+                            if (val.type != T_STR) {err_msg_wrong_type(val.type, epoint);goto breakerr;}
+                            if (get_path(&val, cfile->name)) goto breakerr;
+                            nameok = 1;
+                        }
+                        if (get_val(&val, T_UINT, &epoint)) {
+                            if (val.type == T_NONE) fixeddig = 0;
+                            else {
+                                if (val.u.num.val<0) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); goto breakerr;}
+                                foffset = val.u.num.val;
+                            }
                             if (get_val(&val, T_UINT, &epoint)) {
                                 if (val.type == T_NONE) fixeddig = 0;
                                 else {
-                                    if (val.u.num.val<0) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); goto breakerr;}
-                                    foffset = val.u.num.val;
-                                }
-                                if (get_val(&val, T_UINT, &epoint)) {
-                                    if (val.type == T_NONE) fixeddig = 0;
-                                    else {
-                                        if (val.u.num.val<0 || (address_t)val.u.num.val > fsize) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
-                                        else fsize = val.u.num.val;
-                                    }
+                                    if (val.u.num.val<0 || (address_t)val.u.num.val > fsize) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
+                                    else fsize = val.u.num.val;
                                 }
                             }
-                            eval_finish();
                         }
+                        eval_finish();
 
-                        if ((fil=fopen(path,"rb"))==NULL) {err_msg(ERROR_CANT_FINDFILE,path);goto breakerr;}
-                        fseek(fil,foffset,SEEK_SET);
-                        for (;fsize;fsize--) {
-                            int st=getc(fil);
-                            if (st == EOF) break;
-                            pokeb((uint8_t)st);
+                        if (nameok) {
+                            if ((fil=fopen(path,"rb"))==NULL) {err_msg(ERROR_CANT_FINDFILE,path);goto breakerr;}
+                            fseek(fil,foffset,SEEK_SET);
+                            for (;fsize;fsize--) {
+                                int st=getc(fil);
+                                if (st == EOF) break;
+                                pokeb((uint8_t)st);
+                            }
+                            if (ferror(fil)) err_msg(ERROR__READING_FILE,path);
+                            fclose(fil);
                         }
-                        if (ferror(fil)) err_msg(ERROR__READING_FILE,path);
-                        fclose(fil);
                     }
 
                     if (listing && flist) {
@@ -1639,7 +1651,7 @@ static void compile(void)
                     goto breakerr;
                 }
                 if (prm==CMD_ENC) { // .enc
-                    if (get_path(NULL)) goto breakerr;
+                    if (get_hack()) goto breakerr;
                     if (!strcasecmp(path,"none")) encoding=0;
                     else
                         if (!strcasecmp(path,"screen")) encoding=1;
@@ -1649,7 +1661,7 @@ static void compile(void)
                 }
                 if (prm==CMD_CPU) { // .cpu
                     int def;
-                    if (get_path(NULL)) goto breakerr;
+                    if (get_hack()) goto breakerr;
                     def=arguments.cpumode;
                     if (!strcmp(path,"6502")) def=OPCODES_6502;
                     else if (!strcasecmp(path,"65c02")) def=OPCODES_65C02;
@@ -1761,37 +1773,45 @@ static void compile(void)
                 }
                 if (prm==CMD_INCLUDE) { // .include
                     struct file_s *f;
-                    if (get_path(cfile->name)) goto breakerr;
-                    if (listing && flist) {
-                        fprintf(flist,"\n;******  Processing file \"%s\"\n",path);
-                        lastl=LIST_NONE;
-                    }
-                    f = cfile;
-                    cfile = openfile(path);
-                    if (cfile->open>1) {
-                        err_msg(ERROR_FILERECURSION,NULL);
-                    } else {
-                        line_t lin = sline;
-                        line_t vlin = vline;
-                        struct avltree *stree_old = star_tree;
-                        uint32_t old_backr = backr, old_forwr = forwr;
+                    if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
+                    if (!get_val(&val, T_NONE, &epoint)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    eval_finish();
+                    if (val.type == T_NONE) err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);
+                    else {
+                        if (val.type != T_STR) {err_msg_wrong_type(val.type, epoint);goto breakerr;}
+                        if (get_path(&val, cfile->name)) goto breakerr;
 
-                        enterfile(cfile->name,sline);
-                        sline = vline = 0; cfile->p=0;
-                        star_tree = &cfile->star;
-                        backr = forwr = 0;
+                        if (listing && flist) {
+                            fprintf(flist,"\n;******  Processing file \"%s\"\n",path);
+                            lastl=LIST_NONE;
+                        }
+                        f = cfile;
+                        cfile = openfile(path);
+                        if (cfile->open>1) {
+                            err_msg(ERROR_FILERECURSION,NULL);
+                        } else {
+                            line_t lin = sline;
+                            line_t vlin = vline;
+                            struct avltree *stree_old = star_tree;
+                            uint32_t old_backr = backr, old_forwr = forwr;
+
+                            enterfile(cfile->name,sline);
+                            sline = vline = 0; cfile->p=0;
+                            star_tree = &cfile->star;
+                            backr = forwr = 0;
+                            reffile=cfile->uid;
+                            compile();
+                            sline = lin; vline = vlin;
+                            star_tree = stree_old;
+                            backr = old_backr; forwr = old_forwr;
+                            exitfile();
+                        }
+                        closefile(cfile);cfile = f;
                         reffile=cfile->uid;
-                        compile();
-                        sline = lin; vline = vlin;
-                        star_tree = stree_old;
-                        backr = old_backr; forwr = old_forwr;
-                        exitfile();
-                    }
-                    closefile(cfile);cfile = f;
-                    reffile=cfile->uid;
-                    if (listing && flist) {
-                        fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->name);
-                        lastl=LIST_NONE;
+                        if (listing && flist) {
+                            fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->name);
+                            lastl=LIST_NONE;
+                        }
                     }
                     break;
                 }
