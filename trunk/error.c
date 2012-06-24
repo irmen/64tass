@@ -181,7 +181,6 @@ void err_msg_wrong_type(enum type_e type, unsigned int epoint) {
     case T_SINT: name = "<sint>";break;
     case T_UINT: name = "<uint>";break;
     case T_NUM: name = "<num>";break;
-    case T_CHR: name = "<char>";break;
     case T_TSTR:
     case T_STR: name = "<string>";break;
     case T_UNDEF: err_msg2(ERROR___NOT_DEFINED, "", epoint);return;

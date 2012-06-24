@@ -636,22 +636,13 @@ myarr   <b class="d">.word</b> <span>542</span>,<span>722</span>,<span>373</span
 variable number of parameters separated by comma.</p>
 
 <dl class="dir">
-<dt>len(x)
-<dd>Length of string.
 <dt>min(a, b, ...)
 <dd>Minimum of numeric values.
 <dt>max(a, b, ...)
 <dd>Maximum of numeric values.
+<dt>size(a)
+<dd>Size of structure in bytes.
 </dl>
-
-<p>Square brackets after a string variable are used
-to extract single characters from string. Indexing
-starts at 0, negative indexes are counted from the end
-of string.</p>
-
-<pre width=80>
-        <b>lda</b> #<span class="l">name</span>[<span>4</span>]
-</pre>
 
 <p>Single bytes of numeric values can be extracted
 by the lower byte (<code>&lt;</code>), higher byte (<code>&gt;</code>)

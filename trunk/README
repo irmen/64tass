@@ -582,18 +582,12 @@ using the .cpu directive in the source.
     Built in functions are identifiers following parentheses. They accept
     variable number of parameters separated by comma.
 
-    len(x)
-        Length of string.
     min(a, b, ...)
         Minimum of numeric values.
     max(a, b, ...)
         Maximum of numeric values.
-
-    Square brackets after a string variable are used to extract single
-    characters from string. Indexing starts at 0, negative indexes are counted
-    from the end of string.
-
-            lda #name[4]
+    size(a)
+        Size of structure in bytes.
 
     Single bytes of numeric values can be extracted by the lower byte (<),
     higher byte (>) and bank byte (`) operators.
