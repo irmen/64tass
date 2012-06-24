@@ -1116,15 +1116,17 @@ i       <b class="k">.var</b> <span class="l">i</span> - <span>1</span>
 <h3>Including files</h3>
 <dl class="dir">
 <dt>.include
-<dd>Include source file here
+<dd>Include source file here, path is relative to the location of current source file. The filename can be a string expression but in must be defined in advance.
 <pre width=80>
-	<b class="k">.include</b> macros.asm
+	<b class="k">.include</b> <span class="s">"macros.asm"</span>
 </pre>
 
 <dt>.binary
-<dd>Include binary data. Please note that <q>loading address</q> is ignored, and if
-not skipped then it's also loaded as data. By using offset and length it's possible to
-break out chunks of data from a file separately, like bitmap and colors for example.
+<dd>Include binary data, path is relative to the location of current
+source file. Please note that <q>loading address</q> is ignored, and if
+not skipped then it's also loaded as data. By using offset and length
+it's possible to break out chunks of data from a file separately, like
+bitmap and colors for example. The filename can be a string expression.
 <pre width=80>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>        <i>;simple include, all bytes</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>,<span>2</span>      <i>;skip start address</i>

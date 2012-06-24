@@ -1011,15 +1011,18 @@ using the .cpu directive in the source.
     Including files
 
     .include
-        Include source file here
+        Include source file here, path is relative to the location of current
+        source file. The filename can be a string expression but in must be
+        defined in advance.
 
-                .include macros.asm
+                .include "macros.asm"
 
     .binary
-        Include binary data. Please note that `loading address' is ignored, and
-        if not skipped then it's also loaded as data. By using offset and
-        length it's possible to break out chunks of data from a file
-        separately, like bitmap and colors for example.
+        Include binary data, path is relative to the location of current source
+        file. Please note that `loading address' is ignored, and if not skipped
+        then it's also loaded as data. By using offset and length it's possible
+        to break out chunks of data from a file separately, like bitmap and
+        colors for example. The filename can be a string expression.
 
                 .binary "stuffz.bin"        ;simple include, all bytes
                 .binary "stuffz.bin",2      ;skip start address
