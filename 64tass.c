@@ -342,7 +342,7 @@ static void memcomp(void) {
                     continue;
                 }
                 if (bi->start <= bj->start && (bi->start + bi->len) > bj->start) {
-                    size_t overlap = bj->start + bi->start - bi->len;
+                    size_t overlap = bi->start + bi->len - bj->start;
                     if (overlap > bj->len) overlap = bj->len;
                     bj->start+=overlap;
                     bj->p+=overlap;
