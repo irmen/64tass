@@ -704,6 +704,7 @@ struct file_s *openfile(const char* name) {
 	enum {UNKNOWN, UTF8, UTF16LE, UTF16BE, ISO1} type = UNKNOWN;
         int ch;
         FILE *f;
+        uint32_t c = 0;
 
 	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
         strcpy((char *)lastfi->name, name);
@@ -729,7 +730,7 @@ struct file_s *openfile(const char* name) {
             do {
                 int i, j, ch2;
                 uint8_t *pline;
-                uint32_t c = 0, lastchar;
+                uint32_t lastchar;
 
                 if (tmp->p + linelength > tmp->len) {
                     tmp->len += linelength * 2;
