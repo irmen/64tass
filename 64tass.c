@@ -342,16 +342,18 @@ static void memcomp(void) {
                     continue;
                 }
                 if (bi->start <= bj->start && (bi->start + bi->len) > bj->start) {
-                    size_t overlap = bj->start - bi->start;
+                    size_t overlap = bj->start + bi->start - bi->len;
                     if (overlap > bj->len) overlap = bj->len;
                     bj->start+=overlap;
                     bj->p+=overlap;
                     bj->len-=overlap;
-                    if (!bj->len) { *bj=*bi; bi->len = 0; }
+                    if (!bj->len) break;
                 }
             }
-            if (j!=k) memblocks.data[k]=*bj;
-            k++;
+            if (bj->len) {
+                if (j!=k) memblocks.data[k]=*bj;
+                k++;
+            }
         }
     }
     memblocks.p = k;
