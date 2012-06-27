@@ -516,8 +516,8 @@ static int get_path(struct value_s *v, const char *base) {
     i = strlen(base);
     j = (((base[0] >= 'A' && base[0] <= 'Z') || (base[0] >= 'a' && base[0] <= 'z')) && base[1]==':') ? 2 : 0;
     while (i > j) {
+        if (base[i-1] == '/' || base[i-1] == '\\') break;
         i--;
-        if (base[i] == '/' || base[i] == '\\') break;
     }
 #else
     char *c;
