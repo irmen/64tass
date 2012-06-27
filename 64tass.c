@@ -509,13 +509,24 @@ static int get_hack(void) {
 }
 
 static int get_path(struct value_s *v, const char *base) {
-    unsigned int i=0;
-    char *c=strrchr(base,'/');
-    if (c) {
-        i=c-base+1;
-        if (i>=sizeof(path)) {err_msg(ERROR_CONSTNT_LARGE,NULL); return 1;}
-        memcpy(path,base,i);
+    unsigned int i;
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+    unsigned int j;
+
+    i = strlen(base);
+    j = (((base[0] >= 'A' && base[0] <= 'Z') || (base[0] >= 'a' && base[0] <= 'z')) && base[1]==':') ? 2 : 0;
+    while (i > j) {
+        i--;
+        if (base[i] == '/' || base[i] == '\\') break;
     }
+#else
+    char *c;
+    c = strrchr(base, '/');
+    i = c ? (c - base + 1) : 0;
+#endif
+
+    if (i && i < sizeof(path)) memcpy(path, base, i);
+    
     if (i + v->u.str.len + 1 >= sizeof(path)) {err_msg(ERROR_CONSTNT_LARGE,NULL); return 1;}
     memcpy(path + i, v->u.str.data, v->u.str.len);
     path[i + v->u.str.len] = 0;
