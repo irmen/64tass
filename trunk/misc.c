@@ -819,6 +819,7 @@ struct file_s *openfile(const char* name) {
                             break;
                         case ISO1:
                             c = ch = getc(f);
+                            if (ch == EOF) break;
                             goto done;
                         }
                         if (c == 0xfeff) continue;
