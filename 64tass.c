@@ -995,10 +995,16 @@ static void compile(void)
                         if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
                         ignore();epoint=lpoint;
                         if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        if (!(tmp=find_section(sectionname))) {err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;}
-                        waitfor[waitforp].what = 'T';
-                        current_section = tmp;
-                        memjmp(current_section->address);
+                        if (!(tmp=find_section(sectionname))) {
+                            waitfor[waitforp].skip = 0;
+                            if (pass > 1) {
+                                err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;
+                            }
+                        } else {
+                            waitfor[waitforp].what = 'T';
+                            current_section = tmp;
+                            memjmp(current_section->address);
+                        }
                         break;
                     }
                 }
@@ -1089,6 +1095,11 @@ static void compile(void)
                         l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
                         goto finish;
                     }
+                case CMD_SECTION:
+                    waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
+                    newlabel->ref=0;
+                    newlabel = NULL;
+                    goto finish;
                 }
             }
             wasref=newlabel->ref;newlabel->ref=0;
@@ -2082,13 +2093,16 @@ static void compile(void)
                 if (prm==CMD_SECTION) {
                     struct section_s *tmp;
                     char sectionname[linelength];
-                    if (newlabel) {waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;}
-                    else {
-                        new_waitfor('t');waitfor[waitforp].section=current_section;
-                        if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
-                        ignore();epoint=lpoint;
-                        if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        if (!(tmp=find_section(sectionname))) {err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;}
+                    new_waitfor('t');waitfor[waitforp].section=current_section;
+                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
+                    ignore();epoint=lpoint;
+                    if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(tmp=find_section(sectionname))) {
+                        waitfor[waitforp].skip = 0;
+                        if (pass > 1) {
+                            err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;
+                        }
+                    } else {
                         waitfor[waitforp].what = 'T';
                         current_section = tmp;
                         memjmp(current_section->address);
