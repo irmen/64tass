@@ -141,7 +141,7 @@ uint_fast16_t petascii(size_t *i, struct value_s *v) {
 int str_to_num(struct value_s *v) {
     uint16_t ch;
     unsigned int large = 0;
-    unsigned int i = 0;
+    size_t i = 0;
     uval_t val = 0;
 
     while (v->u.str.len > i) {
