@@ -1038,6 +1038,12 @@ static void compile(void)
                         newlabel->conflicts=current_section->conflicts;
                         newlabel->value.type=T_NUM;
                     }
+                } else {
+                    newlabel->requires=current_section->requires;
+                    newlabel->conflicts=current_section->conflicts;
+                    newlabel->upass=newlabel->pass=pass;
+                    set_uint(&newlabel->value, current_section->l_address);
+                    newlabel->value.type = T_NUM;
                 }
             }
             if (epoint && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
