@@ -88,7 +88,6 @@ static const char *terr_error[]={
     "Branch too far",
     "Missing argument",
     "Illegal operand",
-    "Unknown encoding: %s",
     "Requirements not met: %s",
     "Conflict: %s",
     "Division by zero",

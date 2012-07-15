@@ -23,8 +23,9 @@
 #include "misc.h"
 #include "error.h"
 #include "section.h"
+#include "encoding.h"
 
-static struct encoding_s *actual_encoding = ascii_encoding;
+struct encoding_s *actual_encoding;
 
 void set_uint(struct value_s *v, uval_t val) {
     v->u.num.val = val;
@@ -94,68 +95,60 @@ static int get_dec(struct value_s *v) {
 }
 
 uint_fast16_t petascii(size_t *i, struct value_s *v) {
-    uint32_t ch;
+    uint32_t ch, rc2;
+    uint8_t *text = v->u.str.data + *i;
+    uint16_t rc;
 
-    ch = v->u.str.data[*i];
-    if (ch & 0x80) (*i) += utf8in(v->u.str.data + *i, &ch); else (*i)++;
-
-    if (arguments.toascii) {
-        unsigned int n, also = 0,felso,elozo;
-
-        felso=actual_encoding[0].offset + 1;
-        n=felso/2;
-        for (;;) {  // do binary search
-            struct encoding_s *e = &actual_encoding[n];
-            if (ch >= e->start && ch <= e->end) {
-                if (e->offset < 0) {
-                    char sym[0x10];
-                    uint_fast8_t n, end = -e->offset;
-                    uint_fast16_t c;
-
-                    for (n=0;;) {
-                        if (v->u.str.len <= (*i)) {err_msg(ERROR______EXPECTED,"End of symbol");return 256;}
-                        ch = v->u.str.data[*i];
-                        if (ch & 0x80) (*i) += utf8in(v->u.str.data + *i, &ch); else (*i)++;
-                        if (ch == end) break;
-                        sym[n] = ch;
-                        n++;
-                        if (n == 0x10) {err_msg(ERROR_CONSTNT_LARGE,NULL);return 256;}
-                    }
-                    sym[n] = 0;
-                    c = petsymbolic(sym);
-                    if (c > 255) {err_msg(ERROR______EXPECTED, "PETASCII symbol");return 256;}
-                    return encode((uint8_t)c);
-                }
-                return encode((uint8_t)(ch - e->start + e->offset));
-            }
-
-            elozo = n;
-            n = ((ch > e->start) ? (felso + (also = n)) : (also + (felso = n)))/2;
-            if (elozo == n) break;
-        }
-        err_msg(ERROR___UNKNOWN_CHR, (char *)ch);
-        ch = 0;
+    rc2 = find_escape((char *)text, actual_encoding);
+    if (rc2) {
+        *i = (rc2 >> 8) + text - v->u.str.data;
+        return rc2 & 0xff;
     }
-    return encode(ch);
+    ch = text[0];
+    if (ch & 0x80) (*i) += utf8in(text, &ch); else (*i)++;
+    rc = find_trans(ch, actual_encoding);
+    if (rc < 256) return rc;
+    err_msg(ERROR___UNKNOWN_CHR, (char *)ch);
+    ch = 0;
+    return ch;
 }
 
 int str_to_num(struct value_s *v) {
     uint16_t ch;
     unsigned int large = 0;
-    size_t i = 0;
+    unsigned int i = 0;
     uval_t val = 0;
 
-    while (v->u.str.len > i) {
-        if (large >= sizeof(val)) {
+    if (actual_encoding) {
+        while (v->u.str.len > i) {
+            if (large >= sizeof(val)) {
+                if (v->type == T_TSTR) free(v->u.str.data);
+                v->type = T_NONE;return 1;
+            }
+
+            ch = petascii(&i, v);
+            if (ch > 255) {
+                if (v->type == T_TSTR) free(v->u.str.data);
+                v->type = T_NONE;return 1;
+            }
+
+            val |= (uint8_t)ch << (8 * large);
+            large++;
+        }
+    } else if (v->u.str.len) {
+        uint32_t ch;
+
+        ch = v->u.str.data[0];
+        if (ch & 0x80) i = utf8in(v->u.str.data, &ch); else i=1;
+
+        if (v->u.str.len > i) {
             if (v->type == T_TSTR) free(v->u.str.data);
             v->type = T_NONE;return 1;
         }
-
-        ch = petascii(&i, v);
-        if (ch > 255) {v->type = T_NONE;return 1;}
-
-        val |= (uint8_t)ch << (8 * large);
-        large++;
+        val = ch;
+    } else {
+        if (v->type == T_TSTR) free(v->u.str.data);
+        v->type = T_NONE;return 1;
     }
     if (v->type == T_TSTR) free(v->u.str.data);
     v->u.num.val = val;
