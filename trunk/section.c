@@ -39,18 +39,21 @@ static void section_free(const struct avltree_node *aa)
     free(a);
 }
 
-struct section_s *find_section(const char* name) {
+struct section_s *find_new_section(const char* name) {
     const struct avltree_node *b;
     struct section_s *context = current_section;
     struct section_s tmp;
     tmp.name=name;
-    
+
     while (context) {
         b=avltree_lookup(&tmp.node, &context->members);
-        if (b) return avltree_container_of(b, struct section_s, node);
+        if (b) {
+            labelexists=1;
+            return avltree_container_of(b, struct section_s, node);
+        }
         context = context->parent;
     }
-    return NULL;
+    return new_section(name);
 }
 
 static struct section_s *lastsc=NULL;
@@ -68,6 +71,7 @@ struct section_s *new_section(const char* name) {
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->address=lastsc->l_address=0;
         lastsc->dooutput=1;
+        lastsc->declared=0;
         avltree_init(&lastsc->members, section_compare, section_free);
 	labelexists=0;
 	tmp=lastsc;

@@ -1178,8 +1178,110 @@ count	<b>ldx</b> #<span>0</span>
 	sta $d020
 	</i><b class="k">.endc</b>
 </pre>
-
 </dl>
+
+<h3>Sections</h3>
+<dl class="dir">
+<dt>.dsection &lt;name&gt;
+<dd>Declares a named section and starts it.
+<dt>.section &lt;name&gt;
+<dd>Section start
+<dt>.send [&lt;name&gt;]
+<dd>End of section. Section name is optional, if present it must match.
+<p>Sections are useful for linking sources, or to organize memory layout. With
+them it's easily possible to allocate addresses for variables at the place of
+actual use enclosed by the current scope. It can also be used to collect data
+or code to specific memory areas, or to ease the generation of code and data to
+multiple locations simultaniously in a single loop or macro.</p>
+<p>All <code>.section</code>-s scattered around in the sources are compiled
+from the <code>.dsection</code> declaration. Compilation happens as the code
+appears, this directive only assigns enough space to hold all the stuff in the
+sections. Where the <code>.dsection</code> appears the section's private
+address and logical address are initialized to the current values.</p>
+<p>The space allocated is calculated by the difference of the initial private
+address and the private address after the last section was compiled. It is
+possible to adjust the address in sections in a non incremental way, but it
+must be done carefully otherwise the space allocation will be not right, in
+that case you must manually adjust the address and logical address after the
+section declaration.</p>
+<p>Sections and section declarations can be nested, therefore it's possible to
+have the same names as long as it's inside a differently named section. Parent
+section names are visible for children, siblings can be reached through
+parents.</p>
+<pre width=80>
+        <b>*=</b> <span>$02</span>
+        <b class="k">.dsection</b> <span class="l">zp</span>   <i>;declare zeropage section</i>
+        <b class="k">.send</b> <span class="l">zp</span>
+        <b class="k">.cerror</b> *&gt;<span>$30</span>,<span class="s">"Too many zeropage variables"</span>
+
+        <b>*=</b> <span>$334</span>
+        <b class="k">.dsection</b> <span class="l">bss</span>   <i>;declare uninitialized variable section</i>
+        <b class="k">.send</b> <span class="l">bss</span>
+        <b class="k">.cerror</b> *&gt;<span>$400</span>,<span class="s">"Too many variables"</span>
+
+        <b>*=</b> <span>$0801</span>
+        <b class="k">.dsection</b> <span class="l">code</span>   <i>;declare code section</i>
+        <b class="d">.word</b> <span class="l">ss</span>, <span>2005</span>
+        <b class="d">.null</b> <span>$9e</span>, ^<span class="l">start</span>
+ss	<b class="d">.word</b> <span>0</span>
+        <b class="k">.send</b> <span class="l">code</span>
+        <b class="k">.cerror</b> *&gt;<span>$1000</span>,<span class="s">"Program too long!"</span>
+
+        <b>*=</b> <span>$1000</span>
+        <b class="k">.dsection</b> <span class="l">data</span>   <i>;declare data section</i>
+        <b class="k">.send</b> <span class="l">data</span>
+        <b class="k">.cerror</b> *&gt;<span>$2000</span>,<span class="s">"Data too long!"</span>
+<i>;--------------------</i>
+        <b class="k">.section</b> <span class="l">code</span>
+start   <b>sei</b>
+        <b class="k">.section</b> <span class="l">zp</span>     <i>;declare some new zeropage variables</i>
+p2	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
+        <b class="k">.send</b> <span class="l">zp</span>
+        <b class="k">.section</b> <span class="l">bss</span>    <i>;new variables</i>
+buffer	<b class="d">.fill</b> <span>10</span>        <i>;temporary area</i>
+        <b class="k">.send</b> <span class="l">bss</span>
+
+        <b>lda</b> (<span class="l">p2</span>),y
+        <b>lda</b> #&lt;<span class="l">label</span>
+        <b>ldy</b> #&gt;<span class="l">label</span>
+        <b>jsr</b> <span class="l">print</span>
+
+        <b class="k">.section</b> <span class="l">data</span>   <i>;some data</i>
+label   <b class="d">.null</b> <span class="s">"message"</span>
+        <b class="k">.send</b> <span class="l">data</span>
+
+        <b>jmp</b> <span class="l">error</span>
+        <b class="k">.section</b> <span class="l">zp</span>     <i>;declare some more zeropage variables</i>
+p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
+        <b class="k">.send</b> <span class="l">zp</span>
+        <b class="k">.send</b> <span class="l">code</span>
+</pre>
+<p>The compiled code will look like:</p>
+</dl>
+<pre width=80>
+&gt;0801	 0b 08 d5 07			        .word ss, 2005   
+&gt;0805	 9e 32 30 36 31 00		        .null $9e, ^start
+&gt;080b	 00 00				ss      .word 0          
+
+					        *= $1000
+
+.080d	 78				start   sei
+
+&gt;0002					p2      .word ?         ;a pointer
+.0334					buffer  .fill 10        ;temporary area
+
+.080e	 b1 02				        lda (p2),y
+.0810	 a9 00				        lda #&lt;label
+.0812	 a0 10				        ldy #&gt;label
+.0814	 20 1e ab			        jsr print
+
+&gt;1000	 6d 65 73 73 61 67 65 00	label   .null "message"
+
+.0817	 4c e2 fc			        jmp error
+
+&gt;0004					p2      .word ?         ;a pointer
+</pre>
+
 <h3>65816 related</h3>
 <dl class="dir">
 <dt>.as
