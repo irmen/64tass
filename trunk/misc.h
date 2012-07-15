@@ -141,12 +141,6 @@ struct arguments_s {
     const char *list;
 };
 
-struct encoding_s {
-    uint32_t start;
-    uint32_t end;
-    int16_t offset;
-};
-
 extern line_t sline, vline;
 extern unsigned int lpoint; 
 extern struct file_s *cfile; 
@@ -167,8 +161,6 @@ extern uint8_t pass;
 #define linelength 4096
 
 extern const uint8_t whatis[256];
-extern uint_fast8_t encode(uint_fast8_t);
-extern uint_fast16_t petsymbolic(const char*);
 extern struct label_s *find_label(const char*);
 extern struct label_s *find_label2(const char*, const struct avltree *);
 extern struct label_s *new_label(const char*, enum label_e);
@@ -186,11 +178,8 @@ extern void tinit(void);
 extern void labelprint(void);
 extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
-extern unsigned int encoding;
 extern struct label_s *current_context, root_label;
 extern unsigned int utf8in(const uint8_t *c, uint32_t *out);
-extern struct encoding_s no_encoding[];
-extern struct encoding_s screen_encoding[];
-extern struct encoding_s ascii_encoding[];
+extern struct encoding_s *actual_encoding;
 
 #endif

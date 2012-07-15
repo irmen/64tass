@@ -198,13 +198,17 @@ instruction.</p>
 
 <dl class="dir">
 <dt>-a, --ascii
-<dd>Convert ASCII to PETASCII
+<dd>Use ASCII/Unicode text encoding instead of raw 8-bit
 <p>Normally no conversion takes place, this is for backwards compatibility with
 a DOS based Turbo Assembler editor, which could create petscii files for
 6502tass. (including control characters of course)</p>
-<p>Using this option will convert 'a'-'z' and 'A'-'Z' into the correct petscii
-range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor.
-It also interprets petcat style PETASCII literals and converts them to control codes.</p>
+<p>Using this option will change the default "none" and "screen" encodings to
+map 'a'-'z' and 'A'-'Z' into the correct PETSCII range of $41-$5A and $C1-$DA,
+which is more suitable for an ASCII editor. It also adds predefined petcat style
+PETASCII literals to the default encodings.</p>
+<p><b>For writing sources in utf8/utf16 encodings this option is required!</b> The
+symbol names are still limited to ASCII, but custom string encodings can take
+advantage of the full unicode set.</p>
 <fieldset>
 <legend>Example</legend>
 <pre>
@@ -913,6 +917,47 @@ rets	<b class="d">.rta</b> <span>$fce2</span>
 </pre>
 </dl>
 
+<h3>Text encoding</h3>
+64tass supports sources written in utf8, utf16 (be/le) and raw 8-bit encoding. To take
+advantage of this capability custom encodings can be defined to map unicode characters
+to 8 bit values in strings.
+<dl class="dir">
+<dt>.enc &lt;name&gt;
+<dd>Selects text encoding, predefined encodings are <q>none</q> and
+<q>screen</q> (screen code), anything else is user defined. All user encodings
+start without any character or escape definitions, add some as required.
+<pre width=80>
+	<b class="k">.enc</b> screen	<i>;screencode mode</i>
+        <b class="d">.text</b> <span class="s">"text with screencodes"</span>
+        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare screencode</i>
+	<b class="k">.enc</b> none	<i>;normal mode again</i>
+        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare ascii</i>
+</pre>
+<dt>.cdef &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, ...]
+<dt>.cdef "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, ...]
+<dd>Defines a character range, and assigns all characters one by one from the 8 bit value.
+The start and end positions are unicode character codes either by numbers or by typing them.
+<dt>.edef "&lt;escapetext&gt;", &lt;code&gt; [, "&lt;escapetext&gt;", &lt;code&gt;, ...]
+<dd>Defines an escape sequence, and assigns it to a 8 bit value. When using
+common prefixes the longest match wins. Useful for defining non-typeable control code aliases.
+<pre width=80>
+        <b class="k">.enc</b> petscii	<i>;define an ascii->petscii encoding</i>
+        <b class="k">.cdef</b> <span class="s">" @"</span>, <span>32</span>  <i>;characters</i>
+        <b class="k">.cdef</b> <span class="s">"AZ"</span>, <span>$c1</span>
+        <b class="k">.cdef</b> <span class="s">"az"</span>, <span>$41</span>
+        <b class="k">.cdef</b> <span class="s">"[["</span>, <span>$5b</span>
+        <b class="k">.cdef</b> <span class="s">"&pound;&pound;"</span>, <span>$5c</span>
+        <b class="k">.cdef</b> <span class="s">"]]"</span>, <span>$5d</span>
+        <b class="k">.cdef</b> <span class="s">"&pi;&pi;"</span>, <span>$5e</span>
+        <b class="k">.cdef</b> <span>$2190</span>, <span>$2190</span>, <span>$1f</span><i>;left arrow</i>
+
+        <b class="k">.edef</b> <span class="s">"\n"</span>, <span>13</span>  <i>;escape sequences</i>
+        <b class="k">.edef</b> <span class="s">"{clr}"</span>, <span>147</span>
+
+        <b class="d">.text</b> <span class="s">"{clr}Text in PETSCII\n"</span>
+</pre>
+</dl>
+
 <h3>Structured data</h3>
 
 <p>Structures can be defined to organize sequential data definitions, which can
@@ -1374,16 +1419,6 @@ can ruin the timing of a carefuly cycle counted code.
 <h3>Target</h3>
 <dl class="dir">
 
-<dt>.enc
-<dd>Text encoding, <q>none</q> or <q>screen</q> (screen code)
-<pre width=80>
-	<b class="k">.enc</b> screen	<i>;screencode mode</i>
-        <b class="d">.text</b> <span class="s">"text with screencodes"</span>
-        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare screencode</i>
-	<b class="k">.enc</b> none	<i>;normal mode again</i>
-        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare ascii</i>
-</pre>
-
 <dt>.cpu
 <dd>Selects cpu
 <pre width=80>
@@ -1547,8 +1582,6 @@ you get a related error move the respective label out of the .block
 <dd>no argument given
 <dt>Illegal operand
 <dd>can't be used here
-<dt>Unknown encoding
-<dd>give screen or none as encoding
 <dt>Requirements not met:
 <dd>Not all features are provided, at least one is missing
 <dt>Conflict:

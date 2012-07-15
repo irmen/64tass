@@ -166,16 +166,20 @@ Command line options
 Operation options
 
 -a, --ascii
-    Convert ASCII to PETASCII
+    Use ASCII/Unicode text encoding instead of raw 8-bit
 
     Normally no conversion takes place, this is for backwards compatibility
     with a DOS based Turbo Assembler editor, which could create petscii files
     for 6502tass. (including control characters of course)
 
-    Using this option will convert 'a'-'z' and 'A'-'Z' into the correct petscii
-    range of $41-$5A and $C1-$DA, which is more suitable for an ascii editor.
-    It also interprets petcat style PETASCII literals and converts them to
-    control codes.
+    Using this option will change the default "none" and "screen" encodings to
+    map 'a'-'z' and 'A'-'Z' into the correct PETSCII range of $41-$5A and
+    $C1-$DA, which is more suitable for an ASCII editor. It also adds
+    predefined petcat style PETASCII literals to the default encodings.
+
+    For writing sources in utf8/utf16 encodings this option is required! The
+    symbol names are still limited to ASCII, but custom string encodings can
+    take advantage of the full unicode set.
 
     Example
 
@@ -825,6 +829,48 @@ using the .cpu directive in the source.
                 .fill $100      ;no fill, just reserve $100 bytes
                 .fill $4000, 0  ;16384 bytes of 0
 
+    Text encoding
+
+    64tass supports sources written in utf8, utf16 (be/le) and raw 8-bit
+    encoding. To take advantage of this capability custom encodings can be
+    defined to map unicode characters to 8 bit values in strings.
+
+    .enc <name>
+        Selects text encoding, predefined encodings are `none' and `screen'
+        (screen code), anything else is user defined. All user encodings start
+        without any character or escape definitions, add some as required.
+
+                .enc screen     ;screencode mode
+                .text "text with screencodes"
+                cmp #"u"        ;compare screencode
+                .enc none       ;normal mode again
+                cmp #"u"        ;compare ascii
+
+    .cdef <start>, <end>, <coded> [, <start>, <end>, <coded>, ...]
+    .cdef "<start><end>", <coded> [, "<start><end>", <coded>, ...]
+        Defines a character range, and assigns all characters one by one from
+        the 8 bit value. The start and end positions are unicode character
+        codes either by numbers or by typing them.
+    .edef "<escapetext>", <code> [, "<escapetext>", <code>, ...]
+        Defines an escape sequence, and assigns it to a 8 bit value. When using
+        common prefixes the longest match wins. Useful for defining
+        non-typeable control code aliases.
+
+                .enc petscii    ;define an ascii->petscii encoding
+                .cdef " @", 32  ;characters
+                .cdef "AZ", $c1
+                .cdef "az", $41
+                .cdef "[[", $5b
+                .cdef "??", $5c
+                .cdef "]]", $5d
+                .cdef "??", $5e
+                .cdef $2190, $2190, $1f;left arrow
+
+                .edef "\n", 13  ;escape sequences
+                .edef "{clr}", 147
+
+                .text "{clr}Text in PETSCII\n"
+
     Structured data
 
     Structures can be defined to organize sequential data definitions, which
@@ -1252,15 +1298,6 @@ using the .cpu directive in the source.
 
     Target
 
-    .enc
-        Text encoding, `none' or `screen' (screen code)
-
-                .enc screen     ;screencode mode
-                .text "text with screencodes"
-                cmp #"u"        ;compare screencode
-                .enc none       ;normal mode again
-                cmp #"u"        ;compare ascii
-
     .cpu
         Selects cpu
 
@@ -1412,8 +1449,6 @@ using the .cpu directive in the source.
         no argument given
     Illegal operand
         can't be used here
-    Unknown encoding
-        give screen or none as encoding
     Requirements not met:
         Not all features are provided, at least one is missing
     Conflict:

@@ -1,8 +1,8 @@
 CC = gcc
-OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o
+OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o
 LANG = C
-CFLAGS = -O2 -W -Wall -Wextra
-LDFLAGS = -s
+CFLAGS = -O2 -W -Wall -Wextra -g
+LDFLAGS = -g
 CFLAGS += $(LDFLAGS)
 
 .SILENT:
@@ -14,11 +14,13 @@ all: 64tass README
 64tass.o: 64tass.c opcodes.h misc.h libtree.h eval.h error.h section.h
 avl.o: avl.c libtree.h
 error.o: error.c error.h misc.h libtree.h
-eval.o: eval.c eval.h misc.h libtree.h error.h section.h
+eval.o: eval.c eval.h misc.h libtree.h error.h section.h encoding.h
 misc.o: misc.c libtree.h misc.h opcodes.h getopt.h my_getopt.h error.h section.h
 my_getopt.o: my_getopt.c my_getopt.h
 opcodes.o: opcodes.c opcodes.h
+encoding.o: encoding.c encoding.h libtree.h ternary.h
 section.o: section.c section.h libtree.h error.h misc.h
+ternary.o: ternary.c ternary.h misc.h
 
 README: README.html
 	-w3m -dump -no-graph README.html >README

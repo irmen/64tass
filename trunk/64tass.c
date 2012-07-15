@@ -40,6 +40,7 @@
 #include "eval.h"
 #include "error.h"
 #include "section.h"
+#include "encoding.h"
 
 static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
@@ -114,6 +115,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x18" "binary",
     "\x37" "block",
     "\x05" "byte",
+    "\x4c" "cdef",
     "\x30" "cerror",
     "\x06" "char",
     "\x34" "check",
@@ -127,6 +129,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x45" "dstruct",
     "\x48" "dunion",
     "\x0c" "dword",
+    "\x4d" "edef",
     "\x13" "else",
     "\x15" "elsif",
     "\x2a" "enc",
@@ -196,7 +199,7 @@ enum command_e {
     CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC,
     CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT,
     CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU, CMD_DUNION, CMD_SECTION,
-    CMD_DSECTION, CMD_SEND
+    CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF,
 };
 
 // ---------------------------------------------------------------------------
@@ -1695,12 +1698,131 @@ static void compile(void)
                     goto breakerr;
                 }
                 if (prm==CMD_ENC) { // .enc
-                    if (get_hack()) goto breakerr;
-                    if (!strcasecmp(path,"none")) encoding=0;
-                    else
-                        if (!strcasecmp(path,"screen")) encoding=1;
-                        else
-                            err_msg(ERROR_UNKNOWN_ENCOD,path);
+                    ignore();epoint=lpoint;
+                    if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    actual_encoding = new_encoding(labelname);
+                    break;
+                }
+                if (prm==CMD_CDEF) { // .cdef
+                    struct trans_s tmp, *t;
+                    struct encoding_s *old = actual_encoding;
+                    uint32_t ch;
+                    int rc;
+                    actual_encoding = NULL;
+                    rc = get_exp(&w,0);
+                    actual_encoding = old;
+                    if (!rc) goto breakerr; //ellenorizve.
+                    for (;;) {
+                        int endok = 0;
+
+                        actual_encoding = NULL;
+                        rc = get_val(&val, T_NONE, &epoint);
+                        actual_encoding = old;
+                        if (!rc) break;
+
+                        switch (val.type) {
+                        case T_NONE: err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;
+                        case T_NUM: if (val.u.num.len <= 3) {
+                            tmp.start = val.u.num.val;
+                            break;
+                        }
+                        case T_UINT:
+                        case T_SINT:
+                             if ((uval_t)val.u.num.val & ~(uval_t)0xffffff) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                             tmp.start = val.u.num.val;
+                             break;
+                        case T_STR:
+                             if (!val.u.str.len) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                             if (val.u.str.len) {
+                                 unsigned int l;
+                                 ch = val.u.str.data[0];
+                                 if (ch & 0x80) l = utf8in(val.u.str.data, &ch); else l = 1;
+                                 val.u.str.len -= l; val.u.str.data += l;
+                                 tmp.start = ch;
+                             }
+                             if (val.u.str.len) {
+                                 unsigned int l;
+                                 ch = val.u.str.data[0];
+                                 if (ch & 0x80) l = utf8in(val.u.str.data, &ch); else l = 1;
+                                 val.u.str.len -= l; val.u.str.data += l;
+                                 if (tmp.start > ch) {
+                                     tmp.end = tmp.start;
+                                     tmp.start = ch;
+                                 } else tmp.end = ch;
+                                 endok = 1;
+                             }
+                             if (val.u.str.len) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                             break;
+                        default:
+                            err_msg_wrong_type(val.type, epoint);
+                            goto breakerr;
+                        }
+                        if (!endok) {
+                            actual_encoding = NULL;
+                            rc = get_val(&val, T_UINT, &epoint);
+                            actual_encoding = old;
+                            if (!rc) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                            if (val.type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;}
+                            if ((val.type != T_NUM || val.u.num.len > 3) && ((uval_t)val.u.num.val & ~(uval_t)0xffffff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                            if (tmp.start > (uint32_t)val.u.num.val) {
+                                tmp.end = tmp.start;
+                                tmp.start = val.u.num.val;
+                            } else tmp.end = val.u.num.val;
+                        }
+                        actual_encoding = NULL;
+                        rc = get_val(&val, T_UINT, &epoint);
+                        actual_encoding = old;
+                        if (!rc) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                        if (val.type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;}
+                        if ((val.type != T_NUM || val.u.num.len > 1) && ((uval_t)val.u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                        tmp.offset = val.u.num.val;
+                        t = new_trans(&tmp, actual_encoding);
+                        if (t->start != tmp.start || t->end != tmp.end || t->offset != tmp.offset) {
+                            err_msg(ERROR_DOUBLE_DEFINE,"range"); goto breakerr;
+                        }
+                    }
+                    eval_finish();
+                    break;
+                }
+                if (prm==CMD_EDEF) { // .edef
+                    struct escape_s *t;
+                    struct encoding_s *old = actual_encoding;
+                    int rc;
+                    actual_encoding = NULL;
+                    rc = get_exp(&w,0);
+                    actual_encoding = old;
+                    if (!rc) goto breakerr; //ellenorizve.
+                    for (;;) {
+                        char expr[linelength];
+
+                        actual_encoding = NULL;
+                        rc = get_val(&val, T_NONE, &epoint);
+                        actual_encoding = old;
+                        if (!rc) break;
+
+                        switch (val.type) {
+                        case T_NONE: err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;
+                        case T_STR:
+                             if (!val.u.str.len) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                             memcpy(expr, val.u.str.data, val.u.str.len);
+                             expr[val.u.str.len]=0;
+                             break;
+                        default:
+                            err_msg_wrong_type(val.type, epoint);
+                            goto breakerr;
+                        }
+                        actual_encoding = NULL;
+                        rc = get_val(&val, T_UINT, &epoint);
+                        actual_encoding = old;
+                        if (!rc) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                        if (val.type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;}
+                        if ((val.type != T_NUM || val.u.num.len > 1) && ((uval_t)val.u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                        t = new_escape(expr, (uint8_t)val.u.num.val, actual_encoding);
+                        if (t->code != (uint8_t)val.u.num.val) {
+                            err_msg(ERROR_DOUBLE_DEFINE,"escape"); goto breakerr;
+                        }
+                    }
+                    eval_finish();
                     break;
                 }
                 if (prm==CMD_CPU) { // .cpu
@@ -2697,6 +2819,7 @@ int main(int argc,char *argv[]) {
 
     fin = openfile("");
     optind = testarg(argc,argv, fin);
+    init_encoding(arguments.toascii);
 
     if (arguments.quiet)
         puts("6502/65C02 Turbo Assembler Version 1.3  Copyright (c) 1997 Taboo Productions\n"
@@ -2713,7 +2836,7 @@ int main(int argc,char *argv[]) {
         mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
         for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
+            star=databank=dpage=longaccu=longindex=0;wrapwarn=0;actual_encoding=new_encoding("none");wrapwarn2=0;
             structrecursion=0;allowslowbranch=1;
             waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
@@ -2773,7 +2896,7 @@ int main(int argc,char *argv[]) {
             if (i >= optind) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=longaccu=longindex=0;encoding=0;wrapwarn=0;wrapwarn2=0;
+            star=databank=dpage=longaccu=longindex=0;wrapwarn=0;actual_encoding=new_encoding("none");wrapwarn2=0;
             structrecursion=0;allowslowbranch=1;
             waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
