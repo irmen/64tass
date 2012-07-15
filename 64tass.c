@@ -39,6 +39,7 @@
 #include "misc.h"
 #include "eval.h"
 #include "error.h"
+#include "section.h"
 
 static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
