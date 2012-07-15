@@ -996,16 +996,25 @@ static void compile(void)
                         if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
                         ignore();epoint=lpoint;
                         if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        if (!(tmp=find_section(sectionname))) {
-                            waitfor[waitforp].skip = 0;
-                            if (pass > 1) {
+                        tmp=find_new_section(sectionname);
+                        if (!tmp->declared) {
+                            if (!labelexists) {
+                                tmp->start = tmp->address = tmp->r_address = 0;
+                                tmp->l_start = tmp->l_address = tmp->r_l_address = 0;
+                                fixeddig=0;
+                            } else if (pass > 1) {
                                 err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;
                             }
-                        } else {
-                            waitfor[waitforp].what = 'T';
-                            current_section = tmp;
-                            memjmp(current_section->address);
+                        } else if (tmp->pass != pass) {
+                            tmp->r_address = tmp->address;
+                            tmp->address = tmp->start;
+                            tmp->r_l_address = tmp->l_address;
+                            tmp->l_address = tmp->l_start;
                         }
+                        tmp->pass = pass;
+                        waitfor[waitforp].what = 'T';
+                        current_section = tmp;
+                        memjmp(current_section->address);
                         break;
                     }
                 }
@@ -1066,7 +1075,7 @@ static void compile(void)
                 case CMD_BLOCK: // .block
                     new_waitfor('B');
                     current_context=newlabel;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
-                    if (listing && flist && arguments.source) {
+                    if (newlabel->ref && listing && flist && arguments.source) {
                         if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                         fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
                     }
@@ -1104,6 +1113,10 @@ static void compile(void)
                     }
                 case CMD_SECTION:
                     waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
+                    if (newlabel->ref && listing && flist && arguments.source) {
+                        if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
+                        fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
+                    }
                     newlabel->ref=0;
                     newlabel = NULL;
                     goto finish;
@@ -2074,24 +2087,53 @@ static void compile(void)
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     tmp2=new_section(labelname);
-                    if (labelexists && pass == 1) err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
+                    if (tmp2->declared && pass == 1) err_msg2(ERROR_DOUBLE_DEFINE,labelname,epoint);
                     else {
-                        address_t t;
+                        address_t t, t2;
                         waitfor[waitforp].what='T';waitfor[waitforp].section=current_section;
-                        if (!labelexists) {
-                            tmp2->start = tmp2->address = current_section->address;
-                            tmp2->l_start = tmp2->l_address = current_section->l_address;
-                            fixeddig=0;
+                        if (!tmp2->declared) {
+                            tmp2->r_start = tmp2->r_address = current_section->address;
+                            tmp2->r_l_start = tmp2->r_l_address = current_section->l_address;
+                            if (!labelexists) {
+                                tmp2->start = tmp2->address = current_section->address;
+                                tmp2->l_start = tmp2->l_address = current_section->l_address;
+                            } else {
+                                tmp2->address += current_section->address;
+                                tmp2->start += current_section->address;
+                                tmp2->l_address += current_section->l_address;
+                                tmp2->l_start += current_section->l_address;
+                            }
+                            tmp2->pass = pass;
+                            fixeddig = 0;
+                            tmp2->declared = 1;
                         }
                         tmp2->provides=~(uval_t)0;tmp2->requires=tmp2->conflicts=0;
-                        if (newlabel) set_size(newlabel, tmp2->address - current_section->address);
-                        t = tmp2->address - tmp2->start;
-                        tmp2->start = tmp2->address = current_section->address;
+                        if (tmp2->pass == pass) {
+                            t = tmp2->r_address - tmp2->r_start;
+                            t2 = tmp2->address - tmp2->start;
+                            if (newlabel) set_size(newlabel, t2 + t);
+                            tmp2->start = current_section->address;
+                            current_section->address += t2;
+                            tmp2->r_start = tmp2->r_address = current_section->address;
+                        } else {
+                            t = tmp2->address - tmp2->start;
+                            if (newlabel) set_size(newlabel, t);
+                            tmp2->start = tmp2->r_start = tmp2->address = tmp2->r_address = current_section->address;
+                        }
                         current_section->address += t;
-                        t = tmp2->l_address - tmp2->l_start;
-                        tmp2->l_start = tmp2->l_address = current_section->l_address;
+                        if (tmp2->pass == pass) {
+                            t = tmp2->r_l_address - tmp2->r_l_start;
+                            t2 = tmp2->l_address - tmp2->l_start;
+                            tmp2->l_start = current_section->l_address;
+                            current_section->l_address += t2;
+                            tmp2->r_l_start = tmp2->r_l_address = current_section->l_address;
+                        } else {
+                            t = tmp2->l_address - tmp2->l_start;
+                            tmp2->l_start = tmp2->r_l_start = tmp2->l_address = tmp2->r_l_address = current_section->l_address;
+                        }
                         current_section->l_address += t;
                         current_section = tmp2;
+                        tmp2->pass=pass;
                         memjmp(current_section->address);
                         newlabel=NULL;
                     }
@@ -2104,16 +2146,25 @@ static void compile(void)
                     if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
                     ignore();epoint=lpoint;
                     if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (!(tmp=find_section(sectionname))) {
-                        waitfor[waitforp].skip = 0;
-                        if (pass > 1) {
+                    tmp=find_new_section(sectionname);
+                    if (!tmp->declared) {
+                        if (!labelexists) {
+                            tmp->start = tmp->address = tmp->r_address = 0;
+                            tmp->l_start = tmp->l_address = tmp->r_l_address = 0;
+                            fixeddig=0;
+                        } else if (pass > 1) {
                             err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;
                         }
-                    } else {
-                        waitfor[waitforp].what = 'T';
-                        current_section = tmp;
-                        memjmp(current_section->address);
+                    } else if (tmp->pass != pass) {
+                        tmp->r_address = tmp->address;
+                        tmp->address = tmp->start;
+                        tmp->r_l_address = tmp->l_address;
+                        tmp->l_address = tmp->l_start;
                     }
+                    tmp->pass = pass;
+                    waitfor[waitforp].what = 'T';
+                    current_section = tmp;
+                    memjmp(current_section->address);
                     newlabel = NULL;
                     break;
                 }

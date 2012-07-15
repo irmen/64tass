@@ -1069,6 +1069,111 @@ using the .cpu directive in the source.
                 sta $d020
                 .endc
 
+    Sections
+
+    .dsection <name>
+        Declares a named section and starts it.
+    .section <name>
+        Section start
+    .send [<name>]
+        End of section. Section name is optional, if present it must match.
+
+        Sections are useful for linking sources, or to organize memory layout.
+        With them it's easily possible to allocate addresses for variables at
+        the place of actual use enclosed by the current scope. It can also be
+        used to collect data or code to specific memory areas, or to ease the
+        generation of code and data to multiple locations simultaniously in a
+        single loop or macro.
+
+        All .section-s scattered around in the sources are compiled from the
+        .dsection declaration. Compilation happens as the code appears, this
+        directive only assigns enough space to hold all the stuff in the
+        sections. Where the .dsection appears the section's private address and
+        logical address are initialized to the current values.
+
+        The space allocated is calculated by the difference of the initial
+        private address and the private address after the last section was
+        compiled. It is possible to adjust the address in sections in a non
+        incremental way, but it must be done carefully otherwise the space
+        allocation will be not right, in that case you must manually adjust the
+        address and logical address after the section declaration.
+
+        Sections and section declarations can be nested, therefore it's
+        possible to have the same names as long as it's inside a differently
+        named section. Parent section names are visible for children, siblings
+        can be reached through parents.
+
+                *= $02
+                .dsection zp   ;declare zeropage section
+                .send zp
+                .cerror *>$30,"Too many zeropage variables"
+
+                *= $334
+                .dsection bss   ;declare uninitialized variable section
+                .send bss
+                .cerror *>$400,"Too many variables"
+
+                *= $0801
+                .dsection code   ;declare code section
+                .word ss, 2005
+                .null $9e, ^start
+        ss      .word 0
+                .send code
+                .cerror *>$1000,"Program too long!"
+
+                *= $1000
+                .dsection data   ;declare data section
+                .send data
+                .cerror *>$2000,"Data too long!"
+        ;--------------------
+                .section code
+        start   sei
+                .section zp     ;declare some new zeropage variables
+        p2      .word ?         ;a pointer
+                .send zp
+                .section bss    ;new variables
+        buffer  .fill 10        ;temporary area
+                .send bss
+
+                lda (p2),y
+                lda #<label
+                ldy #>label
+                jsr print
+
+                .section data   ;some data
+        label   .null "message"
+                .send data
+
+                jmp error
+                .section zp     ;declare some more zeropage variables
+        p3      .word ?         ;a pointer
+                .send zp
+                .send code
+
+        The compiled code will look like:
+
+    >0801    0b 08 d5 07                            .word ss, 2005
+    >0805    9e 32 30 36 31 00                      .null $9e, ^start
+    >080b    00 00                          ss      .word 0
+
+                                                    *= $1000
+
+    .080d    78                             start   sei
+
+    >0002                                   p2      .word ?         ;a pointer
+    .0334                                   buffer  .fill 10        ;temporary area
+
+    .080e    b1 02                                  lda (p2),y
+    .0810    a9 00                                  lda #<label
+    .0812    a0 10                                  ldy #>label
+    .0814    20 1e ab                               jsr print
+
+    >1000    6d 65 73 73 61 67 65 00        label   .null "message"
+
+    .0817    4c e2 fc                               jmp error
+
+    >0004                                   p2      .word ?         ;a pointer
+
     65816 related
 
     .as

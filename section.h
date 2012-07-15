@@ -32,13 +32,19 @@ struct section_s {
     address_t l_start;
     address_t address;
     address_t l_address;
+    address_t r_start;
+    address_t r_l_start;
+    address_t r_address;
+    address_t r_l_address;
+    uint8_t pass;
     unsigned int dooutput:1;
+    unsigned int declared:1;
     struct section_s *parent;
     struct avltree members;
 };
 
 extern struct section_s *new_section(const char*);
-extern struct section_s *find_section(const char* name);
+extern struct section_s *find_new_section(const char* name);
 extern void init_section(void);
 extern void destroy_section(void);
 extern struct section_s *current_section, root_section;
