@@ -1034,6 +1034,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                     *pline++ = 0;
                     fin->p = pline - fin->data;
                 }
+                break;
             case 'B':arguments.longbranch=1;break;
             case 1:arguments.cpumode=OPCODES_6502;break;
             case 'i':arguments.cpumode=OPCODES_6502i;break;
