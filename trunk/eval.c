@@ -22,6 +22,7 @@
 #include "eval.h"
 #include "misc.h"
 #include "error.h"
+#include "section.h"
 
 static struct encoding_s *actual_encoding = ascii_encoding;
 
