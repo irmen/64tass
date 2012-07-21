@@ -28,12 +28,12 @@
 #include "error.h"
 #include "section.h"
 #include "encoding.h"
+#include "file.h"
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,"a.out",OPCODES_6502,NULL,NULL};
 
 static struct avltree macro_tree;
 static struct avltree jump_tree;
-static struct avltree file_tree;
 struct label_s root_label;
 struct label_s *current_context = &root_label;
 
@@ -73,28 +73,12 @@ static int macro_compare(const struct avltree_node *aa, const struct avltree_nod
     return strcmp(a->name, b->name);
 }
 
-static int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    struct file_s *a = avltree_container_of(aa, struct file_s, node);
-    struct file_s *b = avltree_container_of(bb, struct file_s, node);
-
-    return strcmp(a->name, b->name);
-}
-
 static int jump_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct jump_s *a = avltree_container_of(aa, struct jump_s, node);
     struct jump_s *b = avltree_container_of(bb, struct jump_s, node);
 
     return strcmp(a->name, b->name);
-}
-
-static int star_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    struct star_s *a = avltree_container_of(aa, struct star_s, node);
-    struct star_s *b = avltree_container_of(bb, struct star_s, node);
-
-    return a->line - b->line;
 }
 
 static void label_free(const struct avltree_node *aa)
@@ -113,29 +97,11 @@ static void macro_free(const struct avltree_node *aa)
     free(a);
 }
 
-static void file_free(const struct avltree_node *aa)
-{
-    struct file_s *a = avltree_container_of(aa, struct file_s, node);
-
-    avltree_destroy(&a->star);
-    free((char *)a->data);
-    free((char *)a->name);
-    free(a);
-}
-
 static void jump_free(const struct avltree_node *aa)
 {
     struct jump_s *a = avltree_container_of(aa, struct jump_s, node);
 
     free((char *)a->name);
-    free(a);
-}
-
-static void star_free(const struct avltree_node *aa)
-{
-    struct star_s *a = avltree_container_of(aa, struct star_s, node);
-
-    avltree_destroy(&a->tree);
     free(a);
 }
 
@@ -218,24 +184,6 @@ struct jump_s *new_jump(const char* name) {
     return avltree_container_of(b, struct jump_s, node);            //already exists
 }
 
-static struct star_s *lastst=NULL;
-struct star_s *new_star(line_t line) {
-    const struct avltree_node *b;
-    struct star_s *tmp;
-    if (!lastst)
-	if (!(lastst=malloc(sizeof(struct star_s)))) err_msg_out_of_memory();
-    lastst->line=line;
-    b=avltree_insert(&lastst->node, star_tree);
-    if (!b) { //new label
-	labelexists=0;
-        avltree_init(&lastst->tree, star_compare, star_free);
-	tmp=lastst;
-	lastst=NULL;
-	return tmp;
-    }
-    labelexists=1;
-    return avltree_container_of(b, struct star_s, node);            //already exists
-}
 // ---------------------------------------------------------------------------
 
 struct macro_s *find_macro(const char* name) {
@@ -291,7 +239,7 @@ unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use 
     return i;
 }
 
-static uint8_t *utf8out(uint32_t i, uint8_t *c) {
+uint8_t *utf8out(uint32_t i, uint8_t *c) {
     if (!i) {
         *c++=0xc0;
         *c++=0x80;
@@ -337,205 +285,15 @@ static uint8_t *utf8out(uint32_t i, uint8_t *c) {
     return c;
 }
 
-static struct file_s *lastfi=NULL;
-static uint16_t curfnum=1;
-struct file_s *openfile(const char* name) {
-    const struct avltree_node *b;
-    struct file_s *tmp;
-    if (!lastfi)
-	if (!(lastfi=malloc(sizeof(struct file_s)))) err_msg_out_of_memory();
-    lastfi->name=name;
-    b=avltree_insert(&lastfi->node, &file_tree);
-    if (!b) { //new file
-	enum {UNKNOWN, UTF8, UTF16LE, UTF16BE, ISO1} type = UNKNOWN;
-        int ch;
-        FILE *f;
-        uint32_t c = 0;
-
-	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastfi->name, name);
-	lastfi->data=NULL;
-	lastfi->len=0;
-	lastfi->p=0;
-        lastfi->open=0;
-        avltree_init(&lastfi->star, star_compare, star_free);
-        tmp = lastfi;
-        lastfi=NULL;
-        if (name[0]) {
-            if (name[0]=='-' && !name[1]) f=stdin;
-            else f=fopen(name,"rb");
-            if (!f) {
-                err_msg(ERROR_CANT_FINDFILE,name);
-                return NULL;
-            }
-            if (arguments.quiet) printf("Assembling file:   %s\n",name);
-            ch=getc(f);
-            ungetc(ch, f); 
-            if (!ch) type=UTF16BE; /* most likely */
-
-            do {
-                int i, j, ch2;
-                uint8_t *pline;
-                uint32_t lastchar;
-
-                if (tmp->p + linelength > tmp->len) {
-                    tmp->len += linelength * 2;
-                    tmp->data=realloc(tmp->data, tmp->len);
-                }
-                pline=&tmp->data[tmp->p];
-                for (;;) {
-                    lastchar = c;
-                    if (arguments.toascii) {
-                        switch (type) {
-                        case UNKNOWN:
-                        case UTF8:
-                            c = ch = getc(f);
-                            if (ch == EOF) break;
-
-                            if (ch < 0x80) goto done;
-                            if (ch < 0xc0) {
-                                if (type == UNKNOWN) {
-                                    type = ISO1; break;
-                                }
-                                c = 0xfffd; break;
-                            } else if (ch < 0xe0) {
-                                c ^= 0xc0;i = 1;
-                            } else if (ch < 0xf0) {
-                                c ^= 0xe0;i = 2;
-                            } else if (ch < 0xf8) {
-                                c ^= 0xf0;i = 3;
-                            } else if (ch < 0xfc) {
-                                c ^= 0xf8;i = 4;
-                            } else if (ch < 0xfe) {
-                                c ^= 0xfc;i = 5;
-                            } else {
-                                if (type == UNKNOWN) {
-                                    ch2=getc(f);
-                                    if (ch == 0xff && ch2 == 0xfe) {
-                                        type = UTF16LE;continue;
-                                    }
-                                    if (ch == 0xfe && ch2 == 0xff) {
-                                        type = UTF16BE;continue;
-                                    }
-                                    ungetc(ch2, f); 
-                                    type = ISO1; break;
-                                }
-                                c = 0xfffd; break;
-                            }
-
-                            for (j = i; i; i--) {
-                                ch2 = getc(f);
-                                if (ch2 < 0x80 || ch2 >= 0xc0) {
-                                    if (type == UNKNOWN) {
-                                        type = ISO1;
-                                        i = (j - i) * 6;
-                                        pline = utf8out(((~0x7f >> j) & 0xff) | (c >> i), pline);
-                                        for (;i; i-= 6) {
-                                            pline = utf8out(((c >> (i-6)) & 0x3f) | 0x80, pline);
-                                        }
-                                        c = ch2; j = 0;
-                                        break;
-                                    }
-                                    ungetc(ch2, f);
-                                    c = 0xfffd;break;
-                                }
-                                c = (c << 6) ^ ch2 ^ 0x80;
-                            }
-                            if (j) type = UTF8;
-                            break;
-                        case UTF16LE:
-                            c = getc(f);
-                            ch = getc(f);
-                            if (ch == EOF) break;
-                            c |= ch << 8;
-                            if (c == 0xfffe) {
-                                type = UTF16BE;
-                                continue;
-                            }
-                            break;
-                        case UTF16BE:
-                            c = getc(f) << 8;
-                            ch = getc(f);
-                            if (ch == EOF) break;
-                            c |= ch;
-                            if (c == 0xfffe) {
-                                type = UTF16LE;
-                                continue;
-                            }
-                            break;
-                        case ISO1:
-                            c = ch = getc(f);
-                            if (ch == EOF) break;
-                            goto done;
-                        }
-                        if (c == 0xfeff) continue;
-                        if (type != UTF8) {
-                            if (c >= 0xd800 && c < 0xdc00) {
-                                if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
-                                c = 0xfffd;
-                            } else if (c >= 0xdc00 && c < 0xe000) {
-                                if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                    c ^= 0x361dc00 ^ (lastchar << 10);
-                                } else
-                                    c = 0xfffd;
-                            } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                c = 0xfffd;
-                            }
-                        }
-                    } else c = ch = getc(f);
-
-                    if (ch == EOF) break;
-                done:
-                    if (c == 10) {
-                        if (lastchar == 13) continue;
-                        break;
-                    } else if (c == 13) {
-                        break;
-                    }
-                    if (c && c < 0x80) *pline++ = c; else pline = utf8out(c, pline);
-                    if (pline > &tmp->data[tmp->p + linelength - 6*6]) {
-                        err_msg(ERROR_LINE_TOO_LONG,NULL);ch=EOF;break;
-                    }
-                }
-                i = pline - &tmp->data[tmp->p];
-                pline=&tmp->data[tmp->p];
-                if (i)
-                    while (i && pline[i-1]==' ') i--;
-                pline[i++] = 0;
-                tmp->p += i;
-
-                if (ch == EOF) break;
-            } while (1);
-            if (ferror(f)) err_msg(ERROR__READING_FILE,name);
-            if (f!=stdin) fclose(f);
-            tmp->len = tmp->p;
-            tmp->data=realloc(tmp->data, tmp->len);
-        }
-	tmp->p = 0;
-
-        tmp->uid=curfnum++;
-    } else {
-        tmp = avltree_container_of(b, struct file_s, node);
-    }
-    tmp->open++;
-    return tmp;
-}
-
-void closefile(struct file_s *f) {
-    if (f->open) f->open--;
-}
-
 void tfree(void) {
     avltree_destroy(&root_label.members);
     avltree_destroy(&macro_tree);
     avltree_destroy(&jump_tree);
-    avltree_destroy(&file_tree);
-    free(lastfi);
     free(lastma);
     free(lastlb);
     free(lastjp);
-    free(lastst);
     destroy_section();
+    destroy_file();
     err_destroy();
     destroy_encoding();
 }
@@ -545,10 +303,10 @@ void tinit(void) {
     root_label.parent = NULL;
     root_label.name = NULL;
     init_section();
+    init_file();
     avltree_init(&root_label.members, label_compare, label_free);
     avltree_init(&macro_tree, macro_compare, macro_free);
     avltree_init(&jump_tree, jump_compare, jump_free);
-    avltree_init(&file_tree, file_compare, file_free);
 }
 
 void labelprint(void) {

@@ -86,24 +86,6 @@ struct label_s {
     struct avltree members;
 };
 
-struct star_s {
-    line_t line;
-    address_t addr;
-    struct avltree tree;
-    struct avltree_node node;
-};
-
-struct file_s {
-    const char *name;
-    uint8_t *data;    /* data */
-    size_t len;       /* length */
-    size_t p;         /* current point */
-    uint16_t open;    /* open/not open */
-    uint16_t uid;     /* uid */
-    struct avltree star;
-    struct avltree_node node;
-};
-
 struct macro_s {
     const char *name;
     size_t p;
@@ -143,7 +125,6 @@ struct arguments_s {
 
 extern line_t sline, vline;
 extern unsigned int lpoint; 
-extern struct file_s *cfile; 
 extern struct avltree *star_tree;
 extern int fixeddig;
 extern unsigned int errors,conderrors,warnings;
@@ -170,16 +151,14 @@ extern struct macro_s *find_macro(const char*);
 extern struct macro_s *new_macro(const char*);
 extern struct jump_s *find_jump(const char*);
 extern struct jump_s *new_jump(const char*);
-extern struct star_s *new_star(line_t);
-extern struct file_s *openfile(const char*);
-extern void closefile(struct file_s*);
 extern void tfree(void);
 extern void tinit(void);
 extern void labelprint(void);
 extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
 extern struct label_s *current_context, root_label;
-extern unsigned int utf8in(const uint8_t *c, uint32_t *out);
+extern unsigned int utf8in(const uint8_t *, uint32_t *);
+extern uint8_t *utf8out(uint32_t, uint8_t *);
 extern struct encoding_s *actual_encoding;
 
 #endif
