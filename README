@@ -603,25 +603,30 @@ using the .cpu directive in the source.
     Special addressing mode forcing operators in front of an expression can be
     used to make sure the expected addressing mode is used.
 
-    @b       to force 8 bit address
-    @w       to force 16 bit address
-    @l       to force 24 bit address (65816)
+    @b          to force 8 bit address
+    @w          to force 16 bit address
+    @l          to force 24 bit address (65816)
 
     Boolean operators give 0 or 1 as a result.
 
-    x || y   or
-    x ^^ y   exclusive or
-    x && y   and
-    !x       not
+    x || y      or
+    x ^^ y      exclusive or
+    x && y      and
+    !x          not
+
+    The conditional operator gives the first (x) result if c is true or the
+    second (y) if c is false.
+
+    c ? x : y   ternary
 
     Comparison operators result in 1 or 0 depending on the result.
 
-    x = y    equal
-    x != y   non equal
-    x < y    less
-    x > y    more
-    x >= y   more or equal
-    x <= y   less or equal
+    x = y       equal
+    x != y      non equal
+    x < y       less
+    x > y       more
+    x >= y      more or equal
+    x <= y      less or equal
 
             .if ntsc=1
             nop
