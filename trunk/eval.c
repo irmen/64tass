@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "eval.h"
-#include "misc.h"
+#include "file.h"
 #include "error.h"
 #include "section.h"
 #include "encoding.h"
