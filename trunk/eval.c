@@ -240,6 +240,7 @@ static void get_star(struct value_s *v) {
     }
     tmp->addr=star;
     set_uint(v, star);
+    v->type = T_NUM;
 }
 
 /*
