@@ -33,11 +33,14 @@ static struct {
     } *data;
 } file_list = {0,0,NULL};
 
-static struct {
+struct error_s {
     size_t p;
     size_t len;
-    char *data;
-} error_list = {0,0,NULL};
+    uint8_t *data;
+};
+
+static struct error_s error_list = {0,0,NULL};
+static struct error_s user_error = {0,0,NULL};
 
 void enterfile(const char *name, line_t line) {
 
@@ -55,17 +58,18 @@ void exitfile(void) {
     if (file_list.p) file_list.p--;
 }
 
-static void adderror(const char *s) {
-    unsigned int len;
-
-    len = strlen(s) + 1;
+static void adderror2(const uint8_t *s, size_t len) {
     if (len + error_list.p > error_list.len) {
         error_list.len += (len > 0x200) ? len : 0x200;
         error_list.data = realloc(error_list.data, error_list.len);
         if (!error_list.data) {fputs("Out of memory\n", stderr);exit(1);}
     }
     memcpy(error_list.data + error_list.p, s, len);
-    error_list.p += len - 1;
+    error_list.p += len;
+}
+
+static void adderror(const char *s) {
+    adderror2((uint8_t *)s, strlen(s));
 }
 
 static const char *terr_warning[]={
@@ -137,8 +141,9 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
 
     if (no<0x40) {
         adderror("warning: ");
-        if (no == ERROR_WUSER_DEFINED) adderror(prm); else adderror(terr_warning[no]);
         warnings++;
+        if (no == ERROR_WUSER_DEFINED) adderror2(user_error.data, user_error.p);
+        else adderror(terr_warning[no]);
     }
     else if (no<0x80) {
         if (no==ERROR____PAGE_ERROR) {
@@ -151,10 +156,15 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
             conderrors++;
         }
         else {
-            snprintf(line,linelength,terr_error[no & 63],prm);
-            if (no==ERROR_BRANCH_TOOFAR || no==ERROR_CONSTNT_LARGE || no==ERROR__USER_DEFINED) conderrors++;
-            else errors++;
-            adderror(line);
+            if (no==ERROR__USER_DEFINED) {
+                adderror2(user_error.data, user_error.p);
+                conderrors++;
+            } else {
+                snprintf(line,linelength,terr_error[no & 63],prm);
+                if (no==ERROR_BRANCH_TOOFAR || no==ERROR_CONSTNT_LARGE) conderrors++;
+                else errors++;
+                adderror(line);
+            }
         }
     }
     else {
@@ -192,6 +202,48 @@ void err_msg_wrong_type(enum type_e type, unsigned int epoint) {
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
 }
 
+static void add_user_error2(const uint8_t *s, size_t len) {
+    if (len + user_error.p > user_error.len) {
+        user_error.len += (len > 0x100) ? len : 0x100;
+        user_error.data = realloc(user_error.data, user_error.len);
+        if (!user_error.data) {fputs("Out of memory\n", stderr);exit(1);}
+    }
+    memcpy(user_error.data + user_error.p, s, len);
+    user_error.p += len;
+}
+
+static void add_user_error(const char *s) {
+    add_user_error2((uint8_t *)s, strlen(s));
+}
+
+void err_msg_variable(struct value_s *val) {
+    char buffer[100];
+
+    if (!val) {user_error.p=0;return;}
+    switch (val->type) {
+    case T_SINT: sprintf(buffer,"%+" PRIdval, val->u.num.val); add_user_error(buffer); break;
+    case T_UINT: sprintf(buffer,"%" PRIuval, val->u.num.val); add_user_error(buffer); break;
+    case T_NUM: {
+        if (val->u.num.val<0x100) sprintf(buffer,"$%02" PRIxval, val->u.num.val);
+        else if (val->u.num.val<0x10000) sprintf(buffer,"$%04" PRIxval, val->u.num.val);
+        else if (val->u.num.val<0x1000000) sprintf(buffer,"$%06" PRIxval, val->u.num.val);
+        else sprintf(buffer,"$%08" PRIxval, val->u.num.val);
+        add_user_error(buffer); break;
+    }
+    case T_TSTR:
+    case T_STR: add_user_error2(val->u.str.data, val->u.str.len);break;
+    case T_UNDEF: add_user_error("<undefined>");break;
+    case T_IDENT: add_user_error("<ident>");break;
+    case T_IDENTREF: add_user_error("<identref>");break;
+    case T_NONE: add_user_error("<none>");break;
+    case T_BACKR: add_user_error("<backr>");break;
+    case T_FORWR: add_user_error("<forwr>");break;
+    case T_OPER: add_user_error("<operator>");break;
+    case T_FUNC: add_user_error("<function>");break;
+    case T_GAP: add_user_error("<uninit>");break;
+    }
+}
+
 void freeerrorlist(int print) {
     if (print) {
         fwrite(error_list.data, error_list.p, 1, stderr);
@@ -202,6 +254,7 @@ void freeerrorlist(int print) {
 void err_destroy(void) {
     free(file_list.data);
     free(error_list.data);
+    free(user_error.data);
 }
 
 void err_msg_out_of_memory(void) 

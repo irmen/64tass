@@ -1276,25 +1276,21 @@ using the .cpu directive in the source.
                 bne -
                 .option allow_branch_across_page = 1
 
-    .error
+    .error <message> [, <message>, ...]
         Exit with error
-
-                .error "Unfinished here..."
-
-    .warn
-        Warning
-
-                .warn "FIXME: handle negative values too!"
-
-    .cerror
+    .cerror <condition>, <message> [, <message>, ...]
         Conditional exit with error
 
-                .cerror *>$1200,"Program too long!"
+                .error "Unfinished here..."
+                .cerror *>$1200, "Program too long by ", *-$1200, " bytes"
 
-    .cwarn
+    .warn <message> [, <message>, ...]
+        Warning
+    .cwarn <condition>, <message> [, <message>, ...]
         Conditional warning
 
-                .cwarn *>$1200,"This may not work!"
+                .warn "FIXME: handle negative values too!"
+                .cwarn *>$1200, "This may not work!"
 
     Target
 

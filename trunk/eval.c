@@ -199,20 +199,14 @@ static void copy_name(struct value_s *val, char *ident) {
 
 static void try_resolv_ident(struct value_s *val) {
     char ident[linelength];
-    if (val->type == T_FORWR) {
-        sprintf(ident,"+%x+%x", reffile, forwr + val->u.ref - 1);
-        goto ident;
+    switch (val->type) {
+    case T_FORWR: sprintf(ident,"+%x+%x", reffile, forwr + val->u.ref - 1); break;
+    case T_BACKR: sprintf(ident,"-%x-%x", reffile, backr - val->u.ref); break;
+    case T_IDENT: copy_name(val, ident); break;
+    default: return;
     }
-    if (val->type == T_BACKR) {
-        sprintf(ident,"-%x-%x", reffile, backr - val->u.ref);
-        goto ident;
-    }
-    if (val->type == T_IDENT) {
-        copy_name(val, ident);
-    ident:
-        val->u.label = find_label(ident);
-        val->type = touch_label(val->u.label);
-    }
+    val->u.label = find_label(ident);
+    val->type = touch_label(val->u.label);
 }
 
 static void try_resolv_identref(struct value_s *val) {

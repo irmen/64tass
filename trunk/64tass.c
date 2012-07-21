@@ -1600,10 +1600,6 @@ static void compile(void)
                     longindex=1;
                     break;
                 }
-                if (prm==CMD_ERROR) { // .error
-                    err_msg(ERROR__USER_DEFINED,(char *)&pline[lpoint]);
-                    goto breakerr;
-                }
                 if (prm==CMD_BLOCK) { // .block
 		    new_waitfor('B');
                     sprintf(labelname, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
@@ -1694,9 +1690,34 @@ static void compile(void)
                     eval_finish();
                     break;
                 }
-                if (prm==CMD_WARN) { // .warn
-                    err_msg(ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
-                    goto breakerr;
+                if (prm==CMD_WARN || prm==CMD_CWARN || prm==CMD_ERROR || prm==CMD_CERROR) { // .warn .cwarn .error .cerror
+                    int rc;
+                    int first = 1;
+                    int write = 1;
+                    struct encoding_s *old = actual_encoding;
+                    actual_encoding = NULL;
+                    rc = get_exp(&w,0);
+                    actual_encoding = old;
+                    if (!rc) goto breakerr; //ellenorizve.
+                    err_msg_variable(NULL);
+                    for (;;) {
+                        actual_encoding = NULL;
+                        rc = get_val(&val, T_NONE, NULL);
+                        actual_encoding = old;
+                        if (!rc) break;
+                        if (first) {
+                            first = 0;
+                            if (prm == CMD_CWARN || prm == CMD_CERROR) {
+                                write = (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && val.u.num.val) || (val.type == T_STR && val.u.str.len));
+                                continue;
+                            }
+                            write = 1;
+                        }
+                        if (write) err_msg_variable(&val);
+                    }
+                    if (write) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,NULL,epoint);
+                    eval_finish();
+                    break;
                 }
                 if (prm==CMD_ENC) { // .enc
                     ignore();epoint=lpoint;
@@ -1839,15 +1860,6 @@ static void compile(void)
                     else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,path);
                     set_cpumode(def);
                     break;
-                }
-                if (prm==CMD_CERROR || prm==CMD_CWARN) { // .cerror
-                    if (!get_exp(&w, 1)) goto breakerr; //ellenorizve.
-                    if (!get_val(&val, T_NONE, NULL)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (here()==',') {
-                        lpoint++;ignore();
-                    }
-                    if (((val.type == T_SINT || val.type == T_UINT || val.type == T_NUM) && val.u.num.val) || (val.type == T_STR && val.u.str.len)) err_msg((prm==CMD_CERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,(char *)&pline[lpoint]);
-                    goto breakerr;
                 }
                 if (prm==CMD_REPT) { // .rept
                     int cnt;
