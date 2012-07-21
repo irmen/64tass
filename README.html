@@ -1391,28 +1391,22 @@ can ruin the timing of a carefuly cycle counted code.
         <b class="k">.option</b> allow_branch_across_page = <span>1</span>
 </pre>
 
-<dt>.error
+<dt>.error &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Exit with error
-<pre width=80>
-        <b class="k">.error</b> <span class="s">"Unfinished here..."</span>
-</pre>
-
-<dt>.warn
-<dd>Warning
-<pre width=80>
-        <b class="k">.warn</b> <span class="s">"FIXME: handle negative values too!"</span>
-</pre>
-
-<dt>.cerror
+<dt>.cerror &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Conditional exit with error
 <pre width=80>
-        <b class="k">.cerror</b> *&gt;<span>$1200</span>,<span class="s">"Program too long!"</span>
+        <b class="k">.error</b> <span class="s">"Unfinished here..."</span>
+        <b class="k">.cerror</b> *&gt;<span>$1200</span>, <span class="s">"Program too long by "</span>, *-<span>$1200</span>, <span class="s">" bytes"</span>
 </pre>
 
-<dt>.cwarn
+<dt>.warn &lt;message&gt; [, &lt;message&gt;, ...]
+<dd>Warning
+<dt>.cwarn &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Conditional warning
 <pre width=80>
-        <b class="k">.cwarn</b> *&gt;<span>$1200</span>,<span class="s">"This may not work!"</span>
+        <b class="k">.warn</b> <span class="s">"FIXME: handle negative values too!"</span>
+        <b class="k">.cwarn</b> *&gt;<span>$1200</span>, <span class="s">"This may not work!"</span>
 </pre>
 
 </dl>
