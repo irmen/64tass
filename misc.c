@@ -169,11 +169,11 @@ struct label_s *new_label(const char* name, enum label_e type) {
     const struct avltree_node *b;
     struct label_s *tmp;
     if (!lastlb)
-	if (!(lastlb=malloc(sizeof(struct label_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastlb=malloc(sizeof(struct label_s)))) err_msg_out_of_memory();
     lastlb->name=name;
     b=avltree_insert(&lastlb->node, &current_context->members);
     if (!b) { //new label
-	if (!(lastlb->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastlb->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy((char *)lastlb->name,name);
         lastlb->type = type;
         lastlb->parent=current_context;
@@ -203,11 +203,11 @@ struct jump_s *new_jump(const char* name) {
     const struct avltree_node *b;
     struct jump_s *tmp;
     if (!lastjp)
-	if (!(lastjp=malloc(sizeof(struct jump_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastjp=malloc(sizeof(struct jump_s)))) err_msg_out_of_memory();
     lastjp->name=name;
     b=avltree_insert(&lastjp->node, &jump_tree);
     if (!b) { //new label
-	if (!(lastjp->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastjp->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy((char *)lastjp->name,name);
 	labelexists=0;
 	tmp=lastjp;
@@ -223,7 +223,7 @@ struct star_s *new_star(line_t line) {
     const struct avltree_node *b;
     struct star_s *tmp;
     if (!lastst)
-	if (!(lastst=malloc(sizeof(struct star_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastst=malloc(sizeof(struct star_s)))) err_msg_out_of_memory();
     lastst->line=line;
     b=avltree_insert(&lastst->node, star_tree);
     if (!b) { //new label
@@ -252,11 +252,11 @@ struct macro_s *new_macro(const char* name) {
     const struct avltree_node *b;
     struct macro_s *tmp;
     if (!lastma)
-	if (!(lastma=malloc(sizeof(struct macro_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastma=malloc(sizeof(struct macro_s)))) err_msg_out_of_memory();
     lastma->name=name;
     b=avltree_insert(&lastma->node, &macro_tree);
     if (!b) { //new macro
-	if (!(lastma->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastma->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy((char *)lastma->name,name);
 	labelexists=0;
 	tmp=lastma;
@@ -343,7 +343,7 @@ struct file_s *openfile(const char* name) {
     const struct avltree_node *b;
     struct file_s *tmp;
     if (!lastfi)
-	if (!(lastfi=malloc(sizeof(struct file_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastfi=malloc(sizeof(struct file_s)))) err_msg_out_of_memory();
     lastfi->name=name;
     b=avltree_insert(&lastfi->node, &file_tree);
     if (!b) { //new file
@@ -352,7 +352,7 @@ struct file_s *openfile(const char* name) {
         FILE *f;
         uint32_t c = 0;
 
-	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy((char *)lastfi->name, name);
 	lastfi->data=NULL;
 	lastfi->len=0;

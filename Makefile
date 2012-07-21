@@ -18,7 +18,7 @@ eval.o: eval.c eval.h misc.h libtree.h error.h section.h encoding.h
 misc.o: misc.c libtree.h misc.h opcodes.h getopt.h my_getopt.h error.h section.h
 my_getopt.o: my_getopt.c my_getopt.h
 opcodes.o: opcodes.c opcodes.h
-encoding.o: encoding.c encoding.h libtree.h ternary.h
+encoding.o: encoding.c encoding.h libtree.h ternary.h error.h
 section.o: section.c section.h libtree.h error.h misc.h
 ternary.o: ternary.c ternary.h misc.h
 

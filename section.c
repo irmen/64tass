@@ -61,11 +61,11 @@ struct section_s *new_section(const char* name) {
     const struct avltree_node *b;
     struct section_s *tmp;
     if (!lastsc)
-	if (!(lastsc=malloc(sizeof(struct section_s)))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastsc=malloc(sizeof(struct section_s)))) err_msg_out_of_memory();
     lastsc->name=name;
     b=avltree_insert(&lastsc->node, &current_section->members);
     if (!b) { //new section
-	if (!(lastsc->name=malloc(strlen(name)+1))) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+	if (!(lastsc->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy((char *)lastsc->name,name);
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;

@@ -77,6 +77,7 @@ static const char *terr_warning[]={
     "Directive ignored",
     "Label not on left side",
 };
+
 static const char *terr_error[]={
     "Double defined %s",
     "Not defined %s",
@@ -94,16 +95,15 @@ static const char *terr_error[]={
     "Wrong type %s",
     "Unknown character $%02x",
     "Not allowed here: %s",
+    "%s\n",
 };
 static const char *terr_fatal[]={
     "Can't locate file: %s\n",
     "Error reading file: %s\n",
-    "Out of memory\n",
     "Can't write object file: %s\n",
     "Line too long\n",
     "Can't write listing file: %s\n",
     "Can't write label file: %s\n",
-    "%s\n",
     "File recursion\n",
     "Macro recursion too deep\n",
     "Unknown CPU: %s\n",
@@ -152,7 +152,7 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
         }
         else {
             snprintf(line,linelength,terr_error[no & 63],prm);
-            if (no==ERROR_BRANCH_TOOFAR || no==ERROR_CONSTNT_LARGE) conderrors++;
+            if (no==ERROR_BRANCH_TOOFAR || no==ERROR_CONSTNT_LARGE || no==ERROR__USER_DEFINED) conderrors++;
             else errors++;
             adderror(line);
         }
@@ -161,11 +161,8 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
         adderror("[**Fatal**] ");
         snprintf(line,linelength,terr_fatal[no & 63],prm);
         adderror(line);
-        if (no==ERROR__USER_DEFINED) conderrors++; else
-        {
-            errors++;
-            status();exit(1);
-        }
+        errors++;
+        status();exit(1);
     }
     adderror("\n");
 }
@@ -205,4 +202,11 @@ void freeerrorlist(int print) {
 void err_destroy(void) {
     free(file_list.data);
     free(error_list.data);
+}
+
+void err_msg_out_of_memory(void) 
+{
+    freeerrorlist(1);
+    fputs("Out of memory error\n", stderr);
+    exit(1);
 }
