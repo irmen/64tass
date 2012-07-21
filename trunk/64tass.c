@@ -293,7 +293,7 @@ static void memjmp(address_t adr) {
     if (memblocks.p>=memblocks.len) {
         memblocks.len+=64;
         memblocks.data=realloc(memblocks.data, memblocks.len*sizeof(*memblocks.data));
-        if (!memblocks.data) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+        if (!memblocks.data) err_msg_out_of_memory();
     }
     memblocks.data[memblocks.p].len = mem.p-memblocklastp;
     memblocks.data[memblocks.p].p = memblocklastp;
@@ -376,7 +376,7 @@ static void pokeb(uint8_t byte)
         if (mem.p>=mem.len) {
             mem.len+=0x1000;
             mem.data=realloc(mem.data, mem.len);
-            if (!mem.data) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+            if (!mem.data) err_msg_out_of_memory();
         }
 	mem.data[mem.p++] = byte ^ outputeor;
     }
@@ -635,7 +635,7 @@ void var_assign(struct label_s *tmp, const struct value_s *val, int fix) {
                 if (tmp->value.u.str.len != val->u.str.len) {
                     tmp->value.u.str.len = val->u.str.len;
                     tmp->value.u.str.data = realloc(tmp->value.u.str.data, val->u.str.len);
-                    if (!tmp->value.u.str.data) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+                    if (!tmp->value.u.str.data) err_msg_out_of_memory();
                 }
                 memcpy(tmp->value.u.str.data, val->u.str.data, val->u.str.len);
             } else {
@@ -671,7 +671,7 @@ static void macro_recurse(char t, struct macro_s *tmp2) {
     if (macro_parameters.p >= macro_parameters.len) {
         macro_parameters.len += 1;
         macro_parameters.params = realloc(macro_parameters.params, sizeof(*macro_parameters.params) * macro_parameters.len);
-        if (!macro_parameters.params) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+        if (!macro_parameters.params) err_msg_out_of_memory();
         macro_parameters.params[macro_parameters.p].param = NULL;
         macro_parameters.params[macro_parameters.p].size = 0;
         macro_parameters.params[macro_parameters.p].pline = malloc(linelength);
@@ -702,7 +702,7 @@ static void macro_recurse(char t, struct macro_s *tmp2) {
                 if (p >= macro_parameters.current->size) {
                     macro_parameters.current->size += 4;
                     macro_parameters.current->param = realloc(macro_parameters.current->param, sizeof(*macro_parameters.current->param) * macro_parameters.current->size);
-                    if (!macro_parameters.current->param) err_msg(ERROR_OUT_OF_MEMORY,NULL);
+                    if (!macro_parameters.current->param) err_msg_out_of_memory();
                 }
                 macro_parameters.current->param[p].data = pline + opoint;
                 npoint = lpoint;

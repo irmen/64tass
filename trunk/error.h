@@ -52,17 +52,16 @@ enum errors_e {
     ERROR____WRONG_TYPE,
     ERROR___UNKNOWN_CHR,
     ERROR___NOT_ALLOWED,
+    ERROR__USER_DEFINED,
     ERROR____PAGE_ERROR,
     ERROR__BRANCH_CROSS,
 
     ERROR_CANT_FINDFILE=0x80,
     ERROR__READING_FILE,
-    ERROR_OUT_OF_MEMORY,
     ERROR_CANT_WRTE_OBJ,
     ERROR_LINE_TOO_LONG,
     ERROR_CANT_DUMP_LST,
     ERROR_CANT_DUMP_LBL,
-    ERROR__USER_DEFINED,
     ERROR_FILERECURSION,
     ERROR__MACRECURSION,
     ERROR___UNKNOWN_CPU,
@@ -78,5 +77,6 @@ extern void freeerrorlist(int);
 extern void enterfile(const char *, line_t);
 extern void exitfile(void);
 extern void err_destroy(void);
+extern void err_msg_out_of_memory(void);
 
 #endif
