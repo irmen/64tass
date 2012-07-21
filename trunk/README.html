@@ -662,7 +662,7 @@ and bank byte (<code>`</code>) operators.</p>
 used to make sure the expected addressing mode is used.</p>
 
 <table border="0">
-<tr><td width="60"><tt>@b</tt><td align="left">to force 8 bit address
+<tr><td width="80"><tt>@b</tt><td align="left">to force 8 bit address
 <tr><td><tt>@w</tt><td align="left">to force 16 bit address
 <tr><td><tt>@l</tt><td align="left">to force 24 bit address (65816)
 </table>
@@ -670,16 +670,22 @@ used to make sure the expected addressing mode is used.</p>
 <p>Boolean operators give 0 or 1 as a result.</p>
 
 <table border="0">
-<tr><td width="60"><tt>x || y</tt><td align="left">or
+<tr><td width="80"><tt>x || y</tt><td align="left">or
 <tr><td><tt>x ^^ y </tt><td align="left">exclusive or
 <tr><td><tt>x &amp;&amp; y</tt><td align="left">and
 <tr><td><tt>!x</tt><td align="left">not
 </table>
 
+<p>The conditional operator gives the first (x) result if c is true or the second (y) if c is false.</p>
+
+<table border="0">
+<tr><td width="80"><tt>c ? x : y</tt><td align="left">ternary
+</table>
+
 <p>Comparison operators result in 1 or 0 depending on the result.</p>
 
 <table border="0">
-<tr><td width="60"><tt>x = y</tt><td align="left">equal
+<tr><td width="80"><tt>x = y</tt><td align="left">equal
 <tr><td><tt>x != y</tt><td align="left">non equal
 <tr><td><tt>x &lt; y</tt><td align="left">less
 <tr><td><tt>x &gt; y</tt><td align="left">more

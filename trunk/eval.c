@@ -247,37 +247,39 @@ static int priority(char ch)
     case 'I':          // a[
     case '[':          // [a]
     case '(':return 0;
-    case ',':return 1;
+    case '?':          // ?
+    case ':':return 1; // :
+    case ',':return 2;
     case 'l':          // <
     case 'h':          // >
     case 'H':          // `
-    case 'S':return 2; // ^
-    case 'O':return 3; // ||
-    case 'X':return 4; // ^^
-    case 'A':return 5; // &&
+    case 'S':return 3; // ^
+    case 'O':return 4; // ||
+    case 'X':return 5; // ^^
+    case 'A':return 6; // &&
     case '=':
     case 'o':          // !=
     case '<':
     case '>':
     case 'g':          // >=
-    case 's':return 6; // <=
-    case '|':return 7;
-    case '^':return 8;
-    case '&':return 9;
+    case 's':return 7; // <=
+    case '|':return 8;
+    case '^':return 9;
+    case '&':return 10;
     case 'm':          // <<
     case 'D':          // >>
-    case 'd':return 10; // >>>
+    case 'd':return 11; // >>>
     case '+':
-    case '-':return 11;
+    case '-':return 12;
     case '*':
     case '/':
-    case '%':return 12;// %
-    case 'E':return 13;// **
-    case '.':return 14;// .
+    case '%':return 13;// %
+    case 'E':return 14;// **
+    case '.':return 15;// .
     case 'n':          // -
-    case 'p':return 15;// +
-    case '~':return 16;// ~
-    case '!':return 17;// !
+    case 'p':return 16;// +
+    case '~':return 17;// ~
+    case '!':return 18;// !
     }
 }
 
@@ -628,6 +630,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     unsigned int epoints[256];
     uint8_t outp = 0, operp = 0, vsp, prec, db;
     int large=0;
+    int cond=0;
     ival_t val;
     enum type_e t1, t2;
     unsigned int epoint;
@@ -729,6 +732,16 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '+': goto push2;
         case '-': goto push2;
         case '.': goto push2;
+        case '?': cond++;goto push2;
+        case ':': 
+            if (!cond) {err_msg(ERROR______EXPECTED,"?"); goto error;}
+            cond--;
+            prec = priority(ch);
+            while (operp && prec <= priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
+            if (o_oper[operp] != '?') {err_msg(ERROR______EXPECTED,"?");goto error;}
+            o_oper[operp++] = ch;
+            lpoint++;
+            continue;
         case '=': if (pline[lpoint+1] == '=') lpoint++;
         push2:
             prec = priority(ch);
@@ -780,6 +793,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case ';': break;
         default: goto syntaxe;
         }
+        if (cond) {err_msg(ERROR______EXPECTED,":"); goto error;}
         if (stop && o_oper[0]=='(') {
             if (!operp) {cd=3;break;}
             if (ch == ',') {
@@ -825,8 +839,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '.':
             {
                 char ident[linelength];
-                v2 = v1; v1 = values[--vsp-1];
+                v2 = v1; vsp--;
                 if (vsp == 0) goto syntaxe;
+                v1 = values[vsp-1];
                 if (v1->val.type == T_NONE) goto errtype;
                 if (v1->val.type == T_IDENT) {
                     copy_name(&v1->val, ident);
@@ -863,6 +878,33 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 }
                 continue;
             }
+        case ':':
+            v2 = v1; vsp--;
+            if (vsp == 0) goto syntaxe;
+            v1 = values[vsp-1]; vsp--;
+            if (vsp == 0) goto syntaxe;
+            switch (try_resolv(&values[vsp-1]->val)) {
+            case T_TSTR: free(values[vsp-1]->val.u.str.data);
+            case T_STR: values[vsp-1]->val = values[vsp-1]->val.u.str.len ? v1->val : v2->val;
+                if ((values[vsp-1]->val.u.str.len ? v2->val.type : v1->val.type) == T_TSTR)
+                    free(values[vsp-1]->val.u.str.len ? v2->val.u.str.data : v1->val.u.str.data);
+                break;
+            case T_UINT:
+            case T_SINT: 
+            case T_NUM: values[vsp-1]->val = values[vsp-1]->val.u.num.val ? v1->val : v2->val;
+                if ((values[vsp-1]->val.u.num.val ? v2->val.type : v1->val.type) == T_TSTR)
+                    free(values[vsp-1]->val.u.num.val ? v2->val.u.str.data : v1->val.u.str.data);
+                break;
+            default: err_msg_wrong_type(values[vsp-1]->val.type, values[vsp-1]->epoint); values[vsp-1]->val.type = T_NONE;
+            case T_NONE: 
+                if (v1->val.type == T_TSTR) free(v1->val.u.str.data);
+                if (v2->val.type == T_TSTR) free(v2->val.u.str.data);
+                break;
+            }
+            continue;
+        case '?':
+            if (vsp == 1) goto syntaxe;
+            continue;
         }
 
         switch (ch) {
