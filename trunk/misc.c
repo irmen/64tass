@@ -86,7 +86,7 @@ static void label_free(const struct avltree_node *aa)
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
     free((char *)a->name);
     avltree_destroy(&a->members);
-    if (a->value.type == T_STR) free(a->value.u.str.data);
+    val_destroy(a->value);
     free(a);
 }
 
@@ -309,6 +309,62 @@ void tinit(void) {
     avltree_init(&jump_tree, jump_compare, jump_free);
 }
 
+static void value_print(struct value_s *value, FILE *flab) {
+    switch (value->type) {
+    case T_NUM:
+        {
+            uval_t val = value->u.num.val;
+            fprintf(flab,"$%" PRIxval, val);
+            break;
+        }
+    case T_UINT:
+        {
+            uval_t val = value->u.num.val;
+            fprintf(flab,"%" PRIuval, val);
+            break;
+        }
+    case T_SINT:
+        {
+            ival_t val = value->u.num.val;
+            fprintf(flab,"%+" PRIdval,val);
+            break;
+        }
+    case T_STR:
+        {
+            size_t val;
+            uint32_t ch;
+            fputc('"', flab);
+            for (val = 0;val < value->u.str.len;) {
+                ch = value->u.str.data[val];
+                if (ch & 0x80) val += utf8in(value->u.str.data + val, &ch); else val++;
+                if (ch < 32 || ch > 127) fprintf(flab,"{$%02x}", ch);
+                else fputc(ch, flab);
+            }
+            fputc('"', flab);
+            break;
+        }
+    case T_LIST:
+        {
+            size_t val;
+            int first = 0;
+            fputc('[', flab);
+            for (val = 0;val < value->u.list.len; val++) {
+                if (first) fputc(',', flab);
+                value_print(value->u.list.data[val], flab);
+                first = 1;
+            }
+            fputc(']', flab);
+            break;
+        }
+    case T_GAP:
+        putc('?', flab);
+        break;
+    default:
+        putc('!', flab);
+        break;
+    }
+}
+
 void labelprint(void) {
     const struct avltree_node *n;
     const struct label_s *l;
@@ -332,53 +388,8 @@ void labelprint(void) {
             case L_STRUCT: continue;
             default: fprintf(flab,"%-16s= ",l->name);break;
             }
-            switch (l->value.type) {
-            case T_NUM:
-                {
-                    uval_t val = l->value.u.num.val;
-                    if (val<0x100) fprintf(flab,"$%02" PRIxval, val);
-                    else if (val<0x10000) fprintf(flab,"$%04" PRIxval, val);
-                    else if (val<0x1000000) fprintf(flab,"$%06" PRIxval, val);
-                    else fprintf(flab,"$%08" PRIxval, val);
-                    if (l->pass<pass) {
-                        if (val<0x100) fputs("  ", flab);
-                        if (val<0x10000) fputs("  ", flab);
-                        if (val<0x1000000) fputs("  ", flab);
-                        fputs("; *** unused", flab);
-                    }
-                    break;
-                }
-            case T_UINT:
-                {
-                    uval_t val = l->value.u.num.val;
-                    fprintf(flab,"%" PRIuval, val);
-                    if (l->pass<pass) fputs("; *** unused", flab);
-                    break;
-                }
-            case T_SINT:
-                {
-                    ival_t val = l->value.u.num.val;
-                    fprintf(flab,"%+" PRIdval,val);
-                    if (l->pass<pass) fputs("; *** unused", flab);
-                    break;
-                }
-            case T_STR:
-                {
-                    size_t val;
-                    fputc('"', flab);
-                    for (val=0;val<l->value.u.str.len;val++) {
-                        fprintf(flab,"{$%02x}", l->value.u.str.data[val]);
-                    }
-                    fputc('"', flab);
-                    if (l->pass<pass) {
-                        fputs("; *** unused", flab);
-                    }
-                    break;
-                }
-            default:
-                putc('?', flab);
-                break;
-            }
+            value_print(l->value, flab);
+            if (l->pass<pass) fputs("; *** unused", flab);
             putc('\n', flab);
         }
 	if (flab != stdout) fclose(flab);
@@ -567,4 +578,95 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
               "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);exit(1);
     }
     return optind;
+}
+
+static void val_destroy2(struct value_s *val) {
+    switch (val->type) {
+    case T_STR: free(val->u.str.data); break;
+    case T_LIST: 
+        while (val->u.list.len) val_destroy(val->u.list.data[--val->u.list.len]);
+        free(val->u.list.data);
+    default:
+        break;
+    }
+}
+
+void val_destroy(struct value_s *val) {
+    if (!val->refcount) return;
+    if (val->refcount == 1) {
+        val_destroy2(val);
+        free(val);
+    } else val->refcount--;
+}
+
+
+static void val_copy2(struct value_s *val, const struct value_s *val2) {
+    *val = *val2;
+    val->refcount = 1;
+    switch (val2->type) {
+    case T_STR: 
+        val->u.str.data = malloc(val2->u.str.len);
+        if (!val->u.str.data) err_msg_out_of_memory();
+        memcpy(val->u.str.data, val2->u.str.data, val2->u.str.len);
+        break;
+    case T_LIST:
+        val->u.list.data = malloc(val2->u.list.len * sizeof(struct value_s));
+        if (!val->u.list.data) err_msg_out_of_memory();
+        for (val->u.list.len = 0; val->u.list.len < val2->u.list.len; val->u.list.len++)
+            val->u.list.data[val->u.list.len] = val_reference(val2->u.list.data[val->u.list.len]);
+    default:
+        break;
+    }
+}
+
+static struct value_s *val_copy(const struct value_s *val2) {
+    struct value_s *val = malloc(sizeof(struct value_s));
+    if (!val) err_msg_out_of_memory();
+    val_copy2(val, val2);
+    return val;
+}
+
+void val_replace(struct value_s **val, struct value_s *val2) {
+    if (*val == val2) return;
+    if (val[0]->refcount == 1 && val2->refcount == 0) {
+        val_destroy2(*val);
+        val_copy2(*val, val2);
+        return;
+    }
+    val_destroy(*val);
+    *val = val_reference(val2);
+}
+
+struct value_s *val_reference(struct value_s *val2) {
+    if (val2->refcount) {val2->refcount++;return val2;}
+    return val_copy(val2);
+}
+
+int val_equal(const struct value_s *val, const struct value_s *val2) {
+    size_t i;
+
+    switch (val->type) {
+    case T_SINT:
+    case T_UINT:
+    case T_NUM:
+        return val->type == val2->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
+    case T_STR: 
+        return val->type == val2->type && val->u.str.len == val2->u.str.len && (
+                    val->u.str.data == val2->u.str.data ||
+                !memcmp(val->u.str.data, val2->u.str.data, val2->u.str.len));
+    case T_LIST:
+        if (val2->type == T_LIST) {
+            if (val->u.list.len != val2->u.list.len) return 0;
+            for (i = 0; i < val->u.list.len; i++) 
+                if (!val_equal(val->u.list.data[i], val2->u.list.data[i])) return 0;
+            return 1;
+        }
+        break;
+    case T_NONE:
+    case T_GAP:
+        return val->type == val2->type;
+    default: /* not possible here */
+        exit(2);
+    }
+    return 0;
 }

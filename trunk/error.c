@@ -187,7 +187,6 @@ void err_msg_wrong_type(enum type_e type, unsigned int epoint) {
     case T_SINT: name = "<sint>";break;
     case T_UINT: name = "<uint>";break;
     case T_NUM: name = "<num>";break;
-    case T_TSTR:
     case T_STR: name = "<string>";break;
     case T_UNDEF: err_msg2(ERROR___NOT_DEFINED, "", epoint);return;
     case T_IDENT: name = "<ident>";break;
@@ -196,8 +195,8 @@ void err_msg_wrong_type(enum type_e type, unsigned int epoint) {
     case T_BACKR: name = "<backr>";break;
     case T_FORWR: name = "<forwr>";break;
     case T_OPER: name = "<operator>";break;
-    case T_FUNC: name = "<function>";break;
     case T_GAP: name = "<uninit>";break;
+    case T_LIST: name = "<list>";break;
     }
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
 }
@@ -230,7 +229,6 @@ void err_msg_variable(struct value_s *val) {
         else sprintf(buffer,"$%08" PRIxval, val->u.num.val);
         add_user_error(buffer); break;
     }
-    case T_TSTR:
     case T_STR: add_user_error2(val->u.str.data, val->u.str.len);break;
     case T_UNDEF: add_user_error("<undefined>");break;
     case T_IDENT: add_user_error("<ident>");break;
@@ -239,8 +237,8 @@ void err_msg_variable(struct value_s *val) {
     case T_BACKR: add_user_error("<backr>");break;
     case T_FORWR: add_user_error("<forwr>");break;
     case T_OPER: add_user_error("<operator>");break;
-    case T_FUNC: add_user_error("<function>");break;
     case T_GAP: add_user_error("<uninit>");break;
+    case T_LIST: add_user_error("<list>");break;
     }
 }
 

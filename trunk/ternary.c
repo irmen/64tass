@@ -105,14 +105,17 @@ void ternary_cleanup (ternary_tree p)
 }
 
 /* Non-recursive find of a string in the ternary tree */
-void *ternary_search (const ternary_node *p, const char *s)
+void *ternary_search (const ternary_node *p, const char *s, const char *end)
 {
   const ternary_node *curr;
   int32_t diff;
   uint32_t spchar;
   const ternary_node *last = NULL, *last2 = NULL;
-  spchar = *s;
-  if (spchar & 0x80) s += utf8in((uint8_t *)s, &spchar); else s++;
+  if (s == end) spchar = 0;
+  else {
+      spchar = *s;
+      if (spchar & 0x80) s += utf8in((uint8_t *)s, &spchar); else s++;
+  }
   curr = p;
   /* Loop while we haven't hit a NULL node or returned */
   while (curr)
@@ -126,8 +129,11 @@ void *ternary_search (const ternary_node *p, const char *s)
 	{
 	  if (spchar == 0)
 	    return (void *) curr->eqkid;
-          spchar = *s;
-          if (spchar & 0x80) s += utf8in((uint8_t *)s, &spchar); else s++;
+          if (s == end) spchar = 0;
+          else {
+              spchar = *s;
+              if (spchar & 0x80) s += utf8in((uint8_t *)s, &spchar); else s++;
+          }
 	  curr = curr->eqkid;
 	}
       /* Handle the less than case */

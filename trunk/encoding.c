@@ -590,11 +590,11 @@ struct escape_s *new_escape(char *text, uint8_t code, struct encoding_s *enc)
     return b;            //already exists
 }
 
-uint32_t find_escape(char *text, struct encoding_s *enc)
+uint32_t find_escape(char *text, char *end, struct encoding_s *enc)
 {
     struct escape_s *t;
 
-    t = ternary_search(enc->escape, text);
+    t = ternary_search(enc->escape, text, end);
     if (!t) return 0;
 
     return t->code | (t->len << 8);
