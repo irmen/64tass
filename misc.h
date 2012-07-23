@@ -41,11 +41,13 @@ typedef uint32_t uval_t;
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 enum type_e {
-    T_NONE, T_NUM, T_UINT, T_SINT, T_STR, T_TSTR, T_GAP, T_IDENT, T_FUNC, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER
+    T_NONE, T_NUM, T_UINT, T_SINT, T_STR, T_GAP, T_IDENT, T_IDENTREF,
+    T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_LIST,
 };
 
 struct value_s {
     enum type_e type;
+    size_t refcount;
     union {
         struct {
             uint8_t len;
@@ -59,6 +61,10 @@ struct value_s {
             size_t len;
             const uint8_t *name;
         } ident;
+        struct {
+            size_t len;
+            struct value_s **data;
+        } list;
         struct label_s *label;
         char oper;
         uint8_t ref;
@@ -74,7 +80,7 @@ struct label_s {
     enum label_e type;
     struct avltree_node node;
 
-    struct value_s value;
+    struct value_s *value;
     size_t size;
     uval_t requires;
     uval_t conflicts;
@@ -161,4 +167,8 @@ extern unsigned int utf8in(const uint8_t *, uint32_t *);
 extern uint8_t *utf8out(uint32_t, uint8_t *);
 extern struct encoding_s *actual_encoding;
 
+extern void val_destroy(struct value_s *);
+extern void val_replace(struct value_s **, struct value_s *);
+extern int val_equal(const struct value_s *, const struct value_s *);
+extern struct value_s *val_reference(struct value_s *);
 #endif
