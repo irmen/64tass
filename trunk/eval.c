@@ -949,21 +949,17 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 if (vsp == 0) goto syntaxe;
                 v1 = &values[vsp-1];
                 if (v1->val->type == T_NONE) goto errtype;
-                if (v1->val->type == T_IDENT) {
-                    copy_name(v1->val, ident);
-                    v1->val->u.label = find_label(ident);
-                    v1->val->type = touch_label(v1->val->u.label);
-                    if (v1->val->type == T_UNDEF && pass == 1) goto errtype;
-                }
+                try_resolv_ident(&v1->val);
                 if (v1->val->type == T_IDENTREF) {
                     if (v2->val->type == T_IDENT) {
                         copy_name(v2->val, ident);
-                        v1->val->u.label = find_label2(ident, &v1->val->u.label->members);
-                        v1->val->type = touch_label(v1->val->u.label);
+                        new_value.u.label = find_label2(ident, &v1->val->u.label->members);
+                        new_value.type = touch_label(new_value.u.label);
+                        val_replace(&v1->val, &new_value);
                         v1->epoint=v2->epoint;
                         continue;
                     } else err_msg_wrong_type(v2->val->type, v2->epoint);
-                } else err_msg_wrong_type(v1->val->type, v1->epoint);
+                } else if (v1->val->type != T_UNDEF || pass != 1) err_msg_wrong_type(v1->val->type, v1->epoint);
                 goto errtype;
             }
         case 'F':
