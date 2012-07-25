@@ -656,18 +656,20 @@ static void indexes(struct values_s *vals, unsigned int args) {
             case T_SINT:
             case T_NUM:
                 {
+                    struct value_s *val;
                     if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
-                        if ((uval_t)v[0].val->u.num.val < v[0].val->u.list.len) val_replace(&v[0].val, v[0].val->u.list.data[(uval_t)v[0].val->u.num.val]);
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&v[0].val, &none_value);}
+                        if ((uval_t)v[0].val->u.num.val < vals->val->u.list.len) val = val_reference(vals->val->u.list.data[(uval_t)v[0].val->u.num.val]);
+                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val = &none_value;}
                     } else {
-                        if ((uval_t)-v[0].val->u.num.val <= v[0].val->u.list.len) val_replace(&v[0].val, v[0].val->u.list.data[vals->val->u.list.len + v[0].val->u.num.val]);
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&v[0].val, &none_value);}
+                        if ((uval_t)-v[0].val->u.num.val <= vals->val->u.list.len) val = val_reference(vals->val->u.list.data[vals->val->u.list.len + v[0].val->u.num.val]);
+                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val = &none_value;}
                     }
+                    val_replace(&vals->val, val); val_destroy(val);
                 }
                 return;
             default: err_msg_wrong_type(v[0].val->type, v[0].epoint);
             case T_NONE: 
-                     val_replace(&v[0].val, &none_value);
+                     val_replace(&vals->val, &none_value);
                      return;
             }
         break;
@@ -690,7 +692,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
         }
 #endif
     default: err_msg_wrong_type(vals->val->type, vals->epoint);
-             val_replace(&v[0].val, &none_value);
+             val_replace(&vals->val, &none_value);
     case T_NONE: return;
     }
     return;
