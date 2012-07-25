@@ -42,6 +42,7 @@
 #include "section.h"
 #include "encoding.h"
 #include "file.h"
+#include "values.h"
 
 static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes

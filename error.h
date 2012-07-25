@@ -19,6 +19,7 @@
 #define _ERROR_H_
 #include <stdint.h>
 #include "misc.h"
+#include "values.h"
 
 extern unsigned int errors, conderrors, warnings;
 
