@@ -18,6 +18,8 @@
 #ifndef _MISC_H_
 #define _MISC_H_
 #include "libtree.h"
+#include "values.h"
+#include <stddef.h>
 #include <stdint.h>
 #include <inttypes.h>
 #define VERSION "1.46"
@@ -32,44 +34,8 @@ typedef uint_fast32_t line_t;
 #define PRIxline PRIxFAST32
 typedef uint_fast32_t address_t;
 #define PRIaddress PRIxFAST32
-typedef int32_t ival_t;
-#define PRIdval PRId32
-typedef uint32_t uval_t;
-#define PRIxval PRIx32
-#define PRIuval PRIu32
 
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
-
-enum type_e {
-    T_NONE, T_NUM, T_UINT, T_SINT, T_STR, T_GAP, T_IDENT, T_IDENTREF,
-    T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_LIST,
-};
-
-struct value_s {
-    enum type_e type;
-    size_t refcount;
-    union {
-        struct {
-            uint8_t len;
-            ival_t val;
-        } num;
-        struct {
-            size_t len;
-            uint8_t *data;
-        } str;
-        struct {
-            size_t len;
-            const uint8_t *name;
-        } ident;
-        struct {
-            size_t len;
-            struct value_s **data;
-        } list;
-        struct label_s *label;
-        char oper;
-        uint8_t ref;
-    } u;
-};
 
 enum label_e {
     L_LABEL, L_CONST, L_VAR, L_STRUCT, L_UNION
@@ -167,8 +133,4 @@ extern unsigned int utf8in(const uint8_t *, uint32_t *);
 extern uint8_t *utf8out(uint32_t, uint8_t *);
 extern struct encoding_s *actual_encoding;
 
-extern void val_destroy(struct value_s *);
-extern void val_replace(struct value_s **, struct value_s *);
-extern int val_equal(const struct value_s *, const struct value_s *);
-extern struct value_s *val_reference(struct value_s *);
 #endif

@@ -1,6 +1,7 @@
 #ifndef EVAL_H
 #define EVAL_H
 #include "misc.h"
+#include "values.h"
 extern int get_exp(int *wd, int);
 extern struct value_s *get_val(enum type_e, unsigned int *);
 extern void free_values(void);

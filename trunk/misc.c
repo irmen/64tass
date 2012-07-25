@@ -296,6 +296,7 @@ void tfree(void) {
     destroy_file();
     err_destroy();
     destroy_encoding();
+    destroy_values();
 }
 
 void tinit(void) {
@@ -304,6 +305,7 @@ void tinit(void) {
     root_label.name = NULL;
     init_section();
     init_file();
+    init_values();
     avltree_init(&root_label.members, label_compare, label_free);
     avltree_init(&macro_tree, macro_compare, macro_free);
     avltree_init(&jump_tree, jump_compare, jump_free);
@@ -578,95 +580,4 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
               "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);exit(1);
     }
     return optind;
-}
-
-static void val_destroy2(struct value_s *val) {
-    switch (val->type) {
-    case T_STR: free(val->u.str.data); break;
-    case T_LIST: 
-        while (val->u.list.len) val_destroy(val->u.list.data[--val->u.list.len]);
-        free(val->u.list.data);
-    default:
-        break;
-    }
-}
-
-void val_destroy(struct value_s *val) {
-    if (!val->refcount) return;
-    if (val->refcount == 1) {
-        val_destroy2(val);
-        free(val);
-    } else val->refcount--;
-}
-
-
-static void val_copy2(struct value_s *val, const struct value_s *val2) {
-    *val = *val2;
-    val->refcount = 1;
-    switch (val2->type) {
-    case T_STR: 
-        val->u.str.data = malloc(val2->u.str.len);
-        if (!val->u.str.data) err_msg_out_of_memory();
-        memcpy(val->u.str.data, val2->u.str.data, val2->u.str.len);
-        break;
-    case T_LIST:
-        val->u.list.data = malloc(val2->u.list.len * sizeof(struct value_s));
-        if (!val->u.list.data) err_msg_out_of_memory();
-        for (val->u.list.len = 0; val->u.list.len < val2->u.list.len; val->u.list.len++)
-            val->u.list.data[val->u.list.len] = val_reference(val2->u.list.data[val->u.list.len]);
-    default:
-        break;
-    }
-}
-
-static struct value_s *val_copy(const struct value_s *val2) {
-    struct value_s *val = malloc(sizeof(struct value_s));
-    if (!val) err_msg_out_of_memory();
-    val_copy2(val, val2);
-    return val;
-}
-
-void val_replace(struct value_s **val, struct value_s *val2) {
-    if (*val == val2) return;
-    if (val[0]->refcount == 1 && val2->refcount == 0) {
-        val_destroy2(*val);
-        val_copy2(*val, val2);
-        return;
-    }
-    val_destroy(*val);
-    *val = val_reference(val2);
-}
-
-struct value_s *val_reference(struct value_s *val2) {
-    if (val2->refcount) {val2->refcount++;return val2;}
-    return val_copy(val2);
-}
-
-int val_equal(const struct value_s *val, const struct value_s *val2) {
-    size_t i;
-
-    switch (val->type) {
-    case T_SINT:
-    case T_UINT:
-    case T_NUM:
-        return val->type == val2->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
-    case T_STR: 
-        return val->type == val2->type && val->u.str.len == val2->u.str.len && (
-                    val->u.str.data == val2->u.str.data ||
-                !memcmp(val->u.str.data, val2->u.str.data, val2->u.str.len));
-    case T_LIST:
-        if (val2->type == T_LIST) {
-            if (val->u.list.len != val2->u.list.len) return 0;
-            for (i = 0; i < val->u.list.len; i++) 
-                if (!val_equal(val->u.list.data[i], val2->u.list.data[i])) return 0;
-            return 1;
-        }
-        break;
-    case T_NONE:
-    case T_GAP:
-        return val->type == val2->type;
-    default: /* not possible here */
-        exit(2);
-    }
-    return 0;
 }
