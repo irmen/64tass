@@ -969,7 +969,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             {
                 unsigned int args = 0;
                 ch = (ch == 'F') ? '(' : '[';
-                while (v1->val->type != T_OPER && v1->val->u.oper != ch) {
+                while (v1->val->type != T_OPER || v1->val->u.oper != ch) {
                     args++;
                     v1 = &values[vsp-1-args];
                 }
