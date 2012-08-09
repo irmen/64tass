@@ -63,6 +63,6 @@ extern void val_replace(struct value_s **, struct value_s *);
 extern int val_equal(const struct value_s *, const struct value_s *);
 extern struct value_s *val_reference(struct value_s *);
 
-void destroy_values(void);
-void init_values(void);
+extern void destroy_values(void);
+extern void init_values(void);
 #endif

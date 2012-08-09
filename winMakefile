@@ -9,18 +9,19 @@ CFLAGS += $(LDFLAGS)
 
 64tass: $(OBJ)
 
-64tass.o: 64tass.c opcodes.h misc.h libtree.h values.h eval.h error.h section.h encoding.h file.h
+64tass.o: 64tass.c opcodes.h misc.h libtree.h values.h variables.h eval.h error.h section.h encoding.h file.h
 avl.o: avl.c libtree.h
-encoding.o: encoding.c encoding.h libtree.h error.h misc.h values.h ternary.h
-error.o: error.c error.h misc.h libtree.h values.h
-eval.o: eval.c eval.h misc.h libtree.h values.h file.h error.h section.h encoding.h
-file.o: file.c file.h libtree.h misc.h values.h error.h
-misc.o: misc.c libtree.h misc.h values.h opcodes.h getopt.h my_getopt.h error.h section.h encoding.h file.h
+encoding.o: encoding.c encoding.h libtree.h error.h misc.h values.h variables.h ternary.h
+error.o: error.c error.h misc.h libtree.h values.h variables.h
+eval.o: eval.c eval.h misc.h libtree.h values.h variables.h file.h error.h section.h encoding.h
+file.o: file.c file.h libtree.h misc.h values.h variables.h error.h
+misc.o: misc.c libtree.h misc.h values.h variables.h opcodes.h getopt.h my_getopt.h error.h section.h encoding.h file.h
 my_getopt.o: my_getopt.c my_getopt.h
 opcodes.o: opcodes.c opcodes.h
-section.o: section.c section.h libtree.h misc.h values.h error.h
-ternary.o: ternary.c ternary.h misc.h libtree.h values.h
-values.o: values.c values.h error.h misc.h libtree.h
+section.o: section.c section.h libtree.h misc.h values.h variables.h error.h
+ternary.o: ternary.c ternary.h misc.h libtree.h values.h variables.h
+values.o: values.c values.h error.h misc.h libtree.h variables.h
+variables.o: variables.c variables.h values.h libtree.h error.h misc.h
 
 .PHONY: clean
 
