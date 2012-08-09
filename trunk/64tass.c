@@ -43,6 +43,7 @@
 #include "encoding.h"
 #include "file.h"
 #include "values.h"
+#include "variables.h"
 
 static const char *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes

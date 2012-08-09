@@ -19,6 +19,7 @@
 #define _MISC_H_
 #include "libtree.h"
 #include "values.h"
+#include "variables.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -36,27 +37,6 @@ typedef uint_fast32_t address_t;
 #define PRIaddress PRIxFAST32
 
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
-
-enum label_e {
-    L_LABEL, L_CONST, L_VAR, L_STRUCT, L_UNION
-};
-
-struct label_s {
-    const char *name;
-    enum label_e type;
-    struct avltree_node node;
-
-    struct value_s *value;
-    size_t size;
-    uval_t requires;
-    uval_t conflicts;
-    unsigned ref:1;
-    uint8_t esize;
-    uint8_t pass;
-    uint8_t upass;
-    struct label_s *parent;
-    struct avltree members;
-};
 
 struct macro_s {
     const char *name;
@@ -114,9 +94,6 @@ extern uint8_t pass;
 #define linelength 4096
 
 extern const uint8_t whatis[256];
-extern struct label_s *find_label(const char*);
-extern struct label_s *find_label2(const char*, const struct avltree *);
-extern struct label_s *new_label(const char*, enum label_e);
 extern struct section_s *new_section(const char*);
 extern struct section_s *find_section(const char*);
 extern struct macro_s *find_macro(const char*);
@@ -128,7 +105,6 @@ extern void tinit(void);
 extern void labelprint(void);
 extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
-extern struct label_s *current_context, root_label;
 extern unsigned int utf8in(const uint8_t *, uint32_t *);
 extern uint8_t *utf8out(uint32_t, uint8_t *);
 extern struct encoding_s *actual_encoding;
