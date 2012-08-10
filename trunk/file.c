@@ -19,7 +19,6 @@
 #include "error.h"
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 static struct avltree file_tree;
 

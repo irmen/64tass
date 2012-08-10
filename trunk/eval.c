@@ -16,10 +16,9 @@
 
 */
 
+#include "eval.h"
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include "eval.h"
 #include "file.h"
 #include "error.h"
 #include "section.h"

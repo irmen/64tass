@@ -15,9 +15,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
+#include "section.h"
 #include <stdlib.h>
 #include <string.h>
-#include "section.h"
 #include "error.h"
 
 struct section_s root_section;

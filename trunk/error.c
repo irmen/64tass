@@ -15,11 +15,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include "error.h"
+#include <stdlib.h>
+#include <string.h>
 #include "misc.h"
 
 unsigned int errors=0,conderrors=0,warnings=0;

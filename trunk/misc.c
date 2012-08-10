@@ -18,18 +18,15 @@
 
 #define _MISC_C_
 #define _GNU_SOURCE
-#include <stdio.h>
+#include "misc.h"
 #include <stdlib.h>
 #include <string.h>
-#include "libtree.h"
-#include "misc.h"
 #include "opcodes.h"
 #include "getopt.h"
 #include "error.h"
 #include "section.h"
 #include "encoding.h"
 #include "file.h"
-#include "values.h"
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,"a.out",OPCODES_6502,NULL,NULL};
 
