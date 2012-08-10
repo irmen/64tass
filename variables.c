@@ -15,9 +15,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
+#include "variables.h"
 #include <stdlib.h>
 #include <string.h>
-#include "variables.h"
 #include "error.h"
 
 struct label_s root_label;
