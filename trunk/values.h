@@ -19,6 +19,7 @@
 #define _VALUES_H_
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <inttypes.h>
 
 typedef int32_t ival_t;
@@ -62,6 +63,7 @@ extern void val_destroy(struct value_s *);
 extern void val_replace(struct value_s **, struct value_s *);
 extern int val_equal(const struct value_s *, const struct value_s *);
 extern struct value_s *val_reference(struct value_s *);
+extern void val_print(struct value_s *, FILE *);
 
 extern void destroy_values(void);
 extern void init_values(void);
