@@ -29,6 +29,7 @@
 #include "section.h"
 #include "encoding.h"
 #include "file.h"
+#include "values.h"
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,"a.out",OPCODES_6502,NULL,NULL};
 
@@ -242,62 +243,6 @@ void tinit(void) {
     avltree_init(&jump_tree, jump_compare, jump_free);
 }
 
-static void value_print(struct value_s *value, FILE *flab) {
-    switch (value->type) {
-    case T_NUM:
-        {
-            uval_t val = value->u.num.val;
-            fprintf(flab,"$%" PRIxval, val);
-            break;
-        }
-    case T_UINT:
-        {
-            uval_t val = value->u.num.val;
-            fprintf(flab,"%" PRIuval, val);
-            break;
-        }
-    case T_SINT:
-        {
-            ival_t val = value->u.num.val;
-            fprintf(flab,"%+" PRIdval,val);
-            break;
-        }
-    case T_STR:
-        {
-            size_t val;
-            uint32_t ch;
-            fputc('"', flab);
-            for (val = 0;val < value->u.str.len;) {
-                ch = value->u.str.data[val];
-                if (ch & 0x80) val += utf8in(value->u.str.data + val, &ch); else val++;
-                if (ch < 32 || ch > 127) fprintf(flab,"{$%02x}", ch);
-                else fputc(ch, flab);
-            }
-            fputc('"', flab);
-            break;
-        }
-    case T_LIST:
-        {
-            size_t val;
-            int first = 0;
-            fputc('[', flab);
-            for (val = 0;val < value->u.list.len; val++) {
-                if (first) fputc(',', flab);
-                value_print(value->u.list.data[val], flab);
-                first = 1;
-            }
-            fputc(']', flab);
-            break;
-        }
-    case T_GAP:
-        putc('?', flab);
-        break;
-    default:
-        putc('!', flab);
-        break;
-    }
-}
-
 void labelprint(void) {
     const struct avltree_node *n;
     const struct label_s *l;
@@ -321,7 +266,7 @@ void labelprint(void) {
             case L_STRUCT: continue;
             default: fprintf(flab,"%-16s= ",l->name);break;
             }
-            value_print(l->value, flab);
+            val_print(l->value, flab);
             if (l->pass<pass) fputs("; *** unused", flab);
             putc('\n', flab);
         }

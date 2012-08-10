@@ -147,6 +147,53 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
     return 0;
 }
 
+void val_print(struct value_s *value, FILE *flab) {
+    switch (value->type) {
+    case T_NUM:
+        fprintf(flab,"$%" PRIxval, (uval_t)value->u.num.val);
+        break;
+    case T_UINT:
+        fprintf(flab,"%" PRIuval, (uval_t)value->u.num.val);
+        break;
+    case T_SINT:
+        fprintf(flab,"%+" PRIdval, (ival_t)value->u.num.val);
+        break;
+    case T_STR:
+        {
+            size_t val;
+            uint32_t ch;
+            fputc('"', flab);
+            for (val = 0;val < value->u.str.len;) {
+                ch = value->u.str.data[val];
+                if (ch & 0x80) val += utf8in(value->u.str.data + val, &ch); else val++;
+                if (ch < 32 || ch > 127) fprintf(flab,"{$%02x}", ch);
+                else fputc(ch, flab);
+            }
+            fputc('"', flab);
+            break;
+        }
+    case T_LIST:
+        {
+            size_t val;
+            int first = 0;
+            fputc('[', flab);
+            for (val = 0;val < value->u.list.len; val++) {
+                if (first) fputc(',', flab);
+                val_print(value->u.list.data[val], flab);
+                first = 1;
+            }
+            fputc(']', flab);
+            break;
+        }
+    case T_GAP:
+        putc('?', flab);
+        break;
+    default:
+        putc('!', flab);
+        break;
+    }
+}
+
 void init_values(void)
 {
     size_t i;
