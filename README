@@ -1,37 +1,20 @@
-64tass v1.46 manual
+64tass v1.5x manual
 
 Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
 BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
 optimizations, multi pass compile and a lot of features by Soci/Singular.
-Improved TASS compatibility, petscii codes by Groepaz. my_getopt command-line
-argument parser by Benjamin Sittler.
+Improved TASS compatibility, petscii codes by Groepaz.
+
+Additional code: my_getopt command-line argument parser by Benjamin Sittler,
+avl tree code by Franck Bui-Huu, ternary tree code by Daniel Berlin.
 
 Syntax is the same as the well known Turbo Assembler on c64, so you can port
 your sources easy by only replacing the CR at the end of each line.
 
 Maintainer: soci at c64.rulez.org
 
-V1.43:
-    Added 8 alias illegal opcodes, and fixed addressing mode of shx and shy.
-V1.44:
-    Added experimental CPU64 support, local label bugfix, message cache, nop
-    illegal addressing modes, .warn, lot of listing improvements, .enc,
-    performance improvement for win32, .binary fix for win32
-V1.45:
-    Added .rta, .char, .int, .null, .shift, .elsif, .cerror, .cwarn, .align,
-    and .cpu, nested conditional compile bugfix, added .ifeq, .ifne, .ifpl,
-    .ifmi and .endif for compatibility, label list fixes, offset and maximum
-    size for .binary, anonymous forward and backward reference (+-), initial
-    65DTV02 support (needs more info), added missing 65c02 opcodes.
-V1.45c:
-    Compile fixes for SunOs and other non-GNU systems. (no stdint.h there...)
-V1.46:
-    Bank byte operator, label before conditional compile instruction bugfix cop
-    # and brk # fix, empty macro parameter fix, added .long, some constant too
-    large bugfix, jmp/jsr ($ffff,x) must be in the same bank, now .cerror and
-    .cwarn accepts parameter, upper byte of negative number correct now
-V1.46+:
-    .shiftl and .option added, .ptext added, removed CPU64 support
+This is a development version, features or syntax may change over time. Not
+everything is backwards compatible.
 
 -------------------------------------------------------------------------------
 
@@ -47,33 +30,44 @@ There are also some useful parameters which are described later.
 For comfortable compiling I use such `Makefile's (for make):
 
 demo.prg: source.asm makros.asm pic.drp music.bin
-        64tass -C -a -B -i source.asm -o demo.prg
-
-This way demo.prg is recreated whenever source.asm, makros.asm, pic.drp or
-music.bin had changed. For cross development with VICE here's another Makefile
-example:
-
-demo.prg: source.asm makros.asm pic.drp music.bin
         64tass -C -a -B -i source.asm -o demo.tmp
         pucrunch -ffast -x 2048 demo.tmp >demo.prg
-        killall x64 || true
-        x64 demo.prg
+
+This way `demo.prg' is recreated by compiling `source.asm' whenever
+`source.asm', `makros.asm', `pic.drp' or `music.bin' had changed.
 
 Of course it's not much harder to create something similar for win32
-(make.bat):
+(make.bat), however this will always compile and compress:
 
 64tass.exe -C -a -B -i source.asm -o demo.tmp
 pucrunch.exe -ffast -x 2048 demo.tmp >demo.prg
-x64.exe demo.prg
+
+Here's a slightly more advanced Makefile example with default action as testing
+in VICE, clean target for removal of temporary files and compressing using an
+intermediate temporary file:
+
+all: demo.prg
+        x64 -autostartprgmode 1 -autostart-warp +truedrive +cart $<
+
+demo.prg: demo.tmp
+        pucrunch -ffast -x 2048 $< >$@
+
+demo.tmp: source.asm makros.asm pic.drp music.bin
+        64tass -C -a -B -i $< -o $@
+
+.INTERMEDIATE: demo.tmp
+.PHONY: all clean
+clean:
+        $(RM) demo.prg demo.tmp
 
 Another useful thing is to add a basic header to your source files like the one
 below, so that the resulting file is directly runnable without additional
 compression:
 
         *= $0801
-        .word ss, 2005   ;pointer, line number
+        .word (+), 2005   ;pointer, line number
         .null $9e, ^start;will be sys 4096
-ss      .word 0          ;basic line end
++       .word 0          ;basic line end
 
         *= $1000
 
@@ -426,7 +420,7 @@ using the .cpu directive in the source.
 
         result (list.txt):
 
-        ;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
+        ;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
         ;done on Fri Dec  9 19:08:55 2005
 
 
@@ -448,7 +442,7 @@ using the .cpu directive in the source.
 
         result (list.txt):
 
-        ;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
+        ;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
         ;done on Fri Dec  9 19:11:43 2005
 
 
@@ -470,7 +464,7 @@ using the .cpu directive in the source.
 
         result (list.txt):
 
-        ;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
+        ;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
         ;done on Fri Dec  9 19:13:25 2005
 
 
@@ -499,7 +493,7 @@ using the .cpu directive in the source.
         Prints program version.
 
     ---------------------------------------------------------------------------
-   
+
     Labels
 
     Normal labels can be defined at the start of each line and hold the logical
@@ -660,7 +654,7 @@ using the .cpu directive in the source.
     +x       unchanged
 
     ---------------------------------------------------------------------------
-   
+
     Compiler directives:
 
     Controlling the program counter
@@ -669,17 +663,17 @@ using the .cpu directive in the source.
     the other one called logical address, and it's what the labels will be set
     or what the special star label gets when referenced.
 
-    *=
+    *= <expression>
         Set both compile address and logical address
 
                 *= $1000
 
-    .offs
+    .offs <expression>
         Add a compile offset to logical address.
 
                 .offs 100
 
-    .logical
+    .logical <expression>
     .here
         Changes logical address. Can be nested.
 
@@ -690,7 +684,7 @@ using the .cpu directive in the source.
                 rts
                 .here
 
-    .align
+    .align <modulo>[, <fill>]
         Align code to a dividable address by skip or fill
 
                 .align $100
@@ -700,7 +694,7 @@ using the .cpu directive in the source.
 
     Dumping data
 
-    .text
+    .text <expression>[, <expression>, ...]
         Include constants and strings:
 
                 .text "oeU"     ; text, "" means $22
@@ -709,18 +703,18 @@ using the .cpu directive in the source.
                 .text %00011111 ; more bytes
                 .text ^OEU      ; the decimal value as string (^23 is $32,$33)
 
-    .byte
+    .byte <expression>[, <expression>, ...]
         Include 8 bit unsigned byte constants
 
                 .byte 255       ; $ff
                 .byte ?         ; reserve 1 byte of space
 
-    .char
+    .char <expression>[, <expression>, ...]
         Include 8 bit signed integer constants
 
                 .char -33, 57
 
-    .shift
+    .shift <expression>[, <expression>, ...]
         Same as .text, but the last byte will have highest bit set. Any
         character which already has the most significiant bit set will cause an
         error.
@@ -736,7 +730,7 @@ using the .cpu directive in the source.
                 rts
         txt     .shift "some text"
 
-    .shiftl
+    .shiftl <expression>[, <expression>, ...]
         Same as .text, but all bytes are shifted to left, and the last
         character gets the lowest bit set. Any character which already has the
         most significiant bit set will cause an error as this would be cut off.
@@ -752,7 +746,7 @@ using the .cpu directive in the source.
         txt     .shiftl "some text"
                 .enc none
 
-    .null
+    .null <expression>[, <expression>, ...]
         Same as .text, but adds a null at the end, null in string is an error
 
         txt     .text "lot of stuff"
@@ -761,7 +755,7 @@ using the .cpu directive in the source.
                 ldy #>txt
                 jsr $ab1e
 
-    .ptext
+    .ptext <expression>[, <expression>, ...]
         Same as .text, but prepend the number of bytes in front of the string
         (pascal style string). Longer than 255 bytes are not allowed.
 
@@ -785,7 +779,7 @@ using the .cpu directive in the source.
 
         txt     .ptext "note"
 
-    .rta
+    .rta <expression>[, <expression>, ...]
         Include return address constants, which are one byte less than the
         original.
 
@@ -799,35 +793,35 @@ using the .cpu directive in the source.
                 rts
         rets    .rta $fce2
 
-    .word
+    .word <expression>[, <expression>, ...]
         Include 16 bit unsigned word constants
 
                 .word $2342, $4555
                 .word ?         ; reserve 2 bytes of space
 
-    .int
+    .int <expression>[, <expression>, ...]
         Include 16 bit signed integer constants
 
                 .int -533, 4433
 
-    .long
+    .long <expression>[, <expression>, ...]
         Include 24 bit unsigned constants
 
                 .long $123456
                 .long ?         ; reserve 3 bytes of space
 
-    .dint
+    .dint <expression>[, <expression>, ...]
         Include 32 bit signed integer constants
 
                 .dint -533, 4433
 
-    .dword
+    .dword <expression>[, <expression>, ...]
         Include 32 bit unsigned constants
 
                 .dword $12345678
                 .dword ?        ; reserve 4 bytes of space
 
-    .fill
+    .fill <length>[, <fill>]
         Skip bytes, or fill with repeated bytes. For multi byte patterns use
         .repeat!
 
@@ -888,7 +882,7 @@ using the .cpu directive in the source.
         Start structure definition
     .ends
         Finish structure definition
-    .dstruct
+    .dstruct <name>
         Create instance of struct
 
                 .struct         ;anonymous struct
@@ -918,7 +912,7 @@ using the .cpu directive in the source.
         Start structure definition
     .endu
         Finish structure definition
-    .dunion
+    .dunion <name>
         Create instance of struct
 
                 .union          ;anonymous struct
@@ -992,14 +986,14 @@ using the .cpu directive in the source.
 
     Conditional assembly
 
-    .if
-    .ifne
+    .if <expression>
+    .ifne <expression>
         Conditional compile, if result is not 0
-    .ifeq
+    .ifeq <expression>
         Conditional compile, if result is 0
-    .ifpl
+    .ifpl <expression>
         Conditional compile, if result is greater or equal 0
-    .ifmi
+    .ifmi <expression>
         Conditional compile, if result is less than 0
     .fi
     .endif
@@ -1013,7 +1007,7 @@ using the .cpu directive in the source.
 
     .else
         Compile, if the previous conditions were not true.
-    .elsif
+    .elsif <expression>
         Conditional compile, if the previous conditions were not true and the
         result is not 0.
 
@@ -1027,7 +1021,7 @@ using the .cpu directive in the source.
                 inc $2
                 .fi
 
-    .for
+    .for <variable>=<expression>,<expression>,<variable>=<expression>
     .next
         Compile loop, only anonymous references are allowed as labels inside
 
@@ -1035,7 +1029,7 @@ using the .cpu directive in the source.
                 .byte ue
                 .next
 
-    .rept
+    .rept <expression>
     .next
         Repeated compile, only anonymous references are allowed as labels
         inside
@@ -1046,7 +1040,7 @@ using the .cpu directive in the source.
 
     .lbl
         Creates a special jump label that can be referenced by .goto
-    .goto
+    .goto <labelname>
         Causes assembler to continue assembling from the jump label. No forward
         references of course, handle with care. Typically used in classic TASM
         sources for creating loops.
@@ -1061,14 +1055,14 @@ using the .cpu directive in the source.
 
     Including files
 
-    .include
+    .include "<filename>"
         Include source file here, path is relative to the location of current
-        source file. The filename can be a string expression but in must be
+        source file. The filename can be a string expression but it must be
         defined in advance.
 
                 .include "macros.asm"
 
-    .binary
+    .binary "<filename>"[, <offset>[, <length>]]
         Include binary data, path is relative to the location of current source
         file. Please note that `loading address' is ignored, and if not skipped
         then it's also loaded as data. By using offset and length it's possible
@@ -1245,13 +1239,13 @@ using the .cpu directive in the source.
                 .xl
                 ldx #$1000
 
-    .databank
+    .databank <expression>
         Set databank (65816). Absolute addressing is used only for symbols in
         this bank, anything else (except direct page) is using long addressing.
 
                 .databank $10   ;$10xxxx
 
-    .dpage
+    .dpage <expression>
         Set directpage (65816/C128/DTV) (forced to page boundary for DTV).
         Direct page addressing is only used for addresses in the following 256
         byte range, anything else is using absolute or long addressing.
@@ -1283,7 +1277,7 @@ using the .cpu directive in the source.
 
     .error <message> [, <message>, ...]
         Exit with error
-    .cerror <condition>, <message> [, <message>, ...]
+    .cerror <expression>, <message> [, <message>, ...]
         Conditional exit with error
 
                 .error "Unfinished here..."
@@ -1291,7 +1285,7 @@ using the .cpu directive in the source.
 
     .warn <message> [, <message>, ...]
         Warning
-    .cwarn <condition>, <message> [, <message>, ...]
+    .cwarn <expression>, <message> [, <message>, ...]
         Conditional warning
 
                 .warn "FIXME: handle negative values too!"
@@ -1299,7 +1293,7 @@ using the .cpu directive in the source.
 
     Target
 
-    .cpu
+    .cpu <cpuname>
         Selects cpu
 
                 .cpu 6502       ;standard 65xx
@@ -1314,12 +1308,12 @@ using the .cpu directive in the source.
 
     .end
         Terminate assembly. Any content after this directive is ignored.
-    .eor
+    .eor <expression>
         Eor output with some 8 bit value. Useful for reverse screencode text
         for example, or for silly `encryption'.
-    .var
+    .var <expression>
         Defines a variable identified by the label preceeding, which is set to
-        the value following.
+        the value of expression.
     .assert
     .check
         Do not use these, the syntax will change in next version!
@@ -1334,7 +1328,7 @@ using the .cpu directive in the source.
         Ignored for compatibility
 
     ---------------------------------------------------------------------------
-   
+
     How to convert source code written for the original turbo assembler for use
     with 64tass
 
@@ -1351,7 +1345,7 @@ using the .cpu directive in the source.
     64tass -C -T -a -W -i source.s -o outfile.prg
 
     ---------------------------------------------------------------------------
-   
+
     Differences to the original turbo ass macro on the C64
 
     64tass is nearly 100% compatible with the original `Turbo Assembler', and
@@ -1410,7 +1404,7 @@ using the .cpu directive in the source.
         available. If you get a related error move the respective label out of
         the .block
     ---------------------------------------------------------------------------
-   
+
     Messages
 
     Warnings
@@ -1482,7 +1476,7 @@ using the .cpu directive in the source.
         unresolvable situations. Fix your code.
 
     ---------------------------------------------------------------------------
-   
+
     6502 illegal opcodes
 
         opcode        hex
@@ -1507,7 +1501,7 @@ using the .cpu directive in the source.
     SLO               $03, $07, $0f, $13, $17, $1b, $1f
     SRE               $43, $47, $4f, $53, $57, $5b, $5f
     ---------------------------------------------------------------------------
-   
+
     65C02 extra opcodes
 
         opcode        hex
@@ -1522,7 +1516,7 @@ using the .cpu directive in the source.
     TSB               $04, $0c
     STZ               $64, $74, $9c, $9e
     ---------------------------------------------------------------------------
-   
+
     65DTV02 extra and illegal opcodes
 
         opcode        hex
