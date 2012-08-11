@@ -1,8 +1,9 @@
 <html>
 <head>
-<title>64tass v1.46 manual</title>
+<title>64tass v1.5x manual</title>
 <style type="text/css">
 dt {margin-top:0.5em}
+dt + dt {margin-top:0em}
 dl.dir dt {font-family:monospace}
 legend {font-family:sans;padding-left:1ex;padding-right:1ex}
 fieldset {border:1px solid silver}
@@ -17,45 +18,28 @@ pre span {color:#e00000;}
 pre span.s {color:orange;}
 pre i {color:brown;}
 pre span.l {color:green;}
+p {text-align:justify}
 </style>
 </head>
 <body>
-<h1>64tass v1.46 manual</h1>
+<h1>64tass v1.5x manual</h1>
 
 <p>Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
 BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
 optimizations, multi pass compile and a lot of features by Soci/Singular.
-Improved TASS compatibility, petscii codes by Groepaz.
-my_getopt command-line argument parser by Benjamin Sittler.</p>
+Improved TASS compatibility, petscii codes by Groepaz.</p>
+
+<p>Additional code: my_getopt command-line argument parser by Benjamin
+Sittler, avl tree code by Franck Bui-Huu, ternary tree code by Daniel
+Berlin.</p>
 
 <p>Syntax is the same as the well known Turbo Assembler on c64, so you can
 port your sources easy by only replacing the CR at the end of each line.</p>
 
 <p>Maintainer: soci at c64.rulez.org</p>
 
-<dl>
-<dt>V1.43:
-<dd>Added 8 alias illegal opcodes, and fixed addressing mode of shx and shy.
-<dt>V1.44:
-<dd>Added experimental CPU64 support, local label bugfix, message cache,
-nop illegal addressing modes, .warn, lot of listing improvements, .enc,
-performance improvement for win32, .binary fix for win32
-<dt>V1.45:
-<dd>Added .rta, .char, .int, .null, .shift, .elsif, .cerror, .cwarn, .align,
-and .cpu, nested conditional compile bugfix, added .ifeq, .ifne, .ifpl,
-.ifmi and .endif for compatibility, label list fixes, offset and maximum
-size for .binary, anonymous forward and backward reference (<tt>+-</tt>), initial
-65DTV02 support (needs more info), added missing 65c02 opcodes.
-<dt>V1.45c:
-<dd>Compile fixes for SunOs and other non-GNU systems. (no stdint.h there...)
-<dt>V1.46:
-<dd>Bank byte operator, label before conditional compile instruction bugfix
-cop # and brk # fix, empty macro parameter fix, added .long, some constant too large
-bugfix, jmp/jsr ($ffff,x) must be in the same bank, now .cerror and .cwarn accepts parameter,
-upper byte of negative number correct now
-<dt>V1.46+:
-<dd>.shiftl and .option added, .ptext added, removed CPU64 support
-</dl>
+<p><b>This is a development version, features or syntax may change over time.
+Not everything is backwards compatible.</b></p>
 
 <hr>
 <h2>Usage tips</h2>
@@ -68,31 +52,43 @@ As a minimum the source filename must be given on command line.</p>
 <p>For comfortable compiling I use such <q>Makefile</q>s (for <a href="http://en.wikipedia.org/wiki/Make_%28software%29">make</a>):</p>
 <pre>
 demo.prg: source.asm makros.asm pic.drp music.bin
-	64tass -C -a -B -i source.asm -o demo.prg
-</pre>
-<p>This way demo.prg is recreated whenever source.asm, makros.asm, pic.drp or music.bin had changed.
-For cross development with VICE here's another Makefile example:</p>
-<pre>
-demo.prg: source.asm makros.asm pic.drp music.bin
 	64tass -C -a -B -i source.asm -o demo.tmp
-	pucrunch -ffast -x 2048 demo.tmp &gt;demo.prg
-	killall x64 || true
-	x64 demo.prg
+        pucrunch -ffast -x 2048 demo.tmp &gt;demo.prg
 </pre>
-<p>Of course it's not much harder to create something similar for win32 (make.bat):</p>
+<p>This way <q>demo.prg</q> is recreated by compiling <q>source.asm</q>
+whenever <q>source.asm</q>, <q>makros.asm</q>, <q>pic.drp</q> or <q>music.bin</q> had changed.</p>
+<p>Of course it's not much harder to create something similar for win32 (make.bat),
+however this will always compile and compress:</p>
 <pre>
 64tass.exe -C -a -B -i source.asm -o demo.tmp
 pucrunch.exe -ffast -x 2048 demo.tmp &gt;demo.prg
-x64.exe demo.prg
+</pre>
+<p>Here's a slightly more advanced Makefile example with default action as
+testing in VICE, clean target for removal of temporary files and compressing
+using an intermediate temporary file:</p>
+<pre>
+all: demo.prg
+	x64 -autostartprgmode 1 -autostart-warp +truedrive +cart $&lt;
+
+demo.prg: demo.tmp
+	pucrunch -ffast -x 2048 $&lt; &gt;$@
+
+demo.tmp: source.asm makros.asm pic.drp music.bin
+	64tass -C -a -B -i $&lt; -o $@
+
+.INTERMEDIATE: demo.tmp
+.PHONY: all clean
+clean:
+	$(RM) demo.prg demo.tmp
 </pre>
 <p>Another useful thing is to add a basic header to your source files
 like the one below, so that the resulting file is directly runnable
 without additional compression:</p>
 <pre>
         <b>*=</b> <span>$0801</span>
-        <b class="d">.word</b> <span class="l">ss</span>, <span>2005</span>   <i>;pointer, line number</i>
+        <b class="d">.word</b> (<span class="l">+</span>), <span>2005</span>   <i>;pointer, line number</i>
         <b class="d">.null</b> <span>$9e</span>, ^<span class="l">start</span><i>;will be sys 4096</i>
-ss	<b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
++	<b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
 
         <b>*=</b> <span>$1000</span>
 
@@ -464,7 +460,7 @@ loop	<b>dex</b>
 
 result (list.txt):
 
-;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
+;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
 ;done on Fri Dec  9 19:08:55 2005
 
 
@@ -487,7 +483,7 @@ result (list.txt):
 
 result (list.txt):
 
-;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
+;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
 ;done on Fri Dec  9 19:11:43 2005
 
 
@@ -510,7 +506,7 @@ result (list.txt):
 
 result (list.txt):
 
-;6502/65C02/65816/DTV Turbo Assembler V1.4x listing file of "a.asm"
+;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
 ;done on Fri Dec  9 19:13:25 2005
 
 
@@ -742,18 +738,18 @@ other one called logical address, and it's what the labels will be set or what
 the special star label gets when referenced.</p>
 
 <dl class="dir">
-<dt>*=
+<dt><b>*=</b> &lt;expression&gt;
 <dd>Set both compile address and logical address
 <pre width=80>
         <b>*=</b> <span>$1000</span>
 </pre>
-<dt>.offs
+<dt><b>.offs</b> &lt;expression&gt;
 <dd>Add a compile offset to logical address.
 <pre width=80>
         <b class="k">.offs</b> <span>100</span>
 </pre>
-<dt>.logical
-<dt>.here
+<dt><b>.logical</b> &lt;expression&gt;
+<dt><b>.here</b>
 <dd>Changes logical address. Can be nested.
 <pre width=80>
         <b class="k">.logical</b> <span>$300</span>
@@ -764,7 +760,7 @@ drive   <b>lda</b> #<span>$80</span>
 	<b class="k">.here</b>
 </pre>
 
-<dt>.align
+<dt><b>.align</b> &lt;modulo&gt;[, &lt;fill&gt;]
 <dd>Align code to a dividable address by skip or fill
 <pre width=80>
         <b class="k">.align</b> <span>$100</span>
@@ -777,7 +773,7 @@ loop    <b>adc</b> #<span>1</span>          ;padding with "nop" for DTV burst mo
 
 <h3>Dumping data</h3>
 <dl class="dir">
-<dt>.text
+<dt><b>.text</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include constants and strings:
 <pre width=80>
         <b class="d">.text</b> <span class="s">"oeU"</span>	<i>; text, "" means $22</i>
@@ -787,20 +783,20 @@ loop    <b>adc</b> #<span>1</span>          ;padding with "nop" for DTV burst mo
         <b class="d">.text</b> ^<span class="l">OEU</span>	<i>; the decimal value as string (^23 is $32,$33)</i>
 </pre>
 
-<dt>.byte
+<dt><b>.byte</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 8&nbsp;bit unsigned byte constants
 <pre width=80>
         <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
 	<b class="d">.byte</b> ?	        <i>; reserve 1 byte of space</i>
 </pre>
 
-<dt>.char
+<dt><b>.char</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 8&nbsp;bit signed integer constants
 <pre width=80>
         <b class="d">.char</b> -<span>33</span>, <span>57</span>
 </pre>
 
-<dt>.shift
+<dt><b>.shift</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Same as <code>.text</code>, but the last byte will have highest bit set.
 Any character which already has the most significiant bit set will cause an error.
 <pre width=80>
@@ -816,7 +812,7 @@ loop	<b>lda</b> <span class="l">txt</span>,x
 txt	<b class="d">.shift</b> <span class="s">"some text"</span>
 </pre>
 
-<dt>.shiftl
+<dt><b>.shiftl</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Same as <code>.text</code>, but all bytes are shifted to left, and the last
 character gets the lowest bit set. Any character which already has the most significiant
 bit set will cause an error as this would be cut off.
@@ -833,7 +829,7 @@ txt	<b class="d">.shiftl</b> <span class="s">"some text"</span>
 	<b class="k">.enc</b> none
 </pre>
 
-<dt>.null
+<dt><b>.null</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Same as <code>.text</code>, but adds a null at the end, null in string is an error
 <pre width=80>
 txt	<b class="d">.text</b> <span class="s">"lot of stuff"</span>
@@ -843,7 +839,7 @@ txt	<b class="d">.text</b> <span class="s">"lot of stuff"</span>
         <b>jsr</b> <span>$ab1e</span>
 </pre>
 
-<dt>.ptext
+<dt><b>.ptext</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Same as <code>.text</code>, but prepend the
 number of bytes in front of the string (pascal style string). Longer than 255 bytes are not allowed.
 <pre width=80>
@@ -868,7 +864,7 @@ null	<b>rts</b>
 txt	<b class="d">.ptext</b> <span class="s">"note"</span>
 </pre>
 
-<dt>.rta
+<dt><b>.rta</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include return address constants, which are one byte less than the original.
 <pre width=80>
         <b>lda</b> #<span>0</span>
@@ -882,40 +878,40 @@ txt	<b class="d">.ptext</b> <span class="s">"note"</span>
 rets	<b class="d">.rta</b> <span>$fce2</span>
 </pre>
 
-<dt>.word
+<dt><b>.word</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 16&nbsp;bit unsigned word constants
 <pre width=80>
         <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
 	<b class="d">.word</b> ?	        <i>; reserve 2 bytes of space</i>
 </pre>
 
-<dt>.int
+<dt><b>.int</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 16&nbsp;bit signed integer constants
 <pre width=80>
         <b class="d">.int</b> -<span>533</span>, <span>4433</span>
 </pre>
 
-<dt>.long
+<dt><b>.long</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 24&nbsp;bit unsigned constants
 <pre width=80>
         <b class="d">.long</b> <span>$123456</span>
 	<b class="d">.long</b> ?	        <i>; reserve 3 bytes of space</i>
 </pre>
 
-<dt>.dint
+<dt><b>.dint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 32&nbsp;bit signed integer constants
 <pre width=80>
         <b class="d">.dint</b> -<span>533</span>, <span>4433</span>
 </pre>
 
-<dt>.dword
+<dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 32&nbsp;bit unsigned constants
 <pre width=80>
         <b class="d">.dword</b> <span>$12345678</span>
 	<b class="d">.dword</b> ?        <i>; reserve 4 bytes of space</i>
 </pre>
 
-<dt>.fill
+<dt><b>.fill</b> &lt;length&gt;[, &lt;fill&gt;]
 <dd>Skip bytes, or fill with repeated bytes. For multi byte patterns use <code>.repeat</code>!
 <pre width=80>
         <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
@@ -928,7 +924,7 @@ rets	<b class="d">.rta</b> <span>$fce2</span>
 advantage of this capability custom encodings can be defined to map unicode characters
 to 8 bit values in strings.
 <dl class="dir">
-<dt>.enc &lt;name&gt;
+<dt><b>.enc</b> &lt;name&gt;
 <dd>Selects text encoding, predefined encodings are <q>none</q> and
 <q>screen</q> (screen code), anything else is user defined. All user encodings
 start without any character or escape definitions, add some as required.
@@ -939,11 +935,11 @@ start without any character or escape definitions, add some as required.
 	<b class="k">.enc</b> none	<i>;normal mode again</i>
         <b>cmp</b> #<span class="s">"u"</span>	<i>;compare ascii</i>
 </pre>
-<dt>.cdef &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, ...]
-<dt>.cdef "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, ...]
+<dt><b>.cdef</b> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, ...]
+<dt><b>.cdef</b> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, ...]
 <dd>Defines a character range, and assigns all characters one by one from the 8 bit value.
 The start and end positions are unicode character codes either by numbers or by typing them.
-<dt>.edef "&lt;escapetext&gt;", &lt;code&gt; [, "&lt;escapetext&gt;", &lt;code&gt;, ...]
+<dt><b>.edef</b> "&lt;escapetext&gt;", &lt;code&gt; [, "&lt;escapetext&gt;", &lt;code&gt;, ...]
 <dd>Defines an escape sequence, and assigns it to a 8 bit value. When using
 common prefixes the longest match wins. Useful for defining non-typeable control code aliases.
 <pre width=80>
@@ -960,7 +956,7 @@ common prefixes the longest match wins. Useful for defining non-typeable control
         <b class="k">.edef</b> <span class="s">"\n"</span>, <span>13</span>  <i>;escape sequences</i>
         <b class="k">.edef</b> <span class="s">"{clr}"</span>, <span>147</span>
 
-        <b class="d">.text</b> <span class="s">"{clr}Text in PETSCII\n"</span>
+        <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>\n</span>"</span>
 </pre>
 </dl>
 
@@ -973,11 +969,11 @@ name before the dot operator. The length of a struct is the sum of lengths of
 all items.</p>
 
 <dl class="dir">
-<dt>.struct
+<dt><b>.struct</b>
 <dd>Start structure definition
-<dt>.ends
+<dt><b>.ends</b>
 <dd>Finish structure definition
-<dt>.dstruct
+<dt><b>.dstruct</b> &lt;name&gt;
 <dd>Create instance of struct
 
 <pre width=80>
@@ -1006,11 +1002,11 @@ dot operator. These offsets and references mostly point to the start of the
 union, unless internal anonymous structs are used.</p>
 
 <dl class="dir">
-<dt>.union
+<dt><b>.union</b>
 <dd>Start structure definition
-<dt>.endu
+<dt><b>.endu</b>
 <dd>Finish structure definition
-<dt>.dunion
+<dt><b>.dunion</b> &lt;name&gt;
 <dd>Create instance of struct
 
 <pre width=80>
@@ -1033,14 +1029,14 @@ nn      <b class="d">.dunion</b> <span class="l">nn_u</span>    <i>;union instan
 
 <h3>Macros</h3>
 <dl class="dir">
-<dt>.macro
+<dt><b>.macro</b>
 <dd>Each invocation is a copy of the macro's content. The code is enclosed in
 it's own block so symbols inside are non-accessible.
-<dt>.segment
+<dt><b>.segment</b>
 <dd>Only copies the code segment as it is, so symbols can be used from
 outside, but this also means multiple use will result in double defines
 unless anonymous labels are used.
-<dt>.endm
+<dt><b>.endm</b>
 <dd>End of .macro or .segment definition
 
 <pre width=80>
@@ -1090,17 +1086,17 @@ name    <b class="k">.macro</b>
 </dl>
 <h3>Conditional assembly</h3>
 <dl class="dir">
-<dt>.if
-<dt>.ifne
+<dt><b>.if</b> &lt;expression&gt;
+<dt><b>.ifne</b> &lt;expression&gt;
 <dd>Conditional compile, if result is not 0
-<dt>.ifeq
+<dt><b>.ifeq</b> &lt;expression&gt;
 <dd>Conditional compile, if result is 0
-<dt>.ifpl
+<dt><b>.ifpl</b> &lt;expression&gt;
 <dd>Conditional compile, if result is greater or equal 0
-<dt>.ifmi
+<dt><b>.ifmi</b> &lt;expression&gt;
 <dd>Conditional compile, if result is less than 0
-<dt>.fi
-<dt>.endif
+<dt><b>.fi</b>
+<dt><b>.endif</b>
 <dd>End of conditional compile
 
 <pre width=80>
@@ -1111,10 +1107,10 @@ name    <b class="k">.macro</b>
 	<b class="k">.fi</b>
 </pre>
 
-<dt>.else
+<dt><b>.else</b>
 <dd>Compile, if the previous conditions were not true.
 
-<dt>.elsif
+<dt><b>.elsif</b> &lt;expression&gt;
 <dd>Conditional compile, if the previous conditions were not true and the result is not 0.
 <pre width=80>
         <b class="k">.if</b> <span class="l">wait</span>=<span>2</span>	;2 cycles
@@ -1128,8 +1124,8 @@ name    <b class="k">.macro</b>
 	<b class="k">.fi</b>
 </pre>
 
-<dt>.for
-<dt>.next
+<dt><b>.for</b> &lt;variable&gt;=&lt;expression&gt;,&lt;expression&gt;,&lt;variable&gt;=&lt;expression&gt;
+<dt><b>.next</b>
 <dd>Compile loop, only anonymous references are allowed as labels inside
 <pre width=80>
         <b class="k">.for</b> <span class="l">ue</span>=<span>0</span>,<span class="l">ue</span>&lt;<span>10</span>,<span class="l">ue</span>=<span class="l">ue</span>+<span>1</span>
@@ -1137,8 +1133,8 @@ name    <b class="k">.macro</b>
 	<b class="k">.next</b>
 </pre>
 
-<dt>.rept
-<dt>.next
+<dt><b>.rept</b> &lt;expression&gt;
+<dt><b>.next</b>
 <dd>Repeated compile, only anonymous references are allowed as labels inside
 <pre width=80>
         <b class="k">.rept</b> <span>100</span>
@@ -1146,9 +1142,9 @@ name    <b class="k">.macro</b>
 	<b class="k">.next</b>
 </pre>
 
-<dt>.lbl
+<dt><b>.lbl</b>
 <dd>Creates a special jump label that can be referenced by <code>.goto</code>
-<dt>.goto
+<dt><b>.goto</b> &lt;labelname&gt;
 <dd>Causes assembler to continue assembling from the jump label. No
 forward references of course, handle with care. Typically used in
 classic TASM sources for creating loops.
@@ -1166,13 +1162,15 @@ i       <b class="k">.var</b> <span class="l">i</span> - <span>1</span>
 </dl>
 <h3>Including files</h3>
 <dl class="dir">
-<dt>.include
-<dd>Include source file here, path is relative to the location of current source file. The filename can be a string expression but in must be defined in advance.
+<dt><b>.include</b> "&lt;filename&gt;"
+<dd>Include source file here, path is relative to the location of current
+source file. The filename can be a string expression but it must be defined in
+advance.
 <pre width=80>
 	<b class="k">.include</b> <span class="s">"macros.asm"</span>
 </pre>
 
-<dt>.binary
+<dt><b>.binary</b> "&lt;filename&gt;"[, &lt;offset&gt;[, &lt;length&gt;]]
 <dd>Include binary data, path is relative to the location of current
 source file. Please note that <q>loading address</q> is ignored, and if
 not skipped then it's also loaded as data. By using offset and length
@@ -1190,9 +1188,9 @@ bitmap and colors for example. The filename can be a string expression.
 </dl>
 <h3>Blocks</h3>
 <dl class="dir">
-<dt>.proc
+<dt><b>.proc</b>
 <dd>Procedure start
-<dt>.pend
+<dt><b>.pend</b>
 <dd>End of procedure
 <pre width=80>
 ize     <b class="k">.proc</b>
@@ -1206,9 +1204,9 @@ cucc    <b>nop</b>
 If <q>ize</q> is not referenced then the code won't be compiled at all!
 All labels inside are local.
 
-<dt>.block
+<dt><b>.block</b>
 <dd>Block start
-<dt>.bend
+<dt><b>.bend</b>
 <dd>End of Block
 <pre width=80>
 	<b class="k">.block</b>
@@ -1219,9 +1217,9 @@ count	<b>ldx</b> #<span>0</span>
     All labels inside a block are local.
 
 
-<dt>.comment
+<dt><b>.comment</b>
 <dd>Comment block start
-<dt>.endc
+<dt><b>.endc</b>
 <dd>End of comment block
 <pre width=80>
 	<b class="k">.comment</b><i>
@@ -1233,11 +1231,11 @@ count	<b>ldx</b> #<span>0</span>
 
 <h3>Sections</h3>
 <dl class="dir">
-<dt>.dsection &lt;name&gt;
+<dt><b>.dsection</b> &lt;name&gt;
 <dd>Declares a named section and starts it.
-<dt>.section &lt;name&gt;
+<dt><b>.section</b> &lt;name&gt;
 <dd>Section start
-<dt>.send [&lt;name&gt;]
+<dt><b>.send</b> [&lt;name&gt;]
 <dd>End of section. Section name is optional, if present it must match.
 <p>Sections are useful for linking sources, or to organize memory layout. With
 them it's easily possible to allocate addresses for variables at the place of
@@ -1335,34 +1333,34 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
 
 <h3>65816 related</h3>
 <dl class="dir">
-<dt>.as
+<dt><b>.as</b>
 <dd>Select 8 bit accu (65816)
 
-<dt>.al
+<dt><b>.al</b>
 <dd>Select 16 bit accu (65816). Immediate constants of a register using opcodes will use 16 bits.
 <pre width=80>
 	<b class="k">.al</b>
         <b>lda</b> #<span>$4322</span>
 </pre>
 
-<dt>.xs
+<dt><b>.xs</b>
 <dd>Select 8 bit index (65816)
 
-<dt>.xl
+<dt><b>.xl</b>
 <dd>Select 16 bit index (65816). Immediate constants of x and y register using opcodes will use 16 bits.
 <pre width=80>
 	<b class="k">.xl</b>
         <b>ldx</b> #<span>$1000</span>
 </pre>
 
-<dt>.databank
+<dt><b>.databank</b> &lt;expression&gt;
 <dd>Set databank (65816). Absolute addressing is used only for symbols in this
 bank, anything else (except direct page) is using long addressing.
 <pre width=80>
         <b class="k">.databank</b> <span>$10</span>   ;$10xxxx
 </pre>
 
-<dt>.dpage
+<dt><b>.dpage</b> &lt;expression&gt;
 <dd>Set directpage (65816/C128/DTV) (forced to page boundary for DTV). Direct
 page addressing is only used for addresses in the following 256 byte range, anything
 else is using absolute or long addressing.
@@ -1374,9 +1372,9 @@ else is using absolute or long addressing.
 <h3>Controlling errors</h3>
 <dl class="dir">
 
-<dt>.page
+<dt><b>.page</b>
 <dd>Gives an error on page boundary crossing, eg. for timing sensitive code.
-<dt>.endp
+<dt><b>.endp</b>
 <dd>End of page cross checking
 
 <pre width=80>
@@ -1385,7 +1383,7 @@ table   <b class="d">.byte</b> <span>0</span>,<span>1</span>,<span>2</span>,<spa
 	<b class="k">.endp</b>
 </pre>
 
-<dt>.option allow_branch_across_page
+<dt><b>.option</b> allow_branch_across_page
 <dd>Switches error generation on page boundary crossing during relative branch.
 Such a condition on 6502 adds 1 extra cycle to the execution time, which
 can ruin the timing of a carefuly cycle counted code.
@@ -1397,18 +1395,18 @@ can ruin the timing of a carefuly cycle counted code.
         <b class="k">.option</b> allow_branch_across_page = <span>1</span>
 </pre>
 
-<dt>.error &lt;message&gt; [, &lt;message&gt;, ...]
+<dt><b>.error</b> &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Exit with error
-<dt>.cerror &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
+<dt><b>.cerror</b> &lt;expression&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Conditional exit with error
 <pre width=80>
         <b class="k">.error</b> <span class="s">"Unfinished here..."</span>
         <b class="k">.cerror</b> *&gt;<span>$1200</span>, <span class="s">"Program too long by "</span>, *-<span>$1200</span>, <span class="s">" bytes"</span>
 </pre>
 
-<dt>.warn &lt;message&gt; [, &lt;message&gt;, ...]
+<dt><b>.warn</b> &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Warning
-<dt>.cwarn &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
+<dt><b>.cwarn</b> &lt;expression&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Conditional warning
 <pre width=80>
         <b class="k">.warn</b> <span class="s">"FIXME: handle negative values too!"</span>
@@ -1419,7 +1417,7 @@ can ruin the timing of a carefuly cycle counted code.
 <h3>Target</h3>
 <dl class="dir">
 
-<dt>.cpu
+<dt><b>.cpu</b> &lt;cpuname&gt;
 <dd>Selects cpu
 <pre width=80>
 	<b class="k">.cpu</b> 6502	<i>;standard 65xx</i>
@@ -1435,31 +1433,31 @@ can ruin the timing of a carefuly cycle counted code.
 <h3>Misc</h3>
 <dl class="dir">
 
-<dt>.end
+<dt><b>.end</b>
 <dd>Terminate assembly. Any content after this directive is ignored.
 
-<dt>.eor
+<dt><b>.eor</b> &lt;expression&gt;
 <dd>Eor output with some 8 bit value. Useful for reverse screencode text for example,
 or for silly <q>encryption</q>.
 
-<dt>.var
+<dt><b>.var</b> &lt;expression&gt;
 <dd>Defines a variable identified by the label preceeding, which
-is set to the value following.
+is set to the value of expression.
 
-<dt>.assert
-<dt>.check
+<dt><b>.assert</b>
+<dt><b>.check</b>
 <dd>Do not use these, the syntax will change in next version!
 
 </dl>
 <h3>Printer control</h3>
 <dl class="dir">
 
-<dt>.pron
-<dt>.proff
+<dt><b>.pron</b>
+<dt><b>.proff</b>
 <dd>Turn on or off source listing on part of the file.
 
-<dt>.hidemac
-<dt>.showmac
+<dt><b>.hidemac</b>
+<dt><b>.showmac</b>
 <dd>Ignored for compatibility
 </dl>
 
