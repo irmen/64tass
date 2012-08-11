@@ -1,7 +1,8 @@
 CC = gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o
 LANG = C
-CFLAGS = -O2 -W -Wall -Wextra -g
+REVISION := $(shell svnversion)
+CFLAGS = -O2 -W -Wall -Wextra -DREVISION="\" $(REVISION)\"" -g 
 LDFLAGS = -g
 CFLAGS += $(LDFLAGS)
 
@@ -26,7 +27,7 @@ values.o: values.c values.h error.h misc.h libtree.h variables.h
 variables.o: variables.c variables.h values.h libtree.h error.h misc.h
 
 README: README.html
-	-w3m -dump -no-graph README.html >README
+	-w3m -dump -no-graph README.html | sed -e 's/\s\+$$//' >README
 
 .PHONY: clean
 

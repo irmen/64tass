@@ -23,7 +23,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <inttypes.h>
-#define VERSION "1.46"
+#define VERSION "1.5x" REVISION
 
 enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_X, WHAT_Y, WHAT_XZ, WHAT_R, WHAT_RZ,
     WHAT_COMMAND, WHAT_EQUAL, WHAT_EOL, WHAT_STAR, WHAT_COMA, WHAT_COLON,
