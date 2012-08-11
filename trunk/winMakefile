@@ -1,7 +1,8 @@
 CC = i686-w64-mingw32-gcc
-OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o
+OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o
 LANG = C
-CFLAGS = -O2 -march=i586 -W -Wall -Wextra
+REVISION := $(shell svnversion)
+CFLAGS = -O2 -march=i586 -W -Wall -Wextra -DREVISION="\" $(REVISION)\""
 LDFLAGS = -s
 CFLAGS += $(LDFLAGS)
 
