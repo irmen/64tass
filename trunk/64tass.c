@@ -1827,15 +1827,14 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_REPT) { // .rept
-                    int cnt;
                     new_waitfor('n');waitfor[waitforp].skip=0;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->type == T_NONE) err_msg2(ERROR___NOT_DEFINED, "repeat count", epoint);
-                    cnt = 0;
-                    if (val->type != T_NONE) {
-                        if (cnt<val->u.num.val) {
+                    else {
+                        ival_t cnt = val->u.num.val;
+                        if (cnt > 0) {
                             size_t pos = cfile->p;
                             line_t lin = sline;
                             struct star_s *s = new_star(vline);
@@ -1846,7 +1845,7 @@ static void compile(void)
                             if (labelexists && s->addr != star) fixeddig=0;
                             s->addr = star;
                             star_tree = &s->tree;vline=0;
-                            for (; cnt<val->u.num.val; cnt++) {
+                            while (cnt--) {
                                 sline=lin;cfile->p=pos;
                                 new_waitfor('N');waitfor[waitforp].skip=1;
                                 compile();
