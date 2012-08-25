@@ -881,11 +881,10 @@ static void compile(void)
                 case CMD_UNION:
                     {
                         struct label_s *old_context=current_context;
-                        struct section_s olds;
+                        struct section_s olds = *current_section;
 
                         new_waitfor((prm==CMD_STRUCT)?'s':'u');waitfor[waitforp].skip=0;
                         if (!current_section->structrecursion) {
-                            olds = *current_section;
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
                             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
                             current_section->r_start=current_section->r_l_start=current_section->r_address=current_section->r_l_address=0;
