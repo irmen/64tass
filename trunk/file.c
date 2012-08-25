@@ -58,7 +58,7 @@ static void file_free(const struct avltree_node *aa)
 
 static struct file_s *lastfi=NULL;
 static uint16_t curfnum=1;
-struct file_s *openfile(const char* name) {
+struct file_s *openfile(const char* name, int ftype) {
     const struct avltree_node *b;
     struct file_s *tmp;
     if (!lastfi)
@@ -77,6 +77,7 @@ struct file_s *openfile(const char* name) {
 	lastfi->len=0;
 	lastfi->p=0;
         lastfi->open=0;
+        lastfi->type=ftype;
         avltree_init(&lastfi->star, star_compare, star_free);
         tmp = lastfi;
         lastfi=NULL;
@@ -87,144 +88,155 @@ struct file_s *openfile(const char* name) {
                 err_msg(ERROR_CANT_FINDFILE,name);
                 return NULL;
             }
-            if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",name);
-            ch=getc(f);
-            ungetc(ch, f); 
-            if (!ch) type=UTF16BE; /* most likely */
+            if (ftype) {
+                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Reading file:      %s\n",name);
+                do {
+                    if (tmp->p + linelength > tmp->len) {
+                        tmp->len += linelength * 2;
+                        tmp->data=realloc(tmp->data, tmp->len);
+                    }
+                    tmp->p += fread(&tmp->data[tmp->p], 1, tmp->len - tmp->p, f);
+                } while (!feof(f));
+            } else {
+                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",name);
+                ch=getc(f);
+                ungetc(ch, f); 
+                if (!ch) type=UTF16BE; /* most likely */
 
-            do {
-                int i, j, ch2;
-                uint8_t *pline;
-                uint32_t lastchar;
+                do {
+                    int i, j, ch2;
+                    uint8_t *pline;
+                    uint32_t lastchar;
 
-                if (tmp->p + linelength > tmp->len) {
-                    tmp->len += linelength * 2;
-                    tmp->data=realloc(tmp->data, tmp->len);
-                }
-                pline=&tmp->data[tmp->p];
-                for (;;) {
-                    lastchar = c;
-                    if (arguments.toascii) {
-                        switch (type) {
-                        case UNKNOWN:
-                        case UTF8:
-                            c = ch = getc(f);
-                            if (ch == EOF) break;
+                    if (tmp->p + linelength > tmp->len) {
+                        tmp->len += linelength * 2;
+                        tmp->data=realloc(tmp->data, tmp->len);
+                    }
+                    pline=&tmp->data[tmp->p];
+                    for (;;) {
+                        lastchar = c;
+                        if (arguments.toascii) {
+                            switch (type) {
+                            case UNKNOWN:
+                            case UTF8:
+                                c = ch = getc(f);
+                                if (ch == EOF) break;
 
-                            if (ch < 0x80) goto done;
-                            if (ch < 0xc0) {
-                                if (type == UNKNOWN) {
-                                    type = ISO1; break;
-                                }
-                                c = 0xfffd; break;
-                            } else if (ch < 0xe0) {
-                                c ^= 0xc0;i = 1;
-                            } else if (ch < 0xf0) {
-                                c ^= 0xe0;i = 2;
-                            } else if (ch < 0xf8) {
-                                c ^= 0xf0;i = 3;
-                            } else if (ch < 0xfc) {
-                                c ^= 0xf8;i = 4;
-                            } else if (ch < 0xfe) {
-                                c ^= 0xfc;i = 5;
-                            } else {
-                                if (type == UNKNOWN) {
-                                    ch2=getc(f);
-                                    if (ch == 0xff && ch2 == 0xfe) {
-                                        type = UTF16LE;continue;
-                                    }
-                                    if (ch == 0xfe && ch2 == 0xff) {
-                                        type = UTF16BE;continue;
-                                    }
-                                    ungetc(ch2, f); 
-                                    type = ISO1; break;
-                                }
-                                c = 0xfffd; break;
-                            }
-
-                            for (j = i; i; i--) {
-                                ch2 = getc(f);
-                                if (ch2 < 0x80 || ch2 >= 0xc0) {
+                                if (ch < 0x80) goto done;
+                                if (ch < 0xc0) {
                                     if (type == UNKNOWN) {
-                                        type = ISO1;
-                                        i = (j - i) * 6;
-                                        pline = utf8out(((~0x7f >> j) & 0xff) | (c >> i), pline);
-                                        for (;i; i-= 6) {
-                                            pline = utf8out(((c >> (i-6)) & 0x3f) | 0x80, pline);
-                                        }
-                                        c = ch2; j = 0;
-                                        break;
+                                        type = ISO1; break;
                                     }
-                                    ungetc(ch2, f);
-                                    c = 0xfffd;break;
+                                    c = 0xfffd; break;
+                                } else if (ch < 0xe0) {
+                                    c ^= 0xc0;i = 1;
+                                } else if (ch < 0xf0) {
+                                    c ^= 0xe0;i = 2;
+                                } else if (ch < 0xf8) {
+                                    c ^= 0xf0;i = 3;
+                                } else if (ch < 0xfc) {
+                                    c ^= 0xf8;i = 4;
+                                } else if (ch < 0xfe) {
+                                    c ^= 0xfc;i = 5;
+                                } else {
+                                    if (type == UNKNOWN) {
+                                        ch2=getc(f);
+                                        if (ch == 0xff && ch2 == 0xfe) {
+                                            type = UTF16LE;continue;
+                                        }
+                                        if (ch == 0xfe && ch2 == 0xff) {
+                                            type = UTF16BE;continue;
+                                        }
+                                        ungetc(ch2, f); 
+                                        type = ISO1; break;
+                                    }
+                                    c = 0xfffd; break;
                                 }
-                                c = (c << 6) ^ ch2 ^ 0x80;
+
+                                for (j = i; i; i--) {
+                                    ch2 = getc(f);
+                                    if (ch2 < 0x80 || ch2 >= 0xc0) {
+                                        if (type == UNKNOWN) {
+                                            type = ISO1;
+                                            i = (j - i) * 6;
+                                            pline = utf8out(((~0x7f >> j) & 0xff) | (c >> i), pline);
+                                            for (;i; i-= 6) {
+                                                pline = utf8out(((c >> (i-6)) & 0x3f) | 0x80, pline);
+                                            }
+                                            c = ch2; j = 0;
+                                            break;
+                                        }
+                                        ungetc(ch2, f);
+                                        c = 0xfffd;break;
+                                    }
+                                    c = (c << 6) ^ ch2 ^ 0x80;
+                                }
+                                if (j) type = UTF8;
+                                break;
+                            case UTF16LE:
+                                c = getc(f);
+                                ch = getc(f);
+                                if (ch == EOF) break;
+                                c |= ch << 8;
+                                if (c == 0xfffe) {
+                                    type = UTF16BE;
+                                    continue;
+                                }
+                                break;
+                            case UTF16BE:
+                                c = getc(f) << 8;
+                                ch = getc(f);
+                                if (ch == EOF) break;
+                                c |= ch;
+                                if (c == 0xfffe) {
+                                    type = UTF16LE;
+                                    continue;
+                                }
+                                break;
+                            case ISO1:
+                                c = ch = getc(f);
+                                if (ch == EOF) break;
+                                goto done;
                             }
-                            if (j) type = UTF8;
-                            break;
-                        case UTF16LE:
-                            c = getc(f);
-                            ch = getc(f);
-                            if (ch == EOF) break;
-                            c |= ch << 8;
-                            if (c == 0xfffe) {
-                                type = UTF16BE;
-                                continue;
-                            }
-                            break;
-                        case UTF16BE:
-                            c = getc(f) << 8;
-                            ch = getc(f);
-                            if (ch == EOF) break;
-                            c |= ch;
-                            if (c == 0xfffe) {
-                                type = UTF16LE;
-                                continue;
-                            }
-                            break;
-                        case ISO1:
-                            c = ch = getc(f);
-                            if (ch == EOF) break;
-                            goto done;
-                        }
-                        if (c == 0xfeff) continue;
-                        if (type != UTF8) {
-                            if (c >= 0xd800 && c < 0xdc00) {
-                                if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
-                                c = 0xfffd;
-                            } else if (c >= 0xdc00 && c < 0xe000) {
-                                if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                    c ^= 0x361dc00 ^ (lastchar << 10);
-                                } else
+                            if (c == 0xfeff) continue;
+                            if (type != UTF8) {
+                                if (c >= 0xd800 && c < 0xdc00) {
+                                    if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
                                     c = 0xfffd;
-                            } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                c = 0xfffd;
+                                } else if (c >= 0xdc00 && c < 0xe000) {
+                                    if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                                        c ^= 0x361dc00 ^ (lastchar << 10);
+                                    } else
+                                        c = 0xfffd;
+                                } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                                    c = 0xfffd;
+                                }
                             }
+                        } else c = ch = getc(f);
+
+                        if (ch == EOF) break;
+                    done:
+                        if (c == 10) {
+                            if (lastchar == 13) continue;
+                            break;
+                        } else if (c == 13) {
+                            break;
                         }
-                    } else c = ch = getc(f);
+                        if (c && c < 0x80) *pline++ = c; else pline = utf8out(c, pline);
+                        if (pline > &tmp->data[tmp->p + linelength - 6*6]) {
+                            err_msg(ERROR_LINE_TOO_LONG,NULL);ch=EOF;break;
+                        }
+                    }
+                    i = pline - &tmp->data[tmp->p];
+                    pline=&tmp->data[tmp->p];
+                    if (i)
+                        while (i && pline[i-1]==' ') i--;
+                    pline[i++] = 0;
+                    tmp->p += i;
 
                     if (ch == EOF) break;
-                done:
-                    if (c == 10) {
-                        if (lastchar == 13) continue;
-                        break;
-                    } else if (c == 13) {
-                        break;
-                    }
-                    if (c && c < 0x80) *pline++ = c; else pline = utf8out(c, pline);
-                    if (pline > &tmp->data[tmp->p + linelength - 6*6]) {
-                        err_msg(ERROR_LINE_TOO_LONG,NULL);ch=EOF;break;
-                    }
-                }
-                i = pline - &tmp->data[tmp->p];
-                pline=&tmp->data[tmp->p];
-                if (i)
-                    while (i && pline[i-1]==' ') i--;
-                pline[i++] = 0;
-                tmp->p += i;
-
-                if (ch == EOF) break;
-            } while (1);
+                } while (1);
+            }
             if (ferror(f)) err_msg(ERROR__READING_FILE,name);
             if (f!=stdin) fclose(f);
             tmp->len = tmp->p;
@@ -235,6 +247,7 @@ struct file_s *openfile(const char* name) {
         tmp->uid=curfnum++;
     } else {
         tmp = avltree_container_of(b, struct file_s, node);
+        if (tmp->type != ftype) err_msg(ERROR__READING_FILE,name);
     }
     tmp->open++;
     return tmp;
