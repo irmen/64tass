@@ -36,9 +36,15 @@ struct section_s {
     address_t r_l_start;
     address_t r_address;
     address_t r_l_address;
+    address_t unionstart;
+    address_t unionend;
+    address_t l_unionstart;
+    address_t l_unionend;
     uint8_t pass;
+    uint_fast8_t structrecursion;
     unsigned int dooutput:1;
     unsigned int declared:1;
+    unsigned int unionmode:1;
     struct section_s *parent;
     struct avltree members;
 };
