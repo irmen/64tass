@@ -95,9 +95,6 @@ uint16_t reffile;
 uint32_t backr, forwr;
 struct file_s *cfile;
 struct avltree *star_tree = NULL;
-static uint_fast8_t structrecursion;
-static int unionmode;
-static address_t unionstart, unionend, l_unionstart, l_unionend;
 
 struct {
     uint8_t p, len;
@@ -730,12 +727,12 @@ static void compile(void)
         llist = pline;
         star=current_section->l_address;newlabel = NULL;
         labelname2[0]=wasref=0;ignore();epoint=lpoint;
-        if (unionmode) {
-            if (current_section->address > unionend) unionend = current_section->address;
-            if (current_section->l_address > l_unionend) l_unionend = current_section->l_address;
-            current_section->l_address = l_unionstart;
-            if (current_section->address != unionstart) {
-                current_section->address = unionstart;
+        if (current_section->unionmode) {
+            if (current_section->address > current_section->unionend) current_section->unionend = current_section->address;
+            if (current_section->l_address > current_section->l_unionend) current_section->l_unionend = current_section->l_address;
+            current_section->l_address = current_section->l_unionstart;
+            if (current_section->address != current_section->unionstart) {
+                current_section->address = current_section->unionstart;
                 memjmp(current_section->address);
             }
         }
@@ -884,14 +881,15 @@ static void compile(void)
                 case CMD_UNION:
                     {
                         struct label_s *old_context=current_context;
-                        struct section_s new;
+                        struct section_s olds;
+
                         new_waitfor((prm==CMD_STRUCT)?'s':'u');waitfor[waitforp].skip=0;
-                        if (!structrecursion) {
-                            new.parent = current_section;
-                            new.provides=~(uval_t)0;new.requires=new.conflicts=0;
-                            new.start=new.l_start=new.address=new.l_address=0;
-                            new.dooutput=0;new.name=NULL;memjmp(0);
-                            current_section = &new;
+                        if (!current_section->structrecursion) {
+                            olds = *current_section;
+                            current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
+                            current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
+                            current_section->r_start=current_section->r_l_start=current_section->r_address=current_section->r_l_address=0;
+                            current_section->dooutput=0;memjmp(0);
 
                             tmp2=new_macro(labelname);
                             if (labelexists) {
@@ -935,25 +933,30 @@ static void compile(void)
                             fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
                             printllist(flist);
                         }
-                        structrecursion++;
-                        if (structrecursion<100) {
-                            int old_unionmode = unionmode;
-                            address_t old_unionstart = unionstart, old_unionend = unionend;
-                            address_t old_l_unionstart = l_unionstart, old_l_unionend = l_unionend;
-                            unionmode = (prm==CMD_UNION);
-                            unionstart = unionend = current_section->address;
-                            l_unionstart = l_unionend = current_section->l_address;
+                        current_section->structrecursion++;
+                        if (current_section->structrecursion<100) {
+                            int old_unionmode = current_section->unionmode;
+                            address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
+                            address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+                            current_section->unionmode = (prm==CMD_UNION);
+                            current_section->unionstart = current_section->unionend = current_section->address;
+                            current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitforp--;
                             new_waitfor((prm==CMD_STRUCT)?'S':'U');waitfor[waitforp].skip=1;
                             compile();
                             current_context = old_context;
-                            unionmode = old_unionmode;
-                            unionstart = old_unionstart; unionend = old_unionend;
-                            l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
+                            current_section->unionmode = old_unionmode;
+                            current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
+                            current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
                         } else err_msg(ERROR__MACRECURSION,"!!!!");
-                        structrecursion--;
+                        current_section->structrecursion--;
                         set_size(newlabel, current_section->address - oaddr);
-                        if (!structrecursion) {current_section = new.parent; memjmp(current_section->address);}
+                        if (!current_section->structrecursion) {
+                            current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
+                            current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
+                            current_section->r_start=olds.r_start;current_section->r_l_start=olds.r_l_start;current_section->r_address=olds.r_address;current_section->r_l_address=olds.r_l_address;
+                            current_section->dooutput=olds.dooutput;memjmp(current_section->address);
+                        }
 			newlabel = NULL;
                         goto finish;
                     }
@@ -963,7 +966,6 @@ static void compile(void)
                         char sectionname[linelength];
                         unsigned int epoint;
                         new_waitfor('t');waitfor[waitforp].section=current_section;
-                        if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
                         ignore();epoint=lpoint;
                         if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         tmp=find_new_section(sectionname);
@@ -1060,12 +1062,12 @@ static void compile(void)
                 case CMD_DUNION:
                     {
                         struct label_s *oldcontext = current_context;
-                        int old_unionmode = unionmode;
-                        address_t old_unionstart = unionstart, old_unionend = unionend;
-                        address_t old_l_unionstart = l_unionstart, old_l_unionend = l_unionend;
-                        unionmode = (prm==CMD_DUNION);
-                        unionstart = unionend = current_section->address;
-                        l_unionstart = l_unionend = current_section->l_address;
+                        int old_unionmode = current_section->unionmode;
+                        address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
+                        address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+                        current_section->unionmode = (prm==CMD_DUNION);
+                        current_section->unionstart = current_section->unionend = current_section->address;
+                        current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                         current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
@@ -1076,13 +1078,13 @@ static void compile(void)
                         ignore();epoint=lpoint;
                         if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (!(tmp2=find_macro(labelname)) || tmp2->type!=((prm==CMD_DSTRUCT)?CMD_STRUCT:CMD_UNION)) {err_msg2(ERROR___NOT_DEFINED,labelname,epoint); goto breakerr;}
-                        structrecursion++;
+                        current_section->structrecursion++;
                         macro_recurse((prm==CMD_DSTRUCT)?'S':'U',tmp2);
-                        structrecursion--;
+                        current_section->structrecursion--;
                         current_context=oldcontext;
-                        unionmode = old_unionmode;
-                        unionstart = old_unionstart; unionend = old_unionend;
-                        l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
+                        current_section->unionmode = old_unionmode;
+                        current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
+                        current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
                         goto finish;
                     }
                 case CMD_SECTION:
@@ -1116,7 +1118,7 @@ static void compile(void)
                         fputs("\n\t\t\t\t\t", flist);
                     printllist(flist);
                 }
-                if (structrecursion) err_msg(ERROR___NOT_ALLOWED, "*=");
+                if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, "*=");
                 else if (val->type == T_NONE) fixeddig = 0;
                 else {
                     if ((uval_t)val->u.num.val & ~(uval_t)all_mem) {
@@ -1290,9 +1292,9 @@ static void compile(void)
                 }
                 if (prm==CMD_ENDU) { // .endu
                     if (waitfor[waitforp].what=='u') {
-                        waitforp--; current_section->l_address = l_unionend; if (current_section->address != unionend) {current_section->address = unionend; memjmp(current_section->address);}
+                        waitforp--; current_section->l_address = current_section->l_unionend; if (current_section->address != current_section->unionend) {current_section->address = current_section->unionend; memjmp(current_section->address);}
                     } else if (waitfor[waitforp].what=='U') {
-                        waitforp--; nobreak=0; current_section->l_address = l_unionend; if (current_section->address != unionend) {current_section->address = unionend; memjmp(current_section->address);}
+                        waitforp--; nobreak=0; current_section->l_address = current_section->l_unionend; if (current_section->address != current_section->unionend) {current_section->address = current_section->unionend; memjmp(current_section->address);}
                     } else err_msg(ERROR______EXPECTED,".UNION"); break;
                     break;
                 }
@@ -1523,7 +1525,7 @@ static void compile(void)
                         if (fixeddig && scpumode) {
                             if (((current_section->address + val->u.num.val)^current_section->address) & ~(address_t)0xffff) wrapwarn2=1;
                         }
-                        if (structrecursion) {
+                        if (current_section->structrecursion) {
                             if (val->u.num.val < 0) err_msg(ERROR___NOT_ALLOWED, ".OFFS");
                             else {
                                 current_section->l_address+=val->u.num.val;
@@ -1543,7 +1545,7 @@ static void compile(void)
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".LOGICAL");
+                    if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".LOGICAL");
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
                         if ((uval_t)val->u.num.val & ~(uval_t)all_mem) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -1859,7 +1861,7 @@ static void compile(void)
                     int align = 1, fill=-1;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
+                    if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
                         if (!val->u.num.val || ((uval_t)val->u.num.val & ~(uval_t)all_mem)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -2119,70 +2121,70 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_STRUCT) {
-                    int old_unionmode = unionmode;
-                    unionmode = 0;
+                    int old_unionmode = current_section->unionmode;
+                    current_section->unionmode = 0;
                     new_waitfor('s');waitfor[waitforp].skip=0;
-                    structrecursion++;
-                    if (structrecursion<100) {
+                    current_section->structrecursion++;
+                    if (current_section->structrecursion<100) {
                         waitforp--;
                         new_waitfor('S');waitfor[waitforp].skip=1;
                         compile();
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
-                    structrecursion--;
-                    unionmode = old_unionmode;
+                    current_section->structrecursion--;
+                    current_section->unionmode = old_unionmode;
                     break;
                 }
                 if (prm==CMD_UNION) {
-                    int old_unionmode = unionmode;
-                    address_t old_unionstart = unionstart, old_unionend = unionend;
-                    address_t old_l_unionstart = l_unionstart, old_l_unionend = l_unionend;
-                    unionmode = 1;
-                    unionstart = unionend = current_section->address;
-                    l_unionstart = l_unionend = current_section->l_address;
+                    int old_unionmode = current_section->unionmode;
+                    address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
+                    address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+                    current_section->unionmode = 1;
+                    current_section->unionstart = current_section->unionend = current_section->address;
+                    current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                     new_waitfor('u');waitfor[waitforp].skip=0;
-                    structrecursion++;
-                    if (structrecursion<100) {
+                    current_section->structrecursion++;
+                    if (current_section->structrecursion<100) {
                         waitforp--;
                         new_waitfor('U');waitfor[waitforp].skip=1;
                         compile();
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
-                    structrecursion--;
-                    unionmode = old_unionmode;
-                    unionstart = old_unionstart; unionend = old_unionend;
-                    l_unionstart = old_l_unionstart; l_unionend = old_l_unionend;
+                    current_section->structrecursion--;
+                    current_section->unionmode = old_unionmode;
+                    current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
+                    current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
                     break;
                 }
                 if (prm==CMD_DSTRUCT) {
-                    int old_unionmode = unionmode;
-                    unionmode = 0;
+                    int old_unionmode = current_section->unionmode;
+                    current_section->unionmode = 0;
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (!(tmp2=find_macro(labelname)) || tmp2->type!=CMD_STRUCT) {err_msg2(ERROR___NOT_DEFINED,labelname,epoint); goto breakerr;}
-                    structrecursion++;
+                    current_section->structrecursion++;
                     macro_recurse('S',tmp2);
-                    structrecursion--;
-                    unionmode = old_unionmode;
+                    current_section->structrecursion--;
+                    current_section->unionmode = old_unionmode;
                     break;
                 }
                 if (prm==CMD_DUNION) {
-                    int old_unionmode = unionmode;
-                    address_t old_unionstart = unionstart, old_unionend = unionend;
-                    unionmode = 1;
-                    unionstart = unionend = current_section->address;
+                    int old_unionmode = current_section->unionmode;
+                    address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
+                    current_section->unionmode = 1;
+                    current_section->unionstart = current_section->unionend = current_section->address;
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (!(tmp2=find_macro(labelname)) || tmp2->type!=CMD_UNION) {err_msg2(ERROR___NOT_DEFINED,labelname,epoint); goto breakerr;}
-                    structrecursion++;
+                    current_section->structrecursion++;
                     macro_recurse('U',tmp2);
-                    structrecursion--;
-                    unionmode = old_unionmode;
-                    unionstart = old_unionstart; unionend = old_unionend;
+                    current_section->structrecursion--;
+                    current_section->unionmode = old_unionmode;
+                    current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
                     break;
                 }
                 if (prm==CMD_DSECTION) {
                     struct section_s *tmp2;
                     new_waitfor('t');
-                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".DSECTION");
+                    if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".DSECTION");
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     tmp2=new_section(labelname);
@@ -2207,6 +2209,13 @@ static void compile(void)
                             tmp2->declared = 1;
                         }
                         tmp2->provides=~(uval_t)0;tmp2->requires=tmp2->conflicts=0;
+                        tmp2->dooutput = current_section->dooutput;
+                        tmp2->unionmode = current_section->unionmode;
+                        tmp2->unionstart = current_section->unionstart;
+                        tmp2->unionend = current_section->unionend;
+                        tmp2->l_unionstart = current_section->l_unionstart;
+                        tmp2->l_unionend = current_section->l_unionend;
+                        tmp2->structrecursion = current_section->structrecursion;
                         if (tmp2->pass == pass) {
                             t = tmp2->r_address - tmp2->r_start;
                             t2 = tmp2->address - tmp2->start;
@@ -2242,7 +2251,6 @@ static void compile(void)
                     struct section_s *tmp;
                     char sectionname[linelength];
                     new_waitfor('t');waitfor[waitforp].section=current_section;
-                    if (structrecursion) err_msg(ERROR___NOT_ALLOWED, ".SECTION");
                     ignore();epoint=lpoint;
                     if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     tmp=find_new_section(sectionname);
@@ -2814,13 +2822,15 @@ int main(int argc,char *argv[]) {
         for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;wrapwarn=0;actual_encoding=new_encoding("none");wrapwarn2=0;
-            structrecursion=0;allowslowbranch=1;
+            allowslowbranch=1;
             waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
             current_section->dooutput=1;
+            current_section->structrecursion=0;
+            current_section->unionmode=0;
             macro_parameters.p = 0;
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
@@ -2874,13 +2884,15 @@ int main(int argc,char *argv[]) {
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;wrapwarn=0;actual_encoding=new_encoding("none");wrapwarn2=0;
-            structrecursion=0;allowslowbranch=1;
+            allowslowbranch=1;
             waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
             current_section->dooutput=1;
+            current_section->structrecursion=0;
+            current_section->unionmode=0;
             macro_parameters.p = 0;
 
             if (i == optind - 1) {

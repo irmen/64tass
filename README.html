@@ -1010,7 +1010,7 @@ union, unless internal anonymous structs are used.</p>
 <dd>Create instance of struct
 
 <pre width=80>
-        <b class="k">.union</b>          <i>;anonymous struct</i>
+        <b class="k">.union</b>          <i>;anonymous union</i>
 x       <b class="d">.byte</b> <span>0</span>         <i>;labels are visible</i>
 y       <b class="d">.word</b> <span>0</span>         <i>;content compiled here</i>
 	<b class="k">.endu</b>
@@ -1024,6 +1024,41 @@ nn      <b class="d">.dunion</b> <span class="l">nn_u</span>    <i>;union instan
 
         <b>lda</b> <span class="l">nn</span>.<span class="l">x</span>        <i>;access internal fields</i>
         <b>ldy</b> #<span class="l">nn_u</span>.<span class="l">x</span>     <i>;get offset of field</i>
+</pre>
+
+<p>The example below shown how to define structure to a binary include.</p>
+
+<pre width=80>
+        <b class="k">.union</b>
+        <b class="d">.binary</b> <span class="s">"pic.drp"</span>,<span>2</span>
+        <b class="k">.struct</b>
+color	<b class="d">.fill</b> <span>1024</span>
+screen	<b class="d">.fill</b> <span>1024</span>
+bitmap	<b class="d">.fill</b> <span>8000</span>
+backg	<b class="d">.byte</b> <span>?</span>
+        <b class="k">.ends</b>
+	<b class="k">.endu</b>
+</pre>
+
+<p>Anonymous structs and unions in combination with sections are useful for
+overlapping memory assignment. The example below shares zeropage allocations
+for two separate parts of a bigger program. The common subroutine variables
+are assigned after in the <q>zp</q> section.</p>
+
+<pre width=80>
+        <b>*=</b> <span>$02</span>
+        <b class="k">.union</b>          <i>;spare some memory</i>
+        <b class="k">.struct</b>
+        <b class="k">.dsection</b> <span class="l">zp1</span>   <i>;declare zp1 section</i>
+        <b class="k">.send</b> <span class="l">zp1</span>
+        <b class="k">.ends</b>
+        <b class="k">.struct</b>
+        <b class="k">.dsection</b> <span class="l">zp2</span>   <i>;declare zp2 section</i>
+        <b class="k">.send</b> <span class="l">zp2</span>
+        <b class="k">.ends</b>
+	<b class="k">.endu</b>
+        <b class="k">.dsection</b> <span class="l">zp</span>    <i>;declare zp section</i>
+        <b class="k">.send</b> <span class="l">zp</span>
 </pre>
 </dl>
 

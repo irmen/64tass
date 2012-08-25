@@ -915,7 +915,7 @@ using the .cpu directive in the source.
     .dunion <name>
         Create instance of struct
 
-                .union          ;anonymous struct
+                .union          ;anonymous union
         x       .byte 0         ;labels are visible
         y       .word 0         ;content compiled here
                 .endu
@@ -929,6 +929,37 @@ using the .cpu directive in the source.
 
                 lda nn.x        ;access internal fields
                 ldy #nn_u.x     ;get offset of field
+
+        The example below shown how to define structure to a binary include.
+
+                .union
+                .binary "pic.drp",2
+                .struct
+        color   .fill 1024
+        screen  .fill 1024
+        bitmap  .fill 8000
+        backg   .byte ?
+                .ends
+                .endu
+
+        Anonymous structs and unions in combination with sections are useful
+        for overlapping memory assignment. The example below shares zeropage
+        allocations for two separate parts of a bigger program. The common
+        subroutine variables are assigned after in the `zp' section.
+
+                *= $02
+                .union          ;spare some memory
+                .struct
+                .dsection zp1   ;declare zp1 section
+                .send zp1
+                .ends
+                .struct
+                .dsection zp2   ;declare zp2 section
+                .send zp2
+                .ends
+                .endu
+                .dsection zp    ;declare zp section
+                .send zp
 
     Macros
 
