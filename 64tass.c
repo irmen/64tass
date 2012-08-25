@@ -1430,10 +1430,9 @@ static void compile(void)
                         if (uninit) memskip(uninit);
                         if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm==CMD_BINARY) { // .binary
-                        long foffset = 0;
+                        size_t foffset = 0;
                         int nameok = 0;
                         address_t fsize = all_mem+1;
-                        FILE* fil;
                         if (newlabel) newlabel->esize = 1;
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1460,15 +1459,12 @@ static void compile(void)
                         eval_finish();
 
                         if (nameok) {
-                            if ((fil=fopen(path,"rb"))==NULL) {err_msg(ERROR_CANT_FINDFILE,path);goto breakerr;}
-                            fseek(fil,foffset,SEEK_SET);
-                            for (;fsize;fsize--) {
-                                int st=getc(fil);
-                                if (st == EOF) break;
-                                pokeb((uint8_t)st);
+                            struct file_s *cfile = openfile(path, 1);
+                            if (cfile) {
+                                for (;fsize && foffset < cfile->len;fsize--) {
+                                    pokeb(cfile->data[foffset]);foffset++;
+                                }
                             }
-                            if (ferror(fil)) err_msg(ERROR__READING_FILE,path);
-                            fclose(fil);
                         }
                     }
 
@@ -1930,7 +1926,7 @@ static void compile(void)
                             lastl=LIST_NONE;
                         }
                         f = cfile;
-                        cfile = openfile(path);
+                        cfile = openfile(path, 0);
                         if (cfile->open>1) {
                             err_msg(ERROR_FILERECURSION,NULL);
                         } else {
@@ -2801,7 +2797,7 @@ int main(int argc,char *argv[]) {
 
     tinit();
 
-    fin = openfile("");
+    fin = openfile("", 0);
     optind = testarg(argc,argv, fin);
     init_encoding(arguments.toascii);
 
@@ -2844,7 +2840,7 @@ int main(int argc,char *argv[]) {
             }
             memjmp(current_section->address);
             enterfile(argv[i],0);
-            cfile = openfile(argv[i]);
+            cfile = openfile(argv[i], 0);
             if (cfile) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
@@ -2907,7 +2903,7 @@ int main(int argc,char *argv[]) {
             memjmp(current_section->address);
 
             enterfile(argv[i],0);
-            cfile = openfile(argv[i]);
+            cfile = openfile(argv[i], 0);
             if (cfile) {
                 cfile->p = 0;
                 star_tree=&cfile->star;

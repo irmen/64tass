@@ -27,6 +27,7 @@ struct file_s {
     size_t p;         /* current point */
     uint16_t open;    /* open/not open */
     uint16_t uid;     /* uid */
+    int type;
     struct avltree star;
     struct avltree_node node;
 };
@@ -38,7 +39,7 @@ struct star_s {
     struct avltree_node node;
 };
 
-extern struct file_s *openfile(const char*);
+extern struct file_s *openfile(const char*, int);
 extern void closefile(struct file_s*);
 extern struct star_s *new_star(line_t);
 extern void destroy_file(void);
