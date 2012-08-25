@@ -87,7 +87,7 @@ struct file_s *openfile(const char* name) {
                 err_msg(ERROR_CANT_FINDFILE,name);
                 return NULL;
             }
-            if (arguments.quiet) printf("Assembling file:   %s\n",name);
+            if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",name);
             ch=getc(f);
             ungetc(ch, f); 
             if (!ch) type=UTF16BE; /* most likely */
