@@ -209,7 +209,7 @@ enum command_e {
 void status(void) {
     freeerrorlist(1);
     errors+=conderrors;
-    if (arguments.quiet) {
+    if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
         address_t start, end;
         unsigned int i;
         char temp[10];
@@ -2805,7 +2805,7 @@ int main(int argc,char *argv[]) {
     optind = testarg(argc,argv, fin);
     init_encoding(arguments.toascii);
 
-    if (arguments.quiet)
+    if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1]))
         puts("6502/65C02 Turbo Assembler Version 1.3  Copyright (c) 1997 Taboo Productions\n"
              "6502/65C02 Turbo Assembler Version 1.35 ANSI C port by BiGFooT/BReeZe^2000\n"
              "6502/65C02/65816/DTV TASM Version " VERSION " Fixing by Soci/Singular 2001-2012\n"
