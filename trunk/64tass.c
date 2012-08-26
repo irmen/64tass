@@ -583,15 +583,20 @@ static inline void mtranslate()
                 }
                 lpoint++;continue;
             } else ch='\\';
-        } else if (ch=='@') {
+        } else if (ch=='@' && arguments.tasmcomp) {
             /* text parameter reference */
             if (((ch=lowcase(pline[lpoint+1]))>='1' && ch<='9')) {
                 /* @1..@9 */
                 if ((j=ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
                 if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
                 else {
-                    memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
-                    p += macro_parameters.current->param[j].len;
+                    if (macro_parameters.current->param[j].len > 1 && macro_parameters.current->param[j].data[0] == '"' && macro_parameters.current->param[j].data[macro_parameters.current->param[j].len-1]=='"') {
+                        memcpy(cucc + p, macro_parameters.current->param[j].data + 1, macro_parameters.current->param[j].len - 2);
+                        p += macro_parameters.current->param[j].len - 2;
+                    } else {
+                        memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
+                        p += macro_parameters.current->param[j].len;
+                    }
                 }
                 lpoint++;continue;
             } else ch='@';
