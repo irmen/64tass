@@ -124,7 +124,7 @@ static int str_to_num(struct value_s **v2, enum type_e type) {
 
     if (actual_encoding) {
         while (v->u.str.len > i) {
-            if (large >= sizeof(val)) {
+            if (large >= (arguments.tasmcomp ? 1 : sizeof(val))) {
                 val_replace(v2, &none_value);return 1;
             }
 
@@ -413,6 +413,10 @@ rest:
         t1 = try_resolv(&values[vsp-1].val);
         if (ch == '<' || ch == '>') {
             switch (t1) {
+            case T_STR:
+                if (str_to_num(&values[vsp-1].val, T_NUM)) {
+                    err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-1].epoint); large=1;
+                }
             case T_UINT:
             case T_SINT:
             case T_NUM:
@@ -437,6 +441,19 @@ rest:
         }
         if (vsp < 2) goto syntaxe;
         t2 = try_resolv(&values[vsp-2].val);
+
+        if (t1 <= T_SINT && t2 == T_STR) {
+            if (str_to_num(&values[vsp-2].val, T_NUM)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-2].epoint); large=1;
+            }
+            t2 = values[vsp-2].val->type;
+        }
+        if (t2 <= T_SINT && t1 == T_STR) {
+            if (str_to_num(&values[vsp-1].val, T_NUM)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-1].epoint); large=1;
+            }
+            t1 = values[vsp-1].val->type;
+        }
         switch (t1) {
         case T_SINT:
         case T_UINT:
@@ -491,15 +508,7 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     if (epoint) *epoint = values[values_p].epoint;
     try_resolv(&values[values_p].val);
     if (type == T_SINT || type == T_UINT || type == T_NUM || type == T_GAP) {
-        if (values[values_p].val->type == T_STR) {
-            if (arguments.tasmcomp) {
-                size_t i = 0;
-                if (values[values_p].val->u.str.len) {
-                    petascii(&i, values[values_p].val);
-                    if (values[values_p].val->u.str.len == i) str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type);
-                }
-            } else str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type);
-        }
+        if (values[values_p].val->type == T_STR) str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type);
     }
     type2 = values[values_p].val->type;
 
