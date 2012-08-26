@@ -534,8 +534,15 @@ static int get_path(struct value_s *v, const char *base) {
     i = c ? (c - base + 1) : 0;
 #endif
 
-    if (i && i < sizeof(path)) memcpy(path, base, i);
-    
+    if (i && i < sizeof(path)) memcpy(path, base, i); else i = 0;
+
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+    if (v->u.str.len && (v->u.str.data[0]=='/' || v->u.str.data[0]=='\\')) i = j;
+    else if (v->u.str.len > 1 && ((v->u.str.data[0] >= 'A' && v->u.str.data[0] <= 'Z') || (v->u.str.data[0] >= 'a' && v->u.str.data[0] <= 'z')) && v->u.str.data[1]==':') i = 0;
+#else
+    if (v->u.str.len && v->u.str.data[0]=='/') i = 0;
+#endif
+
     if (i + v->u.str.len + 1 >= sizeof(path)) {err_msg(ERROR_CONSTNT_LARGE,NULL); return 1;}
     memcpy(path + i, v->u.str.data, v->u.str.len);
     path[i + v->u.str.len] = 0;
