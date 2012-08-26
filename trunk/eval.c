@@ -19,6 +19,7 @@
 #include "eval.h"
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include "file.h"
 #include "error.h"
 #include "section.h"
@@ -95,6 +96,29 @@ static int get_dec(struct value_s *v) {
     }
     set_uint(v, val);
     return large;
+}
+
+static int get_float(struct value_s *v) {
+    unsigned int i = lpoint;
+
+    while ((uint8_t)(pline[i] ^ '0') < 10) i++;
+    if (pline[i]=='.') {
+        do {
+            i++;
+        } while ((uint8_t)(pline[i] ^ '0') < 10);
+    }
+    if ((pline[i] | 0x20)=='e') {
+        if ((pline[i+1]=='-' || pline[i+1]=='+') && (uint8_t)(pline[i+2] ^ '0') < 10) i++;
+        if ((uint8_t)(pline[i+1] ^ '0') < 10) {
+            do {
+                i++;
+            } while ((uint8_t)(pline[i] ^ '0') < 10);
+        }
+    }
+    v->u.real = strtod((char *)pline + lpoint, NULL);
+    v->type = T_FLOAT;
+    lpoint = i;
+    return 0;
 }
 
 uint_fast16_t petascii(size_t *i, const struct value_s *v) {
@@ -515,6 +539,7 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     case T_SINT:
     case T_UINT:
     case T_NUM:
+    case T_FLOAT:
     case T_GAP:
     case T_LIST:
         if (type == T_NONE) return values[values_p++].val;
@@ -528,6 +553,12 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
             case T_UINT:
             case T_SINT:
             case T_NUM:
+                return values[values_p++].val;
+            case T_FLOAT:
+                new_value.type = (type == T_GAP) ? T_NUM : type;
+                if (type == T_SINT) new_value.u.num.val = (ival_t)values[values_p].val->u.real;
+                else new_value.u.num.val = (uval_t)values[values_p].val->u.real;
+                val_replace(&values[values_p].val, &new_value);
                 return values[values_p++].val;
             case T_GAP: if (type == T_GAP) return values[values_p++].val;
             default:
@@ -782,12 +813,17 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '\'': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
         case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
         case '?': lpoint++;o_out[outp].val.type = T_GAP;goto pushval;
+        case '.': if ((uint8_t)(pline[lpoint+1] ^ 0x30) < 10) goto pushfloat;
         default: 
             if (ch>='0' && ch<='9') {
                 if (get_dec(&o_out[outp].val)) {
-                pushlarge:
-                    err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
-                }
+                pushfloat:
+                    lpoint = epoint;
+                    if (get_float(&o_out[outp].val)) {
+                    pushlarge:
+                        err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
+                    }
+                } else if (here() == '.' || (here() | 0x20) == 'e') goto pushfloat;
             pushval: 
                 o_out[outp++].epoint=epoint;
                 goto other;
@@ -1100,6 +1136,12 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                         val_replace(&v1->val, &new_value);
                         v1->epoint = o_out[i].epoint;
                         continue;
+            case T_FLOAT:
+                        new_value.type = T_FLOAT;
+                        new_value.u.real = (ch == 'n') ? (-v1->val->u.real) : v1->val->u.real;
+                        val_replace(&v1->val, &new_value);
+                        v1->epoint = o_out[i].epoint;
+                        continue;
             default: err_msg_wrong_type(v1->val->type, v1->epoint); 
                      goto errtype;
             case T_NONE: continue;
@@ -1138,6 +1180,12 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                         val_replace(&v1->val, &new_value);
                         v1->epoint = o_out[i].epoint;
                         continue;
+            case T_FLOAT: new_value.type = T_UINT;
+                          new_value.u.num.val = !v1->val->u.real;
+                          new_value.u.num.len = 1;
+                          val_replace(&v1->val, &new_value);
+                          v1->epoint = o_out[i].epoint;
+                          continue;
                 continue;
             default: err_msg_wrong_type(v1->val->type, v1->epoint);
                      goto errtype;
@@ -1155,13 +1203,13 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             continue;
         }
 
-        if (t1 <= T_SINT && t2 == T_STR) {
+        if (t1 <= T_FLOAT && t2 == T_STR) {
             if (str_to_num(&v2->val, T_NUM)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint); large=1;
             }
             t2 = v2->val->type;
         }
-        if (t2 <= T_SINT && t1 == T_STR) {
+        if (t2 <= T_FLOAT && t1 == T_STR) {
             if (str_to_num(&v1->val, T_NUM)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
             }
@@ -1291,6 +1339,64 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     goto strretr;
                 default: err_msg_wrong_type(v1->val->type, v1->epoint); goto errtype;
             }
+        }
+        if (t1 == T_FLOAT && t2 <= T_SINT) {
+            new_value.type = T_FLOAT;
+            if (t2 == T_SINT) new_value.u.real = (ival_t)v2->val->u.num.val;
+            else new_value.u.real = (uval_t)v2->val->u.num.val;
+            val_replace(&v2->val, &new_value);
+            t2 = v2->val->type;
+        }
+        if (t2 == T_FLOAT && t1 <= T_SINT) {
+            new_value.type = T_FLOAT;
+            if (t1 == T_SINT) new_value.u.real = (ival_t)v1->val->u.num.val;
+            else new_value.u.real = (uval_t)v1->val->u.num.val;
+            val_replace(&v1->val, &new_value);
+            t1 = v1->val->type;
+        }
+        if (t1 == T_FLOAT && t2 == T_FLOAT) {
+            double val1 = v1->val->u.real;
+            double val2 = v2->val->u.real;
+
+            switch (ch) {
+            case '=': val1 = ( val1 == val2);t1 = T_UINT;break;
+            case 'o': val1 = ( val1 != val2);t1 = T_UINT;break;
+            case '<': val1 = ( val1 <  val2);t1 = T_UINT;break;
+            case '>': val1 = ( val1 >  val2);t1 = T_UINT;break;
+            case 's': val1 = ( val1 <= val2);t1 = T_UINT;break;
+            case 'g': val1 = ( val1 >= val2);t1 = T_UINT;break;
+            case 'A': val1 = ( val1 && val2);t1 = T_UINT;break;
+            case 'O': val1 = ( val1 || val2);t1 = T_UINT;break;
+            case 'X': val1 = (!val1 ^ !val2);t1 = T_UINT;break;
+            case '*': val1 = ( val1 *  val2);break;
+            case '/': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = 0.0; large=1;}
+                else  val1 = ( val1 /  val2); break;
+            case '%': if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = 0.0; large=1;}
+                else val1 = fmod(val1, val2); break;
+            case '+': val1 = ( val1 +  val2);break;
+            case '-': val1 = ( val1 -  val2);break;
+            case 'E': 
+                {
+                    double res = 1.0;
+
+                    if (val2 < 0.0) {
+                        if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); res = 0.0; large=1;}
+                        else res = pow(val1, val2);
+                    } else res = pow(val1, val2);
+                    val1 = res;
+                }
+                break;
+            default: err_msg_wrong_type(v1->val->type, v1->epoint); 
+                     goto errtype;
+            }
+            new_value.type = t1;
+            if (t1 == T_FLOAT) new_value.u.real = val1;
+            else {
+                new_value.u.num.val = val1;
+                new_value.u.num.len = 1;
+            }
+            val_replace(&v1->val, &new_value);
+            continue;
         }
         if (t2 == T_UNDEF) err_msg_wrong_type(v2->val->type, v2->epoint); 
         else err_msg_wrong_type(v1->val->type, v1->epoint);

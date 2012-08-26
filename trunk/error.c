@@ -195,6 +195,7 @@ void err_msg_wrong_type(enum type_e type, unsigned int epoint) {
     case T_OPER: name = "<operator>";break;
     case T_GAP: name = "<uninit>";break;
     case T_LIST: name = "<list>";break;
+    case T_FLOAT: name = "<float>";break;
     }
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
 }
@@ -227,6 +228,7 @@ void err_msg_variable(struct value_s *val) {
         else sprintf(buffer,"$%08" PRIxval, val->u.num.val);
         add_user_error(buffer); break;
     }
+    case T_FLOAT: sprintf(buffer,"%f", val->u.real); add_user_error(buffer); break;
     case T_STR: add_user_error2(val->u.str.data, val->u.str.len);break;
     case T_UNDEF: add_user_error("<undefined>");break;
     case T_IDENT: add_user_error("<ident>");break;

@@ -3,7 +3,7 @@ OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encod
 LANG = C
 REVISION := $(shell svnversion)
 CFLAGS = -O2 -W -Wall -Wextra -DREVISION="\" $(REVISION)\"" -g 
-LDFLAGS = -g
+LDFLAGS = -g -lm
 CFLAGS += $(LDFLAGS)
 
 .SILENT:
