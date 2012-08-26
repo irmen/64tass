@@ -29,7 +29,7 @@ typedef uint32_t uval_t;
 #define PRIuval PRIu32
 
 enum type_e {
-    T_NONE, T_NUM, T_UINT, T_SINT, T_STR, T_GAP, T_IDENT, T_IDENTREF,
+    T_NONE, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT, T_IDENTREF,
     T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_LIST,
 };
 
@@ -56,6 +56,7 @@ struct value_s {
         struct label_s *label;
         char oper;
         uint8_t ref;
+        double real;
     } u;
 };
 
