@@ -42,6 +42,7 @@ struct section_s {
     address_t l_unionend;
     uint8_t pass;
     uint_fast8_t structrecursion;
+    uint_fast8_t logicalrecursion;
     unsigned int dooutput:1;
     unsigned int declared:1;
     unsigned int unionmode:1;

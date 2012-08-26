@@ -69,6 +69,7 @@ struct arguments_s {
     unsigned longbranch:1;
     unsigned wordstart:1;
     unsigned tasmcomp:1;
+    unsigned flat:1;
     const char *output;
     uint8_t cpumode;
     const char *label;

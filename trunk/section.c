@@ -74,6 +74,7 @@ struct section_s *new_section(const char* name) {
         lastsc->declared=0;
         lastsc->unionmode=0;
         lastsc->structrecursion=0;
+        lastsc->logicalrecursion=0;
         avltree_init(&lastsc->members, section_compare, section_free);
 	labelexists=0;
 	tmp=lastsc;

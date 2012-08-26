@@ -1,6 +1,8 @@
 <html>
 <head>
 <title>64tass v1.5x manual</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="Author" content="Kajtar Zsolt">
 <style type="text/css">
 dt {margin-top:0.5em}
 dt + dt {margin-top:0em}
@@ -27,7 +29,7 @@ p {text-align:justify}
 <p>Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
 BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
 optimizations, multi pass compile and a lot of features by Soci/Singular.
-Improved TASS compatibility, petscii codes by Groepaz.</p>
+Improved TASS compatibility, PETSCII codes by Groepaz.</p>
 
 <p>Additional code: my_getopt command-line argument parser by Benjamin
 Sittler, avl tree code by Franck Bui-Huu, ternary tree code by Daniel
@@ -190,15 +192,74 @@ instruction.</p>
 <hr>
 <h2>Command line options</h2>
 
+<h3>Output options</h3>
+
+<dl class="dir">
+<dt><b>-o</b> &lt;filename&gt;
+<dd>Place output into &lt;filename&gt;
+<p>The default output filename is <q>a.out</q>. This option changes it.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass a.asm -o a.prg
+</pre>
+</fieldset>
+
+<dt><b>-b</b>, <b>--nostart</b>
+<dd>Strip starting address
+<p>Strips the 2 or 3 byte starting address before the resulting binary.
+Useful for creating small ROM images.</p>
+
+<dt><b>-f</b>, <b>--flat</b>
+<dd>Flat output mode
+<p>Output the plain binary image from offset 0. The image size can be much larger than
+the processor address space. Useful for creating huge multi bank ROM files.</p>
+
+<dt><b>-n</b>, <b>--nonlinear</b>
+<dd>Generate nonlinear output file
+<p>Generates non-linear output for linkers.
+Format: length, address, code, length, ...</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --nonlinear a.asm
+        <b>*=</b> <span>$1000</span>
+        <b>lda</b> #<span>2</span>
+        <b>*=</b> <span>$2000</span>
+	<b>nop</b>
+result:
+$02, $00 ;little endian length, 2 bytes
+$00, $10 ;little endian start $1000
+$a9, $02 ;code
+$01, $00 ;little endian length, 1 byte
+$00, $20 ;little endian start $2000
+$ea	 ;code
+$00, $00 ;end marker (length=0)
+</pre>
+</fieldset>
+
+<dt><b>-W</b>, <b>--wordstart</b>
+<dd>Force 2 byte start address
+<p>If 16&nbsp;MiB address space is used for a 65816, then the starting
+address of file will be 3 bytes long. This option makes it 2 bytes long.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --wordstart --m65816 a.asm
+</pre>
+</fieldset>
+
+</dl>
+
 <h3>Operation options</h3>
 
 <dl class="dir">
-<dt>-a, --ascii
+<dt><b>-a</b>, <b>--ascii</b>
 <dd>Use ASCII/Unicode text encoding instead of raw 8-bit
 <p>Normally no conversion takes place, this is for backwards compatibility with
-a DOS based Turbo Assembler editor, which could create petscii files for
+a DOS based Turbo Assembler editor, which could create PETSCII files for
 6502tass. (including control characters of course)</p>
-<p>Using this option will change the default "none" and "screen" encodings to
+<p>Using this option will change the default <q>none</q> and <q>screen</q> encodings to
 map 'a'-'z' and 'A'-'Z' into the correct PETSCII range of $41-$5A and $C1-$DA,
 which is more suitable for an ASCII editor. It also adds predefined petcat style
 PETASCII literals to the default encodings.</p>
@@ -226,15 +287,10 @@ advantage of the full unicode set.</p>
 </pre>
 </fieldset>
 
-<dt>-b, --nostart
-<dd>Strip starting address
-<p>Strips the 2 or 3 byte starting address before the resulting binary.
-Usefull for creating ROM images.</p>
-
-<dt>-B, --long-branch
-<dd>Automatic bxx *+3 jmp $xxxx
+<dt><b>-B</b>, <b>--long-branch</b>
+<dd>Automatic <code>BXX *+5 JMP xxx</code>
 <p>Branch too long messages can be annoying sometimes, usually they'll result
-in an bxx *+5 jmp rewrite. 64tass can do this automatically if this option is
+in an <code>BXX *+5 JMP xxx</code> rewrite. 64tass can do this automatically if this option is
 used. But <code>BRA</code> is not converted.</p>
 <fieldset>
 <legend>Example</legend>
@@ -254,7 +310,7 @@ used. But <code>BRA</code> is not converted.</p>
 </pre>
 </fieldset>
 
-<dt>-C, --case-sensitive
+<dt><b>-C</b>, <b>--case-sensitive</b>
 <dd>Case sensitive labels
 <p>Labels are non case sensitive by default, this option changes that.</p>
 <fieldset>
@@ -270,7 +326,7 @@ Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
 </pre>
 </fieldset>
 
-<dt>-D &lt;label&gt;=&lt;value&gt;
+<dt><b>-D</b> &lt;label&gt;=&lt;value&gt;
 <dd>Define &lt;label&gt; to &lt;value&gt;
 <p>Defines a label to a value. Same syntax is allowed as in source files. Be careful with
 string quoting, the shell might eat some of the characters.</p>
@@ -282,40 +338,7 @@ string quoting, the shell might eat some of the characters.</p>
 </pre>
 </fieldset>
 
-<dt>-n, --nonlinear
-<dd>Generate nonlinear output file
-<p>Generates non-linear output for linkers.
-Format: length, address, code, length, ...</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --nonlinear a.asm
-        <b>*=</b> <span>$1000</span>
-        <b>lda</b> #<span>2</span>
-        <b>*=</b> <span>$2000</span>
-	<b>nop</b>
-result:
-$02, $00 ;little endian length, 2 bytes
-$00, $10 ;little endian start $1000
-$a9, $02 ;code
-$01, $00 ;little endian length, 1 byte
-$00, $20 ;little endian start $2000
-$ea	 ;code
-$00, $00 ;end marker (length=0)
-</pre>
-</fieldset>
-
-<dt>-o &lt;file&gt;
-<dd>Place output into &lt;file&gt;
-<p>The default output filename is <q>a.out</q>. This option changes it.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass a.asm -o a.prg
-</pre>
-</fieldset>
-
-<dt>-w, --no-warn
+<dt><b>-w</b>, <b>--no-warn</b>
 <dd>Suppress warnings
 <p>Disables warnings during compile.</p>
 <fieldset>
@@ -325,7 +348,7 @@ $00, $00 ;end marker (length=0)
 </pre>
 </fieldset>
 
-<dt>-q, --quiet
+<dt><b>-q</b>, <b>--quiet</b>
 <dd>Suppress messages
 <p>Disables header and summary messages.</p>
 <fieldset>
@@ -335,18 +358,7 @@ $00, $00 ;end marker (length=0)
 </pre>
 </fieldset>
 
-<dt>-W, --wordstart
-<dd>Force 2 byte start address
-<p>It 16&nbsp;MiB address space is used for 65816, then the starting
-address of file will be 3 bytes long. This option makes it 2 bytes long.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --wordstart --m65816 a.asm
-</pre>
-</fieldset>
-
-<dt>-T, --tasm-compatible
+<dt><b>-T</b>, <b>--tasm-compatible</b>
 <dd>Enable TASM compatible operators and precedence
 <p>Switches the expression evaluator into compatibility mode. This
 enables <q>.</q>, <q>:</q> and <q>!</q> operators and disables 64tass specific extensions, disables precedence handling
@@ -357,7 +369,8 @@ and forces 16&nbsp;bit unsigned evaluation (see <q>differences to original Turbo
 <p>These options will select the default architecture. It can be overridden by
 using the <code>.cpu</code> directive in the source.</p>
 
-<dt>--m65xx
+<dl class="dir">
+<dt><b>--m65xx</b>
 <dd>Standard 65xx (default)
 <p>Selects standard 6502. For writing compatible code, no extra codes. This is the default.</p>
 <fieldset>
@@ -368,8 +381,7 @@ using the <code>.cpu</code> directive in the source.</p>
 </pre>
 </fieldset>
 
-<dl class="dir">
-<dt>-c, --m65c02
+<dt><b>-c</b>, <b>--m65c02</b>
 <dd>CMOS 65C02
 <p>Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
 <fieldset>
@@ -380,7 +392,7 @@ using the <code>.cpu</code> directive in the source.</p>
 </pre>
 </fieldset>
 
-<dt>-i, --m6502
+<dt><b>-i</b>, <b>--m6502</b>
 <dd>NMOS 65xx
 <p>Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64, disk drive code, etc.</p>
 <legend>Example</legend>
@@ -391,7 +403,7 @@ using the <code>.cpu</code> directive in the source.</p>
 </pre>
 </fieldset>
 
-<dt>-t, --m65dtv02
+<dt><b>-t</b>, <b>--m65dtv02</b>
 <dd>65DTV02
 <p>Selects 65DTV02. Enables extra opcodes specific to DTV.</p>
 <fieldset>
@@ -402,7 +414,7 @@ using the <code>.cpu</code> directive in the source.</p>
 </pre>
 </fieldset>
 
-<dt>-x, --m65816
+<dt><b>-x</b>, <b>--m65816</b>
 <dd>W65C816
 <p>Selects 65816. Enables extra opcodes, and full 16&nbsp;MiB address space.
 Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones ;)</p>
@@ -414,7 +426,7 @@ Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small 
 </pre>
 </fieldset>
 
-<dt>-e, --m65el02
+<dt><b>-e</b>, <b>--m65el02</b>
 <dd>65EL02
 <p>Selects 65EL02. Enables extra opcodes, useful <a href="http://www.eloraam.com/nonwp/redcpu.php">RedPower CPU</a> projects. Probably you'll need <q>--nostart</q> as well.</p>
 <fieldset>
@@ -429,9 +441,9 @@ Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small 
 <h3>Source listing options</h3>
 
 <dl class="dir">
-<dt>-l &lt;file&gt;
+<dt><b>-l</b> &lt;file&gt;
 <dd>List labels into &lt;file&gt;
-<p>List labels to a file. Local labels are commented out, unused ones are marked with a comment.</p>
+<p>List global labels to a file. Unused ones are marked with a comment.</p>
 <fieldset>
 <legend>Example</legend>
 <pre>
@@ -444,9 +456,9 @@ label           = $1000    ; *** unused
 </pre>
 </fieldset>
 
-<dt>-L &lt;file&gt;
+<dt><b>-L</b> &lt;file&gt;
 <dd>List into &lt;file&gt;
-<p>Dumps source code and compiled code into file. Useful for debugging code,
+<p>Dumps source code and compiled code into file. Useful for debugging,
 it's much easier to identify the code in memory within the source files.</p>
 <fieldset>
 <legend>Example</legend>
@@ -473,7 +485,7 @@ result (list.txt):
 </pre>
 </fieldset>
 
-<dt>-m, --no-monitor
+<dt><b>-m</b>, <b>--no-monitor</b>
 <dd>Don't put monitor code into listing
 <p>There won't be any monitor listing in the list file.</p>
 <fieldset>
@@ -496,7 +508,7 @@ result (list.txt):
 </pre>
 </fieldset>
 
-<dt>-s, --no-source
+<dt><b>-s</b>, <b>--no-source</b>
 <dd>Don't put source code into listing
 <p>There won't be any source listing in the list file.</p>
 <fieldset>
@@ -523,15 +535,15 @@ result (list.txt):
 <h3>Other options</h3>
 
 <dl class="dir">
-<dt>-?, --help
+<dt><b>-?</b>, <b>--help</b>
 <dd>Give this help list
 <p>Prints help about command line options.</p>
 
-<dt>--usage
+<dt><b>--usage</b>
 <dd>Give a short usage message
 <p>Prints short help about command line options.</p>
 
-<dt>-V, --version
+<dt><b>-V</b>, <b>--version</b>
 <dd>Print program version
 <p>Prints program version.</p>
 </dl>
@@ -604,8 +616,8 @@ numeric values in numeric expressions.</p>
         <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
         <b class="d">.byte</b> <span>%00011111</span> <i>; binary</i>
 
-        <b class="d">.text</b> <span class="s">"oeU"</span>     <i>; text, "" means $22</i>
-        <b class="d">.text</b> <span class="s">'it''s'</span>   <i>; text, '' means $27</i>
+        <b class="d">.text</b> <span class="s">"oeU"</span>     <i>; text</i>
+        <b class="d">.text</b> <span class="s">'it''s'</span>   <i>; text: it's</i>
 </pre>
 
 <p>Parenthesis (<code>( )</code>) and brackets (<code>[ ]</code>) can be
@@ -617,14 +629,14 @@ denote indirect addressing mode for certain opcodes.</p>
 </pre>
 
 <p>The dot (<code>.</code>) operator can be used to reference
-member elements of structs and unions by their address.</p>
+member elements of structs and unions.</p>
 
 <pre width=80>
         <b>lda</b> <span class="l">storage</span>.<span class="l">len</span>
 </pre>
 
 <p>Brackets (<code>[</code> <code>]</code>) operator can be used to reference
-member elements of arrays by their address, indexing starts at 0.</p>
+member elements of arrays by their address. Indexing starts at 0.</p>
 
 <pre width=80>
         <b>lda</b> <span class="l">myarr</span>[<span>2</span>],y
@@ -739,7 +751,9 @@ the special star label gets when referenced.</p>
 
 <dl class="dir">
 <dt><b>*=</b> &lt;expression&gt;
-<dd>Set both compile address and logical address
+<dd>Set both compile address and logical address. The compile address is moved so
+that the logical address will match at this point. If confused about what this means,
+see the example at <code>.logical</code>.
 <pre width=80>
         <b>*=</b> <span>$1000</span>
 </pre>
@@ -750,7 +764,7 @@ the special star label gets when referenced.</p>
 </pre>
 <dt><b>.logical</b> &lt;expression&gt;
 <dt><b>.here</b>
-<dd>Changes logical address. Can be nested.
+<dd>Changes logical address, compile address is not changed. Can be nested.
 <pre width=80>
         <b class="k">.logical</b> <span>$300</span>
 drive   <b>lda</b> #<span>$80</span>
@@ -758,6 +772,13 @@ drive   <b>lda</b> #<span>$80</span>
         <b>jmp</b> <span class="l">drive</span>       <i>;jmp $300</i>
 	<b>rts</b>
 	<b class="k">.here</b>
+</pre>
+<p>Here's an example how <code>.logical</code> and <code>*=</code> works together:</p>
+<pre width=80>
+        <b>*=</b> <span>$0800</span>       <i>;Compile: $0800, Logical: $0800</i>
+        <b class="k">.logical</b> <span>$1000</span> <i>;Compile: $0800, Logical: $1000</i>
+        <b>*=</b> <span>$1200</span>       <i>;Compile: $0a00, Logical: $1200</i>
+	<b class="k">.here</b>          <i>;Compile: $0a00, Logical: $0a00</i>
 </pre>
 
 <dt><b>.align</b> &lt;modulo&gt;[, &lt;fill&gt;]
@@ -783,21 +804,8 @@ loop    <b>adc</b> #<span>1</span>          ;padding with "nop" for DTV burst mo
         <b class="d">.text</b> ^<span class="l">OEU</span>	<i>; the decimal value as string (^23 is $32,$33)</i>
 </pre>
 
-<dt><b>.byte</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 8&nbsp;bit unsigned byte constants
-<pre width=80>
-        <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
-	<b class="d">.byte</b> ?	        <i>; reserve 1 byte of space</i>
-</pre>
-
-<dt><b>.char</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 8&nbsp;bit signed integer constants
-<pre width=80>
-        <b class="d">.char</b> -<span>33</span>, <span>57</span>
-</pre>
-
 <dt><b>.shift</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Same as <code>.text</code>, but the last byte will have highest bit set.
+<dd>Same as <code>.text</code>, but the last byte will have the highest bit set.
 Any character which already has the most significiant bit set will cause an error.
 <pre width=80>
         <b>ldx</b> #<span>0</span>
@@ -830,7 +838,7 @@ txt	<b class="d">.shiftl</b> <span class="s">"some text"</span>
 </pre>
 
 <dt><b>.null</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Same as <code>.text</code>, but adds a null at the end, null in string is an error
+<dd>Same as <code>.text</code>, but adds a null at the end, null in string is an error.
 <pre width=80>
 txt	<b class="d">.text</b> <span class="s">"lot of stuff"</span>
         <b class="d">.null</b> <span class="s">"to write"</span>
@@ -864,18 +872,17 @@ null	<b>rts</b>
 txt	<b class="d">.ptext</b> <span class="s">"note"</span>
 </pre>
 
-<dt><b>.rta</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include return address constants, which are one byte less than the original.
+<dt><b>.byte</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Include 8&nbsp;bit unsigned byte constants
 <pre width=80>
-        <b>lda</b> #<span>0</span>
-	<b>asl</b>
-	<b>tax</b>
-        <b>lda</b> <span class="l">rets</span>+<span>1</span>,x
-	<b>pha</b>
-        <b>lda</b> <span class="l">rets</span>,x
-	<b>pha</b>
-	<b>rts</b>
-rets	<b class="d">.rta</b> <span>$fce2</span>
+        <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
+	<b class="d">.byte</b> ?	        <i>; reserve 1 byte of space</i>
+</pre>
+
+<dt><b>.char</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Include 8&nbsp;bit signed integer constants
+<pre width=80>
+        <b class="d">.char</b> -<span>33</span>, <span>57</span>
 </pre>
 
 <dt><b>.word</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
@@ -891,17 +898,25 @@ rets	<b class="d">.rta</b> <span>$fce2</span>
         <b class="d">.int</b> -<span>533</span>, <span>4433</span>
 </pre>
 
+<dt><b>.rta</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Include return address constants, which are one byte less than the original.
+<pre width=80>
+        <b>lda</b> #<span>0</span>
+	<b>asl</b>
+	<b>tax</b>
+        <b>lda</b> <span class="l">rets</span>+<span>1</span>,x
+	<b>pha</b>
+        <b>lda</b> <span class="l">rets</span>,x
+	<b>pha</b>
+	<b>rts</b>
+rets	<b class="d">.rta</b> <span>$fce2</span>
+</pre>
+
 <dt><b>.long</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 24&nbsp;bit unsigned constants
 <pre width=80>
         <b class="d">.long</b> <span>$123456</span>
 	<b class="d">.long</b> ?	        <i>; reserve 3 bytes of space</i>
-</pre>
-
-<dt><b>.dint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 32&nbsp;bit signed integer constants
-<pre width=80>
-        <b class="d">.dint</b> -<span>533</span>, <span>4433</span>
 </pre>
 
 <dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
@@ -911,8 +926,14 @@ rets	<b class="d">.rta</b> <span>$fce2</span>
 	<b class="d">.dword</b> ?        <i>; reserve 4 bytes of space</i>
 </pre>
 
+<dt><b>.dint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Include 32&nbsp;bit signed integer constants
+<pre width=80>
+        <b class="d">.dint</b> -<span>533</span>, <span>4433</span>
+</pre>
+
 <dt><b>.fill</b> &lt;length&gt;[, &lt;fill&gt;]
-<dd>Skip bytes, or fill with repeated bytes. For multi byte patterns use <code>.repeat</code>!
+<dd>Skip bytes, or fill with repeated bytes. For multi byte patterns use <code>.rept</code>!
 <pre width=80>
         <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
         <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
