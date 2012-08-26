@@ -55,7 +55,7 @@ struct memblock_s {size_t p, len;address_t start;}; //starts and sizes
 #define nestinglevel 256
 static int wrapwarn=0, wrapwarn2=0;
 line_t sline, vline;      //current line
-static address_t all_mem;
+static address_t all_mem, all_mem2;
 uint8_t pass=0;      //pass
 static int listing=0;   //listing
 static struct {size_t p, len;uint8_t *data;} mem = {0, 0, NULL};//Linear memory dump
@@ -276,7 +276,7 @@ static void new_waitfor(char what) {
 }
 
 static void set_size(struct label_s *var, size_t size) {
-    size &= all_mem;
+    size &= all_mem2;
     if (var->size != size) {
         var->size = size;
         fixeddig = 0;
@@ -311,14 +311,11 @@ static void memskip(address_t db) {
     }
     current_section->l_address += db;
     if (current_section->l_address > all_mem) {
-        if (fixeddig) wrapwarn=1;
+        if (fixeddig) wrapwarn2=1;
         current_section->l_address &= all_mem;
     }
-    current_section->address += db;
-    if (current_section->address > all_mem) {
-        if (fixeddig) wrapwarn=1;
-        current_section->address &= all_mem;
-    }
+    if (db > (~current_section->address & all_mem2)) wrapwarn = 1;
+    current_section->address = (current_section->address + db) & all_mem2;
     memjmp(current_section->address);
 }
 
@@ -384,13 +381,17 @@ static void pokeb(uint8_t byte)
     }
     if (wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);wrapwarn=0;}
     if (wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);wrapwarn2=0;}
-    current_section->address++;current_section->l_address++;current_section->l_address &= all_mem;
-    if (current_section->address & ~all_mem) {
+    current_section->address++;current_section->l_address++;
+    if (current_section->address & ~all_mem2) {
 	if (fixeddig) wrapwarn=1;
 	current_section->address=0;
         memjmp(current_section->address);
     }
-    if (fixeddig && scpumode) if (!(current_section->address & 0xffff) || !(current_section->l_address & 0xffff)) wrapwarn2=1;
+    if (current_section->l_address & ~all_mem) {
+	if (fixeddig) wrapwarn2=1;
+	current_section->l_address=0;
+    }
+    if (fixeddig && !(current_section->l_address & 0xffff)) wrapwarn2=1;
 }
 
 static int lookup_opcode(const char *s) {
@@ -614,6 +615,7 @@ static void set_cpumode(uint_fast8_t cpumode) {
     case OPCODES_65EL02:mnemonic=MNEMONIC65EL02;opcode=c65el02;break;
     default: mnemonic=MNEMONIC6502;opcode=c6502;break;
     }
+    all_mem2 = arguments.flat ? ~(address_t)0 : all_mem;
 }
 
 void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
@@ -1120,13 +1122,28 @@ static void compile(void)
                 if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, "*=");
                 else if (val->type == T_NONE) fixeddig = 0;
                 else {
-                    if ((uval_t)val->u.num.val & ~(uval_t)all_mem) {
-                        err_msg(ERROR_CONSTNT_LARGE,NULL);
+                    if (arguments.flat && !current_section->logicalrecursion) {
+                        if ((uval_t)val->u.num.val & ~(uval_t)all_mem2) {
+                            err_msg(ERROR_CONSTNT_LARGE,NULL);
+                        } else {
+                            current_section->l_address = (uval_t)val->u.num.val & all_mem;
+                            if (current_section->address != (uval_t)val->u.num.val) {
+                                current_section->address = (uval_t)val->u.num.val;
+                                memjmp(current_section->address);
+                            }
+                        }
                     } else {
-                        address_t ch2=(uval_t)val->u.num.val;
-                        if (current_section->address!=ch2 || current_section->l_address!=ch2) {
-                            current_section->address=current_section->l_address=ch2;
-                            memjmp(current_section->address);
+                        if ((uval_t)val->u.num.val & ~(uval_t)all_mem) {
+                            err_msg(ERROR_CONSTNT_LARGE,NULL);
+                        } else {
+                            address_t addr;
+                            if (arguments.tasmcomp) addr = (uval_t)val->u.num.val;
+                            else addr = current_section->address + (((uval_t)val->u.num.val-current_section->l_address) & all_mem);
+                            if (current_section->address != addr) {
+                                current_section->address = addr;
+                                memjmp(current_section->address);
+                            }
+                            current_section->l_address = (uval_t)val->u.num.val;
                         }
                     }
                 }
@@ -1312,10 +1329,12 @@ static void compile(void)
                 if (prm==CMD_HERE) { // .here
                     if (waitfor[waitforp].what=='l') {
                         waitforp--;
+                        current_section->logicalrecursion--;
                     } else if (waitfor[waitforp].what=='L') {
 			current_section->l_address = current_section->address + waitfor[waitforp].laddr;
 			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
                         waitforp--;
+                        current_section->logicalrecursion--;
                     } else err_msg(ERROR______EXPECTED,".LOGICAL"); break;
                     break;
                 }
@@ -1541,6 +1560,7 @@ static void compile(void)
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".LOGICAL");
+                    current_section->logicalrecursion++;
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
                         if ((uval_t)val->u.num.val & ~(uval_t)all_mem) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -1617,7 +1637,7 @@ static void compile(void)
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
                         db=val->u.num.val;
-                        if (db>(all_mem+1)) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);goto breakerr;}
+                        if (db && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);goto breakerr;}
                     }
                     if ((val = get_val(T_UINT, &epoint))) {
                         if (val->type == T_NONE) ch = fixeddig = 0;
@@ -2211,6 +2231,7 @@ static void compile(void)
                         tmp2->l_unionstart = current_section->l_unionstart;
                         tmp2->l_unionend = current_section->l_unionend;
                         tmp2->structrecursion = current_section->structrecursion;
+                        tmp2->logicalrecursion = current_section->logicalrecursion;
                         if (tmp2->pass == pass) {
                             t = tmp2->r_address - tmp2->r_start;
                             t2 = tmp2->address - tmp2->start;
@@ -2816,7 +2837,7 @@ int main(int argc,char *argv[]) {
         mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
         for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=longaccu=longindex=0;wrapwarn=0;actual_encoding=new_encoding("none");wrapwarn2=0;
+            star=databank=dpage=longaccu=longindex=0;wrapwarn=wrapwarn2=0;actual_encoding=new_encoding("none");wrapwarn2=0;
             allowslowbranch=1;
             waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
@@ -2825,6 +2846,7 @@ int main(int argc,char *argv[]) {
             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
             current_section->dooutput=1;
             current_section->structrecursion=0;
+            current_section->logicalrecursion=0;
             current_section->unionmode=0;
             macro_parameters.p = 0;
             /*	listing=1;flist=stderr;*/
@@ -2878,7 +2900,7 @@ int main(int argc,char *argv[]) {
             if (i >= optind) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=longaccu=longindex=0;wrapwarn=0;actual_encoding=new_encoding("none");wrapwarn2=0;
+            star=databank=dpage=longaccu=longindex=0;wrapwarn=wrapwarn2=0;actual_encoding=new_encoding("none");wrapwarn2=0;
             allowslowbranch=1;
             waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
@@ -2887,6 +2909,7 @@ int main(int argc,char *argv[]) {
             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
             current_section->dooutput=1;
             current_section->structrecursion=0;
+            current_section->logicalrecursion=0;
             current_section->unionmode=0;
             macro_parameters.p = 0;
 
@@ -2938,8 +2961,12 @@ int main(int argc,char *argv[]) {
         clearerr(fout);
         if (memblocks.p) {
             start = memblocks.data[0].start;
-            size = memblocks.data[0].len;
             last = 0;
+            if (!arguments.nonlinear && arguments.flat) {
+                size = start;
+                while (size--) putc(0, fout);
+            }
+            size = memblocks.data[0].len;
             for (i=1;i<memblocks.p;i++) {
                 if (memblocks.data[i].start != start + size) {
                     if (arguments.nonlinear) {
@@ -2947,7 +2974,7 @@ int main(int argc,char *argv[]) {
                         putc(size >> 8,fout);
                         if (scpumode) putc(size >> 16,fout);
                     }
-                    if ((!arguments.stripstart && !last) || arguments.nonlinear) {
+                    if ((!arguments.stripstart && !arguments.flat && !last) || arguments.nonlinear) {
                         putc(start,fout);
                         putc(start >> 8,fout);
                         if (scpumode) putc(start >> 16,fout);
@@ -2970,7 +2997,7 @@ int main(int argc,char *argv[]) {
                 putc(size >> 8,fout);
                 if (scpumode) putc(size >> 16,fout);
             }
-            if ((!arguments.stripstart && !last) || arguments.nonlinear) {
+            if ((!arguments.stripstart && !arguments.flat && !last) || arguments.nonlinear) {
                 putc(start,fout);
                 putc(start >> 8,fout);
                 if (scpumode) putc(start >> 16,fout);

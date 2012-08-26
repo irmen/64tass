@@ -28,7 +28,7 @@
 #include "encoding.h"
 #include "file.h"
 
-struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,"a.out",OPCODES_6502,NULL,NULL};
+struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,0,"a.out",OPCODES_6502,NULL,NULL};
 
 static struct avltree macro_tree;
 static struct avltree jump_tree;
@@ -272,13 +272,14 @@ void labelprint(void) {
 }
 
 // ------------------------------------------------------------------
-static const char *short_options= "wqnbWaTCBicxtel:L:msV?o:D:";
+static const char *short_options= "wqnbfWaTCBicxtel:L:msV?o:D:";
 
 static const struct option long_options[]={
     {"no-warn"          , no_argument      , 0, 'w'},
     {"quiet"            , no_argument      , 0, 'q'},
     {"nonlinear"        , no_argument      , 0, 'n'},
     {"nostart"          , no_argument      , 0, 'b'},
+    {"flat"             , no_argument      , 0, 'f'},
     {"wordstart"        , no_argument      , 0, 'W'},
     {"ascii"            , no_argument      , 0, 'a'},
     {"tasm-compatible"  , no_argument      , 0, 'T'},
@@ -312,6 +313,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 'W':arguments.wordstart=0;break;
             case 'n':arguments.nonlinear=1;break;
             case 'b':arguments.stripstart=1;break;
+            case 'f':arguments.flat=1;break;
             case 'a':arguments.toascii=1;break;
             case 'T':arguments.tasmcomp=1;break;
             case 'o':arguments.output=optarg;break;
@@ -395,9 +397,9 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 's':arguments.source=0;break;
             case 'C':arguments.casesensitive=1;break;
             case 2:puts(
-	       "Usage: 64tass [-abBCnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
+	       "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
 	       "	[-l <file>] [-L <file>] [--ascii] [--nostart] [--long-branch]\n"
-	       "	[--case-sensitive] [--nonlinear] [--tasm-compatible]\n"
+	       "	[--case-sensitive] [--flat] [--nonlinear] [--tasm-compatible]\n"
 	       "	[--quiet] [--no-warn] [--wordstart] [--m65c02] [--m6502]\n"
 	       "	[--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--labels=<file>]\n"
 	       "	[--list=<file>] [--no-monitor] [--no-source] [--help] [--usage]\n"
@@ -414,6 +416,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
 	       "  -B, --long-branch	Automatic bxx *+3 jmp $xxxx\n"
 	       "  -C, --case-sensitive	Case sensitive labels\n"
 	       "  -D <label>=<value>	Define <label> to <value>\n"
+	       "  -f, --flat    	Generate flat output file\n"
 	       "  -n, --nonlinear	Generate nonlinear output file\n"
 	       "  -o <file>		Place output into <file>\n"
 	       "  -q, --quiet		Display errors/warnings\n"
