@@ -1345,6 +1345,17 @@ static void compile(void)
                     } else err_msg2(ERROR______EXPECTED,".LOGICAL", epoint); break;
                     break;
                 }
+                if (prm==CMD_BEND) { //.bend
+                    if (waitfor[waitforp].what=='b') {
+                        waitforp--;
+                    } else if (waitfor[waitforp].what=='B') {
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
+			if (current_context->parent) current_context = current_context->parent;
+			else err_msg2(ERROR______EXPECTED,".block", epoint);
+			waitforp--;
+                    } else err_msg2(ERROR______EXPECTED,".BLOCK", epoint); break;
+                    break;
+                }
                 if (!(waitfor[waitforp].skip & 1)) {
                     char what;
                     switch (prm) {
@@ -1600,17 +1611,6 @@ static void compile(void)
                     sprintf(labelname, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
                     current_context=new_label(labelname, L_LABEL);
                     current_context->value = &none_value;
-                    break;
-                }
-                if (prm==CMD_BEND) { //.bend
-                    if (waitfor[waitforp].what=='b') {
-                        waitforp--;
-                    } else if (waitfor[waitforp].what=='B') {
-			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
-			if (current_context->parent) current_context = current_context->parent;
-			else err_msg2(ERROR______EXPECTED,".block", epoint);
-			waitforp--;
-                    } else err_msg2(ERROR______EXPECTED,".BLOCK", epoint); break;
                     break;
                 }
                 if (prm==CMD_DATABANK) { // .databank
