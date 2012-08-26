@@ -1117,6 +1117,7 @@ static void compile(void)
                 wrapwarn=0;wrapwarn2=0;
                 if (!get_exp(&w,0)) goto breakerr;
                 if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (val == &error_value) goto breakerr;
                 eval_finish();
                 if (listing && flist && arguments.source) {
                     lastl=LIST_NONE;
@@ -1440,6 +1441,7 @@ static void compile(void)
                         if (newlabel) newlabel->esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         while ((val = get_val(T_GAP, &epoint))) {
+                            if (val == &error_value) ch2 = 0; else
                             switch (val->type) {
                             case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
                             case T_NUM:
@@ -1483,12 +1485,14 @@ static void compile(void)
                             nameok = 1;
                         }
                         if ((val = get_val(T_UINT, &epoint))) {
+                            if (val == &error_value) goto breakerr;
                             if (val->type == T_NONE) fixeddig = 0;
                             else {
                                 if (val->u.num.val<0) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); goto breakerr;}
                                 foffset = val->u.num.val;
                             }
                             if ((val = get_val(T_UINT, &epoint))) {
+                                if (val == &error_value) goto breakerr;
                                 if (val->type == T_NONE) fixeddig = 0;
                                 else {
                                     if (val->u.num.val<0 || (address_t)val->u.num.val > fsize) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
@@ -1554,6 +1558,7 @@ static void compile(void)
                 if (prm==CMD_OFFS) {   // .offs
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_SINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) fixeddig = 0;
                     else if (val->u.num.val) {
@@ -1577,12 +1582,13 @@ static void compile(void)
                 }
                 if (prm==CMD_LOGICAL) { // .logical
                     new_waitfor('L', epoint);waitfor[waitforp].laddr = current_section->l_address - current_section->address;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
+                    current_section->logicalrecursion++;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".LOGICAL");
-                    current_section->logicalrecursion++;
-                    if (val->type == T_NONE) fixeddig = 0;
+                    if (val == &error_value) goto breakerr;
+                    else if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".LOGICAL");
+                    else if (val->type == T_NONE) fixeddig = 0;
                     else {
                         if ((uval_t)val->u.num.val & ~(uval_t)all_mem) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else current_section->l_address=(uval_t)val->u.num.val;
@@ -1616,6 +1622,7 @@ static void compile(void)
                 if (prm==CMD_DATABANK) { // .databank
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
@@ -1627,6 +1634,7 @@ static void compile(void)
                 if (prm==CMD_DPAGE) { // .dpage
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
@@ -1644,13 +1652,15 @@ static void compile(void)
                     if (newlabel) newlabel->esize = 1;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
                         db=val->u.num.val;
                         if (db && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);goto breakerr;}
                     }
                     if ((val = get_val(T_UINT, &epoint))) {
-                        if (val->type == T_NONE) ch = fixeddig = 0;
+                        if (val == &error_value) ch = 0;
+                        else if (val->type == T_NONE) ch = fixeddig = 0;
                         else {
                             if ((val->type != T_NUM || val->u.num.len > 1) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             ch = (uint8_t)val->u.num.val;
@@ -1663,12 +1673,15 @@ static void compile(void)
                 if (prm==CMD_ASSERT) { // .assert
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {fixeddig = 0;current_section->provides=~(uval_t)0;}
                     else current_section->provides=val->u.num.val;
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) fixeddig = current_section->requires = 0;
                     else current_section->requires=val->u.num.val;
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) fixeddig = current_section->conflicts = 0;
                     else current_section->conflicts=val->u.num.val;
                     eval_finish();
@@ -1677,9 +1690,11 @@ static void compile(void)
                 if (prm==CMD_CHECK) { // .check
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) fixeddig = 0;
                     else if ((val->u.num.val & current_section->provides) ^ val->u.num.val) err_msg(ERROR_REQUIREMENTS_,".CHECK");
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) fixeddig = 0;
                     else if (val->u.num.val & current_section->provides) err_msg(ERROR______CONFLICT,".CHECK");
                     eval_finish();
@@ -1776,6 +1791,7 @@ static void compile(void)
                             val = get_val(T_UINT, &epoint);
                             actual_encoding = old;
                             if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                            if (val == &error_value) goto breakerr;
                             if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;}
                             if ((val->type != T_NUM || val->u.num.len > 3) && ((uval_t)val->u.num.val & ~(uval_t)0xffffff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             if (tmp.start > (uint32_t)val->u.num.val) {
@@ -1787,6 +1803,7 @@ static void compile(void)
                         val = get_val(T_UINT, &epoint);
                         actual_encoding = old;
                         if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                        if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;}
                         if ((val->type != T_NUM || val->u.num.len > 1) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         tmp.offset = val->u.num.val;
@@ -1829,6 +1846,7 @@ static void compile(void)
                         val = get_val(T_UINT, &epoint);
                         actual_encoding = old;
                         if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                        if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;}
                         if ((val->type != T_NUM || val->u.num.len > 1) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         t = new_escape(expr, (uint8_t)val->u.num.val, actual_encoding);
@@ -1857,6 +1875,7 @@ static void compile(void)
                     new_waitfor('n', epoint);waitfor[waitforp].skip=0;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) err_msg2(ERROR___NOT_DEFINED, "repeat count", epoint);
                     else {
@@ -1886,6 +1905,7 @@ static void compile(void)
                     int align = 1, fill=-1;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
@@ -1893,7 +1913,8 @@ static void compile(void)
                         else align = val->u.num.val;
                     }
                     if ((val = get_val(T_NUM, &epoint))) {
-                        if (val->type == T_NONE) fixeddig = fill = 0;
+                        if (val == &error_value) fill = 0;
+                        else if (val->type == T_NONE) fixeddig = fill = 0;
                         else {
                             if ((val->u.num.len > 1 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             fill = (uint8_t)val->u.num.val;
@@ -1913,6 +1934,7 @@ static void compile(void)
                 if (prm==CMD_EOR) {   // .eor
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_NUM, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) fixeddig = outputeor = 0;
                     else {
@@ -2400,7 +2422,8 @@ static void compile(void)
                     nota:
                         if (!(c=get_exp(&w, cnmemonic[ADR_REL]==____ && cnmemonic[ADR_MOVE]==____))) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        if (val->type == T_NONE) d = fixeddig = 0;
+                        if (val == &error_value) d = 0;
+                        else if (val->type == T_NONE) d = fixeddig = 0;
                         else {adr = val->u.num.val;d = 1;}
 
                         switch (c) {
@@ -2441,6 +2464,7 @@ static void compile(void)
                                         else w = 3;
                                     } else if (w) w = 3; // there's no mvp $ffff or mvp $ffffff
                                     if ((val2 = get_val(T_UINT, NULL))) {
+                                        if (val2 == &error_value) d = 0;
                                         if (!((uval_t)val->u.num.val & ~(uval_t)0xff)) {adr |= (uint8_t)val->u.num.val;}
                                         else w = 3;
                                     } else err_msg(ERROR_ILLEGAL_OPERA,NULL);
@@ -2457,6 +2481,7 @@ static void compile(void)
                                     s=new_star(vline+1);olabelexists=labelexists;
 
                                     for (;c;c=!!(val = get_val(T_UINT, NULL))) {
+                                        if (val != &error_value)
                                         if (val->type != T_NONE) {
                                             uint16_t oadr = val->u.num.val;
                                             adr = (uval_t)val->u.num.val;

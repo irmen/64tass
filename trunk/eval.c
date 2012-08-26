@@ -26,6 +26,7 @@
 
 static struct value_s new_value = {T_NONE, 0, {}};
 static struct value_s none_value = {T_NONE, 0, {}};
+struct value_s error_value = {T_NONE, 0, {}};
 
 struct encoding_s *actual_encoding;
 
@@ -507,9 +508,6 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
 
     if (epoint) *epoint = values[values_p].epoint;
     try_resolv(&values[values_p].val);
-    if (type == T_SINT || type == T_UINT || type == T_NUM || type == T_GAP) {
-        if (values[values_p].val->type == T_STR) str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type);
-    }
     type2 = values[values_p].val->type;
 
     switch (type2) {
@@ -522,6 +520,11 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
         if (type == T_NONE) return values[values_p++].val;
         if (type == T_SINT || type == T_UINT || type == T_NUM || type == T_GAP) {
             switch (type2) {
+            case T_STR:
+                if (str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type)) {
+                    err_msg2(ERROR_CONSTNT_LARGE, NULL, values[values_p++].epoint);
+                    return &error_value;
+                }
             case T_UINT:
             case T_SINT:
             case T_NUM:
@@ -532,7 +535,8 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
             }
         }
     default:
-        err_msg_wrong_type(type2, values[values_p].epoint);
+        err_msg_wrong_type(type2, values[values_p++].epoint);
+        return &error_value;
     case T_NONE: break;
     }
     values_p++;
