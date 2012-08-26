@@ -491,7 +491,15 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     if (epoint) *epoint = values[values_p].epoint;
     try_resolv(&values[values_p].val);
     if (type == T_SINT || type == T_UINT || type == T_NUM || type == T_GAP) {
-        if (!arguments.tasmcomp && values[values_p].val->type == T_STR) str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type);
+        if (values[values_p].val->type == T_STR) {
+            if (arguments.tasmcomp) {
+                size_t i = 0;
+                if (values[values_p].val->u.str.len) {
+                    petascii(&i, values[values_p].val);
+                    if (values[values_p].val->u.str.len == i) str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type);
+                }
+            } else str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type);
+        }
     }
     type2 = values[values_p].val->type;
 
