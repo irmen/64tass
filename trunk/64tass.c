@@ -1138,7 +1138,7 @@ static void compile(void)
                         } else {
                             address_t addr;
                             if (arguments.tasmcomp) addr = (uval_t)val->u.num.val;
-                            else addr = current_section->address + (((uval_t)val->u.num.val-current_section->l_address) & all_mem);
+                            else addr = (current_section->address + (((uval_t)val->u.num.val-current_section->l_address) & all_mem)) & all_mem2;
                             if (current_section->address != addr) {
                                 current_section->address = addr;
                                 memjmp(current_section->address);
