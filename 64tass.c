@@ -1758,7 +1758,7 @@ static void compile(void)
                         if (first) {
                             first = 0;
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
-                                write = (((val->type == T_SINT || val->type == T_UINT || val->type == T_NUM) && val->u.num.val) || (val->type == T_STR && val->u.str.len));
+                                write = (((val->type == T_SINT || val->type == T_UINT || val->type == T_NUM) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
                                 continue;
                             }
                             write = 1;
