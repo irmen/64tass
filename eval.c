@@ -24,6 +24,20 @@
 #include "error.h"
 #include "section.h"
 #include "encoding.h"
+#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
+#else
+#define cbrt(a) pow(a, 1.0/3.0)
+#endif 
+#if _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
+#else
+#define round(a) (((a) < 0.0) ? ceil((a)-0.5) : floor((a)+0.5))
+#endif 
+#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
+#else
+#define sinh(a) ((exp(a) - exp(-(a))) / 2.0)
+#define cosh(a) ((exp(a) + exp(-(a))) / 2.0)
+#define tanh(a) (sinh(x) / cosh(x))
+#endif
 
 static struct value_s new_value = {T_NONE, 0, {}};
 static struct value_s none_value = {T_NONE, 0, {}};
@@ -574,10 +588,26 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     return &none_value;
 }
 
+static double to_float(const struct value_s *val) {
+    switch (val->type) {
+    case T_FLOAT: return val->u.real;
+    case T_SINT: return (ival_t)val->u.num.val;
+    case T_NUM:
+    case T_UINT: return (uval_t)val->u.num.val;
+    default:
+         return 0.0;
+    }
+}
+
 static void functions(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     size_t len;
     const uint8_t *name;
+    enum {
+        F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_SQRT, F_CBRT, F_LOG, F_LN, F_EXP,
+        F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG, F_COSH,
+        F_SINH, F_TANH
+    } func = F_NONE;
 
     if (vals->val->type != T_IDENT) {
         err_msg_wrong_type(vals->val->type, vals->epoint);
@@ -588,7 +618,7 @@ static void functions(struct values_s *vals, unsigned int args) {
     name = vals->val->u.ident.name;
 
     // len(a) - length of string in characters
-    if (len == 3 && !memcmp(name, "len", 3)) {
+    if (len == 3 && !memcmp(name, "len", len)) {
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
         switch (try_resolv(&v[0].val)) {
 #if 0
@@ -609,7 +639,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         return;
     }
     // min(a, b, ...) - minimum value
-    if (len == 3 && !memcmp(name, "min", 3)) {
+    if (len == 3 && !memcmp(name, "min", len)) {
         ival_t min = 0;
         if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
         else {
@@ -637,7 +667,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         val_replace(&vals->val, &none_value);
         return;
     } // max(a, b, ...) - maximum value
-    else if (len == 3 && !memcmp(name, "max", 3)) {
+    else if (len == 3 && !memcmp(name, "max", len)) {
         ival_t max = 0;
         if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
         else {
@@ -665,7 +695,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         val_replace(&vals->val, &none_value);
         return;
     } // size(a) - size of data structure at location
-    else if (len == 4 && !memcmp(name, "size", 4)) {
+    else if (len == 4 && !memcmp(name, "size", len)) {
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
         else {
 	    try_resolv_ident(&v[0].val);
@@ -688,6 +718,127 @@ static void functions(struct values_s *vals, unsigned int args) {
                 return;
 	    default: err_msg_wrong_type(v[0].val->type, v[0].epoint);
 	    }
+        }
+        val_replace(&vals->val, &none_value);
+        return;
+    } else
+    if (len == 3 && !memcmp(name, "abs", len)) {
+        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
+        switch (try_resolv(&v[0].val)) {
+        case T_SINT:
+            if (v[0].val->u.num.val < 0) {
+                new_value.type = T_SINT;
+                new_value.u.num.val = -v[0].val->u.num.val;
+                new_value.u.num.len = v[0].val->u.num.len;
+                val_replace(&vals->val, &new_value);
+            }
+        case T_UINT:
+        case T_NUM:
+            return;
+        case T_FLOAT:
+            if (v[0].val->u.real < 0.0) {
+                new_value.type = T_FLOAT;
+                new_value.u.real = -v[0].val->u.real;
+                val_replace(&vals->val, &new_value);
+            }
+            return;
+        default: err_msg_wrong_type(v[0].val->type, v[0].epoint);
+        case T_NONE: break;
+        }
+        val_replace(&vals->val, &none_value);
+        return;
+    } else
+    if (len == 4 && !memcmp(name, "sign", len)) {
+        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
+        switch (try_resolv(&v[0].val)) {
+        case T_SINT:
+            new_value.type = T_SINT;
+            new_value.u.num.val = ((ival_t)v[0].val->u.num.val > 0)-((ival_t)v[0].val->u.num.val < 0);
+            new_value.u.num.len = 1;
+            val_replace(&vals->val, &new_value);
+            return;
+        case T_UINT:
+        case T_NUM:
+                new_value.u.num.val = ((uval_t)v[0].val->u.num.val) > 0;
+                new_value.u.num.len = 1;
+                val_replace(&vals->val, &new_value);
+            return;
+        case T_FLOAT:
+            new_value.type = T_SINT;
+            new_value.u.num.val = ((ival_t)v[0].val->u.real > 0.0)-((ival_t)v[0].val->u.real < 0.0);
+            new_value.u.num.len = 1;
+            val_replace(&vals->val, &new_value);
+            return;
+        default: err_msg_wrong_type(v[0].val->type, v[0].epoint);
+        case T_NONE: break;
+        }
+        val_replace(&vals->val, &none_value);
+        return;
+    } else
+    if (len == 5 && !memcmp(name, "floor", len)) func = F_FLOOR; else
+    if (len == 4 && !memcmp(name, "ceil", len)) func = F_CEIL; else
+    if (len == 5 && !memcmp(name, "round", len)) func = F_ROUND; else
+    if (len == 4 && !memcmp(name, "sqrt", len)) func = F_SQRT; else
+    if (len == 3 && !memcmp(name, "log", len)) func = F_LOG; else
+    if (len == 2 && !memcmp(name, "ln", len)) func = F_LN; else
+    if (len == 3 && !memcmp(name, "exp", len)) func = F_EXP; else
+    if (len == 3 && !memcmp(name, "sin", len)) func = F_SIN; else
+    if (len == 3 && !memcmp(name, "cos", len)) func = F_COS; else
+    if (len == 3 && !memcmp(name, "tan", len)) func = F_TAN; else
+    if (len == 4 && !memcmp(name, "acos", len)) func = F_ACOS; else
+    if (len == 4 && !memcmp(name, "asin", len)) func = F_ASIN; else
+    if (len == 4 && !memcmp(name, "atan", len)) func = F_ATAN; else
+    if (len == 4 && !memcmp(name, "cbrt", len)) func = F_CBRT; else
+    if (len == 3 && !memcmp(name, "rad", len)) func = F_RAD; else
+    if (len == 3 && !memcmp(name, "deg", len)) func = F_DEG; else
+    if (len == 4 && !memcmp(name, "cosh", len)) func = F_COSH; else
+    if (len == 4 && !memcmp(name, "sinh", len)) func = F_SINH; else
+    if (len == 4 && !memcmp(name, "tanh", len)) func = F_TANH; 
+
+    if (func != F_NONE) {
+        switch (try_resolv(&v[0].val)) {
+        case T_FLOAT:
+        case T_SINT:
+        case T_UINT:
+        case T_NUM:
+            new_value.type = T_FLOAT;
+            new_value.u.real = to_float(v[0].val);
+            switch (func) {
+            case F_FLOOR: new_value.u.real = floor(new_value.u.real);break;
+            case F_CEIL: new_value.u.real = ceil(new_value.u.real);break;
+            case F_SQRT: 
+                         if (new_value.u.real < 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
+                         else new_value.u.real = sqrt(new_value.u.real);break;
+            case F_LOG:
+                         if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
+                         else new_value.u.real = log10(new_value.u.real);break;
+            case F_LN:
+                         if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
+                         else new_value.u.real = log(new_value.u.real);break;
+            case F_EXP: new_value.u.real = exp(new_value.u.real);break;
+            case F_SIN: new_value.u.real = sin(new_value.u.real);break;
+            case F_COS: new_value.u.real = cos(new_value.u.real);break;
+            case F_TAN: new_value.u.real = tan(new_value.u.real);break;
+            case F_ACOS: 
+                         if (new_value.u.real < -1.0 || new_value.u.real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
+                         else new_value.u.real = acos(new_value.u.real);break;
+            case F_ASIN: 
+                         if (new_value.u.real < -1.0 || new_value.u.real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
+                         else new_value.u.real = asin(new_value.u.real);break;
+            case F_ATAN: new_value.u.real = atan(new_value.u.real);break;
+            case F_CBRT: new_value.u.real = cbrt(new_value.u.real);break;
+            case F_ROUND: new_value.u.real = round(new_value.u.real);break;
+            case F_RAD: new_value.u.real = new_value.u.real * M_PI / 180.0;break;
+            case F_DEG: new_value.u.real = new_value.u.real * 180.0 / M_PI;break;
+            case F_COSH: new_value.u.real = cosh(new_value.u.real);break;
+            case F_SINH: new_value.u.real = sinh(new_value.u.real);break;
+            case F_TANH: new_value.u.real = tanh(new_value.u.real);break;
+            case F_NONE:break;
+            }
+            val_replace(&vals->val, &new_value);
+            return;
+        default: err_msg_wrong_type(v[0].val->type, v[0].epoint);
+        case T_NONE: break;
         }
         val_replace(&vals->val, &none_value);
         return;

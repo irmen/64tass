@@ -616,6 +616,7 @@ numeric values in numeric expressions.</p>
         <b class="d">.byte</b> <span>23</span>        <i>; decimal</i>
         <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
         <b class="d">.byte</b> <span>%00011111</span> <i>; binary</i>
+        <b class="d">.byte</b> <span>3.4</span>       <i>; real</i>
 
         <b class="d">.text</b> <span class="s">"oeU"</span>     <i>; text</i>
         <b class="d">.text</b> <span class="s">'it''s'</span>   <i>; text: it's</i>
@@ -648,14 +649,32 @@ myarr   <b class="d">.word</b> <span>542</span>,<span>722</span>,<span>373</span
 <p>Built in functions are identifiers following parentheses. They accept
 variable number of parameters separated by comma.</p>
 
-<dl class="dir">
-<dt>min(a, b, ...)
-<dd>Minimum of numeric values.
-<dt>max(a, b, ...)
-<dd>Maximum of numeric values.
-<dt>size(a)
-<dd>Size of structure in bytes.
-</dl>
+<table border="0">
+<tr><td width="150">min(a, b, ...)</td><td>Minimum of values</td></tr>
+<tr><td>max(a, b, ...)</td><td>Maximum of values</td></tr>
+<tr><td>size(a)</td><td>Size of structure in bytes</td></tr>
+<tr><td>abs(a)</td><td>Absolute value</td></tr>
+<tr><td>sign(a)</td><td>Sign value (-1, 0, 1)</td></tr>
+<tr><td>floor(a)</td><td>Round down</td></tr>
+<tr><td>round(a)</td><td>Round to nearest away from zero</td></tr>
+<tr><td>ceil(a)</td><td>Round up</td></tr>
+<tr><td>sqrt(a)</td><td>Square root</td></tr>
+<tr><td>cqrt(a)</td><td>Cube root</td></tr>
+<tr><td>log(a)</td><td>Common logarithm</td></tr>
+<tr><td>ln(a)</td><td>Natural logarithm</td></tr>
+<tr><td>exp(a)</td><td>Exponential</td></tr>
+<tr><td>sin(a)</td><td>Sine</td></tr>
+<tr><td>asin(a)</td><td>Arc sine</td></tr>
+<tr><td>sinh(a)</td><td>Hyperbolic sine</td></tr>
+<tr><td>cos(a)</td><td>Cosine</td></tr>
+<tr><td>acos(a)</td><td>Arc cosine</td></tr>
+<tr><td>cosh(a)</td><td>Hyperbolic cosine</td></tr>
+<tr><td>tan(a)</td><td>Tangent</td></tr>
+<tr><td>atan(a)</td><td>Arc tangent</td></tr>
+<tr><td>tanh(a)</td><td>Hyperbolic tangent</td></tr>
+<tr><td>rad(a)</td><td>Degrees to radian</td></tr>
+<tr><td>deg(a)</td><td>Radian to degrees</td></tr>
+</table>
 
 <p>Single bytes of numeric values can be extracted
 by the lower byte (<code>&lt;</code>), higher byte (<code>&gt;</code>)

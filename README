@@ -559,6 +559,7 @@ character constants and represent their numeric values in numeric expressions.
         .byte 23        ; decimal
         .byte $33       ; hex
         .byte %00011111 ; binary
+        .byte 3.4       ; real
 
         .text "oeU"     ; text
         .text 'it''s'   ; text: it's
@@ -584,12 +585,30 @@ myarr   .word 542,722,373,443
 Built in functions are identifiers following parentheses. They accept variable
 number of parameters separated by comma.
 
-min(a, b, ...)
-    Minimum of numeric values.
-max(a, b, ...)
-    Maximum of numeric values.
-size(a)
-    Size of structure in bytes.
+min(a, b, ...)        Minimum of values
+max(a, b, ...)        Maximum of values
+size(a)               Size of structure in bytes
+abs(a)                Absolute value
+sign(a)               Sign value (-1, 0, 1)
+floor(a)              Round down
+round(a)              Round to nearest away from zero
+ceil(a)               Round up
+sqrt(a)               Square root
+cqrt(a)               Cube root
+log(a)                Common logarithm
+ln(a)                 Natural logarithm
+exp(a)                Exponential
+sin(a)                Sine
+asin(a)               Arc sine
+sinh(a)               Hyperbolic sine
+cos(a)                Cosine
+acos(a)               Arc cosine
+cosh(a)               Hyperbolic cosine
+tan(a)                Tangent
+atan(a)               Arc tangent
+tanh(a)               Hyperbolic tangent
+rad(a)                Degrees to radian
+deg(a)                Radian to degrees
 
 Single bytes of numeric values can be extracted by the lower byte (<), higher
 byte (>) and bank byte (`) operators.
