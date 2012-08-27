@@ -126,6 +126,8 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
     case T_UINT:
     case T_NUM:
         return val->type == val2->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
+    case T_FLOAT:
+        return val->type == val2->type && val->u.real == val2->u.real;
     case T_STR: 
         return val->type == val2->type && val->u.str.len == val2->u.str.len && (
                     val->u.str.data == val2->u.str.data ||
@@ -157,6 +159,9 @@ void val_print(struct value_s *value, FILE *flab) {
         break;
     case T_SINT:
         fprintf(flab,"%+" PRIdval, (ival_t)value->u.num.val);
+        break;
+    case T_FLOAT:
+        fprintf(flab,"%f", value->u.real);
         break;
     case T_STR:
         {
