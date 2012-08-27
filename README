@@ -593,6 +593,8 @@ sign(a)               Sign value (-1, 0, 1)
 floor(a)              Round down
 round(a)              Round to nearest away from zero
 ceil(a)               Round up
+trunc(a)              Round down towards zero
+frac(a)               Fractional part
 sqrt(a)               Square root
 cqrt(a)               Cube root
 log10(a)              Common logarithm
