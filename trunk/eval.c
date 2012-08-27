@@ -570,8 +570,8 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
                 return values[values_p++].val;
             case T_FLOAT:
                 new_value.type = (type == T_GAP) ? T_NUM : type;
-                if (type == T_SINT) new_value.u.num.val = (ival_t)values[values_p].val->u.real;
-                else new_value.u.num.val = (uval_t)values[values_p].val->u.real;
+                if (type == T_SINT) set_int(&new_value, (ival_t)values[values_p].val->u.real);
+                else set_uint(&new_value, (uval_t)values[values_p].val->u.real);
                 val_replace(&values[values_p].val, &new_value);
                 return values[values_p++].val;
             case T_GAP: if (type == T_GAP) return values[values_p++].val;
