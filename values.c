@@ -166,7 +166,7 @@ void val_print(struct value_s *value, FILE *flab) {
             char num[100];
             int i = 0;
             sprintf(num, "%.10g", value->u.real);
-            while (num[i] && num[i]!='.' && num[i]!='e') i++;
+            while (num[i] && num[i]!='.' && num[i]!='e' && num[i]!='n' && num[i]!='i') i++;
             if (!num[i]) {num[i++]='.';num[i++]='0';num[i]=0;}
             fputs(num, flab);
         }

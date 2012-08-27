@@ -598,7 +598,7 @@ cqrt(a)               Cube root
 log10(a)              Common logarithm
 log(a)                Natural logarithm
 exp(a)                Exponential
-pow(a,b)              a raised to power of b
+pow(a, b)             a raised to power of b
 sin(a)                Sine
 asin(a)               Arc sine
 sinh(a)               Hyperbolic sine
