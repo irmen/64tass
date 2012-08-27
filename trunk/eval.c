@@ -31,6 +31,7 @@
 #if _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
 inline double round(double a) {return (a < 0.0) ? ceil(a-0.5) : floor(a+0.5);}
+inline double trunc(double a) {return (a > 0.0) ? floor(a) : ceil(a);}
 #endif 
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -613,9 +614,9 @@ static void functions(struct values_s *vals, unsigned int args) {
     size_t len;
     const uint8_t *name;
     enum {
-        F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_SQRT, F_CBRT, F_LOG, F_LOG10, F_EXP,
-        F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG, F_COSH,
-        F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW
+        F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT,
+        F_LOG, F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN,
+        F_RAD, F_DEG, F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW
     } func = F_NONE;
 
     if (vals->val->type != T_IDENT) {
@@ -787,6 +788,8 @@ static void functions(struct values_s *vals, unsigned int args) {
     if (len == 5 && !memcmp(name, "floor", len)) func = F_FLOOR; else
     if (len == 4 && !memcmp(name, "ceil", len)) func = F_CEIL; else
     if (len == 5 && !memcmp(name, "round", len)) func = F_ROUND; else
+    if (len == 5 && !memcmp(name, "trunc", len)) func = F_TRUNC; else
+    if (len == 4 && !memcmp(name, "frac", len)) func = F_FRAC; else
     if (len == 4 && !memcmp(name, "sqrt", len)) func = F_SQRT; else
     if (len == 5 && !memcmp(name, "log10", len)) func = F_LOG10; else
     if (len == 3 && !memcmp(name, "log", len)) func = F_LOG; else
@@ -837,6 +840,8 @@ static void functions(struct values_s *vals, unsigned int args) {
             case F_ATAN: new_value.u.real = atan(new_value.u.real);break;
             case F_CBRT: new_value.u.real = cbrt(new_value.u.real);break;
             case F_ROUND: new_value.u.real = round(new_value.u.real);break;
+            case F_TRUNC: new_value.u.real = trunc(new_value.u.real);break;
+            case F_FRAC: new_value.u.real -= trunc(new_value.u.real);break;
             case F_RAD: new_value.u.real = new_value.u.real * M_PI / 180.0;break;
             case F_DEG: new_value.u.real = new_value.u.real * 180.0 / M_PI;break;
             case F_COSH: new_value.u.real = cosh(new_value.u.real);break;
