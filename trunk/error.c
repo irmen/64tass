@@ -232,7 +232,7 @@ void err_msg_variable(struct value_s *val) {
        {
            int i = 0;
            sprintf(buffer, "%.10g", val->u.real);
-           while (buffer[i] && buffer[i]!='.' && buffer[i]!='e') i++;
+           while (buffer[i] && buffer[i]!='.' && buffer[i]!='e' && buffer[i]!='n' && buffer[i]!='i') i++;
            if (!buffer[i]) {buffer[i++]='.';buffer[i++]='0';buffer[i]=0;}
            add_user_error(buffer);
            break;
