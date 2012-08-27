@@ -154,6 +154,11 @@ uint_fast16_t petascii(size_t *i, const struct value_s *v) {
     return ch;
 }
 
+static int almost_equal(double a, double b) {
+    if (a > b) return a - b < a * 0.0000000005;
+    return b - a < b * 0.0000000005;
+}
+
 static int str_to_num(struct value_s **v2, enum type_e type) {
     uint16_t ch;
     unsigned int large = 0;
@@ -1510,12 +1515,12 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             double val2 = v2->val->u.real;
 
             switch (ch) {
-            case '=': val1 = ( val1 == val2);t1 = T_UINT;break;
-            case 'o': val1 = ( val1 != val2);t1 = T_UINT;break;
+            case '=': val1 = almost_equal(val1, val2);t1 = T_UINT;break;
+            case 'o': val1 = !almost_equal(val1, val2);t1 = T_UINT;break;
             case '<': val1 = ( val1 <  val2);t1 = T_UINT;break;
             case '>': val1 = ( val1 >  val2);t1 = T_UINT;break;
-            case 's': val1 = ( val1 <= val2);t1 = T_UINT;break;
-            case 'g': val1 = ( val1 >= val2);t1 = T_UINT;break;
+            case 's': val1 = ( val1 < val2 || almost_equal(val1, val2));t1 = T_UINT;break;
+            case 'g': val1 = ( val1 > val2 || almost_equal(val1, val2));t1 = T_UINT;break;
             case 'A': val1 = ( val1 && val2);t1 = T_UINT;break;
             case 'O': val1 = ( val1 || val2);t1 = T_UINT;break;
             case 'X': val1 = (!val1 ^ !val2);t1 = T_UINT;break;
