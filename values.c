@@ -18,6 +18,7 @@
 #include "values.h"
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "error.h"
 
 static union values_u {
@@ -161,7 +162,14 @@ void val_print(struct value_s *value, FILE *flab) {
         fprintf(flab,"%+" PRIdval, (ival_t)value->u.num.val);
         break;
     case T_FLOAT:
-        fprintf(flab,"%f", value->u.real);
+        {
+            char num[100];
+            int i = 0;
+            sprintf(num, "%.10g", value->u.real);
+            while (num[i] && num[i]!='.' && num[i]!='e') i++;
+            if (!num[i]) {num[i++]='.';num[i++]='0';num[i]=0;}
+            fputs(num, flab);
+        }
         break;
     case T_STR:
         {
