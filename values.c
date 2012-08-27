@@ -179,7 +179,8 @@ void val_print(struct value_s *value, FILE *flab) {
             for (val = 0;val < value->u.str.len;) {
                 ch = value->u.str.data[val];
                 if (ch & 0x80) val += utf8in(value->u.str.data + val, &ch); else val++;
-                if (ch < 32 || ch > 127) fprintf(flab,"{$%02x}", ch);
+                if (ch == 34) fputs("\"\"", flab);
+                else if (ch < 32 || ch > 127) fprintf(flab,"{$%02x}", ch);
                 else fputc(ch, flab);
             }
             fputc('"', flab);
