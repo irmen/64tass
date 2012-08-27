@@ -595,9 +595,10 @@ round(a)              Round to nearest away from zero
 ceil(a)               Round up
 sqrt(a)               Square root
 cqrt(a)               Cube root
-log(a)                Common logarithm
-ln(a)                 Natural logarithm
+log10(a)              Common logarithm
+log(a)                Natural logarithm
 exp(a)                Exponential
+pow(a,b)              a raised to power of b
 sin(a)                Sine
 asin(a)               Arc sine
 sinh(a)               Hyperbolic sine
@@ -609,6 +610,8 @@ atan(a)               Arc tangent
 tanh(a)               Hyperbolic tangent
 rad(a)                Degrees to radian
 deg(a)                Radian to degrees
+hypot(y, x)           Polar distance
+atan2(y, x)           Polar angle
 
 There are no predefined math constants, however pi is rad(180) and e is exp(1).
 

@@ -26,17 +26,21 @@
 #include "encoding.h"
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
-#define cbrt(a) pow(a, 1.0/3.0)
+#define cbrt(a) pow((a), 1.0/3.0)
 #endif 
 #if _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
-#define round(a) (((a) < 0.0) ? ceil((a)-0.5) : floor((a)+0.5))
+inline double round(double a) {return (a < 0.0) ? ceil(a-0.5) : floor(a+0.5);}
 #endif 
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
-#define sinh(a) ((exp(a) - exp(-(a))) / 2.0)
-#define cosh(a) ((exp(a) + exp(-(a))) / 2.0)
-#define tanh(a) (sinh(x) / cosh(x))
+inline double sinh(double a) {return (exp(a) - exp(-a)) / 2.0;}
+inline double cosh(double a) {return (exp(a) + exp(-a)) / 2.0;}
+inline double tanh(double a) {return sinh(a) / cosh(a);}
+#endif
+#if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
+#else
+inline double hypot(double a, double b) {return sqrt(a*a+b*b);}
 #endif
 
 static struct value_s new_value = {T_NONE, 0, {}};
@@ -609,9 +613,9 @@ static void functions(struct values_s *vals, unsigned int args) {
     size_t len;
     const uint8_t *name;
     enum {
-        F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_SQRT, F_CBRT, F_LOG, F_LN, F_EXP,
+        F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_SQRT, F_CBRT, F_LOG, F_LOG10, F_EXP,
         F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG, F_COSH,
-        F_SINH, F_TANH
+        F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW
     } func = F_NONE;
 
     if (vals->val->type != T_IDENT) {
@@ -784,8 +788,8 @@ static void functions(struct values_s *vals, unsigned int args) {
     if (len == 4 && !memcmp(name, "ceil", len)) func = F_CEIL; else
     if (len == 5 && !memcmp(name, "round", len)) func = F_ROUND; else
     if (len == 4 && !memcmp(name, "sqrt", len)) func = F_SQRT; else
+    if (len == 5 && !memcmp(name, "log10", len)) func = F_LOG10; else
     if (len == 3 && !memcmp(name, "log", len)) func = F_LOG; else
-    if (len == 2 && !memcmp(name, "ln", len)) func = F_LN; else
     if (len == 3 && !memcmp(name, "exp", len)) func = F_EXP; else
     if (len == 3 && !memcmp(name, "sin", len)) func = F_SIN; else
     if (len == 3 && !memcmp(name, "cos", len)) func = F_COS; else
@@ -814,10 +818,10 @@ static void functions(struct values_s *vals, unsigned int args) {
             case F_SQRT: 
                          if (new_value.u.real < 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
                          else new_value.u.real = sqrt(new_value.u.real);break;
-            case F_LOG:
+            case F_LOG10:
                          if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
                          else new_value.u.real = log10(new_value.u.real);break;
-            case F_LN:
+            case F_LOG:
                          if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
                          else new_value.u.real = log(new_value.u.real);break;
             case F_EXP: new_value.u.real = exp(new_value.u.real);break;
@@ -838,7 +842,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             case F_COSH: new_value.u.real = cosh(new_value.u.real);break;
             case F_SINH: new_value.u.real = sinh(new_value.u.real);break;
             case F_TANH: new_value.u.real = tanh(new_value.u.real);break;
-            case F_NONE:break;
+            default:break;
             }
             val_replace(&vals->val, &new_value);
             return;
@@ -848,6 +852,50 @@ static void functions(struct values_s *vals, unsigned int args) {
         val_replace(&vals->val, &none_value);
         return;
     }
+    func = F_NONE;
+    if (len == 5 && !memcmp(name, "hypot", len)) func = F_HYPOT; else
+    if (len == 5 && !memcmp(name, "atan2", len)) func = F_ATAN2; else
+    if (len == 3 && !memcmp(name, "pow", len)) func = F_POW;
+    if (func != F_NONE) {
+        double val1, val2;
+        if (args != 2) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
+        switch (try_resolv(&v[0].val)) {
+        case T_SINT:
+        case T_UINT:
+        case T_NUM:
+        case T_FLOAT:
+            switch (try_resolv(&v[1].val)) {
+            case T_SINT:
+            case T_UINT:
+            case T_NUM:
+            case T_FLOAT:
+                new_value.type = T_FLOAT;
+                val1 = to_float(v[0].val);
+                val2 = to_float(v[1].val);
+                switch (func) {
+                case F_HYPOT: new_value.u.real = hypot(val1, val2);break;
+                case F_ATAN2: new_value.u.real = atan2(val1, val2);break;
+                case F_POW:
+                    if (val2 < 0.0 && !val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v[1].epoint); new_value.u.real = 0.0;}
+                    else if (val1 < 0.0 && (double)((int)val2) != val2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); new_value.u.real = 0.0;}
+                    else new_value.u.real = pow(val1, val2);
+                    break;
+                default: break;
+                }
+                val_replace(&vals->val, &new_value);
+                return;
+            default: err_msg_wrong_type(v[1].val->type, v[1].epoint);
+            case T_NONE:break;
+            }
+            val_replace(&vals->val, &none_value);
+            return;
+        default: err_msg_wrong_type(v[0].val->type, v[0].epoint);
+        case T_NONE: break;
+        }
+        val_replace(&vals->val, &none_value);
+        return;
+    } else
+
     err_msg2(ERROR___NOT_DEFINED,"function", vals->epoint);
     val_replace(&vals->val, &none_value);
 }
@@ -1533,13 +1581,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case '-': val1 = ( val1 -  val2);break;
             case 'E': 
                 {
-                    double res = 1.0;
-
-                    if (val2 < 0.0) {
-                        if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); res = 0.0; large=1;}
-                        else res = pow(val1, val2);
-                    } else res = pow(val1, val2);
-                    val1 = res;
+                    if (val2 < 0.0 && !val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = 0.0; large=1;}
+                    else if (val1 < 0.0 && (double)((int)val2) != val2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint); new_value.u.real = 0.0;}
+                    else val1 = pow(val1, val2);
                 }
                 break;
             default: err_msg_wrong_type(v1->val->type, v1->epoint); 
