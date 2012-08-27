@@ -1254,7 +1254,7 @@ static void compile(void)
                         case T_NUM: waitfor[waitforp].skip = val->u.num.val ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);break;
                         case T_FLOAT: waitfor[waitforp].skip = val->u.real ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);break;
                         case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);break;
-                        default:break;
+                        default: waitfor[waitforp].skip = waitfor[waitforp].skip & 2;break;
                         }
                         break;
                     case CMD_IF:
@@ -1264,7 +1264,7 @@ static void compile(void)
                         case T_NUM: waitfor[waitforp].skip = val->u.num.val ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = val->u.real ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        default:break;
+                        default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
                         }
                         break;
                     case CMD_IFEQ:
@@ -1274,7 +1274,7 @@ static void compile(void)
                         case T_NUM: waitfor[waitforp].skip = (!val->u.num.val) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (!val->u.real) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_STR: waitfor[waitforp].skip = (!val->u.str.len) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        default:break;
+                        default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
                         }
                         break;
                     case CMD_IFPL:
@@ -1284,7 +1284,7 @@ static void compile(void)
                         case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (~val->u.num.val & 0x8000) : (val->u.num.val>=0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real >= 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        default:break;
+                        default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
                         }
                         break;
                     case CMD_IFMI:
@@ -1293,7 +1293,7 @@ static void compile(void)
                         case T_UINT:
                         case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (val->u.num.val & 0x8000) : (val->u.num.val < 0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real < 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        default:break;
+                        default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
                         }
                         break;
                     }
