@@ -610,6 +610,8 @@ tanh(a)               Hyperbolic tangent
 rad(a)                Degrees to radian
 deg(a)                Radian to degrees
 
+There are no predefined math constants, however pi is rad(180) and e is exp(1).
+
 Single bytes of numeric values can be extracted by the lower byte (<), higher
 byte (>) and bank byte (`) operators.
 
