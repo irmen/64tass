@@ -45,7 +45,7 @@
 #include "values.h"
 #include "variables.h"
 
-static const char *mnemonic;    //mnemonics
+static const uint32_t *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
 static struct value_s none_value = {T_NONE, 0, {}};
 static struct value_s new_value = {T_NONE, 0, {}};
@@ -397,25 +397,23 @@ static void pokeb(uint8_t byte)
 }
 
 static int lookup_opcode(const char *s) {
-    char s2,s3, ch;
-    const char *p;
-    int s4;
-    unsigned int also=0,felso,elozo, no;
+    uint8_t s2,s3, ch;
+    int32_t s4;
+    unsigned int also,felso,elozo, no;
 
     ch=lowcase(s[0]);
-    no=(felso=last_mnem)/2;
-    if (ch && (s2=lowcase(s[1])) && (s3=lowcase(s[2])) && !s[3])
+    if (ch && (s2=lowcase(s[1])) && (s3=lowcase(s[2]))) {
+        uint32_t name = (ch << 16) | (s2 << 8) | s3;
+        also = 0;
+        no = (felso=last_mnem)/2;
         for (;;) {  // do binary search
-            if (!(s4=ch-*(p=mnemonic+no*3)))
-                if (!(s4=s2-*(++p)))
-                    if (!(s4=s3-*(++p)))
-                    {
-                        return no;
-                    }
+            if (!(s4=name-mnemonic[no]))
+                return no;
 
             elozo=no;
             if (elozo==(no=((s4>0) ? (felso+(also=no)) : (also+(felso=no)) )/2)) break;
         }
+    }
     return -1;
 }
 
@@ -773,7 +771,7 @@ static void compile(void)
             } //not label
             get_ident(labelname);islabel = (here()==':');
             if (islabel) lpoint++;
-            else if ((prm=lookup_opcode(labelname))>=0) {
+            else if (!labelname[3] && (prm=lookup_opcode(labelname))>=0) {
                 if (waitfor[waitforp].skip & 1) goto as_opcode; else continue;
             }
             if (listing) strcpy(labelname2, labelname);
@@ -2406,7 +2404,7 @@ static void compile(void)
                 enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_NONE } adrgen;
 
                 get_ident2(labelname);
-                if ((prm=lookup_opcode(labelname))>=0) {
+                if (!labelname[3] && (prm=lookup_opcode(labelname))>=0) {
                     enum opr_e opr;
                     int mnem, oldlpoint;
                     const uint8_t *cnmemonic; //current nmemonic
@@ -2808,7 +2806,9 @@ static void compile(void)
                     if (d) {
                         if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
                         if ((cod=cnmemonic[opr])==____ && (prm || opr!=ADR_IMMEDIATE)) { // 0x69 hack
-                            memcpy(labelname,&mnemonic[mnem*3],3);
+                            labelname[0]=mnemonic[mnem] >> 16;
+                            labelname[1]=mnemonic[mnem] >> 8;
+                            labelname[2]=mnemonic[mnem];
                             labelname[3]=0;
                             if ((tmp2=find_macro(labelname)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {
                                 lpoint=oldlpoint;
@@ -2844,7 +2844,7 @@ static void compile(void)
                             if (ln<2) putc('\t',flist);
                             putc('\t',flist);
                             if (arguments.monitor) {
-                                for (i=0;i<3;i++) putc(mnemonic[mnem*3+i],flist);
+                                for (i=0;i<3;i++) putc(mnemonic[mnem] >> (16-8*i),flist);
 
                                 switch (opr) {
                                 case ADR_IMPLIED: putc('\t', flist); break;
