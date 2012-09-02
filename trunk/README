@@ -393,6 +393,28 @@ using the .cpu directive in the source.
     64tass --m65el02 a.asm
             lda 0,r
 
+--mr65c02
+    R65C02
+
+    Selects r65c02. Enables extra opcodes and addressing modes specific to this
+    CPU.
+
+    Example
+
+    64tass --mr65c02 a.asm
+            rmb 7,$20
+
+--mw65c02
+    W65C02
+
+    Selects w65c02. Enables extra opcodes and addressing modes specific to this
+    CPU.
+
+    Example
+
+    64tass --mw65c02 a.asm
+            wai
+
 Source listing options
 
 -l <file>
@@ -426,7 +448,7 @@ Source listing options
 
     result (list.txt):
 
-    ;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
+    ;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
     ;done on Fri Dec  9 19:08:55 2005
 
 
@@ -448,7 +470,7 @@ Source listing options
 
     result (list.txt):
 
-    ;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
+    ;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
     ;done on Fri Dec  9 19:11:43 2005
 
 
@@ -470,7 +492,7 @@ Source listing options
 
     result (list.txt):
 
-    ;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
+    ;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
     ;done on Fri Dec  9 19:13:25 2005
 
 
@@ -1366,6 +1388,8 @@ Target
             .cpu 65816      ;W65C816
             .cpu 65dtv02    ;65dtv02
             .cpu 65el02     ;65el02
+            .cpu r65c02     ;R65C02
+            .cpu w65c02     ;W65C02
             .cpu default    ;cpu set on commandline
 
 Misc

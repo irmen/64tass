@@ -291,6 +291,8 @@ static const struct option long_options[]={
     {"m65816"           , no_argument      , 0, 'x'},
     {"m65dtv02"         , no_argument      , 0, 't'},
     {"m65el02"          , no_argument      , 0, 'e'},
+    {"mr65c02"          , no_argument      , 0,   4},
+    {"mw65c02"          , no_argument      , 0,   5},
     {"labels"           , required_argument, 0, 'l'},
     {"list"             , required_argument, 0, 'L'},
     {"no-monitor"       , no_argument      , 0, 'm'},
@@ -391,6 +393,8 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 'x':arguments.cpumode=OPCODES_C65816;break;
             case 't':arguments.cpumode=OPCODES_C65DTV02;break;
             case 'e':arguments.cpumode=OPCODES_C65EL02;break;
+            case 4:arguments.cpumode=OPCODES_CR65C02;break;
+            case 5:arguments.cpumode=OPCODES_CW65C02;break;
             case 'l':arguments.label=optarg;break;
             case 'L':arguments.list=optarg;break;
             case 'm':arguments.monitor=0;break;
@@ -401,9 +405,9 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
 	       "	[-l <file>] [-L <file>] [--ascii] [--nostart] [--long-branch]\n"
 	       "	[--case-sensitive] [--flat] [--nonlinear] [--tasm-compatible]\n"
 	       "	[--quiet] [--no-warn] [--wordstart] [--m65c02] [--m6502]\n"
-	       "	[--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--labels=<file>]\n"
-	       "	[--list=<file>] [--no-monitor] [--no-source] [--help] [--usage]\n"
-	       "	[--version] SOURCES");exit(0);
+	       "	[--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
+               "        [--mw65c02] [--labels=<file>] [--list=<file>] [--no-monitor]\n"
+               "        [--no-source] [--help] [--usage] [--version] SOURCES");exit(0);
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);exit(0);
             case 3:
@@ -431,6 +435,8 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
 	       "      --m65xx		Standard 65xx (default)\n"
 	       "  -t, --m65dtv02	65DTV02\n"
 	       "  -x, --m65816		W65C816\n"
+	       "      --mr65c02		R65C02\n"
+	       "      --mw65c02		W65C02\n"
 	       "\n"
 	       " Source listing:\n"
 	       "  -l, --labels=<file>	List labels into <file>\n"
