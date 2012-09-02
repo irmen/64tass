@@ -288,6 +288,7 @@ static const struct option long_options[]={
     {"m65xx"            , no_argument      , 0,   1},
     {"m6502"            , no_argument      , 0, 'i'},
     {"m65c02"           , no_argument      , 0, 'c'},
+    {"m65ce02"          , no_argument      , 0,   6},
     {"m65816"           , no_argument      , 0, 'x'},
     {"m65dtv02"         , no_argument      , 0, 't'},
     {"m65el02"          , no_argument      , 0, 'e'},
@@ -390,6 +391,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 1:arguments.cpumode=OPCODES_C6502;break;
             case 'i':arguments.cpumode=OPCODES_C6502I;break;
             case 'c':arguments.cpumode=OPCODES_C65C02;break;
+            case 6:arguments.cpumode=OPCODES_C65CE02;break;
             case 'x':arguments.cpumode=OPCODES_C65816;break;
             case 't':arguments.cpumode=OPCODES_C65DTV02;break;
             case 'e':arguments.cpumode=OPCODES_C65EL02;break;
@@ -406,8 +408,9 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
 	       "	[--case-sensitive] [--flat] [--nonlinear] [--tasm-compatible]\n"
 	       "	[--quiet] [--no-warn] [--wordstart] [--m65c02] [--m6502]\n"
 	       "	[--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
-               "        [--mw65c02] [--labels=<file>] [--list=<file>] [--no-monitor]\n"
-               "        [--no-source] [--help] [--usage] [--version] SOURCES");exit(0);
+               "        [--mw65c02] [--m65ce02] [--labels=<file>] [--list=<file>]\n"
+               "        [--no-monitor] [--no-source] [--help] [--usage] [--version]\n"
+               "        SOURCES");exit(0);
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);exit(0);
             case 3:
@@ -430,6 +433,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
 	       "\n"
 	       " Target selection:\n"
 	       "  -c, --m65c02		CMOS 65C02\n"
+	       "      --m65ce02		CSG 65CE02\n"
 	       "  -e, --m65el02		65EL02\n"
 	       "  -i, --m6502		NMOS 65xx\n"
 	       "      --m65xx		Standard 65xx (default)\n"

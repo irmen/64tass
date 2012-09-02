@@ -391,7 +391,17 @@ using the <code>.cpu</code> directive in the source.</p>
 64tass --m65c02 a.asm
         <b>stz</b> <span>$d020</span>	<i>;65c02 instruction</i>
 </pre>
+</fieldset>
 
+<dt><b>-c</b>, <b>--m65ce02</b>
+<dd>CSG 65CE02
+<p>Selects 65ce02. Enables extra opcodes and addressing modes specific to this CPU.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --m65ce02 a.asm
+        <b>inz</b>
+</pre>
 </fieldset>
 
 <dt><b>-i</b>, <b>--m6502</b>
@@ -1529,6 +1539,7 @@ can ruin the timing of a carefuly cycle counted code.
 <pre width=80>
 	<b class="k">.cpu</b> 6502	<i>;standard 65xx</i>
 	<b class="k">.cpu</b> 65c02	<i>;CMOS 65C02</i>
+	<b class="k">.cpu</b> 65ce02	<i>;CSG 65CE02</i>
 	<b class="k">.cpu</b> 6502i	<i>;NMOS 65xx</i>
 	<b class="k">.cpu</b> 65816	<i>;W65C816</i>
 	<b class="k">.cpu</b> 65dtv02	<i>;65dtv02</i>
@@ -1784,6 +1795,7 @@ TYA $98
 </pre>
 <p>Aliases, pseudo instructions:</p>
 <pre>
+ASL $0A
 BGE $B0
 BLT $90
 GCC $4C, $90
@@ -1796,6 +1808,9 @@ GNE $4C, $D0
 GPL $10, $4C
 GVC $4C, $50
 GVS $4C, $70
+LSR $4A
+ROL $2A
+ROR $6A
 </pre>
 
 <hr>
@@ -2026,5 +2041,55 @@ WAI $CB
 XBA $EB
 XCE $FB
 ZEA $8F
+</pre>
+
+<hr>
+<h2>65CE02 opcodes</h2>
+<p>Additional opcodes to R65C02:</p>
+<pre>
+ASR $43, $44, $54
+ASW $CB
+BCC $93
+BCS $B3
+BEQ $F3
+BMI $33
+BNE $D3
+BPL $13
+BRA $83
+BSR $63
+BVC $53
+BVS $73
+CLE $02
+CPZ $C2, $D4, $DC
+DEW $C3
+DEZ $3B
+INW $E3
+INZ $1B
+JSR $22, $23
+LDA $E2
+LDZ $A3, $AB, $BB
+NEG $42
+PHW $F4, $FC
+PHZ $DB
+PLZ $FB
+ROW $EB
+RTS $62
+SEE $03
+STA $82
+STX $9B
+STY $8B
+TAB $5B
+TAZ $4B
+TSY $0B
+TYS $2B
+TZA $6B
+</pre>
+
+<p>Additional aliases to R65C02:</p>
+<pre>
+ASR $43
+BGE $B3
+BLT $93
+RTN $62
 </pre>
 </body></html>
