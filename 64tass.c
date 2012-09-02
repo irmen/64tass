@@ -463,6 +463,7 @@ static int what(int *tempno) {
         ignore();
 	switch (get() | 0x20) {
 	case 'y': ignore();return WHAT_Y;
+	case 'z': ignore();return WHAT_Z;
 	case 'x': ignore();if (here()==')') {lpoint++;ignore();return WHAT_XZ;} else return WHAT_X;
 	case 's': ignore();if (here()==')') {lpoint++;ignore();return WHAT_SZ;} else return WHAT_S;
 	case 'r': ignore();if (here()==')') {lpoint++;ignore();return WHAT_RZ;} else return WHAT_R;
@@ -621,6 +622,7 @@ static void set_cpumode(uint_fast8_t cpumode) {
     all_mem=0xffff;scpumode=0;dtvmode=0;
     switch (last_mnem=cpumode) {
     case OPCODES_C65C02:mnemonic=mnemonic_c65c02;opcode=c65c02;break;
+    case OPCODES_C65CE02:mnemonic=mnemonic_c65ce02;opcode=c65ce02;break;
     case OPCODES_C6502I:mnemonic=mnemonic_c6502i;opcode=c6502i;break;
     case OPCODES_C65816:mnemonic=mnemonic_c65816;opcode=c65816;all_mem=0xffffff;scpumode=1;break;
     case OPCODES_C65DTV02:mnemonic=mnemonic_c65dtv02;opcode=c65dtv02;dtvmode=1;break;
@@ -1907,6 +1909,7 @@ static void compile(void)
                     def=arguments.cpumode;
                     if (!strcmp(path,"6502")) def=OPCODES_C6502;
                     else if (!strcasecmp(path,"65c02")) def=OPCODES_C65C02;
+                    else if (!strcasecmp(path,"65ce02")) def=OPCODES_C65CE02;
                     else if (!strcasecmp(path,"6502i")) def=OPCODES_C6502I;
                     else if (!strcmp(path,"65816")) def=OPCODES_C65816;
                     else if (!strcasecmp(path,"65dtv02")) def=OPCODES_C65DTV02;
@@ -2089,7 +2092,7 @@ static void compile(void)
                         }
                         wht=what(&prm);
                     }
-                    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X || wht==WHAT_R) lpoint--; else
+                    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X || wht==WHAT_R || wht==WHAT_Z) lpoint--; else
                         if (wht!=WHAT_COMA) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
 
                     s = new_star(vline); stree_old = star_tree; ovline = vline;
@@ -2590,7 +2593,11 @@ static void compile(void)
                                             ln=1;opr=ADR_REL;longbranch=0;
                                             if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) { err = ERROR_BRANCH_TOOFAR; continue; }
                                             if (adr<0xFF80 && adr>0x007F) {
-                                                if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
+                                                if (cnmemonic[ADR_REL_L]!=____) {
+                                                    longbranch=cnmemonic[ADR_REL]^cnmemonic[ADR_REL_L];
+                                                    if (!labelexists) adr=(uint16_t)(adr-1);
+                                                    ln=2;
+                                                } else if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
                                                     if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
                                                         longbranch=0x20;ln=4;
                                                         if (scpumode && !longbranchasjmp) {
@@ -2657,7 +2664,7 @@ static void compile(void)
                                         } else w = 1;
                                     } else if (val->type != T_NONE) {
                                         if (w == 1 && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) adr = (uint16_t)(val->u.num.val-current_section->l_address-3);
-                                        else w = 3; // there's no jsr ($ffff,x)!
+                                        else w = 3; // there's no brl $ffffff!
                                     } else if (w != 1) w = 3;
                                     opr=ADR_REL_L; ln = 2; //brl
                                 }
@@ -2695,7 +2702,7 @@ static void compile(void)
                                 adrgen = AG_BYTE; opr=ADR_ZP_R_I_Y; // lda ($ff,r),y
                                 break;
                             case WHAT_XZ:
-                                if (cnmemonic[ADR_ADDR_X_I]==0x7C || cnmemonic[ADR_ADDR_X_I]==0xFC) {// jmp ($ffff,x) jsr ($ffff,x)
+                                if (cnmemonic[ADR_ADDR_X_I]==0x7C || cnmemonic[ADR_ADDR_X_I]==0xFC || cnmemonic[ADR_ADDR_X_I]==0x23) {// jmp ($ffff,x) jsr ($ffff,x)
                                     adrgen = AG_PB; opr=ADR_ADDR_X_I; // jmp ($ffff,x)
                                 } else {
                                     adrgen = AG_ZP; opr=ADR_ZP_X_I; // lda ($ff,x)
@@ -2709,10 +2716,13 @@ static void compile(void)
                             case WHAT_Y:
                                 adrgen = AG_ZP; opr=ADR_ZP_I_Y; // lda ($ff),y
                                 break;
+                            case WHAT_Z:
+                                adrgen = AG_ZP; opr=ADR_ZP_I_Z; // lda ($ff),z
+                                break;
                             case WHAT_EOL:
                             case WHAT_COMMENT:
-                                if (cnmemonic[ADR_ADDR_I]==0x6C) {// jmp ($ffff)
-                                    if (fixeddig && opcode!=c65816 && opcode!=c65c02 && opcode!=c65el02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
+                                if (cnmemonic[ADR_ADDR_I]==0x6C || cnmemonic[ADR_ADDR_I]==0x22) {// jmp ($ffff), jsr ($ffff)
+                                    if (fixeddig && opcode!=c65816 && opcode!=c65c02 && opcode!=cr65c02 && opcode!=cw65c02 && opcode!=c65ce02 && opcode!=c65el02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG,NULL);//jmp ($xxff)
                                     adrgen = AG_B0; opr=ADR_ADDR_I; // jmp ($ffff)
                                 } else {
                                     adrgen = AG_ZP; opr=ADR_ZP_I; // lda ($ff)
@@ -2862,7 +2872,7 @@ static void compile(void)
                                     break;
                                 }
                                 case ADR_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x\t":" $%04x",(uint16_t)(adr+dpage)); break;
-                                case ADR_BIT_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" %d,$%02x\t":" %d,$%04x",((cod ^ longbranch) >> 4) & 7,(uint16_t)(adr+dpage)); break;
+                                case ADR_BIT_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" %d,$%02x":" %d,$%04x",((cod ^ longbranch) >> 4) & 7,(uint16_t)(adr+dpage)); break;
                                 case ADR_LONG_X: fprintf(flist," $%06x,x",(uint32_t)(adr&0xffffff)); break;
                                 case ADR_ADDR_X: fprintf(flist,databank?" $%06x,x":" $%04x,x",(uint16_t)adr | (databank << 16)); break;
                                 case ADR_ZP_X: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,x":" $%04x,x",(uint16_t)(adr+dpage)); break;
@@ -2876,6 +2886,7 @@ static void compile(void)
                                 case ADR_ZP_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,y":" $%04x,y",(uint16_t)(adr+dpage)); break;
                                 case ADR_ZP_LI_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x],y":" [$%04x],y",(uint16_t)(adr+dpage)); break;
                                 case ADR_ZP_I_Y: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x),y":" ($%04x),y",(uint16_t)(adr+dpage)); break;
+                                case ADR_ZP_I_Z: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" ($%02x),z":" ($%04x),z",(uint16_t)(adr+dpage)); break;
                                 case ADR_ADDR_LI: fprintf(flist," [$%04x]",(uint16_t)adr); break;
                                 case ADR_ZP_LI: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" [$%02x]":" [$%04x]",(uint16_t)(adr+dpage)); break;
                                 case ADR_ADDR_I: fprintf(flist," ($%04x)",(uint16_t)adr); break;

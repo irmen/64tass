@@ -350,6 +350,17 @@ using the .cpu directive in the source.
     64tass --m65c02 a.asm
             stz $d020       ;65c02 instruction
 
+-c, --m65ce02
+    CSG 65CE02
+
+    Selects 65ce02. Enables extra opcodes and addressing modes specific to this
+    CPU.
+
+    Example
+
+    64tass --m65ce02 a.asm
+            inz
+
 -i, --m6502
     NMOS 65xx
 
@@ -1384,6 +1395,7 @@ Target
 
             .cpu 6502       ;standard 65xx
             .cpu 65c02      ;CMOS 65C02
+            .cpu 65ce02     ;CSG 65CE02
             .cpu 6502i      ;NMOS 65xx
             .cpu 65816      ;W65C816
             .cpu 65dtv02    ;65dtv02
@@ -1630,6 +1642,7 @@ TYA $98
 
 Aliases, pseudo instructions:
 
+ASL $0A
 BGE $B0
 BLT $90
 GCC $4C, $90
@@ -1642,6 +1655,9 @@ GNE $4C, $D0
 GPL $10, $4C
 GVC $4C, $50
 GVS $4C, $70
+LSR $4A
+ROL $2A
+ROR $6A
 
 -------------------------------------------------------------------------------
 
@@ -1877,4 +1893,54 @@ WAI $CB
 XBA $EB
 XCE $FB
 ZEA $8F
+
+-------------------------------------------------------------------------------
+
+65CE02 opcodes
+
+Additional opcodes to R65C02:
+
+ASR $43, $44, $54
+ASW $CB
+BCC $93
+BCS $B3
+BEQ $F3
+BMI $33
+BNE $D3
+BPL $13
+BRA $83
+BSR $63
+BVC $53
+BVS $73
+CLE $02
+CPZ $C2, $D4, $DC
+DEW $C3
+DEZ $3B
+INW $E3
+INZ $1B
+JSR $22, $23
+LDA $E2
+LDZ $A3, $AB, $BB
+NEG $42
+PHW $F4, $FC
+PHZ $DB
+PLZ $FB
+ROW $EB
+RTS $62
+SEE $03
+STA $82
+STX $9B
+STY $8B
+TAB $5B
+TAZ $4B
+TSY $0B
+TYS $2B
+TZA $6B
+
+Additional aliases to R65C02:
+
+ASR $43
+BGE $B3
+BLT $93
+RTN $62
 
