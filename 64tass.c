@@ -622,12 +622,12 @@ static inline void mtranslate()
 static void set_cpumode(uint_fast8_t cpumode) {
     all_mem=0xffff;scpumode=0;dtvmode=0;
     switch (last_mnem=cpumode) {
-    case OPCODES_65C02:mnemonic=MNEMONIC65C02;opcode=c65c02;break;
-    case OPCODES_6502i:mnemonic=MNEMONIC6502i;opcode=c6502i;break;
-    case OPCODES_65816:mnemonic=MNEMONIC65816;opcode=c65816;all_mem=0xffffff;scpumode=1;break;
-    case OPCODES_65DTV02:mnemonic=MNEMONIC65DTV02;opcode=c65dtv02;dtvmode=1;break;
-    case OPCODES_65EL02:mnemonic=MNEMONIC65EL02;opcode=c65el02;break;
-    default: mnemonic=MNEMONIC6502;opcode=c6502;break;
+    case OPCODES_C65C02:mnemonic=mnemonic_c65c02;opcode=c65c02;break;
+    case OPCODES_C6502I:mnemonic=mnemonic_c6502i;opcode=c6502i;break;
+    case OPCODES_C65816:mnemonic=mnemonic_c65816;opcode=c65816;all_mem=0xffffff;scpumode=1;break;
+    case OPCODES_C65DTV02:mnemonic=mnemonic_c65dtv02;opcode=c65dtv02;dtvmode=1;break;
+    case OPCODES_C65EL02:mnemonic=mnemonic_c65el02;opcode=c65el02;break;
+    default: mnemonic=mnemonic_c6502;opcode=c6502;break;
     }
     all_mem2 = arguments.flat ? ~(address_t)0 : all_mem;
 }
@@ -1905,12 +1905,12 @@ static void compile(void)
                     int def;
                     if (get_hack()) goto breakerr;
                     def=arguments.cpumode;
-                    if (!strcmp(path,"6502")) def=OPCODES_6502;
-                    else if (!strcasecmp(path,"65c02")) def=OPCODES_65C02;
-                    else if (!strcasecmp(path,"6502i")) def=OPCODES_6502i;
-                    else if (!strcmp(path,"65816")) def=OPCODES_65816;
-                    else if (!strcasecmp(path,"65dtv02")) def=OPCODES_65DTV02;
-                    else if (!strcasecmp(path,"65el02")) def=OPCODES_65EL02;
+                    if (!strcmp(path,"6502")) def=OPCODES_C6502;
+                    else if (!strcasecmp(path,"65c02")) def=OPCODES_C65C02;
+                    else if (!strcasecmp(path,"6502i")) def=OPCODES_C6502I;
+                    else if (!strcmp(path,"65816")) def=OPCODES_C65816;
+                    else if (!strcasecmp(path,"65dtv02")) def=OPCODES_C65DTV02;
+                    else if (!strcasecmp(path,"65el02")) def=OPCODES_C65EL02;
                     else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,path);
                     set_cpumode(def);
                     break;

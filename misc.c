@@ -28,7 +28,7 @@
 #include "encoding.h"
 #include "file.h"
 
-struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,0,"a.out",OPCODES_6502,NULL,NULL};
+struct arguments_s arguments={1,1,0,0,0,1,1,0,0,1,0,0,"a.out",OPCODES_C6502,NULL,NULL};
 
 static struct avltree macro_tree;
 static struct avltree jump_tree;
@@ -385,12 +385,12 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                 }
                 break;
             case 'B':arguments.longbranch=1;break;
-            case 1:arguments.cpumode=OPCODES_6502;break;
-            case 'i':arguments.cpumode=OPCODES_6502i;break;
-            case 'c':arguments.cpumode=OPCODES_65C02;break;
-            case 'x':arguments.cpumode=OPCODES_65816;break;
-            case 't':arguments.cpumode=OPCODES_65DTV02;break;
-            case 'e':arguments.cpumode=OPCODES_65EL02;break;
+            case 1:arguments.cpumode=OPCODES_C6502;break;
+            case 'i':arguments.cpumode=OPCODES_C6502I;break;
+            case 'c':arguments.cpumode=OPCODES_C65C02;break;
+            case 'x':arguments.cpumode=OPCODES_C65816;break;
+            case 't':arguments.cpumode=OPCODES_C65DTV02;break;
+            case 'e':arguments.cpumode=OPCODES_C65EL02;break;
             case 'l':arguments.label=optarg;break;
             case 'L':arguments.list=optarg;break;
             case 'm':arguments.monitor=0;break;
