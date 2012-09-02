@@ -1567,61 +1567,314 @@ Ooops! Too many passes...
 
 -------------------------------------------------------------------------------
 
+Standard 6502 opcodes
+
+The standard 6502 opcodes:
+
+ADC $61, $65, $69, $6D, $71, $75, $79, $7D
+AND $21, $25, $29, $2D, $31, $35, $39, $3D
+ASL $06, $0A, $0E, $16, $1E
+BCC $90
+BCS $B0
+BEQ $F0
+BIT $24, $2C
+BMI $30
+BNE $D0
+BPL $10
+BRK $00
+BVC $50
+BVS $70
+CLC $18
+CLD $D8
+CLI $58
+CLV $B8
+CMP $C1, $C5, $C9, $CD, $D1, $D5, $D9, $DD
+CPX $E0, $E4, $EC
+CPY $C0, $C4, $CC
+DEC $C6, $CE, $D6, $DE
+DEX $CA
+DEY $88
+EOR $41, $45, $49, $4D, $51, $55, $59, $5D
+INC $E6, $EE, $F6, $FE
+INX $E8
+INY $C8
+JMP $4C, $6C
+JSR $20
+LDA $A1, $A5, $A9, $AD, $B1, $B5, $B9, $BD
+LDX $A2, $A6, $AE, $B6, $BE
+LDY $A0, $A4, $AC, $B4, $BC
+LSR $46, $4A, $4E, $56, $5E
+NOP $EA
+ORA $01, $05, $09, $0D, $11, $15, $19, $1D
+PHA $48
+PHP $08
+PLA $68
+PLP $28
+ROL $26, $2A, $2E, $36, $3E
+ROR $66, $6A, $6E, $76, $7E
+RTI $40
+RTS $60
+SBC $E1, $E5, $E9, $ED, $F1, $F5, $F9, $FD
+SEC $38
+SED $F8
+SEI $78
+STA $81, $85, $8D, $91, $95, $99, $9D
+STX $86, $8E, $96
+STY $84, $8C, $94
+TAX $AA
+TAY $A8
+TSX $BA
+TXA $8A
+TXS $9A
+TYA $98
+
+Aliases, pseudo instructions:
+
+BGE $B0
+BLT $90
+GCC $4C, $90
+GCS $4C, $B0
+GEQ $4C, $F0
+GGE $4C, $B0
+GLT $4C, $90
+GMI $30, $4C
+GNE $4C, $D0
+GPL $10, $4C
+GVC $4C, $50
+GVS $4C, $70
+
+-------------------------------------------------------------------------------
+
 6502 illegal opcodes
 
-    opcode        hex
-ANC               $0b
-ANE (XAA)         $8b
-ARR               $6b
-ASR (ALR)         $4b
-DCP (DCM)         $c3, $c7, $cf, $d3, $d7, $db, $df
-ISB (INS, ISC)    $e3, $e7, $ef, $f3, $f7, $fb, $ff
-JAM               $02
-LAE (LAS, LDS)    $bb
-LAX               $a3, $a7, $ab, $af, $b3, $b7, $bf
-LXA (LAX #)       $ab
-RLA               $23, $27, $2f, $33, $37, $3b, $3f
-RRA               $63, $67, $6f, $73, $77, $7b, $7f
-SAX               $83, $87, $8f, $97
-SBX (AXS)         $cb
-SHA (AHX)         $93, $9f
-SHS (TAS)         $9b
-SHX               $9e
-SHY               $9c
-SLO               $03, $07, $0f, $13, $17, $1b, $1f
-SRE               $43, $47, $4f, $53, $57, $5b, $5f
+The standard 6502 opcodes, plus additionally:
+
+ANC $0B
+ANE $8B
+ARR $6B
+ASR $4B
+DCP $C3, $C7, $CF, $D3, $D7, $DB, $DF
+ISB $E3, $E7, $EF, $F3, $F7, $FB, $FF
+JAM $02
+LAX $A3, $A7, $AB, $AF, $B3, $B7, $BF
+LDS $BB
+NOP $04, $0C, $14, $1C, $80
+RLA $23, $27, $2F, $33, $37, $3B, $3F
+RRA $63, $67, $6F, $73, $77, $7B, $7F
+SAX $83, $87, $8F, $97
+SBX $CB
+SHA $93, $9F
+SHS $9B
+SHX $9E
+SHY $9C
+SLO $03, $07, $0F, $13, $17, $1B, $1F
+SRE $43, $47, $4F, $53, $57, $5B, $5F
+
+Additional aliases:
+
+AHX $93, $9F
+ALR $4B
+AXS $CB
+DCM $C3, $C7, $CF, $D3, $D7, $DB, $DF
+INS $E3, $E7, $EF, $F3, $F7, $FB, $FF
+ISC $E3, $E7, $EF, $F3, $F7, $FB, $FF
+LAE $BB
+LAS $BB
+LXA $AB
+TAS $9B
+XAA $8B
+
 -------------------------------------------------------------------------------
 
-65C02 extra opcodes
+65DTV02 opcodes
 
-    opcode        hex
-BRA               $80
-DEA               $3a
-INA               $1a
-PHX               $da
-PHY               $5a
-PLX               $fa
-PLY               $7a
-TRB               $14, $1c
-TSB               $04, $0c
-STZ               $64, $74, $9c, $9e
+Additionally to 6502 illegal opcodes:
+
+BRA $12
+SAC $32
+SIR $42
+
+Additional pseudo instruction:
+
+GRA $12, $4C
+
+These illegal opcodes are not valid:
+
+ANC $0B
+JAM $02
+LDS $BB
+NOP $04, $0C, $14, $1C, $80
+SBX $CB
+SHA $93, $9F
+SHS $9B
+SHX $9E
+SHY $9C
+
+These illegal aliases are not valid:
+
+AHX $93, $9F
+AXS $CB
+LAE $BB
+LAS $BB
+TAS $9B
+
 -------------------------------------------------------------------------------
 
-65DTV02 extra and illegal opcodes
+Standard 65C02 opcodes
 
-    opcode        hex
-BRA               $12
-SAC               $32
-SIR               $42
-ANE (XAA)         $8b
-ARR               $6b
-ASR (ALR)         $4b
-DCP (DCM)         $c3, $c7, $cf, $d3, $d7, $db, $df
-ISB (INS, ISC)    $e3, $e7, $ef, $f3, $f7, $fb, $ff
-LAX               $a3, $a7, $ab, $af, $b3, $b7, $bf
-LXA (LAX #)       $ab
-RLA               $23, $27, $2f, $33, $37, $3b, $3f
-RRA               $63, $67, $6f, $73, $77, $7b, $7f
-SAX               $83, $87, $8f, $97
-SLO               $03, $07, $0f, $13, $17, $1b, $1f
-SRE               $43, $47, $4f, $53, $57, $5b, $5f
+Additional opcodes to standard 6502:
+
+ADC $72
+AND $32
+BIT $34, $3C, $89
+BRA $80
+CMP $D2
+DEC $3A
+EOR $52
+INC $1A
+JMP $7C
+LDA $B2
+ORA $12
+PHX $DA
+PHY $5A
+PLX $FA
+PLY $7A
+SBC $F2
+STA $92
+STZ $64, $74, $9C, $9E
+TRB $14, $1C
+TSB $04, $0C
+
+Additional aliases and pseudo instructions:
+
+DEA $3A
+GRA $4C, $80
+INA $1A
+
+-------------------------------------------------------------------------------
+
+R65C02 opcodes
+
+Additional opcodes to standard 65C02:
+
+BBR $0F, $1F, $2F, $3F, $4F, $5F, $6F, $7F
+BBS $8F, $9F, $AF, $BF, $CF, $DF, $EF, $FF
+RMB $07, $17, $27, $37, $47, $57, $67, $77
+SMB $87, $97, $A7, $B7, $C7, $D7, $E7, $F7
+
+-------------------------------------------------------------------------------
+
+W65C02 opcodes
+
+Additional opcodes to R65C02:
+
+STP $DB
+WAI $CB
+
+-------------------------------------------------------------------------------
+
+W65816 opcodes
+
+Additional opcodes to standard 65C02:
+
+ADC $63, $67, $6F, $73, $77, $7F
+AND $23, $27, $2F, $33, $37, $3F
+BRL $82
+CMP $C3, $C7, $CF, $D3, $D7, $DF
+COP $02
+EOR $43, $47, $4F, $53, $57, $5F
+JMP $5C, $DC
+JSL $22
+JSR $FC
+LDA $A3, $A7, $AF, $B3, $B7, $BF
+MVN $54
+MVP $44
+ORA $03, $07, $0F, $13, $17, $1F
+PEA $F4
+PEI $D4
+PER $62
+PHB $8B
+PHD $0B
+PHK $4B
+PLB $AB
+PLD $2B
+REP $C2
+RTL $6B
+SBC $E3, $E7, $EF, $F3, $F7, $FF
+SEP $E2
+STA $83, $87, $8F, $93, $97, $9F
+STP $DB
+SWA $EB
+TAD $5B
+TAS $1B
+TCD $5B
+TCS $1B
+TDA $7B
+TDC $7B
+TSA $3B
+TSC $3B
+TXY $9B
+TYX $BB
+XBA $EB
+XCE $FB
+WAI $CB
+
+Additional aliases:
+
+JML $5C, $DC
+
+-------------------------------------------------------------------------------
+
+65EL02 opcodes
+
+Additional opcodes to standard 65C02:
+
+ADC $63, $67, $73, $77
+AND $23, $27, $33, $37
+CMP $C3, $C7, $D3, $D7
+DIV $4F, $5F, $6F, $7F
+ENT $22
+EOR $43, $47, $53, $57
+JSR $FC
+LDA $A3, $A7, $B3, $B7
+MMU $EF
+MUL $0F, $1F, $2F, $3F
+NXA $42
+NXT $02
+ORA $03, $07, $13, $17
+PEA $F4
+PEI $D4
+PER $62
+PHD $DF
+PLD $CF
+REA $44
+REI $54
+REP $C2
+RER $82
+RHA $4B
+RHI $0B
+RHX $1B
+RHY $5B
+RLA $6B
+RLI $2B
+RLX $3B
+RLY $7B
+SBC $E3, $E7, $F3, $F7
+SEA $9F
+SEP $E2
+STA $83, $87, $93, $97
+STP $DB
+SWA $EB
+TAD $BF
+TDA $AF
+TIX $DC
+TRX $AB
+TXI $5C
+TXR $8B
+TXY $9B
+TYX $BB
+WAI $CB
+XBA $EB
+XCE $FB
+ZEA $8F
+
