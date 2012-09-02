@@ -627,6 +627,8 @@ static void set_cpumode(uint_fast8_t cpumode) {
     case OPCODES_C65816:mnemonic=mnemonic_c65816;opcode=c65816;all_mem=0xffffff;scpumode=1;break;
     case OPCODES_C65DTV02:mnemonic=mnemonic_c65dtv02;opcode=c65dtv02;dtvmode=1;break;
     case OPCODES_C65EL02:mnemonic=mnemonic_c65el02;opcode=c65el02;break;
+    case OPCODES_CR65C02:mnemonic=mnemonic_cr65c02;opcode=cr65c02;break;
+    case OPCODES_CW65C02:mnemonic=mnemonic_cw65c02;opcode=cw65c02;break;
     default: mnemonic=mnemonic_c6502;opcode=c6502;break;
     }
     all_mem2 = arguments.flat ? ~(address_t)0 : all_mem;
@@ -1911,6 +1913,8 @@ static void compile(void)
                     else if (!strcmp(path,"65816")) def=OPCODES_C65816;
                     else if (!strcasecmp(path,"65dtv02")) def=OPCODES_C65DTV02;
                     else if (!strcasecmp(path,"65el02")) def=OPCODES_C65EL02;
+                    else if (!strcmp(path,"r65c02")) def=OPCODES_CR65C02;
+                    else if (!strcmp(path,"w65c02")) def=OPCODES_CW65C02;
                     else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,path);
                     set_cpumode(def);
                     break;
@@ -2414,7 +2418,7 @@ static void compile(void)
 
                     opr = 0;mnem = prm;
                     oldlpoint = lpoint;
-                    cnmemonic = &opcode[prm*26];
+                    cnmemonic = &opcode[prm*ADR_LEN];
                     ln = 0; cod = 0; longbranch = 0; adr = 0; adrgen = AG_NONE;
 
                     ignore();
@@ -2464,7 +2468,7 @@ static void compile(void)
                         int c;
                         if (whatis[wht]!=WHAT_EXPRESSION && whatis[wht]!=WHAT_CHAR && wht!='_' && wht!='*') {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     nota:
-                        if (!(c=get_exp(&w, cnmemonic[ADR_REL]==____ && cnmemonic[ADR_MOVE]==____))) goto breakerr; //ellenorizve.
+                        if (!(c=get_exp(&w, cnmemonic[ADR_REL]==____ && cnmemonic[ADR_MOVE]==____ && cnmemonic[ADR_BIT_ZP]==____ && cnmemonic[ADR_BIT_ZP_REL]==____))) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val == &error_value) d = 0;
                         else if (val->type == T_NONE) d = fixeddig = 0;
@@ -2513,6 +2517,55 @@ static void compile(void)
                                         else w = 3;
                                     } else err_msg(ERROR_ILLEGAL_OPERA,NULL);
                                     ln = 2; opr=ADR_MOVE;
+                                } else if (cnmemonic[ADR_BIT_ZP]!=____) {
+                                    if (w==3) {//auto length
+                                        if (val->type != T_NONE) {
+                                            if (!((uval_t)val->u.num.val & ~(uval_t)7)) {longbranch = (uval_t)val->u.num.val << 4; w = 0;}
+                                        } else w = 0;
+                                    } else if (val->type != T_NONE) {
+                                        if (!w && (!((uval_t)val->u.num.val & ~(uval_t)7))) longbranch = (uval_t)val->u.num.val << 4;
+                                        else w = 3;
+                                    } else if (w) w = 3; // there's no rmb $ffff,xx or smb $ffffff,xx
+                                    if (w != 3) {
+                                        if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                        if (val == &error_value) d = 0;
+                                        else if (val->type == T_NONE) d = fixeddig = 0;
+                                        else {adr = val->u.num.val;d = 1;}
+                                        adrgen = AG_ZP; opr=ADR_BIT_ZP; w = 3;
+                                    }
+                                } else if (cnmemonic[ADR_BIT_ZP_REL]!=____) {
+                                    if (w==3) {//auto length
+                                        if (val->type != T_NONE) {
+                                            if (!((uval_t)val->u.num.val & ~(uval_t)7)) {longbranch = (uval_t)val->u.num.val << 4; w = 0;}
+                                        } else w = 0;
+                                    } else if (val->type != T_NONE) {
+                                        if (!w && (!((uval_t)val->u.num.val & ~(uval_t)7))) longbranch = (uval_t)val->u.num.val << 4;
+                                        else w = 3;
+                                    } else if (w) w = 3; // there's no rmb $ffff,xx or smb $ffffff,xx
+                                    if (w != 3) {
+                                        if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                        if (val == &error_value) d = 0;
+                                        else if (val->type == T_NONE) d = fixeddig = 0;
+                                        else {adr = val->u.num.val;d = 1;}
+                                        w = 3; 
+                                        if (val->type == T_NONE) w = 1;
+                                        else if (!((uval_t)val->u.num.val & ~(uval_t)0xffff) && (uint16_t)(val->u.num.val - dpage) < 0x100) {adr = (uint16_t)(val->u.num.val - dpage);w = 0;}
+                                        if (w != 3) {
+                                            uint32_t adr2=0;
+                                            if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                            if (val == &error_value) d = 0;
+                                            else if (val->type == T_NONE) d = fixeddig = 0;
+                                            else {adr2 = val->u.num.val;d = 1;}
+                                            w=3;
+                                            if (val->type != T_NONE) {
+                                                adr2=(uint16_t)(adr2 - current_section->l_address - 3);
+                                                if (adr2>=0xFF80 || adr2<=0x007F) {
+                                                    if (!(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {adr |= ((uint8_t)adr2) << 8; w = 1;}
+                                                } else {if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);w = 1;};
+                                            } else w = 1;
+                                        }
+                                        ln = 2;opr=ADR_BIT_ZP_REL;
+                                    }
                                 } else if (cnmemonic[ADR_REL]!=____) {
                                     struct star_s *s;
                                     int olabelexists;
@@ -2809,6 +2862,7 @@ static void compile(void)
                                     break;
                                 }
                                 case ADR_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x\t":" $%04x",(uint16_t)(adr+dpage)); break;
+                                case ADR_BIT_ZP: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" %d,$%02x\t":" %d,$%04x",((cod ^ longbranch) >> 4) & 7,(uint16_t)(adr+dpage)); break;
                                 case ADR_LONG_X: fprintf(flist," $%06x,x",(uint32_t)(adr&0xffffff)); break;
                                 case ADR_ADDR_X: fprintf(flist,databank?" $%06x,x":" $%04x,x",(uint16_t)adr | (databank << 16)); break;
                                 case ADR_ZP_X: fprintf(flist,((uint16_t)(adr+dpage)<0x100)?" $%02x,x":" $%04x,x",(uint16_t)(adr+dpage)); break;
@@ -2842,8 +2896,13 @@ static void compile(void)
                                     }
                                     break;
                                 }
+                                case ADR_BIT_ZP_REL:
+                                    fprintf(flist,((uint16_t)(((uint8_t)adr)+dpage)<0x100)?" %d,$%02x":" %d,$%04x",((cod ^ longbranch) >> 4) & 7,(uint16_t)((uint8_t)adr)+dpage);
+                                    fprintf(flist,(current_section->l_address&0xff0000)?",$%06" PRIaddress:",$%04" PRIaddress,(uint16_t)(((int8_t)(adr >> 8))+current_section->l_address) | (current_section->l_address & 0xff0000));
+                                    break;
                                 case ADR_REL_L: fprintf(flist,(current_section->l_address & 0xff0000)?" $%06" PRIaddress:" $%04" PRIaddress,(uint16_t)(adr+current_section->l_address) | (current_section->l_address & 0xff0000)); break;
                                 case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
+                                case ADR_LEN: break;// not an addressing mode
                                 }
                             } else if (arguments.source) putc('\t',flist);
                         } else if (arguments.source) fputs("\t\t\t", flist);
@@ -2909,10 +2968,7 @@ int main(int argc,char *argv[]) {
     init_encoding(arguments.toascii);
 
     if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1]))
-        puts("6502/65C02 Turbo Assembler Version 1.3  Copyright (c) 1997 Taboo Productions\n"
-             "6502/65C02 Turbo Assembler Version 1.35 ANSI C port by BiGFooT/BReeZe^2000\n"
-             "6502/65C02/65816/DTV TASM Version " VERSION " Fixing by Soci/Singular 2001-2012\n"
-             "65EL02 support by BiGFooT/BReeZe^Chorus^Resource 2012\n"
+        puts("64tass Turbo Assembler Macro V" VERSION "\n"
              "64TASS comes with ABSOLUTELY NO WARRANTY; This is free software, and you\n"
              "are welcome to redistribute it under certain conditions; See LICENSE!\n");
 

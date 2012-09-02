@@ -391,6 +391,7 @@ using the <code>.cpu</code> directive in the source.</p>
 64tass --m65c02 a.asm
         <b>stz</b> <span>$d020</span>	<i>;65c02 instruction</i>
 </pre>
+
 </fieldset>
 
 <dt><b>-i</b>, <b>--m6502</b>
@@ -437,6 +438,28 @@ Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small 
         <b>lda</b> <span>0</span>,r
 </pre>
 </fieldset>
+
+<dt><b>--mr65c02</b>
+<dd>R65C02
+<p>Selects r65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --mr65c02 a.asm
+        <b>rmb</b> <span>7</span>,<span>$20</span>
+</pre>
+</fieldset>
+
+<dt><b>--mw65c02</b>
+<dd>W65C02
+<p>Selects w65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --mw65c02 a.asm
+        <b>wai</b>
+</pre>
+</fieldset>
 </dl>
 
 <h3>Source listing options</h3>
@@ -473,7 +496,7 @@ loop	<b>dex</b>
 
 result (list.txt):
 
-;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
+;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
 ;done on Fri Dec  9 19:08:55 2005
 
 
@@ -496,7 +519,7 @@ result (list.txt):
 
 result (list.txt):
 
-;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
+;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
 ;done on Fri Dec  9 19:11:43 2005
 
 
@@ -519,7 +542,7 @@ result (list.txt):
 
 result (list.txt):
 
-;6502/65C02/65816/DTV Turbo Assembler V1.5x listing file of "a.asm"
+;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
 ;done on Fri Dec  9 19:13:25 2005
 
 
@@ -1510,6 +1533,8 @@ can ruin the timing of a carefuly cycle counted code.
 	<b class="k">.cpu</b> 65816	<i>;W65C816</i>
 	<b class="k">.cpu</b> 65dtv02	<i>;65dtv02</i>
 	<b class="k">.cpu</b> 65el02	<i>;65el02</i>
+	<b class="k">.cpu</b> r65c02	<i>;R65C02</i>
+	<b class="k">.cpu</b> w65c02	<i>;W65C02</i>
 	<b class="k">.cpu</b> default	<i>;cpu set on commandline</i>
 </pre>
 
