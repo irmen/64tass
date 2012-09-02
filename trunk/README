@@ -1942,5 +1942,6 @@ Additional aliases to R65C02:
 ASR $43
 BGE $B3
 BLT $93
+NEG $42
 RTN $62
 
