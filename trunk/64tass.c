@@ -402,17 +402,16 @@ static int lookup_opcode(const char *s) {
     unsigned int also,felso,elozo, no;
 
     ch=lowcase(s[0]);
-    if (ch && (s2=lowcase(s[1])) && (s3=lowcase(s[2]))) {
-        uint32_t name = (ch << 16) | (s2 << 8) | s3;
-        also = 0;
-        no = (felso=last_mnem)/2;
-        for (;;) {  // do binary search
-            if (!(s4=name-mnemonic[no]))
-                return no;
-
+    s2=lowcase(s[1]);
+    s3=lowcase(s[2]);
+    uint32_t name = (ch << 16) | (s2 << 8) | s3;
+    also = 0;
+    no = (felso=last_mnem)/2;
+    for (;;) {  // do binary search
+        if (!(s4=name-mnemonic[no]))
+            return no;
             elozo=no;
-            if (elozo==(no=((s4>0) ? (felso+(also=no)) : (also+(felso=no)) )/2)) break;
-        }
+        if (elozo==(no=((s4>0) ? (felso+(also=no)) : (also+(felso=no)) )/2)) break;
     }
     return -1;
 }
@@ -773,7 +772,7 @@ static void compile(void)
             } //not label
             get_ident(labelname);islabel = (here()==':');
             if (islabel) lpoint++;
-            else if (!labelname[3] && (prm=lookup_opcode(labelname))>=0) {
+            else if (labelname[0] && labelname[1] && labelname[2] && !labelname[3] && (prm=lookup_opcode(labelname))>=0) {
                 if (waitfor[waitforp].skip & 1) goto as_opcode; else continue;
             }
             if (listing) strcpy(labelname2, labelname);
@@ -2407,7 +2406,7 @@ static void compile(void)
                 enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_NONE } adrgen;
 
                 get_ident2(labelname);
-                if (!labelname[3] && (prm=lookup_opcode(labelname))>=0) {
+                if (labelname[0] && labelname[1] && labelname[2] && !labelname[3] && (prm=lookup_opcode(labelname))>=0) {
                     enum opr_e opr;
                     int mnem, oldlpoint;
                     const uint8_t *cnmemonic; //current nmemonic
