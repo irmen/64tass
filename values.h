@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <inttypes.h>
+#include "inttypes.h"
 
 typedef int32_t ival_t;
 #define PRIdval PRId32

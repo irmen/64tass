@@ -20,6 +20,11 @@
 #include <string.h>
 #include "misc.h"
 
+#if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
+#else
+#define snprintf(str, size, format, var) sprintf(str, format, var)
+#endif
+
 unsigned int errors=0,conderrors=0,warnings=0;
 
 static struct {

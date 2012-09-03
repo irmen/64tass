@@ -22,7 +22,11 @@
 #include "variables.h"
 #include <stddef.h>
 #include <stdint.h>
-#include <inttypes.h>
+#include "inttypes.h"
+#ifndef REVISION
+#define REVISION "?"
+#endif
+#undef VERSION
 #define VERSION "1.5x" REVISION
 
 enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_X, WHAT_Y, WHAT_Z, WHAT_XZ, WHAT_R, WHAT_RZ,
