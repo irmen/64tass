@@ -29,6 +29,10 @@
 
 #define _GNU_SOURCE
 #define _MAIN_C_
+#ifdef _WIN32
+#include <windows.h>
+#include <wincon.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -2970,6 +2974,11 @@ int main2(int argc, char *argv[]);
 
 int wmain(int argc, wchar_t *argv2[]) {
     int i, r;
+    UINT oldcodepage = GetConsoleOutputCP();
+    UINT oldcodepage2 = GetConsoleCP();
+
+    SetConsoleCP(65001);
+    SetConsoleOutputCP(65001);
 
     char **argv = malloc(sizeof(char *)*argc);
     for (i = 0; i < argc; i++) {
@@ -3009,6 +3018,8 @@ int wmain(int argc, wchar_t *argv2[]) {
     for (i = 0; i < argc; i++) free(argv[i]);
     free(argv);
 
+    SetConsoleCP(oldcodepage2);
+    SetConsoleOutputCP(oldcodepage);
     return r;
 }
 
@@ -3223,7 +3234,6 @@ int main(int argc, char *argv[]) {
 
 #ifdef __MINGW32__
 
-#include <windows.h>
 #include <shellapi.h>
 
 int main(void)
