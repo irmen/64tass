@@ -22,6 +22,36 @@
 
 static struct avltree file_tree;
 
+FILE *file_open(const char *name, const char *mode)
+{
+    FILE *f;
+#ifdef _WIN32
+    wchar_t *wname, *c2, wmode[3];
+    const uint8_t *c;
+    uint32_t ch;
+    wname = malloc(strlen(name)*sizeof(wchar_t)+sizeof(wchar_t));
+    if (!wname) err_msg_out_of_memory();
+    c2 = wname; c = (uint8_t *)name;
+    while (*c) {
+        ch = *c;
+        if (ch & 0x80) c += utf8in(c, &ch); else c++;
+        if (ch < 0x10000) *c2++ = ch;
+        else if (ch < 0x110000) {
+            *c2++ = (ch >> 10) + 0xd7c0;
+            *c2++ = (ch & 0x3ff) | 0xdc00;
+        } else *c2++ = 0xfffd;
+    }
+    *c2++ = 0;
+    c2 = wmode; c = (uint8_t *)mode;
+    while ((*c2++=(wchar_t)*c++));
+    f=_wfopen(wname, wmode);
+    free(wname);
+#else
+    f=fopen(name,"rb");
+#endif
+    return f;
+}
+
 static int star_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct star_s *a = avltree_container_of(aa, struct star_s, node);
@@ -83,7 +113,7 @@ struct file_s *openfile(const char* name, int ftype) {
         lastfi=NULL;
         if (name[0]) {
             if (name[0]=='-' && !name[1]) f=stdin;
-            else f=fopen(name,"rb");
+            else f=file_open(name,"rb");
             if (!f) {
                 err_msg(ERROR_CANT_FINDFILE,name);
                 return NULL;
@@ -205,7 +235,8 @@ struct file_s *openfile(const char* name, int ftype) {
                                     c = 0xfffd;
                                 } else if (c >= 0xdc00 && c < 0xe000) {
                                     if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                        c ^= 0x361dc00 ^ (lastchar << 10);
+                                        c ^= 0x360dc00 ^ (lastchar << 10);
+                                        c += 0x10000;
                                     } else
                                         c = 0xfffd;
                                 } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {

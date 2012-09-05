@@ -19,6 +19,7 @@
 #define _FILE_H_
 #include "libtree.h"
 #include "misc.h"
+#include <stdio.h>
 
 struct file_s {
     const char *name;
@@ -44,5 +45,6 @@ extern void closefile(struct file_s*);
 extern struct star_s *new_star(line_t);
 extern void destroy_file(void);
 extern void init_file(void);
+extern FILE *file_open(const char *, const char *);
 
 #endif
