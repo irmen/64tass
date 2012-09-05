@@ -2965,7 +2965,57 @@ static void compile(void)
     return;
 }
 
-int main(int argc,char *argv[]) {
+#ifdef _WIN32
+int main2(int argc, char *argv[]);
+
+int wmain(int argc, wchar_t *argv2[]) {
+    int i, r;
+
+    char **argv = malloc(sizeof(char *)*argc);
+    for (i = 0; i < argc; i++) {
+	uint32_t c = 0, lastchar;
+	wchar_t *p = argv2[i];
+	uint8_t *c2;
+
+	while (*p) p++;
+	c2 = malloc((p - argv2[i])*4/sizeof(wchar_t)+1);
+	if (!c2) exit(1);
+	p = argv2[i];
+	argv[i] = (char *)c2;
+
+	while (*p) {
+	    lastchar = c;
+	    c = *p++;
+	    if (c >= 0xd800 && c < 0xdc00) {
+		if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
+		c = 0xfffd;
+	    } else if (c >= 0xdc00 && c < 0xe000) {
+		if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+		    c ^= 0x360dc00 ^ (lastchar << 10);
+		    c += 0x10000;
+		} else
+		    c = 0xfffd;
+	    } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+		c = 0xfffd;
+	    }
+	    if (c && c < 0x80) *c2++ = c; else c2 = utf8out(c, c2);
+	}
+	*c2++ = 0;
+	argv[i] = realloc(argv[i], (char *)c2 - argv[i]);
+	if (!argv[i]) exit(1);
+    }
+    r = main2(argc, argv);
+
+    for (i = 0; i < argc; i++) free(argv[i]);
+    free(argv);
+
+    return r;
+}
+
+int main2(int argc, char *argv[]) {
+#else
+int main(int argc, char *argv[]) {
+#endif
     time_t t;
     FILE* fout;
     int optind, i;
@@ -3170,3 +3220,22 @@ int main(int argc,char *argv[]) {
     status();
     return 0;
 }
+
+#ifdef __MINGW32__
+
+#include <windows.h>
+#include <shellapi.h>
+
+int main(void)
+{
+  LPWSTR commandLine = GetCommandLineW();
+  int argcw = 0;
+  LPWSTR *argvw = CommandLineToArgvW(commandLine, &argcw);
+  if (!argvw)
+    return 127;
+
+  int result = wmain(argcw, argvw);
+  LocalFree(argvw);
+  return result;
+}
+#endif /* __MINGW32__ */
