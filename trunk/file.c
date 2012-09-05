@@ -47,7 +47,7 @@ FILE *file_open(const char *name, const char *mode)
     f=_wfopen(wname, wmode);
     free(wname);
 #else
-    f=fopen(name,"rb");
+    f=fopen(name, mode);
 #endif
     return f;
 }
