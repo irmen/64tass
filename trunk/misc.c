@@ -249,7 +249,7 @@ void labelprint(void) {
         if (arguments.label[0] == '-' && !arguments.label[1]) {
             flab = stdout;
         } else {
-            if (!(flab=fopen(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
+            if (!(flab=file_open(arguments.label,"wt"))) err_msg(ERROR_CANT_DUMP_LBL,arguments.label);
         }
         n = avltree_first(&root_label.members);
         while (n) {
