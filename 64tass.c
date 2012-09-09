@@ -883,6 +883,7 @@ static void compile(void)
                 case CMD_MACRO:// .macro
                 case CMD_SEGMENT:
                     new_waitfor('m', epoint);waitfor[waitforp].skip=0;
+                    ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     tmp2=new_macro(labelname);
                     if (labelexists) {
                         if (tmp2->p!=cfile->p
@@ -905,6 +906,7 @@ static void compile(void)
                         struct section_s olds = *current_section;
 
                         new_waitfor((prm==CMD_STRUCT)?'s':'u', epoint);waitfor[waitforp].skip=0;
+                        ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                         if (!current_section->structrecursion) {
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
                             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
@@ -1097,6 +1099,7 @@ static void compile(void)
                         newlabel->ref=0;
                         ignore();epoint=lpoint;
                         if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                         if (!(tmp2=find_macro(labelname)) || tmp2->type!=((prm==CMD_DSTRUCT)?CMD_STRUCT:CMD_UNION)) {err_msg2(ERROR___NOT_DEFINED,labelname,epoint); goto breakerr;}
                         current_section->structrecursion++;
                         macro_recurse((prm==CMD_DSTRUCT)?'S':'U',tmp2);
@@ -2263,6 +2266,7 @@ static void compile(void)
                     current_section->unionmode = 0;
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     if (!(tmp2=find_macro(labelname)) || tmp2->type!=CMD_STRUCT) {err_msg2(ERROR___NOT_DEFINED,labelname,epoint); goto breakerr;}
                     current_section->structrecursion++;
                     macro_recurse('S',tmp2);
@@ -2386,7 +2390,7 @@ static void compile(void)
                 struct label_s *old_context;
 
                 if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (!(tmp2=find_macro(labelname))) {err_msg(ERROR___NOT_DEFINED,labelname); goto breakerr;}
+                if (!(tmp2=find_macro(labelname)) || (tmp2->type != CMD_MACRO && tmp2->type != CMD_SEGMENT)) {err_msg(ERROR___NOT_DEFINED,labelname); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
