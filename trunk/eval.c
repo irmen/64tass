@@ -1078,7 +1078,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
                 }
                 if (!operp) break;
-                if (operp==1 && o_oper[0]=='(' && (pline[lpoint+1]=='x' || pline[lpoint+1]=='s' || pline[lpoint+1]=='r') && pline[lpoint+2]==')') {
+                if (operp==1 && o_oper[0]=='(' && ((pline[lpoint+1] | 0x20)=='x' || (pline[lpoint+1] | 0x20)=='s' || (pline[lpoint+1] | 0x20)=='r') && pline[lpoint+2]==')') {
                     outp--;
                     memmove(&o_out[0], &o_out[1], outp * sizeof(o_out[0]));
                     break;
