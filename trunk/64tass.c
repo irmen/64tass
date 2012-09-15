@@ -38,6 +38,7 @@
 #include <stdlib.h>
 
 #include <time.h>
+#include <errno.h>
 
 #include "opcodes.h"
 #include "misc.h"
@@ -3100,7 +3101,7 @@ int main(int argc, char *argv[]) {
         if (arguments.list[0] == '-' && !arguments.list[1]) {
             flist = stdout;
         } else {
-            if (!(flist=file_open(arguments.list,"wt"))) err_msg(ERROR_CANT_DUMP_LST,arguments.list);
+            if (!(flist=file_open(arguments.list,"wt"))) err_file(ERROR_CANT_DUMP_LST, arguments.list);
         }
 	fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
         if (*argv2) {
@@ -3173,7 +3174,7 @@ int main(int argc, char *argv[]) {
         if (arguments.output[0] == '-' && !arguments.output[1]) {
             fout = stdout;
         } else {
-            if ((fout=file_open(arguments.output,"wb"))==NULL) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
+            if ((fout=file_open(arguments.output,"wb"))==NULL) err_file(ERROR_CANT_WRTE_OBJ, arguments.output);
         }
         clearerr(fout);
         if (memblocks.p) {
@@ -3229,7 +3230,7 @@ int main(int argc, char *argv[]) {
             putc(0,fout);
             if (scpumode) putc(0 ,fout);
         }
-        if (ferror(fout)) err_msg(ERROR_CANT_WRTE_OBJ,arguments.output);
+        if (ferror(fout)) err_file(ERROR_CANT_WRTE_OBJ, arguments.output);
 	if (fout != stdout) fclose(fout);
     }
     status();

@@ -18,6 +18,7 @@
 #include "error.h"
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "misc.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
@@ -75,6 +76,23 @@ static void adderror(const char *s) {
     adderror2((uint8_t *)s, strlen(s));
 }
 
+static void addorigin(unsigned int lpoint) {
+    char line[linelength];
+    size_t i;
+
+    if (file_list.p) {
+        adderror(file_list.data[file_list.p - 1].name);
+	sprintf(line,":%" PRIuline ":%u: ", sline, lpoint + 1); adderror(line);
+    }
+
+    for (i = file_list.p; i > 1; i--) {
+        adderror("(");
+        adderror(file_list.data[i - 2].name);
+        sprintf(line,":%" PRIuline ") ", file_list.data[i - 1].line);
+        adderror(line);
+    }
+}
+
 static const char *terr_warning[]={
     "Top of memory excedeed",
     "Possibly incorrectly used A",
@@ -105,12 +123,12 @@ static const char *terr_error[]={
     "%s\n",
 };
 static const char *terr_fatal[]={
-    "Can't locate file: %s\n",
-    "Error reading file: %s\n",
-    "Can't write object file: %s\n",
+    "Can't open file ",
+    "Error reading file ",
+    "Can't write object file ",
     "Line too long\n",
-    "Can't write listing file: %s\n",
-    "Can't write label file: %s\n",
+    "Can't write listing file ",
+    "Can't write label file ",
     "File recursion\n",
     "Macro recursion too deep\n",
     "Unknown CPU: %s\n",
@@ -121,7 +139,6 @@ static const char *terr_fatal[]={
 
 void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
     char line[linelength];
-    unsigned int i;
 
     if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
 
@@ -130,17 +147,7 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
         return;
     }
 
-    if (file_list.p) {
-        adderror(file_list.data[file_list.p - 1].name);
-	sprintf(line,":%" PRIuline ":%u: ", sline, lpoint + 1); adderror(line);
-    }
-
-    for (i = file_list.p; i > 1; i--) {
-        adderror("(");
-        adderror(file_list.data[i - 2].name);
-        sprintf(line,":%" PRIuline ") ", file_list.data[i - 1].line);
-        adderror(line);
-    }
+    addorigin(lpoint);
 
     if (no<0x40) {
         adderror("warning: ");
@@ -171,7 +178,7 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
         }
     }
     else {
-        adderror("[**Fatal**] ");
+        adderror("fatal error: ");
         snprintf(line,linelength,terr_fatal[no & 63],prm);
         adderror(line);
         errors++;
@@ -273,4 +280,18 @@ void err_msg_out_of_memory(void)
     freeerrorlist(1);
     fputs("Out of memory error\n", stderr);
     exit(1);
+}
+
+void err_file(enum errors_e no, const char* prm) {
+    char *error;
+    addorigin(lpoint);
+    adderror("fatal error: ");
+    adderror(terr_fatal[no & 63]);
+    adderror(prm);
+    adderror(": ");
+    error = strerror(errno);
+    adderror(error);
+    adderror("\n");
+    errors++;
+    status();exit(1);
 }
