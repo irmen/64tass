@@ -520,37 +520,6 @@ static int get_hack(void) {
     return 0;
 }
 
-static int get_path(struct value_s *v, const char *base) {
-    unsigned int i;
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-    unsigned int j;
-
-    i = strlen(base);
-    j = (((base[0] >= 'A' && base[0] <= 'Z') || (base[0] >= 'a' && base[0] <= 'z')) && base[1]==':') ? 2 : 0;
-    while (i > j) {
-        if (base[i-1] == '/' || base[i-1] == '\\') break;
-        i--;
-    }
-#else
-    char *c;
-    c = strrchr(base, '/');
-    i = c ? (c - base + 1) : 0;
-#endif
-
-    if (i && i < sizeof(path)) memcpy(path, base, i); else i = 0;
-
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-    if (v->u.str.len && (v->u.str.data[0]=='/' || v->u.str.data[0]=='\\')) i = j;
-    else if (v->u.str.len > 1 && ((v->u.str.data[0] >= 'A' && v->u.str.data[0] <= 'Z') || (v->u.str.data[0] >= 'a' && v->u.str.data[0] <= 'z')) && v->u.str.data[1]==':') i = 0;
-#else
-    if (v->u.str.len && v->u.str.data[0]=='/') i = 0;
-#endif
-
-    if (i + v->u.str.len + 1 >= sizeof(path)) {err_msg(ERROR_CONSTNT_LARGE,NULL); return 1;}
-    memcpy(path + i, v->u.str.data, v->u.str.len);
-    path[i + v->u.str.len] = 0;
-    return 0;
-}
 
 //------------------------------------------------------------------------------
 
@@ -713,7 +682,7 @@ static void macro_recurse(char t, struct macro_s *tmp2) {
         if (labelexists && s->addr != star) fixeddig=0;
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        enterfile(tmp2->file->name, sline);
+        enterfile(tmp2->file->realname, sline);
         sline = tmp2->sline;
         new_waitfor(t, 0);
         f = cfile; cfile = tmp2->file;
@@ -1523,6 +1492,7 @@ static void compile(void)
                     } else if (prm==CMD_BINARY) { // .binary
                         size_t foffset = 0;
                         int nameok = 0;
+                        struct value_s *val2;
                         address_t fsize = all_mem+1;
                         if (newlabel) newlabel->esize = 1;
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
@@ -1530,7 +1500,8 @@ static void compile(void)
                         if (val->type == T_NONE) fixeddig = 0;
                         else {
                             if (val->type != T_STR) {err_msg_wrong_type(val->type, epoint);goto breakerr;}
-                            if (get_path(val, cfile->name)) goto breakerr;
+                            if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
+                            val2 = val;
                             nameok = 1;
                         }
                         if ((val = get_val(T_UINT, &epoint))) {
@@ -1552,7 +1523,7 @@ static void compile(void)
                         eval_finish();
 
                         if (nameok) {
-                            struct file_s *cfile = openfile(path, 1);
+                            struct file_s *cfile = openfile(path, 1, val2);
                             if (cfile) {
                                 for (;fsize && foffset < cfile->len;fsize--) {
                                     pokeb(cfile->data[foffset]);foffset++;
@@ -1714,7 +1685,6 @@ static void compile(void)
                             if ((val->type != T_NUM || val->u.num.len > 1) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             ch = (uint8_t)val->u.num.val;
                         }
-                        
                     }
                     eval_finish();
                     if (ch >= 0) while (db-- > 0) pokeb(ch);
@@ -2029,23 +1999,23 @@ static void compile(void)
                     if (val->type == T_NONE) err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);
                     else {
                         if (val->type != T_STR) {err_msg_wrong_type(val->type, epoint);goto breakerr;}
-                        if (get_path(val, cfile->name)) goto breakerr;
+                        if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
 
-                        if (listing && flist) {
-                            fprintf(flist,"\n;******  Processing file \"%s\"\n",path);
-                            lastl=LIST_NONE;
-                        }
                         f = cfile;
-                        cfile = openfile(path, 0);
+                        cfile = openfile(path, 0, val);
                         if (cfile->open>1) {
                             err_msg(ERROR_FILERECURSION,NULL);
                         } else {
+                            if (listing && flist) {
+                                fprintf(flist,"\n;******  Processing file \"%s\"\n",cfile->realname);
+                                lastl=LIST_NONE;
+                            }
                             line_t lin = sline;
                             line_t vlin = vline;
                             struct avltree *stree_old = star_tree;
                             uint32_t old_backr = backr, old_forwr = forwr;
 
-                            enterfile(cfile->name,sline);
+                            enterfile(cfile->realname,sline);
                             sline = vline = 0; cfile->p=0;
                             star_tree = &cfile->star;
                             backr = forwr = 0;
@@ -2059,7 +2029,7 @@ static void compile(void)
                         closefile(cfile);cfile = f;
                         reffile=cfile->uid;
                         if (listing && flist) {
-                            fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->name);
+                            fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->realname);
                             lastl=LIST_NONE;
                         }
                     }
@@ -3041,7 +3011,7 @@ int main(int argc, char *argv[]) {
 
     tinit();
 
-    fin = openfile("", 0);
+    fin = openfile("", 0, NULL);
     optind = testarg(argc,argv, fin);
     init_encoding(arguments.toascii);
 
@@ -3082,7 +3052,7 @@ int main(int argc, char *argv[]) {
             }
             memjmp(current_section->address);
             enterfile(argv[i],0);
-            cfile = openfile(argv[i], 0);
+            cfile = openfile(argv[i], 0, NULL);
             if (cfile) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
@@ -3146,7 +3116,7 @@ int main(int argc, char *argv[]) {
             memjmp(current_section->address);
 
             enterfile(argv[i],0);
-            cfile = openfile(argv[i], 0);
+            cfile = openfile(argv[i], 0, NULL);
             if (cfile) {
                 cfile->p = 0;
                 star_tree=&cfile->star;

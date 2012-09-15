@@ -20,7 +20,64 @@
 #include <string.h>
 #include <stdlib.h>
 
+struct include_list_s {
+    struct include_list_s *next;
+    char path[1];
+};
+
+static struct include_list_s include_list;
+struct include_list_s *include_list_last = &include_list;
+
 static struct avltree file_tree;
+
+void include_list_add(const char *path)
+{
+    int i, j;
+    j = i = strlen(path);
+    if (!i) return;
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+    if (path[i-1] != '/' && base[i-1] != '\\') j++;
+#else
+    if (path[i-1] != '/') j++;
+#endif
+    include_list_last->next = malloc(j + sizeof(struct include_list_s));
+    include_list_last = include_list_last->next;
+    include_list_last->next = NULL;
+    strcpy(include_list_last->path, path);
+    if (i != j) strcat(include_list_last->path, "/");
+}
+
+int get_path(const struct value_s *v, const char *base, char *path, size_t size) {
+    unsigned int i;
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+    unsigned int j;
+
+    i = strlen(base);
+    j = (((base[0] >= 'A' && base[0] <= 'Z') || (base[0] >= 'a' && base[0] <= 'z')) && base[1]==':') ? 2 : 0;
+    while (i > j) {
+        if (base[i-1] == '/' || base[i-1] == '\\') break;
+        i--;
+    }
+#else
+    char *c;
+    c = strrchr(base, '/');
+    i = c ? (c - base + 1) : 0;
+#endif
+
+    if (i && i < size) memcpy(path, base, i); else i = 0;
+
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+    if (v->u.str.len && (v->u.str.data[0]=='/' || v->u.str.data[0]=='\\')) i = j;
+    else if (v->u.str.len > 1 && ((v->u.str.data[0] >= 'A' && v->u.str.data[0] <= 'Z') || (v->u.str.data[0] >= 'a' && v->u.str.data[0] <= 'z')) && v->u.str.data[1]==':') i = 0;
+#else
+    if (v->u.str.len && v->u.str.data[0]=='/') i = 0;
+#endif
+
+    if (i + v->u.str.len + 1 >= size) return 1;
+    memcpy(path + i, v->u.str.data, v->u.str.len);
+    path[i + v->u.str.len] = 0;
+    return 0;
+}
 
 FILE *file_open(const char *name, const char *mode)
 {
@@ -83,12 +140,13 @@ static void file_free(const struct avltree_node *aa)
     avltree_destroy(&a->star);
     free((char *)a->data);
     free((char *)a->name);
+    free((char *)a->realname);
     free(a);
 }
 
 static struct file_s *lastfi=NULL;
 static uint16_t curfnum=1;
-struct file_s *openfile(const char* name, int ftype) {
+struct file_s *openfile(const char* name, int ftype, const struct value_s *val) {
     const struct avltree_node *b;
     struct file_s *tmp;
     if (!lastfi)
@@ -112,14 +170,30 @@ struct file_s *openfile(const char* name, int ftype) {
         tmp = lastfi;
         lastfi=NULL;
         if (name[0]) {
-            if (name[0]=='-' && !name[1]) f=stdin;
-            else f=file_open(name, "rb");
+            const char *usedname = name;
+            char path[linelength];
+            if (val) {
+                struct include_list_s *i = include_list.next;
+                f=file_open(name, "rb");
+                while (!f && i) {
+                    if (get_path(val, i->path, path, sizeof(path))) continue;
+                    f = file_open(path, "rb");
+                    usedname = path;
+                    i = i->next;
+                }
+            } else {
+                if (name[0]=='-' && !name[1]) f=stdin;
+                else f=file_open(name, "rb");
+            }
+            if (!(tmp->realname=malloc(strlen(usedname)+1))) err_msg_out_of_memory();
+            strcpy((char *)tmp->realname, usedname);
             if (!f) {
-                err_file(ERROR_CANT_FINDFILE,name);
+                if (val) if (get_path(val, "", path, sizeof(path))) val = NULL;
+                err_file(ERROR_CANT_FINDFILE, val ? path : name);
                 return NULL;
             }
             if (ftype) {
-                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Reading file:      %s\n",name);
+                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Reading file:      %s\n",tmp->realname);
                 do {
                     if (tmp->p + linelength > tmp->len) {
                         tmp->len += linelength * 2;
@@ -128,7 +202,7 @@ struct file_s *openfile(const char* name, int ftype) {
                     tmp->p += fread(&tmp->data[tmp->p], 1, tmp->len - tmp->p, f);
                 } while (!feof(f));
             } else {
-                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",name);
+                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",tmp->realname);
                 ch=getc(f);
                 ungetc(ch, f); 
                 if (!ch) type=UTF16BE; /* most likely */
@@ -272,6 +346,9 @@ struct file_s *openfile(const char* name, int ftype) {
             if (f!=stdin) fclose(f);
             tmp->len = tmp->p;
             tmp->data=realloc(tmp->data, tmp->len);
+        } else {
+            tmp->realname = malloc(1);
+            *((char *)tmp->realname) = 0;
         }
 	tmp->p = 0;
 
@@ -311,6 +388,13 @@ void destroy_file(void) {
     avltree_destroy(&file_tree);
     free(lastst);
     free(lastfi);
+
+    include_list_last = include_list.next;
+    while (include_list_last) {
+        struct include_list_s *tmp = include_list_last;
+        include_list_last = tmp->next;
+        free(tmp);
+    }
 }
 
 void init_file(void) {
