@@ -1697,7 +1697,7 @@ static void compile(void)
                 }
                 if (prm==CMD_FILL) { // .fill
                     address_t db = 0;
-                    uint8_t ch;
+                    int ch = -1;
                     if (newlabel) newlabel->esize = 1;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1707,16 +1707,18 @@ static void compile(void)
                         db=val->u.num.val;
                         if (db && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);goto breakerr;}
                     }
-                    if ((val = get_val(T_UINT, &epoint))) {
-                        if (val == &error_value) ch = 0;
-                        else if (val->type == T_NONE) ch = fixeddig = 0;
-                        else {
+                    if ((val = get_val(T_GAP, &epoint))) {
+                        if (val == &error_value) goto breakerr;
+                        else if (val->type == T_NONE) fixeddig = 0;
+                        else if (val->type != T_GAP) {
                             if ((val->type != T_NUM || val->u.num.len > 1) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             ch = (uint8_t)val->u.num.val;
                         }
-                        while (db-->0) pokeb(ch);
-                    } else memskip(db);
+                        
+                    }
                     eval_finish();
+                    if (ch >= 0) while (db-- > 0) pokeb(ch);
+                    else memskip(db);
                     break;
                 }
                 if (prm==CMD_ASSERT) { // .assert
@@ -1968,10 +1970,10 @@ static void compile(void)
                         if (!val->u.num.val || ((uval_t)val->u.num.val & ~(uval_t)all_mem)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else align = val->u.num.val;
                     }
-                    if ((val = get_val(T_NUM, &epoint))) {
+                    if ((val = get_val(T_GAP, &epoint))) {
                         if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) fixeddig = 0;
-                        else {
+                        else if (val->type != T_GAP) {
                             if ((val->u.num.len > 1 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             fill = (uint8_t)val->u.num.val;
                         }
