@@ -113,9 +113,9 @@ struct file_s *openfile(const char* name, int ftype) {
         lastfi=NULL;
         if (name[0]) {
             if (name[0]=='-' && !name[1]) f=stdin;
-            else f=file_open(name,"rb");
+            else f=file_open(name, "rb");
             if (!f) {
-                err_msg(ERROR_CANT_FINDFILE,name);
+                err_file(ERROR_CANT_FINDFILE,name);
                 return NULL;
             }
             if (ftype) {
@@ -268,7 +268,7 @@ struct file_s *openfile(const char* name, int ftype) {
                     if (ch == EOF) break;
                 } while (1);
             }
-            if (ferror(f)) err_msg(ERROR__READING_FILE,name);
+            if (ferror(f)) err_file(ERROR__READING_FILE, name);
             if (f!=stdin) fclose(f);
             tmp->len = tmp->p;
             tmp->data=realloc(tmp->data, tmp->len);
@@ -278,7 +278,7 @@ struct file_s *openfile(const char* name, int ftype) {
         tmp->uid=curfnum++;
     } else {
         tmp = avltree_container_of(b, struct file_s, node);
-        if (tmp->type != ftype) err_msg(ERROR__READING_FILE,name);
+        if (tmp->type != ftype) err_file(ERROR__READING_FILE, name);
     }
     tmp->open++;
     return tmp;
