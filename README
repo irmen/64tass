@@ -323,6 +323,14 @@ Operation options
     disables precedence handling and forces 16 bit unsigned evaluation (see
     `differences to original Turbo Assembler' below)
 
+-I <path>
+    Specify include search path
+
+    If an included source or binary file can't be found in the directory of the
+    source file then this path is tried. More than one directories can be
+    specified by repeating this option. If multiple matches exist the first one
+    is used.
+
 Target selection on command line
 
 These options will select the default architecture. It can be overridden by

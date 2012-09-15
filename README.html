@@ -364,6 +364,12 @@ string quoting, the shell might eat some of the characters.</p>
 <p>Switches the expression evaluator into compatibility mode. This
 enables <q>.</q>, <q>:</q> and <q>!</q> operators and disables 64tass specific extensions, disables precedence handling
 and forces 16&nbsp;bit unsigned evaluation (see <q>differences to original Turbo Assembler</q> below)</p>
+
+<dt><b>-I</b> &lt;path&gt;
+<dd>Specify include search path
+<p>If an included source or binary file can't be found in the directory of the
+source file then this path is tried. More than one directories can be specified
+by repeating this option. If multiple matches exist the first one is used.</p>
 </dl>
 
 <h3>Target selection on command line</h3>

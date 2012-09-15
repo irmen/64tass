@@ -274,7 +274,7 @@ void labelprint(void) {
 }
 
 // ------------------------------------------------------------------
-static const char *short_options= "wqnbfWaTCBicxtel:L:msV?o:D:";
+static const char *short_options= "wqnbfWaTCBicxtel:L:I:msV?o:D:";
 
 static const struct option long_options[]={
     {"no-warn"          , no_argument      , 0, 'w'},
@@ -298,6 +298,7 @@ static const struct option long_options[]={
     {"mw65c02"          , no_argument      , 0,   5},
     {"labels"           , required_argument, 0, 'l'},
     {"list"             , required_argument, 0, 'L'},
+    {""                 , required_argument, 0, 'I'},
     {"no-monitor"       , no_argument      , 0, 'm'},
     {"no-source"        , no_argument      , 0, 's'},
     {"version"          , no_argument      , 0, 'V'},
@@ -309,8 +310,8 @@ static const struct option long_options[]={
 int testarg(int argc,char *argv[],struct file_s *fin) {
     int opt, longind;
     enum {UNKNOWN, UTF8, ISO1} type = UNKNOWN;
-    
-    while ((opt = getopt_long_only(argc, argv, short_options, long_options, &longind)) != -1)
+
+    while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1)
         switch (opt)
         {
             case 'w':arguments.warning=0;break;
@@ -401,31 +402,34 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 5:arguments.cpumode=OPCODES_CW65C02;break;
             case 'l':arguments.label=optarg;break;
             case 'L':arguments.list=optarg;break;
+            case 'I':include_list_add(optarg);break;
             case 'm':arguments.monitor=0;break;
             case 's':arguments.source=0;break;
             case 'C':arguments.casesensitive=1;break;
             case 2:puts(
+             //12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	       "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
-	       "	[-l <file>] [-L <file>] [--ascii] [--nostart] [--long-branch]\n"
-	       "	[--case-sensitive] [--flat] [--nonlinear] [--tasm-compatible]\n"
-	       "	[--quiet] [--no-warn] [--wordstart] [--m65c02] [--m6502]\n"
-	       "	[--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
-               "        [--mw65c02] [--m65ce02] [--labels=<file>] [--list=<file>]\n"
-               "        [--no-monitor] [--no-source] [--help] [--usage] [--version]\n"
-               "        SOURCES");exit(0);
+	       "	[-l <file>] [-L <file>] [-I <path>] [--ascii] [--nostart]\n"
+               "	[--long-branch]	[--case-sensitive] [--flat] [--nonlinear]\n"
+	       "	[--tasm-compatible] [--quiet] [--no-warn] [--wordstart] [--m65c02]\n"
+               "	[--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
+               "	[--mw65c02] [--m65ce02] [--labels=<file>] [--list=<file>]\n"
+               "	[--no-monitor] [--no-source] [--help] [--usage] [--version]\n"
+               "	SOURCES");exit(0);
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);exit(0);
             case 3:
             case '?':if (optopt=='?' || opt==3) { puts(
 	       "Usage: 64tass [OPTIONS...] SOURCES\n"
 	       "64tass Turbo Assembler Macro V" VERSION "\n"
-	       "\n"			
+	       "\n"
 	       "  -a, --ascii		Source is not in PETASCII\n"
 	       "  -b, --nostart		Strip starting address\n"
 	       "  -B, --long-branch	Automatic bxx *+3 jmp $xxxx\n"
 	       "  -C, --case-sensitive	Case sensitive labels\n"
 	       "  -D <label>=<value>	Define <label> to <value>\n"
-	       "  -f, --flat    	Generate flat output file\n"
+	       "  -f, --flat		Generate flat output file\n"
+	       "  -I <path>		Include search path\n"
 	       "  -n, --nonlinear	Generate nonlinear output file\n"
 	       "  -o <file>		Place output into <file>\n"
 	       "  -q, --quiet		Display errors/warnings\n"

@@ -23,6 +23,7 @@
 
 struct file_s {
     const char *name;
+    const char *realname;
     uint8_t *data;    /* data */
     size_t len;       /* length */
     size_t p;         /* current point */
@@ -40,11 +41,13 @@ struct star_s {
     struct avltree_node node;
 };
 
-extern struct file_s *openfile(const char*, int);
+extern struct file_s *openfile(const char*, int, const struct value_s *);
 extern void closefile(struct file_s*);
 extern struct star_s *new_star(line_t);
 extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);
+extern void include_list_add(const char *);
+extern int get_path(const struct value_s *, const char *, char *, size_t);
 
 #endif
