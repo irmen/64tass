@@ -1969,8 +1969,8 @@ static void compile(void)
                         else align = val->u.num.val;
                     }
                     if ((val = get_val(T_NUM, &epoint))) {
-                        if (val == &error_value) fill = 0;
-                        else if (val->type == T_NONE) fixeddig = fill = 0;
+                        if (val == &error_value) goto breakerr;
+                        if (val->type == T_NONE) fixeddig = 0;
                         else {
                             if ((val->u.num.len > 1 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             fill = (uint8_t)val->u.num.val;
@@ -1978,7 +1978,7 @@ static void compile(void)
                     }
                     eval_finish();
                     if (align>1 && (current_section->l_address % align)) {
-                        if (fill>0)
+                        if (fill >= 0)
                             while (current_section->l_address % align) pokeb((uint8_t)fill);
                         else {
                             align-=current_section->l_address % align;
