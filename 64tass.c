@@ -1523,10 +1523,10 @@ static void compile(void)
                         eval_finish();
 
                         if (nameok) {
-                            struct file_s *cfile = openfile(path, 1, val2);
-                            if (cfile) {
-                                for (;fsize && foffset < cfile->len;fsize--) {
-                                    pokeb(cfile->data[foffset]);foffset++;
+                            struct file_s *cfile2 = openfile(path, cfile->realname, 1, val2);
+                            if (cfile2) {
+                                for (;fsize && foffset < cfile2->len;fsize--) {
+                                    pokeb(cfile2->data[foffset]);foffset++;
                                 }
                             }
                         }
@@ -2002,7 +2002,7 @@ static void compile(void)
                         if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
 
                         f = cfile;
-                        cfile = openfile(path, 0, val);
+                        cfile = openfile(path, cfile->realname, 0, val);
                         if (cfile->open>1) {
                             err_msg(ERROR_FILERECURSION,NULL);
                         } else {
@@ -3011,7 +3011,7 @@ int main(int argc, char *argv[]) {
 
     tinit();
 
-    fin = openfile("", 0, NULL);
+    fin = openfile("", "", 0, NULL);
     optind = testarg(argc,argv, fin);
     init_encoding(arguments.toascii);
 
@@ -3052,7 +3052,7 @@ int main(int argc, char *argv[]) {
             }
             memjmp(current_section->address);
             enterfile(argv[i],0);
-            cfile = openfile(argv[i], 0, NULL);
+            cfile = openfile(argv[i], "", 0, NULL);
             if (cfile) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
@@ -3116,7 +3116,7 @@ int main(int argc, char *argv[]) {
             memjmp(current_section->address);
 
             enterfile(argv[i],0);
-            cfile = openfile(argv[i], 0, NULL);
+            cfile = openfile(argv[i], "", 0, NULL);
             if (cfile) {
                 cfile->p = 0;
                 star_tree=&cfile->star;

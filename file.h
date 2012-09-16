@@ -24,6 +24,7 @@
 struct file_s {
     const char *name;
     const char *realname;
+    const char *base;
     uint8_t *data;    /* data */
     size_t len;       /* length */
     size_t p;         /* current point */
@@ -41,7 +42,7 @@ struct star_s {
     struct avltree_node node;
 };
 
-extern struct file_s *openfile(const char*, int, const struct value_s *);
+extern struct file_s *openfile(const char *, const char *, int, const struct value_s *);
 extern void closefile(struct file_s*);
 extern struct star_s *new_star(line_t);
 extern void destroy_file(void);
