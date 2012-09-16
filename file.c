@@ -201,7 +201,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             strcpy((char *)tmp->realname, usedname);
             if (!f) {
                 if (val) if (get_path(val, "", path, sizeof(path))) val = NULL;
-                err_file(ERROR_CANT_FINDFILE, val ? path : name);
+                err_msg_file(ERROR_CANT_FINDFILE, val ? path : name);
                 return NULL;
             }
             if (ftype) {
@@ -354,7 +354,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     if (ch == EOF) break;
                 } while (1);
             }
-            if (ferror(f)) err_file(ERROR__READING_FILE, name);
+            if (ferror(f)) err_msg_file(ERROR__READING_FILE, name);
             if (f!=stdin) fclose(f);
             tmp->len = tmp->p;
             tmp->data=realloc(tmp->data, tmp->len);
@@ -367,7 +367,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         tmp->uid=curfnum++;
     } else {
         tmp = avltree_container_of(b, struct file_s, node);
-        if (tmp->type != ftype) err_file(ERROR__READING_FILE, name);
+        if (tmp->type != ftype) err_msg_file(ERROR__READING_FILE, name);
     }
     tmp->open++;
     return tmp;

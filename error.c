@@ -83,6 +83,8 @@ static void addorigin(unsigned int lpoint) {
     if (file_list.p) {
         adderror(file_list.data[file_list.p - 1].name);
 	sprintf(line,":%" PRIuline ":%u: ", sline, lpoint + 1); adderror(line);
+    } else {
+        adderror("<command line>:0:0: ");
     }
 
     for (i = file_list.p; i > 1; i--) {
@@ -94,47 +96,47 @@ static void addorigin(unsigned int lpoint) {
 }
 
 static const char *terr_warning[]={
-    "Top of memory excedeed",
-    "Possibly incorrectly used A",
-    "Memory bank excedeed",
-    "Possible jmp ($xxff) bug",
-    "Long branch used",
-    "Directive ignored",
-    "Label not on left side",
+    "top of memory excedeed",
+    "possibly incorrectly used a",
+    "memory bank excedeed",
+    "possible jmp ($xxff) bug",
+    "long branch used",
+    "directive ignored",
+    "label not on left side",
 };
 
 static const char *terr_error[]={
-    "Double defined %s",
-    "Not defined %s",
-    "Extra characters on line",
-    "Constant too large",
-    "General syntax",
+    "double defined %s",
+    "not defined %s",
+    "extra characters on line",
+    "constant too large",
+    "general syntax",
     "%s expected",
-    "Expression syntax",
-    "Branch too far",
-    "Missing argument",
-    "Illegal operand",
-    "Requirements not met: %s",
-    "Conflict: %s",
-    "Division by zero",
-    "Wrong type %s",
-    "Unknown character $%02x",
-    "Not allowed here: %s",
+    "expression syntax",
+    "branch too far",
+    "missing argument",
+    "illegal operand",
+    "requirements not met: %s",
+    "conflict: %s",
+    "division by zero",
+    "wrong type %s",
+    "unknown character $%02x",
+    "not allowed here: %s",
     "%s\n",
 };
 static const char *terr_fatal[]={
-    "Can't open file ",
-    "Error reading file ",
-    "Can't write object file ",
-    "Line too long\n",
-    "Can't write listing file ",
-    "Can't write label file ",
-    "File recursion\n",
-    "Macro recursion too deep\n",
-    "Unknown CPU: %s\n",
-    "Unknown option: %s\n",
-    "Too many passes\n",
-    "Too many errors\n"
+    "can't open file ",
+    "error reading file ",
+    "can't write object file ",
+    "line too long\n",
+    "can't write listing file ",
+    "can't write label file ",
+    "file recursion\n",
+    "macro recursion too deep\n",
+    "unknown cpu: %s\n",
+    "unknown option: %s\n",
+    "too many passes\n",
+    "too many errors\n"
 };
 
 void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
@@ -156,6 +158,7 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
         else adderror(terr_warning[no]);
     }
     else if (no<0x80) {
+        adderror("error: ");
         if (no==ERROR____PAGE_ERROR) {
             adderror("Page error at $"); 
             sprintf(line,"%06" PRIaddress,(address_t)prm); adderror(line);
@@ -282,7 +285,7 @@ void err_msg_out_of_memory(void)
     exit(1);
 }
 
-void err_file(enum errors_e no, const char* prm) {
+void err_msg_file(enum errors_e no, const char* prm) {
     char *error;
     addorigin(lpoint);
     adderror("fatal error: ");

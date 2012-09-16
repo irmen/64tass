@@ -249,7 +249,7 @@ void labelprint(void) {
         if (arguments.label[0] == '-' && !arguments.label[1]) {
             flab = stdout;
         } else {
-            if (!(flab=file_open(arguments.label,"wt"))) err_file(ERROR_CANT_DUMP_LBL, arguments.label);
+            if (!(flab=file_open(arguments.label,"wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
         }
         clearerr(flab);
         n = avltree_first(&root_label.members);
@@ -268,7 +268,7 @@ void labelprint(void) {
             if (l->pass<pass) fputs("; *** unused", flab);
             putc('\n', flab);
         }
-        if (ferror(flab)) err_file(ERROR_CANT_DUMP_LBL, arguments.label);
+        if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
 	if (flab != stdout) fclose(flab);
     }
 }
