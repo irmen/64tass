@@ -1,35 +1,35 @@
 <NotepadPlus>
-    <UserLang name="64tass" ext="a asm">
+    <UserLang name="tass64" ext="a asm">
         <Settings>
             <Global caseIgnored="yes" />
             <TreatAsSymbol comment="no" commentLine="yes" />
-            <Prefix words1="yes" words2="yes" words3="yes" words4="yes" />
+            <Prefix words1="no" words2="no" words3="no" words4="yes" />
         </Settings>
         <KeywordLists>
-            <Keywords name="Delimiters">&quot;(0&quot;)0</Keywords>
-            <Keywords name="Folder+">;block ;Block ;Block: ;start ;Start</Keywords>
-            <Keywords name="Folder-">;end ;ende ;Ende ;endblock ;-- ;} ;Blockende ;blockende</Keywords>
-            <Keywords name="Operators">@</Keywords>
-            <Keywords name="Comment">1 1/* 2*/ 0//</Keywords>
+            <Keywords name="Delimiters">&quot;&apos;0&quot;&apos;0</Keywords>
+            <Keywords name="Folder+">.proc .if .ifeq .ifne .ifpl .ifmi .segment .macro .section .dsection</Keywords>
+            <Keywords name="Folder-">.pend .fi .endif .endm .send </Keywords>
+            <Keywords name="Operators">- ! # &amp; ( ) * , / : ? [ ] ^ ` | ~ + &lt; = &gt;</Keywords>
+            <Keywords name="Comment"> 1 1.comment 2.endc 0;</Keywords>
             <Keywords name="Words1">adc and asl bcc bcs beq bge bit blt bmi bne bpl brk bvc bvs clc cld cli clv cmp cpx cpy dec dex dey eor gcc gcs geq gge glt gmi gne gpl gvc gvs inc inx iny jmp jsr lda ldx ldy lsr nop ora pha php pla plp rol ror rti rts sbc sec sed sei sta stx sty tax tay tsx txa txs tya ahx alr anc ane arr asr axs dcm dcp ins isb isc jam lae las lax lds lxa rla rra sax sbx sha shs shx shy slo sre tas xaa</Keywords>
-            <Keywords name="Words2">.al .align .as .assert .bend .binary .block .byte .cdef .cerror .char .check .comment .cpu .cwarn .databank .dint .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc .end .endc .endif .endm .endp .ends .endu .eor .error .fi .fill .for .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include .int .lbl .logical .long .macro .next .null .offs .option .page .pend .proc .proff .pron .ptext .rept .rta .section .segment .send .shift .shiftl .showmac .struct .text .union .var .warn .word .xl .xs</Keywords>
-            <Keywords name="Words3">#</Keywords>
-            <Keywords name="Words4">$</Keywords>
+            <Keywords name="Words2">.al .align .as .assert .bend .block .cdef .cerror .check .cpu .cwarn .databank .dpage .dstruct .dunion .edef .else .elsif .enc .end .endp .ends .endu .eor .error .for .goto .here .hidemac .include .lbl .logical .offs .option .page .proff .pron .rept .showmac .struct .union .var .warn .xl .xs</Keywords>
+            <Keywords name="Words3">.byte .binary .char .ptext .long .next .null .dword .int .fill .rta .shift .shiftl .dint .word .text</Keywords>
+            <Keywords name="Words4">$ %</Keywords>
         </KeywordLists>
         <Styles>
             <WordsStyle name="DEFAULT" styleID="11" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" />
-            <WordsStyle name="FOLDEROPEN" styleID="12" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" />
-            <WordsStyle name="FOLDERCLOSE" styleID="13" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" />
+            <WordsStyle name="FOLDEROPEN" styleID="12" fgColor="008000" bgColor="FFFFFF" fontName="" fontStyle="0" />
+            <WordsStyle name="FOLDERCLOSE" styleID="13" fgColor="008000" bgColor="FFFFFF" fontName="" fontStyle="0" />
             <WordsStyle name="KEYWORD1" styleID="5" fgColor="0000A0" bgColor="FFFFFF" fontName="" fontStyle="1" />
-            <WordsStyle name="KEYWORD2" styleID="6" fgColor="FF0000" bgColor="FFFFFF" fontName="" fontStyle="1" />
+            <WordsStyle name="KEYWORD2" styleID="6" fgColor="008000" bgColor="FFFFFF" fontName="" fontStyle="1" />
             <WordsStyle name="KEYWORD3" styleID="7" fgColor="FF8000" bgColor="FFFFFF" fontName="" fontStyle="0" />
-            <WordsStyle name="KEYWORD4" styleID="8" fgColor="0080C0" bgColor="FFFFFF" fontName="" fontStyle="0" />
-            <WordsStyle name="COMMENT" styleID="1" fgColor="008000" bgColor="FFFFFF" fontName="" fontStyle="0" />
-            <WordsStyle name="COMMENT LINE" styleID="2" fgColor="008000" bgColor="FFFFFF" fontName="" fontStyle="0" fontSize="10" />
-            <WordsStyle name="NUMBER" styleID="4" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" />
+            <WordsStyle name="KEYWORD4" styleID="8" fgColor="FF0000" bgColor="FFFFFF" fontName="" fontStyle="0" />
+            <WordsStyle name="COMMENT" styleID="1" fgColor="804000" bgColor="FFFFFF" fontName="" fontStyle="2" />
+            <WordsStyle name="COMMENT LINE" styleID="2" fgColor="804000" bgColor="FFFFFF" fontName="" fontStyle="2" fontSize="10" />
+            <WordsStyle name="NUMBER" styleID="4" fgColor="FF0000" bgColor="FFFFFF" fontName="" fontStyle="0" />
             <WordsStyle name="OPERATOR" styleID="10" fgColor="400040" bgColor="FFFFFF" fontName="" fontStyle="0" />
-            <WordsStyle name="DELIMINER1" styleID="14" fgColor="FF80FF" bgColor="FFFFFF" fontName="" fontStyle="0" />
-            <WordsStyle name="DELIMINER2" styleID="15" fgColor="FF0000" bgColor="FFFFFF" fontName="" fontStyle="0" />
+            <WordsStyle name="DELIMINER1" styleID="14" fgColor="FF8000" bgColor="FFFFFF" fontName="" fontStyle="0" />
+            <WordsStyle name="DELIMINER2" styleID="15" fgColor="FF8000" bgColor="FFFFFF" fontName="" fontStyle="0" />
             <WordsStyle name="DELIMINER3" styleID="16" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" />
         </Styles>
     </UserLang>
