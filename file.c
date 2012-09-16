@@ -65,6 +65,10 @@ int get_path(const struct value_s *v, const char *base, char *path, size_t size)
 #endif
 
     if (i && i < size) memcpy(path, base, i); else i = 0;
+    if (!v) {
+        path[i] = 0;
+        return 0;
+    }
 
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
     if (v->u.str.len && (v->u.str.data[0]=='/' || v->u.str.data[0]=='\\')) i = j;
@@ -150,12 +154,14 @@ static void file_free(const struct avltree_node *aa)
 static struct file_s *lastfi=NULL;
 static uint16_t curfnum=1;
 struct file_s *openfile(const char* name, const char *base, int ftype, const struct value_s *val) {
+    char base2[linelength];
     const struct avltree_node *b;
     struct file_s *tmp;
     if (!lastfi)
 	if (!(lastfi=malloc(sizeof(struct file_s)))) err_msg_out_of_memory();
     lastfi->name=name;
-    lastfi->base=base;
+    get_path(NULL, base, base2, sizeof(base2));
+    lastfi->base=base2;
     b=avltree_insert(&lastfi->node, &file_tree);
     if (!b) { //new file
 	enum {UNKNOWN, UTF8, UTF16LE, UTF16BE, ISO1} type = UNKNOWN;
@@ -165,8 +171,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
 
 	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy((char *)lastfi->name, name);
-	if (!(lastfi->base=malloc(strlen(base)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastfi->base, base);
+	if (!(lastfi->base=malloc(strlen(base2)+1))) err_msg_out_of_memory();
+        strcpy((char *)lastfi->base, base2);
 	lastfi->data=NULL;
 	lastfi->len=0;
 	lastfi->p=0;
