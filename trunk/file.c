@@ -121,8 +121,10 @@ static int file_compare(const struct avltree_node *aa, const struct avltree_node
 {
     struct file_s *a = avltree_container_of(aa, struct file_s, node);
     struct file_s *b = avltree_container_of(bb, struct file_s, node);
-
-    return strcmp(a->name, b->name);
+    int c;
+    c = strcmp(a->name, b->name);
+    if (c) return c;
+    return strcmp(a->base, b->base);
 }
 
 static void star_free(const struct avltree_node *aa)
@@ -141,17 +143,19 @@ static void file_free(const struct avltree_node *aa)
     free((char *)a->data);
     free((char *)a->name);
     free((char *)a->realname);
+    free((char *)a->base);
     free(a);
 }
 
 static struct file_s *lastfi=NULL;
 static uint16_t curfnum=1;
-struct file_s *openfile(const char* name, int ftype, const struct value_s *val) {
+struct file_s *openfile(const char* name, const char *base, int ftype, const struct value_s *val) {
     const struct avltree_node *b;
     struct file_s *tmp;
     if (!lastfi)
 	if (!(lastfi=malloc(sizeof(struct file_s)))) err_msg_out_of_memory();
     lastfi->name=name;
+    lastfi->base=base;
     b=avltree_insert(&lastfi->node, &file_tree);
     if (!b) { //new file
 	enum {UNKNOWN, UTF8, UTF16LE, UTF16BE, ISO1} type = UNKNOWN;
@@ -161,6 +165,8 @@ struct file_s *openfile(const char* name, int ftype, const struct value_s *val) 
 
 	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy((char *)lastfi->name, name);
+	if (!(lastfi->base=malloc(strlen(base)+1))) err_msg_out_of_memory();
+        strcpy((char *)lastfi->base, base);
 	lastfi->data=NULL;
 	lastfi->len=0;
 	lastfi->p=0;
