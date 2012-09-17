@@ -1083,7 +1083,6 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     memmove(&o_out[0], &o_out[1], outp * sizeof(o_out[0]));
                     break;
                 }
-                break;
             }
             goto push2;
         case '(': 
