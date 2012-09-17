@@ -1730,7 +1730,7 @@ static void compile(void)
                     rc = get_exp(&w,0);
                     actual_encoding = old;
                     if (!rc) goto breakerr; //ellenorizve.
-                    err_msg_variable(NULL);
+                    err_msg_variable(NULL, 0);
                     for (;;) {
                         actual_encoding = NULL;
                         val = get_val(T_NONE, NULL);
@@ -1744,7 +1744,7 @@ static void compile(void)
                             }
                             write = 1;
                         }
-                        if (write) err_msg_variable(val);
+                        if (write) err_msg_variable(val, 0);
                     }
                     if (write) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,NULL,epoint);
                     eval_finish();
