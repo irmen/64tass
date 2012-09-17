@@ -229,7 +229,7 @@ static void add_user_error(const char *s) {
     add_user_error2((uint8_t *)s, strlen(s));
 }
 
-void err_msg_variable(struct value_s *val) {
+void err_msg_variable(struct value_s *val, int repr) {
     char buffer[100];
 
     if (!val) {user_error.p=0;return;}
@@ -252,7 +252,30 @@ void err_msg_variable(struct value_s *val) {
            add_user_error(buffer);
            break;
        }
-    case T_STR: add_user_error2(val->u.str.data, val->u.str.len);break;
+    case T_STR: 
+       {
+           if (repr) {
+               char *c;
+               uint8_t *p, *c2;
+               c = memchr(val->u.str.data, '"', val->u.str.len) ? "'" : "\"";
+               add_user_error(c);
+               p = val->u.str.data;
+               while (p < val->u.str.data + val->u.str.len) {
+                   c2 = memchr(p, c[0], val->u.str.len + (val->u.str.data - p));
+                   if (c2) {
+                       add_user_error2(p, c2 - p + 1);
+                       add_user_error(c);
+                       p = c2 + 1;
+                   } else {
+                       add_user_error2(p, val->u.str.len + (val->u.str.data - p));
+                       p = val->u.str.data + val->u.str.len;
+                   }
+               }
+               add_user_error(c);
+           }
+           else add_user_error2(val->u.str.data, val->u.str.len);
+           break;
+       }
     case T_UNDEF: add_user_error("<undefined>");break;
     case T_IDENT: add_user_error("<ident>");break;
     case T_IDENTREF: add_user_error("<identref>");break;
@@ -260,8 +283,20 @@ void err_msg_variable(struct value_s *val) {
     case T_BACKR: add_user_error("<backr>");break;
     case T_FORWR: add_user_error("<forwr>");break;
     case T_OPER: add_user_error("<operator>");break;
-    case T_GAP: add_user_error("<uninit>");break;
-    case T_LIST: add_user_error("<list>");break;
+    case T_GAP: add_user_error("?");break;
+    case T_LIST:
+        {
+            size_t i;
+            int first = 0;
+            add_user_error("[");
+            for (i = 0;i < val->u.list.len; i++) {
+                if (first) add_user_error(",");
+                err_msg_variable(val->u.list.data[i], 1);
+                first = 1;
+            }
+            add_user_error("]");
+            break;
+        }
     }
 }
 
