@@ -1429,7 +1429,7 @@ static void compile(void)
                                         if ((uval_t)val->u.real & ~(uval_t)0xff) large=epoint;
                                         ch2 = (uint8_t)val->u.real;
                                         break;
-                                    default: err_msg_wrong_type(val->type, epoint);
+                                    default: err_msg_wrong_type(val, epoint);
                                     case T_NONE: ch2 = fixeddig = 0;
                                     }
 
@@ -1476,7 +1476,7 @@ static void compile(void)
                                 }
                                 ch2 = (uval_t)val->u.num.val;
                                 break;
-                            default: err_msg_wrong_type(val->type, epoint);
+                            default: err_msg_wrong_type(val, epoint);
                             case T_NONE: ch2 = fixeddig = 0;
                             }
                             if (prm==CMD_RTA) ch2--;
@@ -1499,7 +1499,7 @@ static void compile(void)
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->type == T_NONE) fixeddig = 0;
                         else {
-                            if (val->type != T_STR) {err_msg_wrong_type(val->type, epoint);goto breakerr;}
+                            if (val->type != T_STR) {err_msg_wrong_type(val, epoint);goto breakerr;}
                             if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
                             val2 = val;
                             nameok = 1;
@@ -1808,7 +1808,7 @@ static void compile(void)
                              if (val->u.str.len > i) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                              break;
                         default:
-                            err_msg_wrong_type(val->type, epoint);
+                            err_msg_wrong_type(val, epoint);
                             goto breakerr;
                         }
                         if (!endok) {
@@ -1864,7 +1864,7 @@ static void compile(void)
                              expr[val->u.str.len]=0;
                              break;
                         default:
-                            err_msg_wrong_type(val->type, epoint);
+                            err_msg_wrong_type(val, epoint);
                             goto breakerr;
                         }
                         actual_encoding = NULL;
@@ -1998,7 +1998,7 @@ static void compile(void)
                     eval_finish();
                     if (val->type == T_NONE) err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);
                     else {
-                        if (val->type != T_STR) {err_msg_wrong_type(val->type, epoint);goto breakerr;}
+                        if (val->type != T_STR) {err_msg_wrong_type(val, epoint);goto breakerr;}
                         if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
 
                         f = cfile;
