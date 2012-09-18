@@ -206,7 +206,7 @@ static int str_to_num(struct value_s **v2, enum type_e type) {
 }
 
 static void get_string(struct value_s *v, uint8_t ch) {
-    unsigned int i;
+    unsigned int i, r = 0;
     uint32_t ch2;
 
     i = lpoint;
@@ -214,13 +214,32 @@ static void get_string(struct value_s *v, uint8_t ch) {
         if (!(ch2 = here())) {err_msg(ERROR______EXPECTED,"End of string"); v->type = T_NONE; return;}
         if (ch2 & 0x80) lpoint += utf8in(pline + lpoint, &ch2); else lpoint++;
         if (ch2 == ch) {
-            if (here() == ch && !arguments.tasmcomp) lpoint++; // handle 'it''s'
+            if (here() == ch && !arguments.tasmcomp) {lpoint++;r++;} // handle 'it''s'
             else break; // end of string;
         }
     }
-    v->type = T_STR;
-    v->u.str.len = lpoint - i - 1;
-    v->u.str.data = (uint8_t *)pline + i;
+    if (r) {
+        const uint8_t *p = (uint8_t *)pline + i, *e, *p2;
+        uint8_t *d;
+        v->type = T_NONE;
+        v->u.str.len = lpoint - i - 1 - r;
+        d = v->u.str.data = malloc(v->u.str.len); // TODO: never freed on fault!
+        e = pline + lpoint - 1;
+        while (e > p) {
+            p2 = memchr(p, ch, e - p);
+            if (p2) {
+                memcpy(d, p, p2 - p + 1);
+                d += p2 - p + 1; p = p2 + 2;
+            } else {
+                memcpy(d, p, e - p);
+                p = e;
+            }
+        }
+    } else {
+        v->type = T_STR;
+        v->u.str.len = lpoint - i - 1;
+        v->u.str.data = (uint8_t *)pline + i;
+    }
     return;
 }
 
@@ -452,7 +471,11 @@ rest:
                 memset(&values[values_size-16], 0, 16 * sizeof(struct values_s));
             }
             if (!values[vsp].val) values[vsp].val = &none_value;
-            val_replace(&values[vsp].val, &o_out[i].val);
+            if (o_out[i].val.type == T_NONE) {
+                o_out[i].val.type = T_STR;
+                val_replace(&values[vsp].val, &o_out[i].val);
+                free(o_out[i].val.u.str.data);
+            } else val_replace(&values[vsp].val, &o_out[i].val);
             values[vsp++].epoint = o_out[i].epoint;
             continue;
         }
@@ -1199,7 +1222,11 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 memset(&values[values_size-16], 0, 16 * sizeof(struct values_s));
             }
             if (!values[vsp].val) values[vsp].val = &none_value;
-            val_replace(&values[vsp].val, &o_out[i].val);
+            if (o_out[i].val.type == T_NONE) {
+                o_out[i].val.type = T_STR;
+                val_replace(&values[vsp].val, &o_out[i].val);
+                free(o_out[i].val.u.str.data);
+            } else val_replace(&values[vsp].val, &o_out[i].val);
             values[vsp++].epoint = o_out[i].epoint;
             continue;
         }
