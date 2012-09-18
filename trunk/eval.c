@@ -223,7 +223,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
         uint8_t *d;
         v->type = T_NONE;
         v->u.str.len = lpoint - i - 1 - r;
-        d = v->u.str.data = malloc(v->u.str.len); // TODO: never freed on fault!
+        d = v->u.str.data = malloc(v->u.str.len);
         e = pline + lpoint - 1;
         while (e > p) {
             p2 = memchr(p, ch, e - p);
@@ -459,6 +459,7 @@ rest:
     syntaxe:
         err_msg(ERROR_EXPRES_SYNTAX,NULL);
     error:
+        for (i=0;i<outp;i++) if (o_out[i].val.type == T_NONE) free(o_out[i].val.u.str.data);
         return 0;
     }
     vsp = 0;
@@ -1209,6 +1210,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     syntaxe:
         err_msg(ERROR_EXPRES_SYNTAX,NULL);
     error:
+        for (i=0;i<outp;i++) if (o_out[i].val.type == T_NONE) free(o_out[i].val.u.str.data);
         return 0;
     }
     vsp = 0;
