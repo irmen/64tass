@@ -36,7 +36,7 @@ void include_list_add(const char *path)
     j = i = strlen(path);
     if (!i) return;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-    if (path[i-1] != '/' && base[i-1] != '\\') j++;
+    if (path[i-1] != '/' && path[i-1] != '\\') j++;
 #else
     if (path[i-1] != '/') j++;
 #endif
