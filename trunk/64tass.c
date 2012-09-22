@@ -2574,8 +2574,8 @@ static void compile(void)
                                             if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) { err = ERROR_BRANCH_TOOFAR; continue; }
                                             if (adr<0xFF80 && adr>0x007F) {
                                                 if (cnmemonic[ADR_REL_L]!=____) {
-                                                    longbranch=cnmemonic[ADR_REL]^cnmemonic[ADR_REL_L];
                                                     if (!labelexists) adr=(uint16_t)(adr-1);
+                                                    opr=ADR_REL_L;
                                                     ln=2;
                                                 } else if (arguments.longbranch && (cnmemonic[ADR_ADDR]==____)) {
                                                     if ((cnmemonic[ADR_REL] & 0x1f)==0x10) {//branch
