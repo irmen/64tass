@@ -2012,12 +2012,15 @@ static void compile(void)
                             }
                             line_t lin = sline;
                             line_t vlin = vline;
+                            struct star_s *s = new_star(vline);
                             struct avltree *stree_old = star_tree;
                             uint32_t old_backr = backr, old_forwr = forwr;
 
+                            if (labelexists && s->addr != star) fixeddig=0;
+                            s->addr = star;
                             enterfile(cfile->realname,sline);
                             sline = vline = 0; cfile->p=0;
-                            star_tree = &cfile->star;
+                            star_tree = &s->tree;
                             backr = forwr = 0;
                             reffile=cfile->uid;
                             compile();
