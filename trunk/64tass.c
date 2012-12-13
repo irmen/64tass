@@ -2497,7 +2497,7 @@ static void compile(void)
                                     } else if (w) w = 3; // there's no mvp $ffff or mvp $ffffff
                                     if ((val2 = get_val(T_UINT, NULL))) {
                                         if (val2 == &error_value) d = 0;
-                                        if (!((uval_t)val->u.num.val & ~(uval_t)0xff)) {adr |= (uint8_t)val->u.num.val;}
+                                        if (!((uval_t)val2->u.num.val & ~(uval_t)0xff)) {adr |= (uint8_t)val2->u.num.val;}
                                         else w = 3;
                                     } else err_msg(ERROR_ILLEGAL_OPERA,NULL);
                                     ln = 2; opr=ADR_MOVE;
@@ -2895,7 +2895,7 @@ static void compile(void)
                                     fprintf(flist,(current_section->l_address&0xff0000)?",$%06" PRIaddress:",$%04" PRIaddress,(uint16_t)(((int8_t)(adr >> 8))+current_section->l_address) | (current_section->l_address & 0xff0000));
                                     break;
                                 case ADR_REL_L: fprintf(flist,(current_section->l_address & 0xff0000)?" $%06" PRIaddress:" $%04" PRIaddress,(uint16_t)(adr+current_section->l_address) | (current_section->l_address & 0xff0000)); break;
-                                case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)adr,(uint8_t)(adr>>8));
+                                case ADR_MOVE: fprintf(flist," $%02x,$%02x",(uint8_t)(adr >> 8),(uint8_t)adr);
                                 case ADR_LEN: break;// not an addressing mode
                                 }
                             } else if (arguments.source) putc('\t',flist);
