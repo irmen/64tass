@@ -3174,7 +3174,7 @@ int main(int argc, char *argv[]) {
                     if ((!arguments.stripstart && !arguments.flat && !last) || arguments.nonlinear) {
                         putc(start,fout);
                         putc(start >> 8,fout);
-                        if (scpumode) putc(start >> 16,fout);
+                        if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
                     }
                     while (last<i) {
                         fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
@@ -3197,7 +3197,7 @@ int main(int argc, char *argv[]) {
             if ((!arguments.stripstart && !arguments.flat && !last) || arguments.nonlinear) {
                 putc(start,fout);
                 putc(start >> 8,fout);
-                if (scpumode) putc(start >> 16,fout);
+                if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
             }
             while (last<i) {
                 fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
