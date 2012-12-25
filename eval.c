@@ -1210,7 +1210,6 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     syntaxe:
         err_msg(ERROR_EXPRES_SYNTAX,NULL);
     error:
-        for (i=0;i<outp;i++) if (o_out[i].val.type == T_NONE) free(o_out[i].val.u.str.data);
         return 0;
     }
     vsp = 0;
@@ -1224,11 +1223,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 memset(&values[values_size-16], 0, 16 * sizeof(struct values_s));
             }
             if (!values[vsp].val) values[vsp].val = &none_value;
-            if (o_out[i].val.type == T_NONE) {
-                o_out[i].val.type = T_STR;
-                val_replace(&values[vsp].val, &o_out[i].val);
-                free(o_out[i].val.u.str.data);
-            } else val_replace(&values[vsp].val, &o_out[i].val);
+            val_replace(&values[vsp].val, &o_out[i].val);
             values[vsp++].epoint = o_out[i].epoint;
             continue;
         }
