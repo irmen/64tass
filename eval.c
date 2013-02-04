@@ -1046,17 +1046,30 @@ static void slices(struct values_s *vals, unsigned int args) {
 
     switch (try_resolv(&vals->val)) {
     case T_LIST:
-        if (args != 2) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
+        if (args != 2 && args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
+            uval_t offs, end = vals->val->u.list.len, i = 0;
             switch (try_resolv(&v[0].val)) {
             case T_UINT:
             case T_SINT:
             case T_NUM:
+                if (args == 1) goto skipme;
                 switch (try_resolv(&v[1].val)) {
                 case T_UINT:
                 case T_SINT:
                 case T_NUM:
                     {
-                        uval_t offs, end, i = 0;
+                        if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
+                            if ((uval_t)v[1].val->u.num.val < vals->val->u.list.len) {
+                                end = (uval_t)v[1].val->u.num.val;
+                            }
+                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
+                        } else {
+                            if ((uval_t)-v[1].val->u.num.val <= vals->val->u.list.len) {
+                                end = vals->val->u.list.len + v[1].val->u.num.val;
+                            }
+                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
+                        }
+                    skipme:
                         if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
                             if ((uval_t)v[0].val->u.num.val < vals->val->u.list.len) {
                                 offs = (uval_t)v[0].val->u.num.val;
@@ -1067,17 +1080,6 @@ static void slices(struct values_s *vals, unsigned int args) {
                                 offs = vals->val->u.list.len + v[0].val->u.num.val;
                             }
                             else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
-                        }
-                        if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
-                            if ((uval_t)v[1].val->u.num.val < vals->val->u.list.len) {
-                                end = (uval_t)v[1].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
-                        } else {
-                            if ((uval_t)-v[1].val->u.num.val <= vals->val->u.list.len) {
-                                end = vals->val->u.list.len + v[0].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
                         }
                         if (end < offs) end = offs;
                         new_value.type = T_LIST;
@@ -1100,20 +1102,34 @@ static void slices(struct values_s *vals, unsigned int args) {
             default: err_msg_wrong_type(v[0].val, v[0].epoint);
             case T_NONE: break;
             }
+        }
         val_replace(&vals->val, &none_value);
         break;
     case T_STR:
-        if (args != 2) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
+        if (args != 2 && args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
+            uval_t offs, end = vals->val->u.str.chars;
             switch (try_resolv(&v[0].val)) {
             case T_UINT:
             case T_SINT:
             case T_NUM:
+                if (args == 1) goto skipme2;
                 switch (try_resolv(&v[1].val)) {
                 case T_UINT:
                 case T_SINT:
                 case T_NUM:
                     {
-                        uval_t offs, end;
+                        if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
+                            if ((uval_t)v[1].val->u.num.val < vals->val->u.str.chars) {
+                                end = (uval_t)v[1].val->u.num.val;
+                            }
+                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
+                        } else {
+                            if ((uval_t)-v[1].val->u.num.val <= vals->val->u.str.chars) {
+                                end = vals->val->u.str.chars + v[1].val->u.num.val;
+                            }
+                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
+                        }
+                    skipme2:
                         if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
                             if ((uval_t)v[0].val->u.num.val < vals->val->u.str.chars) {
                                 offs = (uval_t)v[0].val->u.num.val;
@@ -1124,17 +1140,6 @@ static void slices(struct values_s *vals, unsigned int args) {
                                 offs = vals->val->u.str.chars + v[0].val->u.num.val;
                             }
                             else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
-                        }
-                        if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
-                            if ((uval_t)v[1].val->u.num.val < vals->val->u.str.chars) {
-                                end = (uval_t)v[1].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
-                        } else {
-                            if ((uval_t)-v[1].val->u.num.val <= vals->val->u.str.chars) {
-                                end = vals->val->u.str.chars + v[0].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
                         }
                         str_slice(vals, offs, end);
                     }
@@ -1147,6 +1152,7 @@ static void slices(struct values_s *vals, unsigned int args) {
             default: err_msg_wrong_type(v[0].val, v[0].epoint);
             case T_NONE: break;
             }
+        }
         val_replace(&vals->val, &none_value);
         break;
     default: err_msg_wrong_type(vals->val, vals->epoint);
@@ -1209,6 +1215,12 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             if (operp) { 
                 if (o_oper[operp-1] == ',') {operp--;goto other;}
                 else if (o_oper[operp-1] == '[') goto other;
+            }
+            goto syntaxe;
+        case ':':
+            if (operp && o_oper[operp-1] == 'I') {
+                set_uint(&o_out[outp].val, 0);
+                goto pushval;
             }
             goto syntaxe;
         case '(': 
