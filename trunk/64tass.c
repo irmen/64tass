@@ -831,7 +831,7 @@ static void compile(void)
                             fputs("=\t\t\t\t\t", flist);
                             printllist(flist);
                         }
-                        tmp2 = new_jump(labelname);
+                        tmp2 = new_jump(labelname, labelname2);
                         if (labelexists) {
                             if (tmp2->sline != sline
                                     || tmp2->waitforp != waitforp
@@ -853,7 +853,7 @@ static void compile(void)
                 case CMD_SEGMENT:
                     new_waitfor('m', epoint);waitfor[waitforp].skip=0;
                     ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                    tmp2=new_macro(labelname);
+                    tmp2=new_macro(labelname, labelname2);
                     if (labelexists) {
                         if (tmp2->p!=cfile->p
                          || tmp2->sline!=sline
@@ -882,7 +882,7 @@ static void compile(void)
                             current_section->r_start=current_section->r_l_start=current_section->r_address=current_section->r_l_address=0;
                             current_section->dooutput=0;memjmp(0);
 
-                            tmp2=new_macro(labelname);
+                            tmp2=new_macro(labelname, labelname2);
                             if (labelexists) {
                                 if (tmp2->p!=cfile->p
                                         || tmp2->sline!=sline
@@ -959,7 +959,7 @@ static void compile(void)
                         new_waitfor('t', epoint);waitfor[waitforp].section=current_section;
                         ignore();epoint=lpoint;
                         if (get_ident2(sectionname, sectionname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        tmp=find_new_section(sectionname);
+                        tmp=find_new_section(sectionname, sectionname2);
                         if (!tmp->declared) {
                             if (!labelexists) {
                                 tmp->start = tmp->address = tmp->r_address = 0;
@@ -2274,7 +2274,7 @@ static void compile(void)
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".DSECTION");
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp2=new_section(labelname);
+                    tmp2=new_section(labelname, labelname2);
                     if (tmp2->declared && pass == 1) err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
                     else {
                         address_t t, t2;
@@ -2341,7 +2341,7 @@ static void compile(void)
                     new_waitfor('t', epoint);waitfor[waitforp].section=current_section;
                     ignore();epoint=lpoint;
                     if (get_ident2(sectionname, sectionname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp=find_new_section(sectionname);
+                    tmp=find_new_section(sectionname, sectionname2);
                     if (!tmp->declared) {
                         if (!labelexists) {
                             tmp->start = tmp->address = tmp->r_address = 0;

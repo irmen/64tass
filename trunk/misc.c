@@ -73,6 +73,7 @@ static void macro_free(const struct avltree_node *aa)
 {
     struct macro_s *a = avltree_container_of(aa, struct macro_s, node);
     free((char *)a->name);
+    free((char *)a->origname);
     free(a);
 }
 
@@ -81,6 +82,7 @@ static void jump_free(const struct avltree_node *aa)
     struct jump_s *a = avltree_container_of(aa, struct jump_s, node);
 
     free((char *)a->name);
+    free((char *)a->origname);
     free(a);
 }
 
@@ -95,7 +97,7 @@ struct jump_s *find_jump(const char* name) {
 }
 
 static struct jump_s *lastjp=NULL;
-struct jump_s *new_jump(const char* name) {
+struct jump_s *new_jump(const char* name, const char* origname) {
     const struct avltree_node *b;
     struct jump_s *tmp;
     if (!lastjp)
@@ -104,7 +106,9 @@ struct jump_s *new_jump(const char* name) {
     b=avltree_insert(&lastjp->node, &jump_tree);
     if (!b) { //new label
 	if (!(lastjp->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastjp->name,name);
+        strcpy((char *)lastjp->name, name);
+	if (!(lastjp->origname=malloc(strlen(origname)+1))) err_msg_out_of_memory();
+        strcpy((char *)lastjp->origname, origname);
 	labelexists=0;
 	tmp=lastjp;
 	lastjp=NULL;
@@ -126,7 +130,7 @@ struct macro_s *find_macro(const char* name) {
 
 // ---------------------------------------------------------------------------
 static struct macro_s *lastma=NULL;
-struct macro_s *new_macro(const char* name) {
+struct macro_s *new_macro(const char* name, const char* origname) {
     const struct avltree_node *b;
     struct macro_s *tmp;
     if (!lastma)
@@ -135,7 +139,9 @@ struct macro_s *new_macro(const char* name) {
     b=avltree_insert(&lastma->node, &macro_tree);
     if (!b) { //new macro
 	if (!(lastma->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastma->name,name);
+        strcpy((char *)lastma->name, name);
+	if (!(lastma->origname=malloc(strlen(origname)+1))) err_msg_out_of_memory();
+        strcpy((char *)lastma->origname, origname);
 	labelexists=0;
 	tmp=lastma;
 	lastma=NULL;

@@ -44,6 +44,7 @@ static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20)
 
 struct macro_s {
     const char *name;
+    const char *origname;
     size_t p;
     line_t sline;
     struct file_s *file;
@@ -53,6 +54,7 @@ struct macro_s {
 
 struct jump_s {
     const char *name;
+    const char *origname;
     size_t p;
     line_t sline;
     uint8_t waitforp;
@@ -99,12 +101,10 @@ extern uint8_t pass;
 #define linelength 4096
 
 extern const uint8_t whatis[256];
-extern struct section_s *new_section(const char*);
-extern struct section_s *find_section(const char*);
 extern struct macro_s *find_macro(const char*);
-extern struct macro_s *new_macro(const char*);
+extern struct macro_s *new_macro(const char*, const char*);
 extern struct jump_s *find_jump(const char*);
-extern struct jump_s *new_jump(const char*);
+extern struct jump_s *new_jump(const char*, const char*);
 extern void tfree(void);
 extern void tinit(void);
 extern void labelprint(void);
