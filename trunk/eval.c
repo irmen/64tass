@@ -1200,10 +1200,16 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         ignore();ch = here(); epoint = lpoint;
         switch (ch) {
         case ')':
-            if (operp && o_oper[operp-1] == ',') {operp--;ch = 'T';goto tphack;}
+            if (operp) {
+                if (o_oper[operp-1] == ',') {operp--;ch = 'T';goto tphack;}
+                else if (o_oper[operp-1] == '(' || o_oper[operp-1] == 'F') goto other;
+            }
             goto syntaxe;
         case ']':
-            if (operp && o_oper[operp-1] == ',') {operp--;goto other;}
+            if (operp) { 
+                if (o_oper[operp-1] == ',') {operp--;goto other;}
+                else if (o_oper[operp-1] == '[') goto other;
+            }
             goto syntaxe;
         case '(': 
         case '[':
