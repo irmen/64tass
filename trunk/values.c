@@ -126,11 +126,11 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
     case T_SINT:
     case T_UINT:
     case T_NUM:
-        return val->type == val2->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
+        return val2->type == val->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
     case T_FLOAT:
-        return val->type == val2->type && val->u.real == val2->u.real;
+        return val2->type == T_FLOAT && val->u.real == val2->u.real;
     case T_STR: 
-        return val->type == val2->type && val->u.str.len == val2->u.str.len && (
+        return val2->type == T_STR && val->u.str.len == val2->u.str.len && (
                     val->u.str.data == val2->u.str.data ||
                 !memcmp(val->u.str.data, val2->u.str.data, val2->u.str.len));
     case T_LIST:
