@@ -64,6 +64,7 @@ static void label_free(const struct avltree_node *aa)
 {
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
     free((char *)a->name);
+    free((char *)a->origname);
     avltree_destroy(&a->members);
     val_destroy(a->value);
 //    var_free(a);
@@ -102,7 +103,7 @@ struct label_s *find_label2(const char* name, const struct avltree *tree) {
 
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
-struct label_s *new_label(const char* name, enum label_e type) {
+struct label_s *new_label(const char* name, const char* origname, enum label_e type) {
     const struct avltree_node *b;
     struct label_s *tmp;
     if (!lastlb) lastlb=var_alloc();
@@ -111,6 +112,8 @@ struct label_s *new_label(const char* name, enum label_e type) {
     if (!b) { //new label
 	if (!(lastlb->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy((char *)lastlb->name,name);
+	if (!(lastlb->origname=malloc(strlen(origname)+1))) err_msg_out_of_memory();
+        strcpy((char *)lastlb->origname,origname);
         lastlb->type = type;
         lastlb->parent=current_context;
         lastlb->ref=lastlb->size=lastlb->esize=0;

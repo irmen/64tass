@@ -259,10 +259,10 @@ void labelprint(void) {
             if (l->name[0]=='-' || l->name[0]=='+') continue;
             if (l->name[0]=='.' || l->name[0]=='#') continue;
             switch (l->type) {
-            case L_VAR: fprintf(flab,"%-15s .var ",l->name);break;
+            case L_VAR: fprintf(flab,"%-15s .var ",l->origname);break;
             case L_UNION:
             case L_STRUCT: continue;
-            default: fprintf(flab,"%-16s= ",l->name);break;
+            default: fprintf(flab,"%-16s= ",l->origname);break;
             }
             val_print(l->value, flab);
             if (l->pass<pass) fputs("; *** unused", flab);
