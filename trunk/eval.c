@@ -1059,7 +1059,7 @@ static void slices(struct values_s *vals, unsigned int args) {
                 case T_NUM:
                     {
                         if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
-                            if ((uval_t)v[1].val->u.num.val < vals->val->u.list.len) {
+                            if ((uval_t)v[1].val->u.num.val <= vals->val->u.list.len) {
                                 end = (uval_t)v[1].val->u.num.val;
                             }
                             else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
@@ -1119,7 +1119,7 @@ static void slices(struct values_s *vals, unsigned int args) {
                 case T_NUM:
                     {
                         if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
-                            if ((uval_t)v[1].val->u.num.val < vals->val->u.str.chars) {
+                            if ((uval_t)v[1].val->u.num.val <= vals->val->u.str.chars) {
                                 end = (uval_t)v[1].val->u.num.val;
                             }
                             else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
