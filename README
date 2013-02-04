@@ -616,19 +616,13 @@ unions.
 
         lda storage.len
 
-Brackets ([ ]) operator can be used to reference member elements of arrays by
-their address. Indexing starts at 0.
-
-        lda myarr[2],y
-        ldx myarr[2]+1,y
-myarr   .word 542,722,373,443
-
 Built in functions are identifiers following parentheses. They accept variable
 number of parameters separated by comma.
 
 min(a, b, ...)        Minimum of values
 max(a, b, ...)        Maximum of values
 size(a)               Size of structure in bytes
+len(a)                Length of list, characters in string
 abs(a)                Absolute value
 sign(a)               Sign value (-1, 0, 1)
 floor(a)              Round down
@@ -656,14 +650,27 @@ deg(a)                Radian to degrees
 hypot(y, x)           Polar distance
 atan2(y, x)           Polar angle
 
-There are no predefined math constants, however pi is rad(180) and e is exp(1).
+There are no predefined math constants, but as a hint pi is rad(180) and e is
+exp(1).
 
-Single bytes of numeric values can be extracted by the lower byte (<), higher
-byte (>) and bank byte (`) operators.
+Single bytes or words of numeric values can be extracted by the following
+operators:
+
+<           lower byte (bits 0..7)
+>           higher byte (bits 8..15)
+`           bank byte (bits 16..23)
+<>          lower word (bits 0..15)
+>`          higher word (bits 8..23)
+><          lower byte swapped word (bits 0..15)
 
         lda #<label
         ldy #>label
         jsr $ab1e
+
+        ldx #<>source
+        ldy #<>dest
+        lda #size(source)-1
+        mvn `source, `dest
 
 Special addressing mode forcing operators in front of an expression can be used
 to make sure the expected addressing mode is used.

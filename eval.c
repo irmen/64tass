@@ -325,9 +325,12 @@ static int priority(char ch)
     case '?':          // ?
     case ':':return 1; // :
     case ',':return 2;
+    case 'L':          // <>
+    case 'H':          // >`
+    case 'b':          // ><
     case 'l':          // <
     case 'h':          // >
-    case 'H':          // `
+    case 'B':          // `
     case 'S':return 3; // ^
     case 'O':return 4; // ||
     case 'X':return 5; // ^^
@@ -1156,9 +1159,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '-': ch = 'n'; break;
         case '!': break;
         case '~': break;
-        case '<': ch = 'l'; break;
-        case '>': ch = 'h'; break;
-        case '`': ch = 'H'; break;
+        case '<': if (pline[lpoint+1] == '>') {lpoint++;ch = 'L';} else ch = 'l'; break;
+        case '>': if (pline[lpoint+1] == '`') {lpoint++;ch = 'H';} else if (pline[lpoint+1] == '<') {lpoint++;ch = 'b';} else ch = 'h'; break;
+        case '`': ch = 'B'; break;
         case '^': ch = 'S'; break;
         case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
         case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
@@ -1437,9 +1440,12 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         }
 
         switch (ch) {
+        case 'L': // <>
+        case 'H': // >`
+        case 'b': // ><
         case 'l': // <
         case 'h': // >
-        case 'H': // `
+        case 'B': // `
             switch (try_resolv(&v1->val)) {
             case T_STR:
                 if (str_to_num(&v1->val, T_NUM)) {
@@ -1448,7 +1454,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_UINT:
             case T_SINT:
             case T_NUM: new_value.type = T_NUM;
-                        new_value.u.num.val = (uint8_t)(v1->val->u.num.val >> ((ch == 'l') ? 0 : ((ch == 'h') ? 8 : 16)));
+                        new_value.u.num.val = (uint16_t)(v1->val->u.num.val >> ((ch == 'l' || ch == 'L'|| ch == 'b') ? 0 : ((ch == 'h' || ch == 'H') ? 8 : 16)));
+                        if (ch == 'l' || ch == 'h') new_value.u.num.val &= 0xff;
+                        if (ch == 'b') new_value.u.num.val = (uint16_t)((new_value.u.num.val >> 8) | (new_value.u.num.val << 8));
                         new_value.u.num.len = 1;val_replace(&v1->val, &new_value);
                         v1->epoint = o_out[i].epoint;
                         continue;
