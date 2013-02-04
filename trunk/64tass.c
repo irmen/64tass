@@ -768,7 +768,7 @@ static void compile(void)
                 }
                 newlabel->ref=0;
                 if (labelexists) {
-                    if (pass==1) err_msg_double_defined(newlabel, labelname2, epoint);
+                    if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                     else {
                         newlabel->requires=current_section->requires;
                         newlabel->conflicts=current_section->conflicts;
@@ -804,7 +804,7 @@ static void compile(void)
                     }
                     newlabel->ref=0;
                     if (labelexists) {
-                        if (newlabel->type != L_VAR) err_msg_double_defined(newlabel, labelname2, epoint);
+                        if (newlabel->type != L_VAR) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                         else {
                             newlabel->requires=current_section->requires;
                             newlabel->conflicts=current_section->conflicts;
@@ -898,7 +898,7 @@ static void compile(void)
                         }
                         newlabel=new_label(labelname, labelname2, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);oaddr = current_section->address;
                         if (pass==1) {
-                            if (labelexists) err_msg_double_defined(newlabel, labelname2, epoint);
+                            if (labelexists) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                             else {
                                 new_value.type = T_UINT;
                                 new_value.u.num.val = 0;
@@ -915,7 +915,7 @@ static void compile(void)
                         } else {
                             if (labelexists) {
                                 if (newlabel->type != ((prm==CMD_STRUCT)?L_STRUCT:L_UNION)) { /* should not happen */
-                                    err_msg_double_defined(newlabel, labelname2, epoint);
+                                    err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                                 }
                             }
                         }
@@ -992,7 +992,7 @@ static void compile(void)
             }
             oaddr=current_section->address;
             if (pass==1) {
-                if (labelexists) err_msg_double_defined(newlabel, labelname2, epoint);
+                if (labelexists) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                 else {
                     newlabel->requires=current_section->requires;
                     newlabel->conflicts=current_section->conflicts;
@@ -1008,7 +1008,7 @@ static void compile(void)
             } else {
                 if (labelexists) {
                     if (newlabel->type != L_LABEL) { /* should not happen */
-                        err_msg_double_defined(newlabel, labelname2, epoint);
+                        err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                     } else {
                         if ((uval_t)newlabel->value->u.num.val != current_section->l_address) {
                             set_uint(&new_value, current_section->l_address);
@@ -2070,7 +2070,7 @@ static void compile(void)
                         if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         var=new_label(labelname, labelname2, L_VAR);
                         if (labelexists) {
-                            if (var->type != L_VAR) err_msg_double_defined(var, labelname2, epoint);
+                            if (var->type != L_VAR) err_msg_double_defined(var->origname, var->file, var->sline, var->epoint, labelname2, epoint);
                             else {
                                 var->requires=current_section->requires;
                                 var->conflicts=current_section->conflicts;
@@ -2117,7 +2117,7 @@ static void compile(void)
                                 var=new_label(labelname, labelname2, L_VAR);
                                 if (labelexists) {
                                     if (var->type != L_VAR) {
-                                        err_msg_double_defined(var, labelname2, epoint);
+                                        err_msg_double_defined(var->origname, var->file, var->sline, var->epoint, labelname2, epoint);
                                         break;
                                     }
                                     var->requires=current_section->requires;
@@ -2291,7 +2291,7 @@ static void compile(void)
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     tmp2=new_section(labelname, labelname2);
-                    if (tmp2->declared && pass == 1) err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
+                    if (tmp2->declared && pass == 1) err_msg_double_defined(tmp2->origname, tmp2->file, tmp2->sline, tmp2->epoint, labelname2, epoint);
                     else {
                         address_t t, t2;
                         waitfor[waitforp].what='T';waitfor[waitforp].section=current_section;
@@ -2320,6 +2320,9 @@ static void compile(void)
                         tmp2->l_unionend = current_section->l_unionend;
                         tmp2->structrecursion = current_section->structrecursion;
                         tmp2->logicalrecursion = current_section->logicalrecursion;
+                        tmp2->file = cfile->realname;
+                        tmp2->sline = sline;
+                        tmp2->epoint = epoint;
                         if (tmp2->pass == pass) {
                             t = tmp2->r_address - tmp2->r_start;
                             t2 = tmp2->address - tmp2->start;

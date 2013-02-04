@@ -300,7 +300,7 @@ void err_msg_variable(struct value_s *val, int repr) {
     }
 }
 
-void err_msg_double_defined(const struct label_s *label, const char *labelname2, unsigned int epoint) {
+void err_msg_double_defined(const char *origname, const char *file, line_t sline, unsigned int epoint, const char *labelname2, unsigned int epoint2) {
     char line[linelength];
 
     if (errors+conderrors==99) {
@@ -308,18 +308,18 @@ void err_msg_double_defined(const struct label_s *label, const char *labelname2,
         return;
     }
 
-    addorigin(epoint);
-    adderror("error: duplicate label '");
+    addorigin(epoint2);
+    adderror("error: duplicate definition '");
     adderror(labelname2);
     adderror("'\n");
-    if (label->file[0]) {
-        adderror(label->file);
-	sprintf(line,":%" PRIuline ":%u: ", label->sline, label->epoint + 1); adderror(line);
+    if (file[0]) {
+        adderror(file);
+	sprintf(line,":%" PRIuline ":%u: ", sline, epoint + 1); adderror(line);
     } else {
         adderror("<command line>:0:0: ");
     }
     adderror("note: previous definition of '");
-    adderror(label->origname);
+    adderror(origname);
     adderror("' was here\n");
     errors++;
 }
