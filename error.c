@@ -300,6 +300,30 @@ void err_msg_variable(struct value_s *val, int repr) {
     }
 }
 
+void err_msg_double_defined(const struct label_s *label, const char *labelname2, unsigned int epoint) {
+    char line[linelength];
+
+    if (errors+conderrors==99) {
+        err_msg(ERROR__TOO_MANY_ERR, NULL);
+        return;
+    }
+
+    addorigin(epoint);
+    adderror("error: duplicate label '");
+    adderror(labelname2);
+    adderror("'\n");
+    if (label->file[0]) {
+        adderror(label->file);
+	sprintf(line,":%" PRIuline ":%u: ", label->sline, label->epoint + 1); adderror(line);
+    } else {
+        adderror("<command line>:0:0: ");
+    }
+    adderror("note: previous definition of '");
+    adderror(label->origname);
+    adderror("' was here\n");
+    errors++;
+}
+
 void freeerrorlist(int print) {
     if (print) {
         fwrite(error_list.data, error_list.p, 1, stderr);

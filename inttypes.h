@@ -17,3 +17,9 @@
 #ifndef PRIxPTR
 #define PRIxPTR "lx"
 #endif
+
+typedef uint_fast32_t line_t;
+#define PRIuline PRIuFAST32
+#define PRIxline PRIxFAST32
+typedef uint_fast32_t address_t;
+#define PRIaddress PRIxFAST32
