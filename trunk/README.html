@@ -676,14 +676,14 @@ member elements of structs and unions.</p>
         <b>lda</b> <span class="l">storage</span>.<span class="l">len</span>
 </pre>
 
-<p>Brackets (<code>[</code> <code>]</code>) operator can be used to reference
+<!--<p>Brackets (<code>[</code> <code>]</code>) operator can be used to reference
 member elements of arrays by their address. Indexing starts at 0.</p>
 
 <pre width=80>
         <b>lda</b> <span class="l">myarr</span>[<span>2</span>],y
         <b>ldx</b> <span class="l">myarr</span>[<span>2</span>]+<span>1</span>,y
 myarr   <b class="d">.word</b> <span>542</span>,<span>722</span>,<span>373</span>,<span>443</span>
-</pre>
+</pre>-->
 
 <p>Built in functions are identifiers following parentheses. They accept
 variable number of parameters separated by comma.</p>
@@ -692,6 +692,7 @@ variable number of parameters separated by comma.</p>
 <tr><td width="150">min(a, b, ...)</td><td>Minimum of values</td></tr>
 <tr><td>max(a, b, ...)</td><td>Maximum of values</td></tr>
 <tr><td>size(a)</td><td>Size of structure in bytes</td></tr>
+<tr><td>len(a)</td><td>Length of list, characters in string</td></tr>
 <tr><td>abs(a)</td><td>Absolute value</td></tr>
 <tr><td>sign(a)</td><td>Sign value (-1, 0, 1)</td></tr>
 <tr><td>floor(a)</td><td>Round down</td></tr>
@@ -720,17 +721,30 @@ variable number of parameters separated by comma.</p>
 <tr><td>atan2(y, x)</td><td>Polar angle</td></tr>
 </table>
 
-<p>There are no predefined math constants, however pi is <code>rad(180)</code>
+<p>There are no predefined math constants, but as a hint pi is <code>rad(180)</code>
 and e is <code>exp(1)</code>.</p>
 
-<p>Single bytes of numeric values can be extracted
-by the lower byte (<code>&lt;</code>), higher byte (<code>&gt;</code>)
-and bank byte (<code>`</code>) operators.</p>
+<p>Single bytes or words of numeric values can be extracted
+by the following operators:</p>
+
+<table border="0">
+<tr><td width="80"><tt>&lt;</tt><td align="left">lower byte (bits 0..7)
+<tr><td><tt>&gt;</tt><td align="left">higher byte (bits 8..15)
+<tr><td><tt>`</tt><td align="left">bank byte (bits 16..23)
+<tr><td><tt>&lt;&gt;</tt><td align="left">lower word (bits 0..15)
+<tr><td><tt>&gt;`</tt><td align="left">higher word (bits 8..23)
+<tr><td><tt>&gt;&lt;</tt><td align="left">lower byte swapped word (bits 0..15)
+</table>
 
 <pre width=80>
         <b>lda</b> #&lt;<span class="l">label</span>
         <b>ldy</b> #&gt;<span class="l">label</span>
         <b>jsr</b> <span>$ab1e</span>
+
+        <b>ldx</b> #&lt;&gt;<span class="l">source</span>
+        <b>ldy</b> #&lt;&gt;<span class="l">dest</span>
+        <b>lda</b> #size(<span class="l">source</span>)-1
+        <b>mvn</b> `<span>source</span>, `<span>dest</span>
 </pre>
 
 <p>Special addressing mode forcing operators in front of an expression can be
