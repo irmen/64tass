@@ -1836,6 +1836,22 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             val_replace(&v1->val, &new_value);
             continue;
         }
+        if (t1 == T_LIST && t2 == T_LIST) {
+            switch (ch) {
+                case '=':
+                    val = val_equal(v1->val, v2->val);
+                listcomp:
+                    new_value.type = T_UINT;
+                    new_value.u.num.len = 1;
+                    new_value.u.num.val = val; 
+                    val_replace(&v1->val, &new_value);
+                    continue;
+                case 'o':
+                    val = !val_equal(v1->val, v2->val);
+                    goto listcomp;
+                default: err_msg_wrong_type(v1->val, v1->epoint); goto errtype;
+            }
+        }
         if (t2 == T_UNDEF) err_msg_wrong_type(v2->val, v2->epoint); 
         else err_msg_wrong_type(v1->val, v1->epoint);
         goto errtype;
