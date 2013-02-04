@@ -206,7 +206,7 @@ static int str_to_num(struct value_s **v2, enum type_e type) {
 }
 
 static void get_string(struct value_s *v, uint8_t ch) {
-    unsigned int i, r = 0;
+    unsigned int i, r = 0, i2 = 0;
     uint32_t ch2;
 
     i = lpoint;
@@ -217,12 +217,14 @@ static void get_string(struct value_s *v, uint8_t ch) {
             if (here() == ch && !arguments.tasmcomp) {lpoint++;r++;} // handle 'it''s'
             else break; // end of string;
         }
+        i2++;
     }
     if (r) {
         const uint8_t *p = (uint8_t *)pline + i, *e, *p2;
         uint8_t *d;
         v->type = T_NONE;
         v->u.str.len = lpoint - i - 1 - r;
+        v->u.str.chars = i2;
         d = v->u.str.data = malloc(v->u.str.len);
         e = pline + lpoint - 1;
         while (e > p) {
@@ -238,6 +240,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
     } else {
         v->type = T_STR;
         v->u.str.len = lpoint - i - 1;
+        v->u.str.chars = i2;
         v->u.str.data = (uint8_t *)pline + i;
     }
     return;
@@ -655,13 +658,10 @@ static void functions(struct values_s *vals, unsigned int args) {
     if (len == 3 && !memcmp(name, "len", len)) {
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
         switch (try_resolv(&v[0].val)) {
-#if 0
-        case T_TSTR:
         case T_STR:
-            set_uint(&new_value, v[0].val->u.str.len);
+            set_uint(&new_value, v[0].val->u.str.chars);
             val_replace(&vals->val, &new_value);
-            break;
-#endif
+            return;
         case T_LIST:
             set_uint(&new_value, v[0].val->u.list.len);
             val_replace(&vals->val, &new_value);
@@ -953,28 +953,61 @@ static void indexes(struct values_s *vals, unsigned int args) {
                 return;
             default: err_msg_wrong_type(v[0].val, v[0].epoint);
             case T_NONE: 
-                     val_replace(&vals->val, &none_value);
-                     return;
+                val_replace(&vals->val, &none_value);
+                return;
             }
         break;
-#if 0
-    case T_TSTR:
     case T_STR:
-        if (t1 == T_STR && (t2 == T_SINT || t2 == T_UINT || t2 == T_NUM)) {
-            if (ch=='I') {
-                val=0;
-                if (v2->val.u.num.val >= 0) {
-                    if ((uval_t)v2->val.u.num.val < v1->val.u.str.len) val = v1->val.u.str.data[v2->val.u.num.val];
-                    else err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint);
-                } else {
-                    if ((uval_t)-v2->val.u.num.val <= v1->val.u.str.len) val = v1->val.u.str.data[v1->val.u.str.len + v2->val.u.num.val];
-                    else err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint);
+        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
+            switch (try_resolv(&v[0].val)) {
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
+                {
+                    struct value_s *val;
+                    uval_t offs;
+                    if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
+                        if ((uval_t)v[0].val->u.num.val < vals->val->u.str.chars) {
+                            offs = (uval_t)v[0].val->u.num.val;
+                            val = &new_value;
+                        }
+                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val = &none_value;}
+                    } else {
+                        if ((uval_t)-v[0].val->u.num.val <= vals->val->u.str.chars) {
+                            offs = vals->val->u.str.chars + v[0].val->u.num.val;
+                            val = &new_value;
+                        }
+                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val = &none_value;}
+                    }
+                    if (val == &new_value) {
+                        uint8_t *p = vals->val->u.str.data, ch;
+                        uint32_t ch2;
+                        if (vals->val->u.str.len == vals->val->u.str.chars) p += offs;
+                        else {
+                            while (offs--) {
+                                ch = *p;
+                                if (ch < 0x80) p++;
+                                else if (ch < 0xe0) p += 2;
+                                else if (ch < 0xf0) p += 3;
+                                else if (ch < 0xf8) p += 4;
+                                else if (ch < 0xfc) p += 5;
+                                else p += 6;
+                            }
+                        }
+                        new_value.type = T_STR;
+                        new_value.u.str.len = (*p & 0x80) ? utf8in(p, &ch2) : 1;
+                        new_value.u.str.chars = 1;
+                        new_value.u.str.data = p;
+                    }
+                    val_replace(&vals->val, val); val_destroy(val);
                 }
-                if (v1->val.type == T_TSTR) free(v1->val.u.str.data);
-                v1->val.type = T_CHR; v1->val.u.num.val = val;v1->val.u.num.len = 1;continue;
+                return;
+            default: err_msg_wrong_type(v[0].val, v[0].epoint);
+            case T_NONE: 
+                val_replace(&vals->val, &none_value);
+                return;
             }
-        }
-#endif
+        break;
     default: err_msg_wrong_type(vals->val, vals->epoint);
              val_replace(&vals->val, &none_value);
     case T_NONE: return;
@@ -1343,6 +1376,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     sprintf((char *)line, (v1->val->type == T_SINT) ? "%" PRIdval : "%" PRIuval, v1->val->u.num.val);
                     new_value.type = T_STR;
                     new_value.u.str.len = strlen((char *)line);
+                    new_value.u.str.chars = new_value.u.str.len;
                     new_value.u.str.data = line;
                     val_replace(&v1->val, &new_value);
                     v1->epoint = o_out[i].epoint;

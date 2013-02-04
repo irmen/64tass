@@ -43,6 +43,7 @@ struct value_s {
         } num;
         struct {
             size_t len;
+            size_t chars;
             uint8_t *data;
         } str;
         struct {
