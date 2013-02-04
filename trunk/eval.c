@@ -1134,6 +1134,12 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     for (;;) {
         ignore();ch = here(); epoint = lpoint;
         switch (ch) {
+        case ')':
+            if (operp && o_oper[operp-1] == ',') {operp--;ch = 'T';goto tphack;}
+            goto syntaxe;
+        case ']':
+            if (operp && o_oper[operp-1] == ',') {operp--;goto other;}
+            goto syntaxe;
         case '(': 
         case '[':
             o_oper[operp++] = ch; lpoint++;
@@ -1207,7 +1213,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case ',':
             if (stop) {
                 while (operp && o_oper[operp-1] != '(') {
-                    if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
+                    if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I' || o_oper[operp-1]=='i') {err_msg(ERROR______EXPECTED,"("); goto error;}
                     o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
                 }
                 if (!operp) break;
@@ -1273,14 +1279,15 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             if (pline[lpoint+1]=='=') {lpoint++;ch = 'o';goto push2;}
             goto syntaxe;
         case ')':
+        tphack:
             while (operp && o_oper[operp-1] != '(' && o_oper[operp-1] != 'F') {
-                if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
+                if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I' || o_oper[operp-1]=='i') {err_msg(ERROR______EXPECTED,"("); goto error;}
                 o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
             }
             lpoint++;
             if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
             operp--;
-            o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper=(o_oper[operp] == 'F')? 'F' : ')';
+            o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper=(o_oper[operp] == '(')? ch : o_oper[operp];
             goto other;
         case ']':
             while (operp && o_oper[operp-1] != '[' && o_oper[operp-1] != 'I' && o_oper[operp-1] != 'i') {
@@ -1301,7 +1308,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             if (!operp) {cd=3;break;}
             if (ch == ',') {
                 while (operp && o_oper[operp-1] != '(') {
-                    if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I') {err_msg(ERROR______EXPECTED,"("); goto error;}
+                    if (o_oper[operp-1]=='[' || o_oper[operp-1]=='I' || o_oper[operp-1]=='i') {err_msg(ERROR______EXPECTED,"("); goto error;}
                     o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
                 }
                 if (operp==1) {cd=2; break;}
@@ -1313,7 +1320,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         } else {
             while (operp) {
                 if (o_oper[operp-1] == '(' || o_oper[operp-1] == 'F') {err_msg(ERROR______EXPECTED,")"); goto error;}
-                if (o_oper[operp-1] == '[' || o_oper[operp-1] == 'I') {err_msg(ERROR______EXPECTED,"]"); goto error;}
+                if (o_oper[operp-1] == '[' || o_oper[operp-1] == 'I' || o_oper[operp-1]=='i') {err_msg(ERROR______EXPECTED,"]"); goto error;}
                 o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
             }
             if (!operp) {cd=1;break;}
@@ -1381,14 +1388,15 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             }
         case ']':
         case ')':
+        case 'T':
             {
-                unsigned int args = 0;
-                ch = (ch == ')') ? '(' : '[';
+                unsigned int args = 0, tup = (ch == ')');
+                ch = (ch == ']') ? '[' : '(';
                 while (v1->val->type != T_OPER || v1->val->u.oper != ch) {
                     args++;
                     v1 = &values[vsp-1-args];
                 }
-                if ((ch == '(' || stop) && args == 1) {val_replace(&v1->val, values[vsp-1].val); vsp--;continue;}
+                if ((tup || stop) && args == 1) {val_replace(&v1->val, values[vsp-1].val); vsp--;continue;}
                 v1->val->type = T_LIST; // safe, replacing of T_OPER
                 v1->val->u.list.len = args;
                 v1->val->u.list.data = malloc(args * sizeof(struct value_s));
