@@ -837,7 +837,7 @@ static void compile(void)
                                     || tmp2->file != cfile
                                     || tmp2->p != cfile->p
                                     || tmp2->parent != current_context) {
-                                err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
+                                err_msg_double_defined(tmp2->origname, tmp2->file->realname, tmp2->sline, tmp2->epoint, labelname2, epoint);
                             }
                         } else {
                             tmp2->sline = sline;
@@ -845,6 +845,7 @@ static void compile(void)
                             tmp2->file = cfile;
                             tmp2->p = cfile->p;
                             tmp2->parent = current_context;
+                            tmp2->epoint = epoint;
                         }
                         goto finish;
                     }
@@ -858,13 +859,14 @@ static void compile(void)
                          || tmp2->sline!=sline
                          || tmp2->type!=prm
                          || tmp2->file!=cfile) {
-                            err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
+                            err_msg_double_defined(tmp2->origname, tmp2->file->realname, tmp2->sline, tmp2->epoint, labelname2, epoint);
                         }
                     } else {
                         tmp2->p=cfile->p;
                         tmp2->sline=sline;
                         tmp2->type=prm;
                         tmp2->file=cfile;
+                        tmp2->epoint=epoint;
                     }
                     goto finish;
                 case CMD_STRUCT:
@@ -887,7 +889,7 @@ static void compile(void)
                                         || tmp2->sline!=sline
                                         || tmp2->type!=prm
                                         || tmp2->file!=cfile) {
-                                    err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
+                                    err_msg_double_defined(tmp2->origname, tmp2->file->realname, tmp2->sline, tmp2->epoint, labelname2, epoint);
                                 }
                             } else {
                                 tmp2->p=cfile->p;

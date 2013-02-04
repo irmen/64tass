@@ -43,6 +43,7 @@ struct macro_s {
     line_t sline;
     struct file_s *file;
     int type;
+    unsigned int epoint;
     struct avltree_node node;
 };
 
@@ -54,6 +55,7 @@ struct jump_s {
     uint8_t waitforp;
     const struct file_s *file;
     const struct label_s *parent;
+    unsigned int epoint;
     struct avltree_node node;
 };
 
