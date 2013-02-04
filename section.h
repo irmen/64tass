@@ -23,6 +23,7 @@
 
 struct section_s {
     const char *name;
+    const char *origname;
     struct avltree_node node;
 
     uval_t requires;
@@ -50,8 +51,8 @@ struct section_s {
     struct avltree members;
 };
 
-extern struct section_s *new_section(const char*);
-extern struct section_s *find_new_section(const char* name);
+extern struct section_s *new_section(const char*, const char*);
+extern struct section_s *find_new_section(const char*, const char*);
 extern void init_section(void);
 extern void destroy_section(void);
 extern struct section_s *current_section, root_section;

@@ -35,11 +35,12 @@ static void section_free(const struct avltree_node *aa)
 {
     struct section_s *a = avltree_container_of(aa, struct section_s, node);
     free((char *)a->name);
+    free((char *)a->origname);
     avltree_destroy(&a->members);
     free(a);
 }
 
-struct section_s *find_new_section(const char* name) {
+struct section_s *find_new_section(const char *name, const char *origname) {
     const struct avltree_node *b;
     struct section_s *context = current_section;
     struct section_s tmp;
@@ -53,11 +54,11 @@ struct section_s *find_new_section(const char* name) {
         }
         context = context->parent;
     }
-    return new_section(name);
+    return new_section(name, origname);
 }
 
 static struct section_s *lastsc=NULL;
-struct section_s *new_section(const char* name) {
+struct section_s *new_section(const char *name, const char *origname) {
     const struct avltree_node *b;
     struct section_s *tmp;
     if (!lastsc)
@@ -67,6 +68,8 @@ struct section_s *new_section(const char* name) {
     if (!b) { //new section
 	if (!(lastsc->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy((char *)lastsc->name,name);
+	if (!(lastsc->origname=malloc(strlen(origname)+1))) err_msg_out_of_memory();
+        strcpy((char *)lastsc->origname,origname);
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->address=lastsc->l_address=0;
@@ -88,6 +91,7 @@ struct section_s *new_section(const char* name) {
 void init_section(void) {
     root_section.parent = NULL;
     root_section.name = NULL;
+    root_section.origname = NULL;
     avltree_init(&root_section.members, section_compare, section_free);
 }
 
