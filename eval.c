@@ -964,7 +964,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
             case T_SINT:
             case T_NUM:
                 {
-                    struct value_s *val;
+                    struct value_s *val, *val2;
                     uval_t offs;
                     if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
                         if ((uval_t)v[0].val->u.num.val < vals->val->u.str.chars) {
@@ -980,9 +980,11 @@ static void indexes(struct values_s *vals, unsigned int args) {
                         else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val = &none_value;}
                     }
                     if (val == &new_value) {
-                        uint8_t *p = vals->val->u.str.data, ch;
+                        uint8_t *p, ch;
                         uint32_t ch2;
-                        if (vals->val->u.str.len == vals->val->u.str.chars) p += offs;
+                        val2 = val_reference(vals->val);
+                        p = val2->u.str.data;
+                        if (val2->u.str.len == val2->u.str.chars) p += offs;
                         else {
                             while (offs--) {
                                 ch = *p;
@@ -998,8 +1000,8 @@ static void indexes(struct values_s *vals, unsigned int args) {
                         new_value.u.str.len = (*p & 0x80) ? utf8in(p, &ch2) : 1;
                         new_value.u.str.chars = 1;
                         new_value.u.str.data = p;
-                    }
-                    val_replace(&vals->val, val); val_destroy(val);
+                        val_replace(&vals->val, val); val_destroy(val2);
+                    } else val_replace(&vals->val, val);
                 }
                 return;
             default: err_msg_wrong_type(v[0].val, v[0].epoint);
