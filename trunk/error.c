@@ -210,6 +210,7 @@ void err_msg_wrong_type(const struct value_s *val, unsigned int epoint) {
     case T_OPER: name = "<operator>";break;
     case T_GAP: name = "<uninit>";break;
     case T_LIST: name = "<list>";break;
+    case T_TUPPLE: name = "<tupple>";break;
     case T_FLOAT: name = "<float>";break;
     }
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
@@ -287,14 +288,24 @@ void err_msg_variable(struct value_s *val, int repr) {
     case T_LIST:
         {
             size_t i;
-            int first = 0;
             add_user_error("[");
             for (i = 0;i < val->u.list.len; i++) {
-                if (first) add_user_error(",");
+                if (i) add_user_error(",");
                 err_msg_variable(val->u.list.data[i], 1);
-                first = 1;
             }
             add_user_error("]");
+            break;
+        }
+    case T_TUPPLE:
+        {
+            size_t i;
+            add_user_error("(");
+            for (i = 0;i < val->u.list.len; i++) {
+                if (i) add_user_error(",");
+                err_msg_variable(val->u.list.data[i], 1);
+            }
+            if (val->u.list.len == 1) add_user_error(",");
+            add_user_error(")");
             break;
         }
     }
