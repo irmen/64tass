@@ -49,6 +49,9 @@ struct section_s {
     unsigned int unionmode:1;
     struct section_s *parent;
     struct section_s *next;
+    const char *file;
+    line_t sline;
+    unsigned int epoint;
     struct avltree members;
 };
 
