@@ -238,6 +238,7 @@ void status(void) {
             sprintf(temp, "$%04" PRIaddress, start);
             printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
         } else puts("Memory range:      None");
+        sectionprint();
     }
     free(mem.data);		        	// free codemem
     free(memblocks.data);				// free memorymap

@@ -22,6 +22,7 @@
 
 struct section_s root_section;
 struct section_s *current_section = &root_section;
+static struct section_s *prev_section = &root_section;
 
 static int section_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
@@ -78,6 +79,9 @@ struct section_s *new_section(const char *name, const char *origname) {
         lastsc->unionmode=0;
         lastsc->structrecursion=0;
         lastsc->logicalrecursion=0;
+        lastsc->next=NULL;
+        prev_section->next = lastsc;
+        prev_section = lastsc;
         avltree_init(&lastsc->members, section_compare, section_free);
 	labelexists=0;
 	tmp=lastsc;
@@ -92,6 +96,8 @@ void init_section(void) {
     root_section.parent = NULL;
     root_section.name = NULL;
     root_section.origname = NULL;
+    root_section.next = NULL;
+    prev_section = &root_section;
     avltree_init(&root_section.members, section_compare, section_free);
 }
 

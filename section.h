@@ -48,6 +48,7 @@ struct section_s {
     unsigned int declared:1;
     unsigned int unionmode:1;
     struct section_s *parent;
+    struct section_s *next;
     struct avltree members;
 };
 
