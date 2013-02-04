@@ -766,27 +766,22 @@ static void compile(void)
                     printllist(flist);
                 }
                 newlabel->ref=0;
-                if (pass==1) {
-                    if (labelexists) err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
+                if (labelexists) {
+                    if (pass==1) err_msg_double_defined(newlabel, labelname2, epoint);
                     else {
                         newlabel->requires=current_section->requires;
                         newlabel->conflicts=current_section->conflicts;
-                        newlabel->pass=pass;
-                        newlabel->value=&none_value;
-                        var_assign(newlabel, val, fixeddig);
+                        var_assign(newlabel, val, 0);
                     }
                 } else {
-                    if (labelexists) {
-                        newlabel->requires=current_section->requires;
-                        newlabel->conflicts=current_section->conflicts;
-                        var_assign(newlabel, val, 0);
-                    } else {
-                        newlabel->requires=current_section->requires;
-                        newlabel->conflicts=current_section->conflicts;
-                        newlabel->pass=pass;
-                        newlabel->value=&none_value;
-                        var_assign(newlabel, val, fixeddig);
-                    }
+                    newlabel->requires=current_section->requires;
+                    newlabel->conflicts=current_section->conflicts;
+                    newlabel->pass=pass;
+                    newlabel->value=&none_value;
+                    var_assign(newlabel, val, fixeddig);
+                    newlabel->file = cfile->realname;
+                    newlabel->sline = sline;
+                    newlabel->epoint = epoint;
                 }
                 goto finish;
             }
@@ -808,7 +803,7 @@ static void compile(void)
                     }
                     newlabel->ref=0;
                     if (labelexists) {
-                        if (newlabel->type != L_VAR) err_msg2(ERROR_DOUBLE_DEFINE, labelname2, epoint);
+                        if (newlabel->type != L_VAR) err_msg_double_defined(newlabel, labelname2, epoint);
                         else {
                             newlabel->requires=current_section->requires;
                             newlabel->conflicts=current_section->conflicts;
@@ -820,6 +815,9 @@ static void compile(void)
                         newlabel->pass=pass;
                         newlabel->value=&none_value;
                         var_assign(newlabel, val, fixeddig);
+                        newlabel->file = cfile->realname;
+                        newlabel->sline = sline;
+                        newlabel->epoint = epoint;
                         if (val->type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
                     }
                     goto finish;
@@ -899,7 +897,7 @@ static void compile(void)
                         }
                         newlabel=new_label(labelname, labelname2, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);oaddr = current_section->address;
                         if (pass==1) {
-                            if (labelexists) err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
+                            if (labelexists) err_msg_double_defined(newlabel, labelname2, epoint);
                             else {
                                 new_value.type = T_UINT;
                                 new_value.u.num.val = 0;
@@ -909,11 +907,14 @@ static void compile(void)
                                 newlabel->pass=pass;
                                 newlabel->value=&none_value;
                                 var_assign(newlabel, &new_value, fixeddig);
+                                newlabel->file = cfile->realname;
+                                newlabel->sline = sline;
+                                newlabel->epoint = epoint;
                             }
                         } else {
                             if (labelexists) {
                                 if (newlabel->type != ((prm==CMD_STRUCT)?L_STRUCT:L_UNION)) { /* should not happen */
-                                    err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
+                                    err_msg_double_defined(newlabel, labelname2, epoint);
                                 }
                             }
                         }
@@ -990,7 +991,7 @@ static void compile(void)
             }
             oaddr=current_section->address;
             if (pass==1) {
-                if (labelexists) err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
+                if (labelexists) err_msg_double_defined(newlabel, labelname2, epoint);
                 else {
                     newlabel->requires=current_section->requires;
                     newlabel->conflicts=current_section->conflicts;
@@ -999,11 +1000,14 @@ static void compile(void)
                     set_uint(&new_value, current_section->l_address);
                     new_value.type = T_NUM;
                     var_assign(newlabel, &new_value, fixeddig);
+                    newlabel->file = cfile->realname;
+                    newlabel->sline = sline;
+                    newlabel->epoint = epoint;
                 }
             } else {
                 if (labelexists) {
                     if (newlabel->type != L_LABEL) { /* should not happen */
-                        err_msg2(ERROR_DOUBLE_DEFINE,labelname2,epoint);
+                        err_msg_double_defined(newlabel, labelname2, epoint);
                     } else {
                         if ((uval_t)newlabel->value->u.num.val != current_section->l_address) {
                             set_uint(&new_value, current_section->l_address);
@@ -1021,6 +1025,9 @@ static void compile(void)
                     set_uint(&new_value, current_section->l_address);
                     new_value.type = T_NUM;
                     var_assign(newlabel, &new_value, fixeddig);
+                    newlabel->file = cfile->realname;
+                    newlabel->sline = sline;
+                    newlabel->epoint = epoint;
                 }
             }
             if (epoint && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
@@ -2054,6 +2061,7 @@ static void compile(void)
                     new_waitfor('n', epoint);waitfor[waitforp].skip=0;
                     if (strlen((char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
                     if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
+                        epoint = lpoint;
                         if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL);goto breakerr;}
                         ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                         lpoint++;
@@ -2061,7 +2069,7 @@ static void compile(void)
                         if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         var=new_label(labelname, labelname2, L_VAR);
                         if (labelexists) {
-                            if (var->type != L_VAR) err_msg(ERROR_DOUBLE_DEFINE,labelname2);
+                            if (var->type != L_VAR) err_msg_double_defined(var, labelname2, epoint);
                             else {
                                 var->requires=current_section->requires;
                                 var->conflicts=current_section->conflicts;
@@ -2073,6 +2081,9 @@ static void compile(void)
                             var->pass=pass;
                             var->value=&none_value;
                             var_assign(var, val, fixeddig);
+                            var->file = cfile->realname;
+                            var->sline = sline;
+                            var->epoint = epoint;
                             if (val->type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
                         }
                         wht=what(&prm);
@@ -2095,6 +2106,7 @@ static void compile(void)
                         if (bpoint < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                             lpoint++;
+                            epoint = lpoint;
                             if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL);break;}
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
                             lpoint++;
@@ -2104,7 +2116,7 @@ static void compile(void)
                                 var=new_label(labelname, labelname2, L_VAR);
                                 if (labelexists) {
                                     if (var->type != L_VAR) {
-                                        err_msg(ERROR_DOUBLE_DEFINE,labelname2);
+                                        err_msg_double_defined(var, labelname2, epoint);
                                         break;
                                     }
                                     var->requires=current_section->requires;
@@ -2114,6 +2126,9 @@ static void compile(void)
                                     var->conflicts=current_section->conflicts;
                                     var->pass=pass;
                                     var_assign(var, &none_value, fixeddig);
+                                    var->file = cfile->realname;
+                                    var->sline = sline;
+                                    var->epoint = epoint;
                                 }
                                 bpoint=lpoint;
                             }

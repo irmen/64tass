@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include "values.h"
 #include "libtree.h"
+#include "inttypes.h"
 
 enum label_e {
     L_LABEL, L_CONST, L_VAR, L_STRUCT, L_UNION
@@ -35,6 +36,9 @@ struct label_s {
     size_t size;
     uval_t requires;
     uval_t conflicts;
+    const char *file;
+    line_t sline;
+    unsigned int epoint;
     unsigned ref:1;
     uint8_t esize;
     uint8_t pass;

@@ -34,12 +34,6 @@ enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_X, WHAT_Y, WHAT_Z, WHAT_XZ, W
     WHAT_S, WHAT_SZ, WHAT_COMMENT, WHAT_CHAR, WHAT_LBL
 };
 
-typedef uint_fast32_t line_t;
-#define PRIuline PRIuFAST32
-#define PRIxline PRIxFAST32
-typedef uint_fast32_t address_t;
-#define PRIaddress PRIxFAST32
-
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 struct macro_s {

@@ -73,11 +73,12 @@ enum errors_e {
 
 extern void err_msg(enum errors_e, const char*);
 extern void err_msg2(enum errors_e, const char*, unsigned int);
-extern void err_msg_wrong_type(const struct value_s *, unsigned int);
-extern void err_msg_variable(struct value_s *, int);
+extern void err_msg_wrong_type(const struct value_s*, unsigned int);
+extern void err_msg_double_defined(const struct label_s *, const char*, unsigned int);
+extern void err_msg_variable(struct value_s*, int);
 extern void err_msg_file(enum errors_e, const char*);
 extern void freeerrorlist(int);
-extern void enterfile(const char *, line_t);
+extern void enterfile(const char*, line_t);
 extern void exitfile(void);
 extern void err_destroy(void);
 extern void err_msg_out_of_memory(void);
