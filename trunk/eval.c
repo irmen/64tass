@@ -766,16 +766,20 @@ static void functions(struct values_s *vals, unsigned int args) {
                 new_value.u.num.val = -v[0].val->u.num.val;
                 new_value.u.num.len = v[0].val->u.num.len;
                 val_replace(&vals->val, &new_value);
+                return;
             }
         case T_UINT:
         case T_NUM:
+            val_replace(&vals->val, v[0].val);
             return;
         case T_FLOAT:
             if (v[0].val->u.real < 0.0) {
                 new_value.type = T_FLOAT;
                 new_value.u.real = -v[0].val->u.real;
                 val_replace(&vals->val, &new_value);
+                return;
             }
+            val_replace(&vals->val, v[0].val);
             return;
         default: err_msg_wrong_type(v[0].val, v[0].epoint);
         case T_NONE: break;
@@ -794,9 +798,10 @@ static void functions(struct values_s *vals, unsigned int args) {
             return;
         case T_UINT:
         case T_NUM:
-                new_value.u.num.val = ((uval_t)v[0].val->u.num.val) > 0;
-                new_value.u.num.len = 1;
-                val_replace(&vals->val, &new_value);
+            new_value.type = T_SINT;
+            new_value.u.num.val = ((uval_t)v[0].val->u.num.val) > 0;
+            new_value.u.num.len = 1;
+            val_replace(&vals->val, &new_value);
             return;
         case T_FLOAT:
             new_value.type = T_SINT;
