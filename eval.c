@@ -597,6 +597,7 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     case T_FLOAT:
     case T_GAP:
     case T_LIST:
+    case T_TUPPLE:
         if (type == T_NONE) return values[values_p++].val;
         if (type == T_SINT || type == T_UINT || type == T_NUM || type == T_GAP) {
             switch (type2) {
@@ -667,6 +668,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             val_replace(&vals->val, &new_value);
             return;
         case T_LIST:
+        case T_TUPPLE:
             set_uint(&new_value, v[0].val->u.list.len);
             val_replace(&vals->val, &new_value);
             return;
@@ -983,6 +985,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
 
     switch (try_resolv(&vals->val)) {
     case T_LIST:
+    case T_TUPPLE:
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
             switch (try_resolv(&v[0].val)) {
             case T_UINT:
@@ -1046,6 +1049,7 @@ static void slices(struct values_s *vals, unsigned int args) {
 
     switch (try_resolv(&vals->val)) {
     case T_LIST:
+    case T_TUPPLE:
         if (args != 2 && args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
             uval_t offs, end = vals->val->u.list.len, i = 0;
             switch (try_resolv(&v[0].val)) {
@@ -1082,7 +1086,7 @@ static void slices(struct values_s *vals, unsigned int args) {
                             else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
                         }
                         if (end < offs) end = offs;
-                        new_value.type = T_LIST;
+                        new_value.type = vals->val->type;
                         new_value.u.list.len = end - offs;
                         new_value.u.list.data = malloc(new_value.u.list.len * sizeof(struct value_s));
                         if (!new_value.u.list.data) err_msg_out_of_memory();
@@ -1480,7 +1484,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     v1 = &values[vsp-1-args];
                 }
                 if ((tup || stop) && args == 1) {val_replace(&v1->val, values[vsp-1].val); vsp--;continue;}
-                v1->val->type = T_LIST; // safe, replacing of T_OPER
+                v1->val->type = (ch == '[') ? T_LIST : T_TUPPLE; // safe, replacing of T_OPER
                 v1->val->u.list.len = args;
                 v1->val->u.list.data = malloc(args * sizeof(struct value_s));
                 if (!v1->val->u.list.data) err_msg_out_of_memory();
@@ -1836,7 +1840,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             val_replace(&v1->val, &new_value);
             continue;
         }
-        if (t1 == T_LIST && t2 == T_LIST) {
+        if ((t1 == T_LIST && t2 == T_LIST) || (t1 == T_TUPPLE && t2 == T_TUPPLE)) {
             switch (ch) {
                 case '=':
                     val = val_equal(v1->val, v2->val);
