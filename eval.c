@@ -319,6 +319,7 @@ static int priority(char ch)
     default:
     case 'F':          // a(
     case 'I':          // a[
+    case 'i':          // a[x:
     case '[':          // [a]
     case '(':return 0; // (a)
     case '?':          // ?
@@ -929,6 +930,46 @@ static void functions(struct values_s *vals, unsigned int args) {
     val_replace(&vals->val, &none_value);
 }
 
+static void sliceme(struct values_s *vals, uval_t offs, uval_t end) {
+    struct value_s *val;
+    uint8_t *p, ch;
+
+    if (end < offs) end = offs;
+    val = val_reference(vals->val);
+    p = val->u.str.data;
+    if (val->u.str.len == val->u.str.chars) {
+        new_value.u.str.len = end - offs;
+        new_value.u.str.chars = end - offs;
+        new_value.u.str.data = p + offs;
+    }
+    else {
+        while (offs--) {
+            ch = *p;
+            if (ch < 0x80) p++;
+            else if (ch < 0xe0) p += 2;
+            else if (ch < 0xf0) p += 3;
+            else if (ch < 0xf8) p += 4;
+            else if (ch < 0xfc) p += 5;
+            else p += 6;
+        }
+        new_value.u.str.data = p;
+        new_value.u.str.chars = end - offs;
+        end -= offs;
+        while (end--) {
+            ch = *p;
+            if (ch < 0x80) p++;
+            else if (ch < 0xe0) p += 2;
+            else if (ch < 0xf0) p += 3;
+            else if (ch < 0xf8) p += 4;
+            else if (ch < 0xfc) p += 5;
+            else p += 6;
+        }
+        new_value.u.str.len = new_value.u.str.data - p;
+    }
+    new_value.type = T_STR;
+    val_replace(&vals->val, &new_value); val_destroy(val);
+}
+
 static void indexes(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
 
@@ -964,44 +1005,19 @@ static void indexes(struct values_s *vals, unsigned int args) {
             case T_SINT:
             case T_NUM:
                 {
-                    struct value_s *val, *val2;
                     uval_t offs;
                     if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
                         if ((uval_t)v[0].val->u.num.val < vals->val->u.str.chars) {
                             offs = (uval_t)v[0].val->u.num.val;
-                            val = &new_value;
                         }
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val = &none_value;}
+                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
                     } else {
                         if ((uval_t)-v[0].val->u.num.val <= vals->val->u.str.chars) {
                             offs = vals->val->u.str.chars + v[0].val->u.num.val;
-                            val = &new_value;
                         }
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val = &none_value;}
+                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
                     }
-                    if (val == &new_value) {
-                        uint8_t *p, ch;
-                        uint32_t ch2;
-                        val2 = val_reference(vals->val);
-                        p = val2->u.str.data;
-                        if (val2->u.str.len == val2->u.str.chars) p += offs;
-                        else {
-                            while (offs--) {
-                                ch = *p;
-                                if (ch < 0x80) p++;
-                                else if (ch < 0xe0) p += 2;
-                                else if (ch < 0xf0) p += 3;
-                                else if (ch < 0xf8) p += 4;
-                                else if (ch < 0xfc) p += 5;
-                                else p += 6;
-                            }
-                        }
-                        new_value.type = T_STR;
-                        new_value.u.str.len = (*p & 0x80) ? utf8in(p, &ch2) : 1;
-                        new_value.u.str.chars = 1;
-                        new_value.u.str.data = p;
-                        val_replace(&vals->val, val); val_destroy(val2);
-                    } else val_replace(&vals->val, val);
+                    sliceme(vals, offs, offs + 1);
                 }
                 return;
             default: err_msg_wrong_type(v[0].val, v[0].epoint);
@@ -1009,6 +1025,64 @@ static void indexes(struct values_s *vals, unsigned int args) {
                 val_replace(&vals->val, &none_value);
                 return;
             }
+        break;
+    default: err_msg_wrong_type(vals->val, vals->epoint);
+             val_replace(&vals->val, &none_value);
+    case T_NONE: return;
+    }
+    return;
+}
+
+static void slices(struct values_s *vals, unsigned int args) {
+    struct values_s *v = &vals[2];
+
+    switch (try_resolv(&vals->val)) {
+    case T_STR:
+        if (args != 2) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
+            switch (try_resolv(&v[0].val)) {
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
+                switch (try_resolv(&v[1].val)) {
+                case T_UINT:
+                case T_SINT:
+                case T_NUM:
+                    {
+                        uval_t offs, end;
+                        if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
+                            if ((uval_t)v[0].val->u.num.val < vals->val->u.str.chars) {
+                                offs = (uval_t)v[0].val->u.num.val;
+                            }
+                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
+                        } else {
+                            if ((uval_t)-v[0].val->u.num.val <= vals->val->u.str.chars) {
+                                offs = vals->val->u.str.chars + v[0].val->u.num.val;
+                            }
+                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
+                        }
+                        if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
+                            if ((uval_t)v[1].val->u.num.val < vals->val->u.str.chars) {
+                                end = (uval_t)v[1].val->u.num.val;
+                            }
+                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
+                        } else {
+                            if ((uval_t)-v[1].val->u.num.val <= vals->val->u.str.chars) {
+                                end = vals->val->u.str.chars + v[0].val->u.num.val;
+                            }
+                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
+                        }
+                        sliceme(vals, offs, end);
+                    }
+                    return;
+                default: err_msg_wrong_type(v[1].val, v[1].epoint);
+                case T_NONE: 
+                         val_replace(&vals->val, &none_value);
+                         return;
+                }
+            default: err_msg_wrong_type(v[0].val, v[0].epoint);
+            case T_NONE: break;
+            }
+        val_replace(&vals->val, &none_value);
         break;
     default: err_msg_wrong_type(vals->val, vals->epoint);
              val_replace(&vals->val, &none_value);
@@ -1164,11 +1238,13 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '.': goto push2;
         case '?': cond++;goto push2;
         case ':': 
-            if (!cond) {err_msg(ERROR______EXPECTED,"?"); goto error;}
-            cond--;
             prec = priority(ch);
             while (operp && prec <= priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
-            if (o_oper[operp] != '?') {err_msg(ERROR______EXPECTED,"?");goto error;}
+            if (operp && o_oper[operp-1] == 'I') { o_oper[operp-1] = 'i'; ch = ',';}
+            else {
+                if (o_oper[operp] == '?') cond--;
+                else {err_msg(ERROR______EXPECTED,"?");goto error;}
+            }
             o_oper[operp++] = ch;
             lpoint++;
             continue;
@@ -1207,14 +1283,14 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper=(o_oper[operp] == 'F')? 'F' : ')';
             goto other;
         case ']':
-            while (operp && o_oper[operp-1] != '[' && o_oper[operp-1] != 'I') {
+            while (operp && o_oper[operp-1] != '[' && o_oper[operp-1] != 'I' && o_oper[operp-1] != 'i') {
                 if (o_oper[operp-1]=='(' || o_oper[operp-1]=='F') {err_msg(ERROR______EXPECTED,"["); goto error;}
                 o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
             }
             lpoint++;
             if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
             operp--;
-            o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper=(o_oper[operp] == 'I')? 'I' : ']';
+            o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper=(o_oper[operp] == '[')? ']' : o_oper[operp];
             goto other;
         case 0:
         case ';': break;
@@ -1289,14 +1365,16 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             }
         case 'F':
         case 'I':
+        case 'i':
             {
-                unsigned int args = 0;
+                unsigned int args = 0, slice = (ch == 'i');
                 ch = (ch == 'F') ? '(' : '[';
                 while (v1->val->type != T_OPER || v1->val->u.oper != ch) {
                     args++;
                     v1 = &values[vsp-1-args];
                 }
                 if (ch == '(') functions(&values[vsp-2-args], args);
+                else if (slice) slices(&values[vsp-2-args], args);
                 else indexes(&values[vsp-2-args], args);
                 vsp -= args + 1;
                 continue;
