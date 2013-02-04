@@ -251,31 +251,55 @@ void labelprint(void) {
     const struct label_s *l;
     FILE *flab;
 
-    if (arguments.label) {
-        if (arguments.label[0] == '-' && !arguments.label[1]) {
-            flab = stdout;
+    if (arguments.label[0] == '-' && !arguments.label[1]) {
+        flab = stdout;
+    } else {
+        if (!(flab=file_open(arguments.label,"wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
+    }
+    clearerr(flab);
+    n = avltree_first(&root_label.members);
+    while (n) {
+        l = avltree_container_of(n, struct label_s, node);            //already exists
+        n = avltree_next(n);
+        if (l->name[0]=='-' || l->name[0]=='+') continue;
+        if (l->name[0]=='.' || l->name[0]=='#') continue;
+        switch (l->type) {
+        case L_VAR: fprintf(flab,"%-15s .var ",l->origname);break;
+        case L_UNION:
+        case L_STRUCT: continue;
+        default: fprintf(flab,"%-16s= ",l->origname);break;
+        }
+        val_print(l->value, flab);
+        if (l->pass<pass) fputs("; *** unused", flab);
+        putc('\n', flab);
+    }
+    if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
+    if (flab != stdout) fclose(flab);
+}
+
+void sectionprint2(const struct section_s *l) {
+    if (l->origname) {
+        sectionprint2(l->parent);
+        printf("%s.", l->origname);
+    }
+}
+
+void sectionprint(void) {
+    const struct section_s *l;
+
+    l = root_section.next;
+    while (l) {
+        char temp[10], temp2[10];
+        if (l->start < l->address) {
+            sprintf(temp, "$%04" PRIaddress, l->start);
+            sprintf(temp2, "$%04" PRIaddress, l->address - 1);
+            printf("Section:         %7s-%-7s ", temp, temp2);
         } else {
-            if (!(flab=file_open(arguments.label,"wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
+            printf("Section:                         ");
         }
-        clearerr(flab);
-        n = avltree_first(&root_label.members);
-        while (n) {
-            l = avltree_container_of(n, struct label_s, node);            //already exists
-            n = avltree_next(n);
-            if (l->name[0]=='-' || l->name[0]=='+') continue;
-            if (l->name[0]=='.' || l->name[0]=='#') continue;
-            switch (l->type) {
-            case L_VAR: fprintf(flab,"%-15s .var ",l->origname);break;
-            case L_UNION:
-            case L_STRUCT: continue;
-            default: fprintf(flab,"%-16s= ",l->origname);break;
-            }
-            val_print(l->value, flab);
-            if (l->pass<pass) fputs("; *** unused", flab);
-            putc('\n', flab);
-        }
-        if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
-	if (flab != stdout) fclose(flab);
+        sectionprint2(l->parent);
+        puts(l->origname);
+        l = l->next;
     }
 }
 
