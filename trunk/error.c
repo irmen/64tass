@@ -364,6 +364,7 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
         adderror("error: invalid type argument to ");
     }
     switch (op) {
+    case O_SEPARATOR: name = "',";break;
     case O_FUNC:    name = "function call '(";break;
     case O_INDEX:   name = "indexing '[";break;
     case O_SLICE:   name = "slicing '[";break;
