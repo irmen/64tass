@@ -1990,7 +1990,7 @@ static void compile(void)
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
-                    eval_finish();
+                    if (eval_finish()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL);goto breakerr;}
                     if (val->type == T_NONE) err_msg2(ERROR___NOT_DEFINED, "repeat count", epoint);
                     else {
                         ival_t cnt = val->u.num.val;
@@ -2218,6 +2218,7 @@ static void compile(void)
                             if (!get_exp(&w,1)) break; //ellenorizve.
                             if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                             var_assign(var, val, fixeddig);
+                            ignore();if (here() && here()!=';') {err_msg(ERROR_EXTRA_CHAR_OL,NULL);break;}
                         }
                     }
                     if (pos!=xpos || lin!=xlin) waitforp--;
@@ -2288,12 +2289,16 @@ static void compile(void)
                 }
                 if (prm==CMD_MACRO || prm==CMD_SEGMENT) {
                     new_waitfor('m', epoint);waitfor[waitforp].skip=0;
-                    err_msg(ERROR___NOT_DEFINED,"");
+                    err_msg2(ERROR___NOT_DEFINED,"",epoint);
+                    break;
+                }
+                if (prm==CMD_LBL) {
+                    err_msg2(ERROR___NOT_DEFINED,"",epoint);
                     break;
                 }
                 if (prm==CMD_PROC) {
                     new_waitfor('r', epoint);waitfor[waitforp].skip=0;waitfor[waitforp].addr=current_section->address;
-                    err_msg(ERROR___NOT_DEFINED,"");
+                    err_msg2(ERROR___NOT_DEFINED,"",epoint);
                     break;
                 }
                 if (prm==CMD_STRUCT) {
