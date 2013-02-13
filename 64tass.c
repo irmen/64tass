@@ -759,7 +759,7 @@ static void compile(void)
                 newlabel=new_label(labelname, labelname2, L_CONST);oaddr=current_section->address;
                 if (listing && flist && arguments.source && newlabel->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                    if (val->type == T_UINT || val->type == T_SINT || val->type == T_NUM) {
+                    if (type_is_int(val->type)) {
                         fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.num.val);
                     } else {
                         fputs("=\t\t\t\t\t", flist);
@@ -795,7 +795,7 @@ static void compile(void)
                     newlabel=new_label(labelname, labelname2, L_VAR);oaddr=current_section->address;
                     if (listing && flist && arguments.source && newlabel->ref) {
                         if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                        if (val->type == T_UINT || val->type == T_SINT || val->type == T_NUM) {
+                        if (type_is_int(val->type)) {
                             fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.num.val);
                         } else {
                             fputs("=\t\t\t\t\t", flist);
@@ -1242,6 +1242,7 @@ static void compile(void)
                         switch (val->type) {
                         case T_SINT:
                         case T_UINT:
+                        case T_BOOL:
                         case T_NUM: waitfor[waitforp].skip = val->u.num.val ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);break;
                         case T_FLOAT: waitfor[waitforp].skip = val->u.real ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);break;
                         case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);break;
@@ -1252,6 +1253,7 @@ static void compile(void)
                         switch (val->type) {
                         case T_SINT:
                         case T_UINT:
+                        case T_BOOL:
                         case T_NUM: waitfor[waitforp].skip = val->u.num.val ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = val->u.real ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
@@ -1262,6 +1264,7 @@ static void compile(void)
                         switch (val->type) {
                         case T_SINT:
                         case T_UINT:
+                        case T_BOOL:
                         case T_NUM: waitfor[waitforp].skip = (!val->u.num.val) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (!val->u.real) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_STR: waitfor[waitforp].skip = (!val->u.str.len) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
@@ -1272,6 +1275,7 @@ static void compile(void)
                         switch (val->type) {
                         case T_SINT:
                         case T_UINT:
+                        case T_BOOL:
                         case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (~val->u.num.val & 0x8000) : (val->u.num.val>=0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real >= 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
@@ -1282,6 +1286,7 @@ static void compile(void)
                         switch (val->type) {
                         case T_SINT:
                         case T_UINT:
+                        case T_BOOL:
                         case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (val->u.num.val & 0x8000) : (val->u.num.val < 0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real < 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
@@ -1430,6 +1435,7 @@ static void compile(void)
                                         ch2 = petascii(&i, val);
                                         if (ch2 > 255) i = val->u.str.len;
                                         break;
+                                    case T_BOOL:
                                     case T_NUM:
                                     case T_UINT:
                                     case T_SINT:
@@ -1461,6 +1467,7 @@ static void compile(void)
                                                         ch2 = petascii(&i, val2);
                                                         if (ch2 > 255) i = val2->u.str.len;
                                                         break;
+                                                    case T_BOOL:
                                                     case T_NUM:
                                                     case T_UINT:
                                                     case T_SINT:
@@ -1520,6 +1527,7 @@ static void compile(void)
                             case T_STR: if (str_to_num(&val, T_NUM)) large = epoint;
                             case T_FLOAT:
                             case T_NUM:
+                            case T_BOOL:
                             case T_SINT:
                             case T_UINT:
                                 uv = (val->type == T_FLOAT) ? (uval_t)val->u.real : (uval_t)val->u.num.val;
@@ -1544,6 +1552,7 @@ static void compile(void)
                                         case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
                                         case T_FLOAT:
                                         case T_NUM:
+                                        case T_BOOL:
                                         case T_SINT:
                                         case T_UINT:
                                             uv = (val2->type == T_FLOAT) ? (uval_t)val2->u.real : (uval_t)val2->u.num.val;
@@ -1834,7 +1843,7 @@ static void compile(void)
                         if (first) {
                             first = 0;
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
-                                write = (((val->type == T_SINT || val->type == T_UINT || val->type == T_NUM) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
+                                write = ((type_is_int(val->type) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
                                 continue;
                             }
                             write = 1;
@@ -1871,10 +1880,8 @@ static void compile(void)
 
                         switch (val->type) {
                         case T_NONE: err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;
-                        case T_NUM: if (val->u.num.len <= 3) {
-                            tmp.start = val->u.num.val;
-                            break;
-                        }
+                        case T_NUM: if (val->u.num.len <= 3) { tmp.start = val->u.num.val; break; }
+                        case T_BOOL:
                         case T_UINT:
                         case T_SINT:
                              if ((uval_t)val->u.num.val & ~(uval_t)0xffffff) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -2187,7 +2194,7 @@ static void compile(void)
                         if (!get_exp(&w,1)) break; //ellenorizve.
                         if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
-                        if (((val->type == T_UINT || val->type == T_SINT || val->type == T_NUM) && !val->u.num.val) || (val->type == T_FLOAT && !val->u.real) || (val->type == T_STR && !val->u.str.len)) break;
+                        if ((type_is_int(val->type) && !val->u.num.val) || (val->type == T_FLOAT && !val->u.real) || (val->type == T_STR && !val->u.str.len)) break;
                         if (bpoint < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                             lpoint++;ignore();
@@ -2247,8 +2254,8 @@ static void compile(void)
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used for option", epoint);goto breakerr;}
-                    if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=(((val->type == T_SINT || val->type == T_UINT || val->type == T_NUM) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
-                    else if (!strcasecmp(labelname,"auto_longbranch_as_jmp")) longbranchasjmp=(((val->type == T_SINT || val->type == T_UINT || val->type == T_NUM) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
+                    if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=((type_is_int(val->type) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
+                    else if (!strcasecmp(labelname,"auto_longbranch_as_jmp")) longbranchasjmp=((type_is_int(val->type) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
                     else err_msg(ERROR_UNKNOWN_OPTIO,labelname2);
                     break;
                 }

@@ -46,6 +46,8 @@ inline double hypot(double a, double b) {return sqrt(a*a+b*b);}
 
 static struct value_s new_value = {T_NONE, 0, {}};
 static struct value_s none_value = {T_NONE, 0, {}};
+static struct value_s true_value = {T_BOOL, 0, {{1,1}}};
+static struct value_s false_value = {T_BOOL, 0, {{1,0}}};
 struct value_s error_value = {T_NONE, 0, {}};
 
 struct encoding_s *actual_encoding;
@@ -430,7 +432,7 @@ rest:
         }
         if (ch>='0' && ch<='9') { if (get_dec(&o_out[outp].val)) goto pushlarge;
         pushval:
-            if ((o_out[outp].val.type == T_SINT || o_out[outp].val.type == T_UINT || o_out[outp].val.type == T_NUM) && (o_out[outp].val.u.num.val & ~0xffff)) {
+            if (type_is_int(o_out[outp].val.type) && (o_out[outp].val.u.num.val & ~0xffff)) {
             pushlarge:
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
                 o_out[outp].val.u.num.val = 0xffff;
@@ -523,6 +525,7 @@ rest:
             case T_UINT:
             case T_SINT:
             case T_NUM:
+            case T_BOOL:
                 {
                     uint16_t val1 = values[vsp-1].val->u.num.val;
 
@@ -546,13 +549,13 @@ rest:
         if (vsp < 2) goto syntaxe;
         t2 = try_resolv(&values[vsp-2].val);
 
-        if (t1 <= T_SINT && t2 == T_STR) {
+        if (type_is_int(t1) && t2 == T_STR) {
             if (str_to_num(&values[vsp-2].val, T_NUM)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-2].epoint); large=1;
             }
             t2 = values[vsp-2].val->type;
         }
-        if (t2 <= T_SINT && t1 == T_STR) {
+        if (type_is_int(t2) && t1 == T_STR) {
             if (str_to_num(&values[vsp-1].val, T_NUM)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-1].epoint); large=1;
             }
@@ -562,10 +565,12 @@ rest:
         case T_SINT:
         case T_UINT:
         case T_NUM:
+        case T_BOOL:
             switch (t2) {
             case T_UINT:
             case T_SINT:
             case T_NUM:
+            case T_BOOL:
                 {
                     uint16_t val1 = values[vsp-1].val->u.num.val;
                     uint16_t val2 = values[vsp-2].val->u.num.val;
@@ -619,12 +624,13 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     case T_SINT:
     case T_UINT:
     case T_NUM:
+    case T_BOOL:
     case T_FLOAT:
     case T_GAP:
     case T_LIST:
     case T_TUPPLE:
         if (type == T_NONE) return values[values_p++].val;
-        if (type == T_SINT || type == T_UINT || type == T_NUM || type == T_GAP) {
+        if (type_is_int(type) || type == T_GAP) {
             switch (type2) {
             case T_STR:
                 if (str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type)) {
@@ -634,6 +640,7 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
             case T_UINT:
             case T_SINT:
             case T_NUM:
+            case T_BOOL:
                 return values[values_p++].val;
             case T_FLOAT:
                 new_value.type = (type == T_GAP) ? T_NUM : type;
@@ -660,6 +667,7 @@ static double to_float(const struct value_s *val) {
     case T_FLOAT: return val->u.real;
     case T_SINT: return (ival_t)val->u.num.val;
     case T_NUM:
+    case T_BOOL:
     case T_UINT: return (uval_t)val->u.num.val;
     default:
          return 0.0;
@@ -716,6 +724,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                     break;
                 case T_UINT:
                 case T_NUM:
+                case T_BOOL:
                     if (volt || ((!t || min > 0) && (uval_t)v[args].val->u.num.val < (uval_t)min)) {min = v[args].val->u.num.val; t = 0;}
                     break;
                 default: err_msg_wrong_type(v[args].val, v[args].epoint);
@@ -744,6 +753,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                     break;
                 case T_UINT:
                 case T_NUM:
+                case T_BOOL:
                     if (volt || (t && max < 0) || (uval_t)v[args].val->u.num.val > (uval_t)max) {max = v[args].val->u.num.val;t = 0;}
                     break;
                 default: err_msg_wrong_type(v[args].val, v[args].epoint);
@@ -800,6 +810,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             }
         case T_UINT:
         case T_NUM:
+        case T_BOOL:
             val_replace(&vals->val, v[0].val);
             return;
         case T_FLOAT:
@@ -828,6 +839,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             return;
         case T_UINT:
         case T_NUM:
+        case T_BOOL:
             new_value.type = T_SINT;
             new_value.u.num.val = ((uval_t)v[0].val->u.num.val) > 0;
             new_value.u.num.len = 1;
@@ -873,6 +885,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         case T_SINT:
         case T_UINT:
         case T_NUM:
+        case T_BOOL:
             new_value.type = T_FLOAT;
             new_value.u.real = to_float(v[0].val);
             switch (func) {
@@ -928,11 +941,13 @@ static void functions(struct values_s *vals, unsigned int args) {
         case T_SINT:
         case T_UINT:
         case T_NUM:
+        case T_BOOL:
         case T_FLOAT:
             switch (try_resolv(&v[1].val)) {
             case T_SINT:
             case T_UINT:
             case T_NUM:
+            case T_BOOL:
             case T_FLOAT:
                 new_value.type = T_FLOAT;
                 val1 = to_float(v[0].val);
@@ -1016,6 +1031,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
             case T_UINT:
             case T_SINT:
             case T_NUM:
+            case T_BOOL:
                 {
                     struct value_s *val;
                     if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
@@ -1040,6 +1056,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
             case T_UINT:
             case T_SINT:
             case T_NUM:
+            case T_BOOL:
                 {
                     uval_t offs;
                     if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
@@ -1081,11 +1098,13 @@ static void slices(struct values_s *vals, unsigned int args) {
             case T_UINT:
             case T_SINT:
             case T_NUM:
+            case T_BOOL:
                 if (args == 1) goto skipme;
                 switch (try_resolv(&v[1].val)) {
                 case T_UINT:
                 case T_SINT:
                 case T_NUM:
+                case T_BOOL:
                     {
                         if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
                             if ((uval_t)v[1].val->u.num.val <= vals->val->u.list.len) {
@@ -1141,11 +1160,13 @@ static void slices(struct values_s *vals, unsigned int args) {
             case T_UINT:
             case T_SINT:
             case T_NUM:
+            case T_BOOL:
                 if (args == 1) goto skipme2;
                 switch (try_resolv(&v[1].val)) {
                 case T_UINT:
                 case T_SINT:
                 case T_NUM:
+                case T_BOOL:
                     {
                         if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
                             if ((uval_t)v[1].val->u.num.val <= vals->val->u.str.chars) {
@@ -1544,6 +1565,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 break;
             case T_UINT:
             case T_SINT: 
+            case T_BOOL:
             case T_NUM: val_replace(&values[vsp-1].val, values[vsp-1].val->u.num.val ? v1->val : v2->val);
                 break;
             default: err_msg_wrong_type(values[vsp-1].val, values[vsp-1].epoint); 
@@ -1569,6 +1591,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_UINT:
             case T_SINT:
             case T_NUM:
+            case T_BOOL:
                 new_value.type = T_NUM;
                 new_value.u.num.val = apply_byteop(op, (uval_t)v1->val->u.num.val, &new_value.u.num.len);
                 val_replace(&v1->val, &new_value);
@@ -1589,6 +1612,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                             }
                         case T_UINT:
                         case T_SINT:
+                        case T_BOOL:
                         case T_NUM: new_value.type = T_NUM;
                                     new_value.u.num.val = apply_byteop(op, (uval_t)val->u.num.val, &new_value.u.num.len);
                                     vals[i] = val_reference(&new_value);
@@ -1619,6 +1643,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_UINT:
             case T_SINT:
             case T_NUM:
+            case T_BOOL:
                 {
                     sprintf((char *)line, (v1->val->type == T_SINT) ? "%" PRIdval : "%" PRIuval, v1->val->u.num.val);
                     new_value.type = T_STR;
@@ -1643,6 +1668,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 }
             case T_UINT:
             case T_SINT:
+            case T_BOOL:
             case T_NUM: new_value.type = T_SINT;
                         new_value.u.num.val = (op == O_NEG) ? (-v1->val->u.num.val) : v1->val->u.num.val;
                         new_value.u.num.len = v1->val->u.num.len;
@@ -1667,6 +1693,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 }
             case T_SINT:
             case T_UINT: 
+            case T_BOOL:
             case T_NUM: new_value.type = T_NUM;
                         new_value.u.num.val = ~v1->val->u.num.val;
                         new_value.u.num.len = v1->val->u.num.len;
@@ -1681,6 +1708,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             switch (try_resolv(&v1->val)) {
             case T_SINT:
             case T_NUM: 
+            case T_BOOL:
             case T_UINT: new_value.type = T_UINT;
                          new_value.u.num.val = !v1->val->u.num.val;
                          new_value.u.num.len = 1;
@@ -1731,22 +1759,22 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         }
     strretr:
 
-        if ((t1 <= T_SINT && t2 <= T_SINT)) {
+        if (type_is_int(t1) && type_is_int(t2)) {
             ival_t val1 = v1->val->u.num.val;
             ival_t val2 = v2->val->u.num.val;
 
             if (t2 < t1) t2 = t1;
 
             switch (op) {
-            case O_EQ:   val1 = ( val1 == val2);break;
-            case O_NEQ:  val1 = ( val1 != val2);break;
-            case O_LT:   val1 = ( val1 <  val2);break;
-            case O_GT:   val1 = ( val1 >  val2);break;
-            case O_LE:   val1 = ( val1 <= val2);break;
-            case O_GE:   val1 = ( val1 >= val2);break;
-            case O_LAND: val1 = ( val1 && val2);break;
-            case O_LOR:  val1 = ( val1 || val2);break;
-            case O_LXOR: val1 = (!val1 ^ !val2);break;
+            case O_EQ:   val_replace(&v1->val, ( val1 == val2) ? &true_value : &false_value);continue;
+            case O_NEQ:  val_replace(&v1->val, ( val1 != val2) ? &true_value : &false_value);continue;
+            case O_LT:   val_replace(&v1->val, ( val1 <  val2) ? &true_value : &false_value);continue;
+            case O_GT:   val_replace(&v1->val, ( val1 >  val2) ? &true_value : &false_value);continue;
+            case O_LE:   val_replace(&v1->val, ( val1 <= val2) ? &true_value : &false_value);continue;
+            case O_GE:   val_replace(&v1->val, ( val1 >= val2) ? &true_value : &false_value);continue;
+            case O_LAND: val_replace(&v1->val, ( val1 && val2) ? &true_value : &false_value);continue;
+            case O_LOR:  val_replace(&v1->val, ( val1 || val2) ? &true_value : &false_value);continue;
+            case O_LXOR: val_replace(&v1->val, (!val1 ^ !val2) ? &true_value : &false_value);continue;
             case O_MUL:  val1 = ( val1 *  val2);break;
             case O_DIV: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = (~(uval_t)0) >> 1; large=1;}
                 else if (t2==T_SINT) val1 = ( val1 / val2); else val1 = ( (uval_t)val1 / (uval_t)val2);  break;
@@ -1803,10 +1831,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 case O_EQ:
                     val = (v1->val->u.str.len == v2->val->u.str.len) && (v1->val->u.str.data == v2->val->u.str.data || !memcmp(v1->val->u.str.data, v2->val->u.str.data, v1->val->u.str.len));
                 strcomp:
-                    new_value.type = T_UINT;
-                    new_value.u.num.len = 1;
-                    new_value.u.num.val = val; 
-                    val_replace(&v1->val, &new_value);
+                    val_replace(&v1->val, val ? &true_value : &false_value);
                     continue;
                 case O_NEQ:
                     val = (v1->val->u.str.len != v2->val->u.str.len) || (v1->val->u.str.data != v2->val->u.str.data && memcmp(v1->val->u.str.data, v2->val->u.str.data, v1->val->u.str.len));
@@ -1854,14 +1879,14 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 default: err_msg_wrong_type(v1->val, v1->epoint); goto errtype;
             }
         }
-        if (t1 == T_FLOAT && t2 <= T_SINT) {
+        if (t1 == T_FLOAT && type_is_int(t2)) {
             new_value.type = T_FLOAT;
             if (t2 == T_SINT) new_value.u.real = (ival_t)v2->val->u.num.val;
             else new_value.u.real = (uval_t)v2->val->u.num.val;
             val_replace(&v2->val, &new_value);
             t2 = v2->val->type;
         }
-        if (t2 == T_FLOAT && t1 <= T_SINT) {
+        if (t2 == T_FLOAT && type_is_int(t1)) {
             new_value.type = T_FLOAT;
             if (t1 == T_SINT) new_value.u.real = (ival_t)v1->val->u.num.val;
             else new_value.u.real = (uval_t)v1->val->u.num.val;
@@ -1873,15 +1898,15 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             double val2 = v2->val->u.real;
 
             switch (op) {
-            case O_EQ:   val1 = almost_equal(val1, val2);t1 = T_UINT;break;
-            case O_NEQ:  val1 = !almost_equal(val1, val2);t1 = T_UINT;break;
-            case O_LT:   val1 = ( val1 <  val2);t1 = T_UINT;break;
-            case O_GT:   val1 = ( val1 >  val2);t1 = T_UINT;break;
-            case O_LE:   val1 = ( val1 < val2 || almost_equal(val1, val2));t1 = T_UINT;break;
-            case O_GE:   val1 = ( val1 > val2 || almost_equal(val1, val2));t1 = T_UINT;break;
-            case O_LAND: val1 = ( val1 && val2);t1 = T_UINT;break;
-            case O_LOR:  val1 = ( val1 || val2);t1 = T_UINT;break;
-            case O_LXOR: val1 = (!val1 ^ !val2);t1 = T_UINT;break;
+            case O_EQ:   val_replace(&v1->val, almost_equal(val1, val2) ? &true_value : &false_value);continue;
+            case O_NEQ:  val_replace(&v1->val, almost_equal(val1, val2) ? &false_value : &true_value);continue;
+            case O_LT:   val_replace(&v1->val, ( val1 <  val2) ? &true_value : &false_value);continue;
+            case O_GT:   val_replace(&v1->val, ( val1 >  val2) ? &true_value : &false_value);continue;
+            case O_LE:   val_replace(&v1->val, ( val1 < val2 || almost_equal(val1, val2)) ? &true_value : &false_value);continue;
+            case O_GE:   val_replace(&v1->val, ( val1 > val2 || almost_equal(val1, val2)) ? &true_value : &false_value);continue;
+            case O_LAND: val_replace(&v1->val, ( val1 && val2) ? &true_value : &false_value);continue;
+            case O_LOR:  val_replace(&v1->val, ( val1 || val2) ? &true_value : &false_value);continue;
+            case O_LXOR: val_replace(&v1->val, (!val1 ^ !val2) ? &true_value : &false_value);continue;
             case O_MUL:  val1 = ( val1 *  val2);break;
             case O_DIV: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = 0.0; large=1;}
                 else val1 = ( val1 /  val2); break;
@@ -1900,11 +1925,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                      goto errtype;
             }
             new_value.type = t1;
-            if (t1 == T_FLOAT) new_value.u.real = val1;
-            else {
-                new_value.u.num.val = val1;
-                new_value.u.num.len = 1;
-            }
+            new_value.u.real = val1;
             val_replace(&v1->val, &new_value);
             continue;
         }
@@ -1914,10 +1935,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 case O_EQ:
                     val = val_equal(v1->val, v2->val);
                 listcomp:
-                    new_value.type = T_UINT;
-                    new_value.u.num.len = 1;
-                    new_value.u.num.val = val; 
-                    val_replace(&v1->val, &new_value);
+                    val_replace(&v1->val, val ? &true_value : &false_value);
                     continue;
                 case O_NEQ:
                     val = !val_equal(v1->val, v2->val);

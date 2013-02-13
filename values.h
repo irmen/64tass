@@ -29,9 +29,11 @@ typedef uint32_t uval_t;
 #define PRIuval PRIu32
 
 enum type_e {
-    T_NONE, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT, T_IDENTREF,
-    T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_LIST, T_TUPPLE,
+    T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT,
+    T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_LIST, T_TUPPLE,
 };
+
+#define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
 
 enum oper_e {
     O_FUNC,          // a(

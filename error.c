@@ -212,6 +212,7 @@ void err_msg_wrong_type(const struct value_s *val, unsigned int epoint) {
     case T_LIST: name = "<list>";break;
     case T_TUPPLE: name = "<tupple>";break;
     case T_FLOAT: name = "<float>";break;
+    case T_BOOL: name = "<bool>";break;
     }
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
 }
@@ -308,6 +309,7 @@ void err_msg_variable(struct value_s *val, int repr) {
             add_user_error(")");
             break;
         }
+    case T_BOOL: add_user_error(val->u.num.val ? "<true>" : "<false>");break;
     }
 }
 
