@@ -1996,6 +1996,18 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             free(new_value.u.list.data);
             continue;
         }
+        if ((type_is_num(t1) || t1 == T_STR || t1 == T_LIST || t1 == T_TUPPLE) && (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPPLE) && t1 != t2) {
+            switch (op) {
+            case O_EQ: val = 0; goto strcomp;
+            case O_NEQ: val = 1; goto strcomp;
+            case O_LT: val = (t1 < t2); goto strcomp;
+            case O_GT: val = (t1 > t2); goto strcomp;
+            case O_LE: val = (t1 <= t2); goto strcomp;
+            case O_GE: val = (t1 >= t2); goto strcomp;
+            default: err_msg_wrong_type(v1->val, v1->epoint); goto errtype;
+            }
+        }
+
         if (t2 == T_UNDEF) err_msg_wrong_type(v2->val, v2->epoint); 
         else err_msg_wrong_type(v1->val, v1->epoint);
         goto errtype;
