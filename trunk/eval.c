@@ -543,7 +543,7 @@ rest:
                     break;
                 }
             default:
-                err_msg_wrong_type(values[vsp-1].val, values[vsp-1].epoint);
+                err_msg_invalid_oper(op, values[vsp-1].val, NULL, values[vsp-1].epoint);
                 val_replace(&values[vsp-1].val, &none_value); 
             case T_NONE:break;
             }
@@ -594,12 +594,12 @@ rest:
                     val_replace(&values[vsp-1].val, &new_value);
                     continue;
                 }
-            default: err_msg_wrong_type(values[vsp-2].val, values[vsp-2].epoint);
+            default: err_msg_invalid_oper(op, values[vsp-2].val, values[vsp-1].val, values[vsp-2].epoint);
             case T_NONE:break;
             }
             break;
         default:
-            err_msg_wrong_type(values[vsp-1].val, values[vsp-1].epoint);
+            err_msg_invalid_oper(op, values[vsp-2].val, values[vsp-1].val, values[vsp-1].epoint);
         case T_NONE:break;
         }
         vsp--; val_replace(&values[vsp-1].val, &none_value); continue;
@@ -689,7 +689,7 @@ static void functions(struct values_s *vals, unsigned int args) {
     } func = F_NONE;
 
     if (vals->val->type != T_IDENT) {
-        err_msg_wrong_type(vals->val, vals->epoint);
+        err_msg_invalid_oper(O_FUNC, vals->val, NULL, vals->epoint);
         val_replace(&vals->val, &none_value);
         return;
     }
@@ -1048,7 +1048,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
                     val_replace(&vals->val, val); val_destroy(val);
                 }
                 return;
-            default: err_msg_wrong_type(v[0].val, v[0].epoint);
+            default: err_msg_invalid_oper(O_INDEX, v[0].val, NULL, v[0].epoint);
             case T_NONE: 
                 val_replace(&vals->val, &none_value);
                 return;
@@ -1077,13 +1077,13 @@ static void indexes(struct values_s *vals, unsigned int args) {
                     str_slice(vals, offs, offs + 1);
                 }
                 return;
-            default: err_msg_wrong_type(v[0].val, v[0].epoint);
+            default: err_msg_invalid_oper(O_INDEX, v[0].val, NULL, v[0].epoint);
             case T_NONE: 
                 val_replace(&vals->val, &none_value);
                 return;
             }
         break;
-    default: err_msg_wrong_type(vals->val, vals->epoint);
+    default: err_msg_invalid_oper(O_INDEX, vals->val, NULL, vals->epoint);
              val_replace(&vals->val, &none_value);
     case T_NONE: return;
     }
@@ -1146,12 +1146,12 @@ static void slices(struct values_s *vals, unsigned int args) {
                         free(new_value.u.list.data);
                     }
                     return;
-                default: err_msg_wrong_type(v[1].val, v[1].epoint);
+                default: err_msg_invalid_oper(O_SLICE, v[1].val, NULL, v[1].epoint);
                 case T_NONE: 
                          val_replace(&vals->val, &none_value);
                          return;
                 }
-            default: err_msg_wrong_type(v[0].val, v[0].epoint);
+            default: err_msg_invalid_oper(O_SLICE, v[0].val, NULL, v[0].epoint);
             case T_NONE: break;
             }
         }
@@ -1198,18 +1198,18 @@ static void slices(struct values_s *vals, unsigned int args) {
                         str_slice(vals, offs, end);
                     }
                     return;
-                default: err_msg_wrong_type(v[1].val, v[1].epoint);
+                default: err_msg_invalid_oper(O_SLICE, v[1].val, NULL, v[1].epoint);
                 case T_NONE: 
                          val_replace(&vals->val, &none_value);
                          return;
                 }
-            default: err_msg_wrong_type(v[0].val, v[0].epoint);
+            default: err_msg_invalid_oper(O_SLICE, v[0].val, NULL, v[0].epoint);
             case T_NONE: break;
             }
         }
         val_replace(&vals->val, &none_value);
         break;
-    default: err_msg_wrong_type(vals->val, vals->epoint);
+    default: err_msg_invalid_oper(O_SLICE, vals->val, NULL, vals->epoint);
              val_replace(&vals->val, &none_value);
     case T_NONE: return;
     }
@@ -1396,7 +1396,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             while (operp && prec <= priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
             if (operp && o_oper[operp-1] == O_INDEX) { o_oper[operp-1] = O_SLICE; op = O_COMMA;}
             else {
-                if (o_oper[operp] == '?') cond--;
+                if (o_oper[operp] == O_COND) cond--;
                 else {err_msg(ERROR______EXPECTED,"?");goto error;}
             }
             o_oper[operp++] = op;
@@ -1517,8 +1517,8 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                         val_replace(&v1->val, &new_value);
                         v1->epoint=v2->epoint;
                         continue;
-                    } else err_msg_wrong_type(v2->val, v2->epoint);
-                } else if (v1->val->type != T_UNDEF || pass != 1) err_msg_wrong_type(v1->val, v1->epoint);
+                    } else err_msg_invalid_oper(op, v1->val, v2->val, v2->epoint);
+                } else if (v1->val->type != T_UNDEF || pass != 1) err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint);
                 goto errtype;
             }
         case O_FUNC:
@@ -1573,7 +1573,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_TUPPLE:
                 val_replace(&values[vsp-1].val, val_truth(values[vsp-1].val) ? v1->val : v2->val);
                 continue;
-            default: err_msg_wrong_type(values[vsp-1].val, values[vsp-1].epoint); 
+            default: err_msg_invalid_oper(O_COND, values[vsp-1].val, NULL, values[vsp-1].epoint); 
                      goto errtype;
             case T_NONE: continue;
             }
@@ -1620,7 +1620,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                                     new_value.u.num.val = apply_byteop(op, (uval_t)val->u.num.val, &new_value.u.num.len);
                                     vals[i] = val_reference(&new_value);
                                     continue;
-                        default: err_msg_wrong_type(val, v1->epoint); 
+                        default: err_msg_invalid_oper(op, val, NULL, v1->epoint); 
                         case T_NONE: 
                                  vals[i] = val_reference(&none_value);
                                  continue;
@@ -1633,7 +1633,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     free(vals);
                 }
                 continue;
-            default: err_msg_wrong_type(v1->val, v1->epoint); 
+            default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint); 
                      goto errtype;
             case T_NONE: continue;
             }
@@ -1657,7 +1657,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     v1->epoint = o_out[i].epoint;
                 }
                 continue;
-            default: err_msg_wrong_type(v1->val, v1->epoint); 
+            default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint);
                      goto errtype;
             case T_NONE: continue;
             }
@@ -1684,7 +1684,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                         val_replace(&v1->val, &new_value);
                         v1->epoint = o_out[i].epoint;
                         continue;
-            default: err_msg_wrong_type(v1->val, v1->epoint); 
+            default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint); 
                      goto errtype;
             case T_NONE: continue;
             }
@@ -1703,7 +1703,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                         val_replace(&v1->val, &new_value);
                         v1->epoint = o_out[i].epoint;
                         continue;
-            default: err_msg_wrong_type(v1->val, v1->epoint);
+            default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint);
                      goto errtype;
             case T_NONE: continue;
             }
@@ -1720,7 +1720,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 val_replace(&v1->val, val_truth(v1->val) ? &false_value : &true_value);
                 v1->epoint = o_out[i].epoint;
                 continue;
-            default: err_msg_wrong_type(v1->val, v1->epoint);
+            default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint);
                      goto errtype;
             case T_NONE: continue;
             }
@@ -1763,10 +1763,10 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                         val_replace(&v1->val, v2->val);
                     }
                     continue;
-                default: err_msg_wrong_type(v2->val, v2->epoint); 
+                default: err_msg_invalid_oper(op, v1->val, v2->val, v2->epoint); 
                          goto errtype;
                 }
-            default: err_msg_wrong_type(v1->val, v1->epoint); 
+            default: err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint); 
                      goto errtype;
             case T_NONE: continue;
             }
@@ -1841,7 +1841,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     val1 = res;
                 }
                 break;
-            default: err_msg_wrong_type(v1->val, v1->epoint); 
+            default: err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint); 
                      goto errtype;
             }
             if (t1 == T_SINT) set_int(&new_value, val1); else {set_uint(&new_value, val1); new_value.type = t1;}
@@ -1910,7 +1910,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     t1 = v1->val->type;
                     t2 = v2->val->type;
                     goto strretr;
-                default: err_msg_wrong_type(v1->val, v1->epoint); goto errtype;
+                default: err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint); goto errtype;
             }
         }
 
@@ -1953,7 +1953,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     else val1 = pow(val1, val2);
                 }
                 break;
-            default: err_msg_wrong_type(v1->val, v1->epoint); 
+            default: err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint); 
                      goto errtype;
             }
             new_value.type = t1;
@@ -1990,7 +1990,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                         ii++;
                     }
                     break;
-                default: err_msg_wrong_type(v1->val, v1->epoint); goto errtype;
+                default: err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint); goto errtype;
             }
             val_replace(&v1->val, &new_value);
             free(new_value.u.list.data);
@@ -2004,12 +2004,13 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case O_GT: val = (t1 > t2); goto strcomp;
             case O_LE: val = (t1 <= t2); goto strcomp;
             case O_GE: val = (t1 >= t2); goto strcomp;
-            default: err_msg_wrong_type(v1->val, v1->epoint); goto errtype;
+            default: err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint); goto errtype;
             }
         }
 
-        if (t2 == T_UNDEF) err_msg_wrong_type(v2->val, v2->epoint); 
-        else err_msg_wrong_type(v1->val, v1->epoint);
+        if (t1 == T_UNDEF) err_msg2(ERROR___NOT_DEFINED, "", v1->epoint); 
+        else if (t2 == T_UNDEF) err_msg2(ERROR___NOT_DEFINED, "", v2->epoint); 
+        else err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint);
         goto errtype;
     }
     if (large) cd=0;
