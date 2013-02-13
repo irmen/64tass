@@ -41,6 +41,7 @@ enum oper_e {
     O_FUNC,          // a(
     O_INDEX,         // a[
     O_SLICE,         // a[x:
+    O_SLICE2,        // a[x::
     O_BRACKET,       // [a]
     O_PARENT,        // (a)
     O_COND,          // ?
@@ -80,7 +81,7 @@ enum oper_e {
     O_INV,           // ~
     O_LNOT,          // !
 
-    O_TUPPLE,         // )
+    O_TUPLE,          // )
     O_RPARENT,        // )
     O_RBRACKET,       // ]
 };

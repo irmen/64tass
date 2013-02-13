@@ -52,6 +52,38 @@
     .cerror [1,2]!=[1,2]
     .cerror (1,2)!=(1,2)
 
+    .cerror "abcdef"[1]!="b"
+    .cerror "abcdef"[1:]!="bcdef"
+    .cerror "abcdef"[:2]!="ab"
+    .cerror "abcdef"[:22]!="abcdef"
+    .cerror "abcdef"[1:2]!="b"
+    .cerror "abcdef"[-2:-1]!="e"
+    .cerror "abcdef"[-23:-1]!="abcde"
+    .cerror "abcdef"[-2:]!="ef"
+    .cerror "abcdef"[:]!="abcdef"
+    .cerror "abcdef"[22:]!=""
+    .cerror "abcdef"[-2:-13]!=""
+    .cerror "abcdef"[::2]!="ace"
+    .cerror "abcdef"[::3]!="ad"
+    .cerror "abcdef"[:-2:2]!="ac"
+    .cerror "abcdef"[1:-2:2]!="bd"
+
+    .cerror (1,2,3,4,5,6)[1]!=2
+    .cerror (1,2,3,4,5,6)[1:]!=(2,3,4,5,6)
+    .cerror (1,2,3,4,5,6)[:2]!=(1,2)
+    .cerror (1,2,3,4,5,6)[:22]!=(1,2,3,4,5,6)
+    .cerror (1,2,3,4,5,6)[1:2]!=(2,)
+    .cerror (1,2,3,4,5,6)[-2:-1]!=(5,)
+    .cerror (1,2,3,4,5,6)[-23:-1]!=(1,2,3,4,5)
+    .cerror (1,2,3,4,5,6)[-2:]!=(5,6)
+    .cerror (1,2,3,4,5,6)[:]!=(1,2,3,4,5,6)
+    .cerror (1,2,3,4,5,6)[22:]!=()
+    .cerror (1,2,3,4,5,6)[-2:-13]!=()
+    .cerror (1,2,3,4,5,6)[::2]!=(1,3,5)
+    .cerror (1,2,3,4,5,6)[::3]!=(1,4)
+    .cerror (1,2,3,4,5,6)[:-2:2]!=(1,3)
+    .cerror (1,2,3,4,5,6)[1:-2:2]!=(2,4)
+
 ; check all operators
 
 ; bit or
