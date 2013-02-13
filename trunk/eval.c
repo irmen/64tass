@@ -1841,6 +1841,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             continue;
         }
         if ((t1 == T_LIST && t2 == T_LIST) || (t1 == T_TUPPLE && t2 == T_TUPPLE)) {
+            int l1, l2, ii;
             switch (ch) {
                 case '=':
                     val = val_equal(v1->val, v2->val);
@@ -1853,8 +1854,28 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 case 'o':
                     val = !val_equal(v1->val, v2->val);
                     goto listcomp;
+                case '+':
+                    new_value.type = t1;
+                    l1 = v1->val->u.list.len;
+                    l2 = v2->val->u.list.len;
+                    new_value.u.list.len = l1 + l2;
+                    new_value.u.list.data = malloc(new_value.u.list.len * sizeof(struct value_s));
+                    if (!new_value.u.list.data) err_msg_out_of_memory();
+                    ii = 0;
+                    while (ii < l1) {
+                        new_value.u.list.data[ii] = val_reference(v1->val->u.list.data[ii]);
+                        ii++;
+                    }
+                    while (ii < l1 + l2) {
+                        new_value.u.list.data[ii] = val_reference(v2->val->u.list.data[ii - l1]);
+                        ii++;
+                    }
+                    break;
                 default: err_msg_wrong_type(v1->val, v1->epoint); goto errtype;
             }
+            val_replace(&v1->val, &new_value);
+            free(new_value.u.list.data);
+            continue;
         }
         if (t2 == T_UNDEF) err_msg_wrong_type(v2->val, v2->epoint); 
         else err_msg_wrong_type(v1->val, v1->epoint);
