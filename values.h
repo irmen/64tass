@@ -37,6 +37,7 @@ enum type_e {
 #define type_is_num(a) ((a) >= T_BOOL && (a) <= T_FLOAT) 
 
 enum oper_e {
+    O_SEPARATOR,     // ,
     O_FUNC,          // a(
     O_INDEX,         // a[
     O_SLICE,         // a[x:
