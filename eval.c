@@ -1221,12 +1221,12 @@ static struct value_s *apply_op2(enum oper_e op, const struct value_s *v1, const
     enum type_e t2 = v2->type;
     struct value_s tmp1, tmp2;
 
+strretr:
     if (t1 == T_NONE) return &none_value;
     if (t2 == T_NONE) {
     errtype:
         return &none_value;
     }
-strretr:
 
     if (type_is_int(t1) && type_is_int(t2)) {
         ival_t val1 = v1->u.num.val;
