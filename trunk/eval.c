@@ -789,12 +789,10 @@ static void functions(struct values_s *vals, unsigned int args) {
                     return;
                 default: try_resolv_identref(&v[0].val);err_msg_wrong_type(v[0].val, v[0].epoint);
                 }
-                break;
 	    case T_NONE:
-		return;
+		break;
             case T_UNDEF:
-                if (pass == 1) val_replace(&vals->val, &none_value); else val_replace(&vals->val, v[0].val);
-                return;
+                if (pass == 1) break;
 	    default: err_msg_wrong_type(v[0].val, v[0].epoint);
 	    }
         }
