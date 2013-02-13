@@ -164,7 +164,7 @@ static int almost_equal(double a, double b) {
     return b - a < b * 0.0000000005;
 }
 
-static int str_to_num(struct value_s **v2, enum type_e type) {
+int str_to_num(struct value_s **v2, enum type_e type) {
     uint16_t ch;
     unsigned int large = 0;
     size_t i = 0;
@@ -1214,13 +1214,13 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 if (o_oper[operp-1] == ',') {operp--;ch = 'T';goto tphack;}
                 else if (o_oper[operp-1] == '(' || o_oper[operp-1] == 'F') goto other;
             }
-            goto syntaxe;
+            goto tryanon;
         case ']':
             if (operp) { 
                 if (o_oper[operp-1] == ',') {operp--;goto other;}
                 else if (o_oper[operp-1] == '[') goto other;
             }
-            goto syntaxe;
+            goto tryanon;
         case ':':
             if (operp && o_oper[operp-1] == 'I') {
                 set_uint(&o_out[outp].val, 0);
@@ -1271,6 +1271,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 o_out[outp++].epoint=epoint;
                 goto other;
             }
+        tryanon:
             db = operp;
             while (operp && o_oper[operp-1] == 'p') operp--;
             if (db != operp) {
@@ -1534,10 +1535,46 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_SINT:
             case T_NUM: new_value.type = T_NUM;
                         new_value.u.num.val = (uint16_t)(v1->val->u.num.val >> ((ch == 'l' || ch == 'L'|| ch == 'b') ? 0 : ((ch == 'h' || ch == 'H') ? 8 : 16)));
-                        if (ch == 'l' || ch == 'h') new_value.u.num.val &= 0xff;
+                        if (ch == 'l' || ch == 'h' || ch == 'B') new_value.u.num.val &= 0xff;
                         if (ch == 'b') new_value.u.num.val = (uint16_t)((new_value.u.num.val >> 8) | (new_value.u.num.val << 8));
-                        new_value.u.num.len = 1;val_replace(&v1->val, &new_value);
+                        new_value.u.num.len = (ch == 'l' || ch == 'h' || ch == 'B') ? 1 : 2;
+                        val_replace(&v1->val, &new_value);
                         v1->epoint = o_out[i].epoint;
+                        continue;
+            case T_LIST:
+            case T_TUPPLE:
+                        {
+                            size_t i;
+                            struct value_s **vals, *val;
+                            vals = malloc(v1->val->u.list.len * sizeof(struct value_s));
+                            for (i = 0;i < v1->val->u.list.len; i++) {
+                                val = v1->val->u.list.data[i];
+                                switch (val->type) {
+                                case T_STR:
+                                    if (str_to_num(&val, T_NUM)) {
+                                        err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
+                                    }
+                                case T_UINT:
+                                case T_SINT:
+                                case T_NUM: new_value.type = T_NUM;
+                                            new_value.u.num.val = (uint16_t)(val->u.num.val >> ((ch == 'l' || ch == 'L'|| ch == 'b') ? 0 : ((ch == 'h' || ch == 'H') ? 8 : 16)));
+                                            if (ch == 'l' || ch == 'h' || ch == 'B') new_value.u.num.val &= 0xff;
+                                            if (ch == 'b') new_value.u.num.val = (uint16_t)((new_value.u.num.val >> 8) | (new_value.u.num.val << 8));
+                                            new_value.u.num.len = (ch == 'l' || ch == 'h' || ch == 'B') ? 1 : 2;
+                                            vals[i] = val_reference(&new_value);
+                                            continue;
+                                default: err_msg_wrong_type(val, v1->epoint); 
+                                case T_NONE: 
+                                         vals[i] = val_reference(&none_value);
+                                         continue;
+                                }
+                            }
+                            new_value.type = v1->val->type;
+                            new_value.u.list.len = v1->val->u.list.len;
+                            new_value.u.list.data = vals;
+                            val_replace(&v1->val, &new_value);
+                            free(vals);
+                        }
                         continue;
             default: err_msg_wrong_type(v1->val, v1->epoint); 
                      goto errtype;
