@@ -70,7 +70,10 @@ static void val_destroy2(struct value_s *val) {
 }
 
 void val_destroy(struct value_s *val) {
-    if (!val->refcount) return;
+    if (!val->refcount) {
+        val_destroy2(val);
+        return;
+    }
     if (val->refcount == 1) {
         val_destroy2(val);
         value_free(val);

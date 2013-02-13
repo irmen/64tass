@@ -769,27 +769,28 @@ anything else is false.</p>
 <tr><td><tt>x ^^ y </tt><td align="left">if both false or true then false otherwise x || y
 <tr><td><tt>x &amp;&amp; y</tt><td align="left">if x is true then y otherwise x
 <tr><td><tt>!x</tt><td align="left">if x is true then false otherwise true
+<tr><td><tt>!!x</tt><td align="left">if x is true then true otherwise false
 </table>
 
 <p>The conditional operator gives the first (x) result if c is true or the second (y) if c is false.</p>
 
 <table border="0">
-<tr><td width="80"><tt>c ? x : y</tt><td align="left">ternary
+<tr><td width="80"><tt>c ? x : y</tt><td align="left">if c is true then x otherwise y
 </table>
 
 <p>Comparison operators result in true (1) or false (0) depending on the result.</p>
 
 <table border="0">
-<tr><td width="80"><tt>x = y</tt><td align="left">equal
-<tr><td><tt>x != y</tt><td align="left">non equal
-<tr><td><tt>x &lt; y</tt><td align="left">less
-<tr><td><tt>x &gt; y</tt><td align="left">more
-<tr><td><tt>x &gt;= y</tt><td align="left">more or equal
-<tr><td><tt>x &lt;= y</tt><td align="left">less or equal
+<tr><td width="80"><tt>x == y</tt><td align="left">x equals y or x is same as y
+<tr><td><tt>x != y</tt><td align="left">x is not equal to y or x is different to y
+<tr><td><tt>x &lt; y</tt><td align="left">x is less than y
+<tr><td><tt>x &gt; y</tt><td align="left">x is more than y
+<tr><td><tt>x &gt;= y</tt><td align="left">x is more than y or equals
+<tr><td><tt>x &lt;= y</tt><td align="left">x is less than y or equals
 </table>
 
 <pre width=80>
-        <b class="k">.if</b> <span class="l">ntsc</span>=<span>1</span>
+        <b class="k">.if</b> <span class="l">ntsc</span>==<span>1</span>
 	<b>nop</b>
 	<b class="k">.fi</b>
 </pre>
