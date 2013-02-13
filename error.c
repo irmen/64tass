@@ -305,7 +305,7 @@ void err_msg_variable(struct value_s *val, int repr) {
             add_user_error("]");
             break;
         }
-    case T_TUPPLE:
+    case T_TUPLE:
         {
             size_t i;
             add_user_error("(");

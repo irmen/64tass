@@ -1433,7 +1433,7 @@ static void compile(void)
                                         ch2 = (uint8_t)val->u.real;
                                         break;
                                     case T_LIST:
-                                    case T_TUPPLE:
+                                    case T_TUPLE:
                                         {
                                             size_t li;
                                             ch2 = -1;
@@ -1527,7 +1527,7 @@ static void compile(void)
                                 ch2 = uv;
                                 break;
                             case T_LIST:
-                            case T_TUPPLE:
+                            case T_TUPLE:
                                 {
                                     size_t li;
                                     for (li=0; li < val->u.list.len; li++) {

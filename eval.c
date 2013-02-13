@@ -664,7 +664,7 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     case T_FLOAT:
     case T_GAP:
     case T_LIST:
-    case T_TUPPLE:
+    case T_TUPLE:
         if (type == T_NONE) return values[0].val;
         if (type_is_int(type) || type == T_GAP) {
             switch (type2) {
@@ -736,7 +736,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             val_replace(&vals->val, &new_value);
             return;
         case T_LIST:
-        case T_TUPPLE:
+        case T_TUPLE:
             set_uint(&new_value, v[0].val->u.list.len);
             val_replace(&vals->val, &new_value);
             return;
@@ -1098,7 +1098,7 @@ static void list_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t st
     if (end < offs) end = offs;
     if (step == 1) {
         new_value.u.list.len = end - offs;
-        if (new_value.u.list.len == vals->val->u.list.len && new_value.type == T_TUPPLE) {
+        if (new_value.u.list.len == vals->val->u.list.len && new_value.type == T_TUPLE) {
             return; /* original tuple */
         }
         val = val_reference(vals->val);
@@ -1108,7 +1108,7 @@ static void list_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t st
     } else {
         val = vals->val;
         new_value.u.list.len = (end - offs + step - 1) / step;
-        new_value.u.list.data = malloc(new_value.u.list.len * sizeof(struct value_s));
+        new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
         if (!new_value.u.list.data) err_msg_out_of_memory();
         i = 0;
         while (end > offs) {
@@ -1125,7 +1125,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
 
     switch (try_resolv(&vals->val)) {
     case T_LIST:
-    case T_TUPPLE:
+    case T_TUPLE:
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
             switch (try_resolv(&v[0].val)) {
             case T_UINT:
@@ -1191,7 +1191,7 @@ static void slices(struct values_s *vals, unsigned int args) {
 
     switch (try_resolv(&vals->val)) {
     case T_LIST:
-    case T_TUPPLE:
+    case T_TUPLE:
     case T_STR:
         if (args > 3 || args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
             uval_t offs = 0, len = (vals->val->type == T_STR) ? vals->val->u.str.chars : vals->val->u.list.len, end = len;
@@ -1457,7 +1457,7 @@ strretr:
         return &new_value;
     }
 
-    if ((t1 == T_LIST && t2 == T_LIST) || (t1 == T_TUPPLE && t2 == T_TUPPLE)) {
+    if ((t1 == T_LIST && t2 == T_LIST) || (t1 == T_TUPLE && t2 == T_TUPLE)) {
         int /*l1, l2, ii,*/ val;
         switch (op) {
         case O_EQ:
@@ -1473,7 +1473,7 @@ strretr:
             l1 = v1->u.list.len;
             l2 = v2->u.list.len;
             new_value.u.list.len = l1 + l2;
-            new_value.u.list.data = malloc(new_value.u.list.len * sizeof(struct value_s));
+            new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
             if (!new_value.u.list.data) err_msg_out_of_memory();
             ii = 0;
             while (ii < l1) {
@@ -1490,10 +1490,10 @@ strretr:
         }
         return &new_value;
     }
-    if ((t1 == T_LIST || t1 == T_TUPPLE) && type_is_num(t2)) {
+    if ((t1 == T_LIST || t1 == T_TUPLE) && type_is_num(t2)) {
         size_t i;
         struct value_s **vals, *val;
-        vals = malloc(v1->u.list.len * sizeof(struct value_s));
+        vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
         for (i = 0;i < v1->u.list.len; i++) {
             val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, large);
             vals[i] = val_reference(val);
@@ -1504,10 +1504,10 @@ strretr:
         new_value.u.list.data = vals;
         return &new_value;
     }
-    if ((t2 == T_LIST || t2 == T_TUPPLE) && type_is_num(t1)) {
+    if ((t2 == T_LIST || t2 == T_TUPLE) && type_is_num(t1)) {
         size_t i;
         struct value_s **vals, *val;
-        vals = malloc(v2->u.list.len * sizeof(struct value_s));
+        vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
         for (i = 0;i < v2->u.list.len; i++) {
             val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, large);
             vals[i] = val_reference(val);
@@ -1518,7 +1518,7 @@ strretr:
         new_value.u.list.data = vals;
         return &new_value;
     }
-    if ((type_is_num(t1) || t1 == T_STR || t1 == T_LIST || t1 == T_TUPPLE) && (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPPLE) && t1 != t2) {
+    if ((type_is_num(t1) || t1 == T_STR || t1 == T_LIST || t1 == T_TUPLE) && (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPLE) && t1 != t2) {
         switch (op) {
         case O_EQ: return &false_value;
         case O_NEQ: return &true_value;
@@ -1620,9 +1620,9 @@ static int get_val2(int stop) {
                     v1 = &values[vsp-1-args];
                 }
                 if ((tup || stop) && args == 1) {val_replace(&v1->val, values[vsp-1].val); vsp--;continue;}
-                v1->val->type = (op == O_BRACKET) ? T_LIST : T_TUPPLE; // safe, replacing of T_OPER
+                v1->val->type = (op == O_BRACKET) ? T_LIST : T_TUPLE; // safe, replacing of T_OPER
                 v1->val->u.list.len = args;
-                v1->val->u.list.data = malloc(args * sizeof(struct value_s));
+                v1->val->u.list.data = malloc(args * sizeof(v1->val->u.list.data[0]));
                 if (!v1->val->u.list.data) err_msg_out_of_memory();
                 while (args--) {
                     try_resolv(&values[vsp-1].val);
@@ -1642,7 +1642,7 @@ static int get_val2(int stop) {
             case T_SINT: 
             case T_BOOL:
             case T_LIST:
-            case T_TUPPLE:
+            case T_TUPLE:
                 if (val_truth(values[vsp-1].val)) {
                     val_replace(&values[vsp-1].val, v1->val);
                     values[vsp-1].epoint = v1->epoint;
@@ -1679,11 +1679,11 @@ static int get_val2(int stop) {
                 v1->epoint = o_out[i].epoint;
                 continue;
             case T_LIST:
-            case T_TUPPLE:
+            case T_TUPLE:
                 {
                     size_t i;
                     struct value_s **vals, *val;
-                    vals = malloc(v1->val->u.list.len * sizeof(struct value_s));
+                    vals = malloc(v1->val->u.list.len * sizeof(new_value.u.list.data[0]));
                     for (i = 0;i < v1->val->u.list.len; i++) {
                         val = v1->val->u.list.data[i];
                         switch (val->type) {
@@ -1794,7 +1794,7 @@ static int get_val2(int stop) {
             case T_STR:
             case T_FLOAT:
             case T_LIST:
-            case T_TUPPLE:
+            case T_TUPLE:
                 val_replace(&v1->val, val_truth(v1->val) ? &false_value : &true_value);
                 v1->epoint = o_out[i].epoint;
                 continue;
@@ -1816,7 +1816,7 @@ static int get_val2(int stop) {
             case T_STR:
             case T_FLOAT:
             case T_LIST:
-            case T_TUPPLE:
+            case T_TUPLE:
                 if (op != O_LXOR) { 
                     if (val_truth(v1->val) != (op == O_LOR)) {
                         val_replace(&v1->val, v2->val);
@@ -1833,7 +1833,7 @@ static int get_val2(int stop) {
                 case T_STR:
                 case T_FLOAT:
                 case T_LIST:
-                case T_TUPPLE:
+                case T_TUPLE:
                 case T_NONE:
                     if (t2 == T_NONE) { val_replace(&v1->val, &none_value); continue;}
                     if (val_truth(v1->val)) {

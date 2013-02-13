@@ -61,7 +61,7 @@ static void val_destroy2(struct value_s *val) {
     switch (val->type) {
     case T_STR: free(val->u.str.data); break;
     case T_LIST: 
-    case T_TUPPLE: 
+    case T_TUPLE: 
         while (val->u.list.len) val_destroy(val->u.list.data[--val->u.list.len]);
         free(val->u.list.data);
     default:
@@ -91,8 +91,8 @@ static void val_copy2(struct value_s *val, const struct value_s *val2) {
         memcpy(val->u.str.data, val2->u.str.data, val2->u.str.len);
         break;
     case T_LIST:
-    case T_TUPPLE:
-        val->u.list.data = malloc(val2->u.list.len * sizeof(struct value_s));
+    case T_TUPLE:
+        val->u.list.data = malloc(val2->u.list.len * sizeof(val->u.list.data[0]));
         if (!val->u.list.data) err_msg_out_of_memory();
         for (val->u.list.len = 0; val->u.list.len < val2->u.list.len; val->u.list.len++)
             val->u.list.data[val->u.list.len] = val_reference(val2->u.list.data[val->u.list.len]);
@@ -140,7 +140,7 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
                     val->u.str.data == val2->u.str.data ||
                 !memcmp(val->u.str.data, val2->u.str.data, val2->u.str.len));
     case T_LIST:
-    case T_TUPPLE:
+    case T_TUPLE:
         if (val2->type == val->type) {
             if (val->u.list.len != val2->u.list.len) return 0;
             for (i = 0; i < val->u.list.len; i++) 
@@ -169,7 +169,7 @@ int val_truth(const struct value_s *val) {
     case T_STR: 
         return !!val->u.str.len;
     case T_LIST:
-    case T_TUPPLE:
+    case T_TUPLE:
         return !!val->u.list.len;
     default:
         return 0;
@@ -227,7 +227,7 @@ void val_print(struct value_s *value, FILE *flab) {
             fputc(']', flab);
             break;
         }
-    case T_TUPPLE:
+    case T_TUPLE:
         {
             size_t val;
             int first = 0;
