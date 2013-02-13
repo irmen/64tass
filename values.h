@@ -114,6 +114,7 @@ struct value_s {
 extern void val_destroy(struct value_s *);
 extern void val_replace(struct value_s **, struct value_s *);
 extern int val_equal(const struct value_s *, const struct value_s *);
+extern int val_truth(const struct value_s *);
 extern struct value_s *val_reference(struct value_s *);
 extern void val_print(struct value_s *, FILE *);
 

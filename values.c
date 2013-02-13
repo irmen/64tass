@@ -154,6 +154,25 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
     return 0;
 }
 
+int val_truth(const struct value_s *val) {
+    switch (val->type) {
+    case T_SINT:
+    case T_UINT:
+    case T_NUM:
+    case T_BOOL:
+        return !!val->u.num.val;
+    case T_FLOAT:
+        return !!val->u.real;
+    case T_STR: 
+        return !!val->u.str.len;
+    case T_LIST:
+    case T_TUPPLE:
+        return !!val->u.list.len;
+    default:
+        return 0;
+    }
+}
+
 void val_print(struct value_s *value, FILE *flab) {
     switch (value->type) {
     case T_NUM:

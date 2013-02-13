@@ -1709,24 +1709,13 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_SINT:
             case T_NUM: 
             case T_BOOL:
-            case T_UINT: new_value.type = T_UINT;
-                         new_value.u.num.val = !v1->val->u.num.val;
-                         new_value.u.num.len = 1;
-                         val_replace(&v1->val, &new_value);
-                         v1->epoint = o_out[i].epoint;
-                         continue;
-            case T_STR: new_value.type = T_UINT;
-                        new_value.u.num.val = !v1->val->u.str.len;
-                        new_value.u.num.len = 1;
-                        val_replace(&v1->val, &new_value);
-                        v1->epoint = o_out[i].epoint;
-                        continue;
-            case T_FLOAT: new_value.type = T_UINT;
-                          new_value.u.num.val = !v1->val->u.real;
-                          new_value.u.num.len = 1;
-                          val_replace(&v1->val, &new_value);
-                          v1->epoint = o_out[i].epoint;
-                          continue;
+            case T_UINT:
+            case T_STR:
+            case T_FLOAT:
+            case T_LIST:
+            case T_TUPPLE:
+                val_replace(&v1->val, val_truth(v1->val) ? &false_value : &true_value);
+                v1->epoint = o_out[i].epoint;
                 continue;
             default: err_msg_wrong_type(v1->val, v1->epoint);
                      goto errtype;
