@@ -209,7 +209,7 @@ static char *type_name(enum type_e t) {
     case T_OPER: return "<operator>";
     case T_GAP: return "<uninit>";
     case T_LIST: return "<list>";
-    case T_TUPPLE: return "<tupple>";
+    case T_TUPLE: return "<tuple>";
     case T_FLOAT: return "<float>";
     case T_BOOL: return "<bool>";
     }
@@ -367,7 +367,8 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
     case O_SEPARATOR: name = "',";break;
     case O_FUNC:    name = "function call '(";break;
     case O_INDEX:   name = "indexing '[";break;
-    case O_SLICE:   name = "slicing '[";break;
+    case O_SLICE: 
+    case O_SLICE2:  name = "slicing '[";break;
     case O_BRACKET: name = "'[";break;
     case O_PARENT:  name = "'(";break;
     case O_COND:    name = "condition '?";break;
@@ -406,7 +407,7 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
     case O_POS:     name = "unary positive '+";break;
     case O_INV:     name = "binary invert '~";break;
     case O_LNOT:    name = "logical not '!";break;
-    case O_TUPPLE:  name = "')";break;
+    case O_TUPLE:   name = "')";break;
     case O_RPARENT: name = "')";break;
     case O_RBRACKET:name = "']";break;
     }

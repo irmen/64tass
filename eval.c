@@ -352,6 +352,7 @@ static int priority(enum oper_e ch)
     case O_FUNC:               // a(
     case O_INDEX:              // a[
     case O_SLICE:              // a[x:
+    case O_SLICE2:             // a[x::
     case O_BRACKET:            // [a]
     case O_PARENT:return 0;    // (a)
     case O_COND:               // ?
@@ -1012,44 +1013,111 @@ static void functions(struct values_s *vals, unsigned int args) {
     val_replace(&vals->val, &none_value);
 }
 
-static void str_slice(struct values_s *vals, uval_t offs, uval_t end) {
+static inline int utf8len(uint8_t ch) {
+    if (ch < 0x80) return 1;
+    if (ch < 0xe0) return 2;
+    if (ch < 0xf0) return 3;
+    if (ch < 0xf8) return 4;
+    if (ch < 0xfc) return 5;
+    return 6;
+}
+
+static void str_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t step) {
     struct value_s *val;
-    uint8_t *p, ch;
+    uint8_t *p, *p2;
 
     if (end < offs) end = offs;
-    val = val_reference(vals->val);
-    p = val->u.str.data;
-    if (val->u.str.len == val->u.str.chars) {
-        new_value.u.str.len = end - offs;
+    if (step == 1) {
         new_value.u.str.chars = end - offs;
-        new_value.u.str.data = p + offs;
-    }
-    else {
-        while (offs--) {
-            ch = *p;
-            if (ch < 0x80) p++;
-            else if (ch < 0xe0) p += 2;
-            else if (ch < 0xf0) p += 3;
-            else if (ch < 0xf8) p += 4;
-            else if (ch < 0xfc) p += 5;
-            else p += 6;
+        if (new_value.u.str.chars == vals->val->u.str.chars) {
+            return; /* original string */
         }
-        new_value.u.str.data = p;
-        new_value.u.str.chars = end - offs;
-        end -= offs;
-        while (end--) {
-            ch = *p;
-            if (ch < 0x80) p++;
-            else if (ch < 0xe0) p += 2;
-            else if (ch < 0xf0) p += 3;
-            else if (ch < 0xf8) p += 4;
-            else if (ch < 0xfc) p += 5;
-            else p += 6;
+        val = val_reference(vals->val);
+        p = val->u.str.data;
+        if (val->u.str.len == val->u.str.chars) {
+            new_value.u.str.len = new_value.u.str.chars;
+            new_value.u.str.data = p + offs;
         }
-        new_value.u.str.len = new_value.u.str.data - p;
+        else {
+            uval_t i;
+            for (i = 0; i < offs; i++) {
+                p += utf8len(*p);
+            }
+            new_value.u.str.data = p;
+            for (; i < end; i++) {
+                p += utf8len(*p);
+            }
+            new_value.u.str.len = p - new_value.u.str.data;
+        }
+        new_value.type = T_STR;
+        val_replace(&vals->val, &new_value); val_destroy(val);
+    } else {
+        val = vals->val;
+        new_value.u.str.chars = (end - offs + step - 1) / step;
+        if (val->u.str.len == val->u.str.chars) {
+            new_value.u.str.len = new_value.u.str.chars;
+            p = new_value.u.str.data = malloc(new_value.u.str.len);
+            if (!new_value.u.str.data) err_msg_out_of_memory();
+            while (end > offs) {
+                *p++ = val->u.str.data[offs];
+                offs += step;
+            }
+        }
+        else {
+            uval_t i = offs, j, k;
+            p = val->u.str.data;
+            new_value.u.str.len = 0;
+            for (i = 0; i < offs; i++) {
+                p += utf8len(*p);
+            }
+            p2 = p;
+            for (k = offs; i < end; i++) {
+                j = utf8len(*p2);
+                if (i == k) {new_value.u.str.len += j; k += step;}
+                p2 += j;
+            }
+            p2 = p;
+            p = malloc(new_value.u.str.len);
+            if (!p) err_msg_out_of_memory();
+            new_value.u.str.data = p;
+            for (k = i = offs; i < end; i++) {
+                j = utf8len(*p2);
+                if (i == k) {memcpy(p, p2, j);p += j; k += step;}
+                p2 += j;
+            }
+        }
+        new_value.type = T_STR;
+        val_replace(&vals->val, &new_value); val_destroy(&new_value);
     }
-    new_value.type = T_STR;
-    val_replace(&vals->val, &new_value); val_destroy(val);
+}
+
+static void list_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t step) {
+    struct value_s *val;
+    size_t i;
+
+    if (end < offs) end = offs;
+    if (step == 1) {
+        new_value.u.list.len = end - offs;
+        if (new_value.u.list.len == vals->val->u.list.len && new_value.type == T_TUPPLE) {
+            return; /* original tuple */
+        }
+        val = val_reference(vals->val);
+        new_value.u.list.data = &val->u.list.data[offs];
+        new_value.type = vals->val->type;
+        val_replace(&vals->val, &new_value); val_destroy(val);
+    } else {
+        val = vals->val;
+        new_value.u.list.len = (end - offs + step - 1) / step;
+        new_value.u.list.data = malloc(new_value.u.list.len * sizeof(struct value_s));
+        if (!new_value.u.list.data) err_msg_out_of_memory();
+        i = 0;
+        while (end > offs) {
+            new_value.u.list.data[i++] = val_reference(val->u.list.data[offs]);
+            offs += step;
+        }
+        new_value.type = vals->val->type;
+        val_replace(&vals->val, &new_value); val_destroy(&new_value);
+    }
 }
 
 static void indexes(struct values_s *vals, unsigned int args) {
@@ -1102,7 +1170,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
                         }
                         else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
                     }
-                    str_slice(vals, offs, offs + 1);
+                    str_slice(vals, offs, offs + 1, 1);
                 }
                 return;
             default: err_msg_invalid_oper(O_INDEX, v[0].val, NULL, v[0].epoint);
@@ -1124,70 +1192,10 @@ static void slices(struct values_s *vals, unsigned int args) {
     switch (try_resolv(&vals->val)) {
     case T_LIST:
     case T_TUPPLE:
-        if (args != 2 && args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
-            uval_t offs, end = vals->val->u.list.len, i = 0;
-            switch (try_resolv(&v[0].val)) {
-            case T_UINT:
-            case T_SINT:
-            case T_NUM:
-            case T_BOOL:
-                if (args == 1) goto skipme;
-                switch (try_resolv(&v[1].val)) {
-                case T_UINT:
-                case T_SINT:
-                case T_NUM:
-                case T_BOOL:
-                    {
-                        if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
-                            if ((uval_t)v[1].val->u.num.val <= vals->val->u.list.len) {
-                                end = (uval_t)v[1].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
-                        } else {
-                            if ((uval_t)-v[1].val->u.num.val <= vals->val->u.list.len) {
-                                end = vals->val->u.list.len + v[1].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
-                        }
-                    skipme:
-                        if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
-                            if ((uval_t)v[0].val->u.num.val < vals->val->u.list.len) {
-                                offs = (uval_t)v[0].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
-                        } else {
-                            if ((uval_t)-v[0].val->u.num.val <= vals->val->u.list.len) {
-                                offs = vals->val->u.list.len + v[0].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
-                        }
-                        if (end < offs) end = offs;
-                        new_value.type = vals->val->type;
-                        new_value.u.list.len = end - offs;
-                        new_value.u.list.data = malloc(new_value.u.list.len * sizeof(struct value_s));
-                        if (!new_value.u.list.data) err_msg_out_of_memory();
-                        while (end > offs) {
-                            new_value.u.list.data[i++] = val_reference(vals->val->u.list.data[offs]);
-                            offs++;
-                        }
-                        val_replace(&vals->val, &new_value);
-                        free(new_value.u.list.data);
-                    }
-                    return;
-                default: err_msg_invalid_oper(O_SLICE, v[1].val, NULL, v[1].epoint);
-                case T_NONE: 
-                         val_replace(&vals->val, &none_value);
-                         return;
-                }
-            default: err_msg_invalid_oper(O_SLICE, v[0].val, NULL, v[0].epoint);
-            case T_NONE: break;
-            }
-        }
-        val_replace(&vals->val, &none_value);
-        break;
     case T_STR:
-        if (args != 2 && args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
-            uval_t offs, end = vals->val->u.str.chars;
+        if (args > 3 || args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
+            uval_t offs = 0, len = (vals->val->type == T_STR) ? vals->val->u.str.chars : vals->val->u.list.len, end = len;
+            ival_t step = 1;
             switch (try_resolv(&v[0].val)) {
             case T_UINT:
             case T_SINT:
@@ -1199,33 +1207,49 @@ static void slices(struct values_s *vals, unsigned int args) {
                 case T_SINT:
                 case T_NUM:
                 case T_BOOL:
-                    {
-                        if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
-                            if ((uval_t)v[1].val->u.num.val <= vals->val->u.str.chars) {
-                                end = (uval_t)v[1].val->u.num.val;
+                    if (args == 2) goto skipme2a;
+                    switch (try_resolv(&v[2].val)) {
+                    case T_UINT:
+                    case T_SINT:
+                    case T_NUM:
+                    case T_BOOL:
+                        {
+                            if ((v[2].val->type == T_SINT && v[2].val->u.num.val < 0) || v[2].val->u.num.val == 0) {
+                                err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;
                             }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
-                        } else {
-                            if ((uval_t)-v[1].val->u.num.val <= vals->val->u.str.chars) {
-                                end = vals->val->u.str.chars + v[1].val->u.num.val;
+                            step = v[2].val->u.num.val;
+                        skipme2a:
+                            if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
+                                if ((uval_t)v[1].val->u.num.val <= end) {
+                                    end = (uval_t)v[1].val->u.num.val;
+                                }
+                            } else {
+                                if ((uval_t)-v[1].val->u.num.val <= end) {
+                                    end += v[1].val->u.num.val;
+                                } else end = 0;
                             }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[1].epoint); val_replace(&vals->val, &none_value);return;}
+                        skipme2:
+                            if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
+                                if ((uval_t)v[0].val->u.num.val < end) {
+                                    offs = (uval_t)v[0].val->u.num.val;
+                                } else offs = end;
+                            } else {
+                                if ((uval_t)-v[0].val->u.num.val <= len) {
+                                    offs = len + v[0].val->u.num.val;
+                                }
+                            }
+                            if (vals->val->type == T_STR) {
+                                str_slice(vals, offs, end, step);
+                            } else {
+                                list_slice(vals, offs, end, step);
+                            }
                         }
-                    skipme2:
-                        if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
-                            if ((uval_t)v[0].val->u.num.val < vals->val->u.str.chars) {
-                                offs = (uval_t)v[0].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
-                        } else {
-                            if ((uval_t)-v[0].val->u.num.val <= vals->val->u.str.chars) {
-                                offs = vals->val->u.str.chars + v[0].val->u.num.val;
-                            }
-                            else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
-                        }
-                        str_slice(vals, offs, end);
+                        return;
+                    default: err_msg_invalid_oper(O_SLICE, v[2].val, NULL, v[2].epoint);
+                    case T_NONE: 
+                             val_replace(&vals->val, &none_value);
+                             return;
                     }
-                    return;
                 default: err_msg_invalid_oper(O_SLICE, v[1].val, NULL, v[1].epoint);
                 case T_NONE: 
                          val_replace(&vals->val, &none_value);
@@ -1571,8 +1595,9 @@ static int get_val2(int stop) {
         case O_FUNC:
         case O_INDEX:
         case O_SLICE:
+        case O_SLICE2:
             {
-                unsigned int args = 0, slice = (op == O_SLICE);
+                unsigned int args = 0, slice = (op == O_SLICE || op == O_SLICE2);
                 op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
                 while (v1->val->type != T_OPER || v1->val->u.oper != op) {
                     args++;
@@ -1586,7 +1611,7 @@ static int get_val2(int stop) {
             }
         case O_RBRACKET:
         case O_RPARENT:
-        case O_TUPPLE:
+        case O_TUPLE:
             {
                 unsigned int args = 0, tup = (op == O_RPARENT);
                 op = (op == O_RBRACKET) ? O_BRACKET : O_PARENT;
@@ -1885,7 +1910,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         switch (ch) {
         case ')':
             if (operp) {
-                if (o_oper[operp-1] == O_COMMA) {operp--;op = O_TUPPLE;goto tphack;}
+                if (o_oper[operp-1] == O_COMMA) {operp--;op = O_TUPLE;goto tphack;}
                 else if (o_oper[operp-1] == O_PARENT || o_oper[operp-1] == O_FUNC) goto other;
             }
             goto tryanon;
@@ -1898,6 +1923,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case ':':
             if (operp && o_oper[operp-1] == O_INDEX) {
                 set_uint(&o_out[outp].val, 0);
+                goto pushval;
+            } else if (operp > 1 && o_oper[operp-1] == O_COMMA && o_oper[operp-2] == O_SLICE) {
+                set_uint(&o_out[outp].val, (uval_t)~0);
                 goto pushval;
             }
             goto syntaxe;
@@ -1980,7 +2008,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case ',':
             if (stop) {
                 while (operp && o_oper[operp-1] != O_PARENT) {
-                    if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE) {err_msg(ERROR______EXPECTED,"("); goto error;}
+                    if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE || o_oper[operp-1]==O_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
                     o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
                 }
                 if (!operp) break;
@@ -2019,6 +2047,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             prec = priority(op);
             while (operp && prec <= priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
             if (operp && o_oper[operp-1] == O_INDEX) { o_oper[operp-1] = O_SLICE; op = O_COMMA;}
+            else if (operp && o_oper[operp-1] == O_SLICE) { o_oper[operp-1] = O_SLICE2; op = O_COMMA;}
             else {
                 if (o_oper[operp] == O_COND) cond--;
                 else {err_msg(ERROR______EXPECTED,"?");goto error;}
@@ -2060,7 +2089,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             op = O_RPARENT;
         tphack:
             while (operp && o_oper[operp-1] != O_PARENT && o_oper[operp-1] != O_FUNC) {
-                if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE) {err_msg(ERROR______EXPECTED,"("); goto error;}
+                if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE || o_oper[operp-1]==O_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
                 o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
             }
             lpoint++;
@@ -2069,7 +2098,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper = (o_oper[operp] == O_PARENT)? op : o_oper[operp];
             goto other;
         case ']':
-            while (operp && o_oper[operp-1] != O_BRACKET && o_oper[operp-1] != O_INDEX && o_oper[operp-1] != O_SLICE) {
+            while (operp && o_oper[operp-1] != O_BRACKET && o_oper[operp-1] != O_INDEX && o_oper[operp-1] != O_SLICE && o_oper[operp-1] != O_SLICE2) {
                 if (o_oper[operp-1]==O_PARENT || o_oper[operp-1]==O_FUNC) {err_msg(ERROR______EXPECTED,"["); goto error;}
                 o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
             }
@@ -2087,7 +2116,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             if (!operp) {cd=3;break;}
             if (ch == ',') {
                 while (operp && o_oper[operp-1] != O_PARENT) {
-                    if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE) {err_msg(ERROR______EXPECTED,"("); goto error;}
+                    if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE || o_oper[operp-1]==O_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
                     o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
                 }
                 if (operp==1) {cd=2; break;}
@@ -2099,7 +2128,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         } else {
             while (operp) {
                 if (o_oper[operp-1] == O_PARENT || o_oper[operp-1] == O_FUNC) {err_msg(ERROR______EXPECTED,")"); goto error;}
-                if (o_oper[operp-1] == O_BRACKET || o_oper[operp-1] == O_INDEX || o_oper[operp-1]==O_SLICE) {err_msg(ERROR______EXPECTED,"]"); goto error;}
+                if (o_oper[operp-1] == O_BRACKET || o_oper[operp-1] == O_INDEX || o_oper[operp-1]==O_SLICE || o_oper[operp-1]==O_SLICE2) {err_msg(ERROR______EXPECTED,"]"); goto error;}
                 o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
             }
             if (!operp) {cd=1;break;}
