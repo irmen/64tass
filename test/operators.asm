@@ -16,6 +16,11 @@
     .cerror (1 ^^ "") != 1
     .cerror (1 ^^ 2) != 0
 
+    .cerror 1 ? 0 : unknown
+    .cerror 0 ? unknown : 0
+    .cerror 0 && unknown
+    .cerror !(1 || unknown)
+
 ; check all operators
 
 ; bit or

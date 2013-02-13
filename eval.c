@@ -1838,7 +1838,13 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_BOOL:
             case T_LIST:
             case T_TUPPLE:
-                val_replace(&values[vsp-1].val, val_truth(values[vsp-1].val) ? v1->val : v2->val);
+                if (val_truth(values[vsp-1].val)) {
+                    val_replace(&values[vsp-1].val, v1->val);
+                    values[vsp-1].epoint = v1->epoint;
+                } else {
+                    val_replace(&values[vsp-1].val, v2->val);
+                    values[vsp-1].epoint = v2->epoint;
+                }
                 continue;
             default: err_msg_invalid_oper(O_COND, values[vsp-1].val, NULL, values[vsp-1].epoint); 
                      goto errtype;
@@ -1996,7 +2002,6 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case O_LXOR:
             v2 = v1; v1 = &values[--vsp-1];
             if (vsp == 0) goto syntaxe;
-            t2 = try_resolv(&v2->val);
             t1 = try_resolv(&v1->val);
             switch (t1) {
             case T_SINT:
@@ -2007,6 +2012,14 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case T_FLOAT:
             case T_LIST:
             case T_TUPPLE:
+                if (op != O_LXOR) { 
+                    if (val_truth(v1->val) != (op == O_LOR)) {
+                        val_replace(&v1->val, v2->val);
+                        v1->epoint = v2->epoint;
+                    }
+                    continue;
+                }
+                t2 = try_resolv(&v2->val);
                 switch (t2) {
                 case T_SINT:
                 case T_NUM: 
@@ -2017,17 +2030,11 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 case T_LIST:
                 case T_TUPPLE:
                 case T_NONE:
-                    if (op == O_LXOR) {
-                        if (t2 == T_NONE) { val_replace(&v1->val, &none_value ); continue;}
-                        if (val_truth(v1->val)) {
-                            if (val_truth(v2->val)) val_replace(&v1->val, &false_value);
-                        } else {
-                            val_replace(&v1->val, val_truth(v2->val) ? v2->val : &false_value );
-                        }
-                        continue;
-                    }
-                    if (val_truth(v1->val) ^ (op == O_LOR)) { 
-                        val_replace(&v1->val, v2->val);
+                    if (t2 == T_NONE) { val_replace(&v1->val, &none_value); continue;}
+                    if (val_truth(v1->val)) {
+                        if (val_truth(v2->val)) val_replace(&v1->val, &false_value);
+                    } else {
+                        val_replace(&v1->val, val_truth(v2->val) ? v2->val : &false_value);
                     }
                     continue;
                 default: err_msg_invalid_oper(op, v1->val, v2->val, v2->epoint); 
