@@ -1508,7 +1508,7 @@ static void compile(void)
                             if (val == &error_value) ch2 = 0; else
                             switch (val->type) {
                             case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
-                            case T_STR: if (str_to_num(&val, T_NUM)) large = epoint;
+                            case T_STR: if (str_to_num(val, T_NUM, &new_value)) {large = epoint; ch2 = 0; break;} val = &new_value;
                             case T_FLOAT:
                             case T_NUM:
                             case T_BOOL:

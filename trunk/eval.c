@@ -192,22 +192,21 @@ static uval_t apply_byteop(enum oper_e op, uval_t val, uint8_t *len) {
     }
 }
 
-int str_to_num(struct value_s **v2, enum type_e type) {
+int str_to_num(const struct value_s *v, enum type_e type, struct value_s *v2) {
     uint16_t ch;
     unsigned int large = 0;
     size_t i = 0;
     uval_t val = 0;
-    struct value_s *v = *v2;
 
     if (actual_encoding) {
         while (v->u.str.len > i) {
             if (large >= (arguments.tasmcomp ? 1 : sizeof(val))) {
-                val_replace(v2, &none_value);return 1;
+                v2->type = T_NONE;return 1;
             }
 
             ch = petascii(&i, v);
             if (ch > 255) {
-                val_replace(v2, &none_value);return 1;
+                v2->type = T_NONE;return 1;
             }
 
             val |= (uint8_t)ch << (8 * large);
@@ -220,17 +219,22 @@ int str_to_num(struct value_s **v2, enum type_e type) {
         if (ch & 0x80) i = utf8in(v->u.str.data, &ch); else i=1;
 
         if (v->u.str.len > i) {
-            val_replace(v2, &none_value);return 1;
+            v2->type = T_NONE;return 1;
         }
         val = ch;
     } else {
-        val_replace(v2, &none_value);return 1;
+        v2->type = T_NONE;return 1;
     }
-    new_value.type = type;
-    new_value.u.num.val = val;
-    new_value.u.num.len = large | (!large);
-    val_replace(v2, &new_value);
+    v2->type = type;
+    v2->u.num.val = val;
+    v2->u.num.len = large | (!large);
     return 0;
+}
+
+static int str_to_num2(struct value_s **v2, enum type_e type) {
+    int r = str_to_num(*v2, type, &new_value);
+    val_replace(v2, &new_value);
+    return r;
 }
 
 static void get_string(struct value_s *v, uint8_t ch) {
@@ -519,7 +523,7 @@ rest:
         if (op == O_LOWER || op == O_HIGHER) {
             switch (t1) {
             case T_STR:
-                if (str_to_num(&values[vsp-1].val, T_NUM)) {
+                if (str_to_num2(&values[vsp-1].val, T_NUM)) {
                     err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-1].epoint); large=1;
                 }
             case T_UINT:
@@ -550,13 +554,13 @@ rest:
         t2 = try_resolv(&values[vsp-2].val);
 
         if (type_is_int(t1) && t2 == T_STR) {
-            if (str_to_num(&values[vsp-2].val, T_NUM)) {
+            if (str_to_num2(&values[vsp-2].val, T_NUM)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-2].epoint); large=1;
             }
             t2 = values[vsp-2].val->type;
         }
         if (type_is_int(t2) && t1 == T_STR) {
-            if (str_to_num(&values[vsp-1].val, T_NUM)) {
+            if (str_to_num2(&values[vsp-1].val, T_NUM)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-1].epoint); large=1;
             }
             t1 = values[vsp-1].val->type;
@@ -633,7 +637,7 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
         if (type_is_int(type) || type == T_GAP) {
             switch (type2) {
             case T_STR:
-                if (str_to_num(&values[values_p].val, (type == T_GAP) ? T_NUM : type)) {
+                if (str_to_num2(&values[values_p].val, (type == T_GAP) ? T_NUM : type)) {
                     err_msg2(ERROR_CONSTNT_LARGE, NULL, values[values_p++].epoint);
                     return &error_value;
                 }
@@ -1584,7 +1588,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case O_BANK: // `
             switch (try_resolv(&v1->val)) {
             case T_STR:
-                if (str_to_num(&v1->val, T_NUM)) {
+                if (str_to_num2(&v1->val, T_NUM)) {
                     err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
                 }
             case T_UINT:
@@ -1606,7 +1610,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                         val = v1->val->u.list.data[i];
                         switch (val->type) {
                         case T_STR:
-                            if (str_to_num(&val, T_NUM)) {
+                            if (str_to_num2(&val, T_NUM)) {
                                 err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
                             }
                         case T_UINT:
@@ -1636,7 +1640,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case O_STRING: // ^
             switch (try_resolv(&v1->val)) {
             case T_STR:
-                if (str_to_num(&v1->val, T_NUM)) {
+                if (str_to_num2(&v1->val, T_NUM)) {
                     err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
                 }
             case T_UINT:
@@ -1662,7 +1666,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             new_value.type = T_NUM;
             switch (try_resolv(&v1->val)) {
             case T_STR:
-                if (str_to_num(&v1->val, T_NUM)) {
+                if (str_to_num2(&v1->val, T_NUM)) {
                     err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
                 }
             case T_UINT:
@@ -1687,7 +1691,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case O_INV:
             switch (try_resolv(&v1->val)) {
             case T_STR:
-                if (str_to_num(&v1->val, T_NUM)) {
+                if (str_to_num2(&v1->val, T_NUM)) {
                     err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
                 }
             case T_SINT:
@@ -1846,14 +1850,14 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         }
 
         if (t1 == T_STR && type_is_num(t2)) {
-            if (str_to_num(&v1->val, T_NUM)) {
+            if (str_to_num2(&v1->val, T_NUM)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
             }
             t1 = v1->val->type;
             goto strretr;
         }
         if (t2 == T_STR && type_is_num(t1)) {
-            if (str_to_num(&v2->val, T_NUM)) {
+            if (str_to_num2(&v2->val, T_NUM)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint); large=1;
             }
             t2 = v2->val->type;
@@ -1897,10 +1901,10 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 case O_ASHIFT: 
                 case O_RSHIFT: 
                 case O_EXP: 
-                    if (str_to_num(&v1->val, T_NUM)) {
+                    if (str_to_num2(&v1->val, T_NUM)) {
                         err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
                     }
-                    if (str_to_num(&v2->val, T_NUM)) {
+                    if (str_to_num2(&v2->val, T_NUM)) {
                         err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint); large=1;
                     }
                     t1 = v1->val->type;
