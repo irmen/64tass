@@ -33,6 +33,54 @@ enum type_e {
     T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_LIST, T_TUPPLE,
 };
 
+enum oper_e {
+    O_FUNC,          // a(
+    O_INDEX,         // a[
+    O_SLICE,         // a[x:
+    O_BRACKET,       // [a]
+    O_PARENT,        // (a)
+    O_COND,          // ?
+    O_COLON,         // :
+    O_COMMA,         // ,
+    O_WORD,          // <>
+    O_HWORD,         // >`
+    O_BSWORD,        // ><
+    O_LOWER,         // <
+    O_HIGHER,        // >
+    O_BANK,          // `
+    O_STRING,        // ^
+    O_LOR,           // ||
+    O_LXOR,          // ^^
+    O_LAND,          // &&
+    O_EQ,            // =
+    O_NEQ,           // !=
+    O_LT,            // <
+    O_GT,            // >
+    O_GE,            // >=
+    O_LE,            // <=
+    O_OR,            // |
+    O_XOR,           // ^
+    O_AND,           // &
+    O_LSHIFT,        // <<
+    O_ASHIFT,        // >>
+    O_RSHIFT,        // >>>
+    O_ADD,           // +
+    O_SUB,           // -
+    O_MUL,           // *
+    O_DIV,           // /
+    O_MOD,           // %
+    O_EXP,           // **
+    O_MEMBER,        // .
+    O_NEG,           // -
+    O_POS,           // +
+    O_INV,           // ~
+    O_LNOT,          // !
+
+    O_TUPPLE,         // )
+    O_RPARENT,        // )
+    O_RBRACKET,       // ]
+};
+
 struct value_s {
     enum type_e type;
     size_t refcount;
@@ -55,7 +103,7 @@ struct value_s {
             struct value_s **data;
         } list;
         struct label_s *label;
-        char oper;
+        enum oper_e oper;
         uint8_t ref;
         double real;
     } u;

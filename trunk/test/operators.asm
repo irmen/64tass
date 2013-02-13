@@ -1,3 +1,10 @@
+
+    .warn (1,)
+    .warn ()
+    .warn min()
+    .warn [1,]
+    .warn []
+
 ; check all operators
 
 ; bit or
