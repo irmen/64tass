@@ -679,19 +679,23 @@ to make sure the expected addressing mode is used.
 @w          to force 16 bit address
 @l          to force 24 bit address (65816)
 
-Boolean operators give 0 or 1 as a result.
+        lda @w$0000
 
-x || y      or
-x ^^ y      exclusive or
-x && y      and
-!x          not
+Boolean operators give false (0) or true (1) or one of the operands as the
+result. True is defined as a non-zero number, a non-empty string/tupple/list,
+anything else is false.
+
+x || y      if x is true then x otherwise y
+x ^^ y      if both false or true then false otherwise x || y
+x && y      if x is true then y otherwise x
+!x          if x is true then false otherwise true
 
 The conditional operator gives the first (x) result if c is true or the second
 (y) if c is false.
 
 c ? x : y   ternary
 
-Comparison operators result in 1 or 0 depending on the result.
+Comparison operators result in true (1) or false (0) depending on the result.
 
 x = y       equal
 x != y      non equal

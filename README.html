@@ -744,7 +744,7 @@ by the following operators:</p>
         <b>ldx</b> #&lt;&gt;<span class="l">source</span>
         <b>ldy</b> #&lt;&gt;<span class="l">dest</span>
         <b>lda</b> #size(<span class="l">source</span>)-1
-        <b>mvn</b> `<span>source</span>, `<span>dest</span>
+        <b>mvn</b> `<span class="l">source</span>, `<span class="l">dest</span>
 </pre>
 
 <p>Special addressing mode forcing operators in front of an expression can be
@@ -756,13 +756,19 @@ used to make sure the expected addressing mode is used.</p>
 <tr><td><tt>@l</tt><td align="left">to force 24 bit address (65816)
 </table>
 
-<p>Boolean operators give 0 or 1 as a result.</p>
+<pre width=80>
+        <b>lda</b> @w<span>$0000</span>
+</pre>
+
+<p>Boolean operators give false (0) or true (1) or one of the operands as the
+result. True is defined as a non-zero number, a non-empty string/tupple/list,
+anything else is false.</p>
 
 <table border="0">
-<tr><td width="80"><tt>x || y</tt><td align="left">or
-<tr><td><tt>x ^^ y </tt><td align="left">exclusive or
-<tr><td><tt>x &amp;&amp; y</tt><td align="left">and
-<tr><td><tt>!x</tt><td align="left">not
+<tr><td width="80"><tt>x || y</tt><td align="left">if x is true then x otherwise y
+<tr><td><tt>x ^^ y </tt><td align="left">if both false or true then false otherwise x || y
+<tr><td><tt>x &amp;&amp; y</tt><td align="left">if x is true then y otherwise x
+<tr><td><tt>!x</tt><td align="left">if x is true then false otherwise true
 </table>
 
 <p>The conditional operator gives the first (x) result if c is true or the second (y) if c is false.</p>
@@ -771,7 +777,7 @@ used to make sure the expected addressing mode is used.</p>
 <tr><td width="80"><tt>c ? x : y</tt><td align="left">ternary
 </table>
 
-<p>Comparison operators result in 1 or 0 depending on the result.</p>
+<p>Comparison operators result in true (1) or false (0) depending on the result.</p>
 
 <table border="0">
 <tr><td width="80"><tt>x = y</tt><td align="left">equal

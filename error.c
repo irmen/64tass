@@ -160,7 +160,7 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
     else if (no<0x80) {
         adderror("error: ");
         if (no==ERROR____PAGE_ERROR) {
-            adderror("Page error at $"); 
+            adderror("Page error at $");
             sprintf(line,"%06" PRIaddress,(address_t)prm); adderror(line);
             conderrors++;
         }
@@ -194,26 +194,34 @@ void err_msg(enum errors_e no, const char* prm) {
     err_msg2(no,prm, lpoint);
 }
 
+static char *type_name(enum type_e t) {
+    switch (t) {
+    case T_SINT: return "<sint>";
+    case T_UINT: return "<uint>";
+    case T_NUM: return "<num>";
+    case T_STR: return "<string>";
+    case T_UNDEF: return "<undefined>";
+    case T_IDENT: return "<ident>";
+    case T_IDENTREF: return "<identref>";
+    case T_NONE: return "<none>";
+    case T_BACKR: return "<backr>";
+    case T_FORWR: return "<forwr>";
+    case T_OPER: return "<operator>";
+    case T_GAP: return "<uninit>";
+    case T_LIST: return "<list>";
+    case T_TUPPLE: return "<tupple>";
+    case T_FLOAT: return "<float>";
+    case T_BOOL: return "<bool>";
+    }
+    return NULL;
+}
+
 void err_msg_wrong_type(const struct value_s *val, unsigned int epoint) {
     const char *name = NULL;
-    switch (val->type) {
-    case T_SINT: name = "<sint>";break;
-    case T_UINT: name = "<uint>";break;
-    case T_NUM: name = "<num>";break;
-    case T_STR: name = "<string>";break;
-    case T_UNDEF: err_msg2(ERROR___NOT_DEFINED, "", epoint);return;
-    case T_IDENT: name = "<ident>";break;
-    case T_IDENTREF: name = "<identref>";break;
-    case T_NONE: name = "<none>";break;
-    case T_BACKR: name = "<backr>";break;
-    case T_FORWR: name = "<forwr>";break;
-    case T_OPER: name = "<operator>";break;
-    case T_GAP: name = "<uninit>";break;
-    case T_LIST: name = "<list>";break;
-    case T_TUPPLE: name = "<tupple>";break;
-    case T_FLOAT: name = "<float>";break;
-    case T_BOOL: name = "<bool>";break;
+    if (val->type == T_UNDEF) {
+        err_msg2(ERROR___NOT_DEFINED, "", epoint);return;
     }
+    name = type_name(val->type);
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
 }
 
@@ -245,7 +253,7 @@ void err_msg_variable(struct value_s *val, int repr) {
         else sprintf(buffer,"$%08" PRIxval, val->u.num.val);
         add_user_error(buffer); break;
     }
-    case T_FLOAT: 
+    case T_FLOAT:
        {
            int i = 0;
            sprintf(buffer, "%.10g", val->u.real);
@@ -254,7 +262,7 @@ void err_msg_variable(struct value_s *val, int repr) {
            add_user_error(buffer);
            break;
        }
-    case T_STR: 
+    case T_STR:
        {
            if (repr) {
                char *c;
@@ -337,6 +345,85 @@ void err_msg_double_defined(const char *origname, const char *file, line_t sline
     errors++;
 }
 
+void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct value_s *v2, unsigned int epoint) {
+    char *name;
+
+    if (v1->type == T_UNDEF || (v2 && v2->type == T_UNDEF)) {
+        err_msg2(ERROR___NOT_DEFINED, "", epoint);return;
+    }
+
+    if (errors+conderrors==99) {
+        err_msg(ERROR__TOO_MANY_ERR, NULL);
+        return;
+    }
+
+    addorigin(epoint);
+    if (v2) {
+        adderror("error: invalid operands to ");
+    } else {
+        adderror("error: invalid type argument to ");
+    }
+    switch (op) {
+    case O_FUNC:    name = "function call '(";break;
+    case O_INDEX:   name = "indexing '[";break;
+    case O_SLICE:   name = "slicing '[";break;
+    case O_BRACKET: name = "'[";break;
+    case O_PARENT:  name = "'(";break;
+    case O_COND:    name = "condition '?";break;
+    case O_COLON:   name = "':";break;
+    case O_COMMA:   name = "',";break;
+    case O_WORD:    name = "word '<>";break;
+    case O_HWORD:   name = "high word '>`";break;
+    case O_BSWORD:  name = "swapped word '><";break;
+    case O_LOWER:   name = "low byte '<";break;
+    case O_HIGHER:  name = "high byte '>";break;
+    case O_BANK:    name = "bank byte '`";break;
+    case O_STRING:  name = "string '^";break;
+    case O_LOR:     name = "logical or '||";break;
+    case O_LXOR:    name = "logical xor '^^";break;
+    case O_LAND:    name = "logical and '&&";break;
+    case O_EQ:      name = "equal '=";break;
+    case O_NEQ:     name = "not equal '!=";break;
+    case O_LT:      name = "less than '<";break;
+    case O_GT:      name = "greater than '>";break;
+    case O_GE:      name = "greater than or equal '>=";break;
+    case O_LE:      name = "less than or equal '<=";break;
+    case O_OR:      name = "binary or '|";break;
+    case O_XOR:     name = "binary exclusive or '^";break;
+    case O_AND:     name = "binary and '&";break;
+    case O_LSHIFT:  name = "binary left shift '<<";break;
+    case O_ASHIFT:  name = "arithmetic right shift '>>";break;
+    case O_RSHIFT:  name = "binary right shift '>>>";break;
+    case O_ADD:     name = "add '+";break;
+    case O_SUB:     name = "substract '-";break;
+    case O_MUL:     name = "multiply '*";break;
+    case O_DIV:     name = "division '/";break;
+    case O_MOD:     name = "modulo '%";break;
+    case O_EXP:     name = "exponent '**";break;
+    case O_MEMBER:  name = "member '.";break;
+    case O_NEG:     name = "unary negative '-";break;
+    case O_POS:     name = "unary positive '+";break;
+    case O_INV:     name = "binary invert '~";break;
+    case O_LNOT:    name = "logical not '!";break;
+    case O_TUPPLE:  name = "')";break;
+    case O_RPARENT: name = "')";break;
+    case O_RBRACKET:name = "']";break;
+    }
+    adderror(name);
+
+    if (v2) {
+        adderror("' '");
+        adderror(type_name(v1->type));
+        adderror("' and '");
+        adderror(type_name(v2->type));
+    } else {
+        adderror("' '");
+        adderror(type_name(v1->type));
+    }
+    adderror("'\n");
+    errors++;
+}
+
 void freeerrorlist(int print) {
     if (print) {
         fwrite(error_list.data, error_list.p, 1, stderr);
@@ -350,7 +437,7 @@ void err_destroy(void) {
     free(user_error.data);
 }
 
-void err_msg_out_of_memory(void) 
+void err_msg_out_of_memory(void)
 {
     freeerrorlist(1);
     fputs("Out of memory error\n", stderr);
