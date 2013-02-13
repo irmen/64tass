@@ -2108,12 +2108,11 @@ static void compile(void)
                         if (((val->type == T_UINT || val->type == T_SINT || val->type == T_NUM) && !val->u.num.val) || (val->type == T_FLOAT && !val->u.real) || (val->type == T_STR && !val->u.str.len)) break;
                         if (bpoint < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
-                            lpoint++;
+                            lpoint++;ignore();
                             epoint = lpoint;
                             if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL);break;}
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
-                            lpoint++;
-                            ignore();
+                            lpoint++;ignore();
                             if (!here() || here()==';') bpoint = 0;
                             else {
                                 var=new_label(labelname, labelname2, L_VAR);
