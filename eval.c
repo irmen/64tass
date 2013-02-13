@@ -628,11 +628,13 @@ static int get_val2_compat(void) {// length in bytes, defined
     return 0;
 }
 
-void eval_finish(void) {
+int eval_finish(void) {
     if (outp2 < outp) {
         lpoint = o_out[outp2].epoint;
+        outp2 = outp;
+        return 1;
     }
-    return;
+    return 0;
 }
 
 static int get_val2(int);
