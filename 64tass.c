@@ -1425,7 +1425,7 @@ static void compile(void)
                                     }
 
                                     switch (val->type) {
-                                    case T_GAP:ch2 = -1; uninit++; break;
+                                    case T_GAP:ch2 = -1; uninit++; continue;
                                     case T_STR:
                                         ch2 = petascii(&i, val);
                                         if (ch2 > 255) i = val->u.str.len;
@@ -1442,10 +1442,51 @@ static void compile(void)
                                         if ((uval_t)val->u.real & ~(uval_t)0xff) large=epoint;
                                         ch2 = (uint8_t)val->u.real;
                                         break;
+                                    case T_LIST:
+                                    case T_TUPPLE:
+                                        {
+                                            size_t li;
+                                            ch2 = -1;
+                                            for (li=0; li < val->u.list.len; li++) {
+                                                struct value_s *val2 = val->u.list.data[li];
+                                                i = 0;
+                                                do {
+                                                    if (ch2 >= 0) {
+                                                        if (uninit) { memskip(uninit); uninit = 0; }
+                                                        pokeb(ch2);
+                                                    }
+                                                    switch (val2->type) {
+                                                    case T_GAP:ch2 = -1; uninit++; continue;
+                                                    case T_STR:
+                                                        ch2 = petascii(&i, val2);
+                                                        if (ch2 > 255) i = val2->u.str.len;
+                                                        break;
+                                                    case T_NUM:
+                                                    case T_UINT:
+                                                    case T_SINT:
+                                                        if (val2->type != T_NUM || val2->u.num.len > 1) {
+                                                            if ((uval_t)val2->u.num.val & ~(uval_t)0xff) large=epoint;
+                                                        }
+                                                        ch2 = (uint8_t)val2->u.num.val;
+                                                        break;
+                                                    case T_FLOAT:
+                                                        if ((uval_t)val2->u.real & ~(uval_t)0xff) large=epoint;
+                                                        ch2 = (uint8_t)val2->u.real;
+                                                        break;
+                                                    default: err_msg_wrong_type(val2, epoint);
+                                                    case T_NONE: ch2 = fixeddig = 0;
+                                                    }
+                                                    if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
+                                                        if (ch2>=0x80) large=epoint;
+                                                        if (prm==CMD_SHIFTL) ch2<<=1;
+                                                    } else if (prm==CMD_NULL && !ch2 && val->type != T_NONE) large=epoint;
+                                                } while (val2->type == T_STR && val2->u.str.len > i);
+                                            }
+                                            continue;
+                                        }
                                     default: err_msg_wrong_type(val, epoint);
                                     case T_NONE: ch2 = fixeddig = 0;
                                     }
-
                                     if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
                                         if (ch2>=0x80) large=epoint;
                                         if (prm==CMD_SHIFTL) ch2<<=1;
@@ -1458,7 +1499,7 @@ static void compile(void)
                             if (prm==CMD_SHIFT) ch2|=0x80;
                             if (prm==CMD_SHIFTL) ch2|=0x01;
                             pokeb(ch2);
-                        }
+                        } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) large = epoint;
                         if (prm==CMD_NULL) pokeb(0);
                         if (prm==CMD_PTEXT) {
                             if (mem.p-ptextaddr>0x100) large=epoint;
@@ -1468,27 +1509,67 @@ static void compile(void)
                         if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm<=CMD_DWORD) { // .word .int .rta .long
                         uint32_t ch2;
+                        uval_t uv;
                         int large=0;
                         if (newlabel) newlabel->esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                        while ((val = get_val(T_GAP, &epoint))) {
+                        while ((val = get_val(T_NONE, &epoint))) {
                             if (val == &error_value) ch2 = 0; else
                             switch (val->type) {
                             case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
+                            case T_FLOAT:
                             case T_NUM:
                             case T_SINT:
                             case T_UINT:
+                                uv = (val->type == T_FLOAT) ? (uval_t)val->u.real : (uval_t)val->u.num.val;
                                 switch (prm) {
-                                case CMD_CHAR: if ((val->u.num.len > 1 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0x7f) && (~(uval_t)val->u.num.val & ~(uval_t)0x7f)) large=epoint;break;
-                                case CMD_BYTE: if ((val->u.num.len > 1 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) large=epoint; break;
-                                case CMD_INT: if ((val->u.num.len > 2 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0x7fff) && (~(uval_t)val->u.num.val & ~(uval_t)0x7fff)) large=epoint;break;
-                                case CMD_LONG: if ((val->u.num.len > 3 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xffffff)) large=epoint; break;
-                                case CMD_DINT: if ((val->u.num.len > 4 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0x7fffffff) && (~(uval_t)val->u.num.val & ~(uval_t)0x7fffffff)) large=epoint;break;
-                                case CMD_DWORD: if ((val->u.num.len > 4 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xffffffff)) large=epoint; break;
-                                default: if ((val->u.num.len > 2 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xffff)) large=epoint;
+                                case CMD_CHAR: if ((val->u.num.len > 1 || val->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
+                                case CMD_BYTE: if ((val->u.num.len > 1 || val->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
+                                case CMD_INT: if ((val->u.num.len > 2 || val->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
+                                case CMD_LONG: if ((val->u.num.len > 3 || val->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
+                                case CMD_DINT: if ((val->u.num.len > 4 || val->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
+                                case CMD_DWORD: if ((val->u.num.len > 4 || val->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
+                                default: if ((val->u.num.len > 2 || val->type != T_NUM) && (uv & ~(uval_t)0xffff)) large=epoint;
                                 }
-                                ch2 = (uval_t)val->u.num.val;
+                                ch2 = uv;
                                 break;
+                            case T_LIST:
+                            case T_TUPPLE:
+                                {
+                                    size_t li;
+                                    for (li=0; li < val->u.list.len; li++) {
+                                        struct value_s *val2 = val->u.list.data[li];
+                                        switch (val2->type) {
+                                        case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
+                                        case T_FLOAT:
+                                        case T_NUM:
+                                        case T_SINT:
+                                        case T_UINT:
+                                            uv = (val2->type == T_FLOAT) ? (uval_t)val2->u.real : (uval_t)val2->u.num.val;
+                                            switch (prm) {
+                                            case CMD_CHAR: if ((val2->u.num.len > 1 || val2->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
+                                            case CMD_BYTE: if ((val2->u.num.len > 1 || val2->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
+                                            case CMD_INT: if ((val2->u.num.len > 2 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
+                                            case CMD_LONG: if ((val2->u.num.len > 3 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
+                                            case CMD_DINT: if ((val2->u.num.len > 4 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
+                                            case CMD_DWORD: if ((val2->u.num.len > 4 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
+                                            default: if ((val2->u.num.len > 2 || val2->type != T_NUM) && (uv & ~(uval_t)0xffff)) large=epoint;
+                                            }
+                                            ch2 = uv;
+                                            break;
+                                        default: err_msg_wrong_type(val2, epoint);
+                                        case T_NONE: ch2 = fixeddig = 0;
+                                        }
+                                        if (prm==CMD_RTA) ch2--;
+
+                                        if (uninit) {memskip(uninit);uninit = 0;}
+                                        pokeb((uint8_t)ch2);
+                                        if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
+                                        if (prm>=CMD_LONG) pokeb((uint8_t)(ch2>>16));
+                                        if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
+                                    }
+                                    continue;
+                                }
                             default: err_msg_wrong_type(val, epoint);
                             case T_NONE: ch2 = fixeddig = 0;
                             }
