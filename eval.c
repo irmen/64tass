@@ -1561,19 +1561,18 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             v1 = &values[vsp-1]; vsp--;
             if (vsp == 0) goto syntaxe;
             switch (try_resolv(&values[vsp-1].val)) {
-            case T_STR: val_replace(&values[vsp-1].val, values[vsp-1].val->u.str.len ? v1->val : v2->val);
-                break;
+            case T_STR:
             case T_UINT:
             case T_SINT: 
             case T_BOOL:
-            case T_NUM: val_replace(&values[vsp-1].val, values[vsp-1].val->u.num.val ? v1->val : v2->val);
-                break;
+            case T_LIST:
+            case T_TUPPLE:
+                val_replace(&values[vsp-1].val, val_truth(values[vsp-1].val) ? v1->val : v2->val);
+                continue;
             default: err_msg_wrong_type(values[vsp-1].val, values[vsp-1].epoint); 
                      goto errtype;
-            case T_NONE: 
-                break;
+            case T_NONE: continue;
             }
-            continue;
         case O_COND:
             if (vsp == 1) goto syntaxe;
             continue;
@@ -1721,6 +1720,52 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                      goto errtype;
             case T_NONE: continue;
             }
+        case O_LAND:
+        case O_LOR:
+        case O_LXOR:
+            v2 = v1; v1 = &values[--vsp-1];
+            if (vsp == 0) goto syntaxe;
+            t2 = try_resolv(&v2->val);
+            t1 = try_resolv(&v1->val);
+            switch (t1) {
+            case T_SINT:
+            case T_NUM: 
+            case T_BOOL:
+            case T_UINT:
+            case T_STR:
+            case T_FLOAT:
+            case T_LIST:
+            case T_TUPPLE:
+                switch (t2) {
+                case T_SINT:
+                case T_NUM: 
+                case T_BOOL:
+                case T_UINT:
+                case T_STR:
+                case T_FLOAT:
+                case T_LIST:
+                case T_TUPPLE:
+                case T_NONE:
+                    if (op == O_LXOR) {
+                        if (t2 == T_NONE) { val_replace(&v1->val, &none_value ); continue;}
+                        if (val_truth(v1->val)) {
+                            if (val_truth(v2->val)) val_replace(&v1->val, &false_value);
+                        } else {
+                            val_replace(&v1->val, val_truth(v2->val) ? v2->val : &false_value );
+                        }
+                        continue;
+                    }
+                    if (val_truth(v1->val) ^ (op == O_LOR)) { 
+                        val_replace(&v1->val, v2->val);
+                    }
+                    continue;
+                default: err_msg_wrong_type(v2->val, v2->epoint); 
+                         goto errtype;
+                }
+            default: err_msg_wrong_type(v1->val, v1->epoint); 
+                     goto errtype;
+            case T_NONE: continue;
+            }
         default: break;
         }
         v2 = v1; v1 = &values[--vsp-1];
@@ -1728,23 +1773,11 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         t2 = try_resolv(&v2->val);
         t1 = try_resolv(&v1->val);
 
-        if (t1 == T_NONE || t2 == T_NONE) {
+        if (t1 == T_NONE) continue;
+        if (t2 == T_NONE) {
         errtype:
             val_replace(&v1->val, &none_value);
             continue;
-        }
-
-        if (t1 <= T_FLOAT && t2 == T_STR) {
-            if (str_to_num(&v2->val, T_NUM)) {
-                err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint); large=1;
-            }
-            t2 = v2->val->type;
-        }
-        if (t2 <= T_FLOAT && t1 == T_STR) {
-            if (str_to_num(&v1->val, T_NUM)) {
-                err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
-            }
-            t1 = v1->val->type;
         }
     strretr:
 
@@ -1761,9 +1794,6 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case O_GT:   val_replace(&v1->val, ( val1 >  val2) ? &true_value : &false_value);continue;
             case O_LE:   val_replace(&v1->val, ( val1 <= val2) ? &true_value : &false_value);continue;
             case O_GE:   val_replace(&v1->val, ( val1 >= val2) ? &true_value : &false_value);continue;
-            case O_LAND: val_replace(&v1->val, ( val1 && val2) ? &true_value : &false_value);continue;
-            case O_LOR:  val_replace(&v1->val, ( val1 || val2) ? &true_value : &false_value);continue;
-            case O_LXOR: val_replace(&v1->val, (!val1 ^ !val2) ? &true_value : &false_value);continue;
             case O_MUL:  val1 = ( val1 *  val2);break;
             case O_DIV: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = (~(uval_t)0) >> 1; large=1;}
                 else if (t2==T_SINT) val1 = ( val1 / val2); else val1 = ( (uval_t)val1 / (uval_t)val2);  break;
@@ -1815,6 +1845,20 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             continue;
         }
 
+        if (t1 == T_STR && type_is_num(t2)) {
+            if (str_to_num(&v1->val, T_NUM)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
+            }
+            t1 = v1->val->type;
+            goto strretr;
+        }
+        if (t2 == T_STR && type_is_num(t1)) {
+            if (str_to_num(&v2->val, T_NUM)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint); large=1;
+            }
+            t2 = v2->val->type;
+            goto strretr;
+        }
         if (t1 == T_STR && t2 == T_STR) {
             switch (op) {
                 case O_EQ:
@@ -1841,9 +1885,6 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     val = memcmp(v1->val->u.str.data, v2->val->u.str.data, (v1->val->u.str.len < v2->val->u.str.len) ? v1->val->u.str.len:v2->val->u.str.len);
                     if (!val) val = v1->val->u.str.len >= v2->val->u.str.len; else val = val >= 0;
                     goto strcomp;
-                case O_LAND: val = (v1->val->u.str.len && v2->val->u.str.len); goto strcomp;
-                case O_LOR: val = (v1->val->u.str.len || v2->val->u.str.len); goto strcomp;
-                case O_LXOR: val = (!v1->val->u.str.len ^ !v2->val->u.str.len); goto strcomp;
                 case O_MUL: 
                 case O_DIV:
                 case O_MOD:
@@ -1868,6 +1909,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 default: err_msg_wrong_type(v1->val, v1->epoint); goto errtype;
             }
         }
+
         if (t1 == T_FLOAT && type_is_int(t2)) {
             new_value.type = T_FLOAT;
             if (t2 == T_SINT) new_value.u.real = (ival_t)v2->val->u.num.val;
@@ -1893,9 +1935,6 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             case O_GT:   val_replace(&v1->val, ( val1 >  val2) ? &true_value : &false_value);continue;
             case O_LE:   val_replace(&v1->val, ( val1 < val2 || almost_equal(val1, val2)) ? &true_value : &false_value);continue;
             case O_GE:   val_replace(&v1->val, ( val1 > val2 || almost_equal(val1, val2)) ? &true_value : &false_value);continue;
-            case O_LAND: val_replace(&v1->val, ( val1 && val2) ? &true_value : &false_value);continue;
-            case O_LOR:  val_replace(&v1->val, ( val1 || val2) ? &true_value : &false_value);continue;
-            case O_LXOR: val_replace(&v1->val, (!val1 ^ !val2) ? &true_value : &false_value);continue;
             case O_MUL:  val1 = ( val1 *  val2);break;
             case O_DIV: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v2->epoint); val1 = 0.0; large=1;}
                 else val1 = ( val1 /  val2); break;
@@ -1918,6 +1957,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             val_replace(&v1->val, &new_value);
             continue;
         }
+
         if ((t1 == T_LIST && t2 == T_LIST) || (t1 == T_TUPPLE && t2 == T_TUPPLE)) {
             int l1, l2, ii;
             switch (op) {

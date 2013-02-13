@@ -1832,7 +1832,7 @@ static void compile(void)
                             }
                             write = 1;
                         }
-                        if (write) err_msg_variable(val, 0);
+                        if (write && val->type != T_NONE) err_msg_variable(val, 0);
                     }
                     if (write) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,NULL,epoint);
                     eval_finish();

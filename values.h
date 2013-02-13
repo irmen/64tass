@@ -34,6 +34,7 @@ enum type_e {
 };
 
 #define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
+#define type_is_num(a) ((a) >= T_BOOL && (a) <= T_FLOAT) 
 
 enum oper_e {
     O_FUNC,          // a(

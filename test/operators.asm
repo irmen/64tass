@@ -1,9 +1,20 @@
 
-    .warn (1,)
-    .warn ()
-    .warn min()
-    .warn [1,]
-    .warn []
+; "logical" operators
+
+    .cerror ("" && []) != ""
+    .cerror ("" && (1,)) != ""
+    .cerror (2 && "") != ""
+    .cerror (1 && 2) != 2
+
+    .cerror (() || "") != ""
+    .cerror ("" || 2) != 2
+    .cerror (2 || "") != 2
+    .cerror (1 || [2,]) != 1
+
+    .cerror ("" ^^ []) != 0
+    .cerror ("" ^^ 2) != 2
+    .cerror (1 ^^ "") != 1
+    .cerror (1 ^^ 2) != 0
 
 ; check all operators
 
