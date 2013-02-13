@@ -1239,26 +1239,10 @@ static void compile(void)
                     } else val = &none_value;
                     switch (prm) {
                     case CMD_ELSIF:
-                        switch (val->type) {
-                        case T_SINT:
-                        case T_UINT:
-                        case T_BOOL:
-                        case T_NUM: waitfor[waitforp].skip = val->u.num.val ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);break;
-                        case T_FLOAT: waitfor[waitforp].skip = val->u.real ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);break;
-                        case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);break;
-                        default: waitfor[waitforp].skip = waitfor[waitforp].skip & 2;break;
-                        }
+                        waitfor[waitforp].skip = val_truth(val) ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);
                         break;
                     case CMD_IF:
-                        switch (val->type) {
-                        case T_SINT:
-                        case T_UINT:
-                        case T_BOOL:
-                        case T_NUM: waitfor[waitforp].skip = val->u.num.val ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        case T_FLOAT: waitfor[waitforp].skip = val->u.real ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
-                        }
+                        waitfor[waitforp].skip = val_truth(val) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);
                         break;
                     case CMD_IFEQ:
                         switch (val->type) {
@@ -1843,7 +1827,7 @@ static void compile(void)
                         if (first) {
                             first = 0;
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
-                                write = ((type_is_int(val->type) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
+                                write = val_truth(val);
                                 continue;
                             }
                             write = 1;
@@ -2194,7 +2178,7 @@ static void compile(void)
                         if (!get_exp(&w,1)) break; //ellenorizve.
                         if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
-                        if ((type_is_int(val->type) && !val->u.num.val) || (val->type == T_FLOAT && !val->u.real) || (val->type == T_STR && !val->u.str.len)) break;
+                        if (!val_truth(val)) break;
                         if (bpoint < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                             lpoint++;ignore();
@@ -2254,8 +2238,8 @@ static void compile(void)
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used for option", epoint);goto breakerr;}
-                    if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=((type_is_int(val->type) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
-                    else if (!strcasecmp(labelname,"auto_longbranch_as_jmp")) longbranchasjmp=((type_is_int(val->type) && val->u.num.val) || (val->type == T_FLOAT && val->u.real) || (val->type == T_STR && val->u.str.len));
+                    if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=val_truth(val);
+                    else if (!strcasecmp(labelname,"auto_longbranch_as_jmp")) longbranchasjmp=val_truth(val);
                     else err_msg(ERROR_UNKNOWN_OPTIO,labelname2);
                     break;
                 }
