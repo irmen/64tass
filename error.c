@@ -219,7 +219,16 @@ static char *type_name(enum type_e t) {
 void err_msg_wrong_type(const struct value_s *val, unsigned int epoint) {
     const char *name = NULL;
     if (val->type == T_UNDEF) {
-        err_msg2(ERROR___NOT_DEFINED, "", epoint);return;
+        if (errors+conderrors==99) {
+            err_msg(ERROR__TOO_MANY_ERR, NULL);
+            return;
+        }
+        addorigin(epoint);
+        adderror("error: not defined '");
+        adderror2(val->u.ident.name, val->u.ident.len);
+        adderror("'\n");
+        errors++;
+        return;
     }
     name = type_name(val->type);
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
@@ -348,8 +357,13 @@ void err_msg_double_defined(const char *origname, const char *file, line_t sline
 void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct value_s *v2, unsigned int epoint) {
     char *name;
 
-    if (v1->type == T_UNDEF || (v2 && v2->type == T_UNDEF)) {
-        err_msg2(ERROR___NOT_DEFINED, "", epoint);return;
+    if (v1->type == T_UNDEF) {
+        err_msg_wrong_type(v1, epoint);
+        return;
+    }
+    if (v2 && v2->type == T_UNDEF) {
+        err_msg_wrong_type(v2, epoint);
+        return;
     }
 
     if (errors+conderrors==99) {
@@ -358,6 +372,7 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
     }
 
     addorigin(epoint);
+
     if (v2) {
         adderror("error: invalid operands to ");
     } else {
