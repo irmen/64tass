@@ -1126,30 +1126,6 @@ static void indexes(struct values_s *vals, unsigned int args) {
     switch (try_resolv(&vals->val)) {
     case T_LIST:
     case T_TUPLE:
-        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
-            switch (try_resolv(&v[0].val)) {
-            case T_UINT:
-            case T_SINT:
-            case T_NUM:
-            case T_BOOL:
-                {
-                    struct value_s *val;
-                    if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
-                        if ((uval_t)v[0].val->u.num.val < vals->val->u.list.len) val = val_reference(vals->val->u.list.data[(uval_t)v[0].val->u.num.val]);
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val = &none_value;}
-                    } else {
-                        if ((uval_t)-v[0].val->u.num.val <= vals->val->u.list.len) val = val_reference(vals->val->u.list.data[vals->val->u.list.len + v[0].val->u.num.val]);
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val = &none_value;}
-                    }
-                    val_replace(&vals->val, val); val_destroy(val);
-                }
-                return;
-            default: err_msg_invalid_oper(O_INDEX, v[0].val, NULL, v[0].epoint);
-            case T_NONE: 
-                val_replace(&vals->val, &none_value);
-                return;
-            }
-        break;
     case T_STR:
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
             switch (try_resolv(&v[0].val)) {
@@ -1158,19 +1134,23 @@ static void indexes(struct values_s *vals, unsigned int args) {
             case T_NUM:
             case T_BOOL:
                 {
-                    uval_t offs;
+                    struct value_s *val;
+                    size_t len = (vals->val->type == T_STR) ? vals->val->u.str.chars : vals->val->u.list.len, offs;
+
                     if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
-                        if ((uval_t)v[0].val->u.num.val < vals->val->u.str.chars) {
-                            offs = (uval_t)v[0].val->u.num.val;
-                        }
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
+                        if ((uval_t)v[0].val->u.num.val < len) offs = (uval_t)v[0].val->u.num.val;
+                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value); return;}
                     } else {
-                        if ((uval_t)-v[0].val->u.num.val <= vals->val->u.str.chars) {
-                            offs = vals->val->u.str.chars + v[0].val->u.num.val;
-                        }
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;}
+                        if ((uval_t)-v[0].val->u.num.val <= len) offs = len + v[0].val->u.num.val;
+                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value); return;}
                     }
-                    str_slice(vals, offs, offs + 1, 1);
+                    if (vals->val->type == T_STR) { 
+                        str_slice(vals, offs, offs + 1, 1);
+                    } else {
+                        val = val_reference(vals->val->u.list.data[offs]);
+                        val_replace(&vals->val, val);
+                        val_destroy(val);
+                    }
                 }
                 return;
             default: err_msg_invalid_oper(O_INDEX, v[0].val, NULL, v[0].epoint);
