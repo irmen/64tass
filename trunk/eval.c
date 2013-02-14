@@ -1680,7 +1680,7 @@ strretr:
     }
 
     if ((t1 == T_LIST && t2 == T_LIST) || (t1 == T_TUPLE && t2 == T_TUPLE)) {
-        int /*l1, l2, ii,*/ val;
+        int val;
         switch (op) {
         case O_EQ:
             val = val_equal(v1, v2);
@@ -1689,25 +1689,6 @@ strretr:
         case O_NEQ:
             val = !val_equal(v1, v2);
             goto listcomp;
-#if 0            
-        case O_ADD:
-            new_value.type = t1;
-            l1 = v1->u.list.len;
-            l2 = v2->u.list.len;
-            new_value.u.list.len = l1 + l2;
-            new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
-            if (!new_value.u.list.data) err_msg_out_of_memory();
-            ii = 0;
-            while (ii < l1) {
-                new_value.u.list.data[ii] = val_reference(v1->u.list.data[ii]);
-                ii++;
-            }
-            while (ii < l1 + l2) {
-                new_value.u.list.data[ii] = val_reference(v2->u.list.data[ii - l1]);
-                ii++;
-            }
-            break;
-#endif
         default: err_msg_invalid_oper(op, v1, v2, epoint); goto errtype;
         }
         return &new_value;
