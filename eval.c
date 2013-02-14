@@ -166,32 +166,6 @@ static int almost_equal(double a, double b) {
     return b - a < b * 0.0000000005;
 }
 
-static uval_t apply_byteop(enum oper_e op, uval_t val, uint8_t *len) {
-    switch (op) {
-    case O_LOWER:
-        *len = 1;
-        return (uint8_t)val;
-    case O_HIGHER: 
-        *len = 1;
-        return (uint8_t)(val >> 8);
-    case O_BANK: 
-        *len = 1;
-        return (uint8_t)(val >> 16);
-    case O_BSWORD:
-        *len = 2;
-        return (uint8_t)(val >> 8) | (uint16_t)(val << 8);
-    case O_HWORD: 
-        *len = 2;
-        return (uint16_t)(val >> 8);
-    case O_WORD: 
-        *len = 2;
-        return (uint16_t)val;
-    default: 
-        *len = sizeof(uval_t);
-        return val;
-    }
-}
-
 int str_to_num(const struct value_s *v, enum type_e type, struct value_s *v2) {
     uint16_t ch;
     unsigned int large = 0;
@@ -1248,6 +1222,181 @@ static void slices(struct values_s *vals, unsigned int args) {
     return;
 }
 
+static struct value_s *apply_op(enum oper_e op, const struct value_s *v1, unsigned int epoint, int *large) {
+    enum type_e t1 = v1->type;
+    struct value_s tmp1;
+    char line[linelength]; 
+
+strretr:
+    if (t1 == T_NONE) {
+        return &none_value;
+    }
+
+    if (type_is_int(t1)) {
+        switch (op) {
+        case O_LOWER:
+            new_value.type = T_NUM;
+            new_value.u.num.len = 1;
+            new_value.u.num.val = (uint8_t)v1->u.num.val;
+            return &new_value;
+        case O_HIGHER: 
+            new_value.type = T_NUM;
+            new_value.u.num.len = 1;
+            new_value.u.num.val = (uint8_t)(v1->u.num.val >> 8);
+            return &new_value;
+        case O_BANK: 
+            new_value.type = T_NUM;
+            new_value.u.num.len = 1;
+            new_value.u.num.val = (uint8_t)(v1->u.num.val >> 16);
+            return &new_value;
+        case O_BSWORD:
+            new_value.type = T_NUM;
+            new_value.u.num.len = 2;
+            new_value.u.num.val = (uint8_t)(v1->u.num.val >> 8) | (uint16_t)(v1->u.num.val << 8);
+            return &new_value;
+        case O_HWORD: 
+            new_value.type = T_NUM;
+            new_value.u.num.len = 2;
+            new_value.u.num.val = (uint16_t)(v1->u.num.val >> 8);
+            return &new_value;
+        case O_WORD: 
+            new_value.type = T_NUM;
+            new_value.u.num.len = 2;
+            new_value.u.num.val = (uint16_t)v1->u.num.val;
+            return &new_value;
+        case O_INV:
+            new_value.type = T_NUM;
+            new_value.u.num.val = ~v1->u.num.val;
+            new_value.u.num.len = v1->u.num.len;
+            return &new_value;
+        case O_NEG:
+            new_value.type = T_SINT;
+            new_value.u.num.val = -v1->u.num.val;
+            new_value.u.num.len = v1->u.num.len;
+            return &new_value;
+        case O_POS:
+            new_value.type = T_SINT;
+            new_value.u.num.val = v1->u.num.val;
+            new_value.u.num.len = v1->u.num.len;
+            return &new_value;
+        case O_STRING:
+            sprintf(line, (v1->type == T_SINT) ? "%" PRIdval : "%" PRIuval, v1->u.num.val);
+            new_value.type = T_STR;
+            new_value.u.str.len = strlen(line);
+            new_value.u.str.chars = new_value.u.str.len;
+            new_value.u.str.data = malloc(new_value.u.str.len);
+            if (!new_value.u.str.data) err_msg_out_of_memory();
+            memcpy(new_value.u.str.data, line, new_value.u.str.len);
+            return &new_value;
+        default: err_msg_invalid_oper(op, v1, NULL, epoint); 
+                 return &none_value;
+        }
+    }
+    if (t1 == T_STR) {
+        switch (op) {
+        case O_LOWER:
+        case O_HIGHER: 
+        case O_BANK: 
+        case O_BSWORD:
+        case O_HWORD: 
+        case O_WORD: 
+        case O_INV:
+        case O_NEG:
+        case O_POS:
+            if (str_to_num(v1, T_NUM, &tmp1)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); *large=1;
+            }
+            v1 = &tmp1;
+            t1 = v1->type;
+            goto strretr;
+        case O_STRING:
+            new_value.type = T_STR;
+            new_value.u.str.len = v1->u.str.len;
+            new_value.u.str.chars = v1->u.str.chars;
+            new_value.u.str.data = malloc(new_value.u.str.len);
+            if (!new_value.u.str.data) err_msg_out_of_memory();
+            memcpy(new_value.u.str.data, v1->u.str.data, new_value.u.str.len);
+            return &new_value;
+        default: err_msg_invalid_oper(op, v1, NULL, epoint);
+                 return &none_value;
+        }
+    }
+    if (t1 == T_FLOAT) {
+        switch (op) {
+        case O_LOWER:
+        case O_HIGHER: 
+        case O_BANK: 
+        case O_BSWORD:
+        case O_HWORD: 
+        case O_WORD: 
+        case O_INV:
+            tmp1.type = T_NUM;
+            tmp1.u.num.val = (ival_t)v1->u.real;
+            v1 = &tmp1;
+            t1 = v1->type;
+            goto strretr;
+        case O_NEG:
+            new_value.type = T_FLOAT;
+            new_value.u.real = -v1->u.real;
+            return &new_value;
+        case O_POS:
+            new_value.type = T_FLOAT;
+            new_value.u.real = v1->u.real;
+            return &new_value;
+        case O_STRING:
+            {
+                int i = 0;
+                sprintf(line, "%.10g", v1->u.real);
+                while (line[i] && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
+                if (!line[i]) {line[i++]='.';line[i++]='0';line[i]=0;}
+                new_value.type = T_STR;
+                new_value.u.str.len = strlen(line);
+                new_value.u.str.chars = new_value.u.str.len;
+                new_value.u.str.data = malloc(new_value.u.str.len);
+                if (!new_value.u.str.data) err_msg_out_of_memory();
+                memcpy(new_value.u.str.data, line, new_value.u.str.len);
+                return &new_value;
+            }
+        default: err_msg_invalid_oper(op, v1, NULL, epoint); 
+                 return &none_value;
+        }
+    }
+    if (t1 == T_LIST || t1 == T_TUPLE) {
+        switch (op) {
+        case O_LOWER:
+        case O_HIGHER: 
+        case O_BANK: 
+        case O_BSWORD:
+        case O_HWORD: 
+        case O_WORD: 
+        case O_INV:
+        case O_NEG:
+        case O_STRING:
+            {
+                size_t i;
+                struct value_s **vals, *val;
+                vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+                if (!vals) err_msg_out_of_memory();
+                for (i = 0;i < v1->u.list.len; i++) {
+                    val = apply_op(op, v1->u.list.data[i], epoint, large);
+                    vals[i] = val_reference(val);
+                    val_destroy(val);
+                }
+                new_value.type = t1;
+                new_value.u.list.len = i;
+                new_value.u.list.data = vals;
+                return &new_value;
+            }
+        case O_POS:
+        default: err_msg_invalid_oper(op, v1, NULL, epoint); 
+                 return &none_value;
+        }
+    }
+    if (t1 == T_UNDEF) err_msg2(ERROR___NOT_DEFINED, "", epoint); 
+    else err_msg_invalid_oper(op, v1, NULL, epoint);
+    return &none_value;
+}
+
 static struct value_s *apply_op2(enum oper_e op, const struct value_s *v1, const struct value_s *v2, unsigned int epoint, unsigned int epoint2, int *large) {
     enum type_e t1 = v1->type;
     enum type_e t2 = v2->type;
@@ -1523,7 +1672,6 @@ static int get_val2(int stop) {
     struct values_s *v1, *v2;
     enum type_e t1, t2;
     int large=0;
-    static uint8_t line[linelength];  //current line data
 
     if (outp2 >= outp) return 1;
 
@@ -1644,126 +1792,17 @@ static int get_val2(int stop) {
         case O_LOWER: // <
         case O_HIGHER: // >
         case O_BANK: // `
-            switch (try_resolv(&v1->val)) {
-            case T_STR:
-                if (str_to_num2(&v1->val, T_NUM)) {
-                    err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
-                }
-            case T_UINT:
-            case T_SINT:
-            case T_NUM:
-            case T_BOOL:
-                new_value.type = T_NUM;
-                new_value.u.num.val = apply_byteop(op, (uval_t)v1->val->u.num.val, &new_value.u.num.len);
-                val_replace(&v1->val, &new_value);
-                v1->epoint = o_out[i].epoint;
-                continue;
-            case T_LIST:
-            case T_TUPLE:
-                {
-                    size_t i;
-                    struct value_s **vals, *val;
-                    vals = malloc(v1->val->u.list.len * sizeof(new_value.u.list.data[0]));
-                    for (i = 0;i < v1->val->u.list.len; i++) {
-                        val = v1->val->u.list.data[i];
-                        switch (val->type) {
-                        case T_STR:
-                            if (str_to_num2(&val, T_NUM)) {
-                                err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
-                            }
-                        case T_UINT:
-                        case T_SINT:
-                        case T_BOOL:
-                        case T_NUM: new_value.type = T_NUM;
-                                    new_value.u.num.val = apply_byteop(op, (uval_t)val->u.num.val, &new_value.u.num.len);
-                                    vals[i] = val_reference(&new_value);
-                                    continue;
-                        default: err_msg_invalid_oper(op, val, NULL, v1->epoint); 
-                        case T_NONE: 
-                                 vals[i] = val_reference(&none_value);
-                                 continue;
-                        }
-                    }
-                    new_value.type = v1->val->type;
-                    new_value.u.list.len = v1->val->u.list.len;
-                    new_value.u.list.data = vals;
-                    val_replace(&v1->val, &new_value);
-                    free(vals);
-                }
-                continue;
-            default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint); 
-                     goto errtype;
-            case T_NONE: continue;
-            }
-        case O_STRING: // ^
-            switch (try_resolv(&v1->val)) {
-            case T_STR:
-                if (str_to_num2(&v1->val, T_NUM)) {
-                    err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
-                }
-            case T_UINT:
-            case T_SINT:
-            case T_NUM:
-            case T_BOOL:
-                {
-                    sprintf((char *)line, (v1->val->type == T_SINT) ? "%" PRIdval : "%" PRIuval, v1->val->u.num.val);
-                    new_value.type = T_STR;
-                    new_value.u.str.len = strlen((char *)line);
-                    new_value.u.str.chars = new_value.u.str.len;
-                    new_value.u.str.data = line;
-                    val_replace(&v1->val, &new_value);
-                    v1->epoint = o_out[i].epoint;
-                }
-                continue;
-            default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint);
-                     goto errtype;
-            case T_NONE: continue;
-            }
-        case O_POS: // +
+        case O_INV: // ~
         case O_NEG: // -
-            new_value.type = T_NUM;
-            switch (try_resolv(&v1->val)) {
-            case T_STR:
-                if (str_to_num2(&v1->val, T_NUM)) {
-                    err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
-                }
-            case T_UINT:
-            case T_SINT:
-            case T_BOOL:
-            case T_NUM: new_value.type = T_SINT;
-                        new_value.u.num.val = (op == O_NEG) ? (-v1->val->u.num.val) : v1->val->u.num.val;
-                        new_value.u.num.len = v1->val->u.num.len;
-                        val_replace(&v1->val, &new_value);
-                        v1->epoint = o_out[i].epoint;
-                        continue;
-            case T_FLOAT:
-                        new_value.type = T_FLOAT;
-                        new_value.u.real = (op == O_NEG) ? (-v1->val->u.real) : v1->val->u.real;
-                        val_replace(&v1->val, &new_value);
-                        v1->epoint = o_out[i].epoint;
-                        continue;
-            default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint); 
-                     goto errtype;
-            case T_NONE: continue;
-            }
-        case O_INV:
-            switch (try_resolv(&v1->val)) {
-            case T_STR:
-                if (str_to_num2(&v1->val, T_NUM)) {
-                    err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
-                }
-            case T_SINT:
-            case T_UINT: 
-            case T_BOOL:
-            case T_NUM: new_value.type = T_NUM;
-                        new_value.u.num.val = ~v1->val->u.num.val;
-                        new_value.u.num.len = v1->val->u.num.len;
-                        val_replace(&v1->val, &new_value);
-                        v1->epoint = o_out[i].epoint;
-                        continue;
-            default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint);
-                     goto errtype;
-            case T_NONE: continue;
+        case O_POS: // +
+        case O_STRING: // ^
+            {
+                struct value_s *tmp;
+                try_resolv(&v1->val);
+                tmp = apply_op(op, v1->val, v1->epoint, &large);
+                val_replace(&v1->val, tmp);
+                val_destroy(tmp);
+                continue;
             }
         case O_LNOT:
             switch (try_resolv(&v1->val)) {
