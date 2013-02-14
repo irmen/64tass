@@ -48,6 +48,9 @@ static struct value_s new_value = {T_NONE, 0, {}};
 static struct value_s none_value = {T_NONE, 0, {}};
 static struct value_s true_value = {T_BOOL, 0, {{1,1}}};
 static struct value_s false_value = {T_BOOL, 0, {{1,0}}};
+static struct value_s null_str = {T_STR, 0, {}};
+static struct value_s null_tuple = {T_TUPLE, 0, {}};
+static struct value_s null_list = {T_LIST, 0, {}};
 struct value_s error_value = {T_NONE, 0, {}};
 
 struct encoding_s *actual_encoding;
@@ -1028,6 +1031,9 @@ static void str_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t ste
     } else {
         val = vals->val;
         new_value.u.str.chars = (end - offs + step - 1) / step;
+        if (!new_value.u.str.chars) {
+            val_replace(&vals->val, &null_str);return;
+        }
         if (val->u.str.len == val->u.str.chars) {
             new_value.u.str.len = new_value.u.str.chars;
             p = new_value.u.str.data = malloc(new_value.u.str.len);
@@ -1082,6 +1088,9 @@ static void list_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t st
     } else {
         val = vals->val;
         new_value.u.list.len = (end - offs + step - 1) / step;
+        if (!new_value.u.list.len) {
+            val_replace(&vals->val, (new_value.type == T_TUPLE) ? &null_tuple : &null_list);return;
+        }
         new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
         if (!new_value.u.list.data) err_msg_out_of_memory();
         i = 0;
@@ -1313,9 +1322,11 @@ strretr:
             new_value.type = T_STR;
             new_value.u.str.len = v1->u.str.len;
             new_value.u.str.chars = v1->u.str.chars;
-            new_value.u.str.data = malloc(new_value.u.str.len);
-            if (!new_value.u.str.data) err_msg_out_of_memory();
-            memcpy(new_value.u.str.data, v1->u.str.data, new_value.u.str.len);
+            if (new_value.u.str.len) {
+                new_value.u.str.data = malloc(new_value.u.str.len);
+                if (!new_value.u.str.data) err_msg_out_of_memory();
+                memcpy(new_value.u.str.data, v1->u.str.data, new_value.u.str.len);
+            } else new_value.u.str.data = NULL;
             return &new_value;
         default: err_msg_invalid_oper(op, v1, NULL, epoint);
                  return &none_value;
@@ -1373,21 +1384,84 @@ strretr:
         case O_NEG:
         case O_STRING:
             {
-                size_t i;
+                size_t i = 0;
                 struct value_s **vals, *val;
-                vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
-                if (!vals) err_msg_out_of_memory();
-                for (i = 0;i < v1->u.list.len; i++) {
-                    val = apply_op(op, v1->u.list.data[i], epoint, large);
-                    vals[i] = val_reference(val);
-                    val_destroy(val);
-                }
+                if (v1->u.list.len) {
+                    vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+                    if (!vals) err_msg_out_of_memory();
+                    for (;i < v1->u.list.len; i++) {
+                        val = apply_op(op, v1->u.list.data[i], epoint, large);
+                        vals[i] = val_reference(val);
+                        val_destroy(val);
+                    }
+                } else vals = NULL;
                 new_value.type = t1;
                 new_value.u.list.len = i;
                 new_value.u.list.data = vals;
                 return &new_value;
             }
         case O_POS:
+            {
+                size_t i, j;
+                if (v1->u.list.len) {
+                    switch (v1->u.list.data[0]->type) {
+                    case T_STR:
+                        new_value.type = T_STR;
+                        new_value.u.str.len = 0;
+                        new_value.u.str.chars = 0;
+                        for (i = 0;i < v1->u.list.len; i++) {
+                            switch (v1->u.list.data[i]->type) {
+                            case T_STR:
+                                new_value.u.str.len += v1->u.list.data[i]->u.str.len;
+                                new_value.u.str.chars += v1->u.list.data[i]->u.str.chars;
+                                break;
+                            default:err_msg_invalid_oper(op, v1, NULL, epoint); 
+                            case T_NONE: return &none_value;
+                            }
+                        }
+                        new_value.u.str.data = malloc(new_value.u.str.len);
+                        if (!new_value.u.str.data) err_msg_out_of_memory();
+                        for (i = 0;i < v1->u.list.len; i++) {
+                            memcpy(new_value.u.str.data, v1->u.list.data[i]->u.str.data, v1->u.list.data[i]->u.str.len);
+                            new_value.u.str.data += v1->u.list.data[i]->u.str.len;
+                        }
+                        new_value.u.str.data -= new_value.u.str.len;
+                        return &new_value;
+                    case T_LIST:
+                    case T_TUPLE:
+                        new_value.type = v1->u.list.data[0]->type;
+                        new_value.u.list.len = 0;
+                        for (i = 0;i < v1->u.list.len; i++) {
+                            switch (v1->u.list.data[i]->type) {
+                            case T_LIST:
+                            case T_TUPLE:
+                                if (v1->u.list.data[i]->type == new_value.type) {
+                                    new_value.u.list.len += v1->u.list.data[i]->u.list.len;
+                                    break;
+                                }
+                            default:err_msg_invalid_oper(op, v1, NULL, epoint); 
+                            case T_NONE: return &none_value;
+                            }
+                        }
+                        new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
+                        if (!new_value.u.list.data) err_msg_out_of_memory();
+                        for (i = 0;i < v1->u.list.len; i++) {
+                            for (j = 0;j < v1->u.list.data[i]->u.list.len; j++) {
+                                *new_value.u.list.data = val_reference(v1->u.list.data[i]->u.list.data[j]);
+                                new_value.u.list.data++;
+                            }
+                        }
+                        new_value.u.list.data -= new_value.u.list.len;
+                        return &new_value;
+                    default:err_msg_invalid_oper(op, v1, NULL, epoint); 
+                    case T_NONE: return &none_value;
+                    }
+                }
+                new_value.type = t1;
+                new_value.u.list.len = 0;
+                new_value.u.list.data = NULL;
+                return &new_value;
+            }
         default: err_msg_invalid_oper(op, v1, NULL, epoint); 
                  return &none_value;
         }
@@ -1620,28 +1694,32 @@ strretr:
         return &new_value;
     }
     if ((t1 == T_LIST || t1 == T_TUPLE) && type_is_num(t2)) {
-        size_t i;
+        size_t i = 0;
         struct value_s **vals, *val;
-        vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
-        for (i = 0;i < v1->u.list.len; i++) {
-            val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, large);
-            vals[i] = val_reference(val);
-            val_destroy(val);
-        }
+        if (v1->u.list.len) {
+            vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+            for (;i < v1->u.list.len; i++) {
+                val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, large);
+                vals[i] = val_reference(val);
+                val_destroy(val);
+            }
+        } else vals = NULL;
         new_value.type = t1;
         new_value.u.list.len = i;
         new_value.u.list.data = vals;
         return &new_value;
     }
     if ((t2 == T_LIST || t2 == T_TUPLE) && type_is_num(t1)) {
-        size_t i;
+        size_t i = 0;
         struct value_s **vals, *val;
-        vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
-        for (i = 0;i < v2->u.list.len; i++) {
-            val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, large);
-            vals[i] = val_reference(val);
-            val_destroy(val);
-        }
+        if (v2->u.list.len) {
+            vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
+            for (;i < v2->u.list.len; i++) {
+                val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, large);
+                vals[i] = val_reference(val);
+                val_destroy(val);
+            }
+        } else vals = NULL;
         new_value.type = t2;
         new_value.u.list.len = i;
         new_value.u.list.data = vals;
@@ -1750,13 +1828,15 @@ static int get_val2(int stop) {
                 if ((tup || stop) && args == 1) {val_replace(&v1->val, values[vsp-1].val); vsp--;continue;}
                 v1->val->type = (op == O_BRACKET) ? T_LIST : T_TUPLE; // safe, replacing of T_OPER
                 v1->val->u.list.len = args;
-                v1->val->u.list.data = malloc(args * sizeof(v1->val->u.list.data[0]));
-                if (!v1->val->u.list.data) err_msg_out_of_memory();
-                while (args--) {
-                    try_resolv(&values[vsp-1].val);
-                    v1->val->u.list.data[args] = val_reference(values[vsp-1].val);
-                    vsp--;
-                }
+                if (args) {
+                    v1->val->u.list.data = malloc(args * sizeof(v1->val->u.list.data[0]));
+                    if (!v1->val->u.list.data) err_msg_out_of_memory();
+                    while (args--) {
+                        try_resolv(&values[vsp-1].val);
+                        v1->val->u.list.data[args] = val_reference(values[vsp-1].val);
+                        vsp--;
+                    }
+                } else v1->val->u.list.data = NULL;
                 continue;
             }
         case O_COLON:
