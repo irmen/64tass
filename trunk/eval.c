@@ -287,6 +287,23 @@ static void try_resolv_ident(struct value_s **val2) {
     }
     new_value.u.label = find_label(ident);
     new_value.type = touch_label(new_value.u.label);
+    if (new_value.type == T_UNDEF) {
+        switch (val->type) {
+        case T_FORWR: 
+            new_value.u.ident.len = 1;
+            new_value.u.ident.name = (uint8_t *)"+";
+            break;
+        case T_BACKR: 
+            new_value.u.ident.len = 1;
+            new_value.u.ident.name = (uint8_t *)"-";
+            break;
+        case T_IDENT: 
+            new_value.u.ident.len = val->u.ident.len;
+            new_value.u.ident.name = val->u.ident.name;
+            break;
+        default: return;
+        }
+    }
     val_replace(val2, &new_value);
 }
 
@@ -984,10 +1001,12 @@ static void functions(struct values_s *vals, unsigned int args) {
         }
         val_replace(&vals->val, &none_value);
         return;
-    } else
-
-    err_msg2(ERROR___NOT_DEFINED,"function", vals->epoint);
-    val_replace(&vals->val, &none_value);
+    }
+    try_resolv(&vals->val);
+    if (vals->val->type != T_NONE) {
+        err_msg_wrong_type(vals->val, vals->epoint); 
+        val_replace(&vals->val, &none_value);
+    }
 }
 
 static inline int utf8len(uint8_t ch) {
@@ -1466,7 +1485,7 @@ strretr:
                  return &none_value;
         }
     }
-    if (t1 == T_UNDEF) err_msg2(ERROR___NOT_DEFINED, "", epoint); 
+    if (t1 == T_UNDEF) err_msg_wrong_type(v1, epoint); 
     else err_msg_invalid_oper(op, v1, NULL, epoint);
     return &none_value;
 }
@@ -1737,8 +1756,8 @@ strretr:
         }
     }
 
-    if (t1 == T_UNDEF) err_msg2(ERROR___NOT_DEFINED, "", epoint); 
-    else if (t2 == T_UNDEF) err_msg2(ERROR___NOT_DEFINED, "", epoint2); 
+    if (t1 == T_UNDEF) err_msg_wrong_type(v1, epoint); 
+    else if (t2 == T_UNDEF) err_msg_wrong_type(v2, epoint2); 
     else err_msg_invalid_oper(op, v1, v2, epoint);
     goto errtype;
 }
@@ -1789,6 +1808,10 @@ static int get_val2(int stop) {
                         copy_name(v2->val, ident);
                         new_value.u.label = find_label2(ident, &v1->val->u.label->members);
                         new_value.type = touch_label(new_value.u.label);
+                        if (new_value.type == T_UNDEF) {
+                            new_value.u.ident.len = v2->val->u.ident.len;
+                            new_value.u.ident.name = v2->val->u.ident.name;
+                        }
                         val_replace(&v1->val, &new_value);
                         v1->epoint=v2->epoint;
                         continue;
