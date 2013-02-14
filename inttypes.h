@@ -1,3 +1,6 @@
+#ifndef _INTTYPES2_H
+#define _INTTYPES2_H
+
 #include <inttypes.h>
 #ifndef PRIuFAST32
 #define PRIuFAST32 "u"
@@ -23,3 +26,4 @@ typedef uint_fast32_t line_t;
 #define PRIxline PRIxFAST32
 typedef uint_fast32_t address_t;
 #define PRIaddress PRIxFAST32
+#endif

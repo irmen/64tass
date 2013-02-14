@@ -425,6 +425,7 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
     case O_TUPLE:   name = "')";break;
     case O_RPARENT: name = "')";break;
     case O_RBRACKET:name = "']";break;
+    default: name = "";break;
     }
     adderror(name);
 

@@ -1579,8 +1579,7 @@ static void compile(void)
                         if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm==CMD_BINARY) { // .binary
                         size_t foffset = 0;
-                        int nameok = 0;
-                        struct value_s *val2;
+                        struct value_s *val2 = NULL;
                         address_t fsize = all_mem+1;
                         if (newlabel) newlabel->esize = 1;
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
@@ -1590,7 +1589,6 @@ static void compile(void)
                             if (val->type != T_STR) {err_msg_wrong_type(val, epoint);goto breakerr;}
                             if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
                             val2 = val;
-                            nameok = 1;
                         }
                         if ((val = get_val(T_UINT, &epoint))) {
                             if (val == &error_value) goto breakerr;
@@ -1610,7 +1608,7 @@ static void compile(void)
                         }
                         eval_finish();
 
-                        if (nameok) {
+                        if (val2) {
                             struct file_s *cfile2 = openfile(path, cfile->realname, 1, val2);
                             if (cfile2) {
                                 for (;fsize && foffset < cfile2->len;fsize--) {
@@ -3173,6 +3171,7 @@ int main(int argc, char *argv[]) {
     /* assemble again to create listing */
     if (arguments.list) {
         char **argv2 = argv;
+        int argc2 = argc;
         listing=1;
         if (arguments.list[0] == '-' && !arguments.list[1]) {
             flist = stdout;
@@ -3183,8 +3182,12 @@ int main(int argc, char *argv[]) {
         if (*argv2) {
             char *new = strrchr(*argv2, '/');
             if (new) *argv2 = new + 1;
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+            new = strrchr(*argv2, '\\');
+            if (new) *argv2 = new + 1;
+#endif
         }
-        while (*argv2) fprintf(flist," %s", *argv2++);
+        while (argc2--) fprintf(flist," %s", *argv2++);
 	time(&t); fprintf(flist,"\n; %s",ctime(&t));
 
         pass++;
