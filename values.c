@@ -86,16 +86,20 @@ static void val_copy2(struct value_s *val, const struct value_s *val2) {
     val->refcount = 1;
     switch (val2->type) {
     case T_STR: 
-        val->u.str.data = malloc(val2->u.str.len);
-        if (!val->u.str.data) err_msg_out_of_memory();
-        memcpy(val->u.str.data, val2->u.str.data, val2->u.str.len);
+        if (val2->u.str.len) {
+            val->u.str.data = malloc(val2->u.str.len);
+            if (!val->u.str.data) err_msg_out_of_memory();
+            memcpy(val->u.str.data, val2->u.str.data, val2->u.str.len);
+        } else val->u.str.data = NULL;
         break;
     case T_LIST:
     case T_TUPLE:
-        val->u.list.data = malloc(val2->u.list.len * sizeof(val->u.list.data[0]));
-        if (!val->u.list.data) err_msg_out_of_memory();
-        for (val->u.list.len = 0; val->u.list.len < val2->u.list.len; val->u.list.len++)
-            val->u.list.data[val->u.list.len] = val_reference(val2->u.list.data[val->u.list.len]);
+        if (val2->u.list.len) {
+            val->u.list.data = malloc(val2->u.list.len * sizeof(val->u.list.data[0]));
+            if (!val->u.list.data) err_msg_out_of_memory();
+            for (val->u.list.len = 0; val->u.list.len < val2->u.list.len; val->u.list.len++)
+                val->u.list.data[val->u.list.len] = val_reference(val2->u.list.data[val->u.list.len]);
+        } else val->u.list.data = NULL;
     default:
         break;
     }

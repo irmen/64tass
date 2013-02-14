@@ -592,22 +592,40 @@ as segments are copied into the code, with the internal references.
 
 Expressions
 
-Numeric constants of decimal (0-9), hexadecimal ($) and binary (%) are
-accepted. String constants are enclosed in quotation marks. To enter the
-quotation mark itself in the string just double it. Single letter strings are
-character constants and represent their numeric values in numeric expressions.
+Numeric constants of decimal (0-9), hexadecimal ($), binary (%) and floating
+point (1.2) are accepted in expressions. Short strings can also form a numeric
+constant in expressions, these must be no longer than 4 bytes in the current
+encoding.
 
         .byte 23        ; decimal
         .byte $33       ; hex
         .byte %00011111 ; binary
         .byte 3.4       ; real
+        .word "ab"+1    ; character, results in "bb"
 
-        .text "oeU"     ; text
+Strings are enclosed in single or double quotes and can hold any unicode
+character. Operations like indexing or slicing are always done on the original
+representation. The current encoding is only applied when it's used in
+expressions as numeric constants or in context of text data directives.
+Doubling the quotes inside the strings escapes them.
+
+mystr   = "oeU"         ; text
         .text 'it''s'   ; text: it's
 
-Parenthesis (( )) and brackets ([ ]) can be used to override operator
-precedence. Don't forget that they also denote indirect addressing mode for
-certain opcodes.
+Lists and tuples can hold a collection of values. Lists are defined from values
+separated by comma between square brackets [1,2,3], an empty list is []. Tuples
+are similar but are enclosed in parentheses instead. An empty tuple is (), a
+single element tuple is (4,) to differentiate from normal numeric expression
+parentheses. When nested they function similar to an array. Indexing and
+slicing operations are supported, beyond that in numeric expressions all
+operations are done on all values at the same time (e.g. [1,2]+1=[2,3]).
+Currently both types are immutable.
+
+mylist  = [1, 2, "whatever"]
+mytuple = (cmd_e, cmd_g)
+
+Parenthesis (( )) can be used to override operator precedence. Don't forget
+that they also denote indirect addressing mode for certain opcodes.
 
         lda #(4+2)*3
 
@@ -616,13 +634,13 @@ unions.
 
         lda storage.len
 
-Built in functions are identifiers following parentheses. They accept variable
-number of parameters separated by comma.
+Built in functions are identifiers followed by parentheses. They accept
+variable number of parameters separated by comma.
 
 min(a, b, ...)        Minimum of values
 max(a, b, ...)        Maximum of values
 size(a)               Size of structure in bytes
-len(a)                Length of list, characters in string
+len(a)                Length of list or tuple, characters in string
 abs(a)                Absolute value
 sign(a)               Sign value (-1, 0, 1)
 floor(a)              Round down
@@ -731,10 +749,36 @@ x + y    add
 x - y    substract
 x * y    multiply
 x / y    divide
-x // y   modulo
+x % y    modulo
 x ** y   exponentiation
 -x       negate
 +x       unchanged
+
+Strings, lists and tuples can be indexed by a numeric values starting from
+zero, this extracts a single character or value. Negative values are indexing
+from the end.
+
+        lda #mylist[2]
+
+Strings, lists and tuples can be sliced which is an extraction of range from a
+start position to an end position with a step value. These parameters are
+separated with colons enclosed in square brackets and are all optional. Their
+default values are [start:maximum:step 1].
+
+mylist  = ("e", cmd_e, "g", cmd_g, "i", cmd_i)
+keys    .text mylist[::2]    ; keys ("e", "g", "i")
+call_l  .byte <mylist[1::2]-1; routines (<cmd_e-1, <cmd_g-1, <cmd_i-1)
+call_h  .byte >mylist[1::2]-1; routines (>cmd_e-1, >cmd_g-1, >cmd_i-1)
+        .text "text"[:2]     ; "te"
+        .text "text"[2:]     ; "xt"
+        .text "text"[:-1]    ; "tex"
+
+Concatenation can be done on list or tuple of values by prefixing it with the
+positive operator. All values must be the same type of string, list or tuple.
+The more common addition operator can't be used for concatenation as it
+performs a numeric addition normally.
+
+all  = +("text1", "text2", "text3")
 
 -------------------------------------------------------------------------------
 

@@ -646,24 +646,47 @@ copied into the code, with the internal references.
 <h2>Expressions</h2>
 
 <p>Numeric constants of decimal (<code>0-9</code>), hexadecimal
-(<code>$</code>) and binary (<code>%</code>) are accepted. String constants are 
-enclosed in quotation marks. To enter the quotation mark itself in the string
-just double it. Single letter strings are character constants and represent their
-numeric values in numeric expressions.</p>
+(<code>$</code>), binary (<code>%</code>) and floating point (<code>1.2</code>)
+are accepted in expressions. Short strings can also form a numeric constant in
+expressions, these must be no longer than 4 bytes in the current encoding.</p>
 
 <pre width=80>
         <b class="d">.byte</b> <span>23</span>        <i>; decimal</i>
         <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
         <b class="d">.byte</b> <span>%00011111</span> <i>; binary</i>
         <b class="d">.byte</b> <span>3.4</span>       <i>; real</i>
+        <b class="d">.word</b> <span class="s">"ab"</span>+<span>1</span>    <i>; character, results in "bb"</i>
+</pre>
 
-        <b class="d">.text</b> <span class="s">"oeU"</span>     <i>; text</i>
+<p>Strings are enclosed in single or double quotes and can hold any unicode
+character. Operations like indexing or slicing are always done on the original
+representation. The current encoding is only applied when it's used in
+expressions as numeric constants or in context of text data directives.
+Doubling the quotes inside the strings escapes them.</p>
+
+<pre width=80>
+mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
         <b class="d">.text</b> <span class="s">'it''s'</span>   <i>; text: it's</i>
 </pre>
 
-<p>Parenthesis (<code>( )</code>) and brackets (<code>[ ]</code>) can be
-used to override operator precedence. Don't forget that they also
-denote indirect addressing mode for certain opcodes.</p>
+<p>Lists and tuples can hold a collection of values. Lists are defined from
+values separated by comma between square brackets <code>[1,2,3]</code>, an
+empty list is <code>[]</code>. Tuples are similar but are enclosed in
+parentheses instead. An empty tuple is <code>()</code>, a single element
+tuple is <code>(4,)</code> to differentiate from normal numeric expression
+parentheses. When nested they function similar to an array. Indexing and
+slicing operations are supported, beyond that in numeric expressions all
+operations are done on all values at the same time (e.g. [1,2]+1=[2,3]). Currently both types are
+immutable.</p>
+
+<pre width=80>
+mylist  <b>=</b> [<span>1</span>, <span>2</span>, <span class="s">"whatever"</span>]
+mytuple <b>=</b> (<span class="l">cmd_e</span>, <span class="l">cmd_g</span>)
+</pre>
+
+<p>Parenthesis (<code>( )</code>) can be used to override operator precedence.
+Don't forget that they also denote indirect addressing mode for certain
+opcodes.</p>
 
 <pre width=80>
         <b>lda</b> #(<span>4</span>+<span>2</span>)*<span>3</span>
@@ -685,14 +708,14 @@ member elements of arrays by their address. Indexing starts at 0.</p>
 myarr   <b class="d">.word</b> <span>542</span>,<span>722</span>,<span>373</span>,<span>443</span>
 </pre>-->
 
-<p>Built in functions are identifiers following parentheses. They accept
+<p>Built in functions are identifiers followed by parentheses. They accept
 variable number of parameters separated by comma.</p>
 
 <table border="0">
 <tr><td width="150">min(a, b, ...)</td><td>Minimum of values</td></tr>
 <tr><td>max(a, b, ...)</td><td>Maximum of values</td></tr>
 <tr><td>size(a)</td><td>Size of structure in bytes</td></tr>
-<tr><td>len(a)</td><td>Length of list, characters in string</td></tr>
+<tr><td>len(a)</td><td>Length of list or tuple, characters in string</td></tr>
 <tr><td>abs(a)</td><td>Absolute value</td></tr>
 <tr><td>sign(a)</td><td>Sign value (-1, 0, 1)</td></tr>
 <tr><td>floor(a)</td><td>Round down</td></tr>
@@ -822,11 +845,43 @@ anything else is false.</p>
 <tr><td><tt>x - y</tt><td align="left">substract
 <tr><td><tt>x * y</tt><td align="left">multiply
 <tr><td><tt>x / y</tt><td align="left">divide
-<tr><td><tt>x // y</tt><td align="left">modulo
+<tr><td><tt>x % y</tt><td align="left">modulo
 <tr><td><tt>x ** y</tt><td align="left">exponentiation
 <tr><td><tt>-x</tt><td align="left">negate
 <tr><td><tt>+x</tt><td align="left">unchanged
 </table>
+
+<p>Strings, lists and tuples can be indexed by a numeric values starting from
+zero, this extracts a single character or value. Negative values are indexing
+from the end.</p>
+
+<pre width=80>
+        <b>lda</b> #<span class="l">mylist</span>[<span>2</span>]
+</pre>
+
+<p>Strings, lists and tuples can be sliced which is an extraction of range from a
+start position to an end position with a step value. These parameters are
+separated with colons enclosed in square brackets and are all optional. Their
+default values are [start:maximum:step 1].</p>
+
+<pre width=80>
+mylist  <b>=</b> (<span class="s">"e"</span>, <span class="l">cmd_e</span>, <span class="s">"g"</span>, <span class="l">cmd_g</span>, <span class="s">"i"</span>, <span class="l">cmd_i</span>)
+keys    <b class="d">.text</b> <span class="l">mylist</span>[::2]    <i>; keys ("e", "g", "i")</i>
+call_l  <b class="d">.byte</b> &lt;<span class="l">mylist</span>[1::2]-1<i>; routines (&lt;cmd_e-1, &lt;cmd_g-1, &lt;cmd_i-1)</i>
+call_h  <b class="d">.byte</b> &gt;<span class="l">mylist</span>[1::2]-1<i>; routines (&gt;cmd_e-1, &gt;cmd_g-1, &gt;cmd_i-1)</i>
+        <b class="d">.text</b> <span class="s">"text"</span>[:2]     <i>; "te"</i>
+        <b class="d">.text</b> <span class="s">"text"</span>[2:]     <i>; "xt"</i>
+        <b class="d">.text</b> <span class="s">"text"</span>[:-1]    <i>; "tex"</i>
+</pre>
+
+<p>Concatenation can be done on list or tuple of values by prefixing it with
+the positive operator. All values must be the same type of string, list or
+tuple. The more common addition operator can't be used for concatenation as it
+performs a numeric addition normally.</p>
+
+<pre width=80>
+all  <b>=</b> +(<span class="s">"text1"</span>, <span class="s">"text2"</span>, <span class="s">"text3"</span>)
+</pre>
 
 <hr>
 <h2>Compiler directives:</h2>
