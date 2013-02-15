@@ -380,11 +380,11 @@ static int priority(enum oper_e ch)
     case O_DIV:                // /
     case O_MOD:return 13;      // %
     case O_EXP:return 14;      // **
-    case O_MEMBER:return 15;   // .
     case O_NEG:                // -
-    case O_POS:return 16;      // +
-    case O_INV:return 17;      // ~
-    case O_LNOT:return 18;     // !
+    case O_POS:                // +
+    case O_INV:                // ~
+    case O_LNOT:return 15;     // !
+    case O_MEMBER:return 16;   // .
     }
 }
 
