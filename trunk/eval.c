@@ -562,7 +562,7 @@ static int get_val2_compat(void) {// length in bytes, defined
         if (vsp < 2) {
         syntaxe:
             err_msg(ERROR_EXPRES_SYNTAX,NULL);
-            outp2 = i;
+            outp2 = outp;
             return -1;
         }
         t2 = try_resolv(&values[vsp-2].val);
@@ -1958,7 +1958,7 @@ static int get_val2(int stop) {
         if (vsp == 0) {
         syntaxe:
             err_msg(ERROR_EXPRES_SYNTAX,NULL);
-            outp2 = i;
+            outp2 = outp;
             return -1;
         }
         try_resolv(&v2->val);
