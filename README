@@ -65,7 +65,7 @@ below, so that the resulting file is directly runnable without additional
 compression:
 
         *= $0801
-        .word (+), 2005   ;pointer, line number
+        .word (+), 2005  ;pointer, line number
         .null $9e, ^start;will be sys 4096
 +       .word 0          ;basic line end
 
@@ -104,6 +104,25 @@ wrbyte  sta $ffff       ;quick byte writer at $02
         inc wrbyte+2
 +       rts
         .here
+
+The assembler supports lists and tuples, which does not seems interesting at
+first as it sound like something which is only useful when heavy scripting is
+involved. But as normal arithmetic operations also apply on all their elements
+at once, this could spare quite some typing and repetition.
+
+Let's take a simple example of a low/high byte jump table of return addresses,
+this usually involves some unnecessary copy/pasting to create a pair of tables
+with constructs like >(label-1).
+
+jumpcmd lda hibytes,x   ; selected routine in X register
+        pha
+        lda lobytes,x   ; push address to stack
+        pha
+        rts             ; jump, rts will increase pc by one!
+; Build an anonymous list of jump addresses minus 1
+-       = (cmd_p, cmd_c, cmd_m, cmd_s, cmd_r, cmd_l, cmd_e)-1
+lobytes .byte <(-)      ; low bytes of jump addresses
+hibytes .byte >(-)      ; high bytes
 
 For writing short code there are some special pseudo instructions for always
 taken branches. These are automatically compiled as relative branches when the

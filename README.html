@@ -89,7 +89,7 @@ like the one below, so that the resulting file is directly runnable
 without additional compression:</p>
 <pre>
         <b>*=</b> <span>$0801</span>
-        <b class="d">.word</b> (<span class="l">+</span>), <span>2005</span>   <i>;pointer, line number</i>
+        <b class="d">.word</b> (<span class="l">+</span>), <span>2005</span>  <i>;pointer, line number</i>
         <b class="d">.null</b> <span>$9e</span>, ^<span class="l">start</span><i>;will be sys 4096</i>
 +	<b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
 
@@ -131,6 +131,24 @@ wrbyte  <b>sta</b> <span>$ffff</span>       <i>;quick byte writer at $02</i>
         <b>inc</b> <span class="l">wrbyte</span>+<span>2</span>
 +	<b>rts</b>
 	<b class="k">.here</b>
+</pre>
+<p>The assembler supports lists and tuples, which does not seems interesting at
+first as it sound like something which is only useful when heavy scripting is
+involved. But as normal arithmetic operations also apply on all their elements at
+once, this could spare quite some typing and repetition.</p>
+<p>Let's take a simple example of a low/high byte jump table of return
+addresses, this usually involves some unnecessary copy/pasting to create a pair
+of tables with constructs like <code>&gt;(label-1)</code>.</p>
+<pre width=80>
+jumpcmd <b>lda</b> <span class="l">hibytes</span>,x   <i>; selected routine in X register</i>
+        <b>pha</b>
+        <b>lda</b> <span class="l">lobytes</span>,x <i>  ; push address to stack</i>
+        <b>pha</b>
+        <b>rts</b>             <i>; jump, rts will increase pc by one!</i>
+<i>; Build an anonymous list of jump addresses minus 1</i>
+-	<b>=</b> (<span class="l">cmd_p</span>, <span class="l">cmd_c</span>, <span class="l">cmd_m</span>, <span class="l">cmd_s</span>, <span class="l">cmd_r</span>, <span class="l">cmd_l</span>, <span class="l">cmd_e</span>)-<span>1</span>
+lobytes <b class="d">.byte</b> &lt;(<span class="l">-</span>)      <i>; low bytes of jump addresses</i>
+hibytes <b class="d">.byte</b> &gt;(<span class="l">-</span>)      <i>; high bytes</i>
 </pre>
 
 <p>For writing short code there are some special pseudo instructions for always
