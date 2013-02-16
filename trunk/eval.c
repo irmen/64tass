@@ -402,6 +402,7 @@ static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
     char ch;
 
     enum oper_e o_oper[256] = {0}, conv;
+    unsigned int epoints[256];
     uint8_t operp = 0;
     int large=0;
     unsigned int epoint, cpoint = 0;
@@ -420,7 +421,7 @@ rest:
         ignore();ch = here(); epoint=lpoint;
 
         switch (ch) {
-        case '(': o_oper[operp++] = O_PARENT; lpoint++;continue;
+        case '(': epoints[operp] = epoint; o_oper[operp++] = O_PARENT; lpoint++;continue;
         case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
         case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
         case '"': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
@@ -444,7 +445,7 @@ rest:
     other:
         ignore();ch = here(); epoint=lpoint;
 	
-        while (operp && o_oper[operp-1] != O_PARENT) {o_out[outp].val.type = T_OPER; o_out[outp++].val.u.oper=o_oper[--operp];}
+        while (operp && o_oper[operp-1] != O_PARENT) {o_out[outp].val.type = T_OPER; o_out[outp].epoint = epoints[--operp]; o_out[outp++].val.u.oper=o_oper[operp];}
         switch (ch) {
         case ',':
             if (conv != O_POS) {
@@ -458,13 +459,13 @@ rest:
             o_out[outp++].epoint=epoint;
             lpoint++;
             goto rest;
-        case '&': o_oper[operp++] = O_AND; lpoint++;continue;
-        case '.': o_oper[operp++] = O_OR; lpoint++;continue;
-        case ':': o_oper[operp++] = O_XOR; lpoint++;continue;
-        case '*': o_oper[operp++] = O_MUL; lpoint++;continue;
-        case '/': o_oper[operp++] = O_DIV; lpoint++;continue;
-        case '+': o_oper[operp++] = O_ADD; lpoint++;continue;
-        case '-': o_oper[operp++] = O_SUB; lpoint++;continue;
+        case '&': epoints[operp] = epoint; o_oper[operp++] = O_AND; lpoint++;continue;
+        case '.': epoints[operp] = epoint; o_oper[operp++] = O_OR; lpoint++;continue;
+        case ':': epoints[operp] = epoint; o_oper[operp++] = O_XOR; lpoint++;continue;
+        case '*': epoints[operp] = epoint; o_oper[operp++] = O_MUL; lpoint++;continue;
+        case '/': epoints[operp] = epoint; o_oper[operp++] = O_DIV; lpoint++;continue;
+        case '+': epoints[operp] = epoint; o_oper[operp++] = O_ADD; lpoint++;continue;
+        case '-': epoints[operp] = epoint; o_oper[operp++] = O_SUB; lpoint++;continue;
         case ')':
             if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
             lpoint++;
@@ -500,6 +501,8 @@ static int get_val2_compat(void) {// length in bytes, defined
     enum type_e t1, t2;
     enum oper_e op;
     unsigned int i;
+    struct value_s tmp;
+    struct values_s *v1, *v2;
     int large = 0;
 
     if (outp2 >= outp) return 1;
@@ -528,19 +531,23 @@ static int get_val2_compat(void) {// length in bytes, defined
             return 0;
         }
         if (vsp < 1) goto syntaxe;
-        t1 = try_resolv(&values[vsp-1].val);
+        v1 = &values[vsp-1];
+        t1 = try_resolv(&v1->val);
+        if (t1 == T_STR) {
+            if (str_to_num(v1->val, T_NUM, &tmp)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, v1->epoint); large=1;
+            }
+            val_replace(&v1->val, &tmp);
+            t1 = v1->val->type;
+        }
         if (op == O_LOWER || op == O_HIGHER) {
             switch (t1) {
-            case T_STR:
-                if (str_to_num2(&values[vsp-1].val, T_NUM)) {
-                    err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-1].epoint); large=1;
-                }
             case T_UINT:
             case T_SINT:
             case T_NUM:
             case T_BOOL:
                 {
-                    uint16_t val1 = values[vsp-1].val->u.num.val;
+                    uint16_t val1 = v1->val->u.num.val;
 
                     switch (op) {
                     case O_HIGHER: val1 >>= 8;
@@ -548,15 +555,15 @@ static int get_val2_compat(void) {// length in bytes, defined
                     default: break;
                     }
                     set_uint(&new_value, val1);
-                    val_replace(&values[vsp-1].val, &new_value);
+                    val_replace(&v1->val, &new_value);
                     break;
                 }
             default:
-                err_msg_invalid_oper(op, values[vsp-1].val, NULL, values[vsp-1].epoint);
-                val_replace(&values[vsp-1].val, &none_value); 
+                err_msg_invalid_oper(op, v1->val, NULL, o_out[i].epoint);
+                val_replace(&v1->val, &none_value); 
             case T_NONE:break;
             }
-            values[vsp-1].epoint = o_out[i].epoint;
+            v1->epoint = o_out[i].epoint;
             continue;
         }
         if (vsp < 2) {
@@ -565,19 +572,14 @@ static int get_val2_compat(void) {// length in bytes, defined
             outp2 = outp;
             return -1;
         }
-        t2 = try_resolv(&values[vsp-2].val);
-
-        if (type_is_int(t1) && t2 == T_STR) {
-            if (str_to_num2(&values[vsp-2].val, T_NUM)) {
-                err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-2].epoint); large=1;
+        v2 = &values[vsp-2];
+        t2 = try_resolv(&v2->val);
+        if (t2 == T_STR) {
+            if (str_to_num(v2->val, T_NUM, &tmp)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, v2->epoint); large=1;
             }
-            t2 = values[vsp-2].val->type;
-        }
-        if (type_is_int(t2) && t1 == T_STR) {
-            if (str_to_num2(&values[vsp-1].val, T_NUM)) {
-                err_msg2(ERROR_CONSTNT_LARGE, NULL, values[vsp-1].epoint); large=1;
-            }
-            t1 = values[vsp-1].val->type;
+            val_replace(&v2->val, &tmp); 
+            t2 = v2->val->type;
         }
         switch (t1) {
         case T_SINT:
@@ -590,12 +592,12 @@ static int get_val2_compat(void) {// length in bytes, defined
             case T_NUM:
             case T_BOOL:
                 {
-                    uint16_t val1 = values[vsp-1].val->u.num.val;
-                    uint16_t val2 = values[vsp-2].val->u.num.val;
+                    uint16_t val1 = v1->val->u.num.val;
+                    uint16_t val2 = v2->val->u.num.val;
 
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
-                    case O_DIV: if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, values[vsp-1].epoint); val1 = 0xffff;large=1;} else val1=val2 / val1; break;
+                    case O_DIV: if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v1->epoint); val1 = 0xffff;large=1;} else val1=val2 / val1; break;
                     case O_ADD: val1 += val2; break;
                     case O_SUB: val1 = val2 - val1; break;
                     case O_AND: val1 &= val2; break;
@@ -605,18 +607,18 @@ static int get_val2_compat(void) {// length in bytes, defined
                     }
                     vsp--;
                     set_uint(&new_value, val1);
-                    val_replace(&values[vsp-1].val, &new_value);
+                    val_replace(&v2->val, &new_value);
                     continue;
                 }
-            default: err_msg_invalid_oper(op, values[vsp-2].val, values[vsp-1].val, values[vsp-2].epoint);
+            default: err_msg_invalid_oper(op, v2->val, v1->val, o_out[i].epoint);
             case T_NONE:break;
             }
             break;
         default:
-            err_msg_invalid_oper(op, values[vsp-2].val, values[vsp-1].val, values[vsp-1].epoint);
+            err_msg_invalid_oper(op, v2->val, v1->val, o_out[i].epoint);
         case T_NONE:break;
         }
-        vsp--; val_replace(&values[vsp-1].val, &none_value); continue;
+        vsp--; val_replace(&v2->val, &none_value); continue;
     }
     outp2 = i;
     if (large) return -1;
@@ -1250,7 +1252,7 @@ static void slices(struct values_s *vals, unsigned int args) {
     return;
 }
 
-static struct value_s *apply_op(enum oper_e op, const struct value_s *v1, unsigned int epoint, int *large) {
+static struct value_s *apply_op(enum oper_e op, const struct value_s *v1, unsigned int epoint, unsigned int epoint2, int *large) {
     enum type_e t1 = v1->type;
     struct value_s tmp1;
     char line[linelength]; 
@@ -1316,7 +1318,7 @@ strretr:
             if (!new_value.u.str.data) err_msg_out_of_memory();
             memcpy(new_value.u.str.data, line, new_value.u.str.len);
             return &new_value;
-        default: err_msg_invalid_oper(op, v1, NULL, epoint); 
+        default: err_msg_invalid_oper(op, v1, NULL, epoint2); 
                  return &none_value;
         }
     }
@@ -1347,7 +1349,7 @@ strretr:
                 memcpy(new_value.u.str.data, v1->u.str.data, new_value.u.str.len);
             } else new_value.u.str.data = NULL;
             return &new_value;
-        default: err_msg_invalid_oper(op, v1, NULL, epoint);
+        default: err_msg_invalid_oper(op, v1, NULL, epoint2);
                  return &none_value;
         }
     }
@@ -1387,7 +1389,7 @@ strretr:
                 memcpy(new_value.u.str.data, line, new_value.u.str.len);
                 return &new_value;
             }
-        default: err_msg_invalid_oper(op, v1, NULL, epoint); 
+        default: err_msg_invalid_oper(op, v1, NULL, epoint2);
                  return &none_value;
         }
     }
@@ -1409,7 +1411,7 @@ strretr:
                     vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                     if (!vals) err_msg_out_of_memory();
                     for (;i < v1->u.list.len; i++) {
-                        val = apply_op(op, v1->u.list.data[i], epoint, large);
+                        val = apply_op(op, v1->u.list.data[i], epoint, epoint2, large);
                         vals[i] = val_reference(val);
                         val_destroy(val);
                     }
@@ -1434,7 +1436,7 @@ strretr:
                                 new_value.u.str.len += v1->u.list.data[i]->u.str.len;
                                 new_value.u.str.chars += v1->u.list.data[i]->u.str.chars;
                                 break;
-                            default:err_msg_invalid_oper(op, v1, NULL, epoint); 
+                            default:err_msg_invalid_oper(op, v1, NULL, epoint2); 
                             case T_NONE: return &none_value;
                             }
                         }
@@ -1458,7 +1460,7 @@ strretr:
                                     new_value.u.list.len += v1->u.list.data[i]->u.list.len;
                                     break;
                                 }
-                            default:err_msg_invalid_oper(op, v1, NULL, epoint); 
+                            default:err_msg_invalid_oper(op, v1, NULL, epoint2); 
                             case T_NONE: return &none_value;
                             }
                         }
@@ -1472,7 +1474,7 @@ strretr:
                         }
                         new_value.u.list.data -= new_value.u.list.len;
                         return &new_value;
-                    default:err_msg_invalid_oper(op, v1, NULL, epoint); 
+                    default:err_msg_invalid_oper(op, v1, NULL, epoint2); 
                     case T_NONE: return &none_value;
                     }
                 }
@@ -1481,16 +1483,16 @@ strretr:
                 new_value.u.list.data = NULL;
                 return &new_value;
             }
-        default: err_msg_invalid_oper(op, v1, NULL, epoint); 
+        default: err_msg_invalid_oper(op, v1, NULL, epoint2); 
                  return &none_value;
         }
     }
     if (t1 == T_UNDEF) err_msg_wrong_type(v1, epoint); 
-    else err_msg_invalid_oper(op, v1, NULL, epoint);
+    else err_msg_invalid_oper(op, v1, NULL, epoint2);
     return &none_value;
 }
 
-static struct value_s *apply_op2(enum oper_e op, const struct value_s *v1, const struct value_s *v2, unsigned int epoint, unsigned int epoint2, int *large) {
+static struct value_s *apply_op2(enum oper_e op, const struct value_s *v1, const struct value_s *v2, unsigned int epoint, unsigned int epoint2, unsigned int epoint3, int *large) {
     enum type_e t1 = v1->type;
     enum type_e t2 = v2->type;
     struct value_s tmp1, tmp2;
@@ -1559,7 +1561,7 @@ strretr:
                          val1 = res;
                      }
                      break;
-        default: err_msg_invalid_oper(op, v1, v2, epoint); 
+        default: err_msg_invalid_oper(op, v1, v2, epoint3); 
                  goto errtype;
         }
         if (t1 == T_SINT) set_int(&new_value, val1); else {set_uint(&new_value, val1); new_value.type = t1;}
@@ -1630,7 +1632,7 @@ strretr:
             t1 = v1->type;
             t2 = v2->type;
             goto strretr;
-        default: err_msg_invalid_oper(op, v1, v2, epoint); goto errtype;
+        default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
         }
     }
 
@@ -1671,7 +1673,7 @@ strretr:
                          else val1 = pow(val1, val2);
                      }
                      break;
-        default: err_msg_invalid_oper(op, v1, v2, epoint); 
+        default: err_msg_invalid_oper(op, v1, v2, epoint3); 
                  goto errtype;
         }
         new_value.type = t1;
@@ -1689,7 +1691,7 @@ strretr:
         case O_NEQ:
             val = !val_equal(v1, v2);
             goto listcomp;
-        default: err_msg_invalid_oper(op, v1, v2, epoint); goto errtype;
+        default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
         }
         return &new_value;
     }
@@ -1699,7 +1701,7 @@ strretr:
         if (v1->u.list.len) {
             vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
             for (;i < v1->u.list.len; i++) {
-                val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, large);
+                val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, epoint3, large);
                 vals[i] = val_reference(val);
                 val_destroy(val);
             }
@@ -1715,7 +1717,7 @@ strretr:
         if (v2->u.list.len) {
             vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
             for (;i < v2->u.list.len; i++) {
-                val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, large);
+                val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
                 vals[i] = val_reference(val);
                 val_destroy(val);
             }
@@ -1733,13 +1735,13 @@ strretr:
         case O_GT: return (t1 > t2) ? &true_value : &false_value;
         case O_LE: return (t1 <= t2) ? &true_value : &false_value;
         case O_GE: return (t1 >= t2) ? &true_value : &false_value;
-        default: err_msg_invalid_oper(op, v1, v2, epoint); goto errtype;
+        default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
         }
     }
 
     if (t1 == T_UNDEF) err_msg_wrong_type(v1, epoint); 
     else if (t2 == T_UNDEF) err_msg_wrong_type(v2, epoint2); 
-    else err_msg_invalid_oper(op, v1, v2, epoint);
+    else err_msg_invalid_oper(op, v1, v2, epoint3);
     goto errtype;
 }
 
@@ -1883,8 +1885,9 @@ static int get_val2(int stop) {
             {
                 struct value_s *tmp;
                 try_resolv(&v1->val);
-                tmp = apply_op(op, v1->val, v1->epoint, &large);
+                tmp = apply_op(op, v1->val, v1->epoint, o_out[i].epoint, &large);
                 val_replace(&v1->val, tmp);
+                v1->epoint = o_out[i].epoint;
                 val_destroy(tmp);
                 continue;
             }
@@ -1965,7 +1968,7 @@ static int get_val2(int stop) {
         try_resolv(&v1->val);
 
         {
-            struct value_s *tmp = apply_op2(op, v1->val, v2->val, v1->epoint, v2->epoint, &large);
+            struct value_s *tmp = apply_op2(op, v1->val, v2->val, v1->epoint, v2->epoint, o_out[i].epoint, &large);
             val_replace(&v1->val, tmp);
             val_destroy(tmp);
         }
@@ -2033,12 +2036,14 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             }
             goto syntaxe;
         case '(': 
+            epoints[operp]=epoint;
             o_oper[operp++] = O_PARENT; lpoint++;
             o_out[outp].val.type = T_OPER;
             o_out[outp].val.u.oper = O_PARENT;
             o_out[outp++].epoint = epoint;
             continue;
         case '[':
+            epoints[operp]=epoint;
             o_oper[operp++] = O_BRACKET; lpoint++;
             o_out[outp].val.type = T_OPER;
             o_out[outp].val.u.oper = O_BRACKET;
@@ -2125,15 +2130,15 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '(': 
             o_out[outp].val.type = T_OPER;
             o_out[outp].val.u.oper = O_PARENT;
-            epoint = epoints[operp];
             o_out[outp++].epoint=epoint;
+            epoints[operp]=epoint;
             o_oper[operp++] = O_FUNC; lpoint++;
             continue;
         case '[':
             o_out[outp].val.type = T_OPER;
             o_out[outp].val.u.oper = O_BRACKET;
-            epoint = epoints[operp];
             o_out[outp++].epoint=epoint;
+            epoints[operp]=epoint;
             o_oper[operp++] = O_INDEX; lpoint++;
             continue;
         case '&': if (pline[lpoint+1] == '&') {lpoint++;op = O_LAND;} else op = O_AND; goto push2;
@@ -2155,6 +2160,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 if (o_oper[operp] == O_COND) cond--;
                 else {err_msg(ERROR______EXPECTED,"?");goto error;}
             }
+            epoints[operp] = epoint;
             o_oper[operp++] = op;
             lpoint++;
             continue;
@@ -2166,7 +2172,10 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 o_out[outp].val.type = T_OPER;
                 o_out[outp].val.u.oper=O_SEPARATOR;
                 o_out[outp++].epoint=epoint;
-            } else o_oper[operp++] = op;
+            } else {
+                epoints[operp] = epoint;
+                o_oper[operp++] = op;
+            }
             lpoint++;
             continue;
         case '<': 
