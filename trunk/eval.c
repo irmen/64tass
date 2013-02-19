@@ -756,8 +756,57 @@ static void functions(struct values_s *vals, unsigned int args) {
         }
         val_replace(&vals->val, &none_value);
         return;
-    }
-    // min(a, b, ...) - minimum value
+    } // range([start],end,[step])
+    if (len == 5 && !memcmp(name, "range", len)) {
+        ival_t start = 0, end, step = 1;
+        size_t i = 0, len;
+        struct value_s **val;
+        if (args < 1 || args > 3) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else {
+            for (i = 0; i < args; i++) {
+                switch (try_resolv(&v[i].val)) {
+                case T_SINT:
+                case T_UINT:
+                case T_NUM:
+                case T_BOOL:
+                    break;
+                default: err_msg_wrong_type(v[i].val, v[i].epoint);
+                case T_NONE: 
+                    val_replace(&vals->val, &none_value);
+                    return;
+                }
+            }
+            switch (args) {
+            case 1: end = v[0].val->u.num.val;break;
+            case 3: step = v[2].val->u.num.val;
+            case 2: start = v[0].val->u.num.val;
+                    end = v[1].val->u.num.val;break;
+            }
+            if (step == 0) {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[2].epoint); val_replace(&vals->val, &none_value); return;}
+            if (step > 0) {
+                if (end < start) end = start;
+                len = (end - start + step - 1) / step;
+            } else {
+                if (end > start) end = start;
+                len = (start - end - step - 1) / -step;
+            }
+            val = malloc(len * sizeof(new_value.u.list.data[0]));
+            if (!val) err_msg_out_of_memory();
+            i = 0;
+            while ((end > start && step > 0) || (end < start && step < 0)) {
+                if (start >= 0) set_uint(&new_value, (uval_t)start);
+                else set_int(&new_value, start);
+                val[i++] = val_reference(&new_value);
+                start += step;
+            }
+            new_value.type = T_LIST;
+            new_value.u.list.len = len;
+            new_value.u.list.data = val;
+            val_replace(&vals->val, &new_value); val_destroy(&new_value);
+            return;
+        }
+        val_replace(&vals->val, &none_value);
+        return;
+    } // min(a, b, ...) - minimum value
     if (len == 3 && !memcmp(name, "min", len)) {
         ival_t min = 0;
         if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
