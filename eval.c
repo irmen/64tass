@@ -781,7 +781,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             case 2: start = v[0].val->u.num.val;
                     end = v[1].val->u.num.val;break;
             }
-            if (step == 0) {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[2].epoint); val_replace(&vals->val, &none_value); return;}
+            if (step == 0) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v[2].epoint); val_replace(&vals->val, &none_value); return;}
             if (step > 0) {
                 if (end < start) end = start;
                 len = (end - start + step - 1) / step;
@@ -1101,13 +1101,20 @@ static inline int utf8len(uint8_t ch) {
     return 6;
 }
 
-static void str_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t step) {
+static void str_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t step) {
     struct value_s *val;
     uint8_t *p, *p2;
+    size_t len;
 
-    if (end < offs) end = offs;
+    if (step > 0) {
+        if (offs > end) offs = end;
+        len = (end - offs + step - 1) / step;
+    } else {
+        if (end > offs) end = offs;
+        len = (offs - end - step - 1) / -step;
+    }
     if (step == 1) {
-        new_value.u.str.chars = end - offs;
+        new_value.u.str.chars = len;
         if (new_value.u.str.chars == vals->val->u.str.chars) {
             return; /* original string */
         }
@@ -1118,7 +1125,7 @@ static void str_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t ste
             new_value.u.str.data = p + offs;
         }
         else {
-            uval_t i;
+            ival_t i;
             for (i = 0; i < offs; i++) {
                 p += utf8len(*p);
             }
@@ -1132,7 +1139,7 @@ static void str_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t ste
         val_replace(&vals->val, &new_value); val_destroy(val);
     } else {
         val = vals->val;
-        new_value.u.str.chars = (end - offs + step - 1) / step;
+        new_value.u.str.chars = len;
         if (!new_value.u.str.chars) {
             val_replace(&vals->val, &null_str);return;
         }
@@ -1140,32 +1147,54 @@ static void str_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t ste
             new_value.u.str.len = new_value.u.str.chars;
             p = new_value.u.str.data = malloc(new_value.u.str.len);
             if (!new_value.u.str.data) err_msg_out_of_memory();
-            while (end > offs) {
+            while ((end > offs && step > 0) || (end < offs && step < 0)) {
                 *p++ = val->u.str.data[offs];
                 offs += step;
             }
         }
         else {
-            uval_t i = offs, j, k;
+            ival_t i = offs, j, k;
             p = val->u.str.data;
             new_value.u.str.len = 0;
             for (i = 0; i < offs; i++) {
                 p += utf8len(*p);
             }
             p2 = p;
-            for (k = offs; i < end; i++) {
-                j = utf8len(*p2);
-                if (i == k) {new_value.u.str.len += j; k += step;}
-                p2 += j;
+            if (step > 0) {
+                for (k = offs; i < end; i++) {
+                    j = utf8len(*p2);
+                    if (i == k) {new_value.u.str.len += j; k += step;}
+                    p2 += j;
+                }
+            } else {
+                p2 += utf8len(*p2);
+                for (k = i = offs; i > end; i--) {
+                    j = 0;
+                    do {
+                        p2--;j++;
+                    } while (*p2 >= 0x80 && *p2 < 0xc0);
+                    if (i == k) {new_value.u.str.len += j; k += step;}
+                }
             }
             p2 = p;
             p = malloc(new_value.u.str.len);
             if (!p) err_msg_out_of_memory();
             new_value.u.str.data = p;
-            for (k = i = offs; i < end; i++) {
-                j = utf8len(*p2);
-                if (i == k) {memcpy(p, p2, j);p += j; k += step;}
-                p2 += j;
+            if (step > 0) {
+                for (k = i = offs; i < end; i++) {
+                    j = utf8len(*p2);
+                    if (i == k) {memcpy(p, p2, j);p += j; k += step;}
+                    p2 += j;
+                }
+            } else {
+                p2 += utf8len(*p2);
+                for (k = i = offs; i > end; i--) {
+                    j = 0;
+                    do {
+                        p2--;j++;
+                    } while (*p2 >= 0x80 && *p2 < 0xc0);
+                    if (i == k) {memcpy(p, p2, j);p += j; k += step;}
+                }
             }
         }
         new_value.type = T_STR;
@@ -1173,13 +1202,20 @@ static void str_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t ste
     }
 }
 
-static void list_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t step) {
+static void list_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t step) {
     struct value_s *val;
     size_t i;
+    size_t len;
 
-    if (end < offs) end = offs;
+    if (step > 0) {
+        if (end < offs) end = offs;
+        len = (end - offs + step - 1) / step;
+    } else {
+        if (end > offs) end = offs;
+        len = (offs - end - step - 1) / -step;
+    }
     if (step == 1) {
-        new_value.u.list.len = end - offs;
+        new_value.u.list.len = len;
         if (new_value.u.list.len == vals->val->u.list.len && new_value.type == T_TUPLE) {
             return; /* original tuple */
         }
@@ -1189,18 +1225,18 @@ static void list_slice(struct values_s *vals, uval_t offs, uval_t end, ival_t st
         val_replace(&vals->val, &new_value); val_destroy(val);
     } else {
         val = vals->val;
-        new_value.u.list.len = (end - offs + step - 1) / step;
+        new_value.type = vals->val->type;
+        new_value.u.list.len = len;
         if (!new_value.u.list.len) {
             val_replace(&vals->val, (new_value.type == T_TUPLE) ? &null_tuple : &null_list);return;
         }
         new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
         if (!new_value.u.list.data) err_msg_out_of_memory();
         i = 0;
-        while (end > offs) {
+        while ((end > offs && step > 0) || (end < offs && step < 0)) {
             new_value.u.list.data[i++] = val_reference(val->u.list.data[offs]);
             offs += step;
         }
-        new_value.type = vals->val->type;
         val_replace(&vals->val, &new_value); val_destroy(&new_value);
     }
 }
@@ -1253,79 +1289,70 @@ static void indexes(struct values_s *vals, unsigned int args) {
 
 static void slices(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
+    int i;
 
     switch (try_resolv(&vals->val)) {
     case T_LIST:
     case T_TUPLE:
     case T_STR:
         if (args > 3 || args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
-            uval_t offs = 0, len = (vals->val->type == T_STR) ? vals->val->u.str.chars : vals->val->u.list.len, end = len;
-            ival_t step = 1;
-            switch (try_resolv(&v[0].val)) {
-            case T_UINT:
-            case T_SINT:
-            case T_NUM:
-            case T_BOOL:
-                if (args == 1) goto skipme2;
-                switch (try_resolv(&v[1].val)) {
-                case T_UINT:
+            uval_t len = (vals->val->type == T_STR) ? vals->val->u.str.chars : vals->val->u.list.len;
+            ival_t offs = 0, end = (ival_t)len, step = 1;
+            for (i = args - 1; i >= 0; i--) {
+                switch (try_resolv(&v[i].val)) {
                 case T_SINT:
+                case T_UINT:
                 case T_NUM:
                 case T_BOOL:
-                    if (args == 2) goto skipme2a;
-                    switch (try_resolv(&v[2].val)) {
-                    case T_UINT:
-                    case T_SINT:
-                    case T_NUM:
-                    case T_BOOL:
-                        {
-                            if ((v[2].val->type == T_SINT && v[2].val->u.num.val < 0) || v[2].val->u.num.val == 0) {
-                                err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;
-                            }
-                            step = v[2].val->u.num.val;
-                        skipme2a:
-                            if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
-                                if ((uval_t)v[1].val->u.num.val <= end) {
-                                    end = (uval_t)v[1].val->u.num.val;
-                                }
-                            } else {
-                                if ((uval_t)-v[1].val->u.num.val <= end) {
-                                    end += v[1].val->u.num.val;
-                                } else end = 0;
-                            }
-                        skipme2:
-                            if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
-                                if ((uval_t)v[0].val->u.num.val < end) {
-                                    offs = (uval_t)v[0].val->u.num.val;
-                                } else offs = end;
-                            } else {
-                                if ((uval_t)-v[0].val->u.num.val <= len) {
-                                    offs = len + v[0].val->u.num.val;
-                                }
-                            }
-                            if (vals->val->type == T_STR) {
-                                str_slice(vals, offs, end, step);
-                            } else {
-                                list_slice(vals, offs, end, step);
-                            }
-                        }
-                        return;
-                    default: err_msg_invalid_oper(O_SLICE, v[2].val, NULL, v[2].epoint);
-                    case T_NONE: 
-                             val_replace(&vals->val, &none_value);
-                             return;
-                    }
-                default: err_msg_invalid_oper(O_SLICE, v[1].val, NULL, v[1].epoint);
+                case T_DEFAULT:
+                    break;
+                default: err_msg_wrong_type(v[i].val, v[i].epoint);
                 case T_NONE: 
-                         val_replace(&vals->val, &none_value);
-                         return;
+                    val_replace(&vals->val, &none_value);
+                    return;
                 }
-            default: err_msg_invalid_oper(O_SLICE, v[0].val, NULL, v[0].epoint);
-            case T_NONE: break;
             }
+            if (args > 2) {
+                if (v[2].val->type != T_DEFAULT) {
+                    if (v[2].val->u.num.val == 0) {
+                        err_msg2(ERROR_DIVISION_BY_Z, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;
+                    }
+                    step = v[2].val->u.num.val;
+                }
+            }
+            if (args > 1) {
+                if (v[1].val->type == T_DEFAULT) end = (step > 0) ? (ival_t)len : -1;
+                else {
+                    if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
+                        end = v[1].val->u.num.val;
+                        if (end > (ival_t)len) end = len;
+                    } else {
+                        end = v[1].val->u.num.val;
+                        if (end < 0) end += len;
+                    }
+                    if (end < -1) end = -1;
+                }
+            } else end = len;
+            if (v[0].val->type == T_DEFAULT) offs = (step > 0) ? 0 : len - 1;
+            else {
+                if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
+                    offs = v[0].val->u.num.val;
+                    if (offs > (ival_t)len - (step < 0)) offs = len - (step < 0);
+                } else {
+                    offs = v[0].val->u.num.val;
+                    if (offs < 0) offs += len;
+                }
+                if (offs < - (step < 0)) offs = - (step < 0);
+            }
+            if (vals->val->type == T_STR) {
+                str_slice(vals, offs, end, step);
+            } else {
+                list_slice(vals, offs, end, step);
+            }
+            return;
         }
         val_replace(&vals->val, &none_value);
-        break;
+        return;
     default: err_msg_invalid_oper(O_SLICE, vals->val, NULL, vals->epoint);
              val_replace(&vals->val, &none_value);
     case T_NONE: return;
@@ -2144,10 +2171,10 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             goto tryanon;
         case ':':
             if (operp && o_oper[operp-1] == O_INDEX) {
-                set_uint(&o_out[outp].val, 0);
+                o_out[outp].val.type = T_DEFAULT;
                 goto pushval;
             } else if (operp > 1 && o_oper[operp-1] == O_COMMA && o_oper[operp-2] == O_SLICE) {
-                set_uint(&o_out[outp].val, (uval_t)~0);
+                o_out[outp].val.type = T_DEFAULT;
                 goto pushval;
             }
             goto syntaxe;

@@ -704,7 +704,7 @@ static void compile(void)
                         int le;
                         newlabel=new_label(labelname, labelname2, L_VAR);oaddr=current_section->address;le = labelexists;
                         if (!get_exp(&w, 0)) goto breakerr; //ellenorizve.
-                        if (!newlabel->ref && newlabel->upass != pass && pass != 1) goto finish;
+                        if (!newlabel->ref && pass != 1 && le && newlabel->upass != pass) goto finish;
                         if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
                         if (listing && flist && arguments.source) {
@@ -716,8 +716,8 @@ static void compile(void)
                             }
                             printllist(flist);
                         }
-                        if (newlabel->upass != pass) newlabel->ref=0;
                         if (le) {
+                            if (newlabel->upass != pass) newlabel->ref=0;
                             if (newlabel->type != L_VAR) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                             else {
                                 newlabel->requires=current_section->requires;
