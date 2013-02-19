@@ -2343,9 +2343,10 @@ static void compile(void)
         case WHAT_HASHMARK:if (waitfor[waitforp].skip & 1) //skip things if needed
             {                   //macro stuff
                 struct label_s *old_context;
+                char macroname[linelength], macroname2[linelength];
 
-                if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (!(tmp2=find_macro(labelname)) || (tmp2->type != CMD_MACRO && tmp2->type != CMD_SEGMENT)) {err_msg(ERROR___NOT_DEFINED,labelname2); goto breakerr;}
+                if (get_ident2(macroname, macroname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (!(tmp2=find_macro(macroname)) || (tmp2->type != CMD_MACRO && tmp2->type != CMD_SEGMENT)) {err_msg(ERROR___NOT_DEFINED,macroname2); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
