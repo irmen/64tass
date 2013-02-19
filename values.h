@@ -102,12 +102,12 @@ struct value_s {
         struct {
             size_t len;
             const uint8_t *name;
+            struct label_s *label;
         } ident;
         struct {
             size_t len;
             struct value_s **data;
         } list;
-        struct label_s *label;
         enum oper_e oper;
         uint8_t ref;
         double real;
@@ -119,7 +119,7 @@ extern void val_replace(struct value_s **, struct value_s *);
 extern int val_equal(const struct value_s *, const struct value_s *);
 extern int val_truth(const struct value_s *);
 extern struct value_s *val_reference(struct value_s *);
-extern void val_print(struct value_s *, FILE *);
+extern void val_print(const struct value_s *, FILE *);
 
 extern void destroy_values(void);
 extern void init_values(void);

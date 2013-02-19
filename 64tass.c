@@ -662,10 +662,12 @@ static void compile(void)
         hh:
             if (!(waitfor[waitforp].skip & 1)) {wht=what(&prm);goto jn;} //skip things if needed
             if ((wht=what(&prm))==WHAT_EQUAL) { //variable
+                int le;
+                newlabel=new_label(labelname, labelname2, L_CONST);oaddr=current_section->address;le = labelexists;
                 if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (!newlabel->ref && pass != 1) goto finish;
+                if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
-                newlabel=new_label(labelname, labelname2, L_CONST);oaddr=current_section->address;
                 if (listing && flist && arguments.source && newlabel->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                     if (type_is_int(val->type)) {
@@ -676,7 +678,7 @@ static void compile(void)
                     printllist(flist);
                 }
                 newlabel->ref=0;
-                if (labelexists) {
+                if (le) {
                     if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                     else {
                         newlabel->requires=current_section->requires;
@@ -698,39 +700,43 @@ static void compile(void)
             if (wht==WHAT_COMMAND) {
                 switch (prm) {
                 case CMD_VAR: //variable
-                    if (!get_exp(&w, 0)) goto breakerr; //ellenorizve.
-                    if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    eval_finish();
-                    newlabel=new_label(labelname, labelname2, L_VAR);oaddr=current_section->address;
-                    if (listing && flist && arguments.source && newlabel->ref) {
-                        if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                        if (type_is_int(val->type)) {
-                            fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.num.val);
-                        } else {
-                            fputs("=\t\t\t\t\t", flist);
+                    {
+                        int le;
+                        newlabel=new_label(labelname, labelname2, L_VAR);oaddr=current_section->address;le = labelexists;
+                        if (!get_exp(&w, 0)) goto breakerr; //ellenorizve.
+                        if (!newlabel->ref && newlabel->upass != pass && pass != 1) goto finish;
+                        if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        eval_finish();
+                        if (listing && flist && arguments.source) {
+                            if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
+                            if (type_is_int(val->type)) {
+                                fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.num.val);
+                            } else {
+                                fputs("=\t\t\t\t\t", flist);
+                            }
+                            printllist(flist);
                         }
-                        printllist(flist);
-                    }
-                    newlabel->ref=0;
-                    if (labelexists) {
-                        if (newlabel->type != L_VAR) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
-                        else {
+                        if (newlabel->upass != pass) newlabel->ref=0;
+                        if (le) {
+                            if (newlabel->type != L_VAR) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                            else {
+                                newlabel->requires=current_section->requires;
+                                newlabel->conflicts=current_section->conflicts;
+                                var_assign(newlabel, val, fixeddig);
+                            }
+                        } else {
                             newlabel->requires=current_section->requires;
                             newlabel->conflicts=current_section->conflicts;
+                            newlabel->pass=pass;
+                            newlabel->value=&none_value;
                             var_assign(newlabel, val, fixeddig);
+                            newlabel->file = cfile->realname;
+                            newlabel->sline = sline;
+                            newlabel->epoint = epoint;
+                            if (val->type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
                         }
-                    } else {
-                        newlabel->requires=current_section->requires;
-                        newlabel->conflicts=current_section->conflicts;
-                        newlabel->pass=pass;
-                        newlabel->value=&none_value;
-                        var_assign(newlabel, val, fixeddig);
-                        newlabel->file = cfile->realname;
-                        newlabel->sline = sline;
-                        newlabel->epoint = epoint;
-                        if (val->type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
+                        goto finish;
                     }
-                    goto finish;
                 case CMD_LBL:
                     { //variable
                         struct jump_s *tmp2;
@@ -1695,18 +1701,22 @@ static void compile(void)
                     err_msg_variable(NULL, 0);
                     for (;;) {
                         actual_encoding = NULL;
-                        val = get_val(T_NONE, NULL);
+                        val = get_val(T_NONE, &epoint);
                         actual_encoding = old;
                         if (!val) break;
                         if (first) {
                             first = 0;
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
+                                if (val->type == T_UNDEF) err_msg_wrong_type(val, epoint);
                                 write = val_truth(val);
                                 continue;
                             }
                             write = 1;
                         }
-                        if (write && val->type != T_NONE) err_msg_variable(val, 0);
+                        if (write) {
+                            if (val->type == T_UNDEF) err_msg_wrong_type(val, epoint);
+                            else if (val->type != T_NONE) err_msg_variable(val, 0);
+                        }
                     }
                     if (write) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,NULL,epoint);
                     eval_finish();
@@ -2020,7 +2030,7 @@ static void compile(void)
                         ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                         lpoint++;
                         if (!get_exp(&w,1)) goto breakerr; //ellenorizve.
-                        if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         var=new_label(labelname, labelname2, L_VAR);
                         if (labelexists) {
                             if (var->type != L_VAR) err_msg_double_defined(var->origname, var->file, var->sline, var->epoint, labelname2, epoint);
@@ -2094,7 +2104,7 @@ static void compile(void)
                         if (bpoint) {
                             lpoint=bpoint;
                             if (!get_exp(&w,1)) break; //ellenorizve.
-                            if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                            if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                             var_assign(var, val, fixeddig);
                             ignore();if (here() && here()!=';') {err_msg(ERROR_EXTRA_CHAR_OL,NULL);break;}
                         }
