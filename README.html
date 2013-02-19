@@ -611,7 +611,7 @@ result (list.txt):
 <h2>Labels</h2>
 
 <p>Normal labels can be defined at the start of each line and hold the logical
-address of that line, or the value after the equal sign. Each of them is uniq and
+address of that line, or the value or reference of variable after the equal sign. Each of them is uniq and
 can't be redefined. Labels can be forward referenced, the assembler will make as
 many passes as required to resolve them to a stable value.</p>
 
@@ -766,6 +766,17 @@ variable number of parameters separated by comma.</p>
 <p>There are no predefined math constants, but as a hint pi is <code>rad(180)</code>
 and e is <code>exp(1)</code>.</p>
 
+<pre width=80>
+<i>;Bitmask table, 8 bits from left to right</i>
+        <b class="d">.byte</b> <span>%10000000</span> &gt;&gt; range(<span>8</span>)
+<i>;Classic 256 byte single period sinus table with values of 0-255.</i>
+        <b class="d">.byte</b> <span>128.5</span>+<span>127</span>*sin(range(<span>256</span>)*rad(<span>360.0</span>/<span>256</span>))
+<i>;Screen row address tables</i>
+-       <b>=</b> <span>$400</span>+range(<span>0</span>, <span>1000</span>, <span>40</span>)
+scrlo   <b class="d">.byte</b> &lt;(<span class="l">-</span>)
+scrhi   <b class="d">.byte</b> &gt;(<span class="l">-</span>)
+</pre>
+
 <p>Single bytes or words of numeric values can be extracted
 by the following operators:</p>
 
@@ -785,7 +796,7 @@ by the following operators:</p>
 
         <b>ldx</b> #&lt;&gt;<span class="l">source</span>
         <b>ldy</b> #&lt;&gt;<span class="l">dest</span>
-        <b>lda</b> #size(<span class="l">source</span>)-1
+        <b>lda</b> #size(<span class="l">source</span>)-<span>1</span>
         <b>mvn</b> `<span class="l">source</span>, `<span class="l">dest</span>
 </pre>
 
@@ -813,6 +824,11 @@ anything else is false.</p>
 <tr><td><tt>!x</tt><td align="left">if x is true then false otherwise true
 <tr><td><tt>!!x</tt><td align="left">if x is true then true otherwise false
 </table>
+
+<pre width=80>
+<i>;Silly example for 1=>"simple", 2=>"advanced", else "normal"</i>
+        <b class="d">.text</b> <span class="l">MODE</span> == <span>1</span> &amp;&amp; <span class="s">"simple"</span> || <span class="l">MODE</span> == <span>2</span> &amp;&amp; <span class="s">"advanced"</span> || <span class="s">"normal"</span>
+</pre>
 
 <p>The conditional operator gives the first (x) result if c is true or the second (y) if c is false.</p>
 
@@ -885,12 +901,13 @@ default values are [start:maximum:step 1].</p>
 
 <pre width=80>
 mylist  <b>=</b> (<span class="s">"e"</span>, <span class="l">cmd_e</span>, <span class="s">"g"</span>, <span class="l">cmd_g</span>, <span class="s">"i"</span>, <span class="l">cmd_i</span>)
-keys    <b class="d">.text</b> <span class="l">mylist</span>[::2]    <i>; keys ("e", "g", "i")</i>
-call_l  <b class="d">.byte</b> &lt;<span class="l">mylist</span>[1::2]-1<i>; routines (&lt;cmd_e-1, &lt;cmd_g-1, &lt;cmd_i-1)</i>
-call_h  <b class="d">.byte</b> &gt;<span class="l">mylist</span>[1::2]-1<i>; routines (&gt;cmd_e-1, &gt;cmd_g-1, &gt;cmd_i-1)</i>
-        <b class="d">.text</b> <span class="s">"text"</span>[:2]     <i>; "te"</i>
-        <b class="d">.text</b> <span class="s">"text"</span>[2:]     <i>; "xt"</i>
-        <b class="d">.text</b> <span class="s">"text"</span>[:-1]    <i>; "tex"</i>
+keys    <b class="d">.text</b> <span class="l">mylist</span>[::<span>2</span>]    <i>; keys ("e", "g", "i")</i>
+call_l  <b class="d">.byte</b> &lt;<span class="l">mylist</span>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&lt;cmd_e-1, &lt;cmd_g-1, &lt;cmd_i-1)</i>
+call_h  <b class="d">.byte</b> &gt;<span class="l">mylist</span>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&gt;cmd_e-1, &gt;cmd_g-1, &gt;cmd_i-1)</i>
+        <b class="d">.text</b> <span class="s">"text"</span>[:<span>2</span>]     <i>; "te"</i>
+        <b class="d">.text</b> <span class="s">"text"</span>[<span>2</span>:]     <i>; "xt"</i>
+        <b class="d">.text</b> <span class="s">"text"</span>[:<span>-1</span>]    <i>; "tex"</i>
+        <b class="d">.text</b> <span class="s">"reverse"</span>[::<span>-1</span>]<i>; "esrever"</i>
 </pre>
 
 <p>Concatenation can be done on list or tuple of values by prefixing it with
@@ -947,9 +964,9 @@ drive   <b>lda</b> #<span>$80</span>
 <dd>Align code to a dividable address by skip or fill
 <pre width=80>
         <b class="k">.align</b> <span>$100</span>
-irq     <b>inc</b> <span>$d019</span>       ;this will be on a page boundary, after skipping bytes
+irq     <b>inc</b> <span>$d019</span>       <i>;this will be on a page boundary, after skipping bytes</i>
         <b class="k">.align</b> <span>4</span>, <span>$ea</span>
-loop    <b>adc</b> #<span>1</span>          ;padding with "nop" for DTV burst mode
+loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst mode</i>
 </pre>
 
 </dl>
@@ -1318,7 +1335,7 @@ name    <b class="k">.macro</b>
 <dd>End of conditional compile
 
 <pre width=80>
-        <b class="k">.if</b> <span class="l">oeu</span>=<span>1</span>
+        <b class="k">.if</b> <span class="l">oeu</span>==<span>1</span>
 	<b>nop</b>
 	<b class="k">.else</b>
         <b>lda</b> #<span>1</span>
@@ -1331,11 +1348,11 @@ name    <b class="k">.macro</b>
 <dt><b>.elsif</b> &lt;expression&gt;
 <dd>Conditional compile, if the previous conditions were not true and the result is not 0.
 <pre width=80>
-        <b class="k">.if</b> <span class="l">wait</span>=<span>2</span>	;2 cycles
+        <b class="k">.if</b> <span class="l">wait</span>==<span>2</span>	;2 cycles
 	<b>nop</b>
-        <b class="k">.elsif</b> <span class="l">wait</span>=<span>3</span>	;3 cycles
+        <b class="k">.elsif</b> <span class="l">wait</span>==<span>3</span>	;3 cycles
         <b>bit</b> <span>$ea</span>
-        <b class="k">.elsif</b> <span class="l">wait</span>=<span>4</span>	;4 cycles
+        <b class="k">.elsif</b> <span class="l">wait</span>==<span>4</span>	;4 cycles
         <b>bit</b> <span>$eaea</span>
 	<b class="k">.else</b>		;else 5 cycles
         <b>inc</b> <span>$2</span>
@@ -1346,9 +1363,13 @@ name    <b class="k">.macro</b>
 <dt><b>.next</b>
 <dd>Compile loop, only anonymous references are allowed as labels inside
 <pre width=80>
-        <b class="k">.for</b> <span class="l">ue</span>=<span>0</span>,<span class="l">ue</span>&lt;<span>10</span>,<span class="l">ue</span>=<span class="l">ue</span>+<span>1</span>
-        <b class="d">.byte</b> <span class="l">ue</span>
+        <b>ldx</b> #<span>0</span>
+        <b>lda</b> #<span>32</span>
+lp      <b class="k">.for</b> <span class="l">ue</span>=<span>0</span>,<span class="l">ue</span>&lt;<span>$400</span>,<span class="l">ue</span>=<span class="l">ue</span>+<span>$100</span>
+        <b>sta</b> <span class="l">ue</span>,x
 	<b class="k">.next</b>
+        <b>dex</b>
+        <b>bne</b> <span class="l">lp</span>
 </pre>
 
 <dt><b>.rept</b> &lt;expression&gt;
@@ -1663,7 +1684,7 @@ or for silly <q>encryption</q>.
 
 <dt><b>.var</b> &lt;expression&gt;
 <dd>Defines a variable identified by the label preceeding, which
-is set to the value of expression.
+is set to the value of expression or reference of variable.
 
 <dt><b>.assert</b>
 <dt><b>.check</b>
@@ -1676,6 +1697,17 @@ is set to the value of expression.
 <dt><b>.pron</b>
 <dt><b>.proff</b>
 <dd>Turn on or off source listing on part of the file.
+
+<pre width=80>
+        <b class="k">.proff</b>           <i>;Don't put filler bytes into listing</i>
+        <b>*=</b> <span>$8000</span>
+        <b class="d">.fill</b> <span>$2000</span>, <span>$ff</span> <i>;Pre-fill ROM area</i>
+	<b class="k">.pron</b>
+        <b>*=</b> <span>$8000</span>
+        <b class="d">.word</b> <span class="l">reset</span>, <span class="l">restore</span>
+        <b class="d">.text</b> <span class="s">"CBM80"</span>
+reset   <b>cld</b>
+</pre>
 
 <dt><b>.hidemac</b>
 <dt><b>.showmac</b>
