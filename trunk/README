@@ -563,9 +563,10 @@ Other options
 Labels
 
 Normal labels can be defined at the start of each line and hold the logical
-address of that line, or the value after the equal sign. Each of them is uniq
-and can't be redefined. Labels can be forward referenced, the assembler will
-make as many passes as required to resolve them to a stable value.
+address of that line, or the value or reference of variable after the equal
+sign. Each of them is uniq and can't be redefined. Labels can be forward
+referenced, the assembler will make as many passes as required to resolve them
+to a stable value.
 
 reg     = $d020
 
@@ -691,6 +692,15 @@ atan2(y, x)           Polar angle
 There are no predefined math constants, but as a hint pi is rad(180) and e is
 exp(1).
 
+;Bitmask table, 8 bits from left to right
+        .byte %10000000 >> range(8)
+;Classic 256 byte single period sinus table with values of 0-255.
+        .byte 128.5+127*sin(range(256)*rad(360.0/256))
+;Screen row address tables
+-       = $400+range(0, 1000, 40)
+scrlo   .byte <(-)
+scrhi   .byte >(-)
+
 Single bytes or words of numeric values can be extracted by the following
 operators:
 
@@ -728,6 +738,9 @@ x ^^ y      if both false or true then false otherwise x || y
 x && y      if x is true then y otherwise x
 !x          if x is true then false otherwise true
 !!x         if x is true then true otherwise false
+
+;Silly example for 1=>"simple", 2=>"advanced", else "normal"
+        .text MODE == 1 && "simple" || MODE == 2 && "advanced" || "normal"
 
 The conditional operator gives the first (x) result if c is true or the second
 (y) if c is false.
@@ -792,6 +805,7 @@ call_h  .byte >mylist[1::2]-1; routines (>cmd_e-1, >cmd_g-1, >cmd_i-1)
         .text "text"[:2]     ; "te"
         .text "text"[2:]     ; "xt"
         .text "text"[:-1]    ; "tex"
+        .text "reverse"[::-1]; "esrever"
 
 Concatenation can be done on list or tuple of values by prefixing it with the
 positive operator. All values must be the same type of string, list or tuple.
@@ -1183,7 +1197,7 @@ Conditional assembly
 .endif
     End of conditional compile
 
-            .if oeu=1
+            .if oeu==1
             nop
             .else
             lda #1
@@ -1195,11 +1209,11 @@ Conditional assembly
     Conditional compile, if the previous conditions were not true and the
     result is not 0.
 
-            .if wait=2      ;2 cycles
+            .if wait==2     ;2 cycles
             nop
-            .elsif wait=3   ;3 cycles
+            .elsif wait==3  ;3 cycles
             bit $ea
-            .elsif wait=4   ;4 cycles
+            .elsif wait==4  ;4 cycles
             bit $eaea
             .else           ;else 5 cycles
             inc $2
@@ -1209,9 +1223,13 @@ Conditional assembly
 .next
     Compile loop, only anonymous references are allowed as labels inside
 
-            .for ue=0,ue<10,ue=ue+1
-            .byte ue
+            ldx #0
+            lda #32
+    lp      .for ue=0,ue<$400,ue=ue+$100
+            sta ue,x
             .next
+            dex
+            bne lp
 
 .rept <expression>
 .next
@@ -1497,7 +1515,7 @@ Misc
     example, or for silly `encryption'.
 .var <expression>
     Defines a variable identified by the label preceeding, which is set to the
-    value of expression.
+    value of expression or reference of variable.
 .assert
 .check
     Do not use these, the syntax will change in next version!
@@ -1507,6 +1525,16 @@ Printer control
 .pron
 .proff
     Turn on or off source listing on part of the file.
+
+            .proff           ;Don't put filler bytes into listing
+            *= $8000
+            .fill $2000, $ff ;Pre-fill ROM area
+            .pron
+            *= $8000
+            .word reset, restore
+            .text "CBM80"
+    reset   cld
+
 .hidemac
 .showmac
     Ignored for compatibility
