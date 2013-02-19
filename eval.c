@@ -749,21 +749,17 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned
     case F_ABS:
         switch (v1->type) {
         case T_SINT:
-            if (v1->u.num.val < 0) {
-                set_int(&new_value, -v1->u.num.val);
-                return &new_value;
-            }
         case T_UINT:
         case T_NUM:
         case T_BOOL:
-            return v1;
+            new_value.type = v1->type;
+            new_value.u.num.val = (v1->type == T_SINT && v1->u.num.val < 0) ? -v1->u.num.val : v1->u.num.val;
+            new_value.u.num.len = v1->u.num.len;
+            return &new_value;
         case T_FLOAT:
-            if (v1->u.real < 0.0) {
-                new_value.type = T_FLOAT;
-                new_value.u.real = -v1->u.real;
-                return &new_value;
-            }
-            return v1;
+            new_value.type = v1->type;
+            new_value.u.real = (v1->u.real < 0.0) ? -v1->u.real : v1->u.real;
+            return &new_value;
         case T_LIST:
         case T_TUPLE: break;
         default: err_msg_wrong_type(v1, epoint);
@@ -1048,8 +1044,12 @@ static void functions(struct values_s *vals, unsigned int args) {
     if (len == 3 && !memcmp(name, "abs", len)) func = F_ABS; 
 
     if (func != F_NONE) {
+        struct value_s *val;
+        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
         try_resolv(&v[0].val);
-        val_replace(&vals->val, apply_func(func, v[0].val, v[0].epoint));
+        val = apply_func(func, v[0].val, v[0].epoint);
+        val_replace(&vals->val, val);
+        val_destroy(val);
         return;
     }
     func = F_NONE;
