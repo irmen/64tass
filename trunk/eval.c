@@ -719,16 +719,132 @@ static double to_float(const struct value_s *val) {
     }
 }
 
+enum func_e {
+    F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT, F_LOG,
+    F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG,
+    F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW, F_SIGN, F_ABS
+};
+
+static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned int epoint) {
+    switch (func) {
+    case F_SIGN:
+        switch (v1->type) {
+        case T_SINT:
+            set_int(&new_value, ((ival_t)v1->u.num.val > 0) - ((ival_t)v1->u.num.val < 0));
+            return &new_value;
+        case T_UINT:
+        case T_NUM:
+        case T_BOOL:
+            set_int(&new_value, ((uval_t)v1->u.num.val) > 0);
+            return &new_value;
+        case T_FLOAT:
+            set_int(&new_value, (v1->u.real > 0.0) - (v1->u.real < 0.0));
+            return &new_value;
+        case T_LIST:
+        case T_TUPLE: break;
+        default: err_msg_wrong_type(v1, epoint);
+        case T_NONE: return &none_value;
+        }
+        break;
+    case F_ABS:
+        switch (v1->type) {
+        case T_SINT:
+            if (v1->u.num.val < 0) {
+                set_int(&new_value, -v1->u.num.val);
+                return &new_value;
+            }
+        case T_UINT:
+        case T_NUM:
+        case T_BOOL:
+            return v1;
+        case T_FLOAT:
+            if (v1->u.real < 0.0) {
+                new_value.type = T_FLOAT;
+                new_value.u.real = -v1->u.real;
+                return &new_value;
+            }
+            return v1;
+        case T_LIST:
+        case T_TUPLE: break;
+        default: err_msg_wrong_type(v1, epoint);
+        case T_NONE: return &none_value;
+        }
+    default: break;
+    }
+    switch (v1->type) {
+    case T_FLOAT:
+    case T_SINT:
+    case T_UINT:
+    case T_NUM:
+    case T_BOOL:
+        new_value.type = T_FLOAT;
+        new_value.u.real = to_float(v1);
+        switch (func) {
+        case F_FLOOR: new_value.u.real = floor(new_value.u.real);break;
+        case F_CEIL: new_value.u.real = ceil(new_value.u.real);break;
+        case F_SQRT: 
+                     if (new_value.u.real < 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                     else new_value.u.real = sqrt(new_value.u.real);break;
+        case F_LOG10:
+                     if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                     else new_value.u.real = log10(new_value.u.real);break;
+        case F_LOG:
+                     if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                     else new_value.u.real = log(new_value.u.real);break;
+        case F_EXP: new_value.u.real = exp(new_value.u.real);break;
+        case F_SIN: new_value.u.real = sin(new_value.u.real);break;
+        case F_COS: new_value.u.real = cos(new_value.u.real);break;
+        case F_TAN: new_value.u.real = tan(new_value.u.real);break;
+        case F_ACOS: 
+                    if (new_value.u.real < -1.0 || new_value.u.real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                    else new_value.u.real = acos(new_value.u.real);break;
+        case F_ASIN: 
+                    if (new_value.u.real < -1.0 || new_value.u.real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                    else new_value.u.real = asin(new_value.u.real);break;
+        case F_ATAN: new_value.u.real = atan(new_value.u.real);break;
+        case F_CBRT: new_value.u.real = cbrt(new_value.u.real);break;
+        case F_ROUND: new_value.u.real = round(new_value.u.real);break;
+        case F_TRUNC: new_value.u.real = trunc(new_value.u.real);break;
+        case F_FRAC: new_value.u.real -= trunc(new_value.u.real);break;
+        case F_RAD: new_value.u.real = new_value.u.real * M_PI / 180.0;break;
+        case F_DEG: new_value.u.real = new_value.u.real * 180.0 / M_PI;break;
+        case F_COSH: new_value.u.real = cosh(new_value.u.real);break;
+        case F_SINH: new_value.u.real = sinh(new_value.u.real);break;
+        case F_TANH: new_value.u.real = tanh(new_value.u.real);break;
+        default:break;
+        }
+        break;
+    case T_LIST:
+    case T_TUPLE:
+            {
+                size_t i = 0;
+                struct value_s **vals, *val;
+                if (v1->u.list.len) {
+                    vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+                    if (!vals) err_msg_out_of_memory();
+                    for (;i < v1->u.list.len; i++) {
+                        val = apply_func(func, v1->u.list.data[i], epoint);
+                        vals[i] = val_reference(val);
+                        val_destroy(val);
+                    }
+                } else vals = NULL;
+                new_value.type = v1->type;
+                new_value.u.list.len = i;
+                new_value.u.list.data = vals;
+                break;
+            }
+    default: err_msg_wrong_type(v1, epoint);
+    case T_NONE: return &none_value;
+    }
+    return &new_value;
+}
+
 static void functions(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     const struct value_s *v0;
     size_t len;
     const uint8_t *name;
-    enum {
-        F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT,
-        F_LOG, F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN,
-        F_RAD, F_DEG, F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW
-    } func = F_NONE;
+    enum func_e func = F_NONE;
 
     if (vals->val->type != T_IDENT) {
         err_msg_invalid_oper(O_FUNC, vals->val, NULL, vals->epoint);
@@ -907,66 +1023,6 @@ static void functions(struct values_s *vals, unsigned int args) {
         val_replace(&vals->val, &none_value);
         return;
     } else
-    if (len == 3 && !memcmp(name, "abs", len)) {
-        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
-        switch (try_resolv(&v[0].val)) {
-        case T_SINT:
-            if (v[0].val->u.num.val < 0) {
-                new_value.type = T_SINT;
-                new_value.u.num.val = -v[0].val->u.num.val;
-                new_value.u.num.len = v[0].val->u.num.len;
-                val_replace(&vals->val, &new_value);
-                return;
-            }
-        case T_UINT:
-        case T_NUM:
-        case T_BOOL:
-            val_replace(&vals->val, v[0].val);
-            return;
-        case T_FLOAT:
-            if (v[0].val->u.real < 0.0) {
-                new_value.type = T_FLOAT;
-                new_value.u.real = -v[0].val->u.real;
-                val_replace(&vals->val, &new_value);
-                return;
-            }
-            val_replace(&vals->val, v[0].val);
-            return;
-        default: err_msg_wrong_type(v[0].val, v[0].epoint);
-        case T_NONE: break;
-        }
-        val_replace(&vals->val, &none_value);
-        return;
-    } else
-    if (len == 4 && !memcmp(name, "sign", len)) {
-        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
-        switch (try_resolv(&v[0].val)) {
-        case T_SINT:
-            new_value.type = T_SINT;
-            new_value.u.num.val = ((ival_t)v[0].val->u.num.val > 0)-((ival_t)v[0].val->u.num.val < 0);
-            new_value.u.num.len = 1;
-            val_replace(&vals->val, &new_value);
-            return;
-        case T_UINT:
-        case T_NUM:
-        case T_BOOL:
-            new_value.type = T_SINT;
-            new_value.u.num.val = ((uval_t)v[0].val->u.num.val) > 0;
-            new_value.u.num.len = 1;
-            val_replace(&vals->val, &new_value);
-            return;
-        case T_FLOAT:
-            new_value.type = T_SINT;
-            new_value.u.num.val = ((ival_t)v[0].val->u.real > 0.0)-((ival_t)v[0].val->u.real < 0.0);
-            new_value.u.num.len = 1;
-            val_replace(&vals->val, &new_value);
-            return;
-        default: err_msg_wrong_type(v[0].val, v[0].epoint);
-        case T_NONE: break;
-        }
-        val_replace(&vals->val, &none_value);
-        return;
-    } else
     if (len == 5 && !memcmp(name, "floor", len)) func = F_FLOOR; else
     if (len == 4 && !memcmp(name, "ceil", len)) func = F_CEIL; else
     if (len == 5 && !memcmp(name, "round", len)) func = F_ROUND; else
@@ -987,57 +1043,13 @@ static void functions(struct values_s *vals, unsigned int args) {
     if (len == 3 && !memcmp(name, "deg", len)) func = F_DEG; else
     if (len == 4 && !memcmp(name, "cosh", len)) func = F_COSH; else
     if (len == 4 && !memcmp(name, "sinh", len)) func = F_SINH; else
-    if (len == 4 && !memcmp(name, "tanh", len)) func = F_TANH; 
+    if (len == 4 && !memcmp(name, "tanh", len)) func = F_TANH; else
+    if (len == 4 && !memcmp(name, "sign", len)) func = F_SIGN; else
+    if (len == 3 && !memcmp(name, "abs", len)) func = F_ABS; 
 
     if (func != F_NONE) {
-        switch (try_resolv(&v[0].val)) {
-        case T_FLOAT:
-        case T_SINT:
-        case T_UINT:
-        case T_NUM:
-        case T_BOOL:
-            new_value.type = T_FLOAT;
-            new_value.u.real = to_float(v[0].val);
-            switch (func) {
-            case F_FLOOR: new_value.u.real = floor(new_value.u.real);break;
-            case F_CEIL: new_value.u.real = ceil(new_value.u.real);break;
-            case F_SQRT: 
-                         if (new_value.u.real < 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
-                         else new_value.u.real = sqrt(new_value.u.real);break;
-            case F_LOG10:
-                         if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
-                         else new_value.u.real = log10(new_value.u.real);break;
-            case F_LOG:
-                         if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
-                         else new_value.u.real = log(new_value.u.real);break;
-            case F_EXP: new_value.u.real = exp(new_value.u.real);break;
-            case F_SIN: new_value.u.real = sin(new_value.u.real);break;
-            case F_COS: new_value.u.real = cos(new_value.u.real);break;
-            case F_TAN: new_value.u.real = tan(new_value.u.real);break;
-            case F_ACOS: 
-                         if (new_value.u.real < -1.0 || new_value.u.real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
-                         else new_value.u.real = acos(new_value.u.real);break;
-            case F_ASIN: 
-                         if (new_value.u.real < -1.0 || new_value.u.real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint);
-                         else new_value.u.real = asin(new_value.u.real);break;
-            case F_ATAN: new_value.u.real = atan(new_value.u.real);break;
-            case F_CBRT: new_value.u.real = cbrt(new_value.u.real);break;
-            case F_ROUND: new_value.u.real = round(new_value.u.real);break;
-            case F_TRUNC: new_value.u.real = trunc(new_value.u.real);break;
-            case F_FRAC: new_value.u.real -= trunc(new_value.u.real);break;
-            case F_RAD: new_value.u.real = new_value.u.real * M_PI / 180.0;break;
-            case F_DEG: new_value.u.real = new_value.u.real * 180.0 / M_PI;break;
-            case F_COSH: new_value.u.real = cosh(new_value.u.real);break;
-            case F_SINH: new_value.u.real = sinh(new_value.u.real);break;
-            case F_TANH: new_value.u.real = tanh(new_value.u.real);break;
-            default:break;
-            }
-            val_replace(&vals->val, &new_value);
-            return;
-        default: err_msg_wrong_type(v[0].val, v[0].epoint);
-        case T_NONE: break;
-        }
-        val_replace(&vals->val, &none_value);
+        try_resolv(&v[0].val);
+        val_replace(&vals->val, apply_func(func, v[0].val, v[0].epoint));
         return;
     }
     func = F_NONE;
