@@ -660,7 +660,7 @@ min(a, b, ...)        Minimum of values
 max(a, b, ...)        Maximum of values
 size(a)               Size of structure in bytes
 len(a)                Length of list or tuple, characters in string
-range(<s>,e,<t>)      Create a list with values from a range
+range([s],e,[t])      Create a list with values from a range
 abs(a)                Absolute value
 sign(a)               Sign value (-1, 0, 1)
 floor(a)              Round down

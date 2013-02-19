@@ -213,6 +213,7 @@ static char *type_name(enum type_e t) {
     case T_TUPLE: return "<tuple>";
     case T_FLOAT: return "<float>";
     case T_BOOL: return "<bool>";
+    case T_DEFAULT: return "<default>";
     }
     return NULL;
 }
@@ -303,6 +304,7 @@ void err_msg_variable(struct value_s *val, int repr) {
     case T_BACKR: add_user_error("<backr>");break;
     case T_FORWR: add_user_error("<forwr>");break;
     case T_OPER: add_user_error("<operator>");break;
+    case T_DEFAULT: add_user_error("<default>");break;
     case T_GAP: add_user_error("?");break;
     case T_LIST:
         {
