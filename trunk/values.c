@@ -155,6 +155,8 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
     case T_NONE:
     case T_GAP:
         return val->type == val2->type;
+    case T_IDENTREF:
+        return val->type == val2->type && val->u.ident.label == val2->u.ident.label;
     default: /* not possible here */
         exit(2);
     }
@@ -180,7 +182,7 @@ int val_truth(const struct value_s *val) {
     }
 }
 
-void val_print(struct value_s *value, FILE *flab) {
+void val_print(const struct value_s *value, FILE *flab) {
     switch (value->type) {
     case T_NUM:
         fprintf(flab,"$%" PRIxval, (uval_t)value->u.num.val);
@@ -247,6 +249,21 @@ void val_print(struct value_s *value, FILE *flab) {
         }
     case T_BOOL:
         putc(value->u.num.val ? '1' : '0', flab);
+        break;
+    case T_IDENTREF:
+        if (value->u.ident.label->parent != &root_label) {
+            int rec = 100;
+            while (value->type == T_IDENTREF) {
+                value = value->u.ident.label->value;
+                if (!rec--) {
+                    putc('!', flab);
+                    return;
+                }
+            }
+            val_print(value, flab);
+        } else {
+            fputs(value->u.ident.label->origname, flab);
+        }
         break;
     case T_GAP:
         putc('?', flab);

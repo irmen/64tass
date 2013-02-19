@@ -255,13 +255,10 @@ static void get_string(struct value_s *v, uint8_t ch) {
     return;
 }
 
-static enum type_e touch_label(struct label_s *tmp) {
-
-    if (tmp) {
-        tmp->ref=1;tmp->pass=pass;
-        if (tmp->type != L_VAR || tmp->upass==pass) return T_IDENTREF;
-    }
-    return T_UNDEF;
+static int touch_label(struct label_s *tmp) {
+    tmp->ref=1;tmp->pass=pass;
+    if (tmp->type != L_VAR || tmp->upass==pass) return 0;
+    return 1;
 }
 
 static void copy_name(struct value_s *val, char *ident) {
@@ -280,42 +277,53 @@ static void try_resolv_ident(struct value_s **val2) {
     struct value_s *val = val2[0];
 
     switch (val->type) {
-    case T_FORWR: sprintf(ident,"+%x+%x", reffile, forwr + val->u.ref - 1); break;
-    case T_BACKR: sprintf(ident,"-%x-%x", reffile, backr - val->u.ref); break;
-    case T_IDENT: copy_name(val, ident); break;
+    case T_FORWR: 
+        new_value.u.ident.len = 1;
+        new_value.u.ident.name = (uint8_t *)"+";
+        sprintf(ident,"+%x+%x", reffile, forwr + val->u.ref - 1); break;
+    case T_BACKR: 
+        new_value.u.ident.len = 1;
+        new_value.u.ident.name = (uint8_t *)"-";
+        sprintf(ident,"-%x-%x", reffile, backr - val->u.ref); break;
+    case T_IDENT: 
+        new_value.u.ident.len = val->u.ident.len;
+        new_value.u.ident.name = val->u.ident.name;
+        copy_name(val, ident); break;
     default: return;
     }
-    new_value.u.label = find_label(ident);
-    new_value.type = touch_label(new_value.u.label);
-    if (new_value.type == T_UNDEF) {
-        switch (val->type) {
-        case T_FORWR: 
-            new_value.u.ident.len = 1;
-            new_value.u.ident.name = (uint8_t *)"+";
-            break;
-        case T_BACKR: 
-            new_value.u.ident.len = 1;
-            new_value.u.ident.name = (uint8_t *)"-";
-            break;
-        case T_IDENT: 
-            new_value.u.ident.len = val->u.ident.len;
-            new_value.u.ident.name = val->u.ident.name;
-            break;
-        default: return;
-        }
-    }
+    new_value.u.ident.label = find_label(ident);
+    new_value.type = (new_value.u.ident.label) ? T_IDENTREF : T_UNDEF;
     val_replace(val2, &new_value);
+}
+
+static const struct value_s *unwind_identrefs(const struct value_s *v1, unsigned int epoint) {
+    const struct value_s *vold = v1;
+    int rec = 100;
+    while (v1->type == T_IDENTREF) {
+        if (pass != 1 && v1->u.ident.label->value->type != T_IDENTREF) {
+            if (v1->u.ident.label->requires & ~current_section->provides) err_msg2(ERROR_REQUIREMENTS_, v1->u.ident.label->origname, epoint);
+            if (v1->u.ident.label->conflicts & current_section->provides) err_msg2(ERROR______CONFLICT, v1->u.ident.label->origname, epoint);
+        }
+        if (touch_label(v1->u.ident.label)) {
+            new_value.type = T_UNDEF;
+            new_value.u.ident.len = vold->u.ident.len;
+            new_value.u.ident.name = vold->u.ident.name;
+            return &new_value;
+        }
+        v1 = v1->u.ident.label->value;
+        if (!rec--) {
+            err_msg2(ERROR__REFRECURSION, NULL, epoint);
+            return &none_value;
+        }
+    } 
+    if (v1->type == T_UNDEF && pass == 1) return &none_value;
+    return v1;
 }
 
 static void try_resolv_identref(struct value_s **val2) {
     struct value_s *val = val2[0];
-    if (val->type == T_IDENTREF) {
-        if (pass != 1) {
-            if ((val->u.label->requires & current_section->provides)!=val->u.label->requires) err_msg(ERROR_REQUIREMENTS_,val->u.label->name);
-            if (val->u.label->conflicts & current_section->provides) err_msg(ERROR______CONFLICT,val->u.label->name);
-        }
-        val_replace(val2, val->u.label->value);
-    } else if (val->type == T_UNDEF && pass == 1) val_replace(val2, &none_value);
+    val = (struct value_s *)unwind_identrefs(val, 0);
+    val_replace(val2, val);
 }
 
 static enum type_e try_resolv(struct value_s **val) {
@@ -444,7 +452,7 @@ rest:
         o_out[outp++].epoint=epoint;
     other:
         ignore();ch = here(); epoint=lpoint;
-	
+
         while (operp && o_oper[operp-1] != O_PARENT) {o_out[outp].val.type = T_OPER; o_out[outp].epoint = epoints[--operp]; o_out[outp++].val.u.oper=o_oper[operp];}
         switch (ch) {
         case ',':
@@ -508,7 +516,7 @@ static int get_val2_compat(void) {// length in bytes, defined
     if (outp2 >= outp) return 1;
 
     for (i=outp2;i<outp;i++) {
-	if (o_out[i].val.type != T_OPER) {
+        if (o_out[i].val.type != T_OPER) {
             if (vsp >= values_size) {
                 values_size += 16;
                 values = realloc(values, sizeof(struct values_s)*values_size);
@@ -637,7 +645,6 @@ int eval_finish(void) {
 static int get_val2(int);
 
 struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in bytes, defined
-    enum type_e type2;
     int res;
 
     if (arguments.tasmcomp) {
@@ -648,10 +655,9 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     if (res) return (res > 0) ? NULL : &error_value;
 
     if (epoint) *epoint = values[0].epoint;
-    try_resolv(&values[0].val);
-    type2 = values[0].val->type;
+    try_resolv_ident(&values[0].val);
 
-    switch (type2) {
+    switch (values[0].val->type) {
     case T_STR:
     case T_SINT:
     case T_UINT:
@@ -661,9 +667,12 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     case T_GAP:
     case T_LIST:
     case T_TUPLE:
+    case T_IDENTREF:
+        if (type == T_IDENTREF) return values[0].val;
+        try_resolv_identref(&values[0].val);
         if (type == T_NONE) return values[0].val;
         if (type_is_int(type) || type == T_GAP) {
-            switch (type2) {
+            switch (values[0].val->type) {
             case T_STR:
                 if (str_to_num2(&values[0].val, (type == T_GAP) ? T_NUM : type)) {
                     err_msg2(ERROR_CONSTNT_LARGE, NULL, values[0].epoint);
@@ -673,6 +682,7 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
             case T_SINT:
             case T_NUM:
             case T_BOOL:
+            case T_NONE:
                 return values[0].val;
             case T_FLOAT:
                 new_value.type = (type == T_GAP) ? T_NUM : type;
@@ -686,6 +696,10 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
             }
         }
     default:
+        err_msg_wrong_type(values[0].val, values[0].epoint);
+        return &error_value;
+    case T_UNDEF:
+        if (pass == 1) break;
         err_msg_wrong_type(values[0].val, values[0].epoint);
         return &error_value;
     case T_NONE: break;
@@ -707,6 +721,7 @@ static double to_float(const struct value_s *val) {
 
 static void functions(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
+    const struct value_s *v0;
     size_t len;
     const uint8_t *name;
     enum {
@@ -804,24 +819,41 @@ static void functions(struct values_s *vals, unsigned int args) {
     else if (len == 4 && !memcmp(name, "size", len)) {
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
         else {
-	    try_resolv_ident(&v[0].val);
-	    switch (v[0].val->type) {
-	    case T_IDENTREF:
-                switch (v[0].val->u.label->type) {
+            int rec = 100;
+            try_resolv_ident(&v[0].val);
+            v0 = v[0].val;
+        sizeretr:
+            switch (v0->type) {
+            case T_IDENTREF:
+                switch (v0->u.ident.label->type) {
                 case L_LABEL:
                 case L_STRUCT:
                 case L_UNION:
-                    set_uint(&new_value, v[0].val->u.label->size);
+                    touch_label(v0->u.ident.label);
+                    set_uint(&new_value, v0->u.ident.label->size);
                     val_replace(&vals->val, &new_value);
                     return;
-                default: try_resolv_identref(&v[0].val);err_msg_wrong_type(v[0].val, v[0].epoint);
+                case L_VAR:
+                case L_CONST:
+                    if (touch_label(v0->u.ident.label)) {
+                        v[0].val->type = T_UNDEF;
+                        val_replace(&vals->val, v[0].val);
+                        vals->epoint = v[0].epoint;
+                        return;
+                    }
+                    v0 = v0->u.ident.label->value;
+                    if (rec--) goto sizeretr;
+                    err_msg2(ERROR__REFRECURSION, NULL, v[0].epoint);
+                    break;
                 }
-	    case T_NONE:
-		break;
+            case T_NONE:
+                break;
             case T_UNDEF:
-                if (pass == 1) break;
-	    default: err_msg_wrong_type(v[0].val, v[0].epoint);
-	    }
+                val_replace(&vals->val, v[0].val);
+                vals->epoint = v[0].epoint;
+                return;
+            default: err_msg_wrong_type(v0, v[0].epoint);
+            }
         }
         val_replace(&vals->val, &none_value);
         return;
@@ -1253,10 +1285,12 @@ static void slices(struct values_s *vals, unsigned int args) {
 }
 
 static struct value_s *apply_op(enum oper_e op, const struct value_s *v1, unsigned int epoint, unsigned int epoint2, int *large) {
-    enum type_e t1 = v1->type;
+    enum type_e t1;
     struct value_s tmp1;
     char line[linelength]; 
 
+    v1 = unwind_identrefs(v1, epoint);
+    t1 = v1->type;
 strretr:
     if (t1 == T_NONE) {
         return &none_value;
@@ -1493,10 +1527,14 @@ strretr:
 }
 
 static struct value_s *apply_op2(enum oper_e op, const struct value_s *v1, const struct value_s *v2, unsigned int epoint, unsigned int epoint2, unsigned int epoint3, int *large) {
-    enum type_e t1 = v1->type;
-    enum type_e t2 = v2->type;
+    enum type_e t1;
+    enum type_e t2;
     struct value_s tmp1, tmp2;
 
+    v1 = unwind_identrefs(v1, epoint);
+    t1 = v1->type;
+    v2 = unwind_identrefs(v2, epoint2);
+    t2 = v2->type;
 strretr:
     if (t1 == T_NONE) return &none_value;
     if (t2 == T_NONE) {
@@ -1757,7 +1795,7 @@ static int get_val2(int stop) {
 
     for (i=outp2;i<outp;i++) {
         op = o_out[i].val.u.oper;
-	if (o_out[i].val.type != T_OPER || op == O_PARENT || op == O_BRACKET) {
+        if (o_out[i].val.type != T_OPER || op == O_PARENT || op == O_BRACKET) {
             if (vsp >= values_size) {
                 values_size += 16;
                 values = realloc(values, sizeof(struct values_s)*values_size);
@@ -1781,25 +1819,40 @@ static int get_val2(int stop) {
         case O_MEMBER:
             {
                 char ident[linelength];
+                struct value_s *vv1;
+                int rec = 100;
                 v2 = v1; vsp--;
                 if (vsp == 0) goto syntaxe;
                 v1 = &values[vsp-1];
                 if (v1->val->type == T_NONE) continue;
                 try_resolv_ident(&v1->val);
-                if (v1->val->type == T_IDENTREF) {
+                vv1 = v1->val;
+            membretr:
+                if (vv1->type == T_IDENTREF) {
+                    if (vv1->u.ident.label->type == L_CONST || vv1->u.ident.label->type == L_VAR) {
+                        if (touch_label(vv1->u.ident.label)) {
+                            vv1->type = T_UNDEF;
+                            continue;
+                        }
+                        vv1 = vv1->u.ident.label->value;
+                        if (vv1->type == T_NONE) goto errtype;
+                        if (rec--) goto membretr;
+                        err_msg2(ERROR__REFRECURSION, NULL, v1->epoint);
+                        goto errtype;
+                    }
                     if (v2->val->type == T_IDENT) {
                         copy_name(v2->val, ident);
-                        new_value.u.label = find_label2(ident, &v1->val->u.label->members);
-                        new_value.type = touch_label(new_value.u.label);
-                        if (new_value.type == T_UNDEF) {
-                            new_value.u.ident.len = v2->val->u.ident.len;
-                            new_value.u.ident.name = v2->val->u.ident.name;
-                        }
+                        new_value.u.ident.label = find_label2(ident, &vv1->u.ident.label->members);
+                        new_value.type = (new_value.u.ident.label) ? T_IDENTREF : T_UNDEF;
+                        if (new_value.u.ident.label) touch_label(vv1->u.ident.label);
+                        new_value.u.ident.len = v2->val->u.ident.len;
+                        new_value.u.ident.name = v2->val->u.ident.name;
                         val_replace(&v1->val, &new_value);
                         v1->epoint=v2->epoint;
                         continue;
-                    } else err_msg_invalid_oper(op, v1->val, v2->val, v2->epoint);
-                } else if (v1->val->type != T_UNDEF || pass != 1) err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint);
+                    } else err_msg_invalid_oper(op, vv1, v2->val, v2->epoint);
+                } else if (vv1->type == T_UNDEF) continue;
+                else err_msg_invalid_oper(op, vv1, v2->val, v1->epoint);
             errtype:
                 val_replace(&v1->val, &none_value);
                 continue;
@@ -1825,7 +1878,7 @@ static int get_val2(int stop) {
         case O_RPARENT:
         case O_TUPLE:
             {
-                unsigned int args = 0, tup = (op == O_RPARENT);
+                unsigned int args = 0, args2, tup = (op == O_RPARENT);
                 op = (op == O_RBRACKET) ? O_BRACKET : O_PARENT;
                 while (v1->val->type != T_OPER || v1->val->u.oper != op) {
                     args++;
@@ -1835,10 +1888,24 @@ static int get_val2(int stop) {
                 v1->val->type = (op == O_BRACKET) ? T_LIST : T_TUPLE; // safe, replacing of T_OPER
                 v1->val->u.list.len = args;
                 if (args) {
+                    args2 = args;
                     v1->val->u.list.data = malloc(args * sizeof(v1->val->u.list.data[0]));
                     if (!v1->val->u.list.data) err_msg_out_of_memory();
                     while (args--) {
                         try_resolv(&values[vsp-1].val);
+                        if (values[vsp-1].val->type == T_UNDEF) {
+                            while (args2 > args + 1) {
+                                args2--;
+                                val_destroy(v1->val->u.list.data[args2]);
+                            }
+                            free(v1->val->u.list.data);
+                            v1->val->type = T_UNDEF;
+                            v1->val->u.ident.len = values[vsp-1].val->u.ident.len;
+                            v1->val->u.ident.name = values[vsp-1].val->u.ident.name;
+                            v1->epoint = values[vsp-1].epoint;
+                            vsp -= args + 1;
+                            break;
+                        } 
                         v1->val->u.list.data[args] = val_reference(values[vsp-1].val);
                         vsp--;
                     }
@@ -1884,7 +1951,7 @@ static int get_val2(int stop) {
         case O_STRING: // ^
             {
                 struct value_s *tmp;
-                try_resolv(&v1->val);
+                try_resolv_ident(&v1->val);
                 tmp = apply_op(op, v1->val, v1->epoint, o_out[i].epoint, &large);
                 val_replace(&v1->val, tmp);
                 v1->epoint = o_out[i].epoint;
@@ -1964,8 +2031,8 @@ static int get_val2(int stop) {
             outp2 = outp;
             return -1;
         }
-        try_resolv(&v2->val);
-        try_resolv(&v1->val);
+        try_resolv_ident(&v2->val);
+        try_resolv_ident(&v1->val);
 
         {
             struct value_s *tmp = apply_op2(op, v1->val, v2->val, v1->epoint, v2->epoint, o_out[i].epoint, &large);
@@ -2002,12 +2069,12 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     ignore();
     switch (here()) {
     case '@':
-	switch (pline[++lpoint] | 0x20) {
-	case 'b':*wd=0;break;
-	case 'w':*wd=1;break;
-	case 'l':*wd=2;break;
-	default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); return 0;
-	}
+        switch (pline[++lpoint] | 0x20) {
+        case 'b':*wd=0;break;
+        case 'w':*wd=1;break;
+        case 'l':*wd=2;break;
+        default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); return 0;
+        }
         lpoint++;
         break;
     }

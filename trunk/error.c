@@ -133,6 +133,7 @@ static const char *terr_fatal[]={
     "can't write label file ",
     "file recursion\n",
     "macro recursion too deep\n",
+    "reference recursion too deep\n",
     "unknown cpu: %s\n",
     "unknown option: %s\n",
     "too many passes\n",
