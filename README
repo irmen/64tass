@@ -11,7 +11,7 @@ avl tree code by Franck Bui-Huu, ternary tree code by Daniel Berlin.
 Syntax is the same as the well known Turbo Assembler on c64, so you can port
 your sources easy by only replacing the CR at the end of each line.
 
-Maintainer: soci at c64.rulez.org
+Main developer and maintainer: soci at c64.rulez.org
 
 This is a development version, features or syntax may change over time. Not
 everything is backwards compatible.
@@ -674,7 +674,7 @@ cqrt(a)               Cube root
 log10(a)              Common logarithm
 log(a)                Natural logarithm
 exp(a)                Exponential
-pow(a, b)             a raised to power of b
+pow(a, b)             a raised to power of b (a ** b)
 sin(a)                Sine
 asin(a)               Arc sine
 sinh(a)               Hyperbolic sine
