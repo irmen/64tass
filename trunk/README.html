@@ -39,7 +39,7 @@ Berlin.</p>
 <p>Syntax is the same as the well known Turbo Assembler on c64, so you can
 port your sources easy by only replacing the CR at the end of each line.</p>
 
-<p>Maintainer: soci at c64.rulez.org</p>
+<p>Main developer and maintainer: soci at c64.rulez.org</p>
 
 <p><b>This is a development version, features or syntax may change over time.
 Not everything is backwards compatible.</b></p>
@@ -142,7 +142,7 @@ of tables with constructs like <code>&gt;(label-1)</code>.</p>
 <pre width=80>
 jumpcmd <b>lda</b> <span class="l">hibytes</span>,x   <i>; selected routine in X register</i>
         <b>pha</b>
-        <b>lda</b> <span class="l">lobytes</span>,x <i>  ; push address to stack</i>
+        <b>lda</b> <span class="l">lobytes</span>,x   <i>; push address to stack</i>
         <b>pha</b>
         <b>rts</b>             <i>; jump, rts will increase pc by one!</i>
 <i>; Build an anonymous list of jump addresses minus 1</i>
@@ -747,7 +747,7 @@ variable number of parameters separated by comma.</p>
 <tr><td>log10(a)</td><td>Common logarithm</td></tr>
 <tr><td>log(a)</td><td>Natural logarithm</td></tr>
 <tr><td>exp(a)</td><td>Exponential</td></tr>
-<tr><td>pow(a, b)</td><td>a raised to power of b</td></tr>
+<tr><td>pow(a, b)</td><td>a raised to power of b (<code>a ** b</code>)</td></tr>
 <tr><td>sin(a)</td><td>Sine</td></tr>
 <tr><td>asin(a)</td><td>Arc sine</td></tr>
 <tr><td>sinh(a)</td><td>Hyperbolic sine</td></tr>
@@ -1055,26 +1055,26 @@ txt	<b class="d">.ptext</b> <span class="s">"note"</span>
 <dd>Include 8&nbsp;bit unsigned byte constants
 <pre width=80>
         <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
-	<b class="d">.byte</b> ?	        <i>; reserve 1 byte of space</i>
+        <b class="d">.byte</b> <span>?</span>	        <i>; reserve 1 byte of space</i>
 </pre>
 
 <dt><b>.char</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 8&nbsp;bit signed integer constants
 <pre width=80>
-        <b class="d">.char</b> -<span>33</span>, <span>57</span>
+        <b class="d">.char</b> <span>-33</span>, <span>57</span>
 </pre>
 
 <dt><b>.word</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 16&nbsp;bit unsigned word constants
 <pre width=80>
         <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
-	<b class="d">.word</b> ?	        <i>; reserve 2 bytes of space</i>
+        <b class="d">.word</b> <span>?</span>	        <i>; reserve 2 bytes of space</i>
 </pre>
 
 <dt><b>.int</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 16&nbsp;bit signed integer constants
 <pre width=80>
-        <b class="d">.int</b> -<span>533</span>, <span>4433</span>
+        <b class="d">.int</b> <span>-533</span>, <span>4433</span>
 </pre>
 
 <dt><b>.rta</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
@@ -1095,20 +1095,20 @@ rets	<b class="d">.rta</b> <span>$fce2</span>
 <dd>Include 24&nbsp;bit unsigned constants
 <pre width=80>
         <b class="d">.long</b> <span>$123456</span>
-	<b class="d">.long</b> ?	        <i>; reserve 3 bytes of space</i>
+        <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes of space</i>
 </pre>
 
 <dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 32&nbsp;bit unsigned constants
 <pre width=80>
         <b class="d">.dword</b> <span>$12345678</span>
-	<b class="d">.dword</b> ?        <i>; reserve 4 bytes of space</i>
+        <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes of space</i>
 </pre>
 
 <dt><b>.dint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 32&nbsp;bit signed integer constants
 <pre width=80>
-        <b class="d">.dint</b> -<span>533</span>, <span>4433</span>
+        <b class="d">.dint</b> <span>-533</span>, <span>4433</span>
 </pre>
 
 <dt><b>.fill</b> &lt;length&gt;[, &lt;fill&gt;]
@@ -1348,13 +1348,13 @@ name    <b class="k">.macro</b>
 <dt><b>.elsif</b> &lt;expression&gt;
 <dd>Conditional compile, if the previous conditions were not true and the result is not 0.
 <pre width=80>
-        <b class="k">.if</b> <span class="l">wait</span>==<span>2</span>	;2 cycles
+        <b class="k">.if</b> <span class="l">wait</span>==<span>2</span>	<i>;2 cycles</i>
 	<b>nop</b>
-        <b class="k">.elsif</b> <span class="l">wait</span>==<span>3</span>	;3 cycles
+        <b class="k">.elsif</b> <span class="l">wait</span>==<span>3</span>	<i>;3 cycles</i>
         <b>bit</b> <span>$ea</span>
-        <b class="k">.elsif</b> <span class="l">wait</span>==<span>4</span>	;4 cycles
+        <b class="k">.elsif</b> <span class="l">wait</span>==<span>4</span>	<i>;4 cycles</i>
         <b>bit</b> <span>$eaea</span>
-	<b class="k">.else</b>		;else 5 cycles
+        <b class="k">.else</b>		<i>;else 5 cycles</i>
         <b>inc</b> <span>$2</span>
 	<b class="k">.fi</b>
 </pre>
@@ -1462,7 +1462,7 @@ count	<b>ldx</b> #<span>0</span>
 <dd>End of comment block
 <pre width=80>
 	<b class="k">.comment</b><i>
-	lda #1          ;this won't be compiled
+        lda #1          <i>;this won't be compiled</i>
 	sta $d020
 	</i><b class="k">.endc</b>
 </pre>
@@ -1596,7 +1596,7 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
 <dd>Set databank (65816). Absolute addressing is used only for symbols in this
 bank, anything else (except direct page) is using long addressing.
 <pre width=80>
-        <b class="k">.databank</b> <span>$10</span>   ;$10xxxx
+        <b class="k">.databank</b> <span>$10</span>   <i>;$10xxxx</i>
 </pre>
 
 <dt><b>.dpage</b> &lt;expression&gt;
@@ -1748,10 +1748,10 @@ Another thing worth noting is that the original turbo assembler lets you create
 an interesting ambiguous construct using a label called <q>a</q>.
 </p>
 <pre width=80>
-	<b>lsr a</b>    ; uses accu ! (or does it really?)
+        <b>lsr a</b>    <i>; uses accu ! (or does it really?)</i>
 a
-        <b>jmp</b> <span class="l">a</span>    ; uses the label address
-        <b class="d">.word</b> <span class="l">a</span>  ; uses the label address
+        <b>jmp</b> <span class="l">a</span>    <i>; uses the label address</i>
+        <b class="d">.word</b> <span class="l">a</span>  <i>; uses the label address</i>
 </pre>
 <p>
 If you get a warning like <q><tt>warning: Possibly incorrectly used A "lsr a"</tt></q>, then there
