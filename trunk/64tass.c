@@ -49,13 +49,12 @@
 #include "file.h"
 #include "values.h"
 #include "variables.h"
+#include "mem.h"
 
 static const uint32_t *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
 static struct value_s none_value = {T_NONE, 0, {}};
 static struct value_s new_value = {T_NONE, 0, {}};
-
-struct memblock_s {size_t p, len;address_t start;}; //starts and sizes
 
 #define nestinglevel 256
 static int wrapwarn=0, wrapwarn2=0;
@@ -63,16 +62,12 @@ line_t sline, vline;      //current line
 static address_t all_mem, all_mem2;
 uint8_t pass=0;      //pass
 static int listing=0;   //listing
-static struct {size_t p, len;uint8_t *data;} mem = {0, 0, NULL};//Linear memory dump
-static size_t memblocklastp = 0;
-static address_t memblocklaststart = 0;
-static struct {unsigned int p, len;struct memblock_s *data;} memblocks = {0, 0, NULL};
 address_t star=0;
 const uint8_t *pline, *llist;  //current line data
 unsigned int lpoint;              //position in current line
 static char path[linelength];   //path
 static FILE* flist = NULL;      //listfile
-static enum { LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU } lastl = LIST_CODE;
+static enum lastl_e lastl;
 static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
 static uint8_t databank=0;
 static uint16_t dpage=0;
@@ -216,32 +211,15 @@ void status(void) {
     freeerrorlist(1);
     errors+=conderrors;
     if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
-        address_t start, end;
-        unsigned int i;
-        char temp[10];
         printf("Error messages:    ");
         if (errors) printf("%u\n", errors); else puts("None");
         printf("Warning messages:  ");
         if (warnings) printf("%u\n", warnings); else puts("None");
         printf("Passes:            %u\n",pass);
-        if (memblocks.p) {
-            start = memblocks.data[0].start;
-            end = memblocks.data[0].start + memblocks.data[0].len;
-            for (i=1;i<memblocks.p;i++) {
-                if (memblocks.data[i].start != end) {
-                    sprintf(temp, "$%04" PRIaddress, start);
-                    printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
-                    start = memblocks.data[i].start;
-                }
-                end = memblocks.data[i].start + memblocks.data[i].len;
-            }
-            sprintf(temp, "$%04" PRIaddress, start);
-            printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
-        } else puts("Memory range:      None");
+        memprint();
         sectionprint();
     }
-    free(mem.data);		        	// free codemem
-    free(memblocks.data);				// free memorymap
+    destroy_mem();
     free_values();
     tfree();
     {
@@ -254,7 +232,7 @@ void status(void) {
     }
 }
 
-static void printllist(FILE *f) {
+void printllist(FILE *f) {
     const uint8_t *c = llist, *last, *n;
     uint32_t ch;
     if (c) {
@@ -293,25 +271,8 @@ static void set_size(struct label_s *var, size_t size) {
 
 // ---------------------------------------------------------------------------
 /*
- * output one byte
+ * Skip memory
  */
-static void memjmp(address_t adr) {
-    if (mem.p == memblocklastp) {
-        memblocklaststart = adr;
-        return;
-    }
-    if (memblocks.p>=memblocks.len) {
-        memblocks.len+=64;
-        memblocks.data=realloc(memblocks.data, memblocks.len*sizeof(*memblocks.data));
-        if (!memblocks.data) err_msg_out_of_memory();
-    }
-    memblocks.data[memblocks.p].len = mem.p-memblocklastp;
-    memblocks.data[memblocks.p].p = memblocklastp;
-    memblocks.data[memblocks.p++].start = memblocklaststart;
-    memblocklastp = mem.p;
-    memblocklaststart = adr;
-}
-
 static void memskip(address_t db) {
     if (fixeddig && scpumode) {
         if (((current_section->address + db)^current_section->address) & ~(address_t)0xffff) wrapwarn2=1;
@@ -327,50 +288,6 @@ static void memskip(address_t db) {
     memjmp(current_section->address);
 }
 
-static int memblockcomp(const void *a, const void *b) {
-    const struct memblock_s *aa=(struct memblock_s *)a;
-    const struct memblock_s *bb=(struct memblock_s *)b;
-    return aa->start-bb->start;
-}
-
-static void memcomp(void) {
-    unsigned int i, j, k;
-    memjmp(0);
-    if (memblocks.p<2) return;
-
-    for (k = j = 0; j < memblocks.p; j++) {
-        struct memblock_s *bj = &memblocks.data[j];
-        if (bj->len) {
-            for (i = j + 1; i < memblocks.p; i++) if (memblocks.data[i].len) {
-                struct memblock_s *bi = &memblocks.data[i];
-                if (bj->start <= bi->start && (bj->start + bj->len) > bi->start) {
-                    size_t overlap = (bj->start + bj->len) - bi->start;
-                    if (overlap > bi->len) overlap = bi->len;
-                    memcpy(mem.data + bj->p + (unsigned)(bi->start - bj->start), mem.data + bi->p, overlap);
-                    bi->len-=overlap;
-                    bi->p+=overlap;
-                    bi->start+=overlap;
-                    continue;
-                }
-                if (bi->start <= bj->start && (bi->start + bi->len) > bj->start) {
-                    size_t overlap = bi->start + bi->len - bj->start;
-                    if (overlap > bj->len) overlap = bj->len;
-                    bj->start+=overlap;
-                    bj->p+=overlap;
-                    bj->len-=overlap;
-                    if (!bj->len) break;
-                }
-            }
-            if (bj->len) {
-                if (j!=k) memblocks.data[k]=*bj;
-                k++;
-            }
-        }
-    }
-    memblocks.p = k;
-    qsort(memblocks.data, memblocks.p, sizeof(*memblocks.data), memblockcomp);
-}
-
 // ---------------------------------------------------------------------------
 /*
  * output one byte
@@ -378,15 +295,7 @@ static void memcomp(void) {
 static void pokeb(uint8_t byte)
 {
 
-    if (fixeddig && current_section->dooutput)
-    {
-        if (mem.p>=mem.len) {
-            mem.len+=0x1000;
-            mem.data=realloc(mem.data, mem.len);
-            if (!mem.data) err_msg_out_of_memory();
-        }
-	mem.data[mem.p++] = byte ^ outputeor;
-    }
+    if (fixeddig && current_section->dooutput) write_mem(byte ^ outputeor);
     if (wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);wrapwarn=0;}
     if (wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);wrapwarn2=0;}
     current_section->address++;current_section->l_address++;
@@ -1168,8 +1077,6 @@ static void compile(void)
                 ignore();
                 if (listing && flist && arguments.source && (waitfor[waitforp].skip & 1) && prm>CMD_DWORD) {
                     switch (prm) {
-                        case CMD_FILL:
-                        case CMD_ALIGN:
                         case CMD_OFFS:
                         case CMD_ENDS:
                         case CMD_STRUCT:
@@ -1178,6 +1085,8 @@ static void compile(void)
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
                             printllist(flist);
+                        case CMD_ALIGN:
+                        case CMD_FILL:
                         case CMD_BINARY:
                             break;
                         case CMD_PROC:break;
@@ -1394,10 +1303,10 @@ static void compile(void)
                     break;//skip things if needed
                 }
                 if (prm<=CMD_DWORD || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
-                    size_t ptextaddr=mem.p;
-                    unsigned int omemp = memblocks.p;
                     size_t uninit = 0;
+                    size_t sum = 0;
 
+                    mark_mem(current_section->address);
                     if (prm<CMD_BYTE) {    // .text .ptext .shift .shift2 .null
                         int16_t ch2=-1;
                         int large=0;
@@ -1409,8 +1318,9 @@ static void compile(void)
                                 size_t i = 0;
                                 do {
                                     if (ch2 >= 0) {
-                                        if (uninit) { memskip(uninit); uninit = 0; }
+                                        if (uninit) { memskip(uninit); sum += uninit; uninit = 0; }
                                         pokeb(ch2);
+                                        sum++;
                                     }
 
                                     switch (val->type) {
@@ -1442,8 +1352,8 @@ static void compile(void)
                                                 i = 0;
                                                 do {
                                                     if (ch2 >= 0) {
-                                                        if (uninit) { memskip(uninit); uninit = 0; }
-                                                        pokeb(ch2);
+                                                        if (uninit) { memskip(uninit); sum += uninit; uninit = 0; }
+                                                        pokeb(ch2); sum++;
                                                     }
                                                     switch (val2->type) {
                                                     case T_GAP:ch2 = -1; uninit++; continue;
@@ -1485,17 +1395,17 @@ static void compile(void)
                                 } while (val->type == T_STR && val->u.str.len > i);
                             }
                         }
-                        if (uninit) memskip(uninit);
+                        if (uninit) {memskip(uninit);sum += uninit;}
                         if (ch2>=0) {
                             if (prm==CMD_SHIFT) ch2|=0x80;
                             if (prm==CMD_SHIFTL) ch2|=0x01;
-                            pokeb(ch2);
+                            pokeb(ch2); sum++;
                         } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) large = epoint;
                         if (prm==CMD_NULL) pokeb(0);
                         if (prm==CMD_PTEXT) {
-                            if (mem.p-ptextaddr>0x100) large=epoint;
+                            if (sum>0x100) large=epoint;
 
-                            if (fixeddig && current_section->dooutput) mem.data[ptextaddr]=mem.p-ptextaddr-1;
+                            if (fixeddig && current_section->dooutput) write_mark_mem(sum-1);
                         }
                         if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm<=CMD_DWORD) { // .word .int .rta .long
@@ -1619,45 +1529,7 @@ static void compile(void)
                     }
 
                     if (listing && flist) {
-                        unsigned int i, lcol;
-                        address_t myaddr;
-                        size_t len;
-                        for (;omemp <= memblocks.p;omemp++) {
-                            lcol=arguments.source?25:49;
-                            if (omemp < memblocks.p) {
-                                len = memblocks.data[omemp].len - (ptextaddr - memblocks.data[omemp].p);
-                                myaddr = (memblocks.data[omemp].start + memblocks.data[omemp].len - len) & all_mem;
-                            } else {
-                                myaddr = memblocklaststart + (ptextaddr - memblocklastp);
-                                len = mem.p - ptextaddr;
-                                if (!len) {
-                                    if (!llist) continue;
-                                    if (omemp) myaddr = (memblocks.data[omemp-1].start + memblocks.data[omemp-1].len) & all_mem;
-                                }
-                            }
-                            if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            if (current_section->dooutput) {
-                                fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", myaddr);
-                                while (len) {
-                                    if (lcol==1) {
-                                        if (arguments.source && llist) {
-                                            putc('\t', flist);printllist(flist);
-                                        } else putc('\n',flist);
-                                        fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", myaddr);lcol=49;
-                                    }
-                                    fprintf(flist," %02x", mem.data[ptextaddr++]);
-                                    myaddr = (myaddr + 1) & all_mem;
-
-                                    lcol-=3;
-                                    len--;
-                                }
-                            } else fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", current_section->address);
-
-                            if (arguments.source && llist) {
-                                for (i=0; i<lcol-1; i+=8) putc('\t',flist);
-                                putc('\t', flist);printllist(flist);
-                            } else putc('\n',flist);
-                        }
+                        list_mem(flist, all_mem, &llist, current_section->dooutput, &lastl);
                     }
                     break;
                 }
@@ -1773,8 +1645,12 @@ static void compile(void)
                         }
                     }
                     eval_finish();
+                    mark_mem(current_section->address);
                     if (ch >= 0) while (db-- > 0) pokeb(ch);
                     else memskip(db);
+                    if (listing && flist) {
+                        list_mem(flist, all_mem, &llist, current_section->dooutput, &lastl);
+                    }
                     break;
                 }
                 if (prm==CMD_ASSERT) { // .assert
@@ -2033,6 +1909,7 @@ static void compile(void)
                         }
                     }
                     eval_finish();
+                    mark_mem(current_section->address);
                     if (align>1 && (current_section->l_address % align)) {
                         if (fill >= 0)
                             while (current_section->l_address % align) pokeb((uint8_t)fill);
@@ -2040,6 +1917,9 @@ static void compile(void)
                             align-=current_section->l_address % align;
                             if (align) memskip(align);
                         }
+                    }
+                    if (listing && flist) {
+                        list_mem(flist, all_mem, &llist, current_section->dooutput, &lastl);
                     }
                     break;
                 }
@@ -3107,7 +2987,6 @@ int main2(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
 #endif
     time_t t;
-    FILE* fout;
     int optind, i;
     struct file_s *fin;
 
@@ -3126,7 +3005,7 @@ int main(int argc, char *argv[]) {
     do {
         if (pass++>20) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
-        mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
+        restart_mem();
         for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;wrapwarn=wrapwarn2=0;actual_encoding=new_encoding("none");wrapwarn2=0;
@@ -3149,7 +3028,7 @@ int main(int argc, char *argv[]) {
                 reffile=cfile->uid;
                 compile();
                 exitfile();
-                mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
+                restart_mem();
                 continue;
             }
             memjmp(current_section->address);
@@ -3192,7 +3071,7 @@ int main(int argc, char *argv[]) {
 
         pass++;
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
-        mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
+        restart_mem();
         for (i = optind - 1; i<argc; i++) {
             if (i >= optind) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
             lastl=LIST_NONE;
@@ -3217,7 +3096,7 @@ int main(int argc, char *argv[]) {
                 reffile=cfile->uid;
                 compile();
                 exitfile();
-                mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
+                restart_mem();
                 continue;
             }
             memjmp(current_section->address);
@@ -3245,73 +3124,7 @@ int main(int argc, char *argv[]) {
 
     if (errors || conderrors) {status();return 1;}
 
-    /* output file */
-    if (mem.p) {
-        address_t start;
-        size_t size;
-        unsigned int i, last;
-        if (arguments.output[0] == '-' && !arguments.output[1]) {
-            fout = stdout;
-        } else {
-            if ((fout=file_open(arguments.output,"wb"))==NULL) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output);
-        }
-        clearerr(fout);
-        if (memblocks.p) {
-            start = memblocks.data[0].start;
-            last = 0;
-            if (!arguments.nonlinear && arguments.flat) {
-                size = start;
-                while (size--) putc(0, fout);
-            }
-            size = memblocks.data[0].len;
-            for (i=1;i<memblocks.p;i++) {
-                if (memblocks.data[i].start != start + size) {
-                    if (arguments.nonlinear) {
-                        putc(size,fout);
-                        putc(size >> 8,fout);
-                        if (scpumode) putc(size >> 16,fout);
-                    }
-                    if ((!arguments.stripstart && !arguments.flat && !last) || arguments.nonlinear) {
-                        putc(start,fout);
-                        putc(start >> 8,fout);
-                        if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
-                    }
-                    while (last<i) {
-                        fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
-                        last++;
-                    }
-                    if (!arguments.nonlinear) {
-                        size = memblocks.data[i].start - start - size;
-                        while (size--) putc(0, fout);
-                    }
-                    start = memblocks.data[i].start;
-                    size = 0;
-                }
-                size += memblocks.data[i].len;
-            }
-            if (arguments.nonlinear) {
-                putc(size,fout);
-                putc(size >> 8,fout);
-                if (scpumode) putc(size >> 16,fout);
-            }
-            if ((!arguments.stripstart && !arguments.flat && !last) || arguments.nonlinear) {
-                putc(start,fout);
-                putc(start >> 8,fout);
-                if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
-            }
-            while (last<i) {
-                fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
-                last++;
-            }
-        }
-        if (arguments.nonlinear) {
-            putc(0,fout);
-            putc(0,fout);
-            if (scpumode) putc(0 ,fout);
-        }
-        if (ferror(fout)) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output);
-	if (fout != stdout) fclose(fout);
-    }
+    output_mem(scpumode);
     status();
     return 0;
 }

@@ -34,6 +34,10 @@ enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_X, WHAT_Y, WHAT_Z, WHAT_XZ, W
     WHAT_S, WHAT_SZ, WHAT_COMMENT, WHAT_CHAR, WHAT_LBL
 };
 
+enum lastl_e { 
+    LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU
+};
+
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 struct macro_s {
