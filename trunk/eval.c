@@ -235,6 +235,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
         v->u.str.len = lpoint - i - 1 - r;
         v->u.str.chars = i2;
         d = v->u.str.data = malloc(v->u.str.len);
+        if (!d) err_msg_out_of_memory();
         e = pline + lpoint - 1;
         while (e > p) {
             p2 = memchr(p, ch, e - p);
@@ -399,7 +400,8 @@ static int priority(enum oper_e ch)
     case O_POS:                // +
     case O_INV:                // ~
     case O_LNOT:return 16;     // !
-    case O_MEMBER:return 17;   // .
+    case O_CONCAT:return 17;   // ..
+    case O_MEMBER:return 18;   // .
     }
     return 0;
 }
@@ -1166,7 +1168,7 @@ static void str_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t ste
         if (val->u.str.len == val->u.str.chars) {
             new_value.u.str.len = new_value.u.str.chars;
             p = new_value.u.str.data = malloc(new_value.u.str.len);
-            if (!new_value.u.str.data) err_msg_out_of_memory();
+            if (!p) err_msg_out_of_memory();
             while ((end > offs && step > 0) || (end < offs && step < 0)) {
                 *p++ = val->u.str.data[offs];
                 offs += step;
@@ -1533,6 +1535,7 @@ strretr:
         case O_WORD: 
         case O_INV:
         case O_NEG:
+        case O_POS:
         case O_STRING:
             {
                 size_t i = 0;
@@ -1549,68 +1552,6 @@ strretr:
                 new_value.type = t1;
                 new_value.u.list.len = i;
                 new_value.u.list.data = vals;
-                return &new_value;
-            }
-        case O_POS:
-            {
-                size_t i, j;
-                if (v1->u.list.len) {
-                    switch (v1->u.list.data[0]->type) {
-                    case T_STR:
-                        new_value.type = T_STR;
-                        new_value.u.str.len = 0;
-                        new_value.u.str.chars = 0;
-                        for (i = 0;i < v1->u.list.len; i++) {
-                            switch (v1->u.list.data[i]->type) {
-                            case T_STR:
-                                new_value.u.str.len += v1->u.list.data[i]->u.str.len;
-                                new_value.u.str.chars += v1->u.list.data[i]->u.str.chars;
-                                break;
-                            default:err_msg_invalid_oper(op, v1, NULL, epoint2); 
-                            case T_NONE: return &none_value;
-                            }
-                        }
-                        new_value.u.str.data = malloc(new_value.u.str.len);
-                        if (!new_value.u.str.data) err_msg_out_of_memory();
-                        for (i = 0;i < v1->u.list.len; i++) {
-                            memcpy(new_value.u.str.data, v1->u.list.data[i]->u.str.data, v1->u.list.data[i]->u.str.len);
-                            new_value.u.str.data += v1->u.list.data[i]->u.str.len;
-                        }
-                        new_value.u.str.data -= new_value.u.str.len;
-                        return &new_value;
-                    case T_LIST:
-                    case T_TUPLE:
-                        new_value.type = v1->u.list.data[0]->type;
-                        new_value.u.list.len = 0;
-                        for (i = 0;i < v1->u.list.len; i++) {
-                            switch (v1->u.list.data[i]->type) {
-                            case T_LIST:
-                            case T_TUPLE:
-                                if (v1->u.list.data[i]->type == new_value.type) {
-                                    new_value.u.list.len += v1->u.list.data[i]->u.list.len;
-                                    break;
-                                }
-                            default:err_msg_invalid_oper(op, v1, NULL, epoint2); 
-                            case T_NONE: return &none_value;
-                            }
-                        }
-                        new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
-                        if (!new_value.u.list.data) err_msg_out_of_memory();
-                        for (i = 0;i < v1->u.list.len; i++) {
-                            for (j = 0;j < v1->u.list.data[i]->u.list.len; j++) {
-                                *new_value.u.list.data = val_reference(v1->u.list.data[i]->u.list.data[j]);
-                                new_value.u.list.data++;
-                            }
-                        }
-                        new_value.u.list.data -= new_value.u.list.len;
-                        return &new_value;
-                    default:err_msg_invalid_oper(op, v1, NULL, epoint2); 
-                    case T_NONE: return &none_value;
-                    }
-                }
-                new_value.type = t1;
-                new_value.u.list.len = 0;
-                new_value.u.list.data = NULL;
                 return &new_value;
             }
         default: err_msg_invalid_oper(op, v1, NULL, epoint2); 
@@ -1766,6 +1707,17 @@ strretr:
             t1 = v1->type;
             t2 = v2->type;
             goto strretr;
+        case O_CONCAT:
+            new_value.type = T_STR;
+            new_value.u.str.len = v1->u.str.len + v2->u.str.len;
+            new_value.u.str.chars = v1->u.str.chars + v2->u.str.chars;
+            if (new_value.u.str.len) {
+                new_value.u.str.data = malloc(new_value.u.str.len);
+                if (!new_value.u.str.data) err_msg_out_of_memory();
+                memcpy(new_value.u.str.data, v1->u.str.data, v1->u.str.len);
+                memcpy(new_value.u.str.data + v1->u.str.len, v2->u.str.data, v2->u.str.len);
+            } else new_value.u.str.data = NULL;
+            return &new_value;
         default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
         }
     }
@@ -1816,6 +1768,7 @@ strretr:
     }
 
     if ((t1 == T_LIST && t2 == T_LIST) || (t1 == T_TUPLE && t2 == T_TUPLE)) {
+        size_t i;
         int val;
         switch (op) {
         case O_EQ:
@@ -1825,6 +1778,20 @@ strretr:
         case O_NEQ:
             val = !val_equal(v1, v2);
             goto listcomp;
+        case O_CONCAT:
+            new_value.type = t1;
+            new_value.u.list.len = v1->u.list.len + v2->u.list.len;
+            if (new_value.u.list.len) {
+                new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
+                if (!new_value.u.list.data) err_msg_out_of_memory();
+                for (i = 0;i < v1->u.list.len; i++) {
+                    new_value.u.list.data[i] = val_reference(v1->u.list.data[i]);
+                }
+                for (;i < new_value.u.list.len; i++) {
+                    new_value.u.list.data[i] = val_reference(v2->u.list.data[i - v1->u.list.len]);
+                }
+            } else new_value.u.list.data = NULL;
+            return &new_value;
         default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
         }
         return &new_value;
@@ -1834,6 +1801,7 @@ strretr:
         struct value_s **vals, *val;
         if (v1->u.list.len) {
             vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+            if (!vals) err_msg_out_of_memory();
             for (;i < v1->u.list.len; i++) {
                 val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, epoint3, large);
                 vals[i] = val_reference(val);
@@ -1850,6 +1818,7 @@ strretr:
         struct value_s **vals, *val;
         if (v2->u.list.len) {
             vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
+            if (!vals) err_msg_out_of_memory();
             for (;i < v2->u.list.len; i++) {
                 val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
                 vals[i] = val_reference(val);
@@ -1979,6 +1948,7 @@ static int get_val2(int stop) {
                 op = (op == O_RBRACKET || op == O_LIST) ? O_BRACKET : O_PARENT;
                 while (v1->val->type != T_OPER || v1->val->u.oper != op) {
                     args++;
+                    if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
                 }
                 if ((tup || stop) && args == 1) {val_replace(&v1->val, values[vsp-1].val); vsp--;continue;}
@@ -2316,7 +2286,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '/': if (pline[lpoint+1] == '/') {lpoint++;op = O_MOD;} else op = O_DIV; goto push2;
         case '+': op = O_ADD; goto push2;
         case '-': op = O_SUB; goto push2;
-        case '.': op = O_MEMBER; goto push2;
+        case '.': if (pline[lpoint+1] == '.') {lpoint++;op = O_CONCAT;} else op = O_MEMBER; goto push2;
         case '?': op = O_QUEST; prec = priority(O_COND) + 1; goto push3;
         case ':': op = O_COLON;
             prec = priority(op) + 1;
