@@ -662,12 +662,14 @@ static void compile(void)
         hh:
             if (!(waitfor[waitforp].skip & 1)) {wht=what(&prm);goto jn;} //skip things if needed
             if ((wht=what(&prm))==WHAT_EQUAL) { //variable
-                int le;
-                newlabel=new_label(labelname, labelname2, L_CONST);oaddr=current_section->address;le = labelexists;
+                newlabel=find_label2(labelname, &current_context->members);
                 if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                if (!newlabel->ref && pass != 1) goto finish;
+                if (newlabel && !newlabel->ref && pass != 1) goto finish;
                 if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
+                if (newlabel) labelexists = 1; 
+                else newlabel = new_label(labelname, labelname2, L_CONST);
+                oaddr=current_section->address;
                 if (listing && flist && arguments.source && newlabel->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                     if (type_is_int(val->type)) {
@@ -678,7 +680,7 @@ static void compile(void)
                     printllist(flist);
                 }
                 newlabel->ref=0;
-                if (le) {
+                if (labelexists) {
                     if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                     else {
                         newlabel->requires=current_section->requires;
@@ -701,12 +703,14 @@ static void compile(void)
                 switch (prm) {
                 case CMD_VAR: //variable
                     {
-                        int le;
-                        newlabel=new_label(labelname, labelname2, L_VAR);oaddr=current_section->address;le = labelexists;
+                        newlabel=find_label2(labelname, &current_context->members);
                         if (!get_exp(&w, 0)) goto breakerr; //ellenorizve.
-                        if (!newlabel->ref && pass != 1 && le && newlabel->upass != pass) goto finish;
+                        if (newlabel && !newlabel->ref && pass != 1 && newlabel->upass != pass) goto finish;
                         if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
+                        if (newlabel) labelexists = 1;
+                        else newlabel = new_label(labelname, labelname2, L_VAR);
+                        oaddr=current_section->address;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                             if (type_is_int(val->type)) {
@@ -716,7 +720,7 @@ static void compile(void)
                             }
                             printllist(flist);
                         }
-                        if (le) {
+                        if (labelexists) {
                             if (newlabel->upass != pass) newlabel->ref=0;
                             if (newlabel->type != L_VAR) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                             else {

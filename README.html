@@ -910,13 +910,13 @@ call_h  <b class="d">.byte</b> &gt;<span class="l">mylist</span>[<span>1</span>:
         <b class="d">.text</b> <span class="s">"reverse"</span>[::<span>-1</span>]<i>; "esrever"</i>
 </pre>
 
-<p>Concatenation can be done on list or tuple of values by prefixing it with
-the positive operator. All values must be the same type of string, list or
-tuple. The more common addition operator can't be used for concatenation as it
-performs a numeric addition normally.</p>
+<p>For concatenation there's a separate operator as the more common addition
+operator can't be used as it performs a numeric addition.</p>
 
 <pre width=80>
-all  <b>=</b> +(<span class="s">"text1"</span>, <span class="s">"text2"</span>, <span class="s">"text3"</span>)
+texts   <b>=</b> <span class="s">"text1"</span>..<span class="s">"text2"</span>..<span class="s">"text3"</span>
+lists   <b>=</b> [<span>1</span>,<span>2</span>]..[<span>3</span>,<span>4</span>]
+tuples  <b>=</b> (<span>1</span>,<span>2</span>)..(<span>3</span>,<span>4</span>)
 </pre>
 
 <hr>

@@ -807,12 +807,12 @@ call_h  .byte >mylist[1::2]-1; routines (>cmd_e-1, >cmd_g-1, >cmd_i-1)
         .text "text"[:-1]    ; "tex"
         .text "reverse"[::-1]; "esrever"
 
-Concatenation can be done on list or tuple of values by prefixing it with the
-positive operator. All values must be the same type of string, list or tuple.
-The more common addition operator can't be used for concatenation as it
-performs a numeric addition normally.
+For concatenation there's a separate operator as the more common addition
+operator can't be used as it performs a numeric addition.
 
-all  = +("text1", "text2", "text3")
+texts   = "text1".."text2".."text3"
+lists   = [1,2]..[3,4]
+tuples  = (1,2)..(3,4)
 
 -------------------------------------------------------------------------------
 

@@ -97,6 +97,9 @@
 
     .cerror "abc"[-1 ? 1 : 2 : 0 ? 1 : 2]!="b"
     .cerror [-1 ? 1 : 2 , 0 ? 1 : 2]!=[1,2]
+    .cerror "a".."b"!="ab"
+    .cerror (1,2)..(3,4)!=(1,2,3,4)
+    .cerror [1,2]..[3,4]!=[1,2,3,4]
 
 ; check all operators
 
