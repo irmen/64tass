@@ -44,9 +44,10 @@ enum oper_e {
     O_SLICE2,        // a[x::
     O_BRACKET,       // [a]
     O_PARENT,        // (a)
-    O_COND,          // ?
-    O_COLON,         // :
     O_COMMA,         // ,
+    O_COND,          // ?
+    O_COLON2,        // :
+    O_COLON3,        // :
     O_WORD,          // <>
     O_HWORD,         // >`
     O_BSWORD,        // ><
@@ -81,9 +82,12 @@ enum oper_e {
     O_INV,           // ~
     O_LNOT,          // !
 
-    O_TUPLE,          // )
-    O_RPARENT,        // )
-    O_RBRACKET,       // ]
+    O_TUPLE,         // )
+    O_LIST,          // ]
+    O_RPARENT,       // )
+    O_RBRACKET,      // ]
+    O_QUEST,         // ?
+    O_COLON,         // :
 };
 
 struct value_s {

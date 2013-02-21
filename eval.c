@@ -350,50 +350,58 @@ static void get_star(struct value_s *v) {
 static int priority(enum oper_e ch)
 {
     switch (ch) {
-    default:
+    case O_TUPLE:              // ,)
+    case O_LIST:               // ,]
+    case O_RPARENT:            // )
+    case O_RBRACKET:           // ]
     case O_FUNC:               // a(
     case O_INDEX:              // a[
     case O_SLICE:              // a[x:
     case O_SLICE2:             // a[x::
     case O_BRACKET:            // [a]
     case O_PARENT:return 0;    // (a)
+    case O_SEPARATOR:
+    case O_COMMA:return 1;     // ,
+    case O_QUEST:              // ?
+    case O_COLON:return 2;     // :
     case O_COND:               // ?
-    case O_COLON:return 1;     // :
-    case O_COMMA:return 2;     // ,
+    case O_COLON2:             // ?:
+    case O_COLON3:return 3;    // [:
     case O_WORD:               // <>
     case O_HWORD:              // >`
     case O_BSWORD:             // ><
     case O_LOWER:              // <
     case O_HIGHER:             // >
     case O_BANK:               // `
-    case O_STRING:return 3;    // ^
-    case O_LOR:return 4;       // ||
-    case O_LXOR:return 5;      // ^^
-    case O_LAND:return 6;      // &&
+    case O_STRING:return 4;    // ^
+    case O_LOR:return 5;       // ||
+    case O_LXOR:return 6;      // ^^
+    case O_LAND:return 7;      // &&
     case O_EQ:                 // ==
     case O_NEQ:                // !=
     case O_LT:                 // <
     case O_GT:                 // >
     case O_GE:                 // >=
-    case O_LE:return 7;        // <=
-    case O_OR:return 8;        // |
-    case O_XOR:return 9;       // ^
-    case O_AND:return 10;      // &
+    case O_LE:return 8;        // <=
+    case O_OR:return 9;        // |
+    case O_XOR:return 10;      // ^
+    case O_AND:return 11;      // &
     case O_LSHIFT:             // <<
     case O_ASHIFT:             // >>
-    case O_RSHIFT:return 11;   // >>>
+    case O_RSHIFT:return 12;   // >>>
     case O_ADD:                // +
-    case O_SUB:return 12;      // -
+    case O_SUB:return 13;      // -
     case O_MUL:                // *
     case O_DIV:                // /
-    case O_MOD:return 13;      // %
-    case O_EXP:return 14;      // **
+    case O_MOD:return 14;      // %
+    case O_EXP:return 15;      // **
     case O_NEG:                // -
     case O_POS:                // +
     case O_INV:                // ~
-    case O_LNOT:return 15;     // !
-    case O_MEMBER:return 16;   // .
+    case O_LNOT:return 16;     // !
+    case O_MEMBER:return 17;   // .
     }
+    return 0;
 }
 
 static struct values_s *values = NULL;
@@ -1900,7 +1908,7 @@ static int get_val2(int stop) {
             outp2 = i + 1;
             return 0;
         }
-        if (op == O_COMMA) continue;
+        if (op == O_COMMA || op == O_COLON2 || op == O_COLON3) continue;
         if (vsp == 0) goto syntaxe;
         v1 = &values[vsp-1];
         switch (op) {
@@ -1965,9 +1973,10 @@ static int get_val2(int stop) {
         case O_RBRACKET:
         case O_RPARENT:
         case O_TUPLE:
+        case O_LIST:
             {
                 unsigned int args = 0, args2, tup = (op == O_RPARENT);
-                op = (op == O_RBRACKET) ? O_BRACKET : O_PARENT;
+                op = (op == O_RBRACKET || op == O_LIST) ? O_BRACKET : O_PARENT;
                 while (v1->val->type != T_OPER || v1->val->u.oper != op) {
                     args++;
                     v1 = &values[vsp-1-args];
@@ -2000,7 +2009,7 @@ static int get_val2(int stop) {
                 } else v1->val->u.list.data = NULL;
                 continue;
             }
-        case O_COLON:
+        case O_COND:
             v2 = v1; vsp--;
             if (vsp == 0) goto syntaxe;
             v1 = &values[vsp-1]; vsp--;
@@ -2024,9 +2033,12 @@ static int get_val2(int stop) {
                      goto errtype;
             case T_NONE: continue;
             }
-        case O_COND:
-            if (vsp == 1) goto syntaxe;
-            continue;
+        case O_QUEST:
+            err_msg2(ERROR______EXPECTED,"':'", o_out[i].epoint);
+            goto errtype;
+        case O_COLON:
+            err_msg2(ERROR______EXPECTED,"'?'", o_out[i].epoint);
+            goto errtype;
         case O_WORD: // <>
         case O_HWORD: // >`
         case O_BSWORD: // ><
@@ -2141,7 +2153,6 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     unsigned int epoints[256];
     uint8_t operp = 0, prec, db;
     int large=0;
-    int cond=0;
     unsigned int epoint;
 
     gstop = stop;
@@ -2177,7 +2188,8 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             goto tryanon;
         case ']':
             if (operp) { 
-                if (o_oper[operp-1] == O_COMMA) {operp--;goto other;}
+                if (o_oper[operp-1] == O_COMMA) {operp--;op = O_LIST;goto lshack;}
+                else if (o_oper[operp-1] == O_COLON3) {operp--;goto other;}
                 else if (o_oper[operp-1] == O_BRACKET) goto other;
             }
             goto tryanon;
@@ -2185,7 +2197,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             if (operp && o_oper[operp-1] == O_INDEX) {
                 o_out[outp].val.type = T_DEFAULT;
                 goto pushval;
-            } else if (operp > 1 && o_oper[operp-1] == O_COMMA && o_oper[operp-2] == O_SLICE) {
+            } else if (operp > 1 && o_oper[operp-1] == O_COLON3 && o_oper[operp-2] == O_SLICE) {
                 o_out[outp].val.type = T_DEFAULT;
                 goto pushval;
             }
@@ -2305,16 +2317,13 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '+': op = O_ADD; goto push2;
         case '-': op = O_SUB; goto push2;
         case '.': op = O_MEMBER; goto push2;
-        case '?': op = O_COND; cond++; goto push2;
+        case '?': op = O_QUEST; prec = priority(O_COND) + 1; goto push3;
         case ':': op = O_COLON;
-            prec = priority(op);
+            prec = priority(op) + 1;
             while (operp && prec <= priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
-            if (operp && o_oper[operp-1] == O_INDEX) { o_oper[operp-1] = O_SLICE; op = O_COMMA;}
-            else if (operp && o_oper[operp-1] == O_SLICE) { o_oper[operp-1] = O_SLICE2; op = O_COMMA;}
-            else {
-                if (o_oper[operp] == O_COND) cond--;
-                else {err_msg(ERROR______EXPECTED,"?");goto error;}
-            }
+            if (operp && o_oper[operp-1] == O_INDEX) { o_oper[operp-1] = O_SLICE; op = O_COLON3;}
+            else if (operp && o_oper[operp-1] == O_SLICE) { o_oper[operp-1] = O_SLICE2; op = O_COLON3;}
+            else if (operp && o_oper[operp-1] == O_QUEST) { o_oper[operp-1] = O_COND; op = O_COLON2;}
             epoints[operp] = epoint;
             o_oper[operp++] = op;
             lpoint++;
@@ -2322,6 +2331,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '=': op = O_EQ; if (pline[lpoint+1] == '=') lpoint++;
         push2:
             prec = priority(op);
+        push3:
             while (operp && prec <= priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
             if (ch == ',' && !operp) {
                 o_out[outp].val.type = T_OPER;
@@ -2365,6 +2375,8 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper = (o_oper[operp] == O_PARENT)? op : o_oper[operp];
             goto other;
         case ']':
+            op = O_RBRACKET;
+        lshack:
             while (operp && o_oper[operp-1] != O_BRACKET && o_oper[operp-1] != O_INDEX && o_oper[operp-1] != O_SLICE && o_oper[operp-1] != O_SLICE2) {
                 if (o_oper[operp-1]==O_PARENT || o_oper[operp-1]==O_FUNC) {err_msg(ERROR______EXPECTED,"["); goto error;}
                 o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
@@ -2372,13 +2384,12 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             lpoint++;
             if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
             operp--;
-            o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper=(o_oper[operp] == O_BRACKET)? O_RBRACKET : o_oper[operp];
+            o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper=(o_oper[operp] == O_BRACKET) ? op : o_oper[operp];
             goto other;
         case 0:
         case ';': break;
         default: goto syntaxe;
         }
-        if (cond) {err_msg(ERROR______EXPECTED,":"); goto error;}
         if (stop && o_oper[0]==O_PARENT) {
             if (!operp) {cd=3;break;}
             if (ch == ',') {
