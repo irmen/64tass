@@ -390,7 +390,9 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
     case O_BRACKET: name = "'[";break;
     case O_PARENT:  name = "'(";break;
     case O_COND:    name = "condition '?";break;
-    case O_COLON:   name = "':";break;
+    case O_COLON:
+    case O_COLON2:
+    case O_COLON3:  name = "':";break;
     case O_COMMA:   name = "',";break;
     case O_WORD:    name = "word '<>";break;
     case O_HWORD:   name = "high word '>`";break;
@@ -425,9 +427,11 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
     case O_POS:     name = "unary positive '+";break;
     case O_INV:     name = "binary invert '~";break;
     case O_LNOT:    name = "logical not '!";break;
-    case O_TUPLE:   name = "')";break;
+    case O_TUPLE: 
     case O_RPARENT: name = "')";break;
+    case O_LIST: 
     case O_RBRACKET:name = "']";break;
+    case O_QUEST:   name = "'?";break;
     default: name = "";break;
     }
     adderror(name);
