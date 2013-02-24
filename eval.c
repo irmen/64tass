@@ -2354,19 +2354,23 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 }
             }
             op = O_COMMA; goto push2; 
-        case '(': 
+        case '(': op = O_FUNC;
+            prec = priority(op);
+            while (operp && prec <= priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
             o_out[outp].val.type = T_OPER;
             o_out[outp].val.u.oper = O_PARENT;
             o_out[outp++].epoint=epoint;
             epoints[operp]=epoint;
-            o_oper[operp++] = O_FUNC; lpoint++;
+            o_oper[operp++] = op; lpoint++;
             continue;
-        case '[':
+        case '[': op = O_INDEX;
+            prec = priority(op);
+            while (operp && prec <= priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
             o_out[outp].val.type = T_OPER;
             o_out[outp].val.u.oper = O_BRACKET;
             o_out[outp++].epoint=epoint;
             epoints[operp]=epoint;
-            o_oper[operp++] = O_INDEX; lpoint++;
+            o_oper[operp++] = op; lpoint++;
             continue;
         case '&': if (pline[lpoint+1] == '&') {lpoint++;op = O_LAND;} else op = O_AND; goto push2;
         case '|': if (pline[lpoint+1] == '|') {lpoint++;op = O_LOR;} else op = O_OR;goto push2;
