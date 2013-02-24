@@ -598,7 +598,8 @@ x >> y   arithmetic shift right           -8 >> 3 is -1
 ..       concatenate bits                 $a..$b is $ab
 x[n]     extract bit                      $a[1] is 0
 x[s]     slice bits                       $1234[4:8] is $3
-len(a)   Length in bits                   len($034) is 12
+len(a)   length in bits                   len($034) is 12
+float(a) convert to floating point        float(1) is 1.0
 
 An integer has a truth value of <true> if it's non-zero. The <true> value is
 the same as 1.
@@ -639,6 +640,7 @@ x * y       multiply x with y                1.5 * 3 is 4.5
 x / y       integer divide x by y            7.0 / 2.0 is 3.5
 x % y       integer modulo of x divided by y 5.0 % 2.0 is 1.0
 x ** y      x raised t power of y            2.0 ** -1 is 0.5
+~x          -(x+1) value                     ~2.1 is -3.1
 -x          negated value                    -2.0 is -2.0
 +x          unchanged                        +2.0 is 2.0
 x == y      x equals to y                    2.0 == 3.0 is <false>
@@ -673,6 +675,7 @@ rad(a)      Degrees to radian                rad(0.0) is 0.0
 deg(a)      Radian to degrees                deg(0.0) is 0.0
 hypot(y, x) Polar distance                   hypot(4.0, 3.0) is 5.0
 atan2(y, x) Polar angle                      atan2(0.0, 3.0) is 0.0
+int(a)      Convert to integer               int(3.8) is 3
 
 A floating point number has a truth value of <true> if it's non-zero.
 
