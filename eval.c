@@ -24,6 +24,7 @@
 #include "error.h"
 #include "section.h"
 #include "encoding.h"
+#include "mem.h"
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
 #define cbrt(a) pow((a), 1.0/3.0)
@@ -46,8 +47,8 @@ inline double hypot(double a, double b) {return sqrt(a*a+b*b);}
 
 static struct value_s new_value = {T_NONE, 0, {}};
 static struct value_s none_value = {T_NONE, 0, {}};
-static struct value_s true_value = {T_BOOL, 0, {{1,1}}};
-static struct value_s false_value = {T_BOOL, 0, {{1,0}}};
+static struct value_s true_value = {T_BOOL, 0, {{1, 1, NULL}}};
+static struct value_s false_value = {T_BOOL, 0, {{1, 0, NULL}}};
 static struct value_s null_str = {T_STR, 0, {}};
 static struct value_s null_tuple = {T_TUPLE, 0, {}};
 static struct value_s null_list = {T_LIST, 0, {}};
@@ -562,6 +563,7 @@ static int get_val2_compat(void) {// length in bytes, defined
             switch (t1) {
             case T_UINT:
             case T_SINT:
+            case T_LABEL:
             case T_NUM:
             case T_BOOL:
                 {
@@ -602,11 +604,13 @@ static int get_val2_compat(void) {// length in bytes, defined
         switch (t1) {
         case T_SINT:
         case T_UINT:
+        case T_LABEL:
         case T_NUM:
         case T_BOOL:
             switch (t2) {
             case T_UINT:
             case T_SINT:
+            case T_LABEL:
             case T_NUM:
             case T_BOOL:
                 {
@@ -671,6 +675,7 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
     case T_STR:
     case T_SINT:
     case T_UINT:
+    case T_LABEL:
     case T_NUM:
     case T_BOOL:
     case T_FLOAT:
@@ -690,6 +695,7 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
                 }
             case T_UINT:
             case T_SINT:
+            case T_LABEL:
             case T_NUM:
             case T_BOOL:
             case T_NONE:
@@ -721,6 +727,7 @@ static double to_float(const struct value_s *val) {
     switch (val->type) {
     case T_FLOAT: return val->u.real;
     case T_SINT: return (ival_t)val->u.num.val;
+    case T_LABEL:
     case T_NUM:
     case T_BOOL:
     case T_UINT: return (uval_t)val->u.num.val;
@@ -743,6 +750,7 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned
             set_int(&new_value, ((ival_t)v1->u.num.val > 0) - ((ival_t)v1->u.num.val < 0));
             return &new_value;
         case T_UINT:
+        case T_LABEL:
         case T_NUM:
         case T_BOOL:
             set_int(&new_value, ((uval_t)v1->u.num.val) > 0);
@@ -760,6 +768,7 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned
         switch (v1->type) {
         case T_SINT:
         case T_UINT:
+        case T_LABEL:
         case T_NUM:
         case T_BOOL:
             new_value.type = v1->type;
@@ -781,6 +790,7 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned
     case T_FLOAT:
     case T_SINT:
     case T_UINT:
+    case T_LABEL:
     case T_NUM:
     case T_BOOL:
         new_value.type = T_FLOAT;
@@ -847,7 +857,6 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned
 
 static void functions(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
-    const struct value_s *v0;
     size_t len;
     const uint8_t *name;
     enum func_e func = F_NONE;
@@ -873,6 +882,10 @@ static void functions(struct values_s *vals, unsigned int args) {
             set_uint(&new_value, v[0].val->u.list.len);
             val_replace(&vals->val, &new_value);
             return;
+        case T_LABEL:
+            set_uint(&new_value, v[0].val->u.num.label->size / (v[0].val->u.num.label->esize + !v[0].val->u.num.label->esize));
+            val_replace(&vals->val, &new_value);
+            return;
         default: err_msg_wrong_type(v[0].val, v[0].epoint);
         case T_NONE: break;
         }
@@ -888,6 +901,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                 switch (try_resolv(&v[i].val)) {
                 case T_SINT:
                 case T_UINT:
+                case T_LABEL:
                 case T_NUM:
                 case T_BOOL:
                     break;
@@ -940,6 +954,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                     if (volt || (!t && min < 0) || v[args].val->u.num.val < min) {min = v[args].val->u.num.val;t = 1;}
                     break;
                 case T_UINT:
+                case T_LABEL:
                 case T_NUM:
                 case T_BOOL:
                     if (volt || ((!t || min > 0) && (uval_t)v[args].val->u.num.val < (uval_t)min)) {min = v[args].val->u.num.val; t = 0;}
@@ -969,6 +984,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                     if (volt || ((t || max < 0) && v[args].val->u.num.val > max)) {max = v[args].val->u.num.val;t = 1;}
                     break;
                 case T_UINT:
+                case T_LABEL:
                 case T_NUM:
                 case T_BOOL:
                     if (volt || (t && max < 0) || (uval_t)v[args].val->u.num.val > (uval_t)max) {max = v[args].val->u.num.val;t = 0;}
@@ -990,40 +1006,13 @@ static void functions(struct values_s *vals, unsigned int args) {
     else if (len == 4 && !memcmp(name, "size", len)) {
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
         else {
-            int rec = 100;
-            try_resolv_ident(&v[0].val);
-            v0 = v[0].val;
-        sizeretr:
-            switch (v0->type) {
-            case T_IDENTREF:
-                switch (v0->u.ident.label->type) {
-                case L_LABEL:
-                case L_STRUCT:
-                case L_UNION:
-                    touch_label(v0->u.ident.label);
-                    set_uint(&new_value, v0->u.ident.label->size);
-                    val_replace(&vals->val, &new_value);
-                    return;
-                case L_VAR:
-                case L_CONST:
-                    if (touch_label(v0->u.ident.label)) {
-                        v[0].val->type = T_UNDEF;
-                        val_replace(&vals->val, v[0].val);
-                        vals->epoint = v[0].epoint;
-                        return;
-                    }
-                    v0 = v0->u.ident.label->value;
-                    if (rec--) goto sizeretr;
-                    err_msg2(ERROR__REFRECURSION, NULL, v[0].epoint);
-                    break;
-                }
-            case T_NONE:
-                break;
-            case T_UNDEF:
-                val_replace(&vals->val, v[0].val);
-                vals->epoint = v[0].epoint;
+            switch (try_resolv(&v[0].val)) {
+            case T_LABEL:
+                set_uint(&new_value, v[0].val->u.num.label->size);
+                val_replace(&vals->val, &new_value);
                 return;
-            default: err_msg_wrong_type(v0, v[0].epoint);
+            default: err_msg_wrong_type(v[0].val, v[0].epoint);
+            case T_NONE: break;
             }
         }
         val_replace(&vals->val, &none_value);
@@ -1072,12 +1061,14 @@ static void functions(struct values_s *vals, unsigned int args) {
         switch (try_resolv(&v[0].val)) {
         case T_SINT:
         case T_UINT:
+        case T_LABEL:
         case T_NUM:
         case T_BOOL:
         case T_FLOAT:
             switch (try_resolv(&v[1].val)) {
             case T_SINT:
             case T_UINT:
+            case T_LABEL:
             case T_NUM:
             case T_BOOL:
             case T_FLOAT:
@@ -1263,22 +1254,83 @@ static void list_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t st
     }
 }
 
+static void label_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t step) {
+    struct value_s **val;
+    struct label_s *l;
+    size_t i, i2;
+    size_t len;
+    size_t offs2;
+    int16_t r;
+
+    if (step > 0) {
+        if (end < offs) end = offs;
+        len = (end - offs + step - 1) / step;
+    } else {
+        if (end > offs) end = offs;
+        len = (offs - end - step - 1) / -step;
+    }
+
+    l = vals->val->u.num.label;
+    if (!len) {
+        val_replace(&vals->val, &null_tuple);return;
+    }
+    val = malloc(len * sizeof(new_value.u.list.data[0]));
+    if (!val) err_msg_out_of_memory();
+    i = 0;
+    new_value.u.num.len = l->esize + !l->esize;
+    while ((end > offs && step > 0) || (end < offs && step < 0)) {
+        offs2 = offs * new_value.u.num.len;
+        new_value.u.num.val = 0;
+        r = -1;
+        for (i2 = 0; i2 < new_value.u.num.len; i2++) {
+            r = read_mem(l->memp, l->membp, offs2++);
+            if (r < 0) break;
+            new_value.u.num.val |= r << (i2 * 8);
+        }
+        if (l->sign && (r & 0x80)) {
+            for (; i2 < sizeof(new_value.u.num.val); i2++) {
+                new_value.u.num.val |= 0xff << (i2 * 8);
+            }
+        }
+        new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
+        val[i++] = val_reference(&new_value);
+        offs += step;
+    }
+    new_value.type = T_TUPLE;
+    new_value.u.list.len = len;
+    new_value.u.list.data = val;
+    val_replace(&vals->val, &new_value); val_destroy(&new_value);
+}
+
 static void indexes(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
+    struct label_s *l;
+    int16_t r;
+    size_t i;
 
     switch (try_resolv(&vals->val)) {
     case T_LIST:
     case T_TUPLE:
     case T_STR:
+    case T_LABEL:
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
             switch (try_resolv(&v[0].val)) {
             case T_UINT:
             case T_SINT:
+            case T_LABEL:
             case T_NUM:
             case T_BOOL:
                 {
                     struct value_s *val;
-                    size_t len = (vals->val->type == T_STR) ? vals->val->u.str.chars : vals->val->u.list.len, offs;
+                    size_t len, offs;
+                    switch (vals->val->type) {
+                    case T_STR: len = vals->val->u.str.chars; break;
+                    case T_LABEL:
+                        len = vals->val->u.num.label->esize;
+                        len = vals->val->u.num.label->size / (len + !len);
+                        break;
+                    default: len = vals->val->u.list.len;
+                    }
 
                     if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
                         if ((uval_t)v[0].val->u.num.val < len) offs = (uval_t)v[0].val->u.num.val;
@@ -1287,9 +1339,28 @@ static void indexes(struct values_s *vals, unsigned int args) {
                         if ((uval_t)-v[0].val->u.num.val <= len) offs = len + v[0].val->u.num.val;
                         else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value); return;}
                     }
-                    if (vals->val->type == T_STR) { 
-                        str_slice(vals, offs, offs + 1, 1);
-                    } else {
+                    switch (vals->val->type) {
+                    case T_STR: str_slice(vals, offs, offs + 1, 1); break;
+                    case T_LABEL: 
+                        l = vals->val->u.num.label;
+                        new_value.u.num.len = l->esize + !l->esize;
+                        offs *= new_value.u.num.len;
+                        new_value.u.num.val = 0;
+                        r = -1;
+                        for (i = 0; i < new_value.u.num.len; i++) {
+                            r = read_mem(l->memp, l->membp, offs++);
+                            if (r < 0) break;
+                            new_value.u.num.val |= r << (i * 8);
+                        }
+                        if (l->sign && (r & 0x80)) {
+                            for (; i < sizeof(new_value.u.num.val); i++) {
+                                new_value.u.num.val |= 0xff << (i * 8);
+                            }
+                        }
+                        new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
+                        val_replace(&vals->val, &new_value);
+                        break;
+                    default:
                         val = val_reference(vals->val->u.list.data[offs]);
                         val_replace(&vals->val, val);
                         val_destroy(val);
@@ -1303,9 +1374,10 @@ static void indexes(struct values_s *vals, unsigned int args) {
             }
         break;
     default: err_msg_invalid_oper(O_INDEX, vals->val, NULL, vals->epoint);
-             val_replace(&vals->val, &none_value);
+             break;
     case T_NONE: return;
     }
+    val_replace(&vals->val, &none_value);
     return;
 }
 
@@ -1317,13 +1389,24 @@ static void slices(struct values_s *vals, unsigned int args) {
     case T_LIST:
     case T_TUPLE:
     case T_STR:
+    case T_LABEL:
         if (args > 3 || args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
-            uval_t len = (vals->val->type == T_STR) ? vals->val->u.str.chars : vals->val->u.list.len;
-            ival_t offs = 0, end = (ival_t)len, step = 1;
+            uval_t len;
+            ival_t offs = 0, end, step = 1;
+            switch (vals->val->type) {
+            case T_STR: len = vals->val->u.str.chars; break;
+            case T_LABEL: 
+                len = vals->val->u.num.label->esize;
+                len = vals->val->u.num.label->size / (len + !len);
+                break;
+            default: len = vals->val->u.list.len;
+            }
+            end = (ival_t)len;
             for (i = args - 1; i >= 0; i--) {
                 switch (try_resolv(&v[i].val)) {
                 case T_SINT:
                 case T_UINT:
+                case T_LABEL:
                 case T_NUM:
                 case T_BOOL:
                 case T_DEFAULT:
@@ -1366,10 +1449,10 @@ static void slices(struct values_s *vals, unsigned int args) {
                 }
                 if (offs < - (step < 0)) offs = - (step < 0);
             }
-            if (vals->val->type == T_STR) {
-                str_slice(vals, offs, end, step);
-            } else {
-                list_slice(vals, offs, end, step);
+            switch (vals->val->type) {
+            case T_STR: str_slice(vals, offs, end, step); break;
+            case T_LABEL: label_slice(vals, offs, end, step); break;
+            default: list_slice(vals, offs, end, step);
             }
             return;
         }
@@ -2004,9 +2087,13 @@ static int get_val2(int stop) {
             case T_NONE: continue;
             }
         case O_QUEST:
+            v2 = v1; v1 = &values[--vsp-1];
+            if (vsp == 0) goto syntaxe;
             err_msg2(ERROR______EXPECTED,"':'", o_out[i].epoint);
             goto errtype;
         case O_COLON:
+            v2 = v1; v1 = &values[--vsp-1];
+            if (vsp == 0) goto syntaxe;
             err_msg2(ERROR______EXPECTED,"'?'", o_out[i].epoint);
             goto errtype;
         case O_WORD: // <>
@@ -2031,6 +2118,7 @@ static int get_val2(int stop) {
         case O_LNOT:
             switch (try_resolv(&v1->val)) {
             case T_SINT:
+            case T_LABEL:
             case T_NUM: 
             case T_BOOL:
             case T_UINT:
@@ -2053,6 +2141,7 @@ static int get_val2(int stop) {
             t1 = try_resolv(&v1->val);
             switch (t1) {
             case T_SINT:
+            case T_LABEL:
             case T_NUM: 
             case T_BOOL:
             case T_UINT:
@@ -2070,6 +2159,7 @@ static int get_val2(int stop) {
                 t2 = try_resolv(&v2->val);
                 switch (t2) {
                 case T_SINT:
+                case T_LABEL:
                 case T_NUM: 
                 case T_BOOL:
                 case T_UINT:

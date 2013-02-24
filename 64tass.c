@@ -295,7 +295,7 @@ static void memskip(address_t db) {
 static void pokeb(uint8_t byte)
 {
 
-    if (fixeddig && current_section->dooutput) write_mem(byte ^ outputeor);
+    if (current_section->dooutput) write_mem(byte ^ outputeor);
     if (wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);wrapwarn=0;}
     if (wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);wrapwarn2=0;}
     current_section->address++;current_section->l_address++;
@@ -920,8 +920,10 @@ static void compile(void)
                     newlabel->pass=pass;
                     newlabel->value = &none_value;
                     set_uint(&new_value, current_section->l_address);
-                    new_value.type = T_NUM;
+                    new_value.type = T_LABEL;
+                    new_value.u.num.label = newlabel;
                     var_assign(newlabel, &new_value, fixeddig);
+                    get_mem(&newlabel->memp, &newlabel->membp);
                     newlabel->file = cfile->realname;
                     newlabel->sline = sline;
                     newlabel->epoint = epoint;
@@ -933,9 +935,11 @@ static void compile(void)
                     } else {
                         if ((uval_t)newlabel->value->u.num.val != current_section->l_address) {
                             set_uint(&new_value, current_section->l_address);
-                            new_value.type=T_NUM;
+                            new_value.type=T_LABEL;
+                            new_value.u.num.label = newlabel;
                             var_assign(newlabel, &new_value, 0);
-                        }
+                        } else newlabel->upass = pass;
+                        get_mem(&newlabel->memp, &newlabel->membp);
                         newlabel->requires=current_section->requires;
                         newlabel->conflicts=current_section->conflicts;
                     }
@@ -945,8 +949,10 @@ static void compile(void)
                     newlabel->pass=pass;
                     newlabel->value = &none_value;
                     set_uint(&new_value, current_section->l_address);
-                    new_value.type = T_NUM;
+                    new_value.type = T_LABEL;
+                    new_value.u.num.label = newlabel;
                     var_assign(newlabel, &new_value, fixeddig);
+                    get_mem(&newlabel->memp, &newlabel->membp);
                     newlabel->file = cfile->realname;
                     newlabel->sline = sline;
                     newlabel->epoint = epoint;
@@ -1168,6 +1174,7 @@ static void compile(void)
                         case T_SINT:
                         case T_UINT:
                         case T_BOOL:
+                        case T_LABEL:
                         case T_NUM: waitfor[waitforp].skip = (!val->u.num.val) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (!val->u.real) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_STR: waitfor[waitforp].skip = (!val->u.str.len) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
@@ -1179,6 +1186,7 @@ static void compile(void)
                         case T_SINT:
                         case T_UINT:
                         case T_BOOL:
+                        case T_LABEL:
                         case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (~val->u.num.val & 0x8000) : (val->u.num.val>=0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real >= 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
@@ -1190,6 +1198,7 @@ static void compile(void)
                         case T_SINT:
                         case T_UINT:
                         case T_BOOL:
+                        case T_LABEL:
                         case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (val->u.num.val & 0x8000) : (val->u.num.val < 0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real < 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
@@ -1340,6 +1349,7 @@ static void compile(void)
                                         if (ch2 > 255) i = val->u.str.len;
                                         break;
                                     case T_BOOL:
+                                    case T_LABEL:
                                     case T_NUM:
                                     case T_UINT:
                                     case T_SINT:
@@ -1372,6 +1382,7 @@ static void compile(void)
                                                         if (ch2 > 255) i = val2->u.str.len;
                                                         break;
                                                     case T_BOOL:
+                                                    case T_LABEL:
                                                     case T_NUM:
                                                     case T_UINT:
                                                     case T_SINT:
@@ -1422,7 +1433,10 @@ static void compile(void)
                         uint32_t ch2;
                         uval_t uv;
                         int large=0;
-                        if (newlabel) newlabel->esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);
+                        if (newlabel) {
+                            newlabel->esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);
+                            newlabel->sign = (prm == CMD_CHAR) || (prm == CMD_INT) || (prm == CMD_DINT);
+                        }
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         while ((val = get_val(T_NONE, &epoint))) {
                             if (val == &error_value) ch2 = 0; else
@@ -1430,6 +1444,7 @@ static void compile(void)
                             case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
                             case T_STR: if (str_to_num(val, T_NUM, &new_value)) {large = epoint; ch2 = 0; break;} val = &new_value;
                             case T_FLOAT:
+                            case T_LABEL:
                             case T_NUM:
                             case T_BOOL:
                             case T_SINT:
@@ -1456,6 +1471,7 @@ static void compile(void)
                                         case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
                                         case T_STR: if (str_to_num(val2, T_NUM, &new_value)) {large = epoint; ch2 = 0; break;} val2 = &new_value;
                                         case T_FLOAT:
+                                        case T_LABEL:
                                         case T_NUM:
                                         case T_BOOL:
                                         case T_SINT:
@@ -1754,6 +1770,7 @@ static void compile(void)
                         switch (val->type) {
                         case T_NONE: err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;
                         case T_NUM: if (val->u.num.len <= 3) { tmp.start = val->u.num.val; break; }
+                        case T_LABEL:
                         case T_BOOL:
                         case T_UINT:
                         case T_SINT:
@@ -1906,6 +1923,7 @@ static void compile(void)
                 }
                 if (prm==CMD_ALIGN) { // .align
                     int align = 1, fill=-1;
+                    if (newlabel) newlabel->esize = 1;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;

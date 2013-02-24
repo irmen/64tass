@@ -134,6 +134,7 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
     switch (val->type) {
     case T_SINT:
     case T_UINT:
+    case T_LABEL:
     case T_NUM:
     case T_BOOL:
         return val2->type == val->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
@@ -167,6 +168,7 @@ int val_truth(const struct value_s *val) {
     switch (val->type) {
     case T_SINT:
     case T_UINT:
+    case T_LABEL:
     case T_NUM:
     case T_BOOL:
         return !!val->u.num.val;
@@ -184,6 +186,7 @@ int val_truth(const struct value_s *val) {
 
 void val_print(const struct value_s *value, FILE *flab) {
     switch (value->type) {
+    case T_LABEL:
     case T_NUM:
         fprintf(flab,"$%" PRIxval, (uval_t)value->u.num.val);
         break;

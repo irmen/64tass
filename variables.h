@@ -34,12 +34,15 @@ struct label_s {
 
     struct value_s *value;
     size_t size;
+    size_t memp;
+    size_t membp;
     uval_t requires;
     uval_t conflicts;
     const char *file;
     line_t sline;
     unsigned int epoint;
     unsigned ref:1;
+    unsigned sign:1;
     uint8_t esize;
     uint8_t pass;
     uint8_t upass;
