@@ -28,6 +28,8 @@ extern void memjmp(address_t adr);
 extern void memprint(void);
 extern void output_mem(int);
 extern void write_mem(uint8_t);
+int16_t read_mem(size_t, size_t, size_t);
+extern void get_mem(size_t *, size_t *);
 extern void restart_mem(void);
 extern void init_mem(void);
 extern void destroy_mem(void);

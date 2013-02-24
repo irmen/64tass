@@ -19,7 +19,7 @@ encoding.o: encoding.c encoding.h libtree.h error.h misc.h values.h \
  inttypes.h variables.h ternary.h
 error.o: error.c error.h misc.h libtree.h values.h inttypes.h variables.h
 eval.o: eval.c eval.h misc.h libtree.h values.h inttypes.h variables.h \
- file.h error.h section.h encoding.h
+ file.h error.h section.h encoding.h mem.h
 file.o: file.c file.h libtree.h misc.h values.h inttypes.h variables.h \
  error.h
 mem.o: mem.c mem.h inttypes.h misc.h libtree.h values.h variables.h \

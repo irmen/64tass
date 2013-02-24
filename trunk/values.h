@@ -29,7 +29,7 @@ typedef uint32_t uval_t;
 #define PRIuval PRIu32
 
 enum type_e {
-    T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT,
+    T_NONE, T_BOOL, T_LABEL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT,
     T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_TUPLE, T_LIST, T_DEFAULT,
 };
 
@@ -98,6 +98,7 @@ struct value_s {
         struct {
             uint8_t len;
             ival_t val;
+            struct label_s *label;
         } num;
         struct {
             size_t len;

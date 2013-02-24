@@ -211,6 +211,34 @@ void mark_mem(address_t adr) {
     oaddr = adr;
 }
 
+void get_mem(size_t *memp, size_t *membp) {
+    *memp = mem.p;
+    *membp = memblocks.p;
+}
+
+int16_t read_mem(size_t memp, size_t membp, size_t offs) {
+    size_t len;
+    if (memp >= mem.p) return -1;
+    for (;;) {
+        if (membp < memblocks.p) {
+            len = memblocks.data[membp].len - (memp - memblocks.data[membp].p);
+        } else {
+            len = mem.p - memp;
+        }
+        if (offs < len) return mem.data[memp + offs];
+        offs -= len;
+        memp += len;
+        if (membp + 1 < memblocks.p) {
+            len = memblocks.data[membp + 1].start - memblocks.data[membp].start - memblocks.data[membp].len;
+        } else {
+            len = memblocklaststart - memblocks.data[membp].start - memblocks.data[membp].len;
+        }
+        if (offs < len) return -1;
+        offs -= len;
+        membp++;
+    }
+}
+
 void write_mark_mem(uint8_t c) {
     mem.data[ptextaddr] = c;
 }

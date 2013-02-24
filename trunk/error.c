@@ -197,6 +197,7 @@ void err_msg(enum errors_e no, const char* prm) {
 
 static char *type_name(enum type_e t) {
     switch (t) {
+    case T_LABEL: return "<label>";
     case T_SINT: return "<sint>";
     case T_UINT: return "<uint>";
     case T_NUM: return "<num>";
@@ -257,6 +258,7 @@ void err_msg_variable(struct value_s *val, int repr) {
     switch (val->type) {
     case T_SINT: sprintf(buffer,"%+" PRIdval, val->u.num.val); add_user_error(buffer); break;
     case T_UINT: sprintf(buffer,"%" PRIuval, val->u.num.val); add_user_error(buffer); break;
+    case T_LABEL:
     case T_NUM: {
         if (val->u.num.val<0x100) sprintf(buffer,"$%02" PRIxval, val->u.num.val);
         else if (val->u.num.val<0x10000) sprintf(buffer,"$%04" PRIxval, val->u.num.val);
