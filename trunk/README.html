@@ -14,6 +14,8 @@ fieldset pre {margin:0px;}
 body {width:50em;}
 h1, h2, h3, h4, h5 {font-family:sans}
 hr {border: 1pt solid black;background:black;}
+pre.make b {color:inherit;}
+pre.make span {color:navy;}
 pre b {color:navy;}
 pre b.d {color:orange;}
 pre b.k {color:blue;}
@@ -53,8 +55,8 @@ As a minimum the source filename must be given on command line.</p>
 </pre>
 <p>There are also some useful parameters which are described later.</p>
 <p>For comfortable compiling I use such <q>Makefile</q>s (for <a href="http://en.wikipedia.org/wiki/Make_%28software%29">make</a>):</p>
-<pre>
-demo.prg: source.asm makros.asm pic.drp music.bin
+<pre class="make">
+<span>demo.prg:</span> source.asm makros.asm pic.drp music.bin
 	64tass -C -a -B -i source.asm -o demo.tmp
         pucrunch -ffast -x 2048 demo.tmp &gt;demo.prg
 </pre>
@@ -69,19 +71,19 @@ pucrunch.exe -ffast -x 2048 demo.tmp &gt;demo.prg
 <p>Here's a slightly more advanced Makefile example with default action as
 testing in VICE, clean target for removal of temporary files and compressing
 using an intermediate temporary file:</p>
-<pre>
-all: demo.prg
+<pre class="make">
+<span>all:</span> demo.prg
 	x64 -autostartprgmode 1 -autostart-warp +truedrive +cart $&lt;
 
-demo.prg: demo.tmp
+<span>demo.prg:</span> demo.tmp
 	pucrunch -ffast -x 2048 $&lt; &gt;$@
 
-demo.tmp: source.asm makros.asm pic.drp music.bin
+<span>demo.tmp:</span> source.asm makros.asm pic.drp music.bin
 	64tass -C -a -B -i $&lt; -o $@
 
-.INTERMEDIATE: demo.tmp
-.PHONY: all clean
-clean:
+<b>.INTERMEDIATE:</b> demo.tmp
+<b>.PHONY:</b> all clean
+<span>clean:</span>
 	$(RM) demo.prg demo.tmp
 </pre>
 <p>Another useful thing is to add a basic header to your source files
