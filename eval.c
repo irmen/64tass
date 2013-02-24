@@ -1753,25 +1753,50 @@ strretr:
         case O_ADD:  val1 = ( val1 +  val2);break;
         case O_SUB:  if (t1 == T_UINT && (uval_t)val2 > (uval_t)val1) t1 = T_SINT;
                      val1 = ( val1 -  val2);break;
-        case O_AND:  val1 = ( val1 &  val2);break;
-        case O_OR:   val1 = ( val1 |  val2);break;
-        case O_XOR:  val1 = ( val1 ^  val2);break;
+        case O_AND:
+            new_value.type = T_NUM;
+            new_value.u.num.val = val1 & val2;
+            new_value.u.num.len = (v1->u.num.len < v2->u.num.len) ? v1->u.num.len : v2->u.num.len;
+            return &new_value;
+        case O_OR: 
+            new_value.type = T_NUM;
+            new_value.u.num.val = val1 | val2;
+            new_value.u.num.len = (v1->u.num.len > v2->u.num.len) ? v1->u.num.len : v2->u.num.len;
+            return &new_value;
+        case O_XOR:
+            new_value.type = T_NUM;
+            new_value.u.num.val = val1 ^ val2;
+            new_value.u.num.len = (v1->u.num.len > v2->u.num.len) ? v1->u.num.len : v2->u.num.len;
+            return &new_value;
         case O_LSHIFT:
-                     if (val2 >= (ival_t)sizeof(val1)*8 || val2 <= -(ival_t)sizeof(val1)*8) val1=0;
-                     else val1 = (val2 > 0) ? (val1 << val2) : (ival_t)((uval_t)val1 >> (-val2));
-                     break;
+            if (val2 < 0) {val2 = -val2; goto rshift;}
+        lshift: 
+            if (val2 >= (ival_t)sizeof(val1)*8) val1=0;
+            else val1 <<= val2;
+            new_value.type = (t1 == T_BOOL) ? T_NUM : t1;
+            new_value.u.num.val = val1;
+            new_value.u.num.len = addlen(v1->u.num.len, val2);
+            return &new_value;
         case O_ASHIFT: 
-                     if (t1 == T_SINT) {
-                         if (val2 >= (ival_t)sizeof(val1)*8) val1 = (val1 > 0) ? 0 : -1;
-                         if (val2 <= -(ival_t)sizeof(val1)*8) val1 = 0;
-                         else if (val1 >= 0) val1 = (val2 > 0) ? (val1 >> val2) : (val1 << (-val2));
-                         else val1 = ~((val2 > 0) ? ((~val1) >> val2) : ((~val1) << (-val2)));
-                         break;
-                     }
+        rshift: 
+            if (t1 == T_SINT) {
+                if (val2 < 0) {val2 = -val2; goto lshift;}
+                if (val2 >= (ival_t)sizeof(val1)*8) val1 = (val1 > 0) ? 0 : -1;
+                else if (val1 >= 0) val1 >>= val2;
+                else val1 = ~((~val1) >> val2);
+                new_value.type = T_SINT;
+                new_value.u.num.val = val1;
+                new_value.u.num.len = addlen(v1->u.num.len, -val2);
+                return &new_value;
+            }
         case O_RSHIFT: 
-                     if (val2 >= (ival_t)sizeof(val1)*8 || val2 <= -(ival_t)sizeof(val1)*8) val1=0;
-                     else val1 = (val2 > 0) ? (ival_t)((uval_t)val1 >> val2) : (val1 << (-val2));
-                     break;
+            if (val2 < 0) {val2 = -val2; goto lshift;}
+            if (val2 >= (ival_t)sizeof(val1)*8) val1=0;
+            else val1 = (ival_t)((uval_t)val1 >> val2);
+            new_value.type = (t1 == T_BOOL) ? T_NUM : t1;
+            new_value.u.num.val = val1;
+            new_value.u.num.len = addlen(v1->u.num.len, -val2);
+            return &new_value;
         case O_EXP: 
                      {
                          ival_t res = 1;
