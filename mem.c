@@ -230,9 +230,9 @@ int16_t read_mem(size_t memp, size_t membp, size_t offs) {
         memp += len;
         if (membp + 1 < memblocks.p) {
             len = memblocks.data[membp + 1].start - memblocks.data[membp].start - memblocks.data[membp].len;
-        } else {
+        } else if (membp < memblocks.p) {
             len = memblocklaststart - memblocks.data[membp].start - memblocks.data[membp].len;
-        }
+        } else return -1;
         if (offs < len) return -1;
         offs -= len;
         membp++;
