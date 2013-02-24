@@ -1307,6 +1307,32 @@ static void label_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t s
     val_replace(&vals->val, &new_value); val_destroy(&new_value);
 }
 
+static void bits_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t step) {
+    size_t i;
+    size_t len;
+
+    if (step > 0) {
+        if (end < offs) end = offs;
+        len = (end - offs + step - 1) / step;
+    } else {
+        if (end > offs) end = offs;
+        len = (offs - end - step - 1) / -step;
+    }
+
+    new_value.type = T_NUM;
+    new_value.u.num.len = ((len + 7) / 8) | (!len);
+    if (step == 1) {
+        new_value.u.num.val = (vals->val->u.num.val >> offs) & (((uval_t)1 << len)-1);
+    } else {
+        i = 0; new_value.u.num.val = 0;
+        while ((end > offs && step > 0) || (end < offs && step < 0)) {
+            new_value.u.num.val |= ((vals->val->u.num.val >> offs) & 1) << i;
+            offs += step;
+        }
+    }
+    val_replace(&vals->val, &new_value);
+}
+
 static void indexes(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct label_s *l;
@@ -1318,6 +1344,10 @@ static void indexes(struct values_s *vals, unsigned int args) {
     case T_TUPLE:
     case T_STR:
     case T_LABEL:
+    case T_UINT:
+    case T_SINT:
+    case T_NUM:
+    case T_BOOL:
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
             switch (try_resolv(&v[0].val)) {
             case T_UINT:
@@ -1334,7 +1364,9 @@ static void indexes(struct values_s *vals, unsigned int args) {
                         len = vals->val->u.num.label->esize;
                         len = vals->val->u.num.label->size / (len + !len);
                         break;
-                    default: len = vals->val->u.list.len;
+                    case T_LIST:
+                    case T_TUPLE: len = vals->val->u.list.len; break;
+                    default: len = 8*sizeof(vals->val->u.num.val); break;
                     }
 
                     if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
@@ -1370,10 +1402,18 @@ static void indexes(struct values_s *vals, unsigned int args) {
                         new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
                         val_replace(&vals->val, &new_value);
                         break;
-                    default:
+                    case T_LIST:
+                    case T_TUPLE:
                         val = val_reference(vals->val->u.list.data[offs]);
                         val_replace(&vals->val, val);
                         val_destroy(val);
+                        break;
+                    default:
+                        new_value.type = T_NUM;
+                        new_value.u.num.len = 1;
+                        new_value.u.num.val = (vals->val->u.num.val >> offs) & 1;
+                        val_replace(&vals->val, &new_value);
+                        break;
                     }
                 }
                 return;
@@ -1400,6 +1440,10 @@ static void slices(struct values_s *vals, unsigned int args) {
     case T_TUPLE:
     case T_STR:
     case T_LABEL:
+    case T_UINT:
+    case T_SINT:
+    case T_NUM:
+    case T_BOOL:
         if (args > 3 || args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
             uval_t len;
             ival_t offs = 0, end, step = 1;
@@ -1409,7 +1453,9 @@ static void slices(struct values_s *vals, unsigned int args) {
                 len = vals->val->u.num.label->esize;
                 len = vals->val->u.num.label->size / (len + !len);
                 break;
-            default: len = vals->val->u.list.len;
+            case T_LIST:
+            case T_TUPLE: len = vals->val->u.list.len; break;
+            default: len = 8*sizeof(vals->val->u.num.val); break;
             }
             end = (ival_t)len;
             for (i = args - 1; i >= 0; i--) {
@@ -1462,7 +1508,9 @@ static void slices(struct values_s *vals, unsigned int args) {
             switch (vals->val->type) {
             case T_STR: str_slice(vals, offs, end, step); break;
             case T_LABEL: label_slice(vals, offs, end, step); break;
-            default: list_slice(vals, offs, end, step);
+            case T_LIST:
+            case T_TUPLE: list_slice(vals, offs, end, step); break;
+            default: bits_slice(vals, offs, end, step); break;
             }
             return;
         }

@@ -101,6 +101,9 @@
     .cerror (1,2)..(3,4)!=(1,2,3,4)
     .cerror [1,2]..[3,4]!=[1,2,3,4]
 
+    .cerror 3[0]!=1
+    .cerror $1234[4:8]!=3
+
 ; check all operators
 
 ; bit or
