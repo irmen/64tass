@@ -821,14 +821,16 @@ static void compile(void)
                         if (pass==1) {
                             if (labelexists) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                             else {
-                                new_value.type = T_UINT;
+                                new_value.type = T_LABEL;
                                 new_value.u.num.val = 0;
                                 new_value.u.num.len = 1;
                                 newlabel->requires=0;
                                 newlabel->conflicts=0;
                                 newlabel->pass=pass;
                                 newlabel->value=&none_value;
+                                new_value.u.num.label = newlabel;
                                 var_assign(newlabel, &new_value, fixeddig);
+                                newlabel->memp = ~(size_t)0; newlabel->membp = ~(size_t)0;
                                 newlabel->file = cfile->realname;
                                 newlabel->sline = sline;
                                 newlabel->epoint = epoint;
