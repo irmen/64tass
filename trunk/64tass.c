@@ -921,8 +921,8 @@ static void compile(void)
                     newlabel->conflicts=current_section->conflicts;
                     newlabel->pass=pass;
                     newlabel->value = &none_value;
-                    set_uint(&new_value, current_section->l_address);
                     new_value.type = T_LABEL;
+                    new_value.u.num.val = current_section->l_address;
                     new_value.u.num.label = newlabel;
                     var_assign(newlabel, &new_value, fixeddig);
                     get_mem(&newlabel->memp, &newlabel->membp);
@@ -936,8 +936,8 @@ static void compile(void)
                         err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                     } else {
                         if ((uval_t)newlabel->value->u.num.val != current_section->l_address) {
-                            set_uint(&new_value, current_section->l_address);
                             new_value.type=T_LABEL;
+                            new_value.u.num.val = current_section->l_address;
                             new_value.u.num.label = newlabel;
                             var_assign(newlabel, &new_value, 0);
                         } else newlabel->upass = pass;
@@ -950,8 +950,8 @@ static void compile(void)
                     newlabel->conflicts=current_section->conflicts;
                     newlabel->pass=pass;
                     newlabel->value = &none_value;
-                    set_uint(&new_value, current_section->l_address);
                     new_value.type = T_LABEL;
+                    new_value.u.num.val = current_section->l_address;
                     new_value.u.num.label = newlabel;
                     var_assign(newlabel, &new_value, fixeddig);
                     get_mem(&newlabel->memp, &newlabel->membp);

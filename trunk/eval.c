@@ -56,20 +56,41 @@ struct value_s error_value = {T_NONE, 0, {}};
 
 struct encoding_s *actual_encoding;
 
-void set_uint(struct value_s *v, uval_t val) {
-    v->u.num.val = val;
-    v->u.num.len = 8;
-    while (val & ~(uval_t)0xff) {val>>=8;v->u.num.len += 8;}
-    v->type = T_UINT;
+static uint8_t get_val_len(uval_t val, enum type_e type) {
+    int span, bits;
+
+    switch (type) {
+    case T_SINT:
+        span = 4 * sizeof(uval_t); bits = 0;
+        if ((ival_t)val < 0) val = ~val;
+        while (span) {
+            if (val >> (bits + span)) {
+                bits |= span;
+            }
+            span >>= 1;
+        }
+        return bits + 2;
+    case T_UINT:
+    case T_LABEL:
+        span = 4 * sizeof(uval_t); bits = 0;
+        while (span) {
+            if (val >> (bits + span)) {
+                bits |= span;
+            }
+            span >>= 1;
+        }
+        return bits + 1;
+    case T_BOOL:
+        return 1;
+    default:
+        return 8*sizeof(uval_t);
+    }
 }
 
-void set_int(struct value_s *v, ival_t val) {
-    v->u.num.val = val;
-    v->u.num.len = 8;
-    if (val < 0) val = ~val;
-    while ((uval_t)val & ~(uval_t)0x7f) {val >>= 8;v->u.num.len += 8;}
-    v->type = T_SINT;
+static inline uint8_t get_val_len2(const struct value_s *v) {
+    return (v->type == T_NUM) ? v->u.num.len : get_val_len((uval_t)v->u.num.val, v->type);
 }
+
 
 static int get_hex(struct value_s *v) {
     uval_t val = 0;
@@ -82,9 +103,9 @@ static int get_hex(struct value_s *v) {
         if (here() & 0x40) val += 9;
         lpoint++;
     }
+    v->type = T_NUM;
     v->u.num.val = val;
     v->u.num.len = (lpoint - start) * 4;
-    v->type = T_NUM;
     return v->u.num.len > 8*sizeof(val);
 }
 
@@ -98,9 +119,9 @@ static int get_bin(struct value_s *v) {
         val = (val << 1) | (here() & 1);
         lpoint++;
     }
+    v->type = T_NUM;
     v->u.num.val = val;
     v->u.num.len = lpoint - start;
-    v->type = T_NUM;
     return v->u.num.len > 8*sizeof(val);
 }
 
@@ -117,7 +138,8 @@ static int get_dec(struct value_s *v) {
         val=(val * 10) + (here() & 15);
         lpoint++;
     }
-    set_uint(v, val);
+    v->type = T_UINT;
+    v->u.num.val = val;
     return large;
 }
 
@@ -340,8 +362,8 @@ static void get_star(struct value_s *v) {
         fixeddig=0;
     }
     tmp->addr=star;
-    set_uint(v, star);
-    v->type = T_NUM;
+    v->type = T_UINT;
+    v->u.num.val = star;
 }
 
 /*
@@ -572,7 +594,9 @@ static int get_val2_compat(void) {// length in bytes, defined
                     case O_LOWER: val1 = (uint8_t)val1;
                     default: break;
                     }
-                    set_uint(&new_value, val1);
+                    new_value.type = T_NUM;
+                    new_value.u.num.val = val1;
+                    new_value.u.num.len = 8;
                     val_replace(&v1->val, &new_value);
                     break;
                 }
@@ -626,7 +650,9 @@ static int get_val2_compat(void) {// length in bytes, defined
                     default: break;
                     }
                     vsp--;
-                    set_uint(&new_value, val1);
+                    new_value.type = T_NUM;
+                    new_value.u.num.val = val1;
+                    new_value.u.num.len = 16;
                     val_replace(&v2->val, &new_value);
                     continue;
                 }
@@ -699,9 +725,8 @@ struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in by
             case T_NONE:
                 return values[0].val;
             case T_FLOAT:
-                new_value.type = (type == T_GAP) ? T_NUM : type;
-                if (type == T_SINT) set_int(&new_value, (ival_t)values[0].val->u.real);
-                else set_uint(&new_value, (uval_t)values[0].val->u.real);
+                new_value.type = (type == T_SINT) ? T_SINT : T_UINT;
+                new_value.u.num.val = (ival_t)values[0].val->u.real;
                 val_replace(&values[0].val, &new_value);
                 return values[0].val;
             case T_GAP: if (type == T_GAP) return values[0].val;
@@ -745,16 +770,19 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned
     case F_SIGN:
         switch (v1->type) {
         case T_SINT:
-            set_int(&new_value, ((ival_t)v1->u.num.val > 0) - ((ival_t)v1->u.num.val < 0));
+            new_value.type = T_SINT;
+            new_value.u.num.val = ((ival_t)v1->u.num.val > 0) - ((ival_t)v1->u.num.val < 0);
             return &new_value;
         case T_UINT:
         case T_LABEL:
         case T_NUM:
         case T_BOOL:
-            set_int(&new_value, ((uval_t)v1->u.num.val) > 0);
+            new_value.type = T_SINT;
+            new_value.u.num.val = ((uval_t)v1->u.num.val) > 0;
             return &new_value;
         case T_FLOAT:
-            set_int(&new_value, (v1->u.real > 0.0) - (v1->u.real < 0.0));
+            new_value.type = T_SINT;
+            new_value.u.num.val = (v1->u.real > 0.0) - (v1->u.real < 0.0);
             return &new_value;
         case T_LIST:
         case T_TUPLE: break;
@@ -872,23 +900,27 @@ static void functions(struct values_s *vals, unsigned int args) {
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
         switch (try_resolv(&v[0].val)) {
         case T_STR:
-            set_uint(&new_value, v[0].val->u.str.chars);
+            new_value.type = T_UINT;
+            new_value.u.num.val = v[0].val->u.str.chars;
             val_replace(&vals->val, &new_value);
             return;
         case T_LIST:
         case T_TUPLE:
-            set_uint(&new_value, v[0].val->u.list.len);
+            new_value.type = T_UINT;
+            new_value.u.num.val = v[0].val->u.list.len;
             val_replace(&vals->val, &new_value);
             return;
         case T_LABEL:
-            set_uint(&new_value, v[0].val->u.num.label->size / (v[0].val->u.num.label->esize + !v[0].val->u.num.label->esize));
+            new_value.type = T_UINT;
+            new_value.u.num.val = v[0].val->u.num.label->size / (v[0].val->u.num.label->esize + !v[0].val->u.num.label->esize);
             val_replace(&vals->val, &new_value);
             return;
         case T_UINT:
         case T_SINT:
         case T_NUM:
         case T_BOOL:
-            set_uint(&new_value, v[0].val->u.num.len);
+            new_value.type = T_UINT;
+            new_value.u.num.val = get_val_len2(v[0].val);
             val_replace(&vals->val, &new_value);
             return;
         default: err_msg_wrong_type(v[0].val, v[0].epoint);
@@ -934,8 +966,8 @@ static void functions(struct values_s *vals, unsigned int args) {
             if (!val) err_msg_out_of_memory();
             i = 0;
             while ((end > start && step > 0) || (end < start && step < 0)) {
-                if (start >= 0) set_uint(&new_value, (uval_t)start);
-                else set_int(&new_value, start);
+                new_value.type = (start >= 0) ? T_UINT : T_SINT;
+                new_value.u.num.val = start;
                 val[i++] = val_reference(&new_value);
                 start += step;
             }
@@ -971,7 +1003,8 @@ static void functions(struct values_s *vals, unsigned int args) {
                 }
                 volt = 0;
             }
-            if (t) set_int(&new_value, min); else set_uint(&new_value, min);
+            new_value.type = t ? T_SINT : T_UINT;
+            new_value.u.num.val = min;
             val_replace(&vals->val, &new_value);
             return;
         }
@@ -1001,7 +1034,8 @@ static void functions(struct values_s *vals, unsigned int args) {
                 }
                 volt = 0;
             }
-            if (t) set_int(&new_value, max); else set_uint(&new_value, max);
+            new_value.type = t ? T_SINT : T_UINT;
+            new_value.u.num.val = max;
             val_replace(&vals->val, &new_value);
             return;
         }
@@ -1013,7 +1047,8 @@ static void functions(struct values_s *vals, unsigned int args) {
         else {
             switch (try_resolv(&v[0].val)) {
             case T_LABEL:
-                set_uint(&new_value, v[0].val->u.num.label->size);
+                new_value.type = T_UINT;
+                new_value.u.num.val = v[0].val->u.num.label->size;
                 val_replace(&vals->val, &new_value);
                 return;
             default: err_msg_wrong_type(v[0].val, v[0].epoint);
@@ -1372,7 +1407,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
                         break;
                     case T_LIST:
                     case T_TUPLE: len = vals->val->u.list.len; break;
-                    default: len = 8*sizeof(vals->val->u.num.val); break;
+                    default: len = get_val_len2(vals->val); break;
                     }
 
                     if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
@@ -1462,7 +1497,7 @@ static void slices(struct values_s *vals, unsigned int args) {
                 break;
             case T_LIST:
             case T_TUPLE: len = vals->val->u.list.len; break;
-            default: len = vals->val->u.num.len; break;
+            default: len = get_val_len2(vals->val); break;
             }
             end = (ival_t)len;
             for (i = args - 1; i >= 0; i--) {
@@ -1575,17 +1610,25 @@ strretr:
             new_value.u.num.val = (uint16_t)v1->u.num.val;
             return &new_value;
         case O_INV:
-            new_value.type = T_NUM;
+            if (t1 == T_NUM) {
+                new_value.type = T_NUM;
+                new_value.u.num.len = v1->u.num.len;
+            } else new_value.type = T_SINT;
             new_value.u.num.val = ~v1->u.num.val;
-            new_value.u.num.len = v1->u.num.len;
             return &new_value;
         case O_NEG:
-            set_int(&new_value, -v1->u.num.val);
+            if (t1 == T_NUM) {
+                new_value.type = T_NUM;
+                new_value.u.num.len = v1->u.num.len;
+            } else new_value.type = T_SINT;
+            new_value.u.num.val = -v1->u.num.val;
             return &new_value;
         case O_POS:
-            new_value.type = T_SINT;
+            if (t1 == T_NUM) {
+                new_value.type = T_NUM;
+                new_value.u.num.len = v1->u.num.len;
+            } else new_value.type = T_SINT;
             new_value.u.num.val = v1->u.num.val;
-            new_value.u.num.len = v1->u.num.len;
             return &new_value;
         case O_STRING:
             sprintf(line, (v1->type == T_SINT) ? "%" PRIdval : "%" PRIuval, v1->u.num.val);
@@ -1751,31 +1794,35 @@ strretr:
         case O_MOD: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = (~(uval_t)0) >> 1; *large=1;}
                         else if (t2==T_SINT) val1 = ( val1 % val2); else val1 = ( (uval_t)val1 % (uval_t)val2); break;
         case O_ADD:  val1 = ( val1 +  val2);break;
-        case O_SUB:  if (t1 == T_UINT && (uval_t)val2 > (uval_t)val1) t1 = T_SINT;
+        case O_SUB:  if (t2 == T_UINT && (uval_t)val2 > (uval_t)val1) t2 = T_SINT;
                      val1 = ( val1 -  val2);break;
-        case O_AND:
+        case O_AND: val1 &= val2; goto binset;
+        case O_OR: val1 |= val2; goto binset;
+        case O_XOR: val1 ^= val2;
+        binset:
+            if (t2 == T_NUM) {
+                new_value.u.num.len = (v1->u.num.len > v2->u.num.len) ? v1->u.num.len : v2->u.num.len;
+            } else {
+                new_value.u.num.len = get_val_len(val1, t2);
+                if (v1->type == T_NUM && new_value.u.num.len < v1->u.num.len) new_value.u.num.len = v1->u.num.len;
+                else if (v2->type == T_NUM && new_value.u.num.len < v2->u.num.len) new_value.u.num.len = v2->u.num.len;
+            }
             new_value.type = T_NUM;
-            new_value.u.num.val = val1 & val2;
-            new_value.u.num.len = (v1->u.num.len < v2->u.num.len) ? v1->u.num.len : v2->u.num.len;
-            return &new_value;
-        case O_OR: 
-            new_value.type = T_NUM;
-            new_value.u.num.val = val1 | val2;
-            new_value.u.num.len = (v1->u.num.len > v2->u.num.len) ? v1->u.num.len : v2->u.num.len;
-            return &new_value;
-        case O_XOR:
-            new_value.type = T_NUM;
-            new_value.u.num.val = val1 ^ val2;
-            new_value.u.num.len = (v1->u.num.len > v2->u.num.len) ? v1->u.num.len : v2->u.num.len;
+            new_value.u.num.val = val1;
             return &new_value;
         case O_LSHIFT:
             if (val2 < 0) {val2 = -val2; goto rshift;}
         lshift: 
             if (val2 >= (ival_t)sizeof(val1)*8) val1=0;
             else val1 <<= val2;
-            new_value.type = (t1 == T_BOOL) ? T_NUM : t1;
+            if (t1 == T_NUM) {
+                new_value.type = T_NUM;
+                new_value.u.num.len = addlen(v1->u.num.len, val2);
+            } else if (t1 == T_BOOL) {
+                new_value.type = T_NUM;
+                new_value.u.num.len = addlen(1, val2);
+            } else new_value.type = t1;
             new_value.u.num.val = val1;
-            new_value.u.num.len = addlen(v1->u.num.len, val2);
             return &new_value;
         case O_ASHIFT: 
         rshift: 
@@ -1786,16 +1833,20 @@ strretr:
                 else val1 = ~((~val1) >> val2);
                 new_value.type = T_SINT;
                 new_value.u.num.val = val1;
-                new_value.u.num.len = addlen(v1->u.num.len, -val2);
                 return &new_value;
             }
         case O_RSHIFT: 
             if (val2 < 0) {val2 = -val2; goto lshift;}
             if (val2 >= (ival_t)sizeof(val1)*8) val1=0;
             else val1 = (ival_t)((uval_t)val1 >> val2);
-            new_value.type = (t1 == T_BOOL) ? T_NUM : t1;
+            if (t1 == T_NUM) {
+                new_value.type = T_NUM;
+                new_value.u.num.len = addlen(v1->u.num.len, -val2);
+            } else if (t1 == T_BOOL) {
+                new_value.type = T_NUM;
+                new_value.u.num.len = addlen(1, -val2);
+            } else new_value.type = t1;
             new_value.u.num.val = val1;
-            new_value.u.num.len = addlen(v1->u.num.len, -val2);
             return &new_value;
         case O_EXP: 
                      {
@@ -1815,14 +1866,19 @@ strretr:
                      }
                      break;
         case O_CONCAT: 
-            new_value.type = T_NUM;
-            new_value.u.num.len = addlen(v1->u.num.len, v2->u.num.len);
-            new_value.u.num.val = (val1 << v2->u.num.len) | (val2 & (((uval_t)1 << v2->u.num.len)-1));
-            return &new_value;
+            {
+                uint8_t l1 = get_val_len2(v1), l2 = get_val_len2(v2);
+                new_value.type = T_NUM;
+                new_value.u.num.len = addlen(l1 ,l2);
+                val1 &= (((uval_t)1 << l1)-1);
+                new_value.u.num.val = (val1 << l2) | (val2 & (((uval_t)1 << l2)-1));
+                return &new_value;
+            }
         default: err_msg_invalid_oper(op, v1, v2, epoint3); 
                  goto errtype;
         }
-        if (t1 == T_SINT) set_int(&new_value, val1); else {set_uint(&new_value, val1); new_value.type = t1;}
+        new_value.type = (t2 == T_SINT) ? T_SINT : T_UINT;
+        new_value.u.num.val = val1;
         return &new_value;
     }
 
