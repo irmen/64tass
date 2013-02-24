@@ -58,16 +58,16 @@ struct encoding_s *actual_encoding;
 
 void set_uint(struct value_s *v, uval_t val) {
     v->u.num.val = val;
-    v->u.num.len = 1;
-    while (val & ~(uval_t)0xff) {val>>=8;v->u.num.len++;}
+    v->u.num.len = 8;
+    while (val & ~(uval_t)0xff) {val>>=8;v->u.num.len += 8;}
     v->type = T_UINT;
 }
 
 void set_int(struct value_s *v, ival_t val) {
     v->u.num.val = val;
-    v->u.num.len = 1;
+    v->u.num.len = 8;
     if (val < 0) val = ~val;
-    while ((uval_t)val & ~(uval_t)0x7f) {val >>= 8;v->u.num.len++;}
+    while ((uval_t)val & ~(uval_t)0x7f) {val >>= 8;v->u.num.len += 8;}
     v->type = T_SINT;
 }
 
@@ -75,35 +75,33 @@ static int get_hex(struct value_s *v) {
     uval_t val = 0;
     unsigned int start;
     ignore();
-    while (here() == 0x30) lpoint++;
     start = lpoint;
+    while (here() == 0x30) lpoint++;
     while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
         val = (val << 4) + (here() & 15);
         if (here() & 0x40) val += 9;
         lpoint++;
     }
     v->u.num.val = val;
-    v->u.num.len = (lpoint - start + 1) / 2;
-    v->u.num.len |= !v->u.num.len;
+    v->u.num.len = (lpoint - start) * 4;
     v->type = T_NUM;
-    return v->u.num.len > sizeof(val);
+    return v->u.num.len > 8*sizeof(val);
 }
 
 static int get_bin(struct value_s *v) {
     uval_t val = 0;
     unsigned int start;
     ignore();
-    while (here() == 0x30) lpoint++;
     start = lpoint;
+    while (here() == 0x30) lpoint++;
     while ((here() & 0xfe) == '0') {
         val = (val << 1) | (here() & 1);
         lpoint++;
     }
     v->u.num.val = val;
-    v->u.num.len = (lpoint - start + 7) / 8;
-    v->u.num.len |= !v->u.num.len;
+    v->u.num.len = lpoint - start;
     v->type = T_NUM;
-    return v->u.num.len > sizeof(val);
+    return v->u.num.len > 8*sizeof(val);
 }
 
 static int get_dec(struct value_s *v) {
@@ -205,7 +203,7 @@ int str_to_num(const struct value_s *v, enum type_e type, struct value_s *v2) {
     }
     v2->type = type;
     v2->u.num.val = val;
-    v2->u.num.len = large | (!large);
+    v2->u.num.len = large*8;
     return 0;
 }
 
@@ -886,6 +884,13 @@ static void functions(struct values_s *vals, unsigned int args) {
             set_uint(&new_value, v[0].val->u.num.label->size / (v[0].val->u.num.label->esize + !v[0].val->u.num.label->esize));
             val_replace(&vals->val, &new_value);
             return;
+        case T_UINT:
+        case T_SINT:
+        case T_NUM:
+        case T_BOOL:
+            set_uint(&new_value, v[0].val->u.num.len);
+            val_replace(&vals->val, &new_value);
+            return;
         default: err_msg_wrong_type(v[0].val, v[0].epoint);
         case T_NONE: break;
         }
@@ -1258,7 +1263,7 @@ static void label_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t s
     struct value_s **val;
     struct label_s *l;
     size_t i, i2;
-    size_t len;
+    size_t len, len2;
     size_t offs2;
     int16_t r;
 
@@ -1282,12 +1287,13 @@ static void label_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t s
     val = malloc(len * sizeof(new_value.u.list.data[0]));
     if (!val) err_msg_out_of_memory();
     i = 0;
-    new_value.u.num.len = l->esize + !l->esize;
+    len2 = l->esize + !l->esize;
+    new_value.u.num.len = len2 * 8;
     while ((end > offs && step > 0) || (end < offs && step < 0)) {
-        offs2 = offs * new_value.u.num.len;
+        offs2 = offs * len2;
         new_value.u.num.val = 0;
         r = -1;
-        for (i2 = 0; i2 < new_value.u.num.len; i2++) {
+        for (i2 = 0; i2 < len2; i2++) {
             r = read_mem(l->memp, l->membp, offs2++);
             if (r < 0) break;
             new_value.u.num.val |= r << (i2 * 8);
@@ -1320,13 +1326,13 @@ static void bits_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t st
     }
 
     new_value.type = T_NUM;
-    new_value.u.num.len = ((len + 7) / 8) | (!len);
+    new_value.u.num.len = len;
     if (step == 1) {
         new_value.u.num.val = (vals->val->u.num.val >> offs) & (((uval_t)1 << len)-1);
     } else {
         i = 0; new_value.u.num.val = 0;
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
-            new_value.u.num.val |= ((vals->val->u.num.val >> offs) & 1) << i;
+            new_value.u.num.val |= ((vals->val->u.num.val >> offs) & 1) << (i++);
             offs += step;
         }
     }
@@ -1399,6 +1405,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
                                 new_value.u.num.val |= 0xff << (i * 8);
                             }
                         }
+                        new_value.u.num.len *= 8;
                         new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
                         val_replace(&vals->val, &new_value);
                         break;
@@ -1455,7 +1462,7 @@ static void slices(struct values_s *vals, unsigned int args) {
                 break;
             case T_LIST:
             case T_TUPLE: len = vals->val->u.list.len; break;
-            default: len = 8*sizeof(vals->val->u.num.val); break;
+            default: len = vals->val->u.num.len; break;
             }
             end = (ival_t)len;
             for (i = args - 1; i >= 0; i--) {
@@ -1539,32 +1546,32 @@ strretr:
         switch (op) {
         case O_LOWER:
             new_value.type = T_NUM;
-            new_value.u.num.len = 1;
+            new_value.u.num.len = 8;
             new_value.u.num.val = (uint8_t)v1->u.num.val;
             return &new_value;
         case O_HIGHER: 
             new_value.type = T_NUM;
-            new_value.u.num.len = 1;
+            new_value.u.num.len = 8;
             new_value.u.num.val = (uint8_t)(v1->u.num.val >> 8);
             return &new_value;
         case O_BANK: 
             new_value.type = T_NUM;
-            new_value.u.num.len = 1;
+            new_value.u.num.len = 8;
             new_value.u.num.val = (uint8_t)(v1->u.num.val >> 16);
             return &new_value;
         case O_BSWORD:
             new_value.type = T_NUM;
-            new_value.u.num.len = 2;
+            new_value.u.num.len = 16;
             new_value.u.num.val = (uint8_t)(v1->u.num.val >> 8) | (uint16_t)(v1->u.num.val << 8);
             return &new_value;
         case O_HWORD: 
             new_value.type = T_NUM;
-            new_value.u.num.len = 2;
+            new_value.u.num.len = 16;
             new_value.u.num.val = (uint16_t)(v1->u.num.val >> 8);
             return &new_value;
         case O_WORD: 
             new_value.type = T_NUM;
-            new_value.u.num.len = 2;
+            new_value.u.num.len = 16;
             new_value.u.num.val = (uint16_t)v1->u.num.val;
             return &new_value;
         case O_INV:
@@ -1573,9 +1580,7 @@ strretr:
             new_value.u.num.len = v1->u.num.len;
             return &new_value;
         case O_NEG:
-            new_value.type = T_SINT;
-            new_value.u.num.val = -v1->u.num.val;
-            new_value.u.num.len = v1->u.num.len;
+            set_int(&new_value, -v1->u.num.val);
             return &new_value;
         case O_POS:
             new_value.type = T_SINT;
@@ -1704,6 +1709,13 @@ strretr:
     return &none_value;
 }
 
+static inline uint8_t addlen(int l1, int l2) {
+    int l = l1 + l2;
+    if (l < 0) return 0;
+    if (l < 8*(int)sizeof(uval_t)) return l;
+    return 8*sizeof(uval_t);
+}
+
 static struct value_s *apply_op2(enum oper_e op, const struct value_s *v1, const struct value_s *v2, unsigned int epoint, unsigned int epoint2, unsigned int epoint3, int *large) {
     enum type_e t1;
     enum type_e t2;
@@ -1777,6 +1789,11 @@ strretr:
                          val1 = res;
                      }
                      break;
+        case O_CONCAT: 
+            new_value.type = T_NUM;
+            new_value.u.num.len = addlen(v1->u.num.len, v2->u.num.len);
+            new_value.u.num.val = (val1 << v2->u.num.len) | (val2 & (((uval_t)1 << v2->u.num.len)-1));
+            return &new_value;
         default: err_msg_invalid_oper(op, v1, v2, epoint3); 
                  goto errtype;
         }

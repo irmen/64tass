@@ -823,7 +823,7 @@ static void compile(void)
                             else {
                                 new_value.type = T_LABEL;
                                 new_value.u.num.val = 0;
-                                new_value.u.num.len = 1;
+                                new_value.u.num.len = 0;
                                 newlabel->requires=0;
                                 newlabel->conflicts=0;
                                 newlabel->pass=pass;
@@ -1355,7 +1355,7 @@ static void compile(void)
                                     case T_NUM:
                                     case T_UINT:
                                     case T_SINT:
-                                        if (val->type != T_NUM || val->u.num.len > 1) {
+                                        if (val->type != T_NUM || val->u.num.len > 8) {
                                             if ((uval_t)val->u.num.val & ~(uval_t)0xff) large=epoint;
                                         }
                                         ch2 = (uint8_t)val->u.num.val;
@@ -1388,7 +1388,7 @@ static void compile(void)
                                                     case T_NUM:
                                                     case T_UINT:
                                                     case T_SINT:
-                                                        if (val2->type != T_NUM || val2->u.num.len > 1) {
+                                                        if (val2->type != T_NUM || val2->u.num.len > 8) {
                                                             if ((uval_t)val2->u.num.val & ~(uval_t)0xff) large=epoint;
                                                         }
                                                         ch2 = (uint8_t)val2->u.num.val;
@@ -1453,13 +1453,13 @@ static void compile(void)
                             case T_UINT:
                                 uv = (val->type == T_FLOAT) ? (uval_t)val->u.real : (uval_t)val->u.num.val;
                                 switch (prm) {
-                                case CMD_CHAR: if ((val->u.num.len > 1 || val->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
-                                case CMD_BYTE: if ((val->u.num.len > 1 || val->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
-                                case CMD_INT: if ((val->u.num.len > 2 || val->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
-                                case CMD_LONG: if ((val->u.num.len > 3 || val->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
-                                case CMD_DINT: if ((val->u.num.len > 4 || val->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
-                                case CMD_DWORD: if ((val->u.num.len > 4 || val->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
-                                default: if ((val->u.num.len > 2 || val->type != T_NUM) && (uv & ~(uval_t)0xffff)) large=epoint;
+                                case CMD_CHAR: if ((val->u.num.len > 8 || val->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
+                                case CMD_BYTE: if ((val->u.num.len > 8 || val->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
+                                case CMD_INT: if ((val->u.num.len > 16 || val->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
+                                case CMD_LONG: if ((val->u.num.len > 24 || val->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
+                                case CMD_DINT: if ((val->u.num.len > 32 || val->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
+                                case CMD_DWORD: if ((val->u.num.len > 32 || val->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
+                                default: if ((val->u.num.len > 16 || val->type != T_NUM) && (uv & ~(uval_t)0xffff)) large=epoint;
                                 }
                                 ch2 = uv;
                                 break;
@@ -1480,13 +1480,13 @@ static void compile(void)
                                         case T_UINT:
                                             uv = (val2->type == T_FLOAT) ? (uval_t)val2->u.real : (uval_t)val2->u.num.val;
                                             switch (prm) {
-                                            case CMD_CHAR: if ((val2->u.num.len > 1 || val2->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
-                                            case CMD_BYTE: if ((val2->u.num.len > 1 || val2->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
-                                            case CMD_INT: if ((val2->u.num.len > 2 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
-                                            case CMD_LONG: if ((val2->u.num.len > 3 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
-                                            case CMD_DINT: if ((val2->u.num.len > 4 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
-                                            case CMD_DWORD: if ((val2->u.num.len > 4 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
-                                            default: if ((val2->u.num.len > 2 || val2->type != T_NUM) && (uv & ~(uval_t)0xffff)) large=epoint;
+                                            case CMD_CHAR: if ((val2->u.num.len > 8 || val2->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
+                                            case CMD_BYTE: if ((val2->u.num.len > 8 || val2->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
+                                            case CMD_INT: if ((val2->u.num.len > 16 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
+                                            case CMD_LONG: if ((val2->u.num.len > 24 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
+                                            case CMD_DINT: if ((val2->u.num.len > 32 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
+                                            case CMD_DWORD: if ((val2->u.num.len > 32 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
+                                            default: if ((val2->u.num.len > 16 || val2->type != T_NUM) && (uv & ~(uval_t)0xffff)) large=epoint;
                                             }
                                             ch2 = uv;
                                             break;
@@ -1633,7 +1633,7 @@ static void compile(void)
                     eval_finish();
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
-                        if ((val->type != T_NUM || val->u.num.len > 1) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                        if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else databank=val->u.num.val;
                     }
                     break;
@@ -1645,7 +1645,7 @@ static void compile(void)
                     eval_finish();
                     if (val->type == T_NONE) fixeddig = 0;
                     else {
-                        if ((val->type != T_NUM || val->u.num.len > 2) && ((uval_t)val->u.num.val & ~(uval_t)0xffff)) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
+                        if ((val->type != T_NUM || val->u.num.len > 16) && ((uval_t)val->u.num.val & ~(uval_t)0xffff)) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
                         else {
                             if (dtvmode) dpage=val->u.num.val & 0xff00;
                             else dpage=val->u.num.val;
@@ -1669,7 +1669,7 @@ static void compile(void)
                         if (val == &error_value) goto breakerr;
                         else if (val->type == T_NONE) fixeddig = 0;
                         else if (val->type != T_GAP) {
-                            if ((val->type != T_NUM || val->u.num.len > 1) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                            if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             ch = (uint8_t)val->u.num.val;
                         }
                     }
@@ -1771,7 +1771,7 @@ static void compile(void)
 
                         switch (val->type) {
                         case T_NONE: err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;
-                        case T_NUM: if (val->u.num.len <= 3) { tmp.start = val->u.num.val; break; }
+                        case T_NUM: if (val->u.num.len <= 24) { tmp.start = val->u.num.val; break; }
                         case T_LABEL:
                         case T_BOOL:
                         case T_UINT:
@@ -1812,7 +1812,7 @@ static void compile(void)
                             if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                             if (val == &error_value) goto breakerr;
                             if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;}
-                            if ((val->type != T_NUM || val->u.num.len > 3) && ((uval_t)val->u.num.val & ~(uval_t)0xffffff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                            if ((val->type != T_NUM || val->u.num.len > 24) && ((uval_t)val->u.num.val & ~(uval_t)0xffffff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             if (tmp.start > (uint32_t)val->u.num.val) {
                                 tmp.end = tmp.start;
                                 tmp.start = val->u.num.val;
@@ -1824,7 +1824,7 @@ static void compile(void)
                         if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                         if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;}
-                        if ((val->type != T_NUM || val->u.num.len > 1) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                        if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         tmp.offset = val->u.num.val;
                         t = new_trans(&tmp, actual_encoding);
                         if (t->start != tmp.start || t->end != tmp.end || t->offset != tmp.offset) {
@@ -1867,7 +1867,7 @@ static void compile(void)
                         if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                         if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used for condition");goto breakerr;}
-                        if ((val->type != T_NUM || val->u.num.len > 1) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                        if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         t = new_escape(expr, (uint8_t)val->u.num.val, actual_encoding);
                         if (t->code != (uint8_t)val->u.num.val) {
                             err_msg(ERROR_DOUBLE_DEFINE,"escape"); goto breakerr;
@@ -1939,7 +1939,7 @@ static void compile(void)
                         if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) fixeddig = 0;
                         else if (val->type != T_GAP) {
-                            if ((val->u.num.len > 1 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                            if ((val->u.num.len > 8 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             fill = (uint8_t)val->u.num.val;
                         }
                     }
@@ -1965,7 +1965,7 @@ static void compile(void)
                     eval_finish();
                     if (val->type == T_NONE) fixeddig = outputeor = 0;
                     else {
-                        if ((val->u.num.len > 1 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                        if ((val->u.num.len > 8 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else outputeor = val->u.num.val;
                     }
                     break;
@@ -2456,8 +2456,8 @@ static void compile(void)
                             if (w==3) w = ln - 1;
                             else if (w != ln - 1) w = 3;
                             if (val->type != T_NONE) {
-                                if (!w && ln == 1 && ((val->u.num.len <= 1 && val->type == T_NUM) || !((uval_t)val->u.num.val & ~(uval_t)0xff))) adr = (uval_t)val->u.num.val;
-                                else if (w == 1 && ln == 2 && ((val->u.num.len <= 2 && val->type == T_NUM) || !((uval_t)val->u.num.val & ~(uval_t)0xffff))) adr = (uval_t)val->u.num.val;
+                                if (!w && ln == 1 && ((val->u.num.len <= 8 && val->type == T_NUM) || !((uval_t)val->u.num.val & ~(uval_t)0xff))) adr = (uval_t)val->u.num.val;
+                                else if (w == 1 && ln == 2 && ((val->u.num.len <= 16 && val->type == T_NUM) || !((uval_t)val->u.num.val & ~(uval_t)0xffff))) adr = (uval_t)val->u.num.val;
                                 else w = 3;
                             }
                         }

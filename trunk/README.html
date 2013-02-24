@@ -16,6 +16,7 @@ h1, h2, h3, h4, h5 {font-family:sans}
 hr {border: 1pt solid black;background:black;}
 pre.make b {color:inherit;}
 pre.make span {color:navy;}
+pre.make span.cmd {color:green;}
 pre b {color:navy;}
 pre b.d {color:orange;}
 pre b.k {color:blue;}
@@ -57,8 +58,8 @@ As a minimum the source filename must be given on command line.</p>
 <p>For comfortable compiling I use such <q>Makefile</q>s (for <a href="http://en.wikipedia.org/wiki/Make_%28software%29">make</a>):</p>
 <pre class="make">
 <span>demo.prg:</span> source.asm makros.asm pic.drp music.bin
-	64tass -C -a -B -i source.asm -o demo.tmp
-        pucrunch -ffast -x 2048 demo.tmp &gt;demo.prg
+        <span class="cmd">64tass -C -a -B -i source.asm -o demo.tmp</span>
+        <span class="cmd">pucrunch -ffast -x 2048 demo.tmp &gt;demo.prg</span>
 </pre>
 <p>This way <q>demo.prg</q> is recreated by compiling <q>source.asm</q>
 whenever <q>source.asm</q>, <q>makros.asm</q>, <q>pic.drp</q> or <q>music.bin</q> had changed.</p>
@@ -73,18 +74,18 @@ testing in VICE, clean target for removal of temporary files and compressing
 using an intermediate temporary file:</p>
 <pre class="make">
 <span>all:</span> demo.prg
-	x64 -autostartprgmode 1 -autostart-warp +truedrive +cart $&lt;
+        <span class="cmd">x64 -autostartprgmode 1 -autostart-warp +truedrive +cart</span> $&lt;
 
 <span>demo.prg:</span> demo.tmp
-	pucrunch -ffast -x 2048 $&lt; &gt;$@
+	<span class="cmd">pucrunch -ffast -x 2048</span> $&lt; &gt;$@
 
 <span>demo.tmp:</span> source.asm makros.asm pic.drp music.bin
-	64tass -C -a -B -i $&lt; -o $@
+        <span class="cmd">64tass -C -a -B -i</span> $&lt; <span class="cmd">-o</span> $@
 
 <b>.INTERMEDIATE:</b> demo.tmp
 <b>.PHONY:</b> all clean
 <span>clean:</span>
-	$(RM) demo.prg demo.tmp
+        $(RM) <span class="cmd">demo.prg demo.tmp</span>
 </pre>
 <p>Another useful thing is to add a basic header to your source files
 like the one below, so that the resulting file is directly runnable
@@ -609,38 +610,300 @@ result (list.txt):
 </dl>
 
 <hr>
+<h2>Expressions and data types</h2>
 
-<h2>Labels</h2>
+<h3>Integer constants</h3>
 
-<p>Normal labels can be defined at the start of each line and hold the logical
-address of that line, or the value or reference of variable after the equal sign. Each of them is uniq and
-can't be redefined. Labels can be forward referenced, the assembler will make as
-many passes as required to resolve them to a stable value.</p>
+<p>Integer constants can be entered as decimal (<code>[0-9]+</code>),
+hexadecimal (<code>$[0-9a-f]*</code>) or binary (<code>%[01]*</code>). Short
+strings of few characters are converted to a numeric constant using the current
+encoding at the place of use. The following operations are accepted:</p>
+
+<table border="0">
+<tr><td width="60"><tt>x + y</tt><td>add x to y<td><code>2 + 2</code> is <code>4</code>
+<tr><td><tt>x - y</tt><td>substract y from x<td><code>4 - 1</code> is <code>3</code>
+<tr><td><tt>x * y</tt><td>multiply x with y<td><code>2 * 3</code> is <code>6</code>
+<tr><td><tt>x / y</tt><td>integer divide x by y<td><code>7 / 2</code> is <code>3</code>
+<tr><td><tt>x % y</tt><td>integer modulo of x divided by y<td><code>5 % 2</code> is <code>1</code>
+<tr><td><tt>x ** y</tt><td>x raised t power of y<td><code>2 ** 4</code> is <code>16</code>
+<tr><td><tt>-x</tt><td>negated value<td><code>-2</code> is <code>-2</code>
+<tr><td><tt>+x</tt><td>unchanged<td><code>+2</code> is <code>2</code>
+<tr><td><tt>&lt;</tt><td>lower byte<td><code>&lt;$1234</code> is <code>$34</code>
+<tr><td><tt>&gt;</tt><td>higher byte<td><code>&gt;$1234</code> is <code>$12</code>
+<tr><td><tt>`</tt><td>bank byte<td><code>`$123456</code> is <code>$12</code>
+<tr><td><tt>&lt;&gt;</tt><td>lower word<td><code>&lt;&gt;$123456</code> is <code>$3456</code>
+<tr><td><tt>&gt;`</tt><td>higher word<td><code>&lt;`$123456</code> is <code>$1234</code>
+<tr><td><tt>&gt;&lt;</tt><td>lower byte swapped word<td><code>&gt;&lt;$123456</code> is <code>$5634</code>
+<tr><td><tt>x == y</tt><td>x equals to y<td><code>2 == 3</code> is <code>&lt;false&gt;</code>
+<tr><td><tt>x != y</tt><td>x does not equal to y<td><code>2 != 3</code> is <code>&lt;true&gt;</code>
+<tr><td><tt>x &lt; y</tt><td>x is less than y<td><code>2 &lt; 3</code> is <code>&lt;true&gt;</code>
+<tr><td><tt>x &gt; y</tt><td>x is more than y<td><code>2 &gt; 3</code> is <code>&lt;false&gt;</code>
+<tr><td><tt>x &gt;= y</tt><td>x is more than y or equals<td><code>2 &gt;= 3</code> is <code>&lt;false&gt;</code>
+<tr><td><tt>x &lt;= y</tt><td>x is less than y or equals<td><code>2 &lt;= 3</code> is <code>&lt;true&gt;</code>
+<tr><td><tt>x | y</tt><td>bitwise or<td><code>2 | 6</code> is <code>6</code>
+<tr><td><tt>x ^ y</tt><td>bitwise xor<td><code>2 ^ 6</code> is <code>4</code>
+<tr><td><tt>x &amp; y</tt><td>bitwise and<td><code>2 &amp; 6</code> is <code>2</code>
+<tr><td><tt>x &lt;&lt; y</tt><td>logical shift left<td><code>1 &lt;&lt; 3</code> is <code>8</code>
+<tr><td><tt>x &gt;&gt; y</tt><td>arithmetic shift right<td><code>-8 &gt;&gt; 3</code> is <code>-1</code>
+<!-- <tr><td><tt>x &gt;&gt;&gt; y</tt><td>logical shift right<td>-8 &gt;&gt; 3 is -1 -->
+<tr><td><tt>~x</tt><td>invert bits<td><code>~%101</code> is <code>%010</code>
+<tr><td><tt>..</tt><td>concatenate bits<td><code>$a..$b</code> is <code>$ab</code>
+<tr><td><tt>x[n]</tt><td>extract bit<td><code>$a[1]</code> is <code>0</code>
+<tr><td><tt>x[s]</tt><td>slice bits<td><code>$1234[4:8]</code> is <code>$3</code>
+<tr><td>len(a)<td>Length in bits<td><code><code>len($034)</code> is <code>12</code>
+</table>
+
+<p>An integer has a truth value of &lt;true&gt; if it's non-zero. The
+&lt;true&gt; value is the same as 1.</p>
+
+<p>Length of a numeric constants are defined in bits and is calculated from the
+number of digits used for hexadecimal (4 each) and binary (1 each) definitions. It's
+also set when slicing, bit (1), byte (8) or word (16) extraction is
+used.</p>
+
+<p>Integers are automatically promoted to float as necessary in expressions.</p>
 
 <pre width=80>
-reg	<b>=</b> <span>$d020</span>
+        <b class="d">.byte</b> <span>23</span>        <i>; decimal</i>
+        <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
+        <b class="d">.byte</b> <span>%00011111</span> <i>; binary</i>
 
-loop
-        <b>inc</b> <span class="l">reg</span>
-        <b>jmp</b> <span class="l">loop</span>
+        <b>lda</b> #&lt;<span class="l">label</span>
+        <b>ldy</b> #&gt;<span class="l">label</span>
+        <b>jsr</b> <span>$ab1e</span>
+
+        <b>ldx</b> #&lt;&gt;<span class="l">source</span>   <i>; word extraction</i>
+        <b>ldy</b> #&lt;&gt;<span class="l">dest</span>
+        <b>lda</b> #size(<span class="l">source</span>)-<span>1</span>
+        <b>mvn</b> `<span class="l">source</span>, `<span class="l">dest</span><i>; bank extraction</i>
+
+        <b>lda</b> #((<span class="l">bitmap</span> &amp; <span>$2000</span>) &gt;&gt; <span>10</span>) | ((<span class="l">screen</span> &amp; <span>$3c00</span>) &gt;&gt; <span>6</span>)
+        <b>sta</b> <span>$d018</span>
+        <b>lda</b> <span>$d015</span>
+        <b>and</b> #~<span>%00100000</span>
+        <b>sta</b> <span>$d015</span>
 </pre>
 
-<h3>Variables</h3>
+<h3>Floating point constants</h3>
 
-<p>Variables are redefinable, and as their value will be non stable forward referencing is not allowed.</p>
+<p>Floating point constants have a decimal mark in them and optionally an
+exponent. The following operations can be used on them:</p>
+
+<table border="0">
+<tr><td width="80"><tt>x + y</tt><td>add x to y<td><code>2.2 + 2.2</code> is <code>4.4</code>
+<tr><td><tt>x - y</tt><td>substract y from x<td><code>4.1 - 1.1</code> is <code>3.0</code>
+<tr><td><tt>x * y</tt><td>multiply x with y<td><code>1.5 * 3</code> is <code>4.5</code>
+<tr><td><tt>x / y</tt><td>integer divide x by y<td><code>7.0 / 2.0</code> is <code>3.5</code>
+<tr><td><tt>x % y</tt><td>integer modulo of x divided by y<td><code>5.0 % 2.0</code> is <code>1.0</code>
+<tr><td><tt>x ** y</tt><td>x raised t power of y<td><code>2.0 ** -1</code> is <code>0.5</code>
+<tr><td><tt>-x</tt><td>negated value<td><code>-2.0</code> is <code>-2.0</code>
+<tr><td><tt>+x</tt><td>unchanged<td><code>+2.0</code> is <code>2.0</code>
+<tr><td><tt>x == y</tt><td>x equals to y<td><code>2.0 == 3.0</code> is <code>&lt;false&gt;</code>
+<tr><td><tt>x != y</tt><td>x does not equal to y<td><code>2.0 != 3.0</code> is <code>&lt;true&gt;</code>
+<tr><td><tt>x &lt; y</tt><td>x is less than y<td><code>2.0 &lt; 3.0</code> is <code>&lt;true&gt;</code>
+<tr><td><tt>x &gt; y</tt><td>x is more than y<td><code>2.0 &gt; 3.0</code> is <code>&lt;false&gt;</code>
+<tr><td><tt>x &gt;= y</tt><td>x is more than y or equals<td><code>2.0 &gt;= 3.0</code> is <code>&lt;false&gt;</code>
+<tr><td><tt>x &lt;= y</tt><td>x is less than y or equals<td><code>2.0 &lt;= 3.0</code> is <code>&lt;true&gt;</code>
+<tr><td>abs(a)<td>Absolute value<td><code>abs(-1.0)</code> is <code>1.0</code>
+<tr><td>sign(a)<td>Sign value (-1, 0, 1)<td><code>sign(-4.0)</code> is <code>-1</code>
+<tr><td>floor(a)<td>Round down<td><code>floor(-4.8)</code> is <code>-5.0</code>
+<tr><td>round(a)<td>Round to nearest away from zero<td><code>floor(4.8) is <code>5.0</code>
+<tr><td>ceil(a)<td>Round up<td><code>ceil(1.1)</code> is <code>2.0</code>
+<tr><td>trunc(a)<td>Round down towards zero<td><code>trunc(-1.9)</code> is <code>-1</code>
+<tr><td>frac(a)<td>Fractional part<td><code>frac(1.1)</code> is <code>0.1</code>
+<tr><td>sqrt(a)<td>Square root<td><code>sqrt(16.0)</code> is <code>4.0</code>
+<tr><td>cbrt(a)<td>Cube root<td><code>cbrt(27.0)</code> is <code>3.0</code>
+<tr><td>log10(a)<td>Common logarithm<td><code>log10(100.0)</code> is <code>2.0</code>
+<tr><td>log(a)<td>Natural logarithm<td><code>log(1)</code> is <code>0.0</code>
+<tr><td>exp(a)<td>Exponential<td><code>exp(0)</code> is <code>1.0</code>
+<tr><td>pow(a,&nbsp;b)<td>a raised to power of b<td><code>pow(2.0, 3.0)</code> is <code>8.0</code>
+<tr><td>sin(a)<td>Sine<td><code>sin(0.0)</code> is <code>0.0</code>
+<tr><td>asin(a)<td>Arc sine<td><code>asin(0.0)</code> is <code>0.0</code>
+<tr><td>sinh(a)<td>Hyperbolic sine<td><code>sinh(0.0)</code> is <code>0.0</code>
+<tr><td>cos(a)<td>Cosine<td><code>cos(0.0)</code> is <code>1.0</code>
+<tr><td>acos(a)<td>Arc cosine<td><code>acos(1.0)</code> is <code>0.0</code>
+<tr><td>cosh(a)<td>Hyperbolic cosine<td><code>cosh(0.0)</code> is <code>1.0</code>
+<tr><td>tan(a)<td>Tangent<td><code>tan(0.0)</code> is <code>0.0</code>
+<tr><td>atan(a)<td>Arc tangent<td><code>atan(0.0)</code> is <code>0.0</code>
+<tr><td>tanh(a)<td>Hyperbolic tangent<td><code>tanh(0.0)</code> is <code>0.0</code>
+<tr><td>rad(a)<td>Degrees to radian<td><code>rad(0.0)</code> is <code>0.0</code>
+<tr><td>deg(a)<td>Radian to degrees<td><code>deg(0.0)</code> is <code>0.0</code>
+<tr><td>hypot(y,&nbsp;x)<td>Polar distance<td><code>hypot(4.0, 3.0)</code> is <code>5.0</code>
+<tr><td>atan2(y,&nbsp;x)<td>Polar angle<td><code>atan2(0.0, 3.0)</code> is <code>0.0</code>
+</table>
+
+<p>A floating point number has a truth value of &lt;true&gt; if it's non-zero.</p>
+
+<p>As usual comparing floating point numbers for (non) equality is a bad idea due to rounding errors.</p>
+
+<p>There are no predefined floating point constants, define them as necessary. Hint: pi is <code>rad(180)</code>
+and e is <code>exp(1)</code>.</p>
+
+<p>Floating point numbers are automatically truncated to integer as necessary.</p>
 
 <pre width=80>
-variabl	<b class="k">.var</b> <span>1</span>
-        <b class="k">.rept</b> <span>10</span>
-        <b class="d">.byte</b> <span class="l">variabl</span>
-variabl	<b class="k">.var</b> <span class="l">variabl</span>+<span>1</span>
-	<b class="k">.next</b>
+        <b class="d">.byte</b> <span>3.66e1</span>       <i>; real, truncated to 36</i>
 </pre>
 
-<h3>Anonymous labels</h3>
-<p>The assembler supports anonymous labels, also called as forward (<tt>+</tt>) and backward (<tt>-</tt>) references.
-<q><tt>-</tt></q> means one backward, <q><tt>--</tt></q> means two backward, etc. also the same for forward, but with <q><tt>+</tt></q>.
-</p>
+<h3>String constants</h3>
+
+<p>Strings are enclosed in single or double quotes and can hold any unicode
+character. Operations like indexing or slicing are always done on the original
+representation. The current encoding is only applied when it's used in
+expressions as numeric constants or in context of text data directives.
+Doubling the quotes inside the strings escapes them.</p>
+
+<table border="0">
+<tr><td><tt>..</tt><td>concatenate strings<td><code>"a".."b"</code> is <code>"ab"</code>
+<tr><td><tt>x[i]</tt><td>character from start<td><code>"abc"[1]</code> is <code>"b"</code>
+<tr><td><tt>x[i]</tt><td>character from end<td><code>"abc"[-1]</code> is <code>"c"</code>
+<tr><td><tt>x[s]</tt><td>no change<td><code>"abc"[:]</code> is <code>"abc"</code>
+<tr><td><tt>x[s]</tt><td>cut off start<td><code>"abc"[1:]</code> is <code>"bc"</code>
+<tr><td><tt>x[s]</tt><td>cut off end<td><code>"abc"[:-1]</code> is <code>"ab"</code>
+<tr><td><tt>x[s]</tt><td>reverse<td><code>"abc"[::-1]</code> is <code>"cba"</code>
+<tr><td>len(x)<td>number of characters<td><code>len("abc")</code> is <code>3</code>
+</table>
+
+<p>A string has a truth value of &lt;true&gt; if it contains at least one character.</p>
+
+<p>Strings are converted to numeric constants as necessary using the current
+encoding and escape rules, for example when using a sane encoding <code>"z" - "a"</code> is
+<code>25</code>.</p>
+
+<p>Indexing characters with positive integers start with zero. Negative indexes are
+translated internally by adding the number of characters to them, therefore -1
+can be used to access the last character.</p>
+
+<p>Slicing is an operation when parts of string are extracted from a start
+position to an end position with a step value. These parameters are separated
+with colons enclosed in square brackets and are all optional. Their default
+values are [start:maximum:step=1]. Negative start and end characters are
+converted to positive internally by adding the length of string to them.
+Negative step operates in reverse direction, non single steps will jump over
+characters.</p>
+
+<pre width=80>
+mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
+        <b class="d">.text</b> <span class="s">'it''s'</span>   <i>; text: it's</i>
+        <b class="d">.word</b> <span class="s">"ab"</span>+<span>1</span>    <i>; character, results in "bb" usually</i>
+
+        <b class="d">.text</b> <span class="s">"text"</span>[:<span>2</span>]     <i>; "te"</i>
+        <b class="d">.text</b> <span class="s">"text"</span>[<span>2</span>:]     <i>; "xt"</i>
+        <b class="d">.text</b> <span class="s">"text"</span>[:<span>-1</span>]    <i>; "tex"</i>
+        <b class="d">.text</b> <span class="s">"reverse"</span>[::<span>-1</span>]<i>; "esrever"</i>
+</pre>
+
+<h3>List and tuples</h3>
+
+<p>Lists and tuples can hold a collection of values. Lists are defined from
+values separated by comma between square brackets <code>[1,2,3]</code>, an
+empty list is <code>[]</code>. Tuples are similar but are enclosed in
+parentheses instead. An empty tuple is <code>()</code>, a single element tuple
+is <code>(4,)</code> to differentiate from normal numeric expression
+parentheses. When nested they function similar to an array. Currently both
+types are immutable.</p>
+
+<table border="0">
+<tr><td><tt>..</tt><td>concatenate lists<td><code>[1]..[2]</code> is <code>[1, 2]</code>
+<tr><td><tt>x[i]</tt><td>element from start<td><code>("1", 2)[1]</code> is <code>2</code>
+<tr><td><tt>x[i]</tt><td>element from end<td><code>("1", 2, 3)[-1]</code> is <code>3</code>
+<tr><td><tt>x[s]</tt><td>no change<td><code>(1, 2, 3)[:]</code> is <code>(1, 2, 3)</code>
+<tr><td><tt>x[s]</tt><td>cut off start<td><code>(1, 2, 3)[1:]</code> is <code>(2, 3)</code>
+<tr><td><tt>x[s]</tt><td>cut off end<td><code>(1, 2.0, 3)[:-1]</code> is <code>(1, 2.0)</code>
+<tr><td><tt>x[s]</tt><td>reverse<td><code>(1, 2, 3)[::-1]</code> is <code>(3, 2, 1)</code>
+<tr><td>len(x)<td>number of elements<td><code>len([1, 2, 3])</code> is <code>3</code>
+<tr><td>range(s,e,t)<td>create a list with values from a range<td><code>range(3)</code> is <code>[0,1,2]</code>
+</table>
+
+<p>A list or tuple has a truth value of &lt;true&gt; if it contains at least one element.</p>
+
+<p>When arithmetic operations are applied they execute on the all elements
+recursively, therefore <code>[1, 2] + 1</code> is <code>[2, 3]</code>, and <code>abs([1, -1])</code> is <code>[1, 1]</code>.</p>
+
+<p>Indexing elements with positive integers start with zero. Negative indexes
+are transformed to positive by adding the number of elements to them, therefor
+-1 is the last element.</p>
+
+<p>Slicing is an operation when parts of list or tuple are extracted from a
+start position to an end position with a step value. These parameters are
+separated with colons enclosed in square brackets and are all optional. Their
+default values are [start:maximum:step=1].  Negative start and end elements are
+converted to positive internally by adding the number of elements to them.
+Negative step operates in reverse direction, non single steps will jump over
+elements.</p>
+
+<pre width=80>
+mylist  <b>=</b> [<span>1</span>, <span>2</span>, <span class="s">"whatever"</span>]
+mytuple <b>=</b> (<span class="l">cmd_e</span>, <span class="l">cmd_g</span>)
+
+mylist  <b>=</b> (<span class="s">"e"</span>, <span class="l">cmd_e</span>, <span class="s">"g"</span>, <span class="l">cmd_g</span>, <span class="s">"i"</span>, <span class="l">cmd_i</span>)
+keys    <b class="d">.text</b> <span class="l">mylist</span>[::<span>2</span>]    <i>; keys ("e", "g", "i")</i>
+call_l  <b class="d">.byte</b> &lt;<span class="l">mylist</span>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&lt;cmd_e-1, &lt;cmd_g-1, &lt;cmd_i-1)</i>
+call_h  <b class="d">.byte</b> &gt;<span class="l">mylist</span>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&gt;cmd_e-1, &gt;cmd_g-1, &gt;cmd_i-1)</i>
+</pre>
+
+<p>The <code>range(start, end, step)</code> built in function can be used to
+create lists of integers in a range with a given step value. At least the end
+must be given, the start defaults to 0 and the step to 1. Sounds not very
+useful, so here are a few examples:</p>
+
+<pre width=80>
+<i>;Bitmask table, 8 bits from left to right</i>
+        <b class="d">.byte</b> <span>%10000000</span> &gt;&gt; range(<span>8</span>)
+<i>;Classic 256 byte single period sinus table with values of 0-255.</i>
+        <b class="d">.byte</b> <span>128.5</span>+<span>127</span>*sin(range(<span>256</span>)*rad(<span>360.0</span>/<span>256</span>))
+<i>;Screen row address tables</i>
+-       <b>=</b> <span>$400</span>+range(<span>0</span>, <span>1000</span>, <span>40</span>)
+scrlo   <b class="d">.byte</b> &lt;(<span class="l">-</span>)
+scrhi   <b class="d">.byte</b> &gt;(<span class="l">-</span>)
+</pre>
+
+<h3>Labels</h3>
+
+<p>Normal labels can be defined at the start of each line. Each of them is uniq
+and can't be redefined. In arithmetic operations they represent the numeric
+addresses of a memory location. Additionally they also hold the compiled code
+and data definitions in binary format.</p>
+
+<p>A label represents by default only the single line it is found on unless
+block directives are used where it's extended till the end of block. The
+content is not forward referencable, only the address of label. Usually the
+size of a single element is a byte, but this can be more for data definitions.
+Trying to <q>overwrite</q> the same memory locations later does not affect the
+content anymore.<p>
+
+<table border="0">
+<tr><td><tt>.</tt><td>member<td><code>label.locallabel</code>
+<tr><td><tt>x[i]</tt><td>element from start<td><code>label[1]</code>
+<tr><td><tt>x[i]</tt><td>element from end<td><code>label[-1]</code>
+<tr><td><tt>x[s]</tt><td>copy as tuple<td><code>label[:]</code>
+<tr><td><tt>x[s]</tt><td>cut off start, as tuple<td><code>label[1:]</code>
+<tr><td><tt>x[s]</tt><td>cut off end, as tuple<td><code>label[:-1]</code>
+<tr><td><tt>x[s]</tt><td>reverse, as tuple<td><code>label[::-1]</code>
+<tr><td>len(x)<td>number of elements<td><code>len(label)</code>
+<tr><td>size(a)<td>size in bytes<td><code>size(label)</code>
+</table>
+
+<p>A label has a truth value of &lt;true&gt; when it's address is non-zero.</p>
+
+<pre width=80>
+mydata  <b class="d">.word</b> <span>1</span>, <span>4</span>, <span>3</span>
+mycode  <b class="k">.block</b>
+local   <b>lda</b> #<span>0</span>
+        <b class="k">.bend</b>
+
+        <b>ldx</b> #size(<span class="l">mydata</span>) <i>;6 bytes (3*2)</i>
+        <b>ldx</b> #len(<span class="l">mydata</span>)  <i>;3 elements</i>
+        <b>ldx</b> #<span class="l">mycode</span>[<span>0</span>]    <i>;lda instruction, $a9</i>
+        <b>ldx</b> #<span class="l">mydata</span>[<span>1</span>]    <i>;2nd element, 4</i>
+        <b>jmp</b> <span class="l">mycode</span>.<span class="l">local</span>  <i>;address of local label</i>
+</pre>
+
+<p>The assembler supports anonymous labels, also called as forward (<tt>+</tt>)
+and backward (<tt>-</tt>) references. <q><tt>-</tt></q> means one backward,
+<q><tt>--</tt></q> means two backward, etc. also the same for forward, but with
+<q><tt>+</tt></q>.</p>
+
 <pre width=80>
         <b>ldy</b> #<span>4</span>
 -       <b>ldx</b> #<span>0</span>
@@ -654,6 +917,11 @@ variabl	<b class="k">.var</b> <span class="l">variabl</span>+<span>1</span>
 	<b>dey</b>
 	<b>bne</b> --
 </pre>
+
+<p>Excessive nesting or long distance references create a poorly readable code.
+It's also very easy to insert a few new references in a way to break the old
+ones around by mistake.</p>
+
 <p>These references are also useful in segments, but this can create a nice traps, as segments are
 copied into the code, with the internal references.
 </p>
@@ -663,168 +931,54 @@ copied into the code, with the internal references.
 +	<b>nop</b>             <i>;not contain forward references...</i>
 </pre>
 
-<h2>Expressions</h2>
+<h3>Constant and variable references</h3>
 
-<p>Numeric constants of decimal (<code>0-9</code>), hexadecimal
-(<code>$</code>), binary (<code>%</code>) and floating point (<code>1.2</code>)
-are accepted in expressions. Short strings can also form a numeric constant in
-expressions, these must be no longer than 4 bytes in the current encoding.</p>
+<p>References can reference labels, results from expressions or other
+references.</p>
+
+<p>Constant references can be created with the equal sign. These are not
+redefinable. Forward referencing to them is allowed as they retain the
+reference to constant objects over compilation passes.</p>
 
 <pre width=80>
-        <b class="d">.byte</b> <span>23</span>        <i>; decimal</i>
-        <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
-        <b class="d">.byte</b> <span>%00011111</span> <i>; binary</i>
-        <b class="d">.byte</b> <span>3.4</span>       <i>; real</i>
-        <b class="d">.word</b> <span class="s">"ab"</span>+<span>1</span>    <i>; character, results in "bb"</i>
+border  <b>=</b> <span>$d020</span>     <i>;a constant reference</i>
+f       <b class="k">.block</b>
+g       <b class="k">.block</b>
+n       <b>nop</b>         <i>;jump here</i>
+	<b class="k">.bend</b>
+	<b class="k">.bend</b>
+
+        <b>inc</b> <span class="l">border</span>  <i>;inc $d020</i>
+        <b>jsr</b> <span class="l">labelref</span>.<span class="l">n</span>
+
+labelref <b>=</b> <span class="l">f</span>.<span class="l">g</span>
 </pre>
 
-<p>Strings are enclosed in single or double quotes and can hold any unicode
-character. Operations like indexing or slicing are always done on the original
-representation. The current encoding is only applied when it's used in
-expressions as numeric constants or in context of text data directives.
-Doubling the quotes inside the strings escapes them.</p>
+<p>Redefinable references can be created by the <code>.var</code> directive.
+As it's redefinable it can only be used in code after it's definition. Even
+tricks like using constant references on them will not help with forward
+referencing. They simply don't carry their last reference over from the
+previous pass.</p>
 
 <pre width=80>
-mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
-        <b class="d">.text</b> <span class="s">'it''s'</span>   <i>; text: it's</i>
+variabl	<b class="k">.var</b> <span>1</span>
+        <b class="k">.rept</b> <span>10</span>
+        <b class="d">.byte</b> <span class="l">variabl</span>
+variabl	<b class="k">.var</b> <span class="l">variabl</span>+<span>1</span>
+	<b class="k">.next</b>
 </pre>
 
-<p>Lists and tuples can hold a collection of values. Lists are defined from
-values separated by comma between square brackets <code>[1,2,3]</code>, an
-empty list is <code>[]</code>. Tuples are similar but are enclosed in
-parentheses instead. An empty tuple is <code>()</code>, a single element
-tuple is <code>(4,)</code> to differentiate from normal numeric expression
-parentheses. When nested they function similar to an array. Indexing and
-slicing operations are supported, beyond that in numeric expressions all
-operations are done on all values at the same time (e.g. [1,2]+1=[2,3]). Currently both types are
-immutable.</p>
-
-<pre width=80>
-mylist  <b>=</b> [<span>1</span>, <span>2</span>, <span class="s">"whatever"</span>]
-mytuple <b>=</b> (<span class="l">cmd_e</span>, <span class="l">cmd_g</span>)
-</pre>
-
-<p>Parenthesis (<code>( )</code>) can be used to override operator precedence.
-Don't forget that they also denote indirect addressing mode for certain
-opcodes.</p>
-
-<pre width=80>
-        <b>lda</b> #(<span>4</span>+<span>2</span>)*<span>3</span>
-</pre>
-
-<p>The dot (<code>.</code>) operator can be used to reference
-member elements of structs and unions.</p>
-
-<pre width=80>
-        <b>lda</b> <span class="l">storage</span>.<span class="l">len</span>
-</pre>
-
-<!--<p>Brackets (<code>[</code> <code>]</code>) operator can be used to reference
-member elements of arrays by their address. Indexing starts at 0.</p>
-
-<pre width=80>
-        <b>lda</b> <span class="l">myarr</span>[<span>2</span>],y
-        <b>ldx</b> <span class="l">myarr</span>[<span>2</span>]+<span>1</span>,y
-myarr   <b class="d">.word</b> <span>542</span>,<span>722</span>,<span>373</span>,<span>443</span>
-</pre>-->
-
-<p>Built in functions are identifiers followed by parentheses. They accept
-variable number of parameters separated by comma.</p>
+<h3>Conditional expressions</h3>
+<p>Boolean conditional operators give false (0) or true (1) or one of the
+operands as the result. True is defined as a non-zero number, a non-empty
+string/tuple/list, anything else is false.</p>
 
 <table border="0">
-<tr><td width="150">min(a, b, ...)</td><td>Minimum of values</td></tr>
-<tr><td>max(a, b, ...)</td><td>Maximum of values</td></tr>
-<tr><td>size(a)</td><td>Size of structure in bytes</td></tr>
-<tr><td>len(a)</td><td>Length of list or tuple, characters in string</td></tr>
-<tr><td>range([s],e,[t])</td><td>Create a list with values from a range</td></tr>
-<tr><td>abs(a)</td><td>Absolute value</td></tr>
-<tr><td>sign(a)</td><td>Sign value (-1, 0, 1)</td></tr>
-<tr><td>floor(a)</td><td>Round down</td></tr>
-<tr><td>round(a)</td><td>Round to nearest away from zero</td></tr>
-<tr><td>ceil(a)</td><td>Round up</td></tr>
-<tr><td>trunc(a)</td><td>Round down towards zero</td></tr>
-<tr><td>frac(a)</td><td>Fractional part</td></tr>
-<tr><td>sqrt(a)</td><td>Square root</td></tr>
-<tr><td>cqrt(a)</td><td>Cube root</td></tr>
-<tr><td>log10(a)</td><td>Common logarithm</td></tr>
-<tr><td>log(a)</td><td>Natural logarithm</td></tr>
-<tr><td>exp(a)</td><td>Exponential</td></tr>
-<tr><td>pow(a, b)</td><td>a raised to power of b (<code>a ** b</code>)</td></tr>
-<tr><td>sin(a)</td><td>Sine</td></tr>
-<tr><td>asin(a)</td><td>Arc sine</td></tr>
-<tr><td>sinh(a)</td><td>Hyperbolic sine</td></tr>
-<tr><td>cos(a)</td><td>Cosine</td></tr>
-<tr><td>acos(a)</td><td>Arc cosine</td></tr>
-<tr><td>cosh(a)</td><td>Hyperbolic cosine</td></tr>
-<tr><td>tan(a)</td><td>Tangent</td></tr>
-<tr><td>atan(a)</td><td>Arc tangent</td></tr>
-<tr><td>tanh(a)</td><td>Hyperbolic tangent</td></tr>
-<tr><td>rad(a)</td><td>Degrees to radian</td></tr>
-<tr><td>deg(a)</td><td>Radian to degrees</td></tr>
-<tr><td>hypot(y, x)</td><td>Polar distance</td></tr>
-<tr><td>atan2(y, x)</td><td>Polar angle</td></tr>
-</table>
-
-<p>There are no predefined math constants, but as a hint pi is <code>rad(180)</code>
-and e is <code>exp(1)</code>.</p>
-
-<pre width=80>
-<i>;Bitmask table, 8 bits from left to right</i>
-        <b class="d">.byte</b> <span>%10000000</span> &gt;&gt; range(<span>8</span>)
-<i>;Classic 256 byte single period sinus table with values of 0-255.</i>
-        <b class="d">.byte</b> <span>128.5</span>+<span>127</span>*sin(range(<span>256</span>)*rad(<span>360.0</span>/<span>256</span>))
-<i>;Screen row address tables</i>
--       <b>=</b> <span>$400</span>+range(<span>0</span>, <span>1000</span>, <span>40</span>)
-scrlo   <b class="d">.byte</b> &lt;(<span class="l">-</span>)
-scrhi   <b class="d">.byte</b> &gt;(<span class="l">-</span>)
-</pre>
-
-<p>Single bytes or words of numeric values can be extracted
-by the following operators:</p>
-
-<table border="0">
-<tr><td width="80"><tt>&lt;</tt><td align="left">lower byte (bits 0..7)
-<tr><td><tt>&gt;</tt><td align="left">higher byte (bits 8..15)
-<tr><td><tt>`</tt><td align="left">bank byte (bits 16..23)
-<tr><td><tt>&lt;&gt;</tt><td align="left">lower word (bits 0..15)
-<tr><td><tt>&gt;`</tt><td align="left">higher word (bits 8..23)
-<tr><td><tt>&gt;&lt;</tt><td align="left">lower byte swapped word (bits 0..15)
-</table>
-
-<pre width=80>
-        <b>lda</b> #&lt;<span class="l">label</span>
-        <b>ldy</b> #&gt;<span class="l">label</span>
-        <b>jsr</b> <span>$ab1e</span>
-
-        <b>ldx</b> #&lt;&gt;<span class="l">source</span>
-        <b>ldy</b> #&lt;&gt;<span class="l">dest</span>
-        <b>lda</b> #size(<span class="l">source</span>)-<span>1</span>
-        <b>mvn</b> `<span class="l">source</span>, `<span class="l">dest</span>
-</pre>
-
-<p>Special addressing mode forcing operators in front of an expression can be
-used to make sure the expected addressing mode is used.</p>
-
-<table border="0">
-<tr><td width="80"><tt>@b</tt><td align="left">to force 8 bit address
-<tr><td><tt>@w</tt><td align="left">to force 16 bit address
-<tr><td><tt>@l</tt><td align="left">to force 24 bit address (65816)
-</table>
-
-<pre width=80>
-        <b>lda</b> @w<span>$0000</span>
-</pre>
-
-<p>Boolean operators give false (0) or true (1) or one of the operands as the
-result. True is defined as a non-zero number, a non-empty string/tuple/list,
-anything else is false.</p>
-
-<table border="0">
-<tr><td width="80"><tt>x || y</tt><td align="left">if x is true then x otherwise y
-<tr><td><tt>x ^^ y </tt><td align="left">if both false or true then false otherwise x || y
-<tr><td><tt>x &amp;&amp; y</tt><td align="left">if x is true then y otherwise x
-<tr><td><tt>!x</tt><td align="left">if x is true then false otherwise true
-<tr><td><tt>!!x</tt><td align="left">if x is true then true otherwise false
+<tr><td width="80"><tt>x || y</tt><td>if x is true then x otherwise y
+<tr><td><tt>x ^^ y </tt><td>if both false or true then false otherwise x || y
+<tr><td><tt>x &amp;&amp; y</tt><td>if x is true then y otherwise x
+<tr><td><tt>!x</tt><td>if x is true then false otherwise true
+<tr><td><tt>!!x</tt><td>if x is true then true otherwise false
 </table>
 
 <pre width=80>
@@ -835,90 +989,43 @@ anything else is false.</p>
 <p>The conditional operator gives the first (x) result if c is true or the second (y) if c is false.</p>
 
 <table border="0">
-<tr><td width="80"><tt>c ? x : y</tt><td align="left">if c is true then x otherwise y
+<tr><td width="80"><tt>c ? x : y</tt><td>if c is true then x otherwise y
 </table>
 
-<p>Comparison operators result in true (1) or false (0) depending on the result.</p>
+<pre width=80>
+<i>;Silly example for 1=>"simple", 2=>"advanced", else "normal"</i>
+        <b class="d">.text</b> <span class="l">MODE</span> == <span>1</span> ? <span class="s">"simple"</span> : <span class="l">MODE</span> == <span>2</span> ? <span class="s">"advanced"</span> : <span class="s">"normal"</span>
+</pre>
+
+<h3>Expressions</h3>
+
+<p>Parenthesis (<code>( )</code>) can be used to override operator precedence.
+Don't forget that they also denote indirect addressing mode for certain
+opcodes.</p>
+
+<pre width=80>
+        <b>lda</b> #(<span>4</span>+<span>2</span>)*<span>3</span>
+</pre>
+
+<p>Built in functions are identifiers followed by parentheses. They accept
+variable number of parameters separated by comma.</p>
 
 <table border="0">
-<tr><td width="80"><tt>x == y</tt><td align="left">x equals y or x is same as y
-<tr><td><tt>x != y</tt><td align="left">x is not equal to y or x is different to y
-<tr><td><tt>x &lt; y</tt><td align="left">x is less than y
-<tr><td><tt>x &gt; y</tt><td align="left">x is more than y
-<tr><td><tt>x &gt;= y</tt><td align="left">x is more than y or equals
-<tr><td><tt>x &lt;= y</tt><td align="left">x is less than y or equals
+<tr><td width="150">min(a, b, ...)<td>Minimum of values
+<tr><td>max(a, b, ...)<td>Maximum of values
 </table>
 
-<pre width=80>
-        <b class="k">.if</b> <span class="l">ntsc</span>==<span>1</span>
-	<b>nop</b>
-	<b class="k">.fi</b>
-</pre>
-
-<p>There's a variety of bitwise operations available.</p>
+<p>Special addressing mode forcing operators in front of an expression can be
+used to make sure the expected addressing mode is used.</p>
 
 <table border="0">
-<tr><td width="60"><tt>x | y</tt><td align="left">bitwise or
-<tr><td><tt>x ^ y</tt><td align="left">bitwise xor
-<tr><td><tt>x &amp; y</tt><td align="left">bitwise and
-<tr><td><tt>x &lt;&lt; y</tt><td align="left">logical shift left
-<tr><td><tt>x &gt;&gt; y</tt><td align="left">arithmetic shift right
-<tr><td><tt>x &gt;&gt;&gt; y</tt><td align="left">logical shift right
-<tr><td><tt>~x</tt><td align="left">invert bits
+<tr><td width="80"><tt>@b</tt><td>to force 8 bit address
+<tr><td><tt>@w</tt><td>to force 16 bit address
+<tr><td><tt>@l</tt><td>to force 24 bit address (65816)
 </table>
 
 <pre width=80>
-        <b>lda</b> #((<span class="l">bitmap</span> &amp; <span>$2000</span>) &gt;&gt; <span>10</span>) | ((<span class="l">screen</span> &amp; <span>$3c00</span>) &gt;&gt; <span>6</span>)
-        <b>sta</b> <span>$d018</span>
-        <b>lda</b> <span>$d015</span>
-        <b>and</b> #~<span>%00100000</span>
-        <b>sta</b> <span>$d015</span>
-</pre>
-
-<p>And the regular arithmetic operations are supported as well.</p>
-
-<table border="0">
-<tr><td width="60"><tt>x + y</tt><td align="left">add
-<tr><td><tt>x - y</tt><td align="left">substract
-<tr><td><tt>x * y</tt><td align="left">multiply
-<tr><td><tt>x / y</tt><td align="left">divide
-<tr><td><tt>x % y</tt><td align="left">modulo
-<tr><td><tt>x ** y</tt><td align="left">exponentiation
-<tr><td><tt>-x</tt><td align="left">negate
-<tr><td><tt>+x</tt><td align="left">unchanged
-</table>
-
-<p>Strings, lists and tuples can be indexed by a numeric values starting from
-zero, this extracts a single character or value. Negative values are indexing
-from the end.</p>
-
-<pre width=80>
-        <b>lda</b> #<span class="l">mylist</span>[<span>2</span>]
-</pre>
-
-<p>Strings, lists and tuples can be sliced which is an extraction of range from a
-start position to an end position with a step value. These parameters are
-separated with colons enclosed in square brackets and are all optional. Their
-default values are [start:maximum:step 1].</p>
-
-<pre width=80>
-mylist  <b>=</b> (<span class="s">"e"</span>, <span class="l">cmd_e</span>, <span class="s">"g"</span>, <span class="l">cmd_g</span>, <span class="s">"i"</span>, <span class="l">cmd_i</span>)
-keys    <b class="d">.text</b> <span class="l">mylist</span>[::<span>2</span>]    <i>; keys ("e", "g", "i")</i>
-call_l  <b class="d">.byte</b> &lt;<span class="l">mylist</span>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&lt;cmd_e-1, &lt;cmd_g-1, &lt;cmd_i-1)</i>
-call_h  <b class="d">.byte</b> &gt;<span class="l">mylist</span>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&gt;cmd_e-1, &gt;cmd_g-1, &gt;cmd_i-1)</i>
-        <b class="d">.text</b> <span class="s">"text"</span>[:<span>2</span>]     <i>; "te"</i>
-        <b class="d">.text</b> <span class="s">"text"</span>[<span>2</span>:]     <i>; "xt"</i>
-        <b class="d">.text</b> <span class="s">"text"</span>[:<span>-1</span>]    <i>; "tex"</i>
-        <b class="d">.text</b> <span class="s">"reverse"</span>[::<span>-1</span>]<i>; "esrever"</i>
-</pre>
-
-<p>For concatenation there's a separate operator as the more common addition
-operator can't be used as it performs a numeric addition.</p>
-
-<pre width=80>
-texts   <b>=</b> <span class="s">"text1"</span>..<span class="s">"text2"</span>..<span class="s">"text3"</span>
-lists   <b>=</b> [<span>1</span>,<span>2</span>]..[<span>3</span>,<span>4</span>]
-tuples  <b>=</b> (<span>1</span>,<span>2</span>)..(<span>3</span>,<span>4</span>)
+        <b>lda</b> @w<span>$0000</span>
 </pre>
 
 <hr>
