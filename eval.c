@@ -762,7 +762,8 @@ static double to_float(const struct value_s *val) {
 enum func_e {
     F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT, F_LOG,
     F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG,
-    F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW, F_SIGN, F_ABS
+    F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW, F_SIGN, F_ABS, F_FLOAT,
+    F_INT
 };
 
 static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned int epoint) {
@@ -804,6 +805,29 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned
         case T_FLOAT:
             new_value.type = v1->type;
             new_value.u.real = (v1->u.real < 0.0) ? -v1->u.real : v1->u.real;
+            return &new_value;
+        case T_LIST:
+        case T_TUPLE: break;
+        default: err_msg_wrong_type(v1, epoint);
+        case T_NONE: return &none_value;
+        }
+        break;
+    case F_INT:
+        switch (v1->type) {
+        case T_UINT:
+        case T_LABEL:
+        case T_NUM:
+        case T_BOOL:
+            new_value.type = T_UINT;
+            new_value.u.num.val = v1->u.num.val;
+            return &new_value;
+        case T_SINT:
+            new_value.type = T_SINT;
+            new_value.u.num.val = v1->u.num.val;
+            return &new_value;
+        case T_FLOAT:
+            new_value.type = (v1->u.real < 0.0) ? T_SINT : T_UINT;
+            new_value.u.num.val = (ival_t)v1->u.real;
             return &new_value;
         case T_LIST:
         case T_TUPLE: break;
@@ -853,6 +877,7 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned
         case F_COSH: new_value.u.real = cosh(new_value.u.real);break;
         case F_SINH: new_value.u.real = sinh(new_value.u.real);break;
         case F_TANH: new_value.u.real = tanh(new_value.u.real);break;
+        case F_FLOAT: break; /* nothing to do */
         default:break;
         }
         break;
@@ -1080,7 +1105,9 @@ static void functions(struct values_s *vals, unsigned int args) {
     if (len == 4 && !memcmp(name, "sinh", len)) func = F_SINH; else
     if (len == 4 && !memcmp(name, "tanh", len)) func = F_TANH; else
     if (len == 4 && !memcmp(name, "sign", len)) func = F_SIGN; else
-    if (len == 3 && !memcmp(name, "abs", len)) func = F_ABS; 
+    if (len == 3 && !memcmp(name, "abs", len)) func = F_ABS; else
+    if (len == 5 && !memcmp(name, "float", len)) func = F_FLOAT; else
+    if (len == 3 && !memcmp(name, "int", len)) func = F_INT;
 
     if (func != F_NONE) {
         struct value_s *val;
@@ -1682,12 +1709,15 @@ strretr:
         case O_BSWORD:
         case O_HWORD: 
         case O_WORD: 
-        case O_INV:
             tmp1.type = T_NUM;
             tmp1.u.num.val = (ival_t)v1->u.real;
             v1 = &tmp1;
             t1 = v1->type;
             goto strretr;
+        case O_INV:
+            new_value.type = T_FLOAT;
+            new_value.u.real = -v1->u.real-1.0;
+            return &new_value;
         case O_NEG:
             new_value.type = T_FLOAT;
             new_value.u.real = -v1->u.real;

@@ -650,7 +650,8 @@ encoding at the place of use. The following operations are accepted:</p>
 <tr><td><tt>..</tt><td>concatenate bits<td><code>$a..$b</code> is <code>$ab</code>
 <tr><td><tt>x[n]</tt><td>extract bit<td><code>$a[1]</code> is <code>0</code>
 <tr><td><tt>x[s]</tt><td>slice bits<td><code>$1234[4:8]</code> is <code>$3</code>
-<tr><td>len(a)<td>Length in bits<td><code><code>len($034)</code> is <code>12</code>
+<tr><td>len(a)<td>length in bits<td><code><code>len($034)</code> is <code>12</code>
+<tr><td>float(a)<td>convert to floating point<td><code><code>float(1)</code> is <code>1.0</code>
 </table>
 
 <p>An integer has a truth value of &lt;true&gt; if it's non-zero. The
@@ -696,6 +697,7 @@ exponent. The following operations can be used on them:</p>
 <tr><td><tt>x / y</tt><td>integer divide x by y<td><code>7.0 / 2.0</code> is <code>3.5</code>
 <tr><td><tt>x % y</tt><td>integer modulo of x divided by y<td><code>5.0 % 2.0</code> is <code>1.0</code>
 <tr><td><tt>x ** y</tt><td>x raised t power of y<td><code>2.0 ** -1</code> is <code>0.5</code>
+<tr><td><tt>~x</tt><td>-(x+1) value<td><code>~2.1</code> is <code>-3.1</code>
 <tr><td><tt>-x</tt><td>negated value<td><code>-2.0</code> is <code>-2.0</code>
 <tr><td><tt>+x</tt><td>unchanged<td><code>+2.0</code> is <code>2.0</code>
 <tr><td><tt>x == y</tt><td>x equals to y<td><code>2.0 == 3.0</code> is <code>&lt;false&gt;</code>
@@ -730,6 +732,7 @@ exponent. The following operations can be used on them:</p>
 <tr><td>deg(a)<td>Radian to degrees<td><code>deg(0.0)</code> is <code>0.0</code>
 <tr><td>hypot(y,&nbsp;x)<td>Polar distance<td><code>hypot(4.0, 3.0)</code> is <code>5.0</code>
 <tr><td>atan2(y,&nbsp;x)<td>Polar angle<td><code>atan2(0.0, 3.0)</code> is <code>0.0</code>
+<tr><td>int(a)<td>Convert to integer<td><code>int(3.8)</code> is <code>3</code>
 </table>
 
 <p>A floating point number has a truth value of &lt;true&gt; if it's non-zero.</p>
