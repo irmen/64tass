@@ -1271,6 +1271,11 @@ static void label_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t s
     }
 
     l = vals->val->u.num.label;
+    if (l->upass != pass) {
+        new_value.type = T_UNDEF;
+        val_replace(&vals->val, &new_value);
+        return;
+    }
     if (!len) {
         val_replace(&vals->val, &null_tuple);return;
     }
@@ -1343,6 +1348,11 @@ static void indexes(struct values_s *vals, unsigned int args) {
                     case T_STR: str_slice(vals, offs, offs + 1, 1); break;
                     case T_LABEL: 
                         l = vals->val->u.num.label;
+                        if (l->upass != pass) {
+                            new_value.type = T_UNDEF;
+                            val_replace(&vals->val, &new_value);
+                            return;
+                        }
                         new_value.u.num.len = l->esize + !l->esize;
                         offs *= new_value.u.num.len;
                         new_value.u.num.val = 0;
