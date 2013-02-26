@@ -1309,6 +1309,7 @@ static void compile(void)
                     case CMD_BLOCK: what = 'b'; break;
                     case CMD_LOGICAL: what = 'l'; break;
                     case CMD_PAGE: what = 'p'; break;
+                    case CMD_UNION: what = 'u'; break;
                     case CMD_STRUCT: what = 's'; break;
                     case CMD_DSECTION:
                     case CMD_SECTION: what = 't'; break;
