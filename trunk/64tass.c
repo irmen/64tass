@@ -793,10 +793,11 @@ static void compile(void)
                     {
                         struct label_s *old_context=current_context;
                         struct section_s olds = *current_section;
+                        int declaration = !current_section->structrecursion;
 
                         new_waitfor((prm==CMD_STRUCT)?'s':'u', epoint);waitfor[waitforp].skip=0;
                         ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                        if (!current_section->structrecursion) {
+                        if (declaration) {
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
                             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
                             current_section->r_start=current_section->r_l_start=current_section->r_address=current_section->r_l_address=0;
@@ -821,16 +822,17 @@ static void compile(void)
                         if (pass==1) {
                             if (labelexists) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
                             else {
-                                new_value.type = T_LABEL;
-                                new_value.u.num.val = 0;
-                                new_value.u.num.len = 0;
                                 newlabel->requires=0;
                                 newlabel->conflicts=0;
                                 newlabel->pass=pass;
                                 newlabel->value=&none_value;
+                                new_value.type = T_LABEL;
+                                new_value.u.num.val = declaration ? 0 : current_section->l_address;
                                 new_value.u.num.label = newlabel;
                                 var_assign(newlabel, &new_value, fixeddig);
-                                newlabel->memp = ~(size_t)0; newlabel->membp = ~(size_t)0;
+                                if (declaration) {
+                                    newlabel->memp = ~(size_t)0; newlabel->membp = ~(size_t)0;
+                                } else get_mem(&newlabel->memp, &newlabel->membp);
                                 newlabel->file = cfile->realname;
                                 newlabel->sline = sline;
                                 newlabel->epoint = epoint;
@@ -867,7 +869,7 @@ static void compile(void)
                         } else err_msg(ERROR__MACRECURSION,"!!!!");
                         current_section->structrecursion--;
                         set_size(newlabel, current_section->address - oaddr);
-                        if (!current_section->structrecursion) {
+                        if (declaration) {
                             current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
                             current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
                             current_section->r_start=olds.r_start;current_section->r_l_start=olds.r_l_start;current_section->r_address=olds.r_address;current_section->r_l_address=olds.r_l_address;
@@ -1262,7 +1264,7 @@ static void compile(void)
                 }
                 if (prm==CMD_ENDU) { // .endu
                     if (waitfor[waitforp].what=='u') {
-                        waitforp--; current_section->l_address = current_section->l_unionend; if (current_section->address != current_section->unionend) {current_section->address = current_section->unionend; memjmp(current_section->address);}
+                        waitforp--;
                     } else if (waitfor[waitforp].what=='U') {
                         waitforp--; nobreak=0; current_section->l_address = current_section->l_unionend; if (current_section->address != current_section->unionend) {current_section->address = current_section->unionend; memjmp(current_section->address);}
                     } else err_msg2(ERROR______EXPECTED,".UNION", epoint); break;
