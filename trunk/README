@@ -698,6 +698,7 @@ expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside the strings escapes them.
 
 ..     concatenate strings  "a".."b" is "ab"
+in     is substring of      "b" in "abc" is <true>
 x[i]   character from start "abc"[1] is "b"
 x[i]   character from end   "abc"[-1] is "c"
 x[s]   no change            "abc"[:] is "abc"
@@ -743,6 +744,7 @@ parentheses. When nested they function similar to an array. Currently both
 types are immutable.
 
 ..           concatenate lists                     [1]..[2] is [1, 2]
+in           is member of list                     2 in [1, 2, 3] is <true>
 x[i]         element from start                    ("1", 2)[1] is 2
 x[i]         element from end                      ("1", 2, 3)[-1] is 3
 x[s]         no change                             (1, 2, 3)[:] is (1, 2, 3)
@@ -1316,7 +1318,7 @@ Conditional assembly
 .endif
     End of conditional compile
 
-            .if oeu==1
+            .if oeu == 1
             nop
             .else
             lda #1

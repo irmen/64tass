@@ -406,6 +406,7 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
     case O_LOR:     name = "logical or '||";break;
     case O_LXOR:    name = "logical xor '^^";break;
     case O_LAND:    name = "logical and '&&";break;
+    case O_IN:      name = "membership 'in";break;
     case O_EQ:      name = "equal '=";break;
     case O_NEQ:     name = "not equal '!=";break;
     case O_LT:      name = "less than '<";break;

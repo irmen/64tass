@@ -58,6 +58,7 @@ enum oper_e {
     O_LOR,           // ||
     O_LXOR,          // ^^
     O_LAND,          // &&
+    O_IN,            // in
     O_EQ,            // =
     O_NEQ,           // !=
     O_LT,            // <
