@@ -30,7 +30,6 @@
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL};
 
-static struct avltree macro_tree;
 static struct avltree jump_tree;
 
 const uint8_t whatis[256]={
@@ -53,28 +52,12 @@ const uint8_t whatis[256]={
 };
 
 //------------------------------------------------------------------------------
-static int macro_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    struct macro_s *a = avltree_container_of(aa, struct macro_s, node);
-    struct macro_s *b = avltree_container_of(bb, struct macro_s, node);
-
-    return strcmp(a->name, b->name);
-}
-
 static int jump_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     struct jump_s *a = avltree_container_of(aa, struct jump_s, node);
     struct jump_s *b = avltree_container_of(bb, struct jump_s, node);
 
     return strcmp(a->name, b->name);
-}
-
-static void macro_free(const struct avltree_node *aa)
-{
-    struct macro_s *a = avltree_container_of(aa, struct macro_s, node);
-    free((char *)a->name);
-    free((char *)a->origname);
-    free(a);
 }
 
 static void jump_free(const struct avltree_node *aa)
@@ -118,38 +101,6 @@ struct jump_s *new_jump(const char* name, const char* origname) {
     return avltree_container_of(b, struct jump_s, node);            //already exists
 }
 
-// ---------------------------------------------------------------------------
-
-struct macro_s *find_macro(const char* name) {
-    struct macro_s a;
-    const struct avltree_node *c;
-    a.name=name;
-    if (!(c=avltree_lookup(&a.node, &macro_tree))) return NULL;
-    return avltree_container_of(c, struct macro_s, node);
-}
-
-// ---------------------------------------------------------------------------
-static struct macro_s *lastma=NULL;
-struct macro_s *new_macro(const char* name, const char* origname) {
-    const struct avltree_node *b;
-    struct macro_s *tmp;
-    if (!lastma)
-	if (!(lastma=malloc(sizeof(struct macro_s)))) err_msg_out_of_memory();
-    lastma->name=name;
-    b=avltree_insert(&lastma->node, &macro_tree);
-    if (!b) { //new macro
-	if (!(lastma->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastma->name, name);
-	if (!(lastma->origname=malloc(strlen(origname)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastma->origname, origname);
-	labelexists=0;
-	tmp=lastma;
-	lastma=NULL;
-	return tmp;
-    }
-    labelexists=1;
-    return avltree_container_of(b, struct macro_s, node);            //already exists
-}
 // ---------------------------------------------------------------------------
 unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
     uint32_t ch;
@@ -223,9 +174,7 @@ uint8_t *utf8out(uint32_t i, uint8_t *c) {
 
 void tfree(void) {
     destroy_variables();
-    avltree_destroy(&macro_tree);
     avltree_destroy(&jump_tree);
-    free(lastma);
     free(lastjp);
     destroy_section();
     destroy_file();
@@ -242,7 +191,6 @@ void tinit(void) {
     init_file();
     init_values();
     init_variables();
-    avltree_init(&macro_tree, macro_compare, macro_free);
     avltree_init(&jump_tree, jump_compare, jump_free);
 }
 
@@ -266,6 +214,8 @@ void labelprint(void) {
         if (l->pass<pass) continue;
         switch (l->type) {
         case L_VAR: fprintf(flab,"%-15s .var ",l->origname);break;
+        case L_MACRO:
+        case L_SEGMENT:
         case L_UNION:
         case L_STRUCT: continue;
         default: fprintf(flab,"%-16s= ",l->origname);break;

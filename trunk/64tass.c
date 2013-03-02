@@ -526,7 +526,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
 
 static void compile(void);
 
-static void macro_recurse(char t, struct macro_s *tmp2) {
+static void macro_recurse(char t, struct label_s *tmp2) {
     if (macro_parameters.p>100) {
         err_msg(ERROR__MACRECURSION,"!!!!");
         return;
@@ -613,7 +613,7 @@ static void compile(void)
     struct value_s *val;
 
     struct label_s *newlabel = NULL;
-    struct macro_s *tmp2 = NULL;
+    struct label_s *tmp2 = NULL;
     address_t oaddr = 0;
 
     uint8_t oldwaitforp = waitforp;
@@ -681,7 +681,7 @@ static void compile(void)
                 }
                 newlabel->ref=0;
                 if (labelexists) {
-                    if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                    if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
                     else {
                         newlabel->requires=current_section->requires;
                         newlabel->conflicts=current_section->conflicts;
@@ -693,7 +693,7 @@ static void compile(void)
                     newlabel->pass=pass;
                     newlabel->value=&none_value;
                     var_assign(newlabel, val, fixeddig);
-                    newlabel->file = cfile->realname;
+                    newlabel->file = cfile;
                     newlabel->sline = sline;
                     newlabel->epoint = epoint;
                 }
@@ -722,7 +722,7 @@ static void compile(void)
                         }
                         if (labelexists) {
                             if (newlabel->upass != pass) newlabel->ref=0;
-                            if (newlabel->type != L_VAR) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                            if (newlabel->type != L_VAR) err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
                             else {
                                 newlabel->requires=current_section->requires;
                                 newlabel->conflicts=current_section->conflicts;
@@ -734,7 +734,7 @@ static void compile(void)
                             newlabel->pass=pass;
                             newlabel->value=&none_value;
                             var_assign(newlabel, val, fixeddig);
-                            newlabel->file = cfile->realname;
+                            newlabel->file = cfile;
                             newlabel->sline = sline;
                             newlabel->epoint = epoint;
                             if (val->type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
@@ -772,21 +772,31 @@ static void compile(void)
                 case CMD_SEGMENT:
                     new_waitfor('m', epoint);waitfor[waitforp].skip=0;
                     ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                    tmp2=new_macro(labelname, labelname2);
+                    newlabel=new_label(labelname, labelname2, (prm==CMD_MACRO)?L_MACRO:L_SEGMENT);
                     if (labelexists) {
-                        if (tmp2->p!=cfile->p
-                         || tmp2->sline!=sline
-                         || tmp2->type!=prm
-                         || tmp2->file!=cfile) {
-                            err_msg_double_defined(tmp2->origname, tmp2->file->realname, tmp2->sline, tmp2->epoint, labelname2, epoint);
+                        if (newlabel->p != cfile->p
+                         || newlabel->sline != sline
+                         || newlabel->type != ((prm == CMD_MACRO) ? L_MACRO : L_SEGMENT)
+                         || newlabel->file != cfile) {
+                            err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
                         }
                     } else {
-                        tmp2->p=cfile->p;
-                        tmp2->sline=sline;
-                        tmp2->type=prm;
-                        tmp2->file=cfile;
-                        tmp2->epoint=epoint;
+                        newlabel->requires=0;
+                        newlabel->conflicts=0;
+                        newlabel->pass=pass;
+                        newlabel->value = &none_value;
+                        new_value.type = T_LABEL;
+                        new_value.u.num.val = 0;
+                        new_value.u.num.label = newlabel;
+                        var_assign(newlabel, &new_value, fixeddig);
+                        newlabel->memp = ~(size_t)0; newlabel->membp = ~(size_t)0;
+                        newlabel->p = cfile->p;
+                        newlabel->sline = sline;
+                        newlabel->file = cfile;
+                        newlabel->epoint = epoint;
                     }
+                    newlabel->ref=0;
+                    newlabel = NULL;
                     goto finish;
                 case CMD_STRUCT:
                 case CMD_UNION:
@@ -797,51 +807,66 @@ static void compile(void)
 
                         new_waitfor((prm==CMD_STRUCT)?'s':'u', epoint);waitfor[waitforp].skip=0;
                         ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                        newlabel=new_label(labelname, labelname2, declaration ? ((prm == CMD_STRUCT) ? L_STRUCT : L_UNION) : L_LABEL);oaddr = current_section->address;
                         if (declaration) {
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
                             current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
                             current_section->r_start=current_section->r_l_start=current_section->r_address=current_section->r_l_address=0;
-                            current_section->dooutput=0;memjmp(0);
+                            current_section->dooutput=0;memjmp(0); oaddr = 0;
 
-                            tmp2=new_macro(labelname, labelname2);
                             if (labelexists) {
-                                if (tmp2->p!=cfile->p
-                                        || tmp2->sline!=sline
-                                        || tmp2->type!=prm
-                                        || tmp2->file!=cfile) {
-                                    err_msg_double_defined(tmp2->origname, tmp2->file->realname, tmp2->sline, tmp2->epoint, labelname2, epoint);
+                                if (newlabel->p != cfile->p
+                                        || newlabel->sline != sline
+                                        || newlabel->type != ((prm==CMD_STRUCT)?L_STRUCT:L_UNION)
+                                        || newlabel->file != cfile) {
+                                    err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
                                 }
                             } else {
-                                tmp2->p=cfile->p;
-                                tmp2->sline=sline;
-                                tmp2->type=prm;
-                                tmp2->file=cfile;
-                            }
-                        }
-                        newlabel=new_label(labelname, labelname2, (prm==CMD_STRUCT)?L_STRUCT:L_UNION);oaddr = current_section->address;
-                        if (pass==1) {
-                            if (labelexists) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
-                            else {
-                                newlabel->requires=0;
-                                newlabel->conflicts=0;
-                                newlabel->pass=pass;
-                                newlabel->value=&none_value;
+                                newlabel->requires = 0;
+                                newlabel->conflicts = 0;
+                                newlabel->pass = pass;
+                                newlabel->value = &none_value;
                                 new_value.type = T_LABEL;
-                                new_value.u.num.val = declaration ? 0 : current_section->l_address;
+                                new_value.u.num.val = 0;
                                 new_value.u.num.label = newlabel;
                                 var_assign(newlabel, &new_value, fixeddig);
-                                if (declaration) {
-                                    newlabel->memp = ~(size_t)0; newlabel->membp = ~(size_t)0;
-                                } else get_mem(&newlabel->memp, &newlabel->membp);
-                                newlabel->file = cfile->realname;
+                                newlabel->memp = ~(size_t)0; newlabel->membp = ~(size_t)0;
+                                newlabel->p = cfile->p;
                                 newlabel->sline = sline;
+                                newlabel->file = cfile;
                                 newlabel->epoint = epoint;
                             }
                         } else {
                             if (labelexists) {
-                                if (newlabel->type != ((prm==CMD_STRUCT)?L_STRUCT:L_UNION)) { /* should not happen */
-                                    err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                                if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                                else {
+                                    if (newlabel->type != L_LABEL) { /* should not happen */
+                                        err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                                    } else {
+                                        if ((uval_t)newlabel->value->u.num.val != current_section->l_address) {
+                                            new_value.type=T_LABEL;
+                                            new_value.u.num.val = current_section->l_address;
+                                            new_value.u.num.label = newlabel;
+                                            var_assign(newlabel, &new_value, 0);
+                                        } else newlabel->upass = pass;
+                                        get_mem(&newlabel->memp, &newlabel->membp);
+                                        newlabel->requires=current_section->requires;
+                                        newlabel->conflicts=current_section->conflicts;
+                                    }
                                 }
+                            } else {
+                                newlabel->requires=current_section->requires;
+                                newlabel->conflicts=current_section->conflicts;
+                                newlabel->pass=pass;
+                                newlabel->value = &none_value;
+                                new_value.type = T_LABEL;
+                                new_value.u.num.val = current_section->l_address;
+                                new_value.u.num.label = newlabel;
+                                var_assign(newlabel, &new_value, fixeddig);
+                                get_mem(&newlabel->memp, &newlabel->membp);
+                                newlabel->file = cfile;
+                                newlabel->sline = sline;
+                                newlabel->epoint = epoint;
                             }
                         }
                         current_context=newlabel;
@@ -909,33 +934,15 @@ static void compile(void)
                     }
                 }
             }
-            newlabel=find_label2(labelname, &current_context->members);
-            if (newlabel) labelexists=1;
-            else {
-                if (!islabel && (tmp2=find_macro(labelname)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {lpoint--;labelname2[0]=0;goto as_macro;}
-                newlabel=new_label(labelname, labelname2, L_LABEL);
-            }
+            if (!islabel && (tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) {lpoint--;labelname2[0]=0;goto as_macro;}
+            if (!islabel && tmp2 && tmp2->parent == current_context) newlabel = tmp2;
+            else newlabel=new_label(labelname, labelname2, L_LABEL);
             oaddr=current_section->address;
-            if (pass==1) {
-                if (labelexists) err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
+            if (labelexists) {
+                if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
                 else {
-                    newlabel->requires=current_section->requires;
-                    newlabel->conflicts=current_section->conflicts;
-                    newlabel->pass=pass;
-                    newlabel->value = &none_value;
-                    new_value.type = T_LABEL;
-                    new_value.u.num.val = current_section->l_address;
-                    new_value.u.num.label = newlabel;
-                    var_assign(newlabel, &new_value, fixeddig);
-                    get_mem(&newlabel->memp, &newlabel->membp);
-                    newlabel->file = cfile->realname;
-                    newlabel->sline = sline;
-                    newlabel->epoint = epoint;
-                }
-            } else {
-                if (labelexists) {
                     if (newlabel->type != L_LABEL) { /* should not happen */
-                        err_msg_double_defined(newlabel->origname, newlabel->file, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                        err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
                     } else {
                         if ((uval_t)newlabel->value->u.num.val != current_section->l_address) {
                             new_value.type=T_LABEL;
@@ -947,20 +954,20 @@ static void compile(void)
                         newlabel->requires=current_section->requires;
                         newlabel->conflicts=current_section->conflicts;
                     }
-                } else {
-                    newlabel->requires=current_section->requires;
-                    newlabel->conflicts=current_section->conflicts;
-                    newlabel->pass=pass;
-                    newlabel->value = &none_value;
-                    new_value.type = T_LABEL;
-                    new_value.u.num.val = current_section->l_address;
-                    new_value.u.num.label = newlabel;
-                    var_assign(newlabel, &new_value, fixeddig);
-                    get_mem(&newlabel->memp, &newlabel->membp);
-                    newlabel->file = cfile->realname;
-                    newlabel->sline = sline;
-                    newlabel->epoint = epoint;
                 }
+            } else {
+                newlabel->requires=current_section->requires;
+                newlabel->conflicts=current_section->conflicts;
+                newlabel->pass=pass;
+                newlabel->value = &none_value;
+                new_value.type = T_LABEL;
+                new_value.u.num.val = current_section->l_address;
+                new_value.u.num.label = newlabel;
+                var_assign(newlabel, &new_value, fixeddig);
+                get_mem(&newlabel->memp, &newlabel->membp);
+                newlabel->file = cfile;
+                newlabel->sline = sline;
+                newlabel->epoint = epoint;
             }
             if (epoint && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
             if (wht==WHAT_COMMAND) { // .proc
@@ -1008,7 +1015,7 @@ static void compile(void)
                         ignore();epoint=lpoint;
                         if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                        if (!(tmp2=find_macro(labelname)) || tmp2->type!=((prm==CMD_DSTRUCT)?CMD_STRUCT:CMD_UNION)) {err_msg2(ERROR___NOT_DEFINED,labelname2,epoint); goto breakerr;}
+                        if (!(tmp2=find_label(labelname)) || tmp2->type!=((prm==CMD_DSTRUCT) ? L_STRUCT : L_UNION)) {err_msg2(ERROR___NOT_DEFINED,labelname2,epoint); goto breakerr;}
                         current_section->structrecursion++;
                         macro_recurse((prm==CMD_DSTRUCT)?'S':'U',tmp2);
                         current_section->structrecursion--;
@@ -2061,7 +2068,7 @@ static void compile(void)
                         if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         var=new_label(labelname, labelname2, L_VAR);
                         if (labelexists) {
-                            if (var->type != L_VAR) err_msg_double_defined(var->origname, var->file, var->sline, var->epoint, labelname2, epoint);
+                            if (var->type != L_VAR) err_msg_double_defined(var->origname, var->file->realname, var->sline, var->epoint, labelname2, epoint);
                             else {
                                 var->requires=current_section->requires;
                                 var->conflicts=current_section->conflicts;
@@ -2073,7 +2080,7 @@ static void compile(void)
                             var->pass=pass;
                             var->value=&none_value;
                             var_assign(var, val, fixeddig);
-                            var->file = cfile->realname;
+                            var->file = cfile;
                             var->sline = sline;
                             var->epoint = epoint;
                             if (val->type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
@@ -2107,7 +2114,7 @@ static void compile(void)
                                 var=new_label(labelname, labelname2, L_VAR);
                                 if (labelexists) {
                                     if (var->type != L_VAR) {
-                                        err_msg_double_defined(var->origname, var->file, var->sline, var->epoint, labelname2, epoint);
+                                        err_msg_double_defined(var->origname, var->file->realname, var->sline, var->epoint, labelname2, epoint);
                                         break;
                                     }
                                     var->requires=current_section->requires;
@@ -2117,7 +2124,7 @@ static void compile(void)
                                     var->conflicts=current_section->conflicts;
                                     var->pass=pass;
                                     var_assign(var, &none_value, fixeddig);
-                                    var->file = cfile->realname;
+                                    var->file = cfile;
                                     var->sline = sline;
                                     var->epoint = epoint;
                                 }
@@ -2257,7 +2264,7 @@ static void compile(void)
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                    if (!(tmp2=find_macro(labelname)) || tmp2->type!=CMD_STRUCT) {err_msg2(ERROR___NOT_DEFINED,labelname2,epoint); goto breakerr;}
+                    if (!(tmp2=find_label(labelname)) || tmp2->type != L_STRUCT) {err_msg2(ERROR___NOT_DEFINED,labelname2,epoint); goto breakerr;}
                     current_section->structrecursion++;
                     macro_recurse('S',tmp2);
                     current_section->structrecursion--;
@@ -2271,7 +2278,7 @@ static void compile(void)
                     current_section->unionstart = current_section->unionend = current_section->address;
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (!(tmp2=find_macro(labelname)) || tmp2->type!=CMD_UNION) {err_msg2(ERROR___NOT_DEFINED,labelname2,epoint); goto breakerr;}
+                    if (!(tmp2=find_label(labelname)) || tmp2->type != L_UNION) {err_msg2(ERROR___NOT_DEFINED,labelname2,epoint); goto breakerr;}
                     current_section->structrecursion++;
                     macro_recurse('U',tmp2);
                     current_section->structrecursion--;
@@ -2384,13 +2391,13 @@ static void compile(void)
                 char macroname[linelength], macroname2[linelength];
 
                 if (get_ident2(macroname, macroname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (!(tmp2=find_macro(macroname)) || (tmp2->type != CMD_MACRO && tmp2->type != CMD_SEGMENT)) {err_msg(ERROR___NOT_DEFINED,macroname2); goto breakerr;}
+                if (!(tmp2=find_label(macroname)) || (tmp2->type != L_MACRO && tmp2->type != L_SEGMENT)) {err_msg(ERROR___NOT_DEFINED,macroname2); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                     fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
                 }
-                if (tmp2->type==CMD_MACRO) {
+                if (tmp2->type == L_MACRO) {
                     old_context = current_context;
                     if (newlabel) current_context=newlabel;
                     else {
@@ -2400,7 +2407,7 @@ static void compile(void)
                     }
                 } else old_context = NULL;
                 macro_recurse('M',tmp2);
-                if (tmp2->type==CMD_MACRO) current_context = old_context;
+                if (tmp2->type == L_MACRO) current_context = old_context;
                 break;
             }
         case WHAT_EXPRESSION:
@@ -2821,7 +2828,7 @@ static void compile(void)
                             labelname[1]=mnemonic[mnem] >> 8;
                             labelname[2]=mnemonic[mnem];
                             labelname[3]=0;
-                            if ((tmp2=find_macro(labelname)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) {
+                            if ((tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) {
                                 lpoint=oldlpoint;
                                 goto as_macro;
                             }
@@ -2924,7 +2931,7 @@ static void compile(void)
                     }
                     break;
                 }
-                if ((tmp2=find_macro(labelname)) && (tmp2->type==CMD_MACRO || tmp2->type==CMD_SEGMENT)) goto as_macro;
+                if ((tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) goto as_macro;
             }            // fall through
         default: if (waitfor[waitforp].skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
         }

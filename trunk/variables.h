@@ -23,7 +23,7 @@
 #include "inttypes.h"
 
 enum label_e {
-    L_LABEL, L_CONST, L_VAR, L_STRUCT, L_UNION
+    L_LABEL, L_CONST, L_VAR, L_STRUCT, L_UNION, L_MACRO, L_SEGMENT
 };
 
 struct label_s {
@@ -38,7 +38,8 @@ struct label_s {
     size_t membp;
     uval_t requires;
     uval_t conflicts;
-    const char *file;
+    size_t p;
+    struct file_s *file;
     line_t sline;
     unsigned int epoint;
     unsigned ref:1;
