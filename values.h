@@ -77,6 +77,7 @@ enum oper_e {
     O_DIV,           // /
     O_MOD,           // %
     O_EXP,           // **
+    O_X,             // x
     O_CONCAT,        // ..
     O_MEMBER,        // .
     O_NEG,           // -

@@ -425,6 +425,7 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
     case O_DIV:     name = "division '/";break;
     case O_MOD:     name = "modulo '%";break;
     case O_EXP:     name = "exponent '**";break;
+    case O_X:       name = "repeat 'x";break;
     case O_CONCAT:  name = "concat '..";break;
     case O_MEMBER:  name = "member '.";break;
     case O_NEG:     name = "unary negative '-";break;
