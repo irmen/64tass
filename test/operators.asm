@@ -110,6 +110,11 @@
     .cerror len(-$123)!=12
     .cerror len(~%101)!=3
 
+    .cerror !(1 in [1,2,3])
+    .cerror 1 in [2,3]
+    .cerror !("a" in "abc")
+    .cerror "a" in "bc"
+
 ; check all operators
 
 ; bit or

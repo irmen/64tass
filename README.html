@@ -758,6 +758,7 @@ Doubling the quotes inside the strings escapes them.</p>
 
 <table border="0">
 <tr><td><tt>..</tt><td>concatenate strings<td><code>"a".."b"</code> is <code>"ab"</code>
+<tr><td><tt>in</tt><td>is substring of<td><code>"b" in "abc"</code> is <code>&lt;true&gt;</code>
 <tr><td><tt>x[i]</tt><td>character from start<td><code>"abc"[1]</code> is <code>"b"</code>
 <tr><td><tt>x[i]</tt><td>character from end<td><code>"abc"[-1]</code> is <code>"c"</code>
 <tr><td><tt>x[s]</tt><td>no change<td><code>"abc"[:]</code> is <code>"abc"</code>
@@ -808,6 +809,7 @@ types are immutable.</p>
 
 <table border="0">
 <tr><td><tt>..</tt><td>concatenate lists<td><code>[1]..[2]</code> is <code>[1, 2]</code>
+<tr><td><tt>in</tt><td>is member of list<td><code>2 in [1, 2, 3]</code> is <code>&lt;true&gt;</code>
 <tr><td><tt>x[i]</tt><td>element from start<td><code>("1", 2)[1]</code> is <code>2</code>
 <tr><td><tt>x[i]</tt><td>element from end<td><code>("1", 2, 3)[-1]</code> is <code>3</code>
 <tr><td><tt>x[s]</tt><td>no change<td><code>(1, 2, 3)[:]</code> is <code>(1, 2, 3)</code>
@@ -1447,7 +1449,7 @@ name    <b class="k">.macro</b>
 <dd>End of conditional compile
 
 <pre width=80>
-        <b class="k">.if</b> <span class="l">oeu</span>==<span>1</span>
+        <b class="k">.if</b> <span class="l">oeu</span> == <span>1</span>
 	<b>nop</b>
 	<b class="k">.else</b>
         <b>lda</b> #<span>1</span>

@@ -399,6 +399,7 @@ static int priority(enum oper_e ch)
     case O_LOR:return 5;       // ||
     case O_LXOR:return 6;      // ^^
     case O_LAND:return 7;      // &&
+    case O_IN:                 // in
     case O_EQ:                 // ==
     case O_NEQ:                // !=
     case O_LT:                 // <
@@ -1805,309 +1806,416 @@ strretr:
         return &none_value;
     }
 
-    if (type_is_int(t1) && type_is_int(t2)) {
-        ival_t val1 = v1->u.num.val;
-        ival_t val2 = v2->u.num.val;
+    if (type_is_int(t1)) {
+        if (type_is_int(t2)) {
+            ival_t val1 = v1->u.num.val;
+            ival_t val2 = v2->u.num.val;
 
-        if (t2 < t1) t2 = t1;
+            if (t2 < t1) t2 = t1;
 
-        switch (op) {
-        case O_EQ:   return ( val1 == val2) ? &true_value : &false_value;
-        case O_NEQ:  return ( val1 != val2) ? &true_value : &false_value;
-        case O_LT:   return ( val1 <  val2) ? &true_value : &false_value;
-        case O_GT:   return ( val1 >  val2) ? &true_value : &false_value;
-        case O_LE:   return ( val1 <= val2) ? &true_value : &false_value;
-        case O_GE:   return ( val1 >= val2) ? &true_value : &false_value;
-        case O_MUL:  val1 = ( val1 *  val2);break;
-        case O_DIV: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = (~(uval_t)0) >> 1; *large=1;}
-                        else if (t2==T_SINT) val1 = ( val1 / val2); else val1 = ( (uval_t)val1 / (uval_t)val2);  break;
-        case O_MOD: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = (~(uval_t)0) >> 1; *large=1;}
-                        else if (t2==T_SINT) val1 = ( val1 % val2); else val1 = ( (uval_t)val1 % (uval_t)val2); break;
-        case O_ADD:  val1 = ( val1 +  val2);break;
-        case O_SUB:  if (t2 == T_UINT && (uval_t)val2 > (uval_t)val1) t2 = T_SINT;
-                     val1 = ( val1 -  val2);break;
-        case O_AND: val1 &= val2; goto binset;
-        case O_OR: val1 |= val2; goto binset;
-        case O_XOR: val1 ^= val2;
-        binset:
-            if (t2 == T_NUM) {
-                new_value.u.num.len = (v1->u.num.len > v2->u.num.len) ? v1->u.num.len : v2->u.num.len;
-            } else {
-                new_value.u.num.len = get_val_len(val1, t2);
-                if (v1->type == T_NUM && new_value.u.num.len < v1->u.num.len) new_value.u.num.len = v1->u.num.len;
-                else if (v2->type == T_NUM && new_value.u.num.len < v2->u.num.len) new_value.u.num.len = v2->u.num.len;
+            switch (op) {
+            case O_EQ:   return ( val1 == val2) ? &true_value : &false_value;
+            case O_NEQ:  return ( val1 != val2) ? &true_value : &false_value;
+            case O_LT:   return ( val1 <  val2) ? &true_value : &false_value;
+            case O_GT:   return ( val1 >  val2) ? &true_value : &false_value;
+            case O_LE:   return ( val1 <= val2) ? &true_value : &false_value;
+            case O_GE:   return ( val1 >= val2) ? &true_value : &false_value;
+            case O_MUL:  val1 = ( val1 *  val2);break;
+            case O_DIV: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = (~(uval_t)0) >> 1; *large=1;}
+                            else if (t2==T_SINT) val1 = ( val1 / val2); else val1 = ( (uval_t)val1 / (uval_t)val2);  break;
+            case O_MOD: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = (~(uval_t)0) >> 1; *large=1;}
+                            else if (t2==T_SINT) val1 = ( val1 % val2); else val1 = ( (uval_t)val1 % (uval_t)val2); break;
+            case O_ADD:  val1 = ( val1 +  val2);break;
+            case O_SUB:  if (t2 == T_UINT && (uval_t)val2 > (uval_t)val1) t2 = T_SINT;
+                             val1 = ( val1 -  val2);break;
+            case O_AND: val1 &= val2; goto binset;
+            case O_OR: val1 |= val2; goto binset;
+            case O_XOR: val1 ^= val2;
+                    binset:
+                        if (t2 == T_NUM) {
+                            new_value.u.num.len = (v1->u.num.len > v2->u.num.len) ? v1->u.num.len : v2->u.num.len;
+                        } else {
+                            new_value.u.num.len = get_val_len(val1, t2);
+                            if (v1->type == T_NUM && new_value.u.num.len < v1->u.num.len) new_value.u.num.len = v1->u.num.len;
+                            else if (v2->type == T_NUM && new_value.u.num.len < v2->u.num.len) new_value.u.num.len = v2->u.num.len;
+                        }
+                        new_value.type = T_NUM;
+                        new_value.u.num.val = val1;
+                        return &new_value;
+            case O_LSHIFT:
+                        if (val2 < 0) {val2 = -val2; goto rshift;}
+                    lshift: 
+                        if (val2 >= (ival_t)sizeof(val1)*8) val1=0;
+                        else val1 <<= val2;
+                        if (t1 == T_NUM) {
+                            new_value.type = T_NUM;
+                            new_value.u.num.len = addlen(v1->u.num.len, val2);
+                        } else if (t1 == T_BOOL) {
+                            new_value.type = T_NUM;
+                            new_value.u.num.len = addlen(1, val2);
+                        } else new_value.type = t1;
+                        new_value.u.num.val = val1;
+                        return &new_value;
+            case O_ASHIFT: 
+                    rshift: 
+                        if (t1 == T_SINT) {
+                            if (val2 < 0) {val2 = -val2; goto lshift;}
+                            if (val2 >= (ival_t)sizeof(val1)*8) val1 = (val1 > 0) ? 0 : -1;
+                            else if (val1 >= 0) val1 >>= val2;
+                            else val1 = ~((~val1) >> val2);
+                            new_value.type = T_SINT;
+                            new_value.u.num.val = val1;
+                            return &new_value;
+                        }
+            case O_RSHIFT: 
+                        if (val2 < 0) {val2 = -val2; goto lshift;}
+                        if (val2 >= (ival_t)sizeof(val1)*8) val1=0;
+                        else val1 = (ival_t)((uval_t)val1 >> val2);
+                        if (t1 == T_NUM) {
+                            new_value.type = T_NUM;
+                            new_value.u.num.len = addlen(v1->u.num.len, -val2);
+                        } else if (t1 == T_BOOL) {
+                            new_value.type = T_NUM;
+                            new_value.u.num.len = addlen(1, -val2);
+                        } else new_value.type = t1;
+                        new_value.u.num.val = val1;
+                        return &new_value;
+            case O_EXP: 
+                        {
+                            ival_t res = 1;
+
+                            if (val2 < 0) {
+                                if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); res = (~(uval_t)0) >> 1; *large=1;}
+                                else res = 0;
+                            } else {
+                                while (val2) {
+                                    if (val2 & 1) res *= val1;
+                                    val1 *= val1;
+                                    val2 >>= 1;
+                                }
+                            }
+                            val1 = res;
+                        }
+                        break;
+            case O_CONCAT: 
+                        {
+                            uint8_t l1 = get_val_len2(v1), l2 = get_val_len2(v2);
+                            new_value.type = T_NUM;
+                            new_value.u.num.len = addlen(l1 ,l2);
+                            val1 &= (((uval_t)1 << l1)-1);
+                            new_value.u.num.val = (val1 << l2) | (val2 & (((uval_t)1 << l2)-1));
+                            return &new_value;
+                        }
+            default: err_msg_invalid_oper(op, v1, v2, epoint3); 
+                     goto errtype;
             }
-            new_value.type = T_NUM;
+            new_value.type = (t2 == T_SINT) ? T_SINT : T_UINT;
             new_value.u.num.val = val1;
             return &new_value;
-        case O_LSHIFT:
-            if (val2 < 0) {val2 = -val2; goto rshift;}
-        lshift: 
-            if (val2 >= (ival_t)sizeof(val1)*8) val1=0;
-            else val1 <<= val2;
-            if (t1 == T_NUM) {
-                new_value.type = T_NUM;
-                new_value.u.num.len = addlen(v1->u.num.len, val2);
-            } else if (t1 == T_BOOL) {
-                new_value.type = T_NUM;
-                new_value.u.num.len = addlen(1, val2);
-            } else new_value.type = t1;
-            new_value.u.num.val = val1;
-            return &new_value;
-        case O_ASHIFT: 
-        rshift: 
-            if (t1 == T_SINT) {
-                if (val2 < 0) {val2 = -val2; goto lshift;}
-                if (val2 >= (ival_t)sizeof(val1)*8) val1 = (val1 > 0) ? 0 : -1;
-                else if (val1 >= 0) val1 >>= val2;
-                else val1 = ~((~val1) >> val2);
-                new_value.type = T_SINT;
-                new_value.u.num.val = val1;
-                return &new_value;
-            }
-        case O_RSHIFT: 
-            if (val2 < 0) {val2 = -val2; goto lshift;}
-            if (val2 >= (ival_t)sizeof(val1)*8) val1=0;
-            else val1 = (ival_t)((uval_t)val1 >> val2);
-            if (t1 == T_NUM) {
-                new_value.type = T_NUM;
-                new_value.u.num.len = addlen(v1->u.num.len, -val2);
-            } else if (t1 == T_BOOL) {
-                new_value.type = T_NUM;
-                new_value.u.num.len = addlen(1, -val2);
-            } else new_value.type = t1;
-            new_value.u.num.val = val1;
-            return &new_value;
-        case O_EXP: 
-                     {
-                         ival_t res = 1;
-
-                         if (val2 < 0) {
-                             if (!val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); res = (~(uval_t)0) >> 1; *large=1;}
-                             else res = 0;
-                         } else {
-                             while (val2) {
-                                 if (val2 & 1) res *= val1;
-                                 val1 *= val1;
-                                 val2 >>= 1;
-                             }
-                         }
-                         val1 = res;
-                     }
-                     break;
-        case O_CONCAT: 
-            {
-                uint8_t l1 = get_val_len2(v1), l2 = get_val_len2(v2);
-                new_value.type = T_NUM;
-                new_value.u.num.len = addlen(l1 ,l2);
-                val1 &= (((uval_t)1 << l1)-1);
-                new_value.u.num.val = (val1 << l2) | (val2 & (((uval_t)1 << l2)-1));
-                return &new_value;
-            }
-        default: err_msg_invalid_oper(op, v1, v2, epoint3); 
-                 goto errtype;
         }
-        new_value.type = (t2 == T_SINT) ? T_SINT : T_UINT;
-        new_value.u.num.val = val1;
-        return &new_value;
-    }
-
-    if (t1 == T_STR && type_is_num(t2)) {
-        if (str_to_num(v1, T_NUM, &tmp1)) {
-            err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); *large=1;
-        }
-        v1 = &tmp1;
-        t1 = v1->type;
-        goto strretr;
-    }
-    if (t2 == T_STR && type_is_num(t1)) {
-        if (str_to_num(v2, T_NUM, &tmp2)) {
-            err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); *large=1;
-        }
-        v2 = &tmp2;
-        t2 = v2->type;
-        goto strretr;
-    }
-    if (t1 == T_STR && t2 == T_STR) {
-        int val;
-        switch (op) {
-        case O_EQ:
-            val = (v1->u.str.len == v2->u.str.len) && (v1->u.str.data == v2->u.str.data || !memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len));
-        strcomp:
-            return val ? &true_value : &false_value;
-        case O_NEQ:
-            val = (v1->u.str.len != v2->u.str.len) || (v1->u.str.data != v2->u.str.data && memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len));
-            goto strcomp;
-        case O_LT:
-            val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-            if (!val) val = v1->u.str.len < v2->u.str.len; else val = val < 0;
-            goto strcomp;
-        case O_GT:
-            val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-            if (!val) val = v1->u.str.len > v2->u.str.len; else val = val > 0;
-            goto strcomp;
-        case O_LE:
-            val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-            if (!val) val = v1->u.str.len <= v2->u.str.len; else val = val <= 0;
-            goto strcomp;
-        case O_GE:
-            val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-            if (!val) val = v1->u.str.len >= v2->u.str.len; else val = val >= 0;
-            goto strcomp;
-        case O_MUL: 
-        case O_DIV:
-        case O_MOD:
-        case O_ADD:
-        case O_SUB:
-        case O_AND:
-        case O_OR:
-        case O_XOR:
-        case O_LSHIFT:
-        case O_ASHIFT: 
-        case O_RSHIFT: 
-        case O_EXP: 
-            if (str_to_num(v1, T_NUM, &tmp1)) {
-                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); *large=1;
-            }
+        if (t2 == T_STR && op != O_IN && op != O_CONCAT) {
             if (str_to_num(v2, T_NUM, &tmp2)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); *large=1;
             }
-            v1 = &tmp1; v2 = &tmp2;
-            t1 = v1->type;
+            v2 = &tmp2;
             t2 = v2->type;
             goto strretr;
-        case O_CONCAT:
-            new_value.type = T_STR;
-            new_value.u.str.len = v1->u.str.len + v2->u.str.len;
-            new_value.u.str.chars = v1->u.str.chars + v2->u.str.chars;
-            if (new_value.u.str.len) {
-                new_value.u.str.data = malloc(new_value.u.str.len);
-                if (!new_value.u.str.data) err_msg_out_of_memory();
-                memcpy(new_value.u.str.data, v1->u.str.data, v1->u.str.len);
-                memcpy(new_value.u.str.data + v1->u.str.len, v2->u.str.data, v2->u.str.len);
-            } else new_value.u.str.data = NULL;
-            return &new_value;
-        default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+        }
+        if (t2 == T_LIST || t2 == T_TUPLE) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            case O_IN:
+                {
+                    size_t i;
+                    for (i = 0;i < v2->u.list.len; i++) {
+                        if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
+                    }
+                    return &false_value;
+                }
+            case O_CONCAT:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            default:
+                {
+                    size_t i = 0;
+                    struct value_s **vals, *val;
+                    if (v2->u.list.len) {
+                        vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
+                        if (!vals) err_msg_out_of_memory();
+                        for (;i < v2->u.list.len; i++) {
+                            val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
+                            vals[i] = val_reference(val);
+                            val_destroy(val);
+                        }
+                    } else vals = NULL;
+                    new_value.type = t2;
+                    new_value.u.list.len = i;
+                    new_value.u.list.data = vals;
+                    return &new_value;
+                }
+            }
+        }
+        if (t2 == T_FLOAT && op != O_IN && op != O_CONCAT) {
+            tmp1.type = T_FLOAT;
+            tmp1.u.real = (t1 == T_SINT) ? (double)((ival_t)v1->u.num.val) : (double)((uval_t)v1->u.num.val);
+            v1 = &tmp1;
+            t1 = v1->type;
         }
     }
 
-    if (t1 == T_FLOAT && type_is_int(t2)) {
-        tmp2.type = T_FLOAT;
-        tmp2.u.real = (t2 == T_SINT) ? (double)((ival_t)v2->u.num.val) : (double)((uval_t)v2->u.num.val);
-        v2 = &tmp2;
-        t2 = v2->type;
-    }
-    if (t2 == T_FLOAT && type_is_int(t1)) {
-        tmp1.type = T_FLOAT;
-        tmp1.u.real = (t1 == T_SINT) ? (double)((ival_t)v1->u.num.val) : (double)((uval_t)v1->u.num.val);
-        v1 = &tmp1;
-        t1 = v1->type;
-    }
-    if (t1 == T_FLOAT && t2 == T_FLOAT) {
-        double val1 = v1->u.real;
-        double val2 = v2->u.real;
-
-        switch (op) {
-        case O_EQ:   return almost_equal(val1, val2) ? &true_value : &false_value;
-        case O_NEQ:  return almost_equal(val1, val2) ? &false_value : &true_value;
-        case O_LT:   return ( val1 <  val2) ? &true_value : &false_value;
-        case O_GT:   return ( val1 >  val2) ? &true_value : &false_value;
-        case O_LE:   return ( val1 < val2 || almost_equal(val1, val2)) ? &true_value : &false_value;
-        case O_GE:   return ( val1 > val2 || almost_equal(val1, val2)) ? &true_value : &false_value;
-        case O_MUL:  val1 = ( val1 *  val2);break;
-        case O_DIV: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = 0.0; *large=1;}
-                        else val1 = ( val1 /  val2); break;
-        case O_MOD: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = 0.0; *large=1;}
-                        else val1 = fmod(val1, val2); break;
-        case O_ADD:  val1 = ( val1 +  val2);break;
-        case O_SUB:  val1 = ( val1 -  val2);break;
-        case O_EXP: 
-                     {
-                         if (val2 < 0.0 && !val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = 0.0; *large=1;}
-                         else if (val1 < 0.0 && (double)((int)val2) != val2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); new_value.u.real = 0.0;}
-                         else val1 = pow(val1, val2);
-                     }
-                     break;
-        default: err_msg_invalid_oper(op, v1, v2, epoint3); 
-                 goto errtype;
+    if (t1 == T_STR) {
+        if (t1 == t2) {
+            int val;
+            switch (op) {
+            case O_EQ:
+                val = (v1->u.str.len == v2->u.str.len) && (v1->u.str.data == v2->u.str.data || !memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len));
+            strcomp:
+                return val ? &true_value : &false_value;
+            case O_NEQ:
+                val = (v1->u.str.len != v2->u.str.len) || (v1->u.str.data != v2->u.str.data && memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len));
+                goto strcomp;
+            case O_LT:
+                val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
+                if (!val) val = v1->u.str.len < v2->u.str.len; else val = val < 0;
+                goto strcomp;
+            case O_GT:
+                val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
+                if (!val) val = v1->u.str.len > v2->u.str.len; else val = val > 0;
+                goto strcomp;
+            case O_LE:
+                val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
+                if (!val) val = v1->u.str.len <= v2->u.str.len; else val = val <= 0;
+                goto strcomp;
+            case O_GE:
+                val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
+                if (!val) val = v1->u.str.len >= v2->u.str.len; else val = val >= 0;
+                goto strcomp;
+            case O_MUL: 
+            case O_DIV:
+            case O_MOD:
+            case O_ADD:
+            case O_SUB:
+            case O_AND:
+            case O_OR:
+            case O_XOR:
+            case O_LSHIFT:
+            case O_ASHIFT: 
+            case O_RSHIFT: 
+            case O_EXP: 
+                if (str_to_num(v1, T_NUM, &tmp1)) {
+                    err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); *large=1;
+                }
+                if (str_to_num(v2, T_NUM, &tmp2)) {
+                    err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); *large=1;
+                }
+                v1 = &tmp1; v2 = &tmp2;
+                t1 = v1->type;
+                t2 = v2->type;
+                goto strretr;
+            case O_CONCAT:
+                new_value.type = T_STR;
+                new_value.u.str.len = v1->u.str.len + v2->u.str.len;
+                new_value.u.str.chars = v1->u.str.chars + v2->u.str.chars;
+                if (new_value.u.str.len) {
+                    new_value.u.str.data = malloc(new_value.u.str.len);
+                    if (!new_value.u.str.data) err_msg_out_of_memory();
+                    memcpy(new_value.u.str.data, v1->u.str.data, v1->u.str.len);
+                    memcpy(new_value.u.str.data + v1->u.str.len, v2->u.str.data, v2->u.str.len);
+                } else new_value.u.str.data = NULL;
+                return &new_value;
+            case O_IN:
+                {
+                    uint8_t *c, *c2, *e;
+                    if (!v1->u.str.len) return &true_value;
+                    if (v1->u.str.len > v2->u.str.len) return &false_value;
+                    c2 = v2->u.str.data;
+                    e = c2 + v2->u.str.len - v1->u.str.len;
+                    for (;;) {   
+                        c = memchr(c2, v1->u.str.data[0], e - c2 + 1);
+                        if (!c) return &false_value;
+                        if (!memcmp(c, v1->u.str.data, v1->u.str.len)) return &true_value;
+                        c2 = c + 1;
+                    }
+                }
+            default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
         }
-        new_value.type = t1;
-        new_value.u.real = val1;
-        return &new_value;
+        if (type_is_num(t2) && op != O_IN && op != O_CONCAT) {
+            if (str_to_num(v1, T_NUM, &tmp1)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); *large=1;
+            }
+            v1 = &tmp1;
+            t1 = v1->type;
+            goto strretr;
+        }
+        if (t2 == T_LIST || t2 == T_TUPLE) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            case O_IN:
+                {
+                    size_t i;
+                    for (i = 0;i < v2->u.list.len; i++) {
+                        if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
+                    }
+                    return &false_value;
+                }
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
+        }
     }
 
-    if ((t1 == T_LIST && t2 == T_LIST) || (t1 == T_TUPLE && t2 == T_TUPLE)) {
-        size_t i;
-        int val;
-        switch (op) {
-        case O_EQ:
-            val = val_equal(v1, v2);
-        listcomp:
-            return val ? &true_value : &false_value;
-        case O_NEQ:
-            val = !val_equal(v1, v2);
-            goto listcomp;
-        case O_CONCAT:
+    if (t1 == T_FLOAT) {
+        if (type_is_int(t2) && op != O_IN && op != O_CONCAT) {
+            tmp2.type = T_FLOAT;
+            tmp2.u.real = (t2 == T_SINT) ? (double)((ival_t)v2->u.num.val) : (double)((uval_t)v2->u.num.val);
+            v2 = &tmp2;
+            t2 = v2->type;
+        }
+        if (t1 == t2) {
+            double val1 = v1->u.real;
+            double val2 = v2->u.real;
+
+            switch (op) {
+            case O_EQ:   return almost_equal(val1, val2) ? &true_value : &false_value;
+            case O_NEQ:  return almost_equal(val1, val2) ? &false_value : &true_value;
+            case O_LT:   return ( val1 <  val2) ? &true_value : &false_value;
+            case O_GT:   return ( val1 >  val2) ? &true_value : &false_value;
+            case O_LE:   return ( val1 < val2 || almost_equal(val1, val2)) ? &true_value : &false_value;
+            case O_GE:   return ( val1 > val2 || almost_equal(val1, val2)) ? &true_value : &false_value;
+            case O_MUL:  val1 = ( val1 *  val2);break;
+            case O_DIV: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = 0.0; *large=1;}
+                            else val1 = ( val1 /  val2); break;
+            case O_MOD: if (!val2) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = 0.0; *large=1;}
+                            else val1 = fmod(val1, val2); break;
+            case O_ADD:  val1 = ( val1 +  val2);break;
+            case O_SUB:  val1 = ( val1 -  val2);break;
+            case O_EXP: 
+                         {
+                             if (val2 < 0.0 && !val1) {err_msg2(ERROR_DIVISION_BY_Z, NULL, epoint2); val1 = 0.0; *large=1;}
+                             else if (val1 < 0.0 && (double)((int)val2) != val2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); new_value.u.real = 0.0;}
+                             else val1 = pow(val1, val2);
+                         }
+                         break;
+            default: err_msg_invalid_oper(op, v1, v2, epoint3); 
+                     goto errtype;
+            }
             new_value.type = t1;
-            new_value.u.list.len = v1->u.list.len + v2->u.list.len;
-            if (new_value.u.list.len) {
-                new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
-                if (!new_value.u.list.data) err_msg_out_of_memory();
-                for (i = 0;i < v1->u.list.len; i++) {
-                    new_value.u.list.data[i] = val_reference(v1->u.list.data[i]);
-                }
-                for (;i < new_value.u.list.len; i++) {
-                    new_value.u.list.data[i] = val_reference(v2->u.list.data[i - v1->u.list.len]);
-                }
-            } else new_value.u.list.data = NULL;
+            new_value.u.real = val1;
             return &new_value;
-        default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
         }
-        return &new_value;
-    }
-    if ((t1 == T_LIST || t1 == T_TUPLE) && type_is_num(t2)) {
-        size_t i = 0;
-        struct value_s **vals, *val;
-        if (v1->u.list.len) {
-            vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
-            if (!vals) err_msg_out_of_memory();
-            for (;i < v1->u.list.len; i++) {
-                val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, epoint3, large);
-                vals[i] = val_reference(val);
-                val_destroy(val);
+        if (t2 == T_LIST || t2 == T_TUPLE) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            case O_IN:
+                {
+                    size_t i;
+                    for (i = 0;i < v2->u.list.len; i++) {
+                        if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
+                    }
+                    return &false_value;
+                }
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
-        } else vals = NULL;
-        new_value.type = t1;
-        new_value.u.list.len = i;
-        new_value.u.list.data = vals;
-        return &new_value;
-    }
-    if ((t2 == T_LIST || t2 == T_TUPLE) && type_is_num(t1)) {
-        size_t i = 0;
-        struct value_s **vals, *val;
-        if (v2->u.list.len) {
-            vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
-            if (!vals) err_msg_out_of_memory();
-            for (;i < v2->u.list.len; i++) {
-                val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
-                vals[i] = val_reference(val);
-                val_destroy(val);
+        }
+        if (t2 == T_STR && op != O_IN && op != O_CONCAT) {
+            if (str_to_num(v2, T_NUM, &tmp2)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); *large=1;
             }
-        } else vals = NULL;
-        new_value.type = t2;
-        new_value.u.list.len = i;
-        new_value.u.list.data = vals;
-        return &new_value;
+            v2 = &tmp2;
+            t2 = v2->type;
+            goto strretr;
+        }
     }
-    if ((type_is_num(t1) || t1 == T_STR || t1 == T_LIST || t1 == T_TUPLE) && (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPLE) && t1 != t2) {
-        switch (op) {
-        case O_EQ: return &false_value;
-        case O_NEQ: return &true_value;
-        case O_LT: return (t1 < t2) ? &true_value : &false_value;
-        case O_GT: return (t1 > t2) ? &true_value : &false_value;
-        case O_LE: return (t1 <= t2) ? &true_value : &false_value;
-        case O_GE: return (t1 >= t2) ? &true_value : &false_value;
-        default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+
+    if (t1 == T_LIST || t1 == T_TUPLE) {
+        if (t1 == t2) {
+            size_t i;
+            int val;
+            switch (op) {
+            case O_EQ:
+                val = val_equal(v1, v2);
+            listcomp:
+                return val ? &true_value : &false_value;
+            case O_NEQ:
+                val = !val_equal(v1, v2);
+                goto listcomp;
+            case O_CONCAT:
+                new_value.type = t1;
+                new_value.u.list.len = v1->u.list.len + v2->u.list.len;
+                if (new_value.u.list.len) {
+                    new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
+                    if (!new_value.u.list.data) err_msg_out_of_memory();
+                    for (i = 0;i < v1->u.list.len; i++) {
+                        new_value.u.list.data[i] = val_reference(v1->u.list.data[i]);
+                    }
+                    for (;i < new_value.u.list.len; i++) {
+                        new_value.u.list.data[i] = val_reference(v2->u.list.data[i - v1->u.list.len]);
+                    }
+                } else new_value.u.list.data = NULL;
+                return &new_value;
+            case O_IN:
+                {
+                    size_t i;
+                    for (i = 0;i < v2->u.list.len; i++) {
+                        if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
+                    }
+                    return &false_value;
+                }
+            default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
+            return &new_value;
+        }
+        if (type_is_num(t2) && op != O_IN && op != O_CONCAT) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            default:
+                {
+                    size_t i = 0;
+                    struct value_s **vals, *val;
+                    if (v1->u.list.len) {
+                        vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+                        if (!vals) err_msg_out_of_memory();
+                        for (;i < v1->u.list.len; i++) {
+                            val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, epoint3, large);
+                            vals[i] = val_reference(val);
+                            val_destroy(val);
+                        }
+                    } else vals = NULL;
+                    new_value.type = t1;
+                    new_value.u.list.len = i;
+                    new_value.u.list.data = vals;
+                    return &new_value;
+                }
+            }
+        }
+        if (t2 == T_STR) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
         }
     }
 
@@ -2638,7 +2746,12 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             goto other;
         case 0:
         case ';': break;
-        default: goto syntaxe;
+        default: 
+            while (((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') lpoint++;
+            if (lpoint - epoint == 2 && !memcmp(pline + epoint, "in", 2)) {
+                op = O_IN; goto push2;
+            }
+            goto syntaxe;
         }
         if (stop && o_oper[0]==O_PARENT) {
             if (!operp) {cd=3;break;}
