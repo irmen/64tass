@@ -90,8 +90,6 @@ extern uint8_t pass;
 #define linelength 4096
 
 extern const uint8_t whatis[256];
-extern struct macro_s *find_macro(const char*);
-extern struct macro_s *new_macro(const char*, const char*);
 extern struct jump_s *find_jump(const char*);
 extern struct jump_s *new_jump(const char*, const char*);
 extern void tfree(void);
