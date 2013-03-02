@@ -40,17 +40,6 @@ enum lastl_e {
 
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
-struct macro_s {
-    const char *name;
-    const char *origname;
-    size_t p;
-    line_t sline;
-    struct file_s *file;
-    int type;
-    unsigned int epoint;
-    struct avltree_node node;
-};
-
 struct jump_s {
     const char *name;
     const char *origname;
