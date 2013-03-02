@@ -699,6 +699,7 @@ Doubling the quotes inside the strings escapes them.
 
 ..     concatenate strings  "a".."b" is "ab"
 in     is substring of      "b" in "abc" is <true>
+x      repeat               "ab" x 3 is "ababab"
 x[i]   character from start "abc"[1] is "b"
 x[i]   character from end   "abc"[-1] is "c"
 x[s]   no change            "abc"[:] is "abc"
@@ -745,6 +746,7 @@ types are immutable.
 
 ..           concatenate lists                     [1]..[2] is [1, 2]
 in           is member of list                     2 in [1, 2, 3] is <true>
+x            repeat                                [1, 2] x 2 is [1, 2, 1, 2]
 x[i]         element from start                    ("1", 2)[1] is 2
 x[i]         element from end                      ("1", 2, 3)[-1] is 3
 x[s]         no change                             (1, 2, 3)[:] is (1, 2, 3)

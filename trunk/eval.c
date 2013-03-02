@@ -423,7 +423,8 @@ static int priority(enum oper_e ch)
     case O_INV:                // ~
     case O_LNOT:return 16;     // !
     case O_CONCAT:return 17;   // ..
-    case O_MEMBER:return 18;   // .
+    case O_X:return 18;        // x
+    case O_MEMBER:return 19;   // .
     }
     return 0;
 }
@@ -1902,7 +1903,7 @@ strretr:
                             uint8_t l1 = get_val_len2(v1), l2 = get_val_len2(v2);
                             new_value.type = T_NUM;
                             new_value.u.num.len = addlen(l1 ,l2);
-                            val1 &= (((uval_t)1 << l1)-1);
+                            if (l1 < (8*sizeof(uval_t))) val1 &= (((uval_t)1 << l1)-1);
                             new_value.u.num.val = (val1 << l2) | (val2 & (((uval_t)1 << l2)-1));
                             return &new_value;
                         }
@@ -1913,7 +1914,7 @@ strretr:
             new_value.u.num.val = val1;
             return &new_value;
         }
-        if (t2 == T_STR && op != O_IN && op != O_CONCAT) {
+        if (t2 == T_STR && op != O_IN && op != O_CONCAT && op != O_X) {
             if (str_to_num(v2, T_NUM, &tmp2)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); *large=1;
             }
@@ -1937,6 +1938,7 @@ strretr:
                     }
                     return &false_value;
                 }
+            case O_X:
             case O_CONCAT:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             default:
                 {
@@ -1958,7 +1960,7 @@ strretr:
                 }
             }
         }
-        if (t2 == T_FLOAT && op != O_IN && op != O_CONCAT) {
+        if (t2 == T_FLOAT && op != O_IN && op != O_CONCAT && op != O_X) {
             tmp1.type = T_FLOAT;
             tmp1.u.real = (t1 == T_SINT) ? (double)((ival_t)v1->u.num.val) : (double)((uval_t)v1->u.num.val);
             v1 = &tmp1;
@@ -2044,6 +2046,26 @@ strretr:
             }
         }
         if (type_is_num(t2) && op != O_IN && op != O_CONCAT) {
+            if (op == O_X) {
+                uval_t rep;
+
+                if (!type_is_int(t2)) {err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;}
+
+                rep = (t2 == T_SINT && v2->u.num.val < 0) ? 0 : (uval_t)v2->u.num.val;
+                new_value.type = T_STR;
+                new_value.u.str.len = 0;
+                new_value.u.str.chars = 0;
+                if (v1->u.str.len && rep) {
+                    new_value.u.str.data = malloc(v1->u.str.len * rep);
+                    if (!new_value.u.str.data) err_msg_out_of_memory();
+                    while (rep--) {
+                        memcpy(new_value.u.str.data + new_value.u.str.len, v1->u.str.data, v1->u.str.len);
+                        new_value.u.str.len += v1->u.str.len;
+                        new_value.u.str.chars += v1->u.str.chars;
+                    }
+                } else new_value.u.str.data = NULL;
+                return &new_value;
+            }
             if (str_to_num(v1, T_NUM, &tmp1)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); *large=1;
             }
@@ -2073,7 +2095,7 @@ strretr:
     }
 
     if (t1 == T_FLOAT) {
-        if (type_is_int(t2) && op != O_IN && op != O_CONCAT) {
+        if (type_is_int(t2) && op != O_IN && op != O_CONCAT && op != O_X) {
             tmp2.type = T_FLOAT;
             tmp2.u.real = (t2 == T_SINT) ? (double)((ival_t)v2->u.num.val) : (double)((uval_t)v2->u.num.val);
             v2 = &tmp2;
@@ -2130,7 +2152,7 @@ strretr:
             default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
         }
-        if (t2 == T_STR && op != O_IN && op != O_CONCAT) {
+        if (t2 == T_STR && op != O_IN && op != O_CONCAT && op != O_X) {
             if (str_to_num(v2, T_NUM, &tmp2)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); *large=1;
             }
@@ -2186,6 +2208,29 @@ strretr:
             case O_GT: return (t1 > t2) ? &true_value : &false_value;
             case O_LE: return (t1 <= t2) ? &true_value : &false_value;
             case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            case O_X:
+                {
+                    size_t i = 0, j;
+                    struct value_s **vals;
+                    uval_t rep;
+
+                    if (!type_is_int(t2)) {err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;}
+
+                    rep = (t2 == T_SINT && v2->u.num.val < 0) ? 0 : (uval_t)v2->u.num.val;
+                    if (v1->u.list.len && rep) {
+                        vals = malloc(v1->u.list.len * rep * sizeof(new_value.u.list.data[0]));
+                        if (!vals) err_msg_out_of_memory();
+                        while (rep--) {
+                            for (j = 0;j < v1->u.list.len; j++, i++) {
+                                vals[i] = val_reference(v1->u.list.data[j]);
+                            }
+                        }
+                    } else vals = NULL;
+                    new_value.type = t1;
+                    new_value.u.list.len = i;
+                    new_value.u.list.data = vals;
+                    return &new_value;
+                }
             default:
                 {
                     size_t i = 0;
@@ -2594,7 +2639,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     pushlarge:
                         err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
                     }
-                } else if (here() == '.' || (here() | 0x20) == 'e') goto pushfloat;
+                } else if ((here() == '.' && pline[lpoint + 1] != '.') || (here() | 0x20) == 'e') goto pushfloat;
             pushval: 
                 o_out[outp++].epoint=epoint;
                 goto other;
@@ -2748,8 +2793,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case ';': break;
         default: 
             while (((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') lpoint++;
-            if (lpoint - epoint == 2 && !memcmp(pline + epoint, "in", 2)) {
-                op = O_IN; goto push2;
+            switch (lpoint - epoint) {
+            case 1: if (pline[epoint] == 'x') {op = O_X;goto push2;} break;
+            case 2: if (pline[epoint] == 'i' && pline[epoint + 1] == 'n') {op = O_IN;goto push2;} break;
             }
             goto syntaxe;
         }

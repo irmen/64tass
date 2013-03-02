@@ -114,6 +114,8 @@
     .cerror 1 in [2,3]
     .cerror !("a" in "abc")
     .cerror "a" in "bc"
+    .cerror "abc" x 2 != "abcabc"
+    .cerror [1,2,3] x 2 != [1,2,3,1,2,3]
 
 ; check all operators
 
