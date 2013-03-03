@@ -265,6 +265,7 @@ static void set_size(struct label_s *var, size_t size) {
     size &= all_mem2;
     if (var->size != size) {
         var->size = size;
+        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, var->origname);
         fixeddig = 0;
     }
 }
@@ -521,6 +522,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     tmp->upass = pass;
     if (val_equal(tmp->value, val)) return;
     val_replace(&tmp->value, val);
+    if (fixeddig && !fix && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, tmp->origname);
     fixeddig=fix;
 }
 
@@ -589,7 +591,10 @@ static void macro_recurse(char t, struct label_s *tmp2) {
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
 
-        if (labelexists && s->addr != star) fixeddig=0;
+        if (labelexists && s->addr != star) {
+            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, tmp2->origname);
+            fixeddig=0;
+        }
         s->addr = star;
         star_tree = &s->tree;vline=0;
         enterfile(tmp2->file->realname, sline);
@@ -916,6 +921,7 @@ static void compile(void)
                             if (!labelexists) {
                                 tmp->start = tmp->address = tmp->r_address = 0;
                                 tmp->l_start = tmp->l_address = tmp->r_l_address = 0;
+                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, sectionname2);
                                 fixeddig=0;
                             } else if (pass > 1) {
                                 err_msg2(ERROR___NOT_DEFINED,sectionname2,epoint); goto breakerr;
@@ -935,7 +941,7 @@ static void compile(void)
                 }
             }
             if (!islabel && (tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) {lpoint--;labelname2[0]=0;goto as_macro;}
-            if (!islabel && tmp2 && tmp2->parent == current_context) newlabel = tmp2;
+            if (!islabel && tmp2 && tmp2->parent == current_context) {newlabel = tmp2;labelexists = 1;}
             else newlabel=new_label(labelname, labelname2, L_LABEL);
             oaddr=current_section->address;
             if (labelexists) {
@@ -1058,8 +1064,10 @@ static void compile(void)
                     printllist(flist);
                 }
                 if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, "*=");
-                else if (val->type == T_NONE) fixeddig = 0;
-                else {
+                else if (val->type == T_NONE) {
+                    if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "*");
+                    fixeddig = 0;
+                } else {
                     if (arguments.flat && !current_section->logicalrecursion) {
                         if ((uval_t)val->u.num.val & ~(uval_t)all_mem2) {
                             err_msg(ERROR_CONSTNT_LARGE,NULL);
@@ -1408,7 +1416,9 @@ static void compile(void)
                                                         ch2 = (uint8_t)val2->u.real;
                                                         break;
                                                     default: err_msg_wrong_type(val2, epoint);
-                                                    case T_NONE: ch2 = fixeddig = 0;
+                                                    case T_NONE: 
+                                                             if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                                             ch2 = fixeddig = 0;
                                                     }
                                                     if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
                                                         if (ch2>=0x80) large=epoint;
@@ -1419,7 +1429,9 @@ static void compile(void)
                                             continue;
                                         }
                                     default: err_msg_wrong_type(val, epoint);
-                                    case T_NONE: ch2 = fixeddig = 0;
+                                    case T_NONE: 
+                                             if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                             ch2 = fixeddig = 0;
                                     }
                                     if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
                                         if (ch2>=0x80) large=epoint;
@@ -1501,7 +1513,9 @@ static void compile(void)
                                             ch2 = uv;
                                             break;
                                         default: err_msg_wrong_type(val2, epoint);
-                                        case T_NONE: ch2 = fixeddig = 0;
+                                        case T_NONE: 
+                                                 if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                                 ch2 = fixeddig = 0;
                                         }
                                         if (prm==CMD_RTA) ch2--;
 
@@ -1514,7 +1528,9 @@ static void compile(void)
                                     continue;
                                 }
                             default: err_msg_wrong_type(val, epoint);
-                            case T_NONE: ch2 = fixeddig = 0;
+                            case T_NONE: 
+                                     if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                     ch2 = fixeddig = 0;
                             }
                             if (prm==CMD_RTA) ch2--;
 
@@ -1533,23 +1549,29 @@ static void compile(void)
                         if (newlabel) newlabel->esize = 1;
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        if (val->type == T_NONE) fixeddig = 0;
-                        else {
+                        if (val->type == T_NONE) {
+                            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                            fixeddig = 0;
+                        } else {
                             if (val->type != T_STR) {err_msg_wrong_type(val, epoint);goto breakerr;}
                             if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
                             val2 = val;
                         }
                         if ((val = get_val(T_UINT, &epoint))) {
                             if (val == &error_value) goto breakerr;
-                            if (val->type == T_NONE) fixeddig = 0;
-                            else {
+                            if (val->type == T_NONE) {
+                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                fixeddig = 0;
+                            } else {
                                 if (val->u.num.val<0) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); goto breakerr;}
                                 foffset = val->u.num.val;
                             }
                             if ((val = get_val(T_UINT, &epoint))) {
                                 if (val == &error_value) goto breakerr;
-                                if (val->type == T_NONE) fixeddig = 0;
-                                else {
+                                if (val->type == T_NONE) {
+                                    if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                    fixeddig = 0;
+                                } else {
                                     if (val->u.num.val<0 || (address_t)val->u.num.val > fsize) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
                                     else fsize = val->u.num.val;
                                 }
@@ -1577,8 +1599,10 @@ static void compile(void)
                     if (!(val = get_val(T_SINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     eval_finish();
-                    if (val->type == T_NONE) fixeddig = 0;
-                    else if (val->u.num.val) {
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = 0;
+                    } else if (val->u.num.val) {
                         if (fixeddig && scpumode) {
                             if (((current_section->address + val->u.num.val)^current_section->address) & ~(address_t)0xffff) wrapwarn2=1;
                         }
@@ -1605,8 +1629,10 @@ static void compile(void)
                     eval_finish();
                     if (val == &error_value) goto breakerr;
                     else if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".LOGICAL");
-                    else if (val->type == T_NONE) fixeddig = 0;
-                    else {
+                    else if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = 0;
+                    } else {
                         if ((uval_t)val->u.num.val & ~(uval_t)all_mem) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else current_section->l_address=(uval_t)val->u.num.val;
                     }
@@ -1641,8 +1667,10 @@ static void compile(void)
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     eval_finish();
-                    if (val->type == T_NONE) fixeddig = 0;
-                    else {
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = 0;
+                    } else {
                         if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else databank=val->u.num.val;
                     }
@@ -1653,8 +1681,10 @@ static void compile(void)
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     eval_finish();
-                    if (val->type == T_NONE) fixeddig = 0;
-                    else {
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = 0;
+                    } else {
                         if ((val->type != T_NUM || val->u.num.len > 16) && ((uval_t)val->u.num.val & ~(uval_t)0xffff)) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
                         else {
                             if (dtvmode) dpage=val->u.num.val & 0xff00;
@@ -1670,15 +1700,19 @@ static void compile(void)
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
-                    if (val->type == T_NONE) fixeddig = 0;
-                    else {
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = 0;
+                    } else {
                         db=val->u.num.val;
                         if (db && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);goto breakerr;}
                     }
                     if ((val = get_val(T_GAP, &epoint))) {
                         if (val == &error_value) goto breakerr;
-                        else if (val->type == T_NONE) fixeddig = 0;
-                        else if (val->type != T_GAP) {
+                        else if (val->type == T_NONE) {
+                            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                            fixeddig = 0;
+                        } else if (val->type != T_GAP) {
                             if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             ch = (uint8_t)val->u.num.val;
                         }
@@ -1696,16 +1730,22 @@ static void compile(void)
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
-                    if (val->type == T_NONE) {fixeddig = 0;current_section->provides=~(uval_t)0;}
-                    else current_section->provides=val->u.num.val;
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = 0;current_section->provides=~(uval_t)0;
+                    } else current_section->provides=val->u.num.val;
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     if (val == &error_value) goto breakerr;
-                    if (val->type == T_NONE) fixeddig = current_section->requires = 0;
-                    else current_section->requires=val->u.num.val;
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = current_section->requires = 0;
+                    } else current_section->requires=val->u.num.val;
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     if (val == &error_value) goto breakerr;
-                    if (val->type == T_NONE) fixeddig = current_section->conflicts = 0;
-                    else current_section->conflicts=val->u.num.val;
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = current_section->conflicts = 0;
+                    } else current_section->conflicts=val->u.num.val;
                     eval_finish();
                     break;
                 }
@@ -1713,12 +1753,16 @@ static void compile(void)
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
-                    if (val->type == T_NONE) fixeddig = 0;
-                    else if ((val->u.num.val & current_section->provides) ^ val->u.num.val) err_msg(ERROR_REQUIREMENTS_,".CHECK");
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = 0;
+                    } else if ((val->u.num.val & current_section->provides) ^ val->u.num.val) err_msg(ERROR_REQUIREMENTS_,".CHECK");
                     if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     if (val == &error_value) goto breakerr;
-                    if (val->type == T_NONE) fixeddig = 0;
-                    else if (val->u.num.val & current_section->provides) err_msg(ERROR______CONFLICT,".CHECK");
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = 0;
+                    } else if (val->u.num.val & current_section->provides) err_msg(ERROR______CONFLICT,".CHECK");
                     eval_finish();
                     break;
                 }
@@ -1920,7 +1964,10 @@ static void compile(void)
                             line_t ovline = vline;
 
                             waitforp--;
-                            if (labelexists && s->addr != star) fixeddig=0;
+                            if (labelexists && s->addr != star) {
+                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                fixeddig=0;
+                            }
                             s->addr = star;
                             star_tree = &s->tree;vline=0;
                             while (cnt--) {
@@ -1940,15 +1987,19 @@ static void compile(void)
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
-                    if (val->type == T_NONE) fixeddig = 0;
-                    else {
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = 0;
+                    } else {
                         if (!val->u.num.val || ((uval_t)val->u.num.val & ~(uval_t)all_mem)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else align = val->u.num.val;
                     }
                     if ((val = get_val(T_GAP, &epoint))) {
                         if (val == &error_value) goto breakerr;
-                        if (val->type == T_NONE) fixeddig = 0;
-                        else if (val->type != T_GAP) {
+                        if (val->type == T_NONE) {
+                            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                            fixeddig = 0;
+                        } else if (val->type != T_GAP) {
                             if ((val->u.num.len > 8 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             fill = (uint8_t)val->u.num.val;
                         }
@@ -1973,8 +2024,10 @@ static void compile(void)
                     if (!(val = get_val(T_NUM, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     eval_finish();
-                    if (val->type == T_NONE) fixeddig = outputeor = 0;
-                    else {
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig = outputeor = 0;
+                    } else {
                         if ((val->u.num.len > 8 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else outputeor = val->u.num.val;
                     }
@@ -2025,7 +2078,10 @@ static void compile(void)
                             struct avltree *stree_old = star_tree;
                             uint32_t old_backr = backr, old_forwr = forwr;
 
-                            if (labelexists && s->addr != star) fixeddig=0;
+                            if (labelexists && s->addr != star) {
+                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                fixeddig=0;
+                            }
                             s->addr = star;
                             enterfile(cfile->realname,sline);
                             sline = vline = 0; cfile->p=0;
@@ -2091,7 +2147,10 @@ static void compile(void)
                         if (wht!=WHAT_COMA) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
 
                     s = new_star(vline); stree_old = star_tree; ovline = vline;
-                    if (labelexists && s->addr != star) fixeddig=0;
+                    if (labelexists && s->addr != star) {
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                        fixeddig=0;
+                    }
                     s->addr = star;
                     star_tree = &s->tree;vline=0;
                     xlin=lin=sline; xpos=pos=cfile->p; apoint=lpoint;
@@ -2310,6 +2369,7 @@ static void compile(void)
                                 tmp2->l_start += current_section->l_address;
                             }
                             tmp2->pass = pass;
+                            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                             fixeddig = 0;
                             tmp2->declared = 1;
                         }
@@ -2367,6 +2427,7 @@ static void compile(void)
                         if (!labelexists) {
                             tmp->start = tmp->address = tmp->r_address = 0;
                             tmp->l_start = tmp->l_address = tmp->r_l_address = 0;
+                            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                             fixeddig=0;
                         } else if (pass > 1) {
                             err_msg2(ERROR___NOT_DEFINED,sectionname2,epoint); goto breakerr;
@@ -2480,8 +2541,10 @@ static void compile(void)
                         if (!(c=get_exp(&w, cnmemonic[ADR_REL]==____ && cnmemonic[ADR_MOVE]==____ && cnmemonic[ADR_BIT_ZP]==____ && cnmemonic[ADR_BIT_ZP_REL]==____))) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val == &error_value) d = 0;
-                        else if (val->type == T_NONE) d = fixeddig = 0;
-                        else {adr = val->u.num.val;d = 1;}
+                        else if (val->type == T_NONE) {
+                            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                            d = fixeddig = 0;
+                        } else {adr = val->u.num.val;d = 1;}
 
                         switch (c) {
                         case 1:
@@ -2538,8 +2601,10 @@ static void compile(void)
                                     if (w != 3) {
                                         if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                         if (val == &error_value) d = 0;
-                                        else if (val->type == T_NONE) d = fixeddig = 0;
-                                        else {adr = val->u.num.val;d = 1;}
+                                        else if (val->type == T_NONE) {
+                                            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                            d = fixeddig = 0;
+                                        } else {adr = val->u.num.val;d = 1;}
                                         adrgen = AG_ZP; opr=ADR_BIT_ZP; w = 3;
                                     }
                                 } else if (cnmemonic[ADR_BIT_ZP_REL]!=____) {
@@ -2554,8 +2619,10 @@ static void compile(void)
                                     if (w != 3) {
                                         if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                         if (val == &error_value) d = 0;
-                                        else if (val->type == T_NONE) d = fixeddig = 0;
-                                        else {adr = val->u.num.val;d = 1;}
+                                        else if (val->type == T_NONE) {
+                                            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                            d = fixeddig = 0;
+                                        } else {adr = val->u.num.val;d = 1;}
                                         w = 3; 
                                         if (val->type == T_NONE) w = 1;
                                         else if (!((uval_t)val->u.num.val & ~(uval_t)0xffff) && (uint16_t)(val->u.num.val - dpage) < 0x100) {adr = (uint16_t)(val->u.num.val - dpage);w = 0;}
@@ -2563,8 +2630,10 @@ static void compile(void)
                                             uint32_t adr2=0;
                                             if (!(val = get_val(T_UINT, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                             if (val == &error_value) d = 0;
-                                            else if (val->type == T_NONE) d = fixeddig = 0;
-                                            else {adr2 = val->u.num.val;d = 1;}
+                                            else if (val->type == T_NONE) {
+                                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                                d = fixeddig = 0;
+                                            } else {adr2 = val->u.num.val;d = 1;}
                                             w=3;
                                             if (val->type != T_NONE) {
                                                 adr2=(uint16_t)(adr2 - current_section->l_address - 3);
@@ -2662,7 +2731,10 @@ static void compile(void)
                                     opr = joopr; adr = joadr; ln = joln; longbranch = jolongbranch;
                                     if (fixeddig && min == 10 && err != ERROR_WUSER_DEFINED) err_msg(err, NULL);
                                     w=0;// bne
-                                    if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) fixeddig=0;
+                                    if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) {
+                                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                                        fixeddig=0;
+                                    }
                                     s->addr = (star + 1 + ln) & all_mem;
                                 }
                                 else if (cnmemonic[ADR_REL_L]!=____) {
@@ -2933,7 +3005,7 @@ static void compile(void)
                 }
                 if ((tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) goto as_macro;
             }            // fall through
-        default: if (waitfor[waitforp].skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); //skip things if needed
+        default: if (waitfor[waitforp].skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr; //skip things if needed
         }
     finish:
         ignore();if (here() && here()!=';' && (waitfor[waitforp].skip & 1)) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
@@ -3049,7 +3121,7 @@ int main(int argc, char *argv[]) {
 
     /* assemble the input file(s) */
     do {
-        if (pass++>20) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
+        if (pass++>MAX_PASS) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
         restart_mem();
         for (i = optind - 1; i<argc; i++) {

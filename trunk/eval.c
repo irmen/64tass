@@ -359,6 +359,7 @@ static void get_star(struct value_s *v) {
 
     tmp=new_star(vline);
     if (labelexists && tmp->addr != star) {
+        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
         fixeddig=0;
     }
     tmp->addr=star;
