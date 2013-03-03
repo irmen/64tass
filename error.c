@@ -122,6 +122,7 @@ static const char *terr_error[]={
     "wrong type %s",
     "unknown character $%02x",
     "not allowed here: %s",
+    "can't calculate stable value",
     "%s\n",
 };
 static const char *terr_fatal[]={
