@@ -110,90 +110,91 @@ struct {
 } macro_parameters = {0, 0, NULL, NULL};
 
 static const char* command[]={ /* must be sorted, first char is the ID */
-    "\x20" "al",
-    "\x32" "align",
-    "\x1f" "as",
-    "\x33" "assert",
-    "\x38" "bend",
-    "\x18" "binary",
-    "\x37" "block",
+    "\x21" "al",
+    "\x33" "align",
+    "\x20" "as",
+    "\x34" "assert",
+    "\x39" "bend",
+    "\x19" "binary",
+    "\x38" "block",
     "\x05" "byte",
-    "\x4c" "cdef",
-    "\x30" "cerror",
+    "\x4d" "cdef",
+    "\x31" "cerror",
     "\x06" "char",
-    "\x34" "check",
-    "\x19" "comment",
-    "\x35" "cpu",
-    "\x31" "cwarn",
-    "\x26" "databank",
-    "\x0b" "dint",
-    "\x27" "dpage",
-    "\x4a" "dsection",
-    "\x45" "dstruct",
-    "\x48" "dunion",
-    "\x0c" "dword",
-    "\x4d" "edef",
-    "\x13" "else",
-    "\x15" "elsif",
-    "\x2a" "enc",
-    "\x3d" "end",
-    "\x1a" "endc",
-    "\x2b" "endif",
-    "\x0f" "endm",
-    "\x1c" "endp",
-    "\x44" "ends",
-    "\x47" "endu",
-    "\x3e" "eor",
-    "\x23" "error",
-    "\x14" "fi",
-    "\x28" "fill",
-    "\x10" "for",
-    "\x42" "goto",
-    "\x1e" "here",
-    "\x3c" "hidemac",
-    "\x12" "if",
-    "\x2d" "ifeq",
-    "\x2f" "ifmi",
-    "\x2c" "ifne",
-    "\x2e" "ifpl",
-    "\x17" "include",
+    "\x35" "check",
+    "\x1a" "comment",
+    "\x36" "cpu",
+    "\x32" "cwarn",
+    "\x27" "databank",
+    "\x0c" "dint",
+    "\x28" "dpage",
+    "\x4b" "dsection",
+    "\x46" "dstruct",
+    "\x49" "dunion",
+    "\x0d" "dword",
+    "\x4e" "edef",
+    "\x14" "else",
+    "\x16" "elsif",
+    "\x2b" "enc",
+    "\x3e" "end",
+    "\x1b" "endc",
+    "\x2c" "endif",
+    "\x10" "endm",
+    "\x1d" "endp",
+    "\x45" "ends",
+    "\x48" "endu",
+    "\x3f" "eor",
+    "\x24" "error",
+    "\x15" "fi",
+    "\x29" "fill",
+    "\x11" "for",
+    "\x43" "goto",
+    "\x1f" "here",
+    "\x3d" "hidemac",
+    "\x13" "if",
+    "\x2e" "ifeq",
+    "\x30" "ifmi",
+    "\x2d" "ifne",
+    "\x2f" "ifpl",
+    "\x18" "include",
     "\x08" "int",
-    "\x41" "lbl",
-    "\x1d" "logical",
-    "\x0a" "long",
-    "\x0e" "macro",
-    "\x11" "next",
+    "\x42" "lbl",
+    "\x0a" "lint",
+    "\x1e" "logical",
+    "\x0b" "long",
+    "\x0f" "macro",
+    "\x12" "next",
     "\x04" "null",
-    "\x0d" "offs",
-    "\x36" "option",
-    "\x1b" "page",
-    "\x25" "pend",
-    "\x24" "proc",
-    "\x3a" "proff",
-    "\x39" "pron",
+    "\x0e" "offs",
+    "\x37" "option",
+    "\x1c" "page",
+    "\x26" "pend",
+    "\x25" "proc",
+    "\x3b" "proff",
+    "\x3a" "pron",
     "\x01" "ptext",
-    "\x16" "rept",
+    "\x17" "rept",
     "\x07" "rta",
-    "\x49" "section",
-    "\x3f" "segment",
-    "\x4b" "send",
+    "\x4a" "section",
+    "\x40" "segment",
+    "\x4c" "send",
     "\x02" "shift",
     "\x03" "shiftl",
-    "\x3b" "showmac",
-    "\x43" "struct",
+    "\x3c" "showmac",
+    "\x44" "struct",
     "\x00" "text",
-    "\x46" "union",
-    "\x40" "var",
-    "\x29" "warn",
+    "\x47" "union",
+    "\x41" "var",
+    "\x2a" "warn",
     "\x09" "word",
-    "\x22" "xl",
-    "\x21" "xs",
+    "\x23" "xl",
+    "\x22" "xs",
 };
 
 enum command_e {
     CMD_TEXT=0, CMD_PTEXT, CMD_SHIFT, CMD_SHIFTL, CMD_NULL, CMD_BYTE, CMD_CHAR,
-    CMD_RTA, CMD_INT, CMD_WORD, CMD_LONG, CMD_DINT, CMD_DWORD, CMD_OFFS,
-    CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF, CMD_ELSE, CMD_FI,
+    CMD_RTA, CMD_INT, CMD_WORD, CMD_LINT, CMD_LONG, CMD_DINT, CMD_DWORD,
+    CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF, CMD_ELSE, CMD_FI,
     CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC,
     CMD_PAGE, CMD_ENDP, CMD_LOGICAL, CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL,
     CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE, CMD_FILL, CMD_WARN,
@@ -672,7 +673,7 @@ static void compile(void)
                 if (newlabel && !newlabel->ref && pass != 1) goto finish;
                 if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
-                if (newlabel) labelexists = 1; 
+                if (newlabel) labelexists = 1;
                 else newlabel = new_label(labelname, labelname2, L_CONST);
                 oaddr=current_section->address;
                 if (listing && flist && arguments.source && newlabel->ref) {
@@ -1416,7 +1417,7 @@ static void compile(void)
                                                         ch2 = (uint8_t)val2->u.real;
                                                         break;
                                                     default: err_msg_wrong_type(val2, epoint);
-                                                    case T_NONE: 
+                                                    case T_NONE:
                                                              if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                                                              ch2 = fixeddig = 0;
                                                     }
@@ -1429,7 +1430,7 @@ static void compile(void)
                                             continue;
                                         }
                                     default: err_msg_wrong_type(val, epoint);
-                                    case T_NONE: 
+                                    case T_NONE:
                                              if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                                              ch2 = fixeddig = 0;
                                     }
@@ -1458,14 +1459,14 @@ static void compile(void)
                         uval_t uv;
                         int large=0;
                         if (newlabel) {
-                            newlabel->esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);
+                            newlabel->esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);
                             newlabel->sign = (prm == CMD_CHAR) || (prm == CMD_INT) || (prm == CMD_DINT);
                         }
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         while ((val = get_val(T_NONE, &epoint))) {
                             if (val == &error_value) ch2 = 0; else
                             switch (val->type) {
-                            case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
+                            case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
                             case T_STR: if (str_to_num(val, T_NUM, &new_value)) {large = epoint; ch2 = 0; break;} val = &new_value;
                             case T_FLOAT:
                             case T_LABEL:
@@ -1478,6 +1479,7 @@ static void compile(void)
                                 case CMD_CHAR: if ((val->u.num.len > 8 || val->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
                                 case CMD_BYTE: if ((val->u.num.len > 8 || val->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
                                 case CMD_INT: if ((val->u.num.len > 16 || val->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
+                                case CMD_LINT: if ((val->u.num.len > 24 || val->type != T_NUM) && (uv & ~(uval_t)0x7fffff) && (~uv & ~(uval_t)0x7fffff)) large=epoint;break;
                                 case CMD_LONG: if ((val->u.num.len > 24 || val->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
                                 case CMD_DINT: if ((val->u.num.len > 32 || val->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
                                 case CMD_DWORD: if ((val->u.num.len > 32 || val->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
@@ -1492,7 +1494,7 @@ static void compile(void)
                                     for (li=0; li < val->u.list.len; li++) {
                                         struct value_s *val2 = val->u.list.data[li];
                                         switch (val2->type) {
-                                        case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LONG) + (prm >= CMD_DINT);continue;
+                                        case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
                                         case T_STR: if (str_to_num(val2, T_NUM, &new_value)) {large = epoint; ch2 = 0; break;} val2 = &new_value;
                                         case T_FLOAT:
                                         case T_LABEL:
@@ -1505,6 +1507,7 @@ static void compile(void)
                                             case CMD_CHAR: if ((val2->u.num.len > 8 || val2->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
                                             case CMD_BYTE: if ((val2->u.num.len > 8 || val2->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
                                             case CMD_INT: if ((val2->u.num.len > 16 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
+                                            case CMD_LINT: if ((val2->u.num.len > 24 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fffff) && (~uv & ~(uval_t)0x7fffff)) large=epoint;break;
                                             case CMD_LONG: if ((val2->u.num.len > 24 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
                                             case CMD_DINT: if ((val2->u.num.len > 32 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
                                             case CMD_DWORD: if ((val2->u.num.len > 32 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
@@ -1513,7 +1516,7 @@ static void compile(void)
                                             ch2 = uv;
                                             break;
                                         default: err_msg_wrong_type(val2, epoint);
-                                        case T_NONE: 
+                                        case T_NONE:
                                                  if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                                                  ch2 = fixeddig = 0;
                                         }
@@ -1522,13 +1525,13 @@ static void compile(void)
                                         if (uninit) {memskip(uninit);uninit = 0;}
                                         pokeb((uint8_t)ch2);
                                         if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
-                                        if (prm>=CMD_LONG) pokeb((uint8_t)(ch2>>16));
+                                        if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
                                         if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
                                     }
                                     continue;
                                 }
                             default: err_msg_wrong_type(val, epoint);
-                            case T_NONE: 
+                            case T_NONE:
                                      if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                                      ch2 = fixeddig = 0;
                             }
@@ -1537,7 +1540,7 @@ static void compile(void)
                             if (uninit) {memskip(uninit);uninit = 0;}
                             pokeb((uint8_t)ch2);
                             if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
-                            if (prm>=CMD_LONG) pokeb((uint8_t)(ch2>>16));
+                            if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
                             if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
                         }
                         if (uninit) memskip(uninit);
@@ -2623,7 +2626,7 @@ static void compile(void)
                                             if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                                             d = fixeddig = 0;
                                         } else {adr = val->u.num.val;d = 1;}
-                                        w = 3; 
+                                        w = 3;
                                         if (val->type == T_NONE) w = 1;
                                         else if (!((uval_t)val->u.num.val & ~(uval_t)0xffff) && (uint16_t)(val->u.num.val - dpage) < 0x100) {adr = (uint16_t)(val->u.num.val - dpage);w = 0;}
                                         if (w != 3) {
@@ -2677,7 +2680,7 @@ static void compile(void)
                                             }
                                             ln=1;opr=ADR_REL;longbranch=0;
                                             if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) {
-                                                err = ERROR_CANT_CROSS_BA; continue; 
+                                                err = ERROR_CANT_CROSS_BA; continue;
                                             }
                                             if (adr<0xFF80 && adr>0x007F) {
                                                 if (cnmemonic[ADR_REL_L] != ____) {

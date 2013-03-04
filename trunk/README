@@ -1103,6 +1103,11 @@ Dumping data
             .long $123456
             .long ?         ; reserve 3 bytes of space
 
+.lint <expression>[, <expression>, ...]
+    Include 24 bit signed integer constants
+
+            .lint -533, 4433
+
 .dword <expression>[, <expression>, ...]
     Include 32 bit unsigned constants
 
@@ -1743,6 +1748,19 @@ by 64tass, you will have to fix the code instead.
 -------------------------------------------------------------------------------
 
 Messages
+
+Faults and warnings encountered are sent to standard error for logging. The
+format of messages is the following:
+
+<filename>:<line>:<character>: <severity>: <message>
+
+  * filename: The name and path of source file where the error happened.
+  * line: Line number of file, starts from 1.
+  * character: Character in line, starts from 1. Tabs are not expanded.
+  * severity: Note, warning, error or fatal.
+  * message: The fault message itself.
+
+a.asm:4:8: error: page error at $0007d0
 
 Warnings
 

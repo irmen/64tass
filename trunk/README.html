@@ -1214,6 +1214,12 @@ rets	<b class="d">.rta</b> <span>$fce2</span>
         <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes of space</i>
 </pre>
 
+<dt><b>.lint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Include 24&nbsp;bit signed integer constants
+<pre width=80>
+        <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
+</pre>
+
 <dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 32&nbsp;bit unsigned constants
 <pre width=80>
@@ -1910,6 +1916,19 @@ you get a related error move the respective label out of the .block
 
 <hr>
 <h2>Messages</h2>
+
+<p>Faults and warnings encountered are sent to standard error for logging. The
+format of messages is the following:</p>
+<p>&lt;filename&gt;:&lt;line&gt;:&lt;character&gt;: &lt;severity&gt;: &lt;message&gt;</p>
+<ul>
+<li>filename: The name and path of source file where the error happened.
+<li>line: Line number of file, starts from 1.
+<li>character: Character in line, starts from 1. Tabs are not expanded.
+<li>severity: Note, warning, error or fatal.
+<li>message: The fault message itself.
+</ul>
+
+<pre width=80>a.asm:4:8: error: page error at $0007d0</pre>
 
 <h3>Warnings</h3>
 <dl>

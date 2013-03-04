@@ -213,7 +213,7 @@
     </context>
 
     <context id="definition" end-at-line-end="true">
-      <start>\.(byte|char|word|int|rta|long|dword|dint|fill|p?text|null|shiftl?|binary)(\s|(?=;)|$)</start>
+      <start>\.(byte|char|l?int|rta|long|d?word|dint|fill|p?text|null|shiftl?|binary)(\s|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="definition"/>
         <context ref="miscparam"/>
