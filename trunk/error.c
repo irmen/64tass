@@ -113,16 +113,15 @@ static const char *terr_error[]={
     "general syntax",
     "%s expected",
     "expression syntax",
-    "branch too far",
     "missing argument",
     "illegal operand",
     "requirements not met: %s",
     "conflict: %s",
     "division by zero",
     "wrong type %s",
-    "unknown character $%02x",
     "not allowed here: %s",
     "can't calculate stable value",
+    "instruction can't cross banks",
     "%s\n",
 };
 static const char *terr_fatal[]={
@@ -141,7 +140,7 @@ static const char *terr_fatal[]={
     "too many errors\n"
 };
 
-void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
+void err_msg2(enum errors_e no, const void* prm, unsigned int lpoint) {
     char line[linelength];
 
     if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
@@ -161,30 +160,36 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
     }
     else if (no<0x80) {
         adderror("error: ");
-        if (no==ERROR____PAGE_ERROR) {
-            adderror("Page error at $");
-            sprintf(line,"%06" PRIaddress,(address_t)prm); adderror(line);
-            conderrors++;
-        }
-        else if (no==ERROR__BRANCH_CROSS) {
+        switch (no) {
+        case ERROR____PAGE_ERROR:
+            adderror("page error at $");
+            sprintf(line,"%06" PRIaddress, *(address_t *)prm); adderror(line);
+            conderrors++; break;
+        case ERROR_BRANCH_TOOFAR:
+            sprintf(line,"branch too far by %+d bytes", *(int *)prm); adderror(line);
+            conderrors++; break;
+        case ERROR__BRANCH_CROSS:
             adderror("Branch crosses page");
-            conderrors++;
-        }
-        else {
-            if (no==ERROR__USER_DEFINED) {
-                adderror2(user_error.data, user_error.p);
-                conderrors++;
-            } else {
-                snprintf(line,linelength,terr_error[no & 63],prm);
-                if (no==ERROR_BRANCH_TOOFAR || no==ERROR_CONSTNT_LARGE) conderrors++;
-                else errors++;
+            conderrors++; break;
+        case ERROR__USER_DEFINED:
+            adderror2(user_error.data, user_error.p);
+            conderrors++; break;
+        case ERROR___UNKNOWN_CHR:
+            sprintf(line,"can't encode character $%02x", *(uint32_t *)prm); adderror(line);
+            conderrors++; break;
+        default:
+                snprintf(line,linelength,terr_error[no & 63], (char *)prm);
+                switch (no) {
+                case ERROR_CANT_CROSS_BA:
+                case ERROR_CONSTNT_LARGE: conderrors++;break;
+                default: errors++;
+                }
                 adderror(line);
-            }
         }
     }
     else {
         adderror("fatal error: ");
-        snprintf(line,linelength,terr_fatal[no & 63],prm);
+        snprintf(line, linelength, terr_fatal[no & 63], (char *)prm);
         adderror(line);
         errors++;
         status();exit(1);
@@ -192,8 +197,8 @@ void err_msg2(enum errors_e no, const char* prm, unsigned int lpoint) {
     adderror("\n");
 }
 
-void err_msg(enum errors_e no, const char* prm) {
-    err_msg2(no,prm, lpoint);
+void err_msg(enum errors_e no, const void* prm) {
+    err_msg2(no, prm, lpoint);
 }
 
 static char *type_name(enum type_e t) {

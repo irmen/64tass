@@ -180,7 +180,7 @@ uint_fast16_t petascii(size_t *i, const struct value_s *v) {
     if (ch & 0x80) (*i) += utf8in(text, &ch); else (*i)++;
     rc = find_trans(ch, actual_encoding);
     if (rc < 256) return rc;
-    err_msg(ERROR___UNKNOWN_CHR, (char *)ch);
+    err_msg(ERROR___UNKNOWN_CHR, &ch);
     ch = 0;
     return ch;
 }
