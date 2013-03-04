@@ -44,19 +44,20 @@ enum errors_e {
     ERROR_GENERL_SYNTAX,
     ERROR______EXPECTED,
     ERROR_EXPRES_SYNTAX,
-    ERROR_BRANCH_TOOFAR,
     ERROR_MISSING_ARGUM,
     ERROR_ILLEGAL_OPERA,
     ERROR_REQUIREMENTS_,
     ERROR______CONFLICT,
     ERROR_DIVISION_BY_Z,
     ERROR____WRONG_TYPE,
-    ERROR___UNKNOWN_CHR,
     ERROR___NOT_ALLOWED,
     ERROR_CANT_CALCULAT,
+    ERROR_CANT_CROSS_BA,
     ERROR__USER_DEFINED,
     ERROR____PAGE_ERROR,
     ERROR__BRANCH_CROSS,
+    ERROR_BRANCH_TOOFAR,
+    ERROR___UNKNOWN_CHR,
 
     ERROR_CANT_FINDFILE=0x80,
     ERROR__READING_FILE,
@@ -73,8 +74,8 @@ enum errors_e {
     ERROR__TOO_MANY_ERR
 };
 
-extern void err_msg(enum errors_e, const char*);
-extern void err_msg2(enum errors_e, const char*, unsigned int);
+extern void err_msg(enum errors_e, const void*);
+extern void err_msg2(enum errors_e, const void*, unsigned int);
 extern void err_msg_wrong_type(const struct value_s*, unsigned int);
 extern void err_msg_invalid_oper(enum oper_e, const struct value_s *, const struct value_s *, unsigned int);
 extern void err_msg_double_defined(const char *, const char *, line_t, unsigned int, const char*, unsigned int);

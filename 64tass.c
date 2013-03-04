@@ -1290,7 +1290,7 @@ static void compile(void)
                         waitforp--;
                     } else if (waitfor[waitforp].what=='P') {
 			if ((current_section->l_address & ~0xff) != (waitfor[waitforp].laddr & ~0xff) && fixeddig) {
-				err_msg(ERROR____PAGE_ERROR,(const char *)current_section->l_address);
+				err_msg2(ERROR____PAGE_ERROR, &current_section->l_address, epoint);
 			}
 			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
                         waitforp--;
@@ -2636,10 +2636,18 @@ static void compile(void)
                                             } else {adr2 = val->u.num.val;d = 1;}
                                             w=3;
                                             if (val->type != T_NONE) {
-                                                adr2=(uint16_t)(adr2 - current_section->l_address - 3);
-                                                if (adr2>=0xFF80 || adr2<=0x007F) {
-                                                    if (!(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {adr |= ((uint8_t)adr2) << 8; w = 1;}
-                                                } else {if (fixeddig) err_msg(ERROR_BRANCH_TOOFAR,NULL);w = 1;};
+                                                if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) {
+                                                    if (fixeddig) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
+                                                } else {
+                                                    adr2=(uint16_t)(adr2 - current_section->l_address - 3);
+                                                    if (adr2>=0xFF80 || adr2<=0x007F) {
+                                                        adr |= ((uint8_t)adr2) << 8; w = 1;
+                                                    } else if (fixeddig) {
+                                                        int dist = (int16_t)adr2;
+                                                        dist += (dist < 0) ? 0x80 : -0x7f;
+                                                        err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint);w = 1;
+                                                    }
+                                                }
                                             } else w = 1;
                                         }
                                         ln = 2;opr=ADR_BIT_ZP_REL;
@@ -2654,10 +2662,10 @@ static void compile(void)
                                     enum opr_e joopr = ADR_REL;
                                     enum errors_e err = ERROR_WUSER_DEFINED;
                                     s=new_star(vline+1);olabelexists=labelexists;
+                                    int dist = 0;
 
-                                    for (;c;c=!!(val = get_val(T_UINT, NULL))) {
-                                        if (val != &error_value)
-                                        if (val->type != T_NONE) {
+                                    for (; c; c = !!(val = get_val(T_UINT, NULL))) {
+                                        if (val != &error_value && val->type != T_NONE) {
                                             uint16_t oadr = val->u.num.val;
                                             adr = (uval_t)val->u.num.val;
                                             labelexists = olabelexists;
@@ -2668,9 +2676,11 @@ static void compile(void)
                                                 adr=(uint16_t)(adr - current_section->l_address - 2);labelexists=0;
                                             }
                                             ln=1;opr=ADR_REL;longbranch=0;
-                                            if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) { err = ERROR_BRANCH_TOOFAR; continue; }
+                                            if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) {
+                                                err = ERROR_CANT_CROSS_BA; continue; 
+                                            }
                                             if (adr<0xFF80 && adr>0x007F) {
-                                                if (cnmemonic[ADR_REL_L]!=____) {
+                                                if (cnmemonic[ADR_REL_L] != ____) {
                                                     if (!labelexists) adr=(uint16_t)(adr-1);
                                                     opr=ADR_REL_L;
                                                     ln=2;
@@ -2689,6 +2699,8 @@ static void compile(void)
                                                             if (!labelexists) adr=(uint16_t)(adr-1);
                                                             ln=2;
                                                         } else if (cnmemonic[ADR_REL] == 0x82 && opcode==c65el02) {
+                                                            int dist2 = (int16_t)adr; dist2 += (dist < 0) ? 0x80 : -0x7f;
+                                                            if (!dist || ((dist2 > 0) ? dist2 : -dist2) < ((dist > 0) ? dist : -dist)) dist = dist2;
                                                             err = ERROR_BRANCH_TOOFAR;continue; //rer not a branch
                                                         } else {
                                                             longbranch=cnmemonic[ADR_REL]^0x4C;
@@ -2697,16 +2709,20 @@ static void compile(void)
                                                     }
                                                     //err = ERROR___LONG_BRANCH;
                                                 } else {
-                                                    if (cnmemonic[ADR_ADDR]!=____) {
+                                                    if (cnmemonic[ADR_ADDR] != ____) {
                                                         if (scpumode && !longbranchasjmp) {
-                                                            longbranch=cnmemonic[ADR_REL]^0x82;
+                                                            longbranch = cnmemonic[ADR_REL]^0x82;
                                                             if (!labelexists) adr=(uint16_t)(adr-1);
                                                         } else {
                                                             adr=oadr;
                                                             opr=ADR_ADDR;
                                                         }
                                                         ln=2;
-                                                    } else {err = ERROR_BRANCH_TOOFAR;continue;}
+                                                    } else {
+                                                        int dist2 = (int16_t)adr; dist2 += (dist < 0) ? 0x80 : -0x7f;
+                                                        if (!dist || ((dist2 > 0) ? dist2 : -dist2) < ((dist > 0) ? dist : -dist)) dist = dist2;
+                                                        err = ERROR_BRANCH_TOOFAR;continue;
+                                                    }
                                                 }
                                             } else {
                                                 if (fixeddig) {
@@ -2725,11 +2741,10 @@ static void compile(void)
                                                 min = ln;
                                                 joopr = opr; joadr = adr; joln = ln; jolongbranch = longbranch;
                                             }
-                                            err = ERROR_WUSER_DEFINED;
                                         }
                                     }
                                     opr = joopr; adr = joadr; ln = joln; longbranch = jolongbranch;
-                                    if (fixeddig && min == 10 && err != ERROR_WUSER_DEFINED) err_msg(err, NULL);
+                                    if (fixeddig && min == 10) err_msg2(err, &dist, epoint);
                                     w=0;// bne
                                     if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) {
                                         if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
@@ -2740,7 +2755,9 @@ static void compile(void)
                                 else if (cnmemonic[ADR_REL_L]!=____) {
                                     if (w==3) {
                                         if (val->type != T_NONE) {
-                                            if (!(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {adr = (uint16_t)(val->u.num.val-current_section->l_address-3); w = 1;}
+                                            if (!(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {
+                                                adr = (uint16_t)(val->u.num.val-current_section->l_address-3); w = 1;
+                                            } else {if (fixeddig) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;}
                                         } else w = 1;
                                     } else if (val->type != T_NONE) {
                                         if (w == 1 && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) adr = (uint16_t)(val->u.num.val-current_section->l_address-3);
@@ -2762,8 +2779,10 @@ static void compile(void)
                                     opr=ADR_ZP-w;ln=w+1; // jml
                                 }
                                 else if (cnmemonic[ADR_ADDR]==0x20) {
-                                    if (fixeddig && (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {err_msg(ERROR_BRANCH_TOOFAR,NULL);w = 1;};
-                                    adrgen = AG_PB; opr=ADR_ADDR; // jsr $ffff
+                                    if ((((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {
+                                        if (fixeddig) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
+                                    } else adrgen = AG_PB;
+                                    opr=ADR_ADDR; ln = 2; // jsr $ffff
                                 } else {
                                     adrgen = AG_DB3; opr=ADR_ZP; // lda $ff lda $ffff lda $ffffff
                                 }
