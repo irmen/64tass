@@ -992,16 +992,6 @@ static void compile(void)
                     }
                     newlabel = NULL;
                     goto finish;
-                case CMD_BLOCK: // .block
-                    new_waitfor('B', epoint);
-                    current_context=newlabel;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
-                    if (newlabel->ref && listing && flist && arguments.source) {
-                        if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                        fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
-                    }
-                    newlabel->ref=0;
-                    newlabel = NULL;
-                    goto finish;
                 case CMD_DSTRUCT: // .dstruct
                 case CMD_DUNION:
                     {
@@ -1660,9 +1650,19 @@ static void compile(void)
                 }
                 if (prm==CMD_BLOCK) { // .block
 		    new_waitfor('B', epoint);
-                    sprintf(labelname, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
-                    current_context=new_label(labelname, labelname, L_LABEL);
-                    current_context->value = &none_value;
+                    if (newlabel) {
+                        current_context=newlabel;
+                        waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
+                        if (newlabel->ref && listing && flist && arguments.source) {
+                            if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
+                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
+                        }
+                        newlabel = NULL;
+                    } else {
+                        sprintf(labelname, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
+                        current_context=new_label(labelname, labelname, L_LABEL);
+                        current_context->value = &none_value;
+                    }
                     break;
                 }
                 if (prm==CMD_DATABANK) { // .databank
@@ -2091,7 +2091,11 @@ static void compile(void)
                             star_tree = &s->tree;
                             backr = forwr = 0;
                             reffile=cfile->uid;
-                            compile();
+                            if (newlabel) {
+                                current_context = newlabel;
+                                compile();
+                                current_context = current_context->parent;
+                            } else compile();
                             sline = lin; vline = vlin;
                             star_tree = stree_old;
                             backr = old_backr; forwr = old_forwr;
