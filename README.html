@@ -1136,7 +1136,8 @@ i       <b class="k">.var</b> <span class="l">i</span> - <span>1</span>
 <dt><b>.include</b> "&lt;filename&gt;"
 <dd>Include source file here, path is relative to the location of current
 source file. The filename can be a string expression but it must be defined in
-advance.
+advance. If it's prefixed with a label then all labels are local and are
+accessible through that label.
 <pre width=80>
 	<b class="k">.include</b> <span class="s">"macros.asm"</span>
 </pre>
@@ -1172,8 +1173,8 @@ cucc    <b>nop</b>
         <b>jsr</b> <span class="l">ize</span>
         <b>jmp</b> <span class="l">ize</span>.<span class="l">cucc</span>
 </pre>
-If <q>ize</q> is not referenced then the code won't be compiled at all!
-All labels inside are local.
+<p>If <q>ize</q> is not referenced then the code won't be compiled at all!
+All labels inside are local and are accessible through the prefixed label.</p>
 
 <dt><b>.block</b>
 <dd>Block start
@@ -1185,8 +1186,8 @@ All labels inside are local.
 count	<b>ldx</b> #<span>0</span>
 	<b class="k">.bend</b>
 </pre>
-    All labels inside a block are local.
-
+<p>All labels inside a block are local. If prefixed with a label local
+variables are accessible through that label.</p>
 
 <dt><b>.comment</b>
 <dd>Comment block start

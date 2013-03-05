@@ -1007,7 +1007,8 @@ Including files
 .include "<filename>"
     Include source file here, path is relative to the location of current
     source file. The filename can be a string expression but it must be defined
-    in advance.
+    in advance. If it's prefixed with a label then all labels are local and are
+    accessible through that label.
 
             .include "macros.asm"
 
@@ -1041,7 +1042,8 @@ Blocks
             jmp ize.cucc
 
     If `ize' is not referenced then the code won't be compiled at all! All
-    labels inside are local.
+    labels inside are local and are accessible through the prefixed label.
+
 .block
     Block start
 .bend
@@ -1052,7 +1054,9 @@ Blocks
     count   ldx #0
             .bend
 
-    All labels inside a block are local.
+    All labels inside a block are local. If prefixed with a label local
+    variables are accessible through that label.
+
 .comment
     Comment block start
 .endc
