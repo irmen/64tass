@@ -2168,6 +2168,90 @@ strretr:
             size_t i;
             int val;
             switch (op) {
+            case O_MUL:
+            case O_DIV:
+            case O_MOD:
+            case O_ADD:
+            case O_SUB:
+            case O_AND:
+            case O_OR:
+            case O_XOR:
+            case O_LSHIFT:
+            case O_ASHIFT:
+            case O_RSHIFT:
+            case O_EXP:
+                {
+                    size_t i = 0;
+                    struct value_s **vals, *val;
+                    const struct value_s *v;
+                    int d1 = 0, d2 = 0;
+                    v = v1;
+                    while (v->type == T_LIST || v->type == T_TUPLE) {
+                        d1++;
+                        if (!v->u.list.len) break;
+                        v = v->u.list.data[0];
+                    }
+                    v = v2;
+                    while (v->type == T_LIST || v->type == T_TUPLE) {
+                        d2++;
+                        if (!v->u.list.len) break;
+                        v = v->u.list.data[0];
+                    }
+                    if (d1 == d2) {
+                        if (v1->u.list.len != v2->u.list.len && v1->u.list.len != 1 && v2->u.list.len != 1) {err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;}
+                        if (v1->u.list.len == 1) {
+                            if (v2->u.list.len) {
+                                vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
+                                if (!vals) err_msg_out_of_memory();
+                                for (;i < v2->u.list.len; i++) {
+                                    val = apply_op2(op, v1->u.list.data[0], v2->u.list.data[i], epoint, epoint2, epoint3, large);
+                                    vals[i] = val_reference(val);
+                                    val_destroy(val);
+                                }
+                            } else vals = NULL;
+                        } else if (v2->u.list.len == 1) {
+                            if (v1->u.list.len) {
+                                vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+                                if (!vals) err_msg_out_of_memory();
+                                for (;i < v1->u.list.len; i++) {
+                                    val = apply_op2(op, v1->u.list.data[i], v2->u.list.data[0], epoint, epoint2, epoint3, large);
+                                    vals[i] = val_reference(val);
+                                    val_destroy(val);
+                                }
+                            } else vals = NULL;
+                        } else if (v1->u.list.len) {
+                            vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+                            if (!vals) err_msg_out_of_memory();
+                            for (;i < v1->u.list.len; i++) {
+                                val = apply_op2(op, v1->u.list.data[i], v2->u.list.data[i], epoint, epoint2, epoint3, large);
+                                vals[i] = val_reference(val);
+                                val_destroy(val);
+                            }
+                        } else vals = NULL;
+                    } else if (d1 > d2) {
+                        if (v1->u.list.len) {
+                            vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+                            if (!vals) err_msg_out_of_memory();
+                            for (;i < v1->u.list.len; i++) {
+                                val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, epoint3, large);
+                                vals[i] = val_reference(val);
+                                val_destroy(val);
+                            }
+                        } else vals = NULL;
+                    } else if (v2->u.list.len) {
+                        vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
+                        if (!vals) err_msg_out_of_memory();
+                        for (;i < v2->u.list.len; i++) {
+                            val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
+                            vals[i] = val_reference(val);
+                            val_destroy(val);
+                        }
+                    } else vals = NULL;
+                    new_value.type = t1;
+                    new_value.u.list.len = i;
+                    new_value.u.list.data = vals;
+                    return &new_value;
+                }
             case O_EQ:
                 val = val_equal(v1, v2);
             listcomp:
