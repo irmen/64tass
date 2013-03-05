@@ -1184,6 +1184,195 @@ static inline int utf8len(uint8_t ch) {
     return 6;
 }
 
+static ival_t indexoffs(const struct value_s *v, size_t len) {
+    switch (v->type) {
+    case T_UINT:
+    case T_SINT:
+    case T_LABEL:
+    case T_NUM:
+    case T_BOOL: break;
+    default: return -1;
+    }
+
+    if (v->type != T_SINT || v->u.num.val >= 0) {
+        if ((uval_t)v->u.num.val < len) return (uval_t)v->u.num.val;
+    } else {
+        if ((uval_t)-v->u.num.val <= len) return len + v->u.num.val;
+    }
+    return -1;
+}
+
+static void str_iindex(struct values_s *vals, const struct value_s *list, unsigned int epoint) {
+    struct value_s *val;
+    uint8_t *p, *p2;
+    size_t len;
+    ival_t offs;
+    size_t i;
+
+    val = vals->val;
+    len = val->u.str.chars;
+    new_value.u.str.chars = list->u.list.len;
+    if (!new_value.u.str.chars) {
+        val_replace(&vals->val, &null_str);return;
+    }
+    if (val->u.str.len == val->u.str.chars) {
+        new_value.u.str.len = new_value.u.str.chars;
+        p = new_value.u.str.data = malloc(new_value.u.str.len);
+        if (!p) err_msg_out_of_memory();
+        for (i = 0; i < list->u.list.len; i++) {
+            offs = indexoffs(list->u.list.data[i], len);
+            if (offs < 0) {
+                free(new_value.u.str.data);
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+                return;
+            }
+            *p++ = val->u.str.data[offs];
+        }
+    }
+    else {
+        ival_t j, k;
+        size_t i, m = val->u.str.len;
+        p = malloc(m);
+        if (!p) err_msg_out_of_memory();
+        new_value.u.str.data = p;
+        p2 = val->u.str.data;
+        j = 0;
+
+        for (i = 0; i < list->u.list.len; i++) {
+            offs = indexoffs(list->u.list.data[i], len);
+            if (offs < 0) {
+                free(new_value.u.str.data);
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+                return;
+            }
+            while (offs != j) {
+                if (offs > j) {
+                    p2 += utf8len(*p2);
+                    j++;
+                } else {
+                    do { p2--; } while (*p2 >= 0x80 && *p2 < 0xc0);
+                    j--;
+                }
+            }
+            k = utf8len(*p2);
+            if ((size_t)(p + k - new_value.u.str.data) > m) {
+                uint8_t *r = new_value.u.str.data;
+                m += 4096;
+                new_value.u.str.data = realloc(new_value.u.str.data, m);
+                if (!new_value.u.str.data) err_msg_out_of_memory();
+                p += new_value.u.str.data - r;
+            }
+            memcpy(p, p2, k);p += k;
+        }
+        new_value.u.str.len = p - new_value.u.str.data;
+        new_value.u.str.data = realloc(new_value.u.str.data, new_value.u.str.len);
+        if (!new_value.u.str.data) err_msg_out_of_memory();
+    }
+    new_value.type = T_STR;
+    val_replace(&vals->val, &new_value); val_destroy(&new_value);
+}
+
+static void list_iindex(struct values_s *vals, const struct value_s *list, unsigned int epoint) {
+    struct value_s *val;
+    size_t i;
+    size_t len;
+    ival_t offs;
+
+    val = vals->val;
+    len = val->u.list.len;
+    new_value.type = vals->val->type;
+    new_value.u.list.len = list->u.list.len;
+    if (!new_value.u.list.len) {
+        val_replace(&vals->val, (new_value.type == T_TUPLE) ? &null_tuple : &null_list);return;
+    }
+    new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
+    if (!new_value.u.list.data) err_msg_out_of_memory();
+    for (i = 0; i < list->u.list.len; i++) {
+        offs = indexoffs(list->u.list.data[i], len);
+        if (offs < 0) {
+            free(new_value.u.list.data);
+            err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+            return;
+        }
+        new_value.u.list.data[i] = val_reference(val->u.list.data[offs]);
+    }
+    val_replace(&vals->val, &new_value); val_destroy(&new_value);
+}
+
+static void label_iindex(struct values_s *vals, const struct value_s *list, unsigned int epoint) {
+    struct value_s **val;
+    struct label_s *l;
+    size_t i, i2;
+    size_t len, len2;
+    size_t offs2;
+    int16_t r;
+    ival_t offs;
+
+    l = vals->val->u.num.label;
+    if (l->upass != pass) {
+        new_value.type = T_UNDEF;
+        val_replace(&vals->val, &new_value);
+        return;
+    }
+    if (!list->u.list.len) {
+        val_replace(&vals->val, &null_tuple);return;
+    }
+    val = malloc(list->u.list.len * sizeof(new_value.u.list.data[0]));
+    if (!val) err_msg_out_of_memory();
+    len2 = l->esize + !l->esize;
+    len = l->size / len2;
+    new_value.u.num.len = len2 * 8;
+    for (i = 0; i < list->u.list.len; i++) {
+        offs = indexoffs(list->u.list.data[i], len);
+        if (offs < 0) {
+            free(val);
+            err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+            return;
+        }
+        offs2 = offs * len2;
+        new_value.u.num.val = 0;
+        r = -1;
+        for (i2 = 0; i2 < len2; i2++) {
+            r = read_mem(l->memp, l->membp, offs2++);
+            if (r < 0) break;
+            new_value.u.num.val |= r << (i2 * 8);
+        }
+        if (l->sign && (r & 0x80)) {
+            for (; i2 < sizeof(new_value.u.num.val); i2++) {
+                new_value.u.num.val |= 0xff << (i2 * 8);
+            }
+        }
+        new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
+        val[i] = val_reference(&new_value);
+    }
+    new_value.type = T_TUPLE;
+    new_value.u.list.data = val;
+    new_value.u.list.len = list->u.list.len;
+    val_replace(&vals->val, &new_value); val_destroy(&new_value);
+}
+
+static void bits_iindex(struct values_s *vals, const struct value_s *list, unsigned int epoint) {
+    struct value_s *val;
+    size_t i;
+    size_t len;
+    ival_t offs;
+
+    val = vals->val;
+    len = val->u.num.len;
+    new_value.type = T_NUM;
+    new_value.u.num.len = (list->u.list.len < 8*sizeof(uval_t)) ? list->u.list.len : 8*sizeof(uval_t);
+    new_value.u.num.val = 0;
+    for (i = 0; i < list->u.list.len; i++) {
+        offs = indexoffs(list->u.list.data[i], len);
+        if (offs < 0) {
+            err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+            return;
+        }
+        new_value.u.num.val |= ((vals->val->u.num.val >> offs) & 1) << i;
+    }
+    val_replace(&vals->val, &new_value);
+}
+
 static void str_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t step) {
     struct value_s *val;
     uint8_t *p, *p2;
@@ -1236,42 +1425,24 @@ static void str_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t ste
             }
         }
         else {
-            ival_t i = offs, j, k;
-            p = val->u.str.data;
+            ival_t i, j, k;
+            p = malloc(val->u.str.len);
+            if (!p) err_msg_out_of_memory();
+            p2 = val->u.str.data;
+            new_value.u.str.data = p;
             new_value.u.str.len = 0;
             for (i = 0; i < offs; i++) {
-                p += utf8len(*p);
-            }
-            p2 = p;
-            if (step > 0) {
-                for (k = offs; i < end; i++) {
-                    j = utf8len(*p2);
-                    if (i == k) {new_value.u.str.len += j; k += step;}
-                    p2 += j;
-                }
-            } else {
                 p2 += utf8len(*p2);
-                for (k = i = offs; i > end; i--) {
-                    j = 0;
-                    do {
-                        p2--;j++;
-                    } while (*p2 >= 0x80 && *p2 < 0xc0);
-                    if (i == k) {new_value.u.str.len += j; k += step;}
-                }
             }
-            p2 = p;
-            p = malloc(new_value.u.str.len);
-            if (!p) err_msg_out_of_memory();
-            new_value.u.str.data = p;
             if (step > 0) {
-                for (k = i = offs; i < end; i++) {
+                for (k = i; i < end; i++) {
                     j = utf8len(*p2);
                     if (i == k) {memcpy(p, p2, j);p += j; k += step;}
                     p2 += j;
                 }
             } else {
                 p2 += utf8len(*p2);
-                for (k = i = offs; i > end; i--) {
+                for (k = i; i > end; i--) {
                     j = 0;
                     do {
                         p2--;j++;
@@ -1279,6 +1450,9 @@ static void str_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t ste
                     if (i == k) {memcpy(p, p2, j);p += j; k += step;}
                 }
             }
+            new_value.u.str.len = p - new_value.u.str.data;
+            new_value.u.str.data = realloc(new_value.u.str.data, new_value.u.str.len);
+            if (!new_value.u.str.data) err_msg_out_of_memory();
         }
         new_value.type = T_STR;
         val_replace(&vals->val, &new_value); val_destroy(&new_value);
@@ -1489,6 +1663,15 @@ static void indexes(struct values_s *vals, unsigned int args) {
                     }
                 }
                 return;
+            case T_LIST:
+            case T_TUPLE:
+                switch (vals->val->type) {
+                case T_STR: str_iindex(vals, v[0].val, v[0].epoint); return;
+                case T_LABEL: label_iindex(vals, v[0].val, v[0].epoint); return;
+                case T_LIST:
+                case T_TUPLE: list_iindex(vals, v[0].val, v[0].epoint); return;
+                default: bits_iindex(vals, v[0].val, v[0].epoint); return;
+                }
             default: err_msg_invalid_oper(O_INDEX, v[0].val, NULL, v[0].epoint);
             case T_NONE: 
                 val_replace(&vals->val, &none_value);
@@ -2166,7 +2349,6 @@ strretr:
     if (t1 == T_LIST || t1 == T_TUPLE) {
         if (t1 == t2) {
             size_t i;
-            int val;
             switch (op) {
             case O_MUL:
             case O_DIV:
@@ -2253,12 +2435,23 @@ strretr:
                     return &new_value;
                 }
             case O_EQ:
-                val = val_equal(v1, v2);
-            listcomp:
-                return val ? &true_value : &false_value;
+                {
+                    size_t i;
+                    if (v1->u.list.len != v2->u.list.len) return &false_value;
+                    for (i = 0;i < v2->u.list.len; i++) {
+                        if (apply_op2(op, v1->u.list.data[i], v2->u.list.data[i], epoint, epoint2, epoint3, large) == &false_value) return &false_value;
+                    }
+                    return &true_value;
+                }
             case O_NEQ:
-                val = !val_equal(v1, v2);
-                goto listcomp;
+                {
+                    size_t i;
+                    if (v1->u.list.len != v2->u.list.len) return &true_value;
+                    for (i = 0;i < v2->u.list.len; i++) {
+                        if (apply_op2(op, v1->u.list.data[i], v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
+                    }
+                    return &false_value;
+                }
             case O_CONCAT:
                 new_value.type = t1;
                 new_value.u.list.len = v1->u.list.len + v2->u.list.len;
