@@ -209,7 +209,7 @@ x << y   logical shift left               1 << 3 is 8
 x >> y   arithmetic shift right           -8 >> 3 is -1
 ~x       invert bits                      ~%101 is %010
 ..       concatenate bits                 $a..$b is $ab
-x[n]     extract bit                      $a[1] is 0
+x[n]     extract bit(s)                   $a[1] is 0
 x[s]     slice bits                       $1234[4:8] is $3
 len(a)   length in bits                   len($034) is 12
 float(a) convert to floating point        float(1) is 1.0
@@ -329,7 +329,8 @@ encoding and escape rules, for example when using a sane encoding "z" - "a" is
 
 Indexing characters with positive integers start with zero. Negative indexes
 are translated internally by adding the number of characters to them, therefore
--1 can be used to access the last character.
+-1 can be used to access the last character. Indexing with list of integers is
+possible as well so "abc"[(-1, 0, 1)] is "cab".
 
 Slicing is an operation when parts of string are extracted from a start
 position to an end position with a step value. These parameters are separated
@@ -385,7 +386,8 @@ stretched to fill in the gaps if possible, so [[1],[2]] * [3, 4] is [[3, 4],
 
 Indexing elements with positive integers start with zero. Negative indexes are
 transformed to positive by adding the number of elements to them, therefor -1
-is the last element.
+is the last element. Indexing with list of integers is possible as well so [1,
+2, 3][(-1, 0, 1)] is [3, 1, 2].
 
 Slicing is an operation when parts of list or tuple are extracted from a start
 position to an end position with a step value. These parameters are separated
@@ -881,7 +883,9 @@ Macros
 
 .macro
     Each invocation is a copy of the macro's content. The code is enclosed in
-    it's own block so symbols inside are non-accessible.
+    it's own block so symbols inside are non-accessible, unless a label is
+    prefixed at the place of use, then local labels can be accessed through
+    that label.
 .segment
     Only copies the code segment as it is, so symbols can be used from outside,
     but this also means multiple use will result in double defines unless

@@ -258,7 +258,7 @@ static void add_user_error(const char *s) {
 }
 
 void err_msg_variable(struct value_s *val, int repr) {
-    char buffer[100];
+    char buffer[100], buffer2[100];
 
     if (!val) {user_error.p=0;return;}
     switch (val->type) {
@@ -266,10 +266,8 @@ void err_msg_variable(struct value_s *val, int repr) {
     case T_UINT: sprintf(buffer,"%" PRIuval, val->u.num.val); add_user_error(buffer); break;
     case T_LABEL:
     case T_NUM: {
-        if (val->u.num.val<0x100) sprintf(buffer,"$%02" PRIxval, val->u.num.val);
-        else if (val->u.num.val<0x10000) sprintf(buffer,"$%04" PRIxval, val->u.num.val);
-        else if (val->u.num.val<0x1000000) sprintf(buffer,"$%06" PRIxval, val->u.num.val);
-        else sprintf(buffer,"$%08" PRIxval, val->u.num.val);
+        sprintf(buffer2,"$%%0%d%s", (val->u.num.len + 3) / 4 + !val->u.num.len, PRIxval);
+        sprintf(buffer, buffer2, val->u.num.val);
         add_user_error(buffer); break;
     }
     case T_FLOAT:

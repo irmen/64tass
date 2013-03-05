@@ -250,7 +250,7 @@ encoding at the place of use. The following operations are accepted:</p>
 <!-- <tr><td><tt>x &gt;&gt;&gt; y</tt><td>logical shift right<td>-8 &gt;&gt; 3 is -1 -->
 <tr><td><tt>~x</tt><td>invert bits<td><code>~%101</code> is <code>%010</code>
 <tr><td><tt>..</tt><td>concatenate bits<td><code>$a..$b</code> is <code>$ab</code>
-<tr><td><tt>x[n]</tt><td>extract bit<td><code>$a[1]</code> is <code>0</code>
+<tr><td><tt>x[n]</tt><td>extract bit(s)<td><code>$a[1]</code> is <code>0</code>
 <tr><td><tt>x[s]</tt><td>slice bits<td><code>$1234[4:8]</code> is <code>$3</code>
 <tr><td>len(a)<td>length in bits<td><code><code>len($034)</code> is <code>12</code>
 <tr><td>float(a)<td>convert to floating point<td><code><code>float(1)</code> is <code>1.0</code>
@@ -377,9 +377,10 @@ Doubling the quotes inside the strings escapes them.</p>
 encoding and escape rules, for example when using a sane encoding <code>"z" - "a"</code> is
 <code>25</code>.</p>
 
-<p>Indexing characters with positive integers start with zero. Negative indexes are
-translated internally by adding the number of characters to them, therefore -1
-can be used to access the last character.</p>
+<p>Indexing characters with positive integers start with zero. Negative indexes
+are translated internally by adding the number of characters to them, therefore
+-1 can be used to access the last character. Indexing with list of integers is
+possible as well so <code>"abc"[(-1, 0, 1)]</code> is <code>"cab"</code>.</p>
 
 <p>Slicing is an operation when parts of string are extracted from a start
 position to an end position with a step value. These parameters are separated
@@ -439,7 +440,8 @@ is <code>[[3, 4], [6, 8]]</code>.</p>
 
 <p>Indexing elements with positive integers start with zero. Negative indexes
 are transformed to positive by adding the number of elements to them, therefor
--1 is the last element.</p>
+-1 is the last element. Indexing with list of integers is possible as well so
+<code>[1, 2, 3][(-1, 0, 1)]</code> is <code>[3, 1, 2]</code>.</p>
 
 <p>Slicing is an operation when parts of list or tuple are extracted from a
 start position to an end position with a step value. These parameters are
@@ -998,7 +1000,8 @@ are assigned after in the <q>zp</q> section.</p>
 <dl class="dir">
 <dt><b>.macro</b>
 <dd>Each invocation is a copy of the macro's content. The code is enclosed in
-it's own block so symbols inside are non-accessible.
+it's own block so symbols inside are non-accessible, unless a label is prefixed
+at the place of use, then local labels can be accessed through that label.
 <dt><b>.segment</b>
 <dd>Only copies the code segment as it is, so symbols can be used from
 outside, but this also means multiple use will result in double defines
