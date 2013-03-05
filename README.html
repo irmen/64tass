@@ -87,9 +87,9 @@ using an intermediate temporary file:</p>
 <span>clean:</span>
         $(RM) <span class="cmd">demo.prg demo.tmp</span>
 </pre>
-<p>Another useful thing is to add a basic header to your source files
-like the one below, so that the resulting file is directly runnable
-without additional compression:</p>
+<p>It's useful to add a basic header to your source files like the one below,
+so that the resulting file is directly runnable without additional
+compression:</p>
 <pre>
         <b>*=</b> <span>$0801</span>
         <b class="d">.word</b> (<span class="l">+</span>), <span>2005</span>  <i>;pointer, line number</i>
@@ -210,404 +210,6 @@ can be used, but only with normal or anonymous labels defined after the jump
 instruction.</p>
 
 <p>There are some other tips below in the descriptions.</p>
-
-<hr>
-<h2>Command line options</h2>
-
-<h3>Output options</h3>
-
-<dl class="dir">
-<dt><b>-o</b> &lt;filename&gt;
-<dd>Place output into &lt;filename&gt;
-<p>The default output filename is <q>a.out</q>. This option changes it.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass a.asm -o a.prg
-</pre>
-</fieldset>
-
-<dt><b>-b</b>, <b>--nostart</b>
-<dd>Strip starting address
-<p>Strips the 2 or 3 byte starting address before the resulting binary.
-Useful for creating small ROM images.</p>
-
-<dt><b>-f</b>, <b>--flat</b>
-<dd>Flat output mode
-<p>Output the plain binary image from offset 0. The image size can be much larger than
-the processor address space. Useful for creating huge multi bank ROM files.</p>
-
-<dt><b>-n</b>, <b>--nonlinear</b>
-<dd>Generate nonlinear output file
-<p>Generates non-linear output for linkers.
-Format: length, address, code, length, ...</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --nonlinear a.asm
-        <b>*=</b> <span>$1000</span>
-        <b>lda</b> #<span>2</span>
-        <b>*=</b> <span>$2000</span>
-	<b>nop</b>
-result:
-$02, $00 ;little endian length, 2 bytes
-$00, $10 ;little endian start $1000
-$a9, $02 ;code
-$01, $00 ;little endian length, 1 byte
-$00, $20 ;little endian start $2000
-$ea	 ;code
-$00, $00 ;end marker (length=0)
-</pre>
-</fieldset>
-
-<dt><b>-W</b>, <b>--wordstart</b>
-<dd>Force 2 byte start address
-<p>If 16&nbsp;MiB address space is used for a 65816, then the starting
-address of file will be 3 bytes long. This option makes it 2 bytes long.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --wordstart --m65816 a.asm
-</pre>
-</fieldset>
-
-</dl>
-
-<h3>Operation options</h3>
-
-<dl class="dir">
-<dt><b>-a</b>, <b>--ascii</b>
-<dd>Use ASCII/Unicode text encoding instead of raw 8-bit
-<p>Normally no conversion takes place, this is for backwards compatibility with
-a DOS based Turbo Assembler editor, which could create PETSCII files for
-6502tass. (including control characters of course)</p>
-<p>Using this option will change the default <q>none</q> and <q>screen</q> encodings to
-map 'a'-'z' and 'A'-'Z' into the correct PETSCII range of $41-$5A and $C1-$DA,
-which is more suitable for an ASCII editor. It also adds predefined petcat style
-PETASCII literals to the default encodings.</p>
-<p><b>For writing sources in utf8/utf16 encodings this option is required!</b> The
-symbol names are still limited to ASCII, but custom string encodings can take
-advantage of the full unicode set.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass a.asm
-
-.0000    a9 61          lda #$61        <b>lda</b> #<span class="s">"a"</span>
-
-&gt;0002    31 61 41                       <b class="d">.text</b> <span class="s">"1aA"</span>
-&gt;0005    7b 63 6c 65 61 72 7d 74        <b class="d">.text</b> <span class="s">"{clear}text{return}more"</span>
-&gt;000e    65 78 74 7b 72 65 74 75
-&gt;0016    72 6e 7d 6d 6f 72 65
-
-64tass --ascii a.asm
-
-.0000    a9 41          lda #$41        <b>lda</b> #<span class="s">"a"</span>
-&gt;0002    31 41 c1                       <b class="d">.text</b> <span class="s">"1aA"</span>
-&gt;0005    93 54 45 58 54 0d 4d 4f        <b class="d">.text</b> <span class="s">"<span>{clear}</span>text<span>{return}</span>more"</span>
-&gt;000e    52 45
-</pre>
-</fieldset>
-
-<dt><b>-B</b>, <b>--long-branch</b>
-<dd>Automatic <code>BXX *+5 JMP xxx</code>
-<p>Branch too long messages can be annoying sometimes, usually they'll result
-in an <code>BXX *+5 JMP xxx</code> rewrite. 64tass can do this automatically if this option is
-used. But <code>BRA</code> is not converted.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass a.asm
-        <b>*=</b> <span>$1000</span>
-        <b>bcc</b> <span>$1233</span>	<i>;error...</i>
-
-64tass a.asm
-        <b>*=</b> <span>$1000</span>
-        <b>bcs</b> *+<span>5</span>		<i>;opposite condition</i>
-        <b>jmp</b> <span>$1233</span>	<i>;as simple workaround</i>
-
-64tass --long-branch a.asm
-        <b>*=</b> <span>$1000</span>
-        <b>bcc</b> <span>$1233</span>	<i>;no error, automatically converted to the above one.</i>
-</pre>
-</fieldset>
-
-<dt><b>-C</b>, <b>--case-sensitive</b>
-<dd>Case sensitive labels
-<p>Labels are non case sensitive by default, this option changes that.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass a.asm
-label	<b>nop</b>
-Label	<b>nop</b>	<i>;double defined...</i>
-
-64tass --case-sensitive a.asm
-label   <b>nop</b>
-Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
-</pre>
-</fieldset>
-
-<dt><b>-D</b> &lt;label&gt;=&lt;value&gt;
-<dd>Define &lt;label&gt; to &lt;value&gt;
-<p>Defines a label to a value. Same syntax is allowed as in source files. Be careful with
-string quoting, the shell might eat some of the characters.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass -D ii=2 a.asm
-        <b>lda</b> #<span class="l">ii</span> <i>;result: $a9, $02</i>
-</pre>
-</fieldset>
-
-<dt><b>-w</b>, <b>--no-warn</b>
-<dd>Suppress warnings
-<p>Disables warnings during compile.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --no-warn a.asm
-</pre>
-</fieldset>
-
-<dt><b>-q</b>, <b>--quiet</b>
-<dd>Suppress messages
-<p>Disables header and summary messages.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --quiet a.asm
-</pre>
-</fieldset>
-
-<dt><b>-T</b>, <b>--tasm-compatible</b>
-<dd>Enable TASM compatible operators and precedence
-<p>Switches the expression evaluator into compatibility mode. This
-enables <q>.</q>, <q>:</q> and <q>!</q> operators and disables 64tass specific extensions, disables precedence handling
-and forces 16&nbsp;bit unsigned evaluation (see <q>differences to original Turbo Assembler</q> below)</p>
-
-<dt><b>-I</b> &lt;path&gt;
-<dd>Specify include search path
-<p>If an included source or binary file can't be found in the directory of the
-source file then this path is tried. More than one directories can be specified
-by repeating this option. If multiple matches exist the first one is used.</p>
-</dl>
-
-<h3>Target selection on command line</h3>
-<p>These options will select the default architecture. It can be overridden by
-using the <code>.cpu</code> directive in the source.</p>
-
-<dl class="dir">
-<dt><b>--m65xx</b>
-<dd>Standard 65xx (default)
-<p>Selects standard 6502. For writing compatible code, no extra codes. This is the default.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --m65xx a.asm
-        <b>lda</b> <span>$14</span>		<i>;regular instructions</i>
-</pre>
-</fieldset>
-
-<dt><b>-c</b>, <b>--m65c02</b>
-<dd>CMOS 65C02
-<p>Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --m65c02 a.asm
-        <b>stz</b> <span>$d020</span>	<i>;65c02 instruction</i>
-</pre>
-</fieldset>
-
-<dt><b>-c</b>, <b>--m65ce02</b>
-<dd>CSG 65CE02
-<p>Selects 65ce02. Enables extra opcodes and addressing modes specific to this CPU.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --m65ce02 a.asm
-        <b>inz</b>
-</pre>
-</fieldset>
-
-<dt><b>-i</b>, <b>--m6502</b>
-<dd>NMOS 65xx
-<p>Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64, disk drive code, etc.</p>
-<legend>Example</legend>
-<fieldset>
-<pre>
-64tass --m6502 a.asm
-        <b>lax</b> <span>$14</span>		<i>;illegal instruction</i>
-</pre>
-</fieldset>
-
-<dt><b>-t</b>, <b>--m65dtv02</b>
-<dd>65DTV02
-<p>Selects 65DTV02. Enables extra opcodes specific to DTV.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --m65dtv02 a.asm
-        <b>sac</b> #<span>$00</span>
-</pre>
-</fieldset>
-
-<dt><b>-x</b>, <b>--m65816</b>
-<dd>W65C816
-<p>Selects 65816. Enables extra opcodes, and full 16&nbsp;MiB address space.
-Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones ;)</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --m65816 a.asm
-        <b>lda</b> <span>$123456</span>,x
-</pre>
-</fieldset>
-
-<dt><b>-e</b>, <b>--m65el02</b>
-<dd>65EL02
-<p>Selects 65EL02. Enables extra opcodes, useful <a href="http://www.eloraam.com/nonwp/redcpu.php">RedPower CPU</a> projects. Probably you'll need <q>--nostart</q> as well.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --m65el02 a.asm
-        <b>lda</b> <span>0</span>,r
-</pre>
-</fieldset>
-
-<dt><b>--mr65c02</b>
-<dd>R65C02
-<p>Selects r65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --mr65c02 a.asm
-        <b>rmb</b> <span>7</span>,<span>$20</span>
-</pre>
-</fieldset>
-
-<dt><b>--mw65c02</b>
-<dd>W65C02
-<p>Selects w65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --mw65c02 a.asm
-        <b>wai</b>
-</pre>
-</fieldset>
-</dl>
-
-<h3>Source listing options</h3>
-
-<dl class="dir">
-<dt><b>-l</b> &lt;file&gt;
-<dd>List labels into &lt;file&gt;
-<p>List global labels to a file. Unused ones are marked with a comment.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass -l labels.txt a.asm
-        <b>*=</b> <span>$1000</span>
-label
-
-result (labels.txt):
-label           = $1000    ; *** unused
-</pre>
-</fieldset>
-
-<dt><b>-L</b> &lt;file&gt;
-<dd>List into &lt;file&gt;
-<p>Dumps source code and compiled code into file. Useful for debugging,
-it's much easier to identify the code in memory within the source files.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass -L list.txt a.asm
-        <b>*=</b> <span>$1000</span>
-        <b>ldx</b> #<span>0</span>
-loop	<b>dex</b>
-        <b>bne</b> <span class="l">loop</span>
-	<b>rts</b>
-
-result (list.txt):
-
-;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
-;done on Fri Dec  9 19:08:55 2005
-
-
-.1000	 a2 00		ldx #$00		ldx #0
-.1002	 ca		dex		loop	dex
-.1003	 d0 fd		bne $1002		bne loop
-.1005	 60		rts			rts
-
-;******  end of code
-</pre>
-</fieldset>
-
-<dt><b>-m</b>, <b>--no-monitor</b>
-<dd>Don't put monitor code into listing
-<p>There won't be any monitor listing in the list file.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --no-monitor -L list.txt a.asm
-
-result (list.txt):
-
-;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
-;done on Fri Dec  9 19:11:43 2005
-
-
-.1000	 a2 00					ldx #0
-.1002	 ca				loop	dex
-.1003	 d0 fd					bne loop
-.1005	 60					rts
-
-;******  end of code
-</pre>
-</fieldset>
-
-<dt><b>-s</b>, <b>--no-source</b>
-<dd>Don't put source code into listing
-<p>There won't be any source listing in the list file.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
-64tass --no-source -L list.txt a.asm
-
-result (list.txt):
-
-;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
-;done on Fri Dec  9 19:13:25 2005
-
-
-.1000	 a2 00		ldx #$00
-.1002	 ca		dex
-.1003	 d0 fd		bne $1002
-.1005	 60		rts
-
-;******  end of code
-</pre>
-</fieldset>
-</dl>
-
-<h3>Other options</h3>
-
-<dl class="dir">
-<dt><b>-?</b>, <b>--help</b>
-<dd>Give this help list
-<p>Prints help about command line options.</p>
-
-<dt><b>--usage</b>
-<dd>Give a short usage message
-<p>Prints short help about command line options.</p>
-
-<dt><b>-V</b>, <b>--version</b>
-<dd>Print program version
-<p>Prints program version.</p>
-</dl>
 
 <hr>
 <h2>Expressions and data types</h2>
@@ -824,8 +426,16 @@ types are immutable.</p>
 
 <p>A list or tuple has a truth value of &lt;true&gt; if it contains at least one element.</p>
 
-<p>When arithmetic operations are applied they execute on the all elements
-recursively, therefore <code>[1, 2] + 1</code> is <code>[2, 3]</code>, and <code>abs([1, -1])</code> is <code>[1, 1]</code>.</p>
+<p>Arithmetic operations are applied on the all elements recursively,
+therefore <code>[1, 2] + 1</code> is <code>[2, 3]</code>, and <code>abs([1,
+-1])</code> is <code>[1, 1]</code>.</p>
+
+<p>Arithmetic operations between lists are applied one by one on their
+elements, so <code>[1, 2] + [3, 4]</code> is <code>[4, 6]</code>.</p>
+
+<p>When lists form an array and columns/rows are missing the smaller array is
+stretched to fill in the gaps if possible, so <code>[[1],[2]] * [3, 4]</code>
+is <code>[[3, 4], [6, 8]]</code>.</p>
 
 <p>Indexing elements with positive integers start with zero. Negative indexes
 are transformed to positive by adding the number of elements to them, therefor
@@ -950,9 +560,9 @@ reference to constant objects over compilation passes.</p>
 <pre width=80>
 border  <b>=</b> <span>$d020</span>     <i>;a constant reference</i>
 f       <b class="k">.block</b>
-g       <b class="k">.block</b>
-n       <b>nop</b>         <i>;jump here</i>
-	<b class="k">.bend</b>
+g        <b class="k">.block</b>
+n        <b>nop</b>        <i>;jump here</i>
+	 <b class="k">.bend</b>
 	<b class="k">.bend</b>
 
         <b>inc</b> <span class="l">border</span>  <i>;inc $d020</i>
@@ -1370,15 +980,15 @@ are assigned after in the <q>zp</q> section.</p>
 <pre width=80>
         <b>*=</b> <span>$02</span>
         <b class="k">.union</b>          <i>;spare some memory</i>
-        <b class="k">.struct</b>
-        <b class="k">.dsection</b> <span class="l">zp1</span>   <i>;declare zp1 section</i>
-        <b class="k">.send</b> <span class="l">zp1</span>
-        <b class="k">.ends</b>
-        <b class="k">.struct</b>
-        <b class="k">.dsection</b> <span class="l">zp2</span>   <i>;declare zp2 section</i>
-        <b class="k">.send</b> <span class="l">zp2</span>
-        <b class="k">.ends</b>
-	<b class="k">.endu</b>
+         <b class="k">.struct</b>
+          <b class="k">.dsection</b> <span class="l">zp1</span> <i>;declare zp1 section</i>
+          <b class="k">.send</b> <span class="l">zp1</span>
+         <b class="k">.ends</b>
+         <b class="k">.struct</b>
+          <b class="k">.dsection</b> <span class="l">zp2</span> <i>;declare zp2 section</i>
+          <b class="k">.send</b> <span class="l">zp2</span>
+         <b class="k">.ends</b>
+        <b class="k">.endu</b>
         <b class="k">.dsection</b> <span class="l">zp</span>    <i>;declare zp section</i>
         <b class="k">.send</b> <span class="l">zp</span>
 </pre>
@@ -1913,6 +1523,404 @@ by 64tass, you will have to fix the code instead.
 <li>In some versions labels used in the first .block are globally available. If
 you get a related error move the respective label out of the .block
 </ul>
+
+<hr>
+<h2>Command line options</h2>
+
+<h3>Output options</h3>
+
+<dl class="dir">
+<dt><b>-o</b> &lt;filename&gt;
+<dd>Place output into &lt;filename&gt;
+<p>The default output filename is <q>a.out</q>. This option changes it.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass a.asm -o a.prg
+</pre>
+</fieldset>
+
+<dt><b>-b</b>, <b>--nostart</b>
+<dd>Strip starting address
+<p>Strips the 2 or 3 byte starting address before the resulting binary.
+Useful for creating small ROM images.</p>
+
+<dt><b>-f</b>, <b>--flat</b>
+<dd>Flat output mode
+<p>Output the plain binary image from offset 0. The image size can be much larger than
+the processor address space. Useful for creating huge multi bank ROM files.</p>
+
+<dt><b>-n</b>, <b>--nonlinear</b>
+<dd>Generate nonlinear output file
+<p>Generates non-linear output for linkers.
+Format: length, address, code, length, ...</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --nonlinear a.asm
+        <b>*=</b> <span>$1000</span>
+        <b>lda</b> #<span>2</span>
+        <b>*=</b> <span>$2000</span>
+	<b>nop</b>
+result:
+$02, $00 ;little endian length, 2 bytes
+$00, $10 ;little endian start $1000
+$a9, $02 ;code
+$01, $00 ;little endian length, 1 byte
+$00, $20 ;little endian start $2000
+$ea	 ;code
+$00, $00 ;end marker (length=0)
+</pre>
+</fieldset>
+
+<dt><b>-W</b>, <b>--wordstart</b>
+<dd>Force 2 byte start address
+<p>If 16&nbsp;MiB address space is used for a 65816, then the starting
+address of file will be 3 bytes long. This option makes it 2 bytes long.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --wordstart --m65816 a.asm
+</pre>
+</fieldset>
+
+</dl>
+
+<h3>Operation options</h3>
+
+<dl class="dir">
+<dt><b>-a</b>, <b>--ascii</b>
+<dd>Use ASCII/Unicode text encoding instead of raw 8-bit
+<p>Normally no conversion takes place, this is for backwards compatibility with
+a DOS based Turbo Assembler editor, which could create PETSCII files for
+6502tass. (including control characters of course)</p>
+<p>Using this option will change the default <q>none</q> and <q>screen</q> encodings to
+map 'a'-'z' and 'A'-'Z' into the correct PETSCII range of $41-$5A and $C1-$DA,
+which is more suitable for an ASCII editor. It also adds predefined petcat style
+PETASCII literals to the default encodings.</p>
+<p><b>For writing sources in utf8/utf16 encodings this option is required!</b> The
+symbol names are still limited to ASCII, but custom string encodings can take
+advantage of the full unicode set.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass a.asm
+
+.0000    a9 61          lda #$61        <b>lda</b> #<span class="s">"a"</span>
+
+&gt;0002    31 61 41                       <b class="d">.text</b> <span class="s">"1aA"</span>
+&gt;0005    7b 63 6c 65 61 72 7d 74        <b class="d">.text</b> <span class="s">"{clear}text{return}more"</span>
+&gt;000e    65 78 74 7b 72 65 74 75
+&gt;0016    72 6e 7d 6d 6f 72 65
+
+64tass --ascii a.asm
+
+.0000    a9 41          lda #$41        <b>lda</b> #<span class="s">"a"</span>
+&gt;0002    31 41 c1                       <b class="d">.text</b> <span class="s">"1aA"</span>
+&gt;0005    93 54 45 58 54 0d 4d 4f        <b class="d">.text</b> <span class="s">"<span>{clear}</span>text<span>{return}</span>more"</span>
+&gt;000e    52 45
+</pre>
+</fieldset>
+
+<dt><b>-B</b>, <b>--long-branch</b>
+<dd>Automatic <code>BXX *+5 JMP xxx</code>
+<p>Branch too long messages can be annoying sometimes, usually they'll result
+in an <code>BXX *+5 JMP xxx</code> rewrite. 64tass can do this automatically if this option is
+used. But <code>BRA</code> is not converted.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass a.asm
+        <b>*=</b> <span>$1000</span>
+        <b>bcc</b> <span>$1233</span>	<i>;error...</i>
+
+64tass a.asm
+        <b>*=</b> <span>$1000</span>
+        <b>bcs</b> *+<span>5</span>		<i>;opposite condition</i>
+        <b>jmp</b> <span>$1233</span>	<i>;as simple workaround</i>
+
+64tass --long-branch a.asm
+        <b>*=</b> <span>$1000</span>
+        <b>bcc</b> <span>$1233</span>	<i>;no error, automatically converted to the above one.</i>
+</pre>
+</fieldset>
+
+<dt><b>-C</b>, <b>--case-sensitive</b>
+<dd>Case sensitive labels
+<p>Labels are non case sensitive by default, this option changes that.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass a.asm
+label	<b>nop</b>
+Label	<b>nop</b>	<i>;double defined...</i>
+
+64tass --case-sensitive a.asm
+label   <b>nop</b>
+Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
+</pre>
+</fieldset>
+
+<dt><b>-D</b> &lt;label&gt;=&lt;value&gt;
+<dd>Define &lt;label&gt; to &lt;value&gt;
+<p>Defines a label to a value. Same syntax is allowed as in source files. Be careful with
+string quoting, the shell might eat some of the characters.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass -D ii=2 a.asm
+        <b>lda</b> #<span class="l">ii</span> <i>;result: $a9, $02</i>
+</pre>
+</fieldset>
+
+<dt><b>-w</b>, <b>--no-warn</b>
+<dd>Suppress warnings
+<p>Disables warnings during compile.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --no-warn a.asm
+</pre>
+</fieldset>
+
+<dt><b>-q</b>, <b>--quiet</b>
+<dd>Suppress messages
+<p>Disables header and summary messages.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --quiet a.asm
+</pre>
+</fieldset>
+
+<dt><b>-T</b>, <b>--tasm-compatible</b>
+<dd>Enable TASM compatible operators and precedence
+<p>Switches the expression evaluator into compatibility mode. This
+enables <q>.</q>, <q>:</q> and <q>!</q> operators and disables 64tass specific extensions, disables precedence handling
+and forces 16&nbsp;bit unsigned evaluation (see <q>differences to original Turbo Assembler</q> below)</p>
+
+<dt><b>-I</b> &lt;path&gt;
+<dd>Specify include search path
+<p>If an included source or binary file can't be found in the directory of the
+source file then this path is tried. More than one directories can be specified
+by repeating this option. If multiple matches exist the first one is used.</p>
+</dl>
+
+<h3>Target selection on command line</h3>
+<p>These options will select the default architecture. It can be overridden by
+using the <code>.cpu</code> directive in the source.</p>
+
+<dl class="dir">
+<dt><b>--m65xx</b>
+<dd>Standard 65xx (default)
+<p>Selects standard 6502. For writing compatible code, no extra codes. This is the default.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --m65xx a.asm
+        <b>lda</b> <span>$14</span>		<i>;regular instructions</i>
+</pre>
+</fieldset>
+
+<dt><b>-c</b>, <b>--m65c02</b>
+<dd>CMOS 65C02
+<p>Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --m65c02 a.asm
+        <b>stz</b> <span>$d020</span>	<i>;65c02 instruction</i>
+</pre>
+</fieldset>
+
+<dt><b>-c</b>, <b>--m65ce02</b>
+<dd>CSG 65CE02
+<p>Selects 65ce02. Enables extra opcodes and addressing modes specific to this CPU.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --m65ce02 a.asm
+        <b>inz</b>
+</pre>
+</fieldset>
+
+<dt><b>-i</b>, <b>--m6502</b>
+<dd>NMOS 65xx
+<p>Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64, disk drive code, etc.</p>
+<legend>Example</legend>
+<fieldset>
+<pre>
+64tass --m6502 a.asm
+        <b>lax</b> <span>$14</span>		<i>;illegal instruction</i>
+</pre>
+</fieldset>
+
+<dt><b>-t</b>, <b>--m65dtv02</b>
+<dd>65DTV02
+<p>Selects 65DTV02. Enables extra opcodes specific to DTV.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --m65dtv02 a.asm
+        <b>sac</b> #<span>$00</span>
+</pre>
+</fieldset>
+
+<dt><b>-x</b>, <b>--m65816</b>
+<dd>W65C816
+<p>Selects 65816. Enables extra opcodes, and full 16&nbsp;MiB address space.
+Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones ;)</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --m65816 a.asm
+        <b>lda</b> <span>$123456</span>,x
+</pre>
+</fieldset>
+
+<dt><b>-e</b>, <b>--m65el02</b>
+<dd>65EL02
+<p>Selects 65EL02. Enables extra opcodes, useful <a href="http://www.eloraam.com/nonwp/redcpu.php">RedPower CPU</a> projects. Probably you'll need <q>--nostart</q> as well.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --m65el02 a.asm
+        <b>lda</b> <span>0</span>,r
+</pre>
+</fieldset>
+
+<dt><b>--mr65c02</b>
+<dd>R65C02
+<p>Selects r65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --mr65c02 a.asm
+        <b>rmb</b> <span>7</span>,<span>$20</span>
+</pre>
+</fieldset>
+
+<dt><b>--mw65c02</b>
+<dd>W65C02
+<p>Selects w65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --mw65c02 a.asm
+        <b>wai</b>
+</pre>
+</fieldset>
+</dl>
+
+<h3>Source listing options</h3>
+
+<dl class="dir">
+<dt><b>-l</b> &lt;file&gt;
+<dd>List labels into &lt;file&gt;
+<p>List global labels to a file. Unused ones are marked with a comment.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass -l labels.txt a.asm
+        <b>*=</b> <span>$1000</span>
+label
+
+result (labels.txt):
+label           = $1000    ; *** unused
+</pre>
+</fieldset>
+
+<dt><b>-L</b> &lt;file&gt;
+<dd>List into &lt;file&gt;
+<p>Dumps source code and compiled code into file. Useful for debugging,
+it's much easier to identify the code in memory within the source files.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass -L list.txt a.asm
+        <b>*=</b> <span>$1000</span>
+        <b>ldx</b> #<span>0</span>
+loop	<b>dex</b>
+        <b>bne</b> <span class="l">loop</span>
+	<b>rts</b>
+
+result (list.txt):
+
+;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
+;done on Fri Dec  9 19:08:55 2005
+
+
+.1000	 a2 00		ldx #$00		ldx #0
+.1002	 ca		dex		loop	dex
+.1003	 d0 fd		bne $1002		bne loop
+.1005	 60		rts			rts
+
+;******  end of code
+</pre>
+</fieldset>
+
+<dt><b>-m</b>, <b>--no-monitor</b>
+<dd>Don't put monitor code into listing
+<p>There won't be any monitor listing in the list file.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --no-monitor -L list.txt a.asm
+
+result (list.txt):
+
+;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
+;done on Fri Dec  9 19:11:43 2005
+
+
+.1000	 a2 00					ldx #0
+.1002	 ca				loop	dex
+.1003	 d0 fd					bne loop
+.1005	 60					rts
+
+;******  end of code
+</pre>
+</fieldset>
+
+<dt><b>-s</b>, <b>--no-source</b>
+<dd>Don't put source code into listing
+<p>There won't be any source listing in the list file.</p>
+<fieldset>
+<legend>Example</legend>
+<pre>
+64tass --no-source -L list.txt a.asm
+
+result (list.txt):
+
+;64tass Turbo Assembler Macro V1.5x listing file of "a.asm"
+;done on Fri Dec  9 19:13:25 2005
+
+
+.1000	 a2 00		ldx #$00
+.1002	 ca		dex
+.1003	 d0 fd		bne $1002
+.1005	 60		rts
+
+;******  end of code
+</pre>
+</fieldset>
+</dl>
+
+<h3>Other options</h3>
+
+<dl class="dir">
+<dt><b>-?</b>, <b>--help</b>
+<dd>Give this help list
+<p>Prints help about command line options.</p>
+
+<dt><b>--usage</b>
+<dd>Give a short usage message
+<p>Prints short help about command line options.</p>
+
+<dt><b>-V</b>, <b>--version</b>
+<dd>Print program version
+<p>Prints program version.</p>
+</dl>
 
 <hr>
 <h2>Messages</h2>
