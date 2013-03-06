@@ -2333,7 +2333,26 @@ strretr:
                     }
                     return &false_value;
                 }
-            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            case O_X:
+            case O_CONCAT:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            default:
+                {
+                    size_t i = 0;
+                    struct value_s **vals, *val;
+                    if (v2->u.list.len) {
+                        vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
+                        if (!vals) err_msg_out_of_memory();
+                        for (;i < v2->u.list.len; i++) {
+                            val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
+                            vals[i] = val_reference(val);
+                            val_destroy(val);
+                        }
+                    } else vals = NULL;
+                    new_value.type = t2;
+                    new_value.u.list.len = i;
+                    new_value.u.list.data = vals;
+                    return &new_value;
+                }
             }
         }
         if (t2 == T_STR && op != O_IN && op != O_CONCAT && op != O_X) {
