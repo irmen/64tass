@@ -2707,6 +2707,7 @@ static int get_val2(int stop) {
             case T_STR:
             case T_UINT:
             case T_SINT: 
+            case T_NUM:
             case T_BOOL:
             case T_LIST:
             case T_TUPLE:
