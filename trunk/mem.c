@@ -250,18 +250,28 @@ void list_mem(FILE *flist, address_t all_mem, const uint8_t **llist, int dooutpu
     unsigned int i, lcol;
     address_t myaddr;
     size_t len;
-    for (;omemp <= memblocks.p;omemp++) {
+    int first = 1;
+
+    for (;omemp <= memblocks.p;omemp++, first = 0) {
         lcol=arguments.source?25:49;
         if (omemp < memblocks.p) {
-            len = memblocks.data[omemp].len - (ptextaddr - memblocks.data[omemp].p);
-            myaddr = (memblocks.data[omemp].start + memblocks.data[omemp].len - len) & all_mem;
+            if (first && oaddr < memblocks.data[omemp].start) {
+                len = 0; myaddr = oaddr; omemp--;
+            } else {
+                len = memblocks.data[omemp].len - (ptextaddr - memblocks.data[omemp].p);
+                myaddr = (memblocks.data[omemp].start + memblocks.data[omemp].len - len) & all_mem;
+            }
         } else {
-            myaddr = memblocklaststart + (ptextaddr - memblocklastp);
-            len = mem.p - ptextaddr;
-            if (!len) {
-                if (!*llist) continue;
-                if (omemp) myaddr = (memblocks.data[omemp-1].start + memblocks.data[omemp-1].len) & all_mem;
-                else myaddr = oaddr;
+            if (first && oaddr < memblocklaststart) {
+                len = 0; myaddr = oaddr; omemp--;
+            } else {
+                myaddr = memblocklaststart + (ptextaddr - memblocklastp);
+                len = mem.p - ptextaddr;
+                if (!len) {
+                    if (!*llist) continue;
+                    if (omemp) myaddr = (memblocks.data[omemp-1].start + memblocks.data[omemp-1].len) & all_mem;
+                    else myaddr = oaddr;
+                }
             }
         }
         if (*lastl != LIST_DATA) {putc('\n',flist);*lastl = LIST_DATA;}
