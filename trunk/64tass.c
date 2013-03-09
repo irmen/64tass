@@ -285,7 +285,10 @@ static void memskip(address_t db) {
         if (fixeddig) wrapwarn2=1;
         current_section->l_address &= all_mem;
     }
-    if (db > (~current_section->address & all_mem2)) wrapwarn = 1;
+    if (db > (~current_section->address & all_mem2)) {
+        wrapwarn = 1;
+        if (current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
+    }
     current_section->address = (current_section->address + db) & all_mem2;
     memjmp(current_section->address);
 }
@@ -304,6 +307,7 @@ static void pokeb(uint8_t byte)
     if (current_section->address & ~all_mem2) {
 	if (fixeddig) wrapwarn=1;
 	current_section->address=0;
+        if (current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
         memjmp(current_section->address);
     }
     if (current_section->l_address & ~all_mem) {
@@ -1066,6 +1070,7 @@ static void compile(void)
                             current_section->l_address = (uval_t)val->u.num.val & all_mem;
                             if (current_section->address != (uval_t)val->u.num.val) {
                                 current_section->address = (uval_t)val->u.num.val;
+                                if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
                                 memjmp(current_section->address);
                             }
                         }
@@ -1074,7 +1079,7 @@ static void compile(void)
                             err_msg(ERROR_CONSTNT_LARGE,NULL);
                         } else {
                             address_t addr;
-                            if (arguments.tasmcomp) addr = (uval_t)val->u.num.val;
+                            if (arguments.tasmcomp) addr = (uint16_t)val->u.num.val;
                             else if ((uval_t)val->u.num.val > current_section->l_address) {
                                 addr = (current_section->address + (((uval_t)val->u.num.val - current_section->l_address) & all_mem)) & all_mem2;
                             } else {
@@ -1082,6 +1087,7 @@ static void compile(void)
                             }
                             if (current_section->address != addr) {
                                 current_section->address = addr;
+                                if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
                                 memjmp(current_section->address);
                             }
                             current_section->l_address = (uval_t)val->u.num.val;
@@ -1272,7 +1278,11 @@ static void compile(void)
                     if (waitfor[waitforp].what=='u') {
                         waitforp--;
                     } else if (waitfor[waitforp].what=='U') {
-                        waitforp--; nobreak=0; current_section->l_address = current_section->l_unionend; if (current_section->address != current_section->unionend) {current_section->address = current_section->unionend; memjmp(current_section->address);}
+                        waitforp--; nobreak=0; current_section->l_address = current_section->l_unionend;
+                        if (current_section->address != current_section->unionend) {
+                            current_section->address = current_section->unionend;
+                            memjmp(current_section->address);
+                        }
                     } else err_msg2(ERROR______EXPECTED,".UNION", epoint); break;
                     break;
                 }
@@ -1610,6 +1620,7 @@ static void compile(void)
                             if (fixeddig) wrapwarn=1;
                             current_section->address&=all_mem;
                         }
+                        if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
                         memjmp(current_section->address);
                     }
                     break;
