@@ -122,6 +122,7 @@ static const char *terr_error[]={
     "not allowed here: %s",
     "can't calculate stable value",
     "instruction can't cross banks",
+    "address out of section",
     "%s\n",
 };
 static const char *terr_fatal[]={
@@ -181,6 +182,7 @@ void err_msg2(enum errors_e no, const void* prm, unsigned int lpoint) {
                 snprintf(line,linelength,terr_error[no & 63], (char *)prm);
                 switch (no) {
                 case ERROR_CANT_CROSS_BA:
+                case ERROR_OUTOF_SECTION:
                 case ERROR_CONSTNT_LARGE: conderrors++;break;
                 default: errors++;
                 }
