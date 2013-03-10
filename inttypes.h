@@ -17,6 +17,9 @@
 #ifndef PRIx32
 #define PRIx32 "x"
 #endif
+#ifndef PRIX32
+#define PRIX32 "X"
+#endif
 #ifndef PRIxPTR
 #define PRIxPTR "lx"
 #endif

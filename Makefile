@@ -1,5 +1,5 @@
 CC = gcc
-OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o
+OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o
 LANG = C
 REVISION := $(shell svnversion)
 CFLAGS = -O2 -W -Wall -Wextra -DREVISION="\" $(REVISION)\"" -g
@@ -19,9 +19,11 @@ encoding.o: encoding.c encoding.h libtree.h error.h misc.h values.h \
  inttypes.h variables.h ternary.h
 error.o: error.c error.h misc.h libtree.h values.h inttypes.h variables.h
 eval.o: eval.c eval.h misc.h libtree.h values.h inttypes.h variables.h \
- file.h error.h section.h encoding.h mem.h
+ file.h error.h section.h encoding.h mem.h isnprintf.h
 file.o: file.c file.h libtree.h misc.h values.h inttypes.h variables.h \
  error.h
+isnprintf.o: isnprintf.c isnprintf.h values.h inttypes.h misc.h libtree.h \
+ variables.h error.h eval.h
 mem.o: mem.c mem.h inttypes.h misc.h libtree.h values.h variables.h \
  error.h file.h
 misc.o: misc.c misc.h libtree.h values.h inttypes.h variables.h opcodes.h \

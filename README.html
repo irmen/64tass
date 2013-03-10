@@ -361,6 +361,7 @@ Doubling the quotes inside the strings escapes them.</p>
 <table border="0">
 <tr><td><tt>..</tt><td>concatenate strings<td><code>"a".."b"</code> is <code>"ab"</code>
 <tr><td><tt>in</tt><td>is substring of<td><code>"b" in "abc"</code> is <code>&lt;true&gt;</code>
+<tr><td><tt>%</tt><td>string formatting<td><code>"%02x" % (12,)</code> is <code>"0c"</code>
 <tr><td><tt>x</tt><td>repeat<td><code>"ab" x 3</code> is <code>"ababab"</code>
 <tr><td><tt>x[i]</tt><td>character from start<td><code>"abc"[1]</code> is <code>"b"</code>
 <tr><td><tt>x[i]</tt><td>character from end<td><code>"abc"[-1]</code> is <code>"c"</code>
@@ -399,6 +400,39 @@ mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
         <b class="d">.text</b> <span class="s">"text"</span>[<span>2</span>:]     <i>; "xt"</i>
         <b class="d">.text</b> <span class="s">"text"</span>[:<span>-1</span>]    <i>; "tex"</i>
         <b class="d">.text</b> <span class="s">"reverse"</span>[::<span>-1</span>]<i>; "esrever"</i>
+</pre>
+
+<p>String formatting can interpret a list of values and convert them to a string.
+The converted values are inserted at the <code>%</code> sign which is followed by
+conversion flags, minimum field length, and conversion type. The these flags
+can be used:</p>
+
+<table border="0">
+<tr><td width="40"><tt>#</tt><td>alternate form ($a, %10, 10.)
+<tr><td><tt>*</tt><td>width/precision from list
+<tr><td><tt>.</tt><td>precision
+<tr><td><tt>0</tt><td>pad with zeros
+<tr><td><tt>-</tt><td>left adjusted (default right)
+<tr><td><tt> </tt><td>blank when positive or minus sign
+<tr><td><tt>+</tt><td>sign even if positive
+</table>
+
+<p>The following conversions are implemented:</p>
+
+<table border="0">
+<tr><td width="40"><tt>b</tt><td>binary
+<tr><td><tt>c</tt><td>unicode character
+<tr><td><tt>d</tt><td>decimal
+<tr><td><tt>e, E</tt><td>exponential float (uppercase)
+<tr><td><tt>f, F</tt><td>floating point (uppercase)
+<tr><td><tt>g, G</tt><td>exponential/floating point
+<tr><td><tt>s</tt><td>string
+<tr><td><tt>x, X</tt><td>hexadecimal (uppercase)
+<tr><td><tt>%</tt><td>percent sign
+</table>
+
+<pre width=80>
+        <b class="d">.text</b> <span class="s">"<span>%#04x</span> bytes left"</span> % (<span>1000</span>,)   <i>; $03e8 bytes left</i>
 </pre>
 
 <h3>List and tuples</h3>
