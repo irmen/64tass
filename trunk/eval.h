@@ -9,6 +9,7 @@ extern int eval_finish(void);
 extern uint_fast16_t petascii(size_t *, const struct value_s *);
 extern int str_to_num(const struct value_s *, enum type_e, struct value_s *);
 extern struct value_s error_value;
+extern inline uint8_t get_val_len2(const struct value_s *);
 
 struct values_s {
     struct value_s *val;

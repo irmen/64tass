@@ -312,6 +312,7 @@ Doubling the quotes inside the strings escapes them.
 
 ..     concatenate strings  "a".."b" is "ab"
 in     is substring of      "b" in "abc" is <true>
+%      string formatting    "%02x" % (12,) is "0c"
 x      repeat               "ab" x 3 is "ababab"
 x[i]   character from start "abc"[1] is "b"
 x[i]   character from end   "abc"[-1] is "c"
@@ -348,6 +349,32 @@ mystr   = "oeU"         ; text
         .text "text"[2:]     ; "xt"
         .text "text"[:-1]    ; "tex"
         .text "reverse"[::-1]; "esrever"
+
+String formatting can interpret a list of values and convert them to a string.
+The converted values are inserted at the % sign which is followed by conversion
+flags, minimum field length, and conversion type. The these flags can be used:
+
+#     alternate form ($a, %10, 10.)
+*     width/precision from list
+.     precision
+0     pad with zeros
+-     left adjusted (default right)
+      blank when positive or minus sign
++     sign even if positive
+
+The following conversions are implemented:
+
+b     binary
+c     unicode character
+d     decimal
+e, E  exponential float (uppercase)
+f, F  floating point (uppercase)
+g, G  exponential/floating point
+s     string
+x, X  hexadecimal (uppercase)
+%     percent sign
+
+        .text "%#04x bytes left" % (1000,)   ; $03e8 bytes left
 
 List and tuples
 

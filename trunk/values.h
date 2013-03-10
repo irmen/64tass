@@ -27,6 +27,7 @@ typedef int32_t ival_t;
 typedef uint32_t uval_t;
 #define PRIxval PRIx32
 #define PRIuval PRIu32
+#define PRIXval PRIX32
 
 enum type_e {
     T_NONE, T_BOOL, T_LABEL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT,

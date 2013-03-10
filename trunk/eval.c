@@ -25,6 +25,7 @@
 #include "section.h"
 #include "encoding.h"
 #include "mem.h"
+#include "isnprintf.h"
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
 #define cbrt(a) pow((a), 1.0/3.0)
@@ -87,7 +88,7 @@ static uint8_t get_val_len(uval_t val, enum type_e type) {
     }
 }
 
-static inline uint8_t get_val_len2(const struct value_s *v) {
+inline uint8_t get_val_len2(const struct value_s *v) {
     return (v->type == T_NUM) ? v->u.num.len : get_val_len((uval_t)v->u.num.val, v->type);
 }
 
@@ -2273,6 +2274,8 @@ strretr:
                     }
                     return &false_value;
                 }
+            case O_MOD:
+                return isnprintf(v1, v2, epoint2);
             default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
         }
