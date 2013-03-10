@@ -621,6 +621,28 @@ variabl	<b class="k">.var</b> <span class="l">variabl</span>+<span>1</span>
 	<b class="k">.next</b>
 </pre>
 
+<h3>Uninitialized memory</h3>
+
+<p>There's a special value for uninitialized memory, it's represented by a
+question mark. Whenever it's used to generate data it creates a <q>hole</q>
+where the previous content of memory is visible.</p>
+
+<p>Uninitialized memory holes without previous content are not saved unless
+it's really necessary for the output format, in that case it's replaced with
+zeros.</p>
+
+<p>It's not just data generation statements (e.g. <code>.byte</code>) that can
+create uninitialized memory, but filling, alignment or address manipulation as
+well.</p>
+
+<pre width=80>
+        <b>*=</b> <span>$200</span>         <i>;bytes as necessary</i>
+	<b class="d">.word</b> <span>?</span>         <i>;2 bytes</i>
+	<b class="d">.fill</b> <span>10</span>        <i>;10 bytes</i>
+	<b class="k">.align</b> <span>64</span>       <i>;bytes as necessary</i>
+	<b class="k">.offs</b> <span>16</span>        <i>;16 bytes</i>
+</pre>
+
 <h3>Conditional expressions</h3>
 <p>Boolean conditional operators give false (0) or true (1) or one of the
 operands as the result. True is defined as a non-zero number, a non-empty

@@ -541,6 +541,24 @@ variabl .var 1
 variabl .var variabl+1
         .next
 
+Uninitialized memory
+
+There's a special value for uninitialized memory, it's represented by a
+question mark. Whenever it's used to generate data it creates a `hole' where
+the previous content of memory is visible.
+
+Uninitialized memory holes without previous content are not saved unless it's
+really necessary for the output format, in that case it's replaced with zeros.
+
+It's not just data generation statements (e.g. .byte) that can create
+uninitialized memory, but filling, alignment or address manipulation as well.
+
+        *= $200         ;bytes as necessary
+        .word ?         ;2 bytes
+        .fill 10        ;10 bytes
+        .align 64       ;bytes as necessary
+        .offs 16        ;16 bytes
+
 Conditional expressions
 
 Boolean conditional operators give false (0) or true (1) or one of the operands
