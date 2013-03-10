@@ -1303,7 +1303,7 @@ static void list_iindex(struct values_s *vals, const struct value_s *list, linep
 
 static void label_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
     struct value_s **val;
-    struct label_s *l;
+    const struct label_s *l;
     size_t i, i2;
     size_t len, len2;
     size_t offs2;
@@ -1977,6 +1977,50 @@ static inline uint8_t addlen(int l1, int l2) {
     return 8*sizeof(uval_t);
 }
 
+static struct value_s *apply_op2(enum oper_e, struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t, int *);
+
+static struct value_s *inlist(struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
+    size_t i, len, offs;
+    const struct label_s *l;
+    int16_t r;
+
+    switch (v2->type) {
+    case T_LABEL:
+        l = v2->u.num.label;
+        if (l->upass != pass) {
+            err_msg_wrong_type(v2, epoint2); 
+            return &none_value;
+        }
+        len = l->esize + !l->esize;
+        new_value.u.num.len = len * 8;
+        for (offs = 0; offs < l->size;) {
+            new_value.u.num.val = 0;
+            r = -1;
+            for (i = 0; i < len; i++) {
+                r = read_mem(l->memp, l->membp, offs++);
+                if (r < 0) break;
+                new_value.u.num.val |= r << (i * 8);
+            }
+            if (l->sign && (r & 0x80)) {
+                for (; i < sizeof(new_value.u.num.val); i++) {
+                    new_value.u.num.val |= 0xff << (i * 8);
+                }
+            }
+            new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
+            if (apply_op2(O_EQ, v1, &new_value, epoint, epoint2, epoint3, large) == &true_value) return &true_value;
+        }
+        return &false_value;
+    case T_LIST:
+    case T_TUPLE:
+        for (i = 0;i < v2->u.list.len; i++) {
+            if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
+        }
+        return &false_value;
+    default: err_msg_wrong_type(v2, epoint2); 
+    case T_NONE: return &none_value;
+    }
+}
+
 static struct value_s *apply_op2(enum oper_e op, struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
     enum type_e t1;
     enum type_e t2;
@@ -2093,6 +2137,7 @@ strretr:
                             new_value.u.num.val = (val1 << l2) | (val2 & (((uval_t)1 << l2)-1));
                             return &new_value;
                         }
+            case O_IN: if (v2->type == T_LABEL) return inlist(v1, v2, epoint, epoint2, epoint3, large);
             default: err_msg_invalid_oper(op, v1, v2, epoint3); 
                      goto errtype;
             }
@@ -2116,14 +2161,7 @@ strretr:
             case O_GT: return (t1 > t2) ? &true_value : &false_value;
             case O_LE: return (t1 <= t2) ? &true_value : &false_value;
             case O_GE: return (t1 >= t2) ? &true_value : &false_value;
-            case O_IN:
-                {
-                    size_t i;
-                    for (i = 0;i < v2->u.list.len; i++) {
-                        if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
-                    }
-                    return &false_value;
-                }
+            case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
             case O_X:
             case O_CONCAT:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             default:
@@ -2151,6 +2189,17 @@ strretr:
             tmp1.u.real = (t1 == T_SINT) ? (double)((ival_t)v1->u.num.val) : (double)((uval_t)v1->u.num.val);
             v1 = &tmp1;
             t1 = v1->type;
+        }
+        if (t2 == T_GAP) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
         }
     }
 
@@ -2267,16 +2316,20 @@ strretr:
             case O_GT: return (t1 > t2) ? &true_value : &false_value;
             case O_LE: return (t1 <= t2) ? &true_value : &false_value;
             case O_GE: return (t1 >= t2) ? &true_value : &false_value;
-            case O_IN:
-                {
-                    size_t i;
-                    for (i = 0;i < v2->u.list.len; i++) {
-                        if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
-                    }
-                    return &false_value;
-                }
+            case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
             case O_MOD:
                 return isnprintf(v1, v2, epoint2);
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
+        }
+        if (t2 == T_GAP) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
             default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
         }
@@ -2321,7 +2374,7 @@ strretr:
             new_value.u.real = val1;
             return &new_value;
         }
-        if (t2 == T_LIST || t2 == T_TUPLE) {
+        if (t2 == T_LIST || t2 == T_TUPLE || t2 == T_LABEL) {
             switch (op) {
             case O_EQ: return &false_value;
             case O_NEQ: return &true_value;
@@ -2329,14 +2382,7 @@ strretr:
             case O_GT: return (t1 > t2) ? &true_value : &false_value;
             case O_LE: return (t1 <= t2) ? &true_value : &false_value;
             case O_GE: return (t1 >= t2) ? &true_value : &false_value;
-            case O_IN:
-                {
-                    size_t i;
-                    for (i = 0;i < v2->u.list.len; i++) {
-                        if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
-                    }
-                    return &false_value;
-                }
+            case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
             case O_X:
             case O_CONCAT:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             default:
@@ -2366,6 +2412,17 @@ strretr:
             v2 = &tmp2;
             t2 = v2->type;
             goto strretr;
+        }
+        if (t2 == T_GAP) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
         }
     }
 
@@ -2489,13 +2546,7 @@ strretr:
                     } else new_value.u.list.data = NULL;
                     return &new_value;
                 }
-            case O_IN:
-                {
-                    for (i = 0; i < v2->u.list.len; i++) {
-                        if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
-                    }
-                    return &false_value;
-                }
+            case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
             default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
             return &new_value;
@@ -2551,7 +2602,7 @@ strretr:
                 }
             }
         }
-        if (t2 == T_STR) {
+        if (t2 == T_STR || t2 == T_GAP) {
             switch (op) {
             case O_EQ: return &false_value;
             case O_NEQ: return &true_value;
@@ -2559,6 +2610,34 @@ strretr:
             case O_GT: return (t1 > t2) ? &true_value : &false_value;
             case O_LE: return (t1 <= t2) ? &true_value : &false_value;
             case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
+        }
+    }
+    if (t1 == T_GAP) {
+        if (t1 == t2) {
+            switch (op) {
+            case O_GE:
+            case O_LE:
+            case O_EQ: return &true_value;
+            case O_LT:
+            case O_GT:
+            case O_NEQ: return &false_value;
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
+        }
+        if (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPLE) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            case O_IN:
+                if (t2 == T_LIST || t2 == T_TUPLE || t2 == T_LABEL) {
+                    return inlist(v1, v2, epoint, epoint2, epoint3, large);
+                }
             default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
         }

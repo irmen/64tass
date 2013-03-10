@@ -122,6 +122,11 @@
     .cerror [5,6]*[[1,2],[3,4]]!=[[5,12],[15,24]]
     .cerror [[5],[6]]*[[1,2],[3,4]]!=[[5,10],[18,24]]
 
+    .cerror ? != ?
+    .cerror !(? == ?)
+    .cerror ? in (1,2)
+    .cerror !(? in (1,?,3))
+
 ; check all operators
 
 ; bit or
