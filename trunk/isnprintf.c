@@ -54,7 +54,7 @@
 static struct value_s none_value = {T_NONE, 0, {}};
 static struct value_s return_value = {T_STR, 0, {}};
 static size_t returnsize = 0;
-static unsigned int epoint;
+static linepos_t epoint;
 
 /* this struct holds everything we need */
 struct DATA {
@@ -372,7 +372,7 @@ static void conv_flag(char * s, struct DATA * p)
     }
 }
 
-struct value_s *isnprintf(const struct value_s *fstr, const struct value_s *l, unsigned int me)
+struct value_s *isnprintf(const struct value_s *fstr, const struct value_s *l, linepos_t me)
 {
     struct DATA data;
     char conv_field[MAX_FIELD];

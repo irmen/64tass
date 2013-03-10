@@ -97,7 +97,7 @@ static struct trans2_s petscii_trans[] = {
 };
 
 /* PETSCII codes, must be sorted */
-static char *petscii_esc[] = {
+static const char *petscii_esc[] = {
     "\x07" "{bell}",
     "\x90" "{black}",
     "\x90" "{blk}",
@@ -380,7 +380,7 @@ static struct trans2_s petscii_screen_trans[] = {
 };
 
 /* petscii screen codes, must be sorted */
-static char *petscii_screen_esc[] = {
+static const char *petscii_screen_esc[] = {
     "\x5f" "{cbm-*}",
     "\x66" "{cbm-+}",
     "\x5c" "{cbm--}",
@@ -485,8 +485,8 @@ static struct trans2_s no_screen_trans[] = {
 
 static int trans_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    struct trans_s *a = avltree_container_of(aa, struct trans_s, node);
-    struct trans_s *b = avltree_container_of(bb, struct trans_s, node);
+    const struct trans_s *a = cavltree_container_of(aa, struct trans_s, node);
+    const struct trans_s *b = cavltree_container_of(bb, struct trans_s, node);
 
     if (a->start > b->start && a->start > b->end) {
         return -1;
@@ -497,7 +497,7 @@ static int trans_compare(const struct avltree_node *aa, const struct avltree_nod
     return 0;
 }
 
-static void trans_free(const struct avltree_node *aa)
+static void trans_free(struct avltree_node *aa)
 {
     struct trans_s *a = avltree_container_of(aa, struct trans_s, node);
     free(a);
@@ -506,8 +506,9 @@ static void trans_free(const struct avltree_node *aa)
 static struct encoding_s *lasten = NULL;
 struct encoding_s *new_encoding(const char* name)
 {
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct encoding_s *tmp;
+    char *s;
 
     if (!lasten) {
         if (!(lasten = malloc(sizeof(struct encoding_s)))) {
@@ -517,10 +518,8 @@ struct encoding_s *new_encoding(const char* name)
     lasten->name = name;
     b = avltree_insert(&lasten->node, &encoding_tree);
     if (!b) { //new encoding
-        if (!(lasten->name = malloc(strlen(name) + 1))) {
-            err_msg_out_of_memory();
-        }
-        strcpy((char *)lasten->name, name);
+        if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
+        strcpy(s, name);lasten->name = s;
         lasten->escape=NULL;
         avltree_init(&lasten->trans, trans_compare, trans_free);
         tmp = lasten;
@@ -533,7 +532,7 @@ struct encoding_s *new_encoding(const char* name)
 static struct trans_s *lasttr = NULL;
 struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
 {
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct trans_s *tmp;
     if (!lasttr) {
         if (!(lasttr = malloc(sizeof(struct trans_s)))) {
@@ -555,13 +554,14 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
 uint16_t find_trans(uint32_t ch, struct encoding_s *enc)
 {
     const struct avltree_node *c;
-    struct trans_s tmp, *t;
+    const struct trans_s *t;
+    struct trans_s tmp;
     tmp.start = tmp.end = ch;
 
     if (!(c = avltree_lookup(&tmp.node, &enc->trans))) {
         return 256;
     }
-    t = avltree_container_of(c, struct trans_s, node);
+    t = cavltree_container_of(c, struct trans_s, node);
     if (tmp.start >= t->start && tmp.end <= t->end) {
         return (uint8_t)(ch - t->start + t->offset);
     }
@@ -569,7 +569,7 @@ uint16_t find_trans(uint32_t ch, struct encoding_s *enc)
 }
 
 static struct escape_s *lastes = NULL;
-struct escape_s *new_escape(char *text, uint8_t code, struct encoding_s *enc)
+struct escape_s *new_escape(const char *text, uint8_t code, struct encoding_s *enc)
 {
     struct escape_s *b;
     struct escape_s *tmp;
@@ -602,13 +602,13 @@ uint32_t find_escape(char *text, char *end, struct encoding_s *enc)
 
 static int encoding_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    struct encoding_s *a = avltree_container_of(aa, struct encoding_s, node);
-    struct encoding_s *b = avltree_container_of(bb, struct encoding_s, node);
+    const struct encoding_s *a = cavltree_container_of(aa, struct encoding_s, node);
+    const struct encoding_s *b = cavltree_container_of(bb, struct encoding_s, node);
 
     return strcmp(a->name, b->name);
 }
 
-static void encoding_free(const struct avltree_node *aa)
+static void encoding_free(struct avltree_node *aa)
 {
     struct encoding_s *a = avltree_container_of(aa, struct encoding_s, node);
 

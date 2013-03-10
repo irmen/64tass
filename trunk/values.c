@@ -31,10 +31,10 @@ static struct values_s {
     struct values_s *next;
 } *values = NULL;
 
-static void value_free(struct value_s *val) {
+static void value_free(union values_u *val) {
     //free(val); return;
-    ((union values_u *)val)->next = values_free;
-    values_free = (union values_u *)val;
+    val->next = values_free;
+    values_free = val;
 }
 
 static struct value_s *value_alloc(void) {
@@ -76,7 +76,7 @@ void val_destroy(struct value_s *val) {
     }
     if (val->refcount == 1) {
         val_destroy2(val);
-        value_free(val);
+        value_free((union values_u *)val);
     } else val->refcount--;
 }
 

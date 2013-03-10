@@ -64,7 +64,7 @@ uint8_t pass=0;      //pass
 static int listing=0;   //listing
 address_t star=0;
 const uint8_t *pline, *llist;  //current line data
-unsigned int lpoint;              //position in current line
+linepos_t lpoint;              //position in current line
 static char path[linelength];   //path
 static FILE* flist = NULL;      //listfile
 static enum lastl_e lastl;
@@ -79,7 +79,7 @@ static uint8_t outputeor = 0; // EOR value for final output (usually 0, except c
 static struct {
     char what;
     line_t line;
-    unsigned int epoint;
+    linepos_t epoint;
     address_t addr;
     address_t laddr;
     struct label_s *label;
@@ -254,7 +254,7 @@ void printllist(FILE *f) {
     putc('\n', f);
 }
 
-static void new_waitfor(char what, unsigned int epoint) {
+static void new_waitfor(char what, linepos_t epoint) {
     waitfor[++waitforp].what = what;
     waitfor[waitforp].line = sline;
     waitfor[waitforp].epoint = epoint;
@@ -346,10 +346,11 @@ static int what(int *tempno) {
     case WHAT_COMMAND:
 	{
             char cmd[20];
-            unsigned int no, l, also, felso, elozo;
+            unsigned int no, also, felso, elozo;
+            linepos_t l;
             int s4;
             lpoint++;
-            for (also = l = 0; l < sizeof(cmd)-1; l++) {
+            for (also = l = 0; l + 1 < (linepos_t)sizeof(cmd); l++) {
                 cmd[l]=pline[lpoint+l] | 0x20;
                 if (!pline[lpoint+l] || cmd[l] < 'a' || cmd[l] > 'z') {
                     cmd[l]=(cmd[l] >= '0' && cmd[l] <= '9') || cmd[l]=='_';
@@ -401,7 +402,7 @@ static int what(int *tempno) {
 }
 
 static int get_ident2(char *ident, char *ident2) {
-    unsigned int i=0;
+    linepos_t i = 0;
     uint8_t ch;
     if (arguments.casesensitive) {
 	while ((whatis[ch=here()]==WHAT_CHAR) || (ch>='0' && ch<='9') || ch=='_') {
@@ -452,7 +453,8 @@ static int get_hack(void) {
 static inline void mtranslate()
 {
     uint_fast8_t q;
-    uint_fast16_t p, j;
+    uint_fast16_t j;
+    linepos_t p;
     uint8_t ch, *cucc = macro_parameters.current->pline;
 
     q=p=0;
@@ -550,7 +552,7 @@ static void macro_recurse(char t, struct label_s *tmp2) {
     macro_parameters.p++;
     {
         uint_fast8_t q = 0, ch;
-        unsigned int opoint, npoint;
+        linepos_t opoint, npoint;
         size_t p = 0;
 
         ignore(); opoint = lpoint;
@@ -558,8 +560,8 @@ static void macro_recurse(char t, struct label_s *tmp2) {
             char par[256];
             uint8_t pp = 0;
             do {
-                unsigned int opoint, npoint;
-                ignore(); opoint = lpoint;
+                linepos_t opoint2, npoint2;
+                ignore(); opoint2 = lpoint;
                 while ((ch=here()) && (q || (ch!=';' && (ch!=',' || pp)))) {
                     if (ch == '"'  && !(q & 2)) { q^=1; }
                     else if (ch == '\'' && !(q & 1)) { q^=2; }
@@ -574,10 +576,10 @@ static void macro_recurse(char t, struct label_s *tmp2) {
                     macro_parameters.current->param = realloc(macro_parameters.current->param, sizeof(*macro_parameters.current->param) * macro_parameters.current->size);
                     if (!macro_parameters.current->param) err_msg_out_of_memory();
                 }
-                macro_parameters.current->param[p].data = pline + opoint;
-                npoint = lpoint;
-                while (npoint > opoint && (pline[npoint-1] == 0x20 || pline[npoint-1] == 0x09)) npoint--;
-                macro_parameters.current->param[p].len = npoint - opoint;
+                macro_parameters.current->param[p].data = pline + opoint2;
+                npoint2 = lpoint;
+                while (npoint2 > opoint2 && (pline[npoint2-1] == 0x20 || pline[npoint2-1] == 0x09)) npoint2--;
+                macro_parameters.current->param[p].len = npoint2 - opoint2;
                 p++;
                 if (ch == ',') lpoint++;
             } while (ch == ',');
@@ -630,10 +632,10 @@ static void compile(void)
     unsigned wasref;
     int nobreak = 1;
     char labelname[linelength], labelname2[linelength];
-    unsigned int epoint;
+    linepos_t epoint;
 
     while (cfile->len != cfile->p && nobreak) {
-        pline = cfile->data + cfile->p; lpoint = 0; sline++;vline++; cfile->p += strlen((char *)pline) + 1;
+        pline = cfile->data + cfile->p; lpoint = 0; sline++;vline++; cfile->p += strlen((const char *)pline) + 1;
         if (macro_parameters.p) mtranslate(); //expand macro parameters, if any
         llist = pline;
         star=current_section->l_address;newlabel = NULL;
@@ -753,28 +755,28 @@ static void compile(void)
                     }
                 case CMD_LBL:
                     { //variable
-                        struct jump_s *tmp2;
+                        struct jump_s *tmp3;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                             fputs("=\t\t\t\t\t", flist);
                             printllist(flist);
                         }
-                        tmp2 = new_jump(labelname, labelname2);
+                        tmp3 = new_jump(labelname, labelname2);
                         if (labelexists) {
-                            if (tmp2->sline != sline
-                                    || tmp2->waitforp != waitforp
-                                    || tmp2->file != cfile
-                                    || tmp2->p != cfile->p
-                                    || tmp2->parent != current_context) {
-                                err_msg_double_defined(tmp2->origname, tmp2->file->realname, tmp2->sline, tmp2->epoint, labelname2, epoint);
+                            if (tmp3->sline != sline
+                                    || tmp3->waitforp != waitforp
+                                    || tmp3->file != cfile
+                                    || tmp3->p != cfile->p
+                                    || tmp3->parent != current_context) {
+                                err_msg_double_defined(tmp3->origname, tmp3->file->realname, tmp3->sline, tmp3->epoint, labelname2, epoint);
                             }
                         } else {
-                            tmp2->sline = sline;
-                            tmp2->waitforp = waitforp;
-                            tmp2->file = cfile;
-                            tmp2->p = cfile->p;
-                            tmp2->parent = current_context;
-                            tmp2->epoint = epoint;
+                            tmp3->sline = sline;
+                            tmp3->waitforp = waitforp;
+                            tmp3->file = cfile;
+                            tmp3->p = cfile->p;
+                            tmp3->parent = current_context;
+                            tmp3->epoint = epoint;
                         }
                         goto finish;
                     }
@@ -917,9 +919,9 @@ static void compile(void)
                     {
                         struct section_s *tmp;
                         char sectionname[linelength], sectionname2[linelength];
-                        unsigned int epoint = epoint;
+                        linepos_t opoint;
                         new_waitfor('t', epoint);waitfor[waitforp].section=current_section;
-                        ignore();epoint=lpoint;
+                        ignore();opoint=lpoint;
                         if (get_ident2(sectionname, sectionname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         tmp=find_new_section(sectionname, sectionname2);
                         if (!tmp->declared) {
@@ -929,7 +931,7 @@ static void compile(void)
                                 if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, sectionname2);
                                 fixeddig=0;
                             } else if (pass > 1) {
-                                err_msg2(ERROR___NOT_DEFINED,sectionname2,epoint); goto breakerr;
+                                err_msg2(ERROR___NOT_DEFINED,sectionname2,opoint); goto breakerr;
                             }
                         } else if (tmp->pass != pass) {
                             tmp->r_address = tmp->address;
@@ -1322,24 +1324,24 @@ static void compile(void)
                     break;
                 }
                 if (!(waitfor[waitforp].skip & 1)) {
-                    char what;
+                    char what2;
                     switch (prm) {
-                    case CMD_BLOCK: what = 'b'; break;
-                    case CMD_LOGICAL: what = 'l'; break;
-                    case CMD_PAGE: what = 'p'; break;
-                    case CMD_UNION: what = 'u'; break;
-                    case CMD_STRUCT: what = 's'; break;
+                    case CMD_BLOCK: what2 = 'b'; break;
+                    case CMD_LOGICAL: what2 = 'l'; break;
+                    case CMD_PAGE: what2 = 'p'; break;
+                    case CMD_UNION: what2 = 'u'; break;
+                    case CMD_STRUCT: what2 = 's'; break;
                     case CMD_DSECTION:
-                    case CMD_SECTION: what = 't'; break;
+                    case CMD_SECTION: what2 = 't'; break;
                     case CMD_MACRO:
-                    case CMD_SEGMENT: what = 'm'; break;
+                    case CMD_SEGMENT: what2 = 'm'; break;
                     case CMD_FOR:
-                    case CMD_REPT: what = 'n'; break;
-                    case CMD_COMMENT: what = 'c'; break;
-                    case CMD_PROC: what = 'r'; break;
-                    default: what = 0;
+                    case CMD_REPT: what2 = 'n'; break;
+                    case CMD_COMMENT: what2 = 'c'; break;
+                    case CMD_PROC: what2 = 'r'; break;
+                    default: what2 = 0;
                     }
-                    if (what) new_waitfor(what, epoint);
+                    if (what2) new_waitfor(what2, epoint);
                     break;//skip things if needed
                 }
                 if (prm<=CMD_DWORD || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
@@ -1598,7 +1600,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_OFFS) {   // .offs
-                    unsigned int opoint = epoint;
+                    linepos_t opoint = epoint;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_SINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
@@ -1627,7 +1629,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_LOGICAL) { // .logical
-                    unsigned int opoint = epoint;
+                    linepos_t opoint = epoint;
                     new_waitfor('L', epoint);waitfor[waitforp].laddr = current_section->l_address - current_section->address;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
                     current_section->logicalrecursion++;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
@@ -1766,7 +1768,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_CHECK) { // .check
-                    unsigned int opoint = epoint;
+                    linepos_t opoint = epoint;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
@@ -1914,7 +1916,7 @@ static void compile(void)
                     actual_encoding = old;
                     if (!rc) goto breakerr; //ellenorizve.
                     for (;;) {
-                        unsigned int opoint;
+                        linepos_t opoint;
                         char expr[linelength];
 
                         actual_encoding = NULL;
@@ -2137,7 +2139,7 @@ static void compile(void)
                     line_t ovline;
 
                     new_waitfor('n', epoint);waitfor[waitforp].skip=0;
-                    if (strlen((char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
+                    if (strlen((const char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
                     if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
                         epoint = lpoint;
                         if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL);goto breakerr;}
@@ -2177,7 +2179,7 @@ static void compile(void)
                     s->addr = star;
                     star_tree = &s->tree;vline=0;
                     xlin=lin=sline; xpos=pos=cfile->p; apoint=lpoint;
-                    strcpy((char *)expr, (char *)pline);var = NULL;
+                    strcpy((char *)expr, (const char *)pline);var = NULL;
                     for (;;) {
                         lpoint=apoint;
                         if (!get_exp(&w,1)) break; //ellenorizve.
@@ -2250,14 +2252,14 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_GOTO) { // .goto
-                    struct jump_s *tmp2;
+                    const struct jump_s *tmp3;
                     int noerr = 1;
                     if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp2 = find_jump(labelname);
-                    if (tmp2 && tmp2->file == cfile && tmp2->parent == current_context) {
-                        uint8_t oldwaitforp = waitforp;
-                        while (tmp2->waitforp < waitforp) {
-                            char *msg = NULL;
+                    tmp3 = find_jump(labelname);
+                    if (tmp3 && tmp3->file == cfile && tmp3->parent == current_context) {
+                        uint8_t oldwaitforp2 = waitforp;
+                        while (tmp3->waitforp < waitforp) {
+                            const char *msg = NULL;
                             line_t os = sline;
                             sline = waitfor[waitforp].line;
                             switch (waitfor[waitforp].what) {
@@ -2286,9 +2288,9 @@ static void compile(void)
                             waitforp--; sline = os;
                         }
                         if (noerr) {
-                            sline = tmp2->sline;
-                            cfile->p = tmp2->p;
-                        } else waitforp = oldwaitforp;
+                            sline = tmp3->sline;
+                            cfile->p = tmp3->p;
+                        } else waitforp = oldwaitforp2;
                     } else err_msg(ERROR___NOT_DEFINED,labelname2);
                     break;
                 }
@@ -2369,71 +2371,71 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_DSECTION) {
-                    struct section_s *tmp2;
+                    struct section_s *tmp3;
                     new_waitfor('t', epoint);
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".DSECTION");
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp2=new_section(labelname, labelname2);
-                    if (tmp2->declared && pass == 1) err_msg_double_defined(tmp2->origname, tmp2->file, tmp2->sline, tmp2->epoint, labelname2, epoint);
+                    tmp3=new_section(labelname, labelname2);
+                    if (tmp3->declared && pass == 1) err_msg_double_defined(tmp3->origname, tmp3->file, tmp3->sline, tmp3->epoint, labelname2, epoint);
                     else {
                         address_t t, t2;
                         waitfor[waitforp].what='T';waitfor[waitforp].section=current_section;
-                        if (!tmp2->declared) {
-                            tmp2->r_start = tmp2->r_address = current_section->address;
-                            tmp2->r_l_start = tmp2->r_l_address = current_section->l_address;
+                        if (!tmp3->declared) {
+                            tmp3->r_start = tmp3->r_address = current_section->address;
+                            tmp3->r_l_start = tmp3->r_l_address = current_section->l_address;
                             if (!labelexists) {
-                                tmp2->start = tmp2->address = current_section->address;
-                                tmp2->l_start = tmp2->l_address = current_section->l_address;
+                                tmp3->start = tmp3->address = current_section->address;
+                                tmp3->l_start = tmp3->l_address = current_section->l_address;
                             } else {
-                                tmp2->address += current_section->address;
-                                tmp2->start += current_section->address;
-                                tmp2->l_address += current_section->l_address;
-                                tmp2->l_start += current_section->l_address;
+                                tmp3->address += current_section->address;
+                                tmp3->start += current_section->address;
+                                tmp3->l_address += current_section->l_address;
+                                tmp3->l_start += current_section->l_address;
                             }
-                            tmp2->pass = pass;
+                            tmp3->pass = pass;
                             if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                             fixeddig = 0;
-                            tmp2->declared = 1;
+                            tmp3->declared = 1;
                         }
-                        tmp2->provides=~(uval_t)0;tmp2->requires=tmp2->conflicts=0;
-                        tmp2->dooutput = current_section->dooutput;
-                        tmp2->unionmode = current_section->unionmode;
-                        tmp2->unionstart = current_section->unionstart;
-                        tmp2->unionend = current_section->unionend;
-                        tmp2->l_unionstart = current_section->l_unionstart;
-                        tmp2->l_unionend = current_section->l_unionend;
-                        tmp2->structrecursion = current_section->structrecursion;
-                        tmp2->logicalrecursion = current_section->logicalrecursion;
-                        tmp2->file = cfile->realname;
-                        tmp2->sline = sline;
-                        tmp2->epoint = epoint;
-                        if (tmp2->pass == pass) {
-                            t = tmp2->r_address - tmp2->r_start;
-                            t2 = tmp2->address - tmp2->start;
+                        tmp3->provides=~(uval_t)0;tmp3->requires=tmp3->conflicts=0;
+                        tmp3->dooutput = current_section->dooutput;
+                        tmp3->unionmode = current_section->unionmode;
+                        tmp3->unionstart = current_section->unionstart;
+                        tmp3->unionend = current_section->unionend;
+                        tmp3->l_unionstart = current_section->l_unionstart;
+                        tmp3->l_unionend = current_section->l_unionend;
+                        tmp3->structrecursion = current_section->structrecursion;
+                        tmp3->logicalrecursion = current_section->logicalrecursion;
+                        tmp3->file = cfile->realname;
+                        tmp3->sline = sline;
+                        tmp3->epoint = epoint;
+                        if (tmp3->pass == pass) {
+                            t = tmp3->r_address - tmp3->r_start;
+                            t2 = tmp3->address - tmp3->start;
                             if (newlabel) set_size(newlabel, t2 + t);
-                            tmp2->start = current_section->address;
+                            tmp3->start = current_section->address;
                             current_section->address += t2;
-                            tmp2->r_start = tmp2->r_address = current_section->address;
+                            tmp3->r_start = tmp3->r_address = current_section->address;
                         } else {
-                            t = tmp2->address - tmp2->start;
+                            t = tmp3->address - tmp3->start;
                             if (newlabel) set_size(newlabel, t);
-                            tmp2->start = tmp2->r_start = tmp2->address = tmp2->r_address = current_section->address;
+                            tmp3->start = tmp3->r_start = tmp3->address = tmp3->r_address = current_section->address;
                         }
                         current_section->address += t;
-                        if (tmp2->pass == pass) {
-                            t = tmp2->r_l_address - tmp2->r_l_start;
-                            t2 = tmp2->l_address - tmp2->l_start;
-                            tmp2->l_start = current_section->l_address;
+                        if (tmp3->pass == pass) {
+                            t = tmp3->r_l_address - tmp3->r_l_start;
+                            t2 = tmp3->l_address - tmp3->l_start;
+                            tmp3->l_start = current_section->l_address;
                             current_section->l_address += t2;
-                            tmp2->r_l_start = tmp2->r_l_address = current_section->l_address;
+                            tmp3->r_l_start = tmp3->r_l_address = current_section->l_address;
                         } else {
-                            t = tmp2->l_address - tmp2->l_start;
-                            tmp2->l_start = tmp2->r_l_start = tmp2->l_address = tmp2->r_l_address = current_section->l_address;
+                            t = tmp3->l_address - tmp3->l_start;
+                            tmp3->l_start = tmp3->r_l_start = tmp3->l_address = tmp3->r_l_address = current_section->l_address;
                         }
                         current_section->l_address += t;
-                        current_section = tmp2;
-                        tmp2->pass=pass;
+                        current_section = tmp3;
+                        tmp3->pass=pass;
                         memjmp(current_section->address);
                         newlabel=NULL;
                     }
@@ -2521,7 +2523,7 @@ static void compile(void)
                     // 1 Db
                     else if (lowcase(wht)=='a' && cnmemonic[ADR_ACCU]!=____ && (!pline[lpoint+1] || pline[lpoint+1]==';' || pline[lpoint+1]==0x20 || pline[lpoint+1]==0x09))
                     {
-                        unsigned int opoint=lpoint;
+                        linepos_t opoint=lpoint;
                         lpoint++;ignore();
                         if (here() && here()!=';') {lpoint=opoint;goto nota;}
                         if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
@@ -2530,7 +2532,7 @@ static void compile(void)
                     // 2 Db
                     else if (wht=='#') {
                         if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____ && prm) { // 0x69 hack
-                            lpoint += strlen((char *)pline + lpoint);ln=w=d=1;
+                            lpoint += strlen((const char *)pline + lpoint);ln=w=d=1;
                         } else {
                             lpoint++;
                             if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
@@ -3057,7 +3059,7 @@ static void compile(void)
     }
 
     while (oldwaitforp < waitforp) {
-        char *msg = NULL;
+        const char *msg = NULL;
         line_t os = sline;
         sline = waitfor[waitforp].line;
         switch (waitfor[waitforp].what) {

@@ -40,8 +40,8 @@ static size_t memblocklastp = 0;
 static address_t memblocklaststart = 0;
 
 static int memblockcomp(const void *a, const void *b) {
-    const struct memblock_s *aa=(struct memblock_s *)a;
-    const struct memblock_s *bb=(struct memblock_s *)b;
+    const struct memblock_s *aa=(const struct memblock_s *)a;
+    const struct memblock_s *bb=(const struct memblock_s *)b;
     return aa->start-bb->start;
 }
 

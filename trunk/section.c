@@ -26,13 +26,13 @@ static struct section_s *prev_section = &root_section;
 
 static int section_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    struct section_s *a = avltree_container_of(aa, struct section_s, node);
-    struct section_s *b = avltree_container_of(bb, struct section_s, node);
+    const struct section_s *a = cavltree_container_of(aa, struct section_s, node);
+    const struct section_s *b = cavltree_container_of(bb, struct section_s, node);
 
     return strcmp(a->name, b->name);
 }
 
-static void section_free(const struct avltree_node *aa)
+static void section_free(struct avltree_node *aa)
 {
     struct section_s *a = avltree_container_of(aa, struct section_s, node);
     free((char *)a->name);
@@ -42,7 +42,7 @@ static void section_free(const struct avltree_node *aa)
 }
 
 struct section_s *find_new_section(const char *name, const char *origname) {
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct section_s *context = current_section;
     struct section_s tmp;
     tmp.name=name;
@@ -60,17 +60,18 @@ struct section_s *find_new_section(const char *name, const char *origname) {
 
 static struct section_s *lastsc=NULL;
 struct section_s *new_section(const char *name, const char *origname) {
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct section_s *tmp;
+    char *s;
     if (!lastsc)
 	if (!(lastsc=malloc(sizeof(struct section_s)))) err_msg_out_of_memory();
     lastsc->name=name;
     b=avltree_insert(&lastsc->node, &current_section->members);
     if (!b) { //new section
-	if (!(lastsc->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastsc->name,name);
-	if (!(lastsc->origname=malloc(strlen(origname)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastsc->origname,origname);
+	if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
+        strcpy(s, name);lastsc->name = s;
+	if (!(s=malloc(strlen(origname)+1))) err_msg_out_of_memory();
+        strcpy(s, origname);lastsc->origname = s;
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->address=lastsc->l_address=0;

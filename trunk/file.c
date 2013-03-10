@@ -48,9 +48,9 @@ void include_list_add(const char *path)
 }
 
 int get_path(const struct value_s *v, const char *base, char *path, size_t size) {
-    unsigned int i;
+    size_t i;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-    unsigned int j;
+    size_t j;
 
     i = strlen(base);
     j = (((base[0] >= 'A' && base[0] <= 'Z') || (base[0] >= 'a' && base[0] <= 'z')) && base[1]==':') ? 2 : 0;
@@ -115,23 +115,23 @@ FILE *file_open(const char *name, const char *mode)
 
 static int star_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    struct star_s *a = avltree_container_of(aa, struct star_s, node);
-    struct star_s *b = avltree_container_of(bb, struct star_s, node);
+    const struct star_s *a = cavltree_container_of(aa, struct star_s, node);
+    const struct star_s *b = cavltree_container_of(bb, struct star_s, node);
 
     return a->line - b->line;
 }
 
 static int file_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    struct file_s *a = avltree_container_of(aa, struct file_s, node);
-    struct file_s *b = avltree_container_of(bb, struct file_s, node);
+    const struct file_s *a = cavltree_container_of(aa, struct file_s, node);
+    const struct file_s *b = cavltree_container_of(bb, struct file_s, node);
     int c;
     c = strcmp(a->name, b->name);
     if (c) return c;
     return strcmp(a->base, b->base);
 }
 
-static void star_free(const struct avltree_node *aa)
+static void star_free(struct avltree_node *aa)
 {
     struct star_s *a = avltree_container_of(aa, struct star_s, node);
 
@@ -139,7 +139,7 @@ static void star_free(const struct avltree_node *aa)
     free(a);
 }
 
-static void file_free(const struct avltree_node *aa)
+static void file_free(struct avltree_node *aa)
 {
     struct file_s *a = avltree_container_of(aa, struct file_s, node);
 
@@ -155,8 +155,9 @@ static struct file_s *lastfi=NULL;
 static uint16_t curfnum=1;
 struct file_s *openfile(const char* name, const char *base, int ftype, const struct value_s *val) {
     char base2[linelength];
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct file_s *tmp;
+    char *s;
     if (!lastfi)
 	if (!(lastfi=malloc(sizeof(struct file_s)))) err_msg_out_of_memory();
     lastfi->name=name;
@@ -169,10 +170,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         FILE *f;
         uint32_t c = 0;
 
-	if (!(lastfi->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastfi->name, name);
-	if (!(lastfi->base=malloc(strlen(base2)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastfi->base, base2);
+	if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
+        strcpy(s, name);lastfi->name = s;
+	if (!(s=malloc(strlen(base2)+1))) err_msg_out_of_memory();
+        strcpy(s, base2);lastfi->base = s;
 	lastfi->data=NULL;
 	lastfi->len=0;
 	lastfi->p=0;
@@ -197,8 +198,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 if (name[0]=='-' && !name[1]) f=stdin;
                 else f=file_open(name, "rb");
             }
-            if (!(tmp->realname=malloc(strlen(usedname)+1))) err_msg_out_of_memory();
-            strcpy((char *)tmp->realname, usedname);
+            if (!(s=malloc(strlen(usedname)+1))) err_msg_out_of_memory();
+            strcpy(s, usedname);tmp->realname = s;
             if (!f) {
                 if (val) if (get_path(val, "", path, sizeof(path))) val = NULL;
                 err_msg_file(ERROR_CANT_FINDFILE, val ? path : name);
@@ -221,14 +222,14 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
 
                 do {
                     int i, j, ch2;
-                    uint8_t *pline;
+                    uint8_t *p;
                     uint32_t lastchar;
 
                     if (tmp->p + linelength > tmp->len) {
                         tmp->len += linelength * 2;
                         tmp->data=realloc(tmp->data, tmp->len);
                     }
-                    pline=&tmp->data[tmp->p];
+                    p=&tmp->data[tmp->p];
                     for (;;) {
                         lastchar = c;
                         if (arguments.toascii) {
@@ -275,9 +276,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                         if (type == UNKNOWN) {
                                             type = ISO1;
                                             i = (j - i) * 6;
-                                            pline = utf8out(((~0x7f >> j) & 0xff) | (c >> i), pline);
+                                            p = utf8out(((~0x7f >> j) & 0xff) | (c >> i), p);
                                             for (;i; i-= 6) {
-                                                pline = utf8out(((c >> (i-6)) & 0x3f) | 0x80, pline);
+                                                p = utf8out(((c >> (i-6)) & 0x3f) | 0x80, p);
                                             }
                                             c = ch2; j = 0;
                                             break;
@@ -339,16 +340,16 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                         } else if (c == 13) {
                             break;
                         }
-                        if (c && c < 0x80) *pline++ = c; else pline = utf8out(c, pline);
-                        if (pline > &tmp->data[tmp->p + linelength - 6*6]) {
+                        if (c && c < 0x80) *p++ = c; else p = utf8out(c, p);
+                        if (p > &tmp->data[tmp->p + linelength - 6*6]) {
                             err_msg(ERROR_LINE_TOO_LONG,NULL);ch=EOF;break;
                         }
                     }
-                    i = pline - &tmp->data[tmp->p];
-                    pline=&tmp->data[tmp->p];
+                    i = p - &tmp->data[tmp->p];
+                    p=&tmp->data[tmp->p];
                     if (i)
-                        while (i && pline[i-1]==' ') i--;
-                    pline[i++] = 0;
+                        while (i && p[i-1]==' ') i--;
+                    p[i++] = 0;
                     tmp->p += i;
 
                     if (ch == EOF) break;
@@ -359,8 +360,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             tmp->len = tmp->p;
             tmp->data=realloc(tmp->data, tmp->len);
         } else {
-            tmp->realname = malloc(1);
-            *((char *)tmp->realname) = 0;
+            if (!(s=malloc(1))) err_msg_out_of_memory();
+            s[0] = 0; tmp->realname = s;
         }
 	tmp->p = 0;
 
@@ -379,7 +380,7 @@ void closefile(struct file_s *f) {
 
 static struct star_s *lastst=NULL;
 struct star_s *new_star(line_t line) {
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct star_s *tmp;
     if (!lastst)
 	if (!(lastst=malloc(sizeof(struct star_s)))) err_msg_out_of_memory();

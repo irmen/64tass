@@ -76,10 +76,10 @@ enum errors_e {
 };
 
 extern void err_msg(enum errors_e, const void*);
-extern void err_msg2(enum errors_e, const void*, unsigned int);
-extern void err_msg_wrong_type(const struct value_s*, unsigned int);
-extern void err_msg_invalid_oper(enum oper_e, const struct value_s *, const struct value_s *, unsigned int);
-extern void err_msg_double_defined(const char *, const char *, line_t, unsigned int, const char*, unsigned int);
+extern void err_msg2(enum errors_e, const void*, linepos_t);
+extern void err_msg_wrong_type(const struct value_s*, linepos_t);
+extern void err_msg_invalid_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
+extern void err_msg_double_defined(const char *, const char *, line_t, linepos_t, const char*, linepos_t);
 extern void err_msg_variable(struct value_s*, int);
 extern void err_msg_file(enum errors_e, const char*);
 extern void freeerrorlist(int);
