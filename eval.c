@@ -241,7 +241,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
 
     i = lpoint;
     for (;;) {
-        if (!(ch2 = here())) {err_msg(ERROR______EXPECTED,"End of string"); v->type = T_NONE; return;}
+        if (!(ch2 = here())) {err_msg(ERROR______EXPECTED,"End of string"); lpoint++; break;}
         if (ch2 & 0x80) lpoint += utf8in(pline + lpoint, &ch2); else lpoint++;
         if (ch2 == ch) {
             if (here() == ch && !arguments.tasmcomp) {lpoint++;r++;} // handle 'it''s'
@@ -252,7 +252,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
     if (r) {
         const uint8_t *p = (uint8_t *)pline + i, *e, *p2;
         uint8_t *d;
-        v->type = T_NONE;
+        v->type = T_UNDEF;
         v->u.str.len = lpoint - i - 1 - r;
         v->u.str.chars = i2;
         d = v->u.str.data = malloc(v->u.str.len);
@@ -558,7 +558,7 @@ static int get_val2_compat(void) {// length in bytes, defined
                 memset(&values[values_size-16], 0, 16 * sizeof(struct values_s));
             }
             if (!values[vsp].val) values[vsp].val = &none_value;
-            if (o_out[i].val.type == T_NONE) {
+            if (o_out[i].val.type == T_UNDEF) {
                 o_out[i].val.type = T_STR;
                 val_replace(&values[vsp].val, &o_out[i].val);
                 free(o_out[i].val.u.str.data);
@@ -2587,7 +2587,11 @@ static int get_val2(int stop) {
                 memset(&values[values_size-16], 0, 16 * sizeof(struct values_s));
             }
             if (!values[vsp].val) values[vsp].val = &none_value;
-            val_replace(&values[vsp].val, &o_out[i].val);
+            if (o_out[i].val.type == T_UNDEF) {
+                o_out[i].val.type = T_STR;
+                val_replace(&values[vsp].val, &o_out[i].val);
+                free(o_out[i].val.u.str.data);
+            } else val_replace(&values[vsp].val, &o_out[i].val);
             values[vsp++].epoint = o_out[i].epoint;
             continue;
         }
