@@ -73,16 +73,16 @@ static void adderror2(const uint8_t *s, size_t len) {
 }
 
 static void adderror(const char *s) {
-    adderror2((uint8_t *)s, strlen(s));
+    adderror2((const uint8_t *)s, strlen(s));
 }
 
-static void addorigin(unsigned int lpoint) {
+static void addorigin(linepos_t lpoint2) {
     char line[linelength];
     size_t i;
 
     if (file_list.p) {
         adderror(file_list.data[file_list.p - 1].name);
-	sprintf(line,":%" PRIuline ":%u: ", sline, lpoint + 1); adderror(line);
+	sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline, lpoint2 + 1); adderror(line);
     } else {
         adderror("<command line>:0:0: ");
     }
@@ -141,7 +141,7 @@ static const char *terr_fatal[]={
     "too many errors\n"
 };
 
-void err_msg2(enum errors_e no, const void* prm, unsigned int lpoint) {
+void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
     char line[linelength];
 
     if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
@@ -151,7 +151,7 @@ void err_msg2(enum errors_e no, const void* prm, unsigned int lpoint) {
         return;
     }
 
-    addorigin(lpoint);
+    addorigin(lpoint2);
 
     if (no<0x40) {
         adderror("warning: ");
@@ -164,10 +164,10 @@ void err_msg2(enum errors_e no, const void* prm, unsigned int lpoint) {
         switch (no) {
         case ERROR____PAGE_ERROR:
             adderror("page error at $");
-            sprintf(line,"%06" PRIaddress, *(address_t *)prm); adderror(line);
+            sprintf(line,"%06" PRIaddress, *(const address_t *)prm); adderror(line);
             conderrors++; break;
         case ERROR_BRANCH_TOOFAR:
-            sprintf(line,"branch too far by %+d bytes", *(int *)prm); adderror(line);
+            sprintf(line,"branch too far by %+d bytes", *(const int *)prm); adderror(line);
             conderrors++; break;
         case ERROR__BRANCH_CROSS:
             adderror("Branch crosses page");
@@ -176,10 +176,10 @@ void err_msg2(enum errors_e no, const void* prm, unsigned int lpoint) {
             adderror2(user_error.data, user_error.p);
             conderrors++; break;
         case ERROR___UNKNOWN_CHR:
-            sprintf(line,"can't encode character $%02x", *(uint32_t *)prm); adderror(line);
+            sprintf(line,"can't encode character $%02x", *(const uint32_t *)prm); adderror(line);
             conderrors++; break;
         default:
-                snprintf(line,linelength,terr_error[no & 63], (char *)prm);
+                snprintf(line,linelength,terr_error[no & 63], (const char *)prm);
                 switch (no) {
                 case ERROR_CANT_CROSS_BA:
                 case ERROR_OUTOF_SECTION:
@@ -191,7 +191,7 @@ void err_msg2(enum errors_e no, const void* prm, unsigned int lpoint) {
     }
     else {
         adderror("fatal error: ");
-        snprintf(line, linelength, terr_fatal[no & 63], (char *)prm);
+        snprintf(line, linelength, terr_fatal[no & 63], (const char *)prm);
         adderror(line);
         errors++;
         status();exit(1);
@@ -203,7 +203,7 @@ void err_msg(enum errors_e no, const void* prm) {
     err_msg2(no, prm, lpoint);
 }
 
-static char *type_name(enum type_e t) {
+static const char *type_name(enum type_e t) {
     switch (t) {
     case T_LABEL: return "<label>";
     case T_SINT: return "<sint>";
@@ -227,7 +227,7 @@ static char *type_name(enum type_e t) {
     return NULL;
 }
 
-void err_msg_wrong_type(const struct value_s *val, unsigned int epoint) {
+void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
     const char *name = NULL;
     if (val->type == T_UNDEF) {
         if (errors+conderrors==99) {
@@ -256,7 +256,7 @@ static void add_user_error2(const uint8_t *s, size_t len) {
 }
 
 static void add_user_error(const char *s) {
-    add_user_error2((uint8_t *)s, strlen(s));
+    add_user_error2((const uint8_t *)s, strlen(s));
 }
 
 void err_msg_variable(struct value_s *val, int repr) {
@@ -284,7 +284,7 @@ void err_msg_variable(struct value_s *val, int repr) {
     case T_STR:
        {
            if (repr) {
-               char *c;
+               const char *c;
                uint8_t *p, *c2;
                c = memchr(val->u.str.data, '"', val->u.str.len) ? "'" : "\"";
                add_user_error(c);
@@ -341,7 +341,7 @@ void err_msg_variable(struct value_s *val, int repr) {
     }
 }
 
-void err_msg_double_defined(const char *origname, const char *file, line_t sline, unsigned int epoint, const char *labelname2, unsigned int epoint2) {
+void err_msg_double_defined(const char *origname, const char *file, line_t sline2, linepos_t epoint, const char *labelname2, linepos_t epoint2) {
     char line[linelength];
 
     if (errors+conderrors==99) {
@@ -355,7 +355,7 @@ void err_msg_double_defined(const char *origname, const char *file, line_t sline
     adderror("'\n");
     if (file[0]) {
         adderror(file);
-	sprintf(line,":%" PRIuline ":%u: ", sline, epoint + 1); adderror(line);
+	sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline2, epoint + 1); adderror(line);
     } else {
         adderror("<command line>:0:0: ");
     }
@@ -365,8 +365,8 @@ void err_msg_double_defined(const char *origname, const char *file, line_t sline
     errors++;
 }
 
-void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct value_s *v2, unsigned int epoint) {
-    char *name;
+void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
+    const char *name;
 
     if (v1->type == T_UNDEF) {
         err_msg_wrong_type(v1, epoint);

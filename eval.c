@@ -95,7 +95,7 @@ inline uint8_t get_val_len2(const struct value_s *v) {
 
 static int get_hex(struct value_s *v) {
     uval_t val = 0;
-    unsigned int start;
+    linepos_t start;
     ignore();
     start = lpoint;
     while (here() == 0x30) lpoint++;
@@ -112,7 +112,7 @@ static int get_hex(struct value_s *v) {
 
 static int get_bin(struct value_s *v) {
     uval_t val = 0;
-    unsigned int start;
+    linepos_t start;
     ignore();
     start = lpoint;
     while (here() == 0x30) lpoint++;
@@ -145,7 +145,7 @@ static int get_dec(struct value_s *v) {
 }
 
 static int get_float(struct value_s *v) {
-    unsigned int i = lpoint;
+    linepos_t i = lpoint;
 
     while ((uint8_t)(pline[i] ^ '0') < 10) i++;
     if (pline[i]=='.') {
@@ -161,7 +161,7 @@ static int get_float(struct value_s *v) {
             } while ((uint8_t)(pline[i] ^ '0') < 10);
         }
     }
-    v->u.real = strtod((char *)pline + lpoint, NULL);
+    v->u.real = strtod((const char *)pline + lpoint, NULL);
     v->type = T_FLOAT;
     lpoint = i;
     return 0;
@@ -212,15 +212,15 @@ int str_to_num(const struct value_s *v, enum type_e type, struct value_s *v2) {
             large++;
         }
     } else if (v->u.str.len) {
-        uint32_t ch;
+        uint32_t ch2;
 
-        ch = v->u.str.data[0];
-        if (ch & 0x80) i = utf8in(v->u.str.data, &ch); else i=1;
+        ch2 = v->u.str.data[0];
+        if (ch2 & 0x80) i = utf8in(v->u.str.data, &ch2); else i=1;
 
         if (v->u.str.len > i) {
             v2->type = T_NONE;return 1;
         }
-        val = ch;
+        val = ch2;
     } else {
         v2->type = T_NONE;return 1;
     }
@@ -237,7 +237,8 @@ static int str_to_num2(struct value_s **v2, enum type_e type) {
 }
 
 static void get_string(struct value_s *v, uint8_t ch) {
-    unsigned int i, r = 0, i2 = 0;
+    size_t i2 = 0;
+    linepos_t i, r = 0;
     uint32_t ch2;
 
     i = lpoint;
@@ -251,7 +252,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
         i2++;
     }
     if (r) {
-        const uint8_t *p = (uint8_t *)pline + i, *e, *p2;
+        const uint8_t *p = (const uint8_t *)pline + i, *e, *p2;
         uint8_t *d;
         v->type = T_UNDEF;
         v->u.str.len = lpoint - i - 1 - r;
@@ -285,11 +286,11 @@ static int touch_label(struct label_s *tmp) {
 }
 
 static void copy_name(struct value_s *val, char *ident) {
-    unsigned int len = val->u.ident.len;
+    size_t len = val->u.ident.len;
     if (len > linelength - 1) len = linelength - 1;
     if (arguments.casesensitive) memcpy(ident, val->u.ident.name, len);
     else {
-        unsigned int i;
+        size_t i;
         for (i=0;i < len;i++) ident[i]=lowcase(val->u.ident.name[i]);
     }
     ident[len] = 0;
@@ -319,8 +320,8 @@ static void try_resolv_ident(struct value_s **val2) {
     val_replace(val2, &new_value);
 }
 
-static const struct value_s *unwind_identrefs(const struct value_s *v1, unsigned int epoint) {
-    const struct value_s *vold = v1;
+static struct value_s *unwind_identrefs(struct value_s *v1, linepos_t epoint) {
+    struct value_s *vold = v1;
     int rec = 100;
     while (v1->type == T_IDENTREF) {
         if (pass != 1 && v1->u.ident.label->value->type != T_IDENTREF) {
@@ -437,7 +438,7 @@ static uint8_t outp, outp2;
 static int gstop;
 static struct {
     struct value_s val;
-    unsigned int epoint;
+    linepos_t epoint;
 } o_out[256];
 
 static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
@@ -445,10 +446,10 @@ static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
     char ch;
 
     enum oper_e o_oper[256] = {0}, conv;
-    unsigned int epoints[256];
+    linepos_t epoints[256];
     uint8_t operp = 0;
     int large=0;
-    unsigned int epoint, cpoint = 0;
+    linepos_t epoint, cpoint = 0;
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
     cd=0;     // 0=error, 1=ok, 2=(a, 3=()
@@ -543,7 +544,7 @@ static int get_val2_compat(void) {// length in bytes, defined
     uint8_t vsp = 0;
     enum type_e t1, t2;
     enum oper_e op;
-    unsigned int i;
+    size_t i;
     struct value_s tmp;
     struct values_s *v1, *v2;
     int large = 0;
@@ -686,7 +687,7 @@ int eval_finish(void) {
 
 static int get_val2(int);
 
-struct value_s *get_val(enum type_e type, unsigned int *epoint) {// length in bytes, defined
+struct value_s *get_val(enum type_e type, linepos_t *epoint) {// length in bytes, defined
     int res;
 
     if (arguments.tasmcomp) {
@@ -770,7 +771,7 @@ enum func_e {
     F_INT
 };
 
-static struct value_s *apply_func(enum func_e func, struct value_s *v1, unsigned int epoint) {
+static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
     switch (func) {
     case F_SIGN:
         switch (v1->type) {
@@ -960,7 +961,7 @@ static void functions(struct values_s *vals, unsigned int args) {
     } // range([start],end,[step])
     if (len == 5 && !memcmp(name, "range", len)) {
         ival_t start = 0, end, step = 1;
-        size_t i = 0, len;
+        size_t i = 0, len2;
         struct value_s **val;
         if (args < 1 || args > 3) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else {
             for (i = 0; i < args; i++) {
@@ -986,12 +987,12 @@ static void functions(struct values_s *vals, unsigned int args) {
             if (step == 0) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v[2].epoint); val_replace(&vals->val, &none_value); return;}
             if (step > 0) {
                 if (end < start) end = start;
-                len = (end - start + step - 1) / step;
+                len2 = (end - start + step - 1) / step;
             } else {
                 if (end > start) end = start;
-                len = (start - end - step - 1) / -step;
+                len2 = (start - end - step - 1) / -step;
             }
-            val = malloc(len * sizeof(new_value.u.list.data[0]));
+            val = malloc(len2 * sizeof(new_value.u.list.data[0]));
             if (!val) err_msg_out_of_memory();
             i = 0;
             while ((end > start && step > 0) || (end < start && step < 0)) {
@@ -1001,7 +1002,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                 start += step;
             }
             new_value.type = T_LIST;
-            new_value.u.list.len = len;
+            new_value.u.list.len = len2;
             new_value.u.list.data = val;
             val_replace(&vals->val, &new_value); val_destroy(&new_value);
             return;
@@ -1203,7 +1204,7 @@ static ival_t indexoffs(const struct value_s *v, size_t len) {
     return -1;
 }
 
-static void str_iindex(struct values_s *vals, const struct value_s *list, unsigned int epoint) {
+static void str_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
     struct value_s *val;
     uint8_t *p, *p2;
     size_t len;
@@ -1232,7 +1233,7 @@ static void str_iindex(struct values_s *vals, const struct value_s *list, unsign
     }
     else {
         ival_t j, k;
-        size_t i, m = val->u.str.len;
+        size_t m = val->u.str.len;
         p = malloc(m);
         if (!p) err_msg_out_of_memory();
         new_value.u.str.data = p;
@@ -1273,7 +1274,7 @@ static void str_iindex(struct values_s *vals, const struct value_s *list, unsign
     val_replace(&vals->val, &new_value); val_destroy(&new_value);
 }
 
-static void list_iindex(struct values_s *vals, const struct value_s *list, unsigned int epoint) {
+static void list_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
     struct value_s *val;
     size_t i;
     size_t len;
@@ -1300,7 +1301,7 @@ static void list_iindex(struct values_s *vals, const struct value_s *list, unsig
     val_replace(&vals->val, &new_value); val_destroy(&new_value);
 }
 
-static void label_iindex(struct values_s *vals, const struct value_s *list, unsigned int epoint) {
+static void label_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
     struct value_s **val;
     struct label_s *l;
     size_t i, i2;
@@ -1352,7 +1353,7 @@ static void label_iindex(struct values_s *vals, const struct value_s *list, unsi
     val_replace(&vals->val, &new_value); val_destroy(&new_value);
 }
 
-static void bits_iindex(struct values_s *vals, const struct value_s *list, unsigned int epoint) {
+static void bits_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
     struct value_s *val;
     size_t i;
     size_t len;
@@ -1779,7 +1780,7 @@ static void slices(struct values_s *vals, unsigned int args) {
     return;
 }
 
-static struct value_s *apply_op(enum oper_e op, const struct value_s *v1, unsigned int epoint, unsigned int epoint2, int *large) {
+static struct value_s *apply_op(enum oper_e op, struct value_s *v1, linepos_t epoint, linepos_t epoint2, int *large) {
     enum type_e t1;
     struct value_s tmp1;
     char line[linelength]; 
@@ -1976,7 +1977,7 @@ static inline uint8_t addlen(int l1, int l2) {
     return 8*sizeof(uval_t);
 }
 
-static struct value_s *apply_op2(enum oper_e op, const struct value_s *v1, const struct value_s *v2, unsigned int epoint, unsigned int epoint2, unsigned int epoint3, int *large) {
+static struct value_s *apply_op2(enum oper_e op, struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
     enum type_e t1;
     enum type_e t2;
     struct value_s tmp1, tmp2;
@@ -2385,10 +2386,10 @@ strretr:
             case O_RSHIFT:
             case O_EXP:
                 {
-                    size_t i = 0;
                     struct value_s **vals, *val;
                     const struct value_s *v;
                     int d1 = 0, d2 = 0;
+                    i = 0;
                     v = v1;
                     while (v->type == T_LIST || v->type == T_TUPLE) {
                         d1++;
@@ -2407,7 +2408,7 @@ strretr:
                             if (v2->u.list.len) {
                                 vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
                                 if (!vals) err_msg_out_of_memory();
-                                for (;i < v2->u.list.len; i++) {
+                                for (; i < v2->u.list.len; i++) {
                                     val = apply_op2(op, v1->u.list.data[0], v2->u.list.data[i], epoint, epoint2, epoint3, large);
                                     vals[i] = val_reference(val);
                                     val_destroy(val);
@@ -2417,7 +2418,7 @@ strretr:
                             if (v1->u.list.len) {
                                 vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                                 if (!vals) err_msg_out_of_memory();
-                                for (;i < v1->u.list.len; i++) {
+                                for (; i < v1->u.list.len; i++) {
                                     val = apply_op2(op, v1->u.list.data[i], v2->u.list.data[0], epoint, epoint2, epoint3, large);
                                     vals[i] = val_reference(val);
                                     val_destroy(val);
@@ -2426,7 +2427,7 @@ strretr:
                         } else if (v1->u.list.len) {
                             vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                             if (!vals) err_msg_out_of_memory();
-                            for (;i < v1->u.list.len; i++) {
+                            for (; i < v1->u.list.len; i++) {
                                 val = apply_op2(op, v1->u.list.data[i], v2->u.list.data[i], epoint, epoint2, epoint3, large);
                                 vals[i] = val_reference(val);
                                 val_destroy(val);
@@ -2436,7 +2437,7 @@ strretr:
                         if (v1->u.list.len) {
                             vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                             if (!vals) err_msg_out_of_memory();
-                            for (;i < v1->u.list.len; i++) {
+                            for (; i < v1->u.list.len; i++) {
                                 val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, epoint3, large);
                                 vals[i] = val_reference(val);
                                 val_destroy(val);
@@ -2445,7 +2446,7 @@ strretr:
                     } else if (v2->u.list.len) {
                         vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
                         if (!vals) err_msg_out_of_memory();
-                        for (;i < v2->u.list.len; i++) {
+                        for (; i < v2->u.list.len; i++) {
                             val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
                             vals[i] = val_reference(val);
                             val_destroy(val);
@@ -2458,40 +2459,39 @@ strretr:
                 }
             case O_EQ:
                 {
-                    size_t i;
                     if (v1->u.list.len != v2->u.list.len) return &false_value;
-                    for (i = 0;i < v2->u.list.len; i++) {
+                    for (i = 0; i < v2->u.list.len; i++) {
                         if (apply_op2(op, v1->u.list.data[i], v2->u.list.data[i], epoint, epoint2, epoint3, large) == &false_value) return &false_value;
                     }
                     return &true_value;
                 }
             case O_NEQ:
                 {
-                    size_t i;
                     if (v1->u.list.len != v2->u.list.len) return &true_value;
-                    for (i = 0;i < v2->u.list.len; i++) {
+                    for (i = 0; i < v2->u.list.len; i++) {
                         if (apply_op2(op, v1->u.list.data[i], v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
                     }
                     return &false_value;
                 }
             case O_CONCAT:
-                new_value.type = t1;
-                new_value.u.list.len = v1->u.list.len + v2->u.list.len;
-                if (new_value.u.list.len) {
-                    new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
-                    if (!new_value.u.list.data) err_msg_out_of_memory();
-                    for (i = 0;i < v1->u.list.len; i++) {
-                        new_value.u.list.data[i] = val_reference(v1->u.list.data[i]);
-                    }
-                    for (;i < new_value.u.list.len; i++) {
-                        new_value.u.list.data[i] = val_reference(v2->u.list.data[i - v1->u.list.len]);
-                    }
-                } else new_value.u.list.data = NULL;
-                return &new_value;
+                {
+                    new_value.type = t1;
+                    new_value.u.list.len = v1->u.list.len + v2->u.list.len;
+                    if (new_value.u.list.len) {
+                        new_value.u.list.data = malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
+                        if (!new_value.u.list.data) err_msg_out_of_memory();
+                        for (i = 0; i < v1->u.list.len; i++) {
+                            new_value.u.list.data[i] = val_reference(v1->u.list.data[i]);
+                        }
+                        for (; i < new_value.u.list.len; i++) {
+                            new_value.u.list.data[i] = val_reference(v2->u.list.data[i - v1->u.list.len]);
+                        }
+                    } else new_value.u.list.data = NULL;
+                    return &new_value;
+                }
             case O_IN:
                 {
-                    size_t i;
-                    for (i = 0;i < v2->u.list.len; i++) {
+                    for (i = 0; i < v2->u.list.len; i++) {
                         if (apply_op2(O_EQ, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large) == &true_value) return &true_value;
                     }
                     return &false_value;
@@ -2572,7 +2572,7 @@ strretr:
 
 static int get_val2(int stop) {
     uint8_t vsp = 0;
-    unsigned int i;
+    size_t i;
     enum oper_e op;
     struct values_s *v1, *v2;
     enum type_e t1, t2;
@@ -2854,10 +2854,10 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     char ch;
 
     enum oper_e o_oper[256] = {0}, op;
-    unsigned int epoints[256];
+    linepos_t epoints[256];
     uint8_t operp = 0, prec, db;
     int large=0;
-    unsigned int epoint;
+    linepos_t epoint;
 
     gstop = stop;
     outp2 = outp = 0;

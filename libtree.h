@@ -28,11 +28,16 @@
  */
 #ifdef __GNUC__
 #  define avltree_container_of(node, type, member) ({			\
-	const struct avltree_node *__mptr = (node);			\
+	struct avltree_node *__mptr = (node);			\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
+#  define cavltree_container_of(node, type, member) ({			\
+	const struct avltree_node *__mptr = (node);			\
+	(const type *)( (const char *)__mptr - offsetof(type,member) );})
 #else
 #  define avltree_container_of(node, type, member)			\
 	((type *)((char *)(node) - offsetof(type, member)))
+#  define cavltree_container_of(node, type, member)			\
+	((const type *)((const char *)(node) - offsetof(type, member)))
 #endif	/* __GNUC__ */
 
 /*
@@ -46,7 +51,7 @@ struct avltree_node {
 };
 
 typedef int (*avltree_cmp_fn_t)(const struct avltree_node *, const struct avltree_node *);
-typedef void (*avltree_free_fn_t)(const struct avltree_node *);
+typedef void (*avltree_free_fn_t)(struct avltree_node *);
 
 struct avltree {
 	struct avltree_node *root;
@@ -62,6 +67,6 @@ struct avltree_node *avltree_next(const struct avltree_node *node);
 struct avltree_node *avltree_lookup(const struct avltree_node *key, const struct avltree *tree);
 struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *tree);
 void avltree_init(struct avltree *tree, avltree_cmp_fn_t cmp, avltree_free_fn_t free);
-void avltree_destroy(const struct avltree *tree);
+void avltree_destroy(struct avltree *tree);
 
 #endif

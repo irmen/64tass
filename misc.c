@@ -54,13 +54,13 @@ const uint8_t whatis[256]={
 //------------------------------------------------------------------------------
 static int jump_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    struct jump_s *a = avltree_container_of(aa, struct jump_s, node);
-    struct jump_s *b = avltree_container_of(bb, struct jump_s, node);
+    const struct jump_s *a = cavltree_container_of(aa, struct jump_s, node);
+    const struct jump_s *b = cavltree_container_of(bb, struct jump_s, node);
 
     return strcmp(a->name, b->name);
 }
 
-static void jump_free(const struct avltree_node *aa)
+static void jump_free(struct avltree_node *aa)
 {
     struct jump_s *a = avltree_container_of(aa, struct jump_s, node);
 
@@ -71,27 +71,28 @@ static void jump_free(const struct avltree_node *aa)
 
 // ---------------------------------------------------------------------------
 
-struct jump_s *find_jump(const char* name) {
+const struct jump_s *find_jump(const char* name) {
     struct jump_s a;
     const struct avltree_node *c;
     a.name=name;
     if (!(c=avltree_lookup(&a.node, &jump_tree))) return NULL;
-    return avltree_container_of(c, struct jump_s, node);
+    return cavltree_container_of(c, struct jump_s, node);
 }
 
 static struct jump_s *lastjp=NULL;
 struct jump_s *new_jump(const char* name, const char* origname) {
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct jump_s *tmp;
+    char *s;
     if (!lastjp)
 	if (!(lastjp=malloc(sizeof(struct jump_s)))) err_msg_out_of_memory();
     lastjp->name=name;
     b=avltree_insert(&lastjp->node, &jump_tree);
     if (!b) { //new label
-	if (!(lastjp->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastjp->name, name);
-	if (!(lastjp->origname=malloc(strlen(origname)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastjp->origname, origname);
+	if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
+        strcpy(s, name);lastjp->name = s;
+	if (!(s=malloc(strlen(origname)+1))) err_msg_out_of_memory();
+        strcpy(s, origname); lastjp->origname = s;
 	labelexists=0;
 	tmp=lastjp;
 	lastjp=NULL;
@@ -207,7 +208,7 @@ void labelprint(void) {
     clearerr(flab);
     n = avltree_first(&root_label.members);
     while (n) {
-        l = avltree_container_of(n, struct label_s, node);            //already exists
+        l = cavltree_container_of(n, struct label_s, node);            //already exists
         n = avltree_next(n);
         if (l->name[0]=='-' || l->name[0]=='+') continue;
         if (l->name[0]=='.' || l->name[0]=='#') continue;
@@ -306,7 +307,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 'D':
                 {
                     const uint8_t *c = (uint8_t *)optarg;
-                    uint8_t *pline=&fin->data[fin->p], ch2;
+                    uint8_t *p=&fin->data[fin->p], ch2;
                     int i, j;
                     uint32_t ch = 0;
 
@@ -314,7 +315,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                         fin->len += linelength;
                         if (!(fin->data=realloc(fin->data, fin->len))) exit(1);
                     }
-                    pline=&fin->data[fin->p];
+                    p=&fin->data[fin->p];
                     while ((ch=*c++)) {
                         switch (type) {
                         case UNKNOWN:
@@ -346,9 +347,9 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                                     if (type == UNKNOWN) {
                                         type = ISO1;
                                         i = (j - i) * 6;
-                                        pline = utf8out(((~0x7f >> j) & 0xff) | (ch >> i), pline);
+                                        p = utf8out(((~0x7f >> j) & 0xff) | (ch >> i), p);
                                         for (;i; i-= 6) {
-                                            pline = utf8out(((ch >> (i-6)) & 0x3f) | 0x80, pline);
+                                            p = utf8out(((ch >> (i-6)) & 0x3f) | 0x80, p);
                                         }
                                         ch = ch2; j = 0;
                                         break;
@@ -363,11 +364,11 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                         case ISO1:
                             break;
                         }
-                        if (ch && ch < 0x80) *pline++ = ch; else pline = utf8out(ch, pline);
-                        if (pline > &fin->data[fin->p + linelength - 6*6]) break;
+                        if (ch && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
+                        if (p > &fin->data[fin->p + linelength - 6*6]) break;
                     }
-                    *pline++ = 0;
-                    fin->p = pline - fin->data;
+                    *p++ = 0;
+                    fin->p = p - fin->data;
                 }
                 break;
             case 'B':arguments.longbranch=1;break;

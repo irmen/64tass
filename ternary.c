@@ -30,7 +30,7 @@ void *ternary_insert(ternary_tree *root, const char *s, void *data, int replace)
   uint32_t spchar;
   ternary_tree curr, *pcurr;
   spchar = *s;
-  if (spchar & 0x80) s += utf8in((uint8_t *)s, &spchar); else s++;
+  if (spchar & 0x80) s += utf8in((const uint8_t *)s, &spchar); else s++;
 
   /* Start at the root. */
   pcurr = root;
@@ -50,7 +50,7 @@ void *ternary_insert(ternary_tree *root, const char *s, void *data, int replace)
 	      return (void *) curr->eqkid;
 	    }
           spchar = *s;
-          if (spchar & 0x80) s += utf8in((uint8_t *)s, &spchar); else s++;
+          if (spchar & 0x80) s += utf8in((const uint8_t *)s, &spchar); else s++;
 	  pcurr = &(curr->eqkid);
 	}
       /* Handle current char less than node splitchar */
@@ -85,7 +85,7 @@ void *ternary_insert(ternary_tree *root, const char *s, void *data, int replace)
 	  return data;
 	}
       spchar = *s;
-      if (spchar & 0x80) s += utf8in((uint8_t *)s, &spchar); else s++;
+      if (spchar & 0x80) s += utf8in((const uint8_t *)s, &spchar); else s++;
       pcurr = &(curr->eqkid);
     }
 }
@@ -114,7 +114,7 @@ void *ternary_search (const ternary_node *p, const char *s, const char *end)
   if (s == end) spchar = 0;
   else {
       spchar = *s;
-      if (spchar & 0x80) s += utf8in((uint8_t *)s, &spchar); else s++;
+      if (spchar & 0x80) s += utf8in((const uint8_t *)s, &spchar); else s++;
   }
   curr = p;
   /* Loop while we haven't hit a NULL node or returned */
@@ -132,7 +132,7 @@ void *ternary_search (const ternary_node *p, const char *s, const char *end)
           if (s == end) spchar = 0;
           else {
               spchar = *s;
-              if (spchar & 0x80) s += utf8in((uint8_t *)s, &spchar); else s++;
+              if (spchar & 0x80) s += utf8in((const uint8_t *)s, &spchar); else s++;
           }
 	  curr = curr->eqkid;
 	}

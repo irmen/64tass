@@ -269,9 +269,9 @@ void avltree_init(struct avltree *tree, avltree_cmp_fn_t cmp, avltree_free_fn_t 
 	tree->last = NULL;
 }
 
-static void destroy(const struct avltree *tree, const struct avltree_node *node)
+static void destroy(struct avltree *tree, struct avltree_node *node)
 {
-        const struct avltree_node *tmp;
+        struct avltree_node *tmp;
 	while (node) {
 		destroy(tree, node->left);
 		tmp = node;
@@ -280,7 +280,7 @@ static void destroy(const struct avltree *tree, const struct avltree_node *node)
 	}
 }
 
-void avltree_destroy(const struct avltree *tree)
+void avltree_destroy(struct avltree *tree)
 {
 	destroy(tree, tree->root);
 }

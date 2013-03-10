@@ -73,7 +73,7 @@ struct arguments_s {
 };
 
 extern line_t sline, vline;
-extern unsigned int lpoint; 
+extern linepos_t lpoint; 
 extern struct avltree *star_tree;
 extern int fixeddig;
 extern unsigned int errors,conderrors,warnings;
@@ -91,7 +91,7 @@ extern uint8_t pass;
 #define linelength 4096
 
 extern const uint8_t whatis[256];
-extern struct jump_s *find_jump(const char*);
+extern const struct jump_s *find_jump(const char*);
 extern struct jump_s *new_jump(const char*, const char*);
 extern void tfree(void);
 extern void tinit(void);

@@ -5,6 +5,9 @@
 #ifndef PRIuFAST32
 #define PRIuFAST32 "u"
 #endif
+#ifndef PRIuFAST16
+#define PRIuFAST16 "u"
+#endif
 #ifndef PRIxFAST32
 #define PRIxFAST32 "x"
 #endif
@@ -29,4 +32,7 @@ typedef uint_fast32_t line_t;
 #define PRIxline PRIxFAST32
 typedef uint_fast32_t address_t;
 #define PRIaddress PRIxFAST32
+typedef uint_fast16_t linecpos_t;
+typedef uint_fast16_t linepos_t;
+#define PRIlinepos PRIuFAST16
 #endif

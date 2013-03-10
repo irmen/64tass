@@ -33,10 +33,10 @@ static struct labels_s {
     struct labels_s *next;
 } *labels = NULL;
 
-/*static void var_free(struct label_s *val) {
+/*static void var_free(union label_u *val) {
     //free(val); return;
-    ((union label_u *)val)->next = labels_free;
-    labels_free = (union label_u *)val;
+    val->next = labels_free;
+    labels_free = val;
 }*/
 
 static struct label_s *var_alloc(void) {
@@ -60,26 +60,26 @@ static struct label_s *var_alloc(void) {
 }
 
 // ---------------------------------------------------------------------------
-static void label_free(const struct avltree_node *aa)
+static void label_free(struct avltree_node *aa)
 {
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
     free((char *)a->name);
     free((char *)a->origname);
     avltree_destroy(&a->members);
     val_destroy(a->value);
-//    var_free(a);
+//    var_free((union label_u *)a);
 }
 
 static int label_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    struct label_s *a = avltree_container_of(aa, struct label_s, node);
-    struct label_s *b = avltree_container_of(bb, struct label_s, node);
+    const struct label_s *a = cavltree_container_of(aa, struct label_s, node);
+    const struct label_s *b = cavltree_container_of(bb, struct label_s, node);
 
     return strcmp(a->name, b->name);
 }
 
 struct label_s *find_label(const char* name) {
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct label_s *context = current_context;
     struct label_s tmp;
     tmp.name=name;
@@ -93,7 +93,7 @@ struct label_s *find_label(const char* name) {
 }
 
 struct label_s *find_label2(const char* name, const struct avltree *tree) {
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct label_s tmp;
     tmp.name=name;
     b=avltree_lookup(&tmp.node, tree);
@@ -104,16 +104,17 @@ struct label_s *find_label2(const char* name, const struct avltree *tree) {
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
 struct label_s *new_label(const char* name, const char* origname, enum label_e type) {
-    const struct avltree_node *b;
+    struct avltree_node *b;
     struct label_s *tmp;
+    char *s;
     if (!lastlb) lastlb=var_alloc();
     lastlb->name=name;
     b=avltree_insert(&lastlb->node, &current_context->members);
     if (!b) { //new label
-	if (!(lastlb->name=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastlb->name,name);
-	if (!(lastlb->origname=malloc(strlen(origname)+1))) err_msg_out_of_memory();
-        strcpy((char *)lastlb->origname,origname);
+	if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
+        strcpy(s, name);lastlb->name = s;
+	if (!(s=malloc(strlen(origname)+1))) err_msg_out_of_memory();
+        strcpy(s, origname);lastlb->origname = s;
         lastlb->type = type;
         lastlb->parent=current_context;
         lastlb->ref=lastlb->sign=lastlb->size=lastlb->esize=0;

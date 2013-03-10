@@ -2,7 +2,7 @@ CC = gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o
 LANG = C
 REVISION := $(shell svnversion)
-CFLAGS = -O2 -W -Wall -Wextra -DREVISION="\" $(REVISION)\"" -g
+CFLAGS = -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\" $(REVISION)\"" -g -Wstrict-aliasing=2
 LDFLAGS = -g -lm
 CFLAGS += $(LDFLAGS)
 
