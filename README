@@ -1,31 +1,31 @@
 64tass v1.5x manual
 
-Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
-BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
-optimizations, multi pass compile and a lot of features by Soci/Singular.
-Improved TASS compatibility, PETSCII codes by Groepaz.
+This is the manual for 64tass, the multi pass optimizing macro assembler for
+the 65xx series of processors. Key features:
 
-Additional code: my_getopt command-line argument parser by Benjamin Sittler,
-avl tree code by Franck Bui-Huu, ternary tree code by Daniel Berlin.
-
-Syntax is the same as the well known Turbo Assembler on c64, so you can port
-your sources easy by only replacing the CR at the end of each line.
-
-Main developer and maintainer: soci at c64.rulez.org
+  * Open source, mostly portable C
+  * Familiar syntax to Omicron TASS and TASM.
+  * Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
+  * Integer, floating point point, string and array arithmetic available
+  * Handles UTF-8, UTF-16 and 8 bit RAW encoded sources and strings
+  * Built in `linker' with section support
+  * CPU or flat address space for creating huge binaries (e.g. cartridges)
+  * Conditional compilation, macros, struct/union structures, scopes.
 
 This is a development version, features or syntax may change over time. Not
 everything is backwards compatible.
+
+Project page: http://sourceforge.net/projects/tass64/
 
 -------------------------------------------------------------------------------
 
 Usage tips
 
-64tass is a command line compiler, the source can be written in any text
-editor. As a minimum the source filename must be given on command line.
+64tass is a command line assembler, the source can be written in any text
+editor. As a minimum the source filename must be given on command line. There
+are also some useful parameters which are described later.
 
 64tass src.asm
-
-There are also some useful parameters which are described later.
 
 For comfortable compiling I use such `Makefile's (for make):
 
@@ -123,52 +123,6 @@ jumpcmd lda hibytes,x   ; selected routine in X register
 lobytes .byte <(-)      ; low bytes of jump addresses
 hibytes .byte >(-)      ; high bytes
 
-For writing short code there are some special pseudo instructions for always
-taken branches. These are automatically compiled as relative branches when the
-jump distance is short enough and as JMP or BRL when longer. The names are
-derived from conditional branches and are: GEQ, GNE, GCC, GCS, GPL, GMI, GVC,
-and GVS.
-
-There's one more called GRA for CPUs supporting BRA, which is expanded to BRL
-(if available) or JMP.
-
-.0000    a9 03          lda #$03        in1     lda #3
-.0002    d0 02          gne $0006               gne at          ;branch always
-.0004    a9 02          lda #$02        in2     lda #2
-.0006    4c 00 10       gne $1000       at      gne $1000       ;branch further
-
-If the branch would skip only one byte then the opposite condition is compiled
-and only the first byte is emitted. This is now a never executed jump, and the
-relative distance byte after the opcode is the jumped over byte.
-
-If the branch would not skip anything at all then no code is generated.
-
-.0009                   geq $0009               geq in3         ;zero length "branch"
-.0009    18             clc             in3     clc
-.000a    b0             gcc $000c               gcc at2         ;one byte skip, as bcs
-.000b    38             sec             in4     sec             ;sec is skipped!
-.000c    20 0f 00       jsr $000f       at2     jsr func
-.000f                                   func
-
-Please note that expressions like Gxx *+2 or Gxx *+3 are not allowed as the
-compiler can't figure out if it has to create no code at all, the 1 byte
-variant or the 2 byte one. Therefore use normal or anonymous labels defined
-after the jump instruction when jumping forward!
-
-To avoid branch too long errors the assembler also supports long branches, it
-can automatically convert conditional relative branches to it's opposite and a
-JMP or BRL. This can be enabled on the command line using the `--long-branch'
-option.
-
-.0000    ea             nop                     nop
-.0001    b0 03 4c 00 10 bcc $1000               bcc $1000      ;long branch
-.0006    ea             nop                     nop
-
-Please note that forward jump expressions like Bxx *+130, Bxx *+131 and Bxx
-*+132 are not allowed as the compiler can't decide between a short/long branch.
-Of course these destinations can be used, but only with normal or anonymous
-labels defined after the jump instruction.
-
 There are some other tips below in the descriptions.
 
 -------------------------------------------------------------------------------
@@ -182,6 +136,7 @@ or binary (%[01]*). Short strings of few characters are converted to a numeric
 constant using the current encoding at the place of use. The following
 operations are accepted:
 
+              Integer operators and functions
 x + y    add x to y                       2 + 2 is 4
 x - y    substract y from x               4 - 1 is 3
 x * y    multiply x with y                2 * 3 is 6
@@ -196,12 +151,12 @@ x ** y   x raised t power of y            2 ** 4 is 16
 <>       lower word                       <>$123456 is $3456
 >`       higher word                      <`$123456 is $1234
 ><       lower byte swapped word          ><$123456 is $5634
-x == y   x equals to y                    2 == 3 is <false>
-x != y   x does not equal to y            2 != 3 is <true>
-x < y    x is less than y                 2 < 3 is <true>
-x > y    x is more than y                 2 > 3 is <false>
-x >= y   x is more than y or equals       2 >= 3 is <false>
-x <= y   x is less than y or equals       2 <= 3 is <true>
+x == y   x equals to y                    2 == 3 is false
+x != y   x does not equal to y            2 != 3 is true
+x < y    x is less than y                 2 < 3 is true
+x > y    x is more than y                 2 > 3 is false
+x >= y   x is more than y or equals       2 >= 3 is false
+x <= y   x is less than y or equals       2 <= 3 is true
 x | y    bitwise or                       2 | 6 is 6
 x ^ y    bitwise xor                      2 ^ 6 is 4
 x & y    bitwise and                      2 & 6 is 2
@@ -214,8 +169,8 @@ x[s]     slice bits                       $1234[4:8] is $3
 len(a)   length in bits                   len($034) is 12
 float(a) convert to floating point        float(1) is 1.0
 
-An integer has a truth value of <true> if it's non-zero. The <true> value is
-the same as 1.
+An integer has a truth value of true if it's non-zero. The true value is the
+same as 1.
 
 Length of a numeric constants are defined in bits and is calculated from the
 number of digits used for hexadecimal (4 each) and binary (1 each) definitions.
@@ -247,50 +202,51 @@ Floating point constants
 Floating point constants have a decimal mark in them and optionally an
 exponent. The following operations can be used on them:
 
+              Floating point operators and functions
 x + y       add x to y                       2.2 + 2.2 is 4.4
 x - y       substract y from x               4.1 - 1.1 is 3.0
 x * y       multiply x with y                1.5 * 3 is 4.5
 x / y       integer divide x by y            7.0 / 2.0 is 3.5
 x % y       integer modulo of x divided by y 5.0 % 2.0 is 1.0
 x ** y      x raised t power of y            2.0 ** -1 is 0.5
-~x          -(x+1) value                     ~2.1 is -3.1
+~x          ?(x+1) value                     ~2.1 is -3.1
 -x          negated value                    -2.0 is -2.0
 +x          unchanged                        +2.0 is 2.0
-x == y      x equals to y                    2.0 == 3.0 is <false>
-x != y      x does not equal to y            2.0 != 3.0 is <true>
-x < y       x is less than y                 2.0 < 3.0 is <true>
-x > y       x is more than y                 2.0 > 3.0 is <false>
-x >= y      x is more than y or equals       2.0 >= 3.0 is <false>
-x <= y      x is less than y or equals       2.0 <= 3.0 is <true>
-abs(a)      Absolute value                   abs(-1.0) is 1.0
-sign(a)     Sign value (-1, 0, 1)            sign(-4.0) is -1
-floor(a)    Round down                       floor(-4.8) is -5.0
-round(a)    Round to nearest away from zero  floor(4.8) is 5.0
-ceil(a)     Round up                         ceil(1.1) is 2.0
-trunc(a)    Round down towards zero          trunc(-1.9) is -1
-frac(a)     Fractional part                  frac(1.1) is 0.1
-sqrt(a)     Square root                      sqrt(16.0) is 4.0
-cbrt(a)     Cube root                        cbrt(27.0) is 3.0
-log10(a)    Common logarithm                 log10(100.0) is 2.0
-log(a)      Natural logarithm                log(1) is 0.0
-exp(a)      Exponential                      exp(0) is 1.0
+x == y      x equals to y                    2.0 == 3.0 is false
+x != y      x does not equal to y            2.0 != 3.0 is true
+x < y       x is less than y                 2.0 < 3.0 is true
+x > y       x is more than y                 2.0 > 3.0 is false
+x >= y      x is more than y or equals       2.0 >= 3.0 is false
+x <= y      x is less than y or equals       2.0 <= 3.0 is true
+abs(a)      absolute value                   abs(-1.0) is 1.0
+sign(a)     sign value (?1, 0, 1)            sign(-4.0) is -1
+floor(a)    round down                       floor(-4.8) is -5.0
+round(a)    round to nearest away from zero  floor(4.8) is 5.0
+ceil(a)     round up                         ceil(1.1) is 2.0
+trunc(a)    round down towards zero          trunc(-1.9) is -1
+frac(a)     fractional part                  frac(1.1) is 0.1
+sqrt(a)     square root                      sqrt(16.0) is 4.0
+cbrt(a)     cube root                        cbrt(27.0) is 3.0
+log10(a)    common logarithm                 log10(100.0) is 2.0
+log(a)      natural logarithm                log(1) is 0.0
+exp(a)      exponential                      exp(0) is 1.0
 pow(a, b)   a raised to power of b           pow(2.0, 3.0) is 8.0
-sin(a)      Sine                             sin(0.0) is 0.0
-asin(a)     Arc sine                         asin(0.0) is 0.0
-sinh(a)     Hyperbolic sine                  sinh(0.0) is 0.0
-cos(a)      Cosine                           cos(0.0) is 1.0
-acos(a)     Arc cosine                       acos(1.0) is 0.0
-cosh(a)     Hyperbolic cosine                cosh(0.0) is 1.0
-tan(a)      Tangent                          tan(0.0) is 0.0
-atan(a)     Arc tangent                      atan(0.0) is 0.0
-tanh(a)     Hyperbolic tangent               tanh(0.0) is 0.0
-rad(a)      Degrees to radian                rad(0.0) is 0.0
-deg(a)      Radian to degrees                deg(0.0) is 0.0
-hypot(y, x) Polar distance                   hypot(4.0, 3.0) is 5.0
-atan2(y, x) Polar angle                      atan2(0.0, 3.0) is 0.0
-int(a)      Convert to integer               int(3.8) is 3
+sin(a)      sine                             sin(0.0) is 0.0
+asin(a)     arc sine                         asin(0.0) is 0.0
+sinh(a)     hyperbolic sine                  sinh(0.0) is 0.0
+cos(a)      cosine                           cos(0.0) is 1.0
+acos(a)     arc cosine                       acos(1.0) is 0.0
+cosh(a)     hyperbolic cosine                cosh(0.0) is 1.0
+tan(a)      tangent                          tan(0.0) is 0.0
+atan(a)     arc tangent                      atan(0.0) is 0.0
+tanh(a)     hyperbolic tangent               tanh(0.0) is 0.0
+rad(a)      degrees to radian                rad(0.0) is 0.0
+deg(a)      radian to degrees                deg(0.0) is 0.0
+hypot(y, x) polar distance                   hypot(4.0, 3.0) is 5.0
+atan2(y, x) polar angle                      atan2(0.0, 3.0) is 0.0
+int(a)      convert to integer               int(3.8) is 3
 
-A floating point number has a truth value of <true> if it's non-zero.
+A floating point number has a truth value of true if it's non-zero.
 
 As usual comparing floating point numbers for (non) equality is a bad idea due
 to rounding errors.
@@ -310,8 +266,9 @@ representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside the strings escapes them.
 
+          String operators and functions
 ..     concatenate strings  "a".."b" is "ab"
-in     is substring of      "b" in "abc" is <true>
+in     is substring of      "b" in "abc" is true
 %      string formatting    "%02x" % (12,) is "0c"
 x      repeat               "ab" x 3 is "ababab"
 x[i]   character from start "abc"[1] is "b"
@@ -322,7 +279,7 @@ x[s]   cut off end          "abc"[:-1] is "ab"
 x[s]   reverse              "abc"[::-1] is "cba"
 len(x) number of characters len("abc") is 3
 
-A string has a truth value of <true> if it contains at least one character.
+A string has a truth value of true if it contains at least one character.
 
 Strings are converted to numeric constants as necessary using the current
 encoding and escape rules, for example when using a sane encoding "z" - "a" is
@@ -330,7 +287,7 @@ encoding and escape rules, for example when using a sane encoding "z" - "a" is
 
 Indexing characters with positive integers start with zero. Negative indexes
 are translated internally by adding the number of characters to them, therefore
--1 can be used to access the last character. Indexing with list of integers is
+?1 can be used to access the last character. Indexing with list of integers is
 possible as well so "abc"[(-1, 0, 1)] is "cab".
 
 Slicing is an operation when parts of string are extracted from a start
@@ -354,6 +311,7 @@ String formatting can interpret a list of values and convert them to a string.
 The converted values are inserted at the % sign which is followed by conversion
 flags, minimum field length, and conversion type. The these flags can be used:
 
+           Formatting flags
 #     alternate form ($a, %10, 10.)
 *     width/precision from list
 .     precision
@@ -364,14 +322,15 @@ flags, minimum field length, and conversion type. The these flags can be used:
 
 The following conversions are implemented:
 
+      Formatting conversions
 b     binary
 c     unicode character
 d     decimal
-e, E  exponential float (uppercase)
-f, F  floating point (uppercase)
-g, G  exponential/floating point
+e E   exponential float (uppercase)
+f F   floating point (uppercase)
+g G   exponential/floating point
 s     string
-x, X  hexadecimal (uppercase)
+x X   hexadecimal (uppercase)
 %     percent sign
 
         .text "%#04x bytes left" % (1000,)   ; $03e8 bytes left
@@ -385,8 +344,9 @@ single element tuple is (4,) to differentiate from normal numeric expression
 parentheses. When nested they function similar to an array. Currently both
 types are immutable.
 
+                    List and tuple operators and functions
 ..           concatenate lists                     [1]..[2] is [1, 2]
-in           is member of list                     2 in [1, 2, 3] is <true>
+in           is member of list                     2 in [1, 2, 3] is true
 x            repeat                                [1, 2] x 2 is [1, 2, 1, 2]
 x[i]         element from start                    ("1", 2)[1] is 2
 x[i]         element from end                      ("1", 2, 3)[-1] is 3
@@ -398,8 +358,7 @@ len(x)       number of elements                    len([1, 2, 3]) is 3
 range(s,e,t) create a list with values from a      range(3) is [0,1,2]
              range
 
-A list or tuple has a truth value of <true> if it contains at least one
-element.
+A list or tuple has a truth value of true if it contains at least one element.
 
 Arithmetic operations are applied on the all elements recursively, therefore
 [1, 2] + 1 is [2, 3], and abs([1, -1]) is [1, 1].
@@ -412,7 +371,7 @@ stretched to fill in the gaps if possible, so [[1],[2]] * [3, 4] is [[3, 4],
 [6, 8]].
 
 Indexing elements with positive integers start with zero. Negative indexes are
-transformed to positive by adding the number of elements to them, therefor -1
+transformed to positive by adding the number of elements to them, therefor ?1
 is the last element. Indexing with list of integers is possible as well so [1,
 2, 3][(-1, 0, 1)] is [3, 1, 2].
 
@@ -460,6 +419,7 @@ single element is a byte, but this can be more for data definitions. Trying to
 `overwrite' the same memory locations later does not affect the content
 anymore.
 
+         Label operators and functions
 .       member                  label.locallabel
 x[i]    element from start      label[1]
 x[i]    element from end        label[-1]
@@ -470,7 +430,7 @@ x[s]    reverse, as tuple       label[::-1]
 len(x)  number of elements      len(label)
 size(a) size in bytes           size(label)
 
-A label has a truth value of <true> when it's address is non-zero.
+A label has a truth value of true when it's address is non-zero.
 
 mydata  .word 1, 4, 3
 mycode  .block
@@ -565,21 +525,19 @@ Boolean conditional operators give false (0) or true (1) or one of the operands
 as the result. True is defined as a non-zero number, a non-empty string/tuple/
 list, anything else is false.
 
+The ternary operator (?:) gives the first (x) result if c is true or the second
+(y) if c is false.
+
+              Logical and conditional operators
 x || y      if x is true then x otherwise y
 x ^^ y      if both false or true then false otherwise x || y
 x && y      if x is true then y otherwise x
 !x          if x is true then false otherwise true
 !!x         if x is true then true otherwise false
-
-;Silly example for 1=>"simple", 2=>"advanced", else "normal"
-        .text MODE == 1 && "simple" || MODE == 2 && "advanced" || "normal"
-
-The conditional operator gives the first (x) result if c is true or the second
-(y) if c is false.
-
 c ? x : y   if c is true then x otherwise y
 
 ;Silly example for 1=>"simple", 2=>"advanced", else "normal"
+        .text MODE == 1 && "simple" || MODE == 2 && "advanced" || "normal"
         .text MODE == 1 ? "simple" : MODE == 2 ? "advanced" : "normal"
 
 Expressions
@@ -592,12 +550,14 @@ that they also denote indirect addressing mode for certain opcodes.
 Built in functions are identifiers followed by parentheses. They accept
 variable number of parameters separated by comma.
 
+       Other built in functions
 min(a, b, ...)        Minimum of values
 max(a, b, ...)        Maximum of values
 
 Special addressing mode forcing operators in front of an expression can be used
 to make sure the expected addressing mode is used.
 
+           Address size forcing
 @b          to force 8 bit address
 @w          to force 16 bit address
 @l          to force 24 bit address (65816)
@@ -730,24 +690,20 @@ Dumping data
 
 .byte <expression>[, <expression>, ...]
     Include 8 bit unsigned byte constants
-
-            .byte 255       ; $ff
-            .byte ?         ; reserve 1 byte of space
-
 .char <expression>[, <expression>, ...]
     Include 8 bit signed integer constants
 
+            .byte 255       ; $ff
+            .byte ?         ; reserve 1 byte of space
             .char -33, 57
 
 .word <expression>[, <expression>, ...]
     Include 16 bit unsigned word constants
-
-            .word $2342, $4555
-            .word ?         ; reserve 2 bytes of space
-
 .int <expression>[, <expression>, ...]
     Include 16 bit signed integer constants
 
+            .word $2342, $4555
+            .word ?         ; reserve 2 bytes of space
             .int -533, 4433
 
 .rta <expression>[, <expression>, ...]
@@ -766,24 +722,20 @@ Dumping data
 
 .long <expression>[, <expression>, ...]
     Include 24 bit unsigned constants
-
-            .long $123456
-            .long ?         ; reserve 3 bytes of space
-
 .lint <expression>[, <expression>, ...]
     Include 24 bit signed integer constants
 
+            .long $123456
+            .long ?         ; reserve 3 bytes of space
             .lint -533, 4433
 
 .dword <expression>[, <expression>, ...]
     Include 32 bit unsigned constants
-
-            .dword $12345678
-            .dword ?        ; reserve 4 bytes of space
-
 .dint <expression>[, <expression>, ...]
     Include 32 bit signed integer constants
 
+            .dword $12345678
+            .dword ?        ; reserve 4 bytes of space
             .dint -533, 4433
 
 .fill <length>[, <fill>]
@@ -811,8 +763,8 @@ unicode characters to 8 bit values in strings.
 
 .cdef <start>, <end>, <coded> [, <start>, <end>, <coded>, ...]
 .cdef "<start><end>", <coded> [, "<start><end>", <coded>, ...]
-    Defines a character range, and assigns all characters one by one from the 8
-    bit value. The start and end positions are unicode character codes either
+    Defines a character range, and assigns all characters one by one from the
+    8 bit value. The start and end positions are unicode character codes either
     by numbers or by typing them.
 .edef "<escapetext>", <code> [, "<escapetext>", <code>, ...]
     Defines an escape sequence, and assigns it to a 8 bit value. When using
@@ -1053,20 +1005,26 @@ Conditional assembly
 
 Including files
 
-.include "<filename>"
-    Include source file here, path is relative to the location of current
-    source file. The filename can be a string expression but it must be defined
-    in advance. If it's prefixed with a label then all labels are local and are
-    accessible through that label.
+Filenames can be a string expressions. Search path is relative to the location
+of current source file. If it's not found there the include search path is
+consulted for further possible locations.
 
-            .include "macros.asm"
+To make your sources portable please always use forward slashes (/) as a
+directory separator!
+
+.include "<filename>"
+    Include source file here. The filename must be defined in advance. If the
+    directive is prefixed with a label then all labels are local and are
+    accessible through that label only.
+
+            .include "macros.asm"       ;include all as is
+    menu    .include "menu.asm"         ;include labels locally
+            jmp menu.start
 
 .binary "<filename>"[, <offset>[, <length>]]
-    Include binary data, path is relative to the location of current source
-    file. Please note that `loading address' is ignored, and if not skipped
-    then it's also loaded as data. By using offset and length it's possible to
+    Include binary data from file. By using offset and length it's possible to
     break out chunks of data from a file separately, like bitmap and colors for
-    example. The filename can be a string expression.
+    example.
 
             .binary "stuffz.bin"        ;simple include, all bytes
             .binary "stuffz.bin",2      ;skip start address
@@ -1078,9 +1036,10 @@ Including files
 Blocks
 
 .proc
-    Procedure start
 .pend
-    End of procedure
+    Procedure start and end of procedure. If the label is not used then the
+    code won't be compiled at all! All labels inside are local and are
+    accessible through the prefixed label. Useful for building libraries.
 
     ize     .proc
             nop
@@ -1090,26 +1049,19 @@ Blocks
             jsr ize
             jmp ize.cucc
 
-    If `ize' is not referenced then the code won't be compiled at all! All
-    labels inside are local and are accessible through the prefixed label.
-
 .block
-    Block start
 .bend
-    End of Block
+    Block start and block end. All labels inside a block are local. If prefixed
+    with a label local variables are accessible through that label.
 
             .block
             inc count + 1
     count   ldx #0
             .bend
 
-    All labels inside a block are local. If prefixed with a label local
-    variables are accessible through that label.
-
 .comment
-    Comment block start
 .endc
-    End of comment block
+    Comment block start and comment block end.
 
             .comment
             lda #1          ;this won't be compiled
@@ -1198,27 +1150,27 @@ Sections
 
     The compiled code will look like:
 
->0801    0b 08 d5 07                            .word ss, 2005
->0805    9e 32 30 36 31 00                      .null $9e, ^start
->080b    00 00                          ss      .word 0
+    >0801    0b 08 d5 07                            .word ss, 2005
+    >0805    9e 32 30 36 31 00                      .null $9e, ^start
+    >080b    00 00                          ss      .word 0
 
-                                                *= $1000
+                                                    *= $1000
 
-.080d    78                             start   sei
+    .080d    78                             start   sei
 
->0002                                   p2      .word ?         ;a pointer
-.0334                                   buffer  .fill 10        ;temporary area
+    >0002                                   p2      .word ?         ;a pointer
+    .0334                                   buffer  .fill 10        ;temporary area
 
-.080e    b1 02                                  lda (p2),y
-.0810    a9 00                                  lda #<label
-.0812    a0 10                                  ldy #>label
-.0814    20 1e ab                               jsr print
+    .080e    b1 02                                  lda (p2),y
+    .0810    a9 00                                  lda #<label
+    .0812    a0 10                                  ldy #>label
+    .0814    20 1e ab                               jsr print
 
->1000    6d 65 73 73 61 67 65 00        label   .null "message"
+    >1000    6d 65 73 73 61 67 65 00        label   .null "message"
 
-.0817    4c e2 fc                               jmp error
+    .0817    4c e2 fc                               jmp error
 
->0004                                   p2      .word ?         ;a pointer
+    >0004                                   p2      .word ?         ;a pointer
 
 65816 related
 
@@ -1256,9 +1208,8 @@ Sections
 Controlling errors
 
 .page
-    Gives an error on page boundary crossing, eg. for timing sensitive code.
 .endp
-    End of page cross checking
+    Gives an error on page boundary crossing, eg. for timing sensitive code.
 
             .page
     table   .byte 0,1,2,3,4,5,6,7
@@ -1277,7 +1228,7 @@ Controlling errors
 
 .error <message> [, <message>, ...]
     Exit with error
-.cerror <expression>, <message> [, <message>, ...]
+.cerror <condition>, <message> [, <message>, ...]
     Conditional exit with error
 
             .error "Unfinished here..."
@@ -1285,7 +1236,7 @@ Controlling errors
 
 .warn <message> [, <message>, ...]
     Warning
-.cwarn <expression>, <message> [, <message>, ...]
+.cwarn <condition>, <message> [, <message>, ...]
     Conditional warning
 
             .warn "FIXME: handle negative values too!"
@@ -1342,8 +1293,59 @@ Printer control
 
 -------------------------------------------------------------------------------
 
-How to convert source code written for the original turbo assembler for use
-with 64tass
+Pseudo instructions
+
+For writing short code there are some special pseudo instructions for always
+taken branches. These are automatically compiled as relative branches when the
+jump distance is short enough and as JMP or BRL when longer. The names are
+derived from conditional branches and are: GEQ, GNE, GCC, GCS, GPL, GMI, GVC,
+and GVS.
+
+There's one more called GRA for CPUs supporting BRA, which is expanded to BRL
+(if available) or JMP.
+
+.0000    a9 03          lda #$03        in1     lda #3
+.0002    d0 02          gne $0006               gne at          ;branch always
+.0004    a9 02          lda #$02        in2     lda #2
+.0006    4c 00 10       gne $1000       at      gne $1000       ;branch further
+
+If the branch would skip only one byte then the opposite condition is compiled
+and only the first byte is emitted. This is now a never executed jump, and the
+relative distance byte after the opcode is the jumped over byte.
+
+If the branch would not skip anything at all then no code is generated.
+
+.0009                   geq $0009               geq in3         ;zero length "branch"
+.0009    18             clc             in3     clc
+.000a    b0             gcc $000c               gcc at2         ;one byte skip, as bcs
+.000b    38             sec             in4     sec             ;sec is skipped!
+.000c    20 0f 00       jsr $000f       at2     jsr func
+.000f                                   func
+
+Please note that expressions like Gxx *+2 or Gxx *+3 are not allowed as the
+compiler can't figure out if it has to create no code at all, the 1 byte
+variant or the 2 byte one. Therefore use normal or anonymous labels defined
+after the jump instruction when jumping forward!
+
+To avoid branch too long errors the assembler also supports long branches, it
+can automatically convert conditional relative branches to it's opposite and a
+JMP or BRL. This can be enabled on the command line using the `--long-branch'
+option.
+
+.0000    ea             nop                     nop
+.0001    b0 03 4c 00 10 bcc $1000               bcc $1000      ;long branch
+.0006    ea             nop                     nop
+
+Please note that forward jump expressions like Bxx *+130, Bxx *+131 and Bxx
+*+132 are not allowed as the compiler can't decide between a short/long branch.
+Of course these destinations can be used, but only with normal or anonymous
+labels defined after the jump instruction.
+
+-------------------------------------------------------------------------------
+
+Original turbo assembler compatibility
+
+How to convert source code for use with 64tass
 
 Currently there are two options, either use `TMPview' by Style to convert the
 sourcefile directly, or do the following:
@@ -1352,20 +1354,18 @@ sourcefile directly, or do the following:
     version)
   * <- (arrow left) then l to load a sourcefile
   * <- (arrow left) then w to write a sourcefile in petscii format
-  * convert the result to ascii using petcat (from the vice package)
+  * convert the result to ASCII using petcat (from the vice package)
 
-the resulting file should then (with the restrictions below) assemble using the
+The resulting file should then (with the restrictions below) assemble using the
 following commandline:
 
-64tass -C -T -a -W -i source.s -o outfile.prg
-
--------------------------------------------------------------------------------
+64tass -C -T -a -W -i source.asm -o outfile.prg
 
 Differences to the original turbo ass macro on the C64
 
 64tass is nearly 100% compatible with the original `Turbo Assembler', and
 supports most of the features of the original `Turbo Assembler Macro'. The
-remaining notable differences are listed here:
+remaining notable differences are listed here.
 
 Labels
 
@@ -1395,28 +1395,30 @@ example 1+2*3 becomes (1+2)*3.
 
 The following operators used by the original Turbo Assembler are different:
 
-  * . for bitwise or, now |
-  * : for bitwise eor, now ^
-  * ! to force 16 bit address, now @w
+       TASM Operator differences
+.           bitwise or, now |
+:           bitwise eor, now ^
+!           force 16 bit address, now @w
 
 The default expression evaluation is not limited to 16 bit unsigned numbers
 anymore.
 
 Macros
 
-  * Macro parameters are referenced by \1...\9 instead of using the pound sign
-  * Parameters are always copied as text into the macro and not passed by value
-    as the original turbo assembler does, which sometimes may lead to
-    unexpected behaviour. You may need to make use of braces around arguments
-    and/or references to fix this.
+Macro parameters are referenced by \1...\9 instead of using the pound sign.
+
+Parameters are always copied as text into the macro and not passed by value as
+the original turbo assembler does, which sometimes may lead to unexpected
+behaviour. You may need to make use of braces around arguments and/or
+references to fix this.
 
 Bugs
 
 Some versions of the original turbo assembler had bugs that are not reproduced
 by 64tass, you will have to fix the code instead.
 
-  * In some versions labels used in the first .block are globally available. If
-    you get a related error move the respective label out of the .block
+In some versions labels used in the first .block are globally available. If you
+get a related error move the respective label out of the .block
 
 -------------------------------------------------------------------------------
 
@@ -1425,56 +1427,40 @@ Command line options
 Output options
 
 -o <filename>
-    Place output into <filename>
-
-    The default output filename is `a.out'. This option changes it.
-
-    Example
+    Place output into <filename>. The default output filename is `a.out'. This
+    option changes it.
 
     64tass a.asm -o a.prg
 
 -b, --nostart
-    Strip starting address
-
-    Strips the 2 or 3 byte starting address before the resulting binary. Useful
-    for creating small ROM images.
-
+    Strip starting address. Strips the 2 or 3 byte starting address before the
+    resulting binary. Useful for creating small ROM images.
 -f, --flat
-    Flat output mode
-
-    Output the plain binary image from offset 0. The image size can be much
-    larger than the processor address space. Useful for creating huge multi
-    bank ROM files.
-
+    Flat output mode. Output the plain binary image from offset 0. The image
+    size can be much larger than the processor address space. Useful for
+    creating huge multi bank ROM files.
 -n, --nonlinear
-    Generate nonlinear output file
-
-    Generates non-linear output for linkers. Format: length, address, code,
-    length, ...
-
-    Example
+    Generate nonlinear output file. Generates non-linear output for linkers.
 
     64tass --nonlinear a.asm
             *= $1000
             lda #2
             *= $2000
             nop
-    result:
-    $02, $00 ;little endian length, 2 bytes
-    $00, $10 ;little endian start $1000
-    $a9, $02 ;code
-    $01, $00 ;little endian length, 1 byte
-    $00, $20 ;little endian start $2000
-    $ea      ;code
-    $00, $00 ;end marker (length=0)
+
+          Result of compilation
+    $02, $00 little endian length, 2 bytes
+    $00, $10 little endian start $1000
+    $a9, $02 code
+    $01, $00 little endian length, 1 byte
+    $00, $20 little endian start $2000
+    $ea      code
+    $00, $00 end marker (length=0)
 
 -W, --wordstart
-    Force 2 byte start address
-
-    If 16 MiB address space is used for a 65816, then the starting address of
-    file will be 3 bytes long. This option makes it 2 bytes long.
-
-    Example
+    Force 2 byte start address. If 16 MiB address space is used for a 65816,
+    then the starting address of file will be 3 bytes long. This option makes
+    it 2 bytes long.
 
     64tass --wordstart --m65816 a.asm
 
@@ -1496,8 +1482,6 @@ Operation options
     symbol names are still limited to ASCII, but custom string encodings can
     take advantage of the full unicode set.
 
-    Example
-
     64tass a.asm
 
     .0000    a9 61          lda #$61        lda #"a"
@@ -1515,13 +1499,9 @@ Operation options
     >000e    52 45
 
 -B, --long-branch
-    Automatic BXX *+5 JMP xxx
-
-    Branch too long messages can be annoying sometimes, usually they'll result
-    in an BXX *+5 JMP xxx rewrite. 64tass can do this automatically if this
-    option is used. But BRA is not converted.
-
-    Example
+    Automatic BXX *+5 JMP xxx. Branch too long messages can be annoying
+    sometimes, usually they'll need to be rewritten to BXX *+5 JMP xxx. 64tass
+    can do this automatically if this option is used. But BRA is not converted.
 
     64tass a.asm
             *= $1000
@@ -1537,11 +1517,8 @@ Operation options
             bcc $1233       ;no error, automatically converted to the above one.
 
 -C, --case-sensitive
-    Case sensitive labels
-
-    Labels are non case sensitive by default, this option changes that.
-
-    Example
+    Case sensitive labels. Labels are non case sensitive by default, this
+    option changes that.
 
     64tass a.asm
     label   nop
@@ -1552,31 +1529,20 @@ Operation options
     Label   nop     ;Ok, it's a different label...
 
 -D <label>=<value>
-    Define <label> to <value>
-
-    Defines a label to a value. Same syntax is allowed as in source files. Be
-    careful with string quoting, the shell might eat some of the characters.
-
-    Example
+    Define <label> to <value>. Defines a label to a value. Same syntax is
+    allowed as in source files. Be careful with string quoting, the shell might
+    eat some of the characters.
 
     64tass -D ii=2 a.asm
             lda #ii ;result: $a9, $02
 
 -w, --no-warn
-    Suppress warnings
-
-    Disables warnings during compile.
-
-    Example
+    Suppress warnings. Disables warnings during compile.
 
     64tass --no-warn a.asm
 
 -q, --quiet
-    Suppress messages
-
-    Disables header and summary messages.
-
-    Example
+    Suppress messages. Disables header and summary messages.
 
     64tass --quiet a.asm
 
@@ -1602,99 +1568,61 @@ These options will select the default architecture. It can be overridden by
 using the .cpu directive in the source.
 
 --m65xx
-    Standard 65xx (default)
-
-    Selects standard 6502. For writing compatible code, no extra codes. This is
-    the default.
-
-    Example
+    Standard 65xx (default). For writing compatible code, no extra codes. This
+    is the default.
 
     64tass --m65xx a.asm
             lda $14         ;regular instructions
 
 -c, --m65c02
-    CMOS 65C02
-
-    Selects 65c02. Enables extra opcodes and addressing modes specific to this
+    CMOS 65C02. Enables extra opcodes and addressing modes specific to this
     CPU.
-
-    Example
 
     64tass --m65c02 a.asm
             stz $d020       ;65c02 instruction
 
 -c, --m65ce02
-    CSG 65CE02
-
-    Selects 65ce02. Enables extra opcodes and addressing modes specific to this
+    CSG 65CE02. Enables extra opcodes and addressing modes specific to this
     CPU.
-
-    Example
 
     64tass --m65ce02 a.asm
             inz
 
 -i, --m6502
-    NMOS 65xx
-
-    Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding
-    for C64, disk drive code, etc.
-
-    Example
+    NMOS 65xx. Enables extra illegal opcodes. Useful for demo coding for C64,
+    disk drive code, etc.
 
     64tass --m6502 a.asm
             lax $14         ;illegal instruction
 
 -t, --m65dtv02
-    65DTV02
-
-    Selects 65DTV02. Enables extra opcodes specific to DTV.
-
-    Example
+    65DTV02. Enables extra opcodes specific to DTV.
 
     64tass --m65dtv02 a.asm
             sac #$00
 
 -x, --m65816
-    W65C816
-
-    Selects 65816. Enables extra opcodes, and full 16 MiB address space. Useful
-    for SuperCPU projects. Don't forget to use `--word-start' for small ones ;)
-
-    Example
+    W65C816. Enables extra opcodes, and full 16 MiB address space. Useful for
+    SuperCPU projects. Don't forget to use `--word-start' for small ones ;)
 
     64tass --m65816 a.asm
             lda $123456,x
 
 -e, --m65el02
-    65EL02
-
-    Selects 65EL02. Enables extra opcodes, useful RedPower CPU projects.
-    Probably you'll need `--nostart' as well.
-
-    Example
+    65EL02. Enables extra opcodes, useful RedPower CPU projects. Probably
+    you'll need `--nostart' as well.
 
     64tass --m65el02 a.asm
             lda 0,r
 
 --mr65c02
-    R65C02
-
-    Selects r65c02. Enables extra opcodes and addressing modes specific to this
-    CPU.
-
-    Example
+    R65C02. Enables extra opcodes and addressing modes specific to this CPU.
 
     64tass --mr65c02 a.asm
             rmb 7,$20
 
 --mw65c02
-    W65C02
-
-    Selects w65c02. Enables extra opcodes and addressing modes specific to this
-    CPU.
-
-    Example
+    W65C02. Enables extra opcodes and addressing modes specific to this CPU.
 
     64tass --mw65c02 a.asm
             wai
@@ -1702,26 +1630,19 @@ using the .cpu directive in the source.
 Source listing options
 
 -l <file>
-    List labels into <file>
-
-    List global labels to a file. Unused ones are marked with a comment.
-
-    Example
+    List labels into <file>. List global used labels to a file.
 
     64tass -l labels.txt a.asm
             *= $1000
-    label
+    label   jmp label
 
     result (labels.txt):
-    label           = $1000    ; *** unused
+    label           = $1000
 
 -L <file>
-    List into <file>
-
-    Dumps source code and compiled code into file. Useful for debugging, it's
-    much easier to identify the code in memory within the source files.
-
-    Example
+    List into <file>. Dumps source code and compiled code into file. Useful for
+    debugging, it's much easier to identify the code in memory within the
+    source files.
 
     64tass -L list.txt a.asm
             *= $1000
@@ -1744,11 +1665,8 @@ Source listing options
     ;******  end of code
 
 -m, --no-monitor
-    Don't put monitor code into listing
-
-    There won't be any monitor listing in the list file.
-
-    Example
+    Don't put monitor code into listing. There won't be any monitor listing in
+    the list file.
 
     64tass --no-monitor -L list.txt a.asm
 
@@ -1766,11 +1684,8 @@ Source listing options
     ;******  end of code
 
 -s, --no-source
-    Don't put source code into listing
-
-    There won't be any source listing in the list file.
-
-    Example
+    Don't put source code into listing. There won't be any source listing in
+    the list file.
 
     64tass --no-source -L list.txt a.asm
 
@@ -1790,19 +1705,11 @@ Source listing options
 Other options
 
 -?, --help
-    Give this help list
-
-    Prints help about command line options.
-
+    Give this help list. Prints help about command line options.
 --usage
-    Give a short usage message
-
-    Prints short help about command line options.
-
+    Give a short usage message. Prints short help about command line options.
 -V, --version
     Print program version
-
-    Prints program version.
 
 -------------------------------------------------------------------------------
 
@@ -1891,369 +1798,249 @@ Ooops! Too many passes...
 
 -------------------------------------------------------------------------------
 
+Credits
+
+Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
+BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
+optimizations, multi pass compile and a lot of features by Soci/Singular.
+Improved TASS compatibility, PETSCII codes by Groepaz.
+
+Additional code: my_getopt command-line argument parser by Benjamin Sittler,
+avl tree code by Franck Bui-Huu, ternary tree code by Daniel Berlin, snprintf
+Alain Magloire.
+
+Main developer and maintainer: soci at c64.rulez.org
+
+-------------------------------------------------------------------------------
+
+Opcodes
+
 Standard 6502 opcodes
 
-The standard 6502 opcodes:
+                           The standard 6502 opcodes
+ADC 61 65 69 6D 71 75 79 7D             AND 21 25 29 2D 31 35 39 3D
+ASL 06 0A 0E 16 1E                      BCC 90
+BCS B0                                  BEQ F0
+BIT 24 2C                               BMI 30
+BNE D0                                  BPL 10
+BRK 00                                  BVC 50
+BVS 70                                  CLC 18
+CLD D8                                  CLI 58
+CLV B8                                  CMP C1 C5 C9 CD D1 D5 D9 DD
+CPX E0 E4 EC                            CPY C0 C4 CC
+DEC C6 CE D6 DE                         DEX CA
+DEY 88                                  EOR 41 45 49 4D 51 55 59 5D
+INC E6 EE F6 FE                         INX E8
+INY C8                                  JMP 4C 6C
+JSR 20                                  LDA A1 A5 A9 AD B1 B5 B9 BD
+LDX A2 A6 AE B6 BE                      LDY A0 A4 AC B4 BC
+LSR 46 4A 4E 56 5E                      NOP EA
+ORA 01 05 09 0D 11 15 19 1D             PHA 48
+PHP 08                                  PLA 68
+PLP 28                                  ROL 26 2A 2E 36 3E
+ROR 66 6A 6E 76 7E                      RTI 40
+RTS 60                                  SBC E1 E5 E9 ED F1 F5 F9 FD
+SEC 38                                  SED F8
+SEI 78                                  STA 81 85 8D 91 95 99 9D
+STX 86 8E 96                            STY 84 8C 94
+TAX AA                                  TAY A8
+TSX BA                                  TXA 8A
+TXS 9A                                  TYA 98
 
-ADC $61, $65, $69, $6D, $71, $75, $79, $7D
-AND $21, $25, $29, $2D, $31, $35, $39, $3D
-ASL $06, $0A, $0E, $16, $1E
-BCC $90
-BCS $B0
-BEQ $F0
-BIT $24, $2C
-BMI $30
-BNE $D0
-BPL $10
-BRK $00
-BVC $50
-BVS $70
-CLC $18
-CLD $D8
-CLI $58
-CLV $B8
-CMP $C1, $C5, $C9, $CD, $D1, $D5, $D9, $DD
-CPX $E0, $E4, $EC
-CPY $C0, $C4, $CC
-DEC $C6, $CE, $D6, $DE
-DEX $CA
-DEY $88
-EOR $41, $45, $49, $4D, $51, $55, $59, $5D
-INC $E6, $EE, $F6, $FE
-INX $E8
-INY $C8
-JMP $4C, $6C
-JSR $20
-LDA $A1, $A5, $A9, $AD, $B1, $B5, $B9, $BD
-LDX $A2, $A6, $AE, $B6, $BE
-LDY $A0, $A4, $AC, $B4, $BC
-LSR $46, $4A, $4E, $56, $5E
-NOP $EA
-ORA $01, $05, $09, $0D, $11, $15, $19, $1D
-PHA $48
-PHP $08
-PLA $68
-PLP $28
-ROL $26, $2A, $2E, $36, $3E
-ROR $66, $6A, $6E, $76, $7E
-RTI $40
-RTS $60
-SBC $E1, $E5, $E9, $ED, $F1, $F5, $F9, $FD
-SEC $38
-SED $F8
-SEI $78
-STA $81, $85, $8D, $91, $95, $99, $9D
-STX $86, $8E, $96
-STY $84, $8C, $94
-TAX $AA
-TAY $A8
-TSX $BA
-TXA $8A
-TXS $9A
-TYA $98
-
-Aliases, pseudo instructions:
-
-ASL $0A
-BGE $B0
-BLT $90
-GCC $4C, $90
-GCS $4C, $B0
-GEQ $4C, $F0
-GGE $4C, $B0
-GLT $4C, $90
-GMI $30, $4C
-GNE $4C, $D0
-GPL $10, $4C
-GVC $4C, $50
-GVS $4C, $70
-LSR $4A
-ROL $2A
-ROR $6A
+                         Aliases, pseudo instructions
+ASL 0A                                  BGE B0
+BLT 90                                  GCC 4C 90
+GCS 4C B0                               GEQ 4C F0
+GGE 4C B0                               GLT 4C 90
+GMI 30 4C                               GNE 4C D0
+GPL 10 4C                               GVC 4C 50
+GVS 4C 70                               LSR 4A
+ROL 2A                                  ROR 6A
 
 -------------------------------------------------------------------------------
 
 6502 illegal opcodes
 
-The standard 6502 opcodes, plus additionally:
+This processor is a standard 6502 with the NMOS illegal opcodes.
 
-ANC $0B
-ANE $8B
-ARR $6B
-ASR $4B
-DCP $C3, $C7, $CF, $D3, $D7, $DB, $DF
-ISB $E3, $E7, $EF, $F3, $F7, $FB, $FF
-JAM $02
-LAX $A3, $A7, $AB, $AF, $B3, $B7, $BF
-LDS $BB
-NOP $04, $0C, $14, $1C, $80
-RLA $23, $27, $2F, $33, $37, $3B, $3F
-RRA $63, $67, $6F, $73, $77, $7B, $7F
-SAX $83, $87, $8F, $97
-SBX $CB
-SHA $93, $9F
-SHS $9B
-SHX $9E
-SHY $9C
-SLO $03, $07, $0F, $13, $17, $1B, $1F
-SRE $43, $47, $4F, $53, $57, $5B, $5F
+                              Additional opcodes
+ANC 0B                                  ANE 8B
+ARR 6B                                  ASR 4B
+DCP C3 C7 CF D3 D7 DB DF                ISB E3 E7 EF F3 F7 FB FF
+JAM 02                                  LAX A3 A7 AB AF B3 B7 BF
+LDS BB                                  NOP 04 0C 14 1C 80
+RLA 23 27 2F 33 37 3B 3F                RRA 63 67 6F 73 77 7B 7F
+SAX 83 87 8F 97                         SBX CB
+SHA 93 9F                               SHS 9B
+SHX 9E                                  SHY 9C
+SLO 03 07 0F 13 17 1B 1F                SRE 43 47 4F 53 57 5B 5F
 
-Additional aliases:
-
-AHX $93, $9F
-ALR $4B
-AXS $CB
-DCM $C3, $C7, $CF, $D3, $D7, $DB, $DF
-INS $E3, $E7, $EF, $F3, $F7, $FB, $FF
-ISC $E3, $E7, $EF, $F3, $F7, $FB, $FF
-LAE $BB
-LAS $BB
-LXA $AB
-TAS $9B
-XAA $8B
+                              Additional aliases
+AHX 93 9F                               ALR 4B
+AXS CB                                  DCM C3 C7 CF D3 D7 DB DF
+INS E3 E7 EF F3 F7 FB FF                ISC E3 E7 EF F3 F7 FB FF
+LAE BB                                  LAS BB
+LXA AB                                  TAS 9B
+XAA 8B
 
 -------------------------------------------------------------------------------
 
 65DTV02 opcodes
 
-Additionally to 6502 illegal opcodes:
+This processor is an enhanced version of standard 6502 with some illegal
+opcodes.
 
-BRA $12
-SAC $32
-SIR $42
+                     Additionally to 6502 illegal opcodes
+BRA 12                                  SAC 32
+SIR 42
 
-Additional pseudo instruction:
+                         Additional pseudo instruction
+GRA 12 4C
 
-GRA $12, $4C
+                      These illegal opcodes are not valid
+ANC 0B                                  JAM 02
+LDS BB                                  NOP 04 0C 14 1C 80
+SBX CB                                  SHA 93 9F
+SHS 9B                                  SHX 9E
+SHY 9C
 
-These illegal opcodes are not valid:
-
-ANC $0B
-JAM $02
-LDS $BB
-NOP $04, $0C, $14, $1C, $80
-SBX $CB
-SHA $93, $9F
-SHS $9B
-SHX $9E
-SHY $9C
-
-These illegal aliases are not valid:
-
-AHX $93, $9F
-AXS $CB
-LAE $BB
-LAS $BB
-TAS $9B
+                      These illegal aliases are not valid
+AHX 93 9F                               AXS CB
+LAE BB                                  LAS BB
+TAS 9B
 
 -------------------------------------------------------------------------------
 
 Standard 65C02 opcodes
 
-Additional opcodes to standard 6502:
+This processor is an enhanced version of standard 6502.
 
-ADC $72
-AND $32
-BIT $34, $3C, $89
-BRA $80
-CMP $D2
-DEC $3A
-EOR $52
-INC $1A
-JMP $7C
-LDA $B2
-ORA $12
-PHX $DA
-PHY $5A
-PLX $FA
-PLY $7A
-SBC $F2
-STA $92
-STZ $64, $74, $9C, $9E
-TRB $14, $1C
-TSB $04, $0C
+                              Additional opcodes
+ADC 72                                  AND 32
+BIT 34 3C 89                            BRA 80
+CMP D2                                  DEC 3A
+EOR 52                                  INC 1A
+JMP 7C                                  LDA B2
+ORA 12                                  PHX DA
+PHY 5A                                  PLX FA
+PLY 7A                                  SBC F2
+STA 92                                  STZ 64 74 9C 9E
+TRB 14 1C                               TSB 04 0C
 
-Additional aliases and pseudo instructions:
-
-DEA $3A
-GRA $4C, $80
-INA $1A
+                  Additional aliases and pseudo instructions
+DEA 3A                                  GRA 4C 80
+INA 1A
 
 -------------------------------------------------------------------------------
 
 R65C02 opcodes
 
-Additional opcodes to standard 65C02:
+This processor is an enhanced version of standard 65C02.
 
-BBR $0F, $1F, $2F, $3F, $4F, $5F, $6F, $7F
-BBS $8F, $9F, $AF, $BF, $CF, $DF, $EF, $FF
-RMB $07, $17, $27, $37, $47, $57, $67, $77
-SMB $87, $97, $A7, $B7, $C7, $D7, $E7, $F7
+                              Additional opcodes
+BBR 0F 1F 2F 3F 4F 5F 6F 7F             BBS 8F 9F AF BF CF DF EF FF
+RMB 07 17 27 37 47 57 67 77             SMB 87 97 A7 B7 C7 D7 E7 F7
 
 -------------------------------------------------------------------------------
 
 W65C02 opcodes
 
-Additional opcodes to R65C02:
+This processor is an enhanced version of R65C02.
 
-STP $DB
-WAI $CB
+                              Additional opcodes
+STP DB                                  WAI CB
 
 -------------------------------------------------------------------------------
 
 W65816 opcodes
 
-Additional opcodes to standard 65C02:
+This processor is an enhanced version of W65C02.
 
-ADC $63, $67, $6F, $73, $77, $7F
-AND $23, $27, $2F, $33, $37, $3F
-BRL $82
-CMP $C3, $C7, $CF, $D3, $D7, $DF
-COP $02
-EOR $43, $47, $4F, $53, $57, $5F
-JMP $5C, $DC
-JSL $22
-JSR $FC
-LDA $A3, $A7, $AF, $B3, $B7, $BF
-MVN $54
-MVP $44
-ORA $03, $07, $0F, $13, $17, $1F
-PEA $F4
-PEI $D4
-PER $62
-PHB $8B
-PHD $0B
-PHK $4B
-PLB $AB
-PLD $2B
-REP $C2
-RTL $6B
-SBC $E3, $E7, $EF, $F3, $F7, $FF
-SEP $E2
-STA $83, $87, $8F, $93, $97, $9F
-STP $DB
-SWA $EB
-TAD $5B
-TAS $1B
-TCD $5B
-TCS $1B
-TDA $7B
-TDC $7B
-TSA $3B
-TSC $3B
-TXY $9B
-TYX $BB
-XBA $EB
-XCE $FB
-WAI $CB
+                              Additional opcodes
+ADC 63 67 6F 73 77 7F                   AND 23 27 2F 33 37 3F
+BRL 82                                  CMP C3 C7 CF D3 D7 DF
+COP 02                                  EOR 43 47 4F 53 57 5F
+JMP 5C DC                               JSL 22
+JSR FC                                  LDA A3 A7 AF B3 B7 BF
+MVN 54                                  MVP 44
+ORA 03 07 0F 13 17 1F                   PEA F4
+PEI D4                                  PER 62
+PHB 8B                                  PHD 0B
+PHK 4B                                  PLB AB
+PLD 2B                                  REP C2
+RTL 6B                                  SBC E3 E7 EF F3 F7 FF
+SEP E2                                  STA 83 87 8F 93 97 9F
+SWA EB                                  TAD 5B
+TAS 1B                                  TCD 5B
+TCS 1B                                  TDA 7B
+TDC 7B                                  TSA 3B
+TSC 3B                                  TXY 9B
+TYX BB                                  XBA EB
+XCE FB
 
-Additional aliases:
-
-JML $5C, $DC
+                              Additional aliases
+JML 5C DC
 
 -------------------------------------------------------------------------------
 
 65EL02 opcodes
 
-Additional opcodes to standard 65C02:
+This processor is an enhanced version of standard 65C02.
 
-ADC $63, $67, $73, $77
-AND $23, $27, $33, $37
-CMP $C3, $C7, $D3, $D7
-DIV $4F, $5F, $6F, $7F
-ENT $22
-EOR $43, $47, $53, $57
-JSR $FC
-LDA $A3, $A7, $B3, $B7
-MMU $EF
-MUL $0F, $1F, $2F, $3F
-NXA $42
-NXT $02
-ORA $03, $07, $13, $17
-PEA $F4
-PEI $D4
-PER $62
-PHD $DF
-PLD $CF
-REA $44
-REI $54
-REP $C2
-RER $82
-RHA $4B
-RHI $0B
-RHX $1B
-RHY $5B
-RLA $6B
-RLI $2B
-RLX $3B
-RLY $7B
-SBC $E3, $E7, $F3, $F7
-SEA $9F
-SEP $E2
-STA $83, $87, $93, $97
-STP $DB
-SWA $EB
-TAD $BF
-TDA $AF
-TIX $DC
-TRX $AB
-TXI $5C
-TXR $8B
-TXY $9B
-TYX $BB
-WAI $CB
-XBA $EB
-XCE $FB
-ZEA $8F
+                              Additional opcodes
+ADC 63 67 73 77                         AND 23 27 33 37
+CMP C3 C7 D3 D7                         DIV 4F 5F 6F 7F
+ENT 22                                  EOR 43 47 53 57
+JSR FC                                  LDA A3 A7 B3 B7
+MMU EF                                  MUL 0F 1F 2F 3F
+NXA 42                                  NXT 02
+ORA 03 07 13 17                         PEA F4
+PEI D4                                  PER 62
+PHD DF                                  PLD CF
+REA 44                                  REI 54
+REP C2                                  RER 82
+RHA 4B                                  RHI 0B
+RHX 1B                                  RHY 5B
+RLA 6B                                  RLI 2B
+RLX 3B                                  RLY 7B
+SBC E3 E7 F3 F7                         SEA 9F
+SEP E2                                  STA 83 87 93 97
+STP DB                                  SWA EB
+TAD BF                                  TDA AF
+TIX DC                                  TRX AB
+TXI 5C                                  TXR 8B
+TXY 9B                                  TYX BB
+WAI CB                                  XBA EB
+XCE FB                                  ZEA 8F
 
 -------------------------------------------------------------------------------
 
 65CE02 opcodes
 
-Additional opcodes to R65C02:
+This processor is an enhanced version of R65C02.
 
-ASR $43, $44, $54
-ASW $CB
-BCC $93
-BCS $B3
-BEQ $F3
-BMI $33
-BNE $D3
-BPL $13
-BRA $83
-BSR $63
-BVC $53
-BVS $73
-CLE $02
-CPZ $C2, $D4, $DC
-DEW $C3
-DEZ $3B
-INW $E3
-INZ $1B
-JSR $22, $23
-LDA $E2
-LDZ $A3, $AB, $BB
-NEG $42
-PHW $F4, $FC
-PHZ $DB
-PLZ $FB
-ROW $EB
-RTS $62
-SEE $03
-STA $82
-STX $9B
-STY $8B
-TAB $5B
-TAZ $4B
-TSY $0B
-TYS $2B
-TZA $6B
+                              Additional opcodes
+ASR 43 44 54                            ASW CB
+BCC 93                                  BCS B3
+BEQ F3                                  BMI 33
+BNE D3                                  BPL 13
+BRA 83                                  BSR 63
+BVC 53                                  BVS 73
+CLE 02                                  CPZ C2 D4 DC
+DEW C3                                  DEZ 3B
+INW E3                                  INZ 1B
+JSR 22 23                               LDA E2
+LDZ A3 AB BB                            NEG 42
+PHW F4 FC                               PHZ DB
+PLZ FB                                  ROW EB
+RTS 62                                  SEE 03
+STA 82                                  STX 9B
+STY 8B                                  TAB 5B
+TAZ 4B                                  TSY 0B
+TYS 2B                                  TZA 6B
 
-Additional aliases to R65C02:
-
-ASR $43
-BGE $B3
-BLT $93
-NEG $42
-RTN $62
+                              Additional aliases
+ASR 43                                  BGE B3
+BLT 93                                  NEG 42
+RTN 62
 
