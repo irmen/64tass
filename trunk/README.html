@@ -34,6 +34,8 @@ table.oper td:first-child {font-family:monospace;}
 
 @media print {
    h1, h2, h3, h4 {page-break-after:avoid;}
+   a {text-decoration:none;color:inherit;}
+   body.body {width:auto;font-size:10pt;}
 }
 
 body { counter-reset: countcaption;}
@@ -47,8 +49,8 @@ caption:before { content: "Table " counter(countcaption) ": "; counter-increment
 
 </style>
 </head>
-<body>
-<h1>64tass v1.5x manual</h1>
+<body class="body">
+<h1>64tass v1.5x r372 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
