@@ -2,7 +2,7 @@
    Unix snprintf implementation.
    Version 1.3
 
-   Adapted for 64tass 
+   Adapted for use in 64tass by Soci/Singular
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Library General Public License as published by
@@ -42,6 +42,7 @@
      Jacek Slabocewiz
      Mike Parker(mouse)
 
+ Alain Magloire: alainm@rcsm.ee.mcgill.ca
 */
 
 #include <string.h>

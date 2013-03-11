@@ -4,59 +4,81 @@
 <title>64tass v1.5x manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Author" content="Kajtar Zsolt">
-<style type="text/css">
+<style>
 dt {margin-top:0.5em}
 dt + dt {margin-top:0em}
 dl.dir dt {font-family:monospace}
-legend {font-family:sans;padding-left:1ex;padding-right:1ex}
-fieldset {border:1px solid silver}
-fieldset pre {margin:0px;}
-body {width:50em;}
-h1, h2, h3, h4, h5 {font-family:sans}
-hr {border: 1pt solid black;background:black;}
+body {width:50em;font-size:12pt;}
+h1, h2, h3, h4 {font-family:sans}
+hr {display:none}
+pre {border:1px solid #eee;background-color:#fffff0;}
 pre.make b {color:inherit;}
 pre.make span {color:navy;}
 pre.make span.cmd {color:green;}
 pre b {color:navy;}
-pre b.d {color:orange;}
-pre b.k {color:blue;}
-pre span {color:#e00000;}
-pre span.s {color:orange;}
+pre b.d {color:#f80;}
+pre b.k, pre span.k, code span.k {color:blue;}
+pre span, code span {color:#d00;}
+pre span.s, code span.s {color:#f80;}
 pre i {color:brown;}
-pre span.l {color:green;}
-p {text-align:justify}
+pre span.l, code span.l {color:green;}
+p, dd {text-align:justify;word-break:hyphenate;}
+p + p {text-indent:3ex;margin-top:-0.5em}
+table {border-bottom:2px solid black;border-top:2px solid black;border-collapse:collapse;width:100%;margin-top:0.5em;margin-bottom:0.5em;}
+td, th {padding: 0px 1ex 0px 1ex;border-left:1px solid silver;border-top:1px solid silver}
+tr:nth-child(odd) {background: #fafaff;}
+td:first-child, th:first-child {border-left: 0px;}
+caption {caption-side:bottom;} 
+table.opcodes th, table.opcodes td {text-align:left;font-family:monospace;table-layout:fixed;}
+table.oper td:first-child {font-family:monospace;}
+
+@media print {
+   h1, h2, h3, h4 {page-break-after:avoid;}
+}
+
+body { counter-reset: countcaption;}
+h1 { counter-reset: counth2; }
+h2:before { content: counter(counth2) " "; counter-increment: counth2; min-width: 40pt;display:inline-block;}
+h2 { counter-reset: counth3; }
+h3:before { content: counter(counth2) "." counter(counth3) " "; counter-increment: counth3; min-width: 40pt;display:inline-block;}
+h3 { counter-reset: counth4; }
+h4:before { content: counter(counth2) "." counter(counth3) "." counter(counth4) " "; counter-increment: counth4; min-width: 40pt;display:inline-block;}
+caption:before { content: "Table " counter(countcaption) ": "; counter-increment: countcaption; font-weight:bold;}
+
 </style>
 </head>
 <body>
 <h1>64tass v1.5x manual</h1>
 
-<p>Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
-BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
-optimizations, multi pass compile and a lot of features by Soci/Singular.
-Improved TASS compatibility, PETSCII codes by Groepaz.</p>
+<p>This is the manual for 64tass, the multi pass optimizing macro assembler for
+the 65xx series of processors. Key features:</p>
 
-<p>Additional code: my_getopt command-line argument parser by Benjamin
-Sittler, avl tree code by Franck Bui-Huu, ternary tree code by Daniel
-Berlin.</p>
-
-<p>Syntax is the same as the well known Turbo Assembler on c64, so you can
-port your sources easy by only replacing the CR at the end of each line.</p>
-
-<p>Main developer and maintainer: soci at c64.rulez.org</p>
+<ul>
+<li>Open source, mostly portable C
+<li>Familiar syntax to Omicron TASS and TASM.
+<li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
+<li>Integer, floating point point, string and array arithmetic available
+<li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded sources and strings
+<li>Built in <q>linker</q> with section support
+<li>CPU or flat address space for creating huge binaries (e.g. cartridges)
+<li>Conditional compilation, macros, struct/union structures, scopes.
+</ul>
 
 <p><b>This is a development version, features or syntax may change over time.
 Not everything is backwards compatible.</b></p>
 
+<p>Project page: <a href="http://sourceforge.net/projects/tass64/">http://sourceforge.net/projects/tass64/</a></p>
+
 <hr>
 <h2>Usage tips</h2>
-<p>64tass is a command line compiler, the source can be written in any text editor.
-As a minimum the source filename must be given on command line.</p>
-<pre>
+<p>64tass is a command line assembler, the source can be written in any text
+editor. As a minimum the source filename must be given on command line. There
+are also some useful parameters which are described later.</p>
+<pre width=80>
 64tass src.asm
 </pre>
-<p>There are also some useful parameters which are described later.</p>
 <p>For comfortable compiling I use such <q>Makefile</q>s (for <a href="http://en.wikipedia.org/wiki/Make_%28software%29">make</a>):</p>
-<pre class="make">
+<pre width=80 class="make">
 <span>demo.prg:</span> source.asm makros.asm pic.drp music.bin
         <span class="cmd">64tass -C -a -B -i source.asm -o demo.tmp</span>
         <span class="cmd">pucrunch -ffast -x 2048 demo.tmp &gt;demo.prg</span>
@@ -65,14 +87,14 @@ As a minimum the source filename must be given on command line.</p>
 whenever <q>source.asm</q>, <q>makros.asm</q>, <q>pic.drp</q> or <q>music.bin</q> had changed.</p>
 <p>Of course it's not much harder to create something similar for win32 (make.bat),
 however this will always compile and compress:</p>
-<pre>
+<pre width=80>
 64tass.exe -C -a -B -i source.asm -o demo.tmp
 pucrunch.exe -ffast -x 2048 demo.tmp &gt;demo.prg
 </pre>
 <p>Here's a slightly more advanced Makefile example with default action as
 testing in VICE, clean target for removal of temporary files and compressing
 using an intermediate temporary file:</p>
-<pre class="make">
+<pre width=80 class="make">
 <span>all:</span> demo.prg
         <span class="cmd">x64 -autostartprgmode 1 -autostart-warp +truedrive +cart</span> $&lt;
 
@@ -90,7 +112,7 @@ using an intermediate temporary file:</p>
 <p>It's useful to add a basic header to your source files like the one below,
 so that the resulting file is directly runnable without additional
 compression:</p>
-<pre>
+<pre width=80>
         <b>*=</b> <span>$0801</span>
         <b class="d">.word</b> (<span class="l">+</span>), <span>2005</span>  <i>;pointer, line number</i>
         <b class="d">.null</b> <span>$9e</span>, ^<span class="l">start</span><i>;will be sys 4096</i>
@@ -107,7 +129,7 @@ there's <code>.byte</code> and friends for variables with initial values
 but what about zero page, or RAM outside of program area? The solution
 is to not use an initial value by using '<code>?</code>' or not
 giving a fill byte value to <code>.fill</code>.</p>
-<pre>
+<pre width=80>
         <b>*=</b> <span>$02</span>
 p1	<b class="d">.word</b> <span>?</span>         <i>;a zero page pointer</i>
 temp	<b class="d">.fill</b> <span>10</span>        <i>;a 10 byte temporary area</i>
@@ -119,7 +141,7 @@ addresses.</p>
 relocated, and the length must be known to copy it there. Here's
 an example:</p>
 <pre width=80>
-        <b>ldx</b> #size(<span class="l">zpcode</span>)-<span>1</span><i>;calculate length</i>
+        <b>ldx</b> #<span class="k">size</span>(<span class="l">zpcode</span>)-<span>1</span><i>;calculate length</i>
 -       <b>lda</b> <span class="l">zpcode</span>,x
         <b>sta</b> <span class="l">wrbyte</span>,x
         <b>dex</b>             <i>;install to zeropage</i>
@@ -154,61 +176,6 @@ lobytes <b class="d">.byte</b> &lt;(<span class="l">-</span>)      <i>; low byte
 hibytes <b class="d">.byte</b> &gt;(<span class="l">-</span>)      <i>; high bytes</i>
 </pre>
 
-<p>For writing short code there are some special pseudo instructions for always
-taken branches. These are automatically compiled as relative branches when the
-jump distance is short enough and as <code>JMP</code> or <code>BRL</code> when
-longer. The names are derived from conditional branches and are:
-<code>GEQ</code>, <code>GNE</code>, <code>GCC</code>, <code>GCS</code>,
-<code>GPL</code>, <code>GMI</code>, <code>GVC</code>, and <code>GVS</code>.</p>
-
-<p>There's one more called <code>GRA</code> for CPUs supporting
-<code>BRA</code>, which is expanded to <code>BRL</code> (if available) or
-<code>JMP</code>.</p>
-
-<pre>
-.0000    a9 03          lda #$03        in1     <b>lda</b> #<span>3</span>
-.0002    d0 02          gne $0006               <b>gne</b> <span class="l">at</span>          <i>;branch always</i>
-.0004    a9 02          lda #$02        in2     <b>lda</b> #<span>2</span>
-.0006    4c 00 10       gne $1000       at      <b>gne</b> <span>$1000</span>       <i>;branch further</i>
-</pre>
-
-<p>If the branch would skip only one byte then the opposite condition is compiled
-and only the first byte is emitted. This is now a never executed jump, and the
-relative distance byte after the opcode is the jumped over byte.</p>
-
-<p>If the branch would not skip anything at all then no code is generated.</p>
-
-<pre>
-.0009                   geq $0009               <b>geq</b> <span class="l">in3</span>         <i>;zero length "branch"</i>
-.0009    18             clc             in3     <b>clc</b>
-.000a    b0             gcc $000c               <b>gcc</b> <span class="l">at2</span>         <i>;one byte skip, as bcs</i>
-.000b    38             sec             in4     <b>sec</b>             <i>;sec is skipped!</i>
-.000c    20 0f 00       jsr $000f       at2     <b>jsr</b> <span class="l">func</span>
-.000f                                   func
-</pre>
-
-<p>Please note that expressions like <code>Gxx *+2</code> or <code>Gxx
-*+3</code> are not allowed as the compiler can't figure out if it has to create
-no code at all, the 1 byte variant or the 2 byte one. Therefore use normal or
-anonymous labels defined after the jump instruction when jumping forward!</p>
-
-<p>To avoid branch too long errors the assembler also supports long branches,
-it can automatically convert conditional relative branches to it's opposite and
-a <code>JMP</code> or <code>BRL</code>. This can be enabled on the command
-line using the <q>--long-branch</q> option.</p>
-
-<pre>
-.0000    ea             nop                     <b>nop</b>
-.0001    b0 03 4c 00 10 bcc $1000               <b>bcc</b> <span>$1000</span>      <i>;long branch</i>
-.0006    ea             nop                     <b>nop</b>
-</pre>
-
-<p>Please note that forward jump expressions like <code>Bxx *+130</code>,
-<code>Bxx *+131</code> and <code>Bxx *+132</code> are not allowed as the
-compiler can't decide between a short/long branch. Of course these destinations
-can be used, but only with normal or anonymous labels defined after the jump
-instruction.</p>
-
 <p>There are some other tips below in the descriptions.</p>
 
 <hr>
@@ -221,43 +188,44 @@ hexadecimal (<code>$[0-9a-f]*</code>) or binary (<code>%[01]*</code>). Short
 strings of few characters are converted to a numeric constant using the current
 encoding at the place of use. The following operations are accepted:</p>
 
-<table border="0">
-<tr><td width="60"><tt>x + y</tt><td>add x to y<td><code>2 + 2</code> is <code>4</code>
-<tr><td><tt>x - y</tt><td>substract y from x<td><code>4 - 1</code> is <code>3</code>
-<tr><td><tt>x * y</tt><td>multiply x with y<td><code>2 * 3</code> is <code>6</code>
-<tr><td><tt>x / y</tt><td>integer divide x by y<td><code>7 / 2</code> is <code>3</code>
-<tr><td><tt>x % y</tt><td>integer modulo of x divided by y<td><code>5 % 2</code> is <code>1</code>
-<tr><td><tt>x ** y</tt><td>x raised t power of y<td><code>2 ** 4</code> is <code>16</code>
-<tr><td><tt>-x</tt><td>negated value<td><code>-2</code> is <code>-2</code>
-<tr><td><tt>+x</tt><td>unchanged<td><code>+2</code> is <code>2</code>
-<tr><td><tt>&lt;</tt><td>lower byte<td><code>&lt;$1234</code> is <code>$34</code>
-<tr><td><tt>&gt;</tt><td>higher byte<td><code>&gt;$1234</code> is <code>$12</code>
-<tr><td><tt>`</tt><td>bank byte<td><code>`$123456</code> is <code>$12</code>
-<tr><td><tt>&lt;&gt;</tt><td>lower word<td><code>&lt;&gt;$123456</code> is <code>$3456</code>
-<tr><td><tt>&gt;`</tt><td>higher word<td><code>&lt;`$123456</code> is <code>$1234</code>
-<tr><td><tt>&gt;&lt;</tt><td>lower byte swapped word<td><code>&gt;&lt;$123456</code> is <code>$5634</code>
-<tr><td><tt>x == y</tt><td>x equals to y<td><code>2 == 3</code> is <code>&lt;false&gt;</code>
-<tr><td><tt>x != y</tt><td>x does not equal to y<td><code>2 != 3</code> is <code>&lt;true&gt;</code>
-<tr><td><tt>x &lt; y</tt><td>x is less than y<td><code>2 &lt; 3</code> is <code>&lt;true&gt;</code>
-<tr><td><tt>x &gt; y</tt><td>x is more than y<td><code>2 &gt; 3</code> is <code>&lt;false&gt;</code>
-<tr><td><tt>x &gt;= y</tt><td>x is more than y or equals<td><code>2 &gt;= 3</code> is <code>&lt;false&gt;</code>
-<tr><td><tt>x &lt;= y</tt><td>x is less than y or equals<td><code>2 &lt;= 3</code> is <code>&lt;true&gt;</code>
-<tr><td><tt>x | y</tt><td>bitwise or<td><code>2 | 6</code> is <code>6</code>
-<tr><td><tt>x ^ y</tt><td>bitwise xor<td><code>2 ^ 6</code> is <code>4</code>
-<tr><td><tt>x &amp; y</tt><td>bitwise and<td><code>2 &amp; 6</code> is <code>2</code>
-<tr><td><tt>x &lt;&lt; y</tt><td>logical shift left<td><code>1 &lt;&lt; 3</code> is <code>8</code>
-<tr><td><tt>x &gt;&gt; y</tt><td>arithmetic shift right<td><code>-8 &gt;&gt; 3</code> is <code>-1</code>
-<!-- <tr><td><tt>x &gt;&gt;&gt; y</tt><td>logical shift right<td>-8 &gt;&gt; 3 is -1 -->
-<tr><td><tt>~x</tt><td>invert bits<td><code>~%101</code> is <code>%010</code>
-<tr><td><tt>..</tt><td>concatenate bits<td><code>$a..$b</code> is <code>$ab</code>
-<tr><td><tt>x[n]</tt><td>extract bit(s)<td><code>$a[1]</code> is <code>0</code>
-<tr><td><tt>x[s]</tt><td>slice bits<td><code>$1234[4:8]</code> is <code>$3</code>
-<tr><td>len(a)<td>length in bits<td><code><code>len($034)</code> is <code>12</code>
-<tr><td>float(a)<td>convert to floating point<td><code><code>float(1)</code> is <code>1.0</code>
+<table border="0" class="oper">
+<caption>Integer operators and functions</caption>
+<tr><td width="60">x + y<td>add x to y<td><code><span>2</span> + <span>2</span></code> is <code><span>4</span></code>
+<tr><td>x - y<td>substract y from x<td><code><span>4</span> - <span>1</span></code> is <code><span>3</span></code>
+<tr><td>x * y<td>multiply x with y<td><code><span>2</span> * <span>3</span></code> is <code><span>6</span></code>
+<tr><td>x / y<td>integer divide x by y<td><code><span>7</span> / <span>2</span></code> is <code><span>3</span></code>
+<tr><td>x % y<td>integer modulo of x divided by y<td><code><span>5</span> % <span>2</span></code> is <code><span>1</span></code>
+<tr><td>x ** y<td>x raised t power of y<td><code><span>2</span> ** <span>4</span></code> is <code><span>16</span></code>
+<tr><td>-x<td>negated value<td><code>-<span>2</span></code> is <code><span>-2</span></code>
+<tr><td>+x<td>unchanged<td><code>+<span>2</span></code> is <code><span>2</span></code>
+<tr><td>&lt;<td>lower byte<td><code>&lt;<span>$1234</span></code> is <code><span>$34</span></code>
+<tr><td>&gt;<td>higher byte<td><code>&gt;<span>$1234</span></code> is <code><span>$12</span></code>
+<tr><td>`<td>bank byte<td><code>`<span>$123456</span></code> is <code><span>$12</span></code>
+<tr><td>&lt;&gt;<td>lower word<td><code>&lt;&gt;<span>$123456</span></code> is <code><span>$3456</span></code>
+<tr><td>&gt;`<td>higher word<td><code>&lt;`<span>$123456</span></code> is <code><span>$1234</span></code>
+<tr><td>&gt;&lt;<td>lower byte swapped word<td><code>&gt;&lt;<span>$123456</span></code> is <code><span>$5634</span></code>
+<tr><td>x == y<td>x equals to y<td><code><span>2</span> == <span>3</span></code> is false
+<tr><td>x != y<td>x does not equal to y<td><code><span>2</span> != <span>3</span></code> is true
+<tr><td>x &lt; y<td>x is less than y<td><code><span>2</span> &lt; <span>3</span></code> is true
+<tr><td>x &gt; y<td>x is more than y<td><code><span>2</span> &gt; <span>3</span></code> is false
+<tr><td>x &gt;= y<td>x is more than y or equals<td><code><span>2</span> &gt;= <span>3</span></code> is false
+<tr><td>x &lt;= y<td>x is less than y or equals<td><code><span>2</span> &lt;= <span>3</span></code> is true
+<tr><td>x | y<td>bitwise or<td><code><span>2</span> | <span>6</span></code> is <code><span>6</span></code>
+<tr><td>x ^ y<td>bitwise xor<td><code><span>2</span> ^ <span>6</span></code> is <code><span>4</span></code>
+<tr><td>x &amp; y<td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
+<tr><td>x &lt;&lt; y<td>logical shift left<td><code><span>1</span> &lt;&lt; <span>3</span></code> is <code><span>8</span></code>
+<tr><td>x &gt;&gt; y<td>arithmetic shift right<td><code><span>-8</span> &gt;&gt; <span>3</span></code> is <code><span>-1</span></code>
+<!-- <tr><td>x &gt;&gt;&gt; y<td>logical shift right<td><code><span>-8</span> &gt;&gt; <span>3</span></code> is <code><span>-1</span></code> -->
+<tr><td>~x<td>invert bits<td><code>~<span>%101</span></code> is <code><span>%010</span></code>
+<tr><td>..<td>concatenate bits<td><code><span>$a</span>..<span>$b</span></code> is <code><span>$ab</span></code>
+<tr><td>x[n]<td>extract bit(s)<td><code><span>$a</span>[<span>1</span>]</code> is <code><span>0</span></code>
+<tr><td>x[s]<td>slice bits<td><code><span>$1234</span>[<span>4</span>:<span>8</span>]</code> is <code><span>$3</span></code>
+<tr><td>len(a)<td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
+<tr><td>float(a)<td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
 </table>
 
-<p>An integer has a truth value of &lt;true&gt; if it's non-zero. The
-&lt;true&gt; value is the same as 1.</p>
+<p>An integer has a truth value of true if it's non-zero. The
+true value is the same as 1.</p>
 
 <p>Length of a numeric constants are defined in bits and is calculated from the
 number of digits used for hexadecimal (4 each) and binary (1 each) definitions. It's
@@ -277,7 +245,7 @@ used.</p>
 
         <b>ldx</b> #&lt;&gt;<span class="l">source</span>   <i>; word extraction</i>
         <b>ldy</b> #&lt;&gt;<span class="l">dest</span>
-        <b>lda</b> #size(<span class="l">source</span>)-<span>1</span>
+        <b>lda</b> #<span class="k">size</span>(<span class="l">source</span>)-<span>1</span>
         <b>mvn</b> `<span class="l">source</span>, `<span class="l">dest</span><i>; bank extraction</i>
 
         <b>lda</b> #((<span class="l">bitmap</span> &amp; <span>$2000</span>) &gt;&gt; <span>10</span>) | ((<span class="l">screen</span> &amp; <span>$3c00</span>) &gt;&gt; <span>6</span>)
@@ -292,52 +260,53 @@ used.</p>
 <p>Floating point constants have a decimal mark in them and optionally an
 exponent. The following operations can be used on them:</p>
 
-<table border="0">
-<tr><td width="80"><tt>x + y</tt><td>add x to y<td><code>2.2 + 2.2</code> is <code>4.4</code>
-<tr><td><tt>x - y</tt><td>substract y from x<td><code>4.1 - 1.1</code> is <code>3.0</code>
-<tr><td><tt>x * y</tt><td>multiply x with y<td><code>1.5 * 3</code> is <code>4.5</code>
-<tr><td><tt>x / y</tt><td>integer divide x by y<td><code>7.0 / 2.0</code> is <code>3.5</code>
-<tr><td><tt>x % y</tt><td>integer modulo of x divided by y<td><code>5.0 % 2.0</code> is <code>1.0</code>
-<tr><td><tt>x ** y</tt><td>x raised t power of y<td><code>2.0 ** -1</code> is <code>0.5</code>
-<tr><td><tt>~x</tt><td>-(x+1) value<td><code>~2.1</code> is <code>-3.1</code>
-<tr><td><tt>-x</tt><td>negated value<td><code>-2.0</code> is <code>-2.0</code>
-<tr><td><tt>+x</tt><td>unchanged<td><code>+2.0</code> is <code>2.0</code>
-<tr><td><tt>x == y</tt><td>x equals to y<td><code>2.0 == 3.0</code> is <code>&lt;false&gt;</code>
-<tr><td><tt>x != y</tt><td>x does not equal to y<td><code>2.0 != 3.0</code> is <code>&lt;true&gt;</code>
-<tr><td><tt>x &lt; y</tt><td>x is less than y<td><code>2.0 &lt; 3.0</code> is <code>&lt;true&gt;</code>
-<tr><td><tt>x &gt; y</tt><td>x is more than y<td><code>2.0 &gt; 3.0</code> is <code>&lt;false&gt;</code>
-<tr><td><tt>x &gt;= y</tt><td>x is more than y or equals<td><code>2.0 &gt;= 3.0</code> is <code>&lt;false&gt;</code>
-<tr><td><tt>x &lt;= y</tt><td>x is less than y or equals<td><code>2.0 &lt;= 3.0</code> is <code>&lt;true&gt;</code>
-<tr><td>abs(a)<td>Absolute value<td><code>abs(-1.0)</code> is <code>1.0</code>
-<tr><td>sign(a)<td>Sign value (-1, 0, 1)<td><code>sign(-4.0)</code> is <code>-1</code>
-<tr><td>floor(a)<td>Round down<td><code>floor(-4.8)</code> is <code>-5.0</code>
-<tr><td>round(a)<td>Round to nearest away from zero<td><code>floor(4.8) is <code>5.0</code>
-<tr><td>ceil(a)<td>Round up<td><code>ceil(1.1)</code> is <code>2.0</code>
-<tr><td>trunc(a)<td>Round down towards zero<td><code>trunc(-1.9)</code> is <code>-1</code>
-<tr><td>frac(a)<td>Fractional part<td><code>frac(1.1)</code> is <code>0.1</code>
-<tr><td>sqrt(a)<td>Square root<td><code>sqrt(16.0)</code> is <code>4.0</code>
-<tr><td>cbrt(a)<td>Cube root<td><code>cbrt(27.0)</code> is <code>3.0</code>
-<tr><td>log10(a)<td>Common logarithm<td><code>log10(100.0)</code> is <code>2.0</code>
-<tr><td>log(a)<td>Natural logarithm<td><code>log(1)</code> is <code>0.0</code>
-<tr><td>exp(a)<td>Exponential<td><code>exp(0)</code> is <code>1.0</code>
-<tr><td>pow(a,&nbsp;b)<td>a raised to power of b<td><code>pow(2.0, 3.0)</code> is <code>8.0</code>
-<tr><td>sin(a)<td>Sine<td><code>sin(0.0)</code> is <code>0.0</code>
-<tr><td>asin(a)<td>Arc sine<td><code>asin(0.0)</code> is <code>0.0</code>
-<tr><td>sinh(a)<td>Hyperbolic sine<td><code>sinh(0.0)</code> is <code>0.0</code>
-<tr><td>cos(a)<td>Cosine<td><code>cos(0.0)</code> is <code>1.0</code>
-<tr><td>acos(a)<td>Arc cosine<td><code>acos(1.0)</code> is <code>0.0</code>
-<tr><td>cosh(a)<td>Hyperbolic cosine<td><code>cosh(0.0)</code> is <code>1.0</code>
-<tr><td>tan(a)<td>Tangent<td><code>tan(0.0)</code> is <code>0.0</code>
-<tr><td>atan(a)<td>Arc tangent<td><code>atan(0.0)</code> is <code>0.0</code>
-<tr><td>tanh(a)<td>Hyperbolic tangent<td><code>tanh(0.0)</code> is <code>0.0</code>
-<tr><td>rad(a)<td>Degrees to radian<td><code>rad(0.0)</code> is <code>0.0</code>
-<tr><td>deg(a)<td>Radian to degrees<td><code>deg(0.0)</code> is <code>0.0</code>
-<tr><td>hypot(y,&nbsp;x)<td>Polar distance<td><code>hypot(4.0, 3.0)</code> is <code>5.0</code>
-<tr><td>atan2(y,&nbsp;x)<td>Polar angle<td><code>atan2(0.0, 3.0)</code> is <code>0.0</code>
-<tr><td>int(a)<td>Convert to integer<td><code>int(3.8)</code> is <code>3</code>
+<table border="0" class="oper">
+<caption>Floating point operators and functions</caption>
+<tr><td width="80">x + y<td>add x to y<td><code><span>2.2</span> + <span>2.2</span></code> is <code><span>4.4</span></code>
+<tr><td>x - y<td>substract y from x<td><code><span>4.1</span> - <span>1.1</span></code> is <code><span>3.0</span></code>
+<tr><td>x * y<td>multiply x with y<td><code><span>1.5</span> <span>* 3</span></code> is <code><span>4.5</span></code>
+<tr><td>x / y<td>integer divide x by y<td><code><span>7.0</span> / <span>2.0</span></code> is <code><span>3.5</span></code>
+<tr><td>x % y<td>integer modulo of x divided by y<td><code><span>5.0</span> % <span>2.0</span></code> is <code><span>1.0</span></code>
+<tr><td>x ** y<td>x raised t power of y<td><code><span>2.0</span> ** <span>-1</span></code> is <code><span>0.5</span></code>
+<tr><td>~x<td>&minus;(x+1) value<td><code>~<span>2.1</span></code> is <code><span>-3.1</span></code>
+<tr><td>-x<td>negated value<td><code>-<span>2.0</span></code> is <code><span>-2.0</span></code>
+<tr><td>+x<td>unchanged<td><code>+<span>2.0</span></code> is <code><span>2.0</span></code>
+<tr><td>x == y<td>x equals to y<td><code><span>2.0</span> == <span>3.0</span></code> is false
+<tr><td>x != y<td>x does not equal to y<td><code><span>2.0</span> != <span>3.0</span></code> is true
+<tr><td>x &lt; y<td>x is less than y<td><code><span>2.0</span> &lt; <span>3.0</span></code> is true
+<tr><td>x &gt; y<td>x is more than y<td><code><span>2.0</span> &gt; <span>3.0</span></code> is false
+<tr><td>x &gt;= y<td>x is more than y or equals<td><code><span>2.0</span> &gt;= <span>3.0</span></code> is false
+<tr><td>x &lt;= y<td>x is less than y or equals<td><code><span>2.0</span> &lt;= <span>3.0</span></code> is true
+<tr><td>abs(a)<td>absolute value<td><code><span class="k">abs</span>(<span>-1.0</span>)</code> is <code><span>1.0</span></code>
+<tr><td>sign(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>-4.0</span>)</code> is <code><span>-1</span></code>
+<tr><td>floor(a)<td>round down<td><code><span class="k">floor</span>(<span>-4.8</span>)</code> is <code><span>-5.0</span></code>
+<tr><td>round(a)<td>round to nearest away from zero<td><code><span class="k">floor</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
+<tr><td>ceil(a)<td>round up<td><code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
+<tr><td>trunc(a)<td>round down towards zero<td><code><span class="k">trunc</span>(<span>-1.9</span>)</code> is <code><span>-1</span></code>
+<tr><td>frac(a)<td>fractional part<td><code><span class="k">frac</span>(<span>1.1</span>)</code> is <code><span>0.1</span></code>
+<tr><td>sqrt(a)<td>square root<td><code><span class="k">sqrt</span>(<span>16.0</span>)</code> is <code><span>4.0</span></code>
+<tr><td>cbrt(a)<td>cube root<td><code><span class="k">cbrt</span>(<span>27.0</span>)</code> is <code><span>3.0</span></code>
+<tr><td>log10(a)<td>common logarithm<td><code><span class="k">log10</span>(<span>100.0</span>)</code> is <code><span>2.0</span></code>
+<tr><td>log(a)<td>natural logarithm<td><code><span class="k">log</span>(<span>1</span>)</code> is <code><span>0.0</span></code>
+<tr><td>exp(a)<td>exponential<td><code><span class="k">exp</span>(<span>0</span>)</code> is <code><span>1.0</span></code>
+<tr><td>pow(a,&nbsp;b)<td>a raised to power of b<td><code><span class="k">pow</span>(<span>2.0, 3.0</span>)</code> is <code><span>8.0</span></code>
+<tr><td>sin(a)<td>sine<td><code><span class="k">sin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>asin(a)<td>arc sine<td><code><span class="k">asin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>sinh(a)<td>hyperbolic sine<td><code><span class="k">sinh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>cos(a)<td>cosine<td><code><span class="k">cos</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
+<tr><td>acos(a)<td>arc cosine<td><code><span class="k">acos</span>(<span>1.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>cosh(a)<td>hyperbolic cosine<td><code><span class="k">cosh</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
+<tr><td>tan(a)<td>tangent<td><code><span class="k">tan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>atan(a)<td>arc tangent<td><code><span class="k">atan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>tanh(a)<td>hyperbolic tangent<td><code><span class="k">tanh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>rad(a)<td>degrees to radian<td><code><span class="k">rad</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>deg(a)<td>radian to degrees<td><code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>hypot(y,&nbsp;x)<td>polar distance<td><code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
+<tr><td>atan2(y,&nbsp;x)<td>polar angle<td><code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td>int(a)<td>convert to integer<td><code><span class="k">int</span>(<span>3.8</span>)</code> is <code><span>3</span></code>
 </table>
 
-<p>A floating point number has a truth value of &lt;true&gt; if it's non-zero.</p>
+<p>A floating point number has a truth value of true if it's non-zero.</p>
 
 <p>As usual comparing floating point numbers for (non) equality is a bad idea due to rounding errors.</p>
 
@@ -358,21 +327,22 @@ representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside the strings escapes them.</p>
 
-<table border="0">
-<tr><td><tt>..</tt><td>concatenate strings<td><code>"a".."b"</code> is <code>"ab"</code>
-<tr><td><tt>in</tt><td>is substring of<td><code>"b" in "abc"</code> is <code>&lt;true&gt;</code>
-<tr><td><tt>%</tt><td>string formatting<td><code>"%02x" % (12,)</code> is <code>"0c"</code>
-<tr><td><tt>x</tt><td>repeat<td><code>"ab" x 3</code> is <code>"ababab"</code>
-<tr><td><tt>x[i]</tt><td>character from start<td><code>"abc"[1]</code> is <code>"b"</code>
-<tr><td><tt>x[i]</tt><td>character from end<td><code>"abc"[-1]</code> is <code>"c"</code>
-<tr><td><tt>x[s]</tt><td>no change<td><code>"abc"[:]</code> is <code>"abc"</code>
-<tr><td><tt>x[s]</tt><td>cut off start<td><code>"abc"[1:]</code> is <code>"bc"</code>
-<tr><td><tt>x[s]</tt><td>cut off end<td><code>"abc"[:-1]</code> is <code>"ab"</code>
-<tr><td><tt>x[s]</tt><td>reverse<td><code>"abc"[::-1]</code> is <code>"cba"</code>
-<tr><td>len(x)<td>number of characters<td><code>len("abc")</code> is <code>3</code>
+<table border="0" class="oper">
+<caption>String operators and functions</caption>
+<tr><td>..<td>concatenate strings<td><code><span class="s">"a"</span>..<span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
+<tr><td>in<td>is substring of<td><code><span class="s">"b"</span> <span class="k">in</span> <span class="s">"abc"</span></code> is true
+<tr><td>%<td>string formatting<td><code><span class="s">"%02x"</span> % (<span>12</span>,)</code> is <code><span class="s">"0c"</span></code>
+<tr><td>x<td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
+<tr><td>x[i]<td>character from start<td><code><span class="s">"abc"</span>[<span>1</span>]</code> is <code><span class="s">"b"</span></code>
+<tr><td>x[i]<td>character from end<td><code><span class="s">"abc"</span>[<span>-1</span>]</code> is <code><span class="s">"c"</span></code>
+<tr><td>x[s]<td>no change<td><code><span class="s">"abc"</span>[:]</code> is <code><span class="s">"abc"</span></code>
+<tr><td>x[s]<td>cut off start<td><code><span class="s">"abc"</span>[<span>1</span>:]</code> is <code><span class="s">"bc"</span></code>
+<tr><td>x[s]<td>cut off end<td><code><span class="s">"abc"</span>[:<span>-1</span>]</code> is <code><span class="s">"ab"</span></code>
+<tr><td>x[s]<td>reverse<td><code><span class="s">"abc"</span>[::<span>-1</span>]</code> is <code><span class="s">"cba"</span></code>
+<tr><td>len(x)<td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
 </table>
 
-<p>A string has a truth value of &lt;true&gt; if it contains at least one character.</p>
+<p>A string has a truth value of true if it contains at least one character.</p>
 
 <p>Strings are converted to numeric constants as necessary using the current
 encoding and escape rules, for example when using a sane encoding <code>"z" - "a"</code> is
@@ -380,7 +350,7 @@ encoding and escape rules, for example when using a sane encoding <code>"z" - "a
 
 <p>Indexing characters with positive integers start with zero. Negative indexes
 are translated internally by adding the number of characters to them, therefore
--1 can be used to access the last character. Indexing with list of integers is
+&minus;1 can be used to access the last character. Indexing with list of integers is
 possible as well so <code>"abc"[(-1, 0, 1)]</code> is <code>"cab"</code>.</p>
 
 <p>Slicing is an operation when parts of string are extracted from a start
@@ -407,28 +377,30 @@ The converted values are inserted at the <code>%</code> sign which is followed b
 conversion flags, minimum field length, and conversion type. The these flags
 can be used:</p>
 
-<table border="0">
-<tr><td width="40"><tt>#</tt><td>alternate form ($a, %10, 10.)
-<tr><td><tt>*</tt><td>width/precision from list
-<tr><td><tt>.</tt><td>precision
-<tr><td><tt>0</tt><td>pad with zeros
-<tr><td><tt>-</tt><td>left adjusted (default right)
-<tr><td><tt> </tt><td>blank when positive or minus sign
-<tr><td><tt>+</tt><td>sign even if positive
+<table border="0" class="oper">
+<caption>Formatting flags</caption>
+<tr><td width="40">#<td>alternate form ($a, %10, 10.)
+<tr><td>*<td>width/precision from list
+<tr><td>.<td>precision
+<tr><td>0<td>pad with zeros
+<tr><td>-<td>left adjusted (default right)
+<tr><td>&nbsp;<td>blank when positive or minus sign
+<tr><td>+<td>sign even if positive
 </table>
 
 <p>The following conversions are implemented:</p>
 
-<table border="0">
-<tr><td width="40"><tt>b</tt><td>binary
-<tr><td><tt>c</tt><td>unicode character
-<tr><td><tt>d</tt><td>decimal
-<tr><td><tt>e, E</tt><td>exponential float (uppercase)
-<tr><td><tt>f, F</tt><td>floating point (uppercase)
-<tr><td><tt>g, G</tt><td>exponential/floating point
-<tr><td><tt>s</tt><td>string
-<tr><td><tt>x, X</tt><td>hexadecimal (uppercase)
-<tr><td><tt>%</tt><td>percent sign
+<table border="0" class="oper">
+<caption>Formatting conversions</caption>
+<tr><td width="40">b<td>binary
+<tr><td>c<td>unicode character
+<tr><td>d<td>decimal
+<tr><td>e&nbsp;E<td>exponential float (uppercase)
+<tr><td>f&nbsp;F<td>floating point (uppercase)
+<tr><td>g&nbsp;G<td>exponential/floating point
+<tr><td>s<td>string
+<tr><td>x&nbsp;X<td>hexadecimal (uppercase)
+<tr><td>%<td>percent sign
 </table>
 
 <pre width=80>
@@ -445,21 +417,22 @@ is <code>(4,)</code> to differentiate from normal numeric expression
 parentheses. When nested they function similar to an array. Currently both
 types are immutable.</p>
 
-<table border="0">
-<tr><td><tt>..</tt><td>concatenate lists<td><code>[1]..[2]</code> is <code>[1, 2]</code>
-<tr><td><tt>in</tt><td>is member of list<td><code>2 in [1, 2, 3]</code> is <code>&lt;true&gt;</code>
-<tr><td><tt>x</tt><td>repeat<td><code>[1, 2] x 2</code> is <code>[1, 2, 1, 2]</code>
-<tr><td><tt>x[i]</tt><td>element from start<td><code>("1", 2)[1]</code> is <code>2</code>
-<tr><td><tt>x[i]</tt><td>element from end<td><code>("1", 2, 3)[-1]</code> is <code>3</code>
-<tr><td><tt>x[s]</tt><td>no change<td><code>(1, 2, 3)[:]</code> is <code>(1, 2, 3)</code>
-<tr><td><tt>x[s]</tt><td>cut off start<td><code>(1, 2, 3)[1:]</code> is <code>(2, 3)</code>
-<tr><td><tt>x[s]</tt><td>cut off end<td><code>(1, 2.0, 3)[:-1]</code> is <code>(1, 2.0)</code>
-<tr><td><tt>x[s]</tt><td>reverse<td><code>(1, 2, 3)[::-1]</code> is <code>(3, 2, 1)</code>
-<tr><td>len(x)<td>number of elements<td><code>len([1, 2, 3])</code> is <code>3</code>
-<tr><td>range(s,e,t)<td>create a list with values from a range<td><code>range(3)</code> is <code>[0,1,2]</code>
+<table border="0" class="oper">
+<caption>List and tuple operators and functions</caption>
+<tr><td>..<td>concatenate lists<td><code>[<span>1</span>]..[<span>2</span>]</code> is <code>[<span>1</span>, <span>2</span>]</code>
+<tr><td>in<td>is member of list<td><code><span>2</span> <span class="k">in</span> [<span>1</span>, <span>2</span>, <span>3</span>]</code> is true
+<tr><td>x<td>repeat<td><code>[<span>1</span>, <span>2</span>] <span class="k">x</span> <span>2</span></code> is <code>[<span>1</span>, <span>2</span>, <span>1</span>, <span>2</span>]</code>
+<tr><td>x[i]<td>element from start<td><code>(<span class="s">"1"</span>, <span>2</span>)[<span>1</span>]</code> is <code><span>2</span></code>
+<tr><td>x[i]<td>element from end<td><code>(<span class="s">"1"</span>, <span>2</span>, <span>3</span>)[<span>-1</span>]</code> is <code><span>3</span></code>
+<tr><td>x[s]<td>no change<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[:]</code> is <code>(<span>1</span>, <span>2</span>, <span>3</span>)</code>
+<tr><td>x[s]<td>cut off start<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[<span>1</span>:]</code> is <code>(<span>2</span>, <span>3</span>)</code>
+<tr><td>x[s]<td>cut off end<td><code>(<span>1</span>, <span>2.0</span>, <span>3</span>)[:<span>-1</span>]</code> is <code>(<span>1</span>, <span>2.0</span>)</code>
+<tr><td>x[s]<td>reverse<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[::<span>-1</span>]</code> is <code>(<span>3</span>, <span>2</span>, <span>1</span>)</code>
+<tr><td>len(x)<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
+<tr><td>range(s,e,t)<td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
 </table>
 
-<p>A list or tuple has a truth value of &lt;true&gt; if it contains at least one element.</p>
+<p>A list or tuple has a truth value of true if it contains at least one element.</p>
 
 <p>Arithmetic operations are applied on the all elements recursively,
 therefore <code>[1, 2] + 1</code> is <code>[2, 3]</code>, and <code>abs([1,
@@ -474,7 +447,7 @@ is <code>[[3, 4], [6, 8]]</code>.</p>
 
 <p>Indexing elements with positive integers start with zero. Negative indexes
 are transformed to positive by adding the number of elements to them, therefor
--1 is the last element. Indexing with list of integers is possible as well so
+&minus;1 is the last element. Indexing with list of integers is possible as well so
 <code>[1, 2, 3][(-1, 0, 1)]</code> is <code>[3, 1, 2]</code>.</p>
 
 <p>Slicing is an operation when parts of list or tuple are extracted from a
@@ -502,17 +475,16 @@ useful, so here are a few examples:</p>
 
 <pre width=80>
 <i>;Bitmask table, 8 bits from left to right</i>
-        <b class="d">.byte</b> <span>%10000000</span> &gt;&gt; range(<span>8</span>)
+        <b class="d">.byte</b> <span>%10000000</span> &gt;&gt; <span class="k">range</span>(<span>8</span>)
 <i>;Classic 256 byte single period sinus table with values of 0-255.</i>
-        <b class="d">.byte</b> <span>128.5</span>+<span>127</span>*sin(range(<span>256</span>)*rad(<span>360.0</span>/<span>256</span>))
+        <b class="d">.byte</b> <span>128.5</span>+<span>127</span>*<span class="k">sin</span>(<span class="k">range</span>(<span>256</span>)*<span class="k">rad</span>(<span>360.0</span>/<span>256</span>))
 <i>;Screen row address tables</i>
--       <b>=</b> <span>$400</span>+range(<span>0</span>, <span>1000</span>, <span>40</span>)
+-       <b>=</b> <span>$400</span>+<span class="k">range</span>(<span>0</span>, <span>1000</span>, <span>40</span>)
 scrlo   <b class="d">.byte</b> &lt;(<span class="l">-</span>)
 scrhi   <b class="d">.byte</b> &gt;(<span class="l">-</span>)
 </pre>
 
 <h3>Labels</h3>
-
 <p>Normal labels can be defined at the start of each line. Each of them is uniq
 and can't be redefined. In arithmetic operations they represent the numeric
 addresses of a memory location. Additionally they also hold the compiled code
@@ -523,21 +495,22 @@ block directives are used where it's extended till the end of block. The
 content is not forward referencable, only the address of label. Usually the
 size of a single element is a byte, but this can be more for data definitions.
 Trying to <q>overwrite</q> the same memory locations later does not affect the
-content anymore.<p>
+content anymore.</p>
 
-<table border="0">
-<tr><td><tt>.</tt><td>member<td><code>label.locallabel</code>
-<tr><td><tt>x[i]</tt><td>element from start<td><code>label[1]</code>
-<tr><td><tt>x[i]</tt><td>element from end<td><code>label[-1]</code>
-<tr><td><tt>x[s]</tt><td>copy as tuple<td><code>label[:]</code>
-<tr><td><tt>x[s]</tt><td>cut off start, as tuple<td><code>label[1:]</code>
-<tr><td><tt>x[s]</tt><td>cut off end, as tuple<td><code>label[:-1]</code>
-<tr><td><tt>x[s]</tt><td>reverse, as tuple<td><code>label[::-1]</code>
-<tr><td>len(x)<td>number of elements<td><code>len(label)</code>
-<tr><td>size(a)<td>size in bytes<td><code>size(label)</code>
+<table border="0" class="oper">
+<caption>Label operators and functions</caption>
+<tr><td>.<td>member<td><code><span class="l">label</span>.<span class="l">locallabel</span></code>
+<tr><td>x[i]<td>element from start<td><code><span class="l">label</span>[<span>1</span>]</code>
+<tr><td>x[i]<td>element from end<td><code><span class="l">label</span>[<span>-1</span>]</code>
+<tr><td>x[s]<td>copy as tuple<td><code><span class="l">label</span>[:]</code>
+<tr><td>x[s]<td>cut off start, as tuple<td><code><span class="l">label</span>[<span>1</span>:]</code>
+<tr><td>x[s]<td>cut off end, as tuple<td><code><span class="l">label</span>[:<span>-1</span>]</code>
+<tr><td>x[s]<td>reverse, as tuple<td><code><span class="l">label</span>[::<span>-1</span>]</code>
+<tr><td>len(x)<td>number of elements<td><code><span class="k">len</span>(<span class="l">label</span>)</code>
+<tr><td>size(a)<td>size in bytes<td><code><span class="k">size</span>(<span class="l">label</span>)</code>
 </table>
 
-<p>A label has a truth value of &lt;true&gt; when it's address is non-zero.</p>
+<p>A label has a truth value of true when it's address is non-zero.</p>
 
 <pre width=80>
 mydata  <b class="d">.word</b> <span>1</span>, <span>4</span>, <span>3</span>
@@ -545,8 +518,8 @@ mycode  <b class="k">.block</b>
 local   <b>lda</b> #<span>0</span>
         <b class="k">.bend</b>
 
-        <b>ldx</b> #size(<span class="l">mydata</span>) <i>;6 bytes (3*2)</i>
-        <b>ldx</b> #len(<span class="l">mydata</span>)  <i>;3 elements</i>
+        <b>ldx</b> #<span class="k">size</span>(<span class="l">mydata</span>) <i>;6 bytes (3*2)</i>
+        <b>ldx</b> #<span class="k">len</span>(<span class="l">mydata</span>)  <i>;3 elements</i>
         <b>ldx</b> #<span class="l">mycode</span>[<span>0</span>]    <i>;lda instruction, $a9</i>
         <b>ldx</b> #<span class="l">mydata</span>[<span>1</span>]    <i>;2nd element, 4</i>
         <b>jmp</b> <span class="l">mycode</span>.<span class="l">local</span>  <i>;address of local label</i>
@@ -648,27 +621,22 @@ well.</p>
 operands as the result. True is defined as a non-zero number, a non-empty
 string/tuple/list, anything else is false.</p>
 
-<table border="0">
-<tr><td width="80"><tt>x || y</tt><td>if x is true then x otherwise y
-<tr><td><tt>x ^^ y </tt><td>if both false or true then false otherwise x || y
-<tr><td><tt>x &amp;&amp; y</tt><td>if x is true then y otherwise x
-<tr><td><tt>!x</tt><td>if x is true then false otherwise true
-<tr><td><tt>!!x</tt><td>if x is true then true otherwise false
+<p>The ternary operator (<code>?:</code>) gives the first (x) result if c is
+true or the second (y) if c is false.</p>
+
+<table border="0" class="oper">
+<caption>Logical and conditional operators</caption>
+<tr><td width="80">x || y<td>if x is true then x otherwise y
+<tr><td>x ^^ y <td>if both false or true then false otherwise x || y
+<tr><td>x &amp;&amp; y<td>if x is true then y otherwise x
+<tr><td>!x<td>if x is true then false otherwise true
+<tr><td>!!x<td>if x is true then true otherwise false
+<tr><td>c&nbsp;?&nbsp;x&nbsp;:&nbsp;y<td>if c is true then x otherwise y
 </table>
 
 <pre width=80>
 <i>;Silly example for 1=>"simple", 2=>"advanced", else "normal"</i>
         <b class="d">.text</b> <span class="l">MODE</span> == <span>1</span> &amp;&amp; <span class="s">"simple"</span> || <span class="l">MODE</span> == <span>2</span> &amp;&amp; <span class="s">"advanced"</span> || <span class="s">"normal"</span>
-</pre>
-
-<p>The conditional operator gives the first (x) result if c is true or the second (y) if c is false.</p>
-
-<table border="0">
-<tr><td width="80"><tt>c ? x : y</tt><td>if c is true then x otherwise y
-</table>
-
-<pre width=80>
-<i>;Silly example for 1=>"simple", 2=>"advanced", else "normal"</i>
         <b class="d">.text</b> <span class="l">MODE</span> == <span>1</span> ? <span class="s">"simple"</span> : <span class="l">MODE</span> == <span>2</span> ? <span class="s">"advanced"</span> : <span class="s">"normal"</span>
 </pre>
 
@@ -685,7 +653,8 @@ opcodes.</p>
 <p>Built in functions are identifiers followed by parentheses. They accept
 variable number of parameters separated by comma.</p>
 
-<table border="0">
+<table border="0" class="oper">
+<caption>Other built in functions</caption>
 <tr><td width="150">min(a, b, ...)<td>Minimum of values
 <tr><td>max(a, b, ...)<td>Maximum of values
 </table>
@@ -693,10 +662,11 @@ variable number of parameters separated by comma.</p>
 <p>Special addressing mode forcing operators in front of an expression can be
 used to make sure the expected addressing mode is used.</p>
 
-<table border="0">
-<tr><td width="80"><tt>@b</tt><td>to force 8 bit address
-<tr><td><tt>@w</tt><td>to force 16 bit address
-<tr><td><tt>@l</tt><td>to force 24 bit address (65816)
+<table border="0" class="oper">
+<caption>Address size forcing</caption>
+<tr><td width="80">@b<td>to force 8 bit address
+<tr><td>@w<td>to force 16 bit address
+<tr><td>@l<td>to force 24 bit address (65816)
 </table>
 
 <pre width=80>
@@ -837,27 +807,21 @@ txt	<b class="d">.ptext</b> <span class="s">"note"</span>
 
 <dt><b>.byte</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 8&nbsp;bit unsigned byte constants
-<pre width=80>
-        <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
-        <b class="d">.byte</b> <span>?</span>	        <i>; reserve 1 byte of space</i>
-</pre>
-
 <dt><b>.char</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 8&nbsp;bit signed integer constants
 <pre width=80>
+        <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
+        <b class="d">.byte</b> <span>?</span>	        <i>; reserve 1 byte of space</i>
         <b class="d">.char</b> <span>-33</span>, <span>57</span>
 </pre>
 
 <dt><b>.word</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 16&nbsp;bit unsigned word constants
-<pre width=80>
-        <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
-        <b class="d">.word</b> <span>?</span>	        <i>; reserve 2 bytes of space</i>
-</pre>
-
 <dt><b>.int</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 16&nbsp;bit signed integer constants
 <pre width=80>
+        <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
+        <b class="d">.word</b> <span>?</span>	        <i>; reserve 2 bytes of space</i>
         <b class="d">.int</b> <span>-533</span>, <span>4433</span>
 </pre>
 
@@ -877,27 +841,21 @@ rets	<b class="d">.rta</b> <span>$fce2</span>
 
 <dt><b>.long</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 24&nbsp;bit unsigned constants
-<pre width=80>
-        <b class="d">.long</b> <span>$123456</span>
-        <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes of space</i>
-</pre>
-
 <dt><b>.lint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 24&nbsp;bit signed integer constants
 <pre width=80>
+        <b class="d">.long</b> <span>$123456</span>
+        <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes of space</i>
         <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
 </pre>
 
 <dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 32&nbsp;bit unsigned constants
-<pre width=80>
-        <b class="d">.dword</b> <span>$12345678</span>
-        <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes of space</i>
-</pre>
-
 <dt><b>.dint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Include 32&nbsp;bit signed integer constants
 <pre width=80>
+        <b class="d">.dword</b> <span>$12345678</span>
+        <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes of space</i>
         <b class="d">.dint</b> <span>-533</span>, <span>4433</span>
 </pre>
 
@@ -910,9 +868,9 @@ rets	<b class="d">.rta</b> <span>$fce2</span>
 </dl>
 
 <h3>Text encoding</h3>
-64tass supports sources written in utf8, utf16 (be/le) and raw 8-bit encoding. To take
+<p>64tass supports sources written in utf8, utf16 (be/le) and raw 8-bit encoding. To take
 advantage of this capability custom encodings can be defined to map unicode characters
-to 8 bit values in strings.
+to 8&nbsp;bit values in strings.</p>
 <dl class="dir">
 <dt><b>.enc</b> &lt;name&gt;
 <dd>Selects text encoding, predefined encodings are <q>none</q> and
@@ -927,10 +885,10 @@ start without any character or escape definitions, add some as required.
 </pre>
 <dt><b>.cdef</b> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, ...]
 <dt><b>.cdef</b> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, ...]
-<dd>Defines a character range, and assigns all characters one by one from the 8 bit value.
+<dd>Defines a character range, and assigns all characters one by one from the 8&nbsp;bit value.
 The start and end positions are unicode character codes either by numbers or by typing them.
 <dt><b>.edef</b> "&lt;escapetext&gt;", &lt;code&gt; [, "&lt;escapetext&gt;", &lt;code&gt;, ...]
-<dd>Defines an escape sequence, and assigns it to a 8 bit value. When using
+<dd>Defines an escape sequence, and assigns it to a 8&nbsp;bit value. When using
 common prefixes the longest match wins. Useful for defining non-typeable control code aliases.
 <pre width=80>
         <b class="k">.enc</b> petscii	<i>;define an ascii->petscii encoding</i>
@@ -1084,8 +1042,8 @@ name    <b class="k">.segment</b>
 </pre>
 
 <dt><h4>Parameter references</h4>
-<dd>Parameters can be referenced by <tt>\1</tt>...<tt>\9</tt> and <tt>\a</tt>...<tt>\z</tt>.
-<tt>\@</tt> will return the entire parameter list.
+<dd>Parameters can be referenced by <code>\1</code>...<code>\9</code> and <code>\a</code>...<code>\z</code>.
+<code>\@</code> will return the entire parameter list.
 <pre width=80>
 name	<b class="k">.macro</b>
 	<b>lda</b> #\1 	<i>;first parameter</i>
@@ -1099,7 +1057,7 @@ name	<b class="k">.macro</b>
 <dd>In the original turbo assembler normal references are passed by value and can
 only appear in place of one. Text references on the other hand can appear every
 where and will work in place of eg quoted text or opcodes and labels.
-The first 9 parameters can be referenced as text by <tt>@1</tt>...<tt>@9</tt>.
+The first 9 parameters can be referenced as text by <code>@1</code>...<code>@9</code>.
 <pre width=80>
 name    <b class="k">.macro</b>
         <b>jsr</b> <span class="l">print</span>
@@ -1191,22 +1149,28 @@ i       <b class="k">.var</b> <span class="l">i</span> - <span>1</span>
 
 </dl>
 <h3>Including files</h3>
+
+<p>Filenames can be a string expressions. Search path is relative to the
+location of current source file. If it's not found there the include search
+path is consulted for further possible locations.</p>
+
+<p>To make your sources portable please always use forward slashes
+(<code>/</code>) as a directory separator!</p>
+
 <dl class="dir">
 <dt><b>.include</b> "&lt;filename&gt;"
-<dd>Include source file here, path is relative to the location of current
-source file. The filename can be a string expression but it must be defined in
-advance. If it's prefixed with a label then all labels are local and are
-accessible through that label.
+<dd>Include source file here. The filename must be defined in advance. If the
+directive is prefixed with a label then all labels are local and are accessible
+through that label only.
 <pre width=80>
-	<b class="k">.include</b> <span class="s">"macros.asm"</span>
+	<b class="k">.include</b> <span class="s">"macros.asm"</span>       <i>;include all as is</i>
+menu	<b class="k">.include</b> <span class="s">"menu.asm"</span>         <i>;include labels locally</i>
+        <b>jmp</b> <span class="l">menu</span>.<span class="l">start</span>
 </pre>
 
 <dt><b>.binary</b> "&lt;filename&gt;"[, &lt;offset&gt;[, &lt;length&gt;]]
-<dd>Include binary data, path is relative to the location of current
-source file. Please note that <q>loading address</q> is ignored, and if
-not skipped then it's also loaded as data. By using offset and length
-it's possible to break out chunks of data from a file separately, like
-bitmap and colors for example. The filename can be a string expression.
+<dd>Include binary data from file. By using offset and length it's possible to break out chunks of data from a
+file separately, like bitmap and colors for example. 
 <pre width=80>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>        <i>;simple include, all bytes</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>,<span>2</span>      <i>;skip start address</i>
@@ -1220,9 +1184,10 @@ bitmap and colors for example. The filename can be a string expression.
 <h3>Blocks</h3>
 <dl class="dir">
 <dt><b>.proc</b>
-<dd>Procedure start
 <dt><b>.pend</b>
-<dd>End of procedure
+<dd>Procedure start and end of procedure. If the label is not used then
+the code won't be compiled at all!  All labels inside are local and are
+accessible through the prefixed label. Useful for building libraries.
 <pre width=80>
 ize     <b class="k">.proc</b>
 	<b>nop</b>
@@ -1232,31 +1197,26 @@ cucc    <b>nop</b>
         <b>jsr</b> <span class="l">ize</span>
         <b>jmp</b> <span class="l">ize</span>.<span class="l">cucc</span>
 </pre>
-<p>If <q>ize</q> is not referenced then the code won't be compiled at all!
-All labels inside are local and are accessible through the prefixed label.</p>
 
 <dt><b>.block</b>
-<dd>Block start
 <dt><b>.bend</b>
-<dd>End of Block
+<dd>Block start and block end. All labels inside a block are local. If prefixed
+with a label local variables are accessible through that label.
 <pre width=80>
 	<b class="k">.block</b>
         <b>inc</b> <span class="l">count</span> + <span>1</span>
 count	<b>ldx</b> #<span>0</span>
 	<b class="k">.bend</b>
 </pre>
-<p>All labels inside a block are local. If prefixed with a label local
-variables are accessible through that label.</p>
 
 <dt><b>.comment</b>
-<dd>Comment block start
 <dt><b>.endc</b>
-<dd>End of comment block
+<dd>Comment block start and comment block end.
 <pre width=80>
-	<b class="k">.comment</b><i>
-        lda #1          <i>;this won't be compiled</i>
-	sta $d020
-	</i><b class="k">.endc</b>
+	<b class="k">.comment</b>
+<i>        lda #1          ;this won't be compiled</i>
+<i>	sta $d020</i>
+	<b class="k">.endc</b>
 </pre>
 </dl>
 
@@ -1337,7 +1297,6 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
         <b class="k">.send</b> <span class="l">code</span>
 </pre>
 <p>The compiled code will look like:</p>
-</dl>
 <pre width=80>
 &gt;0801	 0b 08 d5 07			        .word ss, 2005   
 &gt;0805	 9e 32 30 36 31 00		        .null $9e, ^start
@@ -1361,24 +1320,25 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
 
 &gt;0004					p2      .word ?         ;a pointer
 </pre>
+</dl>
 
 <h3>65816 related</h3>
 <dl class="dir">
 <dt><b>.as</b>
-<dd>Select 8 bit accu (65816)
+<dd>Select 8&nbsp;bit accu (65816)
 
 <dt><b>.al</b>
-<dd>Select 16 bit accu (65816). Immediate constants of a register using opcodes will use 16 bits.
+<dd>Select 16&nbsp;bit accu (65816). Immediate constants of a register using opcodes will use 16&nbsp;bits.
 <pre width=80>
 	<b class="k">.al</b>
         <b>lda</b> #<span>$4322</span>
 </pre>
 
 <dt><b>.xs</b>
-<dd>Select 8 bit index (65816)
+<dd>Select 8&nbsp;bit index (65816)
 
 <dt><b>.xl</b>
-<dd>Select 16 bit index (65816). Immediate constants of x and y register using opcodes will use 16 bits.
+<dd>Select 16&nbsp;bit index (65816). Immediate constants of x and y register using opcodes will use 16&nbsp;bits.
 <pre width=80>
 	<b class="k">.xl</b>
         <b>ldx</b> #<span>$1000</span>
@@ -1404,9 +1364,8 @@ else is using absolute or long addressing.
 <dl class="dir">
 
 <dt><b>.page</b>
-<dd>Gives an error on page boundary crossing, eg. for timing sensitive code.
 <dt><b>.endp</b>
-<dd>End of page cross checking
+<dd>Gives an error on page boundary crossing, eg. for timing sensitive code.
 
 <pre width=80>
 	<b class="k">.page</b>
@@ -1428,7 +1387,7 @@ can ruin the timing of a carefuly cycle counted code.
 
 <dt><b>.error</b> &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Exit with error
-<dt><b>.cerror</b> &lt;expression&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
+<dt><b>.cerror</b> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Conditional exit with error
 <pre width=80>
         <b class="k">.error</b> <span class="s">"Unfinished here..."</span>
@@ -1437,7 +1396,7 @@ can ruin the timing of a carefuly cycle counted code.
 
 <dt><b>.warn</b> &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Warning
-<dt><b>.cwarn</b> &lt;expression&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
+<dt><b>.cwarn</b> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
 <dd>Conditional warning
 <pre width=80>
         <b class="k">.warn</b> <span class="s">"FIXME: handle negative values too!"</span>
@@ -1471,7 +1430,7 @@ can ruin the timing of a carefuly cycle counted code.
 <dd>Terminate assembly. Any content after this directive is ignored.
 
 <dt><b>.eor</b> &lt;expression&gt;
-<dd>Eor output with some 8 bit value. Useful for reverse screencode text for example,
+<dd>Eor output with some 8&nbsp;bit value. Useful for reverse screencode text for example,
 or for silly <q>encryption</q>.
 
 <dt><b>.var</b> &lt;expression&gt;
@@ -1507,48 +1466,97 @@ reset   <b>cld</b>
 </dl>
 
 <hr>
-<h2>How to convert source code written for the original turbo assembler for use
-with 64tass</h2>
+<h2>Pseudo instructions</h2>
 
-Currently there are two options, either use <q>TMPview</q> by Style to convert the
-sourcefile directly, or do the following:
+<p>For writing short code there are some special pseudo instructions for always
+taken branches. These are automatically compiled as relative branches when the
+jump distance is short enough and as <code>JMP</code> or <code>BRL</code> when
+longer. The names are derived from conditional branches and are:
+<code>GEQ</code>, <code>GNE</code>, <code>GCC</code>, <code>GCS</code>,
+<code>GPL</code>, <code>GMI</code>, <code>GVC</code>, and <code>GVS</code>.</p>
+
+<p>There's one more called <code>GRA</code> for CPUs supporting
+<code>BRA</code>, which is expanded to <code>BRL</code> (if available) or
+<code>JMP</code>.</p>
+
+<pre>
+.0000    a9 03          lda #$03        in1     <b>lda</b> #<span>3</span>
+.0002    d0 02          gne $0006               <b>gne</b> <span class="l">at</span>          <i>;branch always</i>
+.0004    a9 02          lda #$02        in2     <b>lda</b> #<span>2</span>
+.0006    4c 00 10       gne $1000       at      <b>gne</b> <span>$1000</span>       <i>;branch further</i>
+</pre>
+
+<p>If the branch would skip only one byte then the opposite condition is compiled
+and only the first byte is emitted. This is now a never executed jump, and the
+relative distance byte after the opcode is the jumped over byte.</p>
+
+<p>If the branch would not skip anything at all then no code is generated.</p>
+
+<pre>
+.0009                   geq $0009               <b>geq</b> <span class="l">in3</span>         <i>;zero length "branch"</i>
+.0009    18             clc             in3     <b>clc</b>
+.000a    b0             gcc $000c               <b>gcc</b> <span class="l">at2</span>         <i>;one byte skip, as bcs</i>
+.000b    38             sec             in4     <b>sec</b>             <i>;sec is skipped!</i>
+.000c    20 0f 00       jsr $000f       at2     <b>jsr</b> <span class="l">func</span>
+.000f                                   func
+</pre>
+
+<p>Please note that expressions like <code>Gxx *+2</code> or <code>Gxx
+*+3</code> are not allowed as the compiler can't figure out if it has to create
+no code at all, the 1 byte variant or the 2 byte one. Therefore use normal or
+anonymous labels defined after the jump instruction when jumping forward!</p>
+
+<p>To avoid branch too long errors the assembler also supports long branches,
+it can automatically convert conditional relative branches to it's opposite and
+a <code>JMP</code> or <code>BRL</code>. This can be enabled on the command
+line using the <q>--long-branch</q> option.</p>
+
+<pre>
+.0000    ea             nop                     <b>nop</b>
+.0001    b0 03 4c 00 10 bcc $1000               <b>bcc</b> <span>$1000</span>      <i>;long branch</i>
+.0006    ea             nop                     <b>nop</b>
+</pre>
+
+<p>Please note that forward jump expressions like <code>Bxx *+130</code>,
+<code>Bxx *+131</code> and <code>Bxx *+132</code> are not allowed as the
+compiler can't decide between a short/long branch. Of course these destinations
+can be used, but only with normal or anonymous labels defined after the jump
+instruction.</p>
+
+<hr>
+<h2>Original turbo assembler compatibility</h2>
+<h3>How to convert source code for use with 64tass</h3>
+<p>Currently there are two options, either use <q>TMPview</q> by Style to convert the
+sourcefile directly, or do the following:</p>
 <ul>
 <li>load turbo assembler, start (by sys9*4096 or sys8*4096 depending on version)
 <li><- (arrow left) then l to load a sourcefile
 <li><- (arrow left) then w to write a sourcefile in petscii format
-<li>convert the result to ascii using petcat (from the vice package)
+<li>convert the result to ASCII using petcat (from the vice package)
 </ul>
-the resulting file should then (with the restrictions below) assemble using the
-following commandline:<br>
-<p>
-<tt>64tass -C -T -a -W -i source.s -o outfile.prg</tt>
-</p>
-<hr>
-<h2>Differences to the original turbo ass macro on the C64</h2>
-<p>
-64tass is nearly 100% compatible with the original <q>Turbo Assembler</q>, and supports
+<p>The resulting file should then (with the restrictions below) assemble using the
+following commandline:</p>
+<pre width=80>
+64tass -C -T -a -W -i source.asm -o outfile.prg
+</pre>
+
+<h3>Differences to the original turbo ass macro on the C64</h3>
+<p>64tass is nearly 100% compatible with the original <q>Turbo Assembler</q>, and supports
 most of the features of the original <q>Turbo Assembler Macro</q>.
-The remaining notable differences are listed here:
-</p>
+The remaining notable differences are listed here.</p>
 <h3>Labels</h3>
-<p>
-The original turbo assembler uses case sensitive labels, use the <tt>-C, --case-sensitive</tt>
-option to enable this behaviour.
-</p>
-<p>
-Another thing worth noting is that the original turbo assembler lets you create
-an interesting ambiguous construct using a label called <q>a</q>.
-</p>
+<p>The original turbo assembler uses case sensitive labels, use the <tt>-C, --case-sensitive</tt>
+option to enable this behaviour.</p>
+<p>Another thing worth noting is that the original turbo assembler lets you create
+an interesting ambiguous construct using a label called <q>a</q>.</p>
 <pre width=80>
         <b>lsr a</b>    <i>; uses accu ! (or does it really?)</i>
 a
         <b>jmp</b> <span class="l">a</span>    <i>; uses the label address</i>
         <b class="d">.word</b> <span class="l">a</span>  <i>; uses the label address</i>
 </pre>
-<p>
-If you get a warning like <q><tt>warning: Possibly incorrectly used A "lsr a"</tt></q>, then there
-is such an ambiguous situation in your code and you should fix it (by renaming the label).
-</p>
+<p>If you get a warning like <q><tt>warning: Possibly incorrectly used A "lsr a"</tt></q>, then there
+is such an ambiguous situation in your code and you should fix it (by renaming the label).</p>
 
 <h3>Expression evaluation</h3>
 
@@ -1560,29 +1568,27 @@ means that you will have to fix expressions using braces accordingly, for exampl
 <code>1+2*3</code> becomes <code>(1+2)*3</code>.</p>
 
 <p>The following operators used by the original Turbo Assembler are different:</p>
-<ul>
-<li><tt>.</tt> for bitwise or, now <tt>|</tt>
-<li><tt>:</tt> for bitwise eor, now <tt>^</tt>
-<li><tt>!</tt> to force 16&nbsp;bit address, now <tt>@w</tt>
-</ul>
 
-<p>The default expression evaluation is not limited to 16 bit unsigned numbers anymore.</p>
+<table border="0" class="oper">
+<caption>TASM Operator differences</caption>
+<tr><td width="80">.<td>bitwise or, now <code>|</code>
+<tr><td>:<td>bitwise eor, now <code>^</code>
+<tr><td>!<td>force 16&nbsp;bit address, now <code>@w</code>
+</table>
+
+<p>The default expression evaluation is not limited to 16&nbsp;bit unsigned numbers anymore.</p>
 
 <h3>Macros</h3>
-<ul>
-<li>Macro parameters are referenced by <tt>\1</tt>...<tt>\9</tt> instead of using the pound sign
-<li>Parameters are always copied as text into the macro and not passed by value as the
+<p>Macro parameters are referenced by <code>\1</code>...<code>\9</code> instead of using the pound sign.</p>
+<p>Parameters are always copied as text into the macro and not passed by value as the
 original turbo assembler does, which sometimes may lead to unexpected behaviour. You may
-need to make use of braces around arguments and/or references to fix this.
-</ul>
+need to make use of braces around arguments and/or references to fix this.</p>
 
 <h3>Bugs</h3>
-Some versions of the original turbo assembler had bugs that are not reproduced
-by 64tass, you will have to fix the code instead.
-<ul>
-<li>In some versions labels used in the first .block are globally available. If
-you get a related error move the respective label out of the .block
-</ul>
+<p>Some versions of the original turbo assembler had bugs that are not reproduced
+by 64tass, you will have to fix the code instead.</p>
+<p>In some versions labels used in the first <code>.block</code> are globally available. If
+you get a related error move the respective label out of the <code>.block</code></p>
 
 <hr>
 <h2>Command line options</h2>
@@ -1591,58 +1597,47 @@ you get a related error move the respective label out of the .block
 
 <dl class="dir">
 <dt><b>-o</b> &lt;filename&gt;
-<dd>Place output into &lt;filename&gt;
-<p>The default output filename is <q>a.out</q>. This option changes it.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Place output into &lt;filename&gt;. The default output filename is <q>a.out</q>. This option changes it.
+<pre width=80>
 64tass a.asm -o a.prg
 </pre>
-</fieldset>
 
 <dt><b>-b</b>, <b>--nostart</b>
-<dd>Strip starting address
-<p>Strips the 2 or 3 byte starting address before the resulting binary.
-Useful for creating small ROM images.</p>
+<dd>Strip starting address. Strips the 2 or 3 byte starting address before the
+resulting binary.  Useful for creating small ROM images.
 
 <dt><b>-f</b>, <b>--flat</b>
-<dd>Flat output mode
-<p>Output the plain binary image from offset 0. The image size can be much larger than
-the processor address space. Useful for creating huge multi bank ROM files.</p>
+<dd>Flat output mode. Output the plain binary image from offset 0. The image
+size can be much larger than the processor address space. Useful for creating
+huge multi bank ROM files.
 
 <dt><b>-n</b>, <b>--nonlinear</b>
-<dd>Generate nonlinear output file
-<p>Generates non-linear output for linkers.
-Format: length, address, code, length, ...</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Generate nonlinear output file. Generates non-linear output for linkers.
+<pre width=80>
 64tass --nonlinear a.asm
         <b>*=</b> <span>$1000</span>
         <b>lda</b> #<span>2</span>
         <b>*=</b> <span>$2000</span>
 	<b>nop</b>
-result:
-$02, $00 ;little endian length, 2 bytes
-$00, $10 ;little endian start $1000
-$a9, $02 ;code
-$01, $00 ;little endian length, 1 byte
-$00, $20 ;little endian start $2000
-$ea	 ;code
-$00, $00 ;end marker (length=0)
 </pre>
-</fieldset>
+<table border="0">
+<caption>Result of compilation</caption>
+<tr><td><tt>$02, $00</tt><td>little endian length, 2 bytes
+<tr><td><tt>$00, $10</tt><td>little endian start $1000
+<tr><td><tt>$a9, $02</tt><td>code
+<tr><td><tt>$01, $00</tt><td>little endian length, 1 byte
+<tr><td><tt>$00, $20</tt><td>little endian start $2000
+<tr><td><tt>$ea</tt><td>code
+<tr><td><tt>$00, $00</tt><td>end marker (length=0)
+</table>
 
 <dt><b>-W</b>, <b>--wordstart</b>
-<dd>Force 2 byte start address
-<p>If 16&nbsp;MiB address space is used for a 65816, then the starting
-address of file will be 3 bytes long. This option makes it 2 bytes long.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Force 2 byte start address. If 16&nbsp;MiB address space is used for a
+65816, then the starting address of file will be 3 bytes long. This option
+makes it 2 bytes long.
+<pre width=80>
 64tass --wordstart --m65816 a.asm
 </pre>
-</fieldset>
 
 </dl>
 
@@ -1661,9 +1656,7 @@ PETASCII literals to the default encodings.</p>
 <p><b>For writing sources in utf8/utf16 encodings this option is required!</b> The
 symbol names are still limited to ASCII, but custom string encodings can take
 advantage of the full unicode set.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<pre width=80>
 64tass a.asm
 
 .0000    a9 61          lda #$61        <b>lda</b> #<span class="s">"a"</span>
@@ -1680,16 +1673,13 @@ advantage of the full unicode set.</p>
 &gt;0005    93 54 45 58 54 0d 4d 4f        <b class="d">.text</b> <span class="s">"<span>{clear}</span>text<span>{return}</span>more"</span>
 &gt;000e    52 45
 </pre>
-</fieldset>
 
 <dt><b>-B</b>, <b>--long-branch</b>
-<dd>Automatic <code>BXX *+5 JMP xxx</code>
-<p>Branch too long messages can be annoying sometimes, usually they'll result
-in an <code>BXX *+5 JMP xxx</code> rewrite. 64tass can do this automatically if this option is
-used. But <code>BRA</code> is not converted.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Automatic <code>BXX *+5 JMP xxx</code>. Branch too long messages can be annoying
+sometimes, usually they'll need to be rewritten to <code>BXX *+5 JMP xxx</code>.
+64tass can do this automatically if this option is used. But <code>BRA</code>
+is not converted.
+<pre width=80>
 64tass a.asm
         <b>*=</b> <span>$1000</span>
         <b>bcc</b> <span>$1233</span>	<i>;error...</i>
@@ -1703,13 +1693,10 @@ used. But <code>BRA</code> is not converted.</p>
         <b>*=</b> <span>$1000</span>
         <b>bcc</b> <span>$1233</span>	<i>;no error, automatically converted to the above one.</i>
 </pre>
-</fieldset>
 
 <dt><b>-C</b>, <b>--case-sensitive</b>
-<dd>Case sensitive labels
-<p>Labels are non case sensitive by default, this option changes that.</p>
-<fieldset>
-<legend>Example</legend>
+<dd>Case sensitive labels. Labels are non case sensitive by default, this
+option changes that.
 <pre>
 64tass a.asm
 label	<b>nop</b>
@@ -1719,39 +1706,27 @@ Label	<b>nop</b>	<i>;double defined...</i>
 label   <b>nop</b>
 Label	<b>nop</b>	<i>;Ok, it's a different label...</i>
 </pre>
-</fieldset>
 
 <dt><b>-D</b> &lt;label&gt;=&lt;value&gt;
-<dd>Define &lt;label&gt; to &lt;value&gt;
-<p>Defines a label to a value. Same syntax is allowed as in source files. Be careful with
-string quoting, the shell might eat some of the characters.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Define &lt;label&gt; to &lt;value&gt;. Defines a label to a value. Same
+syntax is allowed as in source files. Be careful with string quoting, the shell
+might eat some of the characters.
+<pre width=80>
 64tass -D ii=2 a.asm
         <b>lda</b> #<span class="l">ii</span> <i>;result: $a9, $02</i>
 </pre>
-</fieldset>
 
 <dt><b>-w</b>, <b>--no-warn</b>
-<dd>Suppress warnings
-<p>Disables warnings during compile.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Suppress warnings. Disables warnings during compile.
+<pre width=80>
 64tass --no-warn a.asm
 </pre>
-</fieldset>
 
 <dt><b>-q</b>, <b>--quiet</b>
-<dd>Suppress messages
-<p>Disables header and summary messages.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Suppress messages. Disables header and summary messages.
+<pre width=80>
 64tass --quiet a.asm
 </pre>
-</fieldset>
 
 <dt><b>-T</b>, <b>--tasm-compatible</b>
 <dd>Enable TASM compatible operators and precedence
@@ -1772,131 +1747,94 @@ using the <code>.cpu</code> directive in the source.</p>
 
 <dl class="dir">
 <dt><b>--m65xx</b>
-<dd>Standard 65xx (default)
-<p>Selects standard 6502. For writing compatible code, no extra codes. This is the default.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Standard 65xx (default). For writing compatible code, no extra codes. This
+is the default.
+<pre width=80>
 64tass --m65xx a.asm
         <b>lda</b> <span>$14</span>		<i>;regular instructions</i>
 </pre>
-</fieldset>
 
 <dt><b>-c</b>, <b>--m65c02</b>
-<dd>CMOS 65C02
-<p>Selects 65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>CMOS 65C02. Enables extra opcodes and addressing modes specific to this
+CPU.
+<pre width=80>
 64tass --m65c02 a.asm
         <b>stz</b> <span>$d020</span>	<i>;65c02 instruction</i>
 </pre>
-</fieldset>
 
 <dt><b>-c</b>, <b>--m65ce02</b>
-<dd>CSG 65CE02
-<p>Selects 65ce02. Enables extra opcodes and addressing modes specific to this CPU.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>CSG 65CE02. Enables extra opcodes and addressing modes specific to this
+CPU.
+<pre width=80>
 64tass --m65ce02 a.asm
         <b>inz</b>
 </pre>
-</fieldset>
 
 <dt><b>-i</b>, <b>--m6502</b>
-<dd>NMOS 65xx
-<p>Selects NMOS 6502. Enables extra illegal opcodes. Useful for demo coding for C64, disk drive code, etc.</p>
-<legend>Example</legend>
-<fieldset>
-<pre>
+<dd>NMOS 65xx. Enables extra illegal opcodes. Useful for demo coding for C64,
+disk drive code, etc.
+<pre width=80>
 64tass --m6502 a.asm
         <b>lax</b> <span>$14</span>		<i>;illegal instruction</i>
 </pre>
-</fieldset>
 
 <dt><b>-t</b>, <b>--m65dtv02</b>
-<dd>65DTV02
-<p>Selects 65DTV02. Enables extra opcodes specific to DTV.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>65DTV02. Enables extra opcodes specific to DTV.
+<pre width=80>
 64tass --m65dtv02 a.asm
         <b>sac</b> #<span>$00</span>
 </pre>
-</fieldset>
 
 <dt><b>-x</b>, <b>--m65816</b>
-<dd>W65C816
-<p>Selects 65816. Enables extra opcodes, and full 16&nbsp;MiB address space.
-Useful for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones ;)</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>W65C816. Enables extra opcodes, and full 16&nbsp;MiB address space.  Useful
+for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones
+;)
+<pre width=80>
 64tass --m65816 a.asm
         <b>lda</b> <span>$123456</span>,x
 </pre>
-</fieldset>
 
 <dt><b>-e</b>, <b>--m65el02</b>
-<dd>65EL02
-<p>Selects 65EL02. Enables extra opcodes, useful <a href="http://www.eloraam.com/nonwp/redcpu.php">RedPower CPU</a> projects. Probably you'll need <q>--nostart</q> as well.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>65EL02. Enables extra opcodes, useful <a href="http://www.eloraam.com/nonwp/redcpu.php">RedPower CPU</a> projects. Probably you'll need <q>--nostart</q> as well.
+<pre width=80>
 64tass --m65el02 a.asm
         <b>lda</b> <span>0</span>,r
 </pre>
-</fieldset>
 
 <dt><b>--mr65c02</b>
-<dd>R65C02
-<p>Selects r65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>R65C02. Enables extra opcodes and addressing modes specific to this CPU.
+<pre width=80>
 64tass --mr65c02 a.asm
         <b>rmb</b> <span>7</span>,<span>$20</span>
 </pre>
-</fieldset>
 
 <dt><b>--mw65c02</b>
-<dd>W65C02
-<p>Selects w65c02. Enables extra opcodes and addressing modes specific to this CPU.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>W65C02. Enables extra opcodes and addressing modes specific to this CPU.
+<pre width=80>
 64tass --mw65c02 a.asm
         <b>wai</b>
 </pre>
-</fieldset>
 </dl>
 
 <h3>Source listing options</h3>
 
 <dl class="dir">
 <dt><b>-l</b> &lt;file&gt;
-<dd>List labels into &lt;file&gt;
-<p>List global labels to a file. Unused ones are marked with a comment.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>List labels into &lt;file&gt;. List global used labels to a file.
+<pre width=80>
 64tass -l labels.txt a.asm
         <b>*=</b> <span>$1000</span>
-label
+label   <b>jmp</b> <span class="l">label</span>
 
 result (labels.txt):
-label           = $1000    ; *** unused
+label           = $1000
 </pre>
-</fieldset>
 
 <dt><b>-L</b> &lt;file&gt;
-<dd>List into &lt;file&gt;
-<p>Dumps source code and compiled code into file. Useful for debugging,
-it's much easier to identify the code in memory within the source files.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>List into &lt;file&gt;. Dumps source code and compiled code into file.
+Useful for debugging, it's much easier to identify the code in memory within
+the source files.
+<pre width=80>
 64tass -L list.txt a.asm
         <b>*=</b> <span>$1000</span>
         <b>ldx</b> #<span>0</span>
@@ -1917,14 +1855,10 @@ result (list.txt):
 
 ;******  end of code
 </pre>
-</fieldset>
 
 <dt><b>-m</b>, <b>--no-monitor</b>
-<dd>Don't put monitor code into listing
-<p>There won't be any monitor listing in the list file.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Don't put monitor code into listing. There won't be any monitor listing in the list file.
+<pre width=80>
 64tass --no-monitor -L list.txt a.asm
 
 result (list.txt):
@@ -1940,14 +1874,10 @@ result (list.txt):
 
 ;******  end of code
 </pre>
-</fieldset>
 
 <dt><b>-s</b>, <b>--no-source</b>
-<dd>Don't put source code into listing
-<p>There won't be any source listing in the list file.</p>
-<fieldset>
-<legend>Example</legend>
-<pre>
+<dd>Don't put source code into listing. There won't be any source listing in the list file.
+<pre width=80>
 64tass --no-source -L list.txt a.asm
 
 result (list.txt):
@@ -1963,23 +1893,19 @@ result (list.txt):
 
 ;******  end of code
 </pre>
-</fieldset>
 </dl>
 
 <h3>Other options</h3>
 
 <dl class="dir">
 <dt><b>-?</b>, <b>--help</b>
-<dd>Give this help list
-<p>Prints help about command line options.</p>
+<dd>Give this help list. Prints help about command line options.
 
 <dt><b>--usage</b>
-<dd>Give a short usage message
-<p>Prints short help about command line options.</p>
+<dd>Give a short usage message. Prints short help about command line options.
 
 <dt><b>-V</b>, <b>--version</b>
 <dd>Print program version
-<p>Prints program version.</p>
 </dl>
 
 <hr>
@@ -2069,364 +1995,393 @@ format of messages is the following:</p>
 </dl>
 
 <hr>
-<h2>Standard 6502 opcodes</h2>
-<p>The standard 6502 opcodes:</p>
-<pre>
-ADC $61, $65, $69, $6D, $71, $75, $79, $7D
-AND $21, $25, $29, $2D, $31, $35, $39, $3D
-ASL $06, $0A, $0E, $16, $1E
-BCC $90
-BCS $B0
-BEQ $F0
-BIT $24, $2C
-BMI $30
-BNE $D0
-BPL $10
-BRK $00
-BVC $50
-BVS $70
-CLC $18
-CLD $D8
-CLI $58
-CLV $B8
-CMP $C1, $C5, $C9, $CD, $D1, $D5, $D9, $DD
-CPX $E0, $E4, $EC
-CPY $C0, $C4, $CC
-DEC $C6, $CE, $D6, $DE
-DEX $CA
-DEY $88
-EOR $41, $45, $49, $4D, $51, $55, $59, $5D
-INC $E6, $EE, $F6, $FE
-INX $E8
-INY $C8
-JMP $4C, $6C
-JSR $20
-LDA $A1, $A5, $A9, $AD, $B1, $B5, $B9, $BD
-LDX $A2, $A6, $AE, $B6, $BE
-LDY $A0, $A4, $AC, $B4, $BC
-LSR $46, $4A, $4E, $56, $5E
-NOP $EA
-ORA $01, $05, $09, $0D, $11, $15, $19, $1D
-PHA $48
-PHP $08
-PLA $68
-PLP $28
-ROL $26, $2A, $2E, $36, $3E
-ROR $66, $6A, $6E, $76, $7E
-RTI $40
-RTS $60
-SBC $E1, $E5, $E9, $ED, $F1, $F5, $F9, $FD
-SEC $38
-SED $F8
-SEI $78
-STA $81, $85, $8D, $91, $95, $99, $9D
-STX $86, $8E, $96
-STY $84, $8C, $94
-TAX $AA
-TAY $A8
-TSX $BA
-TXA $8A
-TXS $9A
-TYA $98
-</pre>
-<p>Aliases, pseudo instructions:</p>
-<pre>
-ASL $0A
-BGE $B0
-BLT $90
-GCC $4C, $90
-GCS $4C, $B0
-GEQ $4C, $F0
-GGE $4C, $B0
-GLT $4C, $90
-GMI $30, $4C
-GNE $4C, $D0
-GPL $10, $4C
-GVC $4C, $50
-GVS $4C, $70
-LSR $4A
-ROL $2A
-ROR $6A
-</pre>
+<h2>Credits</h2>
+
+<p>Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
+BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
+optimizations, multi pass compile and a lot of features by Soci/Singular.
+Improved TASS compatibility, PETSCII codes by Groepaz.</p>
+
+<p>Additional code: my_getopt command-line argument parser by Benjamin
+Sittler, avl tree code by Franck Bui-Huu, ternary tree code by Daniel
+Berlin, snprintf Alain Magloire.</p>
+
+<p>Main developer and maintainer: soci at c64.rulez.org</p>
 
 <hr>
-<h2>6502 illegal opcodes</h2>
-<p>The standard 6502 opcodes, plus additionally:</p>
-<pre>
-ANC $0B
-ANE $8B
-ARR $6B
-ASR $4B
-DCP $C3, $C7, $CF, $D3, $D7, $DB, $DF
-ISB $E3, $E7, $EF, $F3, $F7, $FB, $FF
-JAM $02
-LAX $A3, $A7, $AB, $AF, $B3, $B7, $BF
-LDS $BB
-NOP $04, $0C, $14, $1C, $80
-RLA $23, $27, $2F, $33, $37, $3B, $3F
-RRA $63, $67, $6F, $73, $77, $7B, $7F
-SAX $83, $87, $8F, $97
-SBX $CB
-SHA $93, $9F
-SHS $9B
-SHX $9E
-SHY $9C
-SLO $03, $07, $0F, $13, $17, $1B, $1F
-SRE $43, $47, $4F, $53, $57, $5B, $5F
-</pre>
-<p>Additional aliases:</p>
-<pre>
-AHX $93, $9F
-ALR $4B
-AXS $CB
-DCM $C3, $C7, $CF, $D3, $D7, $DB, $DF
-INS $E3, $E7, $EF, $F3, $F7, $FB, $FF
-ISC $E3, $E7, $EF, $F3, $F7, $FB, $FF
-LAE $BB
-LAS $BB
-LXA $AB
-TAS $9B
-XAA $8B
-</pre>
-
-<hr>
-<h2>65DTV02 opcodes</h2>
-<p>Additionally to 6502 illegal opcodes:</p>
-<pre>
-BRA $12
-SAC $32
-SIR $42
-</pre>
-<p>Additional pseudo instruction:</p>
-<pre>
-GRA $12, $4C
-</pre>
-<p>These illegal opcodes are not valid:</p>
-<pre>
-ANC $0B
-JAM $02
-LDS $BB
-NOP $04, $0C, $14, $1C, $80
-SBX $CB
-SHA $93, $9F
-SHS $9B
-SHX $9E
-SHY $9C
-</pre>
-<p>These illegal aliases are not valid:</p>
-<pre>
-AHX $93, $9F
-AXS $CB
-LAE $BB
-LAS $BB
-TAS $9B
-</pre>
+<h2>Opcodes</h2>
+<h3>Standard 6502 opcodes</h3>
+<table width="100%" class="opcodes">
+<caption>The standard 6502 opcodes</caption>
+<tr><th width="4%">ADC<td width="46%">61 65 69 6D 71 75 79 7D
+<th width="4%">AND<td width="46%">21 25 29 2D 31 35 39 3D
+<tr><th>ASL<td>06 0A 0E 16 1E
+<th>BCC<td>90
+<tr><th>BCS<td>B0
+<th>BEQ<td>F0
+<tr><th>BIT<td>24 2C
+<th>BMI<td>30
+<tr><th>BNE<td>D0
+<th>BPL<td>10
+<tr><th>BRK<td>00
+<th>BVC<td>50
+<tr><th>BVS<td>70
+<th>CLC<td>18
+<tr><th>CLD<td>D8
+<th>CLI<td>58
+<tr><th>CLV<td>B8
+<th>CMP<td>C1 C5 C9 CD D1 D5 D9 DD
+<tr><th>CPX<td>E0 E4 EC
+<th>CPY<td>C0 C4 CC
+<tr><th>DEC<td>C6 CE D6 DE
+<th>DEX<td>CA
+<tr><th>DEY<td>88
+<th>EOR<td>41 45 49 4D 51 55 59 5D
+<tr><th>INC<td>E6 EE F6 FE
+<th>INX<td>E8
+<tr><th>INY<td>C8
+<th>JMP<td>4C 6C
+<tr><th>JSR<td>20
+<th>LDA<td>A1 A5 A9 AD B1 B5 B9 BD
+<tr><th>LDX<td>A2 A6 AE B6 BE
+<th>LDY<td>A0 A4 AC B4 BC
+<tr><th>LSR<td>46 4A 4E 56 5E
+<th>NOP<td>EA
+<tr><th>ORA<td>01 05 09 0D 11 15 19 1D
+<th>PHA<td>48
+<tr><th>PHP<td>08
+<th>PLA<td>68
+<tr><th>PLP<td>28
+<th>ROL<td>26 2A 2E 36 3E
+<tr><th>ROR<td>66 6A 6E 76 7E
+<th>RTI<td>40
+<tr><th>RTS<td>60
+<th>SBC<td>E1 E5 E9 ED F1 F5 F9 FD
+<tr><th>SEC<td>38
+<th>SED<td>F8
+<tr><th>SEI<td>78
+<th>STA<td>81 85 8D 91 95 99 9D
+<tr><th>STX<td>86 8E 96
+<th>STY<td>84 8C 94
+<tr><th>TAX<td>AA
+<th>TAY<td>A8
+<tr><th>TSX<td>BA
+<th>TXA<td>8A
+<tr><th>TXS<td>9A
+<th>TYA<td>98
+</table>
+<table width="100%" class="opcodes">
+<caption>Aliases, pseudo instructions</caption>
+<tr><th width="4%">ASL<td width="46%">0A
+<th width="4%">BGE<td width="46%">B0
+<tr><th>BLT<td>90
+<th>GCC<td>4C 90
+<tr><th>GCS<td>4C B0
+<th>GEQ<td>4C F0
+<tr><th>GGE<td>4C B0
+<th>GLT<td>4C 90
+<tr><th>GMI<td>30 4C
+<th>GNE<td>4C D0
+<tr><th>GPL<td>10 4C
+<th>GVC<td>4C 50
+<tr><th>GVS<td>4C 70
+<th>LSR<td>4A
+<tr><th>ROL<td>2A
+<th>ROR<td>6A
 </table>
 
 <hr>
-<h2>Standard 65C02 opcodes</h2>
-<p>Additional opcodes to standard 6502:</p>
-<pre>
-ADC $72
-AND $32
-BIT $34, $3C, $89
-BRA $80
-CMP $D2
-DEC $3A
-EOR $52
-INC $1A
-JMP $7C
-LDA $B2
-ORA $12
-PHX $DA
-PHY $5A
-PLX $FA
-PLY $7A
-SBC $F2
-STA $92
-STZ $64, $74, $9C, $9E
-TRB $14, $1C
-TSB $04, $0C
-</pre>
-<p>Additional aliases and pseudo instructions:</p>
-<pre>
-DEA $3A
-GRA $4C, $80
-INA $1A
-</pre>
+<h3>6502 illegal opcodes</h3>
+<p>This processor is a standard 6502 with the NMOS illegal opcodes.</p>
+<table width="100%" class="opcodes">
+<caption>Additional opcodes</caption>
+<tr><th width="4%">ANC<td width="46%">0B
+<th width="4%">ANE<td width="46%">8B
+<tr><th>ARR<td>6B
+<th>ASR<td>4B
+<tr><th>DCP<td>C3 C7 CF D3 D7 DB DF
+<th>ISB<td>E3 E7 EF F3 F7 FB FF
+<tr><th>JAM<td>02
+<th>LAX<td>A3 A7 AB AF B3 B7 BF
+<tr><th>LDS<td>BB
+<th>NOP<td>04 0C 14 1C 80
+<tr><th>RLA<td>23 27 2F 33 37 3B 3F
+<th>RRA<td>63 67 6F 73 77 7B 7F
+<tr><th>SAX<td>83 87 8F 97
+<th>SBX<td>CB
+<tr><th>SHA<td>93 9F
+<th>SHS<td>9B
+<tr><th>SHX<td>9E
+<th>SHY<td>9C
+<tr><th>SLO<td>03 07 0F 13 17 1B 1F
+<th>SRE<td>43 47 4F 53 57 5B 5F
+</table>
+<table width="100%" class="opcodes">
+<caption>Additional aliases</caption>
+<tr><th width="4%">AHX<td width="46%">93 9F
+<th width="4%">ALR<td width="46%">4B
+<tr><th>AXS<td>CB
+<th>DCM<td>C3 C7 CF D3 D7 DB DF
+<tr><th>INS<td>E3 E7 EF F3 F7 FB FF
+<th>ISC<td>E3 E7 EF F3 F7 FB FF
+<tr><th>LAE<td>BB
+<th>LAS<td>BB
+<tr><th>LXA<td>AB
+<th>TAS<td>9B
+<tr><th>XAA<td>8B
+<th><td>
+</table>
 
 <hr>
-<h2>R65C02 opcodes</h2>
-<p>Additional opcodes to standard 65C02:</p>
-<pre>
-BBR $0F, $1F, $2F, $3F, $4F, $5F, $6F, $7F
-BBS $8F, $9F, $AF, $BF, $CF, $DF, $EF, $FF
-RMB $07, $17, $27, $37, $47, $57, $67, $77
-SMB $87, $97, $A7, $B7, $C7, $D7, $E7, $F7
-</pre>
+<h3>65DTV02 opcodes</h3>
+<p>This processor is an enhanced version of standard 6502 with some illegal opcodes.</p>
+<table width="100%" class="opcodes">
+<caption>Additionally to 6502 illegal opcodes</caption>
+<tr><th width="4%">BRA<td width="46%">12
+<th width="4%">SAC<td width="46%">32
+<tr><th>SIR<td>42
+<th><td>
+</table>
+<table width="100%" class="opcodes">
+<caption>Additional pseudo instruction</caption>
+<tr><th width="4%">GRA<td width="46%">12 4C
+<th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">
+</table>
+<table width="100%" class="opcodes">
+<caption>These illegal opcodes are not valid</caption>
+<tr><th width="4%">ANC<td width="46%">0B
+<th width="4%">JAM<td width="46%">02
+<tr><th>LDS<td>BB
+<th>NOP<td>04 0C 14 1C 80
+<tr><th>SBX<td>CB
+<th>SHA<td>93 9F
+<tr><th>SHS<td>9B
+<th>SHX<td>9E
+<tr><th>SHY<td>9C
+<th><td>
+</table>
+<table width="100%" class="opcodes">
+<caption>These illegal aliases are not valid</caption>
+<tr><th width="4%">AHX<td width="46%">93 9F
+<th width="4%">AXS<td width="46%">CB
+<tr><th>LAE<td>BB
+<th>LAS<td>BB
+<tr><th>TAS<td>9B
+<th><td>
+</table>
 
 <hr>
-<h2>W65C02 opcodes</h2>
-<p>Additional opcodes to R65C02:</p>
-<pre>
-STP $DB
-WAI $CB
-</pre>
+<h3>Standard 65C02 opcodes</h3>
+<p>This processor is an enhanced version of standard 6502.</p>
+<table width="100%" class="opcodes">
+<caption>Additional opcodes</caption>
+<tr><th width="4%">ADC<td width="46%">72
+<th width="4%">AND<td width="46%">32
+<tr><th>BIT<td>34 3C 89
+<th>BRA<td>80
+<tr><th>CMP<td>D2
+<th>DEC<td>3A
+<tr><th>EOR<td>52
+<th>INC<td>1A
+<tr><th>JMP<td>7C
+<th>LDA<td>B2
+<tr><th>ORA<td>12
+<th>PHX<td>DA
+<tr><th>PHY<td>5A
+<th>PLX<td>FA
+<tr><th>PLY<td>7A
+<th>SBC<td>F2
+<tr><th>STA<td>92
+<th>STZ<td>64 74 9C 9E
+<tr><th>TRB<td>14 1C
+<th>TSB<td>04 0C
+</table>
+<table width="100%" class="opcodes">
+<caption>Additional aliases and pseudo instructions</caption>
+<tr><th width="4%">DEA<td width="46%">3A
+<th width="4%">GRA<td width="46%">4C 80
+<tr><th>INA<td>1A
+<th><td>
+</table>
 
 <hr>
-<h2>W65816 opcodes</h2>
-<p>Additional opcodes to standard 65C02:</p>
-<pre>
-ADC $63, $67, $6F, $73, $77, $7F
-AND $23, $27, $2F, $33, $37, $3F
-BRL $82
-CMP $C3, $C7, $CF, $D3, $D7, $DF
-COP $02
-EOR $43, $47, $4F, $53, $57, $5F
-JMP $5C, $DC
-JSL $22
-JSR $FC
-LDA $A3, $A7, $AF, $B3, $B7, $BF
-MVN $54
-MVP $44
-ORA $03, $07, $0F, $13, $17, $1F
-PEA $F4
-PEI $D4
-PER $62
-PHB $8B
-PHD $0B
-PHK $4B
-PLB $AB
-PLD $2B
-REP $C2
-RTL $6B
-SBC $E3, $E7, $EF, $F3, $F7, $FF
-SEP $E2
-STA $83, $87, $8F, $93, $97, $9F
-STP $DB
-SWA $EB
-TAD $5B
-TAS $1B
-TCD $5B
-TCS $1B
-TDA $7B
-TDC $7B
-TSA $3B
-TSC $3B
-TXY $9B
-TYX $BB
-XBA $EB
-XCE $FB
-WAI $CB
-</pre>
-
-<p>Additional aliases:</p>
-<pre>
-JML $5C, $DC
-</pre>
+<h3>R65C02 opcodes</h3>
+<p>This processor is an enhanced version of standard 65C02.</p>
+<table width="100%" class="opcodes">
+<caption>Additional opcodes</caption>
+<tr><th width="4%">BBR<td width="46%">0F 1F 2F 3F 4F 5F 6F 7F
+<th width="4%">BBS<td width="46%">8F 9F AF BF CF DF EF FF
+<tr><th>RMB<td>07 17 27 37 47 57 67 77
+<th>SMB<td>87 97 A7 B7 C7 D7 E7 F7
+</table>
 
 <hr>
-<h2>65EL02 opcodes</h2>
-<p>Additional opcodes to standard 65C02:</p>
-<pre>
-ADC $63, $67, $73, $77
-AND $23, $27, $33, $37
-CMP $C3, $C7, $D3, $D7
-DIV $4F, $5F, $6F, $7F
-ENT $22
-EOR $43, $47, $53, $57
-JSR $FC
-LDA $A3, $A7, $B3, $B7
-MMU $EF
-MUL $0F, $1F, $2F, $3F
-NXA $42
-NXT $02
-ORA $03, $07, $13, $17
-PEA $F4
-PEI $D4
-PER $62
-PHD $DF
-PLD $CF
-REA $44
-REI $54
-REP $C2
-RER $82
-RHA $4B
-RHI $0B
-RHX $1B
-RHY $5B
-RLA $6B
-RLI $2B
-RLX $3B
-RLY $7B
-SBC $E3, $E7, $F3, $F7
-SEA $9F
-SEP $E2
-STA $83, $87, $93, $97
-STP $DB
-SWA $EB
-TAD $BF
-TDA $AF
-TIX $DC
-TRX $AB
-TXI $5C
-TXR $8B
-TXY $9B
-TYX $BB
-WAI $CB
-XBA $EB
-XCE $FB
-ZEA $8F
-</pre>
+<h3>W65C02 opcodes</h3>
+<p>This processor is an enhanced version of R65C02.</p>
+<table width="100%" class="opcodes">
+<caption>Additional opcodes</caption>
+<tr><th width="4%">STP<td width="46%">DB
+<th width="4%">WAI<td width="46%">CB
+</table>
 
 <hr>
-<h2>65CE02 opcodes</h2>
-<p>Additional opcodes to R65C02:</p>
-<pre>
-ASR $43, $44, $54
-ASW $CB
-BCC $93
-BCS $B3
-BEQ $F3
-BMI $33
-BNE $D3
-BPL $13
-BRA $83
-BSR $63
-BVC $53
-BVS $73
-CLE $02
-CPZ $C2, $D4, $DC
-DEW $C3
-DEZ $3B
-INW $E3
-INZ $1B
-JSR $22, $23
-LDA $E2
-LDZ $A3, $AB, $BB
-NEG $42
-PHW $F4, $FC
-PHZ $DB
-PLZ $FB
-ROW $EB
-RTS $62
-SEE $03
-STA $82
-STX $9B
-STY $8B
-TAB $5B
-TAZ $4B
-TSY $0B
-TYS $2B
-TZA $6B
-</pre>
+<h3>W65816 opcodes</h3>
+<p>This processor is an enhanced version of W65C02.</p>
+<table width="100%" class="opcodes">
+<caption>Additional opcodes</caption>
+<tr><th width="4%">ADC<td width="46%">63 67 6F 73 77 7F
+<th width="4%">AND<td width="46%">23 27 2F 33 37 3F
+<tr><th>BRL<td>82
+<th>CMP<td>C3 C7 CF D3 D7 DF
+<tr><th>COP<td>02
+<th>EOR<td>43 47 4F 53 57 5F
+<tr><th>JMP<td>5C DC
+<th>JSL<td>22
+<tr><th>JSR<td>FC
+<th>LDA<td>A3 A7 AF B3 B7 BF
+<tr><th>MVN<td>54
+<th>MVP<td>44
+<tr><th>ORA<td>03 07 0F 13 17 1F
+<th>PEA<td>F4
+<tr><th>PEI<td>D4
+<th>PER<td>62
+<tr><th>PHB<td>8B
+<th>PHD<td>0B
+<tr><th>PHK<td>4B
+<th>PLB<td>AB
+<tr><th>PLD<td>2B
+<th>REP<td>C2
+<tr><th>RTL<td>6B
+<th>SBC<td>E3 E7 EF F3 F7 FF
+<tr><th>SEP<td>E2
+<th>STA<td>83 87 8F 93 97 9F
+<tr><th>SWA<td>EB
+<th>TAD<td>5B
+<tr><th>TAS<td>1B
+<th>TCD<td>5B
+<tr><th>TCS<td>1B
+<th>TDA<td>7B
+<tr><th>TDC<td>7B
+<th>TSA<td>3B
+<tr><th>TSC<td>3B
+<th>TXY<td>9B
+<tr><th>TYX<td>BB
+<th>XBA<td>EB
+<tr><th>XCE<td>FB
+<th><td>
+</table>
 
-<p>Additional aliases to R65C02:</p>
-<pre>
-ASR $43
-BGE $B3
-BLT $93
-NEG $42
-RTN $62
-</pre>
+<table width="100%" class="opcodes">
+<caption>Additional aliases</caption>
+<tr><th width="4%">JML<td width="46%">5C DC
+<th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">
+</table>
+
+<hr>
+<h3>65EL02 opcodes</h3>
+<p>This processor is an enhanced version of standard 65C02.</p>
+<table width="100%" class="opcodes">
+<caption>Additional opcodes</caption>
+<tr><th width="4%">ADC<td width="46%">63 67 73 77
+<th width="4%">AND<td width="46%">23 27 33 37
+<tr><th>CMP<td>C3 C7 D3 D7
+<th>DIV<td>4F 5F 6F 7F
+<tr><th>ENT<td>22
+<th>EOR<td>43 47 53 57
+<tr><th>JSR<td>FC
+<th>LDA<td>A3 A7 B3 B7
+<tr><th>MMU<td>EF
+<th>MUL<td>0F 1F 2F 3F
+<tr><th>NXA<td>42
+<th>NXT<td>02
+<tr><th>ORA<td>03 07 13 17
+<th>PEA<td>F4
+<tr><th>PEI<td>D4
+<th>PER<td>62
+<tr><th>PHD<td>DF
+<th>PLD<td>CF
+<tr><th>REA<td>44
+<th>REI<td>54
+<tr><th>REP<td>C2
+<th>RER<td>82
+<tr><th>RHA<td>4B
+<th>RHI<td>0B
+<tr><th>RHX<td>1B
+<th>RHY<td>5B
+<tr><th>RLA<td>6B
+<th>RLI<td>2B
+<tr><th>RLX<td>3B
+<th>RLY<td>7B
+<tr><th>SBC<td>E3 E7 F3 F7
+<th>SEA<td>9F
+<tr><th>SEP<td>E2
+<th>STA<td>83 87 93 97
+<tr><th>STP<td>DB
+<th>SWA<td>EB
+<tr><th>TAD<td>BF
+<th>TDA<td>AF
+<tr><th>TIX<td>DC
+<th>TRX<td>AB
+<tr><th>TXI<td>5C
+<th>TXR<td>8B
+<tr><th>TXY<td>9B
+<th>TYX<td>BB
+<tr><th>WAI<td>CB
+<th>XBA<td>EB
+<tr><th>XCE<td>FB
+<th>ZEA<td>8F
+</table>
+
+<hr>
+<h3>65CE02 opcodes</h3>
+<p>This processor is an enhanced version of R65C02.</p>
+<table width="100%" class="opcodes">
+<caption>Additional opcodes</caption>
+<tr><th width="4%">ASR<td width="46%">43 44 54
+<th width="4%">ASW<td width="46%">CB
+<tr><th>BCC<td>93
+<th>BCS<td>B3
+<tr><th>BEQ<td>F3
+<th>BMI<td>33
+<tr><th>BNE<td>D3
+<th>BPL<td>13
+<tr><th>BRA<td>83
+<th>BSR<td>63
+<tr><th>BVC<td>53
+<th>BVS<td>73
+<tr><th>CLE<td>02
+<th>CPZ<td>C2 D4 DC
+<tr><th>DEW<td>C3
+<th>DEZ<td>3B
+<tr><th>INW<td>E3
+<th>INZ<td>1B
+<tr><th>JSR<td>22 23
+<th>LDA<td>E2
+<tr><th>LDZ<td>A3 AB BB
+<th>NEG<td>42
+<tr><th>PHW<td>F4 FC
+<th>PHZ<td>DB
+<tr><th>PLZ<td>FB
+<th>ROW<td>EB
+<tr><th>RTS<td>62
+<th>SEE<td>03
+<tr><th>STA<td>82
+<th>STX<td>9B
+<tr><th>STY<td>8B
+<th>TAB<td>5B
+<tr><th>TAZ<td>4B
+<th>TSY<td>0B
+<tr><th>TYS<td>2B
+<th>TZA<td>6B
+</table>
+
+<table width="100%" class="opcodes">
+<caption>Additional aliases</caption>
+<tr><th width="4%">ASR<td width="46%">43
+<th width="4%">BGE<td width="46%">B3
+<tr><th>BLT<td>93
+<th>NEG<td>42
+<tr><th>RTN<td>62
+<th><td>
+</table>
 </body></html>
