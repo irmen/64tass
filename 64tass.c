@@ -3206,7 +3206,6 @@ int main(int argc, char *argv[]) {
             exitfile();
         }
         if (errors) {memcomp();status();return 1;}
-        if (conderrors && !arguments.list && pass==1) fixeddig=0;
     } while (!fixeddig || pass==1);
 
     /* assemble again to create listing */
