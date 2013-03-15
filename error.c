@@ -82,7 +82,7 @@ static void addorigin(linepos_t lpoint2) {
 
     if (file_list.p) {
         adderror(file_list.data[file_list.p - 1].name);
-	sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline, lpoint2 + 1); adderror(line);
+	sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline, lpoint2.pos - lpoint2.upos + 1); adderror(line);
     } else {
         adderror("<command line>:0:0: ");
     }
@@ -357,7 +357,7 @@ void err_msg_double_defined(const char *origname, const char *file, line_t sline
     adderror("'\n");
     if (file[0]) {
         adderror(file);
-	sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline2, epoint + 1); adderror(line);
+	sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline2, epoint.pos - epoint.upos + 1); adderror(line);
     } else {
         adderror("<command line>:0:0: ");
     }

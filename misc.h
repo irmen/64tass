@@ -49,7 +49,7 @@ struct jump_s {
     uint8_t waitforp;
     const struct file_s *file;
     const struct label_s *parent;
-    unsigned int epoint;
+    linepos_t epoint;
     struct avltree_node node;
 };
 
@@ -85,9 +85,9 @@ extern uint16_t reffile;
 extern uint32_t backr, forwr;
 extern uint8_t pass;
 
-#define ignore() while(pline[lpoint]==0x20 || pline[lpoint]==0x09) lpoint++
-#define get() pline[lpoint++]
-#define here() pline[lpoint]
+#define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
+#define get() pline[lpoint.pos++]
+#define here() pline[lpoint.pos]
 #define linelength 4096
 
 extern const uint8_t whatis[256];
