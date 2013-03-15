@@ -348,12 +348,12 @@ static int what(int *tempno) {
 	{
             char cmd[20];
             unsigned int no, also, felso, elozo;
-            linepos_t l;
+            size_t l;
             int s4;
-            lpoint++;
-            for (also = l = 0; l + 1 < (linepos_t)sizeof(cmd); l++) {
-                cmd[l]=pline[lpoint+l] | 0x20;
-                if (!pline[lpoint+l] || cmd[l] < 'a' || cmd[l] > 'z') {
+            lpoint.pos++;
+            for (also = l = 0; l + 1 < sizeof(cmd); l++) {
+                cmd[l]=pline[lpoint.pos + l] | 0x20;
+                if (!pline[lpoint.pos + l] || cmd[l] < 'a' || cmd[l] > 'z') {
                     cmd[l]=(cmd[l] >= '0' && cmd[l] <= '9') || cmd[l]=='_';
                     l++;break;
                 }
@@ -364,7 +364,7 @@ static int what(int *tempno) {
                 no=felso/2;
                 for (;;) {  // do binary search
                     if (!(s4=strcmp(cmd, command[no] + 1))) {
-                        lpoint+=l;
+                        lpoint.pos += l;
                         no = (uint8_t)command[no][0];
                         if (no==CMD_ENDIF) no=CMD_FI; else
                         if (no==CMD_IFNE) no=CMD_IF;
@@ -381,15 +381,15 @@ static int what(int *tempno) {
 	    return 0;
 	}
     case WHAT_COMA:
-	lpoint++;
+	lpoint.pos++;
         ignore();
 	switch (get() | 0x20) {
 	case 'y': ignore();return WHAT_Y;
 	case 'z': ignore();return WHAT_Z;
-	case 'x': ignore();if (here()==')') {lpoint++;ignore();return WHAT_XZ;} else return WHAT_X;
-	case 's': ignore();if (here()==')') {lpoint++;ignore();return WHAT_SZ;} else return WHAT_S;
-	case 'r': ignore();if (here()==')') {lpoint++;ignore();return WHAT_RZ;} else return WHAT_R;
-	default: lpoint--;return WHAT_COMA;
+	case 'x': ignore();if (here()==')') {lpoint.pos++;ignore();return WHAT_XZ;} else return WHAT_X;
+	case 's': ignore();if (here()==')') {lpoint.pos++;ignore();return WHAT_SZ;} else return WHAT_S;
+	case 'r': ignore();if (here()==')') {lpoint.pos++;ignore();return WHAT_RZ;} else return WHAT_R;
+	default: lpoint.pos--;return WHAT_COMA;
 	}
     case WHAT_CHAR:
     case WHAT_LBL:
@@ -398,24 +398,24 @@ static int what(int *tempno) {
 	    *tempno=0;return WHAT_EXPRESSION;
     case WHAT_COMMENT:
     case WHAT_EOL:return ch;
-    default:lpoint++;return ch;
+    default:lpoint.pos++;return ch;
     }
 }
 
 static int get_ident2(char *ident, char *ident2) {
-    linepos_t i = 0;
+    size_t i = 0;
     uint8_t ch;
     if (arguments.casesensitive) {
 	while ((whatis[ch=here()]==WHAT_CHAR) || (ch>='0' && ch<='9') || ch=='_') {
             ident[i++]=ch;
-            lpoint++;
+            lpoint.pos++;
         }
         memcpy(ident2, ident, i);
     } else {
 	while (((ch=lowcase(here()))>='a' && ch<='z') || (ch>='0' && ch<='9') || ch=='_') {
             ident2[i]=here();
             ident[i++]=ch;
-            lpoint++;
+            lpoint.pos++;
         }
     }
     ident[i]=0;
@@ -428,10 +428,10 @@ static int get_hack(void) {
     unsigned int i=0, i2;
     i2 = i;
     ignore();
-    if (here()=='\"') {lpoint++;q=0;}
+    if (here()=='\"') {lpoint.pos++;q=0;}
     while (here() && (here()!=';' || !q) && (here()!='\"' || q) && i<sizeof(path)) path[i++]=get();
     if (i>=sizeof(path) || (!q && here()!='\"')) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
-    if (!q) lpoint++; else while (i && (path[i-1]==0x20 || path[i-1]==0x09)) i--;
+    if (!q) lpoint.pos++; else while (i && (path[i-1]==0x20 || path[i-1]==0x09)) i--;
     path[i]=0;
     ignore();
     if (i <= i2) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
@@ -455,17 +455,17 @@ static inline void mtranslate()
 {
     uint_fast8_t q;
     uint_fast16_t j;
-    linepos_t p;
+    size_t p;
     uint8_t ch, *cucc = macro_parameters.current->pline;
 
     q=p=0;
-    for (; (ch = here()); lpoint++) {
+    for (; (ch = here()); lpoint.pos++) {
         if (ch == '"'  && !(q & 2)) { q^=1; }
         else if (ch == '\'' && !(q & 1)) { q^=2; }
         else if ((ch == ';') && (!q)) { q=4; }
         else if ((ch=='\\') && (!q)) {
             /* normal parameter reference */
-            if (((ch=lowcase(pline[lpoint+1])) >= '1' && ch <= '9') || (ch >= 'a' && ch <= 'z')) {
+            if (((ch=lowcase(pline[lpoint.pos+1])) >= '1' && ch <= '9') || (ch >= 'a' && ch <= 'z')) {
                 /* \1..\9, \a..\z */
                 if ((j=(ch<='9' ? ch-'1' : ch-'a'+9)) >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
                 if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
@@ -473,7 +473,7 @@ static inline void mtranslate()
                     memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
                     p += macro_parameters.current->param[j].len;
                 }
-                lpoint++;continue;
+                lpoint.pos++;continue;
             } else if (ch=='@') {
                 /* \@ gives complete parameter list */
                 if (p + macro_parameters.current->all.len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
@@ -481,11 +481,11 @@ static inline void mtranslate()
                     memcpy(cucc + p, macro_parameters.current->all.data, macro_parameters.current->all.len);
                     p += macro_parameters.current->all.len;
                 }
-                lpoint++;continue;
+                lpoint.pos++;continue;
             } else ch='\\';
         } else if (ch=='@' && arguments.tasmcomp) {
             /* text parameter reference */
-            if (((ch=lowcase(pline[lpoint+1]))>='1' && ch<='9')) {
+            if (((ch=lowcase(pline[lpoint.pos+1]))>='1' && ch<='9')) {
                 /* @1..@9 */
                 if ((j=ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
                 if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
@@ -498,14 +498,14 @@ static inline void mtranslate()
                         p += macro_parameters.current->param[j].len;
                     }
                 }
-                lpoint++;continue;
+                lpoint.pos++;continue;
             } else ch='@';
         }
         cucc[p++]=ch;
-        if (p>=linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
+        if (p >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
     }
     cucc[p]=0;
-    pline = cucc; lpoint = 0;
+    pline = cucc; lpoint = (linepos_t){0,0};
 }
 
 //------------------------------------------------------------------------------
@@ -570,26 +570,26 @@ static void macro_recurse(char t, struct label_s *tmp2) {
                         if (ch == '(' || ch =='[') par[pp++]=ch;
                         else if (pp && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='['))) pp--;
                     }
-                    lpoint++;
+                    lpoint.pos++;
                 }
                 if (p >= macro_parameters.current->size) {
                     macro_parameters.current->size += 4;
                     macro_parameters.current->param = realloc(macro_parameters.current->param, sizeof(*macro_parameters.current->param) * macro_parameters.current->size);
                     if (!macro_parameters.current->param) err_msg_out_of_memory();
                 }
-                macro_parameters.current->param[p].data = pline + opoint2;
+                macro_parameters.current->param[p].data = pline + opoint2.pos;
                 npoint2 = lpoint;
-                while (npoint2 > opoint2 && (pline[npoint2-1] == 0x20 || pline[npoint2-1] == 0x09)) npoint2--;
-                macro_parameters.current->param[p].len = npoint2 - opoint2;
+                while (npoint2.pos > opoint2.pos && (pline[npoint2.pos-1] == 0x20 || pline[npoint2.pos-1] == 0x09)) npoint2.pos--;
+                macro_parameters.current->param[p].len = npoint2.pos - opoint2.pos;
                 p++;
-                if (ch == ',') lpoint++;
+                if (ch == ',') lpoint.pos++;
             } while (ch == ',');
         }
         macro_parameters.current->len = p;
-        macro_parameters.current->all.data = pline + opoint;
+        macro_parameters.current->all.data = pline + opoint.pos;
         npoint = lpoint;
-        while (npoint > opoint && (pline[npoint-1] == 0x20 || pline[npoint-1] == 0x09)) npoint--;
-        macro_parameters.current->all.len = npoint - opoint;
+        while (npoint.pos > opoint.pos && (pline[npoint.pos-1] == 0x20 || pline[npoint.pos-1] == 0x09)) npoint.pos--;
+        macro_parameters.current->all.len = npoint.pos - opoint.pos;
     }
     {
         size_t oldpos = tmp2->file->p;
@@ -607,7 +607,7 @@ static void macro_recurse(char t, struct label_s *tmp2) {
         star_tree = &s->tree;vline=0;
         enterfile(tmp2->file->realname, sline);
         sline = tmp2->sline;
-        new_waitfor(t, 0);
+        new_waitfor(t, (linepos_t){0,0});
         f = cfile; cfile = tmp2->file;
         cfile->p = tmp2->p;
         compile();
@@ -636,7 +636,7 @@ static void compile(void)
     linepos_t epoint;
 
     while (cfile->len != cfile->p && nobreak) {
-        pline = cfile->data + cfile->p; lpoint = 0; sline++;vline++; cfile->p += strlen((const char *)pline) + 1;
+        pline = cfile->data + cfile->p; lpoint.pos = 0; lpoint.upos = 0; sline++;vline++; cfile->p += strlen((const char *)pline) + 1;
         if (macro_parameters.p) mtranslate(); //expand macro parameters, if any
         llist = pline;
         star=current_section->l_address;newlabel = NULL;
@@ -655,7 +655,7 @@ static void compile(void)
             if (!prm) {
                 if (here()=='-' || here()=='+') {
                     labelname2[0]=here();labelname2[1]=0;
-                    lpoint++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) goto baj;
+                    lpoint.pos++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) goto baj;
                     if (labelname2[0]=='-') {
                         sprintf(labelname,"-%x-%x", reffile, backr++);
                     } else {
@@ -668,7 +668,7 @@ static void compile(void)
                 goto breakerr;
             } //not label
             get_ident2(labelname, labelname2);islabel = (here()==':');
-            if (islabel) lpoint++;
+            if (islabel) lpoint.pos++;
             else if (labelname[0] && labelname[1] && labelname[2] && !labelname[3] && (prm=lookup_opcode(labelname))>=0) {
                 if (waitfor[waitforp].skip & 1) goto as_opcode; else continue;
             }
@@ -948,7 +948,7 @@ static void compile(void)
                     }
                 }
             }
-            if (!islabel && (tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) {lpoint--;labelname2[0]=0;goto as_macro;}
+            if (!islabel && (tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) {lpoint.pos--;labelname2[0]=0;goto as_macro;}
             if (!islabel && tmp2 && tmp2->parent == current_context) {newlabel = tmp2;labelexists = 1;}
             else newlabel=new_label(labelname, labelname2, L_LABEL);
             oaddr=current_section->address;
@@ -983,7 +983,7 @@ static void compile(void)
                 newlabel->sline = sline;
                 newlabel->epoint = epoint;
             }
-            if (epoint && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
+            if (epoint.pos && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
             if (wht==WHAT_COMMAND) { // .proc
                 switch (prm) {
                 case CMD_PROC:
@@ -1047,7 +1047,7 @@ static void compile(void)
         case WHAT_STAR:if (waitfor[waitforp].skip & 1) //skip things if needed
             {
                 ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
-                lpoint++;
+                lpoint.pos++;
                 wrapwarn=0;wrapwarn2=0;
                 if (!get_exp(&w,0)) goto breakerr;
                 if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1353,7 +1353,7 @@ static void compile(void)
                     mark_mem(current_section->address);
                     if (prm<CMD_BYTE) {    // .text .ptext .shift .shift2 .null
                         int16_t ch2=-1;
-                        int large=0;
+                        linepos_t large = {0,0};
                         if (newlabel) newlabel->esize = 1;
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0)) goto breakerr;
@@ -1457,11 +1457,11 @@ static void compile(void)
 
                             if (fixeddig && current_section->dooutput) write_mark_mem(sum-1);
                         }
-                        if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
+                        if (large.pos) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm<=CMD_DWORD) { // .word .int .rta .long
                         uint32_t ch2;
                         uval_t uv;
-                        int large=0;
+                        linepos_t large = {0,0};
                         if (newlabel) {
                             newlabel->esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);
                             newlabel->sign = (prm == CMD_CHAR) || (prm == CMD_INT) || (prm == CMD_DINT);
@@ -1548,7 +1548,7 @@ static void compile(void)
                             if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
                         }
                         if (uninit) memskip(uninit);
-                        if (large) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
+                        if (large.pos) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm==CMD_BINARY) { // .binary
                         size_t foffset = 0;
                         struct value_s *val2 = NULL;
@@ -2138,7 +2138,7 @@ static void compile(void)
                 if (prm==CMD_FOR) { // .for
                     size_t pos, xpos;
                     line_t lin, xlin;
-                    int apoint, bpoint = -1;
+                    linepos_t apoint, bpoint = {-1, 0};
                     uint8_t expr[linelength];
                     struct label_s *var;
                     struct star_s *s;
@@ -2151,7 +2151,7 @@ static void compile(void)
                         epoint = lpoint;
                         if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL);goto breakerr;}
                         ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
-                        lpoint++;
+                        lpoint.pos++;
                         if (!get_exp(&w,1)) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         var=new_label(labelname, labelname2, L_VAR);
@@ -2175,7 +2175,7 @@ static void compile(void)
                         }
                         wht=what(&prm);
                     }
-                    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X || wht==WHAT_R || wht==WHAT_Z) lpoint--; else
+                    if (wht==WHAT_S || wht==WHAT_Y || wht==WHAT_X || wht==WHAT_R || wht==WHAT_Z) lpoint.pos--; else
                         if (wht!=WHAT_COMA) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
 
                     s = new_star(vline); stree_old = star_tree; ovline = vline;
@@ -2185,7 +2185,7 @@ static void compile(void)
                     }
                     s->addr = star;
                     star_tree = &s->tree;vline=0;
-                    xlin=lin=sline; xpos=pos=cfile->p; apoint=lpoint;
+                    xlin=lin=sline; xpos=pos=cfile->p; apoint = lpoint;
                     strcpy((char *)expr, (const char *)pline);var = NULL;
                     for (;;) {
                         lpoint=apoint;
@@ -2193,14 +2193,14 @@ static void compile(void)
                         if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
                         if (!val_truth(val)) break;
-                        if (bpoint < 0) {
+                        if (bpoint.pos == (unsigned)-1) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
-                            lpoint++;ignore();
+                            lpoint.pos++;ignore();
                             epoint = lpoint;
                             if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL);break;}
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
-                            lpoint++;ignore();
-                            if (!here() || here()==';') bpoint = 0;
+                            lpoint.pos++;ignore();
+                            if (!here() || here()==';') bpoint = (linepos_t){0, 0};
                             else {
                                 var=new_label(labelname, labelname2, L_VAR);
                                 if (labelexists) {
@@ -2227,8 +2227,8 @@ static void compile(void)
                         xpos = cfile->p; xlin= sline;
                         pline = expr;
                         sline=lin;cfile->p=pos;
-                        if (bpoint) {
-                            lpoint=bpoint;
+                        if (bpoint.pos) {
+                            lpoint = bpoint;
                             if (!get_exp(&w,1)) break; //ellenorizve.
                             if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                             var_assign(var, val, fixeddig);
@@ -2248,7 +2248,7 @@ static void compile(void)
                 if (prm==CMD_OPTION) { // .option
                     if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
-                    lpoint++;
+                    lpoint.pos++;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
@@ -2510,7 +2510,8 @@ static void compile(void)
                 get_ident2(labelname, labelname2);
                 if (labelname[0] && labelname[1] && labelname[2] && !labelname[3] && (prm=lookup_opcode(labelname))>=0) {
                     enum opr_e opr;
-                    int mnem, oldlpoint;
+                    int mnem;
+                    linepos_t oldlpoint;
                     const uint8_t *cnmemonic; //current nmemonic
                     int_fast8_t ln;
                     uint8_t cod, longbranch;
@@ -2528,10 +2529,10 @@ static void compile(void)
                         opr=(cnmemonic[ADR_ACCU]==cnmemonic[ADR_IMPLIED])?ADR_ACCU:ADR_IMPLIED;w=ln=0;d=1;
                     }  //clc
                     // 1 Db
-                    else if (lowcase(wht)=='a' && cnmemonic[ADR_ACCU]!=____ && (!pline[lpoint+1] || pline[lpoint+1]==';' || pline[lpoint+1]==0x20 || pline[lpoint+1]==0x09))
+                    else if (lowcase(wht)=='a' && cnmemonic[ADR_ACCU]!=____ && (!pline[lpoint.pos+1] || pline[lpoint.pos+1]==';' || pline[lpoint.pos+1]==0x20 || pline[lpoint.pos+1]==0x09))
                     {
                         linepos_t opoint=lpoint;
-                        lpoint++;ignore();
+                        lpoint.pos++;ignore();
                         if (here() && here()!=';') {lpoint=opoint;goto nota;}
                         if (find_label("a")) err_msg(ERROR_A_USED_AS_LBL,NULL);
                         opr=ADR_ACCU;w=ln=0;d=1;// asl a
@@ -2539,9 +2540,9 @@ static void compile(void)
                     // 2 Db
                     else if (wht=='#') {
                         if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____ && prm) { // 0x69 hack
-                            lpoint += strlen((const char *)pline + lpoint);ln=w=d=1;
+                            lpoint.pos += strlen((const char *)pline + lpoint.pos);ln=w=d=1;
                         } else {
-                            lpoint++;
+                            lpoint.pos++;
                             if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                             if (!(val = get_val(T_NUM, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                             eval_finish();

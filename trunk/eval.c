@@ -97,16 +97,16 @@ static int get_hex(struct value_s *v) {
     uval_t val = 0;
     linepos_t start;
     ignore();
-    start = lpoint;
-    while (here() == 0x30) lpoint++;
+    start.pos = lpoint.pos;
+    while (here() == 0x30) lpoint.pos++;
     while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
         val = (val << 4) + (here() & 15);
         if (here() & 0x40) val += 9;
-        lpoint++;
+        lpoint.pos++;
     }
     v->type = T_NUM;
     v->u.num.val = val;
-    v->u.num.len = (lpoint - start) * 4;
+    v->u.num.len = (lpoint.pos - start.pos) * 4;
     return v->u.num.len > 8*sizeof(val);
 }
 
@@ -114,22 +114,22 @@ static int get_bin(struct value_s *v) {
     uval_t val = 0;
     linepos_t start;
     ignore();
-    start = lpoint;
-    while (here() == 0x30) lpoint++;
+    start.pos = lpoint.pos;
+    while (here() == 0x30) lpoint.pos++;
     while ((here() & 0xfe) == '0') {
         val = (val << 1) | (here() & 1);
-        lpoint++;
+        lpoint.pos++;
     }
     v->type = T_NUM;
     v->u.num.val = val;
-    v->u.num.len = lpoint - start;
+    v->u.num.len = lpoint.pos - start.pos;
     return v->u.num.len > 8*sizeof(val);
 }
 
 static int get_dec(struct value_s *v) {
     uval_t val = 0;
     int large = 0;
-    while (here() == '0') lpoint++;
+    while (here() == '0') lpoint.pos++;
     while ((uint8_t)(here() ^ '0') < 10) {
         if (val >= ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
             if (val == ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
@@ -137,7 +137,7 @@ static int get_dec(struct value_s *v) {
             } else large = 1;
         }
         val=(val * 10) + (here() & 15);
-        lpoint++;
+        lpoint.pos++;
     }
     v->type = T_UINT;
     v->u.num.val = val;
@@ -145,7 +145,7 @@ static int get_dec(struct value_s *v) {
 }
 
 static int get_float(struct value_s *v) {
-    linepos_t i = lpoint;
+    size_t i = lpoint.pos;
 
     while ((uint8_t)(pline[i] ^ '0') < 10) i++;
     if (pline[i]=='.') {
@@ -154,16 +154,16 @@ static int get_float(struct value_s *v) {
         } while ((uint8_t)(pline[i] ^ '0') < 10);
     }
     if ((pline[i] | 0x20)=='e') {
-        if ((pline[i+1]=='-' || pline[i+1]=='+') && (uint8_t)(pline[i+2] ^ '0') < 10) i++;
+        if ((pline[i+1]=='-' || pline[i + 1]=='+') && (uint8_t)(pline[i + 2] ^ '0') < 10) i++;
         if ((uint8_t)(pline[i+1] ^ '0') < 10) {
             do {
                 i++;
             } while ((uint8_t)(pline[i] ^ '0') < 10);
         }
     }
-    v->u.real = strtod((const char *)pline + lpoint, NULL);
+    v->u.real = strtod((const char *)pline + lpoint.pos, NULL);
     v->type = T_FLOAT;
-    lpoint = i;
+    lpoint.pos = i;
     return 0;
 }
 
@@ -236,17 +236,31 @@ static int str_to_num2(struct value_s **v2, enum type_e type) {
     return r;
 }
 
+static inline int utf8len(uint8_t ch) {
+    if (ch < 0x80) return 1;
+    if (ch < 0xe0) return 2;
+    if (ch < 0xf0) return 3;
+    if (ch < 0xf8) return 4;
+    if (ch < 0xfc) return 5;
+    return 6;
+}
+
 static void get_string(struct value_s *v, uint8_t ch) {
     size_t i2 = 0;
-    linepos_t i, r = 0;
-    uint32_t ch2;
+    size_t i;
+    unsigned int u;
+    size_t r = 0;
+    uint8_t ch2;
 
-    i = lpoint;
+    i = lpoint.pos;
     for (;;) {
-        if (!(ch2 = here())) {err_msg(ERROR______EXPECTED,"End of string"); lpoint++; break;}
-        if (ch2 & 0x80) lpoint += utf8in(pline + lpoint, &ch2); else lpoint++;
+        if (!(ch2 = here())) {err_msg(ERROR______EXPECTED,"End of string"); lpoint.pos++; break;}
+        if (ch2 & 0x80) {
+            u = utf8len(ch2); 
+            lpoint.pos += u; lpoint.upos += u - 1;
+        } else lpoint.pos++;
         if (ch2 == ch) {
-            if (here() == ch && !arguments.tasmcomp) {lpoint++;r++;} // handle 'it''s'
+            if (here() == ch && !arguments.tasmcomp) {lpoint.pos++;r++;} // handle 'it''s'
             else break; // end of string;
         }
         i2++;
@@ -255,11 +269,11 @@ static void get_string(struct value_s *v, uint8_t ch) {
         const uint8_t *p = (const uint8_t *)pline + i, *e, *p2;
         uint8_t *d;
         v->type = T_UNDEF;
-        v->u.str.len = lpoint - i - 1 - r;
+        v->u.str.len = lpoint.pos - i - 1 - r;
         v->u.str.chars = i2;
         d = v->u.str.data = malloc(v->u.str.len);
         if (!d) err_msg_out_of_memory();
-        e = pline + lpoint - 1;
+        e = pline + lpoint.pos - 1;
         while (e > p) {
             p2 = memchr(p, ch, e - p);
             if (p2) {
@@ -272,7 +286,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
         }
     } else {
         v->type = T_STR;
-        v->u.str.len = lpoint - i - 1;
+        v->u.str.len = lpoint.pos - i - 1;
         v->u.str.chars = i2;
         v->u.str.data = (uint8_t *)pline + i;
     }
@@ -346,7 +360,7 @@ static struct value_s *unwind_identrefs(struct value_s *v1, linepos_t epoint) {
 
 static void try_resolv_identref(struct value_s **val2) {
     struct value_s *val = val2[0];
-    val = (struct value_s *)unwind_identrefs(val, 0);
+    val = (struct value_s *)unwind_identrefs(val, (linepos_t){0, 0});
     val_replace(val2, val);
 }
 
@@ -449,7 +463,7 @@ static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
     linepos_t epoints[256];
     uint8_t operp = 0;
     int large=0;
-    linepos_t epoint, cpoint = 0;
+    linepos_t epoint, cpoint = {0, 0};
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
     cd=0;     // 0=error, 1=ok, 2=(a, 3=()
@@ -457,19 +471,19 @@ rest:
     ignore();
     conv = O_POS;
     switch (here()) {
-    case '!':*wd=1;lpoint++;break;
-    case '<': conv = O_LOWER; cpoint = lpoint; lpoint++;break; 
-    case '>': conv = O_HIGHER;cpoint = lpoint; lpoint++;break; 
+    case '!':*wd=1;lpoint.pos++;break;
+    case '<': conv = O_LOWER; cpoint = lpoint; lpoint.pos++;break; 
+    case '>': conv = O_HIGHER;cpoint = lpoint; lpoint.pos++;break; 
     }
     for (;;) {
         ignore();ch = here(); epoint=lpoint;
 
         switch (ch) {
-        case '(': epoints[operp] = epoint; o_oper[operp++] = O_PARENT; lpoint++;continue;
-        case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
-        case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
-        case '"': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
-        case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
+        case '(': epoints[operp] = epoint; o_oper[operp++] = O_PARENT; lpoint.pos++;continue;
+        case '$': lpoint.pos++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
+        case '%': lpoint.pos++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
+        case '"': lpoint.pos++;get_string(&o_out[outp].val, ch);goto pushval;
+        case '*': lpoint.pos++;get_star(&o_out[outp].val);goto pushval;
         }
         if (ch>='0' && ch<='9') { if (get_dec(&o_out[outp].val)) goto pushlarge;
         pushval:
@@ -479,10 +493,10 @@ rest:
                 o_out[outp].val.u.num.val = 0xffff;
             }
         } else {
-            while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint++;
-            if (epoint == lpoint) goto syntaxe;
-            o_out[outp].val.u.ident.name = pline + epoint;
-            o_out[outp].val.u.ident.len = lpoint - epoint;
+            while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint.pos++;
+            if (epoint.pos == lpoint.pos) goto syntaxe;
+            o_out[outp].val.u.ident.name = pline + epoint.pos;
+            o_out[outp].val.u.ident.len = lpoint.pos - epoint.pos;
             o_out[outp].val.type = T_IDENT;
         }
         o_out[outp++].epoint=epoint;
@@ -501,18 +515,18 @@ rest:
             o_out[outp].val.type = T_OPER;
             o_out[outp].val.u.oper=O_SEPARATOR;
             o_out[outp++].epoint=epoint;
-            lpoint++;
+            lpoint.pos++;
             goto rest;
-        case '&': epoints[operp] = epoint; o_oper[operp++] = O_AND; lpoint++;continue;
-        case '.': epoints[operp] = epoint; o_oper[operp++] = O_OR; lpoint++;continue;
-        case ':': epoints[operp] = epoint; o_oper[operp++] = O_XOR; lpoint++;continue;
-        case '*': epoints[operp] = epoint; o_oper[operp++] = O_MUL; lpoint++;continue;
-        case '/': epoints[operp] = epoint; o_oper[operp++] = O_DIV; lpoint++;continue;
-        case '+': epoints[operp] = epoint; o_oper[operp++] = O_ADD; lpoint++;continue;
-        case '-': epoints[operp] = epoint; o_oper[operp++] = O_SUB; lpoint++;continue;
+        case '&': epoints[operp] = epoint; o_oper[operp++] = O_AND; lpoint.pos++;continue;
+        case '.': epoints[operp] = epoint; o_oper[operp++] = O_OR; lpoint.pos++;continue;
+        case ':': epoints[operp] = epoint; o_oper[operp++] = O_XOR; lpoint.pos++;continue;
+        case '*': epoints[operp] = epoint; o_oper[operp++] = O_MUL; lpoint.pos++;continue;
+        case '/': epoints[operp] = epoint; o_oper[operp++] = O_DIV; lpoint.pos++;continue;
+        case '+': epoints[operp] = epoint; o_oper[operp++] = O_ADD; lpoint.pos++;continue;
+        case '-': epoints[operp] = epoint; o_oper[operp++] = O_SUB; lpoint.pos++;continue;
         case ')':
             if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
-            lpoint++;
+            lpoint.pos++;
             operp--;
             goto other;
         case 0:
@@ -1175,15 +1189,6 @@ static void functions(struct values_s *vals, unsigned int args) {
         err_msg_wrong_type(vals->val, vals->epoint); 
         val_replace(&vals->val, &none_value);
     }
-}
-
-static inline int utf8len(uint8_t ch) {
-    if (ch < 0x80) return 1;
-    if (ch < 0xe0) return 2;
-    if (ch < 0xf0) return 3;
-    if (ch < 0xf8) return 4;
-    if (ch < 0xfc) return 5;
-    return 6;
 }
 
 static ival_t indexoffs(const struct value_s *v, size_t len) {
@@ -2951,13 +2956,13 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     ignore();
     switch (here()) {
     case '@':
-        switch (pline[++lpoint] | 0x20) {
+        switch (pline[++lpoint.pos] | 0x20) {
         case 'b':*wd=0;break;
         case 'w':*wd=1;break;
         case 'l':*wd=2;break;
         default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); return 0;
         }
-        lpoint++;
+        lpoint.pos++;
         break;
     }
     for (;;) {
@@ -2987,14 +2992,14 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             goto syntaxe;
         case '(': 
             epoints[operp]=epoint;
-            o_oper[operp++] = O_PARENT; lpoint++;
+            o_oper[operp++] = O_PARENT; lpoint.pos++;
             o_out[outp].val.type = T_OPER;
             o_out[outp].val.u.oper = O_PARENT;
             o_out[outp++].epoint = epoint;
             continue;
         case '[':
             epoints[operp]=epoint;
-            o_oper[operp++] = O_BRACKET; lpoint++;
+            o_oper[operp++] = O_BRACKET; lpoint.pos++;
             o_out[outp].val.type = T_OPER;
             o_out[outp].val.u.oper = O_BRACKET;
             o_out[outp++].epoint = epoint;
@@ -3003,17 +3008,17 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case '-': op = O_NEG; break;
         case '!': op = O_LNOT;break;
         case '~': op = O_INV; break;
-        case '<': if (pline[lpoint+1] == '>') {lpoint++;op = O_WORD;} else op = O_LOWER; break;
-        case '>': if (pline[lpoint+1] == '`') {lpoint++;op = O_HWORD;} else if (pline[lpoint+1] == '<') {lpoint++;op = O_BSWORD;} else op = O_HIGHER; break;
+        case '<': if (pline[lpoint.pos+1] == '>') {lpoint.pos++;op = O_WORD;} else op = O_LOWER; break;
+        case '>': if (pline[lpoint.pos+1] == '`') {lpoint.pos++;op = O_HWORD;} else if (pline[lpoint.pos+1] == '<') {lpoint.pos++;op = O_BSWORD;} else op = O_HIGHER; break;
         case '`': op = O_BANK; break;
         case '^': op = O_STRING; break;
-        case '$': lpoint++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
-        case '%': lpoint++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
+        case '$': lpoint.pos++;if (get_hex(&o_out[outp].val)) goto pushlarge;goto pushval;
+        case '%': lpoint.pos++;if (get_bin(&o_out[outp].val)) goto pushlarge;goto pushval;
         case '"':
-        case '\'': lpoint++;get_string(&o_out[outp].val, ch);goto pushval;
-        case '*': lpoint++;get_star(&o_out[outp].val);goto pushval;
-        case '?': lpoint++;o_out[outp].val.type = T_GAP;goto pushval;
-        case '.': if ((uint8_t)(pline[lpoint+1] ^ 0x30) < 10) goto pushfloat;
+        case '\'': lpoint.pos++;get_string(&o_out[outp].val, ch);goto pushval;
+        case '*': lpoint.pos++;get_star(&o_out[outp].val);goto pushval;
+        case '?': lpoint.pos++;o_out[outp].val.type = T_GAP;goto pushval;
+        case '.': if ((uint8_t)(pline[lpoint.pos+1] ^ 0x30) < 10) goto pushfloat;
         default: 
             if (ch>='0' && ch<='9') {
                 if (get_dec(&o_out[outp].val)) {
@@ -3023,15 +3028,15 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     pushlarge:
                         err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
                     }
-                } else if ((here() == '.' && pline[lpoint + 1] != '.') || (here() | 0x20) == 'e') goto pushfloat;
+                } else if ((here() == '.' && pline[lpoint.pos + 1] != '.') || (here() | 0x20) == 'e') goto pushfloat;
             pushval: 
                 o_out[outp++].epoint=epoint;
                 goto other;
             }
-            while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint++;
-            if (epoint != lpoint) {
-                o_out[outp].val.u.ident.name = pline + epoint;
-                o_out[outp].val.u.ident.len = lpoint - epoint;
+            while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint.pos++;
+            if (epoint.pos != lpoint.pos) {
+                o_out[outp].val.u.ident.name = pline + epoint.pos;
+                o_out[outp].val.u.ident.len = lpoint.pos - epoint.pos;
                 o_out[outp].val.type = T_IDENT;
                 o_out[outp++].epoint=epoint;
                 goto other;
@@ -3054,7 +3059,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             }
             goto syntaxe;
         }
-        lpoint++;
+        lpoint.pos++;
         prec = priority(op);
         while (operp && prec < priority(o_oper[operp-1])) {o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];}
         epoints[operp] = epoint;
@@ -3070,7 +3075,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                     o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
                 }
                 if (!operp) break;
-                if (operp==1 && o_oper[0]==O_PARENT && ((pline[lpoint+1] | 0x20)=='x' || (pline[lpoint+1] | 0x20)=='s' || (pline[lpoint+1] | 0x20)=='r') && pline[lpoint+2]==')') {
+                if (operp==1 && o_oper[0]==O_PARENT && ((pline[lpoint.pos+1] | 0x20)=='x' || (pline[lpoint.pos+1] | 0x20)=='s' || (pline[lpoint.pos+1] | 0x20)=='r') && pline[lpoint.pos+2]==')') {
                     outp--;
                     memmove(&o_out[0], &o_out[1], outp * sizeof(o_out[0]));
                     break;
@@ -3084,7 +3089,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             o_out[outp].val.u.oper = O_PARENT;
             o_out[outp++].epoint=epoint;
             epoints[operp]=epoint;
-            o_oper[operp++] = O_FUNC; lpoint++;
+            o_oper[operp++] = O_FUNC; lpoint.pos++;
             continue;
         case '[':
             prec = priority(O_MEMBER);
@@ -3093,17 +3098,17 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             o_out[outp].val.u.oper = O_BRACKET;
             o_out[outp++].epoint=epoint;
             epoints[operp]=epoint;
-            o_oper[operp++] = O_INDEX; lpoint++;
+            o_oper[operp++] = O_INDEX; lpoint.pos++;
             continue;
-        case '&': if (pline[lpoint+1] == '&') {lpoint++;op = O_LAND;} else op = O_AND; goto push2;
-        case '|': if (pline[lpoint+1] == '|') {lpoint++;op = O_LOR;} else op = O_OR;goto push2;
-        case '^': if (pline[lpoint+1] == '^') {lpoint++;op = O_LXOR;} else op = O_XOR; goto push2;
-        case '*': if (pline[lpoint+1] == '*') {lpoint++;op = O_EXP;} else op = O_MUL; goto push2;
+        case '&': if (pline[lpoint.pos+1] == '&') {lpoint.pos++;op = O_LAND;} else op = O_AND; goto push2;
+        case '|': if (pline[lpoint.pos+1] == '|') {lpoint.pos++;op = O_LOR;} else op = O_OR;goto push2;
+        case '^': if (pline[lpoint.pos+1] == '^') {lpoint.pos++;op = O_LXOR;} else op = O_XOR; goto push2;
+        case '*': if (pline[lpoint.pos+1] == '*') {lpoint.pos++;op = O_EXP;} else op = O_MUL; goto push2;
         case '%': op = O_MOD; goto push2;
-        case '/': if (pline[lpoint+1] == '/') {lpoint++;op = O_MOD;} else op = O_DIV; goto push2;
+        case '/': if (pline[lpoint.pos+1] == '/') {lpoint.pos++;op = O_MOD;} else op = O_DIV; goto push2;
         case '+': op = O_ADD; goto push2;
         case '-': op = O_SUB; goto push2;
-        case '.': if (pline[lpoint+1] == '.') {lpoint++;op = O_CONCAT;} else op = O_MEMBER; goto push2;
+        case '.': if (pline[lpoint.pos+1] == '.') {lpoint.pos++;op = O_CONCAT;} else op = O_MEMBER; goto push2;
         case '?': op = O_QUEST; prec = priority(O_COND) + 1; goto push3;
         case ':': op = O_COLON;
             prec = priority(op) + 1;
@@ -3113,9 +3118,9 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             else if (operp && o_oper[operp-1] == O_QUEST) { o_oper[operp-1] = O_COND; op = O_COLON2;}
             epoints[operp] = epoint;
             o_oper[operp++] = op;
-            lpoint++;
+            lpoint.pos++;
             continue;
-        case '=': op = O_EQ; if (pline[lpoint+1] == '=') lpoint++;
+        case '=': op = O_EQ; if (pline[lpoint.pos+1] == '=') lpoint.pos++;
         push2:
             prec = priority(op);
         push3:
@@ -3128,26 +3133,26 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 epoints[operp] = epoint;
                 o_oper[operp++] = op;
             }
-            lpoint++;
+            lpoint.pos++;
             continue;
         case '<': 
-            switch (pline[lpoint+1]) {
-            case '>': lpoint++;op = O_NEQ; break;
-            case '<': lpoint++;op = O_LSHIFT; break;
-            case '=': lpoint++;op = O_LE; break;
+            switch (pline[lpoint.pos+1]) {
+            case '>': lpoint.pos++;op = O_NEQ; break;
+            case '<': lpoint.pos++;op = O_LSHIFT; break;
+            case '=': lpoint.pos++;op = O_LE; break;
             default: op = O_LT; break;
             }
             goto push2;
         case '>':
-            switch (pline[lpoint+1]) {
-            case '<': lpoint++;op = O_NEQ; break;
-            case '>': lpoint++;if (pline[lpoint+1] == '>') {lpoint++;op = O_RSHIFT;} else op = O_ASHIFT; break;
-            case '=': lpoint++;op = O_GE; break;
+            switch (pline[lpoint.pos+1]) {
+            case '<': lpoint.pos++;op = O_NEQ; break;
+            case '>': lpoint.pos++;if (pline[lpoint.pos+1] == '>') {lpoint.pos++;op = O_RSHIFT;} else op = O_ASHIFT; break;
+            case '=': lpoint.pos++;op = O_GE; break;
             default: op = O_GT; break;
             }
             goto push2;
         case '!':
-            if (pline[lpoint+1]=='=') {lpoint++;op = O_NEQ;goto push2;}
+            if (pline[lpoint.pos+1]=='=') {lpoint.pos++;op = O_NEQ;goto push2;}
             goto syntaxe;
         case ')':
             op = O_RPARENT;
@@ -3156,7 +3161,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE || o_oper[operp-1]==O_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
                 o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
             }
-            lpoint++;
+            lpoint.pos++;
             if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
             operp--;
             o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper = (o_oper[operp] == O_PARENT)? op : o_oper[operp];
@@ -3168,7 +3173,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 if (o_oper[operp-1]==O_PARENT || o_oper[operp-1]==O_FUNC) {err_msg(ERROR______EXPECTED,"["); goto error;}
                 o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[--operp];o_out[outp++].val.u.oper=o_oper[operp];
             }
-            lpoint++;
+            lpoint.pos++;
             if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
             operp--;
             o_out[outp].val.type = T_OPER;o_out[outp].epoint=epoints[operp];o_out[outp++].val.u.oper=(o_oper[operp] == O_BRACKET) ? op : o_oper[operp];
@@ -3176,10 +3181,10 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case 0:
         case ';': break;
         default: 
-            while (((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') lpoint++;
-            switch (lpoint - epoint) {
-            case 1: if (pline[epoint] == 'x') {op = O_X;goto push2;} break;
-            case 2: if (pline[epoint] == 'i' && pline[epoint + 1] == 'n') {op = O_IN;goto push2;} break;
+            while (((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') lpoint.pos++;
+            switch (lpoint.pos - epoint.pos) {
+            case 1: if (pline[epoint.pos] == 'x') {op = O_X;goto push2;} break;
+            case 2: if (pline[epoint.pos] == 'i' && pline[epoint.pos + 1] == 'n') {op = O_IN;goto push2;} break;
             }
             goto syntaxe;
         }

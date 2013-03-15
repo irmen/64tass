@@ -41,7 +41,7 @@ struct label_s {
     size_t p;
     struct file_s *file;
     line_t sline;
-    unsigned int epoint;
+    linepos_t epoint;
     unsigned ref:1;
     unsigned sign:1;
     uint8_t esize;

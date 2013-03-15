@@ -51,7 +51,7 @@ struct section_s {
     struct section_s *next;
     const char *file;
     line_t sline;
-    unsigned int epoint;
+    linepos_t epoint;
     struct avltree members;
 };
 

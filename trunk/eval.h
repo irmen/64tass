@@ -13,6 +13,6 @@ extern inline uint8_t get_val_len2(const struct value_s *);
 
 struct values_s {
     struct value_s *val;
-    unsigned int epoint;
+    linepos_t epoint;
 };
 #endif
