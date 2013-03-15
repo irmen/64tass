@@ -1,4 +1,4 @@
-64tass v1.5x r372 manual
+64tass v1.5x r376 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -22,10 +22,12 @@ Project page: http://sourceforge.net/projects/tass64/
 Usage tips
 
 64tass is a command line assembler, the source can be written in any text
-editor. As a minimum the source filename must be given on command line. There
-are also some useful parameters which are described later.
+editor. As a minimum the source filename must be given on the command line. The
+`-a' parameter is highly recommended if the source is Unicode or ASCII.
 
-64tass src.asm
+64tass -a src.asm
+
+There are also some useful parameters which are described later.
 
 For comfortable compiling I use such `Makefile's (for make):
 
@@ -614,8 +616,115 @@ the special star label gets when referenced.
 
 Dumping data
 
+Storing numeric data
+
+Multi byte numeric data is stored in the little endian order, which is the
+natural byte order for 65xx processors. Numeric ranges are enforced depending
+on the directives used.
+
+When using lists or tuples their values will be used one by one. Uninitialized
+data creates holes of different sizes. Small string constants are converted
+using the current encoding.
+
+.byte <expression>[, <expression>, ...]
+    Create bytes from 8 bit unsigned constants (0 .. 255)
+.char <expression>[, <expression>, ...]
+    Create bytes from 8 bit signed constants (-128 .. 127)
+
+            .byte 255       ; $ff
+            .byte ?         ; reserve 1 byte of space
+
+    ;Compact computed jumps using self modifying code
+            lda jumps,x
+            sta smod+1
+    smod    bne *
+
+    jumps   .char (routine1, routine2)-smod-2 ;Routines nearby (-128 .. 127 bytes)
+
+.word <expression>[, <expression>, ...]
+    Create bytes from 16 bit unsigned constants (0 .. 65535)
+.int <expression>[, <expression>, ...]
+    Create bytes from 16 bit signed constants (-32768 .. 32767)
+
+            .word $2342, $4555
+            .word ?         ; reserve 2 bytes of space
+            .int -533, 4433
+
+    ;Computed jumps with jump table
+            lda jumps,x
+            sta ind
+            lda jumps+1,x
+            sta ind+1
+            jmp (ind)
+
+    ;Computed jumps with jump table (65C02)
+            jmp (jumps,x)
+
+    jumps   .word routine1, routine2
+    ;On 65816 substract the current program bank
+    jumps2  .word (routine1, routine2) - (* & ~$ffff)
+
+.rta <expression>[, <expression>, ...]
+    Create return address constants, which are 16 bit unsigned constants
+    (usually addresses) but with one substracted.
+
+    ;Computed jumps by using stack
+            asl
+            tax
+            lda rets+1,x
+            pha
+            lda rets,x
+            pha
+            rts
+    rets    .rta $fce2, routine1, routine2
+    ;On 65816 substract the current program bank
+    rets2   .rta ($fce2, routine1, routine2) - (* & ~$ffff)
+
+.long <expression>[, <expression>, ...]
+    Create bytes from 24 bit unsigned constants (0 .. 16777215)
+.lint <expression>[, <expression>, ...]
+    Create bytes from 24 bit signed constants (-8388608 .. 8388607)
+
+            .long $123456
+            .long ?         ; reserve 3 bytes of space
+            .lint -533, 4433
+
+    ;Computed long jumps with jump table (65816)
+            lda jumps,x
+            sta ind
+            lda jumps+1,x
+            sta ind+1
+            lda jumps+2,x
+            sta ind+2
+            jmp [ind]
+    jumps   .long routine1, routine2
+    ;Store 8.16 signed fixed point constants
+            .lint (-3.44, 3.4, 3.52) * (1 << 16)
+
+.dword <expression>[, <expression>, ...]
+    Create bytes from 32 bit constants (0 .. 4294967295)
+.dint <expression>[, <expression>, ...]
+    Create bytes from 32 bit signed constants (-2147483648 .. 2147483647)
+
+            .dword $12345678
+            .dword ?        ; reserve 4 bytes of space
+    ;Store 8.24 signed fixed point constants
+            .dint (-3.44, 3.4, 3.52) * (1 << 24)
+
+.fill <length>[, <fill>]
+    Skip bytes (using uninitialized data), or fill with repeated bytes. For
+    multi byte patterns use .rept!
+
+            .fill $100      ;no fill, just reserve $100 bytes
+            .fill $4000, 0  ;16384 bytes of 0
+
+Storing text data
+
+Texts are stored as a string of bytes. Small numeric constants can be mixed in
+to represent control characters.
+
 .text <expression>[, <expression>, ...]
-    Include constants and strings:
+    Assemble strings and small constants into bytes:
 
             .text "oeU"     ; text, "" means $22
             .text 'oeU'     ; text, '' means $27
@@ -647,7 +756,7 @@ Dumping data
             ldx #0
     loop    lda txt,x
             lsr
-            sta $400,x
+            sta $400,x      ;screen memory
             inx
             bcc loop
             rts
@@ -687,62 +796,6 @@ Dumping data
     null    rts
 
     txt     .ptext "note"
-
-.byte <expression>[, <expression>, ...]
-    Include 8 bit unsigned byte constants
-.char <expression>[, <expression>, ...]
-    Include 8 bit signed integer constants
-
-            .byte 255       ; $ff
-            .byte ?         ; reserve 1 byte of space
-            .char -33, 57
-
-.word <expression>[, <expression>, ...]
-    Include 16 bit unsigned word constants
-.int <expression>[, <expression>, ...]
-    Include 16 bit signed integer constants
-
-            .word $2342, $4555
-            .word ?         ; reserve 2 bytes of space
-            .int -533, 4433
-
-.rta <expression>[, <expression>, ...]
-    Include return address constants, which are one byte less than the
-    original.
-
-            lda #0
-            asl
-            tax
-            lda rets+1,x
-            pha
-            lda rets,x
-            pha
-            rts
-    rets    .rta $fce2
-
-.long <expression>[, <expression>, ...]
-    Include 24 bit unsigned constants
-.lint <expression>[, <expression>, ...]
-    Include 24 bit signed integer constants
-
-            .long $123456
-            .long ?         ; reserve 3 bytes of space
-            .lint -533, 4433
-
-.dword <expression>[, <expression>, ...]
-    Include 32 bit unsigned constants
-.dint <expression>[, <expression>, ...]
-    Include 32 bit signed integer constants
-
-            .dword $12345678
-            .dword ?        ; reserve 4 bytes of space
-            .dint -533, 4433
-
-.fill <length>[, <fill>]
-    Skip bytes, or fill with repeated bytes. For multi byte patterns use .rept!
-
-            .fill $100      ;no fill, just reserve $100 bytes
-            .fill $4000, 0  ;16384 bytes of 0
 
 Text encoding
 
@@ -1014,8 +1067,16 @@ directory separator and use lower/uppercase consistently in filenames!
 
 .include "<filename>"
     Include source file here. The filename must be defined in advance.
+.binclude "<filename>"
+    Include source file here in it's local block. The filename must be defined
+    in advance. If the directive is prefixed with a label then all labels are
+    local and are accessible through that label only, otherwise not reachable
+    at all.
+
 
             .include "macros.asm"       ;include macros
+    menu    .binclude "menu.asm"        ;include in a block
+            jmp menu.start
 
 .binary "<filename>"[, <offset>[, <length>]]
     Include binary data from file. By using offset and length it's possible to
@@ -1048,7 +1109,8 @@ Blocks
 .block
 .bend
     Block start and block end. All labels inside a block are local. If prefixed
-    with a label local variables are accessible through that label.
+    with a label local variables are accessible through that label, otherwise
+    not at all.
 
             .block
             inc count + 1
@@ -1806,6 +1868,214 @@ avl tree code by Franck Bui-Huu, ternary tree code by Daniel Berlin, snprintf
 Alain Magloire.
 
 Main developer and maintainer: soci at c64.rulez.org
+
+-------------------------------------------------------------------------------
+
+Default translation and escape sequences
+
+Raw 8-bit source
+
+By default raw 8-bit encoding is used and nothing is translated or escaped.
+This mode is for compiling sources which are already PETSCII.
+
+The `none' encoding for raw 8-bit
+
+Does no translation at all, no translation table, no escape sequences.
+
+The `screen' encoding for raw 8-bit
+
+The following translation table applies, no escape sequences.
+
+           Built in PETSCII to PETSCII screen code translation table
+       Input               Byte                Input               Byte
+00...1F             80...9F             20...3F             20...3F
+40...5F             00...1F             60...7F             40...5F
+80...9F             80...9F             A0...BF             60...7F
+C0...FE             40...7E             FF                  5E
+
+Unicode and ASCII source
+
+Unicode encoding is used when the `-a' option is given on the command line.
+
+The `none' encoding for Unicode
+
+This is a Unicode to PETSCII mapping, including escape sequences for control
+codes.
+
+                 Built in Unicode to PETSCII translation table
+ Glyph        Unicode           Byte     Glyph        Unicode           Byte
+ ...@   U+0020...U+0040      20...40    A...Z   U+0041...U+005A      C1...DA
+[       U+005B               5B         ]       U+005D               5D
+a...z   U+0061...U+007A      41...5A    ?       U+00A3               5C
+?       U+03C0               FF         ?       U+2190               5F
+?       U+2191               5E         ?       U+2500               C0
+?       U+2502               DD         ?       U+250C               B0
+?       U+2510               AE         ?       U+2514               AD
+?       U+2518               BD         ?       U+251C               AB
+?       U+2524               B3         ?       U+252C               B2
+?       U+2534               B1         ?       U+253C               DB
+?       U+256D               D5         ?       U+256E               C9
+?       U+256F               CB         ?       U+2570               CA
+?       U+2571               CE         ?       U+2572               CD
+?       U+2573               D6         ?       U+2581               A4
+?       U+2582               AF         ?       U+2583               B9
+?       U+2584               A2         ?       U+258C               A1
+?       U+258D               B5         ?       U+258E               B4
+?       U+258F               A5         ?       U+2592               A6
+?       U+2594               A3         ?       U+2595               A7
+?       U+2596               BB         ?       U+2597               AC
+?       U+2598               BE         ?       U+259A               BF
+?       U+259D               BC         ?       U+25CB               D7
+?       U+25CF               D1         ?       U+25E4               A9
+?       U+25E5               DF         ?       U+2660               C1
+?       U+2663               D8         ?       U+2665               D3
+?       U+2666               DA         ?       U+2713               BA
+
+                       Built in PETSCII escape sequences
+      Escape       Byte         Escape        Byte          Escape         Byte
+{bell}             07    {black}              90    {blk}                  90
+{blue}             1F    {blu}                1F    {brn}                  95
+{brown}            95    {cbm-*}              DF    {cbm-+}                A6
+{cbm--}            DC    {cbm-0}              30    {cbm-1}                81
+{cbm-2}            95    {cbm-3}              96    {cbm-4}                97
+{cbm-5}            98    {cbm-6}              99    {cbm-7}                9A
+{cbm-8}            9B    {cbm-9}              29    {cbm-@}                A4
+{cbm-^}            DE    {cbm-a}              B0    {cbm-b}                BF
+{cbm-c}            BC    {cbm-d}              AC    {cbm-e}                B1
+{cbm-f}            BB    {cbm-g}              A5    {cbm-h}                B4
+{cbm-i}            A2    {cbm-j}              B5    {cbm-k}                A1
+{cbm-l}            B6    {cbm-m}              A7    {cbm-n}                AA
+{cbm-o}            B9    {cbm-pound}          A8    {cbm-p}                AF
+{cbm-q}            AB    {cbm-r}              B2    {cbm-s}                AE
+{cbm-t}            A3    {cbm-up arrow}       DE    {cbm-u}                B8
+{cbm-v}            BE    {cbm-w}              B3    {cbm-x}                BD
+{cbm-y}            B7    {cbm-z}              AD    {clear}                93
+{clr}              93    {control-0}          92    {control-1}            90
+{control-2}        05    {control-3}          1C    {control-4}            9F
+{control-5}        9C    {control-6}          1E    {control-7}            1F
+{control-8}        9E    {control-9}          12    {control-:}            1B
+{control-;}        1D    {control-=}          1F    {control-@}            00
+{control-a}        01    {control-b}          02    {control-c}            03
+{control-d}        04    {control-e}          05    {control-f}            06
+{control-g}        07    {control-h}          08    {control-i}            09
+{control-j}        0A    {control-k}          0B    {control-left arrow}   06
+{control-l}        0C    {control-m}          0D    {control-n}            0E
+{control-o}        0F    {control-pound}      1C    {control-p}            10
+{control-q}        11    {control-r}          12    {control-s}            13
+{control-t}        14    {control-up arrow}   1E    {control-u}            15
+{control-v}        16    {control-w}          17    {control-x}            18
+{control-y}        19    {control-z}          1A    {cr}                   0D
+{cyan}             9F    {cyn}                9F    {delete}               14
+{del}              14    {dish}               08    {down}                 11
+{ensh}             09    {esc}                1B    {f10}                  82
+{f11}              84    {f12}                8F    {f1}                   85
+{f2}               89    {f3}                 86    {f4}                   8A
+{f5}               87    {f6}                 8B    {f7}                   88
+{f8}               8C    {f9}                 80    {gray1}                97
+{gray2}            98    {gray3}              9B    {green}                1E
+{grey1}            97    {grey2}              98    {grey3}                9B
+{grn}              1E    {gry1}               97    {gry2}                 98
+{gry3}             9B    {help}               84    {home}                 13
+{insert}           94    {inst}               94    {lblu}                 9A
+{left arrow}       5F    {left}               9D    {lf}                   0A
+{lgrn}             99    {lower case}         0E    {lred}                 96
+{lt blue}          9A    {lt green}           99    {lt red}               96
+{orange}           81    {orng}               81    {pi}                   FF
+{pound}            5C    {purple}             9C    {pur}                  9C
+{red}              1C    {return}             0D    {reverse off}          92
+{reverse on}       12    {rght}               1D    {right}                1D
+{run}              83    {rvof}               92    {rvon}                 12
+{rvs off}          92    {rvs on}             12    {shift return}         8D
+{shift-*}          C0    {shift-+}            DB    {shift-,}              3C
+{shift--}          DD    {shift-.}            3E    {shift-/}              3F
+{shift-0}          30    {shift-1}            21    {shift-2}              22
+{shift-3}          23    {shift-4}            24    {shift-5}              25
+{shift-6}          26    {shift-7}            27    {shift-8}              28
+{shift-9}          29    {shift-:}            5B    {shift-;}              5D
+{shift-@}          BA    {shift-^}            DE    {shift-a}              C1
+{shift-b}          C2    {shift-c}            C3    {shift-d}              C4
+{shift-e}          C5    {shift-f}            C6    {shift-g}              C7
+{shift-h}          C8    {shift-i}            C9    {shift-j}              CA
+{shift-k}          CB    {shift-l}            CC    {shift-m}              CD
+{shift-n}          CE    {shift-o}            CF    {shift-pound}          A9
+{shift-p}          D0    {shift-q}            D1    {shift-r}              D2
+{shift-space}      A0    {shift-s}            D3    {shift-t}              D4
+{shift-up arrow}   DE    {shift-u}            D5    {shift-v}              D6
+{shift-w}          D7    {shift-x}            D8    {shift-y}              D9
+{shift-z}          DA    {space}              20    {sret}                 8D
+{stop}             03    {swlc}               0E    {swuc}                 8E
+{tab}              09    {up arrow}           5E    {up/lo lock off}       09
+{up/lo lock on}    08    {upper case}         8E    {up}                   91
+{white}            05    {wht}                05    {yellow}               9E
+{yel}              9E
+
+The `screen' encoding for Unicode
+
+This is a Unicode to PETSCII screen code mapping, including escape sequences
+for control code screen codes.
+
+           Built in Unicode to PETSCII screen code translation table
+Glyph        Unicode        Translated  Glyph        Unicode        Translated
+ ...?  U+0020...U+003F     20...3F      @      U+0040              00
+A...Z  U+0041...U+005A     41...5A      [      U+005B              1B
+]      U+005D              1D           a...z  U+0061...U+007A     01...1A
+?      U+00A3              1C           ?      U+03C0              5E
+?      U+2190              1F           ?      U+2191              1E
+?      U+2500              40           ?      U+2502              5D
+?      U+250C              70           ?      U+2510              6E
+?      U+2514              6D           ?      U+2518              7D
+?      U+251C              6B           ?      U+2524              73
+?      U+252C              72           ?      U+2534              71
+?      U+253C              5B           ?      U+256D              55
+?      U+256E              49           ?      U+256F              4B
+?      U+2570              4A           ?      U+2571              4E
+?      U+2572              4D           ?      U+2573              56
+?      U+2581              64           ?      U+2582              6F
+?      U+2583              79           ?      U+2584              62
+?      U+258C              61           ?      U+258D              75
+?      U+258E              74           ?      U+258F              65
+?      U+2592              66           ?      U+2594              63
+?      U+2595              67           ?      U+2596              7B
+?      U+2597              6C           ?      U+2598              7E
+?      U+259A              7F           ?      U+259D              7C
+?      U+25CB              57           ?      U+25CF              51
+?      U+25E4              69           ?      U+25E5              5F
+?      U+2660              41           ?      U+2663              58
+?      U+2665              53           ?      U+2666              5A
+?      U+2713              7A
+
+                 Built in PETSCII screen code escape sequences
+   Escape      Byte         Escape         Byte          Escape           Byte
+{cbm-*}       5F     {cbm-+}              66     {cbm--}                 5C
+{cbm-0}       30     {cbm-9}              29     {cbm-@}                 64
+{cbm-^}       5E     {cbm-a}              70     {cbm-b}                 7F
+{cbm-c}       7C     {cbm-d}              6C     {cbm-e}                 71
+{cbm-f}       7B     {cbm-g}              65     {cbm-h}                 74
+{cbm-i}       62     {cbm-j}              75     {cbm-k}                 61
+{cbm-l}       76     {cbm-m}              67     {cbm-n}                 6A
+{cbm-o}       79     {cbm-pound}          68     {cbm-p}                 6F
+{cbm-q}       6B     {cbm-r}              72     {cbm-s}                 6E
+{cbm-t}       63     {cbm-up arrow}       5E     {cbm-u}                 78
+{cbm-v}       7E     {cbm-w}              73     {cbm-x}                 7D
+{cbm-y}       77     {cbm-z}              6D     {left arrow}            1F
+{pi}          5E     {pound}              1C     {shift-*}               40
+{shift-+}     5B     {shift-,}            3C     {shift--}               5D
+{shift-.}     3E     {shift-/}            3F     {shift-0}               30
+{shift-1}     21     {shift-2}            22     {shift-3}               23
+{shift-4}     24     {shift-5}            25     {shift-6}               26
+{shift-7}     27     {shift-8}            28     {shift-9}               29
+{shift-:}     1B     {shift-;}            1D     {shift-@}               7A
+{shift-^}     5E     {shift-a}            41     {shift-b}               42
+{shift-c}     43     {shift-d}            44     {shift-e}               45
+{shift-f}     46     {shift-g}            47     {shift-h}               48
+{shift-i}     49     {shift-j}            4A     {shift-k}               4B
+{shift-l}     4C     {shift-m}            4D     {shift-n}               4E
+{shift-o}     4F     {shift-pound}        69     {shift-p}               50
+{shift-q}     51     {shift-r}            52     {shift-space}           60
+{shift-s}     53     {shift-t}            54     {shift-up arrow}        5E
+{shift-u}     55     {shift-v}            56     {shift-w}               57
+{shift-x}     58     {shift-y}            59     {shift-z}               5A
+{space}       20     {up arrow}           1E
 
 -------------------------------------------------------------------------------
 
