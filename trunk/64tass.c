@@ -116,6 +116,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x34" "assert",
     "\x39" "bend",
     "\x19" "binary",
+    "\x4f" "binclude",
     "\x38" "block",
     "\x05" "byte",
     "\x4d" "cdef",
@@ -203,7 +204,7 @@ enum command_e {
     CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC,
     CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT,
     CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU, CMD_DUNION, CMD_SECTION,
-    CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF,
+    CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF, CMD_BINCLUDE,
 };
 
 // ---------------------------------------------------------------------------
@@ -1136,6 +1137,7 @@ static void compile(void)
                         case CMD_EOR:
                         case CMD_CPU:
                         case CMD_INCLUDE:
+                        case CMD_BINCLUDE:
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                             if (wasref)
                                 fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
@@ -2074,7 +2076,7 @@ static void compile(void)
                     new_waitfor('c', epoint);waitfor[waitforp].skip=0;
                     break;
                 }
-                if (prm==CMD_INCLUDE) { // .include
+                if (prm==CMD_INCLUDE || prm == CMD_BINCLUDE) { // .include, .binclude
                     struct file_s *f;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -2109,7 +2111,16 @@ static void compile(void)
                             star_tree = &s->tree;
                             backr = forwr = 0;
                             reffile=cfile->uid;
-                            compile();
+                            if (prm == CMD_BINCLUDE) {
+                                if (newlabel) current_context = newlabel;
+                                else {
+                                    sprintf(labelname, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
+                                    current_context=new_label(labelname, labelname, L_LABEL);
+                                    current_context->value = &none_value;
+                                }
+                                compile();
+                                current_context = current_context->parent;
+                            } else compile();
                             sline = lin; vline = vlin;
                             star_tree = stree_old;
                             backr = old_backr; forwr = old_forwr;

@@ -173,7 +173,7 @@
     </context>
 
     <context id="preprocessor-include" end-at-line-end="true">
-      <start>\.include(\s|(?=;)|$)</start>
+      <start>\.b?include(\s|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="preprocessor"/>
         <context ref="miscparam"/>

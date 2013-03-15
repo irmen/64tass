@@ -11,7 +11,7 @@ dl.dir dt {font-family:monospace}
 body {width:50em;font-size:12pt;}
 h1, h2, h3, h4 {font-family:sans}
 hr {display:none}
-pre {border:1px solid #eee;background-color:#fffff0;}
+pre {border:1px dotted #eee;background-color:#ffe;padding:2px; border-radius: 4px;}
 pre.make b {color:inherit;}
 pre.make span {color:navy;}
 pre.make span.cmd {color:green;}
@@ -22,7 +22,7 @@ pre span, code span {color:#d00;}
 pre span.s, code span.s {color:#f80;}
 pre i {color:brown;}
 pre span.l, code span.l {color:green;}
-p, dd {text-align:justify;word-break:hyphenate;}
+p, dd {text-align:justify;word-break:hypenate;}
 p + p {text-indent:3ex;margin-top:-0.5em}
 table {border-bottom:2px solid black;border-top:2px solid black;border-collapse:collapse;width:100%;margin-top:0.5em;margin-bottom:0.5em;}
 td, th {padding: 0px 1ex 0px 1ex;border-left:1px solid silver;border-top:1px solid silver}
@@ -31,6 +31,11 @@ td:first-child, th:first-child {border-left: 0px;}
 caption {caption-side:bottom;} 
 table.opcodes th, table.opcodes td {text-align:left;font-family:monospace;table-layout:fixed;}
 table.oper td:first-child {font-family:monospace;}
+table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
+table.trans td {font-family:monospace;}
+table.esc td {font-family:monospace;}
+
+thead th {background-color:#eee;border-bottom:1px solid black;}
 
 @media print {
    h1, h2, h3, h4 {page-break-after:avoid;}
@@ -50,7 +55,7 @@ caption:before { content: "Table " counter(countcaption) ": "; counter-increment
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.5x r372 manual</h1>
+<h1>64tass v1.5x r376 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -74,11 +79,13 @@ Not everything is backwards compatible.</b></p>
 <hr>
 <h2>Usage tips</h2>
 <p>64tass is a command line assembler, the source can be written in any text
-editor. As a minimum the source filename must be given on command line. There
-are also some useful parameters which are described later.</p>
+editor. As a minimum the source filename must be given on the command line. The
+<q><tt>-a</tt></q> parameter is highly recommended if the source is Unicode or
+ASCII.</p>
 <pre width=80>
-64tass src.asm
+64tass -a src.asm
 </pre>
+<p>There are also some useful parameters which are described later.</p>
 <p>For comfortable compiling I use such <q>Makefile</q>s (for <a href="http://en.wikipedia.org/wiki/Make_%28software%29">make</a>):</p>
 <pre width=80 class="make">
 <span>demo.prg:</span> source.asm makros.asm pic.drp music.bin
@@ -728,9 +735,118 @@ loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst
 </dl>
 
 <h3>Dumping data</h3>
+<h4>Storing numeric data</h4>
+<p>Multi byte numeric data is stored in the little endian order, which is the
+natural byte order for 65xx processors. Numeric ranges are enforced depending
+on the directives used.</p>
+<p>When using lists or tuples their values will be used one by one.
+Uninitialized data creates holes of different sizes. Small string constants are
+converted using the current encoding.</p>
+<dl class="dir">
+<dt><b>.byte</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Create bytes from 8&nbsp;bit unsigned constants (0 .. 255)
+<dt><b>.char</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Create bytes from 8&nbsp;bit signed constants (-128 .. 127)
+<pre width=80>
+        <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
+        <b class="d">.byte</b> <span>?</span>	        <i>; reserve 1 byte of space</i>
+
+<i>;Compact computed jumps using self modifying code</i>
+        <b>lda</b> <span class="l">jumps</span>,x
+        <b>sta</b> <span class="l">smod</span>+<span>1</span>
+smod    <b>bne</b> <span class="l">*</span>
+
+jumps   <b class="d">.char</b> (<span class="l">routine1</span>, <span class="l">routine2</span>)-<span class="l">smod</span>-<span>2</span> <i>;Routines nearby (-128 .. 127 bytes)</i>
+</pre>
+
+<dt><b>.word</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Create bytes from 16&nbsp;bit unsigned constants (0 .. 65535)
+<dt><b>.int</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Create bytes from 16&nbsp;bit signed constants (-32768 .. 32767)
+<pre width=80>
+        <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
+        <b class="d">.word</b> <span>?</span>	        <i>; reserve 2 bytes of space</i>
+        <b class="d">.int</b> <span>-533</span>, <span>4433</span>
+
+<i>;Computed jumps with jump table</i>
+        <b>lda</b> <span class="l">jumps</span>,x
+        <b>sta</b> <span class="l">ind</span>
+        <b>lda</b> <span class="l">jumps</span>+<span>1</span>,x
+        <b>sta</b> <span class="l">ind</span>+<span>1</span>
+        <b>jmp</b> (<span class="l">ind</span>)
+
+<i>;Computed jumps with jump table (65C02)</i>
+        <b>jmp</b> (<span class="l">jumps</span>,x)
+
+jumps   <b class="d">.word</b> <span class="l">routine1</span>, <span class="l">routine2</span>
+<i>;On 65816 substract the current program bank</i>
+jumps2  <b class="d">.word</b> (<span class="l">routine1</span>, <span class="l">routine2</span>) - (<span class="l">*</span> &amp; <span>~$ffff</span>)
+</pre>
+
+<dt><b>.rta</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Create return address constants, which are 16&nbsp;bit unsigned
+constants (usually addresses) but with one substracted.
+<pre width=80>
+<i>;Computed jumps by using stack</i>
+	<b>asl</b>
+	<b>tax</b>
+        <b>lda</b> <span class="l">rets</span>+<span>1</span>,x
+	<b>pha</b>
+        <b>lda</b> <span class="l">rets</span>,x
+	<b>pha</b>
+	<b>rts</b>
+rets	<b class="d">.rta</b> <span>$fce2</span>, <span class="l">routine1</span>, <span class="l">routine2</span>
+<i>;On 65816 substract the current program bank</i>
+rets2	<b class="d">.rta</b> (<span>$fce2</span>, <span class="l">routine1</span>, <span class="l">routine2</span>) - (<span class="l">*</span> &amp; <span>~$ffff</span>)
+</pre>
+
+<dt><b>.long</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Create bytes from 24&nbsp;bit unsigned constants (0 .. 16777215)
+<dt><b>.lint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Create bytes from 24&nbsp;bit signed constants (-8388608 .. 8388607)
+<pre width=80>
+        <b class="d">.long</b> <span>$123456</span>
+        <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes of space</i>
+        <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
+
+<i>;Computed long jumps with jump table (65816)</i>
+        <b>lda</b> <span class="l">jumps</span>,x
+        <b>sta</b> <span class="l">ind</span>
+        <b>lda</b> <span class="l">jumps</span>+<span>1</span>,x
+        <b>sta</b> <span class="l">ind</span>+<span>1</span>
+        <b>lda</b> <span class="l">jumps</span>+<span>2</span>,x
+        <b>sta</b> <span class="l">ind</span>+<span>2</span>
+        <b>jmp</b> [<span class="l">ind</span>]
+jumps   <b class="d">.long</b> <span class="l">routine1</span>, <span class="l">routine2</span>
+<i>;Store 8.16 signed fixed point constants</i>
+        <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * (<span>1</span> &lt;&lt; <span>16</span>)
+</pre>
+
+<dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Create bytes from 32&nbsp;bit constants (0 .. 4294967295)
+<dt><b>.dint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
+<dd>Create bytes from 32&nbsp;bit signed constants (-2147483648 .. 2147483647)
+<pre width=80>
+        <b class="d">.dword</b> <span>$12345678</span>
+        <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes of space</i>
+<i>;Store 8.24 signed fixed point constants</i>
+        <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * (<span>1</span> &lt;&lt; <span>24</span>)
+</pre>
+
+<dt><b>.fill</b> &lt;length&gt;[, &lt;fill&gt;]
+<dd>Skip bytes (using uninitialized data), or fill with repeated bytes. For multi byte patterns use <code>.rept</code>!
+<pre width=80>
+        <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
+        <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
+</pre>
+</dl>
+
+<h4>Storing text data</h4>
+<p>Texts are stored as a string of bytes. Small numeric constants can be mixed
+in to represent control characters.</p>
 <dl class="dir">
 <dt><b>.text</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include constants and strings:
+<dd>Assemble strings and small constants into bytes:
 <pre width=80>
         <b class="d">.text</b> <span class="s">"oeU"</span>	<i>; text, "" means $22</i>
         <b class="d">.text</b> <span class="s">'oeU'</span>	<i>; text, '' means $27</i>
@@ -763,7 +879,7 @@ bit set will cause an error as this would be cut off.
         <b>ldx</b> #<span>0</span>
 loop	<b>lda</b> <span class="l">txt</span>,x
 	<b>lsr</b>
-        <b>sta</b> <span>$400</span>,x
+        <b>sta</b> <span>$400</span>,x      <i>;screen memory</i>
 	<b>inx</b>
         <b>bcc</b> <span class="l">loop</span>
 	<b>rts</b>
@@ -805,67 +921,6 @@ print	<b>sta</b> <span>$fb</span>
 null	<b>rts</b>
 
 txt	<b class="d">.ptext</b> <span class="s">"note"</span>
-</pre>
-
-<dt><b>.byte</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 8&nbsp;bit unsigned byte constants
-<dt><b>.char</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 8&nbsp;bit signed integer constants
-<pre width=80>
-        <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
-        <b class="d">.byte</b> <span>?</span>	        <i>; reserve 1 byte of space</i>
-        <b class="d">.char</b> <span>-33</span>, <span>57</span>
-</pre>
-
-<dt><b>.word</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 16&nbsp;bit unsigned word constants
-<dt><b>.int</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 16&nbsp;bit signed integer constants
-<pre width=80>
-        <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
-        <b class="d">.word</b> <span>?</span>	        <i>; reserve 2 bytes of space</i>
-        <b class="d">.int</b> <span>-533</span>, <span>4433</span>
-</pre>
-
-<dt><b>.rta</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include return address constants, which are one byte less than the original.
-<pre width=80>
-        <b>lda</b> #<span>0</span>
-	<b>asl</b>
-	<b>tax</b>
-        <b>lda</b> <span class="l">rets</span>+<span>1</span>,x
-	<b>pha</b>
-        <b>lda</b> <span class="l">rets</span>,x
-	<b>pha</b>
-	<b>rts</b>
-rets	<b class="d">.rta</b> <span>$fce2</span>
-</pre>
-
-<dt><b>.long</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 24&nbsp;bit unsigned constants
-<dt><b>.lint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 24&nbsp;bit signed integer constants
-<pre width=80>
-        <b class="d">.long</b> <span>$123456</span>
-        <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes of space</i>
-        <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
-</pre>
-
-<dt><b>.dword</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 32&nbsp;bit unsigned constants
-<dt><b>.dint</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
-<dd>Include 32&nbsp;bit signed integer constants
-<pre width=80>
-        <b class="d">.dword</b> <span>$12345678</span>
-        <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes of space</i>
-        <b class="d">.dint</b> <span>-533</span>, <span>4433</span>
-</pre>
-
-<dt><b>.fill</b> &lt;length&gt;[, &lt;fill&gt;]
-<dd>Skip bytes, or fill with repeated bytes. For multi byte patterns use <code>.rept</code>!
-<pre width=80>
-        <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
-        <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
 </pre>
 </dl>
 
@@ -1163,13 +1218,20 @@ in filenames!</p>
 <dl class="dir">
 <dt><b>.include</b> "&lt;filename&gt;"
 <dd>Include source file here. The filename must be defined in advance.
+<dt><b>.binclude</b> "&lt;filename&gt;"
+<dd>Include source file here in it's local block. The filename must be defined
+in advance. If the directive is prefixed with a label then all labels are local
+and are accessible through that label only, otherwise not reachable at all.
 <pre width=80>
+
 	<b class="k">.include</b> <span class="s">"macros.asm"</span>       <i>;include macros</i>
+menu    <b class="k">.binclude</b> <span class="s">"menu.asm"</span>        <i>;include in a block</i>
+	<b>jmp</b> <span class="l">menu</span>.<span class="l">start</span>
 </pre>
 
 <dt><b>.binary</b> "&lt;filename&gt;"[, &lt;offset&gt;[, &lt;length&gt;]]
 <dd>Include binary data from file. By using offset and length it's possible to break out chunks of data from a
-file separately, like bitmap and colors for example. 
+file separately, like bitmap and colors for example.
 <pre width=80>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>        <i>;simple include, all bytes</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>,<span>2</span>      <i>;skip start address</i>
@@ -1200,7 +1262,8 @@ cucc    <b>nop</b>
 <dt><b>.block</b>
 <dt><b>.bend</b>
 <dd>Block start and block end. All labels inside a block are local. If prefixed
-with a label local variables are accessible through that label.
+with a label local variables are accessible through that label, otherwise not
+at all.
 <pre width=80>
 	<b class="k">.block</b>
         <b>inc</b> <span class="l">count</span> + <span>1</span>
@@ -2006,6 +2069,496 @@ Sittler, avl tree code by Franck Bui-Huu, ternary tree code by Daniel
 Berlin, snprintf Alain Magloire.</p>
 
 <p>Main developer and maintainer: soci at c64.rulez.org</p>
+<hr>
+<h2>Default translation and escape sequences</h2>
+<h3>Raw 8-bit source</h3>
+<p>By default raw 8-bit encoding is used and nothing is translated or escaped.
+This mode is for compiling sources which are already PETSCII.</p>
+<h4>The <q>none</q> encoding for raw 8-bit</h4>
+<p>Does no translation at all, no translation table, no escape sequences.</p>
+<h4>The <q>screen</q> encoding for raw 8-bit</h4>
+<p>The following translation table applies, no escape sequences.</p>
+<table width="100%">
+<caption>Built in PETSCII to PETSCII screen code translation table</caption>
+<thead>
+<tr><th>Input<th>Byte
+<th>Input<th>Byte
+</thead><tbody>
+<tr><td>00...1F<td>80...9F
+<td>20...3F<td>20...3F
+<tr><td>40...5F<td>00...1F
+<td>60...7F<td>40...5F
+<tr><td>80...9F<td>80...9F
+<td>A0...BF<td>60...7F
+<tr><td>C0...FE<td>40...7E
+<td>FF<td>5E
+</tbody>
+</table>
+
+<h3>Unicode and ASCII source</h3>
+<p>Unicode encoding is used when the <q><tt>-a</tt></q> option is given on the command line.</p>
+<h4>The <q>none</q> encoding for Unicode</h4>
+This is a Unicode to PETSCII mapping, including escape sequences for control codes.
+<table width="100%" class="trans">
+<caption>Built in Unicode to PETSCII translation table</caption>
+<thead>
+<tr><th>Glyph<th>Unicode<th>Byte
+<th>Glyph<th>Unicode<th>Byte
+</thead><tbody>
+<tr><td>&nbsp;...&#x40;<td>U+0020...U+0040<td>20...40
+<td>&#x41;...&#x5a;<td>U+0041...U+005A<td>C1...DA
+<tr><td>&#x5b;<td>U+005B<td>5B
+<td>&#x5d;<td>U+005D<td>5D
+<tr><td>&#x61;...&#x7a;<td>U+0061...U+007A<td>41...5A
+<td>&#xa3;<td>U+00A3<td>5C
+<tr><td>&#x03c0;<td>U+03C0<td>FF
+<td>&#x2190;<td>U+2190<td>5F
+<tr><td>&#x2191;<td>U+2191<td>5E
+<td>&#x2500;<td>U+2500<td>C0
+<tr><td>&#x2502;<td>U+2502<td>DD
+<td>&#x250c;<td>U+250C<td>B0
+<tr><td>&#x2510;<td>U+2510<td>AE
+<td>&#x2514;<td>U+2514<td>AD
+<tr><td>&#x2518;<td>U+2518<td>BD
+<td>&#x251c;<td>U+251C<td>AB
+<tr><td>&#x2524;<td>U+2524<td>B3
+<td>&#x252c;<td>U+252C<td>B2
+<tr><td>&#x2534;<td>U+2534<td>B1
+<td>&#x253c;<td>U+253C<td>DB
+<tr><td>&#x256d;<td>U+256D<td>D5
+<td>&#x256e;<td>U+256E<td>C9
+<tr><td>&#x256f;<td>U+256F<td>CB
+<td>&#x2570;<td>U+2570<td>CA
+<tr><td>&#x2571;<td>U+2571<td>CE
+<td>&#x2572;<td>U+2572<td>CD
+<tr><td>&#x2573;<td>U+2573<td>D6
+<td>&#x2581;<td>U+2581<td>A4
+<tr><td>&#x2582;<td>U+2582<td>AF
+<td>&#x2583;<td>U+2583<td>B9
+<tr><td>&#x2584;<td>U+2584<td>A2
+<td>&#x258c;<td>U+258C<td>A1
+<tr><td>&#x258d;<td>U+258D<td>B5
+<td>&#x258e;<td>U+258E<td>B4
+<tr><td>&#x258f;<td>U+258F<td>A5
+<td>&#x2592;<td>U+2592<td>A6
+<tr><td>&#x2594;<td>U+2594<td>A3
+<td>&#x2595;<td>U+2595<td>A7
+<tr><td>&#x2596;<td>U+2596<td>BB
+<td>&#x2597;<td>U+2597<td>AC
+<tr><td>&#x2598;<td>U+2598<td>BE
+<td>&#x259a;<td>U+259A<td>BF
+<tr><td>&#x259d;<td>U+259D<td>BC
+<td>&#x25cb;<td>U+25CB<td>D7
+<tr><td>&#x25cf;<td>U+25CF<td>D1
+<td>&#x25e4;<td>U+25E4<td>A9
+<tr><td>&#x25e5;<td>U+25E5<td>DF
+<td>&#x2660;<td>U+2660<td>C1
+<tr><td>&#x2663;<td>U+2663<td>D8
+<td>&#x2665;<td>U+2665<td>D3
+<tr><td>&#x2666;<td>U+2666<td>DA
+<td>&#x2713;<td>U+2713<td>BA
+</tbody>
+</table>
+
+<table width="100%" class="esc">
+<caption>Built in PETSCII escape sequences</caption>
+<thead>
+<tr><th>Escape<th>Byte
+<th>Escape<th>Byte
+<th>Escape<th>Byte
+</thead><tbody>
+<tr><td>{bell}<td>07
+<td>{black}<td>90
+<td>{blk}<td>90
+<tr><td>{blue}<td>1F
+<td>{blu}<td>1F
+<td>{brn}<td>95
+<tr><td>{brown}<td>95
+<td>{cbm-*}<td>DF
+<td>{cbm-+}<td>A6
+<tr><td>{cbm--}<td>DC
+<td>{cbm-0}<td>30
+<td>{cbm-1}<td>81
+<tr><td>{cbm-2}<td>95
+<td>{cbm-3}<td>96
+<td>{cbm-4}<td>97
+<tr><td>{cbm-5}<td>98
+<td>{cbm-6}<td>99
+<td>{cbm-7}<td>9A
+<tr><td>{cbm-8}<td>9B
+<td>{cbm-9}<td>29
+<td>{cbm-@}<td>A4
+<tr><td>{cbm-^}<td>DE
+<td>{cbm-a}<td>B0
+<td>{cbm-b}<td>BF
+<tr><td>{cbm-c}<td>BC
+<td>{cbm-d}<td>AC
+<td>{cbm-e}<td>B1
+<tr><td>{cbm-f}<td>BB
+<td>{cbm-g}<td>A5
+<td>{cbm-h}<td>B4
+<tr><td>{cbm-i}<td>A2
+<td>{cbm-j}<td>B5
+<td>{cbm-k}<td>A1
+<tr><td>{cbm-l}<td>B6
+<td>{cbm-m}<td>A7
+<td>{cbm-n}<td>AA
+<tr><td>{cbm-o}<td>B9
+<td>{cbm-pound}<td>A8
+<td>{cbm-p}<td>AF
+<tr><td>{cbm-q}<td>AB
+<td>{cbm-r}<td>B2
+<td>{cbm-s}<td>AE
+<tr><td>{cbm-t}<td>A3
+<td>{cbm-up&nbsp;arrow}<td>DE
+<td>{cbm-u}<td>B8
+<tr><td>{cbm-v}<td>BE
+<td>{cbm-w}<td>B3
+<td>{cbm-x}<td>BD
+<tr><td>{cbm-y}<td>B7
+<td>{cbm-z}<td>AD
+<td>{clear}<td>93
+<tr><td>{clr}<td>93
+<td>{control-0}<td>92
+<td>{control-1}<td>90
+<tr><td>{control-2}<td>05
+<td>{control-3}<td>1C
+<td>{control-4}<td>9F
+<tr><td>{control-5}<td>9C
+<td>{control-6}<td>1E
+<td>{control-7}<td>1F
+<tr><td>{control-8}<td>9E
+<td>{control-9}<td>12
+<td>{control-:}<td>1B
+<tr><td>{control-;}<td>1D
+<td>{control-=}<td>1F
+<td>{control-@}<td>00
+<tr><td>{control-a}<td>01
+<td>{control-b}<td>02
+<td>{control-c}<td>03
+<tr><td>{control-d}<td>04
+<td>{control-e}<td>05
+<td>{control-f}<td>06
+<tr><td>{control-g}<td>07
+<td>{control-h}<td>08
+<td>{control-i}<td>09
+<tr><td>{control-j}<td>0A
+<td>{control-k}<td>0B
+<td>{control-left&nbsp;arrow}<td>06
+<tr><td>{control-l}<td>0C
+<td>{control-m}<td>0D
+<td>{control-n}<td>0E
+<tr><td>{control-o}<td>0F
+<td>{control-pound}<td>1C
+<td>{control-p}<td>10
+<tr><td>{control-q}<td>11
+<td>{control-r}<td>12
+<td>{control-s}<td>13
+<tr><td>{control-t}<td>14
+<td>{control-up&nbsp;arrow}<td>1E
+<td>{control-u}<td>15
+<tr><td>{control-v}<td>16
+<td>{control-w}<td>17
+<td>{control-x}<td>18
+<tr><td>{control-y}<td>19
+<td>{control-z}<td>1A
+<td>{cr}<td>0D
+<tr><td>{cyan}<td>9F
+<td>{cyn}<td>9F
+<td>{delete}<td>14
+<tr><td>{del}<td>14
+<td>{dish}<td>08
+<td>{down}<td>11
+<tr><td>{ensh}<td>09
+<td>{esc}<td>1B
+<td>{f10}<td>82
+<tr><td>{f11}<td>84
+<td>{f12}<td>8F
+<td>{f1}<td>85
+<tr><td>{f2}<td>89
+<td>{f3}<td>86
+<td>{f4}<td>8A
+<tr><td>{f5}<td>87
+<td>{f6}<td>8B
+<td>{f7}<td>88
+<tr><td>{f8}<td>8C
+<td>{f9}<td>80
+<td>{gray1}<td>97
+<tr><td>{gray2}<td>98
+<td>{gray3}<td>9B
+<td>{green}<td>1E
+<tr><td>{grey1}<td>97
+<td>{grey2}<td>98
+<td>{grey3}<td>9B
+<tr><td>{grn}<td>1E
+<td>{gry1}<td>97
+<td>{gry2}<td>98
+<tr><td>{gry3}<td>9B
+<td>{help}<td>84
+<td>{home}<td>13
+<tr><td>{insert}<td>94
+<td>{inst}<td>94
+<td>{lblu}<td>9A
+<tr><td>{left&nbsp;arrow}<td>5F
+<td>{left}<td>9D
+<td>{lf}<td>0A
+<tr><td>{lgrn}<td>99
+<td>{lower&nbsp;case}<td>0E
+<td>{lred}<td>96
+<tr><td>{lt&nbsp;blue}<td>9A
+<td>{lt&nbsp;green}<td>99
+<td>{lt&nbsp;red}<td>96
+<tr><td>{orange}<td>81
+<td>{orng}<td>81
+<td>{pi}<td>FF
+<tr><td>{pound}<td>5C
+<td>{purple}<td>9C
+<td>{pur}<td>9C
+<tr><td>{red}<td>1C
+<td>{return}<td>0D
+<td>{reverse&nbsp;off}<td>92
+<tr><td>{reverse&nbsp;on}<td>12
+<td>{rght}<td>1D
+<td>{right}<td>1D
+<tr><td>{run}<td>83
+<td>{rvof}<td>92
+<td>{rvon}<td>12
+<tr><td>{rvs&nbsp;off}<td>92
+<td>{rvs&nbsp;on}<td>12
+<td>{shift&nbsp;return}<td>8D
+<tr><td>{shift-*}<td>C0
+<td>{shift-+}<td>DB
+<td>{shift-,}<td>3C
+<tr><td>{shift--}<td>DD
+<td>{shift-.}<td>3E
+<td>{shift-/}<td>3F
+<tr><td>{shift-0}<td>30
+<td>{shift-1}<td>21
+<td>{shift-2}<td>22
+<tr><td>{shift-3}<td>23
+<td>{shift-4}<td>24
+<td>{shift-5}<td>25
+<tr><td>{shift-6}<td>26
+<td>{shift-7}<td>27
+<td>{shift-8}<td>28
+<tr><td>{shift-9}<td>29
+<td>{shift-:}<td>5B
+<td>{shift-;}<td>5D
+<tr><td>{shift-@}<td>BA
+<td>{shift-^}<td>DE
+<td>{shift-a}<td>C1
+<tr><td>{shift-b}<td>C2
+<td>{shift-c}<td>C3
+<td>{shift-d}<td>C4
+<tr><td>{shift-e}<td>C5
+<td>{shift-f}<td>C6
+<td>{shift-g}<td>C7
+<tr><td>{shift-h}<td>C8
+<td>{shift-i}<td>C9
+<td>{shift-j}<td>CA
+<tr><td>{shift-k}<td>CB
+<td>{shift-l}<td>CC
+<td>{shift-m}<td>CD
+<tr><td>{shift-n}<td>CE
+<td>{shift-o}<td>CF
+<td>{shift-pound}<td>A9
+<tr><td>{shift-p}<td>D0
+<td>{shift-q}<td>D1
+<td>{shift-r}<td>D2
+<tr><td>{shift-space}<td>A0
+<td>{shift-s}<td>D3
+<td>{shift-t}<td>D4
+<tr><td>{shift-up&nbsp;arrow}<td>DE
+<td>{shift-u}<td>D5
+<td>{shift-v}<td>D6
+<tr><td>{shift-w}<td>D7
+<td>{shift-x}<td>D8
+<td>{shift-y}<td>D9
+<tr><td>{shift-z}<td>DA
+<td>{space}<td>20
+<td>{sret}<td>8D
+<tr><td>{stop}<td>03
+<td>{swlc}<td>0E
+<td>{swuc}<td>8E
+<tr><td>{tab}<td>09
+<td>{up&nbsp;arrow}<td>5E
+<td>{up/lo&nbsp;lock off}<td>09
+<tr><td>{up/lo&nbsp;lock on}<td>08
+<td>{upper&nbsp;case}<td>8E
+<td>{up}<td>91
+<tr><td>{white}<td>05
+<td>{wht}<td>05
+<td>{yellow}<td>9E
+<tr><td>{yel}<td>9E
+<td><td>
+<td><td>
+</tbody>
+</table>
+
+<h4>The <q>screen</q> encoding for Unicode</h4>
+This is a Unicode to PETSCII screen code mapping, including escape sequences for control code screen codes.
+<table width="100%" class="trans">
+<caption>Built in Unicode to PETSCII screen code translation table</caption>
+<thead>
+<tr><th>Glyph<th>Unicode<th>Translated
+<th>Glyph<th>Unicode<th>Translated
+</thead><tbody>
+<tr><td>&nbsp;...&#x3f;<td>U+0020...U+003F<td>20...3F
+<td>&#x40;<td>U+0040<td>00
+<tr><td>&#x41;...&#x5a;<td>U+0041...U+005A<td>41...5A
+<td>&#x5b;<td>U+005B<td>1B
+<tr><td>&#x5d;<td>U+005D<td>1D
+<td>&#x61;...&#x7a;<td>U+0061...U+007A<td>01...1A
+<tr><td>&#xa3;<td>U+00A3<td>1C
+<td>&#x03c0;<td>U+03C0<td>5E
+<tr><td>&#x2190;<td>U+2190<td>1F
+<td>&#x2191;<td>U+2191<td>1E
+<tr><td>&#x2500;<td>U+2500<td>40
+<td>&#x2502;<td>U+2502<td>5D
+<tr><td>&#x250c;<td>U+250C<td>70
+<td>&#x2510;<td>U+2510<td>6E
+<tr><td>&#x2514;<td>U+2514<td>6D
+<td>&#x2518;<td>U+2518<td>7D
+<tr><td>&#x251c;<td>U+251C<td>6B
+<td>&#x2524;<td>U+2524<td>73
+<tr><td>&#x252c;<td>U+252C<td>72
+<td>&#x2534;<td>U+2534<td>71
+<tr><td>&#x253c;<td>U+253C<td>5B
+<td>&#x256d;<td>U+256D<td>55
+<tr><td>&#x256e;<td>U+256E<td>49
+<td>&#x256f;<td>U+256F<td>4B
+<tr><td>&#x2570;<td>U+2570<td>4A
+<td>&#x2571;<td>U+2571<td>4E
+<tr><td>&#x2572;<td>U+2572<td>4D
+<td>&#x2573;<td>U+2573<td>56
+<tr><td>&#x2581;<td>U+2581<td>64
+<td>&#x2582;<td>U+2582<td>6F
+<tr><td>&#x2583;<td>U+2583<td>79
+<td>&#x2584;<td>U+2584<td>62
+<tr><td>&#x258c;<td>U+258C<td>61
+<td>&#x258d;<td>U+258D<td>75
+<tr><td>&#x258e;<td>U+258E<td>74
+<td>&#x258f;<td>U+258F<td>65
+<tr><td>&#x2592;<td>U+2592<td>66
+<td>&#x2594;<td>U+2594<td>63
+<tr><td>&#x2595;<td>U+2595<td>67
+<td>&#x2596;<td>U+2596<td>7B
+<tr><td>&#x2597;<td>U+2597<td>6C
+<td>&#x2598;<td>U+2598<td>7E
+<tr><td>&#x259a;<td>U+259A<td>7F
+<td>&#x259d;<td>U+259D<td>7C
+<tr><td>&#x25cb;<td>U+25CB<td>57
+<td>&#x25cf;<td>U+25CF<td>51
+<tr><td>&#x25e4;<td>U+25E4<td>69
+<td>&#x25e5;<td>U+25E5<td>5F
+<tr><td>&#x2660;<td>U+2660<td>41
+<td>&#x2663;<td>U+2663<td>58
+<tr><td>&#x2665;<td>U+2665<td>53
+<td>&#x2666;<td>U+2666<td>5A
+<tr><td>&#x2713;<td>U+2713<td>7A
+<td><td><td>
+</tbody>
+</table>
+
+<table width="100%" class="esc">
+<caption>Built in PETSCII screen code escape sequences</caption>
+<thead>
+<tr><th>Escape<th>Byte
+<th>Escape<th>Byte
+<th>Escape<th>Byte
+</thead><tbody>
+<tr><td>{cbm-*}<td>5F
+<td>{cbm-+}<td>66
+<td>{cbm--}<td>5C
+<tr><td>{cbm-0}<td>30
+<td>{cbm-9}<td>29
+<td>{cbm-@}<td>64
+<tr><td>{cbm-^}<td>5E
+<td>{cbm-a}<td>70
+<td>{cbm-b}<td>7F
+<tr><td>{cbm-c}<td>7C
+<td>{cbm-d}<td>6C
+<td>{cbm-e}<td>71
+<tr><td>{cbm-f}<td>7B
+<td>{cbm-g}<td>65
+<td>{cbm-h}<td>74
+<tr><td>{cbm-i}<td>62
+<td>{cbm-j}<td>75
+<td>{cbm-k}<td>61
+<tr><td>{cbm-l}<td>76
+<td>{cbm-m}<td>67
+<td>{cbm-n}<td>6A
+<tr><td>{cbm-o}<td>79
+<td>{cbm-pound}<td>68
+<td>{cbm-p}<td>6F
+<tr><td>{cbm-q}<td>6B
+<td>{cbm-r}<td>72
+<td>{cbm-s}<td>6E
+<tr><td>{cbm-t}<td>63
+<td>{cbm-up&nbsp;arrow}<td>5E
+<td>{cbm-u}<td>78
+<tr><td>{cbm-v}<td>7E
+<td>{cbm-w}<td>73
+<td>{cbm-x}<td>7D
+<tr><td>{cbm-y}<td>77
+<td>{cbm-z}<td>6D
+<td>{left&nbsp;arrow}<td>1F
+<tr><td>{pi}<td>5E
+<td>{pound}<td>1C
+<td>{shift-*}<td>40
+<tr><td>{shift-+}<td>5B
+<td>{shift-,}<td>3C
+<td>{shift--}<td>5D
+<tr><td>{shift-.}<td>3E
+<td>{shift-/}<td>3F
+<td>{shift-0}<td>30
+<tr><td>{shift-1}<td>21
+<td>{shift-2}<td>22
+<td>{shift-3}<td>23
+<tr><td>{shift-4}<td>24
+<td>{shift-5}<td>25
+<td>{shift-6}<td>26
+<tr><td>{shift-7}<td>27
+<td>{shift-8}<td>28
+<td>{shift-9}<td>29
+<tr><td>{shift-:}<td>1B
+<td>{shift-;}<td>1D
+<td>{shift-@}<td>7A
+<tr><td>{shift-^}<td>5E
+<td>{shift-a}<td>41
+<td>{shift-b}<td>42
+<tr><td>{shift-c}<td>43
+<td>{shift-d}<td>44
+<td>{shift-e}<td>45
+<tr><td>{shift-f}<td>46
+<td>{shift-g}<td>47
+<td>{shift-h}<td>48
+<tr><td>{shift-i}<td>49
+<td>{shift-j}<td>4A
+<td>{shift-k}<td>4B
+<tr><td>{shift-l}<td>4C
+<td>{shift-m}<td>4D
+<td>{shift-n}<td>4E
+<tr><td>{shift-o}<td>4F
+<td>{shift-pound}<td>69
+<td>{shift-p}<td>50
+<tr><td>{shift-q}<td>51
+<td>{shift-r}<td>52
+<td>{shift-space}<td>60
+<tr><td>{shift-s}<td>53
+<td>{shift-t}<td>54
+<td>{shift-up&nbsp;arrow}<td>5E
+<tr><td>{shift-u}<td>55
+<td>{shift-v}<td>56
+<td>{shift-w}<td>57
+<tr><td>{shift-x}<td>58
+<td>{shift-y}<td>59
+<td>{shift-z}<td>5A
+<tr><td>{space}<td>20
+<td>{up&nbsp;arrow}<td>1E
+<td><td>
+</tbody>
+</table>
 
 <hr>
 <h2>Opcodes</h2>
