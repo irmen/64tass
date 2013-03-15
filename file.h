@@ -21,6 +21,10 @@
 #include "misc.h"
 #include <stdio.h>
 
+enum filecoding_e {
+    E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO1
+};
+
 struct file_s {
     const char *name;
     const char *realname;
@@ -31,6 +35,7 @@ struct file_s {
     uint16_t open;    /* open/not open */
     uint16_t uid;     /* uid */
     int type;
+    enum filecoding_e coding;
     struct avltree star;
     struct avltree_node node;
 };

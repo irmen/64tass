@@ -165,7 +165,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
     lastfi->base=base2;
     b=avltree_insert(&lastfi->node, &file_tree);
     if (!b) { //new file
-	enum {UNKNOWN, UTF8, UTF16LE, UTF16BE, ISO1} type = UNKNOWN;
+	enum filecoding_e type = E_UNKNOWN;
         int ch;
         FILE *f;
         uint32_t c = 0;
@@ -218,7 +218,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",tmp->realname);
                 ch=getc(f);
                 ungetc(ch, f); 
-                if (!ch) type=UTF16BE; /* most likely */
+                if (!ch) type = E_UTF16BE; /* most likely */
 
                 do {
                     int i, j, ch2;
@@ -234,15 +234,15 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                         lastchar = c;
                         if (arguments.toascii) {
                             switch (type) {
-                            case UNKNOWN:
-                            case UTF8:
+                            case E_UNKNOWN:
+                            case E_UTF8:
                                 c = ch = getc(f);
                                 if (ch == EOF) break;
 
                                 if (ch < 0x80) goto done;
                                 if (ch < 0xc0) {
-                                    if (type == UNKNOWN) {
-                                        type = ISO1; break;
+                                    if (type == E_UNKNOWN) {
+                                        type = E_ISO1; break;
                                     }
                                     c = 0xfffd; break;
                                 } else if (ch < 0xe0) {
@@ -256,16 +256,16 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                 } else if (ch < 0xfe) {
                                     c ^= 0xfc;i = 5;
                                 } else {
-                                    if (type == UNKNOWN) {
+                                    if (type == E_UNKNOWN) {
                                         ch2=getc(f);
                                         if (ch == 0xff && ch2 == 0xfe) {
-                                            type = UTF16LE;continue;
+                                            type = E_UTF16LE;continue;
                                         }
                                         if (ch == 0xfe && ch2 == 0xff) {
-                                            type = UTF16BE;continue;
+                                            type = E_UTF16BE;continue;
                                         }
                                         ungetc(ch2, f); 
-                                        type = ISO1; break;
+                                        type = E_ISO1; break;
                                     }
                                     c = 0xfffd; break;
                                 }
@@ -273,8 +273,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                 for (j = i; i; i--) {
                                     ch2 = getc(f);
                                     if (ch2 < 0x80 || ch2 >= 0xc0) {
-                                        if (type == UNKNOWN) {
-                                            type = ISO1;
+                                        if (type == E_UNKNOWN) {
+                                            type = E_ISO1;
                                             i = (j - i) * 6;
                                             p = utf8out(((~0x7f >> j) & 0xff) | (c >> i), p);
                                             for (;i; i-= 6) {
@@ -288,35 +288,35 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                     }
                                     c = (c << 6) ^ ch2 ^ 0x80;
                                 }
-                                if (j) type = UTF8;
+                                if (j) type = E_UTF8;
                                 break;
-                            case UTF16LE:
+                            case E_UTF16LE:
                                 c = getc(f);
                                 ch = getc(f);
                                 if (ch == EOF) break;
                                 c |= ch << 8;
                                 if (c == 0xfffe) {
-                                    type = UTF16BE;
+                                    type = E_UTF16BE;
                                     continue;
                                 }
                                 break;
-                            case UTF16BE:
+                            case E_UTF16BE:
                                 c = getc(f) << 8;
                                 ch = getc(f);
                                 if (ch == EOF) break;
                                 c |= ch;
                                 if (c == 0xfffe) {
-                                    type = UTF16LE;
+                                    type = E_UTF16LE;
                                     continue;
                                 }
                                 break;
-                            case ISO1:
+                            case E_ISO1:
                                 c = ch = getc(f);
                                 if (ch == EOF) break;
                                 goto done;
                             }
                             if (c == 0xfeff) continue;
-                            if (type != UTF8) {
+                            if (type != E_UTF8) {
                                 if (c >= 0xd800 && c < 0xdc00) {
                                     if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
                                     c = 0xfffd;
@@ -359,9 +359,11 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             if (f!=stdin) fclose(f);
             tmp->len = tmp->p;
             tmp->data=realloc(tmp->data, tmp->len);
+            tmp->coding = type;
         } else {
             if (!(s=malloc(1))) err_msg_out_of_memory();
             s[0] = 0; tmp->realname = s;
+            tmp->coding = E_UNKNOWN;
         }
 	tmp->p = 0;
 
