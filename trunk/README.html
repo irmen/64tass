@@ -1157,17 +1157,14 @@ location of current source file. If it's not found there the include search
 path is consulted for further possible locations.</p>
 
 <p>To make your sources portable please always use forward slashes
-(<code>/</code>) as a directory separator!</p>
+(<code>/</code>) as a directory separator and use lower/uppercase consistently
+in filenames!</p>
 
 <dl class="dir">
 <dt><b>.include</b> "&lt;filename&gt;"
-<dd>Include source file here. The filename must be defined in advance. If the
-directive is prefixed with a label then all labels are local and are accessible
-through that label only.
+<dd>Include source file here. The filename must be defined in advance.
 <pre width=80>
-	<b class="k">.include</b> <span class="s">"macros.asm"</span>       <i>;include all as is</i>
-menu	<b class="k">.include</b> <span class="s">"menu.asm"</span>         <i>;include labels locally</i>
-        <b>jmp</b> <span class="l">menu</span>.<span class="l">start</span>
+	<b class="k">.include</b> <span class="s">"macros.asm"</span>       <i>;include macros</i>
 </pre>
 
 <dt><b>.binary</b> "&lt;filename&gt;"[, &lt;offset&gt;[, &lt;length&gt;]]

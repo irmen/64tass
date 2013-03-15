@@ -2109,11 +2109,7 @@ static void compile(void)
                             star_tree = &s->tree;
                             backr = forwr = 0;
                             reffile=cfile->uid;
-                            if (newlabel) {
-                                current_context = newlabel;
-                                compile();
-                                current_context = current_context->parent;
-                            } else compile();
+                            compile();
                             sline = lin; vline = vlin;
                             star_tree = stree_old;
                             backr = old_backr; forwr = old_forwr;
