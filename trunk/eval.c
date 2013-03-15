@@ -172,7 +172,7 @@ uint_fast16_t petascii(size_t *i, const struct value_s *v) {
     uint8_t *text = v->u.str.data + *i;
     uint16_t rc;
 
-    rc2 = find_escape((char *)text, (char *)v->u.str.data + v->u.str.len, actual_encoding);
+    rc2 = find_escape(text, v->u.str.data + v->u.str.len, actual_encoding);
     if (rc2) {
         *i = (rc2 >> 8) + text - v->u.str.data;
         return rc2 & 0xff;
