@@ -321,6 +321,7 @@ static const char *petscii_esc[] = {
     "\x05" "{wht}",
     "\x9e" "{yellow}",
     "\x9e" "{yel}",
+    NULL
 };
 
 static struct trans2_s petscii_screen_trans[] = {
@@ -470,6 +471,7 @@ static const char *petscii_screen_esc[] = {
     "\x5a" "{shift-z}",
     "\x20" "{space}",
     "\x1e" "{up arrow}",
+    NULL
 };
 
 static struct trans2_s no_screen_trans[] = {
@@ -569,7 +571,7 @@ uint16_t find_trans(uint32_t ch, struct encoding_s *enc)
 }
 
 static struct escape_s *lastes = NULL;
-struct escape_s *new_escape(const char *text, uint8_t code, struct encoding_s *enc)
+struct escape_s *new_escape(const uint8_t *s, const uint8_t *end, uint8_t code, struct encoding_s *enc)
 {
     struct escape_s *b;
     struct escape_s *tmp;
@@ -578,9 +580,9 @@ struct escape_s *new_escape(const char *text, uint8_t code, struct encoding_s *e
             err_msg_out_of_memory();
         }
     }
-    lastes->len = strlen(text);
+    lastes->len = end - s;
     lastes->code = code;
-    b = ternary_insert(&enc->escape, text, lastes, 0);
+    b = ternary_insert(&enc->escape, s, end, lastes, 0);
     if (!b) err_msg_out_of_memory();
     if (b == lastes) { //new escape
         tmp = lastes;
@@ -590,7 +592,7 @@ struct escape_s *new_escape(const char *text, uint8_t code, struct encoding_s *e
     return b;            //already exists
 }
 
-uint32_t find_escape(char *text, char *end, struct encoding_s *enc)
+uint32_t find_escape(uint8_t *text, uint8_t *end, struct encoding_s *enc)
 {
     struct escape_s *t;
 
@@ -618,11 +620,27 @@ static void encoding_free(struct avltree_node *aa)
     free(a);
 }
 
+static void add_esc(const char **s, struct encoding_s *tmp) {
+    while (*s) {
+        new_escape((uint8_t *)*s + 1, (uint8_t *)*s + 1 + strlen(*s + 1), (uint8_t)*s[0], tmp);
+        s++;
+    }
+}
+
+static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
+    size_t i;
+    struct trans_s tmp2;
+    for (i = 0; i < max / sizeof(struct trans2_s); i++) {
+        tmp2.start = t[i].start;
+        tmp2.end = t[i].end;
+        tmp2.offset = t[i].offset;
+        new_trans(&tmp2, tmp);
+    }
+}
+
 void init_encoding(int toascii)
 {
     struct encoding_s *tmp;
-    struct trans_s tmp2;
-    size_t i;
     avltree_init(&encoding_tree, encoding_compare, encoding_free);
 
     if (!toascii) {
@@ -630,51 +648,27 @@ void init_encoding(int toascii)
         if (!tmp) {
             return;
         }
-        for (i = 0; i < sizeof(no_trans) / sizeof(struct trans2_s); i++) {
-            tmp2.start = no_trans[i].start;
-            tmp2.end = no_trans[i].end;
-            tmp2.offset = no_trans[i].offset;
-            new_trans(&tmp2, tmp);
-        }
+        add_trans(no_trans, sizeof(no_trans), tmp);
 
         tmp = new_encoding("screen");
         if (!tmp) {
             return;
         }
-        for (i = 0; i < sizeof(no_screen_trans) / sizeof(struct trans2_s); i++) {
-            tmp2.start = no_screen_trans[i].start;
-            tmp2.end = no_screen_trans[i].end;
-            tmp2.offset = no_screen_trans[i].offset;
-            new_trans(&tmp2, tmp);
-        }
+        add_trans(no_screen_trans, sizeof(no_screen_trans), tmp);
     } else {
         tmp = new_encoding("none");
         if (!tmp) {
             return;
         }
-        for (i = 0; i < sizeof(petscii_esc) / sizeof(petscii_esc[0]); i++) {
-            new_escape(petscii_esc[i] + 1, (uint8_t)petscii_esc[i][0], tmp);
-        }
-        for (i = 0; i < sizeof(petscii_trans) / sizeof(struct trans2_s); i++) {
-            tmp2.start = petscii_trans[i].start;
-            tmp2.end = petscii_trans[i].end;
-            tmp2.offset = petscii_trans[i].offset;
-            new_trans(&tmp2, tmp);
-        }
+        add_esc(petscii_esc, tmp);
+        add_trans(petscii_trans, sizeof(petscii_trans), tmp);
 
         tmp = new_encoding("screen");
         if (!tmp) {
             return;
         }
-        for (i = 0; i < sizeof(petscii_screen_esc) / sizeof(petscii_screen_esc[0]); i++) {
-            new_escape(petscii_screen_esc[i] + 1, (uint8_t)petscii_screen_esc[i][0], tmp);
-        }
-        for (i = 0; i < sizeof(petscii_screen_trans) / sizeof(struct trans2_s); i++) {
-            tmp2.start = petscii_screen_trans[i].start;
-            tmp2.end = petscii_screen_trans[i].end;
-            tmp2.offset = petscii_screen_trans[i].offset;
-            new_trans(&tmp2, tmp);
-        }
+        add_esc(petscii_screen_esc, tmp);
+        add_trans(petscii_screen_trans, sizeof(petscii_screen_trans), tmp);
     }
 }
 

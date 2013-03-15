@@ -1919,7 +1919,7 @@ static void compile(void)
                     if (!rc) goto breakerr; //ellenorizve.
                     for (;;) {
                         linepos_t opoint;
-                        char expr[linelength];
+                        struct value_s *v;
 
                         actual_encoding = NULL;
                         val = get_val(T_NONE, &epoint);
@@ -1930,8 +1930,7 @@ static void compile(void)
                         case T_NONE: err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);goto breakerr;
                         case T_STR:
                              if (!val->u.str.len) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                             memcpy(expr, val->u.str.data, val->u.str.len);
-                             expr[val->u.str.len]=0;
+                             v = val_reference(val);
                              break;
                         default:
                             err_msg_wrong_type(val, epoint);
@@ -1941,11 +1940,12 @@ static void compile(void)
                         opoint = epoint;
                         val = get_val(T_UINT, &epoint);
                         actual_encoding = old;
-                        if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
-                        if (val == &error_value) goto breakerr;
-                        if (val->type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);goto breakerr;}
+                        if (!val) {err_msg(ERROR______EXPECTED,","); val_destroy(v); goto breakerr;}
+                        if (val == &error_value) {val_destroy(v); goto breakerr;}
+                        if (val->type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);val_destroy(v);goto breakerr;}
                         if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                        t = new_escape(expr, (uint8_t)val->u.num.val, actual_encoding);
+                        t = new_escape(v->u.str.data, v->u.str.data + v->u.str.len, (uint8_t)val->u.num.val, actual_encoding);
+                        val_destroy(v);
                         if (t->code != (uint8_t)val->u.num.val) {
                             err_msg2(ERROR_DOUBLE_DEFINE,"escape", opoint); goto breakerr;
                         }
