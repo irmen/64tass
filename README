@@ -1010,16 +1010,12 @@ of current source file. If it's not found there the include search path is
 consulted for further possible locations.
 
 To make your sources portable please always use forward slashes (/) as a
-directory separator!
+directory separator and use lower/uppercase consistently in filenames!
 
 .include "<filename>"
-    Include source file here. The filename must be defined in advance. If the
-    directive is prefixed with a label then all labels are local and are
-    accessible through that label only.
+    Include source file here. The filename must be defined in advance.
 
-            .include "macros.asm"       ;include all as is
-    menu    .include "menu.asm"         ;include labels locally
-            jmp menu.start
+            .include "macros.asm"       ;include macros
 
 .binary "<filename>"[, <offset>[, <length>]]
     Include binary data from file. By using offset and length it's possible to
