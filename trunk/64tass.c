@@ -2164,7 +2164,8 @@ static void compile(void)
                 if (prm==CMD_FOR) { // .for
                     size_t pos, xpos;
                     line_t lin, xlin;
-                    linepos_t apoint, bpoint = {-1, 0};
+                    linepos_t apoint, bpoint;
+                    int nopos = -1;
                     uint8_t expr[linelength];
                     struct label_s *var;
                     struct star_s *s;
@@ -2219,14 +2220,14 @@ static void compile(void)
                         if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
                         if (!val_truth(val)) break;
-                        if (bpoint.pos == (unsigned)-1) {
+                        if (nopos < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                             lpoint.pos++;ignore();
                             epoint = lpoint;
                             if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL);break;}
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
                             lpoint.pos++;ignore();
-                            if (!here() || here()==';') bpoint = (linepos_t){0, 0};
+                            if (!here() || here()==';') {bpoint = (linepos_t){0, 0}; nopos = 0;}
                             else {
                                 var=new_label(labelname, labelname2, L_VAR);
                                 if (labelexists) {
@@ -2245,7 +2246,7 @@ static void compile(void)
                                     var->sline = sline;
                                     var->epoint = epoint;
                                 }
-                                bpoint=lpoint;
+                                bpoint=lpoint; nopos = 1;
                             }
                         }
                         new_waitfor('N', epoint);waitfor[waitforp].skip=1;
@@ -2253,7 +2254,7 @@ static void compile(void)
                         xpos = cfile->p; xlin= sline;
                         pline = expr;
                         sline=lin;cfile->p=pos;
-                        if (bpoint.pos) {
+                        if (nopos > 0) {
                             lpoint = bpoint;
                             if (!get_exp(&w,1)) break; //ellenorizve.
                             if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
