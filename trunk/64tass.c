@@ -57,7 +57,6 @@ static struct value_s none_value = {T_NONE, 0, {}};
 static struct value_s new_value = {T_NONE, 0, {}};
 
 #define nestinglevel 256
-static int wrapwarn=0, wrapwarn2=0;
 line_t sline, vline;      //current line
 static address_t all_mem, all_mem2;
 uint8_t pass=0;      //pass
@@ -277,20 +276,34 @@ static void set_size(struct label_s *var, size_t size) {
  * Skip memory
  */
 static void memskip(address_t db) {
-    if (fixeddig && scpumode) {
-        if (((current_section->address + db)^current_section->address) & ~(address_t)0xffff) wrapwarn2=1;
-        if (((current_section->l_address + db)^current_section->l_address) & ~(address_t)0xffff) wrapwarn2=1;
+    if (current_section->moved) {
+        if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
+        if (current_section->wrapwarn) {if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;}
+        current_section->moved = 0;
     }
-    current_section->l_address += db;
-    if (current_section->l_address > all_mem) {
-        if (fixeddig) wrapwarn2=1;
-        current_section->l_address &= all_mem;
-    }
+    if (current_section->wrapwarn2) {if (fixeddig) err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;}
+    if (db > (~current_section->l_address & all_mem)) {
+        if (db - 1 + current_section->l_address == all_mem) {
+            current_section->wrapwarn2 = 1;
+            current_section->l_address = 0;
+        } else {
+            current_section->l_address = (current_section->l_address + db) & all_mem;
+            if (fixeddig) err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;
+        }
+    } else current_section->l_address += db;
     if (db > (~current_section->address & all_mem2)) {
-        wrapwarn = 1;
-        if (current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
-    }
-    current_section->address = (current_section->address + db) & all_mem2;
+        if (db - 1 + current_section->address == all_mem2) {
+            current_section->wrapwarn = current_section->moved = 1;
+            if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
+            current_section->address = 0;
+        } else {
+            if (current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
+            if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
+            current_section->moved = 0;
+            current_section->address = (current_section->address + db) & all_mem2;
+            if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;
+        }
+    } else current_section->address += db;
     memjmp(current_section->address);
 }
 
@@ -300,22 +313,24 @@ static void memskip(address_t db) {
  */
 static void pokeb(uint8_t byte)
 {
-
+    if (current_section->moved) {
+        if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
+        if (current_section->wrapwarn) {if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;}
+        current_section->moved = 0;
+    }
+    if (current_section->wrapwarn2) {if (fixeddig) err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;}
     if (current_section->dooutput) write_mem(byte ^ outputeor);
-    if (wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);wrapwarn=0;}
-    if (wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);wrapwarn2=0;}
     current_section->address++;current_section->l_address++;
     if (current_section->address & ~all_mem2) {
-	if (fixeddig) wrapwarn=1;
-	current_section->address=0;
-        if (current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
+        current_section->wrapwarn = current_section->moved = 1;
+        if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
+        current_section->address = 0;
         memjmp(current_section->address);
     }
     if (current_section->l_address & ~all_mem) {
-	if (fixeddig) wrapwarn2=1;
-	current_section->l_address=0;
+        current_section->wrapwarn2 = 1;
+        current_section->l_address = 0;
     }
-    if (fixeddig && !(current_section->l_address & 0xffff)) wrapwarn2=1;
 }
 
 static int lookup_opcode(const char *s) {
@@ -823,8 +838,7 @@ static void compile(void)
                         newlabel=new_label(labelname, labelname2, declaration ? ((prm == CMD_STRUCT) ? L_STRUCT : L_UNION) : L_LABEL);oaddr = current_section->address;
                         if (declaration) {
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
-                            current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
-                            current_section->r_start=current_section->r_l_start=current_section->r_address=current_section->r_l_address=0;
+                            current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
                             current_section->dooutput=0;memjmp(0); oaddr = 0;
 
                             if (labelexists) {
@@ -909,8 +923,7 @@ static void compile(void)
                         set_size(newlabel, current_section->address - oaddr);
                         if (declaration) {
                             current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
-                            current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
-                            current_section->r_start=olds.r_start;current_section->r_l_start=olds.r_l_start;current_section->r_address=olds.r_address;current_section->r_l_address=olds.r_l_address;
+                            current_section->end=olds.end;current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
                             current_section->dooutput=olds.dooutput;memjmp(current_section->address);
                         }
 			newlabel = NULL;
@@ -927,17 +940,20 @@ static void compile(void)
                         tmp=find_new_section(sectionname, sectionname2);
                         if (!tmp->declared) {
                             if (!labelexists) {
-                                tmp->start = tmp->address = tmp->r_address = 0;
-                                tmp->l_start = tmp->l_address = tmp->r_l_address = 0;
+                                tmp->end = tmp->start = tmp->address = 0;
+                                tmp->l_start = tmp->l_address = 0;
                                 if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, sectionname2);
                                 fixeddig=0;
                             } else if (pass > 1) {
                                 err_msg2(ERROR___NOT_DEFINED,sectionname2,opoint); goto breakerr;
                             }
                         } else if (tmp->pass != pass) {
-                            tmp->r_address = tmp->address;
+                            if (!tmp->moved) {
+                                if (tmp->end < tmp->address) tmp->end = tmp->address;
+                                tmp->moved = 1;
+                            }
+                            tmp->wrapwarn = tmp->wrapwarn2 = 0;
                             tmp->address = tmp->start;
-                            tmp->r_l_address = tmp->l_address;
                             tmp->l_address = tmp->l_start;
                         }
                         tmp->pass = pass;
@@ -1048,7 +1064,11 @@ static void compile(void)
             {
                 ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                 lpoint.pos++;
-                wrapwarn=0;wrapwarn2=0;
+                current_section->wrapwarn = current_section->wrapwarn2 = 0;
+                if (!current_section->moved) {
+                    if (current_section->end < current_section->address) current_section->end = current_section->address;
+                    current_section->moved = 1;
+                }
                 if (!get_exp(&w,0)) goto breakerr;
                 if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 if (val == &error_value) goto breakerr;
@@ -1067,13 +1087,12 @@ static void compile(void)
                     fixeddig = 0;
                 } else {
                     if (arguments.flat && !current_section->logicalrecursion) {
-                        if ((uval_t)val->u.num.val & ~(uval_t)all_mem2) {
+                        if ((address_t)val->u.num.val & ~all_mem2) {
                             err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         } else {
-                            current_section->l_address = (uval_t)val->u.num.val & all_mem;
-                            if (current_section->address != (uval_t)val->u.num.val) {
-                                current_section->address = (uval_t)val->u.num.val;
-                                if (current_section->address < current_section->start) err_msg2(ERROR_OUTOF_SECTION, NULL, epoint);
+                            current_section->l_address = (address_t)val->u.num.val & all_mem;
+                            if (current_section->address != (address_t)val->u.num.val) {
+                                current_section->address = (address_t)val->u.num.val;
                                 memjmp(current_section->address);
                             }
                         }
@@ -1083,17 +1102,16 @@ static void compile(void)
                         } else {
                             address_t addr;
                             if (arguments.tasmcomp) addr = (uint16_t)val->u.num.val;
-                            else if ((uval_t)val->u.num.val > current_section->l_address) {
-                                addr = (current_section->address + (((uval_t)val->u.num.val - current_section->l_address) & all_mem)) & all_mem2;
+                            else if ((address_t)val->u.num.val > current_section->l_address) {
+                                addr = (current_section->address + (((address_t)val->u.num.val - current_section->l_address) & all_mem)) & all_mem2;
                             } else {
-                                addr = (current_section->address - ((current_section->l_address - (uval_t)val->u.num.val) & all_mem)) & all_mem2;
+                                addr = (current_section->address - ((current_section->l_address - (address_t)val->u.num.val) & all_mem)) & all_mem2;
                             }
                             if (current_section->address != addr) {
                                 current_section->address = addr;
-                                if (current_section->address < current_section->start) err_msg2(ERROR_OUTOF_SECTION, NULL, epoint);
                                 memjmp(current_section->address);
                             }
-                            current_section->l_address = (uval_t)val->u.num.val;
+                            current_section->l_address = (uval_t)val->u.num.val & all_mem;
                         }
                     }
                 }
@@ -1603,6 +1621,11 @@ static void compile(void)
                 }
                 if (prm==CMD_OFFS) {   // .offs
                     linepos_t opoint = epoint;
+                    if (!current_section->moved) {
+                        if (current_section->end < current_section->address) current_section->end = current_section->address;
+                        current_section->moved = 1;
+                    }
+                    current_section->wrapwarn = current_section->wrapwarn2 = 0;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_SINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
@@ -1611,21 +1634,15 @@ static void compile(void)
                         if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
                         fixeddig = 0;
                     } else if (val->u.num.val) {
-                        if (fixeddig && scpumode) {
-                            if (((current_section->address + val->u.num.val)^current_section->address) & ~(address_t)0xffff) wrapwarn2=1;
-                        }
                         if (current_section->structrecursion) {
                             if (val->u.num.val < 0) err_msg2(ERROR___NOT_ALLOWED, ".OFFS", opoint);
                             else {
-                                current_section->l_address+=val->u.num.val;
-                                current_section->address+=val->u.num.val;
+                                current_section->l_address += val->u.num.val;
+                                current_section->l_address &= all_mem;
+                                current_section->address += val->u.num.val;
                             }
-                        } else current_section->address+=val->u.num.val;
-                        if (current_section->address & ~all_mem) {
-                            if (fixeddig) wrapwarn=1;
-                            current_section->address&=all_mem;
-                        }
-                        if (current_section->address < current_section->start) err_msg2(ERROR_OUTOF_SECTION, NULL, epoint);
+                        } else current_section->address += val->u.num.val;
+                        current_section->address &= all_mem2;
                         memjmp(current_section->address);
                     }
                     break;
@@ -2386,17 +2403,17 @@ static void compile(void)
                     tmp3=new_section(labelname, labelname2);
                     if (tmp3->declared && pass == 1) err_msg_double_defined(tmp3->origname, tmp3->file, tmp3->sline, tmp3->epoint, labelname2, epoint);
                     else {
-                        address_t t, t2;
+                        address_t t;
                         waitfor[waitforp].what='T';waitfor[waitforp].section=current_section;
                         if (!tmp3->declared) {
-                            tmp3->r_start = tmp3->r_address = current_section->address;
-                            tmp3->r_l_start = tmp3->r_l_address = current_section->l_address;
                             if (!labelexists) {
-                                tmp3->start = tmp3->address = current_section->address;
+                                tmp3->wrapwarn = tmp3->wrapwarn2 = tmp3->moved = 0;
+                                tmp3->end = tmp3->start = tmp3->address = current_section->address;
                                 tmp3->l_start = tmp3->l_address = current_section->l_address;
                             } else {
                                 tmp3->address += current_section->address;
                                 tmp3->start += current_section->address;
+                                tmp3->end += current_section->address;
                                 tmp3->l_address += current_section->l_address;
                                 tmp3->l_start += current_section->l_address;
                             }
@@ -2418,28 +2435,25 @@ static void compile(void)
                         tmp3->sline = sline;
                         tmp3->epoint = epoint;
                         if (tmp3->pass == pass) {
-                            t = tmp3->r_address - tmp3->r_start;
-                            t2 = tmp3->address - tmp3->start;
-                            if (newlabel) set_size(newlabel, t2 + t);
-                            tmp3->start = current_section->address;
-                            current_section->address += t2;
-                            tmp3->r_start = tmp3->r_address = current_section->address;
+                            t = tmp3->end - tmp3->start;
+                            tmp3->end = tmp3->start = current_section->address;
                         } else {
-                            t = tmp3->address - tmp3->start;
-                            if (newlabel) set_size(newlabel, t);
-                            tmp3->start = tmp3->r_start = tmp3->address = tmp3->r_address = current_section->address;
+                            if (!tmp3->moved) {
+                                if (tmp3->end < tmp3->address) tmp3->end = tmp3->address;
+                                tmp3->moved=1;
+                            }
+                            tmp3->wrapwarn = tmp3->wrapwarn2 = 0;
+                            t = tmp3->end - tmp3->start;
+                            tmp3->end = tmp3->start = tmp3->address = current_section->address;
                         }
+                        if (newlabel) set_size(newlabel, t);
                         current_section->address += t;
                         if (tmp3->pass == pass) {
-                            t = tmp3->r_l_address - tmp3->r_l_start;
-                            t2 = tmp3->l_address - tmp3->l_start;
                             tmp3->l_start = current_section->l_address;
-                            current_section->l_address += t2;
-                            tmp3->r_l_start = tmp3->r_l_address = current_section->l_address;
                         } else {
-                            t = tmp3->l_address - tmp3->l_start;
-                            tmp3->l_start = tmp3->r_l_start = tmp3->l_address = tmp3->r_l_address = current_section->l_address;
+                            tmp3->l_start = tmp3->l_address = current_section->l_address;
                         }
+                        tmp3->size = t;
                         current_section->l_address += t;
                         current_section = tmp3;
                         tmp3->pass=pass;
@@ -2457,17 +2471,20 @@ static void compile(void)
                     tmp=find_new_section(sectionname, sectionname2);
                     if (!tmp->declared) {
                         if (!labelexists) {
-                            tmp->start = tmp->address = tmp->r_address = 0;
-                            tmp->l_start = tmp->l_address = tmp->r_l_address = 0;
+                            tmp->end = tmp->start = tmp->address = 0;
+                            tmp->l_start = tmp->l_address = 0;
                             if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                             fixeddig=0;
                         } else if (pass > 1) {
                             err_msg2(ERROR___NOT_DEFINED,sectionname2,epoint); goto breakerr;
                         }
                     } else if (tmp->pass != pass) {
-                        tmp->r_address = tmp->address;
+                        if (!tmp->moved) {
+                            if (tmp->end < tmp->address) tmp->end = tmp->address;
+                            tmp->moved=1;
+                        }
+                        tmp->wrapwarn = tmp->wrapwarn2 = 0;
                         tmp->address = tmp->start;
-                        tmp->r_l_address = tmp->l_address;
                         tmp->l_address = tmp->l_start;
                     }
                     tmp->pass = pass;
@@ -3178,16 +3195,19 @@ int main(int argc, char *argv[]) {
         restart_mem();
         for (i = optind - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=longaccu=longindex=0;wrapwarn=wrapwarn2=0;actual_encoding=new_encoding("none");wrapwarn2=0;
+            star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding("none");
             allowslowbranch=1;
             waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
-            current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
+            current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
             current_section->dooutput=1;
             current_section->structrecursion=0;
             current_section->logicalrecursion=0;
+            current_section->moved=0;
+            current_section->wrapwarn=0;
+            current_section->wrapwarn2=0;
             current_section->unionmode=0;
             macro_parameters.p = 0;
             /*	listing=1;flist=stderr;*/
@@ -3245,16 +3265,19 @@ int main(int argc, char *argv[]) {
             if (i >= optind) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=longaccu=longindex=0;wrapwarn=wrapwarn2=0;actual_encoding=new_encoding("none");wrapwarn2=0;
+            star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding("none");
             allowslowbranch=1;
             waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
-            current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
+            current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
             current_section->dooutput=1;
             current_section->structrecursion=0;
             current_section->logicalrecursion=0;
+            current_section->moved=0;
+            current_section->wrapwarn=0;
+            current_section->wrapwarn2=0;
             current_section->unionmode=0;
             macro_parameters.p = 0;
 
