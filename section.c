@@ -74,12 +74,15 @@ struct section_s *new_section(const char *name, const char *origname) {
         strcpy(s, origname);lastsc->origname = s;
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
-        lastsc->address=lastsc->l_address=0;
+        lastsc->end=lastsc->address=lastsc->l_address=lastsc->size=0;
         lastsc->dooutput=1;
         lastsc->declared=0;
         lastsc->unionmode=0;
         lastsc->structrecursion=0;
         lastsc->logicalrecursion=0;
+        lastsc->moved=0;
+        lastsc->wrapwarn=0;
+        lastsc->wrapwarn2=0;
         lastsc->next=NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;

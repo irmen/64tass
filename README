@@ -1,4 +1,4 @@
-64tass v1.5x r376 manual
+64tass v1.5x r380 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -1144,15 +1144,13 @@ Sections
     All .section-s scattered around in the sources are compiled from the
     .dsection declaration. Compilation happens as the code appears, this
     directive only assigns enough space to hold all the stuff in the sections.
-    Where the .dsection appears the section's private address and logical
-    address are initialized to the current values.
+    Where the .dsection appears the section's compile and logical address are
+    initialized to the current values.
 
-    The space allocated is calculated by the difference of the initial private
-    address and the private address after the last section was compiled. It is
-    possible to adjust the address in sections in a non incremental way, but it
-    must be done carefully otherwise the space allocation will be not right, in
-    that case you must manually adjust the address and logical address after
-    the section declaration.
+    The space allocated is calculated from the difference of starting compile
+    address and the maximum compile address reached in the section. It is
+    possible to adjust the address in sections in a non-incremental way, but
+    putting code before the start address is not allowed.
 
     Sections and section declarations can be nested, therefore it's possible to
     have the same names as long as it's inside a differently named section.

@@ -33,10 +33,8 @@ struct section_s {
     address_t l_start;
     address_t address;
     address_t l_address;
-    address_t r_start;
-    address_t r_l_start;
-    address_t r_address;
-    address_t r_l_address;
+    address_t end;
+    address_t size;
     address_t unionstart;
     address_t unionend;
     address_t l_unionstart;
@@ -47,6 +45,9 @@ struct section_s {
     unsigned int dooutput:1;
     unsigned int declared:1;
     unsigned int unionmode:1;
+    unsigned int moved:1;
+    unsigned int wrapwarn:1;
+    unsigned int wrapwarn2:1;
     struct section_s *parent;
     struct section_s *next;
     const char *file;
