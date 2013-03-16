@@ -926,7 +926,7 @@ static void compile(void)
                             current_section->end=olds.end;current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
                             current_section->dooutput=olds.dooutput;memjmp(current_section->address);
                         }
-			newlabel = NULL;
+                        newlabel = NULL;
                         goto finish;
                     }
                 case CMD_SECTION:
@@ -1267,8 +1267,8 @@ static void compile(void)
                         if (current_context->parent) {
                             current_context = current_context->parent;
                         } else err_msg2(ERROR______EXPECTED,".proc", epoint);
-			lastl=LIST_NONE;
-			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
+                        lastl=LIST_NONE;
+                        if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
                     }
                     waitforp--;
                     break;
@@ -1284,14 +1284,23 @@ static void compile(void)
                 if (prm==CMD_SEND) { // .send
                     if (waitfor[waitforp].what=='t') {
                         waitforp--;get_ident2(labelname, labelname2);
-                    } else if (waitfor[waitforp].what=='T') {
+                    } else if (waitfor[waitforp].what=='T' || waitfor[waitforp].what=='d') {
+                        address_t ssize = current_section->size;
+                        if (pass == 1 && waitfor[waitforp].what == 'd') {
+                            if (!current_section->moved) {
+                                if (current_section->end < current_section->address) current_section->end = current_section->address;
+                            }
+                            ssize = current_section->end - current_section->start;
+                        }
                         ignore();epoint=lpoint;
                         if (!get_ident2(labelname, labelname2)) {
                             if (strcmp(labelname, current_section->name)) err_msg2(ERROR______EXPECTED,current_section->name,epoint);
                         }
-			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
+                        if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
                         current_section = waitfor[waitforp].section;
-                        memjmp(current_section->address);
+                        if (ssize && waitfor[waitforp].what=='d') {
+                            memskip(ssize);
+                        } else memjmp(current_section->address);
                         waitforp--;
                     } else err_msg2(ERROR______EXPECTED,".SECTION or .DSECTION", epoint);
                     break;
@@ -2292,15 +2301,16 @@ static void compile(void)
                             case 'N':
                             case 'n': msg = ".NEXT"; break;
                             case 'r': msg = ".PEND"; break;
-			    case 'B':
+                            case 'B':
                             case 'b': msg = ".BEND"; break;
                             case 'S':
                             case 's': msg = ".ENDS"; break;
+                            case 'd':
                             case 'T':
                             case 't': msg = ".SEND"; break;
                             case 'U':
                             case 'u': msg = ".ENDU"; break;
-			    case 'P':
+                            case 'P':
                             case 'p': msg = ".ENDP"; break;
                             case 'L':
                             case 'l': msg = ".HERE"; break;
@@ -2404,7 +2414,7 @@ static void compile(void)
                     if (tmp3->declared && pass == 1) err_msg_double_defined(tmp3->origname, tmp3->file, tmp3->sline, tmp3->epoint, labelname2, epoint);
                     else {
                         address_t t;
-                        waitfor[waitforp].what='T';waitfor[waitforp].section=current_section;
+                        waitfor[waitforp].what='d';waitfor[waitforp].section=current_section;
                         if (!tmp3->declared) {
                             if (!labelexists) {
                                 tmp3->wrapwarn = tmp3->wrapwarn2 = tmp3->moved = 0;
@@ -2447,14 +2457,16 @@ static void compile(void)
                             tmp3->end = tmp3->start = tmp3->address = current_section->address;
                         }
                         if (newlabel) set_size(newlabel, t);
-                        current_section->address += t;
                         if (tmp3->pass == pass) {
                             tmp3->l_start = current_section->l_address;
                         } else {
                             tmp3->l_start = tmp3->l_address = current_section->l_address;
                         }
-                        tmp3->size = t;
-                        current_section->l_address += t;
+                        if (tmp3->size != t) {
+                            tmp3->size = t;
+                            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+                            fixeddig=0;
+                        }
                         current_section = tmp3;
                         tmp3->pass=pass;
                         memjmp(current_section->address);
@@ -3090,18 +3102,19 @@ static void compile(void)
         switch (waitfor[waitforp].what) {
         case 'e':
         case 'f': msg = ".FI"; break;
-	case 'P':
+        case 'P':
         case 'p': msg = ".ENDP"; break;
         case 'M':
         case 'm': msg = ".ENDM"; break;
         case 'N':
         case 'n': msg = ".NEXT"; break;
         case 'r': msg = ".PEND"; break;
-	case 'B':
+        case 'B':
         case 'b': msg = ".BEND"; break;
         case 'c': msg = ".ENDC"; break;
         case 'S':
         case 's': msg = ".ENDS"; break;
+        case 'd':
         case 'T':
         case 't': msg = ".SEND"; break;
         case 'U':
