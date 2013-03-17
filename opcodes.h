@@ -30,38 +30,38 @@ enum opr_e {
 
 extern const uint8_t c65816[];
 extern const uint32_t mnemonic_c65816[];
-#define OPCODES_C65816 115
+#define OPCODES_C65816 117
 
 extern const uint8_t c6502[];
 extern const uint32_t mnemonic_c6502[];
-#define OPCODES_C6502 68
+#define OPCODES_C6502 70
 
 extern const uint8_t c65c02[];
 extern const uint32_t mnemonic_c65c02[];
-#define OPCODES_C65C02 80
+#define OPCODES_C65C02 82
 
 extern const uint8_t c6502i[];
 extern const uint32_t mnemonic_c6502i[];
-#define OPCODES_C6502I 98
+#define OPCODES_C6502I 100
 
 extern const uint8_t c65dtv02[];
 extern const uint32_t mnemonic_c65dtv02[];
-#define OPCODES_C65DTV02 89
+#define OPCODES_C65DTV02 91
 
 extern const uint8_t c65el02[];
 extern const uint32_t mnemonic_c65el02[];
-#define OPCODES_C65EL02 121
+#define OPCODES_C65EL02 123
 
 extern const uint8_t cr65c02[];
 extern const uint32_t mnemonic_cr65c02[];
-#define OPCODES_CR65C02 84
+#define OPCODES_CR65C02 86
 
 extern const uint8_t cw65c02[];
 extern const uint32_t mnemonic_cw65c02[];
-#define OPCODES_CW65C02 87
+#define OPCODES_CW65C02 89
 
 extern const uint8_t c65ce02[];
 extern const uint32_t mnemonic_c65ce02[];
-#define OPCODES_C65CE02 106
+#define OPCODES_C65CE02 108
 
 #endif
