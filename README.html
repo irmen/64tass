@@ -2711,7 +2711,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th><td>
 </table>
 <table width="100%" class="opcodes">
-<caption>These illegal aliases are not valid</caption>
+<caption>These aliases are not valid</caption>
 <tr><th width="4%">AHX<td width="46%">93 9F
 <th width="4%">AXS<td width="46%">CB
 <tr><th>LAE<td>BB
@@ -2748,10 +2748,10 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 <table width="100%" class="opcodes">
 <caption>Additional aliases and pseudo instructions</caption>
-<tr><th width="4%">DEA<td width="46%">3A
-<th width="4%">GRA<td width="46%">4C 80
-<tr><th>INA<td>1A
-<th><td>
+<tr><th width="4%">CLR<td width="46%">64 74 9C 9E
+<th width="4%">DEA<td width="46%">3A
+<tr><th>GRA<td>4C 80
+<th>INA<td>1A
 </table>
 
 <hr>
@@ -2772,6 +2772,12 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <caption>Additional opcodes</caption>
 <tr><th width="4%">STP<td width="46%">DB
 <th width="4%">WAI<td width="46%">CB
+</table>
+
+<table width="100%" class="opcodes">
+<caption>Additional aliases</caption>
+<tr><th width="4%">HLT<td width="46%">DB
+<th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">&nbsp;&nbsp;
 </table>
 
 <hr>
@@ -2805,26 +2811,27 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>SBC<td>E3 E7 EF F3 F7 FF
 <tr><th>SEP<td>E2
 <th>STA<td>83 87 8F 93 97 9F
-<tr><th>SWA<td>EB
-<th>TAD<td>5B
-<tr><th>TAS<td>1B
-<th>TCD<td>5B
-<tr><th>TCS<td>1B
-<th>TDA<td>7B
+<tr><th>TCD<td>5B
+<th>TCS<td>1B
 <tr><th>TDC<td>7B
-<th>TSA<td>3B
-<tr><th>TSC<td>3B
-<th>TXY<td>9B
-<tr><th>TYX<td>BB
-<th>XBA<td>EB
-<tr><th>XCE<td>FB
-<th><td>
+<th>TSC<td>3B
+<tr><th>TXY<td>9B
+<th>TYX<td>BB
+<tr><th>XBA<td>EB
+<th>XCE<td>FB
 </table>
 
 <table width="100%" class="opcodes">
 <caption>Additional aliases</caption>
-<tr><th width="4%">JML<td width="46%">5C DC
-<th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">
+<tr><th width="4%">CSP<td width="46%">02
+<th width="4%">CLP<td width="46%">C2
+<tr><th>JML<td>5C DC
+<th>SWA<td>EB
+<tr><th>TAD<td>5B
+<th>TAS<td>1B
+<tr><th>TDA<td>7B
+<th>TSA<td>3B
+<tr><th><td>
 </table>
 
 <hr>
@@ -2881,6 +2888,11 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <tr><th>XCE<td>FB
 <th>ZEA<td>8F
 </table>
+<table width="100%" class="opcodes">
+<caption>Additional aliases</caption>
+<tr><th width="4%">CLP<td width="46%">C2
+<th width="4%">HLT<td width="46%">DB
+</table>
 
 <hr>
 <h3>65CE02 opcodes</h3>
@@ -2933,5 +2945,11 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>NEG<td>42
 <tr><th>RTN<td>62
 <th><td>
+</table>
+
+<table width="100%" class="opcodes">
+<caption>This alias is not valid</caption>
+<tr><th width="4%">CLR<td width="46%">64 74 9C 9E
+<th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">&nbsp;&nbsp;
 </table>
 </body></html>
