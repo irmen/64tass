@@ -2168,7 +2168,7 @@ SBX CB                                  SHA 93 9F
 SHS 9B                                  SHX 9E
 SHY 9C
 
-                      These illegal aliases are not valid
+                          These aliases are not valid
 AHX 93 9F                               AXS CB
 LAE BB                                  LAS BB
 TAS 9B
@@ -2192,8 +2192,8 @@ STA 92                                  STZ 64 74 9C 9E
 TRB 14 1C                               TSB 04 0C
 
                   Additional aliases and pseudo instructions
-DEA 3A                                  GRA 4C 80
-INA 1A
+CLR 64 74 9C 9E                         DEA 3A
+GRA 4C 80                               INA 1A
 
 -------------------------------------------------------------------------------
 
@@ -2213,6 +2213,9 @@ This processor is an enhanced version of R65C02.
 
                               Additional opcodes
 STP DB                                  WAI CB
+
+                              Additional aliases
+HLT DB
 
 -------------------------------------------------------------------------------
 
@@ -2234,16 +2237,16 @@ PHK 4B                                  PLB AB
 PLD 2B                                  REP C2
 RTL 6B                                  SBC E3 E7 EF F3 F7 FF
 SEP E2                                  STA 83 87 8F 93 97 9F
-SWA EB                                  TAD 5B
-TAS 1B                                  TCD 5B
-TCS 1B                                  TDA 7B
-TDC 7B                                  TSA 3B
-TSC 3B                                  TXY 9B
-TYX BB                                  XBA EB
-XCE FB
+TCD 5B                                  TCS 1B
+TDC 7B                                  TSC 3B
+TXY 9B                                  TYX BB
+XBA EB                                  XCE FB
 
                               Additional aliases
-JML 5C DC
+CSP 02                                  CLP C2
+JML 5C DC                               SWA EB
+TAD 5B                                  TAS 1B
+TDA 7B                                  TSA 3B
 
 -------------------------------------------------------------------------------
 
@@ -2277,6 +2280,9 @@ TXY 9B                                  TYX BB
 WAI CB                                  XBA EB
 XCE FB                                  ZEA 8F
 
+                              Additional aliases
+CLP C2                                  HLT DB
+
 -------------------------------------------------------------------------------
 
 65CE02 opcodes
@@ -2307,4 +2313,7 @@ TYS 2B                                  TZA 6B
 ASR 43                                  BGE B3
 BLT 93                                  NEG 42
 RTN 62
+
+                            This alias is not valid
+CLR 64 74 9C 9E
 
