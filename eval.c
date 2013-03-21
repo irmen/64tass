@@ -72,7 +72,6 @@ static uint8_t get_val_len(uval_t val, enum type_e type) {
         }
         return bits + 2;
     case T_UINT:
-    case T_LABEL:
         span = 4 * sizeof(uval_t); bits = 0;
         while (span) {
             if (val >> (bits + span)) {
@@ -379,8 +378,13 @@ static void get_star(struct value_s *v) {
         fixeddig=0;
     }
     tmp->addr=star;
-    v->type = T_UINT;
-    v->u.num.val = star;
+    v->type = T_CODE;
+    v->u.code.addr = star;
+    v->u.code.size = 0;
+    v->u.code.esize = 1;
+    v->u.code.sign = 0;
+    v->u.code.memp = ~(size_t)0;
+    v->u.code.membp = ~(size_t)0;
 }
 
 /*
@@ -554,6 +558,19 @@ rest:
     return cd;
 }
 
+static ival_t to_ival(const struct value_s *val) {
+    switch (val->type) {
+    case T_FLOAT: return (ival_t)val->u.real;
+    case T_SINT: return val->u.num.val;
+    case T_CODE: return (ival_t)val->u.code.addr;
+    case T_NUM:
+    case T_BOOL:
+    case T_UINT: return (ival_t)val->u.num.val;
+    default:
+         return 0;
+    }
+}
+
 static int get_val2_compat(void) {// length in bytes, defined
     uint8_t vsp = 0;
     enum type_e t1, t2;
@@ -600,13 +617,13 @@ static int get_val2_compat(void) {// length in bytes, defined
         }
         if (op == O_LOWER || op == O_HIGHER) {
             switch (t1) {
+            case T_CODE:
             case T_UINT:
             case T_SINT:
-            case T_LABEL:
             case T_NUM:
             case T_BOOL:
                 {
-                    uint16_t val1 = v1->val->u.num.val;
+                    uint16_t val1 = to_ival(v1->val);
 
                     switch (op) {
                     case O_HIGHER: val1 >>= 8;
@@ -645,18 +662,18 @@ static int get_val2_compat(void) {// length in bytes, defined
         switch (t1) {
         case T_SINT:
         case T_UINT:
-        case T_LABEL:
+        case T_CODE:
         case T_NUM:
         case T_BOOL:
             switch (t2) {
             case T_UINT:
             case T_SINT:
-            case T_LABEL:
+            case T_CODE:
             case T_NUM:
             case T_BOOL:
                 {
-                    uint16_t val1 = v1->val->u.num.val;
-                    uint16_t val2 = v2->val->u.num.val;
+                    uint16_t val1 = to_ival(v1->val);
+                    uint16_t val2 = to_ival(v2->val);
 
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
@@ -718,7 +735,7 @@ struct value_s *get_val(enum type_e type, linepos_t *epoint) {// length in bytes
     case T_STR:
     case T_SINT:
     case T_UINT:
-    case T_LABEL:
+    case T_CODE:
     case T_NUM:
     case T_BOOL:
     case T_FLOAT:
@@ -738,10 +755,14 @@ struct value_s *get_val(enum type_e type, linepos_t *epoint) {// length in bytes
                 }
             case T_UINT:
             case T_SINT:
-            case T_LABEL:
             case T_NUM:
             case T_BOOL:
             case T_NONE:
+                return values[0].val;
+            case T_CODE:
+                new_value.type = T_UINT;
+                new_value.u.num.val = values[0].val->u.code.addr;
+                val_replace(&values[0].val, &new_value);
                 return values[0].val;
             case T_FLOAT:
                 new_value.type = (type == T_SINT) ? T_SINT : T_UINT;
@@ -769,7 +790,7 @@ static double to_float(const struct value_s *val) {
     switch (val->type) {
     case T_FLOAT: return val->u.real;
     case T_SINT: return (ival_t)val->u.num.val;
-    case T_LABEL:
+    case T_CODE: return val->u.code.addr;
     case T_NUM:
     case T_BOOL:
     case T_UINT: return (uval_t)val->u.num.val;
@@ -794,11 +815,14 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
             new_value.u.num.val = ((ival_t)v1->u.num.val > 0) - ((ival_t)v1->u.num.val < 0);
             return &new_value;
         case T_UINT:
-        case T_LABEL:
         case T_NUM:
         case T_BOOL:
             new_value.type = T_SINT;
             new_value.u.num.val = ((uval_t)v1->u.num.val) > 0;
+            return &new_value;
+        case T_CODE:
+            new_value.type = T_SINT;
+            new_value.u.num.val = v1->u.code.addr > 0;
             return &new_value;
         case T_FLOAT:
             new_value.type = T_SINT;
@@ -814,12 +838,15 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
         switch (v1->type) {
         case T_SINT:
         case T_UINT:
-        case T_LABEL:
         case T_NUM:
         case T_BOOL:
             new_value.type = v1->type;
             new_value.u.num.val = (v1->type == T_SINT && v1->u.num.val < 0) ? -v1->u.num.val : v1->u.num.val;
             new_value.u.num.len = v1->u.num.len;
+            return &new_value;
+        case T_CODE:
+            new_value.type = T_UINT;
+            new_value.u.num.val = v1->u.code.addr;
             return &new_value;
         case T_FLOAT:
             new_value.type = v1->type;
@@ -834,11 +861,14 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
     case F_INT:
         switch (v1->type) {
         case T_UINT:
-        case T_LABEL:
         case T_NUM:
         case T_BOOL:
             new_value.type = T_UINT;
             new_value.u.num.val = v1->u.num.val;
+            return &new_value;
+        case T_CODE:
+            new_value.type = T_UINT;
+            new_value.u.num.val = v1->u.code.addr;
             return &new_value;
         case T_SINT:
             new_value.type = T_SINT;
@@ -859,7 +889,7 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
     case T_FLOAT:
     case T_SINT:
     case T_UINT:
-    case T_LABEL:
+    case T_CODE:
     case T_NUM:
     case T_BOOL:
         new_value.type = T_FLOAT;
@@ -954,9 +984,9 @@ static void functions(struct values_s *vals, unsigned int args) {
             new_value.u.num.val = v[0].val->u.list.len;
             val_replace(&vals->val, &new_value);
             return;
-        case T_LABEL:
+        case T_CODE:
             new_value.type = T_UINT;
-            new_value.u.num.val = v[0].val->u.num.label->size / (v[0].val->u.num.label->esize + !v[0].val->u.num.label->esize);
+            new_value.u.num.val = v[0].val->u.code.size / (v[0].val->u.code.esize + !v[0].val->u.code.esize);
             val_replace(&vals->val, &new_value);
             return;
         case T_UINT:
@@ -980,9 +1010,9 @@ static void functions(struct values_s *vals, unsigned int args) {
         if (args < 1 || args > 3) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else {
             for (i = 0; i < args; i++) {
                 switch (try_resolv(&v[i].val)) {
+                case T_CODE:
                 case T_SINT:
                 case T_UINT:
-                case T_LABEL:
                 case T_NUM:
                 case T_BOOL:
                     break;
@@ -993,10 +1023,10 @@ static void functions(struct values_s *vals, unsigned int args) {
                 }
             }
             switch (args) {
-            case 1: end = v[0].val->u.num.val;break;
-            case 3: step = v[2].val->u.num.val;
-            case 2: start = v[0].val->u.num.val;
-                    end = v[1].val->u.num.val;break;
+            case 1: end = to_ival(v[0].val);break;
+            case 3: step = to_ival(v[2].val);
+            case 2: start = to_ival(v[0].val);
+                    end = to_ival(v[1].val);break;
             }
             if (step == 0) {err_msg2(ERROR_DIVISION_BY_Z, NULL, v[2].epoint); val_replace(&vals->val, &none_value); return;}
             if (step > 0) {
@@ -1035,7 +1065,6 @@ static void functions(struct values_s *vals, unsigned int args) {
                     if (volt || (!t && min < 0) || v[args].val->u.num.val < min) {min = v[args].val->u.num.val;t = 1;}
                     break;
                 case T_UINT:
-                case T_LABEL:
                 case T_NUM:
                 case T_BOOL:
                     if (volt || ((!t || min > 0) && (uval_t)v[args].val->u.num.val < (uval_t)min)) {min = v[args].val->u.num.val; t = 0;}
@@ -1066,7 +1095,6 @@ static void functions(struct values_s *vals, unsigned int args) {
                     if (volt || ((t || max < 0) && v[args].val->u.num.val > max)) {max = v[args].val->u.num.val;t = 1;}
                     break;
                 case T_UINT:
-                case T_LABEL:
                 case T_NUM:
                 case T_BOOL:
                     if (volt || (t && max < 0) || (uval_t)v[args].val->u.num.val > (uval_t)max) {max = v[args].val->u.num.val;t = 0;}
@@ -1090,9 +1118,15 @@ static void functions(struct values_s *vals, unsigned int args) {
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
         else {
             switch (try_resolv(&v[0].val)) {
-            case T_LABEL:
+            case T_CODE:
                 new_value.type = T_UINT;
-                new_value.u.num.val = v[0].val->u.num.label->size;
+                new_value.u.num.val = v[0].val->u.code.size;
+                val_replace(&vals->val, &new_value);
+                return;
+            case T_STRUCT:
+            case T_UNION:
+                new_value.type = T_UINT;
+                new_value.u.num.val = v[0].val->u.macro.size;
                 val_replace(&vals->val, &new_value);
                 return;
             default: err_msg_wrong_type(v[0].val, v[0].epoint);
@@ -1147,14 +1181,14 @@ static void functions(struct values_s *vals, unsigned int args) {
         switch (try_resolv(&v[0].val)) {
         case T_SINT:
         case T_UINT:
-        case T_LABEL:
+        case T_CODE:
         case T_NUM:
         case T_BOOL:
         case T_FLOAT:
             switch (try_resolv(&v[1].val)) {
             case T_SINT:
             case T_UINT:
-            case T_LABEL:
+            case T_CODE:
             case T_NUM:
             case T_BOOL:
             case T_FLOAT:
@@ -1193,16 +1227,18 @@ static void functions(struct values_s *vals, unsigned int args) {
 
 static ival_t indexoffs(const struct value_s *v, size_t len) {
     switch (v->type) {
+    case T_CODE:
+        if ((uval_t)v->u.code.addr < len) return (ival_t)v->u.code.addr;
+        return -1;
     case T_UINT:
     case T_SINT:
-    case T_LABEL:
     case T_NUM:
     case T_BOOL: break;
     default: return -1;
     }
 
     if (v->type != T_SINT || v->u.num.val >= 0) {
-        if ((uval_t)v->u.num.val < len) return (uval_t)v->u.num.val;
+        if ((uval_t)v->u.num.val < len) return v->u.num.val;
     } else {
         if ((uval_t)-v->u.num.val <= len) return len + v->u.num.val;
     }
@@ -1306,28 +1342,28 @@ static void list_iindex(struct values_s *vals, const struct value_s *list, linep
     val_replace(&vals->val, &new_value); val_destroy(&new_value);
 }
 
-static void label_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
+static void code_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
     struct value_s **val;
-    const struct label_s *l;
+    const struct value_s *v;
     size_t i, i2;
     size_t len, len2;
     size_t offs2;
     int16_t r;
     ival_t offs;
 
-    l = vals->val->u.num.label;
-    if (l->upass != pass) {
+    v = vals->val;
+    if (!list->u.list.len) {
+        val_replace(&vals->val, &null_tuple);return;
+    }
+    if (v->u.code.pass != pass) {
         new_value.type = T_UNDEF;
         val_replace(&vals->val, &new_value);
         return;
     }
-    if (!list->u.list.len) {
-        val_replace(&vals->val, &null_tuple);return;
-    }
     val = malloc(list->u.list.len * sizeof(new_value.u.list.data[0]));
     if (!val) err_msg_out_of_memory();
-    len2 = l->esize + !l->esize;
-    len = l->size / len2;
+    len2 = v->u.code.esize + !v->u.code.esize;
+    len = v->u.code.size / len2;
     new_value.u.num.len = len2 * 8;
     for (i = 0; i < list->u.list.len; i++) {
         offs = indexoffs(list->u.list.data[i], len);
@@ -1340,16 +1376,16 @@ static void label_iindex(struct values_s *vals, const struct value_s *list, line
         new_value.u.num.val = 0;
         r = -1;
         for (i2 = 0; i2 < len2; i2++) {
-            r = read_mem(l->memp, l->membp, offs2++);
+            r = read_mem(v->u.code.memp, v->u.code.membp, offs2++);
             if (r < 0) break;
             new_value.u.num.val |= r << (i2 * 8);
         }
-        if (l->sign && (r & 0x80)) {
+        if (v->u.code.sign && (r & 0x80)) {
             for (; i2 < sizeof(new_value.u.num.val); i2++) {
                 new_value.u.num.val |= 0xff << (i2 * 8);
             }
         }
-        new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
+        new_value.type = (r < 0) ? T_GAP : (v->u.code.sign ? T_SINT : T_NUM);
         val[i] = val_reference(&new_value);
     }
     new_value.type = T_TUPLE;
@@ -1505,9 +1541,9 @@ static void list_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t st
     }
 }
 
-static void label_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t step) {
+static void code_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t step) {
     struct value_s **val;
-    struct label_s *l;
+    struct value_s *v;
     size_t i, i2;
     size_t len, len2;
     size_t offs2;
@@ -1521,35 +1557,35 @@ static void label_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t s
         len = (offs - end - step - 1) / -step;
     }
 
-    l = vals->val->u.num.label;
-    if (l->upass != pass) {
+    v = vals->val;
+    if (!len) {
+        val_replace(&vals->val, &null_tuple);return;
+    }
+    if (v->u.code.pass != pass) {
         new_value.type = T_UNDEF;
         val_replace(&vals->val, &new_value);
         return;
     }
-    if (!len) {
-        val_replace(&vals->val, &null_tuple);return;
-    }
     val = malloc(len * sizeof(new_value.u.list.data[0]));
     if (!val) err_msg_out_of_memory();
     i = 0;
-    len2 = l->esize + !l->esize;
+    len2 = v->u.code.esize + !v->u.code.esize;
     new_value.u.num.len = len2 * 8;
     while ((end > offs && step > 0) || (end < offs && step < 0)) {
         offs2 = offs * len2;
         new_value.u.num.val = 0;
         r = -1;
         for (i2 = 0; i2 < len2; i2++) {
-            r = read_mem(l->memp, l->membp, offs2++);
+            r = read_mem(v->u.code.memp, v->u.code.membp, offs2++);
             if (r < 0) break;
             new_value.u.num.val |= r << (i2 * 8);
         }
-        if (l->sign && (r & 0x80)) {
+        if (v->u.code.sign && (r & 0x80)) {
             for (; i2 < sizeof(new_value.u.num.val); i2++) {
                 new_value.u.num.val |= 0xff << (i2 * 8);
             }
         }
-        new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
+        new_value.type = (r < 0) ? T_GAP : (v->u.code.sign ? T_SINT : T_NUM);
         val[i++] = val_reference(&new_value);
         offs += step;
     }
@@ -1587,7 +1623,7 @@ static void bits_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t st
 
 static void indexes(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
-    struct label_s *l;
+    struct value_s *v2;
     int16_t r;
     size_t i;
 
@@ -1595,64 +1631,64 @@ static void indexes(struct values_s *vals, unsigned int args) {
     case T_LIST:
     case T_TUPLE:
     case T_STR:
-    case T_LABEL:
+    case T_CODE:
     case T_UINT:
     case T_SINT:
     case T_NUM:
     case T_BOOL:
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else
             switch (try_resolv(&v[0].val)) {
+            case T_CODE:
+                    err_msg_strange_oper(O_INDEX, v[0].val, NULL, v[0].epoint);
             case T_UINT:
             case T_SINT:
-            case T_LABEL:
             case T_NUM:
             case T_BOOL:
                 {
                     struct value_s *val;
-                    size_t len, offs;
+                    size_t len;
+                    ival_t offs;
                     switch (vals->val->type) {
                     case T_STR: len = vals->val->u.str.chars; break;
-                    case T_LABEL:
-                        len = vals->val->u.num.label->esize;
-                        len = vals->val->u.num.label->size / (len + !len);
+                    case T_CODE:
+                        len = vals->val->u.code.esize;
+                        len = vals->val->u.code.size / (len + !len);
                         break;
                     case T_LIST:
                     case T_TUPLE: len = vals->val->u.list.len; break;
                     default: len = get_val_len2(vals->val); break;
                     }
 
-                    if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
-                        if ((uval_t)v[0].val->u.num.val < len) offs = (uval_t)v[0].val->u.num.val;
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value); return;}
-                    } else {
-                        if ((uval_t)-v[0].val->u.num.val <= len) offs = len + v[0].val->u.num.val;
-                        else {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value); return;}
+                    offs = indexoffs(v[0].val, len);
+                    if (offs < 0) {
+                        err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);
+                        return;
                     }
                     switch (vals->val->type) {
                     case T_STR: str_slice(vals, offs, offs + 1, 1); break;
-                    case T_LABEL: 
-                        l = vals->val->u.num.label;
-                        if (l->upass != pass) {
+                    case T_CODE: 
+                        v2 = vals->val;
+                        if (v2->u.code.pass != pass) {
                             new_value.type = T_UNDEF;
                             val_replace(&vals->val, &new_value);
                             return;
                         }
-                        new_value.u.num.len = l->esize + !l->esize;
+                        new_value.u.num.len = v2->u.code.esize + !v2->u.code.esize;
                         offs *= new_value.u.num.len;
                         new_value.u.num.val = 0;
                         r = -1;
                         for (i = 0; i < new_value.u.num.len; i++) {
-                            r = read_mem(l->memp, l->membp, offs++);
+                            r = read_mem(v2->u.code.memp, v2->u.code.membp, offs++);
                             if (r < 0) break;
                             new_value.u.num.val |= r << (i * 8);
                         }
-                        if (l->sign && (r & 0x80)) {
+                        if (v2->u.code.sign && (r & 0x80)) {
                             for (; i < sizeof(new_value.u.num.val); i++) {
                                 new_value.u.num.val |= 0xff << (i * 8);
                             }
                         }
                         new_value.u.num.len *= 8;
-                        new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
+                        new_value.type = (r < 0) ? T_GAP : (v2->u.code.sign ? T_SINT : T_NUM);
                         val_replace(&vals->val, &new_value);
                         break;
                     case T_LIST:
@@ -1674,7 +1710,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
             case T_TUPLE:
                 switch (vals->val->type) {
                 case T_STR: str_iindex(vals, v[0].val, v[0].epoint); return;
-                case T_LABEL: label_iindex(vals, v[0].val, v[0].epoint); return;
+                case T_CODE: code_iindex(vals, v[0].val, v[0].epoint); return;
                 case T_LIST:
                 case T_TUPLE: list_iindex(vals, v[0].val, v[0].epoint); return;
                 default: bits_iindex(vals, v[0].val, v[0].epoint); return;
@@ -1701,7 +1737,7 @@ static void slices(struct values_s *vals, unsigned int args) {
     case T_LIST:
     case T_TUPLE:
     case T_STR:
-    case T_LABEL:
+    case T_CODE:
     case T_UINT:
     case T_SINT:
     case T_NUM:
@@ -1711,9 +1747,9 @@ static void slices(struct values_s *vals, unsigned int args) {
             ival_t offs = 0, end, step = 1;
             switch (vals->val->type) {
             case T_STR: len = vals->val->u.str.chars; break;
-            case T_LABEL: 
-                len = vals->val->u.num.label->esize;
-                len = vals->val->u.num.label->size / (len + !len);
+            case T_CODE: 
+                len = vals->val->u.code.esize;
+                len = vals->val->u.code.size / (len + !len);
                 break;
             case T_LIST:
             case T_TUPLE: len = vals->val->u.list.len; break;
@@ -1722,9 +1758,10 @@ static void slices(struct values_s *vals, unsigned int args) {
             end = (ival_t)len;
             for (i = args - 1; i >= 0; i--) {
                 switch (try_resolv(&v[i].val)) {
+                case T_CODE:
+                    err_msg_strange_oper(O_SLICE, v[i].val, NULL, v[i].epoint);
                 case T_SINT:
                 case T_UINT:
-                case T_LABEL:
                 case T_NUM:
                 case T_BOOL:
                 case T_DEFAULT:
@@ -1737,20 +1774,19 @@ static void slices(struct values_s *vals, unsigned int args) {
             }
             if (args > 2) {
                 if (v[2].val->type != T_DEFAULT) {
-                    if (v[2].val->u.num.val == 0) {
+                    step = to_ival(v[2].val);
+                    if (step == 0) {
                         err_msg2(ERROR_DIVISION_BY_Z, NULL, v[0].epoint); val_replace(&vals->val, &none_value);return;
                     }
-                    step = v[2].val->u.num.val;
                 }
             }
             if (args > 1) {
                 if (v[1].val->type == T_DEFAULT) end = (step > 0) ? (ival_t)len : -1;
                 else {
-                    if (v[1].val->type != T_SINT || v[1].val->u.num.val >= 0) {
-                        end = v[1].val->u.num.val;
+                    end = to_ival(v[1].val);
+                    if (end >= 0) {
                         if (end > (ival_t)len) end = len;
                     } else {
-                        end = v[1].val->u.num.val;
                         if (end < 0) end += len;
                     }
                     if (end < -1) end = -1;
@@ -1758,18 +1794,17 @@ static void slices(struct values_s *vals, unsigned int args) {
             } else end = len;
             if (v[0].val->type == T_DEFAULT) offs = (step > 0) ? 0 : len - 1;
             else {
-                if (v[0].val->type != T_SINT || v[0].val->u.num.val >= 0) {
-                    offs = v[0].val->u.num.val;
+                offs = to_ival(v[0].val);
+                if (offs >= 0) {
                     if (offs > (ival_t)len - (step < 0)) offs = len - (step < 0);
                 } else {
-                    offs = v[0].val->u.num.val;
                     if (offs < 0) offs += len;
                 }
                 if (offs < - (step < 0)) offs = - (step < 0);
             }
             switch (vals->val->type) {
             case T_STR: str_slice(vals, offs, end, step); break;
-            case T_LABEL: label_slice(vals, offs, end, step); break;
+            case T_CODE: code_slice(vals, offs, end, step); break;
             case T_LIST:
             case T_TUPLE: list_slice(vals, offs, end, step); break;
             default: bits_slice(vals, offs, end, step); break;
@@ -1836,7 +1871,7 @@ strretr:
             } else new_value.type = T_SINT;
             new_value.u.num.val = ~v1->u.num.val;
             return &new_value;
-        case O_NEG:
+        case O_NEG: 
             if (t1 == T_NUM) {
                 new_value.type = T_NUM;
                 new_value.u.num.len = v1->u.num.len;
@@ -1859,6 +1894,28 @@ strretr:
             if (!new_value.u.str.data) err_msg_out_of_memory();
             memcpy(new_value.u.str.data, line, new_value.u.str.len);
             return &new_value;
+        default: err_msg_invalid_oper(op, v1, NULL, epoint2); 
+                 return &none_value;
+        }
+    }
+    if (t1 == T_CODE) {
+        switch (op) {
+        case O_INV:
+        case O_NEG:
+        case O_POS:
+        case O_STRING:
+            err_msg_strange_oper(op, v1, NULL, epoint2); 
+        case O_LOWER:
+        case O_HIGHER: 
+        case O_BANK: 
+        case O_BSWORD:
+        case O_HWORD: 
+        case O_WORD: 
+            tmp1.type = T_UINT;
+            tmp1.u.num.val = v1->u.code.addr;
+            v1 = &tmp1;
+            t1 = v1->type;
+            goto strretr;
         default: err_msg_invalid_oper(op, v1, NULL, epoint2); 
                  return &none_value;
         }
@@ -1986,32 +2043,30 @@ static struct value_s *apply_op2(enum oper_e, struct value_s *, struct value_s *
 
 static struct value_s *inlist(struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
     size_t i, len, offs;
-    const struct label_s *l;
     int16_t r;
 
     switch (v2->type) {
-    case T_LABEL:
-        l = v2->u.num.label;
-        if (l->upass != pass) {
-            err_msg_wrong_type(v2, epoint2); 
-            return &none_value;
+    case T_CODE:
+        if (v2->u.code.pass != pass) {
+            new_value.type = T_UNDEF;
+            return &new_value;
         }
-        len = l->esize + !l->esize;
+        len = v2->u.code.esize + !v2->u.code.esize;
         new_value.u.num.len = len * 8;
-        for (offs = 0; offs < l->size;) {
+        for (offs = 0; offs < v2->u.code.size;) {
             new_value.u.num.val = 0;
             r = -1;
             for (i = 0; i < len; i++) {
-                r = read_mem(l->memp, l->membp, offs++);
+                r = read_mem(v2->u.code.memp, v2->u.code.membp, offs++);
                 if (r < 0) break;
                 new_value.u.num.val |= r << (i * 8);
             }
-            if (l->sign && (r & 0x80)) {
+            if (v2->u.code.sign && (r & 0x80)) {
                 for (; i < sizeof(new_value.u.num.val); i++) {
                     new_value.u.num.val |= 0xff << (i * 8);
                 }
             }
-            new_value.type = (r < 0) ? T_GAP : (l->sign ? T_SINT : T_NUM);
+            new_value.type = (r < 0) ? T_GAP : (v2->u.code.sign ? T_SINT : T_NUM);
             if (apply_op2(O_EQ, v1, &new_value, epoint, epoint2, epoint3, large) == &true_value) return &true_value;
         }
         return &false_value;
@@ -2024,6 +2079,24 @@ static struct value_s *inlist(struct value_s *v1, struct value_s *v2, linepos_t 
     default: err_msg_wrong_type(v2, epoint2); 
     case T_NONE: return &none_value;
     }
+}
+
+static struct value_s *onlist(enum oper_e op, struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
+    size_t i = 0;
+    struct value_s **vals, *val;
+    if (v2->u.list.len) {
+        vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
+        if (!vals) err_msg_out_of_memory();
+        for (;i < v2->u.list.len; i++) {
+            val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
+            vals[i] = val_reference(val);
+            val_destroy(val);
+        }
+    } else vals = NULL;
+    new_value.type = v2->type;
+    new_value.u.list.len = i;
+    new_value.u.list.data = vals;
+    return &new_value;
 }
 
 static struct value_s *apply_op2(enum oper_e op, struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
@@ -2142,13 +2215,31 @@ strretr:
                             new_value.u.num.val = (val1 << l2) | (val2 & (((uval_t)1 << l2)-1));
                             return &new_value;
                         }
-            case O_IN: if (v2->type == T_LABEL) return inlist(v1, v2, epoint, epoint2, epoint3, large);
             default: err_msg_invalid_oper(op, v1, v2, epoint3); 
                      goto errtype;
             }
             new_value.type = (t2 == T_SINT) ? T_SINT : T_UINT;
             new_value.u.num.val = val1;
             return &new_value;
+        }
+        if (t2 == T_CODE && op != O_CONCAT && op != O_X) {
+            switch (op) {
+            case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
+            case O_ADD:
+                new_value.type = t2;
+                new_value.u.code.addr = v2->u.code.addr + to_ival(v1);
+                new_value.u.code.size = 0;
+                new_value.u.code.esize = 1;
+                new_value.u.code.sign = 0;
+                return &new_value;
+            default:
+                err_msg_strange_oper(op, v1, v2, epoint3); 
+            }
+            tmp2.type = T_UINT;
+            tmp2.u.num.val = v2->u.code.addr;
+            v2 = &tmp2;
+            t2 = v2->type;
+            goto strretr;
         }
         if (t2 == T_STR && op != O_IN && op != O_CONCAT && op != O_X) {
             if (str_to_num(v2, T_NUM, &tmp2)) {
@@ -2169,29 +2260,132 @@ strretr:
             case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
             case O_X:
             case O_CONCAT:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
-            default:
-                {
-                    size_t i = 0;
-                    struct value_s **vals, *val;
-                    if (v2->u.list.len) {
-                        vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
-                        if (!vals) err_msg_out_of_memory();
-                        for (;i < v2->u.list.len; i++) {
-                            val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
-                            vals[i] = val_reference(val);
-                            val_destroy(val);
-                        }
-                    } else vals = NULL;
-                    new_value.type = t2;
-                    new_value.u.list.len = i;
-                    new_value.u.list.data = vals;
-                    return &new_value;
-                }
+            default: return onlist(op, v1, v2, epoint, epoint2, epoint3, large);
             }
         }
         if (t2 == T_FLOAT && op != O_IN && op != O_CONCAT && op != O_X) {
             tmp1.type = T_FLOAT;
             tmp1.u.real = (t1 == T_SINT) ? (double)((ival_t)v1->u.num.val) : (double)((uval_t)v1->u.num.val);
+            v1 = &tmp1;
+            t1 = v1->type;
+        }
+        if (t2 == T_GAP) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
+        }
+    }
+    if (t1 == T_CODE) {
+        if (t1 == t2) {
+            address_t val1 = v1->u.code.addr;
+            address_t val2 = v2->u.code.addr;
+            switch (op) {
+            case O_EQ:   return ( val1 == val2) ? &true_value : &false_value;
+            case O_NEQ:  return ( val1 != val2) ? &true_value : &false_value;
+            case O_LT:   return ( val1 <  val2) ? &true_value : &false_value;
+            case O_GT:   return ( val1 >  val2) ? &true_value : &false_value;
+            case O_LE:   return ( val1 <= val2) ? &true_value : &false_value;
+            case O_GE:   return ( val1 >= val2) ? &true_value : &false_value;
+            case O_SUB:
+                new_value.type = (val1 >= val2) ? T_UINT : T_SINT;
+                new_value.u.num.val = val1 - val2;
+                return &new_value;
+            case O_ADD: 
+            case O_MUL:
+            case O_DIV:
+            case O_MOD:
+            case O_AND:
+            case O_OR:
+            case O_XOR:
+            case O_LSHIFT:
+            case O_ASHIFT: 
+            case O_RSHIFT: 
+            case O_EXP: 
+                err_msg_strange_oper(op, v1, v2, epoint3);
+                break;
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
+            tmp1.type = T_UINT;
+            tmp1.u.num.val = v1->u.code.addr;
+            v1 = &tmp1;
+            t1 = v1->type;
+            goto strretr;
+        }
+        if (type_is_num(t2)) {
+            switch (op) {
+            case O_ADD: 
+                new_value.type = t1;
+                new_value.u.code.addr = v1->u.code.addr + to_ival(v2);
+                new_value.u.code.size = 0;
+                new_value.u.code.esize = 1;
+                new_value.u.code.sign = 0;
+                return &new_value;
+            case O_SUB: 
+                new_value.type = t1;
+                new_value.u.code.addr = v1->u.code.addr - to_ival(v2);
+                new_value.u.code.size = 0;
+                new_value.u.code.esize = 1;
+                new_value.u.code.sign = 0;
+                return &new_value;
+            case O_EQ:  
+            case O_NEQ:
+            case O_LT:
+            case O_GT:
+            case O_LE:
+            case O_GE:
+            case O_MUL:
+            case O_DIV:
+            case O_MOD:
+            case O_AND:
+            case O_OR:
+            case O_XOR:
+            case O_LSHIFT:
+            case O_ASHIFT: 
+            case O_RSHIFT: 
+            case O_EXP: 
+                err_msg_strange_oper(op, v1, v2, epoint3);
+                break;
+            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
+            tmp1.type = T_UINT;
+            tmp1.u.num.val = v1->u.code.addr;
+            v1 = &tmp1;
+            t1 = v1->type;
+            goto strretr;
+        }
+        if (t2 == T_STR && op != O_IN && op != O_CONCAT && op != O_X) {
+            err_msg_strange_oper(op, v1, v2, epoint3);
+            if (str_to_num(v2, T_NUM, &tmp2)) {
+                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); *large=1;
+            }
+            v2 = &tmp2;
+            t2 = v2->type;
+            goto strretr;
+        }
+        if (t2 == T_LIST || t2 == T_TUPLE) {
+            switch (op) {
+            case O_EQ: return &false_value;
+            case O_NEQ: return &true_value;
+            case O_LT: return (t1 < t2) ? &true_value : &false_value;
+            case O_GT: return (t1 > t2) ? &true_value : &false_value;
+            case O_LE: return (t1 <= t2) ? &true_value : &false_value;
+            case O_GE: return (t1 >= t2) ? &true_value : &false_value;
+            case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
+            case O_X:
+            case O_CONCAT:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            default: return onlist(op, v1, v2, epoint, epoint2, epoint3, large);
+            }
+        }
+        if (t2 == T_FLOAT && op != O_IN && op != O_CONCAT && op != O_X) {
+            err_msg_strange_oper(op, v1, v2, epoint3);
+            tmp1.type = T_FLOAT;
+            tmp1.u.real = v1->u.code.addr;
             v1 = &tmp1;
             t1 = v1->type;
         }
@@ -2285,32 +2479,46 @@ strretr:
             default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
         }
-        if (type_is_num(t2) && op != O_IN && op != O_CONCAT) {
-            if (op == O_X) {
-                uval_t rep;
+        if (type_is_num(t2)) {
+            switch (op) {
+            case O_X:
+                {
+                    uval_t rep;
 
-                if (!type_is_int(t2)) {err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;}
+                    if (!type_is_int(t2)) {err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;}
 
-                rep = (t2 == T_SINT && v2->u.num.val < 0) ? 0 : (uval_t)v2->u.num.val;
-                new_value.type = T_STR;
-                new_value.u.str.len = 0;
-                new_value.u.str.chars = 0;
-                if (v1->u.str.len && rep) {
-                    new_value.u.str.data = malloc(v1->u.str.len * rep);
-                    if (!new_value.u.str.data) err_msg_out_of_memory();
-                    while (rep--) {
-                        memcpy(new_value.u.str.data + new_value.u.str.len, v1->u.str.data, v1->u.str.len);
-                        new_value.u.str.len += v1->u.str.len;
-                        new_value.u.str.chars += v1->u.str.chars;
-                    }
-                } else new_value.u.str.data = NULL;
-                return &new_value;
+                    rep = (t2 == T_SINT && v2->u.num.val < 0) ? 0 : (uval_t)v2->u.num.val;
+                    new_value.type = T_STR;
+                    new_value.u.str.len = 0;
+                    new_value.u.str.chars = 0;
+                    if (v1->u.str.len && rep) {
+                        new_value.u.str.data = malloc(v1->u.str.len * rep);
+                        if (!new_value.u.str.data) err_msg_out_of_memory();
+                        while (rep--) {
+                            memcpy(new_value.u.str.data + new_value.u.str.len, v1->u.str.data, v1->u.str.len);
+                            new_value.u.str.len += v1->u.str.len;
+                            new_value.u.str.chars += v1->u.str.chars;
+                        }
+                    } else new_value.u.str.data = NULL;
+                    return &new_value;
+                }
+            case O_IN:
+            case O_CONCAT: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            default: break;
             }
             if (str_to_num(v1, T_NUM, &tmp1)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); *large=1;
             }
             v1 = &tmp1;
             t1 = v1->type;
+            goto strretr;
+        }
+        if (t2 == T_CODE && op != O_IN && op != O_CONCAT && op != O_X) {
+            err_msg_strange_oper(op, v1, v2, epoint3); 
+            tmp2.type = T_UINT;
+            tmp2.u.num.val = v2->u.code.addr;
+            v2 = &tmp2;
+            t2 = v2->type;
             goto strretr;
         }
         if (t2 == T_LIST || t2 == T_TUPLE) {
@@ -2322,8 +2530,7 @@ strretr:
             case O_LE: return (t1 <= t2) ? &true_value : &false_value;
             case O_GE: return (t1 >= t2) ? &true_value : &false_value;
             case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
-            case O_MOD:
-                return isnprintf(v1, v2, epoint2);
+            case O_MOD: return isnprintf(v1, v2, epoint2);
             default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
         }
@@ -2341,9 +2548,49 @@ strretr:
     }
 
     if (t1 == T_FLOAT) {
-        if (type_is_int(t2) && op != O_IN && op != O_CONCAT && op != O_X) {
+        if (type_is_int(t2)) {
+            switch (op) {
+            case O_EQ:
+            case O_NEQ: 
+            case O_LT: 
+            case O_GT:
+            case O_LE:
+            case O_GE:
+            case O_MUL:
+            case O_DIV:
+            case O_MOD: 
+            case O_ADD:
+            case O_SUB:
+            case O_EXP: break; 
+            default: err_msg_invalid_oper(op, v1, v2, epoint3); 
+                     goto errtype;
+            }
             tmp2.type = T_FLOAT;
             tmp2.u.real = (t2 == T_SINT) ? (double)((ival_t)v2->u.num.val) : (double)((uval_t)v2->u.num.val);
+            v2 = &tmp2;
+            t2 = v2->type;
+        }
+        if (t2 == T_CODE) {
+            switch (op) {
+            case O_LT: 
+            case O_GT:
+            case O_LE:
+            case O_GE:
+            case O_MUL:
+            case O_DIV:
+            case O_MOD: 
+            case O_ADD:
+            case O_SUB:
+            case O_EXP: 
+                err_msg_strange_oper(op, v1, v2, epoint3); 
+            case O_EQ:
+            case O_NEQ: 
+                break; 
+            default: err_msg_invalid_oper(op, v1, v2, epoint3); 
+                     goto errtype;
+            }
+            tmp2.type = T_FLOAT;
+            tmp2.u.real = v2->u.code.addr;
             v2 = &tmp2;
             t2 = v2->type;
         }
@@ -2379,7 +2626,7 @@ strretr:
             new_value.u.real = val1;
             return &new_value;
         }
-        if (t2 == T_LIST || t2 == T_TUPLE || t2 == T_LABEL) {
+        if (t2 == T_LIST || t2 == T_TUPLE) {
             switch (op) {
             case O_EQ: return &false_value;
             case O_NEQ: return &true_value;
@@ -2390,27 +2637,25 @@ strretr:
             case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
             case O_X:
             case O_CONCAT:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
-            default:
-                {
-                    size_t i = 0;
-                    struct value_s **vals, *val;
-                    if (v2->u.list.len) {
-                        vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
-                        if (!vals) err_msg_out_of_memory();
-                        for (;i < v2->u.list.len; i++) {
-                            val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
-                            vals[i] = val_reference(val);
-                            val_destroy(val);
-                        }
-                    } else vals = NULL;
-                    new_value.type = t2;
-                    new_value.u.list.len = i;
-                    new_value.u.list.data = vals;
-                    return &new_value;
-                }
+            default: return onlist(op, v1, v2, epoint, epoint2, epoint3, large);
             }
         }
-        if (t2 == T_STR && op != O_IN && op != O_CONCAT && op != O_X) {
+        if (t2 == T_STR) {
+            switch (op) {
+            case O_EQ:
+            case O_NEQ: 
+            case O_LT: 
+            case O_GT:
+            case O_LE:
+            case O_GE:
+            case O_MUL:
+            case O_DIV:
+            case O_MOD: 
+            case O_ADD:
+            case O_SUB:
+            case O_EXP: break; 
+            default: err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            }
             if (str_to_num(v2, T_NUM, &tmp2)) {
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint2); *large=1;
             }
@@ -2556,7 +2801,7 @@ strretr:
             }
             return &new_value;
         }
-        if (type_is_num(t2) && op != O_IN && op != O_CONCAT) {
+        if (type_is_num(t2) || t2 == T_CODE) {
             switch (op) {
             case O_EQ: return &false_value;
             case O_NEQ: return &true_value;
@@ -2587,6 +2832,8 @@ strretr:
                     new_value.u.list.data = vals;
                     return &new_value;
                 }
+            case O_IN:
+            case O_CONCAT:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             default:
                 {
                     size_t i = 0;
@@ -2631,7 +2878,7 @@ strretr:
             default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
         }
-        if (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPLE) {
+        if (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPLE || t2 == T_CODE) {
             switch (op) {
             case O_EQ: return &false_value;
             case O_NEQ: return &true_value;
@@ -2640,7 +2887,7 @@ strretr:
             case O_LE: return (t1 <= t2) ? &true_value : &false_value;
             case O_GE: return (t1 >= t2) ? &true_value : &false_value;
             case O_IN:
-                if (t2 == T_LIST || t2 == T_TUPLE || t2 == T_LABEL) {
+                if (t2 == T_LIST || t2 == T_TUPLE || t2 == T_CODE) {
                     return inlist(v1, v2, epoint, epoint2, epoint3, large);
                 }
             default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
@@ -2795,6 +3042,7 @@ static int get_val2(int stop) {
             v1 = &values[vsp-1]; vsp--;
             if (vsp == 0) goto syntaxe;
             switch (try_resolv(&values[vsp-1].val)) {
+            case T_CODE: err_msg_strange_oper(op, v1->val, NULL, v1->epoint);
             case T_STR:
             case T_UINT:
             case T_SINT: 
@@ -2830,10 +3078,10 @@ static int get_val2(int stop) {
         case O_LOWER: // <
         case O_HIGHER: // >
         case O_BANK: // `
+        case O_STRING: // ^
         case O_INV: // ~
         case O_NEG: // -
         case O_POS: // +
-        case O_STRING: // ^
             {
                 struct value_s *tmp;
                 try_resolv_ident(&v1->val);
@@ -2845,8 +3093,8 @@ static int get_val2(int stop) {
             }
         case O_LNOT:
             switch (try_resolv(&v1->val)) {
+            case T_CODE: err_msg_strange_oper(op, v1->val, NULL, v1->epoint);
             case T_SINT:
-            case T_LABEL:
             case T_NUM: 
             case T_BOOL:
             case T_UINT:
@@ -2869,7 +3117,7 @@ static int get_val2(int stop) {
             t1 = try_resolv(&v1->val);
             switch (t1) {
             case T_SINT:
-            case T_LABEL:
+            case T_CODE:
             case T_NUM: 
             case T_BOOL:
             case T_UINT:
@@ -2887,7 +3135,7 @@ static int get_val2(int stop) {
                 t2 = try_resolv(&v2->val);
                 switch (t2) {
                 case T_SINT:
-                case T_LABEL:
+                case T_CODE:
                 case T_NUM: 
                 case T_BOOL:
                 case T_UINT:

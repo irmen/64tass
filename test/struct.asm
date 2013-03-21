@@ -1,6 +1,5 @@
 
 		.dsection declaration
-		.send declaration
 
 		.union
 a		nop

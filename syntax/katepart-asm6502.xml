@@ -74,7 +74,7 @@
         <RegExpr endRegion="proc" String="\.pend\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="block" String="\.block\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="block" String="\.bend\b" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr beginRegion="section" String="\.d?section\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="section" String="\.section\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="section" String="\.send\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="struct" String="\.struct\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="struct" String="\.ends\b" attribute="Preprocessor" insensitive="TRUE"/>
