@@ -75,8 +75,14 @@ static int allowslowbranch=1;
 static int longbranchasjmp=0;
 static uint8_t outputeor = 0; // EOR value for final output (usually 0, except changed by .eor)
 
+enum wait_e {
+    W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
+    W_ENDS, W_ENDS2, W_ENDC, W_ENDP, W_ENDP2, W_NEXT, W_NEXT2, W_SEND, W_SEND2,
+    W_PEND, W_FI, W_FI2
+};
+
 static struct {
-    char what;
+    enum wait_e what;
     line_t line;
     linepos_t epoint;
     address_t addr;
@@ -255,7 +261,7 @@ void printllist(FILE *f) {
     putc('\n', f);
 }
 
-static void new_waitfor(char what, linepos_t epoint) {
+static void new_waitfor(enum wait_e what, linepos_t epoint) {
     waitfor[++waitforp].what = what;
     waitfor[waitforp].line = sline;
     waitfor[waitforp].epoint = epoint;
@@ -555,7 +561,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
 
 static void compile(void);
 
-static void macro_recurse(char t, struct value_s *tmp2) {
+static void macro_recurse(enum wait_e t, struct value_s *tmp2) {
     if (macro_parameters.p>100) {
         err_msg(ERROR__MACRECURSION,"!!!!");
         return;
@@ -811,7 +817,7 @@ static void compile(void)
                 case CMD_SEGMENT:
                     {
                         struct label_s *label;
-                        new_waitfor('m', epoint);waitfor[waitforp].skip=0;
+                        new_waitfor(W_ENDM, epoint);waitfor[waitforp].skip=0;
                         ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                         label=new_label(labelname, labelname2, L_LABEL);
                         if (labelexists) {
@@ -842,7 +848,7 @@ static void compile(void)
                         struct section_s olds = *current_section;
                         int declaration = !current_section->structrecursion;
 
-                        new_waitfor((prm==CMD_STRUCT)?'s':'u', epoint);waitfor[waitforp].skip=0;
+                        new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, epoint);waitfor[waitforp].skip=0;
                         ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                         label=new_label(labelname, labelname2, L_LABEL);oaddr = current_section->address;
                         if (declaration) {
@@ -920,7 +926,7 @@ static void compile(void)
                             current_section->unionstart = current_section->unionend = current_section->address;
                             current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitforp--;
-                            new_waitfor((prm==CMD_STRUCT)?'S':'U', epoint);waitfor[waitforp].skip=1;
+                            new_waitfor((prm==CMD_STRUCT)?W_ENDS2:W_ENDU2, epoint);waitfor[waitforp].skip=1;
                             compile();
                             current_context = old_context;
                             current_section->unionmode = old_unionmode;
@@ -949,7 +955,7 @@ static void compile(void)
                         struct section_s *tmp;
                         char sectionname[linelength], sectionname2[linelength];
                         linepos_t opoint;
-                        new_waitfor('t', epoint);waitfor[waitforp].section=current_section;
+                        new_waitfor(W_SEND, epoint);waitfor[waitforp].section=current_section;
                         ignore();opoint=lpoint;
                         if (get_ident2(sectionname, sectionname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         tmp=find_new_section(sectionname, sectionname2);
@@ -972,7 +978,7 @@ static void compile(void)
                             tmp->l_address = tmp->l_start;
                         }
                         tmp->pass = pass;
-                        waitfor[waitforp].what = 'T';
+                        waitfor[waitforp].what = W_SEND2;
                         current_section = tmp;
                         memjmp(current_section->address);
                         break;
@@ -1020,7 +1026,7 @@ static void compile(void)
             if (wht==WHAT_COMMAND) { // .proc
                 switch (prm) {
                 case CMD_PROC:
-                    new_waitfor('r', epoint);waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
+                    new_waitfor(W_PEND, epoint);waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
                     if (!newlabel->ref && pass != 1) waitfor[waitforp].skip=0;
                     else {
                         current_context=newlabel;
@@ -1056,7 +1062,7 @@ static void compile(void)
                         if (val->type != ((prm==CMD_DSTRUCT) ? T_STRUCT : T_UNION)) {err_msg_wrong_type(val, epoint); goto breakerr;}
                         ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                         current_section->structrecursion++;
-                        macro_recurse((prm==CMD_DSTRUCT)?'S':'U',val);
+                        macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2,val);
                         current_section->structrecursion--;
                         current_context=oldcontext;
                         current_section->unionmode = old_unionmode;
@@ -1192,28 +1198,28 @@ static void compile(void)
                     }
                 }
                 if (prm==CMD_ENDC) { // .endc
-                    if (waitfor[waitforp].what!='c') err_msg2(ERROR______EXPECTED,".COMMENT", epoint);
+                    if (waitfor[waitforp].what!=W_ENDC) err_msg2(ERROR______EXPECTED,".COMMENT", epoint);
                     else waitforp--;
                     break;
-                } else if (waitfor[waitforp].what=='c') break;
+                } else if (waitfor[waitforp].what==W_ENDC) break;
                 if (prm==CMD_FI) // .fi
                 {
-                    if (waitfor[waitforp].what!='e' && waitfor[waitforp].what!='f') err_msg2(ERROR______EXPECTED,".IF", epoint);
+                    if (waitfor[waitforp].what!=W_FI2 && waitfor[waitforp].what!=W_FI) err_msg2(ERROR______EXPECTED,".IF", epoint);
                     else waitforp--;
                     break;
                 }
                 if (prm==CMD_ELSE) { // .else
-                    if (waitfor[waitforp].what=='f') {err_msg2(ERROR______EXPECTED,".FI", epoint); break;}
-                    if (waitfor[waitforp].what!='e') {err_msg2(ERROR______EXPECTED,".IF", epoint); break;}
+                    if (waitfor[waitforp].what==W_FI) {err_msg2(ERROR______EXPECTED,".FI", epoint); break;}
+                    if (waitfor[waitforp].what!=W_FI2) {err_msg2(ERROR______EXPECTED,".IF", epoint); break;}
                     waitfor[waitforp].skip=waitfor[waitforp].skip >> 1;
-                    waitfor[waitforp].what='f';waitfor[waitforp].line=sline;
+                    waitfor[waitforp].what=W_FI;waitfor[waitforp].line=sline;
                     break;
                 }
                 if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
                     uint8_t skwait = waitfor[waitforp].skip;
                     if (prm==CMD_ELSIF) {
-                        if (waitfor[waitforp].what!='e') {err_msg2(ERROR______EXPECTED,".IF", epoint); break;}
-                    } else new_waitfor('e', epoint);
+                        if (waitfor[waitforp].what!=W_FI2) {err_msg2(ERROR______EXPECTED,".IF", epoint); break;}
+                    } else new_waitfor(W_FI2, epoint);
                     waitfor[waitforp].line=sline;
                     if (((skwait==1) && prm!=CMD_ELSIF) || ((skwait==2) && prm==CMD_ELSIF)) {
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
@@ -1267,23 +1273,23 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_ENDM) { // .endm
-                    if (waitfor[waitforp].what=='m') {
+                    if (waitfor[waitforp].what==W_ENDM) {
                         waitforp--;
-                    } else if (waitfor[waitforp].what=='M') {
+                    } else if (waitfor[waitforp].what==W_ENDM2) {
                         waitforp--; nobreak=0;
                     } else err_msg2(ERROR______EXPECTED,".MACRO or .SEGMENT", epoint);
                     break;
                 }
                 if (prm==CMD_NEXT) { // .next
-                    if (waitfor[waitforp].what=='n') {
+                    if (waitfor[waitforp].what==W_NEXT) {
                         waitforp--;
-                    } else if (waitfor[waitforp].what=='N') {
+                    } else if (waitfor[waitforp].what==W_NEXT2) {
                         waitforp--; nobreak=0;
                     } else err_msg2(ERROR______EXPECTED,".FOR or .REPT", epoint);
                     break;
                 }
                 if (prm==CMD_PEND) { //.pend
-                    if (waitfor[waitforp].what!='r') {err_msg2(ERROR______EXPECTED,".PROC", epoint); break;}
+                    if (waitfor[waitforp].what!=W_PEND) {err_msg2(ERROR______EXPECTED,".PROC", epoint); break;}
                     if (waitfor[waitforp].skip & 1) {
                         if (current_context->parent) {
                             current_context = current_context->parent;
@@ -1295,17 +1301,17 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_ENDS) { // .ends
-                    if (waitfor[waitforp].what=='s') {
+                    if (waitfor[waitforp].what==W_ENDS) {
                         waitforp--;
-                    } else if (waitfor[waitforp].what=='S') {
+                    } else if (waitfor[waitforp].what==W_ENDS2) {
                         waitforp--; nobreak=0;
                     } else err_msg2(ERROR______EXPECTED,".STRUCT", epoint); break;
                     break;
                 }
                 if (prm==CMD_SEND) { // .send
-                    if (waitfor[waitforp].what=='t') {
+                    if (waitfor[waitforp].what==W_SEND) {
                         waitforp--;get_ident2(labelname, labelname2);
-                    } else if (waitfor[waitforp].what=='T') {
+                    } else if (waitfor[waitforp].what==W_SEND2) {
                         ignore();epoint=lpoint;
                         if (!get_ident2(labelname, labelname2)) {
                             if (strcmp(labelname, current_section->name)) err_msg2(ERROR______EXPECTED,current_section->name,epoint);
@@ -1318,9 +1324,9 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_ENDU) { // .endu
-                    if (waitfor[waitforp].what=='u') {
+                    if (waitfor[waitforp].what==W_ENDU) {
                         waitforp--;
-                    } else if (waitfor[waitforp].what=='U') {
+                    } else if (waitfor[waitforp].what==W_ENDU2) {
                         waitforp--; nobreak=0; current_section->l_address = current_section->l_unionend;
                         if (current_section->address != current_section->unionend) {
                             current_section->address = current_section->unionend;
@@ -1330,9 +1336,9 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_ENDP) { // .endp
-                    if (waitfor[waitforp].what=='p') {
+                    if (waitfor[waitforp].what==W_ENDP) {
                         waitforp--;
-                    } else if (waitfor[waitforp].what=='P') {
+                    } else if (waitfor[waitforp].what==W_ENDP2) {
 			if ((current_section->l_address & ~0xff) != (waitfor[waitforp].laddr & ~0xff) && fixeddig) {
 				err_msg2(ERROR____PAGE_ERROR, &current_section->l_address, epoint);
 			}
@@ -1342,10 +1348,10 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_HERE) { // .here
-                    if (waitfor[waitforp].what=='l') {
+                    if (waitfor[waitforp].what==W_HERE) {
                         waitforp--;
                         current_section->logicalrecursion--;
-                    } else if (waitfor[waitforp].what=='L') {
+                    } else if (waitfor[waitforp].what==W_HERE2) {
 			current_section->l_address = current_section->address + waitfor[waitforp].laddr;
 			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr, waitfor[waitforp].memp, waitfor[waitforp].membp);
                         waitforp--;
@@ -1354,9 +1360,9 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_BEND) { //.bend
-                    if (waitfor[waitforp].what=='b') {
+                    if (waitfor[waitforp].what==W_BEND) {
                         waitforp--;
-                    } else if (waitfor[waitforp].what=='B') {
+                    } else if (waitfor[waitforp].what==W_BEND2) {
 			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr, waitfor[waitforp].memp, waitfor[waitforp].membp);
 			if (current_context->parent) current_context = current_context->parent;
 			else err_msg2(ERROR______EXPECTED,".block", epoint);
@@ -1365,23 +1371,23 @@ static void compile(void)
                     break;
                 }
                 if (!(waitfor[waitforp].skip & 1)) {
-                    char what2;
+                    enum wait_e what2;
                     switch (prm) {
-                    case CMD_BLOCK: what2 = 'b'; break;
-                    case CMD_LOGICAL: what2 = 'l'; break;
-                    case CMD_PAGE: what2 = 'p'; break;
-                    case CMD_UNION: what2 = 'u'; break;
-                    case CMD_STRUCT: what2 = 's'; break;
-                    case CMD_SECTION: what2 = 't'; break;
+                    case CMD_BLOCK: what2 = W_BEND; break;
+                    case CMD_LOGICAL: what2 = W_HERE; break;
+                    case CMD_PAGE: what2 = W_ENDP; break;
+                    case CMD_UNION: what2 = W_ENDU; break;
+                    case CMD_STRUCT: what2 = W_ENDS; break;
+                    case CMD_SECTION: what2 = W_SEND; break;
                     case CMD_MACRO:
-                    case CMD_SEGMENT: what2 = 'm'; break;
+                    case CMD_SEGMENT: what2 = W_ENDM; break;
                     case CMD_FOR:
-                    case CMD_REPT: what2 = 'n'; break;
-                    case CMD_COMMENT: what2 = 'c'; break;
-                    case CMD_PROC: what2 = 'r'; break;
-                    default: what2 = 0;
+                    case CMD_REPT: what2 = W_NEXT; break;
+                    case CMD_COMMENT: what2 = W_ENDC; break;
+                    case CMD_PROC: what2 = W_PEND; break;
+                    default: what2 = W_NONE;
                     }
-                    if (what2) new_waitfor(what2, epoint);
+                    if (what2 != W_NONE) new_waitfor(what2, epoint);
                     break;//skip things if needed
                 }
                 if (prm<=CMD_DWORD || prm==CMD_BINARY) { // .byte .text .rta .char .int .word .long
@@ -1681,7 +1687,7 @@ static void compile(void)
                 }
                 if (prm==CMD_LOGICAL) { // .logical
                     linepos_t opoint = epoint;
-                    new_waitfor('L', epoint);waitfor[waitforp].laddr = current_section->l_address - current_section->address;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
+                    new_waitfor(W_HERE2, epoint);waitfor[waitforp].laddr = current_section->l_address - current_section->address;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
                     current_section->logicalrecursion++;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1715,7 +1721,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_BLOCK) { // .block
-		    new_waitfor('B', epoint);
+		    new_waitfor(W_BEND2, epoint);
                     if (newlabel) {
                         current_context=newlabel;
                         waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
@@ -2022,7 +2028,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_REPT) { // .rept
-                    new_waitfor('n', epoint);waitfor[waitforp].skip=0;
+                    new_waitfor(W_NEXT, epoint);waitfor[waitforp].skip=0;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
@@ -2046,7 +2052,7 @@ static void compile(void)
                             star_tree = &s->tree;vline=0;
                             while (cnt--) {
                                 sline=lin;cfile->p=pos;
-                                new_waitfor('N', epoint);waitfor[waitforp].skip=1;
+                                new_waitfor(W_NEXT2, epoint);waitfor[waitforp].skip=1;
                                 compile();
                             }
                             star_tree = stree_old; vline = ovline;
@@ -2127,7 +2133,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_COMMENT) { // .comment
-                    new_waitfor('c', epoint);waitfor[waitforp].skip=0;
+                    new_waitfor(W_ENDC, epoint);waitfor[waitforp].skip=0;
                     break;
                 }
                 if (prm==CMD_INCLUDE || prm == CMD_BINCLUDE) { // .include, .binclude
@@ -2200,7 +2206,7 @@ static void compile(void)
                     struct avltree *stree_old;
                     line_t ovline;
 
-                    new_waitfor('n', epoint);waitfor[waitforp].skip=0;
+                    new_waitfor(W_NEXT, epoint);waitfor[waitforp].skip=0;
                     if (strlen((const char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
                     if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
                         epoint = lpoint;
@@ -2277,7 +2283,7 @@ static void compile(void)
                                 bpoint=lpoint; nopos = 1;
                             }
                         }
-                        new_waitfor('N', epoint);waitfor[waitforp].skip=1;
+                        new_waitfor(W_NEXT2, epoint);waitfor[waitforp].skip=1;
                         compile();
                         xpos = cfile->p; xlin= sline;
                         pline = expr;
@@ -2296,7 +2302,7 @@ static void compile(void)
                     goto breakerr;
                 }
                 if (prm==CMD_PAGE) { // .page
-                    new_waitfor('P', epoint);waitfor[waitforp].addr = current_section->address;waitfor[waitforp].laddr = current_section->l_address;waitfor[waitforp].label=newlabel;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
+                    new_waitfor(W_ENDP2, epoint);waitfor[waitforp].addr = current_section->address;waitfor[waitforp].laddr = current_section->l_address;waitfor[waitforp].label=newlabel;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
                     newlabel=NULL;
                     break;
                 }
@@ -2325,23 +2331,27 @@ static void compile(void)
                             line_t os = sline;
                             sline = waitfor[waitforp].line;
                             switch (waitfor[waitforp].what) {
-                            case 'M':
-                            case 'm': msg = ".ENDM"; break;
-                            case 'N':
-                            case 'n': msg = ".NEXT"; break;
-                            case 'r': msg = ".PEND"; break;
-                            case 'B':
-                            case 'b': msg = ".BEND"; break;
-                            case 'S':
-                            case 's': msg = ".ENDS"; break;
-                            case 'T':
-                            case 't': msg = ".SEND"; break;
-                            case 'U':
-                            case 'u': msg = ".ENDU"; break;
-                            case 'P':
-                            case 'p': msg = ".ENDP"; break;
-                            case 'L':
-                            case 'l': msg = ".HERE"; break;
+                            case W_ENDM2:
+                            case W_ENDM: msg = ".ENDM"; break;
+                            case W_NEXT2:
+                            case W_NEXT: msg = ".NEXT"; break;
+                            case W_PEND: msg = ".PEND"; break;
+                            case W_BEND2:
+                            case W_BEND: msg = ".BEND"; break;
+                            case W_ENDS2:
+                            case W_ENDS: msg = ".ENDS"; break;
+                            case W_SEND2:
+                            case W_SEND: msg = ".SEND"; break;
+                            case W_ENDU2:
+                            case W_ENDU: msg = ".ENDU"; break;
+                            case W_ENDP2:
+                            case W_ENDP: msg = ".ENDP"; break;
+                            case W_HERE2:
+                            case W_HERE: msg = ".HERE"; break;
+                            case W_ENDC: msg = ".ENDC"; break;
+                            case W_NONE:
+                            case W_FI:
+                            case W_FI2: break;
                             }
                             if (msg) {
                                 err_msg2(ERROR______EXPECTED, msg, waitfor[waitforp].epoint);
@@ -2357,7 +2367,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_MACRO || prm==CMD_SEGMENT) {
-                    new_waitfor('m', epoint);waitfor[waitforp].skip=0;
+                    new_waitfor(W_ENDM, epoint);waitfor[waitforp].skip=0;
                     err_msg2(ERROR___NOT_DEFINED,"",epoint);
                     break;
                 }
@@ -2366,18 +2376,18 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_PROC) {
-                    new_waitfor('r', epoint);waitfor[waitforp].skip=0;waitfor[waitforp].label = NULL;
+                    new_waitfor(W_PEND, epoint);waitfor[waitforp].skip=0;waitfor[waitforp].label = NULL;
                     err_msg2(ERROR___NOT_DEFINED,"",epoint);
                     break;
                 }
                 if (prm==CMD_STRUCT) {
                     int old_unionmode = current_section->unionmode;
                     current_section->unionmode = 0;
-                    new_waitfor('s', epoint);waitfor[waitforp].skip=0;
+                    new_waitfor(W_ENDS, epoint);waitfor[waitforp].skip=0;
                     current_section->structrecursion++;
                     if (current_section->structrecursion<100) {
                         waitforp--;
-                        new_waitfor('S', epoint);waitfor[waitforp].skip=1;
+                        new_waitfor(W_ENDS2, epoint);waitfor[waitforp].skip=1;
                         compile();
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
                     current_section->structrecursion--;
@@ -2391,11 +2401,11 @@ static void compile(void)
                     current_section->unionmode = 1;
                     current_section->unionstart = current_section->unionend = current_section->address;
                     current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
-                    new_waitfor('u', epoint);waitfor[waitforp].skip=0;
+                    new_waitfor(W_ENDU, epoint);waitfor[waitforp].skip=0;
                     current_section->structrecursion++;
                     if (current_section->structrecursion<100) {
                         waitforp--;
-                        new_waitfor('U', epoint);waitfor[waitforp].skip=1;
+                        new_waitfor(W_ENDU2, epoint);waitfor[waitforp].skip=1;
                         compile();
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
                     current_section->structrecursion--;
@@ -2414,7 +2424,7 @@ static void compile(void)
                     ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     if (val->type != T_STRUCT) {err_msg_wrong_type(val, epoint); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse('S', val);
+                    macro_recurse(W_ENDS2, val);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     break;
@@ -2431,7 +2441,7 @@ static void compile(void)
                     ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     if (val->type != T_UNION) {err_msg_wrong_type(val, epoint); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse('U', val);
+                    macro_recurse(W_ENDU2, val);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -2502,7 +2512,7 @@ static void compile(void)
                 if (prm==CMD_SECTION) {
                     struct section_s *tmp;
                     char sectionname[linelength], sectionname2[linelength];
-                    new_waitfor('t', epoint);waitfor[waitforp].section=current_section;
+                    new_waitfor(W_SEND, epoint);waitfor[waitforp].section=current_section;
                     ignore();epoint=lpoint;
                     if (get_ident2(sectionname, sectionname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     tmp=find_new_section(sectionname, sectionname2);
@@ -2525,7 +2535,7 @@ static void compile(void)
                         tmp->l_address = tmp->l_start;
                     }
                     tmp->pass = pass;
-                    waitfor[waitforp].what = 'T';
+                    waitfor[waitforp].what = W_SEND2;
                     current_section = tmp;
                     memjmp(current_section->address);
                     newlabel = NULL;
@@ -2553,7 +2563,7 @@ static void compile(void)
                         current_context->value = &none_value;
                     }
                 } else old_context = NULL;
-                macro_recurse('M',tmp2->value);
+                macro_recurse(W_ENDM2,tmp2->value);
                 if (tmp2->value->type == T_MACRO) current_context = old_context;
                 break;
             }
@@ -3125,26 +3135,27 @@ static void compile(void)
         line_t os = sline;
         sline = waitfor[waitforp].line;
         switch (waitfor[waitforp].what) {
-        case 'e':
-        case 'f': msg = ".FI"; break;
-        case 'P':
-        case 'p': msg = ".ENDP"; break;
-        case 'M':
-        case 'm': msg = ".ENDM"; break;
-        case 'N':
-        case 'n': msg = ".NEXT"; break;
-        case 'r': msg = ".PEND"; break;
-        case 'B':
-        case 'b': msg = ".BEND"; break;
-        case 'c': msg = ".ENDC"; break;
-        case 'S':
-        case 's': msg = ".ENDS"; break;
-        case 'T':
-        case 't': msg = ".SEND"; break;
-        case 'U':
-        case 'u': msg = ".ENDU"; break;
-        case 'L':
-        case 'l': msg = ".HERE"; break;
+        case W_FI2:
+        case W_FI: msg = ".FI"; break;
+        case W_ENDP2:
+        case W_ENDP: msg = ".ENDP"; break;
+        case W_ENDM2:
+        case W_ENDM: msg = ".ENDM"; break;
+        case W_NEXT2:
+        case W_NEXT: msg = ".NEXT"; break;
+        case W_PEND: msg = ".PEND"; break;
+        case W_BEND2:
+        case W_BEND: msg = ".BEND"; break;
+        case W_ENDC: msg = ".ENDC"; break;
+        case W_ENDS2:
+        case W_ENDS: msg = ".ENDS"; break;
+        case W_SEND2:
+        case W_SEND: msg = ".SEND"; break;
+        case W_ENDU2:
+        case W_ENDU: msg = ".ENDU"; break;
+        case W_HERE2:
+        case W_HERE: msg = ".HERE"; break;
+        case W_NONE: break;
         }
         if (msg) err_msg2(ERROR______EXPECTED, msg, waitfor[waitforp].epoint);
         waitforp--; sline = os;
@@ -3234,7 +3245,7 @@ int main(int argc, char *argv[]) {
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding("none");
             allowslowbranch=1;
-            waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
+            waitfor[waitforp=0].what=W_NONE;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
@@ -3305,7 +3316,7 @@ int main(int argc, char *argv[]) {
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding("none");
             allowslowbranch=1;
-            waitfor[waitforp=0].what=0;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
+            waitfor[waitforp=0].what=W_NONE;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
