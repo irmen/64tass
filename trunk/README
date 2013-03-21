@@ -340,11 +340,11 @@ x X   hexadecimal (uppercase)
 List and tuples
 
 Lists and tuples can hold a collection of values. Lists are defined from values
-separated by comma between square brackets [1,2,3], an empty list is []. Tuples
-are similar but are enclosed in parentheses instead. An empty tuple is (), a
-single element tuple is (4,) to differentiate from normal numeric expression
-parentheses. When nested they function similar to an array. Currently both
-types are immutable.
+separated by comma between square brackets [1, 2, 3], an empty list is [].
+Tuples are similar but are enclosed in parentheses instead. An empty tuple is
+(), a single element tuple is (4,) to differentiate from normal numeric
+expression parentheses. When nested they function similar to an array.
+Currently both types are immutable.
 
                     List and tuple operators and functions
 ..           concatenate lists                     [1]..[2] is [1, 2]
@@ -401,9 +401,9 @@ a few examples:
 ;Bitmask table, 8 bits from left to right
         .byte %10000000 >> range(8)
 ;Classic 256 byte single period sinus table with values of 0-255.
-        .byte 128.5+127*sin(range(256)*rad(360.0/256))
+        .byte 128.5 + 127 * sin(range(256) * rad(360.0/256))
 ;Screen row address tables
--       = $400+range(0, 1000, 40)
+-       = $400 + range(0, 1000, 40)
 scrlo   .byte <(-)
 scrhi   .byte >(-)
 
@@ -919,15 +919,12 @@ unless internal anonymous structs are used.
             .union          ;spare some memory
              .struct
               .dsection zp1 ;declare zp1 section
-              .send zp1
              .ends
              .struct
               .dsection zp2 ;declare zp2 section
-              .send zp2
              .ends
             .endu
             .dsection zp    ;declare zp section
-            .send zp
 
 Macros
 
@@ -1027,7 +1024,7 @@ Conditional assembly
 
             ldx #0
             lda #32
-    lp      .for ue=0,ue<$400,ue=ue+$100
+    lp      .for ue = 0, ue < $400, ue=ue+$100
             sta ue,x
             .next
             dex
@@ -1144,8 +1141,6 @@ Sections
     All .section-s scattered around in the sources are compiled from the
     .dsection declaration. Compilation happens as the code appears, this
     directive only assigns enough space to hold all the stuff in the sections.
-    Where the .dsection appears the section's compile and logical address are
-    initialized to the current values.
 
     The space allocated is calculated from the difference of starting compile
     address and the maximum compile address reached in the section. It is
@@ -1159,28 +1154,25 @@ Sections
 
             *= $02
             .dsection zp   ;declare zeropage section
-            .send zp
             .cerror *>$30,"Too many zeropage variables"
 
             *= $334
             .dsection bss   ;declare uninitialized variable section
-            .send bss
             .cerror *>$400,"Too many variables"
 
             *= $0801
             .dsection code   ;declare code section
-            .word ss, 2005
-            .null $9e, ^start
-    ss      .word 0
-            .send code
             .cerror *>$1000,"Program too long!"
 
             *= $1000
             .dsection data   ;declare data section
-            .send data
             .cerror *>$2000,"Data too long!"
     ;--------------------
             .section code
+            .word ss, 2005
+            .null $9e, ^start
+    ss      .word 0
+
     start   sei
             .section zp     ;declare some new zeropage variables
     p2      .word ?         ;a pointer
@@ -1210,12 +1202,10 @@ Sections
     >0805    9e 32 30 36 31 00                      .null $9e, ^start
     >080b    00 00                          ss      .word 0
 
-                                                    *= $1000
-
     .080d    78                             start   sei
 
     >0002                                   p2      .word ?         ;a pointer
-    .0334                                   buffer  .fill 10        ;temporary area
+    >0334                                   buffer  .fill 10        ;temporary area
 
     .080e    b1 02                                  lda (p2),y
     .0810    a9 00                                  lda #<label

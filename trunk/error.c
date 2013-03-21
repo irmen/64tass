@@ -206,7 +206,6 @@ void err_msg(enum errors_e no, const void* prm) {
 
 static const char *type_name(enum type_e t) {
     switch (t) {
-    case T_LABEL: return "<label>";
     case T_SINT: return "<sint>";
     case T_UINT: return "<uint>";
     case T_NUM: return "<num>";
@@ -223,6 +222,11 @@ static const char *type_name(enum type_e t) {
     case T_TUPLE: return "<tuple>";
     case T_FLOAT: return "<float>";
     case T_BOOL: return "<bool>";
+    case T_MACRO: return "<macro>";
+    case T_SEGMENT: return "<segment>";
+    case T_STRUCT: return "<struct>";
+    case T_UNION: return "<union>";
+    case T_CODE: return "<code>";
     case T_DEFAULT: return "<default>";
     }
     return NULL;
@@ -268,12 +272,12 @@ void err_msg_variable(struct value_s *val, int repr) {
     switch (val->type) {
     case T_SINT: sprintf(buffer,"%+" PRIdval, val->u.num.val); add_user_error(buffer); break;
     case T_UINT: sprintf(buffer,"%" PRIuval, val->u.num.val); add_user_error(buffer); break;
-    case T_LABEL:
     case T_NUM: {
         sprintf(buffer2,"$%%0%d%s", (val->u.num.len + 3) / 4 + !val->u.num.len, PRIxval);
         sprintf(buffer, buffer2, val->u.num.val);
         add_user_error(buffer); break;
     }
+    case T_CODE: sprintf(buffer,"$%" PRIxval, val->u.code.addr); add_user_error(buffer); break;
     case T_FLOAT:
        {
            int i = 0;
@@ -314,6 +318,10 @@ void err_msg_variable(struct value_s *val, int repr) {
     case T_BACKR: add_user_error("<backr>");break;
     case T_FORWR: add_user_error("<forwr>");break;
     case T_OPER: add_user_error("<operator>");break;
+    case T_MACRO: add_user_error("<macro>");break;
+    case T_SEGMENT: add_user_error("<segment>");break;
+    case T_STRUCT: add_user_error("<struct>");break;
+    case T_UNION: add_user_error("<union>");break;
     case T_DEFAULT: add_user_error("<default>");break;
     case T_GAP: add_user_error("?");break;
     case T_LIST:
@@ -367,37 +375,38 @@ void err_msg_double_defined(const char *origname, const char *file, line_t sline
     errors++;
 }
 
-void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
+static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
     const char *name;
 
-    if (pass == 1) return;
+    if (pass == 1) return 0;
     if (v1->type == T_UNDEF) {
         err_msg_wrong_type(v1, epoint);
-        return;
+        return 0;
     }
     if (v2 && v2->type == T_UNDEF) {
         err_msg_wrong_type(v2, epoint);
-        return;
+        return 0;
     }
 
     if (errors+conderrors==99) {
         err_msg(ERROR__TOO_MANY_ERR, NULL);
-        return;
+        return 0;
     }
 
     addorigin(epoint);
 
+    adderror(msg);
     if (v2) {
-        adderror("error: invalid operands to ");
+        adderror(" operands to ");
     } else {
-        adderror("error: invalid type argument to ");
+        adderror(" type argument to ");
     }
     switch (op) {
     case O_SEPARATOR: name = "',";break;
-    case O_FUNC:    name = "function call '(";break;
-    case O_INDEX:   name = "indexing '[";break;
+    case O_FUNC:    name = "function call '()";break;
+    case O_INDEX:   name = "indexing '[]";break;
     case O_SLICE: 
-    case O_SLICE2:  name = "slicing '[";break;
+    case O_SLICE2:  name = "slicing '[:]";break;
     case O_BRACKET: name = "'[";break;
     case O_PARENT:  name = "'(";break;
     case O_COND:    name = "condition '?";break;
@@ -460,7 +469,20 @@ void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct
         adderror(type_name(v1->type));
     }
     adderror("'\n");
-    errors++;
+    return 1;
+}
+
+void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
+    if (err_oper("error: invalid", op, v1, v2, epoint)) errors++;
+}
+
+void err_msg_strange_oper(enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
+    return;
+    if (!arguments.warning) {
+        warnings++;
+        return;
+    }
+    if (err_oper("warning: possibly wrong", op, v1, v2, epoint)) warnings++;
 }
 
 void freeerrorlist(int print) {

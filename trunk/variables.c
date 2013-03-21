@@ -108,23 +108,23 @@ struct label_s *new_label(const char* name, const char* origname, enum label_e t
     struct label_s *tmp;
     char *s;
     if (!lastlb) lastlb=var_alloc();
-    lastlb->name=name;
-    b=avltree_insert(&lastlb->node, &current_context->members);
+    lastlb->name = name;
+    b = avltree_insert(&lastlb->node, &current_context->members);
     if (!b) { //new label
-	if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
+	if (!(s = malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy(s, name);lastlb->name = s;
-	if (!(s=malloc(strlen(origname)+1))) err_msg_out_of_memory();
+	if (!(s = malloc(strlen(origname) + 1))) err_msg_out_of_memory();
         strcpy(s, origname);lastlb->origname = s;
         lastlb->type = type;
-        lastlb->parent=current_context;
-        lastlb->ref=lastlb->sign=lastlb->size=lastlb->esize=0;
+        lastlb->parent = current_context;
+        lastlb->ref = 0;
         avltree_init(&lastlb->members, label_compare, label_free);
-	labelexists=0;
-	tmp=lastlb;
-	lastlb=NULL;
+	labelexists = 0;
+	tmp = lastlb;
+	lastlb = NULL;
 	return tmp;
     }
-    labelexists=1;
+    labelexists = 1;
     return avltree_container_of(b, struct label_s, node);            //already exists
 }
 

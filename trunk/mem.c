@@ -28,53 +28,52 @@ static struct {       //Linear memory dump
 
 struct memblock_s { //starts and sizes
     size_t p, len;
-    address_t start;
+    address_t addr;
 };
 
 static struct {
     unsigned int p, len;
+    size_t lastp;
+    address_t lastaddr;
     struct memblock_s *data;
 } memblocks;
-
-static size_t memblocklastp = 0;
-static address_t memblocklaststart = 0;
 
 static int memblockcomp(const void *a, const void *b) {
     const struct memblock_s *aa=(const struct memblock_s *)a;
     const struct memblock_s *bb=(const struct memblock_s *)b;
-    return aa->start-bb->start;
+    return aa->addr - bb->addr;
 }
 
 void memcomp(void) {
     unsigned int i, j, k;
     memjmp(0);
-    if (memblocks.p<2) return;
+    if (memblocks.p < 2) return;
 
     for (k = j = 0; j < memblocks.p; j++) {
         struct memblock_s *bj = &memblocks.data[j];
         if (bj->len) {
             for (i = j + 1; i < memblocks.p; i++) if (memblocks.data[i].len) {
                 struct memblock_s *bi = &memblocks.data[i];
-                if (bj->start <= bi->start && (bj->start + bj->len) > bi->start) {
-                    size_t overlap = (bj->start + bj->len) - bi->start;
+                if (bj->addr <= bi->addr && (bj->addr + bj->len) > bi->addr) {
+                    size_t overlap = (bj->addr + bj->len) - bi->addr;
                     if (overlap > bi->len) overlap = bi->len;
-                    memcpy(mem.data + bj->p + (unsigned)(bi->start - bj->start), mem.data + bi->p, overlap);
-                    bi->len-=overlap;
-                    bi->p+=overlap;
-                    bi->start+=overlap;
+                    memcpy(mem.data + bj->p + (unsigned)(bi->addr - bj->addr), mem.data + bi->p, overlap);
+                    bi->len -= overlap;
+                    bi->p += overlap;
+                    bi->addr += overlap;
                     continue;
                 }
-                if (bi->start <= bj->start && (bi->start + bi->len) > bj->start) {
-                    size_t overlap = bi->start + bi->len - bj->start;
+                if (bi->addr <= bj->addr && (bi->addr + bi->len) > bj->addr) {
+                    size_t overlap = bi->addr + bi->len - bj->addr;
                     if (overlap > bj->len) overlap = bj->len;
-                    bj->start+=overlap;
-                    bj->p+=overlap;
-                    bj->len-=overlap;
+                    bj->addr += overlap;
+                    bj->p += overlap;
+                    bj->len -= overlap;
                     if (!bj->len) break;
                 }
             }
             if (bj->len) {
-                if (j!=k) memblocks.data[k]=*bj;
+                if (j != k) memblocks.data[k] = *bj;
                 k++;
             }
         }
@@ -84,8 +83,8 @@ void memcomp(void) {
 }
 
 void memjmp(address_t adr) {
-    if (mem.p == memblocklastp) {
-        memblocklaststart = adr;
+    if (mem.p == memblocks.lastp) {
+        memblocks.lastaddr = adr;
         return;
     }
     if (memblocks.p>=memblocks.len) {
@@ -93,11 +92,11 @@ void memjmp(address_t adr) {
         memblocks.data=realloc(memblocks.data, memblocks.len*sizeof(*memblocks.data));
         if (!memblocks.data) err_msg_out_of_memory();
     }
-    memblocks.data[memblocks.p].len = mem.p-memblocklastp;
-    memblocks.data[memblocks.p].p = memblocklastp;
-    memblocks.data[memblocks.p++].start = memblocklaststart;
-    memblocklastp = mem.p;
-    memblocklaststart = adr;
+    memblocks.data[memblocks.p].len = mem.p - memblocks.lastp;
+    memblocks.data[memblocks.p].p = memblocks.lastp;
+    memblocks.data[memblocks.p++].addr = memblocks.lastaddr;
+    memblocks.lastp = mem.p;
+    memblocks.lastaddr = adr;
 }
 
 void memprint(void) {
@@ -106,15 +105,16 @@ void memprint(void) {
     address_t start, end;
 
     if (memblocks.p) {
-        start = memblocks.data[0].start;
-        end = memblocks.data[0].start + memblocks.data[0].len;
-        for (i=1;i<memblocks.p;i++) {
-            if (memblocks.data[i].start != end) {
+        i = 0;
+        start = memblocks.data[i].addr;
+        end = memblocks.data[i].addr + memblocks.data[i].len;
+        for (i++; i < memblocks.p; i++) {
+            if (memblocks.data[i].addr != end) {
                 sprintf(temp, "$%04" PRIaddress, start);
                 printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
-                start = memblocks.data[i].start;
+                start = memblocks.data[i].addr;
             }
-            end = memblocks.data[i].start + memblocks.data[i].len;
+            end = memblocks.data[i].addr + memblocks.data[i].len;
         }
         sprintf(temp, "$%04" PRIaddress, start);
         printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
@@ -135,56 +135,57 @@ void output_mem(int scpumode) {
         }
         clearerr(fout);
         if (memblocks.p) {
-            start = memblocks.data[0].start;
-            last = 0;
+            i = 0;
+            start = memblocks.data[i].addr;
             if (!arguments.nonlinear && arguments.flat) {
                 size = start;
                 while (size--) putc(0, fout);
             }
-            size = memblocks.data[0].len;
-            for (i=1;i<memblocks.p;i++) {
-                if (memblocks.data[i].start != start + size) {
+            size = memblocks.data[i].len;
+            last = i;
+            for (i++; i < memblocks.p; i++) {
+                if (memblocks.data[i].addr != start + size) {
                     if (arguments.nonlinear) {
                         putc(size,fout);
                         putc(size >> 8,fout);
                         if (scpumode) putc(size >> 16,fout);
                     }
-                    if ((!arguments.stripstart && !arguments.flat && !last) || arguments.nonlinear) {
+                    if ((!arguments.stripstart && !arguments.flat && last == 0) || arguments.nonlinear) {
                         putc(start,fout);
                         putc(start >> 8,fout);
                         if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
                     }
-                    while (last<i) {
-                        fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
+                    while (last < i) {
+                        fwrite(mem.data + memblocks.data[last].p, memblocks.data[last].len, 1, fout);
                         last++;
                     }
                     if (!arguments.nonlinear) {
-                        size = memblocks.data[i].start - start - size;
+                        size = memblocks.data[i].addr - start - size;
                         while (size--) putc(0, fout);
                     }
-                    start = memblocks.data[i].start;
+                    start = memblocks.data[i].addr;
                     size = 0;
                 }
                 size += memblocks.data[i].len;
             }
             if (arguments.nonlinear) {
                 putc(size,fout);
-                putc(size >> 8,fout);
-                if (scpumode) putc(size >> 16,fout);
+                putc(size >> 8, fout);
+                if (scpumode) putc(size >> 16, fout);
             }
-            if ((!arguments.stripstart && !arguments.flat && !last) || arguments.nonlinear) {
-                putc(start,fout);
-                putc(start >> 8,fout);
+            if ((!arguments.stripstart && !arguments.flat && last == 0) || arguments.nonlinear) {
+                putc(start, fout);
+                putc(start >> 8, fout);
                 if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
             }
             while (last<i) {
-                fwrite(mem.data+memblocks.data[last].p,memblocks.data[last].len,1,fout);
+                fwrite(mem.data + memblocks.data[last].p, memblocks.data[last].len, 1, fout);
                 last++;
             }
         }
         if (arguments.nonlinear) {
-            putc(0,fout);
-            putc(0,fout);
+            putc(0, fout);
+            putc(0, fout);
             if (scpumode) putc(0 ,fout);
         }
         if (ferror(fout)) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output);
@@ -193,9 +194,9 @@ void output_mem(int scpumode) {
 }
 
 void write_mem(uint8_t c) {
-    if (mem.p>=mem.len) {
-        mem.len+=0x1000;
-        mem.data=realloc(mem.data, mem.len);
+    if (mem.p >= mem.len) {
+        mem.len += 0x1000;
+        mem.data = realloc(mem.data, mem.len);
         if (!mem.data) err_msg_out_of_memory();
     }
     mem.data[mem.p++] = c;
@@ -229,9 +230,9 @@ int16_t read_mem(size_t memp, size_t membp, size_t offs) {
         offs -= len;
         memp += len;
         if (membp + 1 < memblocks.p) {
-            len = memblocks.data[membp + 1].start - memblocks.data[membp].start - memblocks.data[membp].len;
+            len = memblocks.data[membp + 1].addr - memblocks.data[membp].addr - memblocks.data[membp].len;
         } else if (membp < memblocks.p) {
-            len = memblocklaststart - memblocks.data[membp].start - memblocks.data[membp].len;
+            len = memblocks.lastaddr - memblocks.data[membp].addr - memblocks.data[membp].len;
         } else return -1;
         if (offs < len) return -1;
         offs -= len;
@@ -253,23 +254,23 @@ void list_mem(FILE *flist, address_t all_mem, const uint8_t **llist, int dooutpu
     int first = 1;
 
     for (;omemp <= memblocks.p;omemp++, first = 0) {
-        lcol=arguments.source?25:49;
+        lcol = arguments.source ? 25 : 49;
         if (omemp < memblocks.p) {
-            if (first && oaddr < memblocks.data[omemp].start) {
+            if (first && oaddr < memblocks.data[omemp].addr) {
                 len = 0; myaddr = oaddr; omemp--;
             } else {
                 len = memblocks.data[omemp].len - (ptextaddr - memblocks.data[omemp].p);
-                myaddr = (memblocks.data[omemp].start + memblocks.data[omemp].len - len) & all_mem;
+                myaddr = (memblocks.data[omemp].addr + memblocks.data[omemp].len - len) & all_mem;
             }
         } else {
-            if (first && oaddr < memblocklaststart) {
+            if (first && oaddr < memblocks.lastaddr) {
                 len = 0; myaddr = oaddr; omemp--;
             } else {
-                myaddr = memblocklaststart + (ptextaddr - memblocklastp);
+                myaddr = memblocks.lastaddr + (ptextaddr - memblocks.lastp);
                 len = mem.p - ptextaddr;
                 if (!len) {
                     if (!*llist) continue;
-                    if (omemp) myaddr = (memblocks.data[omemp-1].start + memblocks.data[omemp-1].len) & all_mem;
+                    if (omemp) myaddr = (memblocks.data[omemp-1].addr + memblocks.data[omemp-1].len) & all_mem;
                     else myaddr = oaddr;
                 }
             }
@@ -278,7 +279,7 @@ void list_mem(FILE *flist, address_t all_mem, const uint8_t **llist, int dooutpu
         if (dooutput) {
             fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", myaddr);
             while (len) {
-                if (lcol==1) {
+                if (lcol == 1) {
                     if (arguments.source && *llist) {
                         putc('\t', flist);printllist(flist);
                     } else putc('\n',flist);
@@ -293,14 +294,17 @@ void list_mem(FILE *flist, address_t all_mem, const uint8_t **llist, int dooutpu
         } else fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", oaddr);
 
         if (arguments.source && *llist) {
-            for (i=0; i<lcol-1; i+=8) putc('\t',flist);
+            for (i = 0; i < lcol - 1; i += 8) putc('\t',flist);
             putc('\t', flist);printllist(flist);
         } else putc('\n',flist);
     }
 }
 
 void restart_mem(void) {
-    mem.p=0;memblocklastp=0;memblocks.p=0;memblocklaststart=0;
+    mem.p = 0;
+    memblocks.lastp = 0;
+    memblocks.p = 0;
+    memblocks.lastaddr = 0;
 }
 
 void init_mem(void) {
@@ -309,6 +313,8 @@ void init_mem(void) {
     mem.data = NULL;
     memblocks.p = 0;
     memblocks.len = 0;
+    memblocks.lastp = 0;
+    memblocks.lastaddr = 0;
     memblocks.data = NULL;
 }
 

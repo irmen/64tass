@@ -16,10 +16,8 @@ a1
     .send
 
     .dsection a2
-    .send
 
     .dsection a2
-    .send
 
 a1  .macro
     .endm

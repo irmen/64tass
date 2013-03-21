@@ -82,6 +82,7 @@ static struct {
     address_t addr;
     address_t laddr;
     struct label_s *label;
+    size_t memp, membp;
     struct section_s *section;
     uint8_t skip;
 } waitfor[nestinglevel];
@@ -262,13 +263,16 @@ static void new_waitfor(char what, linepos_t epoint) {
     waitfor[waitforp].skip=waitfor[waitforp-1].skip & 1;
 }
 
-static void set_size(struct label_s *var, size_t size) {
+static void set_size(struct label_s *var, size_t size, size_t memp, size_t membp) {
     size &= all_mem2;
-    if (var->size != size) {
-        var->size = size;
+    if (var->value->u.code.size != size) {
+        var->value->u.code.size = size;
         if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, var->origname);
         fixeddig = 0;
     }
+    var->value->u.code.pass = pass;
+    var->value->u.code.memp = memp;
+    var->value->u.code.membp = membp;
 }
 
 // ---------------------------------------------------------------------------
@@ -551,7 +555,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
 
 static void compile(void);
 
-static void macro_recurse(char t, struct label_s *tmp2) {
+static void macro_recurse(char t, struct value_s *tmp2) {
     if (macro_parameters.p>100) {
         err_msg(ERROR__MACRECURSION,"!!!!");
         return;
@@ -607,7 +611,7 @@ static void macro_recurse(char t, struct label_s *tmp2) {
         macro_parameters.current->all.len = npoint.pos - opoint.pos;
     }
     {
-        size_t oldpos = tmp2->file->p;
+        size_t oldpos = tmp2->u.macro.file->p;
         line_t lin = sline;
         struct file_s *f;
         struct star_s *s = new_star(vline);
@@ -615,20 +619,20 @@ static void macro_recurse(char t, struct label_s *tmp2) {
         line_t ovline = vline;
 
         if (labelexists && s->addr != star) {
-            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, tmp2->origname);
+            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
             fixeddig=0;
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        enterfile(tmp2->file->realname, sline);
-        sline = tmp2->sline;
+        enterfile(tmp2->u.macro.file->realname, sline);
+        sline = tmp2->u.macro.sline;
         new_waitfor(t, (linepos_t){0,0});
-        f = cfile; cfile = tmp2->file;
-        cfile->p = tmp2->p;
+        f = cfile; cfile = tmp2->u.macro.file;
+        cfile->p = tmp2->u.macro.p;
         compile();
         exitfile(); cfile = f;
         star_tree = stree_old; vline = ovline;
-        sline = lin; tmp2->file->p = oldpos;
+        sline = lin; tmp2->u.macro.file->p = oldpos;
     }
     macro_parameters.p--;
     if (macro_parameters.p) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
@@ -641,6 +645,7 @@ static void compile(void)
     struct value_s *val;
 
     struct label_s *newlabel = NULL;
+    size_t newmemp = 0, newmembp = 0;
     struct label_s *tmp2 = NULL;
     address_t oaddr = 0;
 
@@ -690,40 +695,43 @@ static void compile(void)
         hh:
             if (!(waitfor[waitforp].skip & 1)) {wht=what(&prm);goto jn;} //skip things if needed
             if ((wht=what(&prm))==WHAT_EQUAL) { //variable
-                newlabel=find_label2(labelname, &current_context->members);
+                struct label_s *label;
+                label=find_label2(labelname, &current_context->members);
                 if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
-                if (newlabel && !newlabel->ref && pass != 1) goto finish;
+                if (label && !label->ref && pass != 1) goto finish;
                 if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
-                if (newlabel) labelexists = 1;
-                else newlabel = new_label(labelname, labelname2, L_CONST);
+                if (label) labelexists = 1;
+                else label = new_label(labelname, labelname2, L_CONST);
                 oaddr=current_section->address;
-                if (listing && flist && arguments.source && newlabel->ref) {
+                if (listing && flist && arguments.source && label->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                     if (type_is_int(val->type)) {
                         fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.num.val);
+                    } else if (val->type == T_CODE) {
+                        fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.code.addr);
                     } else {
                         fputs("=\t\t\t\t\t", flist);
                     }
                     printllist(flist);
                 }
-                newlabel->ref=0;
+                label->ref=0;
                 if (labelexists) {
-                    if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                    if (label->type != L_CONST || pass==1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
                     else {
-                        newlabel->requires=current_section->requires;
-                        newlabel->conflicts=current_section->conflicts;
-                        var_assign(newlabel, val, 0);
+                        label->requires=current_section->requires;
+                        label->conflicts=current_section->conflicts;
+                        var_assign(label, val, 0);
                     }
                 } else {
-                    newlabel->requires=current_section->requires;
-                    newlabel->conflicts=current_section->conflicts;
-                    newlabel->pass=pass;
-                    newlabel->value=&none_value;
-                    var_assign(newlabel, val, fixeddig);
-                    newlabel->file = cfile;
-                    newlabel->sline = sline;
-                    newlabel->epoint = epoint;
+                    label->requires=current_section->requires;
+                    label->conflicts=current_section->conflicts;
+                    label->pass=pass;
+                    label->value=&none_value;
+                    var_assign(label, val, fixeddig);
+                    label->file = cfile;
+                    label->sline = sline;
+                    label->epoint = epoint;
                 }
                 goto finish;
             }
@@ -731,40 +739,43 @@ static void compile(void)
                 switch (prm) {
                 case CMD_VAR: //variable
                     {
-                        newlabel=find_label2(labelname, &current_context->members);
+                        struct label_s *label;
+                        label=find_label2(labelname, &current_context->members);
                         if (!get_exp(&w, 0)) goto breakerr; //ellenorizve.
-                        if (newlabel && !newlabel->ref && pass != 1 && newlabel->upass != pass) goto finish;
+                        if (label && !label->ref && pass != 1 && label->upass != pass) goto finish;
                         if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
-                        if (newlabel) labelexists = 1;
-                        else newlabel = new_label(labelname, labelname2, L_VAR);
+                        if (label) labelexists = 1;
+                        else label = new_label(labelname, labelname2, L_VAR);
                         oaddr=current_section->address;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                             if (type_is_int(val->type)) {
                                 fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.num.val);
+                            } else if (val->type == T_CODE) {
+                                fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.code.addr);
                             } else {
                                 fputs("=\t\t\t\t\t", flist);
                             }
                             printllist(flist);
                         }
                         if (labelexists) {
-                            if (newlabel->upass != pass) newlabel->ref=0;
-                            if (newlabel->type != L_VAR) err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                            if (label->upass != pass) label->ref=0;
+                            if (label->type != L_VAR) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
                             else {
-                                newlabel->requires=current_section->requires;
-                                newlabel->conflicts=current_section->conflicts;
-                                var_assign(newlabel, val, fixeddig);
+                                label->requires=current_section->requires;
+                                label->conflicts=current_section->conflicts;
+                                var_assign(label, val, fixeddig);
                             }
                         } else {
-                            newlabel->requires=current_section->requires;
-                            newlabel->conflicts=current_section->conflicts;
-                            newlabel->pass=pass;
-                            newlabel->value=&none_value;
-                            var_assign(newlabel, val, fixeddig);
-                            newlabel->file = cfile;
-                            newlabel->sline = sline;
-                            newlabel->epoint = epoint;
+                            label->requires=current_section->requires;
+                            label->conflicts=current_section->conflicts;
+                            label->pass=pass;
+                            label->value=&none_value;
+                            var_assign(label, val, fixeddig);
+                            label->file = cfile;
+                            label->sline = sline;
+                            label->epoint = epoint;
                             if (val->type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
                         }
                         goto finish;
@@ -798,106 +809,103 @@ static void compile(void)
                     }
                 case CMD_MACRO:// .macro
                 case CMD_SEGMENT:
-                    new_waitfor('m', epoint);waitfor[waitforp].skip=0;
-                    ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                    newlabel=new_label(labelname, labelname2, (prm==CMD_MACRO)?L_MACRO:L_SEGMENT);
-                    if (labelexists) {
-                        if (newlabel->p != cfile->p
-                         || newlabel->sline != sline
-                         || newlabel->type != ((prm == CMD_MACRO) ? L_MACRO : L_SEGMENT)
-                         || newlabel->file != cfile) {
-                            err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                    {
+                        struct label_s *label;
+                        new_waitfor('m', epoint);waitfor[waitforp].skip=0;
+                        ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                        label=new_label(labelname, labelname2, L_LABEL);
+                        if (labelexists) {
+                            if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                        } else {
+                            label->requires=0;
+                            label->conflicts=0;
+                            label->pass=pass;
+                            label->value = &none_value;
+                            new_value.type = (prm == CMD_MACRO) ? T_MACRO : T_SEGMENT;
+                            new_value.u.macro.p = cfile->p;
+                            new_value.u.macro.size = 0;
+                            new_value.u.macro.sline = sline;
+                            new_value.u.macro.file = cfile;
+                            var_assign(label, &new_value, fixeddig);
+                            label->sline = sline;
+                            label->file = cfile;
+                            label->epoint = epoint;
                         }
-                    } else {
-                        newlabel->requires=0;
-                        newlabel->conflicts=0;
-                        newlabel->pass=pass;
-                        newlabel->value = &none_value;
-                        new_value.type = T_LABEL;
-                        new_value.u.num.val = 0;
-                        new_value.u.num.label = newlabel;
-                        var_assign(newlabel, &new_value, fixeddig);
-                        newlabel->memp = ~(size_t)0; newlabel->membp = ~(size_t)0;
-                        newlabel->p = cfile->p;
-                        newlabel->sline = sline;
-                        newlabel->file = cfile;
-                        newlabel->epoint = epoint;
+                        label->ref=0;
+                        goto finish;
                     }
-                    newlabel->ref=0;
-                    newlabel = NULL;
-                    goto finish;
                 case CMD_STRUCT:
                 case CMD_UNION:
                     {
-                        struct label_s *old_context=current_context;
+                        struct label_s *old_context=current_context, *label;
+                        size_t memp, membp;
                         struct section_s olds = *current_section;
                         int declaration = !current_section->structrecursion;
 
                         new_waitfor((prm==CMD_STRUCT)?'s':'u', epoint);waitfor[waitforp].skip=0;
                         ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                        newlabel=new_label(labelname, labelname2, declaration ? ((prm == CMD_STRUCT) ? L_STRUCT : L_UNION) : L_LABEL);oaddr = current_section->address;
+                        label=new_label(labelname, labelname2, L_LABEL);oaddr = current_section->address;
                         if (declaration) {
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
                             current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
                             current_section->dooutput=0;memjmp(0); oaddr = 0;
 
                             if (labelexists) {
-                                if (newlabel->p != cfile->p
-                                        || newlabel->sline != sline
-                                        || newlabel->type != ((prm==CMD_STRUCT)?L_STRUCT:L_UNION)
-                                        || newlabel->file != cfile) {
-                                    err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
-                                }
+                                if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
                             } else {
-                                newlabel->requires = 0;
-                                newlabel->conflicts = 0;
-                                newlabel->pass = pass;
-                                newlabel->value = &none_value;
-                                new_value.type = T_LABEL;
-                                new_value.u.num.val = 0;
-                                new_value.u.num.label = newlabel;
-                                var_assign(newlabel, &new_value, fixeddig);
-                                newlabel->memp = ~(size_t)0; newlabel->membp = ~(size_t)0;
-                                newlabel->p = cfile->p;
-                                newlabel->sline = sline;
-                                newlabel->file = cfile;
-                                newlabel->epoint = epoint;
+                                label->requires = 0;
+                                label->conflicts = 0;
+                                label->pass = pass;
+                                label->value = &none_value;
+                                new_value.type = (prm == CMD_STRUCT) ? T_STRUCT : T_UNION;
+                                new_value.u.macro.p = cfile->p;
+                                new_value.u.macro.size = 0;
+                                new_value.u.macro.sline = sline;
+                                new_value.u.macro.file = cfile;
+                                var_assign(label, &new_value, fixeddig);
+                                label->sline = sline;
+                                label->file = cfile;
+                                label->epoint = epoint;
                             }
                         } else {
                             if (labelexists) {
-                                if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
-                                else {
-                                    if (newlabel->type != L_LABEL) { /* should not happen */
-                                        err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
-                                    } else {
-                                        if ((uval_t)newlabel->value->u.num.val != current_section->l_address) {
-                                            new_value.type=T_LABEL;
-                                            new_value.u.num.val = current_section->l_address;
-                                            new_value.u.num.label = newlabel;
-                                            var_assign(newlabel, &new_value, 0);
-                                        } else newlabel->upass = pass;
-                                        get_mem(&newlabel->memp, &newlabel->membp);
-                                        newlabel->requires=current_section->requires;
-                                        newlabel->conflicts=current_section->conflicts;
-                                    }
+                                if (label->type != L_LABEL || pass==1) {
+                                    err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                                    label = NULL;
+                                } else {
+                                    new_value.type=T_CODE;
+                                    new_value.u.code.addr = current_section->l_address;
+                                    new_value.u.code.size = label->value->u.code.size;
+                                    new_value.u.code.esize = label->value->u.code.esize;
+                                    new_value.u.code.sign = label->value->u.code.sign;
+                                    new_value.u.code.pass = pass - 1;
+                                    label->requires=current_section->requires;
+                                    label->conflicts=current_section->conflicts;
+                                    get_mem(&memp, &membp);
+                                    var_assign(label, &new_value, 0);
                                 }
                             } else {
-                                newlabel->requires=current_section->requires;
-                                newlabel->conflicts=current_section->conflicts;
-                                newlabel->pass=pass;
-                                newlabel->value = &none_value;
-                                new_value.type = T_LABEL;
-                                new_value.u.num.val = current_section->l_address;
-                                new_value.u.num.label = newlabel;
-                                var_assign(newlabel, &new_value, fixeddig);
-                                get_mem(&newlabel->memp, &newlabel->membp);
-                                newlabel->file = cfile;
-                                newlabel->sline = sline;
-                                newlabel->epoint = epoint;
+                                label->pass=pass;
+                                label->value = &none_value;
+                                label->file = cfile;
+                                label->sline = sline;
+                                label->epoint = epoint;
+                                label->requires=current_section->requires;
+                                label->conflicts=current_section->conflicts;
+                                new_value.type = T_CODE;
+                                new_value.u.code.addr = current_section->l_address;
+                                new_value.u.code.size = 0;
+                                new_value.u.code.esize = 1;
+                                new_value.u.code.sign = 0;
+                                new_value.u.code.pass = pass - 1;
+                                get_mem(&memp, &membp);
+                                var_assign(label, &new_value, fixeddig);
                             }
                         }
-                        current_context=newlabel;
-                        newlabel->ref=0;
+                        if (label) {
+                            current_context=label;
+                            label->ref=0;
+                        }
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
@@ -920,13 +928,20 @@ static void compile(void)
                             current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
                         } else err_msg(ERROR__MACRECURSION,"!!!!");
                         current_section->structrecursion--;
-                        set_size(newlabel, current_section->address - oaddr);
+                        if (!label) goto finish;
                         if (declaration) {
+                            new_value.type = (prm == CMD_STRUCT) ? T_STRUCT : T_UNION;
+                            new_value.u.macro.size = (current_section->address - oaddr) & all_mem2;
+                            new_value.u.macro.p = label->value->u.macro.p;
+                            new_value.u.macro.sline = label->value->u.macro.sline;
+                            new_value.u.macro.file = label->value->u.macro.file;
+                            var_assign(label, &new_value, fixeddig);
                             current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
                             current_section->end=olds.end;current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
                             current_section->dooutput=olds.dooutput;memjmp(current_section->address);
+                        } else {
+                            set_size(label, current_section->address - oaddr, memp, membp);
                         }
-                        newlabel = NULL;
                         goto finish;
                     }
                 case CMD_SECTION:
@@ -964,46 +979,48 @@ static void compile(void)
                     }
                 }
             }
-            if (!islabel && (tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) {lpoint.pos--;labelname2[0]=0;goto as_macro;}
+            if (!islabel && (tmp2=find_label(labelname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) {lpoint.pos--;labelname2[0]=0;goto as_macro;}
             if (!islabel && tmp2 && tmp2->parent == current_context) {newlabel = tmp2;labelexists = 1;}
             else newlabel=new_label(labelname, labelname2, L_LABEL);
             oaddr=current_section->address;
             if (labelexists) {
-                if (pass==1) err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
-                else {
-                    if (newlabel->type != L_LABEL) { /* should not happen */
-                        err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
-                    } else {
-                        if ((uval_t)newlabel->value->u.num.val != current_section->l_address) {
-                            new_value.type=T_LABEL;
-                            new_value.u.num.val = current_section->l_address;
-                            new_value.u.num.label = newlabel;
-                            var_assign(newlabel, &new_value, 0);
-                        } else newlabel->upass = pass;
-                        get_mem(&newlabel->memp, &newlabel->membp);
-                        newlabel->requires=current_section->requires;
-                        newlabel->conflicts=current_section->conflicts;
-                    }
+                if (newlabel->type != L_LABEL || newlabel->value->type != T_CODE || pass==1) {
+                    err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                    newlabel = NULL; goto jn;
+                } else {
+                    newlabel->requires=current_section->requires;
+                    newlabel->conflicts=current_section->conflicts;
+                    new_value.type = T_CODE;
+                    new_value.u.code.addr = current_section->l_address;
+                    new_value.u.code.size = newlabel->value->u.code.size;
+                    new_value.u.code.esize = newlabel->value->u.code.esize;
+                    new_value.u.code.sign = newlabel->value->u.code.sign;
+                    new_value.u.code.pass = pass - 1;
+                    get_mem(&newmemp, &newmembp);
+                    var_assign(newlabel, &new_value, fixeddig);
                 }
             } else {
-                newlabel->requires=current_section->requires;
-                newlabel->conflicts=current_section->conflicts;
-                newlabel->pass=pass;
+                newlabel->pass = pass;
                 newlabel->value = &none_value;
-                new_value.type = T_LABEL;
-                new_value.u.num.val = current_section->l_address;
-                new_value.u.num.label = newlabel;
-                var_assign(newlabel, &new_value, fixeddig);
-                get_mem(&newlabel->memp, &newlabel->membp);
                 newlabel->file = cfile;
                 newlabel->sline = sline;
                 newlabel->epoint = epoint;
+                newlabel->requires=current_section->requires;
+                newlabel->conflicts=current_section->conflicts;
+                new_value.type = T_CODE;
+                new_value.u.code.addr = current_section->l_address;
+                new_value.u.code.size = 0;
+                new_value.u.code.esize = 1;
+                new_value.u.code.sign = 0;
+                new_value.u.code.pass = pass - 1;
+                get_mem(&newmemp, &newmembp);
+                var_assign(newlabel, &new_value, fixeddig);
             }
             if (epoint.pos && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
             if (wht==WHAT_COMMAND) { // .proc
                 switch (prm) {
                 case CMD_PROC:
-                    new_waitfor('r', epoint);waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
+                    new_waitfor('r', epoint);waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
                     if (!newlabel->ref && pass != 1) waitfor[waitforp].skip=0;
                     else {
                         current_context=newlabel;
@@ -1032,12 +1049,14 @@ static void compile(void)
                             printllist(flist);
                         }
                         newlabel->ref=0;
-                        ignore();epoint=lpoint;
-                        if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!get_exp(&w,0)) goto breakerr;
+                        if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (val == &error_value) goto breakerr;
+                        eval_finish();
+                        if (val->type != ((prm==CMD_DSTRUCT) ? T_STRUCT : T_UNION)) {err_msg_wrong_type(val, epoint); goto breakerr;}
                         ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                        if (!(tmp2=find_label(labelname)) || tmp2->type!=((prm==CMD_DSTRUCT) ? L_STRUCT : L_UNION)) {err_msg2(ERROR___NOT_DEFINED,labelname2,epoint); goto breakerr;}
                         current_section->structrecursion++;
-                        macro_recurse((prm==CMD_DSTRUCT)?'S':'U',tmp2);
+                        macro_recurse((prm==CMD_DSTRUCT)?'S':'U',val);
                         current_section->structrecursion--;
                         current_context=oldcontext;
                         current_section->unionmode = old_unionmode;
@@ -1046,7 +1065,7 @@ static void compile(void)
                         goto finish;
                     }
                 case CMD_SECTION:
-                    waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
+                    waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
                     if (newlabel->ref && listing && flist && arguments.source) {
                         if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                         fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
@@ -1155,6 +1174,8 @@ static void compile(void)
                         case CMD_EOR:
                         case CMD_CPU:
                         case CMD_INCLUDE:
+                        case CMD_DUNION:
+                        case CMD_DSTRUCT:
                         case CMD_BINCLUDE:
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                             if (wasref)
@@ -1212,20 +1233,20 @@ static void compile(void)
                         case T_SINT:
                         case T_UINT:
                         case T_BOOL:
-                        case T_LABEL:
-                        case T_NUM: waitfor[waitforp].skip = (!val->u.num.val) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        case T_FLOAT: waitfor[waitforp].skip = (!val->u.real) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        case T_STR: waitfor[waitforp].skip = (!val->u.str.len) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
+                        case T_CODE:
+                        case T_FLOAT:
+                        case T_STR:
+                        case T_NUM: waitfor[waitforp].skip = (!val_truth(val)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
                         }
                         break;
                     case CMD_IFPL:
                         switch (val->type) {
-                        case T_SINT:
+                        case T_SINT: waitfor[waitforp].skip = (arguments.tasmcomp ? (~val->u.num.val & 0x8000) : (val->u.num.val>=0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_UINT:
                         case T_BOOL:
-                        case T_LABEL:
-                        case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (~val->u.num.val & 0x8000) : (val->u.num.val>=0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
+                        case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (~val->u.num.val & 0x8000) : 1) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
+                        case T_CODE: waitfor[waitforp].skip = (arguments.tasmcomp ? (~val->u.code.addr & 0x8000) : 1) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real >= 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
@@ -1233,11 +1254,11 @@ static void compile(void)
                         break;
                     case CMD_IFMI:
                         switch (val->type) {
-                        case T_SINT:
+                        case T_SINT: waitfor[waitforp].skip = (arguments.tasmcomp ? (val->u.num.val & 0x8000) : (val->u.num.val < 0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_UINT:
                         case T_BOOL:
-                        case T_LABEL:
-                        case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (val->u.num.val & 0x8000) : (val->u.num.val < 0)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
+                        case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (val->u.num.val & 0x8000) : 0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
+                        case T_CODE: waitfor[waitforp].skip = (arguments.tasmcomp ? (val->u.code.addr & 0x8000) : 0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real < 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
                         }
@@ -1268,7 +1289,7 @@ static void compile(void)
                             current_context = current_context->parent;
                         } else err_msg2(ERROR______EXPECTED,".proc", epoint);
                         lastl=LIST_NONE;
-                        if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
+                        if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr, waitfor[waitforp].memp, waitfor[waitforp].membp);
                     }
                     waitforp--;
                     break;
@@ -1284,23 +1305,14 @@ static void compile(void)
                 if (prm==CMD_SEND) { // .send
                     if (waitfor[waitforp].what=='t') {
                         waitforp--;get_ident2(labelname, labelname2);
-                    } else if (waitfor[waitforp].what=='T' || waitfor[waitforp].what=='d') {
-                        address_t ssize = current_section->size;
-                        if (pass == 1 && waitfor[waitforp].what == 'd') {
-                            if (!current_section->moved) {
-                                if (current_section->end < current_section->address) current_section->end = current_section->address;
-                            }
-                            ssize = current_section->end - current_section->start;
-                        }
+                    } else if (waitfor[waitforp].what=='T') {
                         ignore();epoint=lpoint;
                         if (!get_ident2(labelname, labelname2)) {
                             if (strcmp(labelname, current_section->name)) err_msg2(ERROR______EXPECTED,current_section->name,epoint);
                         }
-                        if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
+                        if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr, waitfor[waitforp].memp, waitfor[waitforp].membp);
                         current_section = waitfor[waitforp].section;
-                        if (ssize && waitfor[waitforp].what=='d') {
-                            memskip(ssize);
-                        } else memjmp(current_section->address);
+                        memjmp(current_section->address);
                         waitforp--;
                     } else err_msg2(ERROR______EXPECTED,".SECTION or .DSECTION", epoint);
                     break;
@@ -1324,7 +1336,7 @@ static void compile(void)
 			if ((current_section->l_address & ~0xff) != (waitfor[waitforp].laddr & ~0xff) && fixeddig) {
 				err_msg2(ERROR____PAGE_ERROR, &current_section->l_address, epoint);
 			}
-			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr, waitfor[waitforp].memp, waitfor[waitforp].membp);
                         waitforp--;
                     } else err_msg2(ERROR______EXPECTED,".PAGE", epoint); break;
                     break;
@@ -1335,7 +1347,7 @@ static void compile(void)
                         current_section->logicalrecursion--;
                     } else if (waitfor[waitforp].what=='L') {
 			current_section->l_address = current_section->address + waitfor[waitforp].laddr;
-			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr, waitfor[waitforp].memp, waitfor[waitforp].membp);
                         waitforp--;
                         current_section->logicalrecursion--;
                     } else err_msg2(ERROR______EXPECTED,".LOGICAL", epoint); break;
@@ -1345,7 +1357,7 @@ static void compile(void)
                     if (waitfor[waitforp].what=='b') {
                         waitforp--;
                     } else if (waitfor[waitforp].what=='B') {
-			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr);
+			if (waitfor[waitforp].label) set_size(waitfor[waitforp].label, current_section->address - waitfor[waitforp].addr, waitfor[waitforp].memp, waitfor[waitforp].membp);
 			if (current_context->parent) current_context = current_context->parent;
 			else err_msg2(ERROR______EXPECTED,".block", epoint);
 			waitforp--;
@@ -1360,7 +1372,6 @@ static void compile(void)
                     case CMD_PAGE: what2 = 'p'; break;
                     case CMD_UNION: what2 = 'u'; break;
                     case CMD_STRUCT: what2 = 's'; break;
-                    case CMD_DSECTION:
                     case CMD_SECTION: what2 = 't'; break;
                     case CMD_MACRO:
                     case CMD_SEGMENT: what2 = 'm'; break;
@@ -1381,7 +1392,10 @@ static void compile(void)
                     if (prm<CMD_BYTE) {    // .text .ptext .shift .shift2 .null
                         int16_t ch2=-1;
                         linepos_t large = {0,0};
-                        if (newlabel) newlabel->esize = 1;
+                        if (newlabel) {
+                            newlabel->value->u.code.esize = 1;
+                            newlabel->value->u.code.sign = 0;
+                        }
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0)) goto breakerr;
                         while ((val = get_val(T_NONE, &epoint))) {
@@ -1401,7 +1415,6 @@ static void compile(void)
                                         if (ch2 > 255) i = val->u.str.len;
                                         break;
                                     case T_BOOL:
-                                    case T_LABEL:
                                     case T_NUM:
                                     case T_UINT:
                                     case T_SINT:
@@ -1409,6 +1422,10 @@ static void compile(void)
                                             if ((uval_t)val->u.num.val & ~(uval_t)0xff) large=epoint;
                                         }
                                         ch2 = (uint8_t)val->u.num.val;
+                                        break;
+                                    case T_CODE:
+                                        if (val->u.code.addr > (address_t)0xff) large=epoint;
+                                        ch2 = (uint8_t)val->u.code.addr;
                                         break;
                                     case T_FLOAT:
                                         if ((uval_t)val->u.real & ~(uval_t)0xff) large=epoint;
@@ -1434,7 +1451,6 @@ static void compile(void)
                                                         if (ch2 > 255) i = val2->u.str.len;
                                                         break;
                                                     case T_BOOL:
-                                                    case T_LABEL:
                                                     case T_NUM:
                                                     case T_UINT:
                                                     case T_SINT:
@@ -1442,6 +1458,10 @@ static void compile(void)
                                                             if ((uval_t)val2->u.num.val & ~(uval_t)0xff) large=epoint;
                                                         }
                                                         ch2 = (uint8_t)val2->u.num.val;
+                                                        break;
+                                                    case T_CODE:
+                                                        if (val2->u.code.addr > (address_t)0xff) large=epoint;
+                                                        ch2 = (uint8_t)val2->u.code.addr;
                                                         break;
                                                     case T_FLOAT:
                                                         if ((uval_t)val2->u.real & ~(uval_t)0xff) large=epoint;
@@ -1490,8 +1510,8 @@ static void compile(void)
                         uval_t uv;
                         linepos_t large = {0,0};
                         if (newlabel) {
-                            newlabel->esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);
-                            newlabel->sign = (prm == CMD_CHAR) || (prm == CMD_INT) || (prm == CMD_DINT);
+                            newlabel->value->u.code.esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);
+                            newlabel->value->u.code.sign = (prm == CMD_CHAR) || (prm == CMD_INT) || (prm == CMD_DINT);
                         }
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         while ((val = get_val(T_NONE, &epoint))) {
@@ -1500,12 +1520,12 @@ static void compile(void)
                             case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
                             case T_STR: if (str_to_num(val, T_NUM, &new_value)) {large = epoint; ch2 = 0; break;} val = &new_value;
                             case T_FLOAT:
-                            case T_LABEL:
+                            case T_CODE:
                             case T_NUM:
                             case T_BOOL:
                             case T_SINT:
                             case T_UINT:
-                                uv = (val->type == T_FLOAT) ? (uval_t)val->u.real : (uval_t)val->u.num.val;
+                                uv = (val->type == T_FLOAT) ? (uval_t)val->u.real : ((val->type == T_CODE) ? (uval_t)val->u.code.addr : (uval_t)val->u.num.val);
                                 switch (prm) {
                                 case CMD_CHAR: if ((val->u.num.len > 8 || val->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
                                 case CMD_BYTE: if ((val->u.num.len > 8 || val->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
@@ -1528,12 +1548,12 @@ static void compile(void)
                                         case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
                                         case T_STR: if (str_to_num(val2, T_NUM, &new_value)) {large = epoint; ch2 = 0; break;} val2 = &new_value;
                                         case T_FLOAT:
-                                        case T_LABEL:
+                                        case T_CODE:
                                         case T_NUM:
                                         case T_BOOL:
                                         case T_SINT:
                                         case T_UINT:
-                                            uv = (val2->type == T_FLOAT) ? (uval_t)val2->u.real : (uval_t)val2->u.num.val;
+                                            uv = (val2->type == T_FLOAT) ? (uval_t)val2->u.real : ((val2->type == T_CODE) ? (uval_t)val2->u.code.addr : (uval_t)val2->u.num.val);
                                             switch (prm) {
                                             case CMD_CHAR: if ((val2->u.num.len > 8 || val2->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
                                             case CMD_BYTE: if ((val2->u.num.len > 8 || val2->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
@@ -1580,7 +1600,10 @@ static void compile(void)
                         size_t foffset = 0;
                         struct value_s *val2 = NULL;
                         address_t fsize = all_mem+1;
-                        if (newlabel) newlabel->esize = 1;
+                        if (newlabel) {
+                            newlabel->value->u.code.esize = 1;
+                            newlabel->value->u.code.sign = 0;
+                        }
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->type == T_NONE) {
@@ -1658,7 +1681,7 @@ static void compile(void)
                 }
                 if (prm==CMD_LOGICAL) { // .logical
                     linepos_t opoint = epoint;
-                    new_waitfor('L', epoint);waitfor[waitforp].laddr = current_section->l_address - current_section->address;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
+                    new_waitfor('L', epoint);waitfor[waitforp].laddr = current_section->l_address - current_section->address;waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
                     current_section->logicalrecursion++;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1695,7 +1718,7 @@ static void compile(void)
 		    new_waitfor('B', epoint);
                     if (newlabel) {
                         current_context=newlabel;
-                        waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;
+                        waitfor[waitforp].label=newlabel;waitfor[waitforp].addr = current_section->address;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
                         if (newlabel->ref && listing && flist && arguments.source) {
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                             fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
@@ -1742,7 +1765,10 @@ static void compile(void)
                 if (prm==CMD_FILL) { // .fill
                     address_t db = 0;
                     int ch = -1;
-                    if (newlabel) newlabel->esize = 1;
+                    if (newlabel) {
+                        newlabel->value->u.code.esize = 1;
+                        newlabel->value->u.code.sign = 0;
+                    }
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
@@ -1873,7 +1899,6 @@ static void compile(void)
                         switch (val->type) {
                         case T_NONE: err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);goto breakerr;
                         case T_NUM: if (val->u.num.len <= 24) { tmp.start = val->u.num.val; break; }
-                        case T_LABEL:
                         case T_BOOL:
                         case T_UINT:
                         case T_SINT:
@@ -2031,7 +2056,10 @@ static void compile(void)
                 }
                 if (prm==CMD_ALIGN) { // .align
                     int align = 1, fill=-1;
-                    if (newlabel) newlabel->esize = 1;
+                    if (newlabel) {
+                        newlabel->value->u.code.esize = 1;
+                        newlabel->value->u.code.sign = 0;
+                    }
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
@@ -2268,7 +2296,7 @@ static void compile(void)
                     goto breakerr;
                 }
                 if (prm==CMD_PAGE) { // .page
-                    new_waitfor('P', epoint);waitfor[waitforp].addr = current_section->address;waitfor[waitforp].laddr = current_section->l_address;waitfor[waitforp].label=newlabel;
+                    new_waitfor('P', epoint);waitfor[waitforp].addr = current_section->address;waitfor[waitforp].laddr = current_section->l_address;waitfor[waitforp].label=newlabel;waitfor[waitforp].memp = newmemp;waitfor[waitforp].membp = newmembp;
                     newlabel=NULL;
                     break;
                 }
@@ -2306,7 +2334,6 @@ static void compile(void)
                             case 'b': msg = ".BEND"; break;
                             case 'S':
                             case 's': msg = ".ENDS"; break;
-                            case 'd':
                             case 'T':
                             case 't': msg = ".SEND"; break;
                             case 'U':
@@ -2339,7 +2366,7 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_PROC) {
-                    new_waitfor('r', epoint);waitfor[waitforp].skip=0;waitfor[waitforp].addr=current_section->address;
+                    new_waitfor('r', epoint);waitfor[waitforp].skip=0;waitfor[waitforp].label = NULL;
                     err_msg2(ERROR___NOT_DEFINED,"",epoint);
                     break;
                 }
@@ -2380,12 +2407,14 @@ static void compile(void)
                 if (prm==CMD_DSTRUCT) {
                     int old_unionmode = current_section->unionmode;
                     current_section->unionmode = 0;
-                    ignore();epoint=lpoint;
-                    if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!get_exp(&w,0)) goto breakerr;
+                    if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
+                    eval_finish();
                     ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
-                    if (!(tmp2=find_label(labelname)) || tmp2->type != L_STRUCT) {err_msg2(ERROR___NOT_DEFINED,labelname2,epoint); goto breakerr;}
+                    if (val->type != T_STRUCT) {err_msg_wrong_type(val, epoint); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse('S',tmp2);
+                    macro_recurse('S', val);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     break;
@@ -2395,11 +2424,14 @@ static void compile(void)
                     address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                     current_section->unionmode = 1;
                     current_section->unionstart = current_section->unionend = current_section->address;
-                    ignore();epoint=lpoint;
-                    if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (!(tmp2=find_label(labelname)) || tmp2->type != L_UNION) {err_msg2(ERROR___NOT_DEFINED,labelname2,epoint); goto breakerr;}
+                    if (!get_exp(&w,0)) goto breakerr;
+                    if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
+                    eval_finish();
+                    ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                    if (val->type != T_UNION) {err_msg_wrong_type(val, epoint); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse('U',tmp2);
+                    macro_recurse('U', val);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -2407,7 +2439,6 @@ static void compile(void)
                 }
                 if (prm==CMD_DSECTION) {
                     struct section_s *tmp3;
-                    new_waitfor('t', epoint);
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".DSECTION");
                     ignore();epoint=lpoint;
                     if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -2415,7 +2446,6 @@ static void compile(void)
                     if (tmp3->declared && pass == 1) err_msg_double_defined(tmp3->origname, tmp3->file, tmp3->sline, tmp3->epoint, labelname2, epoint);
                     else {
                         address_t t;
-                        waitfor[waitforp].what='d';waitfor[waitforp].section=current_section;
                         if (!tmp3->declared) {
                             if (!labelexists) {
                                 tmp3->wrapwarn = tmp3->wrapwarn2 = tmp3->moved = 0;
@@ -2448,6 +2478,7 @@ static void compile(void)
                         if (tmp3->pass == pass) {
                             t = tmp3->end - tmp3->start;
                             tmp3->end = tmp3->start = current_section->address;
+                            tmp3->l_start = current_section->l_address;
                         } else {
                             if (!tmp3->moved) {
                                 if (tmp3->end < tmp3->address) tmp3->end = tmp3->address;
@@ -2456,11 +2487,6 @@ static void compile(void)
                             tmp3->wrapwarn = tmp3->wrapwarn2 = 0;
                             t = tmp3->end - tmp3->start;
                             tmp3->end = tmp3->start = tmp3->address = current_section->address;
-                        }
-                        if (newlabel) set_size(newlabel, t);
-                        if (tmp3->pass == pass) {
-                            tmp3->l_start = current_section->l_address;
-                        } else {
                             tmp3->l_start = tmp3->l_address = current_section->l_address;
                         }
                         if (tmp3->size != t) {
@@ -2468,10 +2494,8 @@ static void compile(void)
                             if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                             fixeddig=0;
                         }
-                        current_section = tmp3;
                         tmp3->pass=pass;
-                        memjmp(current_section->address);
-                        newlabel=NULL;
+                        memskip(t);
                     }
                     break;
                 }
@@ -2514,13 +2538,13 @@ static void compile(void)
                 char macroname[linelength], macroname2[linelength];
 
                 if (get_ident2(macroname, macroname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (!(tmp2=find_label(macroname)) || (tmp2->type != L_MACRO && tmp2->type != L_SEGMENT)) {err_msg(ERROR___NOT_DEFINED,macroname2); goto breakerr;}
+                if (!(tmp2=find_label(macroname)) || (tmp2->type != L_LABEL || (tmp2->value->type != T_MACRO && tmp2->value->type != T_SEGMENT))) {err_msg(ERROR___NOT_DEFINED,macroname2); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                     fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
                 }
-                if (tmp2->type == L_MACRO) {
+                if (tmp2->value->type == T_MACRO) {
                     old_context = current_context;
                     if (newlabel) current_context=newlabel;
                     else {
@@ -2529,8 +2553,8 @@ static void compile(void)
                         current_context->value = &none_value;
                     }
                 } else old_context = NULL;
-                macro_recurse('M',tmp2);
-                if (tmp2->type == L_MACRO) current_context = old_context;
+                macro_recurse('M',tmp2->value);
+                if (tmp2->value->type == T_MACRO) current_context = old_context;
                 break;
             }
         case WHAT_EXPRESSION:
@@ -2982,7 +3006,7 @@ static void compile(void)
                             labelname[1]=mnemonic[mnem] >> 8;
                             labelname[2]=mnemonic[mnem];
                             labelname[3]=0;
-                            if ((tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) {
+                            if ((tmp2=find_label(labelname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) {
                                 lpoint=oldlpoint;
                                 goto as_macro;
                             }
@@ -3085,14 +3109,14 @@ static void compile(void)
                     }
                     break;
                 }
-                if ((tmp2=find_label(labelname)) && (tmp2->type == L_MACRO || tmp2->type == L_SEGMENT)) goto as_macro;
+                if ((tmp2=find_label(labelname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) goto as_macro;
             }            // fall through
         default: if (waitfor[waitforp].skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr; //skip things if needed
         }
     finish:
         ignore();if (here() && here()!=';' && (waitfor[waitforp].skip & 1)) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     breakerr:
-        if (newlabel) set_size(newlabel, current_section->address - oaddr);
+        if (newlabel) set_size(newlabel, current_section->address - oaddr, newmemp, newmembp);
         continue;
     }
 
@@ -3115,7 +3139,6 @@ static void compile(void)
         case 'c': msg = ".ENDC"; break;
         case 'S':
         case 's': msg = ".ENDS"; break;
-        case 'd':
         case 'T':
         case 't': msg = ".SEND"; break;
         case 'U':
@@ -3252,6 +3275,7 @@ int main(int argc, char *argv[]) {
 
     /* assemble again to create listing */
     if (arguments.list) {
+        uint8_t oldpass = pass;
         char **argv2 = argv;
         int argc2 = argc;
         listing=1;
@@ -3272,7 +3296,7 @@ int main(int argc, char *argv[]) {
         while (argc2--) fprintf(flist," %s", *argv2++);
 	time(&t); fprintf(flist,"\n; %s",ctime(&t));
 
-        pass++;
+        pass = MAX_PASS + 1;
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
         restart_mem();
         for (i = optind - 1; i<argc; i++) {
@@ -3320,8 +3344,8 @@ int main(int argc, char *argv[]) {
         }
 	fputs("\n;******  End of listing\n", flist);
 	if (flist != stdout) fclose(flist);
+        pass = oldpass + 1;
     }
-    if (!fixeddig) err_msg(ERROR_TOO_MANY_PASS, NULL);
     memcomp();
 
     set_cpumode(arguments.cpumode);

@@ -30,8 +30,9 @@ typedef uint32_t uval_t;
 #define PRIXval PRIX32
 
 enum type_e {
-    T_NONE, T_BOOL, T_LABEL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT,
-    T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_TUPLE, T_LIST, T_DEFAULT,
+    T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP,
+    T_IDENT, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_TUPLE, T_LIST,
+    T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_CODE, T_DEFAULT,
 };
 
 #define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
@@ -109,6 +110,15 @@ struct value_s {
             uint8_t *data;
         } str;
         struct {
+            size_t size;
+            uint8_t esize;
+            uint8_t pass;
+            unsigned sign:1;
+            address_t addr;
+            size_t memp;
+            size_t membp;
+        } code;
+        struct {
             size_t len;
             const uint8_t *name;
             struct label_s *label;
@@ -117,6 +127,12 @@ struct value_s {
             size_t len;
             struct value_s **data;
         } list;
+        struct {
+            size_t size;
+            size_t p;
+            struct file_s *file;
+            line_t sline;
+        } macro;
         enum oper_e oper;
         uint8_t ref;
         double real;

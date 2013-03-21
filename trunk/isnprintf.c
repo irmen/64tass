@@ -141,10 +141,10 @@ static uval_t asint(const struct value_s *v, int *minus)
             d = (uval_t)v->u.num.val; *minus = 0;
         }
         break;
-    case T_LABEL:
     case T_NUM:
     case T_UINT:
     case T_BOOL: d = (uval_t)v->u.num.val; *minus = 0;break;
+    case T_CODE: d = (uval_t)v->u.code.addr; *minus = 0;break;
     case T_FLOAT: 
         if ((ival_t)v->u.num.val < 0) {
             d = (uval_t)-v->u.real; *minus = 1;
@@ -251,12 +251,14 @@ static inline void chars(const struct value_s *v)
     uint32_t ch;
     switch (v->type) {
     case T_SINT: if ((ival_t)v->u.num.val < 0) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
-    case T_LABEL:
     case T_NUM:
     case T_UINT:
     case T_BOOL: 
         if ((uval_t)v->u.num.val & ~(uval_t)0xffffff) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
         PUT_CHAR(v->u.num.val); return;
+    case T_CODE:
+        if ((uval_t)v->u.code.addr & ~(uval_t)0xffffff) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
+        PUT_CHAR(v->u.code.addr); return;
     case T_FLOAT:
         if (v->u.real < 0.0 || ((uval_t)v->u.real & ~(uval_t)0xffffff)) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
         PUT_CHAR(v->u.real); return;
@@ -304,10 +306,10 @@ static void floating(struct DATA *p, const struct value_s *v)
 
     switch (v->type) {
     case T_SINT: if ((ival_t)v->u.num.val < 0) {d = (uval_t)-v->u.num.val;minus = 1;} else {d = (uval_t)v->u.num.val; minus = 0;} break;
-    case T_LABEL:
     case T_NUM:
     case T_UINT:
     case T_BOOL: d = (uval_t)v->u.num.val; minus = 0; break;
+    case T_CODE: d = (uval_t)v->u.code.addr; minus = 0; break;
     case T_FLOAT: if (v->u.real < 0.0) { d = -v->u.real; minus = 1;} else { d = v->u.real; minus = 0; } break;
     default: err_msg_wrong_type(v, epoint);
     case T_NONE: return;

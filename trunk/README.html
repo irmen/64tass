@@ -419,7 +419,7 @@ can be used:</p>
 <h3>List and tuples</h3>
 
 <p>Lists and tuples can hold a collection of values. Lists are defined from
-values separated by comma between square brackets <code>[1,2,3]</code>, an
+values separated by comma between square brackets <code>[1, 2, 3]</code>, an
 empty list is <code>[]</code>. Tuples are similar but are enclosed in
 parentheses instead. An empty tuple is <code>()</code>, a single element tuple
 is <code>(4,)</code> to differentiate from normal numeric expression
@@ -486,9 +486,9 @@ useful, so here are a few examples:</p>
 <i>;Bitmask table, 8 bits from left to right</i>
         <b class="d">.byte</b> <span>%10000000</span> &gt;&gt; <span class="k">range</span>(<span>8</span>)
 <i>;Classic 256 byte single period sinus table with values of 0-255.</i>
-        <b class="d">.byte</b> <span>128.5</span>+<span>127</span>*<span class="k">sin</span>(<span class="k">range</span>(<span>256</span>)*<span class="k">rad</span>(<span>360.0</span>/<span>256</span>))
+        <b class="d">.byte</b> <span>128.5</span> + <span>127</span> * <span class="k">sin</span>(<span class="k">range</span>(<span>256</span>) * <span class="k">rad</span>(<span>360.0</span>/<span>256</span>))
 <i>;Screen row address tables</i>
--       <b>=</b> <span>$400</span>+<span class="k">range</span>(<span>0</span>, <span>1000</span>, <span>40</span>)
+-       <b>=</b> <span>$400</span> + <span class="k">range</span>(<span>0</span>, <span>1000</span>, <span>40</span>)
 scrlo   <b class="d">.byte</b> &lt;(<span class="l">-</span>)
 scrhi   <b class="d">.byte</b> &gt;(<span class="l">-</span>)
 </pre>
@@ -780,7 +780,7 @@ jumps   <b class="d">.char</b> (<span class="l">routine1</span>, <span class="l"
 
 jumps   <b class="d">.word</b> <span class="l">routine1</span>, <span class="l">routine2</span>
 <i>;On 65816 substract the current program bank</i>
-jumps2  <b class="d">.word</b> (<span class="l">routine1</span>, <span class="l">routine2</span>) - (<span class="l">*</span> &amp; <span>~$ffff</span>)
+jumps2  <b class="d">.word</b> (<span class="l">routine1</span>, <span class="l">routine2</span>) - (<span class="l">*</span> &amp; ~<span>$ffff</span>)
 </pre>
 
 <dt><b>.rta</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
@@ -797,7 +797,7 @@ constants (usually addresses) but with one substracted.
 	<b>rts</b>
 rets	<b class="d">.rta</b> <span>$fce2</span>, <span class="l">routine1</span>, <span class="l">routine2</span>
 <i>;On 65816 substract the current program bank</i>
-rets2	<b class="d">.rta</b> (<span>$fce2</span>, <span class="l">routine1</span>, <span class="l">routine2</span>) - (<span class="l">*</span> &amp; <span>~$ffff</span>)
+rets2	<b class="d">.rta</b> (<span>$fce2</span>, <span class="l">routine1</span>, <span class="l">routine2</span>) - (<span class="l">*</span> &amp; ~<span>$ffff</span>)
 </pre>
 
 <dt><b>.long</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
@@ -1055,15 +1055,12 @@ are assigned after in the <q>zp</q> section.</p>
         <b class="k">.union</b>          <i>;spare some memory</i>
          <b class="k">.struct</b>
           <b class="k">.dsection</b> <span class="l">zp1</span> <i>;declare zp1 section</i>
-          <b class="k">.send</b> <span class="l">zp1</span>
          <b class="k">.ends</b>
          <b class="k">.struct</b>
           <b class="k">.dsection</b> <span class="l">zp2</span> <i>;declare zp2 section</i>
-          <b class="k">.send</b> <span class="l">zp2</span>
          <b class="k">.ends</b>
         <b class="k">.endu</b>
         <b class="k">.dsection</b> <span class="l">zp</span>    <i>;declare zp section</i>
-        <b class="k">.send</b> <span class="l">zp</span>
 </pre>
 </dl>
 
@@ -1171,7 +1168,7 @@ name    <b class="k">.macro</b>
 <pre width=80>
         <b>ldx</b> #<span>0</span>
         <b>lda</b> #<span>32</span>
-lp      <b class="k">.for</b> <span class="l">ue</span>=<span>0</span>,<span class="l">ue</span>&lt;<span>$400</span>,<span class="l">ue</span>=<span class="l">ue</span>+<span>$100</span>
+lp      <b class="k">.for</b> <span class="l">ue</span> = <span>0</span>, <span class="l">ue</span> &lt; <span>$400</span>, <span class="l">ue</span>=<span class="l">ue</span>+<span>$100</span>
         <b>sta</b> <span class="l">ue</span>,x
 	<b class="k">.next</b>
         <b>dex</b>
@@ -1298,8 +1295,7 @@ multiple locations simultaniously in a single loop or macro.</p>
 <p>All <code>.section</code>-s scattered around in the sources are compiled
 from the <code>.dsection</code> declaration. Compilation happens as the code
 appears, this directive only assigns enough space to hold all the stuff in the
-sections. Where the <code>.dsection</code> appears the section's compile and
-logical address are initialized to the current values.</p>
+sections.</p>
 <p>The space allocated is calculated from the difference of starting compile
 address and the maximum compile address reached in the section. It is
 possible to adjust the address in sections in a non-incremental way, but
@@ -1311,28 +1307,25 @@ parents.</p>
 <pre width=80>
         <b>*=</b> <span>$02</span>
         <b class="k">.dsection</b> <span class="l">zp</span>   <i>;declare zeropage section</i>
-        <b class="k">.send</b> <span class="l">zp</span>
         <b class="k">.cerror</b> *&gt;<span>$30</span>,<span class="s">"Too many zeropage variables"</span>
 
         <b>*=</b> <span>$334</span>
         <b class="k">.dsection</b> <span class="l">bss</span>   <i>;declare uninitialized variable section</i>
-        <b class="k">.send</b> <span class="l">bss</span>
         <b class="k">.cerror</b> *&gt;<span>$400</span>,<span class="s">"Too many variables"</span>
 
         <b>*=</b> <span>$0801</span>
         <b class="k">.dsection</b> <span class="l">code</span>   <i>;declare code section</i>
-        <b class="d">.word</b> <span class="l">ss</span>, <span>2005</span>
-        <b class="d">.null</b> <span>$9e</span>, ^<span class="l">start</span>
-ss	<b class="d">.word</b> <span>0</span>
-        <b class="k">.send</b> <span class="l">code</span>
         <b class="k">.cerror</b> *&gt;<span>$1000</span>,<span class="s">"Program too long!"</span>
 
         <b>*=</b> <span>$1000</span>
         <b class="k">.dsection</b> <span class="l">data</span>   <i>;declare data section</i>
-        <b class="k">.send</b> <span class="l">data</span>
         <b class="k">.cerror</b> *&gt;<span>$2000</span>,<span class="s">"Data too long!"</span>
 <i>;--------------------</i>
         <b class="k">.section</b> <span class="l">code</span>
+        <b class="d">.word</b> <span class="l">ss</span>, <span>2005</span>
+        <b class="d">.null</b> <span>$9e</span>, ^<span class="l">start</span>
+ss	<b class="d">.word</b> <span>0</span>
+
 start   <b>sei</b>
         <b class="k">.section</b> <span class="l">zp</span>     <i>;declare some new zeropage variables</i>
 p2	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
@@ -1362,12 +1355,10 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
 &gt;0805	 9e 32 30 36 31 00		        .null $9e, ^start
 &gt;080b	 00 00				ss      .word 0          
 
-					        *= $1000
-
 .080d	 78				start   sei
 
 &gt;0002					p2      .word ?         ;a pointer
-.0334					buffer  .fill 10        ;temporary area
+&gt;0334					buffer  .fill 10        ;temporary area
 
 .080e	 b1 02				        lda (p2),y
 .0810	 a9 00				        lda #&lt;label
