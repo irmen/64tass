@@ -32,7 +32,7 @@ typedef uint32_t uval_t;
 enum type_e {
     T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP,
     T_IDENT, T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_TUPLE, T_LIST,
-    T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_CODE, T_DEFAULT,
+    T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_CODE, T_LBL, T_DEFAULT,
 };
 
 #define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
@@ -133,6 +133,13 @@ struct value_s {
             struct file_s *file;
             line_t sline;
         } macro;
+        struct {
+            size_t p;
+            line_t sline;
+            uint8_t waitforp;
+            const struct file_s *file;
+            const struct label_s *parent;
+        } lbl;
         enum oper_e oper;
         uint8_t ref;
         double real;
@@ -141,7 +148,7 @@ struct value_s {
 
 extern void val_destroy(struct value_s *);
 extern void val_replace(struct value_s **, struct value_s *);
-extern int val_equal(const struct value_s *, const struct value_s *);
+extern int val_same(const struct value_s *, const struct value_s *);
 extern int val_truth(const struct value_s *);
 extern struct value_s *val_reference(struct value_s *);
 extern void val_print(const struct value_s *, FILE *);

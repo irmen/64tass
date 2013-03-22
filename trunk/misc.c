@@ -30,8 +30,6 @@
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL};
 
-static struct avltree jump_tree;
-
 const uint8_t whatis[256]={
     WHAT_EOL,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -50,57 +48,6 @@ const uint8_t whatis[256]={
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
-
-//------------------------------------------------------------------------------
-static int jump_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    const struct jump_s *a = cavltree_container_of(aa, struct jump_s, node);
-    const struct jump_s *b = cavltree_container_of(bb, struct jump_s, node);
-
-    return strcmp(a->name, b->name);
-}
-
-static void jump_free(struct avltree_node *aa)
-{
-    struct jump_s *a = avltree_container_of(aa, struct jump_s, node);
-
-    free((char *)a->name);
-    free((char *)a->origname);
-    free(a);
-}
-
-// ---------------------------------------------------------------------------
-
-const struct jump_s *find_jump(const char* name) {
-    struct jump_s a;
-    const struct avltree_node *c;
-    a.name=name;
-    if (!(c=avltree_lookup(&a.node, &jump_tree))) return NULL;
-    return cavltree_container_of(c, struct jump_s, node);
-}
-
-static struct jump_s *lastjp=NULL;
-struct jump_s *new_jump(const char* name, const char* origname) {
-    struct avltree_node *b;
-    struct jump_s *tmp;
-    char *s;
-    if (!lastjp)
-	if (!(lastjp=malloc(sizeof(struct jump_s)))) err_msg_out_of_memory();
-    lastjp->name=name;
-    b=avltree_insert(&lastjp->node, &jump_tree);
-    if (!b) { //new label
-	if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy(s, name);lastjp->name = s;
-	if (!(s=malloc(strlen(origname)+1))) err_msg_out_of_memory();
-        strcpy(s, origname); lastjp->origname = s;
-	labelexists=0;
-	tmp=lastjp;
-	lastjp=NULL;
-	return tmp;
-    }
-    labelexists=1;
-    return avltree_container_of(b, struct jump_s, node);            //already exists
-}
 
 // ---------------------------------------------------------------------------
 unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
@@ -175,8 +122,6 @@ uint8_t *utf8out(uint32_t i, uint8_t *c) {
 
 void tfree(void) {
     destroy_variables();
-    avltree_destroy(&jump_tree);
-    free(lastjp);
     destroy_section();
     destroy_file();
     err_destroy();
@@ -192,7 +137,6 @@ void tinit(void) {
     init_file();
     init_values();
     init_variables();
-    avltree_init(&jump_tree, jump_compare, jump_free);
 }
 
 void labelprint(void) {
@@ -214,6 +158,7 @@ void labelprint(void) {
         if (l->name[0]=='.' || l->name[0]=='#') continue;
         if (l->pass<pass) continue;
         switch (l->value->type) {
+        case T_LBL:
         case T_MACRO:
         case T_SEGMENT:
         case T_UNION:

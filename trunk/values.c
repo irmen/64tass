@@ -128,7 +128,7 @@ struct value_s *val_reference(struct value_s *val2) {
     return val_copy(val2);
 }
 
-int val_equal(const struct value_s *val, const struct value_s *val2) {
+int val_same(const struct value_s *val, const struct value_s *val2) {
     size_t i;
 
     switch (val->type) {
@@ -138,6 +138,8 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
         return val2->type == val->type && val->u.num.val == val2->u.num.val;
     case T_CODE:
         return val2->type == val->type && val->u.code.addr == val2->u.code.addr && val->u.code.size == val2->u.code.size && val->u.code.esize == val2->u.code.esize && val->u.code.sign == val2->u.code.sign;
+    case T_LBL:
+        return val2->type == val->type && val->u.lbl.p == val2->u.lbl.p && val->u.lbl.sline == val2->u.lbl.sline && val->u.lbl.waitforp == val2->u.lbl.waitforp && val->u.lbl.file == val2->u.lbl.file && val->u.lbl.parent == val2->u.lbl.parent;
     case T_MACRO:
     case T_SEGMENT:
     case T_UNION:
@@ -146,9 +148,9 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
     case T_NUM:
         return val2->type == val->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
     case T_FLOAT:
-        return val2->type == T_FLOAT && val->u.real == val2->u.real;
+        return val2->type == val->type && val->u.real == val2->u.real;
     case T_STR: 
-        return val2->type == T_STR && val->u.str.len == val2->u.str.len && (
+        return val2->type == val->type && val->u.str.len == val2->u.str.len && (
                     val->u.str.data == val2->u.str.data ||
                 !memcmp(val->u.str.data, val2->u.str.data, val2->u.str.len));
     case T_LIST:
@@ -156,7 +158,7 @@ int val_equal(const struct value_s *val, const struct value_s *val2) {
         if (val2->type == val->type) {
             if (val->u.list.len != val2->u.list.len) return 0;
             for (i = 0; i < val->u.list.len; i++) 
-                if (!val_equal(val->u.list.data[i], val2->u.list.data[i])) return 0;
+                if (!val_same(val->u.list.data[i], val2->u.list.data[i])) return 0;
             return 1;
         }
         break;

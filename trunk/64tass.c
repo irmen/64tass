@@ -553,7 +553,7 @@ static void set_cpumode(uint_fast8_t cpumode) {
 
 void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     tmp->upass = pass;
-    if (val_equal(tmp->value, val)) return;
+    if (val_same(tmp->value, val)) return;
     val_replace(&tmp->value, val);
     if (fixeddig && !fix && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, tmp->origname);
     fixeddig=fix;
@@ -787,30 +787,28 @@ static void compile(void)
                         goto finish;
                     }
                 case CMD_LBL:
-                    { //variable
-                        struct jump_s *tmp3;
-                        if (listing && flist && arguments.source) {
-                            if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                            fputs("=\t\t\t\t\t", flist);
-                            printllist(flist);
-                        }
-                        tmp3 = new_jump(labelname, labelname2);
+                    { //label
+                        struct label_s *label;
+                        label=new_label(labelname, labelname2, L_CONST);
                         if (labelexists) {
-                            if (tmp3->sline != sline
-                                    || tmp3->waitforp != waitforp
-                                    || tmp3->file != cfile
-                                    || tmp3->p != cfile->p
-                                    || tmp3->parent != current_context) {
-                                err_msg_double_defined(tmp3->origname, tmp3->file->realname, tmp3->sline, tmp3->epoint, labelname2, epoint);
-                            }
+                            if (label->type != L_CONST || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
                         } else {
-                            tmp3->sline = sline;
-                            tmp3->waitforp = waitforp;
-                            tmp3->file = cfile;
-                            tmp3->p = cfile->p;
-                            tmp3->parent = current_context;
-                            tmp3->epoint = epoint;
+                            label->requires=0;
+                            label->conflicts=0;
+                            label->pass=pass;
+                            label->value = &none_value;
+                            new_value.type = T_LBL;
+                            new_value.u.lbl.p = cfile->p;
+                            new_value.u.lbl.sline = sline;
+                            new_value.u.lbl.waitforp = waitforp;
+                            new_value.u.lbl.file = cfile;
+                            new_value.u.lbl.parent = current_context;
+                            var_assign(label, &new_value, fixeddig);
+                            label->sline = sline;
+                            label->file = cfile;
+                            label->epoint = epoint;
                         }
+                        label->ref=0;
                         goto finish;
                     }
                 case CMD_MACRO:// .macro
@@ -2320,13 +2318,16 @@ static void compile(void)
                     break;
                 }
                 if (prm==CMD_GOTO) { // .goto
-                    const struct jump_s *tmp3;
                     int noerr = 1;
-                    if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp3 = find_jump(labelname);
-                    if (tmp3 && tmp3->file == cfile && tmp3->parent == current_context) {
+                    if (!get_exp(&w,0)) goto breakerr;
+                    if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (val == &error_value) goto breakerr;
+                    eval_finish();
+                    ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                    if (val->type != T_LBL) {err_msg_wrong_type(val, epoint); goto breakerr;}
+                    if (val->u.lbl.file == cfile && val->u.lbl.parent == current_context) {
                         uint8_t oldwaitforp2 = waitforp;
-                        while (tmp3->waitforp < waitforp) {
+                        while (val->u.lbl.waitforp < waitforp) {
                             const char *msg = NULL;
                             line_t os = sline;
                             sline = waitfor[waitforp].line;
@@ -2360,10 +2361,10 @@ static void compile(void)
                             waitforp--; sline = os;
                         }
                         if (noerr) {
-                            sline = tmp3->sline;
-                            cfile->p = tmp3->p;
+                            sline = val->u.lbl.sline;
+                            cfile->p = val->u.lbl.p;
                         } else waitforp = oldwaitforp2;
-                    } else err_msg(ERROR___NOT_DEFINED,labelname2);
+                    } else err_msg2(ERROR___NOT_DEFINED, "", epoint);
                     break;
                 }
                 if (prm==CMD_MACRO || prm==CMD_SEGMENT) {
