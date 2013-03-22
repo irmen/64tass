@@ -41,18 +41,6 @@ enum lastl_e {
 
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
-struct jump_s {
-    const char *name;
-    const char *origname;
-    size_t p;
-    line_t sline;
-    uint8_t waitforp;
-    const struct file_s *file;
-    const struct label_s *parent;
-    linepos_t epoint;
-    struct avltree_node node;
-};
-
 struct arguments_s {
     unsigned warning:1;
     unsigned quiet:1;
@@ -91,8 +79,6 @@ extern uint8_t pass;
 #define linelength 4096
 
 extern const uint8_t whatis[256];
-extern const struct jump_s *find_jump(const char*);
-extern struct jump_s *new_jump(const char*, const char*);
 extern void tfree(void);
 extern void tinit(void);
 extern void labelprint(void);
