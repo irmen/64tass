@@ -18,5 +18,5 @@
 #ifndef _ISNPRINTF_H_
 #define _ISNPRINTF_H_
 #include "values.h"
-extern struct value_s *isnprintf(const struct value_s *, const struct value_s *, linepos_t);
+extern const struct value_s *isnprintf(const struct value_s *, const struct value_s *, linepos_t);
 #endif

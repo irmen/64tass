@@ -375,7 +375,8 @@ static void conv_flag(char * s, struct DATA * p)
     }
 }
 
-struct value_s *isnprintf(const struct value_s *fstr, const struct value_s *l, linepos_t me)
+/* return templates only! */
+const struct value_s *isnprintf(const struct value_s *fstr, const struct value_s *l, linepos_t me)
 {
     struct DATA data;
     char conv_field[MAX_FIELD];
