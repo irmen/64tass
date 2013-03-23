@@ -593,8 +593,7 @@ static int get_val2_compat(void) {// length in bytes, defined
             if (!values[vsp].val) values[vsp].val = &none_value;
             if (o_out[i].val.type == T_UNDEF) {
                 o_out[i].val.type = T_STR;
-                val_replace(&values[vsp].val, &o_out[i].val);
-                free(o_out[i].val.u.str.data);
+                val_replace_template(&values[vsp].val, &o_out[i].val);
             } else val_replace(&values[vsp].val, &o_out[i].val);
             values[vsp++].epoint = o_out[i].epoint;
             continue;
@@ -806,7 +805,8 @@ enum func_e {
     F_INT
 };
 
-static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
+/* return templates only! */
+static const struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
     switch (func) {
     case F_SIGN:
         switch (v1->type) {
@@ -934,14 +934,14 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
     case T_TUPLE:
             {
                 size_t i = 0;
-                struct value_s **vals, *val;
+                struct value_s **vals;
+                const struct value_s *val;
                 if (v1->u.list.len) {
                     vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                     if (!vals) err_msg_out_of_memory();
                     for (;i < v1->u.list.len; i++) {
                         val = apply_func(func, v1->u.list.data[i], epoint);
-                        vals[i] = val_reference(val);
-                        val_destroy(val);
+                        val_set_template(vals + i, val);
                     }
                 } else vals = NULL;
                 new_value.type = v1->type;
@@ -1048,7 +1048,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             new_value.type = T_LIST;
             new_value.u.list.len = len2;
             new_value.u.list.data = val;
-            val_replace(&vals->val, &new_value); val_destroy(&new_value);
+            val_replace_template(&vals->val, &new_value);
             return;
         }
         val_replace(&vals->val, &none_value);
@@ -1163,12 +1163,11 @@ static void functions(struct values_s *vals, unsigned int args) {
     if (len == 3 && !memcmp(name, "int", len)) func = F_INT;
 
     if (func != F_NONE) {
-        struct value_s *val;
+        const struct value_s *val;
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
         try_resolv(&v[0].val);
         val = apply_func(func, v[0].val, v[0].epoint);
-        val_replace(&vals->val, val);
-        val_destroy(val);
+        val_replace_template(&vals->val, val);
         return;
     }
     func = F_NONE;
@@ -1312,7 +1311,7 @@ static void str_iindex(struct values_s *vals, const struct value_s *list, linepo
         if (!new_value.u.str.data) err_msg_out_of_memory();
     }
     new_value.type = T_STR;
-    val_replace(&vals->val, &new_value); val_destroy(&new_value);
+    val_replace_template(&vals->val, &new_value);
 }
 
 static void list_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
@@ -1339,7 +1338,7 @@ static void list_iindex(struct values_s *vals, const struct value_s *list, linep
         }
         new_value.u.list.data[i] = val_reference(val->u.list.data[offs]);
     }
-    val_replace(&vals->val, &new_value); val_destroy(&new_value);
+    val_replace_template(&vals->val, &new_value);
 }
 
 static void code_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
@@ -1391,7 +1390,7 @@ static void code_iindex(struct values_s *vals, const struct value_s *list, linep
     new_value.type = T_TUPLE;
     new_value.u.list.data = val;
     new_value.u.list.len = list->u.list.len;
-    val_replace(&vals->val, &new_value); val_destroy(&new_value);
+    val_replace_template(&vals->val, &new_value);
 }
 
 static void bits_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
@@ -1451,7 +1450,7 @@ static void str_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t ste
             new_value.u.str.len = p - new_value.u.str.data;
         }
         new_value.type = T_STR;
-        val_replace(&vals->val, &new_value); val_destroy(val);
+        val_replace_template(&vals->val, &new_value);
     } else {
         val = vals->val;
         new_value.u.str.chars = len;
@@ -1498,7 +1497,7 @@ static void str_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t ste
             if (!new_value.u.str.data) err_msg_out_of_memory();
         }
         new_value.type = T_STR;
-        val_replace(&vals->val, &new_value); val_destroy(&new_value);
+        val_replace_template(&vals->val, &new_value);
     }
 }
 
@@ -1537,7 +1536,7 @@ static void list_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t st
             new_value.u.list.data[i++] = val_reference(val->u.list.data[offs]);
             offs += step;
         }
-        val_replace(&vals->val, &new_value); val_destroy(&new_value);
+        val_replace_template(&vals->val, &new_value);
     }
 }
 
@@ -1592,7 +1591,7 @@ static void code_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t st
     new_value.type = T_TUPLE;
     new_value.u.list.len = len;
     new_value.u.list.data = val;
-    val_replace(&vals->val, &new_value); val_destroy(&new_value);
+    val_replace_template(&vals->val, &new_value);
 }
 
 static void bits_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t step) {
@@ -1820,7 +1819,8 @@ static void slices(struct values_s *vals, unsigned int args) {
     return;
 }
 
-static struct value_s *apply_op(enum oper_e op, struct value_s *v1, linepos_t epoint, linepos_t epoint2, int *large) {
+/* return templates only! */
+static const struct value_s *apply_op(enum oper_e op, struct value_s *v1, linepos_t epoint, linepos_t epoint2, int *large) {
     enum type_e t1;
     struct value_s tmp1;
     char line[linelength]; 
@@ -2008,14 +2008,14 @@ strretr:
         case O_STRING:
             {
                 size_t i = 0;
-                struct value_s **vals, *val;
+                struct value_s **vals;
+                const struct value_s *val;
                 if (v1->u.list.len) {
                     vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                     if (!vals) err_msg_out_of_memory();
                     for (;i < v1->u.list.len; i++) {
                         val = apply_op(op, v1->u.list.data[i], epoint, epoint2, large);
-                        vals[i] = val_reference(val);
-                        val_destroy(val);
+                        val_set_template(vals + i, val);
                     }
                 } else vals = NULL;
                 new_value.type = t1;
@@ -2039,9 +2039,9 @@ static inline uint8_t addlen(int l1, int l2) {
     return 8*sizeof(uval_t);
 }
 
-static struct value_s *apply_op2(enum oper_e, struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t, int *);
+static const struct value_s *apply_op2(enum oper_e, struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t, int *);
 
-static struct value_s *inlist(struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
+static const struct value_s *inlist(struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
     size_t i, len, offs;
     int16_t r;
 
@@ -2081,16 +2081,16 @@ static struct value_s *inlist(struct value_s *v1, struct value_s *v2, linepos_t 
     }
 }
 
-static struct value_s *onlist(enum oper_e op, struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
+static const struct value_s *onlist(enum oper_e op, struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
     size_t i = 0;
-    struct value_s **vals, *val;
+    struct value_s **vals;
+    const struct value_s *val;
     if (v2->u.list.len) {
         vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
         if (!vals) err_msg_out_of_memory();
         for (;i < v2->u.list.len; i++) {
             val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
-            vals[i] = val_reference(val);
-            val_destroy(val);
+            val_set_template(vals + i, val);
         }
     } else vals = NULL;
     new_value.type = v2->type;
@@ -2099,7 +2099,8 @@ static struct value_s *onlist(enum oper_e op, struct value_s *v1, struct value_s
     return &new_value;
 }
 
-static struct value_s *apply_op2(enum oper_e op, struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
+/* return templates only! */
+static const struct value_s *apply_op2(enum oper_e op, struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3, int *large) {
     enum type_e t1;
     enum type_e t2;
     struct value_s tmp1, tmp2;
@@ -2693,8 +2694,8 @@ strretr:
             case O_RSHIFT:
             case O_EXP:
                 {
-                    struct value_s **vals, *val;
-                    const struct value_s *v;
+                    struct value_s **vals;
+                    const struct value_s *v, *val;
                     int d1 = 0, d2 = 0;
                     i = 0;
                     v = v1;
@@ -2717,8 +2718,7 @@ strretr:
                                 if (!vals) err_msg_out_of_memory();
                                 for (; i < v2->u.list.len; i++) {
                                     val = apply_op2(op, v1->u.list.data[0], v2->u.list.data[i], epoint, epoint2, epoint3, large);
-                                    vals[i] = val_reference(val);
-                                    val_destroy(val);
+                                    val_set_template(vals + i, val);
                                 }
                             } else vals = NULL;
                         } else if (v2->u.list.len == 1) {
@@ -2727,8 +2727,7 @@ strretr:
                                 if (!vals) err_msg_out_of_memory();
                                 for (; i < v1->u.list.len; i++) {
                                     val = apply_op2(op, v1->u.list.data[i], v2->u.list.data[0], epoint, epoint2, epoint3, large);
-                                    vals[i] = val_reference(val);
-                                    val_destroy(val);
+                                    val_set_template(vals + i, val);
                                 }
                             } else vals = NULL;
                         } else if (v1->u.list.len) {
@@ -2736,8 +2735,7 @@ strretr:
                             if (!vals) err_msg_out_of_memory();
                             for (; i < v1->u.list.len; i++) {
                                 val = apply_op2(op, v1->u.list.data[i], v2->u.list.data[i], epoint, epoint2, epoint3, large);
-                                vals[i] = val_reference(val);
-                                val_destroy(val);
+                                val_set_template(vals + i, val);
                             }
                         } else vals = NULL;
                     } else if (d1 > d2) {
@@ -2746,8 +2744,7 @@ strretr:
                             if (!vals) err_msg_out_of_memory();
                             for (; i < v1->u.list.len; i++) {
                                 val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, epoint3, large);
-                                vals[i] = val_reference(val);
-                                val_destroy(val);
+                                val_set_template(vals + i, val);
                             }
                         } else vals = NULL;
                     } else if (v2->u.list.len) {
@@ -2755,8 +2752,7 @@ strretr:
                         if (!vals) err_msg_out_of_memory();
                         for (; i < v2->u.list.len; i++) {
                             val = apply_op2(op, v1, v2->u.list.data[i], epoint, epoint2, epoint3, large);
-                            vals[i] = val_reference(val);
-                            val_destroy(val);
+                            val_set_template(vals + i, val);
                         }
                     } else vals = NULL;
                     new_value.type = t1;
@@ -2837,14 +2833,14 @@ strretr:
             default:
                 {
                     size_t i = 0;
-                    struct value_s **vals, *val;
+                    struct value_s **vals;
+                    const struct value_s *val;
                     if (v1->u.list.len) {
                         vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                         if (!vals) err_msg_out_of_memory();
                         for (;i < v1->u.list.len; i++) {
                             val = apply_op2(op, v1->u.list.data[i], v2, epoint, epoint2, epoint3, large);
-                            vals[i] = val_reference(val);
-                            val_destroy(val);
+                            val_set_template(vals + i, val);
                         }
                     } else vals = NULL;
                     new_value.type = t1;
@@ -2923,8 +2919,7 @@ static int get_val2(int stop) {
             if (!values[vsp].val) values[vsp].val = &none_value;
             if (o_out[i].val.type == T_UNDEF) {
                 o_out[i].val.type = T_STR;
-                val_replace(&values[vsp].val, &o_out[i].val);
-                free(o_out[i].val.u.str.data);
+                val_replace_template(&values[vsp].val, &o_out[i].val);
             } else val_replace(&values[vsp].val, &o_out[i].val);
             values[vsp++].epoint = o_out[i].epoint;
             continue;
@@ -3083,12 +3078,11 @@ static int get_val2(int stop) {
         case O_NEG: // -
         case O_POS: // +
             {
-                struct value_s *tmp;
+                const struct value_s *tmp;
                 try_resolv_ident(&v1->val);
                 tmp = apply_op(op, v1->val, v1->epoint, o_out[i].epoint, &large);
-                val_replace(&v1->val, tmp);
+                val_replace_template(&v1->val, tmp);
                 v1->epoint = o_out[i].epoint;
-                val_destroy(tmp);
                 continue;
             }
         case O_LNOT:
@@ -3171,9 +3165,8 @@ static int get_val2(int stop) {
         try_resolv_ident(&v1->val);
 
         {
-            struct value_s *tmp = apply_op2(op, v1->val, v2->val, v1->epoint, v2->epoint, o_out[i].epoint, &large);
-            val_replace(&v1->val, tmp);
-            val_destroy(tmp);
+            const struct value_s *tmp = apply_op2(op, v1->val, v2->val, v1->epoint, v2->epoint, o_out[i].epoint, &large);
+            val_replace_template(&v1->val, tmp);
         }
     }
     outp2 = i;

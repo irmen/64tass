@@ -123,6 +123,25 @@ void val_replace(struct value_s **val, struct value_s *val2) {
     *val = val_reference(val2);
 }
 
+void val_replace_template(struct value_s **val, const struct value_s *val2) {
+    if (val[0]->refcount == 1) {
+        val_destroy2(*val);
+    } else { 
+        val_destroy(*val);
+        *val = value_alloc();
+        if (!*val) err_msg_out_of_memory();
+    }
+    **val = *val2;
+    val[0]->refcount = 1;
+}
+
+void val_set_template(struct value_s **val, const struct value_s *val2) {
+    *val = value_alloc();
+    if (!*val) err_msg_out_of_memory();
+    **val = *val2;
+    val[0]->refcount = 1;
+}
+
 struct value_s *val_reference(struct value_s *val2) {
     if (val2->refcount) {val2->refcount++;return val2;}
     return val_copy(val2);
