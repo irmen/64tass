@@ -638,32 +638,25 @@ void compile(struct file_s *cfile)
                         new_waitfor(W_ENDM, epoint);waitfor[waitforp].skip=0;
                         ignore();
                         label=new_label(labelname, labelname2, L_LABEL);
-                        new_value.type = (prm == CMD_MACRO) ? T_MACRO : T_SEGMENT;
                         if (labelexists) {
                             if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
-                            new_value.u.macro.p = cfile->p;
-                            new_value.u.macro.size = 0;
-                            new_value.u.macro.sline = sline;
-                            new_value.u.macro.file = cfile;
-                            get_macro_params(&new_value);
-                            var_assign(label, &new_value, fixeddig);
-                            val_destroy(&new_value);
                         } else {
                             label->requires=0;
                             label->conflicts=0;
                             label->pass=pass;
                             label->value = &none_value;
-                            new_value.u.macro.p = cfile->p;
-                            new_value.u.macro.size = 0;
-                            new_value.u.macro.sline = sline;
-                            new_value.u.macro.file = cfile;
-                            get_macro_params(&new_value);
-                            var_assign(label, &new_value, fixeddig);
-                            val_destroy(&new_value);
                             label->sline = sline;
                             label->file = cfile;
                             label->epoint = epoint;
                         }
+                        new_value.type = (prm == CMD_MACRO) ? T_MACRO : T_SEGMENT;
+                        new_value.u.macro.p = cfile->p;
+                        new_value.u.macro.size = 0;
+                        new_value.u.macro.sline = sline;
+                        new_value.u.macro.file = cfile;
+                        get_macro_params(&new_value);
+                        var_assign(label, &new_value, fixeddig);
+                        val_destroy(&new_value);
                         label->ref=0;
                         goto finish;
                     }
@@ -673,30 +666,24 @@ void compile(struct file_s *cfile)
                         new_waitfor(W_ENDF, epoint);waitfor[waitforp].skip=0;
                         ignore();
                         label=new_label(labelname, labelname2, L_LABEL);
-                        new_value.type = T_FUNCTION;
                         if (labelexists) {
                             if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
-                            new_value.u.func.p = cfile->p;
-                            new_value.u.func.sline = sline;
-                            new_value.u.func.file = cfile;
-                            get_func_params(&new_value);
-                            var_assign(label, &new_value, fixeddig);
-                            val_destroy(&new_value);
                         } else {
                             label->requires=0;
                             label->conflicts=0;
                             label->pass=pass;
                             label->value = &none_value;
-                            new_value.u.func.p = cfile->p;
-                            new_value.u.func.sline = sline;
-                            new_value.u.func.file = cfile;
-                            get_func_params(&new_value);
-                            var_assign(label, &new_value, fixeddig);
-                            val_destroy(&new_value);
                             label->sline = sline;
                             label->file = cfile;
                             label->epoint = epoint;
                         }
+                        new_value.type = T_FUNCTION;
+                        new_value.u.func.p = cfile->p;
+                        new_value.u.func.sline = sline;
+                        new_value.u.func.file = cfile;
+                        get_func_params(&new_value);
+                        var_assign(label, &new_value, fixeddig);
+                        val_destroy(&new_value);
                         label->ref=0;
                         goto finish;
                     }
@@ -709,7 +696,7 @@ void compile(struct file_s *cfile)
                         int declaration = !current_section->structrecursion;
 
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, epoint);waitfor[waitforp].skip=0;
-                        ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                        ignore();
                         label=new_label(labelname, labelname2, L_LABEL);oaddr = current_section->address;
                         if (declaration) {
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
@@ -718,23 +705,24 @@ void compile(struct file_s *cfile)
 
                             if (labelexists) {
                                 if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                                new_value.u.macro.size = label->value->u.macro.size;
                             } else {
                                 label->requires = 0;
                                 label->conflicts = 0;
                                 label->pass = pass;
                                 label->value = &none_value;
-                                new_value.type = (prm == CMD_STRUCT) ? T_STRUCT : T_UNION;
-                                new_value.u.macro.p = cfile->p;
-                                new_value.u.macro.size = 0;
-                                new_value.u.macro.sline = sline;
-                                new_value.u.macro.file = cfile;
-                                new_value.u.macro.argc = 0;
-                                new_value.u.macro.param = NULL;
-                                var_assign(label, &new_value, fixeddig);
                                 label->sline = sline;
                                 label->file = cfile;
                                 label->epoint = epoint;
+                                new_value.u.macro.size = 0;
                             }
+                            new_value.type = (prm == CMD_STRUCT) ? T_STRUCT : T_UNION;
+                            new_value.u.macro.p = cfile->p;
+                            new_value.u.macro.sline = sline;
+                            new_value.u.macro.file = cfile;
+                            get_macro_params(&new_value);
+                            var_assign(label, &new_value, fixeddig);
+                            val_destroy(&new_value);
                         } else {
                             if (labelexists) {
                                 if (label->type != L_LABEL || pass==1) {
@@ -789,7 +777,7 @@ void compile(struct file_s *cfile)
                             current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitforp--;
                             new_waitfor((prm==CMD_STRUCT)?W_ENDS2:W_ENDU2, epoint);waitfor[waitforp].skip=1;
-                            compile(cfile);
+                            macro_recurse(W_ENDS, label->value);
                             current_context = old_context;
                             current_section->unionmode = old_unionmode;
                             current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -798,14 +786,11 @@ void compile(struct file_s *cfile)
                         current_section->structrecursion--;
                         if (!label) goto finish;
                         if (declaration) {
-                            new_value.type = (prm == CMD_STRUCT) ? T_STRUCT : T_UNION;
-                            new_value.u.macro.size = (current_section->address - oaddr) & all_mem2;
-                            new_value.u.macro.p = label->value->u.macro.p;
-                            new_value.u.macro.sline = label->value->u.macro.sline;
-                            new_value.u.macro.file = label->value->u.macro.file;
-                            new_value.u.macro.argc = 0;
-                            new_value.u.macro.param = NULL;
-                            var_assign(label, &new_value, fixeddig);
+                            if (label->value->u.macro.size != ((current_section->address - oaddr) & all_mem2)) {
+                                label->value->u.macro.size = (current_section->address - oaddr) & all_mem2;
+                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, label->origname);
+                                fixeddig = 0;
+                            }
                             current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
                             current_section->end=olds.end;current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
                             current_section->dooutput=olds.dooutput;memjmp(current_section->address);
@@ -919,12 +904,11 @@ void compile(struct file_s *cfile)
                             printllist(flist);
                         }
                         newlabel->ref=0;
-                        if (!get_exp(&w,0)) goto breakerr;
+                        if (!get_exp(&w,1)) goto breakerr;
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val == &error_value) goto breakerr;
-                        eval_finish();
                         if (val->type != ((prm==CMD_DSTRUCT) ? T_STRUCT : T_UNION)) {err_msg_wrong_type(val, epoint); goto breakerr;}
-                        ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                        ignore();if (here() == ',') lpoint.pos++;
                         current_section->structrecursion++;
                         macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2,val);
                         current_section->structrecursion--;
@@ -2319,6 +2303,7 @@ void compile(struct file_s *cfile)
                     current_section->unionmode = 0;
                     new_waitfor(W_ENDS, epoint);waitfor[waitforp].skip=0;
                     current_section->structrecursion++;
+                    ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     if (current_section->structrecursion<100) {
                         waitforp--;
                         new_waitfor(W_ENDS2, epoint);waitfor[waitforp].skip=1;
@@ -2337,6 +2322,7 @@ void compile(struct file_s *cfile)
                     current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                     new_waitfor(W_ENDU, epoint);waitfor[waitforp].skip=0;
                     current_section->structrecursion++;
+                    ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     if (current_section->structrecursion<100) {
                         waitforp--;
                         new_waitfor(W_ENDU2, epoint);waitfor[waitforp].skip=1;
@@ -2351,11 +2337,10 @@ void compile(struct file_s *cfile)
                 if (prm==CMD_DSTRUCT) {
                     int old_unionmode = current_section->unionmode;
                     current_section->unionmode = 0;
-                    if (!get_exp(&w,0)) goto breakerr;
+                    if (!get_exp(&w,1)) goto breakerr;
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
-                    eval_finish();
-                    ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                    ignore();if (here() == ',') lpoint.pos++;
                     if (val->type != T_STRUCT) {err_msg_wrong_type(val, epoint); goto breakerr;}
                     current_section->structrecursion++;
                     macro_recurse(W_ENDS2, val);
@@ -2368,11 +2353,10 @@ void compile(struct file_s *cfile)
                     address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                     current_section->unionmode = 1;
                     current_section->unionstart = current_section->unionend = current_section->address;
-                    if (!get_exp(&w,0)) goto breakerr;
+                    if (!get_exp(&w,1)) goto breakerr;
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
-                    eval_finish();
-                    ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                    ignore();if (here() == ',') lpoint.pos++;
                     if (val->type != T_UNION) {err_msg_wrong_type(val, epoint); goto breakerr;}
                     current_section->structrecursion++;
                     macro_recurse(W_ENDU2, val);

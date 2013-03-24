@@ -123,6 +123,8 @@ static void val_copy2(struct value_s *val, const struct value_s *val2) {
         break;
     case T_MACRO:
     case T_SEGMENT:
+    case T_STRUCT:
+    case T_UNION:
         if (val2->u.macro.argc) {
             val->u.macro.param = malloc(val2->u.macro.argc * sizeof(val->u.macro.param[0]));
             if (!val->u.macro.param) err_msg_out_of_memory();
@@ -223,8 +225,8 @@ int val_same(const struct value_s *val, const struct value_s *val2) {
         return val2->type == val->type && val->u.lbl.p == val2->u.lbl.p && val->u.lbl.sline == val2->u.lbl.sline && val->u.lbl.waitforp == val2->u.lbl.waitforp && val->u.lbl.file == val2->u.lbl.file && val->u.lbl.parent == val2->u.lbl.parent;
     case T_MACRO:
     case T_SEGMENT:
-    case T_UNION:
     case T_STRUCT:
+    case T_UNION:
         if (val2->type != val->type || val->u.macro.p != val2->u.macro.p || val->u.macro.file != val2->u.macro.file || val->u.macro.sline != val2->u.macro.sline || val->u.macro.size != val2->u.macro.size) return 0;
         for (i = 0; i < val->u.macro.argc; i++) {
             if (val->u.macro.param[i].name != val2->u.macro.param[i].name || (val->u.macro.param[i].name && strcmp(val->u.macro.param[i].name, val2->u.macro.param[i].name))) return 0;

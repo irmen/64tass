@@ -964,20 +964,24 @@ common prefixes the longest match wins. Useful for defining non-typeable control
 
 <h3>Structured data</h3>
 
+<p>Structures and unions can be defined to create complex data types. The
+offset of fields are available by using the definition's name. The fields
+themselves by using the instance name.</p>
+
+<p>The initialization method is very similar to macro parameters, the
+difference is that unset parameters always return uninitialized data (<q>?</q>)
+instead of an error.</p>
+
 <h4>Structure</h4>
-<p>Structures can be defined to organize sequential data definitions, which can
-be reused later many times. The offset of fields are available by using the
-definition's name as a base, and the fields themselves by using the instance
-name before the dot operator. The length of a struct is the sum of lengths of
-all items.</p>
+<p>Structures are for organizing sequential data, so the length of a structure
+is the sum of lengths of all items.</p>
 
 <dl class="dir">
-<dt><b>.struct</b>
-<dd>Start structure definition
+<dt><b>.struct</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
 <dt><b>.ends</b>
-<dd>Finish structure definition
-<dt><b>.dstruct</b> &lt;name&gt;
-<dd>Create instance of struct
+<dd>Structure definition, with named parameters and default values
+<dt><b>.dstruct</b> &lt;name&gt;[,&lt;initialization values&gt;]
+<dd>Create instance of structure with initialization values
 </dl>
 
 <pre width=80>
@@ -986,32 +990,29 @@ x       <b class="d">.byte</b> <span>0</span>         <i>;labels are visible</i>
 y       <b class="d">.byte</b> <span>0</span>         <i>;content compiled here</i>
         <b class="k">.ends</b>           <i>;useful inside unions</i>
 
-nn_s    <b class="k">.struct</b>         <i>;named struct</i>
-x       <b class="d">.byte</b> <span>0</span>         <i>;labels are not visible</i>
-y       <b class="d">.byte</b> <span>0</span>         <i>;no content is compiled here</i>
+nn_s    <b class="k">.struct</b> <span class="l">col</span>,<span class="l">row</span> <i>;named struct</i>
+x       <b class="d">.byte</b> <span class="l">\col</span>      <i>;labels are not visible</i>
+y       <b class="d">.byte</b> <span class="l">\row</span>      <i>;no content is compiled here</i>
         <b class="k">.ends</b>           <i>;it's just a definition</i>
 
-nn      <b class="d">.dstruct</b> <span class="l">nn_s</span>   <i>;struct instance, content here</i>
+nn      <b class="d">.dstruct</b> <span class="l">nn_s</span>,<span>1</span>,<span>2</span><i>;struct instance, content here</i>
 
-        <b>lda</b> <span class="l">nn</span>.<span class="l">x</span>        <i>;access internal fields</i>
+        <b>lda</b> <span class="l">nn</span>.<span class="l">x</span>        <i>;direct field access</i>
         <b>ldy</b> #<span class="l">nn_s</span>.<span class="l">x</span>     <i>;get offset of field</i>
+        <b>lda</b> <span class="l">nn</span>,<span class="l">y</span>        <i>;and use it indirectly</i>
 </pre>
 
 <h4>Union</h4>
-<p>Unions are similar to structs, except each line will start on the same
-address where the definition was done. The length of the union is the length of
-it's longest item. The offset of fields are available by using the definition's
-name as a base, and the fields themselves by using the instance name before the
-dot operator. These offsets and references mostly point to the start of the
-union, unless internal anonymous structs are used.</p>
+<p>Unions can be used for overlapping data as the compile offset and program
+counter remains the same on each line. Therefore the length of a union is the
+length of it's longest item.</p>
 
 <dl class="dir">
-<dt><b>.union</b>
-<dd>Start structure definition
+<dt><b>.union</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
 <dt><b>.endu</b>
-<dd>Finish structure definition
-<dt><b>.dunion</b> &lt;name&gt;
-<dd>Create instance of struct
+<dd>Union definition, with named parameters and default values
+<dt><b>.dunion</b> &lt;name&gt;[,&lt;initialization values&gt;]
+<dd>Create instance of union with initialization values
 </dl>
 
 <pre width=80>
@@ -1021,18 +1022,19 @@ y       <b class="d">.word</b> <span>0</span>         <i>;content compiled here<
 	<b class="k">.endu</b>
 
 nn_u    <b class="k">.union</b>          <i>;named union</i>
-x       <b class="d">.byte</b> <span>0</span>         <i>;labels are not visible</i>
-y       <b class="d">.word</b> <span>0</span>         <i>;no content is compiled here</i>
+x       <b class="d">.byte</b> <span>?</span>         <i>;labels are not visible</i>
+y       <b class="d">.word</b> <span class="l">\1</span>        <i>;no content is compiled here</i>
         <b class="k">.endu</b>           <i>;it's just a definition</i>
 
-nn      <b class="d">.dunion</b> <span class="l">nn_u</span>    <i>;union instance here</i>
+nn      <b class="d">.dunion</b> <span class="l">nn_u</span>,<span>1</span>  <i>;union instance here</i>
 
-        <b>lda</b> <span class="l">nn</span>.<span class="l">x</span>        <i>;access internal fields</i>
-        <b>ldy</b> #<span class="l">nn_u</span>.<span class="l">x</span>     <i>;get offset of field</i>
+        <b>lda</b> <span class="l">nn</span>.<span class="l">x</span>        <i>;direct field access</i>
+        <b>ldy</b> #<span class="l">nn_s</span>.<span class="l">x</span>     <i>;get offset of field</i>
+        <b>lda</b> <span class="l">nn</span>,<span class="l">y</span>        <i>;and use it indirectly</i>
 </pre>
 
 <h4>Combined use of structures and unions</h4>
-<p>The example below shown how to define structure to a binary include.</p>
+<p>The example below shows how to define structure to a binary include.</p>
 
 <pre width=80>
         <b class="k">.union</b>
@@ -1046,7 +1048,7 @@ backg	<b class="d">.byte</b> <span>?</span>
 	<b class="k">.endu</b>
 </pre>
 
-<p>Anonymous structs and unions in combination with sections are useful for
+<p>Anonymous structures and unions in combination with sections are useful for
 overlapping memory assignment. The example below shares zeropage allocations
 for two separate parts of a bigger program. The common subroutine variables
 are assigned after in the <q>zp</q> section.</p>

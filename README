@@ -839,51 +839,52 @@ unicode characters to 8 bit values in strings.
 
 Structured data
 
+Structures and unions can be defined to create complex data types. The offset
+of fields are available by using the definition's name. The fields themselves
+by using the instance name.
+
+The initialization method is very similar to macro parameters, the difference
+is that unset parameters always return uninitialized data (`?') instead of an
+error.
+
 Structure
 
-Structures can be defined to organize sequential data definitions, which can be
-reused later many times. The offset of fields are available by using the
-definition's name as a base, and the fields themselves by using the instance
-name before the dot operator. The length of a struct is the sum of lengths of
-all items.
+Structures are for organizing sequential data, so the length of a structure is
+the sum of lengths of all items.
 
-.struct
-    Start structure definition
+.struct [<name>][=<default>]][,[<name>][=<default>] ...]
 .ends
-    Finish structure definition
-.dstruct <name>
-    Create instance of struct
+    Structure definition, with named parameters and default values
+.dstruct <name>[,<initialization values>]
+    Create instance of structure with initialization values
 
         .struct         ;anonymous struct
 x       .byte 0         ;labels are visible
 y       .byte 0         ;content compiled here
         .ends           ;useful inside unions
 
-nn_s    .struct         ;named struct
-x       .byte 0         ;labels are not visible
-y       .byte 0         ;no content is compiled here
+nn_s    .struct col,row ;named struct
+x       .byte \col      ;labels are not visible
+y       .byte \row      ;no content is compiled here
         .ends           ;it's just a definition
 
-nn      .dstruct nn_s   ;struct instance, content here
+nn      .dstruct nn_s,1,2;struct instance, content here
 
-        lda nn.x        ;access internal fields
+        lda nn.x        ;direct field access
         ldy #nn_s.x     ;get offset of field
+        lda nn,y        ;and use it indirectly
 
 Union
 
-Unions are similar to structs, except each line will start on the same address
-where the definition was done. The length of the union is the length of it's
-longest item. The offset of fields are available by using the definition's name
-as a base, and the fields themselves by using the instance name before the dot
-operator. These offsets and references mostly point to the start of the union,
-unless internal anonymous structs are used.
+Unions can be used for overlapping data as the compile offset and program
+counter remains the same on each line. Therefore the length of a union is the
+length of it's longest item.
 
-.union
-    Start structure definition
+.union [<name>][=<default>]][,[<name>][=<default>] ...]
 .endu
-    Finish structure definition
-.dunion <name>
-    Create instance of struct
+    Union definition, with named parameters and default values
+.dunion <name>[,<initialization values>]
+    Create instance of union with initialization values
 
         .union          ;anonymous union
 x       .byte 0         ;labels are visible
@@ -891,18 +892,19 @@ y       .word 0         ;content compiled here
         .endu
 
 nn_u    .union          ;named union
-x       .byte 0         ;labels are not visible
-y       .word 0         ;no content is compiled here
+x       .byte ?         ;labels are not visible
+y       .word \1        ;no content is compiled here
         .endu           ;it's just a definition
 
-nn      .dunion nn_u    ;union instance here
+nn      .dunion nn_u,1  ;union instance here
 
-        lda nn.x        ;access internal fields
-        ldy #nn_u.x     ;get offset of field
+        lda nn.x        ;direct field access
+        ldy #nn_s.x     ;get offset of field
+        lda nn,y        ;and use it indirectly
 
 Combined use of structures and unions
 
-The example below shown how to define structure to a binary include.
+The example below shows how to define structure to a binary include.
 
         .union
         .binary "pic.drp",2
@@ -914,7 +916,7 @@ backg   .byte ?
         .ends
         .endu
 
-Anonymous structs and unions in combination with sections are useful for
+Anonymous structures and unions in combination with sections are useful for
 overlapping memory assignment. The example below shares zeropage allocations
 for two separate parts of a bigger program. The common subroutine variables are
 assigned after in the `zp' section.
