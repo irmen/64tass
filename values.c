@@ -37,7 +37,7 @@ static void value_free(union values_u *val) {
     values_free = val;
 }
 
-static struct value_s *value_alloc(void) {
+static struct value_s *val_alloc(void) {
     struct value_s *val;
     size_t i;
     //return malloc(sizeof(struct value_s));
@@ -63,7 +63,24 @@ static void val_destroy2(struct value_s *val) {
     case T_LIST: 
     case T_TUPLE: 
         while (val->u.list.len) val_destroy(val->u.list.data[--val->u.list.len]);
-        free(val->u.list.data);
+        free(val->u.list.data); break;
+    case T_MACRO:
+    case T_SEGMENT:
+    case T_STRUCT:
+    case T_UNION:
+        while (val->u.macro.argc) {
+            --val->u.macro.argc;
+            free((char *)val->u.macro.param[val->u.macro.argc].name);
+            free((char *)val->u.macro.param[val->u.macro.argc].init);
+        }
+        free(val->u.macro.param);break;
+    case T_FUNCTION:
+        while (val->u.func.argc) {
+            --val->u.func.argc;
+            free((char *)val->u.func.param[val->u.func.argc].name);
+            if (val->u.func.param[val->u.func.argc].init) val_destroy(val->u.func.param[val->u.func.argc].init);
+        }
+        free(val->u.func.param); break;
     default:
         break;
     }
@@ -82,6 +99,8 @@ void val_destroy(struct value_s *val) {
 
 
 static void val_copy2(struct value_s *val, const struct value_s *val2) {
+    size_t i;
+
     *val = *val2;
     val->refcount = 1;
     switch (val2->type) {
@@ -97,16 +116,59 @@ static void val_copy2(struct value_s *val, const struct value_s *val2) {
         if (val2->u.list.len) {
             val->u.list.data = malloc(val2->u.list.len * sizeof(val->u.list.data[0]));
             if (!val->u.list.data) err_msg_out_of_memory();
-            for (val->u.list.len = 0; val->u.list.len < val2->u.list.len; val->u.list.len++)
-                val->u.list.data[val->u.list.len] = val_reference(val2->u.list.data[val->u.list.len]);
+            for (i = 0; i < val2->u.list.len; i++)
+                val->u.list.data[i] = val_reference(val2->u.list.data[i]);
+            val->u.list.len = i;
         } else val->u.list.data = NULL;
+        break;
+    case T_MACRO:
+    case T_SEGMENT:
+        if (val2->u.macro.argc) {
+            val->u.macro.param = malloc(val2->u.macro.argc * sizeof(val->u.macro.param[0]));
+            if (!val->u.macro.param) err_msg_out_of_memory();
+            for (i = 0; i < val2->u.macro.argc; i++) {
+                if (val2->u.macro.param[i].name) {
+                    char *s = malloc(strlen(val2->u.macro.param[i].name) + 1);
+                    if (!s) err_msg_out_of_memory();
+                    strcpy(s, val2->u.macro.param[i].name);
+                    val->u.macro.param[i].name = s;
+                } else val->u.macro.param[i].name = NULL;
+                if (val2->u.macro.param[i].init) {
+                    char *s = malloc(strlen(val2->u.macro.param[i].init) + 1);
+                    if (!s) err_msg_out_of_memory();
+                    strcpy(s, val2->u.macro.param[i].init);
+                    val->u.macro.param[i].init = s;
+                } else val->u.macro.param[i].init = NULL;
+            }
+            val->u.macro.argc = i;
+        } else val->u.macro.param = NULL;
+        break;
+    case T_FUNCTION:
+        if (val2->u.func.argc) {
+            val->u.func.param = malloc(val2->u.func.argc * sizeof(val->u.func.param[0]));
+            if (!val->u.func.param) err_msg_out_of_memory();
+            for (i = 0; i < val2->u.func.argc; i++) {
+                if (val2->u.func.param[i].name) {
+                    char *s = malloc(strlen(val2->u.func.param[i].name) + 1);
+                    if (!s) err_msg_out_of_memory();
+                    strcpy(s, val2->u.func.param[i].name);
+                    val->u.func.param[i].name = s;
+                } else val->u.func.param[i].name = NULL;
+                if (val2->u.func.param[i].init) {
+                    val->u.func.param[i].init = val_reference(val2->u.func.param[i].init);
+                } else val->u.func.param[i].init = NULL;
+                val->u.func.param[i].epoint = val2->u.func.param[i].epoint;
+            }
+            val->u.func.argc = i;
+        } else val->u.func.param = NULL;
+        break;
     default:
         break;
     }
 }
 
 static struct value_s *val_copy(const struct value_s *val2) {
-    struct value_s *val = value_alloc();
+    struct value_s *val = val_alloc();
     if (!val) err_msg_out_of_memory();
     val_copy2(val, val2);
     return val;
@@ -128,7 +190,7 @@ void val_replace_template(struct value_s **val, const struct value_s *val2) {
         val_destroy2(*val);
     } else { 
         val_destroy(*val);
-        *val = value_alloc();
+        *val = val_alloc();
         if (!*val) err_msg_out_of_memory();
     }
     **val = *val2;
@@ -136,7 +198,7 @@ void val_replace_template(struct value_s **val, const struct value_s *val2) {
 }
 
 void val_set_template(struct value_s **val, const struct value_s *val2) {
-    *val = value_alloc();
+    *val = val_alloc();
     if (!*val) err_msg_out_of_memory();
     **val = *val2;
     val[0]->refcount = 1;
@@ -163,7 +225,21 @@ int val_same(const struct value_s *val, const struct value_s *val2) {
     case T_SEGMENT:
     case T_UNION:
     case T_STRUCT:
-        return val2->type == val->type && val->u.macro.p == val2->u.macro.p && val->u.macro.file == val2->u.macro.file && val->u.macro.sline == val2->u.macro.sline && val->u.macro.size == val2->u.macro.size;
+        if (val2->type != val->type || val->u.macro.p != val2->u.macro.p || val->u.macro.file != val2->u.macro.file || val->u.macro.sline != val2->u.macro.sline || val->u.macro.size != val2->u.macro.size) return 0;
+        for (i = 0; i < val->u.macro.argc; i++) {
+            if (val->u.macro.param[i].name != val2->u.macro.param[i].name || (val->u.macro.param[i].name && strcmp(val->u.macro.param[i].name, val2->u.macro.param[i].name))) return 0;
+            if (val->u.macro.param[i].init != val2->u.macro.param[i].init || (val->u.macro.param[i].init && strcmp(val->u.macro.param[i].init, val2->u.macro.param[i].init))) return 0;
+        }
+        return 1;
+    case T_FUNCTION:
+        if (val2->type != val->type || val->u.func.p != val2->u.func.p || val->u.func.file != val2->u.func.file || val->u.func.sline != val2->u.func.sline) return 0;
+        for (i = 0; i < val->u.func.argc; i++) {
+            if (val->u.func.param[i].name != val2->u.func.param[i].name || (val->u.func.param[i].name && strcmp(val->u.func.param[i].name, val2->u.func.param[i].name))) return 0;
+            if (val->u.func.param[i].init != val2->u.func.param[i].init || (val->u.func.param[i].init && !val_same(val->u.func.param[i].init, val2->u.func.param[i].init))) return 0;
+            if (val->u.func.param[i].epoint.pos != val2->u.func.param[i].epoint.pos) return 0;
+            if (val->u.func.param[i].epoint.upos != val2->u.func.param[i].epoint.upos) return 0;
+        }
+        return 1;
     case T_NUM:
         return val2->type == val->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
     case T_FLOAT:

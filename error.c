@@ -226,6 +226,7 @@ static const char *type_name(enum type_e t) {
     case T_SEGMENT: return "<segment>";
     case T_STRUCT: return "<struct>";
     case T_UNION: return "<union>";
+    case T_FUNCTION: return "<function>";
     case T_CODE: return "<code>";
     case T_LBL: return "<lbl>";
     case T_DEFAULT: return "<default>";
@@ -323,6 +324,7 @@ void err_msg_variable(struct value_s *val, int repr) {
     case T_SEGMENT: add_user_error("<segment>");break;
     case T_STRUCT: add_user_error("<struct>");break;
     case T_UNION: add_user_error("<union>");break;
+    case T_FUNCTION: add_user_error("<function>");break;
     case T_LBL: add_user_error("<lbl>");break;
     case T_DEFAULT: add_user_error("<default>");break;
     case T_GAP: add_user_error("?");break;

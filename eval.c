@@ -91,6 +91,14 @@ inline uint8_t get_val_len2(const struct value_s *v) {
     return (v->type == T_NUM) ? v->u.num.len : get_val_len((uval_t)v->u.num.val, v->type);
 }
 
+size_t get_label(void) {
+    uint8_t ch;
+    linepos_t e;
+    if (here()>='0' && here()<='9') return 0;
+    e.pos = lpoint.pos;
+    while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint.pos++;
+    return lpoint.pos - e.pos;
+}
 
 static int get_hex(struct value_s *v) {
     uval_t val = 0;
@@ -497,8 +505,7 @@ rest:
                 o_out[outp].val.u.num.val = 0xffff;
             }
         } else {
-            while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint.pos++;
-            if (epoint.pos == lpoint.pos) goto syntaxe;
+            if (!get_label()) goto syntaxe;
             o_out[outp].val.u.ident.name = pline + epoint.pos;
             o_out[outp].val.u.ident.len = lpoint.pos - epoint.pos;
             o_out[outp].val.type = T_IDENT;
@@ -3274,8 +3281,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
                 o_out[outp++].epoint=epoint;
                 goto other;
             }
-            while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint.pos++;
-            if (epoint.pos != lpoint.pos) {
+            if (get_label()) {
                 o_out[outp].val.u.ident.name = pline + epoint.pos;
                 o_out[outp].val.u.ident.len = lpoint.pos - epoint.pos;
                 o_out[outp].val.type = T_IDENT;
@@ -3422,8 +3428,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case 0:
         case ';': break;
         default: 
-            while (((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') lpoint.pos++;
-            switch (lpoint.pos - epoint.pos) {
+            switch (get_label()) {
             case 1: if (pline[epoint.pos] == 'x') {op = O_X;goto push2;} break;
             case 2: if (pline[epoint.pos] == 'i' && pline[epoint.pos + 1] == 'n') {op = O_IN;goto push2;} break;
             }

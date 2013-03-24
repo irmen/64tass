@@ -50,6 +50,7 @@
 #include "values.h"
 #include "variables.h"
 #include "mem.h"
+#include "macro.h"
 
 static const uint32_t *mnemonic;    //mnemonics
 static const uint8_t *opcode;    //opcodes
@@ -75,12 +76,6 @@ static int allowslowbranch=1;
 static int longbranchasjmp=0;
 static uint8_t outputeor = 0; // EOR value for final output (usually 0, except changed by .eor)
 
-enum wait_e {
-    W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
-    W_ENDS, W_ENDS2, W_ENDC, W_ENDP, W_ENDP2, W_NEXT, W_NEXT2, W_SEND, W_SEND2,
-    W_PEND, W_FI, W_FI2
-};
-
 static struct {
     enum wait_e what;
     line_t line;
@@ -100,20 +95,7 @@ static unsigned int last_mnem;
 int labelexists;
 uint16_t reffile;
 uint32_t backr, forwr;
-struct file_s *cfile;
 struct avltree *star_tree = NULL;
-
-struct {
-    uint8_t p, len;
-    struct {
-        size_t len, size;
-        struct {
-            size_t len;
-            const uint8_t *data;
-        } *param, all;
-        uint8_t *pline;
-    } *params, *current;
-} macro_parameters = {0, 0, NULL, NULL};
 
 static const char* command[]={ /* must be sorted, first char is the ID */
     "\x21" "al",
@@ -145,6 +127,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x2b" "enc",
     "\x3e" "end",
     "\x1b" "endc",
+    "\x51" "endf",
     "\x2c" "endif",
     "\x10" "endm",
     "\x1d" "endp",
@@ -155,6 +138,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x15" "fi",
     "\x29" "fill",
     "\x11" "for",
+    "\x50" "function",
     "\x43" "goto",
     "\x1f" "here",
     "\x3d" "hidemac",
@@ -210,7 +194,7 @@ enum command_e {
     CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC,
     CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT,
     CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU, CMD_DUNION, CMD_SECTION,
-    CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF, CMD_BINCLUDE,
+    CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF, CMD_BINCLUDE, CMD_FUNCTION, CMD_ENDF
 };
 
 // ---------------------------------------------------------------------------
@@ -230,14 +214,7 @@ void status(void) {
     destroy_mem();
     free_values();
     tfree();
-    {
-        int i;
-        for (i = 0; i < macro_parameters.len; i++) {
-            free(macro_parameters.params[i].pline);
-            free(macro_parameters.params[i].param);
-        }
-        free(macro_parameters.params);
-    }
+    free_macro();
 }
 
 void printllist(FILE *f) {
@@ -261,7 +238,7 @@ void printllist(FILE *f) {
     putc('\n', f);
 }
 
-static void new_waitfor(enum wait_e what, linepos_t epoint) {
+void new_waitfor(enum wait_e what, linepos_t epoint) {
     waitfor[++waitforp].what = what;
     waitfor[waitforp].line = sline;
     waitfor[waitforp].epoint = epoint;
@@ -391,8 +368,7 @@ static int what(int *tempno) {
                     if (!(s4=strcmp(cmd, command[no] + 1))) {
                         lpoint.pos += l;
                         no = (uint8_t)command[no][0];
-                        if (no==CMD_ENDIF) no=CMD_FI; else
-                        if (no==CMD_IFNE) no=CMD_IF;
+                        if (no==CMD_ENDIF) no=CMD_FI;
                         *tempno=no;
                         return WHAT_COMMAND;
                     }
@@ -463,76 +439,6 @@ static int get_hack(void) {
     return 0;
 }
 
-
-//------------------------------------------------------------------------------
-
-/*
- * macro parameter expansion
- *
- * in:
- *   mpr:  parameters, separated by zeros
- *   nprm: number of parameters
- *   cucc: one line of the macro (unexpanded)
- * out:
- *   cucc: one line of the macro (expanded)
-*/
-static inline void mtranslate()
-{
-    uint_fast8_t q;
-    uint_fast16_t j;
-    size_t p;
-    uint8_t ch, *cucc = macro_parameters.current->pline;
-
-    q=p=0;
-    for (; (ch = here()); lpoint.pos++) {
-        if (ch == '"'  && !(q & 2)) { q^=1; }
-        else if (ch == '\'' && !(q & 1)) { q^=2; }
-        else if ((ch == ';') && (!q)) { q=4; }
-        else if ((ch=='\\') && (!q)) {
-            /* normal parameter reference */
-            if (((ch=lowcase(pline[lpoint.pos+1])) >= '1' && ch <= '9') || (ch >= 'a' && ch <= 'z')) {
-                /* \1..\9, \a..\z */
-                if ((j=(ch<='9' ? ch-'1' : ch-'a'+9)) >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
-                if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                else {
-                    memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
-                    p += macro_parameters.current->param[j].len;
-                }
-                lpoint.pos++;continue;
-            } else if (ch=='@') {
-                /* \@ gives complete parameter list */
-                if (p + macro_parameters.current->all.len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                else {
-                    memcpy(cucc + p, macro_parameters.current->all.data, macro_parameters.current->all.len);
-                    p += macro_parameters.current->all.len;
-                }
-                lpoint.pos++;continue;
-            } else ch='\\';
-        } else if (ch=='@' && arguments.tasmcomp) {
-            /* text parameter reference */
-            if (((ch=lowcase(pline[lpoint.pos+1]))>='1' && ch<='9')) {
-                /* @1..@9 */
-                if ((j=ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
-                if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                else {
-                    if (macro_parameters.current->param[j].len > 1 && macro_parameters.current->param[j].data[0] == '"' && macro_parameters.current->param[j].data[macro_parameters.current->param[j].len-1]=='"') {
-                        memcpy(cucc + p, macro_parameters.current->param[j].data + 1, macro_parameters.current->param[j].len - 2);
-                        p += macro_parameters.current->param[j].len - 2;
-                    } else {
-                        memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
-                        p += macro_parameters.current->param[j].len;
-                    }
-                }
-                lpoint.pos++;continue;
-            } else ch='@';
-        }
-        cucc[p++]=ch;
-        if (p >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-    }
-    cucc[p]=0;
-    pline = cucc; lpoint = (linepos_t){0,0};
-}
-
 //------------------------------------------------------------------------------
 
 static void set_cpumode(uint_fast8_t cpumode) {
@@ -559,92 +465,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     fixeddig=fix;
 }
 
-static void compile(void);
-
-static void macro_recurse(enum wait_e t, struct value_s *tmp2) {
-    if (macro_parameters.p>100) {
-        err_msg(ERROR__MACRECURSION,"!!!!");
-        return;
-    }
-    if (macro_parameters.p >= macro_parameters.len) {
-        macro_parameters.len += 1;
-        macro_parameters.params = realloc(macro_parameters.params, sizeof(*macro_parameters.params) * macro_parameters.len);
-        if (!macro_parameters.params) err_msg_out_of_memory();
-        macro_parameters.params[macro_parameters.p].param = NULL;
-        macro_parameters.params[macro_parameters.p].size = 0;
-        macro_parameters.params[macro_parameters.p].pline = malloc(linelength);
-    }
-    macro_parameters.current = &macro_parameters.params[macro_parameters.p];
-    macro_parameters.p++;
-    {
-        uint_fast8_t q = 0, ch;
-        linepos_t opoint, npoint;
-        size_t p = 0;
-
-        ignore(); opoint = lpoint;
-        if (here() && here()!=';') {
-            char par[256];
-            uint8_t pp = 0;
-            do {
-                linepos_t opoint2, npoint2;
-                ignore(); opoint2 = lpoint;
-                while ((ch=here()) && (q || (ch!=';' && (ch!=',' || pp)))) {
-                    if (ch == '"'  && !(q & 2)) { q^=1; }
-                    else if (ch == '\'' && !(q & 1)) { q^=2; }
-                    if (!q) {
-                        if (ch == '(' || ch =='[') par[pp++]=ch;
-                        else if (pp && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='['))) pp--;
-                    }
-                    lpoint.pos++;
-                }
-                if (p >= macro_parameters.current->size) {
-                    macro_parameters.current->size += 4;
-                    macro_parameters.current->param = realloc(macro_parameters.current->param, sizeof(*macro_parameters.current->param) * macro_parameters.current->size);
-                    if (!macro_parameters.current->param) err_msg_out_of_memory();
-                }
-                macro_parameters.current->param[p].data = pline + opoint2.pos;
-                npoint2 = lpoint;
-                while (npoint2.pos > opoint2.pos && (pline[npoint2.pos-1] == 0x20 || pline[npoint2.pos-1] == 0x09)) npoint2.pos--;
-                macro_parameters.current->param[p].len = npoint2.pos - opoint2.pos;
-                p++;
-                if (ch == ',') lpoint.pos++;
-            } while (ch == ',');
-        }
-        macro_parameters.current->len = p;
-        macro_parameters.current->all.data = pline + opoint.pos;
-        npoint = lpoint;
-        while (npoint.pos > opoint.pos && (pline[npoint.pos-1] == 0x20 || pline[npoint.pos-1] == 0x09)) npoint.pos--;
-        macro_parameters.current->all.len = npoint.pos - opoint.pos;
-    }
-    {
-        size_t oldpos = tmp2->u.macro.file->p;
-        line_t lin = sline;
-        struct file_s *f;
-        struct star_s *s = new_star(vline);
-        struct avltree *stree_old = star_tree;
-        line_t ovline = vline;
-
-        if (labelexists && s->addr != star) {
-            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
-            fixeddig=0;
-        }
-        s->addr = star;
-        star_tree = &s->tree;vline=0;
-        enterfile(tmp2->u.macro.file->realname, sline);
-        sline = tmp2->u.macro.sline;
-        new_waitfor(t, (linepos_t){0,0});
-        f = cfile; cfile = tmp2->u.macro.file;
-        cfile->p = tmp2->u.macro.p;
-        compile();
-        exitfile(); cfile = f;
-        star_tree = stree_old; vline = ovline;
-        sline = lin; tmp2->u.macro.file->p = oldpos;
-    }
-    macro_parameters.p--;
-    if (macro_parameters.p) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
-}
-
-static void compile(void)
+void compile(struct file_s *cfile)
 {
     int wht,w;
     int prm = 0;
@@ -663,7 +484,7 @@ static void compile(void)
 
     while (cfile->len != cfile->p && nobreak) {
         pline = cfile->data + cfile->p; lpoint.pos = 0; lpoint.upos = 0; sline++;vline++; cfile->p += strlen((const char *)pline) + 1;
-        if (macro_parameters.p) mtranslate(); //expand macro parameters, if any
+        mtranslate(); //expand macro parameters, if any
         llist = pline;
         star=current_section->l_address;newlabel = NULL;
         labelname2[0]=wasref=0;ignore();epoint=lpoint;
@@ -782,7 +603,6 @@ static void compile(void)
                             label->file = cfile;
                             label->sline = sline;
                             label->epoint = epoint;
-                            if (val->type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
                         }
                         goto finish;
                     }
@@ -816,21 +636,63 @@ static void compile(void)
                     {
                         struct label_s *label;
                         new_waitfor(W_ENDM, epoint);waitfor[waitforp].skip=0;
-                        ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+                        ignore();
                         label=new_label(labelname, labelname2, L_LABEL);
+                        new_value.type = (prm == CMD_MACRO) ? T_MACRO : T_SEGMENT;
                         if (labelexists) {
                             if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            new_value.u.macro.p = cfile->p;
+                            new_value.u.macro.size = 0;
+                            new_value.u.macro.sline = sline;
+                            new_value.u.macro.file = cfile;
+                            get_macro_params(&new_value);
+                            var_assign(label, &new_value, fixeddig);
+                            val_destroy(&new_value);
                         } else {
                             label->requires=0;
                             label->conflicts=0;
                             label->pass=pass;
                             label->value = &none_value;
-                            new_value.type = (prm == CMD_MACRO) ? T_MACRO : T_SEGMENT;
                             new_value.u.macro.p = cfile->p;
                             new_value.u.macro.size = 0;
                             new_value.u.macro.sline = sline;
                             new_value.u.macro.file = cfile;
+                            get_macro_params(&new_value);
                             var_assign(label, &new_value, fixeddig);
+                            val_destroy(&new_value);
+                            label->sline = sline;
+                            label->file = cfile;
+                            label->epoint = epoint;
+                        }
+                        label->ref=0;
+                        goto finish;
+                    }
+                case CMD_FUNCTION:
+                    {
+                        struct label_s *label;
+                        new_waitfor(W_ENDF, epoint);waitfor[waitforp].skip=0;
+                        ignore();
+                        label=new_label(labelname, labelname2, L_LABEL);
+                        new_value.type = T_FUNCTION;
+                        if (labelexists) {
+                            if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            new_value.u.func.p = cfile->p;
+                            new_value.u.func.sline = sline;
+                            new_value.u.func.file = cfile;
+                            get_func_params(&new_value);
+                            var_assign(label, &new_value, fixeddig);
+                            val_destroy(&new_value);
+                        } else {
+                            label->requires=0;
+                            label->conflicts=0;
+                            label->pass=pass;
+                            label->value = &none_value;
+                            new_value.u.func.p = cfile->p;
+                            new_value.u.func.sline = sline;
+                            new_value.u.func.file = cfile;
+                            get_func_params(&new_value);
+                            var_assign(label, &new_value, fixeddig);
+                            val_destroy(&new_value);
                             label->sline = sline;
                             label->file = cfile;
                             label->epoint = epoint;
@@ -866,6 +728,8 @@ static void compile(void)
                                 new_value.u.macro.size = 0;
                                 new_value.u.macro.sline = sline;
                                 new_value.u.macro.file = cfile;
+                                new_value.u.macro.argc = 0;
+                                new_value.u.macro.param = NULL;
                                 var_assign(label, &new_value, fixeddig);
                                 label->sline = sline;
                                 label->file = cfile;
@@ -925,7 +789,7 @@ static void compile(void)
                             current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitforp--;
                             new_waitfor((prm==CMD_STRUCT)?W_ENDS2:W_ENDU2, epoint);waitfor[waitforp].skip=1;
-                            compile();
+                            compile(cfile);
                             current_context = old_context;
                             current_section->unionmode = old_unionmode;
                             current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -939,6 +803,8 @@ static void compile(void)
                             new_value.u.macro.p = label->value->u.macro.p;
                             new_value.u.macro.sline = label->value->u.macro.sline;
                             new_value.u.macro.file = label->value->u.macro.file;
+                            new_value.u.macro.argc = 0;
+                            new_value.u.macro.param = NULL;
                             var_assign(label, &new_value, fixeddig);
                             current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
                             current_section->end=olds.end;current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
@@ -1001,7 +867,7 @@ static void compile(void)
                     new_value.u.code.sign = newlabel->value->u.code.sign;
                     new_value.u.code.pass = pass - 1;
                     get_mem(&newmemp, &newmembp);
-                    var_assign(newlabel, &new_value, fixeddig);
+                    var_assign(newlabel, &new_value, 0);
                 }
             } else {
                 newlabel->pass = pass;
@@ -1213,7 +1079,7 @@ static void compile(void)
                     waitfor[waitforp].what=W_FI;waitfor[waitforp].line=sline;
                     break;
                 }
-                if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
+                if (prm==CMD_IF || prm==CMD_IFEQ || prm==CMD_IFNE || prm==CMD_IFPL || prm==CMD_IFMI || prm==CMD_ELSIF) { // .if
                     uint8_t skwait = waitfor[waitforp].skip;
                     if (prm==CMD_ELSIF) {
                         if (waitfor[waitforp].what!=W_FI2) {err_msg2(ERROR______EXPECTED,".IF", epoint); break;}
@@ -1223,14 +1089,32 @@ static void compile(void)
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
-                        if (val->type == T_NONE) err_msg2(ERROR___NOT_DEFINED,"argument used for condition", epoint);
+                        if (val->type == T_NONE) {
+                            if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                            fixeddig = 0;
+                        }
                     } else val = &none_value;
                     switch (prm) {
                     case CMD_ELSIF:
+                        if (val->type == T_UNDEF) err_msg_wrong_type(val, epoint);
                         waitfor[waitforp].skip = val_truth(val) ? (waitfor[waitforp].skip >> 1) : (waitfor[waitforp].skip & 2);
                         break;
                     case CMD_IF:
+                        if (val->type == T_UNDEF) err_msg_wrong_type(val, epoint);
                         waitfor[waitforp].skip = val_truth(val) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);
+                        break;
+                    case CMD_IFNE:
+                        switch (val->type) {
+                        case T_SINT:
+                        case T_UINT:
+                        case T_BOOL:
+                        case T_CODE:
+                        case T_FLOAT:
+                        case T_STR:
+                        case T_NUM: waitfor[waitforp].skip = val_truth(val) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
+                        default: err_msg_wrong_type(val, epoint);
+                        case T_NONE: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
+                        }
                         break;
                     case CMD_IFEQ:
                         switch (val->type) {
@@ -1241,7 +1125,8 @@ static void compile(void)
                         case T_FLOAT:
                         case T_STR:
                         case T_NUM: waitfor[waitforp].skip = (!val_truth(val)) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
+                        default: err_msg_wrong_type(val, epoint);
+                        case T_NONE: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
                         }
                         break;
                     case CMD_IFPL:
@@ -1252,8 +1137,9 @@ static void compile(void)
                         case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (~val->u.num.val & 0x8000) : 1) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_CODE: waitfor[waitforp].skip = (arguments.tasmcomp ? (~val->u.code.addr & 0x8000) : 1) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real >= 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        case T_STR: waitfor[waitforp].skip = val->u.str.len ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
+                        case T_STR: waitfor[waitforp].skip = waitfor[waitforp-1].skip & 1;break;
+                        default: err_msg_wrong_type(val, epoint);
+                        case T_NONE: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
                         }
                         break;
                     case CMD_IFMI:
@@ -1264,7 +1150,9 @@ static void compile(void)
                         case T_NUM: waitfor[waitforp].skip = (arguments.tasmcomp ? (val->u.num.val & 0x8000) : 0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_CODE: waitfor[waitforp].skip = (arguments.tasmcomp ? (val->u.code.addr & 0x8000) : 0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
                         case T_FLOAT: waitfor[waitforp].skip = (val->u.real < 0.0) ? (waitfor[waitforp-1].skip & 1) : ((waitfor[waitforp-1].skip & 1) << 1);break;
-                        default: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
+                        case T_STR: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
+                        default: err_msg_wrong_type(val, epoint);
+                        case T_NONE: waitfor[waitforp].skip = (waitfor[waitforp-1].skip & 1) << 1;break;
                         }
                         break;
                     }
@@ -1276,6 +1164,14 @@ static void compile(void)
                     } else if (waitfor[waitforp].what==W_ENDM2) {
                         waitforp--; nobreak=0;
                     } else err_msg2(ERROR______EXPECTED,".MACRO or .SEGMENT", epoint);
+                    break;
+                }
+                if (prm==CMD_ENDF) { // .endf
+                    if (waitfor[waitforp].what==W_ENDF) {
+                        waitforp--;
+                    } else if (waitfor[waitforp].what==W_ENDF2) {
+                        waitforp--; nobreak=0;
+                    } else err_msg2(ERROR______EXPECTED,".FUNCTION", epoint);
                     break;
                 }
                 if (prm==CMD_NEXT) { // .next
@@ -1377,6 +1273,7 @@ static void compile(void)
                     case CMD_UNION: what2 = W_ENDU; break;
                     case CMD_STRUCT: what2 = W_ENDS; break;
                     case CMD_SECTION: what2 = W_SEND; break;
+                    case CMD_FUNCTION: what2 = W_ENDF; break;
                     case CMD_MACRO:
                     case CMD_SEGMENT: what2 = W_ENDM; break;
                     case CMD_FOR:
@@ -1403,6 +1300,7 @@ static void compile(void)
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0)) goto breakerr;
                         while ((val = get_val(T_NONE, &epoint))) {
+                            if (val == &error_value) continue;
                             if (val->type != T_STR || val->u.str.len) {
                                 size_t i = 0;
                                 do {
@@ -1894,6 +1792,7 @@ static void compile(void)
                     for (;;) {
                         int endok = 0;
                         size_t i = 0;
+                        int try = 1;
 
                         actual_encoding = NULL;
                         val = get_val(T_NONE, &epoint);
@@ -1901,7 +1800,6 @@ static void compile(void)
                         if (!val) break;
 
                         switch (val->type) {
-                        case T_NONE: err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);goto breakerr;
                         case T_NUM: if (val->u.num.len <= 24) { tmp.start = val->u.num.val; break; }
                         case T_BOOL:
                         case T_UINT:
@@ -1931,6 +1829,10 @@ static void compile(void)
                              }
                              if (val->u.str.len > i) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                              break;
+                        case T_NONE: 
+                             if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                             try = fixeddig = 0;
+                             break;
                         default:
                             err_msg_wrong_type(val, epoint);
                             goto breakerr;
@@ -1941,24 +1843,32 @@ static void compile(void)
                             actual_encoding = old;
                             if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                             if (val == &error_value) goto breakerr;
-                            if (val->type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);goto breakerr;}
-                            if ((val->type != T_NUM || val->u.num.len > 24) && ((uval_t)val->u.num.val & ~(uval_t)0xffffff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                            if (tmp.start > (uint32_t)val->u.num.val) {
-                                tmp.end = tmp.start;
-                                tmp.start = val->u.num.val;
-                            } else tmp.end = val->u.num.val;
+                            if (val->type == T_NONE) {
+                                if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                                try = fixeddig = 0;
+                            } else {
+                                if ((val->type != T_NUM || val->u.num.len > 24) && ((uval_t)val->u.num.val & ~(uval_t)0xffffff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                                if (tmp.start > (uint32_t)val->u.num.val) {
+                                    tmp.end = tmp.start;
+                                    tmp.start = val->u.num.val;
+                                } else tmp.end = val->u.num.val;
+                            }
                         }
                         actual_encoding = NULL;
                         val = get_val(T_UINT, &epoint);
                         actual_encoding = old;
                         if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                         if (val == &error_value) goto breakerr;
-                        if (val->type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);goto breakerr;}
-                        if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                        tmp.offset = val->u.num.val;
-                        t = new_trans(&tmp, actual_encoding);
-                        if (t->start != tmp.start || t->end != tmp.end || t->offset != tmp.offset) {
-                            err_msg2(ERROR_DOUBLE_DEFINE, "range", epoint); goto breakerr;
+                        if (val->type == T_NONE) {
+                            if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                            fixeddig = 0;
+                        } else if (try) {
+                            if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                            tmp.offset = val->u.num.val;
+                            t = new_trans(&tmp, actual_encoding);
+                            if (t->start != tmp.start || t->end != tmp.end || t->offset != tmp.offset) {
+                                err_msg2(ERROR_DOUBLE_DEFINE, "range", epoint); goto breakerr;
+                            }
                         }
                     }
                     eval_finish();
@@ -1975,6 +1885,7 @@ static void compile(void)
                     for (;;) {
                         linepos_t opoint;
                         struct value_s *v;
+                        int try = 1;
 
                         actual_encoding = NULL;
                         val = get_val(T_NONE, &epoint);
@@ -1982,27 +1893,35 @@ static void compile(void)
                         if (!val) break;
 
                         switch (val->type) {
-                        case T_NONE: err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);goto breakerr;
                         case T_STR:
                              if (!val->u.str.len) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                             v = val_reference(val);
+                             break;
+                        case T_NONE: 
+                             if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                             try = fixeddig = 0;
                              break;
                         default:
                             err_msg_wrong_type(val, epoint);
                             goto breakerr;
                         }
+                        v = val_reference(val);
                         actual_encoding = NULL;
                         opoint = epoint;
                         val = get_val(T_UINT, &epoint);
                         actual_encoding = old;
                         if (!val) {err_msg(ERROR______EXPECTED,","); val_destroy(v); goto breakerr;}
                         if (val == &error_value) {val_destroy(v); goto breakerr;}
-                        if (val->type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);val_destroy(v);goto breakerr;}
-                        if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                        t = new_escape(v->u.str.data, v->u.str.data + v->u.str.len, (uint8_t)val->u.num.val, actual_encoding);
-                        val_destroy(v);
-                        if (t->code != (uint8_t)val->u.num.val) {
-                            err_msg2(ERROR_DOUBLE_DEFINE,"escape", opoint); goto breakerr;
+                        if (val->type == T_NONE) {
+                             if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                             fixeddig = 0;
+                             val_destroy(v);
+                        } else if (try) {
+                            if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                            t = new_escape(v->u.str.data, v->u.str.data + v->u.str.len, (uint8_t)val->u.num.val, actual_encoding);
+                            val_destroy(v);
+                            if (t->code != (uint8_t)val->u.num.val) {
+                                err_msg2(ERROR_DOUBLE_DEFINE,"escape", opoint); goto breakerr;
+                            }
                         }
                     }
                     eval_finish();
@@ -2031,8 +1950,10 @@ static void compile(void)
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     if (eval_finish()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL);goto breakerr;}
-                    if (val->type == T_NONE) err_msg2(ERROR___NOT_DEFINED, "repeat count", epoint);
-                    else {
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                        fixeddig = 0;
+                    } else {
                         ival_t cnt = val->u.num.val;
                         if (cnt > 0) {
                             size_t pos = cfile->p;
@@ -2051,7 +1972,7 @@ static void compile(void)
                             while (cnt--) {
                                 sline=lin;cfile->p=pos;
                                 new_waitfor(W_NEXT2, epoint);waitfor[waitforp].skip=1;
-                                compile();
+                                compile(cfile);
                             }
                             star_tree = stree_old; vline = ovline;
                         }
@@ -2139,18 +2060,19 @@ static void compile(void)
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    if (val->type == T_NONE) err_msg2(ERROR___NOT_DEFINED,"argument used", epoint);
-                    else {
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                        fixeddig = 0;
+                    } else {
                         if (val->type != T_STR) {err_msg_wrong_type(val, epoint);goto breakerr;}
                         if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
 
-                        f = cfile;
-                        cfile = openfile(path, cfile->realname, 0, val);
-                        if (cfile->open>1) {
+                        f = openfile(path, cfile->realname, 0, val);
+                        if (f->open>1) {
                             err_msg(ERROR_FILERECURSION,NULL);
                         } else {
                             if (listing && flist) {
-                                fprintf(flist,"\n;******  Processing file \"%s\"\n",cfile->realname);
+                                fprintf(flist,"\n;******  Processing file \"%s\"\n",f->realname);
                                 lastl=LIST_NONE;
                             }
                             line_t lin = sline;
@@ -2164,11 +2086,11 @@ static void compile(void)
                                 fixeddig=0;
                             }
                             s->addr = star;
-                            enterfile(cfile->realname,sline);
-                            sline = vline = 0; cfile->p=0;
+                            enterfile(f->realname,sline);
+                            sline = vline = 0; f->p=0;
                             star_tree = &s->tree;
                             backr = forwr = 0;
-                            reffile=cfile->uid;
+                            reffile=f->uid;
                             if (prm == CMD_BINCLUDE) {
                                 if (newlabel) current_context = newlabel;
                                 else {
@@ -2176,15 +2098,15 @@ static void compile(void)
                                     current_context=new_label(labelname, labelname, L_LABEL);
                                     current_context->value = &none_value;
                                 }
-                                compile();
+                                compile(f);
                                 current_context = current_context->parent;
-                            } else compile();
+                            } else compile(f);
                             sline = lin; vline = vlin;
                             star_tree = stree_old;
                             backr = old_backr; forwr = old_forwr;
                             exitfile();
                         }
-                        closefile(cfile);cfile = f;
+                        closefile(f);
                         reffile=cfile->uid;
                         if (listing && flist) {
                             fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->realname);
@@ -2230,7 +2152,6 @@ static void compile(void)
                             var->file = cfile;
                             var->sline = sline;
                             var->epoint = epoint;
-                            if (val->type == T_NONE) err_msg(ERROR___NOT_DEFINED,"argument used");
                         }
                         wht=what(&prm);
                     }
@@ -2250,7 +2171,10 @@ static void compile(void)
                         lpoint=apoint;
                         if (!get_exp(&w,1)) break; //ellenorizve.
                         if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
-                        if (val->type == T_NONE) {err_msg(ERROR___NOT_DEFINED,"argument used in condition");break;}
+                        if (val->type == T_NONE) {
+                            if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                            fixeddig = 0;
+                        }
                         if (!val_truth(val)) break;
                         if (nopos < 0) {
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
@@ -2282,7 +2206,7 @@ static void compile(void)
                             }
                         }
                         new_waitfor(W_NEXT2, epoint);waitfor[waitforp].skip=1;
-                        compile();
+                        compile(cfile);
                         xpos = cfile->p; xlin= sline;
                         pline = expr;
                         sline=lin;cfile->p=pos;
@@ -2311,8 +2235,10 @@ static void compile(void)
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    if (val->type == T_NONE) {err_msg2(ERROR___NOT_DEFINED,"argument used for option", epoint);goto breakerr;}
-                    if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=val_truth(val);
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > MAX_PASS) err_msg2(ERROR_CANT_CALCULAT, "", epoint);
+                        fixeddig = 0;
+                    } else if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=val_truth(val);
                     else if (!strcasecmp(labelname,"auto_longbranch_as_jmp")) longbranchasjmp=val_truth(val);
                     else err_msg(ERROR_UNKNOWN_OPTIO,labelname2);
                     break;
@@ -2334,6 +2260,8 @@ static void compile(void)
                             switch (waitfor[waitforp].what) {
                             case W_ENDM2:
                             case W_ENDM: msg = ".ENDM"; break;
+                            case W_ENDF2:
+                            case W_ENDF: msg = ".ENDF"; break;
                             case W_NEXT2:
                             case W_NEXT: msg = ".NEXT"; break;
                             case W_PEND: msg = ".PEND"; break;
@@ -2372,6 +2300,11 @@ static void compile(void)
                     err_msg2(ERROR___NOT_DEFINED,"",epoint);
                     break;
                 }
+                if (prm==CMD_FUNCTION) {
+                    new_waitfor(W_ENDF, epoint);waitfor[waitforp].skip=0;
+                    err_msg2(ERROR___NOT_DEFINED,"",epoint);
+                    break;
+                }
                 if (prm==CMD_LBL) {
                     err_msg2(ERROR___NOT_DEFINED,"",epoint);
                     break;
@@ -2389,7 +2322,7 @@ static void compile(void)
                     if (current_section->structrecursion<100) {
                         waitforp--;
                         new_waitfor(W_ENDS2, epoint);waitfor[waitforp].skip=1;
-                        compile();
+                        compile(cfile);
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
@@ -2407,7 +2340,7 @@ static void compile(void)
                     if (current_section->structrecursion<100) {
                         waitforp--;
                         new_waitfor(W_ENDU2, epoint);waitfor[waitforp].skip=1;
-                        compile();
+                        compile(cfile);
                     } else err_msg(ERROR__MACRECURSION,"!!!!");
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
@@ -2549,13 +2482,13 @@ static void compile(void)
                 char macroname[linelength], macroname2[linelength];
 
                 if (get_ident2(macroname, macroname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (!(tmp2=find_label(macroname)) || (tmp2->type != L_LABEL || (tmp2->value->type != T_MACRO && tmp2->value->type != T_SEGMENT))) {err_msg(ERROR___NOT_DEFINED,macroname2); goto breakerr;}
+                if (!(tmp2=find_label(macroname)) || (tmp2->type != L_LABEL || (tmp2->value->type != T_MACRO && tmp2->value->type != T_SEGMENT && tmp2->value->type != T_FUNCTION))) {err_msg(ERROR___NOT_DEFINED,macroname2); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
                     fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
                 }
-                if (tmp2->value->type == T_MACRO) {
+                if (tmp2->value->type == T_MACRO || tmp2->value->type == T_FUNCTION) {
                     old_context = current_context;
                     if (newlabel) current_context=newlabel;
                     else {
@@ -2563,9 +2496,10 @@ static void compile(void)
                         current_context=new_label(labelname, labelname, L_LABEL);
                         current_context->value = &none_value;
                     }
-                } else old_context = NULL;
-                macro_recurse(W_ENDM2,tmp2->value);
-                if (tmp2->value->type == T_MACRO) current_context = old_context;
+                    if (tmp2->value->type == T_FUNCTION) func_recurse(W_ENDF2, tmp2->value);
+                    else macro_recurse(W_ENDM2, tmp2->value);
+                    current_context = old_context;
+                } else macro_recurse(W_ENDM2, tmp2->value);
                 break;
             }
         case WHAT_EXPRESSION:
@@ -3142,6 +3076,8 @@ static void compile(void)
         case W_ENDP: msg = ".ENDP"; break;
         case W_ENDM2:
         case W_ENDM: msg = ".ENDM"; break;
+        case W_ENDF2:
+        case W_ENDF: msg = ".ENDF"; break;
         case W_NEXT2:
         case W_NEXT: msg = ".NEXT"; break;
         case W_PEND: msg = ".PEND"; break;
@@ -3224,7 +3160,7 @@ int main(int argc, char *argv[]) {
 #endif
     time_t t;
     int optind, i;
-    struct file_s *fin;
+    struct file_s *fin, *cfile;
 
     tinit();
 
@@ -3258,14 +3194,14 @@ int main(int argc, char *argv[]) {
             current_section->wrapwarn=0;
             current_section->wrapwarn2=0;
             current_section->unionmode=0;
-            macro_parameters.p = 0;
+            init_macro();
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
                 enterfile("<command line>",0);
-                fin->p = 0; cfile = fin;
+                fin->p = 0;
                 star_tree=&fin->star;
-                reffile=cfile->uid;
-                compile();
+                reffile=fin->uid;
+                compile(fin);
                 exitfile();
                 restart_mem();
                 continue;
@@ -3277,7 +3213,7 @@ int main(int argc, char *argv[]) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
                 reffile=cfile->uid;
-                compile();
+                compile(cfile);
                 closefile(cfile);
             }
             exitfile();
@@ -3329,14 +3265,14 @@ int main(int argc, char *argv[]) {
             current_section->wrapwarn=0;
             current_section->wrapwarn2=0;
             current_section->unionmode=0;
-            macro_parameters.p = 0;
+            init_macro();
 
             if (i == optind - 1) {
                 enterfile("<command line>",0);
-                fin->p = 0; cfile = fin;
+                fin->p = 0; 
                 star_tree=&fin->star;
-                reffile=cfile->uid;
-                compile();
+                reffile=fin->uid;
+                compile(fin);
                 exitfile();
                 restart_mem();
                 continue;
@@ -3349,7 +3285,7 @@ int main(int argc, char *argv[]) {
                 cfile->p = 0;
                 star_tree=&cfile->star;
                 reffile=cfile->uid;
-                compile();
+                compile(cfile);
                 closefile(cfile);
             }
             exitfile();
