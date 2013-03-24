@@ -59,7 +59,15 @@ void mtranslate(void)
             /* normal parameter reference */
             if ((ch=pline[lpoint.pos+1]) >= '1' && ch <= '9') {
                 /* \1..\9 */
-                if ((j=ch-'1') >= macro_parameters.current->len || !macro_parameters.current->param[j].data) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
+                if ((j=ch-'1') >= macro_parameters.current->len || !macro_parameters.current->param[j].data) {
+                    if (macro_parameters.current->macro->type == T_STRUCT || macro_parameters.current->macro->type == T_UNION) {
+                        lpoint.pos++;
+                        ch = '?';
+                        goto ok;
+                    }
+                    err_msg(ERROR_MISSING_ARGUM,NULL);
+                    break;
+                }
                 if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
                 else {
                     memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
@@ -91,7 +99,15 @@ void mtranslate(void)
                     for (j = 0; j < macro_parameters.current->macro->u.macro.argc; j++) {
                         if (!macro_parameters.current->macro->u.macro.param[j].name) continue;
                         if (strncmp(macro_parameters.current->macro->u.macro.param[j].name, label, ln)) continue;
-                        if (!macro_parameters.current->param[j].data) {err_msg2(ERROR_MISSING_ARGUM,NULL,e); break;}
+                        if (!macro_parameters.current->param[j].data) {
+                            if (macro_parameters.current->macro->type == T_STRUCT || macro_parameters.current->macro->type == T_UNION) {
+                                lpoint.pos--;
+                                ch = '?';
+                                goto ok;
+                            }
+                            err_msg2(ERROR_MISSING_ARGUM,NULL,e);
+                            break;
+                        }
                         if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
                         else {
                             memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
@@ -125,6 +141,7 @@ void mtranslate(void)
                 lpoint.pos++;continue;
             } else ch='@';
         }
+    ok:
         cucc[p++]=ch;
         if (p >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
     }
@@ -206,7 +223,9 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2) {
         while (npoint.pos > opoint.pos && (pline[npoint.pos-1] == 0x20 || pline[npoint.pos-1] == 0x09)) npoint.pos--;
         macro_parameters.current->all.len = npoint.pos - opoint.pos;
     }
-    {
+    if (t == W_ENDS) {
+        compile(tmp2->u.macro.file);
+    } else {
         size_t oldpos = tmp2->u.macro.file->p;
         line_t lin = sline;
         struct file_s *f;
