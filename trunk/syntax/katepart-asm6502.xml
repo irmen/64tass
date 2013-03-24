@@ -84,6 +84,8 @@
         <RegExpr endRegion="page" String="\.endp\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="macro" String="\.(macro|segment)\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="macro" String="\.endm\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="function" String="\.function\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="function" String="\.endf\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="for" String="\.(for|rept)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="for" String="\.next\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="logical" String="\.logical\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>

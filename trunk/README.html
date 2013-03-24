@@ -685,54 +685,49 @@ used to make sure the expected addressing mode is used.</p>
 <hr>
 <h2>Compiler directives:</h2>
 
-<h3>Controlling the program counter</h3>
+<h3>Controlling the compile offset and program counter</h3>
 
-<p>There are two address counters. One is used for placing the data in memory, the
-other one called logical address, and it's what the labels will be set or what
-the special star label gets when referenced.</p>
+<p>Two counters are used while assembling. The compile offset is where the data
+and code ends up in memory, while the program counter is what labels will be
+set or what the special star label gets when referenced.</p>
 
 <dl class="dir">
 <dt><b>*=</b> &lt;expression&gt;
-<dd>Set both compile address and logical address. The compile address is moved so
-that the logical address will match at this point. If confused about what this means,
-see the example at <code>.logical</code>.
-<pre width=80>
-        <b>*=</b> <span>$1000</span>
-</pre>
+<dd>The compile offset is moved so that the program counter will match the one
+in the expression.
 <dt><b>.offs</b> &lt;expression&gt;
-<dd>Add a compile offset to logical address.
-<pre width=80>
-        <b class="k">.offs</b> <span>100</span>
-</pre>
+<dd>Add an offset to the compile offset (create a gap). The program counter
+stays the same as before.
 <dt><b>.logical</b> &lt;expression&gt;
 <dt><b>.here</b>
-<dd>Changes logical address, compile address is not changed. Can be nested.
+<dd>Changes the program counter, the compile offset is not changed. Can be nested.
+<dt><b>.align</b> &lt;modulo&gt;[, &lt;fill&gt;]
+<dd>Align code to a dividable program counter address by gap or filler bytes
+</dl>
 <pre width=80>
-        <b class="k">.logical</b> <span>$300</span>
+        <b>*=</b> <span>$1000</span>        <i>;set program counter (and offset)</i>
+
+        <b class="k">.offs</b> <span>100</span>       <i>;gap of 100, PC still the same</i>
+
+        <b class="k">.logical</b> <span>$300</span>   <i>;set PC to $300</i>
 drive   <b>lda</b> #<span>$80</span>
         <b>sta</b> <span>$00</span>
-        <b>jmp</b> <span class="l">drive</span>       <i>;jmp $300</i>
+        <b>jmp</b> <span class="l">drive</span>       <i>;it's jmp $300</i>
 	<b>rts</b>
 	<b class="k">.here</b>
-</pre>
-<p>Here's an example how <code>.logical</code> and <code>*=</code> works together:</p>
-<pre width=80>
-        <b>*=</b> <span>$0800</span>       <i>;Compile: $0800, Logical: $0800</i>
-        <b class="k">.logical</b> <span>$1000</span> <i>;Compile: $0800, Logical: $1000</i>
-        <b>*=</b> <span>$1200</span>       <i>;Compile: $0a00, Logical: $1200</i>
-	<b class="k">.here</b>          <i>;Compile: $0a00, Logical: $0a00</i>
-</pre>
 
-<dt><b>.align</b> &lt;modulo&gt;[, &lt;fill&gt;]
-<dd>Align code to a dividable address by skip or fill
-<pre width=80>
         <b class="k">.align</b> <span>$100</span>
 irq     <b>inc</b> <span>$d019</span>       <i>;this will be on a page boundary, after skipping bytes</i>
         <b class="k">.align</b> <span>4</span>, <span>$ea</span>
 loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst mode</i>
 </pre>
-
-</dl>
+<p>Here's an example how <code>.logical</code> and <code>*=</code> works together:</p>
+<pre width=80>
+        <b>*=</b> <span>$0800</span>       <i>;Compile: $0800, PC: $0800</i>
+        <b class="k">.logical</b> <span>$1000</span> <i>;Compile: $0800, PC: $1000</i>
+        <b>*=</b> <span>$1200</span>       <i>;Compile: $0a00, PC: $1200</i>
+	<b class="k">.here</b>          <i>;Compile: $0a00, PC: $0a00</i>
+</pre>
 
 <h3>Dumping data</h3>
 <h4>Storing numeric data</h4>
@@ -933,6 +928,7 @@ to 8&nbsp;bit values in strings.</p>
 <dd>Selects text encoding, predefined encodings are <q>none</q> and
 <q>screen</q> (screen code), anything else is user defined. All user encodings
 start without any character or escape definitions, add some as required.
+</dl>
 <pre width=80>
 	<b class="k">.enc</b> screen	<i>;screencode mode</i>
         <b class="d">.text</b> <span class="s">"text with screencodes"</span>
@@ -940,6 +936,7 @@ start without any character or escape definitions, add some as required.
 	<b class="k">.enc</b> none	<i>;normal mode again</i>
         <b>cmp</b> #<span class="s">"u"</span>	<i>;compare ascii</i>
 </pre>
+<dl class="dir">
 <dt><b>.cdef</b> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, ...]
 <dt><b>.cdef</b> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, ...]
 <dd>Defines a character range, and assigns all characters one by one from the 8&nbsp;bit value.
@@ -947,6 +944,7 @@ The start and end positions are unicode character codes either by numbers or by 
 <dt><b>.edef</b> "&lt;escapetext&gt;", &lt;code&gt; [, "&lt;escapetext&gt;", &lt;code&gt;, ...]
 <dd>Defines an escape sequence, and assigns it to a 8&nbsp;bit value. When using
 common prefixes the longest match wins. Useful for defining non-typeable control code aliases.
+</dl>
 <pre width=80>
         <b class="k">.enc</b> petscii	<i>;define an ascii->petscii encoding</i>
         <b class="k">.cdef</b> <span class="s">" @"</span>, <span>32</span>  <i>;characters</i>
@@ -963,10 +961,10 @@ common prefixes the longest match wins. Useful for defining non-typeable control
 
         <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>\n</span>"</span>
 </pre>
-</dl>
 
 <h3>Structured data</h3>
 
+<h4>Structure</h4>
 <p>Structures can be defined to organize sequential data definitions, which can
 be reused later many times. The offset of fields are available by using the
 definition's name as a base, and the fields themselves by using the instance
@@ -980,6 +978,7 @@ all items.</p>
 <dd>Finish structure definition
 <dt><b>.dstruct</b> &lt;name&gt;
 <dd>Create instance of struct
+</dl>
 
 <pre width=80>
         <b class="k">.struct</b>         <i>;anonymous struct</i>
@@ -997,8 +996,8 @@ nn      <b class="d">.dstruct</b> <span class="l">nn_s</span>   <i>;struct insta
         <b>lda</b> <span class="l">nn</span>.<span class="l">x</span>        <i>;access internal fields</i>
         <b>ldy</b> #<span class="l">nn_s</span>.<span class="l">x</span>     <i>;get offset of field</i>
 </pre>
-</dl>
 
+<h4>Union</h4>
 <p>Unions are similar to structs, except each line will start on the same
 address where the definition was done. The length of the union is the length of
 it's longest item. The offset of fields are available by using the definition's
@@ -1013,6 +1012,7 @@ union, unless internal anonymous structs are used.</p>
 <dd>Finish structure definition
 <dt><b>.dunion</b> &lt;name&gt;
 <dd>Create instance of struct
+</dl>
 
 <pre width=80>
         <b class="k">.union</b>          <i>;anonymous union</i>
@@ -1031,6 +1031,7 @@ nn      <b class="d">.dunion</b> <span class="l">nn_u</span>    <i>;union instan
         <b>ldy</b> #<span class="l">nn_u</span>.<span class="l">x</span>     <i>;get offset of field</i>
 </pre>
 
+<h4>Combined use of structures and unions</h4>
 <p>The example below shown how to define structure to a binary include.</p>
 
 <pre width=80>
@@ -1062,24 +1063,29 @@ are assigned after in the <q>zp</q> section.</p>
         <b class="k">.endu</b>
         <b class="k">.dsection</b> <span class="l">zp</span>    <i>;declare zp section</i>
 </pre>
-</dl>
 
 <h3>Macros</h3>
+<p>Macros can be used to reduce typing of frequently used source lines.
+Each invocation is a copy of the macro's content with parameter references
+replaced by the parameter texts.</p>
+
 <dl class="dir">
-<dt><b>.macro</b>
-<dd>Each invocation is a copy of the macro's content. The code is enclosed in
-it's own block so symbols inside are non-accessible, unless a label is prefixed
-at the place of use, then local labels can be accessed through that label.
-<dt><b>.segment</b>
-<dd>Only copies the code segment as it is, so symbols can be used from
+<dt><b>.segment</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
+<dd>Copies the code segment as it is, so symbols can be used from
 outside, but this also means multiple use will result in double defines
 unless anonymous labels are used.
+<dt><b>.macro</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
+<dd>The code is enclosed in it's own block so symbols inside are
+non-accessible, unless a label is prefixed at the place of use, then local
+labels can be accessed through that label.
 <dt><b>.endm</b>
-<dd>End of .macro or .segment definition
+<dd>End of <code>.macro</code> or <code>.segment</code> definition
+</dl>
 
 <pre width=80>
-fill    <b class="k">.macro</b>
-lp      <b>sta</b> \1,x
+copy    <b class="k">.macro</b>
+lp      <b>lda</b> \1,x
+        <b>sta</b> \2,x
 	<b>inx</b>
         <b>bne</b> <span class="l">lp</span>
 	<b class="k">.endm</b>
@@ -1091,65 +1097,80 @@ name    <b class="k">.segment</b>
 
         <b>lda</b> #<span>1</span>
 	#name           <i>;call macro</i>
-        #fill <span>$400</span>
-        #fill <span>$500</span>
+        #fill <span>$400</span>, <span>$500</span>
+        #fill <span>$500</span>, <span>$600</span>
 </pre>
 
-<dt><h4>Parameter references</h4>
-<dd>Parameters can be referenced by <code>\1</code>...<code>\9</code> and <code>\a</code>...<code>\z</code>.
-<code>\@</code> will return the entire parameter list.
+<h4>Parameter references</h4>
+<p>The first 9 parameters can be referenced by <code>\1</code>...<code>\9</code>.
+The entire parameter list including separators is <code>\@</code>.</p>
 <pre width=80>
 name	<b class="k">.macro</b>
-	<b>lda</b> #\1 	<i>;first parameter</i>
+	<b>lda</b> #\1 	<i>;first parameter 23+1</i>
 	<b class="k">.endm</b>
 
-        #name <span>23</span>	<i>;call macro</i>
+        #name <span>23</span>+<span>1</span>	<i>;call macro</i>
 </pre>
 
+<p>Parameters can be named, and it's possible to set a default value after an
+equal sign which is used as a replacement when the parameter is missing.</p>
 
-<dt><h4>Text references</h4>
-<dd>In the original turbo assembler normal references are passed by value and can
-only appear in place of one. Text references on the other hand can appear every
-where and will work in place of eg quoted text or opcodes and labels.
-The first 9 parameters can be referenced as text by <code>@1</code>...<code>@9</code>.
+<p>These named parameters can be referenced by <code>\name</code> or
+<code>\{name}</code>. Names must match completely, if unsure use the quoted
+name reference syntax.</p>
+<pre width=80>
+name	<b class="k">.macro</b> first,b=<span>2</span>,,last
+        <b>lda</b> #\first	<i>;first parameter</i>
+        <b>lda</b> #\b 	<i>;second parameter</i>
+        <b>lda</b> #\3 	<i>;third parameter</i>
+        <b>lda</b> #\last 	<i>;fourth parameter</i>
+	<b class="k">.endm</b>
+
+        #name <span>1</span>, , <span>3</span>, <span>4</span>	<i>;call macro</i>
+</pre>
+
+<h4>Text references</h4>
+<p>In the original turbo assembler normal references are passed by value and
+can only appear in place of one. Text references on the other hand can appear
+everywhere and will work in place of eg quoted text or opcodes and labels. The
+first 9 parameters can be referenced as text by
+<code>@1</code>...<code>@9</code>.</p>
 <pre width=80>
 name    <b class="k">.macro</b>
         <b>jsr</b> <span class="l">print</span>
         <b class="d">.null</b> <span class="s">"Hello <span>@1</span>!"</span><i>;first parameter</i>
 	<b class="k">.endm</b>
 
-	#name wth?	<i>;call macro</i>
+        #name <span class="s">"wth?"</span>	<i>;call macro</i>
 </pre>
 
-</dl>
 <h3>Conditional assembly</h3>
+<p>To prevent parts of source from compiling conditional constructs can be
+used. This is useful when multiple slightly different versions needs to be
+compiled from the same source.</p>
 <dl class="dir">
 <dt><b>.if</b> &lt;expression&gt;
 <dt><b>.ifne</b> &lt;expression&gt;
-<dd>Conditional compile, if result is not 0
+<dd>Compile, if result is not zero (or true)
 <dt><b>.ifeq</b> &lt;expression&gt;
-<dd>Conditional compile, if result is 0
+<dd>Compile, if result is zero (or false)
 <dt><b>.ifpl</b> &lt;expression&gt;
-<dd>Conditional compile, if result is greater or equal 0
+<dd>Compile, if result is greater or equal zero
 <dt><b>.ifmi</b> &lt;expression&gt;
-<dd>Conditional compile, if result is less than 0
-<dt><b>.fi</b>
+<dd>Compile, if result is less than zero
 <dt><b>.endif</b>
+<dt><b>.fi</b>
 <dd>End of conditional compile
-
-<pre width=80>
-        <b class="k">.if</b> <span class="l">oeu</span> == <span>1</span>
-	<b>nop</b>
-	<b class="k">.else</b>
-        <b>lda</b> #<span>1</span>
-	<b class="k">.fi</b>
-</pre>
-
 <dt><b>.else</b>
-<dd>Compile, if the previous conditions were not true.
-
+<dd>Compile if the previous conditions were all skipped
 <dt><b>.elsif</b> &lt;expression&gt;
-<dd>Conditional compile, if the previous conditions were not true and the result is not 0.
+<dd>Compile if the previous conditions were all skipped and the result is not zero (or true)
+</dl>
+
+<p>The <code>.ifne</code>, <code>.ifeq</code>, <code>.ifpl</code> and
+<code>.ifmi</code> directives exists for compatibility only, in practice it's
+better to use comparison operators instead.</p>
+
 <pre width=80>
         <b class="k">.if</b> <span class="l">wait</span>==<span>2</span>	<i>;2 cycles</i>
 	<b>nop</b>
@@ -1162,6 +1183,8 @@ name    <b class="k">.macro</b>
 	<b class="k">.fi</b>
 </pre>
 
+<h3>Repetitions</h3>
+<dl class="dir">
 <dt><b>.for</b> &lt;variable&gt;=&lt;expression&gt;,&lt;expression&gt;,&lt;variable&gt;=&lt;expression&gt;
 <dt><b>.next</b>
 <dd>Compile loop, only anonymous references are allowed as labels inside
@@ -1204,21 +1227,25 @@ i       <b class="k">.var</b> <span class="l">i</span> - <span>1</span>
 </dl>
 <h3>Including files</h3>
 
-<p>Filenames can be a string expressions. Search path is relative to the
-location of current source file. If it's not found there the include search
-path is consulted for further possible locations.</p>
+<p>Longer sources are usually separated into multiple files for easier
+handling. Precomputed binary data can also be included directly without
+converting it into source code first.</p>
+
+<p>Search path is relative to the location of current source file. If it's not
+found there the include search path is consulted for further possible
+locations.</p>
 
 <p>To make your sources portable please always use forward slashes
 (<code>/</code>) as a directory separator and use lower/uppercase consistently
 in filenames!</p>
 
 <dl class="dir">
-<dt><b>.include</b> "&lt;filename&gt;"
-<dd>Include source file here. The filename must be defined in advance.
-<dt><b>.binclude</b> "&lt;filename&gt;"
-<dd>Include source file here in it's local block. The filename must be defined
-in advance. If the directive is prefixed with a label then all labels are local
-and are accessible through that label only, otherwise not reachable at all.
+<dt><b>.include</b> &lt;filename&gt;
+<dd>Include source file here.
+<dt><b>.binclude</b> &lt;filename&gt;
+<dd>Include source file here in it's local block. If the directive is prefixed
+with a label then all labels are local and are accessible through that label
+only, otherwise not reachable at all.
 <pre width=80>
 
 	<b class="k">.include</b> <span class="s">"macros.asm"</span>       <i>;include macros</i>
@@ -1226,8 +1253,8 @@ menu    <b class="k">.binclude</b> <span class="s">"menu.asm"</span>        <i>;
 	<b>jmp</b> <span class="l">menu</span>.<span class="l">start</span>
 </pre>
 
-<dt><b>.binary</b> "&lt;filename&gt;"[, &lt;offset&gt;[, &lt;length&gt;]]
-<dd>Include binary data from file. By using offset and length it's possible to break out chunks of data from a
+<dt><b>.binary</b> &lt;filename&gt;[, &lt;offset&gt;[, &lt;length&gt;]]
+<dd>Include raw binary data from file. By using offset and length it's possible to break out chunks of data from a
 file separately, like bitmap and colors for example.
 <pre width=80>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>        <i>;simple include, all bytes</i>
@@ -1243,7 +1270,7 @@ file separately, like bitmap and colors for example.
 <dl class="dir">
 <dt><b>.proc</b>
 <dt><b>.pend</b>
-<dd>Procedure start and end of procedure. If the label is not used then
+<dd>Procedure start and end of procedure. If it's label is not used then
 the code won't be compiled at all!  All labels inside are local and are
 accessible through the prefixed label. Useful for building libraries.
 <pre width=80>
@@ -1280,30 +1307,30 @@ count	<b>ldx</b> #<span>0</span>
 </dl>
 
 <h3>Sections</h3>
+
+<p>Sections can be used to collect data or code into separate memory areas
+without moving source code lines around. This is achieved by having separate
+compile offset and program counters for each defined section.</p>
+
 <dl class="dir">
-<dt><b>.dsection</b> &lt;name&gt;
-<dd>Declares a named section and starts it.
 <dt><b>.section</b> &lt;name&gt;
-<dd>Section start
 <dt><b>.send</b> [&lt;name&gt;]
-<dd>End of section. Section name is optional, if present it must match.
-<p>Sections are useful for linking sources, or to organize memory layout. With
-them it's easily possible to allocate addresses for variables at the place of
-actual use enclosed by the current scope. It can also be used to collect data
-or code to specific memory areas, or to ease the generation of code and data to
-multiple locations simultaniously in a single loop or macro.</p>
-<p>All <code>.section</code>-s scattered around in the sources are compiled
-from the <code>.dsection</code> declaration. Compilation happens as the code
-appears, this directive only assigns enough space to hold all the stuff in the
-sections.</p>
-<p>The space allocated is calculated from the difference of starting compile
-address and the maximum compile address reached in the section. It is
-possible to adjust the address in sections in a non-incremental way, but
-putting code before the start address is not allowed.</p>
-<p>Sections and section declarations can be nested, therefore it's possible to
-have the same names as long as it's inside a differently named section. Parent
-section names are visible for children, siblings can be reached through
-parents.</p>
+<dd>Defines a section fragment. The name at <code>.send</code> must match but
+it's optional.
+<dt><b>.dsection</b> &lt;name&gt;
+<dd>Collect the section fragments here.
+</dl>
+
+<p>All <code>.section</code> fragments are compiled to the memory area
+allocated by the <code>.dsection</code> directive. Compilation happens as the
+code appears, this directive only assigns enough space to hold all the content
+in the section fragments.</p>
+
+<p>The space used by section fragments is calculated from the difference of
+starting compile offset and the maximum compile offset reached. It is possible
+to manipulate the compile offset in fragments, but putting code before the
+start of <code>.dsection</code> is not allowed.</p>
+
 <pre width=80>
         <b>*=</b> <span>$02</span>
         <b class="k">.dsection</b> <span class="l">zp</span>   <i>;declare zeropage section</i>
@@ -1371,25 +1398,82 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
 
 &gt;0004					p2      .word ?         ;a pointer
 </pre>
-</dl>
+
+<p>Sections can form a hierarchy by nesting a <code>.dsection</code> into
+another section. The section names must only be unique within a section but can
+be reused otherwise. Parent section names are visible for children, siblings can be
+reached through parents.</p>
+
+<p>In the following example the included sources don't have to know which
+<q>code</q> and <q>data</q> sections they use, while the <q>bss</q> section is
+shared for all banks.</p>
+
+<pre width=80>
+<i>;First 8K bank at the beginning, PC at $8000</i>
+        <b>*=</b> <span>$0000</span>
+        <b class="k">.logical</b> <span>$8000</span>
+        <b class="k">.dsection</b> <span class="l">bank1</span>
+        <b class="k">.cerror</b> *&gt;<span>$a000</span>, <span class="s">"Bank1 too long"</span>
+	<b class="k">.here</b>
+
+bank1	<b class="k">.block</b>          <i>;Make all symbols local</i>
+        <b class="k">.section</b> <span class="l">bank1</span>
+        <b class="k">.dsection</b> <span class="l">code</span>  <i>;Code and data sections in bank1</i>
+        <b class="k">.dsection</b> <span class="l">data</span>
+        <b class="k">.section</b> <span class="l">code</span>   <i>;Pre-open code section</i>
+	<b class="k">.include</b> <span class="s">"code.asm"</span><i>; see below</i>
+	<b class="k">.include</b> <span class="s">"iter.asm"</span>
+        <b class="k">.send</b> <span class="l">code</span>
+        <b class="k">.send</b> <span class="l">bank1</span>
+	<b class="k">.bend</b>
+
+<i>;Second 8K bank at $2000, PC at $8000</i>
+        <b>*=</b> <span>$2000</span>
+        <b class="k">.logical</b> <span>$8000</span>
+        <b class="k">.dsection</b> <span class="l">bank2</span>
+        <b class="k">.cerror</b> *&gt;<span>$a000</span>, <span class="s">"Bank2 too long"</span>
+	<b class="k">.here</b>
+
+bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
+        <b class="k">.section</b> <span class="l">bank2</span>
+        <b class="k">.dsection</b> <span class="l">code</span>  <i>;Code and data sections in bank2</i>
+        <b class="k">.dsection</b> <span class="l">data</span>
+        <b class="k">.section</b> <span class="l">code</span>   <i>;Pre-open code section</i>
+	<b class="k">.include</b> <span class="s">"scr.asm"</span>
+        <b class="k">.send</b> <span class="l">code</span>
+        <b class="k">.send</b> <span class="l">bank2</span>
+	<b class="k">.bend</b>
+
+<i>;Common data, avoid initialized variables here!</i>
+        <b>*=</b> <span>$c000</span>
+        <b class="k">.dsection</b> <span class="l">bss</span>
+        <b class="k">.cerror</b> *&gt;<span>$d000</span>, <span class="s">"Too much common data"</span>
+<i>;------------- The following is in "code.asm"</i>
+code    <b>sei</b>
+
+        <b class="k">.section</b> <span class="l">bss</span>   <i>;Common data section</i>
+buffer	<b class="d">.fill</b> <span>10</span>
+        <b class="k">.send</b> <span class="l">bss</span>
+
+        <b class="k">.section</b> <span class="l">data</span>  <i>;Data section (in bank1)</i>
+routine <b class="d">.word</b> <span class="l">print</span>
+        <b class="k">.send</b> <span class="l">bss</span>
+</pre>
 
 <h3>65816 related</h3>
 <dl class="dir">
 <dt><b>.as</b>
-<dd>Select 8&nbsp;bit accu (65816)
-
 <dt><b>.al</b>
-<dd>Select 16&nbsp;bit accu (65816). Immediate constants of a register using opcodes will use 16&nbsp;bits.
+<dd>Select short (8&nbsp;bit) or long (16&nbsp;bit) accumulator immediate constants.
+
 <pre width=80>
 	<b class="k">.al</b>
         <b>lda</b> #<span>$4322</span>
 </pre>
 
 <dt><b>.xs</b>
-<dd>Select 8&nbsp;bit index (65816)
-
 <dt><b>.xl</b>
-<dd>Select 16&nbsp;bit index (65816). Immediate constants of x and y register using opcodes will use 16&nbsp;bits.
+<dd>Select short (8&nbsp;bit) or long (16&nbsp;bit) index register immediate constants.
 <pre width=80>
 	<b class="k">.xl</b>
         <b>ldx</b> #<span>$1000</span>
@@ -1437,18 +1521,16 @@ can ruin the timing of a carefuly cycle counted code.
 </pre>
 
 <dt><b>.error</b> &lt;message&gt; [, &lt;message&gt;, ...]
-<dd>Exit with error
 <dt><b>.cerror</b> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
-<dd>Conditional exit with error
+<dd>Exit with error or conditionally exit with error
 <pre width=80>
         <b class="k">.error</b> <span class="s">"Unfinished here..."</span>
         <b class="k">.cerror</b> *&gt;<span>$1200</span>, <span class="s">"Program too long by "</span>, *-<span>$1200</span>, <span class="s">" bytes"</span>
 </pre>
 
 <dt><b>.warn</b> &lt;message&gt; [, &lt;message&gt;, ...]
-<dd>Warning
 <dt><b>.cwarn</b> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, ...]
-<dd>Conditional warning
+<dd>Display a warning message always or depending on a condition
 <pre width=80>
         <b class="k">.warn</b> <span class="s">"FIXME: handle negative values too!"</span>
         <b class="k">.cwarn</b> *&gt;<span>$1200</span>, <span class="s">"This may not work!"</span>

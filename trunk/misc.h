@@ -39,6 +39,12 @@ enum lastl_e {
     LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU
 };
 
+enum wait_e {
+    W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
+    W_ENDS, W_ENDS2, W_ENDC, W_ENDP, W_ENDP2, W_NEXT, W_NEXT2, W_SEND, W_SEND2,
+    W_PEND, W_FI, W_FI2, W_ENDF, W_ENDF2
+};
+
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
 
 struct arguments_s {
@@ -72,6 +78,9 @@ extern void status(void);
 extern uint16_t reffile;
 extern uint32_t backr, forwr;
 extern uint8_t pass;
+extern void new_waitfor(enum wait_e, linepos_t);
+extern void compile(struct file_s *);
+extern void var_assign(struct label_s *, struct value_s *, int);
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
 #define get() pline[lpoint.pos++]

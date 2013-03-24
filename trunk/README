@@ -570,49 +570,47 @@ to make sure the expected addressing mode is used.
 
 Compiler directives:
 
-Controlling the program counter
+Controlling the compile offset and program counter
 
-There are two address counters. One is used for placing the data in memory, the
-other one called logical address, and it's what the labels will be set or what
-the special star label gets when referenced.
+Two counters are used while assembling. The compile offset is where the data
+and code ends up in memory, while the program counter is what labels will be
+set or what the special star label gets when referenced.
 
 *= <expression>
-    Set both compile address and logical address. The compile address is moved
-    so that the logical address will match at this point. If confused about
-    what this means, see the example at .logical.
-
-            *= $1000
-
+    The compile offset is moved so that the program counter will match the one
+    in the expression.
 .offs <expression>
-    Add a compile offset to logical address.
-
-            .offs 100
-
+    Add an offset to the compile offset (create a gap). The program counter
+    stays the same as before.
 .logical <expression>
 .here
-    Changes logical address, compile address is not changed. Can be nested.
-
-            .logical $300
-    drive   lda #$80
-            sta $00
-            jmp drive       ;jmp $300
-            rts
-            .here
-
-    Here's an example how .logical and *= works together:
-
-            *= $0800       ;Compile: $0800, Logical: $0800
-            .logical $1000 ;Compile: $0800, Logical: $1000
-            *= $1200       ;Compile: $0a00, Logical: $1200
-            .here          ;Compile: $0a00, Logical: $0a00
-
+    Changes the program counter, the compile offset is not changed. Can be
+    nested.
 .align <modulo>[, <fill>]
-    Align code to a dividable address by skip or fill
+    Align code to a dividable program counter address by gap or filler bytes
 
-            .align $100
-    irq     inc $d019       ;this will be on a page boundary, after skipping bytes
-            .align 4, $ea
-    loop    adc #1          ;padding with "nop" for DTV burst mode
+        *= $1000        ;set program counter (and offset)
+
+        .offs 100       ;gap of 100, PC still the same
+
+        .logical $300   ;set PC to $300
+drive   lda #$80
+        sta $00
+        jmp drive       ;it's jmp $300
+        rts
+        .here
+
+        .align $100
+irq     inc $d019       ;this will be on a page boundary, after skipping bytes
+        .align 4, $ea
+loop    adc #1          ;padding with "nop" for DTV burst mode
+
+Here's an example how .logical and *= works together:
+
+        *= $0800       ;Compile: $0800, PC: $0800
+        .logical $1000 ;Compile: $0800, PC: $1000
+        *= $1200       ;Compile: $0a00, PC: $1200
+        .here          ;Compile: $0a00, PC: $0a00
 
 Dumping data
 
@@ -808,11 +806,11 @@ unicode characters to 8 bit values in strings.
     code), anything else is user defined. All user encodings start without any
     character or escape definitions, add some as required.
 
-            .enc screen     ;screencode mode
-            .text "text with screencodes"
-            cmp #"u"        ;compare screencode
-            .enc none       ;normal mode again
-            cmp #"u"        ;compare ascii
+        .enc screen     ;screencode mode
+        .text "text with screencodes"
+        cmp #"u"        ;compare screencode
+        .enc none       ;normal mode again
+        cmp #"u"        ;compare ascii
 
 .cdef <start>, <end>, <coded> [, <start>, <end>, <coded>, ...]
 .cdef "<start><end>", <coded> [, "<start><end>", <coded>, ...]
@@ -824,22 +822,24 @@ unicode characters to 8 bit values in strings.
     common prefixes the longest match wins. Useful for defining non-typeable
     control code aliases.
 
-            .enc petscii    ;define an ascii->petscii encoding
-            .cdef " @", 32  ;characters
-            .cdef "AZ", $c1
-            .cdef "az", $41
-            .cdef "[[", $5b
-            .cdef "??", $5c
-            .cdef "]]", $5d
-            .cdef "??", $5e
-            .cdef $2190, $2190, $1f;left arrow
+        .enc petscii    ;define an ascii->petscii encoding
+        .cdef " @", 32  ;characters
+        .cdef "AZ", $c1
+        .cdef "az", $41
+        .cdef "[[", $5b
+        .cdef "??", $5c
+        .cdef "]]", $5d
+        .cdef "??", $5e
+        .cdef $2190, $2190, $1f;left arrow
 
-            .edef "\n", 13  ;escape sequences
-            .edef "{clr}", 147
+        .edef "\n", 13  ;escape sequences
+        .edef "{clr}", 147
 
-            .text "{clr}Text in PETSCII\n"
+        .text "{clr}Text in PETSCII\n"
 
 Structured data
+
+Structure
 
 Structures can be defined to organize sequential data definitions, which can be
 reused later many times. The offset of fields are available by using the
@@ -854,20 +854,22 @@ all items.
 .dstruct <name>
     Create instance of struct
 
-            .struct         ;anonymous struct
-    x       .byte 0         ;labels are visible
-    y       .byte 0         ;content compiled here
-            .ends           ;useful inside unions
+        .struct         ;anonymous struct
+x       .byte 0         ;labels are visible
+y       .byte 0         ;content compiled here
+        .ends           ;useful inside unions
 
-    nn_s    .struct         ;named struct
-    x       .byte 0         ;labels are not visible
-    y       .byte 0         ;no content is compiled here
-            .ends           ;it's just a definition
+nn_s    .struct         ;named struct
+x       .byte 0         ;labels are not visible
+y       .byte 0         ;no content is compiled here
+        .ends           ;it's just a definition
 
-    nn      .dstruct nn_s   ;struct instance, content here
+nn      .dstruct nn_s   ;struct instance, content here
 
-            lda nn.x        ;access internal fields
-            ldy #nn_s.x     ;get offset of field
+        lda nn.x        ;access internal fields
+        ldy #nn_s.x     ;get offset of field
+
+Union
 
 Unions are similar to structs, except each line will start on the same address
 where the definition was done. The length of the union is the length of it's
@@ -883,140 +885,163 @@ unless internal anonymous structs are used.
 .dunion <name>
     Create instance of struct
 
-            .union          ;anonymous union
-    x       .byte 0         ;labels are visible
-    y       .word 0         ;content compiled here
-            .endu
+        .union          ;anonymous union
+x       .byte 0         ;labels are visible
+y       .word 0         ;content compiled here
+        .endu
 
-    nn_u    .union          ;named union
-    x       .byte 0         ;labels are not visible
-    y       .word 0         ;no content is compiled here
-            .endu           ;it's just a definition
+nn_u    .union          ;named union
+x       .byte 0         ;labels are not visible
+y       .word 0         ;no content is compiled here
+        .endu           ;it's just a definition
 
-    nn      .dunion nn_u    ;union instance here
+nn      .dunion nn_u    ;union instance here
 
-            lda nn.x        ;access internal fields
-            ldy #nn_u.x     ;get offset of field
+        lda nn.x        ;access internal fields
+        ldy #nn_u.x     ;get offset of field
 
-    The example below shown how to define structure to a binary include.
+Combined use of structures and unions
 
-            .union
-            .binary "pic.drp",2
-            .struct
-    color   .fill 1024
-    screen  .fill 1024
-    bitmap  .fill 8000
-    backg   .byte ?
-            .ends
-            .endu
+The example below shown how to define structure to a binary include.
 
-    Anonymous structs and unions in combination with sections are useful for
-    overlapping memory assignment. The example below shares zeropage
-    allocations for two separate parts of a bigger program. The common
-    subroutine variables are assigned after in the `zp' section.
+        .union
+        .binary "pic.drp",2
+        .struct
+color   .fill 1024
+screen  .fill 1024
+bitmap  .fill 8000
+backg   .byte ?
+        .ends
+        .endu
 
-            *= $02
-            .union          ;spare some memory
-             .struct
-              .dsection zp1 ;declare zp1 section
-             .ends
-             .struct
-              .dsection zp2 ;declare zp2 section
-             .ends
-            .endu
-            .dsection zp    ;declare zp section
+Anonymous structs and unions in combination with sections are useful for
+overlapping memory assignment. The example below shares zeropage allocations
+for two separate parts of a bigger program. The common subroutine variables are
+assigned after in the `zp' section.
+
+        *= $02
+        .union          ;spare some memory
+         .struct
+          .dsection zp1 ;declare zp1 section
+         .ends
+         .struct
+          .dsection zp2 ;declare zp2 section
+         .ends
+        .endu
+        .dsection zp    ;declare zp section
 
 Macros
 
-.macro
-    Each invocation is a copy of the macro's content. The code is enclosed in
-    it's own block so symbols inside are non-accessible, unless a label is
-    prefixed at the place of use, then local labels can be accessed through
-    that label.
-.segment
-    Only copies the code segment as it is, so symbols can be used from outside,
-    but this also means multiple use will result in double defines unless
-    anonymous labels are used.
+Macros can be used to reduce typing of frequently used source lines. Each
+invocation is a copy of the macro's content with parameter references replaced
+by the parameter texts.
+
+.segment [<name>][=<default>]][,[<name>][=<default>] ...]
+    Copies the code segment as it is, so symbols can be used from outside, but
+    this also means multiple use will result in double defines unless anonymous
+    labels are used.
+.macro [<name>][=<default>]][,[<name>][=<default>] ...]
+    The code is enclosed in it's own block so symbols inside are
+    non-accessible, unless a label is prefixed at the place of use, then local
+    labels can be accessed through that label.
 .endm
     End of .macro or .segment definition
 
-    fill    .macro
-    lp      sta \1,x
-            inx
-            bne lp
-            .endm
+copy    .macro
+lp      lda \1,x
+        sta \2,x
+        inx
+        bne lp
+        .endm
 
-    name    .segment
-            sta $d020
-            sta $d021
-            .endm
+name    .segment
+        sta $d020
+        sta $d021
+        .endm
 
-            lda #1
-            #name           ;call macro
-            #fill $400
-            #fill $500
+        lda #1
+        #name           ;call macro
+        #fill $400, $500
+        #fill $500, $600
 
 Parameter references
 
-    Parameters can be referenced by \1...\9 and \a...\z. \@ will return the
-    entire parameter list.
+The first 9 parameters can be referenced by \1...\9. The entire parameter list
+including separators is \@.
 
-    name    .macro
-            lda #\1         ;first parameter
-            .endm
+name    .macro
+        lda #\1         ;first parameter 23+1
+        .endm
 
-            #name 23        ;call macro
+        #name 23+1      ;call macro
+
+Parameters can be named, and it's possible to set a default value after an
+equal sign which is used as a replacement when the parameter is missing.
+
+These named parameters can be referenced by \name or \{name}. Names must match
+completely, if unsure use the quoted name reference syntax.
+
+name    .macro first,b=2,,last
+        lda #\first     ;first parameter
+        lda #\b         ;second parameter
+        lda #\3         ;third parameter
+        lda #\last      ;fourth parameter
+        .endm
+
+        #name 1, , 3, 4 ;call macro
 
 Text references
 
-    In the original turbo assembler normal references are passed by value and
-    can only appear in place of one. Text references on the other hand can
-    appear every where and will work in place of eg quoted text or opcodes and
-    labels. The first 9 parameters can be referenced as text by @1...@9.
+In the original turbo assembler normal references are passed by value and can
+only appear in place of one. Text references on the other hand can appear
+everywhere and will work in place of eg quoted text or opcodes and labels. The
+first 9 parameters can be referenced as text by @1...@9.
 
-    name    .macro
-            jsr print
-            .null "Hello @1!";first parameter
-            .endm
+name    .macro
+        jsr print
+        .null "Hello @1!";first parameter
+        .endm
 
-            #name wth?      ;call macro
+        #name "wth?"    ;call macro
 
 Conditional assembly
 
+To prevent parts of source from compiling conditional constructs can be used.
+This is useful when multiple slightly different versions needs to be compiled
+from the same source.
+
 .if <expression>
 .ifne <expression>
-    Conditional compile, if result is not 0
+    Compile, if result is not zero (or true)
 .ifeq <expression>
-    Conditional compile, if result is 0
+    Compile, if result is zero (or false)
 .ifpl <expression>
-    Conditional compile, if result is greater or equal 0
+    Compile, if result is greater or equal zero
 .ifmi <expression>
-    Conditional compile, if result is less than 0
-.fi
+    Compile, if result is less than zero
 .endif
+.fi
     End of conditional compile
-
-            .if oeu == 1
-            nop
-            .else
-            lda #1
-            .fi
-
 .else
-    Compile, if the previous conditions were not true.
+    Compile if the previous conditions were all skipped
 .elsif <expression>
-    Conditional compile, if the previous conditions were not true and the
-    result is not 0.
+    Compile if the previous conditions were all skipped and the result is not
+    zero (or true)
 
-            .if wait==2     ;2 cycles
-            nop
-            .elsif wait==3  ;3 cycles
-            bit $ea
-            .elsif wait==4  ;4 cycles
-            bit $eaea
-            .else           ;else 5 cycles
-            inc $2
-            .fi
+The .ifne, .ifeq, .ifpl and .ifmi directives exists for compatibility only, in
+practice it's better to use comparison operators instead.
+
+        .if wait==2     ;2 cycles
+        nop
+        .elsif wait==3  ;3 cycles
+        bit $ea
+        .elsif wait==4  ;4 cycles
+        bit $eaea
+        .else           ;else 5 cycles
+        inc $2
+        .fi
+
+Repetitions
 
 .for <variable>=<expression>,<expression>,<variable>=<expression>
 .next
@@ -1055,30 +1080,33 @@ Conditional assembly
 
 Including files
 
-Filenames can be a string expressions. Search path is relative to the location
-of current source file. If it's not found there the include search path is
-consulted for further possible locations.
+Longer sources are usually separated into multiple files for easier handling.
+Precomputed binary data can also be included directly without converting it
+into source code first.
+
+Search path is relative to the location of current source file. If it's not
+found there the include search path is consulted for further possible
+locations.
 
 To make your sources portable please always use forward slashes (/) as a
 directory separator and use lower/uppercase consistently in filenames!
 
-.include "<filename>"
-    Include source file here. The filename must be defined in advance.
-.binclude "<filename>"
-    Include source file here in it's local block. The filename must be defined
-    in advance. If the directive is prefixed with a label then all labels are
-    local and are accessible through that label only, otherwise not reachable
-    at all.
+.include <filename>
+    Include source file here.
+.binclude <filename>
+    Include source file here in it's local block. If the directive is prefixed
+    with a label then all labels are local and are accessible through that
+    label only, otherwise not reachable at all.
 
 
             .include "macros.asm"       ;include macros
     menu    .binclude "menu.asm"        ;include in a block
             jmp menu.start
 
-.binary "<filename>"[, <offset>[, <length>]]
-    Include binary data from file. By using offset and length it's possible to
-    break out chunks of data from a file separately, like bitmap and colors for
-    example.
+.binary <filename>[, <offset>[, <length>]]
+    Include raw binary data from file. By using offset and length it's possible
+    to break out chunks of data from a file separately, like bitmap and colors
+    for example.
 
             .binary "stuffz.bin"        ;simple include, all bytes
             .binary "stuffz.bin",2      ;skip start address
@@ -1091,7 +1119,7 @@ Blocks
 
 .proc
 .pend
-    Procedure start and end of procedure. If the label is not used then the
+    Procedure start and end of procedure. If it's label is not used then the
     code won't be compiled at all! All labels inside are local and are
     accessible through the prefixed label. Useful for building libraries.
 
@@ -1125,115 +1153,161 @@ Blocks
 
 Sections
 
-.dsection <name>
-    Declares a named section and starts it.
+Sections can be used to collect data or code into separate memory areas without
+moving source code lines around. This is achieved by having separate compile
+offset and program counters for each defined section.
+
 .section <name>
-    Section start
 .send [<name>]
-    End of section. Section name is optional, if present it must match.
+    Defines a section fragment. The name at .send must match but it's optional.
+.dsection <name>
+    Collect the section fragments here.
 
-    Sections are useful for linking sources, or to organize memory layout. With
-    them it's easily possible to allocate addresses for variables at the place
-    of actual use enclosed by the current scope. It can also be used to collect
-    data or code to specific memory areas, or to ease the generation of code
-    and data to multiple locations simultaniously in a single loop or macro.
+All .section fragments are compiled to the memory area allocated by the
+.dsection directive. Compilation happens as the code appears, this directive
+only assigns enough space to hold all the content in the section fragments.
 
-    All .section-s scattered around in the sources are compiled from the
-    .dsection declaration. Compilation happens as the code appears, this
-    directive only assigns enough space to hold all the stuff in the sections.
+The space used by section fragments is calculated from the difference of
+starting compile offset and the maximum compile offset reached. It is possible
+to manipulate the compile offset in fragments, but putting code before the
+start of .dsection is not allowed.
 
-    The space allocated is calculated from the difference of starting compile
-    address and the maximum compile address reached in the section. It is
-    possible to adjust the address in sections in a non-incremental way, but
-    putting code before the start address is not allowed.
+        *= $02
+        .dsection zp   ;declare zeropage section
+        .cerror *>$30,"Too many zeropage variables"
 
-    Sections and section declarations can be nested, therefore it's possible to
-    have the same names as long as it's inside a differently named section.
-    Parent section names are visible for children, siblings can be reached
-    through parents.
+        *= $334
+        .dsection bss   ;declare uninitialized variable section
+        .cerror *>$400,"Too many variables"
 
-            *= $02
-            .dsection zp   ;declare zeropage section
-            .cerror *>$30,"Too many zeropage variables"
+        *= $0801
+        .dsection code   ;declare code section
+        .cerror *>$1000,"Program too long!"
 
-            *= $334
-            .dsection bss   ;declare uninitialized variable section
-            .cerror *>$400,"Too many variables"
+        *= $1000
+        .dsection data   ;declare data section
+        .cerror *>$2000,"Data too long!"
+;--------------------
+        .section code
+        .word ss, 2005
+        .null $9e, ^start
+ss      .word 0
 
-            *= $0801
-            .dsection code   ;declare code section
-            .cerror *>$1000,"Program too long!"
+start   sei
+        .section zp     ;declare some new zeropage variables
+p2      .word ?         ;a pointer
+        .send zp
+        .section bss    ;new variables
+buffer  .fill 10        ;temporary area
+        .send bss
 
-            *= $1000
-            .dsection data   ;declare data section
-            .cerror *>$2000,"Data too long!"
-    ;--------------------
-            .section code
-            .word ss, 2005
-            .null $9e, ^start
-    ss      .word 0
+        lda (p2),y
+        lda #<label
+        ldy #>label
+        jsr print
 
-    start   sei
-            .section zp     ;declare some new zeropage variables
-    p2      .word ?         ;a pointer
-            .send zp
-            .section bss    ;new variables
-    buffer  .fill 10        ;temporary area
-            .send bss
+        .section data   ;some data
+label   .null "message"
+        .send data
 
-            lda (p2),y
-            lda #<label
-            ldy #>label
-            jsr print
+        jmp error
+        .section zp     ;declare some more zeropage variables
+p3      .word ?         ;a pointer
+        .send zp
+        .send code
 
-            .section data   ;some data
-    label   .null "message"
-            .send data
+The compiled code will look like:
 
-            jmp error
-            .section zp     ;declare some more zeropage variables
-    p3      .word ?         ;a pointer
-            .send zp
-            .send code
+>0801    0b 08 d5 07                            .word ss, 2005
+>0805    9e 32 30 36 31 00                      .null $9e, ^start
+>080b    00 00                          ss      .word 0
 
-    The compiled code will look like:
+.080d    78                             start   sei
 
-    >0801    0b 08 d5 07                            .word ss, 2005
-    >0805    9e 32 30 36 31 00                      .null $9e, ^start
-    >080b    00 00                          ss      .word 0
+>0002                                   p2      .word ?         ;a pointer
+>0334                                   buffer  .fill 10        ;temporary area
 
-    .080d    78                             start   sei
+.080e    b1 02                                  lda (p2),y
+.0810    a9 00                                  lda #<label
+.0812    a0 10                                  ldy #>label
+.0814    20 1e ab                               jsr print
 
-    >0002                                   p2      .word ?         ;a pointer
-    >0334                                   buffer  .fill 10        ;temporary area
+>1000    6d 65 73 73 61 67 65 00        label   .null "message"
 
-    .080e    b1 02                                  lda (p2),y
-    .0810    a9 00                                  lda #<label
-    .0812    a0 10                                  ldy #>label
-    .0814    20 1e ab                               jsr print
+.0817    4c e2 fc                               jmp error
 
-    >1000    6d 65 73 73 61 67 65 00        label   .null "message"
+>0004                                   p2      .word ?         ;a pointer
 
-    .0817    4c e2 fc                               jmp error
+Sections can form a hierarchy by nesting a .dsection into another section. The
+section names must only be unique within a section but can be reused otherwise.
+Parent section names are visible for children, siblings can be reached through
+parents.
 
-    >0004                                   p2      .word ?         ;a pointer
+In the following example the included sources don't have to know which `code'
+and `data' sections they use, while the `bss' section is shared for all banks.
+
+;First 8K bank at the beginning, PC at $8000
+        *= $0000
+        .logical $8000
+        .dsection bank1
+        .cerror *>$a000, "Bank1 too long"
+        .here
+
+bank1   .block          ;Make all symbols local
+        .section bank1
+        .dsection code  ;Code and data sections in bank1
+        .dsection data
+        .section code   ;Pre-open code section
+        .include "code.asm"; see below
+        .include "iter.asm"
+        .send code
+        .send bank1
+        .bend
+
+;Second 8K bank at $2000, PC at $8000
+        *= $2000
+        .logical $8000
+        .dsection bank2
+        .cerror *>$a000, "Bank2 too long"
+        .here
+
+bank2   .block          ;Make all symbols local
+        .section bank2
+        .dsection code  ;Code and data sections in bank2
+        .dsection data
+        .section code   ;Pre-open code section
+        .include "scr.asm"
+        .send code
+        .send bank2
+        .bend
+
+;Common data, avoid initialized variables here!
+        *= $c000
+        .dsection bss
+        .cerror *>$d000, "Too much common data"
+;------------- The following is in "code.asm"
+code    sei
+
+        .section bss   ;Common data section
+buffer  .fill 10
+        .send bss
+
+        .section data  ;Data section (in bank1)
+routine .word print
+        .send bss
 
 65816 related
 
 .as
-    Select 8 bit accu (65816)
 .al
-    Select 16 bit accu (65816). Immediate constants of a register using opcodes
-    will use 16 bits.
+    Select short (8 bit) or long (16 bit) accumulator immediate constants.
 
             .al
             lda #$4322
 
 .xs
-    Select 8 bit index (65816)
 .xl
-    Select 16 bit index (65816). Immediate constants of x and y register using
-    opcodes will use 16 bits.
+    Select short (8 bit) or long (16 bit) index register immediate constants.
 
             .xl
             ldx #$1000
@@ -1273,17 +1347,15 @@ Controlling errors
             .option allow_branch_across_page = 1
 
 .error <message> [, <message>, ...]
-    Exit with error
 .cerror <condition>, <message> [, <message>, ...]
-    Conditional exit with error
+    Exit with error or conditionally exit with error
 
             .error "Unfinished here..."
             .cerror *>$1200, "Program too long by ", *-$1200, " bytes"
 
 .warn <message> [, <message>, ...]
-    Warning
 .cwarn <condition>, <message> [, <message>, ...]
-    Conditional warning
+    Display a warning message always or depending on a condition
 
             .warn "FIXME: handle negative values too!"
             .cwarn *>$1200, "This may not work!"

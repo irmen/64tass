@@ -181,7 +181,7 @@
     </context>
 
     <context id="preprocessor-macro" end-at-line-end="true">
-      <start>\.(macro|segment|endm)(\s|(?=;)|$)|#[a-z_][a-z_0-9]*(\s|(?=;)|$)</start>
+      <start>\.(macro|segment|endm|function|endf)(\s|(?=;)|$)|#[a-z_][a-z_0-9]*(\s|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="preprocessor"/>
         <context ref="miscparam"/>
