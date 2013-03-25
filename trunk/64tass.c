@@ -736,8 +736,7 @@ struct value_s *compile(struct file_s *cfile)
                                     new_value.type=T_CODE;
                                     new_value.u.code.addr = current_section->l_address;
                                     new_value.u.code.size = label->value->u.code.size;
-                                    new_value.u.code.esize = label->value->u.code.esize;
-                                    new_value.u.code.sign = label->value->u.code.sign;
+                                    new_value.u.code.dtype = label->value->u.code.dtype;
                                     new_value.u.code.pass = pass - 1;
                                     label->requires=current_section->requires;
                                     label->conflicts=current_section->conflicts;
@@ -755,8 +754,7 @@ struct value_s *compile(struct file_s *cfile)
                                 new_value.type = T_CODE;
                                 new_value.u.code.addr = current_section->l_address;
                                 new_value.u.code.size = 0;
-                                new_value.u.code.esize = 1;
-                                new_value.u.code.sign = 0;
+                                new_value.u.code.dtype = D_NONE;
                                 new_value.u.code.pass = 0;
                                 get_mem(&memp, &membp);
                                 var_assign(label, &new_value, fixeddig);
@@ -852,8 +850,7 @@ struct value_s *compile(struct file_s *cfile)
                     new_value.type = T_CODE;
                     new_value.u.code.addr = current_section->l_address;
                     new_value.u.code.size = newlabel->value->u.code.size;
-                    new_value.u.code.esize = newlabel->value->u.code.esize;
-                    new_value.u.code.sign = newlabel->value->u.code.sign;
+                    new_value.u.code.dtype = newlabel->value->u.code.dtype;
                     new_value.u.code.pass = pass - 1;
                     get_mem(&newmemp, &newmembp);
                     var_assign(newlabel, &new_value, 0);
@@ -869,8 +866,7 @@ struct value_s *compile(struct file_s *cfile)
                 new_value.type = T_CODE;
                 new_value.u.code.addr = current_section->l_address;
                 new_value.u.code.size = 0;
-                new_value.u.code.esize = 1;
-                new_value.u.code.sign = 0;
+                new_value.u.code.dtype = D_NONE;
                 new_value.u.code.pass = 0;
                 get_mem(&newmemp, &newmembp);
                 var_assign(newlabel, &new_value, fixeddig);
@@ -1310,8 +1306,7 @@ struct value_s *compile(struct file_s *cfile)
                         int16_t ch2=-1;
                         linepos_t large = {0,0};
                         if (newlabel) {
-                            newlabel->value->u.code.esize = 1;
-                            newlabel->value->u.code.sign = 0;
+                            newlabel->value->u.code.dtype = D_BYTE;
                         }
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0)) goto breakerr;
@@ -1428,8 +1423,20 @@ struct value_s *compile(struct file_s *cfile)
                         uval_t uv;
                         linepos_t large = {0,0};
                         if (newlabel) {
-                            newlabel->value->u.code.esize = 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);
-                            newlabel->value->u.code.sign = (prm == CMD_CHAR) || (prm == CMD_INT) || (prm == CMD_DINT);
+                            signed char dtype;
+                            switch (prm) {
+                            case CMD_DINT: dtype = D_DINT;break;
+                            case CMD_LINT: dtype = D_LINT;break;
+                            case CMD_INT: dtype = D_INT;break;
+                            case CMD_CHAR: dtype = D_CHAR;break;
+                            default:
+                            case CMD_BYTE: dtype = D_BYTE;break;
+                            case CMD_RTA:
+                            case CMD_WORD: dtype = D_WORD;break;
+                            case CMD_LONG: dtype = D_LONG;break;
+                            case CMD_DWORD: dtype = D_DWORD;break;
+                            }
+                            newlabel->value->u.code.dtype = dtype;
                         }
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         while ((val = get_val(T_NONE, &epoint))) {
@@ -1519,8 +1526,7 @@ struct value_s *compile(struct file_s *cfile)
                         struct value_s *val2 = NULL;
                         address_t fsize = all_mem+1;
                         if (newlabel) {
-                            newlabel->value->u.code.esize = 1;
-                            newlabel->value->u.code.sign = 0;
+                            newlabel->value->u.code.dtype = D_BYTE;
                         }
                         if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1684,8 +1690,7 @@ struct value_s *compile(struct file_s *cfile)
                     address_t db = 0;
                     int ch = -1;
                     if (newlabel) {
-                        newlabel->value->u.code.esize = 1;
-                        newlabel->value->u.code.sign = 0;
+                        newlabel->value->u.code.dtype = D_BYTE;
                     }
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -2001,8 +2006,7 @@ struct value_s *compile(struct file_s *cfile)
                 if (prm==CMD_ALIGN) { // .align
                     int align = 1, fill=-1;
                     if (newlabel) {
-                        newlabel->value->u.code.esize = 1;
-                        newlabel->value->u.code.sign = 0;
+                        newlabel->value->u.code.dtype = D_BYTE;
                     }
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}

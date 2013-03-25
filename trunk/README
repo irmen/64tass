@@ -1024,10 +1024,10 @@ Functions can span multiple lines but unlike macros they can't create new code.
 Only those external variables and functions are available which were accessible
 at the place of definition, but not those at the place of invocation.
 
-wpack   .function a,b
+wpack   .function a,b=0
         .endf a+b*256
 
-        .word wpack(1,2)
+        .word wpack(1),wpack(2,3)
 
 Conditional assembly
 

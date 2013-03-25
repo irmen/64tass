@@ -220,7 +220,7 @@ int val_same(const struct value_s *val, const struct value_s *val2) {
     case T_BOOL:
         return val2->type == val->type && val->u.num.val == val2->u.num.val;
     case T_CODE:
-        return val2->type == val->type && val->u.code.addr == val2->u.code.addr && val->u.code.size == val2->u.code.size && val->u.code.esize == val2->u.code.esize && val->u.code.sign == val2->u.code.sign;
+        return val2->type == val->type && val->u.code.addr == val2->u.code.addr && val->u.code.size == val2->u.code.size && val->u.code.dtype == val2->u.code.dtype;
     case T_LBL:
         return val2->type == val->type && val->u.lbl.p == val2->u.lbl.p && val->u.lbl.sline == val2->u.lbl.sline && val->u.lbl.waitforp == val2->u.lbl.waitforp && val->u.lbl.file == val2->u.lbl.file && val->u.lbl.parent == val2->u.lbl.parent;
     case T_MACRO:

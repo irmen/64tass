@@ -391,8 +391,7 @@ static void get_star(struct value_s *v) {
     v->type = T_CODE;
     v->u.code.addr = star;
     v->u.code.size = 0;
-    v->u.code.esize = 1;
-    v->u.code.sign = 0;
+    v->u.code.dtype = D_NONE;
     v->u.code.memp = ~(size_t)0;
     v->u.code.membp = ~(size_t)0;
 }
@@ -1017,7 +1016,8 @@ static void functions(struct values_s *vals, unsigned int args) {
                 return;
             }
             new_value.type = T_UINT;
-            new_value.u.num.val = v[0].val->u.code.size / (v[0].val->u.code.esize + !v[0].val->u.code.esize);
+            new_value.u.num.val = (v[0].val->u.code.dtype < 0) ? -v[0].val->u.code.dtype : v[0].val->u.code.dtype;
+            new_value.u.num.val = v[0].val->u.code.size / (new_value.u.num.val + !new_value.u.num.val);
             val_replace(&vals->val, &new_value);
             return;
         case T_UINT:
@@ -1421,7 +1421,8 @@ static void code_iindex(struct values_s *vals, const struct value_s *list, linep
     }
     val = malloc(list->u.list.len * sizeof(new_value.u.list.data[0]));
     if (!val) err_msg_out_of_memory();
-    len2 = v->u.code.esize + !v->u.code.esize;
+    len2 = (v->u.code.dtype < 0) ? -v->u.code.dtype : v->u.code.dtype;
+    len2 = len2 + !len2;
     len = v->u.code.size / len2;
     new_value.u.num.len = len2 * 8;
     for (i = 0; i < list->u.list.len; i++) {
@@ -1439,12 +1440,12 @@ static void code_iindex(struct values_s *vals, const struct value_s *list, linep
             if (r < 0) break;
             new_value.u.num.val |= r << (i2 * 8);
         }
-        if (v->u.code.sign && (r & 0x80)) {
+        if (v->u.code.dtype < 0 && (r & 0x80)) {
             for (; i2 < sizeof(new_value.u.num.val); i2++) {
                 new_value.u.num.val |= 0xff << (i2 * 8);
             }
         }
-        new_value.type = (r < 0) ? T_GAP : (v->u.code.sign ? T_SINT : T_NUM);
+        new_value.type = (r < 0) ? T_GAP : ((v->u.code.dtype < 0) ? T_SINT : T_NUM);
         val[i] = val_reference(&new_value);
     }
     new_value.type = T_TUPLE;
@@ -1628,7 +1629,8 @@ static void code_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t st
     val = malloc(len * sizeof(new_value.u.list.data[0]));
     if (!val) err_msg_out_of_memory();
     i = 0;
-    len2 = v->u.code.esize + !v->u.code.esize;
+    len2 = (v->u.code.dtype < 0) ? -v->u.code.dtype : v->u.code.dtype;
+    len2 = len2 + !len2;
     new_value.u.num.len = len2 * 8;
     while ((end > offs && step > 0) || (end < offs && step < 0)) {
         offs2 = offs * len2;
@@ -1639,12 +1641,12 @@ static void code_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t st
             if (r < 0) break;
             new_value.u.num.val |= r << (i2 * 8);
         }
-        if (v->u.code.sign && (r & 0x80)) {
+        if (v->u.code.dtype < 0 && (r & 0x80)) {
             for (; i2 < sizeof(new_value.u.num.val); i2++) {
                 new_value.u.num.val |= 0xff << (i2 * 8);
             }
         }
-        new_value.type = (r < 0) ? T_GAP : (v->u.code.sign ? T_SINT : T_NUM);
+        new_value.type = (r < 0) ? T_GAP : ((v->u.code.dtype < 0) ? T_SINT : T_NUM);
         val[i++] = val_reference(&new_value);
         offs += step;
     }
@@ -1710,7 +1712,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
                     switch (vals->val->type) {
                     case T_STR: len = vals->val->u.str.chars; break;
                     case T_CODE:
-                        len = vals->val->u.code.esize;
+                        len = (vals->val->u.code.dtype < 0) ? -vals->val->u.code.dtype : vals->val->u.code.dtype;
                         len = vals->val->u.code.size / (len + !len);
                         break;
                     case T_LIST:
@@ -1732,7 +1734,8 @@ static void indexes(struct values_s *vals, unsigned int args) {
                             val_replace(&vals->val, &new_value);
                             return;
                         }
-                        new_value.u.num.len = v2->u.code.esize + !v2->u.code.esize;
+                        new_value.u.num.len = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
+                        new_value.u.num.len = new_value.u.num.len + !new_value.u.num.len;
                         offs *= new_value.u.num.len;
                         new_value.u.num.val = 0;
                         r = -1;
@@ -1741,13 +1744,13 @@ static void indexes(struct values_s *vals, unsigned int args) {
                             if (r < 0) break;
                             new_value.u.num.val |= r << (i * 8);
                         }
-                        if (v2->u.code.sign && (r & 0x80)) {
+                        if (v2->u.code.dtype < 0 && (r & 0x80)) {
                             for (; i < sizeof(new_value.u.num.val); i++) {
                                 new_value.u.num.val |= 0xff << (i * 8);
                             }
                         }
                         new_value.u.num.len *= 8;
-                        new_value.type = (r < 0) ? T_GAP : (v2->u.code.sign ? T_SINT : T_NUM);
+                        new_value.type = (r < 0) ? T_GAP : ((v2->u.code.dtype < 0) ? T_SINT : T_NUM);
                         val_replace(&vals->val, &new_value);
                         break;
                     case T_LIST:
@@ -1807,7 +1810,7 @@ static void slices(struct values_s *vals, unsigned int args) {
             switch (vals->val->type) {
             case T_STR: len = vals->val->u.str.chars; break;
             case T_CODE: 
-                len = vals->val->u.code.esize;
+                len = (vals->val->u.code.dtype < 0) ? -vals->val->u.code.dtype : vals->val->u.code.dtype;
                 len = vals->val->u.code.size / (len + !len);
                 break;
             case T_LIST:
@@ -2111,7 +2114,8 @@ static const struct value_s *inlist(struct value_s *v1, struct value_s *v2, line
             new_value.type = T_UNDEF;
             return &new_value;
         }
-        len = v2->u.code.esize + !v2->u.code.esize;
+        len = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
+        len = len + !len;
         new_value.u.num.len = len * 8;
         for (offs = 0; offs < v2->u.code.size;) {
             new_value.u.num.val = 0;
@@ -2121,12 +2125,12 @@ static const struct value_s *inlist(struct value_s *v1, struct value_s *v2, line
                 if (r < 0) break;
                 new_value.u.num.val |= r << (i * 8);
             }
-            if (v2->u.code.sign && (r & 0x80)) {
+            if (v2->u.code.dtype < 0 && (r & 0x80)) {
                 for (; i < sizeof(new_value.u.num.val); i++) {
                     new_value.u.num.val |= 0xff << (i * 8);
                 }
             }
-            new_value.type = (r < 0) ? T_GAP : (v2->u.code.sign ? T_SINT : T_NUM);
+            new_value.type = (r < 0) ? T_GAP : ((v2->u.code.dtype < 0) ? T_SINT : T_NUM);
             if (apply_op2(O_EQ, v1, &new_value, epoint, epoint2, epoint3, large) == &true_value) return &true_value;
         }
         return &false_value;
@@ -2290,8 +2294,7 @@ strretr:
                 new_value.type = t2;
                 new_value.u.code.addr = v2->u.code.addr + to_ival(v1);
                 new_value.u.code.size = 0;
-                new_value.u.code.esize = 1;
-                new_value.u.code.sign = 0;
+                new_value.u.code.dtype = D_NONE;
                 return &new_value;
             default:
                 err_msg_strange_oper(op, v1, v2, epoint3); 
@@ -2384,15 +2387,13 @@ strretr:
                 new_value.type = t1;
                 new_value.u.code.addr = v1->u.code.addr + to_ival(v2);
                 new_value.u.code.size = 0;
-                new_value.u.code.esize = 1;
-                new_value.u.code.sign = 0;
+                new_value.u.code.dtype = D_NONE;
                 return &new_value;
             case O_SUB: 
                 new_value.type = t1;
                 new_value.u.code.addr = v1->u.code.addr - to_ival(v2);
                 new_value.u.code.size = 0;
-                new_value.u.code.esize = 1;
-                new_value.u.code.sign = 0;
+                new_value.u.code.dtype = D_NONE;
                 return &new_value;
             case O_EQ:  
             case O_NEQ:

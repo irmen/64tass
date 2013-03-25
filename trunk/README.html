@@ -1166,10 +1166,10 @@ accessible at the place of definition, but not those at the place of
 invocation.</p>
 
 <pre width=80>
-wpack   <b class="k">.function</b> <span class="l">a</span>,<span class="l">b</span>
+wpack   <b class="k">.function</b> <span class="l">a</span>,<span class="l">b</span>=<span>0</span>
         <b class="k">.endf</b> <span class="l">a</span>+<span class="l">b</span>*<span>256</span>
 
-        <b class="d">.word</b> <span class="k">wpack</span>(<span>1</span>,<span>2</span>)
+        <b class="d">.word</b> <span class="k">wpack</span>(<span>1</span>),<span class="k">wpack</span>(<span>2</span>,<span>3</span>)
 </pre>
 
 <h3>Conditional assembly</h3>
