@@ -95,6 +95,18 @@ enum oper_e {
     O_COLON,         // :
 };
 
+enum dtype_e {
+    D_DINT = -4,
+    D_LINT = -3,
+    D_INT = -2,
+    D_CHAR = -1,
+    D_NONE = 0,
+    D_BYTE = 1,
+    D_WORD = 2,
+    D_LONG = 3,
+    D_DWORD = 4,
+};
+
 struct value_s {
     enum type_e type;
     size_t refcount;
@@ -111,9 +123,8 @@ struct value_s {
         } str;
         struct {
             size_t size;
-            uint8_t esize;
             uint8_t pass;
-            unsigned sign:1;
+            signed char dtype;
             address_t addr;
             size_t memp;
             size_t membp;
