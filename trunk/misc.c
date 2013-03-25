@@ -346,9 +346,15 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                "	[--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
                "	[--mw65c02] [--m65ce02] [--labels=<file>] [--list=<file>]\n"
                "	[--no-monitor] [--no-source] [--help] [--usage] [--version]\n"
-               "	SOURCES");exit(0);
+               "	SOURCES");
+                   destroy_eval();
+                   tfree();
+                   exit(0);
 
-            case 'V':puts("64tass Turbo Assembler Macro V" VERSION);exit(0);
+            case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
+                     destroy_eval();
+                     tfree();
+                     exit(0);
             case 3:
             case '?':if (optopt=='?' || opt==3) { puts(
 	       "Usage: 64tass [OPTIONS...] SOURCES\n"
@@ -393,14 +399,24 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
 	       "Mandatory or optional arguments to long options are also mandatory or optional\n"
 	       "for any corresponding short options.\n"
 	       "\n"
-	       "Report bugs to <soci" "\x40" "c64.rulez.org>.");exit(0);}
-            default:fputs("Try `64tass --help' or `64tass --usage' for more information.\n", stderr);exit(1);
+	       "Report bugs to <soci" "\x40" "c64.rulez.org>.");
+               destroy_eval();
+               tfree();
+               exit(0);
+            }
+            default:fputs("Try `64tass --help' or `64tass --usage' for more information.\n", stderr);
+                    destroy_eval();
+                    tfree();
+                    exit(1);
         }
     closefile(fin); fin->len = fin->p; fin->p = 0;
     if (fin->data && !(fin->data=realloc(fin->data, fin->len))) exit(1);
     if (argc <= optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
-              "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);exit(1);
+              "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);
+        destroy_eval();
+        tfree();
+        exit(1);
     }
     return optind;
 }
