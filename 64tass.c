@@ -803,7 +803,8 @@ struct value_s *compile(struct file_s *cfile)
                             current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
                             waitfor->skip=1;
-                            macro_recurse(W_ENDS, label->value);
+                            if (label && (label->value->type == T_STRUCT || label->value->type == T_UNION)) macro_recurse(W_ENDS, label->value);
+                            else compile(cfile);
                             current_context = old_context;
                             current_section->unionmode = old_unionmode;
                             current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -2158,7 +2159,6 @@ struct value_s *compile(struct file_s *cfile)
                     line_t lin, xlin;
                     linepos_t apoint, bpoint;
                     int nopos = -1;
-                    int doone = 1;
                     uint8_t expr[linelength];
                     struct label_s *var;
                     struct star_s *s;
@@ -2207,7 +2207,7 @@ struct value_s *compile(struct file_s *cfile)
                     xlin=lin=sline; xpos=pos=cfile->p; apoint = lpoint;
                     strcpy((char *)expr, (const char *)pline);var = NULL;
                     for (;;) {
-                        sline=xlin;cfile->p=xpos; lpoint=apoint;
+                        lpoint=apoint;
                         if (!get_exp(&w,1)) break; //ellenorizve.
                         if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if (val->type == T_NONE) {
@@ -2244,13 +2244,11 @@ struct value_s *compile(struct file_s *cfile)
                                 bpoint=lpoint; nopos = 1;
                             }
                         }
-                        if (doone) {
-                            close_waitfor(W_NEXT);
-                            doone = 0;
-                        }
                         new_waitfor(W_NEXT2, epoint);waitfor->skip=1;
                         compile(cfile);
+                        xpos = cfile->p; xlin= sline;
                         pline = expr;
+                        sline=lin;cfile->p=pos;
                         if (nopos > 0) {
                             lpoint = bpoint;
                             if (!get_exp(&w,1)) break; //ellenorizve.
@@ -2259,6 +2257,8 @@ struct value_s *compile(struct file_s *cfile)
                             ignore();if (here() && here()!=';') {err_msg(ERROR_EXTRA_CHAR_OL,NULL);break;}
                         }
                     }
+                    if (pos!=xpos || lin!=xlin) close_waitfor(W_NEXT);
+                    sline=xlin;cfile->p=xpos;
                     star_tree = stree_old; vline = ovline;
                     goto breakerr;
                 }
