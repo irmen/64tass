@@ -37,14 +37,7 @@ static struct {
     } *data;
 } file_list = {0,0,NULL};
 
-struct error_s {
-    size_t p;
-    size_t len;
-    uint8_t *data;
-};
-
 static struct error_s error_list = {0,0,NULL};
-static struct error_s user_error = {0,0,NULL};
 
 void enterfile(const char *name, line_t line) {
 
@@ -157,7 +150,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
     if (no<0x40) {
         adderror("warning: ");
         warnings++;
-        if (no == ERROR_WUSER_DEFINED) adderror2(user_error.data, user_error.p);
+        if (no == ERROR_WUSER_DEFINED) adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->p);
         else adderror(terr_warning[no]);
     }
     else if (no<0x80) {
@@ -174,7 +167,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
             adderror("Branch crosses page");
             conderrors++; break;
         case ERROR__USER_DEFINED:
-            adderror2(user_error.data, user_error.p);
+            adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->p);
             conderrors++; break;
         case ERROR___UNKNOWN_CHR:
             sprintf(line,"can't encode character $%02x", *(const uint32_t *)prm); adderror(line);
@@ -253,40 +246,40 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
 }
 
-static void add_user_error2(const uint8_t *s, size_t len) {
-    if (len + user_error.p > user_error.len) {
-        user_error.len += (len > 0x100) ? len : 0x100;
-        user_error.data = realloc(user_error.data, user_error.len);
-        if (!user_error.data) {fputs("Out of memory\n", stderr);exit(1);}
+static void add_user_error2(struct error_s *user_error, const uint8_t *s, size_t len) {
+    if (len + user_error->p > user_error->len) {
+        user_error->len += (len > 0x100) ? len : 0x100;
+        user_error->data = realloc(user_error->data, user_error->len);
+        if (!user_error->data) {fputs("Out of memory\n", stderr);exit(1);}
     }
-    memcpy(user_error.data + user_error.p, s, len);
-    user_error.p += len;
+    memcpy(user_error->data + user_error->p, s, len);
+    user_error->p += len;
 }
 
-static void add_user_error(const char *s) {
-    add_user_error2((const uint8_t *)s, strlen(s));
+static void add_user_error(struct error_s *user_error, const char *s) {
+    add_user_error2(user_error, (const uint8_t *)s, strlen(s));
 }
 
-void err_msg_variable(struct value_s *val, int repr) {
+void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr) {
     char buffer[100], buffer2[100];
 
-    if (!val) {user_error.p=0;return;}
+    if (!val) {user_error->p=0;return;}
     switch (val->type) {
-    case T_SINT: sprintf(buffer,"%+" PRIdval, val->u.num.val); add_user_error(buffer); break;
-    case T_UINT: sprintf(buffer,"%" PRIuval, val->u.num.val); add_user_error(buffer); break;
+    case T_SINT: sprintf(buffer,"%+" PRIdval, val->u.num.val); add_user_error(user_error, buffer); break;
+    case T_UINT: sprintf(buffer,"%" PRIuval, val->u.num.val); add_user_error(user_error, buffer); break;
     case T_NUM: {
         sprintf(buffer2,"$%%0%d%s", (val->u.num.len + 3) / 4 + !val->u.num.len, PRIxval);
         sprintf(buffer, buffer2, val->u.num.val);
-        add_user_error(buffer); break;
+        add_user_error(user_error, buffer); break;
     }
-    case T_CODE: sprintf(buffer,"$%" PRIxval, val->u.code.addr); add_user_error(buffer); break;
+    case T_CODE: sprintf(buffer,"$%" PRIxval, val->u.code.addr); add_user_error(user_error, buffer); break;
     case T_FLOAT:
        {
            int i = 0;
            sprintf(buffer, "%.10g", val->u.real);
            while (buffer[i] && buffer[i]!='.' && buffer[i]!='e' && buffer[i]!='n' && buffer[i]!='i') i++;
            if (!buffer[i]) {buffer[i++]='.';buffer[i++]='0';buffer[i]=0;}
-           add_user_error(buffer);
+           add_user_error(user_error, buffer);
            break;
        }
     case T_STR:
@@ -295,63 +288,63 @@ void err_msg_variable(struct value_s *val, int repr) {
                const char *c;
                uint8_t *p, *c2;
                c = memchr(val->u.str.data, '"', val->u.str.len) ? "'" : "\"";
-               add_user_error(c);
+               add_user_error(user_error, c);
                p = val->u.str.data;
                while (p < val->u.str.data + val->u.str.len) {
                    c2 = memchr(p, c[0], val->u.str.len + (val->u.str.data - p));
                    if (c2) {
-                       add_user_error2(p, c2 - p + 1);
-                       add_user_error(c);
+                       add_user_error2(user_error, p, c2 - p + 1);
+                       add_user_error(user_error, c);
                        p = c2 + 1;
                    } else {
-                       add_user_error2(p, val->u.str.len + (val->u.str.data - p));
+                       add_user_error2(user_error, p, val->u.str.len + (val->u.str.data - p));
                        p = val->u.str.data + val->u.str.len;
                    }
                }
-               add_user_error(c);
+               add_user_error(user_error, c);
            }
-           else add_user_error2(val->u.str.data, val->u.str.len);
+           else add_user_error2(user_error, val->u.str.data, val->u.str.len);
            break;
        }
-    case T_UNDEF: add_user_error("<undefined>");break;
-    case T_IDENT: add_user_error("<ident>");break;
-    case T_IDENTREF: add_user_error("<identref>");break;
-    case T_NONE: add_user_error("<none>");break;
-    case T_BACKR: add_user_error("<backr>");break;
-    case T_FORWR: add_user_error("<forwr>");break;
-    case T_OPER: add_user_error("<operator>");break;
-    case T_MACRO: add_user_error("<macro>");break;
-    case T_SEGMENT: add_user_error("<segment>");break;
-    case T_STRUCT: add_user_error("<struct>");break;
-    case T_UNION: add_user_error("<union>");break;
-    case T_FUNCTION: add_user_error("<function>");break;
-    case T_LBL: add_user_error("<lbl>");break;
-    case T_DEFAULT: add_user_error("<default>");break;
-    case T_GAP: add_user_error("?");break;
+    case T_UNDEF: add_user_error(user_error, "<undefined>");break;
+    case T_IDENT: add_user_error(user_error, "<ident>");break;
+    case T_IDENTREF: add_user_error(user_error, "<identref>");break;
+    case T_NONE: add_user_error(user_error, "<none>");break;
+    case T_BACKR: add_user_error(user_error, "<backr>");break;
+    case T_FORWR: add_user_error(user_error, "<forwr>");break;
+    case T_OPER: add_user_error(user_error, "<operator>");break;
+    case T_MACRO: add_user_error(user_error, "<macro>");break;
+    case T_SEGMENT: add_user_error(user_error, "<segment>");break;
+    case T_STRUCT: add_user_error(user_error, "<struct>");break;
+    case T_UNION: add_user_error(user_error, "<union>");break;
+    case T_FUNCTION: add_user_error(user_error, "<function>");break;
+    case T_LBL: add_user_error(user_error, "<lbl>");break;
+    case T_DEFAULT: add_user_error(user_error, "<default>");break;
+    case T_GAP: add_user_error(user_error, "?");break;
     case T_LIST:
         {
             size_t i;
-            add_user_error("[");
+            add_user_error(user_error, "[");
             for (i = 0;i < val->u.list.len; i++) {
-                if (i) add_user_error(",");
-                err_msg_variable(val->u.list.data[i], 1);
+                if (i) add_user_error(user_error, ",");
+                err_msg_variable(user_error, val->u.list.data[i], 1);
             }
-            add_user_error("]");
+            add_user_error(user_error, "]");
             break;
         }
     case T_TUPLE:
         {
             size_t i;
-            add_user_error("(");
+            add_user_error(user_error, "(");
             for (i = 0;i < val->u.list.len; i++) {
-                if (i) add_user_error(",");
-                err_msg_variable(val->u.list.data[i], 1);
+                if (i) add_user_error(user_error, ",");
+                err_msg_variable(user_error, val->u.list.data[i], 1);
             }
-            if (val->u.list.len == 1) add_user_error(",");
-            add_user_error(")");
+            if (val->u.list.len == 1) add_user_error(user_error, ",");
+            add_user_error(user_error, ")");
             break;
         }
-    case T_BOOL: add_user_error(val->u.num.val ? "<true>" : "<false>");break;
+    case T_BOOL: add_user_error(user_error, val->u.num.val ? "<true>" : "<false>");break;
     }
 }
 
@@ -499,7 +492,6 @@ void freeerrorlist(int print) {
 void err_destroy(void) {
     free(file_list.data);
     free(error_list.data);
-    free(user_error.data);
 }
 
 void err_msg_out_of_memory(void)
@@ -521,4 +513,13 @@ void err_msg_file(enum errors_e no, const char* prm) {
     adderror("\n");
     errors++;
     status();exit(1);
+}
+
+void error_init(struct error_s *error) {
+    error->p = error->len = 0;
+    error->data = NULL;
+}
+
+void error_destroy(struct error_s *error) {
+    free(error->data);
 }

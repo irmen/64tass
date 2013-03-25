@@ -64,7 +64,7 @@ the 65xx series of processors. Key features:</p>
 <li>Open source, mostly portable C
 <li>Familiar syntax to Omicron TASS and TASM.
 <li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
-<li>Integer, floating point point, string and array arithmetic available
+<li>Integer, floating point, string and array arithmetic available
 <li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded sources and strings
 <li>Built in <q>linker</q> with section support
 <li>CPU or flat address space for creating huge binaries (e.g. cartridges)
@@ -999,7 +999,7 @@ nn      <b class="d">.dstruct</b> <span class="l">nn_s</span>,<span>1</span>,<sp
 
         <b>lda</b> <span class="l">nn</span>.<span class="l">x</span>        <i>;direct field access</i>
         <b>ldy</b> #<span class="l">nn_s</span>.<span class="l">x</span>     <i>;get offset of field</i>
-        <b>lda</b> <span class="l">nn</span>,<span class="l">y</span>        <i>;and use it indirectly</i>
+        <b>lda</b> <span class="l">nn</span>,y        <i>;and use it indirectly</i>
 </pre>
 
 <h4>Union</h4>
@@ -1029,8 +1029,8 @@ y       <b class="d">.word</b> <span class="l">\1</span>        <i>;no content i
 nn      <b class="d">.dunion</b> <span class="l">nn_u</span>,<span>1</span>  <i>;union instance here</i>
 
         <b>lda</b> <span class="l">nn</span>.<span class="l">x</span>        <i>;direct field access</i>
-        <b>ldy</b> #<span class="l">nn_s</span>.<span class="l">x</span>     <i>;get offset of field</i>
-        <b>lda</b> <span class="l">nn</span>,<span class="l">y</span>        <i>;and use it indirectly</i>
+        <b>ldy</b> #<span class="l">nn_u</span>.<span class="l">x</span>     <i>;get offset of field</i>
+        <b>lda</b> <span class="l">nn</span>,y        <i>;and use it indirectly</i>
 </pre>
 
 <h4>Combined use of structures and unions</h4>
@@ -1073,15 +1073,15 @@ replaced by the parameter texts.</p>
 
 <dl class="dir">
 <dt><b>.segment</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
+<dt><b>.endm</b>
 <dd>Copies the code segment as it is, so symbols can be used from
 outside, but this also means multiple use will result in double defines
 unless anonymous labels are used.
 <dt><b>.macro</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
+<dt><b>.endm</b>
 <dd>The code is enclosed in it's own block so symbols inside are
 non-accessible, unless a label is prefixed at the place of use, then local
 labels can be accessed through that label.
-<dt><b>.endm</b>
-<dd>End of <code>.macro</code> or <code>.segment</code> definition
 </dl>
 
 <pre width=80>
@@ -1146,27 +1146,54 @@ name    <b class="k">.macro</b>
         #name <span class="s">"wth?"</span>	<i>;call macro</i>
 </pre>
 
+<h3>Custom functions</h3>
+<p>Beyond the built in functions mentioned earlier it's possible to define
+custom ones for frequently used calculations.</p>
+
+<dl class="dir">
+<dt><b>.function</b> &lt;name&gt;[=&lt;default&gt;]][,&lt;name&gt;[=&lt;default&gt;] ...]
+<dt><b>.endf</b> [&lt;result&gt;][,&lt;result&gt; ...]
+<dd>Defines a user function
+</dl>
+
+<p>Parameters are assigned to constant references. It's possible to use less
+parameters if the missing ones have a default value, but more parameters are
+not accepted. It's possible to return multiple values, these are returned as
+tuple.</p>
+<p>Functions can span multiple lines but unlike macros they can't create new
+code. Only those external variables and functions are available which were
+accessible at the place of definition, but not those at the place of
+invocation.</p>
+
+<pre width=80>
+wpack   <b class="k">.function</b> <span class="l">a</span>,<span class="l">b</span>
+        <b class="k">.endf</b> <span class="l">a</span>+<span class="l">b</span>*<span>256</span>
+
+        <b class="d">.word</b> <span class="k">wpack</span>(<span>1</span>,<span>2</span>)
+</pre>
+
 <h3>Conditional assembly</h3>
 <p>To prevent parts of source from compiling conditional constructs can be
 used. This is useful when multiple slightly different versions needs to be
 compiled from the same source.</p>
 <dl class="dir">
 <dt><b>.if</b> &lt;expression&gt;
-<dt><b>.ifne</b> &lt;expression&gt;
-<dd>Compile, if result is not zero (or true)
-<dt><b>.ifeq</b> &lt;expression&gt;
-<dd>Compile, if result is zero (or false)
-<dt><b>.ifpl</b> &lt;expression&gt;
-<dd>Compile, if result is greater or equal zero
-<dt><b>.ifmi</b> &lt;expression&gt;
-<dd>Compile, if result is less than zero
-<dt><b>.endif</b>
-<dt><b>.fi</b>
-<dd>End of conditional compile
+<dd>Compile, if result is true (not zero)
+<dt><b>.elsif</b> &lt;expression&gt;
+<dd>Compile if the previous conditions were all skipped and the result is true (not zero)
 <dt><b>.else</b>
 <dd>Compile if the previous conditions were all skipped
-<dt><b>.elsif</b> &lt;expression&gt;
-<dd>Compile if the previous conditions were all skipped and the result is not zero (or true)
+<dt><b>.fi</b>
+<dt><b>.endif</b>
+<dd>End of conditional compile
+<dt><b>.ifne</b> &lt;value&gt;
+<dd>Compile, if value is not zero (or true)
+<dt><b>.ifeq</b> &lt;value&gt;
+<dd>Compile, if value is zero (or false)
+<dt><b>.ifpl</b> &lt;value&gt;
+<dd>Compile, if value is greater or equal zero
+<dt><b>.ifmi</b> &lt;value&gt;
+<dd>Compile, if value is less than zero
 </dl>
 
 <p>The <code>.ifne</code>, <code>.ifeq</code>, <code>.ifpl</code> and

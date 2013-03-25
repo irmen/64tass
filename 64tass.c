@@ -212,7 +212,7 @@ void status(void) {
         sectionprint();
     }
     destroy_mem();
-    free_values();
+    destroy_eval();
     tfree();
     free_macro();
 }
@@ -250,8 +250,10 @@ static void set_size(struct label_s *var, size_t size, size_t memp, size_t membp
     size &= all_mem2;
     if (var->value->u.code.size != size) {
         var->value->u.code.size = size;
-        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, var->origname);
-        fixeddig = 0;
+        if (var->value->u.code.pass) {
+            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, var->origname);
+            fixeddig = 0;
+        }
     }
     var->value->u.code.pass = pass;
     var->value->u.code.memp = memp;
@@ -465,7 +467,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     fixeddig=fix;
 }
 
-void compile(struct file_s *cfile)
+struct value_s *compile(struct file_s *cfile)
 {
     int wht,w;
     int prm = 0;
@@ -475,6 +477,7 @@ void compile(struct file_s *cfile)
     size_t newmemp = 0, newmembp = 0;
     struct label_s *tmp2 = NULL;
     address_t oaddr = 0;
+    struct value_s *retval = NULL;
 
     uint8_t oldwaitforp = waitforp;
     unsigned wasref;
@@ -681,6 +684,7 @@ void compile(struct file_s *cfile)
                         new_value.u.func.p = cfile->p;
                         new_value.u.func.sline = sline;
                         new_value.u.func.file = cfile;
+                        new_value.u.func.context = current_context;
                         get_func_params(&new_value);
                         var_assign(label, &new_value, fixeddig);
                         val_destroy(&new_value);
@@ -753,7 +757,7 @@ void compile(struct file_s *cfile)
                                 new_value.u.code.size = 0;
                                 new_value.u.code.esize = 1;
                                 new_value.u.code.sign = 0;
-                                new_value.u.code.pass = pass - 1;
+                                new_value.u.code.pass = 0;
                                 get_mem(&memp, &membp);
                                 var_assign(label, &new_value, fixeddig);
                             }
@@ -867,7 +871,7 @@ void compile(struct file_s *cfile)
                 new_value.u.code.size = 0;
                 new_value.u.code.esize = 1;
                 new_value.u.code.sign = 0;
-                new_value.u.code.pass = pass - 1;
+                new_value.u.code.pass = 0;
                 get_mem(&newmemp, &newmembp);
                 var_assign(newlabel, &new_value, fixeddig);
             }
@@ -1153,8 +1157,36 @@ void compile(struct file_s *cfile)
                 if (prm==CMD_ENDF) { // .endf
                     if (waitfor[waitforp].what==W_ENDF) {
                         waitforp--;
+                        lpoint.pos += strlen((const char *)pline + lpoint.pos);
                     } else if (waitfor[waitforp].what==W_ENDF2) {
+                        size_t ln = 0;
                         waitforp--; nobreak=0;
+                        new_value.u.list.len = 0;
+                        new_value.u.list.data = NULL;
+                        if (here() && here() != ';' && get_exp(&w,0)) {
+                            while ((val = get_val(T_NONE, &epoint))) {
+                                if (new_value.u.list.len >= ln) {
+                                    ln += 16;
+                                    new_value.u.list.data = realloc(new_value.u.list.data, ln * sizeof(new_value.u.list.data[0]));
+                                    if (!new_value.u.list.data) err_msg_out_of_memory();
+                                }
+                                new_value.u.list.data[new_value.u.list.len++] = val_reference(val);
+                            }
+                            eval_finish();
+                        }
+                        if (new_value.u.list.len == 1) {
+                            retval = new_value.u.list.data[0];
+                            free(new_value.u.list.data);
+                        } else if (new_value.u.list.len > 1) {
+                            new_value.type = T_TUPLE;
+                            new_value.u.list.data = realloc(new_value.u.list.data, new_value.u.list.len * sizeof(new_value.u.list.data[0]));
+                            if (!new_value.u.list.data) err_msg_out_of_memory();
+                            retval = val_reference(&new_value);
+                            val_destroy(&new_value);
+                        } else {
+                            new_value.type = T_TUPLE;
+                            retval = val_reference(&new_value);
+                        }
                     } else err_msg2(ERROR______EXPECTED,".FUNCTION", epoint);
                     break;
                 }
@@ -1533,7 +1565,7 @@ void compile(struct file_s *cfile)
                     }
 
                     if (listing && flist) {
-                        list_mem(flist, all_mem, &llist, current_section->dooutput, &lastl);
+                        list_mem(flist, all_mem, current_section->dooutput, &lastl);
                     }
                     break;
                 }
@@ -1680,7 +1712,7 @@ void compile(struct file_s *cfile)
                     if (ch >= 0) while (db-- > 0) pokeb(ch);
                     else memskip(db);
                     if (listing && flist) {
-                        list_mem(flist, all_mem, &llist, current_section->dooutput, &lastl);
+                        list_mem(flist, all_mem, current_section->dooutput, &lastl);
                     }
                     break;
                 }
@@ -1730,11 +1762,13 @@ void compile(struct file_s *cfile)
                     int first = 1;
                     int write = 1;
                     struct encoding_s *old = actual_encoding;
+                    struct error_s user_error;
+                    error_init(&user_error);
                     actual_encoding = NULL;
                     rc = get_exp(&w,0);
                     actual_encoding = old;
                     if (!rc) goto breakerr; //ellenorizve.
-                    err_msg_variable(NULL, 0);
+                    err_msg_variable(&user_error, NULL, 0);
                     for (;;) {
                         actual_encoding = NULL;
                         val = get_val(T_NONE, &epoint);
@@ -1751,10 +1785,11 @@ void compile(struct file_s *cfile)
                         }
                         if (write) {
                             if (val->type == T_UNDEF) err_msg_wrong_type(val, epoint);
-                            else if (val->type != T_NONE) err_msg_variable(val, 0);
+                            else if (val->type != T_NONE) err_msg_variable(&user_error, val, 0);
                         }
                     }
-                    if (write) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,NULL,epoint);
+                    if (write) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED,&user_error,epoint);
+                    error_destroy(&user_error);
                     eval_finish();
                     break;
                 }
@@ -2001,7 +2036,7 @@ void compile(struct file_s *cfile)
                         }
                     }
                     if (listing && flist) {
-                        list_mem(flist, all_mem, &llist, current_section->dooutput, &lastl);
+                        list_mem(flist, all_mem, current_section->dooutput, &lastl);
                     }
                     break;
                 }
@@ -3081,7 +3116,7 @@ void compile(struct file_s *cfile)
         if (msg) err_msg2(ERROR______EXPECTED, msg, waitfor[waitforp].epoint);
         waitforp--; sline = os;
     }
-    return;
+    return retval;
 }
 
 #ifdef _WIN32
@@ -3169,15 +3204,7 @@ int main(int argc, char *argv[]) {
             waitfor[waitforp=0].what=W_NONE;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
-            current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
-            current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
-            current_section->dooutput=1;
-            current_section->structrecursion=0;
-            current_section->logicalrecursion=0;
-            current_section->moved=0;
-            current_section->wrapwarn=0;
-            current_section->wrapwarn2=0;
-            current_section->unionmode=0;
+            reset_section();
             init_macro();
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
@@ -3240,15 +3267,7 @@ int main(int argc, char *argv[]) {
             waitfor[waitforp=0].what=W_NONE;waitfor[0].skip=1;sline=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
-            current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
-            current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
-            current_section->dooutput=1;
-            current_section->structrecursion=0;
-            current_section->logicalrecursion=0;
-            current_section->moved=0;
-            current_section->wrapwarn=0;
-            current_section->wrapwarn2=0;
-            current_section->unionmode=0;
+            reset_section();
             init_macro();
 
             if (i == optind - 1) {

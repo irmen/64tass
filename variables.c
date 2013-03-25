@@ -33,11 +33,11 @@ static struct labels_s {
     struct labels_s *next;
 } *labels = NULL;
 
-/*static void var_free(union label_u *val) {
+static void var_free(union label_u *val) {
     //free(val); return;
     val->next = labels_free;
     labels_free = val;
-}*/
+}
 
 static struct label_s *var_alloc(void) {
     struct label_s *val;
@@ -67,7 +67,13 @@ static void label_free(struct avltree_node *aa)
     free((char *)a->origname);
     avltree_destroy(&a->members);
     val_destroy(a->value);
-//    var_free((union label_u *)a);
+}
+
+static void label_free2(struct avltree_node *aa)
+{
+    struct label_s *a = avltree_container_of(aa, struct label_s, node);
+    label_free(aa);
+    var_free((union label_u *)a);
 }
 
 static int label_compare(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -128,6 +134,11 @@ struct label_s *new_label(const char* name, const char* origname, enum label_e t
     return avltree_container_of(b, struct label_s, node);            //already exists
 }
 
+void init_variables2(struct label_s *label) {
+    avltree_init(&label->members, label_compare, label_free2);
+    label->parent = NULL;
+}
+
 void init_variables(void)
 {
     size_t i;
@@ -142,6 +153,10 @@ void init_variables(void)
     labels_free = &labels->vals[0];
 
     avltree_init(&root_label.members, label_compare, label_free);
+}
+
+void destroy_variables2(struct label_s *label) {
+    avltree_destroy(&label->members);
 }
 
 void destroy_variables(void)

@@ -27,6 +27,7 @@
 #include "section.h"
 #include "encoding.h"
 #include "file.h"
+#include "eval.h"
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL};
 
@@ -137,6 +138,7 @@ void tinit(void) {
     init_file();
     init_values();
     init_variables();
+    init_eval();
 }
 
 void labelprint(void) {

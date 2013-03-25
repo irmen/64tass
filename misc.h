@@ -72,14 +72,14 @@ extern struct avltree *star_tree;
 extern int fixeddig;
 extern unsigned int errors,conderrors,warnings;
 extern address_t star;
-extern const uint8_t *pline;
+extern const uint8_t *pline, *llist;
 extern int labelexists;
 extern void status(void);
 extern uint16_t reffile;
 extern uint32_t backr, forwr;
 extern uint8_t pass;
 extern void new_waitfor(enum wait_e, linepos_t);
-extern void compile(struct file_s *);
+extern struct value_s *compile(struct file_s *);
 extern void var_assign(struct label_s *, struct value_s *, int);
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++

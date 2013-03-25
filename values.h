@@ -130,6 +130,7 @@ struct value_s {
         struct {
             size_t p;
             struct file_s *file;
+            struct label_s *context;
             line_t sline;
             size_t argc;
             struct {

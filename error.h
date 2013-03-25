@@ -21,6 +21,12 @@
 #include "misc.h"
 #include "values.h"
 
+struct error_s {
+    size_t p;
+    size_t len;
+    uint8_t *data;
+};
+
 extern unsigned int errors, conderrors, warnings;
 
 // ---------------------------------------------------------------------------
@@ -81,12 +87,14 @@ extern void err_msg_wrong_type(const struct value_s*, linepos_t);
 extern void err_msg_invalid_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
 extern void err_msg_strange_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
 extern void err_msg_double_defined(const char *, const char *, line_t, linepos_t, const char*, linepos_t);
-extern void err_msg_variable(struct value_s*, int);
+extern void err_msg_variable(struct error_s *, struct value_s *, int);
 extern void err_msg_file(enum errors_e, const char*);
 extern void freeerrorlist(int);
 extern void enterfile(const char*, line_t);
 extern void exitfile(void);
 extern void err_destroy(void);
 extern void err_msg_out_of_memory(void);
+extern void error_destroy(struct error_s *);
+extern void error_init(struct error_s *);
 
 #endif

@@ -6,7 +6,7 @@ the 65xx series of processors. Key features:
   * Open source, mostly portable C
   * Familiar syntax to Omicron TASS and TASM.
   * Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
-  * Integer, floating point point, string and array arithmetic available
+  * Integer, floating point, string and array arithmetic available
   * Handles UTF-8, UTF-16 and 8 bit RAW encoded sources and strings
   * Built in `linker' with section support
   * CPU or flat address space for creating huge binaries (e.g. cartridges)
@@ -899,7 +899,7 @@ y       .word \1        ;no content is compiled here
 nn      .dunion nn_u,1  ;union instance here
 
         lda nn.x        ;direct field access
-        ldy #nn_s.x     ;get offset of field
+        ldy #nn_u.x     ;get offset of field
         lda nn,y        ;and use it indirectly
 
 Combined use of structures and unions
@@ -939,15 +939,15 @@ invocation is a copy of the macro's content with parameter references replaced
 by the parameter texts.
 
 .segment [<name>][=<default>]][,[<name>][=<default>] ...]
+.endm
     Copies the code segment as it is, so symbols can be used from outside, but
     this also means multiple use will result in double defines unless anonymous
     labels are used.
 .macro [<name>][=<default>]][,[<name>][=<default>] ...]
+.endm
     The code is enclosed in it's own block so symbols inside are
     non-accessible, unless a label is prefixed at the place of use, then local
     labels can be accessed through that label.
-.endm
-    End of .macro or .segment definition
 
 copy    .macro
 lp      lda \1,x
@@ -1006,6 +1006,29 @@ name    .macro
 
         #name "wth?"    ;call macro
 
+Custom functions
+
+Beyond the built in functions mentioned earlier it's possible to define custom
+ones for frequently used calculations.
+
+.function <name>[=<default>]][,<name>[=<default>] ...]
+.endf [<result>][,<result> ...]
+    Defines a user function
+
+Parameters are assigned to constant references. It's possible to use less
+parameters if the missing ones have a default value, but more parameters are
+not accepted. It's possible to return multiple values, these are returned as
+tuple.
+
+Functions can span multiple lines but unlike macros they can't create new code.
+Only those external variables and functions are available which were accessible
+at the place of definition, but not those at the place of invocation.
+
+wpack   .function a,b
+        .endf a+b*256
+
+        .word wpack(1,2)
+
 Conditional assembly
 
 To prevent parts of source from compiling conditional constructs can be used.
@@ -1013,22 +1036,23 @@ This is useful when multiple slightly different versions needs to be compiled
 from the same source.
 
 .if <expression>
-.ifne <expression>
-    Compile, if result is not zero (or true)
-.ifeq <expression>
-    Compile, if result is zero (or false)
-.ifpl <expression>
-    Compile, if result is greater or equal zero
-.ifmi <expression>
-    Compile, if result is less than zero
-.endif
-.fi
-    End of conditional compile
+    Compile, if result is true (not zero)
+.elsif <expression>
+    Compile if the previous conditions were all skipped and the result is true
+    (not zero)
 .else
     Compile if the previous conditions were all skipped
-.elsif <expression>
-    Compile if the previous conditions were all skipped and the result is not
-    zero (or true)
+.fi
+.endif
+    End of conditional compile
+.ifne <value>
+    Compile, if value is not zero (or true)
+.ifeq <value>
+    Compile, if value is zero (or false)
+.ifpl <value>
+    Compile, if value is greater or equal zero
+.ifmi <value>
+    Compile, if value is less than zero
 
 The .ifne, .ifeq, .ifpl and .ifmi directives exists for compatibility only, in
 practice it's better to use comparison operators instead.
