@@ -96,17 +96,37 @@ struct section_s *new_section(const char *name, const char *origname) {
     return avltree_container_of(b, struct section_s, node);            //already exists
 }
 
+void reset_section(void) {
+    current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
+    current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
+    current_section->dooutput=1;
+    current_section->structrecursion=0;
+    current_section->logicalrecursion=0;
+    current_section->moved=0;
+    current_section->wrapwarn=0;
+    current_section->wrapwarn2=0;
+    current_section->unionmode=0;
+}
+
+void init_section2(struct section_s *section) {
+    section->parent = NULL;
+    section->name = NULL;
+    section->origname = NULL;
+    section->next = NULL;
+    avltree_init(&section->members, section_compare, section_free);
+}
+
 void init_section(void) {
-    root_section.parent = NULL;
-    root_section.name = NULL;
-    root_section.origname = NULL;
-    root_section.next = NULL;
+    init_section2(&root_section);
     prev_section = &root_section;
-    avltree_init(&root_section.members, section_compare, section_free);
+}
+
+void destroy_section2(struct section_s *section) {
+    avltree_destroy(&section->members);
 }
 
 void destroy_section(void) {
     free(lastsc);
-    avltree_destroy(&root_section.members);
+    destroy_section2(&root_section);
 }
 // ---------------------------------------------------------------------------

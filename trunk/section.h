@@ -59,6 +59,9 @@ struct section_s {
 extern struct section_s *new_section(const char*, const char*);
 extern struct section_s *find_new_section(const char*, const char*);
 extern void init_section(void);
+extern void init_section2(struct section_s *);
 extern void destroy_section(void);
+extern void destroy_section2(struct section_s *);
+extern void reset_section(void);
 extern struct section_s *current_section, root_section;
 #endif

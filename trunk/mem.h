@@ -22,7 +22,7 @@
 #include "misc.h"
 extern void mark_mem(address_t);
 extern void write_mark_mem(uint8_t c);
-extern void list_mem(FILE *, address_t, const uint8_t **, int, enum lastl_e *);
+extern void list_mem(FILE *, address_t, int, enum lastl_e *);
 extern void memcomp(void);
 extern void memjmp(address_t adr);
 extern void memprint(void);

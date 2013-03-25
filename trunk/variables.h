@@ -50,5 +50,7 @@ extern struct label_s *find_label(const char*);
 extern struct label_s *find_label2(const char*, const struct avltree *);
 extern struct label_s *new_label(const char*, const char*, enum label_e);
 extern void destroy_variables(void);
+extern void destroy_variables2(struct label_s *);
 extern void init_variables(void);
+extern void init_variables2(struct label_s *);
 #endif

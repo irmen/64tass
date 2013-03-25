@@ -26,6 +26,8 @@
 #include "encoding.h"
 #include "mem.h"
 #include "isnprintf.h"
+#include "macro.h"
+
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
 #define cbrt(a) pow((a), 1.0/3.0)
@@ -458,24 +460,32 @@ static int priority(enum oper_e ch)
     return 0;
 }
 
-static struct values_s *values = NULL;
-static size_t values_size=0;
-static uint8_t outp, outp2;
-static int gstop;
-static struct {
+struct out_s {
     struct value_s val;
     linepos_t epoint;
-} o_out[256];
+};
 
-static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
+static int evxnum, evx_p;
+static struct eval_context_s {
+    struct values_s *values;
+    size_t values_size;
+    uint8_t outp, outp2;
+    int gstop;
+    struct out_s o_out[256];
+} **evx;
+
+static struct eval_context_s *eval;
+
+static int get_exp_compat(struct eval_context_s *ev, int *wd, int stop) {// length in bytes, defined
     int cd;
     char ch;
 
     enum oper_e o_oper[256] = {0}, conv;
     linepos_t epoints[256];
-    uint8_t operp = 0;
+    uint8_t operp = 0, outp = 0;
     int large=0;
     linepos_t epoint, cpoint = {0, 0};
+    struct out_s *o_out = ev->o_out;
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
     cd=0;     // 0=error, 1=ok, 2=(a, 3=()
@@ -559,9 +569,11 @@ rest:
     syntaxe:
         err_msg(ERROR_EXPRES_SYNTAX,NULL);
     error:
+        eval->outp = outp;
         return 0;
     }
     if (large) cd=0;
+    eval->outp = outp;
     return cd;
 }
 
@@ -578,7 +590,7 @@ static ival_t to_ival(const struct value_s *val) {
     }
 }
 
-static int get_val2_compat(void) {// length in bytes, defined
+static int get_val2_compat(struct eval_context_s *ev) {// length in bytes, defined
     uint8_t vsp = 0;
     enum type_e t1, t2;
     enum oper_e op;
@@ -586,16 +598,20 @@ static int get_val2_compat(void) {// length in bytes, defined
     struct value_s tmp;
     struct values_s *v1, *v2;
     int large = 0;
+    struct out_s *o_out;
+    struct values_s *values;
 
-    if (outp2 >= outp) return 1;
+    if (ev->outp2 >= ev->outp) return 1;
+    o_out = ev->o_out;
+    values = ev->values;
 
-    for (i=outp2;i<outp;i++) {
+    for (i = ev->outp2; i < ev->outp; i++) {
         if (o_out[i].val.type != T_OPER) {
-            if (vsp >= values_size) {
-                values_size += 16;
-                values = realloc(values, sizeof(struct values_s)*values_size);
+            if (vsp >= ev->values_size) {
+                ev->values_size += 16;
+                ev->values = values = realloc(ev->values, sizeof(struct values_s)*ev->values_size);
                 if (!values) err_msg_out_of_memory();
-                memset(&values[values_size-16], 0, 16 * sizeof(struct values_s));
+                memset(&values[ev->values_size-16], 0, 16 * sizeof(struct values_s));
             }
             if (!values[vsp].val) values[vsp].val = &none_value;
             if (o_out[i].val.type == T_UNDEF) {
@@ -608,7 +624,7 @@ static int get_val2_compat(void) {// length in bytes, defined
         op = o_out[i].val.u.oper;
 
         if (op == O_SEPARATOR) {
-            outp2 = i + 1;
+            ev->outp2 = i + 1;
             return 0;
         }
         if (vsp < 1) goto syntaxe;
@@ -653,7 +669,7 @@ static int get_val2_compat(void) {// length in bytes, defined
         if (vsp < 2) {
         syntaxe:
             err_msg(ERROR_EXPRES_SYNTAX,NULL);
-            outp2 = outp;
+            ev->outp2 = ev->outp;
             return -1;
         }
         v2 = &values[vsp-2];
@@ -708,36 +724,39 @@ static int get_val2_compat(void) {// length in bytes, defined
         }
         vsp--; val_replace(&v2->val, &none_value); continue;
     }
-    outp2 = i;
+    ev->outp2 = i;
     if (large) return -1;
     return 0;
 }
 
 int eval_finish(void) {
-    if (outp2 < outp) {
-        lpoint = o_out[outp2].epoint;
-        outp2 = outp;
+    if (eval->outp2 < eval->outp) {
+        lpoint = eval->o_out[eval->outp2].epoint;
+        eval->outp2 = eval->outp;
         return 1;
     }
     return 0;
 }
 
-static int get_val2(int);
+static int get_val2(struct eval_context_s *);
 
 struct value_s *get_val(enum type_e type, linepos_t *epoint) {// length in bytes, defined
     int res;
+    struct values_s *value;
 
     if (arguments.tasmcomp) {
-        res = get_val2_compat();
+        res = get_val2_compat(eval);
     } else {
-        res = get_val2(gstop);
+        res = get_val2(eval);
     }
     if (res) return (res > 0) ? NULL : &error_value;
 
-    if (epoint) *epoint = values[0].epoint;
-    try_resolv_ident(&values[0].val);
+    value = eval->values;
 
-    switch (values[0].val->type) {
+    if (epoint) *epoint = value->epoint;
+    try_resolv_ident(&value->val);
+
+    switch (value->val->type) {
     case T_STR:
     case T_SINT:
     case T_UINT:
@@ -749,14 +768,14 @@ struct value_s *get_val(enum type_e type, linepos_t *epoint) {// length in bytes
     case T_LIST:
     case T_TUPLE:
     case T_IDENTREF:
-        if (type == T_IDENTREF) return values[0].val;
-        try_resolv_identref(&values[0].val);
-        if (type == T_NONE) return values[0].val;
+        if (type == T_IDENTREF) return value->val;
+        try_resolv_identref(&value->val);
+        if (type == T_NONE) return value->val;
         if (type_is_int(type) || type == T_GAP) {
-            switch (values[0].val->type) {
+            switch (value->val->type) {
             case T_STR:
-                if (str_to_num2(&values[0].val, (type == T_GAP) ? T_NUM : type)) {
-                    err_msg2(ERROR_CONSTNT_LARGE, NULL, values[0].epoint);
+                if (str_to_num2(&value->val, (type == T_GAP) ? T_NUM : type)) {
+                    err_msg2(ERROR_CONSTNT_LARGE, NULL, value->epoint);
                     return &error_value;
                 }
             case T_UINT:
@@ -764,28 +783,28 @@ struct value_s *get_val(enum type_e type, linepos_t *epoint) {// length in bytes
             case T_NUM:
             case T_BOOL:
             case T_NONE:
-                return values[0].val;
+                return value->val;
             case T_CODE:
                 new_value.type = T_UINT;
-                new_value.u.num.val = values[0].val->u.code.addr;
-                val_replace(&values[0].val, &new_value);
-                return values[0].val;
+                new_value.u.num.val = value->val->u.code.addr;
+                val_replace(&value->val, &new_value);
+                return value->val;
             case T_FLOAT:
                 new_value.type = (type == T_SINT) ? T_SINT : T_UINT;
-                new_value.u.num.val = (ival_t)values[0].val->u.real;
-                val_replace(&values[0].val, &new_value);
-                return values[0].val;
-            case T_GAP: if (type == T_GAP) return values[0].val;
+                new_value.u.num.val = (ival_t)value->val->u.real;
+                val_replace(&value->val, &new_value);
+                return value->val;
+            case T_GAP: if (type == T_GAP) return value->val;
             default:
                 break;
             }
         }
     default:
-        err_msg_wrong_type(values[0].val, values[0].epoint);
+        err_msg_wrong_type(value->val, value->epoint);
         return &error_value;
     case T_UNDEF:
         if (pass == 1) break;
-        err_msg_wrong_type(values[0].val, values[0].epoint);
+        err_msg_wrong_type(value->val, value->epoint);
         return &error_value;
     case T_NONE: break;
     }
@@ -992,6 +1011,11 @@ static void functions(struct values_s *vals, unsigned int args) {
             val_replace(&vals->val, &new_value);
             return;
         case T_CODE:
+            if (!v[0].val->u.code.pass) {
+                new_value.type = T_UNDEF;
+                val_replace(&vals->val, &new_value);
+                return;
+            }
             new_value.type = T_UINT;
             new_value.u.num.val = v[0].val->u.code.size / (v[0].val->u.code.esize + !v[0].val->u.code.esize);
             val_replace(&vals->val, &new_value);
@@ -1126,6 +1150,11 @@ static void functions(struct values_s *vals, unsigned int args) {
         else {
             switch (try_resolv(&v[0].val)) {
             case T_CODE:
+                if (!v[0].val->u.code.pass) {
+                    new_value.type = T_UNDEF;
+                    val_replace(&vals->val, &new_value);
+                    return;
+                }
                 new_value.type = T_UINT;
                 new_value.u.num.val = v[0].val->u.code.size;
                 val_replace(&vals->val, &new_value);
@@ -1224,10 +1253,34 @@ static void functions(struct values_s *vals, unsigned int args) {
         val_replace(&vals->val, &none_value);
         return;
     }
-    try_resolv(&vals->val);
-    if (vals->val->type != T_NONE) {
+    switch (try_resolv(&vals->val)) {
+    case T_FUNCTION:
+        {
+            struct value_s *val;
+            unsigned int i;
+            if (args > vals->val->u.func.argc) {
+                err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
+                val_replace(&vals->val, &none_value);
+                return;
+            }
+            for (i = 0; i < args; i++) try_resolv_ident(&v[i].val);
+            for (; i < vals->val->u.func.argc; i++) {
+                if (!vals->val->u.func.param[i].init) {
+                    err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
+                    break;
+                }
+            }
+            eval_enter();
+            val = function_recurse(vals->val, v, args);
+            eval_leave();
+            val_replace(&vals->val, val);
+            val_destroy(val);
+        }
+        break;
+    default:
         err_msg_wrong_type(vals->val, vals->epoint); 
         val_replace(&vals->val, &none_value);
+    case T_NONE: break;
     }
 }
 
@@ -2904,24 +2957,29 @@ strretr:
     goto errtype;
 }
 
-static int get_val2(int stop) {
+static int get_val2(struct eval_context_s *ev) {
     uint8_t vsp = 0;
     size_t i;
     enum oper_e op;
     struct values_s *v1, *v2;
     enum type_e t1, t2;
     int large=0;
+    int stop = ev->gstop;
+    struct out_s *o_out;
+    struct values_s *values;
 
-    if (outp2 >= outp) return 1;
+    if (ev->outp2 >= ev->outp) return 1;
+    o_out = ev->o_out;
+    values = ev->values;
 
-    for (i=outp2;i<outp;i++) {
+    for (i = ev->outp2; i < ev->outp; i++) {
         op = o_out[i].val.u.oper;
         if (o_out[i].val.type != T_OPER || op == O_PARENT || op == O_BRACKET) {
-            if (vsp >= values_size) {
-                values_size += 16;
-                values = realloc(values, sizeof(struct values_s)*values_size);
+            if (vsp >= ev->values_size) {
+                ev->values_size += 16;
+                ev->values = values = realloc(values, sizeof(struct values_s)*ev->values_size);
                 if (!values) err_msg_out_of_memory();
-                memset(&values[values_size-16], 0, 16 * sizeof(struct values_s));
+                memset(&values[ev->values_size-16], 0, 16 * sizeof(struct values_s));
             }
             if (!values[vsp].val) values[vsp].val = &none_value;
             if (o_out[i].val.type == T_UNDEF) {
@@ -2933,7 +2991,7 @@ static int get_val2(int stop) {
         }
 
         if (op == O_SEPARATOR) {
-            outp2 = i + 1;
+            ev->outp2 = i + 1;
             return 0;
         }
         if (op == O_COMMA || op == O_COLON2 || op == O_COLON3) continue;
@@ -3165,7 +3223,7 @@ static int get_val2(int stop) {
         if (vsp == 0) {
         syntaxe:
             err_msg(ERROR_EXPRES_SYNTAX,NULL);
-            outp2 = outp;
+            ev->outp2 = ev->outp;
             return -1;
         }
         try_resolv_ident(&v2->val);
@@ -3176,7 +3234,7 @@ static int get_val2(int stop) {
             val_replace_template(&v1->val, tmp);
         }
     }
-    outp2 = i;
+    ev->outp2 = i;
     if (large) return -1;
     return 0;
 }
@@ -3187,16 +3245,19 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
 
     enum oper_e o_oper[256] = {0}, op;
     linepos_t epoints[256];
-    uint8_t operp = 0, prec, db;
+    uint8_t operp = 0, prec, db, outp;
     int large=0;
     linepos_t epoint;
+    struct out_s *o_out;
 
-    gstop = stop;
-    outp2 = outp = 0;
+    eval->gstop = stop;
+    eval->outp2 = 0;
 
     if (arguments.tasmcomp) {
-        return get_exp_compat(wd, stop);
+        return get_exp_compat(eval, wd, stop);
     }
+    outp = 0;
+    o_out = eval->o_out;
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
     cd=0;    // 0=error, 1=ok, 2=(a, 3=(), 4=[]
@@ -3208,7 +3269,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         case 'b':*wd=0;break;
         case 'w':*wd=1;break;
         case 'l':*wd=2;break;
-        default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); return 0;
+        default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); eval->outp = outp; return 0;
         }
         lpoint.pos++;
         break;
@@ -3458,13 +3519,48 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     syntaxe:
         err_msg(ERROR_EXPRES_SYNTAX,NULL);
     error:
+        eval->outp = outp;
         return 0;
     }
     if (large) cd=0;
+    eval->outp = outp;
     return cd;
 }
 
-void free_values(void) {
-    while (values_size--) if (values[values_size].val) val_destroy(values[values_size].val);
-    free(values);
+void eval_enter(void) {
+    evx_p++;
+    if (evx_p >= evxnum) {
+        evxnum++;
+        evx = (struct eval_context_s **)realloc(evx, evxnum * sizeof(struct eval_context_s *));
+        if (!evx) err_msg_out_of_memory();
+        eval = (struct eval_context_s *)malloc(sizeof(struct eval_context_s));
+        if (!eval) err_msg_out_of_memory();
+        eval->values = NULL;
+        eval->values_size = 0;
+        memset(eval->o_out, 0, sizeof(eval->o_out));
+        evx[evx_p] = eval;
+        return;
+    }
+    eval = evx[evx_p];
+}
+
+void eval_leave(void) {
+    if (evx_p) evx_p--;
+    eval = evx[evx_p];
+}
+
+void init_eval(void) {
+    evxnum = 0;
+    evx_p = -1;
+    eval_enter();
+}
+
+void destroy_eval(void) {
+    while (evxnum--) {
+        eval = evx[evxnum];
+        while (eval->values_size--) if (eval->values[eval->values_size].val) val_destroy(eval->values[eval->values_size].val);
+        free(eval->values);
+        free(eval);
+    }
+    free(evx);
 }
