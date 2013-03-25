@@ -164,7 +164,7 @@ struct value_s {
         struct {
             size_t p;
             line_t sline;
-            uint8_t waitforp;
+            size_t waitforp;
             const struct file_s *file;
             const struct label_s *parent;
         } lbl;
