@@ -119,7 +119,7 @@ struct value_s {
         struct {
             size_t len;
             size_t chars;
-            uint8_t *data;
+            const uint8_t *data;
         } str;
         struct {
             size_t size;
@@ -177,6 +177,7 @@ struct value_s {
 extern void val_destroy(struct value_s *);
 extern void val_replace(struct value_s **, struct value_s *);
 extern void val_replace_template(struct value_s **, const struct value_s *);
+extern struct value_s *val_realloc(struct value_s **);
 extern void val_set_template(struct value_s **, const struct value_s *);
 extern int val_same(const struct value_s *, const struct value_s *);
 extern int val_truth(const struct value_s *);

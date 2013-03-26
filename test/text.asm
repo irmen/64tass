@@ -7,6 +7,7 @@
     .text "{clr}abc"
     .text "{up}abc{return}"
     .text "abc{up}abc"
+    .text "a""a"
     .byte 0
 
 ;    .text "{}" ; error "petascii symbol expected"

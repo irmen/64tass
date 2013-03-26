@@ -592,7 +592,7 @@ struct escape_s *new_escape(const uint8_t *s, const uint8_t *end, uint8_t code, 
     return b;            //already exists
 }
 
-uint32_t find_escape(uint8_t *text, uint8_t *end, struct encoding_s *enc)
+uint32_t find_escape(const uint8_t *text, const uint8_t *end, struct encoding_s *enc)
 {
     struct escape_s *t;
 

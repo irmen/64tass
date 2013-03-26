@@ -39,7 +39,7 @@ extern struct encoding_s *new_encoding(const char *);
 extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
 extern uint16_t find_trans(uint32_t, struct encoding_s *);
 extern struct escape_s *new_escape(const uint8_t *, const uint8_t *, uint8_t, struct encoding_s *);
-extern uint32_t find_escape(uint8_t *, uint8_t *, struct encoding_s *);
+extern uint32_t find_escape(const uint8_t *, const uint8_t *, struct encoding_s *);
 extern void init_encoding(int);
 extern void destroy_encoding(void);
 #endif

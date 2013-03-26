@@ -733,7 +733,7 @@ struct value_s *compile(struct file_s *cfile)
 
                             if (labelexists) {
                                 if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
-                                new_value.u.macro.size = label->value->u.macro.size;
+                                new_value.u.macro.size = (label->value->type == T_UNION || label->value->type == T_STRUCT) ? label->value->u.macro.size : 0;
                             } else {
                                 label->requires = 0;
                                 label->conflicts = 0;
@@ -759,8 +759,13 @@ struct value_s *compile(struct file_s *cfile)
                                 } else {
                                     new_value.type=T_CODE;
                                     new_value.u.code.addr = current_section->l_address;
-                                    new_value.u.code.size = label->value->u.code.size;
-                                    new_value.u.code.dtype = label->value->u.code.dtype;
+                                    if (label->value->type == T_CODE) {
+                                        new_value.u.code.size = label->value->u.code.size;
+                                        new_value.u.code.dtype = label->value->u.code.dtype;
+                                    } else {
+                                        new_value.u.code.size = 0;
+                                        new_value.u.code.dtype = D_NONE;
+                                    }
                                     new_value.u.code.pass = pass - 1;
                                     label->requires=current_section->requires;
                                     label->conflicts=current_section->conflicts;
@@ -874,8 +879,13 @@ struct value_s *compile(struct file_s *cfile)
                     newlabel->conflicts=current_section->conflicts;
                     new_value.type = T_CODE;
                     new_value.u.code.addr = current_section->l_address;
-                    new_value.u.code.size = newlabel->value->u.code.size;
-                    new_value.u.code.dtype = newlabel->value->u.code.dtype;
+                    if (newlabel->value->type == T_CODE) {
+                        new_value.u.code.size = newlabel->value->u.code.size;
+                        new_value.u.code.dtype = newlabel->value->u.code.dtype;
+                    } else {
+                        new_value.u.code.size = 0;
+                        new_value.u.code.dtype = D_NONE;
+                    }
                     new_value.u.code.pass = pass - 1;
                     get_mem(&newmemp, &newmembp);
                     var_assign(newlabel, &new_value, 0);
@@ -1468,14 +1478,14 @@ struct value_s *compile(struct file_s *cfile)
                             case T_UINT:
                                 uv = (val->type == T_FLOAT) ? (uval_t)val->u.real : ((val->type == T_CODE) ? (uval_t)val->u.code.addr : (uval_t)val->u.num.val);
                                 switch (prm) {
-                                case CMD_CHAR: if ((val->u.num.len > 8 || val->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
-                                case CMD_BYTE: if ((val->u.num.len > 8 || val->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
-                                case CMD_INT: if ((val->u.num.len > 16 || val->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
-                                case CMD_LINT: if ((val->u.num.len > 24 || val->type != T_NUM) && (uv & ~(uval_t)0x7fffff) && (~uv & ~(uval_t)0x7fffff)) large=epoint;break;
-                                case CMD_LONG: if ((val->u.num.len > 24 || val->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
-                                case CMD_DINT: if ((val->u.num.len > 32 || val->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
-                                case CMD_DWORD: if ((val->u.num.len > 32 || val->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
-                                default: if ((val->u.num.len > 16 || val->type != T_NUM) && (uv & ~(uval_t)0xffff)) large=epoint;
+                                case CMD_CHAR: if ((val->type != T_NUM || val->u.num.len > 8) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
+                                case CMD_BYTE: if ((val->type != T_NUM || val->u.num.len > 8) && (uv & ~(uval_t)0xff)) large=epoint; break;
+                                case CMD_INT: if ((val->type != T_NUM || val->u.num.len > 16) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
+                                case CMD_LINT: if ((val->type != T_NUM || val->u.num.len > 24) && (uv & ~(uval_t)0x7fffff) && (~uv & ~(uval_t)0x7fffff)) large=epoint;break;
+                                case CMD_LONG: if ((val->type != T_NUM || val->u.num.len > 24) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
+                                case CMD_DINT: if ((val->type != T_NUM || val->u.num.len > 32) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
+                                case CMD_DWORD: if ((val->type != T_NUM || val->u.num.len > 32) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
+                                default: if ((val->type != T_NUM || val->u.num.len > 16) && (uv & ~(uval_t)0xffff)) large=epoint;
                                 }
                                 ch2 = uv;
                                 break;
@@ -1496,14 +1506,14 @@ struct value_s *compile(struct file_s *cfile)
                                         case T_UINT:
                                             uv = (val2->type == T_FLOAT) ? (uval_t)val2->u.real : ((val2->type == T_CODE) ? (uval_t)val2->u.code.addr : (uval_t)val2->u.num.val);
                                             switch (prm) {
-                                            case CMD_CHAR: if ((val2->u.num.len > 8 || val2->type != T_NUM) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
-                                            case CMD_BYTE: if ((val2->u.num.len > 8 || val2->type != T_NUM) && (uv & ~(uval_t)0xff)) large=epoint; break;
-                                            case CMD_INT: if ((val2->u.num.len > 16 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
-                                            case CMD_LINT: if ((val2->u.num.len > 24 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fffff) && (~uv & ~(uval_t)0x7fffff)) large=epoint;break;
-                                            case CMD_LONG: if ((val2->u.num.len > 24 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
-                                            case CMD_DINT: if ((val2->u.num.len > 32 || val2->type != T_NUM) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
-                                            case CMD_DWORD: if ((val2->u.num.len > 32 || val2->type != T_NUM) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
-                                            default: if ((val2->u.num.len > 16 || val2->type != T_NUM) && (uv & ~(uval_t)0xffff)) large=epoint;
+                                            case CMD_CHAR: if ((val2->type != T_NUM || val2->u.num.len > 8) && (uv & ~(uval_t)0x7f) && (~uv & ~(uval_t)0x7f)) large=epoint;break;
+                                            case CMD_BYTE: if ((val2->type != T_NUM || val2->u.num.len > 8) && (uv & ~(uval_t)0xff)) large=epoint; break;
+                                            case CMD_INT: if ((val2->type != T_NUM || val2->u.num.len > 16) && (uv & ~(uval_t)0x7fff) && (~uv & ~(uval_t)0x7fff)) large=epoint;break;
+                                            case CMD_LINT: if ((val2->type != T_NUM || val2->u.num.len > 24) && (uv & ~(uval_t)0x7fffff) && (~uv & ~(uval_t)0x7fffff)) large=epoint;break;
+                                            case CMD_LONG: if ((val2->type != T_NUM || val2->u.num.len > 24) && (uv & ~(uval_t)0xffffff)) large=epoint; break;
+                                            case CMD_DINT: if ((val2->type != T_NUM || val2->u.num.len > 32) && (uv & ~(uval_t)0x7fffffff) && (~uv & ~(uval_t)0x7fffffff)) large=epoint;break;
+                                            case CMD_DWORD: if ((val2->type != T_NUM || val2->u.num.len > 32) && (uv & ~(uval_t)0xffffffff)) large=epoint; break;
+                                            default: if ((val2->type != T_NUM || val2->u.num.len > 16) && (uv & ~(uval_t)0xffff)) large=epoint;
                                             }
                                             ch2 = uv;
                                             break;
@@ -2041,7 +2051,7 @@ struct value_s *compile(struct file_s *cfile)
                             if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                             fixeddig = 0;
                         } else if (val->type != T_GAP) {
-                            if ((val->u.num.len > 8 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                            if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                             fill = (uint8_t)val->u.num.val;
                         }
                     }
@@ -2069,7 +2079,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                         fixeddig = outputeor = 0;
                     } else {
-                        if ((val->u.num.len > 8 || val->type != T_NUM) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                        if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                         else outputeor = val->u.num.val;
                     }
                     break;
@@ -2595,8 +2605,8 @@ struct value_s *compile(struct file_s *cfile)
                             if (w==3) w = ln - 1;
                             else if (w != ln - 1) w = 3;
                             if (val->type != T_NONE) {
-                                if (!w && ln == 1 && ((val->u.num.len <= 8 && val->type == T_NUM) || !((uval_t)val->u.num.val & ~(uval_t)0xff))) adr = (uval_t)val->u.num.val;
-                                else if (w == 1 && ln == 2 && ((val->u.num.len <= 16 && val->type == T_NUM) || !((uval_t)val->u.num.val & ~(uval_t)0xffff))) adr = (uval_t)val->u.num.val;
+                                if (!w && ln == 1 && ((val->type == T_NUM && val->u.num.len <= 8) || !((uval_t)val->u.num.val & ~(uval_t)0xff))) adr = (uval_t)val->u.num.val;
+                                else if (w == 1 && ln == 2 && ((val->type == T_NUM && val->u.num.len <= 16) || !((uval_t)val->u.num.val & ~(uval_t)0xffff))) adr = (uval_t)val->u.num.val;
                                 else w = 3;
                             }
                         }
