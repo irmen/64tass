@@ -59,7 +59,7 @@ static struct value_s *val_alloc(void) {
 
 static void val_destroy2(struct value_s *val) {
     switch (val->type) {
-    case T_STR: free(val->u.str.data); break;
+    case T_STR: free((uint8_t *)val->u.str.data); break;
     case T_LIST: 
     case T_TUPLE: 
         while (val->u.list.len) val_destroy(val->u.list.data[--val->u.list.len]);
@@ -97,6 +97,16 @@ void val_destroy(struct value_s *val) {
     } else val->refcount--;
 }
 
+struct value_s *val_realloc(struct value_s **val) {
+    if (val[0]->refcount == 1) {
+        val_destroy2(*val);
+        return *val;
+    }
+    if (val[0]->refcount) val[0]->refcount--;
+    *val = val_alloc();
+    val[0]->refcount = 1;
+    return *val;
+}
 
 static void val_copy2(struct value_s *val, const struct value_s *val2) {
     size_t i;
@@ -106,9 +116,11 @@ static void val_copy2(struct value_s *val, const struct value_s *val2) {
     switch (val2->type) {
     case T_STR: 
         if (val2->u.str.len) {
-            val->u.str.data = malloc(val2->u.str.len);
-            if (!val->u.str.data) err_msg_out_of_memory();
-            memcpy(val->u.str.data, val2->u.str.data, val2->u.str.len);
+            uint8_t *s;
+            s = malloc(val2->u.str.len);
+            if (!s) err_msg_out_of_memory();
+            memcpy(s, val2->u.str.data, val2->u.str.len);
+            val->u.str.data = s;
         } else val->u.str.data = NULL;
         break;
     case T_LIST:

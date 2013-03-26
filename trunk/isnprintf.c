@@ -91,13 +91,14 @@ static inline struct value_s *next_arg(void) {
 }
 
 static inline void PUT_CHAR(uint32_t c) {
-    uint8_t *p;
+    uint8_t *p = (uint8_t *)return_value.u.str.data;
     if (return_value.u.str.len + 6 >= returnsize) {
         returnsize += 256;
-        return_value.u.str.data = realloc(return_value.u.str.data, returnsize);
-        if (!return_value.u.str.data) err_msg_out_of_memory();
+        p = realloc(p, returnsize);
+        if (!p) err_msg_out_of_memory();
+        return_value.u.str.data = p;
     }
-    p = utf8out(c, return_value.u.str.data + return_value.u.str.len);
+    p = utf8out(c, p + return_value.u.str.len);
     return_value.u.str.len = p - return_value.u.str.data;
     return_value.u.str.chars++;
 }
@@ -275,7 +276,7 @@ static inline void chars(const struct value_s *v)
 static void strings(struct DATA *p, const struct value_s *v)
 {
     int i;
-    uint8_t *tmp;
+    const uint8_t *tmp;
     uint32_t ch;
 
     switch (v->type) {

@@ -286,7 +286,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
        {
            if (repr) {
                const char *c;
-               uint8_t *p, *c2;
+               const uint8_t *p, *c2;
                c = memchr(val->u.str.data, '"', val->u.str.len) ? "'" : "\"";
                add_user_error(user_error, c);
                p = val->u.str.data;
