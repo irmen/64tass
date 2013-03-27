@@ -484,7 +484,7 @@ static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
     int cd;
     char ch;
 
-    struct value_s *o_oper[256] = {0}, *conv;
+    struct value_s *o_oper[256], *conv;
     linepos_t epoints[256];
     uint8_t operp = 0;
     int large=0;
@@ -495,6 +495,7 @@ static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
     cd=0;     // 0=error, 1=ok, 2=(a, 3=()
 
     eval->outp = 0;
+    o_oper[0] = &o_SEPARATOR;
 rest:
     ignore();
     conv = &o_POS;
@@ -3285,7 +3286,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     int cd;
     char ch;
 
-    struct value_s *o_oper[256] = {0}, *op;
+    struct value_s *o_oper[256], *op;
     linepos_t epoints[256];
     uint8_t operp = 0, prec, db;
     int large=0;
@@ -3299,6 +3300,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         return get_exp_compat(wd, stop);
     }
     eval->outp = 0;
+    o_oper[0] = &o_SEPARATOR;
 
     *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
     cd=0;    // 0=error, 1=ok, 2=(a, 3=(), 4=[]
