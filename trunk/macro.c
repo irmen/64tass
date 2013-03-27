@@ -150,6 +150,7 @@ void mtranslate(void)
 }
 
 static struct value_s none_value = {T_NONE, 0, {}};
+static struct value_s null_tuple = {T_TUPLE, 0, {}};
 
 static size_t macro_param_find(void) {
     uint_fast8_t q = 0, ch;
@@ -534,7 +535,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     destroy_variables2(&rlabel);
     current_section = oldsection;
     destroy_section2(&rsection);
-    return retval ? retval : &none_value;
+    return retval ? retval : &null_tuple;
 }
 
 void init_macro(void) {
