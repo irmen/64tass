@@ -573,16 +573,16 @@ struct value_s *compile(struct file_s *cfile)
                 if (labelexists) {
                     if (label->type != L_CONST || pass==1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
                     else {
-                        label->requires=current_section->requires;
-                        label->conflicts=current_section->conflicts;
+                        label->requires = current_section->requires;
+                        label->conflicts = current_section->conflicts;
                         var_assign(label, val, 0);
                     }
                 } else {
-                    label->requires=current_section->requires;
-                    label->conflicts=current_section->conflicts;
-                    label->pass=pass;
-                    label->value=&none_value;
-                    var_assign(label, val, fixeddig);
+                    label->requires = current_section->requires;
+                    label->conflicts = current_section->conflicts;
+                    label->pass = pass;
+                    label->upass = pass;
+                    label->value = val_reference(val);
                     label->file = cfile;
                     label->sline = sline;
                     label->epoint = epoint;
@@ -622,11 +622,11 @@ struct value_s *compile(struct file_s *cfile)
                                 var_assign(label, val, fixeddig);
                             }
                         } else {
-                            label->requires=current_section->requires;
-                            label->conflicts=current_section->conflicts;
-                            label->pass=pass;
-                            label->value=&none_value;
-                            var_assign(label, val, fixeddig);
+                            label->requires = current_section->requires;
+                            label->conflicts = current_section->conflicts;
+                            label->pass = pass;
+                            label->upass = pass;
+                            label->value = val_reference(val);
                             label->file = cfile;
                             label->sline = sline;
                             label->epoint = epoint;
@@ -638,22 +638,31 @@ struct value_s *compile(struct file_s *cfile)
                         struct label_s *label;
                         label=new_label(labelname, labelname2, L_CONST);
                         if (labelexists) {
-                            if (label->type != L_CONST || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
-                        } else {
-                            label->requires=0;
-                            label->conflicts=0;
-                            label->pass=pass;
-                            label->value = &none_value;
+                            if (label->type != L_CONST || label->value->type != T_LBL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
                             new_value.type = T_LBL;
                             new_value.u.lbl.p = cfile->p;
                             new_value.u.lbl.sline = sline;
                             new_value.u.lbl.waitforp = waitfor_p;
                             new_value.u.lbl.file = cfile;
                             new_value.u.lbl.parent = current_context;
-                            var_assign(label, &new_value, fixeddig);
+                            var_assign(label, &new_value, 0);
+                        } else {
+                            val = val_alloc();
+                            val->refcount = 1;
+                            label->pass = pass;
+                            label->upass = pass;
+                            label->value = val;
                             label->sline = sline;
                             label->file = cfile;
                             label->epoint = epoint;
+                            label->requires = 0;
+                            label->conflicts = 0;
+                            val->type = T_LBL;
+                            val->u.lbl.p = cfile->p;
+                            val->u.lbl.sline = sline;
+                            val->u.lbl.waitforp = waitfor_p;
+                            val->u.lbl.file = cfile;
+                            val->u.lbl.parent = current_context;
                         }
                         label->ref=0;
                         goto finish;
@@ -662,28 +671,38 @@ struct value_s *compile(struct file_s *cfile)
                 case CMD_SEGMENT:
                     {
                         struct label_s *label;
+                        enum type_e type = (prm == CMD_MACRO) ? T_MACRO : T_SEGMENT;
                         new_waitfor(W_ENDM, epoint);waitfor->skip=0;
                         ignore();
                         label=new_label(labelname, labelname2, L_LABEL);
                         if (labelexists) {
-                            if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            new_value.type = type;
+                            new_value.u.macro.p = cfile->p;
+                            new_value.u.macro.size = 0;
+                            new_value.u.macro.sline = sline;
+                            new_value.u.macro.file = cfile;
+                            get_macro_params(&new_value);
+                            var_assign(label, &new_value, 0);
+                            val_destroy(&new_value);
                         } else {
-                            label->requires=0;
-                            label->conflicts=0;
-                            label->pass=pass;
-                            label->value = &none_value;
+                            val = val_alloc();
+                            val->refcount = 1;
+                            label->requires = 0;
+                            label->conflicts = 0;
+                            label->pass = pass;
+                            label->upass = pass;
+                            label->value = val;
                             label->sline = sline;
                             label->file = cfile;
                             label->epoint = epoint;
+                            val->type = type;
+                            val->u.macro.p = cfile->p;
+                            val->u.macro.size = 0;
+                            val->u.macro.sline = sline;
+                            val->u.macro.file = cfile;
+                            get_macro_params(val);
                         }
-                        new_value.type = (prm == CMD_MACRO) ? T_MACRO : T_SEGMENT;
-                        new_value.u.macro.p = cfile->p;
-                        new_value.u.macro.size = 0;
-                        new_value.u.macro.sline = sline;
-                        new_value.u.macro.file = cfile;
-                        get_macro_params(&new_value);
-                        var_assign(label, &new_value, fixeddig);
-                        val_destroy(&new_value);
                         label->ref=0;
                         goto finish;
                     }
@@ -694,24 +713,33 @@ struct value_s *compile(struct file_s *cfile)
                         ignore();
                         label=new_label(labelname, labelname2, L_LABEL);
                         if (labelexists) {
-                            if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            if (label->type != L_LABEL || label->value->type != T_FUNCTION || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            new_value.type = T_FUNCTION;
+                            new_value.u.func.p = cfile->p;
+                            new_value.u.func.sline = sline;
+                            new_value.u.func.file = cfile;
+                            new_value.u.func.context = current_context;
+                            get_func_params(&new_value);
+                            var_assign(label, &new_value, 0);
+                            val_destroy(&new_value);
                         } else {
-                            label->requires=0;
-                            label->conflicts=0;
-                            label->pass=pass;
-                            label->value = &none_value;
+                            val = val_alloc();
+                            val->refcount = 1;
+                            label->requires = 0;
+                            label->conflicts = 0;
+                            label->pass = pass;
+                            label->upass = pass;
+                            label->value = val;
                             label->sline = sline;
                             label->file = cfile;
                             label->epoint = epoint;
+                            val->type = T_FUNCTION;
+                            val->u.func.p = cfile->p;
+                            val->u.func.sline = sline;
+                            val->u.func.file = cfile;
+                            val->u.func.context = current_context;
+                            get_func_params(val);
                         }
-                        new_value.type = T_FUNCTION;
-                        new_value.u.func.p = cfile->p;
-                        new_value.u.func.sline = sline;
-                        new_value.u.func.file = cfile;
-                        new_value.u.func.context = current_context;
-                        get_func_params(&new_value);
-                        var_assign(label, &new_value, fixeddig);
-                        val_destroy(&new_value);
                         label->ref=0;
                         goto finish;
                     }
@@ -727,66 +755,79 @@ struct value_s *compile(struct file_s *cfile)
                         ignore();
                         label=new_label(labelname, labelname2, L_LABEL);oaddr = current_section->address;
                         if (declaration) {
+                            enum type_e type = (prm == CMD_STRUCT) ? T_STRUCT : T_UNION;
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
                             current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
                             current_section->dooutput=0;memjmp(0); oaddr = 0;
 
                             if (labelexists) {
-                                if (label->type != L_LABEL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
-                                new_value.u.macro.size = (label->value->type == T_UNION || label->value->type == T_STRUCT) ? label->value->u.macro.size : 0;
+                                if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                                new_value.type = type;
+                                new_value.u.macro.size = (label->value->type == type) ? label->value->u.macro.size : 0;
+                                new_value.u.macro.p = cfile->p;
+                                new_value.u.macro.sline = sline;
+                                new_value.u.macro.file = cfile;
+                                get_macro_params(&new_value);
+                                var_assign(label, &new_value, 0);
+                                val_destroy(&new_value);
                             } else {
-                                label->requires = 0;
-                                label->conflicts = 0;
+                                val = val_alloc();
+                                val->refcount = 1;
                                 label->pass = pass;
-                                label->value = &none_value;
+                                label->upass = pass;
+                                label->value = val;
                                 label->sline = sline;
                                 label->file = cfile;
                                 label->epoint = epoint;
-                                new_value.u.macro.size = 0;
+                                label->requires = 0;
+                                label->conflicts = 0;
+                                val->type = type;
+                                val->u.macro.size = 0;
+                                val->u.macro.p = cfile->p;
+                                val->u.macro.sline = sline;
+                                val->u.macro.file = cfile;
+                                get_macro_params(val);
                             }
-                            new_value.type = (prm == CMD_STRUCT) ? T_STRUCT : T_UNION;
-                            new_value.u.macro.p = cfile->p;
-                            new_value.u.macro.sline = sline;
-                            new_value.u.macro.file = cfile;
-                            get_macro_params(&new_value);
-                            var_assign(label, &new_value, fixeddig);
-                            val_destroy(&new_value);
                         } else {
                             if (labelexists) {
-                                if (label->type != L_LABEL || pass==1) {
+                                if (label->type != L_LABEL || label->value->type != T_CODE || pass==1) {
                                     err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
                                     label = NULL;
                                 } else {
-                                    new_value.type=T_CODE;
-                                    new_value.u.code.addr = current_section->l_address;
-                                    if (label->value->type == T_CODE) {
-                                        new_value.u.code.size = label->value->u.code.size;
-                                        new_value.u.code.dtype = label->value->u.code.dtype;
-                                    } else {
-                                        new_value.u.code.size = 0;
-                                        new_value.u.code.dtype = D_NONE;
+                                    label->requires = current_section->requires;
+                                    label->conflicts = current_section->conflicts;
+                                    if (label->value->u.code.addr != current_section->l_address) {
+                                        size_t size = label->value->u.code.size;
+                                        signed char dtype = label->value->u.code.dtype;
+                                        val = val_realloc(&label->value);
+                                        val->type=T_CODE;
+                                        val->u.code.addr = current_section->l_address;
+                                        val->u.code.pass = pass - 1;
+                                        val->u.code.size = size;
+                                        val->u.code.dtype = dtype;
+                                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, label->origname);
+                                        fixeddig = 0;
                                     }
-                                    new_value.u.code.pass = pass - 1;
-                                    label->requires=current_section->requires;
-                                    label->conflicts=current_section->conflicts;
+                                    label->upass = pass;
                                     get_mem(&memp, &membp);
-                                    var_assign(label, &new_value, 0);
                                 }
                             } else {
+                                val = val_alloc();
+                                val->refcount = 1;
                                 label->pass=pass;
-                                label->value = &none_value;
+                                label->upass=pass;
+                                label->value = val;
                                 label->file = cfile;
                                 label->sline = sline;
                                 label->epoint = epoint;
                                 label->requires=current_section->requires;
                                 label->conflicts=current_section->conflicts;
-                                new_value.type = T_CODE;
-                                new_value.u.code.addr = current_section->l_address;
-                                new_value.u.code.size = 0;
-                                new_value.u.code.dtype = D_NONE;
-                                new_value.u.code.pass = 0;
+                                val->type = T_CODE;
+                                val->u.code.addr = current_section->l_address;
+                                val->u.code.size = 0;
+                                val->u.code.dtype = D_NONE;
+                                val->u.code.pass = 0;
                                 get_mem(&memp, &membp);
-                                var_assign(label, &new_value, fixeddig);
                             }
                         }
                         if (label) {
@@ -875,37 +916,40 @@ struct value_s *compile(struct file_s *cfile)
                     err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
                     newlabel = NULL; goto jn;
                 } else {
-                    newlabel->requires=current_section->requires;
-                    newlabel->conflicts=current_section->conflicts;
-                    new_value.type = T_CODE;
-                    new_value.u.code.addr = current_section->l_address;
-                    if (newlabel->value->type == T_CODE) {
-                        new_value.u.code.size = newlabel->value->u.code.size;
-                        new_value.u.code.dtype = newlabel->value->u.code.dtype;
-                    } else {
-                        new_value.u.code.size = 0;
-                        new_value.u.code.dtype = D_NONE;
+                    newlabel->requires = current_section->requires;
+                    newlabel->conflicts = current_section->conflicts;
+                    if (newlabel->value->u.code.addr != current_section->l_address) {
+                        size_t size = newlabel->value->u.code.size;
+                        signed char dtype = newlabel->value->u.code.dtype;
+                        val = val_realloc(&newlabel->value);
+                        val->type = T_CODE;
+                        val->u.code.addr = current_section->l_address;
+                        val->u.code.pass = pass - 1;
+                        val->u.code.size = size;
+                        val->u.code.dtype = dtype;
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, newlabel->origname);
+                        fixeddig = 0;
                     }
-                    new_value.u.code.pass = pass - 1;
                     get_mem(&newmemp, &newmembp);
-                    var_assign(newlabel, &new_value, 0);
                 }
             } else {
+                val = val_alloc();
+                val->refcount = 1;
                 newlabel->pass = pass;
-                newlabel->value = &none_value;
+                newlabel->value = val;
                 newlabel->file = cfile;
                 newlabel->sline = sline;
                 newlabel->epoint = epoint;
                 newlabel->requires=current_section->requires;
                 newlabel->conflicts=current_section->conflicts;
-                new_value.type = T_CODE;
-                new_value.u.code.addr = current_section->l_address;
-                new_value.u.code.size = 0;
-                new_value.u.code.dtype = D_NONE;
-                new_value.u.code.pass = 0;
+                val->type = T_CODE;
+                val->u.code.addr = current_section->l_address;
+                val->u.code.size = 0;
+                val->u.code.dtype = D_NONE;
+                val->u.code.pass = 0;
                 get_mem(&newmemp, &newmembp);
-                var_assign(newlabel, &new_value, fixeddig);
             }
+            newlabel->upass = pass;
             if (epoint.pos && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
             if (wht==WHAT_COMMAND) { // .proc
                 switch (prm) {
@@ -2193,11 +2237,11 @@ struct value_s *compile(struct file_s *cfile)
                                 var_assign(var, val, fixeddig);
                             }
                         } else {
-                            var->requires=current_section->requires;
-                            var->conflicts=current_section->conflicts;
-                            var->pass=pass;
-                            var->value=&none_value;
-                            var_assign(var, val, fixeddig);
+                            var->requires = current_section->requires;
+                            var->conflicts = current_section->conflicts;
+                            var->pass = pass;
+                            var->upass = pass;
+                            var->value = val_reference(val);
                             var->file = cfile;
                             var->sline = sline;
                             var->epoint = epoint;
@@ -2240,13 +2284,14 @@ struct value_s *compile(struct file_s *cfile)
                                         err_msg_double_defined(var->origname, var->file->realname, var->sline, var->epoint, labelname2, epoint);
                                         break;
                                     }
-                                    var->requires=current_section->requires;
-                                    var->conflicts=current_section->conflicts;
+                                    var->requires = current_section->requires;
+                                    var->conflicts = current_section->conflicts;
                                 } else {
-                                    var->requires=current_section->requires;
-                                    var->conflicts=current_section->conflicts;
-                                    var->pass=pass;
-                                    var_assign(var, &none_value, fixeddig);
+                                    var->requires = current_section->requires;
+                                    var->conflicts = current_section->conflicts;
+                                    var->pass = pass;
+                                    var->upass = pass;
+                                    var->value = &none_value;
                                     var->file = cfile;
                                     var->sline = sline;
                                     var->epoint = epoint;

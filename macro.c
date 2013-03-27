@@ -297,11 +297,11 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
                 var_assign(label, val, 0);
             }
         } else {
-            label->requires=current_section->requires;
-            label->conflicts=current_section->conflicts;
-            label->pass=pass;
-            label->value=&none_value;
-            var_assign(label, val, fixeddig);
+            label->requires = current_section->requires;
+            label->conflicts = current_section->conflicts;
+            label->pass = pass;
+            label->upass = pass;
+            label->value = val_reference(val);
             label->file = tmp2->u.func.file;
             label->sline = tmp2->u.func.sline;
             label->epoint = tmp2->u.func.param[i].epoint;
@@ -494,11 +494,11 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
                 var_assign(label, val, 0);
             }
         } else {
-            label->requires=current_section->requires;
-            label->conflicts=current_section->conflicts;
-            label->pass=pass;
-            label->value=&none_value;
-            var_assign(label, val, fixeddig);
+            label->requires = current_section->requires;
+            label->conflicts = current_section->conflicts;
+            label->pass = pass;
+            label->upass = pass;
+            label->value = val_reference(val);
             label->file = tmp2->u.func.file;
             label->sline = tmp2->u.func.sline;
             label->epoint = tmp2->u.func.param[i].epoint;
