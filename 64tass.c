@@ -1258,12 +1258,6 @@ struct value_s *compile(struct file_s *cfile)
                                 if (!vals) err_msg_out_of_memory();
                             }
                             retval->u.list.data = vals;
-                        } else if (i != 1) {
-                            retval = val_alloc();
-                            retval->refcount = 1;
-                            retval->type = T_TUPLE;
-                            retval->u.list.len = 0;
-                            retval->u.list.data = NULL;
                         }
                     } else err_msg2(ERROR______EXPECTED,".FUNCTION", epoint);
                     break;
