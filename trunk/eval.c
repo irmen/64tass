@@ -2062,9 +2062,9 @@ strretr:
                 uint8_t *s;
                 sprintf(line, "%.10g", v1->u.real);
                 while (line[i] && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
-                if (!line[i]) {line[i++]='.';line[i++]='0';}
+                if (!line[i]) {line[i++]='.';line[i++]='0';line[i]=0;}
                 v->type = T_STR;
-                v->u.str.len = i;
+                v->u.str.len = i + strlen(line + i);
                 v->u.str.chars = v->u.str.len;
                 s = malloc(v->u.str.len);
                 if (!s) err_msg_out_of_memory();
