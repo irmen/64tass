@@ -37,7 +37,7 @@ static void value_free(union values_u *val) {
     values_free = val;
 }
 
-static struct value_s *val_alloc(void) {
+struct value_s *val_alloc(void) {
     struct value_s *val;
     size_t i;
     //return malloc(sizeof(struct value_s));
@@ -57,7 +57,7 @@ static struct value_s *val_alloc(void) {
     return val;
 }
 
-static void val_destroy2(struct value_s *val) {
+void val_destroy2(struct value_s *val) {
     switch (val->type) {
     case T_STR: free((uint8_t *)val->u.str.data); break;
     case T_LIST: 

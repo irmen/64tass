@@ -402,68 +402,59 @@ static void get_star(struct value_s *v) {
     v->u.code.membp = ~(size_t)0;
 }
 
-/*
- * get priority for operator in an expression
- */
-static int priority(enum oper_e ch)
-{
-    switch (ch) {
-    case O_TUPLE:              // ,)
-    case O_LIST:               // ,]
-    case O_RPARENT:            // )
-    case O_RBRACKET:           // ]
-    case O_FUNC:               // a(
-    case O_INDEX:              // a[
-    case O_SLICE:              // a[x:
-    case O_SLICE2:             // a[x::
-    case O_BRACKET:            // [a]
-    case O_PARENT:return 0;    // (a)
-    case O_SEPARATOR:
-    case O_COMMA:return 1;     // ,
-    case O_QUEST:              // ?
-    case O_COLON:return 2;     // :
-    case O_COND:               // ?
-    case O_COLON2:             // ?:
-    case O_COLON3:return 3;    // [:
-    case O_WORD:               // <>
-    case O_HWORD:              // >`
-    case O_BSWORD:             // ><
-    case O_LOWER:              // <
-    case O_HIGHER:             // >
-    case O_BANK:               // `
-    case O_STRING:return 4;    // ^
-    case O_LOR:return 5;       // ||
-    case O_LXOR:return 6;      // ^^
-    case O_LAND:return 7;      // &&
-    case O_IN:                 // in
-    case O_EQ:                 // ==
-    case O_NEQ:                // !=
-    case O_LT:                 // <
-    case O_GT:                 // >
-    case O_GE:                 // >=
-    case O_LE:return 8;        // <=
-    case O_OR:return 9;        // |
-    case O_XOR:return 10;      // ^
-    case O_AND:return 11;      // &
-    case O_LSHIFT:             // <<
-    case O_ASHIFT:             // >>
-    case O_RSHIFT:return 12;   // >>>
-    case O_ADD:                // +
-    case O_SUB:return 13;      // -
-    case O_MUL:                // *
-    case O_DIV:                // /
-    case O_MOD:return 14;      // %
-    case O_EXP:return 15;      // **
-    case O_NEG:                // -
-    case O_POS:                // +
-    case O_INV:                // ~
-    case O_LNOT:return 16;     // !
-    case O_CONCAT:return 17;   // ..
-    case O_X:return 18;        // x
-    case O_MEMBER:return 19;   // .
-    }
-    return 0;
-}
+static struct value_s o_TUPLE = { T_OPER, 0, .u.oper = {O_TUPLE, 0}};
+static struct value_s o_LIST = { T_OPER, 0, .u.oper = {O_LIST, 0}};
+static struct value_s o_RPARENT = { T_OPER, 0, .u.oper = {O_RPARENT, 0}};
+static struct value_s o_RBRACKET = { T_OPER, 0, .u.oper = {O_RBRACKET, 0}};
+static struct value_s o_FUNC = { T_OPER, 0, .u.oper = {O_FUNC, 0}};
+static struct value_s o_INDEX = { T_OPER, 0, .u.oper = {O_INDEX, 0}};
+static struct value_s o_SLICE = { T_OPER, 0, .u.oper = {O_SLICE, 0}};
+static struct value_s o_SLICE2 = { T_OPER, 0, .u.oper = {O_SLICE2, 0}};
+static struct value_s o_BRACKET = { T_OPER, 0, .u.oper = {O_BRACKET, 0}};
+static struct value_s o_PARENT = { T_OPER, 0, .u.oper = {O_PARENT, 0}};
+static struct value_s o_SEPARATOR = { T_OPER, 0, .u.oper = {O_SEPARATOR, 1}};
+static struct value_s o_COMMA = { T_OPER, 0, .u.oper = {O_COMMA, 1}};
+static struct value_s o_QUEST = { T_OPER, 0, .u.oper = {O_QUEST, 2}};
+static struct value_s o_COLON = { T_OPER, 0, .u.oper = {O_COLON, 2}};
+static struct value_s o_COND = { T_OPER, 0, .u.oper = {O_COND, 3}};
+static struct value_s o_COLON2 = { T_OPER, 0, .u.oper = {O_COLON2, 3}};
+static struct value_s o_COLON3 = { T_OPER, 0, .u.oper = {O_COLON3, 3}};
+static struct value_s o_WORD = { T_OPER, 0, .u.oper = {O_WORD, 4}};
+static struct value_s o_HWORD = { T_OPER, 0, .u.oper = {O_HWORD, 4}};
+static struct value_s o_BSWORD = { T_OPER, 0, .u.oper = {O_BSWORD, 4}};
+static struct value_s o_LOWER = { T_OPER, 0, .u.oper = {O_LOWER, 4}};
+static struct value_s o_HIGHER = { T_OPER, 0, .u.oper = {O_HIGHER, 4}};
+static struct value_s o_BANK = { T_OPER, 0, .u.oper = {O_BANK, 4}};
+static struct value_s o_STRING = { T_OPER, 0, .u.oper = {O_STRING, 4}};
+static struct value_s o_LOR = { T_OPER, 0, .u.oper = {O_LOR, 5}};
+static struct value_s o_LXOR = { T_OPER, 0, .u.oper = {O_LXOR, 6}};
+static struct value_s o_LAND = { T_OPER, 0, .u.oper = {O_LAND, 7}};
+static struct value_s o_IN = { T_OPER, 0, .u.oper = {O_IN, 8}};
+static struct value_s o_EQ = { T_OPER, 0, .u.oper = {O_EQ, 8}};
+static struct value_s o_NEQ = { T_OPER, 0, .u.oper = {O_NEQ, 8}};
+static struct value_s o_LT = { T_OPER, 0, .u.oper = {O_LT, 8}};
+static struct value_s o_GT = { T_OPER, 0, .u.oper = {O_GT, 8}};
+static struct value_s o_GE = { T_OPER, 0, .u.oper = {O_GE, 8}};
+static struct value_s o_LE = { T_OPER, 0, .u.oper = {O_LE, 8}};
+static struct value_s o_OR = { T_OPER, 0, .u.oper = {O_OR, 9}};
+static struct value_s o_XOR = { T_OPER, 0, .u.oper = {O_XOR, 10}};
+static struct value_s o_AND = { T_OPER, 0, .u.oper = {O_AND, 11}};
+static struct value_s o_LSHIFT = { T_OPER, 0, .u.oper = {O_LSHIFT, 12}};
+static struct value_s o_ASHIFT = { T_OPER, 0, .u.oper = {O_ASHIFT, 12}};
+static struct value_s o_RSHIFT = { T_OPER, 0, .u.oper = {O_RSHIFT, 12}};
+static struct value_s o_ADD = { T_OPER, 0, .u.oper = {O_ADD, 13}};
+static struct value_s o_SUB = { T_OPER, 0, .u.oper = {O_SUB, 13}};
+static struct value_s o_MUL = { T_OPER, 0, .u.oper = {O_MUL, 14}};
+static struct value_s o_DIV = { T_OPER, 0, .u.oper = {O_DIV, 14}};
+static struct value_s o_MOD = { T_OPER, 0, .u.oper = {O_MOD, 14}};
+static struct value_s o_EXP = { T_OPER, 0, .u.oper = {O_EXP, 15}};
+static struct value_s o_NEG = { T_OPER, 0, .u.oper = {O_NEG, 16}};
+static struct value_s o_POS = { T_OPER, 0, .u.oper = {O_POS, 16}};
+static struct value_s o_INV = { T_OPER, 0, .u.oper = {O_INV, 16}};
+static struct value_s o_LNOT = { T_OPER, 0, .u.oper = {O_LNOT, 16}};
+static struct value_s o_CONCAT = { T_OPER, 0, .u.oper = {O_CONCAT, 17}};
+static struct value_s o_X = { T_OPER, 0, .u.oper = {O_X, 18}};
+static struct value_s o_MEMBER = { T_OPER, 0, .u.oper = {O_MEMBER, 19}};
 
 static int evxnum, evx_p;
 static struct eval_context_s {
@@ -483,17 +474,17 @@ static inline struct value_s *push(linepos_t epoint) {
     return val_realloc(&o_out->val);
 }
 
-static inline void push_oper(enum oper_e op, linepos_t epoint) {
-    struct value_s *val = push(epoint);
-    val->type = T_OPER;
-    val->u.oper = op;
+static inline void push_oper(struct value_s *val, linepos_t epoint) {
+    val_destroy(eval->o_out[eval->outp].val);
+    eval->o_out[eval->outp].val = val;
+    eval->o_out[eval->outp++].epoint = epoint;
 }
 
 static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
     int cd;
     char ch;
 
-    enum oper_e o_oper[256] = {0}, conv;
+    struct value_s *o_oper[256] = {0}, *conv;
     linepos_t epoints[256];
     uint8_t operp = 0;
     int large=0;
@@ -506,17 +497,17 @@ static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
     eval->outp = 0;
 rest:
     ignore();
-    conv = O_POS;
+    conv = &o_POS;
     switch (here()) {
     case '!':*wd=1;lpoint.pos++;break;
-    case '<': conv = O_LOWER; cpoint = lpoint; lpoint.pos++;break; 
-    case '>': conv = O_HIGHER;cpoint = lpoint; lpoint.pos++;break; 
+    case '<': conv = &o_LOWER; cpoint = lpoint; lpoint.pos++;break; 
+    case '>': conv = &o_HIGHER;cpoint = lpoint; lpoint.pos++;break; 
     }
     for (;;) {
         ignore();ch = here(); epoint=lpoint;
 
         switch (ch) {
-        case '(': lpoint.pos++;epoints[operp] = epoint; o_oper[operp++] = O_PARENT;continue;
+        case '(': lpoint.pos++;epoints[operp] = epoint; o_oper[operp++] = &o_PARENT;continue;
         case '$': lpoint.pos++;val = push(epoint);if (get_hex(val)) goto pushlarge;goto pushval;
         case '%': lpoint.pos++;val = push(epoint);if (get_bin(val)) goto pushlarge;goto pushval;
         case '"': lpoint.pos++;val = push(epoint);get_string(val, ch);goto pushval;
@@ -539,26 +530,26 @@ rest:
     other:
         ignore();ch = here(); epoint=lpoint;
 
-        while (operp && o_oper[operp-1] != O_PARENT) {
+        while (operp && o_oper[operp-1] != &o_PARENT) {
             operp--;
             push_oper(o_oper[operp], epoints[operp]);
         }
         switch (ch) {
         case ',':
-            if (conv != O_POS) {
+            if (conv != &o_POS) {
                 push_oper(conv, cpoint);
             }
             if (stop) break;
-            push_oper(O_SEPARATOR, epoint);
+            push_oper(&o_SEPARATOR, epoint);
             lpoint.pos++;
             goto rest;
-        case '&': epoints[operp] = epoint; o_oper[operp++] = O_AND; lpoint.pos++;continue;
-        case '.': epoints[operp] = epoint; o_oper[operp++] = O_OR; lpoint.pos++;continue;
-        case ':': epoints[operp] = epoint; o_oper[operp++] = O_XOR; lpoint.pos++;continue;
-        case '*': epoints[operp] = epoint; o_oper[operp++] = O_MUL; lpoint.pos++;continue;
-        case '/': epoints[operp] = epoint; o_oper[operp++] = O_DIV; lpoint.pos++;continue;
-        case '+': epoints[operp] = epoint; o_oper[operp++] = O_ADD; lpoint.pos++;continue;
-        case '-': epoints[operp] = epoint; o_oper[operp++] = O_SUB; lpoint.pos++;continue;
+        case '&': epoints[operp] = epoint; o_oper[operp++] = &o_AND; lpoint.pos++;continue;
+        case '.': epoints[operp] = epoint; o_oper[operp++] = &o_OR; lpoint.pos++;continue;
+        case ':': epoints[operp] = epoint; o_oper[operp++] = &o_XOR; lpoint.pos++;continue;
+        case '*': epoints[operp] = epoint; o_oper[operp++] = &o_MUL; lpoint.pos++;continue;
+        case '/': epoints[operp] = epoint; o_oper[operp++] = &o_DIV; lpoint.pos++;continue;
+        case '+': epoints[operp] = epoint; o_oper[operp++] = &o_ADD; lpoint.pos++;continue;
+        case '-': epoints[operp] = epoint; o_oper[operp++] = &o_SUB; lpoint.pos++;continue;
         case ')':
             if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
             lpoint.pos++;
@@ -566,13 +557,13 @@ rest:
             goto other;
         case 0:
         case ';':
-            if (conv != O_POS) {
+            if (conv != &o_POS) {
                 push_oper(conv, cpoint);
             }
             break;
         default: goto syntaxe;
         }
-        if (stop && o_oper[0] == O_PARENT) {
+        if (stop && o_oper[0] == &o_PARENT) {
             if (!operp) {cd=3;break;}
             if (operp==1 && ch == ',') {cd=2; break;}
         }
@@ -625,11 +616,13 @@ static int get_val2_compat(struct eval_context_s *ev) {// length in bytes, defin
                 if (!values) err_msg_out_of_memory();
                 for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
             }
-            val_replace(&values[vsp].val, val);
+            val_destroy(values[vsp].val);
+            values[vsp].val = val;
+            o_out->val = &none_value;
             values[vsp++].epoint = o_out->epoint;
             continue;
         }
-        op = val->u.oper;
+        op = val->u.oper.op;
 
         if (op == O_SEPARATOR) {
             ev->outp2 = i + 1;
@@ -1896,8 +1889,7 @@ static void slices(struct values_s *vals, unsigned int args) {
     return;
 }
 
-/* return templates only! */
-static const struct value_s *apply_op(enum oper_e op, struct value_s *v1, linepos_t epoint, linepos_t epoint2, int *large) {
+static void apply_op(enum oper_e op, struct value_s *v1, struct value_s *v, linepos_t epoint, linepos_t epoint2, int *large) {
     enum type_e t1;
     struct value_s tmp1;
     char line[linelength]; 
@@ -1906,77 +1898,78 @@ static const struct value_s *apply_op(enum oper_e op, struct value_s *v1, linepo
     t1 = v1->type;
 strretr:
     if (t1 == T_NONE) {
-        return &none_value;
+        v->type = T_NONE;
+        return;
     }
 
     if (type_is_int(t1)) {
         switch (op) {
         case O_LOWER:
-            new_value.type = T_NUM;
-            new_value.u.num.len = 8;
-            new_value.u.num.val = (uint8_t)v1->u.num.val;
-            return &new_value;
+            v->type = T_NUM;
+            v->u.num.len = 8;
+            v->u.num.val = (uint8_t)v1->u.num.val;
+            return;
         case O_HIGHER: 
-            new_value.type = T_NUM;
-            new_value.u.num.len = 8;
-            new_value.u.num.val = (uint8_t)(v1->u.num.val >> 8);
-            return &new_value;
+            v->type = T_NUM;
+            v->u.num.len = 8;
+            v->u.num.val = (uint8_t)(v1->u.num.val >> 8);
+            return;
         case O_BANK: 
-            new_value.type = T_NUM;
-            new_value.u.num.len = 8;
-            new_value.u.num.val = (uint8_t)(v1->u.num.val >> 16);
-            return &new_value;
+            v->type = T_NUM;
+            v->u.num.len = 8;
+            v->u.num.val = (uint8_t)(v1->u.num.val >> 16);
+            return;
         case O_BSWORD:
-            new_value.type = T_NUM;
-            new_value.u.num.len = 16;
-            new_value.u.num.val = (uint8_t)(v1->u.num.val >> 8) | (uint16_t)(v1->u.num.val << 8);
-            return &new_value;
+            v->type = T_NUM;
+            v->u.num.len = 16;
+            v->u.num.val = (uint8_t)(v1->u.num.val >> 8) | (uint16_t)(v1->u.num.val << 8);
+            return;
         case O_HWORD: 
-            new_value.type = T_NUM;
-            new_value.u.num.len = 16;
-            new_value.u.num.val = (uint16_t)(v1->u.num.val >> 8);
-            return &new_value;
+            v->type = T_NUM;
+            v->u.num.len = 16;
+            v->u.num.val = (uint16_t)(v1->u.num.val >> 8);
+            return;
         case O_WORD: 
-            new_value.type = T_NUM;
-            new_value.u.num.len = 16;
-            new_value.u.num.val = (uint16_t)v1->u.num.val;
-            return &new_value;
+            v->type = T_NUM;
+            v->u.num.len = 16;
+            v->u.num.val = (uint16_t)v1->u.num.val;
+            return;
         case O_INV:
             if (t1 == T_NUM) {
-                new_value.type = T_NUM;
-                new_value.u.num.len = v1->u.num.len;
-            } else new_value.type = T_SINT;
-            new_value.u.num.val = ~v1->u.num.val;
-            return &new_value;
+                v->type = T_NUM;
+                v->u.num.len = v1->u.num.len;
+            } else v->type = T_SINT;
+            v->u.num.val = ~v1->u.num.val;
+            return;
         case O_NEG: 
             if (t1 == T_NUM) {
-                new_value.type = T_NUM;
-                new_value.u.num.len = v1->u.num.len;
-            } else new_value.type = T_SINT;
-            new_value.u.num.val = -v1->u.num.val;
-            return &new_value;
+                v->type = T_NUM;
+                v->u.num.len = v1->u.num.len;
+            } else v->type = T_SINT;
+            v->u.num.val = -v1->u.num.val;
+            return;
         case O_POS:
             if (t1 == T_NUM) {
-                new_value.type = T_NUM;
-                new_value.u.num.len = v1->u.num.len;
-            } else new_value.type = T_SINT;
-            new_value.u.num.val = v1->u.num.val;
-            return &new_value;
+                v->type = T_NUM;
+                v->u.num.len = v1->u.num.len;
+            } else v->type = T_SINT;
+            v->u.num.val = v1->u.num.val;
+            return;
         case O_STRING:
             {
                 uint8_t *s;
-                sprintf(line, (v1->type == T_SINT) ? "%" PRIdval : "%" PRIuval, v1->u.num.val);
-                new_value.type = T_STR;
-                new_value.u.str.len = strlen(line);
-                new_value.u.str.chars = new_value.u.str.len;
-                s = malloc(new_value.u.str.len);
+                v->type = T_STR;
+                v->u.str.len = sprintf(line, (v1->type == T_SINT) ? "%" PRIdval : "%" PRIuval, v1->u.num.val);
+                v->u.str.chars = v->u.str.len;
+                s = malloc(v->u.str.len);
                 if (!s) err_msg_out_of_memory();
-                memcpy(s, line, new_value.u.str.len);
-                new_value.u.str.data = s;
-                return &new_value;
+                memcpy(s, line, v->u.str.len);
+                v->u.str.data = s;
+                return;
             }
         default: err_msg_invalid_oper(op, v1, NULL, epoint2); 
-                 return &none_value;
+                 v->type = T_NONE;
+                 return;
         }
     }
     if (t1 == T_CODE) {
@@ -1998,7 +1991,8 @@ strretr:
             t1 = v1->type;
             goto strretr;
         default: err_msg_invalid_oper(op, v1, NULL, epoint2); 
-                 return &none_value;
+                 v->type = T_NONE;
+                 return;
         }
     }
     if (t1 == T_STR) {
@@ -2019,19 +2013,22 @@ strretr:
             t1 = v1->type;
             goto strretr;
         case O_STRING:
-            new_value.type = T_STR;
-            new_value.u.str.len = v1->u.str.len;
-            new_value.u.str.chars = v1->u.str.chars;
-            if (new_value.u.str.len) {
+            if (v == v1) return;
+            v->type = T_STR;
+            v->u.str.len = v1->u.str.len;
+            v->u.str.chars = v1->u.str.chars;
+            if (v->u.str.len) {
                 uint8_t *s;
-                s = malloc(new_value.u.str.len);
+                s = malloc(v->u.str.len);
                 if (!s) err_msg_out_of_memory();
-                memcpy(s, v1->u.str.data, new_value.u.str.len);
-                new_value.u.str.data = s;
-            } else new_value.u.str.data = NULL;
-            return &new_value;
+                memcpy(s, v1->u.str.data, v->u.str.len);
+                v->u.str.data = s;
+            } else v->u.str.data = NULL;
+            return;
         default: err_msg_invalid_oper(op, v1, NULL, epoint2);
-                 return &none_value;
+                 if (v == v1) free((uint8_t*)v1->u.str.data);
+                 v->type = T_NONE;
+                 return;
         }
     }
     if (t1 == T_FLOAT) {
@@ -2048,35 +2045,36 @@ strretr:
             t1 = v1->type;
             goto strretr;
         case O_INV:
-            new_value.type = T_FLOAT;
-            new_value.u.real = -v1->u.real-1.0;
-            return &new_value;
+            v->type = T_FLOAT;
+            v->u.real = -v1->u.real-1.0;
+            return;
         case O_NEG:
-            new_value.type = T_FLOAT;
-            new_value.u.real = -v1->u.real;
-            return &new_value;
+            v->type = T_FLOAT;
+            v->u.real = -v1->u.real;
+            return;
         case O_POS:
-            new_value.type = T_FLOAT;
-            new_value.u.real = v1->u.real;
-            return &new_value;
+            v->type = T_FLOAT;
+            v->u.real = v1->u.real;
+            return;
         case O_STRING:
             {
                 int i = 0;
                 uint8_t *s;
                 sprintf(line, "%.10g", v1->u.real);
                 while (line[i] && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
-                if (!line[i]) {line[i++]='.';line[i++]='0';line[i]=0;}
-                new_value.type = T_STR;
-                new_value.u.str.len = strlen(line);
-                new_value.u.str.chars = new_value.u.str.len;
-                s = malloc(new_value.u.str.len);
+                if (!line[i]) {line[i++]='.';line[i++]='0';}
+                v->type = T_STR;
+                v->u.str.len = i;
+                v->u.str.chars = v->u.str.len;
+                s = malloc(v->u.str.len);
                 if (!s) err_msg_out_of_memory();
-                memcpy(s, line, new_value.u.str.len);
-                new_value.u.str.data = s;
-                return &new_value;
+                memcpy(s, line, v->u.str.len);
+                v->u.str.data = s;
+                return;
             }
         default: err_msg_invalid_oper(op, v1, NULL, epoint2);
-                 return &none_value;
+                 v->type = T_NONE;
+                 return;
         }
     }
     if (t1 == T_LIST || t1 == T_TUPLE) {
@@ -2094,27 +2092,40 @@ strretr:
             {
                 size_t i = 0;
                 struct value_s **vals;
-                const struct value_s *val;
+                if (v == v1) {
+                    for (;i < v1->u.list.len; i++) {
+                        if (v1->u.list.data[i]->refcount != 1) {
+                            apply_op(op, v1->u.list.data[i], &new_value, epoint, epoint2, large);
+                            val_replace_template(v1->u.list.data + i, &new_value);
+                        } else apply_op(op, v1->u.list.data[i], v1->u.list.data[i], epoint, epoint2, large);
+                    }
+                    return;
+                }
                 if (v1->u.list.len) {
                     vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                     if (!vals) err_msg_out_of_memory();
                     for (;i < v1->u.list.len; i++) {
-                        val = apply_op(op, v1->u.list.data[i], epoint, epoint2, large);
-                        val_set_template(vals + i, val);
+                        vals[i] = val_alloc();
+                        vals[i]->refcount = 1;
+                        apply_op(op, v1->u.list.data[i], vals[i], epoint, epoint2, large);
                     }
                 } else vals = NULL;
-                new_value.type = t1;
-                new_value.u.list.len = i;
-                new_value.u.list.data = vals;
-                return &new_value;
+                v->type = t1;
+                v->u.list.len = i;
+                v->u.list.data = vals;
+                return;
             }
         default: err_msg_invalid_oper(op, v1, NULL, epoint2); 
-                 return &none_value;
+                 if (v == v1) free(v1->u.list.data);
+                 v->type = T_NONE;
+                 return;
         }
     }
     if (t1 == T_UNDEF) err_msg_wrong_type(v1, epoint); 
     else err_msg_invalid_oper(op, v1, NULL, epoint2);
-    return &none_value;
+    if (v == v1) val_destroy2(v1);
+    v->type = T_NONE;
+    return;
 }
 
 static inline uint8_t addlen(int l1, int l2) {
@@ -3002,7 +3013,7 @@ static int get_val2(struct eval_context_s *ev) {
     for (i = ev->outp2; i < ev->outp; i++) {
         o_out = &ev->o_out[i];
         val = o_out->val;
-        op = val->u.oper;
+        op = val->u.oper.op;
         if (val->type != T_OPER || op == O_PARENT || op == O_BRACKET) {
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
@@ -3011,7 +3022,9 @@ static int get_val2(struct eval_context_s *ev) {
                 if (!values) err_msg_out_of_memory();
                 for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
             }
-            val_replace(&values[vsp].val, val);
+            val_destroy(values[vsp].val);
+            values[vsp].val = val;
+            o_out->val = &none_value;
             values[vsp++].epoint = o_out->epoint;
             continue;
         }
@@ -3072,7 +3085,7 @@ static int get_val2(struct eval_context_s *ev) {
             {
                 unsigned int args = 0, slice = (op == O_SLICE || op == O_SLICE2);
                 op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
-                while (v1->val->type != T_OPER || v1->val->u.oper != op) {
+                while (v1->val->type != T_OPER || v1->val->u.oper.op != op) {
                     args++;
                     v1 = &values[vsp-1-args];
                 }
@@ -3089,7 +3102,7 @@ static int get_val2(struct eval_context_s *ev) {
             {
                 unsigned int args = 0, args2, tup = (op == O_RPARENT);
                 op = (op == O_RBRACKET || op == O_LIST) ? O_BRACKET : O_PARENT;
-                while (v1->val->type != T_OPER || v1->val->u.oper != op) {
+                while (v1->val->type != T_OPER || v1->val->u.oper.op != op) {
                     args++;
                     if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
@@ -3117,7 +3130,8 @@ static int get_val2(struct eval_context_s *ev) {
                             vsp -= args + 1;
                             break;
                         } 
-                        val->u.list.data[args] = val_reference(values[vsp-1].val);
+                        val->u.list.data[args] = values[vsp-1].val;
+                        values[vsp-1].val = &none_value;
                         vsp--;
                     }
                 } else val->u.list.data = NULL;
@@ -3170,10 +3184,11 @@ static int get_val2(struct eval_context_s *ev) {
         case O_NEG: // -
         case O_POS: // +
             {
-                const struct value_s *tmp;
                 try_resolv_ident(&v1->val);
-                tmp = apply_op(op, v1->val, v1->epoint, o_out->epoint, &large);
-                val_replace_template(&v1->val, tmp);
+                if (v1->val->refcount != 1) {
+                    apply_op(op, v1->val, &new_value, v1->epoint, o_out->epoint, &large);
+                    val_replace_template(&v1->val, &new_value);
+                } else apply_op(op, v1->val, v1->val, v1->epoint, o_out->epoint, &large);
                 v1->epoint = o_out->epoint;
                 continue;
             }
@@ -3270,7 +3285,7 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     int cd;
     char ch;
 
-    enum oper_e o_oper[256] = {0}, op;
+    struct value_s *o_oper[256] = {0}, *op;
     linepos_t epoints[256];
     uint8_t operp = 0, prec, db;
     int large=0;
@@ -3305,23 +3320,23 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         switch (ch) {
         case ')':
             if (operp) {
-                if (o_oper[operp-1] == O_COMMA) {operp--;op = O_TUPLE;goto tphack;}
-                else if (o_oper[operp-1] == O_PARENT || o_oper[operp-1] == O_FUNC) goto other;
+                if (o_oper[operp-1] == &o_COMMA) {operp--;op = &o_TUPLE;goto tphack;}
+                else if (o_oper[operp-1] == &o_PARENT || o_oper[operp-1] == &o_FUNC) goto other;
             }
             goto tryanon;
         case ']':
             if (operp) { 
-                if (o_oper[operp-1] == O_COMMA) {operp--;op = O_LIST;goto lshack;}
-                else if (o_oper[operp-1] == O_COLON3) {operp--;goto other;}
-                else if (o_oper[operp-1] == O_BRACKET) goto other;
+                if (o_oper[operp-1] == &o_COMMA) {operp--;op = &o_LIST;goto lshack;}
+                else if (o_oper[operp-1] == &o_COLON3) {operp--;goto other;}
+                else if (o_oper[operp-1] == &o_BRACKET) goto other;
             }
             goto tryanon;
         case ':':
-            if (operp && o_oper[operp-1] == O_INDEX) {
+            if (operp && o_oper[operp-1] == &o_INDEX) {
                 val = push(epoint);
                 val->type = T_DEFAULT;
                 goto other;
-            } else if (operp > 1 && o_oper[operp-1] == O_COLON3 && o_oper[operp-2] == O_SLICE) {
+            } else if (operp > 1 && o_oper[operp-1] == &o_COLON3 && o_oper[operp-2] == &o_SLICE) {
                 val = push(epoint);
                 val->type = T_DEFAULT;
                 goto other;
@@ -3329,22 +3344,22 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             goto syntaxe;
         case '(': 
             epoints[operp]=epoint;
-            o_oper[operp++] = O_PARENT; lpoint.pos++;
-            push_oper(O_PARENT, epoint);
+            o_oper[operp++] = &o_PARENT; lpoint.pos++;
+            push_oper(&o_PARENT, epoint);
             continue;
         case '[':
             epoints[operp]=epoint;
-            o_oper[operp++] = O_BRACKET; lpoint.pos++;
-            push_oper(O_BRACKET, epoint);
+            o_oper[operp++] = &o_BRACKET; lpoint.pos++;
+            push_oper(&o_BRACKET, epoint);
             continue;
-        case '+': op = O_POS; break;
-        case '-': op = O_NEG; break;
-        case '!': op = O_LNOT;break;
-        case '~': op = O_INV; break;
-        case '<': if (pline[lpoint.pos+1] == '>') {lpoint.pos++;op = O_WORD;} else op = O_LOWER; break;
-        case '>': if (pline[lpoint.pos+1] == '`') {lpoint.pos++;op = O_HWORD;} else if (pline[lpoint.pos+1] == '<') {lpoint.pos++;op = O_BSWORD;} else op = O_HIGHER; break;
-        case '`': op = O_BANK; break;
-        case '^': op = O_STRING; break;
+        case '+': op = &o_POS; break;
+        case '-': op = &o_NEG; break;
+        case '!': op = &o_LNOT;break;
+        case '~': op = &o_INV; break;
+        case '<': if (pline[lpoint.pos+1] == '>') {lpoint.pos++;op = &o_WORD;} else op = &o_LOWER; break;
+        case '>': if (pline[lpoint.pos+1] == '`') {lpoint.pos++;op = &o_HWORD;} else if (pline[lpoint.pos+1] == '<') {lpoint.pos++;op = &o_BSWORD;} else op = &o_HIGHER; break;
+        case '`': op = &o_BANK; break;
+        case '^': op = &o_STRING; break;
         case '$': lpoint.pos++;val = push(epoint);if (get_hex(val)) goto pushlarge;goto other;
         case '%': lpoint.pos++;val = push(epoint);if (get_bin(val)) goto pushlarge;goto other;
         case '"':
@@ -3374,14 +3389,14 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             }
         tryanon:
             db = operp;
-            while (operp && o_oper[operp-1] == O_POS) operp--;
+            while (operp && o_oper[operp-1] == &o_POS) operp--;
             if (db != operp) {
                 val = push(epoints[operp]);
                 val->type = T_FORWR;
                 val->u.ref = db - operp;
                 goto other;
             }
-            while (operp && o_oper[operp-1] == O_NEG) operp--;
+            while (operp && o_oper[operp-1] == &o_NEG) operp--;
             if (db != operp) {
                 val = push(epoints[operp]);
                 val->type = T_BACKR;
@@ -3391,8 +3406,8 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             goto syntaxe;
         }
         lpoint.pos++;
-        prec = priority(op);
-        while (operp && prec < priority(o_oper[operp-1])) {
+        prec = op->u.oper.prio;
+        while (operp && prec < o_oper[operp-1]->u.oper.prio) {
             operp--;
             push_oper(o_oper[operp], epoints[operp]);
         }
@@ -3404,71 +3419,71 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
         switch (ch) {
         case ',':
             if (stop) {
-                while (operp && o_oper[operp-1] != O_PARENT) {
-                    if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE || o_oper[operp-1]==O_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
+                while (operp && o_oper[operp-1] != &o_PARENT) {
+                    if (o_oper[operp-1] == &o_BRACKET || o_oper[operp-1] == &o_INDEX || o_oper[operp-1] == &o_SLICE || o_oper[operp-1] == &o_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
                     operp--;
                     push_oper(o_oper[operp], epoints[operp]);
                 }
                 if (!operp) break;
-                if (operp==1 && o_oper[0]==O_PARENT && ((pline[lpoint.pos+1] | 0x20)=='x' || (pline[lpoint.pos+1] | 0x20)=='s' || (pline[lpoint.pos+1] | 0x20)=='r') && pline[lpoint.pos+2]==')') {
+                if (operp==1 && o_oper[0] == &o_PARENT && ((pline[lpoint.pos+1] | 0x20)=='x' || (pline[lpoint.pos+1] | 0x20)=='s' || (pline[lpoint.pos+1] | 0x20)=='r') && pline[lpoint.pos+2]==')') {
                     eval->outp2++;
                     break;
                 }
             }
-            op = O_COMMA; goto push2; 
+            op = &o_COMMA; goto push2; 
         case '(':
-            prec = priority(O_MEMBER);
-            while (operp && prec <= priority(o_oper[operp-1])) {
+            prec = o_MEMBER.u.oper.prio;
+            while (operp && prec <= o_oper[operp-1]->u.oper.prio) {
                 operp--;
                 push_oper(o_oper[operp], epoints[operp]);
             }
-            push_oper(O_PARENT, epoint);
+            push_oper(&o_PARENT, epoint);
             epoints[operp]=epoint;
-            o_oper[operp++] = O_FUNC; lpoint.pos++;
+            o_oper[operp++] = &o_FUNC; lpoint.pos++;
             continue;
         case '[':
-            prec = priority(O_MEMBER);
-            while (operp && prec <= priority(o_oper[operp-1])) {
+            prec = o_MEMBER.u.oper.prio;
+            while (operp && prec <= o_oper[operp-1]->u.oper.prio) {
                 operp--;
                 push_oper(o_oper[operp], epoints[operp]);
             }
-            push_oper(O_BRACKET, epoint);
-            epoints[operp]=epoint;
-            o_oper[operp++] = O_INDEX; lpoint.pos++;
+            push_oper(&o_BRACKET, epoint);
+            epoints[operp] = epoint;
+            o_oper[operp++] = &o_INDEX; lpoint.pos++;
             continue;
-        case '&': if (pline[lpoint.pos+1] == '&') {lpoint.pos++;op = O_LAND;} else op = O_AND; goto push2;
-        case '|': if (pline[lpoint.pos+1] == '|') {lpoint.pos++;op = O_LOR;} else op = O_OR;goto push2;
-        case '^': if (pline[lpoint.pos+1] == '^') {lpoint.pos++;op = O_LXOR;} else op = O_XOR; goto push2;
-        case '*': if (pline[lpoint.pos+1] == '*') {lpoint.pos++;op = O_EXP;} else op = O_MUL; goto push2;
-        case '%': op = O_MOD; goto push2;
-        case '/': if (pline[lpoint.pos+1] == '/') {lpoint.pos++;op = O_MOD;} else op = O_DIV; goto push2;
-        case '+': op = O_ADD; goto push2;
-        case '-': op = O_SUB; goto push2;
-        case '.': if (pline[lpoint.pos+1] == '.') {lpoint.pos++;op = O_CONCAT;} else op = O_MEMBER; goto push2;
-        case '?': op = O_QUEST; prec = priority(O_COND) + 1; goto push3;
-        case ':': op = O_COLON;
-            prec = priority(op) + 1;
-            while (operp && prec <= priority(o_oper[operp-1])) {
+        case '&': if (pline[lpoint.pos+1] == '&') {lpoint.pos++;op = &o_LAND;} else op = &o_AND; goto push2;
+        case '|': if (pline[lpoint.pos+1] == '|') {lpoint.pos++;op = &o_LOR;} else op = &o_OR;goto push2;
+        case '^': if (pline[lpoint.pos+1] == '^') {lpoint.pos++;op = &o_LXOR;} else op = &o_XOR; goto push2;
+        case '*': if (pline[lpoint.pos+1] == '*') {lpoint.pos++;op = &o_EXP;} else op = &o_MUL; goto push2;
+        case '%': op = &o_MOD; goto push2;
+        case '/': if (pline[lpoint.pos+1] == '/') {lpoint.pos++;op = &o_MOD;} else op = &o_DIV; goto push2;
+        case '+': op = &o_ADD; goto push2;
+        case '-': op = &o_SUB; goto push2;
+        case '.': if (pline[lpoint.pos+1] == '.') {lpoint.pos++;op = &o_CONCAT;} else op = &o_MEMBER; goto push2;
+        case '?': op = &o_QUEST; prec = o_COND.u.oper.prio + 1; goto push3;
+        case ':': op = &o_COLON;
+            prec = op->u.oper.prio + 1;
+            while (operp && prec <= o_oper[operp-1]->u.oper.prio) {
                 operp--;
                 push_oper(o_oper[operp], epoints[operp]);
             }
-            if (operp && o_oper[operp-1] == O_INDEX) { o_oper[operp-1] = O_SLICE; op = O_COLON3;}
-            else if (operp && o_oper[operp-1] == O_SLICE) { o_oper[operp-1] = O_SLICE2; op = O_COLON3;}
-            else if (operp && o_oper[operp-1] == O_QUEST) { o_oper[operp-1] = O_COND; op = O_COLON2;}
+            if (operp && o_oper[operp-1] == &o_INDEX) { o_oper[operp-1] = &o_SLICE; op = &o_COLON3;}
+            else if (operp && o_oper[operp-1] == &o_SLICE) { o_oper[operp-1] = &o_SLICE2; op = &o_COLON3;}
+            else if (operp && o_oper[operp-1] == &o_QUEST) { o_oper[operp-1] = &o_COND; op = &o_COLON2;}
             epoints[operp] = epoint;
             o_oper[operp++] = op;
             lpoint.pos++;
             continue;
-        case '=': op = O_EQ; if (pline[lpoint.pos+1] == '=') lpoint.pos++;
+        case '=': op = &o_EQ; if (pline[lpoint.pos+1] == '=') lpoint.pos++;
         push2:
-            prec = priority(op);
+            prec = op->u.oper.prio;
         push3:
-            while (operp && prec <= priority(o_oper[operp-1])) {
+            while (operp && prec <= o_oper[operp-1]->u.oper.prio) {
                 operp--;
                 push_oper(o_oper[operp], epoints[operp]);
             }
             if (ch == ',' && !operp) {
-                push_oper(O_SEPARATOR, epoint);
+                push_oper(&o_SEPARATOR, epoint);
             } else {
                 epoints[operp] = epoint;
                 o_oper[operp++] = op;
@@ -3477,76 +3492,76 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
             continue;
         case '<': 
             switch (pline[lpoint.pos+1]) {
-            case '>': lpoint.pos++;op = O_NEQ; break;
-            case '<': lpoint.pos++;op = O_LSHIFT; break;
-            case '=': lpoint.pos++;op = O_LE; break;
-            default: op = O_LT; break;
+            case '>': lpoint.pos++;op = &o_NEQ; break;
+            case '<': lpoint.pos++;op = &o_LSHIFT; break;
+            case '=': lpoint.pos++;op = &o_LE; break;
+            default: op = &o_LT; break;
             }
             goto push2;
         case '>':
             switch (pline[lpoint.pos+1]) {
-            case '<': lpoint.pos++;op = O_NEQ; break;
-            case '>': lpoint.pos++;if (pline[lpoint.pos+1] == '>') {lpoint.pos++;op = O_RSHIFT;} else op = O_ASHIFT; break;
-            case '=': lpoint.pos++;op = O_GE; break;
-            default: op = O_GT; break;
+            case '<': lpoint.pos++;op = &o_NEQ; break;
+            case '>': lpoint.pos++;if (pline[lpoint.pos+1] == '>') {lpoint.pos++;op = &o_RSHIFT;} else op = &o_ASHIFT; break;
+            case '=': lpoint.pos++;op = &o_GE; break;
+            default: op = &o_GT; break;
             }
             goto push2;
         case '!':
-            if (pline[lpoint.pos+1]=='=') {lpoint.pos++;op = O_NEQ;goto push2;}
+            if (pline[lpoint.pos+1]=='=') {lpoint.pos++;op = &o_NEQ;goto push2;}
             goto syntaxe;
         case ')':
-            op = O_RPARENT;
+            op = &o_RPARENT;
         tphack:
-            while (operp && o_oper[operp-1] != O_PARENT && o_oper[operp-1] != O_FUNC) {
-                if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE || o_oper[operp-1]==O_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
+            while (operp && o_oper[operp-1] != &o_PARENT && o_oper[operp-1] != &o_FUNC) {
+                if (o_oper[operp-1] == &o_BRACKET || o_oper[operp-1] == &o_INDEX || o_oper[operp-1] == &o_SLICE || o_oper[operp-1] == &o_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
                 operp--;
                 push_oper(o_oper[operp], epoints[operp]);
             }
             lpoint.pos++;
             if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
             operp--;
-            push_oper((o_oper[operp] == O_PARENT)? op : o_oper[operp], epoints[operp]);
+            push_oper((o_oper[operp] == &o_PARENT)? op : o_oper[operp], epoints[operp]);
             goto other;
         case ']':
-            op = O_RBRACKET;
+            op = &o_RBRACKET;
         lshack:
-            while (operp && o_oper[operp-1] != O_BRACKET && o_oper[operp-1] != O_INDEX && o_oper[operp-1] != O_SLICE && o_oper[operp-1] != O_SLICE2) {
-                if (o_oper[operp-1]==O_PARENT || o_oper[operp-1]==O_FUNC) {err_msg(ERROR______EXPECTED,"["); goto error;}
+            while (operp && o_oper[operp-1] != &o_BRACKET && o_oper[operp-1] != &o_INDEX && o_oper[operp-1] != &o_SLICE && o_oper[operp-1] != &o_SLICE2) {
+                if (o_oper[operp-1] == &o_PARENT || o_oper[operp-1] == &o_FUNC) {err_msg(ERROR______EXPECTED,"["); goto error;}
                 operp--;
                 push_oper(o_oper[operp], epoints[operp]);
             }
             lpoint.pos++;
             if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
             operp--;
-            push_oper((o_oper[operp] == O_BRACKET) ? op : o_oper[operp], epoints[operp]);
+            push_oper((o_oper[operp] == &o_BRACKET) ? op : o_oper[operp], epoints[operp]);
             goto other;
         case 0:
         case ';': break;
         default: 
             switch (get_label()) {
-            case 1: if (pline[epoint.pos] == 'x') {op = O_X;goto push2;} break;
-            case 2: if (pline[epoint.pos] == 'i' && pline[epoint.pos + 1] == 'n') {op = O_IN;goto push2;} break;
+            case 1: if (pline[epoint.pos] == 'x') {op = &o_X;goto push2;} break;
+            case 2: if (pline[epoint.pos] == 'i' && pline[epoint.pos + 1] == 'n') {op = &o_IN;goto push2;} break;
             }
             goto syntaxe;
         }
-        if (stop && o_oper[0]==O_PARENT) {
+        if (stop && o_oper[0] == &o_PARENT) {
             if (!operp) {cd=3;break;}
             if (ch == ',') {
-                while (operp && o_oper[operp-1] != O_PARENT) {
-                    if (o_oper[operp-1]==O_BRACKET || o_oper[operp-1]==O_INDEX || o_oper[operp-1]==O_SLICE || o_oper[operp-1]==O_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
+                while (operp && o_oper[operp-1] != &o_PARENT) {
+                    if (o_oper[operp-1] == &o_BRACKET || o_oper[operp-1] == &o_INDEX || o_oper[operp-1] == &o_SLICE || o_oper[operp-1] == &o_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
                     operp--;
                     push_oper(o_oper[operp], epoints[operp]);
                 }
                 if (operp==1) {cd=2; break;}
             }
             err_msg(ERROR______EXPECTED,")"); goto error;
-        } else if (stop && o_oper[0]==O_BRACKET) {
+        } else if (stop && o_oper[0] == &o_BRACKET) {
             if (!operp) {cd=4;break;}
             err_msg(ERROR______EXPECTED,"]"); goto error;
         } else {
             while (operp) {
-                if (o_oper[operp-1] == O_PARENT || o_oper[operp-1] == O_FUNC) {err_msg(ERROR______EXPECTED,")"); goto error;}
-                if (o_oper[operp-1] == O_BRACKET || o_oper[operp-1] == O_INDEX || o_oper[operp-1]==O_SLICE || o_oper[operp-1]==O_SLICE2) {err_msg(ERROR______EXPECTED,"]"); goto error;}
+                if (o_oper[operp-1] == &o_PARENT || o_oper[operp-1] == &o_FUNC) {err_msg(ERROR______EXPECTED,")"); goto error;}
+                if (o_oper[operp-1] == &o_BRACKET || o_oper[operp-1] == &o_INDEX || o_oper[operp-1] == &o_SLICE || o_oper[operp-1] == &o_SLICE2) {err_msg(ERROR______EXPECTED,"]"); goto error;}
                 operp--;
                 push_oper(o_oper[operp], epoints[operp]);
             }

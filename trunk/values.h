@@ -168,13 +168,18 @@ struct value_s {
             const struct file_s *file;
             const struct label_s *parent;
         } lbl;
-        enum oper_e oper;
+        struct {
+            enum oper_e op;
+            int prio;
+        } oper;
         uint8_t ref;
         double real;
     } u;
 };
 
+extern struct value_s *val_alloc(void);
 extern void val_destroy(struct value_s *);
+extern void val_destroy2(struct value_s *);
 extern void val_replace(struct value_s **, struct value_s *);
 extern void val_replace_template(struct value_s **, const struct value_s *);
 extern struct value_s *val_realloc(struct value_s **);
