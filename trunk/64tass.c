@@ -1230,33 +1230,40 @@ struct value_s *compile(struct file_s *cfile)
                     if (close_waitfor(W_ENDF)) {
                         lpoint.pos += strlen((const char *)pline + lpoint.pos);
                     } else if (close_waitfor(W_ENDF2)) {
-                        size_t ln = 0;
-                        nobreak=0;
-                        new_value.u.list.len = 0;
-                        new_value.u.list.data = NULL;
+                        size_t ln = 0, i = 0;
+                        struct value_s **vals = NULL;
+                        nobreak = 0;
                         if (here() && here() != ';' && get_exp(&w,0)) {
                             while ((val = get_val(T_NONE, &epoint))) {
-                                if (new_value.u.list.len >= ln) {
-                                    ln += 16;
-                                    new_value.u.list.data = realloc(new_value.u.list.data, ln * sizeof(new_value.u.list.data[0]));
-                                    if (!new_value.u.list.data) err_msg_out_of_memory();
-                                }
-                                new_value.u.list.data[new_value.u.list.len++] = val_reference(val);
+                                if (i) {
+                                    if (i >= ln) {
+                                        ln += 16;
+                                        vals = realloc(vals, ln * sizeof(retval->u.list.data[0]));
+                                        if (!vals) err_msg_out_of_memory();
+                                    }
+                                    if (i == 1) vals[0] = retval;
+                                    vals[i] = val_reference(val);
+                                } else retval = val_reference(val);
+                                i++;
                             }
                             eval_finish();
                         }
-                        if (new_value.u.list.len == 1) {
-                            retval = new_value.u.list.data[0];
-                            free(new_value.u.list.data);
-                        } else if (new_value.u.list.len > 1) {
-                            new_value.type = T_TUPLE;
-                            new_value.u.list.data = realloc(new_value.u.list.data, new_value.u.list.len * sizeof(new_value.u.list.data[0]));
-                            if (!new_value.u.list.data) err_msg_out_of_memory();
-                            retval = val_reference(&new_value);
-                            val_destroy(&new_value);
-                        } else {
-                            new_value.type = T_TUPLE;
-                            retval = val_reference(&new_value);
+                        if (i > 1) {
+                            retval = val_alloc();
+                            retval->refcount = 1;
+                            retval->type = T_TUPLE;
+                            retval->u.list.len = i;
+                            if (i != ln) {
+                                vals = realloc(vals, i * sizeof(val->u.list.data[0]));
+                                if (!vals) err_msg_out_of_memory();
+                            }
+                            retval->u.list.data = vals;
+                        } else if (i != 1) {
+                            retval = val_alloc();
+                            retval->refcount = 1;
+                            retval->type = T_TUPLE;
+                            retval->u.list.len = 0;
+                            retval->u.list.data = NULL;
                         }
                     } else err_msg2(ERROR______EXPECTED,".FUNCTION", epoint);
                     break;

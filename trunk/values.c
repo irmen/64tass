@@ -241,15 +241,15 @@ int val_same(const struct value_s *val, const struct value_s *val2) {
     case T_UNION:
         if (val2->type != val->type || val->u.macro.p != val2->u.macro.p || val->u.macro.file != val2->u.macro.file || val->u.macro.sline != val2->u.macro.sline || val->u.macro.size != val2->u.macro.size) return 0;
         for (i = 0; i < val->u.macro.argc; i++) {
-            if (val->u.macro.param[i].name != val2->u.macro.param[i].name || (val->u.macro.param[i].name && strcmp(val->u.macro.param[i].name, val2->u.macro.param[i].name))) return 0;
-            if (val->u.macro.param[i].init != val2->u.macro.param[i].init || (val->u.macro.param[i].init && strcmp(val->u.macro.param[i].init, val2->u.macro.param[i].init))) return 0;
+            if (val->u.macro.param[i].name != val2->u.macro.param[i].name && (!val->u.macro.param[i].name || !val2->u.macro.param[i].name || strcmp(val->u.macro.param[i].name, val2->u.macro.param[i].name))) return 0;
+            if (val->u.macro.param[i].init != val2->u.macro.param[i].init && (!val->u.macro.param[i].init || !val2->u.macro.param[i].init || strcmp(val->u.macro.param[i].init, val2->u.macro.param[i].init))) return 0;
         }
         return 1;
     case T_FUNCTION:
         if (val2->type != val->type || val->u.func.p != val2->u.func.p || val->u.func.file != val2->u.func.file || val->u.func.sline != val2->u.func.sline || val->u.func.context != val2->u.func.context) return 0;
         for (i = 0; i < val->u.func.argc; i++) {
-            if (val->u.func.param[i].name != val2->u.func.param[i].name || (val->u.func.param[i].name && strcmp(val->u.func.param[i].name, val2->u.func.param[i].name))) return 0;
-            if (val->u.func.param[i].init != val2->u.func.param[i].init || (val->u.func.param[i].init && !val_same(val->u.func.param[i].init, val2->u.func.param[i].init))) return 0;
+            if (val->u.func.param[i].name != val2->u.func.param[i].name && (!val->u.func.param[i].name || !val2->u.func.param[i].name || strcmp(val->u.func.param[i].name, val2->u.func.param[i].name))) return 0;
+            if (val->u.func.param[i].init != val2->u.func.param[i].init && (!val->u.func.param[i].init || !val2->u.func.param[i].init || !val_same(val->u.func.param[i].init, val2->u.func.param[i].init))) return 0;
             if (val->u.func.param[i].epoint.pos != val2->u.func.param[i].epoint.pos) return 0;
             if (val->u.func.param[i].epoint.upos != val2->u.func.param[i].epoint.upos) return 0;
         }
