@@ -100,7 +100,6 @@ static const char *terr_warning[]={
 
 static const char *terr_error[]={
     "double defined %s",
-    "not defined %s",
     "extra characters on line",
     "constant too large",
     "general syntax",
@@ -108,12 +107,9 @@ static const char *terr_error[]={
     "expression syntax",
     "missing argument",
     "illegal operand",
-    "requirements not met: %s",
-    "conflict: %s",
     "division by zero",
     "wrong type %s",
     "not allowed here: %s",
-    "can't calculate stable value",
     "instruction can't cross banks",
     "address out of section",
     "%s\n",
@@ -227,23 +223,56 @@ static const char *type_name(enum type_e t) {
     return NULL;
 }
 
-void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
-    const char *name = NULL;
+static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoint) {
     if (pass == 1) return;
-    if (val->type == T_UNDEF) {
-        if (errors+conderrors==99) {
-            err_msg(ERROR__TOO_MANY_ERR, NULL);
-            return;
-        }
-        addorigin(epoint);
-        adderror("error: not defined '");
-        adderror2(val->u.ident.name, val->u.ident.len);
-        adderror("'\n");
-        errors++;
+    if (errors+conderrors==99) {
+        err_msg(ERROR__TOO_MANY_ERR, NULL);
         return;
     }
+    addorigin(epoint);
+    adderror(msg);
+    if (name) {
+        adderror(" '");
+        adderror2(name->data, name->len);
+        adderror("'\n");
+    }
+    errors++;
+    return;
+}
+
+void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
+    const char *name;
+    if (val->type == T_UNDEF) {
+        err_msg_not_defined(&val->u.ident.name, epoint);
+        return;
+    }
+    if (pass == 1) return;
     name = type_name(val->type);
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
+}
+
+void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {
+    if (pass == 1) return;
+    err_msg_str_name("error: can't calculate stable value", name, epoint);
+    return;
+}
+
+void err_msg_not_defined(const str_t *name, linepos_t epoint) {
+    if (pass == 1) return;
+    err_msg_str_name("error: not defined", name, epoint);
+    return;
+}
+
+void err_msg_requires(const str_t *name, linepos_t epoint) {
+    if (pass == 1) return;
+    err_msg_str_name("error: requirements not met", name, epoint);
+    return;
+}
+
+void err_msg_conflicts(const str_t *name, linepos_t epoint) {
+    if (pass == 1) return;
+    err_msg_str_name("error: conflict", name, epoint);
+    return;
 }
 
 static void add_user_error2(struct error_s *user_error, const uint8_t *s, size_t len) {
@@ -348,7 +377,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
     }
 }
 
-void err_msg_double_defined(const char *origname, const char *file, line_t sline2, linepos_t epoint, const char *labelname2, linepos_t epoint2) {
+void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
     char line[linelength];
 
     if (errors+conderrors==99) {
@@ -358,7 +387,7 @@ void err_msg_double_defined(const char *origname, const char *file, line_t sline
 
     addorigin(epoint2);
     adderror("error: duplicate definition '");
-    adderror(labelname2);
+    adderror2(labelname2->data, labelname2->len);
     adderror("'\n");
     if (file[0]) {
         adderror(file);
@@ -367,7 +396,7 @@ void err_msg_double_defined(const char *origname, const char *file, line_t sline
         adderror("<command line>:0:0: ");
     }
     adderror("note: previous definition of '");
-    adderror(origname);
+    adderror2(name->data, name->len);
     adderror("' was here\n");
     errors++;
 }

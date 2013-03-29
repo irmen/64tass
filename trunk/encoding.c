@@ -23,7 +23,7 @@
 #include "ternary.h"
 
 struct encoding_s {
-    const char *name;
+    str_t name;
     ternary_tree escape;
     struct avltree trans;
     struct avltree_node node;
@@ -506,22 +506,20 @@ static void trans_free(struct avltree_node *aa)
 }
 
 static struct encoding_s *lasten = NULL;
-struct encoding_s *new_encoding(const char* name)
+struct encoding_s *new_encoding(const str_t *name)
 {
     struct avltree_node *b;
     struct encoding_s *tmp;
-    char *s;
 
     if (!lasten) {
         if (!(lasten = malloc(sizeof(struct encoding_s)))) {
             err_msg_out_of_memory();
         }
     }
-    lasten->name = name;
+    lasten->name = *name;
     b = avltree_insert(&lasten->node, &encoding_tree);
     if (!b) { //new encoding
-        if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
-        strcpy(s, name);lasten->name = s;
+        str_cpy(&lasten->name, name);
         lasten->escape=NULL;
         avltree_init(&lasten->trans, trans_compare, trans_free);
         tmp = lasten;
@@ -607,14 +605,14 @@ static int encoding_compare(const struct avltree_node *aa, const struct avltree_
     const struct encoding_s *a = cavltree_container_of(aa, struct encoding_s, node);
     const struct encoding_s *b = cavltree_container_of(bb, struct encoding_s, node);
 
-    return strcmp(a->name, b->name);
+    return arguments.casesensitive ? str_cmp(&a->name, &b->name) : str_casecmp(&a->name, &b->name);
 }
 
 static void encoding_free(struct avltree_node *aa)
 {
     struct encoding_s *a = avltree_container_of(aa, struct encoding_s, node);
 
-    free((char *)a->name);
+    free((char *)a->name.data);
     ternary_cleanup(a->escape);
     avltree_destroy(&a->trans);
     free(a);
@@ -642,28 +640,30 @@ void init_encoding(int toascii)
 {
     struct encoding_s *tmp;
     avltree_init(&encoding_tree, encoding_compare, encoding_free);
+    static const str_t none_enc = {4, (const uint8_t *)"none"};
+    static const str_t screen_enc = {6, (const uint8_t *)"screen"};
 
     if (!toascii) {
-        tmp = new_encoding("none");
+        tmp = new_encoding(&none_enc);
         if (!tmp) {
             return;
         }
         add_trans(no_trans, sizeof(no_trans), tmp);
 
-        tmp = new_encoding("screen");
+        tmp = new_encoding(&screen_enc);
         if (!tmp) {
             return;
         }
         add_trans(no_screen_trans, sizeof(no_screen_trans), tmp);
     } else {
-        tmp = new_encoding("none");
+        tmp = new_encoding(&none_enc);
         if (!tmp) {
             return;
         }
         add_esc(petscii_esc, tmp);
         add_trans(petscii_trans, sizeof(petscii_trans), tmp);
 
-        tmp = new_encoding("screen");
+        tmp = new_encoding(&screen_enc);
         if (!tmp) {
             return;
         }

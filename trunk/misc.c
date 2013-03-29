@@ -75,28 +75,59 @@ unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use 
     return i;
 }
 
-int strhash(const char *s) {
-    uint8_t *s2 = (uint8_t *)s;
+int str_hash(const str_t *s) {
+    size_t l = s->len;
+    const uint8_t *s2 = s->data;
     unsigned int h;
+    if (!l) return 0;
     h = *s2 << 7;
-    while (*s2) h = (1000003 * h) ^ *s2++;
-    h ^= s2 - (uint8_t *)s;
+    while (l--) h = (1000003 * h) ^ *s2++;
+    h ^= s->len;
     return h & ((~(unsigned int)0) >> 1);
 }
 
-int strcasehash(const char *s) {
-    uint8_t *s2 = (uint8_t *)s, c;
+int str_casehash(const str_t *s) {
+    size_t l = s->len;
+    const uint8_t *s2 = s->data;
+    uint8_t c;
     unsigned int h;
+    if (!l) return 0;
     c = *s2;
     if (c >= 'a' && c <= 'z') c -= 32;
     h = c << 7;
-    while (*s2) {
+    while (l--) {
         c = *s2++;
         if (c >= 'a' && c <= 'z') c -= 32;
         h = (1000003 * h) ^ c;
     }
-    h ^= s2 - (uint8_t *)s;
+    h ^= s->len;
     return h & ((~(unsigned int)0) >> 1);
+}
+
+int str_cmp(const str_t *s1, const str_t *s2) {
+    if (s1->len != s2->len) return s1->len - s2->len;
+    if (s1->data == s2->data) return 0;
+    if (!s1->data && s2->data) return -1;
+    if (s1->data && !s2->data) return 1;
+    return memcmp(s1->data, s2->data, s1->len);
+}
+
+int str_casecmp(const str_t *s1, const str_t *s2) {
+    if (s1->len != s2->len) return s1->len - s2->len;
+    if (s1->data == s2->data) return 0;
+    if (!s1->data && s2->data) return -1;
+    if (s1->data && !s2->data) return 1;
+    return strncasecmp((const char *)s1->data, (const char *)s2->data, s1->len);
+}
+
+void str_cpy(str_t *s1, const str_t *s2) {
+    s1->len = s2->len;
+    if (s2->data) {
+        uint8_t *s = malloc(s2->len);
+        if (!s) err_msg_out_of_memory();
+        memcpy(s, s2->data, s2->len);
+        s1->data = s;
+    } else s1->data = NULL;
 }
 
 uint8_t *utf8out(uint32_t i, uint8_t *c) {
@@ -157,7 +188,8 @@ void tfree(void) {
 void tinit(void) {
     root_label.type = T_NONE;
     root_label.parent = NULL;
-    root_label.name = NULL;
+    root_label.name.data = NULL;
+    root_label.name.len = 0;
     init_section();
     init_file();
     init_values();
@@ -180,8 +212,10 @@ void labelprint(void) {
     while (n) {
         l = cavltree_container_of(n, struct label_s, node);            /* already exists */
         n = avltree_next(n);
-        if (l->name[0]=='-' || l->name[0]=='+') continue;
-        if (l->name[0]=='.' || l->name[0]=='#') continue;
+        if (l->name.data && l->name.len) {
+            if (l->name.data[0]=='-' || l->name.data[0]=='+') continue;
+            if (l->name.data[0]=='.' || l->name.data[0]=='#') continue;
+        }
         if (l->pass<pass) continue;
         switch (l->value->type) {
         case T_LBL:
@@ -192,8 +226,14 @@ void labelprint(void) {
         default:break;
         }
         switch (l->type) {
-        case L_VAR: fprintf(flab,"%-15s .var ", l->name);break;
-        default: fprintf(flab,"%-16s= ", l->name);break;
+        case L_VAR:
+            fwrite(l->name.data, l->name.len, 1, flab);
+            if (l->name.len < 15) fputs("               " + l->name.len, flab);
+            fputs(" .var ", flab);break;
+        default: 
+            fwrite(l->name.data, l->name.len, 1, flab);
+            if (l->name.len < 16) fputs("                " + l->name.len, flab);
+            fputs("= ", flab);break;
         }
         val_print(l->value, flab);
         putc('\n', flab);
@@ -203,9 +243,10 @@ void labelprint(void) {
 }
 
 void sectionprint2(const struct section_s *l) {
-    if (l->name) {
+    if (l->name.data) {
         sectionprint2(l->parent);
-        printf("%s.", l->name);
+        fwrite(l->name.data, l->name.len, 1, stdout);
+        putchar('.');
     }
 }
 
@@ -223,7 +264,8 @@ void sectionprint(void) {
             printf("Section:                         ");
         }
         sectionprint2(l->parent);
-        puts(l->name);
+        fwrite(l->name.data, l->name.len, 1, stdout);
+        putchar('\n');
         l = l->next;
     }
 }

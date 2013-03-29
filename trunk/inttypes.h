@@ -2,6 +2,7 @@
 #define _INTTYPES2_H
 
 #include <inttypes.h>
+#include <stdlib.h>
 #ifndef PRIuFAST32
 #define PRIuFAST32 "u"
 #endif
@@ -34,5 +35,6 @@ typedef uint_fast32_t address_t;
 #define PRIaddress PRIxFAST32
 typedef uint_fast16_t linecpos_t;
 typedef struct {uint_fast16_t pos, upos;} linepos_t;
+typedef struct {size_t len;const uint8_t *data;} str_t;
 #define PRIlinepos PRIuFAST16
 #endif

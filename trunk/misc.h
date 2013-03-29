@@ -96,7 +96,10 @@ extern struct arguments_s arguments;
 extern unsigned int utf8in(const uint8_t *, uint32_t *);
 extern uint8_t *utf8out(uint32_t, uint8_t *);
 extern struct encoding_s *actual_encoding;
-extern int strhash(const char *);
-extern int strcasehash(const char *);
+extern int str_hash(const str_t *);
+extern int str_casehash(const str_t *);
+extern int str_cmp(const str_t *, const str_t *);
+extern int str_casecmp(const str_t *, const str_t *);
+extern void str_cpy(str_t *, const str_t *);
 
 #endif
