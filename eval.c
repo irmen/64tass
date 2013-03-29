@@ -317,11 +317,7 @@ static int touch_label(struct label_s *tmp) {
 static void copy_name(struct value_s *val, char *ident) {
     size_t len = val->u.ident.len;
     if (len > linelength - 1) len = linelength - 1;
-    if (arguments.casesensitive) memcpy(ident, val->u.ident.name, len);
-    else {
-        size_t i;
-        for (i=0;i < len;i++) ident[i]=lowcase(val->u.ident.name[i]);
-    }
+    memcpy(ident, val->u.ident.name, len);
     ident[len] = 0;
 }
 

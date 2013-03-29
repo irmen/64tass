@@ -98,7 +98,11 @@ void mtranslate(void)
                 if (ln) {
                     for (j = 0; j < macro_parameters.current->macro->u.macro.argc; j++) {
                         if (!macro_parameters.current->macro->u.macro.param[j].name) continue;
-                        if (strncmp(macro_parameters.current->macro->u.macro.param[j].name, label, ln)) continue;
+                        if (arguments.casesensitive) {
+                            if (strncmp(macro_parameters.current->macro->u.macro.param[j].name, label, ln)) continue;
+                        } else {
+                            if (strncasecmp(macro_parameters.current->macro->u.macro.param[j].name, label, ln)) continue;
+                        }
                         if (!macro_parameters.current->param[j].data) {
                             if (macro_parameters.current->macro->type == T_STRUCT || macro_parameters.current->macro->type == T_UNION) {
                                 lpoint.pos--;
