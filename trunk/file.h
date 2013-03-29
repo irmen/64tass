@@ -49,7 +49,7 @@ struct star_s {
 
 extern struct file_s *openfile(const char *, const char *, int, const struct value_s *);
 extern void closefile(struct file_s*);
-extern struct star_s *new_star(line_t);
+extern struct star_s *new_star(line_t, int *);
 extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);

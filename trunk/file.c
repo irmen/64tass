@@ -381,7 +381,7 @@ void closefile(struct file_s *f) {
 }
 
 static struct star_s *lastst=NULL;
-struct star_s *new_star(line_t line) {
+struct star_s *new_star(line_t line, int *exists) {
     struct avltree_node *b;
     struct star_s *tmp;
     if (!lastst)
@@ -389,13 +389,13 @@ struct star_s *new_star(line_t line) {
     lastst->line=line;
     b=avltree_insert(&lastst->node, star_tree);
     if (!b) { //new label
-	labelexists=0;
+	*exists=0;
         avltree_init(&lastst->tree, star_compare, star_free);
 	tmp=lastst;
 	lastst=NULL;
 	return tmp;
     }
-    labelexists=1;
+    *exists=1;
     return avltree_container_of(b, struct star_s, node);            //already exists
 }
 

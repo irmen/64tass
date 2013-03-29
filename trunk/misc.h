@@ -73,7 +73,6 @@ extern int fixeddig;
 extern unsigned int errors,conderrors,warnings;
 extern address_t star;
 extern const uint8_t *pline, *llist;
-extern int labelexists;
 extern void status(void);
 extern uint16_t reffile;
 extern uint32_t backr, forwr;
