@@ -346,7 +346,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
 
 void get_func_params(struct value_s *v) {
     static struct value_s *val, new_value;
-    static size_t len, i, ln;
+    static size_t len, i, j, ln;
     int w;
     char *s;
 
@@ -364,7 +364,15 @@ void get_func_params(struct value_s *v) {
             if (!s) err_msg_out_of_memory();
             memcpy(s, pline + new_value.u.func.param[i].epoint.pos, ln);
             s[ln] = 0;
-        } else {err_msg(ERROR_GENERL_SYNTAX,NULL);s = NULL;}
+            for (j = 0; j < i; j++) if (new_value.u.func.param[j].name) {
+                if (arguments.casesensitive) {
+                    if (!strcmp(new_value.u.func.param[j].name, s)) break;
+                } else {
+                    if (!strcasecmp(new_value.u.func.param[j].name, s)) break;
+                }
+            }
+            if (j != i) err_msg2(ERROR_DOUBLE_DEFINE, s, new_value.u.func.param[i].epoint);
+        } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, new_value.u.func.param[i].epoint);break;}
         new_value.u.func.param[i].name = s;
         new_value.u.func.param[i].init = NULL;
         ignore();
@@ -409,7 +417,7 @@ void get_func_params(struct value_s *v) {
 
 void get_macro_params(struct value_s *v) {
     static struct value_s new_value;
-    static size_t len, i, ln;
+    static size_t len, i, j, ln;
     char *s;
 
     for (i = 0;;i++) {
@@ -420,13 +428,21 @@ void get_macro_params(struct value_s *v) {
             new_value.u.macro.param = realloc(new_value.u.macro.param, len * sizeof(new_value.u.macro.param[0]));
             if (!new_value.u.macro.param) err_msg_out_of_memory();
         }
-        epoint.pos = lpoint.pos;
+        epoint = lpoint;
         ln = get_label();
         if (ln) {
             s = (char *)malloc(ln + 1);
             if (!s) err_msg_out_of_memory();
             memcpy(s, pline + epoint.pos, ln);
             s[ln] = 0;
+            for (j = 0; j < i; j++) if (new_value.u.macro.param[j].name) {
+                if (arguments.casesensitive) {
+                    if (!strcmp(new_value.u.macro.param[j].name, s)) break;
+                } else {
+                    if (!strcasecmp(new_value.u.macro.param[j].name, s)) break;
+                }
+            }
+            if (j != i) err_msg2(ERROR_DOUBLE_DEFINE, s, epoint);
         } else s = NULL;
         new_value.u.macro.param[i].name = s;
         ignore();
