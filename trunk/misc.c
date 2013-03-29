@@ -50,7 +50,7 @@ const uint8_t whatis[256]={
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-// ---------------------------------------------------------------------------
+/* --------------------------------------------------------------------------- */
 unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
     uint32_t ch;
     int i, j;
@@ -176,7 +176,7 @@ void labelprint(void) {
     clearerr(flab);
     n = avltree_first(&root_label.members);
     while (n) {
-        l = cavltree_container_of(n, struct label_s, node);            //already exists
+        l = cavltree_container_of(n, struct label_s, node);            /* already exists */
         n = avltree_next(n);
         if (l->name[0]=='-' || l->name[0]=='+') continue;
         if (l->name[0]=='.' || l->name[0]=='#') continue;
@@ -226,7 +226,7 @@ void sectionprint(void) {
     }
 }
 
-// ------------------------------------------------------------------
+/* ------------------------------------------------------------------ */
 static const char *short_options= "wqnbfWaTCBicxtel:L:I:msV?o:D:";
 
 static const struct option long_options[]={
@@ -360,7 +360,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 's':arguments.source=0;break;
             case 'C':arguments.casesensitive=1;break;
             case 2:puts(
-             //12345678901234567890123456789012345678901234567890123456789012345678901234567890
+             /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
 	       "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
 	       "	[-l <file>] [-L <file>] [-I <path>] [--ascii] [--nostart]\n"
                "	[--long-branch]	[--case-sensitive] [--flat] [--nonlinear]\n"

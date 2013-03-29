@@ -49,14 +49,14 @@ inline double tanh(double a) {return sinh(a) / cosh(a);}
 inline double hypot(double a, double b) {return sqrt(a*a+b*b);}
 #endif
 
-static struct value_s new_value = {T_NONE, 0, {}};
-static struct value_s none_value = {T_NONE, 0, {}};
+static struct value_s new_value = {T_NONE, 0, {{0, 0, NULL}}};
+static struct value_s none_value = {T_NONE, 0, {{0, 0, NULL}}};
 static struct value_s true_value = {T_BOOL, 0, {{1, 1, NULL}}};
 static struct value_s false_value = {T_BOOL, 0, {{1, 0, NULL}}};
-static struct value_s null_str = {T_STR, 0, {}};
-static struct value_s null_tuple = {T_TUPLE, 0, {}};
-static struct value_s null_list = {T_LIST, 0, {}};
-struct value_s error_value = {T_NONE, 0, {}};
+static struct value_s null_str = {T_STR, 0, {{0, 0, NULL}}};
+static struct value_s null_tuple = {T_TUPLE, 0, {{0, 0, NULL}}};
+static struct value_s null_list = {T_LIST, 0, {{0, 0, NULL}}};
+struct value_s error_value = {T_NONE, 0, {{0, 0, NULL}}};
 
 struct encoding_s *actual_encoding;
 
@@ -270,8 +270,8 @@ static void get_string(struct value_s *v, uint8_t ch) {
             lpoint.pos += u; lpoint.upos += u - 1;
         } else lpoint.pos++;
         if (ch2 == ch) {
-            if (here() == ch && !arguments.tasmcomp) {lpoint.pos++;r++;} // handle 'it''s'
-            else break; // end of string;
+            if (here() == ch && !arguments.tasmcomp) {lpoint.pos++;r++;} /* handle 'it''s' */
+            else break; /* end of string; */
         }
         i2++;
     }
@@ -375,7 +375,8 @@ static struct value_s *unwind_identrefs(struct value_s *v1, linepos_t epoint) {
 
 static void try_resolv_identref(struct value_s **val2) {
     struct value_s *val = val2[0];
-    val = (struct value_s *)unwind_identrefs(val, (linepos_t){0, 0});
+    linepos_t lpos = {0, 0};
+    val = (struct value_s *)unwind_identrefs(val, lpos);
     val_replace(val2, val);
 }
 
@@ -481,7 +482,7 @@ static inline void push_oper(struct value_s *val, linepos_t epoint) {
     eval->o_out[eval->outp++].epoint = epoint;
 }
 
-static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
+static int get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
     int cd;
     char ch;
 
@@ -492,8 +493,8 @@ static int get_exp_compat(int *wd, int stop) {// length in bytes, defined
     linepos_t epoint, cpoint = {0, 0};
     struct value_s *val;
 
-    *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
-    cd=0;     // 0=error, 1=ok, 2=(a, 3=()
+    *wd=3;    /* 0=byte 1=word 2=long 3=negative/too big */
+    cd=0;     /* 0=error, 1=ok, 2=(a, 3=() */
 
     eval->outp = 0;
     o_oper[0] = &o_SEPARATOR;
@@ -593,7 +594,7 @@ static ival_t to_ival(const struct value_s *val) {
     }
 }
 
-static int get_val2_compat(struct eval_context_s *ev) {// length in bytes, defined
+static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
     uint8_t vsp = 0;
     enum type_e t1, t2;
     enum oper_e op;
@@ -743,7 +744,7 @@ int eval_finish(void) {
 
 static int get_val2(struct eval_context_s *);
 
-struct value_s *get_val(enum type_e type, linepos_t *epoint) {// length in bytes, defined
+struct value_s *get_val(enum type_e type, linepos_t *epoint) {/* length in bytes, defined */
     int res;
     struct values_s *value;
 
@@ -998,7 +999,7 @@ static void functions(struct values_s *vals, unsigned int args) {
     len = vals->val->u.ident.len;
     name = vals->val->u.ident.name;
 
-    // len(a) - length of string in characters
+    /* len(a) - length of string in characters */
     if (len == 3 && !memcmp(name, "len", len)) {
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
         switch (try_resolv(&v[0].val)) {
@@ -1037,7 +1038,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         }
         val_replace(&vals->val, &none_value);
         return;
-    } // range([start],end,[step])
+    } /* range([start],end,[step]) */
     if (len == 5 && !memcmp(name, "range", len)) {
         ival_t start = 0, end, step = 1;
         size_t i = 0, len2;
@@ -1088,7 +1089,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         }
         val_replace(&vals->val, &none_value);
         return;
-    } // min(a, b, ...) - minimum value
+    } /* min(a, b, ...) - minimum value */
     if (len == 3 && !memcmp(name, "min", len)) {
         ival_t min = 0;
         if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
@@ -1118,7 +1119,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         }
         val_replace(&vals->val, &none_value);
         return;
-    } // max(a, b, ...) - maximum value
+    } /* max(a, b, ...) - maximum value */
     else if (len == 3 && !memcmp(name, "max", len)) {
         ival_t max = 0;
         if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
@@ -1148,7 +1149,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         }
         val_replace(&vals->val, &none_value);
         return;
-    } // size(a) - size of data structure at location
+    } /* size(a) - size of data structure at location */
     else if (len == 4 && !memcmp(name, "size", len)) {
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
         else {
@@ -3175,16 +3176,16 @@ static int get_val2(struct eval_context_s *ev) {
             if (vsp == 0) goto syntaxe;
             err_msg2(ERROR______EXPECTED,"'?'", o_out->epoint);
             goto errtype;
-        case O_WORD: // <>
-        case O_HWORD: // >`
-        case O_BSWORD: // ><
-        case O_LOWER: // <
-        case O_HIGHER: // >
-        case O_BANK: // `
-        case O_STRING: // ^
-        case O_INV: // ~
-        case O_NEG: // -
-        case O_POS: // +
+        case O_WORD:   /* <> */
+        case O_HWORD:  /* >` */
+        case O_BSWORD: /* >< */
+        case O_LOWER:  /* <  */
+        case O_HIGHER: /* >  */
+        case O_BANK:   /* `  */
+        case O_STRING: /* ^  */
+        case O_INV:    /* ~  */
+        case O_NEG:    /* -  */
+        case O_POS:    /* +  */
             {
                 try_resolv_ident(&v1->val);
                 if (v1->val->refcount != 1) {
@@ -3283,7 +3284,7 @@ static int get_val2(struct eval_context_s *ev) {
     return 0;
 }
 
-int get_exp(int *wd, int stop) {// length in bytes, defined
+int get_exp(int *wd, int stop) {/* length in bytes, defined */
     int cd;
     char ch;
 
@@ -3303,8 +3304,8 @@ int get_exp(int *wd, int stop) {// length in bytes, defined
     eval->outp = 0;
     o_oper[0] = &o_SEPARATOR;
 
-    *wd=3;    // 0=byte 1=word 2=long 3=negative/too big
-    cd=0;    // 0=error, 1=ok, 2=(a, 3=(), 4=[]
+    *wd=3;    /* 0=byte 1=word 2=long 3=negative/too big */
+    cd=0;     /* 0=error, 1=ok, 2=(a, 3=(), 4=[] */
 
     ignore();
     switch (here()) {

@@ -23,7 +23,7 @@
 #include "inttypes.h"
 
 enum label_e {
-    L_LABEL, L_CONST, L_VAR,
+    L_LABEL, L_CONST, L_VAR
 };
 
 struct label_s {
