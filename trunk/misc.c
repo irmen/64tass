@@ -87,10 +87,12 @@ int strhash(const char *s) {
 int strcasehash(const char *s) {
     uint8_t *s2 = (uint8_t *)s, c;
     unsigned int h;
-    h = *s2 << 7;
+    c = *s2;
+    if (c >= 'a' && c <= 'z') c -= 32;
+    h = c << 7;
     while (*s2) {
         c = *s2++;
-        if (c >= 'a' && c <= 'z') c -= 'a' - 'A';
+        if (c >= 'a' && c <= 'z') c -= 32;
         h = (1000003 * h) ^ c;
     }
     h ^= s2 - (uint8_t *)s;
