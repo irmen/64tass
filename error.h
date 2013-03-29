@@ -29,10 +29,12 @@ struct error_s {
 
 extern unsigned int errors, conderrors, warnings;
 
-// ---------------------------------------------------------------------------
-// $00-$3f warning
-// $40-$7f error
-// $80-$bf fatal
+/* ---------------------------------------------------------------------------
+   $00-$3f warning
+   $40-$7f error
+   $80-$bf fatal
+*/
+
 enum errors_e {
     ERROR_TOP_OF_MEMORY=0x00,
     ERROR_A_USED_AS_LBL,

@@ -32,67 +32,67 @@ typedef uint32_t uval_t;
 enum type_e {
     T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT,
     T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_TUPLE, T_LIST, T_MACRO,
-    T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL, T_DEFAULT,
+    T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL, T_DEFAULT
 };
 
 #define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
 #define type_is_num(a) ((a) >= T_BOOL && (a) <= T_FLOAT) 
 
 enum oper_e {
-    O_SEPARATOR,     // ,
-    O_FUNC,          // a(
-    O_INDEX,         // a[
-    O_SLICE,         // a[x:
-    O_SLICE2,        // a[x::
-    O_BRACKET,       // [a]
-    O_PARENT,        // (a)
-    O_COMMA,         // ,
-    O_COND,          // ?
-    O_COLON2,        // :
-    O_COLON3,        // :
-    O_WORD,          // <>
-    O_HWORD,         // >`
-    O_BSWORD,        // ><
-    O_LOWER,         // <
-    O_HIGHER,        // >
-    O_BANK,          // `
-    O_STRING,        // ^
-    O_LOR,           // ||
-    O_LXOR,          // ^^
-    O_LAND,          // &&
-    O_IN,            // in
-    O_EQ,            // =
-    O_NEQ,           // !=
-    O_LT,            // <
-    O_GT,            // >
-    O_GE,            // >=
-    O_LE,            // <=
-    O_OR,            // |
-    O_XOR,           // ^
-    O_AND,           // &
-    O_LSHIFT,        // <<
-    O_ASHIFT,        // >>
-    O_RSHIFT,        // >>>
-    O_ADD,           // +
-    O_SUB,           // -
-    O_MUL,           // *
-    O_DIV,           // /
-    O_MOD,           // %
-    O_EXP,           // **
-    O_X,             // x
-    O_CONCAT,        // ..
-    O_MEMBER,        // .
-    O_NEG,           // -
-    O_POS,           // +
-    O_INV,           // ~
-    O_LNOT,          // !
+    O_SEPARATOR,     /* ,     */
+    O_FUNC,          /* a(    */
+    O_INDEX,         /* a[    */
+    O_SLICE,         /* a[x:  */
+    O_SLICE2,        /* a[x:: */
+    O_BRACKET,       /* [a]   */
+    O_PARENT,        /* (a)   */
+    O_COMMA,         /* ,     */
+    O_COND,          /* ?     */
+    O_COLON2,        /* :     */
+    O_COLON3,        /* :     */
+    O_WORD,          /* <>    */
+    O_HWORD,         /* >`    */
+    O_BSWORD,        /* ><    */
+    O_LOWER,         /* <     */
+    O_HIGHER,        /* >     */
+    O_BANK,          /* `     */
+    O_STRING,        /* ^     */
+    O_LOR,           /* ||    */
+    O_LXOR,          /* ^^    */
+    O_LAND,          /* &&    */
+    O_IN,            /* in    */
+    O_EQ,            /* =     */
+    O_NEQ,           /* !=    */
+    O_LT,            /* <     */
+    O_GT,            /* >     */
+    O_GE,            /* >=    */
+    O_LE,            /* <=    */
+    O_OR,            /* |     */
+    O_XOR,           /* ^     */
+    O_AND,           /* &     */
+    O_LSHIFT,        /* <<    */
+    O_ASHIFT,        /* >>    */
+    O_RSHIFT,        /* >>>   */
+    O_ADD,           /* +     */
+    O_SUB,           /* -     */
+    O_MUL,           /* *     */
+    O_DIV,           /* /     */
+    O_MOD,           /* %     */
+    O_EXP,           /* **    */
+    O_X,             /* x     */
+    O_CONCAT,        /* ..    */
+    O_MEMBER,        /* .     */
+    O_NEG,           /* -     */
+    O_POS,           /* +     */
+    O_INV,           /* ~     */
+    O_LNOT,          /* !     */
 
-    O_TUPLE,         // )
-    O_LIST,          // ]
-    O_RPARENT,       // )
-    O_RBRACKET,      // ]
-    O_QUEST,         // ?
-    O_COLON,         // :
+    O_TUPLE,         /* )     */
+    O_LIST,          /* ]     */
+    O_RPARENT,       /* )     */
+    O_RBRACKET,      /* ]     */
+    O_QUEST,         /* ?     */
+    O_COLON          /* :     */
 };
 
 enum dtype_e {
@@ -104,7 +104,7 @@ enum dtype_e {
     D_BYTE = 1,
     D_WORD = 2,
     D_LONG = 3,
-    D_DWORD = 4,
+    D_DWORD = 4
 };
 
 struct value_s {
