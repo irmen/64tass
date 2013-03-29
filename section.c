@@ -28,24 +28,25 @@ static int section_compare(const struct avltree_node *aa, const struct avltree_n
 {
     const struct section_s *a = cavltree_container_of(aa, struct section_s, node);
     const struct section_s *b = cavltree_container_of(bb, struct section_s, node);
-
-    return strcmp(a->name, b->name);
+    int h = a->name_hash - b->name_hash;
+    if (h) return h; 
+    return arguments.casesensitive ? strcmp(a->name, b->name) : strcasecmp(a->name, b->name);
 }
 
 static void section_free(struct avltree_node *aa)
 {
     struct section_s *a = avltree_container_of(aa, struct section_s, node);
     free((char *)a->name);
-    free((char *)a->origname);
     avltree_destroy(&a->members);
     free(a);
 }
 
-struct section_s *find_new_section(const char *name, const char *origname) {
+struct section_s *find_new_section(const char *name) {
     struct avltree_node *b;
     struct section_s *context = current_section;
     struct section_s tmp;
-    tmp.name=name;
+    tmp.name = name;
+    tmp.name_hash = arguments.casesensitive ? strhash(name) : strcasehash(name);
 
     while (context) {
         b=avltree_lookup(&tmp.node, &context->members);
@@ -55,23 +56,22 @@ struct section_s *find_new_section(const char *name, const char *origname) {
         }
         context = context->parent;
     }
-    return new_section(name, origname);
+    return new_section(name);
 }
 
 static struct section_s *lastsc=NULL;
-struct section_s *new_section(const char *name, const char *origname) {
+struct section_s *new_section(const char *name) {
     struct avltree_node *b;
     struct section_s *tmp;
     char *s;
     if (!lastsc)
 	if (!(lastsc=malloc(sizeof(struct section_s)))) err_msg_out_of_memory();
-    lastsc->name=name;
+    lastsc->name = name;
+    lastsc->name_hash = arguments.casesensitive ? strhash(name) : strcasehash(name);
     b=avltree_insert(&lastsc->node, &current_section->members);
     if (!b) { //new section
 	if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy(s, name);lastsc->name = s;
-	if (!(s=malloc(strlen(origname)+1))) err_msg_out_of_memory();
-        strcpy(s, origname);lastsc->origname = s;
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->end=lastsc->address=lastsc->l_address=lastsc->size=0;
@@ -111,7 +111,6 @@ void reset_section(void) {
 void init_section2(struct section_s *section) {
     section->parent = NULL;
     section->name = NULL;
-    section->origname = NULL;
     section->next = NULL;
     avltree_init(&section->members, section_compare, section_free);
 }

@@ -354,8 +354,8 @@ static struct value_s *unwind_identrefs(struct value_s *v1, linepos_t epoint) {
     int rec = 100;
     while (v1->type == T_IDENTREF) {
         if (pass != 1 && v1->u.ident.label->value->type != T_IDENTREF) {
-            if (v1->u.ident.label->requires & ~current_section->provides) err_msg2(ERROR_REQUIREMENTS_, v1->u.ident.label->origname, epoint);
-            if (v1->u.ident.label->conflicts & current_section->provides) err_msg2(ERROR______CONFLICT, v1->u.ident.label->origname, epoint);
+            if (v1->u.ident.label->requires & ~current_section->provides) err_msg2(ERROR_REQUIREMENTS_, v1->u.ident.label->name, epoint);
+            if (v1->u.ident.label->conflicts & current_section->provides) err_msg2(ERROR______CONFLICT, v1->u.ident.label->name, epoint);
         }
         if (touch_label(v1->u.ident.label)) {
             new_value.type = T_UNDEF;

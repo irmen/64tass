@@ -386,7 +386,7 @@ void val_print(const struct value_s *value, FILE *flab) {
             }
             val_print(value, flab);
         } else {
-            fputs(value->u.ident.label->origname, flab);
+            fputs(value->u.ident.label->name, flab);
         }
         break;
     case T_GAP:

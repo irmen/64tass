@@ -64,7 +64,6 @@ static void label_free(struct avltree_node *aa)
 {
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
     free((char *)a->name);
-    free((char *)a->origname);
     avltree_destroy(&a->members);
     val_destroy(a->value);
 }
@@ -80,16 +79,18 @@ static int label_compare(const struct avltree_node *aa, const struct avltree_nod
 {
     const struct label_s *a = cavltree_container_of(aa, struct label_s, node);
     const struct label_s *b = cavltree_container_of(bb, struct label_s, node);
-
-    return strcmp(a->name, b->name);
+    int h = a->name_hash - b->name_hash;
+    if (h) return h; 
+    return arguments.casesensitive ? strcmp(a->name, b->name) : strcasecmp(a->name, b->name);
 }
 
 struct label_s *find_label(const char* name) {
     struct avltree_node *b;
     struct label_s *context = current_context;
     struct label_s tmp;
-    tmp.name=name;
-    
+    tmp.name = name;
+    tmp.name_hash = arguments.casesensitive ? strhash(name) : strcasehash(name);
+
     while (context) {
         b=avltree_lookup(&tmp.node, &context->members);
         if (b) return avltree_container_of(b, struct label_s, node);
@@ -101,7 +102,9 @@ struct label_s *find_label(const char* name) {
 struct label_s *find_label2(const char* name, const struct avltree *tree) {
     struct avltree_node *b;
     struct label_s tmp;
-    tmp.name=name;
+    tmp.name = name;
+    tmp.name_hash = arguments.casesensitive ? strhash(name) : strcasehash(name);
+
     b=avltree_lookup(&tmp.node, tree);
     if (!b) return NULL;
     return avltree_container_of(b, struct label_s, node);
@@ -109,18 +112,17 @@ struct label_s *find_label2(const char* name, const struct avltree *tree) {
 
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
-struct label_s *new_label(const char* name, const char* origname, enum label_e type) {
+struct label_s *new_label(const char* name, enum label_e type) {
     struct avltree_node *b;
     struct label_s *tmp;
     char *s;
     if (!lastlb) lastlb=var_alloc();
     lastlb->name = name;
+    lastlb->name_hash = arguments.casesensitive ? strhash(name) : strcasehash(name);
     b = avltree_insert(&lastlb->node, &current_context->members);
     if (!b) { //new label
 	if (!(s = malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy(s, name);lastlb->name = s;
-	if (!(s = malloc(strlen(origname) + 1))) err_msg_out_of_memory();
-        strcpy(s, origname);lastlb->origname = s;
         lastlb->type = type;
         lastlb->parent = current_context;
         lastlb->ref = 0;
