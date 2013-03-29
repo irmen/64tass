@@ -1258,7 +1258,7 @@ struct value_s *compile(struct file_s *cfile)
                             }
                             retval->u.list.data = vals;
                         }
-                    } else err_msg2(ERROR______EXPECTED,".FUNCTION", epoint);
+                    } else {err_msg2(ERROR______EXPECTED,".FUNCTION", epoint);goto breakerr;}
                     break;
                 }
                 if (prm==CMD_NEXT) { // .next
@@ -1300,7 +1300,7 @@ struct value_s *compile(struct file_s *cfile)
                         current_section = waitfor->section;
                         memjmp(current_section->address);
                         close_waitfor(W_SEND2);
-                    } else err_msg2(ERROR______EXPECTED,".SECTION or .DSECTION", epoint);
+                    } else {err_msg2(ERROR______EXPECTED,".SECTION", epoint);goto breakerr;}
                     break;
                 }
                 if (prm==CMD_ENDU) { // .endu
