@@ -230,7 +230,8 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2) {
         size_t oldpos = tmp2->u.macro.file->p;
         line_t lin = sline;
         struct file_s *f;
-        struct star_s *s = new_star(vline);
+        int labelexists;
+        struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
 
@@ -265,6 +266,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
     linepos_t epoint;
 
     for (i = 0; i < tmp2->u.func.argc; i++) {
+        int labelexists;
         label=find_label2(tmp2->u.func.param[i].name, &current_context->members);
         ignore();if (!here() || here()==';') fin++;
         if (tmp2->u.func.param[i].init) {
@@ -288,7 +290,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
             ignore();if (here()==',') lpoint.pos++;
         }
         if (label) labelexists = 1;
-        else label = new_label(tmp2->u.func.param[i].name, L_CONST);
+        else label = new_label(tmp2->u.func.param[i].name, L_CONST, &labelexists);
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, tmp2->u.func.param[i].name, epoint);
@@ -313,7 +315,8 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
         size_t oldpos = tmp2->u.func.file->p;
         line_t lin = sline;
         struct file_s *f;
-        struct star_s *s = new_star(vline);
+        int labelexists;
+        struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
 
@@ -479,8 +482,9 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
 
     enterfile(tmp2->u.func.file->realname, sline);
     for (i = 0; i < tmp2->u.func.argc; i++) {
+        int labelexists;
         val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
-        label = new_label(tmp2->u.func.param[i].name, L_CONST);
+        label = new_label(tmp2->u.func.param[i].name, L_CONST, &labelexists);
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) {
@@ -509,7 +513,8 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         size_t oldpos = tmp2->u.func.file->p;
         line_t lin = sline;
         struct file_s *f;
-        struct star_s *s = new_star(vline);
+        int labelexists;
+        struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
         const uint8_t *ollist = llist;

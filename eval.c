@@ -387,8 +387,9 @@ static enum type_e try_resolv(struct value_s **val) {
 
 static void get_star(struct value_s *v) {
     struct star_s *tmp;
+    int labelexists;
 
-    tmp=new_star(vline);
+    tmp=new_star(vline, &labelexists);
     if (labelexists && tmp->addr != star) {
         if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
         fixeddig=0;

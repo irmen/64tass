@@ -112,7 +112,7 @@ struct label_s *find_label2(const char* name, const struct avltree *tree) {
 
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
-struct label_s *new_label(const char* name, enum label_e type) {
+struct label_s *new_label(const char *name, enum label_e type, int *exists) {
     struct avltree_node *b;
     struct label_s *tmp;
     char *s;
@@ -127,12 +127,12 @@ struct label_s *new_label(const char* name, enum label_e type) {
         lastlb->parent = current_context;
         lastlb->ref = 0;
         avltree_init(&lastlb->members, label_compare, label_free);
-	labelexists = 0;
+	*exists = 0;
 	tmp = lastlb;
 	lastlb = NULL;
 	return tmp;
     }
-    labelexists = 1;
+    *exists = 1;
     return avltree_container_of(b, struct label_s, node);            //already exists
 }
 
