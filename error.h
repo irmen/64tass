@@ -46,7 +46,6 @@ enum errors_e {
     ERROR_WUSER_DEFINED,
 
     ERROR_DOUBLE_DEFINE=0x40,
-    ERROR___NOT_DEFINED,
     ERROR_EXTRA_CHAR_OL,
     ERROR_CONSTNT_LARGE,
     ERROR_GENERL_SYNTAX,
@@ -54,12 +53,9 @@ enum errors_e {
     ERROR_EXPRES_SYNTAX,
     ERROR_MISSING_ARGUM,
     ERROR_ILLEGAL_OPERA,
-    ERROR_REQUIREMENTS_,
-    ERROR______CONFLICT,
     ERROR_DIVISION_BY_Z,
     ERROR____WRONG_TYPE,
     ERROR___NOT_ALLOWED,
-    ERROR_CANT_CALCULAT,
     ERROR_CANT_CROSS_BA,
     ERROR_OUTOF_SECTION,
     ERROR__USER_DEFINED,
@@ -86,9 +82,13 @@ enum errors_e {
 extern void err_msg(enum errors_e, const void*);
 extern void err_msg2(enum errors_e, const void*, linepos_t);
 extern void err_msg_wrong_type(const struct value_s*, linepos_t);
+extern void err_msg_cant_calculate(const str_t *name, linepos_t epoint);
 extern void err_msg_invalid_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
 extern void err_msg_strange_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
-extern void err_msg_double_defined(const char *, const char *, line_t, linepos_t, const char*, linepos_t);
+extern void err_msg_double_defined(const str_t *, const char *, line_t, linepos_t, const str_t *, linepos_t);
+extern void err_msg_not_defined(const str_t *, linepos_t);
+extern void err_msg_requires(const str_t *name, linepos_t epoint);
+extern void err_msg_conflicts(const str_t *name, linepos_t epoint);
 extern void err_msg_variable(struct error_s *, struct value_s *, int);
 extern void err_msg_file(enum errors_e, const char*);
 extern void freeerrorlist(int);

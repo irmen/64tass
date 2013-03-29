@@ -18,7 +18,7 @@
 #ifndef _ENCODING_H_
 #define _ENCODING_H_
 #include "libtree.h"
-#include <stdint.h>
+#include "inttypes.h"
 
 struct encoding_s;
 
@@ -35,7 +35,7 @@ struct escape_s {
 };
 
 
-extern struct encoding_s *new_encoding(const char *);
+extern struct encoding_s *new_encoding(const str_t *);
 extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
 extern uint16_t find_trans(uint32_t, struct encoding_s *);
 extern struct escape_s *new_escape(const uint8_t *, const uint8_t *, uint8_t, struct encoding_s *);

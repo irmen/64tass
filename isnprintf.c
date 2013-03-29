@@ -377,7 +377,7 @@ static void conv_flag(char * s, struct DATA * p)
 }
 
 /* return templates only! */
-const struct value_s *isnprintf(const struct value_s *fstr, const struct value_s *l, linepos_t me)
+const struct value_s *isnprintf(const struct value_s *fstr, const struct value_s *l, linepos_t se, linepos_t me)
 {
     struct DATA data;
     char conv_field[MAX_FIELD];
@@ -453,7 +453,12 @@ const struct value_s *isnprintf(const struct value_s *fstr, const struct value_s
                     data.pf--;   /* went to far go back */
                     break;
                 default:
-                    err_msg(ERROR___NOT_DEFINED,"formatting character used");
+                    {
+                        uint8_t str[2] = {'%'};
+                        str_t msg = {2, str};
+                        str[1] = *data.pf;
+                        err_msg_not_defined(&msg, se);
+                    }
                     /* is this an error ? maybe bail out */
                     state = 0;
                     break;

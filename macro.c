@@ -29,10 +29,7 @@ static struct {
     uint8_t p, len;
     struct {
         size_t len, size;
-        struct {
-            size_t len;
-            const uint8_t *data;
-        } *param, all;
+        str_t *param, all;
         uint8_t *pline;
         struct value_s *macro;
     } *params, *current;
@@ -84,24 +81,23 @@ void mtranslate(void)
                 lpoint.pos++;continue;
             } else {
                 linepos_t e = lpoint;
-                const char *label;
-                size_t ln;
+                str_t label;
                 lpoint.pos++;
-                label = (const char *)pline + lpoint.pos;
+                label.data = pline + lpoint.pos;
                 if (ch == '{') {
                     lpoint.pos++;
-                    label++;
-                    ln = get_label();
+                    label.data++;
+                    label.len = get_label();
                     if (pline[lpoint.pos] == '}') lpoint.pos++;
-                    else ln = 0;
-                } else ln = get_label();
-                if (ln) {
+                    else label.len = 0;
+                } else label.len = get_label();
+                if (label.len) {
                     for (j = 0; j < macro_parameters.current->macro->u.macro.argc; j++) {
-                        if (!macro_parameters.current->macro->u.macro.param[j].name) continue;
+                        if (!macro_parameters.current->macro->u.macro.param[j].name.data) continue;
                         if (arguments.casesensitive) {
-                            if (strncmp(macro_parameters.current->macro->u.macro.param[j].name, label, ln)) continue;
+                            if (str_cmp(&macro_parameters.current->macro->u.macro.param[j].name, &label)) continue;
                         } else {
-                            if (strncasecmp(macro_parameters.current->macro->u.macro.param[j].name, label, ln)) continue;
+                            if (str_casecmp(&macro_parameters.current->macro->u.macro.param[j].name, &label)) continue;
                         }
                         if (!macro_parameters.current->param[j].data) {
                             if (macro_parameters.current->macro->type == T_STRUCT || macro_parameters.current->macro->type == T_UNION) {
@@ -210,8 +206,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2) {
             macro_parameters.current->param[p].len = macro_param_find();
             if (!macro_parameters.current->param[p].len) {
                 if (p < tmp2->u.macro.argc) {
-                    macro_parameters.current->param[p].data = (uint8_t *)tmp2->u.macro.param[p].init;
-                    if (macro_parameters.current->param[p].data) macro_parameters.current->param[p].len = strlen(tmp2->u.macro.param[p].init);
+                    macro_parameters.current->param[p] = tmp2->u.macro.param[p].init;
                 } else macro_parameters.current->param[p].data = NULL;
             }
             p++;
@@ -240,7 +235,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2) {
         line_t ovline = vline;
 
         if (labelexists && s->addr != star) {
-            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, lpoint);
             fixeddig=0;
         }
         s->addr = star;
@@ -271,7 +266,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
 
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
-        label=find_label2(tmp2->u.func.param[i].name, &current_context->members);
+        label=find_label2(&tmp2->u.func.param[i].name, &current_context->members);
         ignore();if (!here() || here()==';') fin++;
         if (tmp2->u.func.param[i].init) {
             if (here()==',' || !here() || here()==';') {
@@ -294,10 +289,10 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
             ignore();if (here()==',') lpoint.pos++;
         }
         if (label) labelexists = 1;
-        else label = new_label(tmp2->u.func.param[i].name, L_CONST, &labelexists);
+        else label = new_label(&tmp2->u.func.param[i].name, L_CONST, &labelexists);
         label->ref=0;
         if (labelexists) {
-            if (label->type != L_CONST || pass==1) err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, tmp2->u.func.param[i].name, epoint);
+            if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, epoint);
             else {
                 label->requires=current_section->requires;
                 label->conflicts=current_section->conflicts;
@@ -325,7 +320,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
         line_t ovline = vline;
 
         if (labelexists && s->addr != star) {
-            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, lpoint);
             fixeddig=0;
         }
         s->addr = star;
@@ -345,11 +340,12 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
 }
 
 void get_func_params(struct value_s *v) {
-    static struct value_s *val, new_value;
-    static size_t len, i, j, ln;
+    struct value_s *val, new_value;
+    size_t len = 0, i, j;
+    str_t label;
     int w;
-    char *s;
 
+    new_value.u.func.param = NULL;
     for (i = 0;;i++) {
         ignore();if (!here() || here() == ';') break;
         if (i >= len) {
@@ -358,22 +354,19 @@ void get_func_params(struct value_s *v) {
             if (!new_value.u.func.param) err_msg_out_of_memory();
         }
         new_value.u.func.param[i].epoint = lpoint;
-        ln = get_label();
-        if (ln) {
-            s = (char *)malloc(ln + 1);
-            if (!s) err_msg_out_of_memory();
-            memcpy(s, pline + new_value.u.func.param[i].epoint.pos, ln);
-            s[ln] = 0;
-            for (j = 0; j < i; j++) if (new_value.u.func.param[j].name) {
+        label.data = pline + lpoint.pos;
+        label.len = get_label();
+        if (label.len) {
+            str_cpy(&new_value.u.func.param[i].name, &label);
+            for (j = 0; j < i; j++) if (new_value.u.func.param[j].name.data) {
                 if (arguments.casesensitive) {
-                    if (!strcmp(new_value.u.func.param[j].name, s)) break;
+                    if (!str_cmp(&new_value.u.func.param[j].name, &label)) break;
                 } else {
-                    if (!strcasecmp(new_value.u.func.param[j].name, s)) break;
+                    if (!str_casecmp(&new_value.u.func.param[j].name, &label)) break;
                 }
             }
-            if (j != i) err_msg2(ERROR_DOUBLE_DEFINE, s, new_value.u.func.param[i].epoint);
+            if (j != i) err_msg_double_defined(&new_value.u.func.param[j].name, v->u.func.file->realname, v->u.func.sline, new_value.u.func.param[j].epoint, &label, new_value.u.func.param[i].epoint);
         } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, new_value.u.func.param[i].epoint);break;}
-        new_value.u.func.param[i].name = s;
         new_value.u.func.param[i].init = NULL;
         ignore();
         if (here() == '=') {
@@ -411,51 +404,45 @@ void get_func_params(struct value_s *v) {
     }
     v->u.func.argc = i;
     v->u.func.param = new_value.u.func.param;
-    len = 0;
-    new_value.u.func.param = NULL;
 }
 
 void get_macro_params(struct value_s *v) {
-    static struct value_s new_value;
-    static size_t len, i, j, ln;
-    char *s;
+    struct value_s new_value;
+    size_t len = 0, i, j;
+    str_t label;
+    linepos_t *epoints = NULL;
 
+    new_value.u.macro.param = NULL;
     for (i = 0;;i++) {
-        linepos_t epoint;
         ignore();if (!here() || here() == ';') break;
         if (i >= len) {
             len += 16;
             new_value.u.macro.param = realloc(new_value.u.macro.param, len * sizeof(new_value.u.macro.param[0]));
             if (!new_value.u.macro.param) err_msg_out_of_memory();
+            epoints = realloc(epoints, len * sizeof(epoints[0]));
+            if (!epoints) err_msg_out_of_memory();
         }
-        epoint = lpoint;
-        ln = get_label();
-        if (ln) {
-            s = (char *)malloc(ln + 1);
-            if (!s) err_msg_out_of_memory();
-            memcpy(s, pline + epoint.pos, ln);
-            s[ln] = 0;
-            for (j = 0; j < i; j++) if (new_value.u.macro.param[j].name) {
+        epoints[i] = lpoint;
+        label.data = pline + lpoint.pos;
+        label.len = get_label();
+        if (label.len) {
+            str_cpy(&new_value.u.macro.param[i].name, &label);
+            for (j = 0; j < i; j++) if (new_value.u.macro.param[j].name.data) {
                 if (arguments.casesensitive) {
-                    if (!strcmp(new_value.u.macro.param[j].name, s)) break;
+                    if (!str_cmp(&new_value.u.macro.param[j].name, &label)) break;
                 } else {
-                    if (!strcasecmp(new_value.u.macro.param[j].name, s)) break;
+                    if (!str_casecmp(&new_value.u.macro.param[j].name, &label)) break;
                 }
             }
-            if (j != i) err_msg2(ERROR_DOUBLE_DEFINE, s, epoint);
-        } else s = NULL;
-        new_value.u.macro.param[i].name = s;
+            if (j != i) err_msg_double_defined(&new_value.u.macro.param[j].name, v->u.macro.file->realname, v->u.macro.sline, epoints[j], &label, epoints[i]);
+        } else {new_value.u.macro.param[i].name.len = 0; new_value.u.macro.param[i].name.data = NULL;}
         ignore();
         if (here() == '=') {
             lpoint.pos++;
-            epoint.pos = lpoint.pos;
-            ln = macro_param_find();
-            s = (char *)malloc(ln + 1);
-            if (!s) err_msg_out_of_memory();
-            memcpy(s, pline + epoint.pos, ln);
-            s[ln] = 0;
-        } else s = NULL;
-        new_value.u.macro.param[i].init = s;
+            label.data = pline + lpoint.pos;
+            label.len = macro_param_find();
+            str_cpy(&new_value.u.macro.param[i].init, &label);
+        } else {new_value.u.macro.param[i].init.len = 0; new_value.u.macro.param[i].init.data = NULL;}
         ignore();
         if (!here() || here() == ';') {
             i++;
@@ -479,8 +466,7 @@ void get_macro_params(struct value_s *v) {
     }
     v->u.macro.argc = i;
     v->u.macro.param = new_value.u.macro.param;
-    len = 0;
-    new_value.u.macro.param = NULL;
+    free(epoints);
 }
 
 struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, unsigned int args) {
@@ -504,13 +490,13 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
         val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
-        label = new_label(tmp2->u.func.param[i].name, L_CONST, &labelexists);
+        label = new_label(&tmp2->u.func.param[i].name, L_CONST, &labelexists);
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) {
                 line_t oline = sline;
                 sline = tmp2->u.func.sline;
-                err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, tmp2->u.func.param[i].name, tmp2->u.func.param[i].epoint);
+                err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, tmp2->u.func.param[i].epoint);
                 sline = oline;
             }
             else {
@@ -540,7 +526,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         const uint8_t *ollist = llist;
 
         if (labelexists && s->addr != star) {
-            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, lpoint);
             fixeddig=0;
         }
         s->addr = star;

@@ -314,33 +314,34 @@ static int touch_label(struct label_s *tmp) {
     return 1;
 }
 
-static void copy_name(struct value_s *val, char *ident) {
-    size_t len = val->u.ident.len;
-    if (len > linelength - 1) len = linelength - 1;
-    memcpy(ident, val->u.ident.name, len);
-    ident[len] = 0;
-}
-
 static void try_resolv_ident(struct value_s **val2) {
-    char ident[linelength];
+    char idents[100];
+    str_t ident;
     struct value_s *val = val2[0];
 
     switch (val->type) {
     case T_FORWR: 
-        new_value.u.ident.len = 1;
-        new_value.u.ident.name = (uint8_t *)"+";
-        sprintf(ident,"+%x+%x", reffile, forwr + val->u.ref - 1); break;
+        sprintf(idents,"+%x+%x", reffile, forwr + val->u.ref - 1);
+        ident.data = (const uint8_t *)idents;
+        ident.len = strlen(idents);
+        new_value.u.ident.name.len = 1;
+        new_value.u.ident.name.data = (const uint8_t *)"+";
+        new_value.u.ident.label = find_label(&ident);
+        break;
     case T_BACKR: 
-        new_value.u.ident.len = 1;
-        new_value.u.ident.name = (uint8_t *)"-";
-        sprintf(ident,"-%x-%x", reffile, backr - val->u.ref); break;
+        sprintf(idents,"-%x-%x", reffile, backr - val->u.ref);
+        ident.data = (const uint8_t *)idents;
+        ident.len = strlen(idents);
+        new_value.u.ident.name.len = 1;
+        new_value.u.ident.name.data = (const uint8_t *)"-";
+        new_value.u.ident.label = find_label(&ident);
+        break;
     case T_IDENT: 
-        new_value.u.ident.len = val->u.ident.len;
         new_value.u.ident.name = val->u.ident.name;
-        copy_name(val, ident); break;
+        new_value.u.ident.label = find_label(&new_value.u.ident.name);
+        break;
     default: return;
     }
-    new_value.u.ident.label = find_label(ident);
     new_value.type = (new_value.u.ident.label) ? T_IDENTREF : T_UNDEF;
     val_replace(val2, &new_value);
 }
@@ -350,12 +351,11 @@ static struct value_s *unwind_identrefs(struct value_s *v1, linepos_t epoint) {
     int rec = 100;
     while (v1->type == T_IDENTREF) {
         if (pass != 1 && v1->u.ident.label->value->type != T_IDENTREF) {
-            if (v1->u.ident.label->requires & ~current_section->provides) err_msg2(ERROR_REQUIREMENTS_, v1->u.ident.label->name, epoint);
-            if (v1->u.ident.label->conflicts & current_section->provides) err_msg2(ERROR______CONFLICT, v1->u.ident.label->name, epoint);
+            if (v1->u.ident.label->requires & ~current_section->provides) err_msg_requires(&v1->u.ident.label->name, epoint);
+            if (v1->u.ident.label->conflicts & current_section->provides) err_msg_conflicts(&v1->u.ident.label->name, epoint);
         }
         if (touch_label(v1->u.ident.label)) {
             new_value.type = T_UNDEF;
-            new_value.u.ident.len = vold->u.ident.len;
             new_value.u.ident.name = vold->u.ident.name;
             return &new_value;
         }
@@ -388,7 +388,7 @@ static void get_star(struct value_s *v) {
 
     tmp=new_star(vline, &labelexists);
     if (labelexists && tmp->addr != star) {
-        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
+        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, lpoint);
         fixeddig=0;
     }
     tmp->addr=star;
@@ -523,8 +523,8 @@ rest:
             if (!get_label()) goto syntaxe;
             val = push(epoint);
             val->type = T_IDENT;
-            val->u.ident.name = pline + epoint.pos;
-            val->u.ident.len = lpoint.pos - epoint.pos;
+            val->u.ident.name.data = pline + epoint.pos;
+            val->u.ident.name.len = lpoint.pos - epoint.pos;
         }
     other:
         ignore();ch = here(); epoint=lpoint;
@@ -992,8 +992,8 @@ static void functions(struct values_s *vals, unsigned int args) {
         val_replace(&vals->val, &none_value);
         return;
     }
-    len = vals->val->u.ident.len;
-    name = vals->val->u.ident.name;
+    len = vals->val->u.ident.name.len;
+    name = vals->val->u.ident.name.data;
 
     /* len(a) - length of string in characters */
     if (len == 3 && !memcmp(name, "len", len)) {
@@ -2628,7 +2628,7 @@ strretr:
             case O_LE: return (t1 <= t2) ? &true_value : &false_value;
             case O_GE: return (t1 >= t2) ? &true_value : &false_value;
             case O_IN: return inlist(v1, v2, epoint, epoint2, epoint3, large);
-            case O_MOD: return isnprintf(v1, v2, epoint2);
+            case O_MOD: return isnprintf(v1, v2, epoint, epoint2);
             default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
             }
         }
@@ -3038,7 +3038,6 @@ static int get_val2(struct eval_context_s *ev) {
         switch (op) {
         case O_MEMBER:
             {
-                char ident[linelength];
                 struct value_s *vv1;
                 int rec = 100;
                 v2 = v1; vsp--;
@@ -3061,12 +3060,10 @@ static int get_val2(struct eval_context_s *ev) {
                         goto errtype;
                     }
                     if (v2->val->type == T_IDENT) {
-                        copy_name(v2->val, ident);
-                        new_value.u.ident.label = find_label2(ident, &vv1->u.ident.label->members);
+                        new_value.u.ident.name = v2->val->u.ident.name;
+                        new_value.u.ident.label = find_label2(&new_value.u.ident.name, &vv1->u.ident.label->members);
                         new_value.type = (new_value.u.ident.label) ? T_IDENTREF : T_UNDEF;
                         if (new_value.u.ident.label) touch_label(vv1->u.ident.label);
-                        new_value.u.ident.len = v2->val->u.ident.len;
-                        new_value.u.ident.name = v2->val->u.ident.name;
                         val_replace(&v1->val, &new_value);
                         v1->epoint=v2->epoint;
                         continue;
@@ -3123,7 +3120,6 @@ static int get_val2(struct eval_context_s *ev) {
                             }
                             free(val->u.list.data);
                             val->type = T_UNDEF;
-                            val->u.ident.len = values[vsp-1].val->u.ident.len;
                             val->u.ident.name = values[vsp-1].val->u.ident.name;
                             v1->epoint = values[vsp-1].epoint;
                             vsp -= args + 1;
@@ -3383,8 +3379,8 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             if (get_label()) {
                 val = push(epoint);
                 val->type = T_IDENT;
-                val->u.ident.name = pline + epoint.pos;
-                val->u.ident.len = lpoint.pos - epoint.pos;
+                val->u.ident.name.data = pline + epoint.pos;
+                val->u.ident.name.len = lpoint.pos - epoint.pos;
                 goto other;
             }
         tryanon:

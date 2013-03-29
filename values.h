@@ -130,8 +130,7 @@ struct value_s {
             size_t membp;
         } code;
         struct {
-            size_t len;
-            const uint8_t *name;
+            str_t name;
             struct label_s *label;
         } ident;
         struct {
@@ -145,7 +144,7 @@ struct value_s {
             line_t sline;
             size_t argc;
             struct {
-                const char *name;
+                str_t name;
                 struct value_s *init;
                 linepos_t epoint;
             } *param; 
@@ -157,8 +156,8 @@ struct value_s {
             line_t sline;
             size_t argc;
             struct {
-                const char *name;
-                const char *init;
+                str_t name;
+                str_t init;
             } *param; 
         } macro;
         struct {
