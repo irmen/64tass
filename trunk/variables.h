@@ -27,8 +27,8 @@ enum label_e {
 };
 
 struct label_s {
+    int name_hash;
     const char *name;
-    const char *origname;
     enum label_e type;
     struct avltree_node node;
 
@@ -48,7 +48,7 @@ struct label_s {
 extern struct label_s *current_context, root_label;
 extern struct label_s *find_label(const char*);
 extern struct label_s *find_label2(const char*, const struct avltree *);
-extern struct label_s *new_label(const char*, const char*, enum label_e);
+extern struct label_s *new_label(const char*, enum label_e);
 extern void destroy_variables(void);
 extern void destroy_variables2(struct label_s *);
 extern void init_variables(void);

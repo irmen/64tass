@@ -275,7 +275,7 @@ static void set_size(struct label_s *var, size_t size, size_t memp, size_t membp
     if (var->value->u.code.size != size) {
         var->value->u.code.size = size;
         if (var->value->u.code.pass) {
-            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, var->origname);
+            if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, var->name);
             fixeddig = 0;
         }
     }
@@ -429,24 +429,14 @@ static int what(int *tempno) {
     }
 }
 
-static int get_ident2(char *ident, char *ident2) {
+static int get_ident2(char *ident) {
     size_t i = 0;
     uint8_t ch;
-    if (arguments.casesensitive) {
-	while ((whatis[ch=here()]==WHAT_CHAR) || (ch>='0' && ch<='9') || ch=='_') {
-            ident[i++]=ch;
-            lpoint.pos++;
-        }
-        memcpy(ident2, ident, i);
-    } else {
-	while (((ch=lowcase(here()))>='a' && ch<='z') || (ch>='0' && ch<='9') || ch=='_') {
-            ident2[i]=here();
-            ident[i++]=ch;
-            lpoint.pos++;
-        }
+    while ((whatis[ch=here()]==WHAT_CHAR) || (ch>='0' && ch<='9') || ch=='_') {
+        ident[i++]=ch;
+        lpoint.pos++;
     }
     ident[i]=0;
-    ident2[i]=0;
     return i == 0;
 }
 
@@ -487,7 +477,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     tmp->upass = pass;
     if (val_same(tmp->value, val)) return;
     val_replace(&tmp->value, val);
-    if (fixeddig && !fix && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, tmp->origname);
+    if (fixeddig && !fix && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, tmp->name);
     fixeddig=fix;
 }
 
@@ -506,7 +496,7 @@ struct value_s *compile(struct file_s *cfile)
     size_t oldwaitforp = waitfor_p;
     unsigned wasref;
     int nobreak = 1;
-    char labelname[linelength], labelname2[linelength];
+    char labelname[linelength];
     linepos_t epoint;
 
     while (cfile->len != cfile->p && nobreak) {
@@ -514,7 +504,7 @@ struct value_s *compile(struct file_s *cfile)
         mtranslate(); //expand macro parameters, if any
         llist = pline;
         star=current_section->l_address;newlabel = NULL;
-        labelname2[0]=wasref=0;ignore();epoint=lpoint;
+        labelname[0]=wasref=0;ignore();epoint=lpoint;
         if (current_section->unionmode) {
             if (current_section->address > current_section->unionend) current_section->unionend = current_section->address;
             if (current_section->l_address > current_section->l_unionend) current_section->l_unionend = current_section->l_address;
@@ -528,9 +518,9 @@ struct value_s *compile(struct file_s *cfile)
             int islabel;
             if (!prm) {
                 if (here()=='-' || here()=='+') {
-                    labelname2[0]=here();labelname2[1]=0;
+                    char c = here();
                     lpoint.pos++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) goto baj;
-                    if (labelname2[0]=='-') {
+                    if (c == '-') {
                         sprintf(labelname,"-%x-%x", reffile, backr++);
                     } else {
                         sprintf(labelname,"+%x+%x", reffile, forwr++);
@@ -541,7 +531,7 @@ struct value_s *compile(struct file_s *cfile)
                 if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX,NULL, epoint);
                 goto breakerr;
             } //not label
-            get_ident2(labelname, labelname2);islabel = (here()==':');
+            get_ident2(labelname);islabel = (here()==':');
             if (islabel) lpoint.pos++;
             else if (labelname[0] && labelname[1] && labelname[2] && !labelname[3] && (prm=lookup_opcode(labelname))>=0) {
                 if (waitfor->skip & 1) goto as_opcode; else continue;
@@ -556,7 +546,7 @@ struct value_s *compile(struct file_s *cfile)
                 if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
                 if (label) labelexists = 1;
-                else label = new_label(labelname, labelname2, L_CONST);
+                else label = new_label(labelname, L_CONST);
                 oaddr=current_section->address;
                 if (listing && flist && arguments.source && label->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
@@ -571,7 +561,7 @@ struct value_s *compile(struct file_s *cfile)
                 }
                 label->ref=0;
                 if (labelexists) {
-                    if (label->type != L_CONST || pass==1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                    if (label->type != L_CONST || pass==1) err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, labelname, epoint);
                     else {
                         label->requires = current_section->requires;
                         label->conflicts = current_section->conflicts;
@@ -600,7 +590,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
                         if (label) labelexists = 1;
-                        else label = new_label(labelname, labelname2, L_VAR);
+                        else label = new_label(labelname, L_VAR);
                         oaddr=current_section->address;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
@@ -615,7 +605,7 @@ struct value_s *compile(struct file_s *cfile)
                         }
                         if (labelexists) {
                             if (label->upass != pass) label->ref=0;
-                            if (label->type != L_VAR) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            if (label->type != L_VAR) err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, labelname, epoint);
                             else {
                                 label->requires=current_section->requires;
                                 label->conflicts=current_section->conflicts;
@@ -636,9 +626,9 @@ struct value_s *compile(struct file_s *cfile)
                 case CMD_LBL:
                     { //label
                         struct label_s *label;
-                        label=new_label(labelname, labelname2, L_CONST);
+                        label=new_label(labelname, L_CONST);
                         if (labelexists) {
-                            if (label->type != L_CONST || label->value->type != T_LBL || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            if (label->type != L_CONST || label->value->type != T_LBL || pass == 1) err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, labelname, epoint);
                             new_value.type = T_LBL;
                             new_value.u.lbl.p = cfile->p;
                             new_value.u.lbl.sline = sline;
@@ -674,9 +664,9 @@ struct value_s *compile(struct file_s *cfile)
                         enum type_e type = (prm == CMD_MACRO) ? T_MACRO : T_SEGMENT;
                         new_waitfor(W_ENDM, epoint);waitfor->skip=0;
                         ignore();
-                        label=new_label(labelname, labelname2, L_LABEL);
+                        label=new_label(labelname, L_LABEL);
                         if (labelexists) {
-                            if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, labelname, epoint);
                             new_value.type = type;
                             new_value.u.macro.p = cfile->p;
                             new_value.u.macro.size = 0;
@@ -711,9 +701,9 @@ struct value_s *compile(struct file_s *cfile)
                         struct label_s *label;
                         new_waitfor(W_ENDF, epoint);waitfor->skip=0;
                         ignore();
-                        label=new_label(labelname, labelname2, L_LABEL);
+                        label=new_label(labelname, L_LABEL);
                         if (labelexists) {
-                            if (label->type != L_LABEL || label->value->type != T_FUNCTION || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                            if (label->type != L_LABEL || label->value->type != T_FUNCTION || pass == 1) err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, labelname, epoint);
                             new_value.type = T_FUNCTION;
                             new_value.u.func.p = cfile->p;
                             new_value.u.func.sline = sline;
@@ -753,7 +743,7 @@ struct value_s *compile(struct file_s *cfile)
 
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, epoint);waitfor->skip=0;
                         ignore();
-                        label=new_label(labelname, labelname2, L_LABEL);oaddr = current_section->address;
+                        label=new_label(labelname, L_LABEL);oaddr = current_section->address;
                         if (declaration) {
                             enum type_e type = (prm == CMD_STRUCT) ? T_STRUCT : T_UNION;
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
@@ -761,7 +751,7 @@ struct value_s *compile(struct file_s *cfile)
                             current_section->dooutput=0;memjmp(0); oaddr = 0;
 
                             if (labelexists) {
-                                if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                                if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, labelname, epoint);
                                 new_value.type = type;
                                 new_value.u.macro.size = (label->value->type == type) ? label->value->u.macro.size : 0;
                                 new_value.u.macro.p = cfile->p;
@@ -791,7 +781,7 @@ struct value_s *compile(struct file_s *cfile)
                         } else {
                             if (labelexists) {
                                 if (label->type != L_LABEL || label->value->type != T_CODE || pass==1) {
-                                    err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, labelname2, epoint);
+                                    err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, labelname, epoint);
                                     label = NULL;
                                 } else {
                                     label->requires = current_section->requires;
@@ -805,7 +795,7 @@ struct value_s *compile(struct file_s *cfile)
                                         val->u.code.pass = pass - 1;
                                         val->u.code.size = size;
                                         val->u.code.dtype = dtype;
-                                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, label->origname);
+                                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, label->name);
                                         fixeddig = 0;
                                     }
                                     label->upass = pass;
@@ -861,7 +851,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (declaration) {
                             if (label->value->u.macro.size != ((current_section->address - oaddr) & all_mem2)) {
                                 label->value->u.macro.size = (current_section->address - oaddr) & all_mem2;
-                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, label->origname);
+                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, label->name);
                                 fixeddig = 0;
                             }
                             current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
@@ -875,20 +865,20 @@ struct value_s *compile(struct file_s *cfile)
                 case CMD_SECTION:
                     {
                         struct section_s *tmp;
-                        char sectionname[linelength], sectionname2[linelength];
+                        char sectionname[linelength];
                         linepos_t opoint;
                         new_waitfor(W_SEND, epoint);waitfor->section=current_section;
                         ignore();opoint=lpoint;
-                        if (get_ident2(sectionname, sectionname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        tmp=find_new_section(sectionname, sectionname2);
+                        if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        tmp=find_new_section(sectionname);
                         if (!tmp->declared) {
                             if (!labelexists) {
                                 tmp->end = tmp->start = tmp->address = 0;
                                 tmp->l_start = tmp->l_address = 0;
-                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, sectionname2);
+                                if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, sectionname);
                                 fixeddig=0;
                             } else if (pass > 1) {
-                                err_msg2(ERROR___NOT_DEFINED,sectionname2,opoint); goto breakerr;
+                                err_msg2(ERROR___NOT_DEFINED,sectionname,opoint); goto breakerr;
                             }
                         } else if (tmp->pass != pass) {
                             if (!tmp->moved) {
@@ -907,13 +897,13 @@ struct value_s *compile(struct file_s *cfile)
                     }
                 }
             }
-            if (!islabel && (tmp2=find_label(labelname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) {lpoint.pos--;labelname2[0]=0;goto as_macro;}
+            if (!islabel && (tmp2=find_label(labelname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) {lpoint.pos--;labelname[0]=0;goto as_macro;}
             if (!islabel && tmp2 && tmp2->parent == current_context) {newlabel = tmp2;labelexists = 1;}
-            else newlabel=new_label(labelname, labelname2, L_LABEL);
+            else newlabel=new_label(labelname, L_LABEL);
             oaddr=current_section->address;
             if (labelexists) {
                 if (newlabel->type != L_LABEL || newlabel->value->type != T_CODE || pass==1) {
-                    err_msg_double_defined(newlabel->origname, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname2, epoint);
+                    err_msg_double_defined(newlabel->name, newlabel->file->realname, newlabel->sline, newlabel->epoint, labelname, epoint);
                     newlabel = NULL; goto jn;
                 } else {
                     newlabel->requires = current_section->requires;
@@ -927,7 +917,7 @@ struct value_s *compile(struct file_s *cfile)
                         val->u.code.pass = pass - 1;
                         val->u.code.size = size;
                         val->u.code.dtype = dtype;
-                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, newlabel->origname);
+                        if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, newlabel->name);
                         fixeddig = 0;
                     }
                     get_mem(&newmemp, &newmembp);
@@ -960,7 +950,7 @@ struct value_s *compile(struct file_s *cfile)
                         current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
+                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname);
                         }
                         newlabel->ref=0;
                     }
@@ -1001,7 +991,7 @@ struct value_s *compile(struct file_s *cfile)
                     waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     if (newlabel->ref && listing && flist && arguments.source) {
                         if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                        fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
+                        fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname);
                     }
                     newlabel->ref=0;
                     newlabel = NULL;
@@ -1120,7 +1110,7 @@ struct value_s *compile(struct file_s *cfile)
                         default:
                             if (wasref) {
                                 if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                                fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
+                                fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname);
                             }
                     }
                 }
@@ -1291,10 +1281,10 @@ struct value_s *compile(struct file_s *cfile)
                 }
                 if (prm==CMD_SEND) { // .send
                     if (close_waitfor(W_SEND)) {
-                        get_ident2(labelname, labelname2);
+                        get_ident2(labelname);
                     } else if (waitfor->what==W_SEND2) {
                         ignore();epoint=lpoint;
-                        if (!get_ident2(labelname, labelname2)) {
+                        if (!get_ident2(labelname)) {
                             if (strcmp(labelname, current_section->name)) err_msg2(ERROR______EXPECTED,current_section->name,epoint);
                         }
                         if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, waitfor->memp, waitfor->membp);
@@ -1716,12 +1706,12 @@ struct value_s *compile(struct file_s *cfile)
                         waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                         if (newlabel->ref && listing && flist && arguments.source) {
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
+                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname);
                         }
                         newlabel = NULL;
                     } else {
                         sprintf(labelname, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
-                        current_context=new_label(labelname, labelname, L_LABEL);
+                        current_context=new_label(labelname, L_LABEL);
                         current_context->value = &none_value;
                     }
                     break;
@@ -1871,7 +1861,7 @@ struct value_s *compile(struct file_s *cfile)
                 }
                 if (prm==CMD_ENC) { // .enc
                     ignore();epoint=lpoint;
-                    if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     actual_encoding = new_encoding(labelname);
                     break;
                 }
@@ -2189,7 +2179,7 @@ struct value_s *compile(struct file_s *cfile)
                                 if (newlabel) current_context = newlabel;
                                 else {
                                     sprintf(labelname, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
-                                    current_context=new_label(labelname, labelname, L_LABEL);
+                                    current_context=new_label(labelname, L_LABEL);
                                     current_context->value = &none_value;
                                 }
                                 compile(f);
@@ -2224,14 +2214,14 @@ struct value_s *compile(struct file_s *cfile)
                     if (strlen((const char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
                     if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { //label
                         epoint = lpoint;
-                        if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL);goto breakerr;}
+                        if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL);goto breakerr;}
                         ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                         lpoint.pos++;
                         if (!get_exp(&w,1)) goto breakerr; //ellenorizve.
                         if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        var=new_label(labelname, labelname2, L_VAR);
+                        var=new_label(labelname, L_VAR);
                         if (labelexists) {
-                            if (var->type != L_VAR) err_msg_double_defined(var->origname, var->file->realname, var->sline, var->epoint, labelname2, epoint);
+                            if (var->type != L_VAR) err_msg_double_defined(var->name, var->file->realname, var->sline, var->epoint, labelname, epoint);
                             else {
                                 var->requires=current_section->requires;
                                 var->conflicts=current_section->conflicts;
@@ -2274,15 +2264,15 @@ struct value_s *compile(struct file_s *cfile)
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
                             lpoint.pos++;ignore();
                             epoint = lpoint;
-                            if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL);break;}
+                            if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL);break;}
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
                             lpoint.pos++;ignore();
                             if (!here() || here()==';') {bpoint = (linepos_t){0, 0}; nopos = 0;}
                             else {
-                                var=new_label(labelname, labelname2, L_VAR);
+                                var=new_label(labelname, L_VAR);
                                 if (labelexists) {
                                     if (var->type != L_VAR) {
-                                        err_msg_double_defined(var->origname, var->file->realname, var->sline, var->epoint, labelname2, epoint);
+                                        err_msg_double_defined(var->name, var->file->realname, var->sline, var->epoint, labelname, epoint);
                                         break;
                                     }
                                     var->requires = current_section->requires;
@@ -2324,7 +2314,7 @@ struct value_s *compile(struct file_s *cfile)
                     break;
                 }
                 if (prm==CMD_OPTION) { // .option
-                    if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
                     lpoint.pos++;
                     if (!get_exp(&w,0)) goto breakerr; //ellenorizve.
@@ -2335,7 +2325,7 @@ struct value_s *compile(struct file_s *cfile)
                         fixeddig = 0;
                     } else if (!strcasecmp(labelname,"allow_branch_across_page")) allowslowbranch=val_truth(val);
                     else if (!strcasecmp(labelname,"auto_longbranch_as_jmp")) longbranchasjmp=val_truth(val);
-                    else err_msg(ERROR_UNKNOWN_OPTIO,labelname2);
+                    else err_msg(ERROR_UNKNOWN_OPTIO, labelname);
                     break;
                 }
                 if (prm==CMD_GOTO) { // .goto
@@ -2477,9 +2467,9 @@ struct value_s *compile(struct file_s *cfile)
                     struct section_s *tmp3;
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".DSECTION");
                     ignore();epoint=lpoint;
-                    if (get_ident2(labelname, labelname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp3=new_section(labelname, labelname2);
-                    if (tmp3->declared && pass == 1) err_msg_double_defined(tmp3->origname, tmp3->file, tmp3->sline, tmp3->epoint, labelname2, epoint);
+                    if (get_ident2(labelname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    tmp3=new_section(labelname);
+                    if (tmp3->declared && pass == 1) err_msg_double_defined(tmp3->name, tmp3->file, tmp3->sline, tmp3->epoint, labelname, epoint);
                     else {
                         address_t t;
                         if (!tmp3->declared) {
@@ -2537,11 +2527,11 @@ struct value_s *compile(struct file_s *cfile)
                 }
                 if (prm==CMD_SECTION) {
                     struct section_s *tmp;
-                    char sectionname[linelength], sectionname2[linelength];
+                    char sectionname[linelength];
                     new_waitfor(W_SEND, epoint);waitfor->section=current_section;
                     ignore();epoint=lpoint;
-                    if (get_ident2(sectionname, sectionname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp=find_new_section(sectionname, sectionname2);
+                    if (get_ident2(sectionname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    tmp=find_new_section(sectionname);
                     if (!tmp->declared) {
                         if (!labelexists) {
                             tmp->end = tmp->start = tmp->address = 0;
@@ -2549,7 +2539,7 @@ struct value_s *compile(struct file_s *cfile)
                             if (fixeddig && pass > MAX_PASS) err_msg(ERROR_CANT_CALCULAT, "");
                             fixeddig=0;
                         } else if (pass > 1) {
-                            err_msg2(ERROR___NOT_DEFINED,sectionname2,epoint); goto breakerr;
+                            err_msg2(ERROR___NOT_DEFINED,sectionname,epoint); goto breakerr;
                         }
                     } else if (tmp->pass != pass) {
                         if (!tmp->moved) {
@@ -2571,21 +2561,21 @@ struct value_s *compile(struct file_s *cfile)
         case WHAT_HASHMARK:if (waitfor->skip & 1) //skip things if needed
             {                   //macro stuff
                 struct label_s *old_context;
-                char macroname[linelength], macroname2[linelength];
+                char macroname[linelength];
 
-                if (get_ident2(macroname, macroname2)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (!(tmp2=find_label(macroname)) || (tmp2->type != L_LABEL || (tmp2->value->type != T_MACRO && tmp2->value->type != T_SEGMENT && tmp2->value->type != T_FUNCTION))) {err_msg(ERROR___NOT_DEFINED,macroname2); goto breakerr;}
+                if (get_ident2(macroname)) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (!(tmp2=find_label(macroname)) || (tmp2->type != L_LABEL || (tmp2->value->type != T_MACRO && tmp2->value->type != T_SEGMENT && tmp2->value->type != T_FUNCTION))) {err_msg(ERROR___NOT_DEFINED,macroname); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                    fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname2);
+                    fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t%s\n":".%06" PRIaddress "\t\t\t\t\t%s\n",current_section->address,labelname);
                 }
                 if (tmp2->value->type == T_MACRO || tmp2->value->type == T_FUNCTION) {
                     old_context = current_context;
                     if (newlabel) current_context=newlabel;
                     else {
                         sprintf(labelname, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
-                        current_context=new_label(labelname, labelname, L_LABEL);
+                        current_context=new_label(labelname, L_LABEL);
                         current_context->value = &none_value;
                     }
                     if (tmp2->value->type == T_FUNCTION) func_recurse(W_ENDF2, tmp2->value);
@@ -2598,7 +2588,7 @@ struct value_s *compile(struct file_s *cfile)
             if (waitfor->skip & 1) {
                 enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_NONE } adrgen;
 
-                get_ident2(labelname, labelname2);
+                get_ident2(labelname);
                 if (labelname[0] && labelname[1] && labelname[2] && !labelname[3] && (prm=lookup_opcode(labelname))>=0) {
                     enum opr_e opr;
                     int mnem;

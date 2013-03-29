@@ -75,6 +75,28 @@ unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use 
     return i;
 }
 
+int strhash(const char *s) {
+    uint8_t *s2 = (uint8_t *)s;
+    unsigned int h;
+    h = *s2 << 7;
+    while (*s2) h = (1000003 * h) ^ *s2++;
+    h ^= s2 - (uint8_t *)s;
+    return h & ((~(unsigned int)0) >> 1);
+}
+
+int strcasehash(const char *s) {
+    uint8_t *s2 = (uint8_t *)s, c;
+    unsigned int h;
+    h = *s2 << 7;
+    while (*s2) {
+        c = *s2++;
+        if (c >= 'a' && c <= 'z') c -= 'a' - 'A';
+        h = (1000003 * h) ^ c;
+    }
+    h ^= s2 - (uint8_t *)s;
+    return h & ((~(unsigned int)0) >> 1);
+}
+
 uint8_t *utf8out(uint32_t i, uint8_t *c) {
     if (!i) {
         *c++=0xc0;
@@ -168,8 +190,8 @@ void labelprint(void) {
         default:break;
         }
         switch (l->type) {
-        case L_VAR: fprintf(flab,"%-15s .var ",l->origname);break;
-        default: fprintf(flab,"%-16s= ",l->origname);break;
+        case L_VAR: fprintf(flab,"%-15s .var ", l->name);break;
+        default: fprintf(flab,"%-16s= ", l->name);break;
         }
         val_print(l->value, flab);
         putc('\n', flab);
@@ -179,9 +201,9 @@ void labelprint(void) {
 }
 
 void sectionprint2(const struct section_s *l) {
-    if (l->origname) {
+    if (l->name) {
         sectionprint2(l->parent);
-        printf("%s.", l->origname);
+        printf("%s.", l->name);
     }
 }
 
@@ -199,7 +221,7 @@ void sectionprint(void) {
             printf("Section:                         ");
         }
         sectionprint2(l->parent);
-        puts(l->origname);
+        puts(l->name);
         l = l->next;
     }
 }

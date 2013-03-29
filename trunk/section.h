@@ -22,8 +22,8 @@
 #include "misc.h"
 
 struct section_s {
+    int name_hash;
     const char *name;
-    const char *origname;
     struct avltree_node node;
 
     uval_t requires;
@@ -56,8 +56,8 @@ struct section_s {
     struct avltree members;
 };
 
-extern struct section_s *new_section(const char*, const char*);
-extern struct section_s *find_new_section(const char*, const char*);
+extern struct section_s *new_section(const char*);
+extern struct section_s *find_new_section(const char*);
 extern void init_section(void);
 extern void init_section2(struct section_s *);
 extern void destroy_section(void);

@@ -288,10 +288,10 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
             ignore();if (here()==',') lpoint.pos++;
         }
         if (label) labelexists = 1;
-        else label = new_label(tmp2->u.func.param[i].name, tmp2->u.func.param[i].name, L_CONST);
+        else label = new_label(tmp2->u.func.param[i].name, L_CONST);
         label->ref=0;
         if (labelexists) {
-            if (label->type != L_CONST || pass==1) err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, tmp2->u.func.param[i].name, epoint);
+            if (label->type != L_CONST || pass==1) err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, tmp2->u.func.param[i].name, epoint);
             else {
                 label->requires=current_section->requires;
                 label->conflicts=current_section->conflicts;
@@ -480,13 +480,13 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     enterfile(tmp2->u.func.file->realname, sline);
     for (i = 0; i < tmp2->u.func.argc; i++) {
         val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
-        label = new_label(tmp2->u.func.param[i].name, tmp2->u.func.param[i].name, L_CONST);
+        label = new_label(tmp2->u.func.param[i].name, L_CONST);
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) {
                 line_t oline = sline;
                 sline = tmp2->u.func.sline;
-                err_msg_double_defined(label->origname, label->file->realname, label->sline, label->epoint, tmp2->u.func.param[i].name, tmp2->u.func.param[i].epoint);
+                err_msg_double_defined(label->name, label->file->realname, label->sline, label->epoint, tmp2->u.func.param[i].name, tmp2->u.func.param[i].epoint);
                 sline = oline;
             }
             else {
