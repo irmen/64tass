@@ -21,6 +21,7 @@
 #include "error.h"
 #include "string.h"
 #include "ternary.h"
+#include "misc.h"
 
 struct encoding_s {
     str_t name;

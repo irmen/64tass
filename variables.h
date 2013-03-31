@@ -17,8 +17,6 @@
 */
 #ifndef _VARIABLES_H_
 #define _VARIABLES_H_
-#include <stdint.h>
-#include "values.h"
 #include "libtree.h"
 #include "inttypes.h"
 

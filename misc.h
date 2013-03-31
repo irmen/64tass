@@ -17,11 +17,6 @@
 */
 #ifndef _MISC_H_
 #define _MISC_H_
-#include "libtree.h"
-#include "values.h"
-#include "variables.h"
-#include <stddef.h>
-#include <stdint.h>
 #include "inttypes.h"
 #ifndef REVISION
 #define REVISION "?"
@@ -29,6 +24,9 @@
 #undef VERSION
 #define VERSION "1.5x" REVISION
 #define MAX_PASS 20
+
+struct file_s;
+struct label_s;
 
 enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_X, WHAT_Y, WHAT_Z, WHAT_XZ, WHAT_R, WHAT_RZ,
     WHAT_COMMAND, WHAT_EQUAL, WHAT_EOL, WHAT_STAR, WHAT_COMA, WHAT_COLON,

@@ -15,15 +15,16 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#include "macro.h"
-#include "inttypes.h"
 #include <stdlib.h>
 #include <string.h>
+#include "macro.h"
+#include "inttypes.h"
 #include "misc.h"
 #include "error.h"
 #include "file.h"
 #include "eval.h"
 #include "section.h"
+#include "variables.h"
 
 static struct {
     uint8_t p, len;

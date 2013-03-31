@@ -18,8 +18,7 @@
 #ifndef _SECTION_H_
 #define _SECTION_H_
 #include "libtree.h"
-#include <stdint.h>
-#include "misc.h"
+#include "inttypes.h"
 
 struct section_s {
     int name_hash;

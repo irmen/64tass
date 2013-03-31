@@ -54,8 +54,8 @@
 
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
-static struct value_s none_value = {T_NONE, 0, {{0, 0, NULL}}};
-static struct value_s new_value = {T_NONE, 0, {{0, 0, NULL}}};
+static struct value_s none_value = {T_NONE, 0, {{0, 0}}};
+static struct value_s new_value = {T_NONE, 0, {{0, 0}}};
 
 line_t sline, vline;      /* current line */
 static address_t all_mem, all_mem2;
@@ -1166,11 +1166,11 @@ struct value_s *compile(struct file_s *cfile)
                     } else val = &none_value;
                     switch (prm) {
                     case CMD_ELSIF:
-                        if (val->type == T_UNDEF) err_msg_wrong_type(val, epoint);
+                        if (val->type == T_ERROR) err_msg_wrong_type(val, epoint);
                         waitfor->skip = val_truth(val) ? (waitfor->skip >> 1) : (waitfor->skip & 2);
                         break;
                     case CMD_IF:
-                        if (val->type == T_UNDEF) err_msg_wrong_type(val, epoint);
+                        if (val->type == T_ERROR) err_msg_wrong_type(val, epoint);
                         waitfor->skip = val_truth(val) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     case CMD_IFNE:
@@ -1533,7 +1533,7 @@ struct value_s *compile(struct file_s *cfile)
                             if (val == &error_value) ch2 = 0; else
                             switch (val->type) {
                             case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
-                            case T_STR: if (str_to_num(val, T_NUM, &new_value)) {large = epoint; ch2 = 0; break;} val = &new_value;
+                            case T_STR: if (str_to_num(val, T_NUM, &new_value, epoint)) {large = epoint; ch2 = 0; break;} val = &new_value;
                             case T_FLOAT:
                             case T_CODE:
                             case T_NUM:
@@ -1561,7 +1561,7 @@ struct value_s *compile(struct file_s *cfile)
                                         struct value_s *val2 = val->u.list.data[li];
                                         switch (val2->type) {
                                         case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
-                                        case T_STR: if (str_to_num(val2, T_NUM, &new_value)) {large = epoint; ch2 = 0; break;} val2 = &new_value;
+                                        case T_STR: if (str_to_num(val2, T_NUM, &new_value, epoint)) {large = epoint; ch2 = 0; break;} val2 = &new_value;
                                         case T_FLOAT:
                                         case T_CODE:
                                         case T_NUM:
@@ -1880,14 +1880,14 @@ struct value_s *compile(struct file_s *cfile)
                         if (first) {
                             first = 0;
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
-                                if (val->type == T_UNDEF) err_msg_wrong_type(val, epoint);
+                                if (val->type == T_ERROR) err_msg_wrong_type(val, epoint);
                                 write = val_truth(val);
                                 continue;
                             }
                             write = 1;
                         }
                         if (write) {
-                            if (val->type == T_UNDEF) err_msg_wrong_type(val, epoint);
+                            if (val->type == T_ERROR) err_msg_wrong_type(val, epoint);
                             else if (val->type != T_NONE) err_msg_variable(&user_error, val, 0);
                         }
                     }
