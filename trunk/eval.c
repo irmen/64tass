@@ -507,22 +507,35 @@ static int evxnum, evx_p;
 static struct eval_context_s {
     struct values_s *values;
     size_t values_size;
-    uint8_t outp, outp2;
+    size_t outp, outp2;
     int gstop;
-    struct values_s o_out[256];
+    struct values_s *o_out;
+    size_t out_size;
 } **evx;
 
 static struct eval_context_s *eval;
 
 
 static inline struct value_s *push(linepos_t epoint) {
-    struct values_s *o_out = &eval->o_out[eval->outp++];
+    struct values_s *o_out;
+    if (eval->outp >= eval->out_size) {
+        size_t i;
+        eval->out_size += 64;
+        eval->o_out = realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
+        for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = &none_value;
+    }
+    o_out = &eval->o_out[eval->outp++];
     o_out->epoint = epoint;
     return val_realloc(&o_out->val);
 }
 
 static inline void push_oper(struct value_s *val, linepos_t epoint) {
-    val_destroy(eval->o_out[eval->outp].val);
+    if (eval->outp >= eval->out_size) {
+        size_t i;
+        eval->out_size += 64;
+        eval->o_out = realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
+        for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = &none_value;
+    } else val_destroy(eval->o_out[eval->outp].val);
     eval->o_out[eval->outp].val = val;
     eval->o_out[eval->outp++].epoint = epoint;
 }
@@ -640,7 +653,7 @@ static ival_t to_ival(const struct value_s *val) {
 }
 
 static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
-    uint8_t vsp = 0;
+    size_t vsp = 0;
     enum type_e t1, t2;
     enum oper_e op;
     size_t i;
@@ -3314,7 +3327,7 @@ strretr:
 }
 
 static int get_val2(struct eval_context_s *ev) {
-    uint8_t vsp = 0;
+    size_t vsp = 0;
     size_t i;
     enum oper_e op;
     struct values_s *v1, *v2;
@@ -3901,7 +3914,6 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
 void eval_enter(void) {
     evx_p++;
     if (evx_p >= evxnum) {
-        size_t i;
         evxnum++;
         evx = (struct eval_context_s **)realloc(evx, evxnum * sizeof(struct eval_context_s *));
         if (!evx) err_msg_out_of_memory();
@@ -3909,7 +3921,8 @@ void eval_enter(void) {
         if (!eval) err_msg_out_of_memory();
         eval->values = NULL;
         eval->values_size = 0;
-        for (i = 0; i < 256; i++) eval->o_out[i].val = &none_value;
+        eval->o_out = NULL;
+        eval->out_size = 0;
         evx[evx_p] = eval;
         return;
     }
@@ -3929,11 +3942,11 @@ void init_eval(void) {
 
 void destroy_eval(void) {
     while (evxnum--) {
-        size_t i;
         eval = evx[evxnum];
-        for (i = 0; i < 256; i++) val_destroy(eval->o_out[i].val);
+        while (eval->out_size--) val_destroy(eval->o_out[eval->out_size].val);
         while (eval->values_size--) val_destroy(eval->values[eval->values_size].val);
         free(eval->values);
+        free(eval->o_out);
         free(eval);
     }
     free(evx);
