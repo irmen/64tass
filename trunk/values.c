@@ -15,11 +15,13 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#include "values.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "error.h"
+#include "variables.h"
+#include "misc.h"
+#include "values.h"
 
 static union values_u {
     struct value_s val;
@@ -260,7 +262,7 @@ int val_same(const struct value_s *val, const struct value_s *val2) {
     case T_GAP:
         return val->type == val2->type;
     case T_IDENTREF:
-        return val->type == val2->type && val->u.ident.label == val2->u.ident.label;
+        return val->type == val2->type && val->u.identref == val2->u.identref;
     default: /* not possible here */
         exit(2);
     }
@@ -360,10 +362,10 @@ void val_print(const struct value_s *value, FILE *flab) {
         putc(value->u.num.val ? '1' : '0', flab);
         break;
     case T_IDENTREF:
-        if (value->u.ident.label->parent != &root_label) {
+        if (value->u.identref->parent != &root_label) {
             int rec = 100;
             while (value->type == T_IDENTREF) {
-                value = value->u.ident.label->value;
+                value = value->u.identref->value;
                 if (!rec--) {
                     putc('!', flab);
                     return;
@@ -371,7 +373,7 @@ void val_print(const struct value_s *value, FILE *flab) {
             }
             val_print(value, flab);
         } else {
-            fwrite(value->u.ident.label->name.data, value->u.ident.label->name.len, 1, flab);
+            fwrite(value->u.identref->name.data, value->u.identref->name.len, 1, flab);
         }
         break;
     case T_GAP:

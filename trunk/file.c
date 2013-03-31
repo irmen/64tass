@@ -15,10 +15,12 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#include "file.h"
-#include "error.h"
 #include <string.h>
 #include <stdlib.h>
+#include "file.h"
+#include "error.h"
+#include "values.h"
+#include "misc.h"
 
 struct include_list_s {
     struct include_list_s *next;

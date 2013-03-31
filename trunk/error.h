@@ -17,9 +17,10 @@
 */
 #ifndef _ERROR_H_
 #define _ERROR_H_
-#include <stdint.h>
-#include "misc.h"
-#include "values.h"
+#include "inttypes.h"
+
+struct value_s;
+enum oper_e;
 
 struct error_s {
     size_t p;
@@ -58,11 +59,17 @@ enum errors_e {
     ERROR___NOT_ALLOWED,
     ERROR_CANT_CROSS_BA,
     ERROR_OUTOF_SECTION,
+    ERROR_NEGFRAC_POWER,
+    ERROR_BIG_STRING_CO,
     ERROR__USER_DEFINED,
     ERROR____PAGE_ERROR,
     ERROR__BRANCH_CROSS,
     ERROR_BRANCH_TOOFAR,
     ERROR___UNKNOWN_CHR,
+
+    ERROR___NOT_DEFINED,
+    ERROR_REQUIREMENTS_,
+    ERROR______CONFLICT,
 
     ERROR_CANT_FINDFILE=0x80,
     ERROR__READING_FILE,
@@ -81,7 +88,7 @@ enum errors_e {
 
 extern void err_msg(enum errors_e, const void*);
 extern void err_msg2(enum errors_e, const void*, linepos_t);
-extern void err_msg_wrong_type(const struct value_s*, linepos_t);
+extern void err_msg_wrong_type(const struct value_s *, linepos_t);
 extern void err_msg_cant_calculate(const str_t *name, linepos_t epoint);
 extern void err_msg_invalid_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
 extern void err_msg_strange_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);

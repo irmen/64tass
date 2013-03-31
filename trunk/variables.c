@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "error.h"
+#include "misc.h"
+#include "values.h"
 
 struct label_s root_label;
 struct label_s *current_context = &root_label;

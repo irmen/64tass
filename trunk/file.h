@@ -17,9 +17,11 @@
 */
 #ifndef _FILE_H_
 #define _FILE_H_
-#include "libtree.h"
-#include "misc.h"
 #include <stdio.h>
+#include "inttypes.h"
+#include "libtree.h"
+
+struct value_s;
 
 enum filecoding_e {
     E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO1

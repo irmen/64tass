@@ -16,10 +16,12 @@
 
 */
 #include "error.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include "misc.h"
+#include "values.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -112,6 +114,8 @@ static const char *terr_error[]={
     "not allowed here: %s",
     "instruction can't cross banks",
     "address out of section",
+    "negative number raised on fractional power",
+    "string constant too long for a number",
     "%s\n",
 };
 static const char *terr_fatal[]={
@@ -199,7 +203,7 @@ static const char *type_name(enum type_e t) {
     case T_UINT: return "<uint>";
     case T_NUM: return "<num>";
     case T_STR: return "<string>";
-    case T_UNDEF: return "<undefined>";
+    case T_ERROR: return "<error>";
     case T_IDENT: return "<ident>";
     case T_IDENTREF: return "<identref>";
     case T_NONE: return "<none>";
@@ -235,18 +239,24 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
         adderror(" '");
         adderror2(name->data, name->len);
         adderror("'\n");
-    }
+    } else adderror("\n");
     errors++;
     return;
 }
 
 void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
     const char *name;
-    if (val->type == T_UNDEF) {
-        err_msg_not_defined(&val->u.ident.name, epoint);
-        return;
-    }
     if (pass == 1) return;
+    if (val->type == T_ERROR) {
+        switch (val->u.error.num) {
+        case ERROR___NOT_DEFINED: err_msg_not_defined(&val->u.error.ident, val->u.error.epoint);return;
+        case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.ident, val->u.error.epoint);return;
+        case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.ident, val->u.error.epoint);return;
+        case ERROR_NEGFRAC_POWER:
+        case ERROR_BIG_STRING_CO:
+        case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, val->u.error.epoint);return;
+        }
+    }
     name = type_name(val->type);
     err_msg2(ERROR____WRONG_TYPE, name, epoint);
 }
@@ -335,7 +345,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
            else add_user_error2(user_error, val->u.str.data, val->u.str.len);
            break;
        }
-    case T_UNDEF: add_user_error(user_error, "<undefined>");break;
+    case T_ERROR: add_user_error(user_error, "<error>");break;
     case T_IDENT: add_user_error(user_error, "<ident>");break;
     case T_IDENTREF: add_user_error(user_error, "<identref>");break;
     case T_NONE: add_user_error(user_error, "<none>");break;
@@ -405,12 +415,12 @@ static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, c
     const char *name;
 
     if (pass == 1) return 0;
-    if (v1->type == T_UNDEF) {
-        err_msg_wrong_type(v1, epoint);
+    if (v1->type == T_ERROR) {
+        err_msg_wrong_type(v1, v1->u.error.epoint);
         return 0;
     }
-    if (v2 && v2->type == T_UNDEF) {
-        err_msg_wrong_type(v2, epoint);
+    if (v2 && v2->type == T_ERROR) {
+        err_msg_wrong_type(v2, v2->u.error.epoint);
         return 0;
     }
 

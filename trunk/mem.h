@@ -19,7 +19,8 @@
 #define _MEM_H_
 #include <stdio.h>
 #include "inttypes.h"
-#include "misc.h"
+enum lastl_e;
+
 extern void mark_mem(address_t);
 extern void write_mark_mem(uint8_t c);
 extern void list_mem(FILE *, address_t, int, enum lastl_e *);

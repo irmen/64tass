@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include "error.h"
 #include "file.h"
+#include "misc.h"
 
 static struct {       //Linear memory dump
     size_t p, len;

@@ -17,21 +17,13 @@
 */
 #ifndef _VALUES_H_
 #define _VALUES_H_
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include "inttypes.h"
-
-typedef int32_t ival_t;
-#define PRIdval PRId32
-typedef uint32_t uval_t;
-#define PRIxval PRIx32
-#define PRIuval PRIu32
-#define PRIXval PRIX32
+#include "error.h"
 
 enum type_e {
     T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT,
-    T_IDENTREF, T_FORWR, T_BACKR, T_UNDEF, T_OPER, T_TUPLE, T_LIST, T_MACRO,
+    T_IDENTREF, T_FORWR, T_BACKR, T_ERROR, T_OPER, T_TUPLE, T_LIST, T_MACRO,
     T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL, T_DEFAULT
 };
 
@@ -114,7 +106,6 @@ struct value_s {
         struct {
             uint8_t len;
             ival_t val;
-            struct label_s *label;
         } num;
         struct {
             size_t len;
@@ -129,10 +120,6 @@ struct value_s {
             size_t memp;
             size_t membp;
         } code;
-        struct {
-            str_t name;
-            struct label_s *label;
-        } ident;
         struct {
             size_t len;
             struct value_s **data;
@@ -171,6 +158,13 @@ struct value_s {
             enum oper_e op;
             int prio;
         } oper;
+        struct {
+            int num;
+            str_t ident;
+            linepos_t epoint;
+        } error;
+        str_t ident;
+        struct label_s *identref;
         uint8_t ref;
         double real;
     } u;

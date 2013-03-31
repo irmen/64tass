@@ -28,6 +28,7 @@
 #include "encoding.h"
 #include "file.h"
 #include "eval.h"
+#include "variables.h"
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL};
 

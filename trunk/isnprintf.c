@@ -53,7 +53,7 @@
 #include "eval.h"
 
 static struct value_s none_value = {T_NONE, 0, {}};
-static struct value_s return_value = {T_STR, 0, {}};
+static struct value_s return_value;
 static size_t returnsize = 0;
 static linepos_t epoint;
 
@@ -377,21 +377,20 @@ static void conv_flag(char * s, struct DATA * p)
 }
 
 /* return templates only! */
-const struct value_s *isnprintf(const struct value_s *fstr, const struct value_s *l, linepos_t se, linepos_t me)
+void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_s *v, linepos_t se, linepos_t me)
 {
     struct DATA data;
     char conv_field[MAX_FIELD];
     int state;
     int i;
 
-    data.pf = (char *)fstr->u.str.data;
-    data.pfend = data.pf + fstr->u.str.len;
+    data.pf = (char *)v1->u.str.data;
+    data.pfend = data.pf + v1->u.str.len;
 
     listp = 0;
-    list = l;
+    list = v2;
 
     epoint = me;
-    return_value.type = T_STR;
     return_value.u.str.data = NULL;
     return_value.u.str.len = 0;
     return_value.u.str.chars = 0;
@@ -454,9 +453,8 @@ const struct value_s *isnprintf(const struct value_s *fstr, const struct value_s
                     break;
                 default:
                     {
-                        uint8_t str[2] = {'%'};
+                        uint8_t str[2] = {'%', *data.pf};
                         str_t msg = {2, str};
-                        str[1] = *data.pf;
                         err_msg_not_defined(&msg, se);
                     }
                     /* is this an error ? maybe bail out */
@@ -468,6 +466,11 @@ const struct value_s *isnprintf(const struct value_s *fstr, const struct value_s
             PUT_CHAR(*data.pf);  /* add the char the string */
         }
     }
-    return &return_value;
+    if (v == v1) free((uint8_t *)v1->u.str.data);
+    v->type = T_STR;
+    v->u.str.data = return_value.u.str.data;
+    v->u.str.len = return_value.u.str.len;
+    v->u.str.chars = return_value.u.str.chars;
+    return;
 }
 

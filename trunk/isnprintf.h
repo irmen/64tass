@@ -17,6 +17,7 @@
 */
 #ifndef _ISNPRINTF_H_
 #define _ISNPRINTF_H_
-#include "values.h"
-extern const struct value_s *isnprintf(const struct value_s *, const struct value_s *, linepos_t, linepos_t);
+#include "inttypes.h"
+struct value_s;
+extern void isnprintf(const struct value_s *, const struct value_s *, struct value_s *, linepos_t, linepos_t);
 #endif
