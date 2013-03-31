@@ -105,11 +105,11 @@ size_t get_label(void) {
     return lpoint.pos - e.pos;
 }
 
-static int get_hex(struct value_s *v) {
+static void get_hex(struct value_s *v) {
     uval_t val = 0;
     linepos_t start;
     ignore();
-    start.pos = lpoint.pos;
+    start = lpoint;
     while (here() == 0x30) lpoint.pos++;
     while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
         val = (val << 4) + (here() & 15);
@@ -119,14 +119,19 @@ static int get_hex(struct value_s *v) {
     v->type = T_NUM;
     v->u.num.val = val;
     v->u.num.len = (lpoint.pos - start.pos) * 4;
-    return v->u.num.len > 8*sizeof(val);
+    if (v->u.num.len > 8*sizeof(val)) {
+        v->type = T_ERROR;
+        v->u.error.num = ERROR_CONSTNT_LARGE;
+        v->u.error.epoint = start;
+    }
+    return;
 }
 
-static int get_bin(struct value_s *v) {
+static void get_bin(struct value_s *v) {
     uval_t val = 0;
     linepos_t start;
     ignore();
-    start.pos = lpoint.pos;
+    start = lpoint;
     while (here() == 0x30) lpoint.pos++;
     while ((here() & 0xfe) == '0') {
         val = (val << 1) | (here() & 1);
@@ -135,7 +140,12 @@ static int get_bin(struct value_s *v) {
     v->type = T_NUM;
     v->u.num.val = val;
     v->u.num.len = lpoint.pos - start.pos;
-    return v->u.num.len > 8*sizeof(val);
+    if (v->u.num.len > 8*sizeof(val)) {
+        v->type = T_ERROR;
+        v->u.error.num = ERROR_CONSTNT_LARGE;
+        v->u.error.epoint = start;
+    }
+    return;
 }
 
 static int get_dec(struct value_s *v) {
@@ -156,27 +166,31 @@ static int get_dec(struct value_s *v) {
     return large;
 }
 
-static int get_float(struct value_s *v) {
-    size_t i = lpoint.pos;
+static void get_float(struct value_s *v) {
+    linepos_t start = lpoint;
 
-    while ((uint8_t)(pline[i] ^ '0') < 10) i++;
-    if (pline[i]=='.') {
+    while ((uint8_t)(here() ^ '0') < 10) lpoint.pos++;
+    if (here()=='.') {
         do {
-            i++;
-        } while ((uint8_t)(pline[i] ^ '0') < 10);
+            lpoint.pos++;
+        } while ((uint8_t)(here() ^ '0') < 10);
     }
-    if ((pline[i] | 0x20)=='e') {
-        if ((pline[i+1]=='-' || pline[i + 1]=='+') && (uint8_t)(pline[i + 2] ^ '0') < 10) i++;
-        if ((uint8_t)(pline[i+1] ^ '0') < 10) {
+    if ((here() | 0x20)=='e') {
+        if ((pline[lpoint.pos + 1]=='-' || pline[lpoint.pos + 1]=='+') && (uint8_t)(pline[lpoint.pos + 2] ^ '0') < 10) lpoint.pos++;
+        if ((uint8_t)(pline[lpoint.pos + 1] ^ '0') < 10) {
             do {
-                i++;
-            } while ((uint8_t)(pline[i] ^ '0') < 10);
+                lpoint.pos++;
+            } while ((uint8_t)(here() ^ '0') < 10);
         }
     }
-    v->u.real = strtod((const char *)pline + lpoint.pos, NULL);
+    v->u.real = strtod((const char *)pline + start.pos, NULL);
     v->type = T_FLOAT;
-    lpoint.pos = i;
-    return 0;
+    if (v->u.real == HUGE_VAL) {
+        v->type = T_ERROR;
+        v->u.error.num = ERROR_CONSTNT_LARGE;
+        v->u.error.epoint = start;
+    }
+    return;
 }
 
 uint_fast16_t petascii(size_t *i, const struct value_s *v) {
@@ -328,8 +342,8 @@ static void try_resolv_ident(struct values_s *vals) {
             v->type = T_ERROR;
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = vals->epoint;
-            v->u.error.ident.len = 1;
-            v->u.error.ident.data = (const uint8_t *)"+";
+            v->u.error.u.ident.len = 1;
+            v->u.error.u.ident.data = (const uint8_t *)"+";
         }
         break;
     case T_BACKR: 
@@ -345,8 +359,8 @@ static void try_resolv_ident(struct values_s *vals) {
             v->type = T_ERROR;
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = vals->epoint;
-            v->u.error.ident.len = 1;
-            v->u.error.ident.data = (const uint8_t *)"-";
+            v->u.error.u.ident.len = 1;
+            v->u.error.u.ident.data = (const uint8_t *)"-";
         }
         break;
     case T_IDENT: 
@@ -356,7 +370,7 @@ static void try_resolv_ident(struct values_s *vals) {
             v->type = T_IDENTREF;
             v->u.identref = l;
         } else {
-            v->u.error.ident = val->u.ident;
+            v->u.error.u.ident = val->u.ident;
             v->type = T_ERROR;
             v->u.error.epoint = vals->epoint;
             v->u.error.num = ERROR___NOT_DEFINED;
@@ -373,14 +387,14 @@ static struct value_s *unwind_identrefs(struct values_s *vals, struct value_s *v
     while (v1->type == T_IDENTREF) {
         if (pass != 1 && v1->u.identref->value->type != T_IDENTREF) {
             if (v1->u.identref->requires & ~current_section->provides) {
-                v->u.error.ident = vold->u.identref->name;
+                v->u.error.u.ident = vold->u.identref->name;
                 v->type = T_ERROR;
                 v->u.error.epoint = vals->epoint;
                 v->u.error.num = ERROR_REQUIREMENTS_;
                 return v;
             }
             if (v1->u.identref->conflicts & current_section->provides) {
-                v->u.error.ident = vold->u.identref->name;
+                v->u.error.u.ident = vold->u.identref->name;
                 v->type = T_ERROR;
                 v->u.error.epoint = vals->epoint;
                 v->u.error.num = ERROR______CONFLICT;
@@ -388,7 +402,7 @@ static struct value_s *unwind_identrefs(struct values_s *vals, struct value_s *v
             }
         }
         if (touch_label(v1->u.identref)) {
-            v->u.error.ident = vold->u.identref->name;
+            v->u.error.u.ident = vold->u.identref->name;
             v->type = T_ERROR;
             v->u.error.epoint = vals->epoint;
             v->u.error.num = ERROR___NOT_DEFINED;
@@ -542,8 +556,8 @@ rest:
 
         switch (ch) {
         case '(': lpoint.pos++;epoints[operp] = epoint; o_oper[operp++] = &o_PARENT;continue;
-        case '$': lpoint.pos++;val = push(epoint);if (get_hex(val)) goto pushlarge;goto pushval;
-        case '%': lpoint.pos++;val = push(epoint);if (get_bin(val)) goto pushlarge;goto pushval;
+        case '$': lpoint.pos++;val = push(epoint);get_hex(val);goto pushval;
+        case '%': lpoint.pos++;val = push(epoint);get_bin(val);goto pushval;
         case '"': lpoint.pos++;val = push(epoint);get_string(val, ch);goto pushval;
         case '*': lpoint.pos++;val = push(epoint);get_star(val);goto pushval;
         }
@@ -632,7 +646,6 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
     size_t i;
     struct value_s tmp, *val;
     struct values_s *v1, *v2;
-    int large = 0;
     struct values_s *o_out;
     struct values_s *values;
 
@@ -762,7 +775,6 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         vsp--; val_replace(&v2->val, &none_value); continue;
     }
     ev->outp2 = i;
-    if (large) return -1;
     return 0;
 }
 
@@ -1046,8 +1058,8 @@ static void functions(struct values_s *vals, unsigned int args) {
                 new_value.type = T_ERROR;
                 new_value.u.error.num = ERROR___NOT_DEFINED;
                 new_value.u.error.epoint = v[0].epoint;
-                new_value.u.error.ident.len = 6;
-                new_value.u.error.ident.data = (const uint8_t *)"<code>";
+                new_value.u.error.u.ident.len = 6;
+                new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
                 val_replace(&vals->val, &new_value);
                 return;
             }
@@ -1195,8 +1207,8 @@ static void functions(struct values_s *vals, unsigned int args) {
                     new_value.type = T_ERROR;
                     new_value.u.error.num = ERROR___NOT_DEFINED;
                     new_value.u.error.epoint = v[0].epoint;
-                    new_value.u.error.ident.len = 6;
-                    new_value.u.error.ident.data = (const uint8_t *)"<code>";
+                    new_value.u.error.u.ident.len = 6;
+                    new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
                     val_replace(&vals->val, &new_value);
                     return;
                 }
@@ -1376,7 +1388,10 @@ static void str_iindex(struct values_s *vals, const struct value_s *list, linepo
             offs = indexoffs(list->u.list.data[i], len);
             if (offs < 0) {
                 free(o);
-                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+                new_value.type = T_ERROR;
+                new_value.u.error.num = ERROR___INDEX_RANGE;
+                new_value.u.error.epoint = epoint;
+                val_replace_template(&vals->val, &new_value);
                 return;
             }
             *p++ = val->u.str.data[offs];
@@ -1395,7 +1410,10 @@ static void str_iindex(struct values_s *vals, const struct value_s *list, linepo
             offs = indexoffs(list->u.list.data[i], len);
             if (offs < 0) {
                 free(o);
-                err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+                new_value.type = T_ERROR;
+                new_value.u.error.num = ERROR___INDEX_RANGE;
+                new_value.u.error.epoint = epoint;
+                val_replace_template(&vals->val, &new_value);
                 return;
             }
             while (offs != j) {
@@ -1446,7 +1464,10 @@ static void list_iindex(struct values_s *vals, const struct value_s *list, linep
         if (offs < 0) {
             new_value.u.list.len = i;
             val_destroy2(&new_value);
-            err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+            new_value.type = T_ERROR;
+            new_value.u.error.num = ERROR___INDEX_RANGE;
+            new_value.u.error.epoint = epoint;
+            val_replace_template(&vals->val, &new_value);
             return;
         }
         new_value.u.list.data[i] = val_reference(val->u.list.data[offs]);
@@ -1471,8 +1492,8 @@ static void code_iindex(struct values_s *vals, const struct value_s *list, linep
         new_value.type = T_ERROR;
         new_value.u.error.num = ERROR___NOT_DEFINED;
         new_value.u.error.epoint = vals->epoint;
-        new_value.u.error.ident.len = 6;
-        new_value.u.error.ident.data = (const uint8_t *)"<code>";
+        new_value.u.error.u.ident.len = 6;
+        new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
         val_replace(&vals->val, &new_value);
         return;
     }
@@ -1489,7 +1510,10 @@ static void code_iindex(struct values_s *vals, const struct value_s *list, linep
             new_value.u.list.data = val;
             new_value.u.list.len = i;
             val_destroy2(&new_value);
-            err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+            new_value.type = T_ERROR;
+            new_value.u.error.num = ERROR___INDEX_RANGE;
+            new_value.u.error.epoint = epoint;
+            val_replace_template(&vals->val, &new_value);
             return;
         }
         offs2 = offs * len2;
@@ -1528,7 +1552,10 @@ static void bits_iindex(struct values_s *vals, const struct value_s *list, linep
     for (i = 0; i < list->u.list.len; i++) {
         offs = indexoffs(list->u.list.data[i], len);
         if (offs < 0) {
-            err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); val_replace(&vals->val, &none_value);
+            new_value.type = T_ERROR;
+            new_value.u.error.num = ERROR___INDEX_RANGE;
+            new_value.u.error.epoint = epoint;
+            val_replace_template(&vals->val, &new_value);
             return;
         }
         new_value.u.num.val |= ((vals->val->u.num.val >> offs) & 1) << i;
@@ -1689,8 +1716,8 @@ static void code_slice(struct values_s *vals, ival_t offs, ival_t end, ival_t st
         new_value.type = T_ERROR;
         new_value.u.error.num = ERROR___NOT_DEFINED;
         new_value.u.error.epoint = vals->epoint;
-        new_value.u.error.ident.len = 6;
-        new_value.u.error.ident.data = (const uint8_t *)"<code>";
+        new_value.u.error.u.ident.len = 6;
+        new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
         val_replace(&vals->val, &new_value);
         return;
     }
@@ -1790,7 +1817,10 @@ static void indexes(struct values_s *vals, unsigned int args) {
 
                     offs = indexoffs(v[0].val, len);
                     if (offs < 0) {
-                        err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); val_replace(&vals->val, &none_value);
+                        new_value.type = T_ERROR;
+                        new_value.u.error.num = ERROR___INDEX_RANGE;
+                        new_value.u.error.epoint = v[0].epoint;
+                        val_replace_template(&vals->val, &new_value);
                         return;
                     }
                     switch (vals->val->type) {
@@ -1801,8 +1831,8 @@ static void indexes(struct values_s *vals, unsigned int args) {
                             new_value.type = T_ERROR;
                             new_value.u.error.num = ERROR___NOT_DEFINED;
                             new_value.u.error.epoint = vals->epoint;
-                            new_value.u.error.ident.len = 6;
-                            new_value.u.error.ident.data = (const uint8_t *)"<code>";
+                            new_value.u.error.u.ident.len = 6;
+                            new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
                             val_replace(&vals->val, &new_value);
                             return;
                         }
@@ -2221,8 +2251,8 @@ static void inlist(struct value_s *v1, struct value_s *v2, struct value_s *v, li
             v->type = T_ERROR;
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = epoint2;
-            v->u.error.ident.len = 6;
-            v->u.error.ident.data = (const uint8_t *)"<code>";
+            v->u.error.u.ident.len = 6;
+            v->u.error.u.ident.data = (const uint8_t *)"<code>";
             return;
         }
         len = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
@@ -3289,7 +3319,6 @@ static int get_val2(struct eval_context_s *ev) {
     enum oper_e op;
     struct values_s *v1, *v2;
     enum type_e t1, t2;
-    int large=0;
     int stop = ev->gstop;
     struct values_s *o_out;
     struct value_s *val;
@@ -3301,8 +3330,7 @@ static int get_val2(struct eval_context_s *ev) {
     for (i = ev->outp2; i < ev->outp; i++) {
         o_out = &ev->o_out[i];
         val = o_out->val;
-        op = val->u.oper.op;
-        if (val->type != T_OPER || op == O_PARENT || op == O_BRACKET) {
+        if (val->type != T_OPER || val == &o_PARENT || val == &o_BRACKET) {
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
                 ev->values_size += 16;
@@ -3317,11 +3345,12 @@ static int get_val2(struct eval_context_s *ev) {
             continue;
         }
 
-        if (op == O_SEPARATOR) {
+        if (val == &o_SEPARATOR) {
             ev->outp2 = i + 1;
             return 0;
         }
-        if (op == O_COMMA || op == O_COLON2 || op == O_COLON3) continue;
+        if (val == &o_COMMA || val == &o_COLON2 || val == &o_COLON3) continue;
+        op = val->u.oper.op;
         if (vsp == 0) goto syntaxe;
         v1 = &values[vsp-1];
         switch (op) {
@@ -3339,7 +3368,7 @@ static int get_val2(struct eval_context_s *ev) {
                 if (vv1->type == T_IDENTREF) {
                     if (vv1->u.identref->type == L_CONST || vv1->u.identref->type == L_VAR) {
                         if (touch_label(vv1->u.identref)) {
-                            vv1->u.error.ident = vv1->u.identref->name;
+                            vv1->u.error.u.ident = vv1->u.identref->name;
                             vv1->type = T_ERROR;
                             vv1->u.error.num = ERROR___NOT_DEFINED;
                             vv1->u.error.epoint = v1->epoint;
@@ -3360,7 +3389,7 @@ static int get_val2(struct eval_context_s *ev) {
                             new_value.type = T_ERROR;
                             new_value.u.error.num = ERROR___NOT_DEFINED;
                             new_value.u.error.epoint = v2->epoint;
-                            new_value.u.error.ident = v2->val->u.ident;
+                            new_value.u.error.u.ident = v2->val->u.ident;
                         }
                         val_replace(&v1->val, &new_value);
                         v1->epoint=v2->epoint;
@@ -3573,7 +3602,6 @@ static int get_val2(struct eval_context_s *ev) {
         } else apply_op2(op, v1->val, v2->val, v1->val, v1->epoint, v2->epoint, o_out->epoint);
     }
     ev->outp2 = i;
-    if (large) return -1;
     return 0;
 }
 
@@ -3657,8 +3685,8 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         case '>': if (pline[lpoint.pos+1] == '`') {lpoint.pos++;op = &o_HWORD;} else if (pline[lpoint.pos+1] == '<') {lpoint.pos++;op = &o_BSWORD;} else op = &o_HIGHER; break;
         case '`': op = &o_BANK; break;
         case '^': op = &o_STRING; break;
-        case '$': lpoint.pos++;val = push(epoint);if (get_hex(val)) goto pushlarge;goto other;
-        case '%': lpoint.pos++;val = push(epoint);if (get_bin(val)) goto pushlarge;goto other;
+        case '$': lpoint.pos++;val = push(epoint);get_hex(val);goto other;
+        case '%': lpoint.pos++;val = push(epoint);get_bin(val);goto other;
         case '"':
         case '\'': lpoint.pos++;val = push(epoint);get_string(val, ch);goto other;
         case '*': lpoint.pos++;val = push(epoint);get_star(val);goto other;
@@ -3670,10 +3698,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
                 if (get_dec(val)) {
                 pushfloat:
                     lpoint = epoint;
-                    if (get_float(val)) {
-                    pushlarge:
-                        err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
-                    }
+                    get_float(val);
                 } else if ((here() == '.' && pline[lpoint.pos + 1] != '.') || (here() | 0x20) == 'e') goto pushfloat;
                 goto other;
             }

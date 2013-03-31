@@ -160,8 +160,10 @@ struct value_s {
         } oper;
         struct {
             int num;
-            str_t ident;
             linepos_t epoint;
+            union {
+                str_t ident;
+            } u;
         } error;
         str_t ident;
         struct label_s *identref;

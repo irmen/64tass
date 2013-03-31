@@ -116,6 +116,7 @@ static const char *terr_error[]={
     "address out of section",
     "negative number raised on fractional power",
     "string constant too long for a number",
+    "index out of range",
     "%s\n",
 };
 static const char *terr_fatal[]={
@@ -249,9 +250,11 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
     if (pass == 1) return;
     if (val->type == T_ERROR) {
         switch (val->u.error.num) {
-        case ERROR___NOT_DEFINED: err_msg_not_defined(&val->u.error.ident, val->u.error.epoint);return;
-        case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.ident, val->u.error.epoint);return;
-        case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.ident, val->u.error.epoint);return;
+        case ERROR___NOT_DEFINED: err_msg_not_defined(&val->u.error.u.ident, val->u.error.epoint);return;
+        case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, val->u.error.epoint);return;
+        case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, val->u.error.epoint);return;
+        case ERROR___INDEX_RANGE:
+        case ERROR_CONSTNT_LARGE:
         case ERROR_NEGFRAC_POWER:
         case ERROR_BIG_STRING_CO:
         case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, val->u.error.epoint);return;
