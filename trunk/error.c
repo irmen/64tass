@@ -390,7 +390,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
     }
 }
 
-void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
+static void err_msg_double_defined2(const char *msg, const str_t *name, const char *file, line_t sline2, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
     char line[linelength];
 
     if (errors+conderrors==99) {
@@ -399,7 +399,7 @@ void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, 
     }
 
     addorigin(epoint2);
-    adderror("error: duplicate definition '");
+    adderror(msg);
     adderror2(labelname2->data, labelname2->len);
     adderror("'\n");
     if (file[0]) {
@@ -412,6 +412,14 @@ void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, 
     adderror2(name->data, name->len);
     adderror("' was here\n");
     errors++;
+}
+
+void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
+    err_msg_double_defined2("error: duplicate definition '", name, file, sline2, epoint, labelname2, epoint2);
+}
+
+void err_msg_shadow_defined(const str_t *name, const char *file, line_t sline2, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
+    err_msg_double_defined2("error: shadowing another definition '", name, file, sline2, epoint, labelname2, epoint2);
 }
 
 static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {

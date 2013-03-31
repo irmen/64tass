@@ -267,7 +267,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
 
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
-        label=find_label2(&tmp2->u.func.param[i].name, &current_context->members);
+        label=find_label(&tmp2->u.func.param[i].name);
         ignore();if (!here() || here()==';') fin++;
         if (tmp2->u.func.param[i].init) {
             if (here()==',' || !here() || here()==';') {
@@ -293,8 +293,22 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
         else label = new_label(&tmp2->u.func.param[i].name, L_CONST, &labelexists);
         label->ref=0;
         if (labelexists) {
-            if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, epoint);
-            else {
+            if (label->parent != current_context) {
+                line_t oline = sline;
+                enterfile(tmp2->u.func.file->realname, sline);
+                sline = tmp2->u.func.sline;
+                err_msg_shadow_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, tmp2->u.func.param[i].epoint);
+                exitfile();
+                sline = oline;
+            }
+            else if (label->type != L_CONST || pass==1) {
+                line_t oline = sline;
+                enterfile(tmp2->u.func.file->realname, sline);
+                sline = tmp2->u.func.sline;
+                err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, tmp2->u.func.param[i].epoint);
+                exitfile();
+                sline = oline;
+            } else {
                 label->requires=current_section->requires;
                 label->conflicts=current_section->conflicts;
                 var_assign(label, val, 0);
@@ -342,8 +356,9 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
 
 void get_func_params(struct value_s *v) {
     struct value_s *val, new_value;
+    struct label_s *label;
     size_t len = 0, i, j;
-    str_t label;
+    str_t labelname;
     int w;
 
     new_value.u.func.param = NULL;
@@ -355,18 +370,22 @@ void get_func_params(struct value_s *v) {
             if (!new_value.u.func.param) err_msg_out_of_memory();
         }
         new_value.u.func.param[i].epoint = lpoint;
-        label.data = pline + lpoint.pos;
-        label.len = get_label();
-        if (label.len) {
-            str_cpy(&new_value.u.func.param[i].name, &label);
+        labelname.data = pline + lpoint.pos;
+        labelname.len = get_label();
+        if (labelname.len) {
+            str_cpy(&new_value.u.func.param[i].name, &labelname);
             for (j = 0; j < i; j++) if (new_value.u.func.param[j].name.data) {
                 if (arguments.casesensitive) {
-                    if (!str_cmp(&new_value.u.func.param[j].name, &label)) break;
+                    if (!str_cmp(&new_value.u.func.param[j].name, &labelname)) break;
                 } else {
-                    if (!str_casecmp(&new_value.u.func.param[j].name, &label)) break;
+                    if (!str_casecmp(&new_value.u.func.param[j].name, &labelname)) break;
                 }
             }
-            if (j != i) err_msg_double_defined(&new_value.u.func.param[j].name, v->u.func.file->realname, v->u.func.sline, new_value.u.func.param[j].epoint, &label, new_value.u.func.param[i].epoint);
+            if (j != i) err_msg_double_defined(&new_value.u.func.param[j].name, v->u.func.file->realname, v->u.func.sline, new_value.u.func.param[j].epoint, &labelname, new_value.u.func.param[i].epoint);
+            label = find_label(&new_value.u.func.param[j].name);
+            if (label) {
+                err_msg_shadow_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, new_value.u.func.param[i].epoint);
+            }
         } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, new_value.u.func.param[i].epoint);break;}
         new_value.u.func.param[i].init = NULL;
         ignore();

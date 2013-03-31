@@ -94,6 +94,7 @@ extern void err_msg_cant_calculate(const str_t *name, linepos_t epoint);
 extern void err_msg_invalid_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
 extern void err_msg_strange_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
 extern void err_msg_double_defined(const str_t *, const char *, line_t, linepos_t, const str_t *, linepos_t);
+extern void err_msg_shadow_defined(const str_t *, const char *, line_t, linepos_t, const str_t *, linepos_t);
 extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_requires(const str_t *name, linepos_t epoint);
 extern void err_msg_conflicts(const str_t *name, linepos_t epoint);
