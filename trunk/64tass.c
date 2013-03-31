@@ -533,7 +533,7 @@ struct value_s *compile(struct file_s *cfile)
             if ((wht=what(&prm))==WHAT_EQUAL) { /* variable */
                 struct label_s *label;
                 int labelexists;
-                label = find_label(&labelname);
+                label = find_label2(&labelname, &current_context->members);
                 if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                 if (label && !label->ref && pass != 1) goto finish;
                 if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -554,8 +554,7 @@ struct value_s *compile(struct file_s *cfile)
                 }
                 label->ref=0;
                 if (labelexists) {
-                    if (label->parent != current_context) err_msg_shadow_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
-                    else if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                    if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                     else {
                         label->requires = current_section->requires;
                         label->conflicts = current_section->conflicts;
@@ -579,7 +578,7 @@ struct value_s *compile(struct file_s *cfile)
                     {
                         struct label_s *label;
                         int labelexists;
-                        label=find_label(&labelname);
+                        label=find_label2(&labelname, &current_context->members);
                         if (!get_exp(&w, 0)) goto breakerr; /* ellenorizve. */
                         if (label && !label->ref && pass != 1 && label->upass != pass) goto finish;
                         if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -600,8 +599,7 @@ struct value_s *compile(struct file_s *cfile)
                         }
                         if (labelexists) {
                             if (label->upass != pass) label->ref=0;
-                            if (label->parent != current_context) err_msg_shadow_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
-                            else if (label->type != L_VAR) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                            if (label->type != L_VAR) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                             else {
                                 label->requires=current_section->requires;
                                 label->conflicts=current_section->conflicts;
@@ -623,12 +621,9 @@ struct value_s *compile(struct file_s *cfile)
                     { /* label */
                         struct label_s *label;
                         int labelexists;
-                        label=find_label(&labelname);
-                        if (label) labelexists = 1;
-                        else label=new_label(&labelname, L_CONST, &labelexists);
+                        label=new_label(&labelname, L_CONST, &labelexists);
                         if (labelexists) {
-                            if (label->parent != current_context) err_msg_shadow_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
-                            else if (label->type != L_CONST || label->value->type != T_LBL || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                            if (label->type != L_CONST || label->value->type != T_LBL || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                             new_value.type = T_LBL;
                             new_value.u.lbl.p = cfile->p;
                             new_value.u.lbl.sline = sline;
@@ -665,12 +660,9 @@ struct value_s *compile(struct file_s *cfile)
                         int labelexists;
                         new_waitfor(W_ENDM, epoint);waitfor->skip=0;
                         ignore();
-                        label=find_label(&labelname);
-                        if (label) labelexists = 1;
-                        else label=new_label(&labelname, L_LABEL, &labelexists);
+                        label=new_label(&labelname, L_LABEL, &labelexists);
                         if (labelexists) {
-                            if (label->parent != current_context) err_msg_shadow_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
-                            else if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                            if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                             new_value.type = type;
                             new_value.u.macro.p = cfile->p;
                             new_value.u.macro.size = 0;
@@ -706,12 +698,9 @@ struct value_s *compile(struct file_s *cfile)
                         int labelexists;
                         new_waitfor(W_ENDF, epoint);waitfor->skip=0;
                         ignore();
-                        label=find_label(&labelname);
-                        if (label) labelexists = 1;
-                        else label=new_label(&labelname, L_LABEL, &labelexists);
+                        label=new_label(&labelname, L_LABEL, &labelexists);
                         if (labelexists) {
-                            if (label->parent != current_context) err_msg_shadow_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
-                            else if (label->type != L_LABEL || label->value->type != T_FUNCTION || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                            if (label->type != L_LABEL || label->value->type != T_FUNCTION || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                             new_value.type = T_FUNCTION;
                             new_value.u.func.p = cfile->p;
                             new_value.u.func.sline = sline;
@@ -752,10 +741,7 @@ struct value_s *compile(struct file_s *cfile)
 
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, epoint);waitfor->skip=0;
                         ignore();
-                        label=find_label(&labelname);
-                        if (label) labelexists = 1;
-                        else label=new_label(&labelname, L_LABEL, &labelexists);
-                        oaddr = current_section->address;
+                        label=new_label(&labelname, L_LABEL, &labelexists);oaddr = current_section->address;
                         if (declaration) {
                             enum type_e type = (prm == CMD_STRUCT) ? T_STRUCT : T_UNION;
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
@@ -763,8 +749,7 @@ struct value_s *compile(struct file_s *cfile)
                             current_section->dooutput=0;memjmp(0); oaddr = 0;
 
                             if (labelexists) {
-                                if (label->parent != current_context) err_msg_shadow_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
-                                else if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                                if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                                 new_value.type = type;
                                 new_value.u.macro.size = (label->value->type == type) ? label->value->u.macro.size : 0;
                                 new_value.u.macro.p = cfile->p;
@@ -793,8 +778,7 @@ struct value_s *compile(struct file_s *cfile)
                             }
                         } else {
                             if (labelexists) {
-                                if (label->parent != current_context) err_msg_shadow_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
-                                else if (label->type != L_LABEL || label->value->type != T_CODE || pass==1) {
+                                if (label->type != L_LABEL || label->value->type != T_CODE || pass==1) {
                                     err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                                     label = NULL;
                                 } else {
@@ -917,15 +901,10 @@ struct value_s *compile(struct file_s *cfile)
             {
                 int labelexists;
                 if (!islabel && tmp2 && tmp2->parent == current_context) {newlabel = tmp2;labelexists = 1;}
-                else {
-                    newlabel=find_label(&labelname);
-                    if (newlabel) labelexists = 1;
-                    else newlabel = new_label(&labelname, L_LABEL, &labelexists);
-                }
+                else newlabel=new_label(&labelname, L_LABEL, &labelexists);
                 oaddr=current_section->address;
                 if (labelexists) {
-                    if (newlabel->parent != current_context) err_msg_shadow_defined(&newlabel->name, newlabel->file->realname, newlabel->sline, newlabel->epoint, &labelname, epoint);
-                    else if (newlabel->type != L_LABEL || newlabel->value->type != T_CODE || pass==1) {
+                    if (newlabel->type != L_LABEL || newlabel->value->type != T_CODE || pass==1) {
                         err_msg_double_defined(&newlabel->name, newlabel->file->realname, newlabel->sline, newlabel->epoint, &labelname, epoint);
                         newlabel = NULL; goto jn;
                     } else {
@@ -2290,12 +2269,9 @@ struct value_s *compile(struct file_s *cfile)
                         lpoint.pos++;
                         if (!get_exp(&w,1)) goto breakerr; /* ellenorizve. */
                         if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        var = find_label(&varname);
-                        if (var) labelexists = 1;
-                        else var = new_label(&varname, L_VAR, &labelexists);
+                        var=new_label(&varname, L_VAR, &labelexists);
                         if (labelexists) {
-                            if (var->parent != current_context) err_msg_shadow_defined(&var->name, var->file->realname, var->sline, var->epoint, &varname, epoint);
-                            else if (var->type != L_VAR) err_msg_double_defined(&var->name, var->file->realname, var->sline, var->epoint, &varname, epoint);
+                            if (var->type != L_VAR) err_msg_double_defined(&var->name, var->file->realname, var->sline, var->epoint, &varname, epoint);
                             else {
                                 var->requires=current_section->requires;
                                 var->conflicts=current_section->conflicts;
@@ -2347,12 +2323,9 @@ struct value_s *compile(struct file_s *cfile)
                             if (!here() || here()==';') {bpoint.pos = bpoint.upos = 0; nopos = 0;}
                             else {
                                 int labelexists;
-                                var = find_label(&varname);
-                                if (var) labelexists = 1;
                                 var=new_label(&varname, L_VAR, &labelexists);
                                 if (labelexists) {
-                                    if (var->parent != current_context) err_msg_shadow_defined(&var->name, var->file->realname, var->sline, var->epoint, &varname, epoint);
-                                    else if (var->type != L_VAR) {
+                                    if (var->type != L_VAR) {
                                         err_msg_double_defined(&var->name, var->file->realname, var->sline, var->epoint, &varname, epoint);
                                         break;
                                     }
