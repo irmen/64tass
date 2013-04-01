@@ -252,7 +252,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context)
         f->p = tmp2->u.macro.p;
         current_context = context;
         compile(f);
-        current_context = oldcontext;
+        current_context = oldcontext;star = s->addr;
         f->p = oldpos;
         exitfile();
         star_tree = stree_old; vline = ovline;
@@ -345,7 +345,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) 
         f->p = tmp2->u.func.p;
         current_context = context;
         val = compile(f);
-        current_context = oldcontext;
+        current_context = oldcontext;star = s->addr;
         if (val) val_destroy(val);
         f->p = oldpos;
         exitfile();
@@ -494,18 +494,16 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     struct section_s rsection;
     struct section_s *oldsection = current_section;
     init_variables2(&rlabel);
-    current_context = &rlabel;
     rlabel.parent = tmp2->u.func.context;
     init_section2(&rsection);
-    current_section = &rsection;
-    reset_section();
-    current_section->dooutput = 0;
 
     enterfile(tmp2->u.func.file->realname, sline);
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
         val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
+        current_context = &rlabel;
         label = new_label(&tmp2->u.func.param[i].name, L_CONST, &labelexists);
+        current_context = oldcontext;
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) {
@@ -515,13 +513,13 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
                 sline = oline;
             }
             else {
-                label->requires=current_section->requires;
-                label->conflicts=current_section->conflicts;
+                label->requires = 0;
+                label->conflicts = 0;
                 var_assign(label, val, 0);
             }
         } else {
-            label->requires = current_section->requires;
-            label->conflicts = current_section->conflicts;
+            label->requires = 0;
+            label->conflicts = 0;
             label->pass = pass;
             label->upass = pass;
             label->value = val_reference(val);
@@ -538,6 +536,8 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
+        linepos_t opoint = lpoint;
+        const uint8_t *opline = pline;
         const uint8_t *ollist = llist;
 
         if (labelexists && s->addr != star) {
@@ -550,16 +550,22 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         new_waitfor(W_ENDF2, (linepos_t){0,0});
         f = tmp2->u.func.file;
         f->p = tmp2->u.func.p;
+        current_context = &rlabel;
+        current_section = &rsection;
+        reset_section();
+        rsection.dooutput = 0;
         retval = compile(f);
+        current_section = oldsection;
+        current_context = oldcontext;star = s->addr;
+        lpoint = opoint;
+        pline = opline;
         f->p = oldpos;
         star_tree = stree_old; vline = ovline;
         sline = lin;
         llist = ollist;
     }
     exitfile();
-    current_context = oldcontext;
     destroy_variables2(&rlabel);
-    current_section = oldsection;
     destroy_section2(&rsection);
     return retval ? retval : &null_tuple;
 }

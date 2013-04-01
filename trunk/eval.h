@@ -19,7 +19,8 @@
 #define EVAL_H
 #include "values.h"
 
-extern int get_exp(int *wd, int);
+extern int get_exp(int *, int);
+extern int get_exp_var(void);
 extern struct value_s *get_val(enum type_e, linepos_t *);
 extern void destroy_eval(void);
 extern void init_eval(void);
