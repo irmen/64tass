@@ -85,6 +85,7 @@ static struct waitfor_s {
     struct label_s *label;
     size_t memp, membp;
     struct section_s *section;
+    struct value_s *val;
     uint8_t skip;
 } *waitfors, *waitfor, *prevwaitfor;
 
@@ -104,6 +105,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x4f" "binclude",
     "\x38" "block",
     "\x05" "byte",
+    "\x53" "case",
     "\x4d" "cdef",
     "\x31" "cerror",
     "\x06" "char",
@@ -112,6 +114,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x36" "cpu",
     "\x32" "cwarn",
     "\x27" "databank",
+    "\x54" "default",
     "\x0c" "dint",
     "\x28" "dpage",
     "\x4b" "dsection",
@@ -129,6 +132,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x10" "endm",
     "\x1d" "endp",
     "\x45" "ends",
+    "\x55" "endswitch",
     "\x48" "endu",
     "\x3f" "eor",
     "\x24" "error",
@@ -170,6 +174,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x03" "shiftl",
     "\x3c" "showmac",
     "\x44" "struct",
+    "\x52" "switch",
     "\x00" "text",
     "\x47" "union",
     "\x41" "var",
@@ -191,7 +196,8 @@ enum command_e {
     CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC,
     CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT,
     CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU, CMD_DUNION, CMD_SECTION,
-    CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF, CMD_BINCLUDE, CMD_FUNCTION, CMD_ENDF
+    CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF, CMD_BINCLUDE, CMD_FUNCTION,
+    CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT, CMD_ENDSWITCH
 };
 
 /* --------------------------------------------------------------------------- */
@@ -249,6 +255,7 @@ void new_waitfor(enum wait_e what, linepos_t epoint) {
     waitfor->line = sline;
     waitfor->epoint = epoint;
     waitfor->label = NULL;
+    waitfor->val = NULL;
     waitfor->skip = prevwaitfor->skip;
 }
 
@@ -262,6 +269,7 @@ void reset_waitfor(void) {
 
 int close_waitfor(enum wait_e what) {
     if (waitfor->what == what) {
+        if (waitfor->val) val_destroy(waitfor->val);
         waitfor_p--;
         waitfor = &waitfors[waitfor_p];
         prevwaitfor = waitfor_p ? &waitfors[waitfor_p - 1] : waitfor;
@@ -1137,6 +1145,18 @@ struct value_s *compile(struct file_s *cfile)
                     if (!close_waitfor(W_FI2) && !close_waitfor(W_FI)) err_msg2(ERROR______EXPECTED,".IF", epoint);
                     break;
                 }
+                if (prm==CMD_ENDSWITCH) /* .endswitch */
+                {
+                    if (!close_waitfor(W_SWITCH2) && !close_waitfor(W_SWITCH)) err_msg2(ERROR______EXPECTED,".SWITCH", epoint);
+                    break;
+                }
+                if (prm==CMD_DEFAULT) { /* .default */
+                    if (waitfor->what==W_SWITCH) {err_msg2(ERROR______EXPECTED,".ENDSWITCH", epoint); break;}
+                    if (waitfor->what!=W_SWITCH2) {err_msg2(ERROR______EXPECTED,".SWITCH", epoint); break;}
+                    waitfor->skip=waitfor->skip >> 1;
+                    waitfor->what=W_SWITCH;waitfor->line=sline;
+                    break;
+                }
                 if (prm==CMD_ELSE) { /* .else */
                     if (waitfor->what==W_FI) {err_msg2(ERROR______EXPECTED,".FI", epoint); break;}
                     if (waitfor->what!=W_FI2) {err_msg2(ERROR______EXPECTED,".IF", epoint); break;}
@@ -1221,6 +1241,69 @@ struct value_s *compile(struct file_s *cfile)
                         }
                         break;
                     }
+                    break;
+                }
+                if (prm==CMD_SWITCH) { /* .switch */
+                    uint8_t skwait = waitfor->skip;
+                    new_waitfor(W_SWITCH2, epoint);
+                    waitfor->line=sline;
+                    if (skwait==1) {
+                        if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
+                        if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        eval_finish();
+                        if (val->type == T_NONE) {
+                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            fixeddig = 0;
+                        }
+                    } else val = &none_value;
+                    waitfor->val = val_reference(val);
+                    waitfor->skip = (prevwaitfor->skip & 1) << 1;
+                    break;
+                }
+                if (prm==CMD_CASE) { /* .case */
+                    uint8_t skwait = waitfor->skip;
+                    int truth = 0;
+                    if (waitfor->what == W_SWITCH) {err_msg2(ERROR______EXPECTED,".ENDSWITCH", epoint); goto breakerr;}
+                    if (waitfor->what != W_SWITCH2) {err_msg2(ERROR______EXPECTED,".SWITCH", epoint); goto breakerr;}
+                    waitfor->line=sline;
+                    if (skwait==2) {
+                        size_t ln = 0, i = 1;
+                        struct value_s **vals = NULL, *val2, tmp;
+                        if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
+                        if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (val->type == T_NONE) {
+                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            fixeddig = 0;
+                        }
+                        val = val_reference(val);
+                        while ((val2 = get_val(T_NONE, &epoint))) {
+                            if (val2->type == T_NONE) {
+                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                fixeddig = 0;
+                            }
+                            if (i >= ln) {
+                                ln += 16;
+                                vals = realloc(vals, ln * sizeof(retval->u.list.data[0]));
+                                if (!vals) err_msg_out_of_memory();
+                            }
+                            if (i == 1) vals[0] = val;
+                            vals[i] = val_reference(val2);
+                            i++;
+                        }
+                        eval_finish();
+                        if (i > 1) {
+                            tmp.refcount = 0;
+                            tmp.type = T_TUPLE;
+                            tmp.u.list.len = i;
+                            tmp.u.list.data = vals;
+                            truth = val_inlist(waitfor->val, &tmp, epoint, epoint, epoint);
+                            val_destroy2(&tmp);
+                        } else {
+                            truth = val_equals(waitfor->val, val, epoint, epoint, epoint);
+                            val_destroy(val);
+                        }
+                    }
+                    waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
                     break;
                 }
                 if (prm==CMD_ENDM) { /* .endm */
@@ -2402,6 +2485,8 @@ struct value_s *compile(struct file_s *cfile)
                             line_t os = sline;
                             sline = waitfor->line;
                             switch (waitfor->what) {
+                            case W_SWITCH2:
+                            case W_SWITCH: msg = ".ENDSWITCH"; break;
                             case W_ENDM2:
                             case W_ENDM: msg = ".ENDM"; break;
                             case W_ENDF2:
@@ -3235,6 +3320,8 @@ struct value_s *compile(struct file_s *cfile)
         switch (waitfor->what) {
         case W_FI2:
         case W_FI: msg = ".FI"; break;
+        case W_SWITCH2:
+        case W_SWITCH: msg = ".ENDSWITCH"; break;
         case W_ENDP2:
         case W_ENDP: msg = ".ENDP"; break;
         case W_ENDM2:

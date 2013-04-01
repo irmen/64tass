@@ -2264,6 +2264,13 @@ static inline uint8_t addlen(int l1, int l2) {
 
 static void apply_op2(enum oper_e, struct value_s *, struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t);
 
+int val_equals(struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3) {
+    struct value_s tmp;
+    apply_op2(O_EQ, v1, v2, &tmp, epoint, epoint2, epoint3);
+    if (tmp.type == T_BOOL) return tmp.u.num.val;
+    return -1;
+}
+
 static void inlist(struct value_s *v1, struct value_s *v2, struct value_s *v, linepos_t epoint, linepos_t epoint2, linepos_t epoint3) {
     size_t i, len, offs;
     int16_t r;
@@ -2282,7 +2289,6 @@ static void inlist(struct value_s *v1, struct value_s *v2, struct value_s *v, li
         len = len + !len;
         new_value.u.num.len = len * 8;
         for (offs = 0; offs < v2->u.code.size;) {
-            struct value_s tmp;
             new_value.u.num.val = 0;
             r = -1;
             for (i = 0; i < len; i++) {
@@ -2296,8 +2302,7 @@ static void inlist(struct value_s *v1, struct value_s *v2, struct value_s *v, li
                 }
             }
             new_value.type = (r < 0) ? T_GAP : ((v2->u.code.dtype < 0) ? T_SINT : T_NUM);
-            apply_op2(O_EQ, v1, &new_value, &tmp, epoint, epoint2, epoint3);
-            if (tmp.type == T_BOOL && tmp.u.num.val) {
+            if (val_equals(v1, &new_value, epoint, epoint2, epoint3)) {
                 if (v == v1) val_destroy2(v1);
                 v->type = T_BOOL; v->u.num.val = 1;
                 return;
@@ -2309,9 +2314,7 @@ static void inlist(struct value_s *v1, struct value_s *v2, struct value_s *v, li
     case T_LIST:
     case T_TUPLE:
         for (i = 0;i < v2->u.list.len; i++) {
-            struct value_s tmp;
-            apply_op2(O_EQ, v1, v2->u.list.data[i], &tmp, epoint, epoint2, epoint3);
-            if (tmp.type == T_BOOL && tmp.u.num.val) {
+            if (val_equals(v1, v2->u.list.data[i], epoint, epoint2, epoint3)) {
                 if (v == v1) val_destroy2(v1);
                 v->type = T_BOOL; v->u.num.val = 1;
                 return;
@@ -2325,6 +2328,13 @@ static void inlist(struct value_s *v1, struct value_s *v2, struct value_s *v, li
              if (v == v1) val_destroy2(v1);
              v->type = T_NONE;
     }
+}
+
+int val_inlist(struct value_s *v1, struct value_s *v2, linepos_t epoint, linepos_t epoint2, linepos_t epoint3) {
+    struct value_s tmp;
+    inlist(v1, v2, &tmp, epoint, epoint2, epoint3);
+    if (tmp.type == T_BOOL) return tmp.u.num.val;
+    return -1;
 }
 
 static void onlist(enum oper_e op, struct value_s *v1, struct value_s *v2, struct value_s *v, linepos_t epoint, linepos_t epoint2, linepos_t epoint3) {

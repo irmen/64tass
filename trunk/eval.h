@@ -32,6 +32,8 @@ extern int str_to_num(const struct value_s *, enum type_e, struct value_s *, lin
 extern struct value_s error_value;
 extern inline uint8_t get_val_len2(const struct value_s *);
 extern size_t get_label(void);
+extern int val_equals(struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t);
+extern int val_inlist(struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t);
 
 struct values_s {
     struct value_s *val;
