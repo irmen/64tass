@@ -1038,6 +1038,8 @@ To prevent parts of source from compiling conditional constructs can be used.
 This is useful when multiple slightly different versions needs to be compiled
 from the same source.
 
+If, elsif, else
+
 .if <expression>
     Compile, if result is true (not zero)
 .elsif <expression>
@@ -1069,6 +1071,32 @@ practice it's better to use comparison operators instead.
         .else           ;else 5 cycles
         inc $2
         .fi
+
+Switch, case, default
+
+Similar to the .if/.elsif/.else construct, but the compared value needs to be
+written only once in the switch statement.
+
+.switch <expression>
+    Evaluate expression and remember it
+.case <expression>[,<expression> ...]
+    Compile if the previous conditions were all skipped and one of the values
+    equals
+.default
+    Compile if the previous conditions were all skipped
+.endswitch
+    End of conditional compile
+
+        .switch wait
+        .case 2         ;2 cycles
+        nop
+        .case 3         ;3 cycles
+        bit $ea
+        .case 4         ;4 cycles
+        bit $eaea
+        .default        ;else 5 cycles
+        inc $2
+        .endswitch
 
 Repetitions
 

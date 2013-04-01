@@ -3,8 +3,8 @@
 [
         <!ENTITY opcode    "(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)((?:\s+(#|a(?=(\s|;|$))))|(?=(\s|;|$)))">
         <!ENTITY iopcode   "(ahx|alr|anc|ane|arr|asr|axs|dcm|dcp|ins|isb|isc|jam|lae|las|lax|lds|lxa|rla|rra|sax|sbx|sha|shs|shx|shy|slo|sre|tas|xaa)((?:\s+(#|a(?=(\s|;|$))))|(?=(\s|;|$)))">
-        <!ENTITY datadef   "\.(byte|char|l?int|rta|long|d?word|dint|fill|p?text|null|shiftl?)(?=(\s|;|$))">
-        <!ENTITY preproc   "\.(b?include|lbl|goto|else|elsif|c?error|c?warn|dstruct|dunion|[ax][ls]|pron|proff|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor)(?=(\s|;|$))">
+        <!ENTITY datadef   "\.(byte|char|l?int|rta|long|d?word|dint|fill|p?text|null|shiftl?|dstruct|dunion)(?=(\s|;|$))">
+        <!ENTITY preproc   "\.(b?include|lbl|goto|else|elsif|case|default|c?error|c?warn|[ax][ls]|pron|proff|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|dsection)(?=(\s|;|$))">
 ]>
 <!-- ex:set ts=2 et:
 
@@ -92,6 +92,8 @@
         <RegExpr endRegion="here" String="\.here\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="if" String="\.(if|ifeq|ifne|ifpl|ifmi)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="if" String="\.(fi|endif)\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="switch" String="\.switch\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="switch" String="\.endswitch\b" attribute="Preprocessor" insensitive="TRUE"/>
       </context>
 
       <context attribute="Comment" name="folding" lineEndContext="#stay">

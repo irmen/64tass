@@ -1179,6 +1179,7 @@ wpack   <b class="k">.function</b> <span class="l">a</span>,<span class="l">b</s
 <p>To prevent parts of source from compiling conditional constructs can be
 used. This is useful when multiple slightly different versions needs to be
 compiled from the same source.</p>
+<h4>If, elsif, else</h4>
 <dl class="dir">
 <dt><b>.if</b> &lt;expression&gt;
 <dd>Compile, if result is true (not zero)
@@ -1213,6 +1214,35 @@ better to use comparison operators instead.</p>
         <b class="k">.else</b>		<i>;else 5 cycles</i>
         <b>inc</b> <span>$2</span>
 	<b class="k">.fi</b>
+</pre>
+
+<h4>Switch, case, default</h4>
+<p>Similar to the <code>.if</code>/<code>.elsif</code>/<code>.else</code>
+construct, but the compared value needs to be written only once in the switch
+statement.</p>
+
+<dl class="dir">
+<dt><b>.switch</b> &lt;expression&gt;
+<dd>Evaluate expression and remember it
+<dt><b>.case</b> &lt;expression&gt;[,&lt;expression&gt; ...]
+<dd>Compile if the previous conditions were all skipped and one of the values equals
+<dt><b>.default</b>
+<dd>Compile if the previous conditions were all skipped
+<dt><b>.endswitch</b>
+<dd>End of conditional compile
+</dl>
+
+<pre width=80>
+        <b class="k">.switch</b> <span class="l">wait</span>
+        <b class="k">.case</b> <span>2</span>	        <i>;2 cycles</i>
+	<b>nop</b>
+        <b class="k">.case</b> <span>3</span>	        <i>;3 cycles</i>
+        <b>bit</b> <span>$ea</span>
+        <b class="k">.case</b> <span>4</span>	        <i>;4 cycles</i>
+        <b>bit</b> <span>$eaea</span>
+        <b class="k">.default</b>	<i>;else 5 cycles</i>
+        <b>inc</b> <span>$2</span>
+	<b class="k">.endswitch</b>
 </pre>
 
 <h3>Repetitions</h3>
