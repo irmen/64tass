@@ -532,14 +532,14 @@ struct value_s *compile(struct file_s *cfile)
             if (!(waitfor->skip & 1)) {wht=what(&prm);goto jn;} /* skip things if needed */
             if ((wht=what(&prm))==WHAT_EQUAL) { /* variable */
                 struct label_s *label;
-                int labelexists;
+                int labelexists, newl = 0;
                 label = find_label2(&labelname, &current_context->members);
                 if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
-                if (label && !label->ref && pass != 1) goto finish;
+                if (label && !label->ref) goto breakerr;
                 if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
                 if (label) labelexists = 1;
-                else label = new_label(&labelname, L_CONST, &labelexists);
+                else {label = new_label(&labelname, L_CONST, &labelexists);newl = 1;}
                 oaddr=current_section->address;
                 if (listing && flist && arguments.source && label->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
@@ -552,7 +552,7 @@ struct value_s *compile(struct file_s *cfile)
                     }
                     printllist(flist);
                 }
-                label->ref=0;
+                label->ref = newl;
                 if (labelexists) {
                     if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                     else {
