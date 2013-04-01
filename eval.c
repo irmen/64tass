@@ -3941,6 +3941,55 @@ int get_exp_var(void) {
     return get_exp(&w, 2);
 }
 
+struct value_s *get_vals_tuple(enum type_e type) {
+    size_t ln = 0, i = 0;
+    struct value_s **vals = NULL, *retval = NULL, *val;
+    linepos_t epoint;
+    while ((val = get_val(type, &epoint))) {
+        if (i) {
+            if (i >= ln) {
+                ln += 16;
+                vals = realloc(vals, ln * sizeof(retval->u.list.data[0]));
+                if (!vals) err_msg_out_of_memory();
+            }
+            if (i == 1) {
+                struct values_s vals2 = {retval, epoint};
+                try_resolv_identref(&vals2);
+                vals[0] = vals2.val;
+                type = T_NONE;
+                if (vals[0]->type == T_NONE) {
+                    free(vals);
+                    return vals[0];
+                }
+            }
+            if (val->type == T_NONE) {
+                val_destroy(val);
+                while (--i) val_destroy(vals[i]);
+                free(vals);
+                return &none_value;
+            }
+            vals[i] = val;
+            eval->values->val = &none_value;
+        } else {
+            retval = val;
+            eval->values->val = &none_value;
+        }
+        i++;
+    }
+    eval_finish();
+    if (i > 1) {
+        retval = val_alloc();
+        retval->refcount = 1;
+        retval->type = T_TUPLE;
+        retval->u.list.len = i;
+        if (i != ln) {
+            vals = realloc(vals, i * sizeof(val->u.list.data[0]));
+            if (!vals) err_msg_out_of_memory();
+        }
+        retval->u.list.data = vals;
+    }
+    return retval;
+}
 
 void eval_enter(void) {
     evx_p++;

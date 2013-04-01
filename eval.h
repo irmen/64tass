@@ -34,6 +34,7 @@ extern inline uint8_t get_val_len2(const struct value_s *);
 extern size_t get_label(void);
 extern int val_equals(struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t);
 extern int val_inlist(struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t);
+extern struct value_s *get_vals_tuple(enum type_e);
 
 struct values_s {
     struct value_s *val;
