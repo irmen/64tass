@@ -56,6 +56,7 @@ static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
 static struct value_s none_value = {T_NONE, 0, {{0, 0}}};
 static struct value_s new_value = {T_NONE, 0, {{0, 0}}};
+static struct value_s null_tuple = {T_TUPLE, 0, {{0, 0}}};
 
 line_t sline, vline;      /* current line */
 static address_t all_mem, all_mem2;
@@ -544,8 +545,7 @@ struct value_s *compile(struct file_s *cfile)
                 label = find_label2(&labelname, &current_context->members);
                 if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                 if (label && !label->ref) goto breakerr;
-                if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                eval_finish();
+                if (!(val = get_vals_tuple(T_IDENTREF))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 if (label) labelexists = 1;
                 else {label = new_label(&labelname, L_CONST, &labelexists);newl = 1;}
                 oaddr=current_section->address;
@@ -567,13 +567,14 @@ struct value_s *compile(struct file_s *cfile)
                         label->requires = current_section->requires;
                         label->conflicts = current_section->conflicts;
                         var_assign(label, val, 0);
+                        val_destroy(val);
                     }
                 } else {
                     label->requires = current_section->requires;
                     label->conflicts = current_section->conflicts;
                     label->pass = pass;
                     label->upass = pass;
-                    label->value = val_reference(val);
+                    label->value = val;
                     label->file = cfile;
                     label->sline = sline;
                     label->epoint = epoint;
@@ -589,8 +590,7 @@ struct value_s *compile(struct file_s *cfile)
                         label=find_label2(&labelname, &current_context->members);
                         if (!get_exp(&w, 0)) goto breakerr; /* ellenorizve. */
                         if (label && !label->ref && pass != 1 && label->upass != pass) goto finish;
-                        if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        eval_finish();
+                        if (!(val = get_vals_tuple(T_IDENTREF))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (label) labelexists = 1;
                         else label = new_label(&labelname, L_VAR, &labelexists);
                         oaddr=current_section->address;
@@ -612,13 +612,14 @@ struct value_s *compile(struct file_s *cfile)
                                 label->requires=current_section->requires;
                                 label->conflicts=current_section->conflicts;
                                 var_assign(label, val, fixeddig);
+                                val_destroy(val);
                             }
                         } else {
                             label->requires = current_section->requires;
                             label->conflicts = current_section->conflicts;
                             label->pass = pass;
                             label->upass = pass;
-                            label->value = val_reference(val);
+                            label->value = val;
                             label->file = cfile;
                             label->sline = sline;
                             label->epoint = epoint;
@@ -1267,41 +1268,18 @@ struct value_s *compile(struct file_s *cfile)
                     if (waitfor->what != W_SWITCH2) {err_msg2(ERROR______EXPECTED,".SWITCH", epoint); goto breakerr;}
                     waitfor->line=sline;
                     if (skwait==2) {
-                        size_t ln = 0, i = 1;
-                        struct value_s **vals = NULL, *val2, tmp;
                         if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_vals_tuple(T_NONE))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->type == T_NONE) {
                             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         }
-                        val = val_reference(val);
-                        while ((val2 = get_val(T_NONE, &epoint))) {
-                            if (val2->type == T_NONE) {
-                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
-                                fixeddig = 0;
-                            }
-                            if (i >= ln) {
-                                ln += 16;
-                                vals = realloc(vals, ln * sizeof(retval->u.list.data[0]));
-                                if (!vals) err_msg_out_of_memory();
-                            }
-                            if (i == 1) vals[0] = val;
-                            vals[i] = val_reference(val2);
-                            i++;
-                        }
-                        eval_finish();
-                        if (i > 1) {
-                            tmp.refcount = 0;
-                            tmp.type = T_TUPLE;
-                            tmp.u.list.len = i;
-                            tmp.u.list.data = vals;
-                            truth = val_inlist(waitfor->val, &tmp, epoint, epoint, epoint);
-                            val_destroy2(&tmp);
+                        if (val->type == T_TUPLE || val->type == T_LIST) {
+                            truth = val_inlist(waitfor->val, val, epoint, epoint, epoint);
                         } else {
                             truth = val_equals(waitfor->val, val, epoint, epoint, epoint);
-                            val_destroy(val);
                         }
+                        val_destroy(val);
                     }
                     waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
                     break;
@@ -1317,35 +1295,11 @@ struct value_s *compile(struct file_s *cfile)
                     if (close_waitfor(W_ENDF)) {
                         lpoint.pos += strlen((const char *)pline + lpoint.pos);
                     } else if (close_waitfor(W_ENDF2)) {
-                        size_t ln = 0, i = 0;
-                        struct value_s **vals = NULL;
                         nobreak = 0;
                         if (here() && here() != ';' && get_exp(&w,0)) {
-                            while ((val = get_val(T_NONE, &epoint))) {
-                                if (i) {
-                                    if (i >= ln) {
-                                        ln += 16;
-                                        vals = realloc(vals, ln * sizeof(retval->u.list.data[0]));
-                                        if (!vals) err_msg_out_of_memory();
-                                    }
-                                    if (i == 1) vals[0] = retval;
-                                    vals[i] = val_reference(val);
-                                } else retval = val_reference(val);
-                                i++;
-                            }
-                            eval_finish();
-                        }
-                        if (i > 1) {
-                            retval = val_alloc();
-                            retval->refcount = 1;
-                            retval->type = T_TUPLE;
-                            retval->u.list.len = i;
-                            if (i != ln) {
-                                vals = realloc(vals, i * sizeof(val->u.list.data[0]));
-                                if (!vals) err_msg_out_of_memory();
-                            }
-                            retval->u.list.data = vals;
-                        }
+                            retval = get_vals_tuple(T_NONE);
+                        } 
+                        if (!retval) retval = &null_tuple;
                     } else {err_msg2(ERROR______EXPECTED,".FUNCTION", epoint);goto breakerr;}
                     break;
                 }
@@ -2346,7 +2300,7 @@ struct value_s *compile(struct file_s *cfile)
                         ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                         lpoint.pos++;
                         if (!get_exp(&w,1)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_vals_tuple(T_IDENTREF))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         var=new_label(&varname, L_VAR, &labelexists);
                         if (labelexists) {
                             if (var->type != L_VAR) err_msg_double_defined(&var->name, var->file->realname, var->sline, var->epoint, &varname, epoint);
@@ -2354,13 +2308,14 @@ struct value_s *compile(struct file_s *cfile)
                                 var->requires=current_section->requires;
                                 var->conflicts=current_section->conflicts;
                                 var_assign(var, val, fixeddig);
+                                val_destroy(val);
                             }
                         } else {
                             var->requires = current_section->requires;
                             var->conflicts = current_section->conflicts;
                             var->pass = pass;
                             var->upass = pass;
-                            var->value = val_reference(val);
+                            var->value = val;
                             var->file = cfile;
                             var->sline = sline;
                             var->epoint = epoint;
@@ -2430,8 +2385,9 @@ struct value_s *compile(struct file_s *cfile)
                         if (nopos > 0) {
                             lpoint = bpoint;
                             if (!get_exp(&w,1)) break; /* ellenorizve. */
-                            if (!(val = get_val(T_IDENTREF, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                            if (!(val = get_vals_tuple(T_IDENTREF))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                             var_assign(var, val, fixeddig);
+                            val_destroy(val);
                             ignore();if (here() && here()!=';') {err_msg(ERROR_EXTRA_CHAR_OL,NULL);break;}
                         }
                     }
