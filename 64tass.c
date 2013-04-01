@@ -1809,10 +1809,7 @@ struct value_s *compile(struct file_s *cfile)
                         fixeddig = 0;
                     } else {
                         if ((val->type != T_NUM || val->u.num.len > 16) && ((uval_t)val->u.num.val & ~(uval_t)0xffff)) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
-                        else {
-                            if (dtvmode) dpage=val->u.num.val & 0xff00;
-                            else dpage=val->u.num.val;
-                        }
+                        else dpage=val->u.num.val;
                     }
                     break;
                 }
