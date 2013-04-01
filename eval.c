@@ -829,6 +829,11 @@ struct value_s *get_val(enum type_e type, linepos_t *epoint) {/* length in bytes
     case T_GAP:
     case T_LIST:
     case T_TUPLE:
+    case T_MACRO:
+    case T_SEGMENT:
+    case T_UNION:
+    case T_STRUCT:
+    case T_FUNCTION:
     case T_IDENTREF:
         if (type == T_IDENTREF) return value->val;
         try_resolv_identref(value);
@@ -1043,291 +1048,296 @@ static void functions(struct values_s *vals, unsigned int args) {
     const uint8_t *name;
     enum func_e func = F_NONE;
 
-    if (vals->val->type != T_IDENT) {
-        err_msg_invalid_oper(O_FUNC, vals->val, NULL, vals->epoint);
-        val_replace(&vals->val, &none_value);
-        return;
-    }
-    len = vals->val->u.ident.len;
-    name = vals->val->u.ident.data;
+    if (vals->val->type == T_IDENT) {
+        len = vals->val->u.ident.len;
+        name = vals->val->u.ident.data;
 
-    /* len(a) - length of string in characters */
-    if (len == 3 && !memcmp(name, "len", len)) {
-        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
-        switch (try_resolv(&v[0])) {
-        case T_STR:
-            new_value.type = T_UINT;
-            new_value.u.num.val = v[0].val->u.str.chars;
-            val_replace(&vals->val, &new_value);
-            return;
-        case T_LIST:
-        case T_TUPLE:
-            new_value.type = T_UINT;
-            new_value.u.num.val = v[0].val->u.list.len;
-            val_replace(&vals->val, &new_value);
-            return;
-        case T_CODE:
-            if (!v[0].val->u.code.pass) {
-                new_value.type = T_ERROR;
-                new_value.u.error.num = ERROR___NOT_DEFINED;
-                new_value.u.error.epoint = v[0].epoint;
-                new_value.u.error.u.ident.len = 6;
-                new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
-                val_replace(&vals->val, &new_value);
-                return;
-            }
-            new_value.type = T_UINT;
-            new_value.u.num.val = (v[0].val->u.code.dtype < 0) ? -v[0].val->u.code.dtype : v[0].val->u.code.dtype;
-            new_value.u.num.val = v[0].val->u.code.size / (new_value.u.num.val + !new_value.u.num.val);
-            val_replace(&vals->val, &new_value);
-            return;
-        case T_UINT:
-        case T_SINT:
-        case T_NUM:
-        case T_BOOL:
-            new_value.type = T_UINT;
-            new_value.u.num.val = get_val_len2(v[0].val);
-            val_replace(&vals->val, &new_value);
-            return;
-        default: err_msg_wrong_type(v[0].val, v[0].epoint);
-        case T_NONE: break;
-        }
-        val_replace(&vals->val, &none_value);
-        return;
-    } /* range([start],end,[step]) */
-    if (len == 5 && !memcmp(name, "range", len)) {
-        ival_t start = 0, end, step = 1;
-        size_t i = 0, len2;
-        struct value_s **val;
-        if (args < 1 || args > 3) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else {
-            for (i = 0; i < args; i++) {
-                switch (try_resolv(&v[i])) {
-                case T_CODE:
-                case T_SINT:
-                case T_UINT:
-                case T_NUM:
-                case T_BOOL:
-                    break;
-                default: err_msg_wrong_type(v[i].val, v[i].epoint);
-                case T_NONE: 
-                    val_replace(&vals->val, &none_value);
-                    return;
-                }
-            }
-            switch (args) {
-            case 1: end = to_ival(v[0].val);break;
-            case 3: step = to_ival(v[2].val);
-            case 2: start = to_ival(v[0].val);
-                    end = to_ival(v[1].val);break;
-            }
-            if (step == 0) {
-                new_value.type = T_ERROR;
-                new_value.u.error.num = ERROR_DIVISION_BY_Z;
-                new_value.u.error.epoint = v[2].epoint;
-                val_replace_template(&vals->val, &new_value); return;
-            }
-            if (step > 0) {
-                if (end < start) end = start;
-                len2 = (end - start + step - 1) / step;
-            } else {
-                if (end > start) end = start;
-                len2 = (start - end - step - 1) / -step;
-            }
-            val = malloc(len2 * sizeof(new_value.u.list.data[0]));
-            if (!val) err_msg_out_of_memory();
-            i = 0;
-            while ((end > start && step > 0) || (end < start && step < 0)) {
-                new_value.type = (start >= 0) ? T_UINT : T_SINT;
-                new_value.u.num.val = start;
-                val[i++] = val_reference(&new_value);
-                start += step;
-            }
-            new_value.type = T_LIST;
-            new_value.u.list.len = len2;
-            new_value.u.list.data = val;
-            val_replace_template(&vals->val, &new_value);
-            return;
-        }
-        val_replace(&vals->val, &none_value);
-        return;
-    } /* min(a, b, ...) - minimum value */
-    if (len == 3 && !memcmp(name, "min", len)) {
-        ival_t min = 0;
-        if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
-        else {
-            int volt = 1, t = 1;
-            while (args--) {
-                switch (try_resolv(&v[args])) {
-                case T_SINT:
-                    if (volt || (!t && min < 0) || v[args].val->u.num.val < min) {min = v[args].val->u.num.val;t = 1;}
-                    break;
-                case T_UINT:
-                case T_NUM:
-                case T_BOOL:
-                    if (volt || ((!t || min > 0) && (uval_t)v[args].val->u.num.val < (uval_t)min)) {min = v[args].val->u.num.val; t = 0;}
-                    break;
-                default: err_msg_wrong_type(v[args].val, v[args].epoint);
-                case T_NONE:
-                    val_replace(&vals->val, &none_value);
-                    return;
-                }
-                volt = 0;
-            }
-            new_value.type = t ? T_SINT : T_UINT;
-            new_value.u.num.val = min;
-            val_replace(&vals->val, &new_value);
-            return;
-        }
-        val_replace(&vals->val, &none_value);
-        return;
-    } /* max(a, b, ...) - maximum value */
-    else if (len == 3 && !memcmp(name, "max", len)) {
-        ival_t max = 0;
-        if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
-        else {
-            int volt = 1, t = 1;
-            while (args--) {
-                switch (try_resolv(&v[args])) {
-                case T_SINT:
-                    if (volt || ((t || max < 0) && v[args].val->u.num.val > max)) {max = v[args].val->u.num.val;t = 1;}
-                    break;
-                case T_UINT:
-                case T_NUM:
-                case T_BOOL:
-                    if (volt || (t && max < 0) || (uval_t)v[args].val->u.num.val > (uval_t)max) {max = v[args].val->u.num.val;t = 0;}
-                    break;
-                default: err_msg_wrong_type(v[args].val, v[args].epoint);
-                case T_NONE:
-                    val_replace(&vals->val, &none_value);
-                    return;
-                }
-                volt = 0;
-            }
-            new_value.type = t ? T_SINT : T_UINT;
-            new_value.u.num.val = max;
-            val_replace(&vals->val, &new_value);
-            return;
-        }
-        val_replace(&vals->val, &none_value);
-        return;
-    } /* size(a) - size of data structure at location */
-    else if (len == 4 && !memcmp(name, "size", len)) {
-        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
-        else {
-            switch (try_resolv(&v[0])) {
-            case T_CODE:
-                if (!v[0].val->u.code.pass) {
-                    new_value.type = T_ERROR;
-                    new_value.u.error.num = ERROR___NOT_DEFINED;
-                    new_value.u.error.epoint = v[0].epoint;
-                    new_value.u.error.u.ident.len = 6;
-                    new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
+        /* len(a) - length of string in characters */
+        if (len == 3 && !memcmp(name, "len", len)) {
+            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
+                switch (try_resolv(&v[0])) {
+                case T_STR:
+                    new_value.type = T_UINT;
+                    new_value.u.num.val = v[0].val->u.str.chars;
                     val_replace(&vals->val, &new_value);
                     return;
-                }
-                new_value.type = T_UINT;
-                new_value.u.num.val = v[0].val->u.code.size;
-                val_replace(&vals->val, &new_value);
-                return;
-            case T_STRUCT:
-            case T_UNION:
-                new_value.type = T_UINT;
-                new_value.u.num.val = v[0].val->u.macro.size;
-                val_replace(&vals->val, &new_value);
-                return;
-            default: err_msg_wrong_type(v[0].val, v[0].epoint);
-            case T_NONE: break;
-            }
-        }
-        val_replace(&vals->val, &none_value);
-        return;
-    } else
-    if (len == 5 && !memcmp(name, "floor", len)) func = F_FLOOR; else
-    if (len == 4 && !memcmp(name, "ceil", len)) func = F_CEIL; else
-    if (len == 5 && !memcmp(name, "round", len)) func = F_ROUND; else
-    if (len == 5 && !memcmp(name, "trunc", len)) func = F_TRUNC; else
-    if (len == 4 && !memcmp(name, "frac", len)) func = F_FRAC; else
-    if (len == 4 && !memcmp(name, "sqrt", len)) func = F_SQRT; else
-    if (len == 5 && !memcmp(name, "log10", len)) func = F_LOG10; else
-    if (len == 3 && !memcmp(name, "log", len)) func = F_LOG; else
-    if (len == 3 && !memcmp(name, "exp", len)) func = F_EXP; else
-    if (len == 3 && !memcmp(name, "sin", len)) func = F_SIN; else
-    if (len == 3 && !memcmp(name, "cos", len)) func = F_COS; else
-    if (len == 3 && !memcmp(name, "tan", len)) func = F_TAN; else
-    if (len == 4 && !memcmp(name, "acos", len)) func = F_ACOS; else
-    if (len == 4 && !memcmp(name, "asin", len)) func = F_ASIN; else
-    if (len == 4 && !memcmp(name, "atan", len)) func = F_ATAN; else
-    if (len == 4 && !memcmp(name, "cbrt", len)) func = F_CBRT; else
-    if (len == 3 && !memcmp(name, "rad", len)) func = F_RAD; else
-    if (len == 3 && !memcmp(name, "deg", len)) func = F_DEG; else
-    if (len == 4 && !memcmp(name, "cosh", len)) func = F_COSH; else
-    if (len == 4 && !memcmp(name, "sinh", len)) func = F_SINH; else
-    if (len == 4 && !memcmp(name, "tanh", len)) func = F_TANH; else
-    if (len == 4 && !memcmp(name, "sign", len)) func = F_SIGN; else
-    if (len == 3 && !memcmp(name, "abs", len)) func = F_ABS; else
-    if (len == 5 && !memcmp(name, "float", len)) func = F_FLOAT; else
-    if (len == 3 && !memcmp(name, "int", len)) func = F_INT;
-
-    if (func != F_NONE) {
-        const struct value_s *val;
-        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
-        try_resolv(&v[0]);
-        val = apply_func(func, v[0].val, v[0].epoint);
-        val_replace_template(&vals->val, val);
-        return;
-    }
-    func = F_NONE;
-    if (len == 5 && !memcmp(name, "hypot", len)) func = F_HYPOT; else
-    if (len == 5 && !memcmp(name, "atan2", len)) func = F_ATAN2; else
-    if (len == 3 && !memcmp(name, "pow", len)) func = F_POW;
-    if (func != F_NONE) {
-        double val1, val2;
-        if (args != 2) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
-        switch (try_resolv(&v[0])) {
-        case T_SINT:
-        case T_UINT:
-        case T_CODE:
-        case T_NUM:
-        case T_BOOL:
-        case T_FLOAT:
-            switch (try_resolv(&v[1])) {
-            case T_SINT:
-            case T_UINT:
-            case T_CODE:
-            case T_NUM:
-            case T_BOOL:
-            case T_FLOAT:
-                new_value.type = T_FLOAT;
-                val1 = to_float(v[0].val);
-                val2 = to_float(v[1].val);
-                switch (func) {
-                case F_HYPOT: new_value.u.real = hypot(val1, val2);break;
-                case F_ATAN2: new_value.u.real = atan2(val1, val2);break;
-                case F_POW:
-                    if (val2 < 0.0 && !val1) {
+                case T_LIST:
+                case T_TUPLE:
+                    new_value.type = T_UINT;
+                    new_value.u.num.val = v[0].val->u.list.len;
+                    val_replace(&vals->val, &new_value);
+                    return;
+                case T_CODE:
+                    if (!v[0].val->u.code.pass) {
                         new_value.type = T_ERROR;
-                        new_value.u.error.num = ERROR_DIVISION_BY_Z;
-                        new_value.u.error.epoint = v[1].epoint;
-                        val_replace_template(&vals->val, &new_value);
+                        new_value.u.error.num = ERROR___NOT_DEFINED;
+                        new_value.u.error.epoint = v[0].epoint;
+                        new_value.u.error.u.ident.len = 6;
+                        new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
+                        val_replace(&vals->val, &new_value);
                         return;
                     }
-                    else if (val1 < 0.0 && (double)((int)val2) != val2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); new_value.u.real = 0.0;}
-                    else new_value.u.real = pow(val1, val2);
-                    break;
-                default: break;
+                    new_value.type = T_UINT;
+                    new_value.u.num.val = (v[0].val->u.code.dtype < 0) ? -v[0].val->u.code.dtype : v[0].val->u.code.dtype;
+                    new_value.u.num.val = v[0].val->u.code.size / (new_value.u.num.val + !new_value.u.num.val);
+                    val_replace(&vals->val, &new_value);
+                    return;
+                case T_UINT:
+                case T_SINT:
+                case T_NUM:
+                case T_BOOL:
+                    new_value.type = T_UINT;
+                    new_value.u.num.val = get_val_len2(v[0].val);
+                    val_replace(&vals->val, &new_value);
+                    return;
+                default: err_msg_wrong_type(v[0].val, v[0].epoint);
+                case T_NONE: break;
                 }
-                val_replace(&vals->val, &new_value);
+            val_replace(&vals->val, &none_value);
+            return;
+        } /* range([start],end,[step]) */
+        if (len == 5 && !memcmp(name, "range", len)) {
+            ival_t start = 0, end, step = 1;
+            size_t i = 0, len2;
+            struct value_s **val;
+            if (args < 1 || args > 3) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else {
+                for (i = 0; i < args; i++) {
+                    switch (try_resolv(&v[i])) {
+                    case T_CODE:
+                    case T_SINT:
+                    case T_UINT:
+                    case T_NUM:
+                    case T_BOOL:
+                        break;
+                    default: err_msg_wrong_type(v[i].val, v[i].epoint);
+                    case T_NONE: 
+                             val_replace(&vals->val, &none_value);
+                             return;
+                    }
+                }
+                switch (args) {
+                case 1: end = to_ival(v[0].val);break;
+                case 3: step = to_ival(v[2].val);
+                case 2: start = to_ival(v[0].val);
+                        end = to_ival(v[1].val);break;
+                }
+                if (step == 0) {
+                    new_value.type = T_ERROR;
+                    new_value.u.error.num = ERROR_DIVISION_BY_Z;
+                    new_value.u.error.epoint = v[2].epoint;
+                    val_replace_template(&vals->val, &new_value); return;
+                }
+                if (step > 0) {
+                    if (end < start) end = start;
+                    len2 = (end - start + step - 1) / step;
+                } else {
+                    if (end > start) end = start;
+                    len2 = (start - end - step - 1) / -step;
+                }
+                val = malloc(len2 * sizeof(new_value.u.list.data[0]));
+                if (!val) err_msg_out_of_memory();
+                i = 0;
+                while ((end > start && step > 0) || (end < start && step < 0)) {
+                    new_value.type = (start >= 0) ? T_UINT : T_SINT;
+                    new_value.u.num.val = start;
+                    val[i++] = val_reference(&new_value);
+                    start += step;
+                }
+                new_value.type = T_LIST;
+                new_value.u.list.len = len2;
+                new_value.u.list.data = val;
+                val_replace_template(&vals->val, &new_value);
                 return;
-            default: err_msg_wrong_type(v[1].val, v[1].epoint);
-            case T_NONE:break;
             }
             val_replace(&vals->val, &none_value);
             return;
-        default: err_msg_wrong_type(v[0].val, v[0].epoint);
-        case T_NONE: break;
+        } /* min(a, b, ...) - minimum value */
+        if (len == 3 && !memcmp(name, "min", len)) {
+            ival_t min = 0;
+            if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
+            else {
+                int volt = 1, t = 1;
+                while (args--) {
+                    switch (try_resolv(&v[args])) {
+                    case T_SINT:
+                        if (volt || (!t && min < 0) || v[args].val->u.num.val < min) {min = v[args].val->u.num.val;t = 1;}
+                        break;
+                    case T_UINT:
+                    case T_NUM:
+                    case T_BOOL:
+                        if (volt || ((!t || min > 0) && (uval_t)v[args].val->u.num.val < (uval_t)min)) {min = v[args].val->u.num.val; t = 0;}
+                        break;
+                    default: err_msg_wrong_type(v[args].val, v[args].epoint);
+                    case T_NONE:
+                             val_replace(&vals->val, &none_value);
+                             return;
+                    }
+                    volt = 0;
+                }
+                new_value.type = t ? T_SINT : T_UINT;
+                new_value.u.num.val = min;
+                val_replace(&vals->val, &new_value);
+                return;
+            }
+            val_replace(&vals->val, &none_value);
+            return;
+        } /* max(a, b, ...) - maximum value */
+        else if (len == 3 && !memcmp(name, "max", len)) {
+            ival_t max = 0;
+            if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
+            else {
+                int volt = 1, t = 1;
+                while (args--) {
+                    switch (try_resolv(&v[args])) {
+                    case T_SINT:
+                        if (volt || ((t || max < 0) && v[args].val->u.num.val > max)) {max = v[args].val->u.num.val;t = 1;}
+                        break;
+                    case T_UINT:
+                    case T_NUM:
+                    case T_BOOL:
+                        if (volt || (t && max < 0) || (uval_t)v[args].val->u.num.val > (uval_t)max) {max = v[args].val->u.num.val;t = 0;}
+                        break;
+                    default: err_msg_wrong_type(v[args].val, v[args].epoint);
+                    case T_NONE:
+                             val_replace(&vals->val, &none_value);
+                             return;
+                    }
+                    volt = 0;
+                }
+                new_value.type = t ? T_SINT : T_UINT;
+                new_value.u.num.val = max;
+                val_replace(&vals->val, &new_value);
+                return;
+            }
+            val_replace(&vals->val, &none_value);
+            return;
+        } /* size(a) - size of data structure at location */
+        else if (len == 4 && !memcmp(name, "size", len)) {
+            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
+            else {
+                switch (try_resolv(&v[0])) {
+                case T_CODE:
+                    if (!v[0].val->u.code.pass) {
+                        new_value.type = T_ERROR;
+                        new_value.u.error.num = ERROR___NOT_DEFINED;
+                        new_value.u.error.epoint = v[0].epoint;
+                        new_value.u.error.u.ident.len = 6;
+                        new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
+                        val_replace(&vals->val, &new_value);
+                        return;
+                    }
+                    new_value.type = T_UINT;
+                    new_value.u.num.val = v[0].val->u.code.size;
+                    val_replace(&vals->val, &new_value);
+                    return;
+                case T_STRUCT:
+                case T_UNION:
+                    new_value.type = T_UINT;
+                    new_value.u.num.val = v[0].val->u.macro.size;
+                    val_replace(&vals->val, &new_value);
+                    return;
+                default: err_msg_wrong_type(v[0].val, v[0].epoint);
+                case T_NONE: break;
+                }
+            }
+            val_replace(&vals->val, &none_value);
+            return;
+        } else
+            switch (len) {
+            case 3:
+                if (!memcmp(name, "log", 3)) func = F_LOG; 
+                else if (!memcmp(name, "exp", 3)) func = F_EXP; 
+                else if (!memcmp(name, "sin", 3)) func = F_SIN; 
+                else if (!memcmp(name, "cos", 3)) func = F_COS; 
+                else if (!memcmp(name, "tan", 3)) func = F_TAN; 
+                else if (!memcmp(name, "rad", 3)) func = F_RAD; 
+                else if (!memcmp(name, "deg", 3)) func = F_DEG; 
+                else if (!memcmp(name, "abs", 3)) func = F_ABS; 
+                else if (!memcmp(name, "int", 3)) func = F_INT;
+                break;
+            case 4:
+                if (!memcmp(name, "ceil", 4)) func = F_CEIL;
+                else if (!memcmp(name, "frac", 4)) func = F_FRAC; 
+                else if (!memcmp(name, "sqrt", 4)) func = F_SQRT; 
+                else if (!memcmp(name, "acos", 4)) func = F_ACOS; 
+                else if (!memcmp(name, "asin", 4)) func = F_ASIN; 
+                else if (!memcmp(name, "atan", 4)) func = F_ATAN; 
+                else if (!memcmp(name, "cbrt", 4)) func = F_CBRT; 
+                else if (!memcmp(name, "cosh", 4)) func = F_COSH; 
+                else if (!memcmp(name, "sinh", 4)) func = F_SINH; 
+                else if (!memcmp(name, "tanh", 4)) func = F_TANH; 
+                else if (!memcmp(name, "sign", 4)) func = F_SIGN; 
+                break;
+            case 5:
+                if (!memcmp(name, "floor", 5)) func = F_FLOOR;
+                else if (!memcmp(name, "round", 5)) func = F_ROUND;
+                else if (!memcmp(name, "trunc", 5)) func = F_TRUNC; 
+                else if (!memcmp(name, "log10", 5)) func = F_LOG10; 
+                else if (!memcmp(name, "float", 5)) func = F_FLOAT; 
+                break;
+            }
+
+        if (func != F_NONE) {
+            const struct value_s *val;
+            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
+            try_resolv(&v[0]);
+            val = apply_func(func, v[0].val, v[0].epoint);
+            val_replace_template(&vals->val, val);
+            return;
         }
-        val_replace(&vals->val, &none_value);
-        return;
+        func = F_NONE;
+        if (len == 5 && !memcmp(name, "hypot", len)) func = F_HYPOT; else
+            if (len == 5 && !memcmp(name, "atan2", len)) func = F_ATAN2; else
+                if (len == 3 && !memcmp(name, "pow", len)) func = F_POW;
+        if (func != F_NONE) {
+            double val1, val2;
+            if (args != 2) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint); else
+                switch (try_resolv(&v[0])) {
+                case T_SINT:
+                case T_UINT:
+                case T_CODE:
+                case T_NUM:
+                case T_BOOL:
+                case T_FLOAT:
+                    switch (try_resolv(&v[1])) {
+                    case T_SINT:
+                    case T_UINT:
+                    case T_CODE:
+                    case T_NUM:
+                    case T_BOOL:
+                    case T_FLOAT:
+                        new_value.type = T_FLOAT;
+                        val1 = to_float(v[0].val);
+                        val2 = to_float(v[1].val);
+                        switch (func) {
+                        case F_HYPOT: new_value.u.real = hypot(val1, val2);break;
+                        case F_ATAN2: new_value.u.real = atan2(val1, val2);break;
+                        case F_POW:
+                                      if (val2 < 0.0 && !val1) {
+                                          new_value.type = T_ERROR;
+                                          new_value.u.error.num = ERROR_DIVISION_BY_Z;
+                                          new_value.u.error.epoint = v[1].epoint;
+                                          val_replace_template(&vals->val, &new_value);
+                                          return;
+                                      }
+                                      else if (val1 < 0.0 && (double)((int)val2) != val2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, v[0].epoint); new_value.u.real = 0.0;}
+                                      else new_value.u.real = pow(val1, val2);
+                                      break;
+                        default: break;
+                        }
+                        val_replace(&vals->val, &new_value);
+                        return;
+                    default: err_msg_wrong_type(v[1].val, v[1].epoint);
+                    case T_NONE:break;
+                    }
+                    val_replace(&vals->val, &none_value);
+                    return;
+                default: err_msg_wrong_type(v[0].val, v[0].epoint);
+                case T_NONE: break;
+                }
+            val_replace(&vals->val, &none_value);
+            return;
+        }
     }
     switch (try_resolv(vals)) {
     case T_FUNCTION:
@@ -1354,7 +1364,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         }
         break;
     default:
-        err_msg_wrong_type(vals->val, vals->epoint); 
+        err_msg_invalid_oper(O_FUNC, vals->val, NULL, vals->epoint);
         val_replace(&vals->val, &none_value);
     case T_NONE: break;
     }
@@ -3332,7 +3342,7 @@ static int get_val2(struct eval_context_s *ev) {
     enum oper_e op;
     struct values_s *v1, *v2;
     enum type_e t1, t2;
-    int stop = ev->gstop;
+    int stop = ev->gstop == 1;
     struct values_s *o_out;
     struct value_s *val;
     struct values_s *values;
@@ -3625,7 +3635,6 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
     struct value_s *o_oper[256], *op;
     linepos_t epoints[256];
     uint8_t operp = 0, prec, db;
-    int large=0;
     linepos_t epoint;
     struct value_s *val;
 
@@ -3654,7 +3663,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         break;
     }
     for (;;) {
-        ignore();ch = here(); epoint = lpoint;
+        ignore(); ch = here(); epoint = lpoint;
         switch (ch) {
         case ')':
             if (operp) {
@@ -3750,10 +3759,11 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         o_oper[operp++] = op;
         continue;
     other:
-        ignore();ch = here(); epoint = lpoint;
+        if (operp || stop != 2) ignore();
+        ch = here();epoint = lpoint;
         switch (ch) {
         case ',':
-            if (stop) {
+            if (stop == 1) {
                 while (operp && o_oper[operp-1] != &o_PARENT) {
                     if (o_oper[operp-1] == &o_BRACKET || o_oper[operp-1] == &o_INDEX || o_oper[operp-1] == &o_SLICE || o_oper[operp-1] == &o_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
                     operp--;
@@ -3872,6 +3882,8 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             goto other;
         case 0:
         case ';': break;
+        case '\t':
+        case ' ': break;
         default: 
             switch (get_label()) {
             case 1: if (pline[epoint.pos] == 'x') {op = &o_X;goto push2;} break;
@@ -3879,7 +3891,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             }
             goto syntaxe;
         }
-        if (stop && o_oper[0] == &o_PARENT) {
+        if (stop == 1 && o_oper[0] == &o_PARENT) {
             if (!operp) {cd=3;break;}
             if (ch == ',') {
                 while (operp && o_oper[operp-1] != &o_PARENT) {
@@ -3890,7 +3902,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
                 if (operp==1) {cd=2; break;}
             }
             err_msg(ERROR______EXPECTED,")"); goto error;
-        } else if (stop && o_oper[0] == &o_BRACKET) {
+        } else if (stop == 1 && o_oper[0] == &o_BRACKET) {
             if (!operp) {cd=4;break;}
             err_msg(ERROR______EXPECTED,"]"); goto error;
         } else {
@@ -3907,9 +3919,14 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
     error:
         return 0;
     }
-    if (large) cd=0;
     return cd;
 }
+
+int get_exp_var(void) {
+    int w;
+    return get_exp(&w, 2);
+}
+
 
 void eval_enter(void) {
     evx_p++;

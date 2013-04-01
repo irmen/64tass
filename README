@@ -948,6 +948,9 @@ by the parameter texts.
     The code is enclosed in it's own block so symbols inside are
     non-accessible, unless a label is prefixed at the place of use, then local
     labels can be accessed through that label.
+#<macro> [<param>][[,][<param>] ...]
+    Invoke the macro after `#' with the parameters. Normally the name of the
+    macro is used, but it can be any expression.
 
 copy    .macro
 lp      lda \1,x

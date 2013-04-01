@@ -895,7 +895,7 @@ struct value_s *compile(struct file_s *cfile)
                     }
                 }
             }
-            if (!islabel && (tmp2=find_label(&labelname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) {lpoint.pos--;labelname.len=0;goto as_macro;}
+            if (!islabel && (tmp2=find_label(&labelname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) {lpoint.pos--;labelname.len=0;val = tmp2->value; goto as_macro;}
             {
                 int labelexists;
                 if (!islabel && tmp2 && tmp2->parent == current_context) {newlabel = tmp2;labelexists = 1;}
@@ -2625,12 +2625,15 @@ struct value_s *compile(struct file_s *cfile)
             }
         case WHAT_HASHMARK:if (waitfor->skip & 1) /* skip things if needed */
             {                   /* macro stuff */
-                str_t macroname;
-
-                ignore(); epoint = lpoint;
-                macroname.data = pline + lpoint.pos; macroname.len = get_label();
-                if (!macroname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (!(tmp2=find_label(&macroname)) || (tmp2->type != L_LABEL || (tmp2->value->type != T_MACRO && tmp2->value->type != T_SEGMENT && tmp2->value->type != T_FUNCTION))) {err_msg_not_defined(&macroname, epoint); goto breakerr;}
+                if (!get_exp_var()) goto breakerr;
+                if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (val == &error_value) goto breakerr;
+                if (val->type == T_NONE) {
+                    if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                    fixeddig = 0;
+                    goto breakerr;
+                }
+                if (val->type != T_MACRO && val->type != T_SEGMENT && val->type != T_FUNCTION) {err_msg_wrong_type(val, epoint); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
@@ -2641,7 +2644,7 @@ struct value_s *compile(struct file_s *cfile)
                     }
                     fputc('\n', flist);
                 }
-                if (tmp2->value->type == T_MACRO || tmp2->value->type == T_FUNCTION) {
+                if (val->type == T_MACRO || val->type == T_FUNCTION) {
                     struct label_s *context;
                     if (newlabel) context=newlabel;
                     else {
@@ -2652,9 +2655,9 @@ struct value_s *compile(struct file_s *cfile)
                         context=new_label(&tmpname, L_LABEL, &labelexists);
                         context->value = &none_value;
                     }
-                    if (tmp2->value->type == T_FUNCTION) func_recurse(W_ENDF2, tmp2->value, context);
-                    else macro_recurse(W_ENDM2, tmp2->value, context);
-                } else macro_recurse(W_ENDM2, tmp2->value, current_context);
+                    if (val->type == T_FUNCTION) func_recurse(W_ENDF2, val, context);
+                    else macro_recurse(W_ENDM2, val, context);
+                } else macro_recurse(W_ENDM2, val, current_context);
                 break;
             }
         case WHAT_EXPRESSION:
@@ -3112,6 +3115,7 @@ struct value_s *compile(struct file_s *cfile)
                             nm[2]=mnemonic[mnem];
                             if ((tmp2=find_label(&nmname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) {
                                 lpoint=oldlpoint;
+                                val = tmp2->value;
                                 goto as_macro;
                             }
                             err_msg(ERROR_ILLEGAL_OPERA,NULL);
@@ -3213,7 +3217,7 @@ struct value_s *compile(struct file_s *cfile)
                     }
                     break;
                 }
-                if ((tmp2=find_label(&opname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) goto as_macro;
+                if ((tmp2=find_label(&opname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT)) {val = tmp2->value;goto as_macro;}
             }            /* fall through */
         default: if (waitfor->skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr; /* skip things if needed */
         }
