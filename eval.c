@@ -560,6 +560,8 @@ rest:
     ignore();
     conv = &o_POS;
     switch (here()) {
+    case 0:
+    case ';': err_msg(ERROR_MISSING_ARGUM,NULL); return 0;
     case '!':*wd=1;lpoint.pos++;break;
     case '<': conv = &o_LOWER; cpoint = lpoint; lpoint.pos++;break; 
     case '>': conv = &o_HIGHER;cpoint = lpoint; lpoint.pos++;break; 
@@ -3662,6 +3664,8 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
 
     ignore();
     switch (here()) {
+    case 0:
+    case ';': err_msg(ERROR_MISSING_ARGUM,NULL); return 0;
     case '@':
         switch (pline[++lpoint.pos] | 0x20) {
         case 'b':*wd=0;break;
