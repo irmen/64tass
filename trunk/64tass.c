@@ -733,7 +733,7 @@ struct value_s *compile(struct file_s *cfile)
                 case CMD_STRUCT:
                 case CMD_UNION:
                     {
-                        struct label_s *old_context=current_context, *label;
+                        struct label_s *label;
                         size_t memp, membp;
                         struct section_s olds = *current_section;
                         int declaration = !current_section->structrecursion;
@@ -819,7 +819,6 @@ struct value_s *compile(struct file_s *cfile)
                             }
                         }
                         if (label) {
-                            current_context=label;
                             label->ref=0;
                         }
                         if (listing && flist && arguments.source) {
@@ -837,9 +836,8 @@ struct value_s *compile(struct file_s *cfile)
                             current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
                             waitfor->skip=1;
-                            if (label && (label->value->type == T_STRUCT || label->value->type == T_UNION)) macro_recurse(W_ENDS, label->value);
+                            if (label && (label->value->type == T_STRUCT || label->value->type == T_UNION)) macro_recurse(W_ENDS, label->value, label);
                             else compile(cfile);
-                            current_context = old_context;
                             current_section->unionmode = old_unionmode;
                             current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
                             current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
@@ -967,14 +965,12 @@ struct value_s *compile(struct file_s *cfile)
                 case CMD_DSTRUCT: /* .dstruct */
                 case CMD_DUNION:
                     {
-                        struct label_s *oldcontext = current_context;
                         int old_unionmode = current_section->unionmode;
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
                         current_section->unionmode = (prm==CMD_DUNION);
                         current_section->unionstart = current_section->unionend = current_section->address;
                         current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
-                        current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
@@ -987,9 +983,8 @@ struct value_s *compile(struct file_s *cfile)
                         if (val->type != ((prm==CMD_DSTRUCT) ? T_STRUCT : T_UNION)) {err_msg_wrong_type(val, epoint); goto breakerr;}
                         ignore();if (here() == ',') lpoint.pos++;
                         current_section->structrecursion++;
-                        macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2,val);
+                        macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, newlabel);
                         current_section->structrecursion--;
-                        current_context=oldcontext;
                         current_section->unionmode = old_unionmode;
                         current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
                         current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
@@ -2506,7 +2501,7 @@ struct value_s *compile(struct file_s *cfile)
                     ignore();if (here() == ',') lpoint.pos++;
                     if (val->type != T_STRUCT) {err_msg_wrong_type(val, epoint); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse(W_ENDS2, val);
+                    macro_recurse(W_ENDS2, val, current_context);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     break;
@@ -2522,7 +2517,7 @@ struct value_s *compile(struct file_s *cfile)
                     ignore();if (here() == ',') lpoint.pos++;
                     if (val->type != T_UNION) {err_msg_wrong_type(val, epoint); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse(W_ENDU2, val);
+                    macro_recurse(W_ENDU2, val, current_context);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -2630,7 +2625,6 @@ struct value_s *compile(struct file_s *cfile)
             }
         case WHAT_HASHMARK:if (waitfor->skip & 1) /* skip things if needed */
             {                   /* macro stuff */
-                struct label_s *old_context;
                 str_t macroname;
 
                 ignore(); epoint = lpoint;
@@ -2648,20 +2642,19 @@ struct value_s *compile(struct file_s *cfile)
                     fputc('\n', flist);
                 }
                 if (tmp2->value->type == T_MACRO || tmp2->value->type == T_FUNCTION) {
-                    old_context = current_context;
-                    if (newlabel) current_context=newlabel;
+                    struct label_s *context;
+                    if (newlabel) context=newlabel;
                     else {
                         int labelexists;
                         str_t tmpname;
                         sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                        current_context=new_label(&tmpname, L_LABEL, &labelexists);
-                        current_context->value = &none_value;
+                        context=new_label(&tmpname, L_LABEL, &labelexists);
+                        context->value = &none_value;
                     }
-                    if (tmp2->value->type == T_FUNCTION) func_recurse(W_ENDF2, tmp2->value);
-                    else macro_recurse(W_ENDM2, tmp2->value);
-                    current_context = old_context;
-                } else macro_recurse(W_ENDM2, tmp2->value);
+                    if (tmp2->value->type == T_FUNCTION) func_recurse(W_ENDF2, tmp2->value, context);
+                    else macro_recurse(W_ENDM2, tmp2->value, context);
+                } else macro_recurse(W_ENDM2, tmp2->value, current_context);
                 break;
             }
         case WHAT_EXPRESSION:
