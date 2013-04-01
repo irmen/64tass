@@ -1549,9 +1549,9 @@ bank, anything else (except direct page) is using long addressing.
 </pre>
 
 <dt><b>.dpage</b> &lt;expression&gt;
-<dd>Set directpage (65816/C128/DTV) (forced to page boundary for DTV). Direct
-page addressing is only used for addresses in the following 256 byte range, anything
-else is using absolute or long addressing.
+<dd>Set directpage. Direct or zero page addressing is only used for addresses
+in the following 256 byte range, anything else is using absolute or long
+addressing.
 <pre width=80>
         <b class="k">.dpage</b> <span>$400</span>
 </pre>

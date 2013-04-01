@@ -1376,9 +1376,9 @@ routine .word print
             .databank $10   ;$10xxxx
 
 .dpage <expression>
-    Set directpage (65816/C128/DTV) (forced to page boundary for DTV). Direct
-    page addressing is only used for addresses in the following 256 byte range,
-    anything else is using absolute or long addressing.
+    Set directpage. Direct or zero page addressing is only used for addresses
+    in the following 256 byte range, anything else is using absolute or long
+    addressing.
 
             .dpage $400
 
