@@ -174,7 +174,7 @@ static size_t macro_param_find(void) {
     return npoint2.pos - opoint2.pos;
 }
 
-void macro_recurse(enum wait_e t, struct value_s *tmp2) {
+void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) {
     if (macro_parameters.p>100) {
         err_msg(ERROR__MACRECURSION,"!!!!");
         return;
@@ -225,7 +225,10 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2) {
         macro_parameters.current->all.len = npoint.pos - opoint.pos;
     }
     if (t == W_ENDS) {
+        struct label_s *oldcontext = current_context;
+        current_context = context;
         compile(tmp2->u.macro.file);
+        current_context = oldcontext;
     } else {
         size_t oldpos = tmp2->u.macro.file->p;
         line_t lin = sline;
@@ -234,6 +237,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2) {
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
+        struct label_s *oldcontext = current_context;
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, lpoint);
@@ -246,7 +250,9 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2) {
         new_waitfor(t, (linepos_t){0,0});
         f = tmp2->u.macro.file;
         f->p = tmp2->u.macro.p;
+        current_context = context;
         compile(f);
+        current_context = oldcontext;
         f->p = oldpos;
         exitfile();
         star_tree = stree_old; vline = ovline;
@@ -257,7 +263,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2) {
     if (macro_parameters.p) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
 }
 
-void func_recurse(enum wait_e t, struct value_s *tmp2) {
+void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) {
     size_t i;
     int w;
     struct label_s *label;
@@ -267,7 +273,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
 
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
-        label=find_label2(&tmp2->u.func.param[i].name, &current_context->members);
+        label=find_label2(&tmp2->u.func.param[i].name, &context->members);
         ignore();if (!here() || here()==';') fin++;
         if (tmp2->u.func.param[i].init) {
             if (here()==',' || !here() || here()==';') {
@@ -290,7 +296,12 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
             ignore();if (here()==',') lpoint.pos++;
         }
         if (label) labelexists = 1;
-        else label = new_label(&tmp2->u.func.param[i].name, L_CONST, &labelexists);
+        else {
+            struct label_s *oldcontext = current_context;
+            current_context = context;
+            label = new_label(&tmp2->u.func.param[i].name, L_CONST, &labelexists);
+            current_context = oldcontext;
+        }
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, epoint);
@@ -319,6 +330,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
+        struct label_s *oldcontext = current_context;
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, lpoint);
@@ -331,7 +343,9 @@ void func_recurse(enum wait_e t, struct value_s *tmp2) {
         new_waitfor(t, (linepos_t){0,0});
         f = tmp2->u.func.file;
         f->p = tmp2->u.func.p;
+        current_context = context;
         val = compile(f);
+        current_context = oldcontext;
         if (val) val_destroy(val);
         f->p = oldpos;
         exitfile();
