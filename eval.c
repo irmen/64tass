@@ -1564,13 +1564,11 @@ static void code_iindex(struct values_s *vals, const struct value_s *list, linep
 }
 
 static void bits_iindex(struct values_s *vals, const struct value_s *list, linepos_t epoint) {
-    struct value_s *val;
     size_t i;
     size_t len;
     ival_t offs;
 
-    val = vals->val;
-    len = val->u.num.len;
+    len = get_val_len2(vals->val);
     new_value.type = T_NUM;
     new_value.u.num.len = (list->u.list.len < 8*sizeof(uval_t)) ? list->u.list.len : 8*sizeof(uval_t);
     new_value.u.num.val = 0;
@@ -3520,13 +3518,15 @@ static int get_val2(struct eval_context_s *ev) {
             case T_NONE: continue;
             }
         case O_QUEST:
-            v2 = v1; v1 = &values[--vsp-1];
+            v2 = v1; vsp--;
             if (vsp == 0) goto syntaxe;
+            v1 = &values[vsp-1];
             err_msg2(ERROR______EXPECTED,"':'", o_out->epoint);
             goto errtype;
         case O_COLON:
-            v2 = v1; v1 = &values[--vsp-1];
+            v2 = v1; vsp--;
             if (vsp == 0) goto syntaxe;
+            v1 = &values[vsp-1];
             err_msg2(ERROR______EXPECTED,"'?'", o_out->epoint);
             goto errtype;
         case O_WORD:   /* <> */
@@ -3955,12 +3955,12 @@ struct value_s *get_vals_tuple(enum type_e type) {
             if (i == 1) {
                 struct values_s vals2 = {retval, epoint};
                 try_resolv_identref(&vals2);
+                if (vals2.val->type == T_NONE) {
+                    free(vals);
+                    return vals2.val;
+                }
                 vals[0] = vals2.val;
                 type = T_NONE;
-                if (vals[0]->type == T_NONE) {
-                    free(vals);
-                    return vals[0];
-                }
             }
             if (val->type == T_NONE) {
                 val_destroy(val);

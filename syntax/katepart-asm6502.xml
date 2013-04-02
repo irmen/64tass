@@ -3,8 +3,8 @@
 [
         <!ENTITY opcode    "(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)((?:\s+(#|a(?=(\s|;|$))))|(?=(\s|;|$)))">
         <!ENTITY iopcode   "(ahx|alr|anc|ane|arr|asr|axs|dcm|dcp|ins|isb|isc|jam|lae|las|lax|lds|lxa|rla|rra|sax|sbx|sha|shs|shx|shy|slo|sre|tas|xaa)((?:\s+(#|a(?=(\s|;|$))))|(?=(\s|;|$)))">
-        <!ENTITY datadef   "\.(byte|char|l?int|rta|long|d?word|dint|fill|p?text|null|shiftl?|dstruct|dunion)(?=(\s|;|$))">
-        <!ENTITY preproc   "\.(b?include|lbl|goto|else|elsif|case|default|c?error|c?warn|[ax][ls]|pron|proff|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|dsection)(?=(\s|;|$))">
+        <!ENTITY datadef   "\.(byte|char|l?int|rta|long|d?word|dint|fill|p?text|null|shiftl?|dstruct|dunion|binary)(?=(\s|;|$))">
+        <!ENTITY preproc   "\.(b?include|lbl|goto|c?error|c?warn|[ax][ls]|pron|proff|hidemac|showmac|offs|align|assert|check|[ce]def|databank|dpage|cpu|enc|option|var|end|eor|dsection)(?=(\s|;|$))">
 ]>
 <!-- ex:set ts=2 et:
 
@@ -50,7 +50,6 @@
         <RegExpr String="&iopcode;" attribute="Keyword" context="Miscparam" insensitive="TRUE"/>
         <RegExpr String="&datadef;" attribute="Data Type" context="Miscparam" insensitive="TRUE"/>
         <RegExpr String="&preproc;" attribute="Preprocessor" context="Miscparam" insensitive="TRUE"/>
-        <RegExpr String="\.binary\b" attribute="Data Type" context="Miscparam" insensitive="TRUE"/>
         <RegExpr context="folding" beginRegion="foldingRegion" String="\.comment\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr String="#[a-z][a-z_0-9]*(?=(\s|;|$))" attribute="Preprocessor" context="Miscparam" insensitive="TRUE"/>
         <IncludeRules context="foldstuff"/>
@@ -62,10 +61,19 @@
         <RegExpr String="\$[a-f0-9]*" attribute="Hex" context="#stay" insensitive="TRUE"/>
         <RegExpr String="[1-9][0-9]*|0" attribute="Decimal" context="#stay" insensitive="TRUE"/>
         <RegExpr String="(\.[0-9]+|[0-9]+\.[0-9]*)(e[+-]?[0-9]*)?|([0-9]+e[+-]?[0-9]*)" attribute="Float" context="#stay" insensitive="TRUE"/>
+        <RegExpr String=",[xyrs]\b"  attribute="Keyword" context="#stay"/>
         <RegExpr String="[-+!~&lt;&gt;&amp;,.|^*/%=()\[\]?:`]"  attribute="Operator" context="#stay"/>
-        <RangeDetect char="&quot;" char1="&quot;" attribute="String" context="#stay"/>
-        <RangeDetect char="'" char1="'" attribute="String" context="#stay"/>
+        <DetectChar char="&quot;" attribute="String" context="string1"/>
+        <DetectChar char="'" attribute="String" context="string2"/>
         <RegExpr String=";.*$" attribute="Comment" context="#stay"/>
+      </context>
+      <context name="string1" lineEndContext="#pop" attribute="String">
+        <Detect2Chars attribute="Preprocessor" context="#stay" char="&quot;" char1="&quot;"/>
+        <DetectChar attribute="String" context="#pop" char="&quot;"/>
+      </context>
+      <context name="string2" lineEndContext="#pop" attribute="String">
+        <Detect2Chars attribute="Preprocessor" context="#stay" char="'" char1="'"/>
+        <DetectChar attribute="String" context="#pop" char="'"/>
       </context>
       <context name="Error" attribute="Normal Text" lineEndContext="#pop">
       </context>
@@ -91,9 +99,25 @@
         <RegExpr beginRegion="logical" String="\.logical\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="here" String="\.here\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="if" String="\.(if|ifeq|ifne|ifpl|ifmi)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="if" String="\.(fi|endif)\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="if" endRegion="elsif" String="\s?(?=\.elsif\b)" context="elsif" insensitive="TRUE"/>
+        <RegExpr endRegion="if" endRegion="elsif" String="\s?(?=\.else\b)" context="else" insensitive="TRUE"/>
+        <RegExpr endRegion="if" endRegion="elsif" endRegion="else" String="\.(fi|endif)\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="switch" String="\.switch\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="switch" String="\.endswitch\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="switch" endRegion="case" String="\s?(?=\.case\b)" context="Miscparam" context="case" insensitive="TRUE"/>
+        <RegExpr endRegion="switch" endRegion="case" String="\s?(?=\.default\b)" context="default" insensitive="TRUE"/>
+        <RegExpr endRegion="switch" endRegion="case" endRegion="default" String="\.endswitch\b" attribute="Preprocessor" insensitive="TRUE"/>
+      </context>
+      <context name="elsif" lineEndContext="#pop">
+        <RegExpr beginRegion="elsif" String="\.elsif\b" attribute="Preprocessor" context="Miscparam"/>
+      </context>
+      <context name="else" lineEndContext="#pop">
+        <RegExpr beginRegion="else" String="\.else\b" attribute="Preprocessor"/>
+      </context>
+      <context name="case" lineEndContext="#pop">
+        <RegExpr beginRegion="case" String="\.case\b" attribute="Preprocessor" context="Miscparam"/>
+      </context>
+      <context name="default" lineEndContext="#pop">
+        <RegExpr beginRegion="default" String="\.default\b" attribute="Preprocessor"/>
       </context>
 
       <context attribute="Comment" name="folding" lineEndContext="#stay">
