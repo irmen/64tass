@@ -415,7 +415,7 @@ void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, 
 }
 
 static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
-    const char *name;
+    const char *name = "";
 
     if (pass == 1) return 0;
     if (v1->type == T_ERROR) {
@@ -494,7 +494,6 @@ static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, c
     case O_LIST: 
     case O_RBRACKET:name = "']";break;
     case O_QUEST:   name = "'?";break;
-    default: name = "";break;
     }
     adderror(name);
 
