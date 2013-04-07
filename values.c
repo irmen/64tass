@@ -241,6 +241,8 @@ int val_same(const struct value_s *val, const struct value_s *val2) {
             if (val->u.func.param[i].epoint.upos != val2->u.func.param[i].epoint.upos) return 0;
         }
         return 1;
+    case T_ADDRESS:
+        return val2->type == val->type && val->u.addr.type == val2->u.addr.type && val->u.addr.val == val2->u.addr.val && val->u.addr.len == val2->u.addr.len;
     case T_NUM:
         return val2->type == val->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
     case T_FLOAT:
@@ -285,6 +287,8 @@ int val_truth(const struct value_s *val) {
     case T_LIST:
     case T_TUPLE:
         return !!val->u.list.len;
+    case T_ADDRESS:
+        return !!val->u.addr.val;
     default:
         return 0;
     }

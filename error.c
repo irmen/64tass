@@ -200,6 +200,7 @@ void err_msg(enum errors_e no, const void* prm) {
 
 static const char *type_name(enum type_e t) {
     switch (t) {
+    case T_ADDRESS: return "<address>";
     case T_SINT: return "<sint>";
     case T_UINT: return "<uint>";
     case T_NUM: return "<num>";
@@ -304,9 +305,33 @@ static void add_user_error(struct error_s *user_error, const char *s) {
 
 void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr) {
     char buffer[100], buffer2[100];
+    uint32_t addrtype;
+    int ind;
 
     if (!val) {user_error->p=0;return;}
     switch (val->type) {
+    case T_ADDRESS: 
+        sprintf(buffer,"$%" PRIxval, val->u.addr.val);
+        addrtype = val->u.addr.type;
+        ind = 99;
+        buffer2[ind] = '\0';
+        while (addrtype & 0xfff) {
+            switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
+            case A_NONE:break;
+            case A_XR: strcat(buffer, ",x");break;
+            case A_YR: strcat(buffer, ",y");break;
+            case A_ZR: strcat(buffer, ",z");break;
+            case A_SR: strcat(buffer, ",s");break;
+            case A_RR: strcat(buffer, ",r");break;
+            case A_I: buffer2[--ind] = '(';strcat(buffer, ")");break;
+            case A_LI: buffer2[--ind] = '[';strcat(buffer, "]");break;
+            case A_IMMEDIATE: buffer2[--ind] = '#';break;
+            }
+            addrtype <<= 4;
+        }
+        add_user_error(user_error, buffer2 + ind);
+        add_user_error(user_error, buffer);
+        break;
     case T_SINT: sprintf(buffer,"%+" PRIdval, val->u.num.val); add_user_error(user_error, buffer); break;
     case T_UINT: sprintf(buffer,"%" PRIuval, val->u.num.val); add_user_error(user_error, buffer); break;
     case T_NUM: {
@@ -453,6 +478,12 @@ static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, c
     case O_COLON2:
     case O_COLON3:  name = "':";break;
     case O_COMMA:   name = "',";break;
+    case O_HASH:    name = "immediate '#";break;
+    case O_COMMAX:  name = "register indexing ',x";break;
+    case O_COMMAY:  name = "register indexing ',y";break;
+    case O_COMMAZ:  name = "register indexing ',z";break;
+    case O_COMMAR:  name = "register indexing ',r";break;
+    case O_COMMAS:  name = "register indexing ',s";break;
     case O_WORD:    name = "word '<>";break;
     case O_HWORD:   name = "high word '>`";break;
     case O_BSWORD:  name = "swapped word '><";break;
