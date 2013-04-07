@@ -555,10 +555,13 @@ struct value_s *compile(struct file_s *cfile)
             if ((wht=what(&prm))==WHAT_EQUAL) { /* variable */
                 struct label_s *label;
                 int labelexists, newl = 0;
+                int oldreferenceit = referenceit;
                 label = find_label2(&labelname, mycontext);
                 if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
-                if (label && !label->ref) goto breakerr;
-                if (!(val = get_vals_tuple(T_IDENTREF))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                referenceit &= label ? label->ref : 1;
+                val = get_vals_tuple(T_IDENTREF);
+                referenceit = oldreferenceit;
+                if (!val) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 if (label) labelexists = 1;
                 else {label = new_label(&labelname, mycontext, L_CONST, &labelexists);newl = 1;}
                 oaddr=current_section->address;
@@ -600,10 +603,13 @@ struct value_s *compile(struct file_s *cfile)
                     {
                         struct label_s *label;
                         int labelexists;
+                        int oldreferenceit = referenceit;
                         label=find_label2(&labelname, mycontext);
                         if (!get_exp(&w, 0)) goto breakerr; /* ellenorizve. */
-                        if (label && !label->ref && pass != 1 && label->upass != pass) goto finish;
-                        if (!(val = get_vals_tuple(T_IDENTREF))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        referenceit &= label ? label->ref : 1;
+                        val = get_vals_tuple(T_IDENTREF);
+                        referenceit = oldreferenceit;
+                        if (!val) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (label) labelexists = 1;
                         else label = new_label(&labelname, mycontext, L_VAR, &labelexists);
                         oaddr=current_section->address;
@@ -2700,7 +2706,7 @@ struct value_s *compile(struct file_s *cfile)
                     }
                     fputc('\n', flist);
                 }
-                if (val->type == T_MACRO || val->type == T_FUNCTION) {
+                if (val->type == T_MACRO) {
                     struct label_s *context;
                     if (newlabel) {
                         newlabel->nested = 1;
@@ -2713,8 +2719,16 @@ struct value_s *compile(struct file_s *cfile)
                         context=new_label(&tmpname, mycontext, L_LABEL, &labelexists);
                         context->value = &none_value;
                     }
-                    if (val->type == T_FUNCTION) func_recurse(W_ENDF2, val, context);
-                    else macro_recurse(W_ENDM2, val, context);
+                    macro_recurse(W_ENDM2, val, context);
+                } else if (val->type == T_FUNCTION) {
+                    struct label_s *context;
+                    int labelexists;
+                    str_t tmpname;
+                    sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
+                    tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
+                    context=new_label(&tmpname, val->u.func.context, L_LABEL, &labelexists);
+                    context->value = &none_value;
+                    func_recurse(W_ENDF2, val, context);
                 } else macro_recurse(W_ENDM2, val, current_context);
                 break;
             }
