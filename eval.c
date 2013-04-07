@@ -61,6 +61,7 @@ static struct value_s null_list = {T_LIST, 0, {{0, 0}}};
 struct value_s error_value = {T_NONE, 0, {{0, 0}}};
 
 struct encoding_s *actual_encoding;
+int referenceit = 1;
 
 static uint8_t get_val_len(uval_t val, enum type_e type) {
     int span, bits;
@@ -317,7 +318,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
 }
 
 static int touch_label(struct label_s *tmp) {
-    tmp->ref=1;tmp->pass=pass;
+    if (referenceit) tmp->ref = 1;tmp->pass=pass;
     if (tmp->type != L_VAR || tmp->upass==pass) return 0;
     return 1;
 }
@@ -4012,7 +4013,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         o_oper[operp++] = op;
         continue;
     other:
-        if (operp || stop != 2) ignore();
+        if (stop != 2 || (operp && (o_oper[operp] == &o_PARENT || o_oper[operp] == &o_FUNC))) ignore();
         ch = here();epoint = lpoint;
         switch (ch) {
         case ',':
