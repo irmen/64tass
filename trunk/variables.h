@@ -37,6 +37,7 @@ struct label_s {
     line_t sline;
     linepos_t epoint;
     unsigned ref:1;
+    unsigned nested:1;
     uint8_t pass;
     uint8_t upass;
     struct label_s *parent;
@@ -45,8 +46,8 @@ struct label_s {
 
 extern struct label_s *current_context, root_label;
 extern struct label_s *find_label(const str_t *);
-extern struct label_s *find_label2(const str_t *, const struct avltree *);
-extern struct label_s *new_label(const str_t *, enum label_e, int *);
+extern struct label_s *find_label2(const str_t *, const struct label_s *);
+extern struct label_s *new_label(const str_t *, struct label_s *, enum label_e, int *);
 extern void destroy_variables(void);
 extern void destroy_variables2(struct label_s *);
 extern void init_variables(void);

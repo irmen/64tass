@@ -101,32 +101,33 @@ struct label_s *find_label(const str_t *name) {
     return NULL;
 }
 
-struct label_s *find_label2(const str_t *name, const struct avltree *tree) {
+struct label_s *find_label2(const str_t *name, const struct label_s *context) {
     struct avltree_node *b;
     struct label_s tmp;
     tmp.name = *name;
     tmp.name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
 
-    b=avltree_lookup(&tmp.node, tree);
+    b=avltree_lookup(&tmp.node, &context->members);
     if (!b) return NULL;
     return avltree_container_of(b, struct label_s, node);
 }
 
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
-struct label_s *new_label(const str_t *name, enum label_e type, int *exists) {
+struct label_s *new_label(const str_t *name, struct label_s *context, enum label_e type, int *exists) {
     struct avltree_node *b;
     struct label_s *tmp;
     if (!lastlb) lastlb=var_alloc();
     lastlb->name = *name;
     lastlb->name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
 
-    b = avltree_insert(&lastlb->node, &current_context->members);
+    b = avltree_insert(&lastlb->node, &context->members);
     if (!b) { //new label
         str_cpy(&lastlb->name, name);
         lastlb->type = type;
-        lastlb->parent = current_context;
+        lastlb->parent = context;
         lastlb->ref = 0;
+        lastlb->nested = 0;
         avltree_init(&lastlb->members, label_compare, label_free);
 	*exists = 0;
 	tmp = lastlb;
