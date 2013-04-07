@@ -3580,7 +3580,7 @@ static int get_val2(struct eval_context_s *ev) {
                 vv1 = v1->val;
             membretr:
                 if (vv1->type == T_IDENTREF) {
-                    if (vv1->u.identref->type == L_CONST || vv1->u.identref->type == L_VAR) {
+                    if (!vv1->u.identref->nested) {
                         if (touch_label(vv1->u.identref)) {
                             vv1->u.error.u.ident = vv1->u.identref->name;
                             vv1->type = T_ERROR;
@@ -3595,7 +3595,7 @@ static int get_val2(struct eval_context_s *ev) {
                         goto errtype;
                     }
                     if (v2->val->type == T_IDENT) {
-                        new_value.u.identref = find_label2(&v2->val->u.ident, &vv1->u.identref->members);
+                        new_value.u.identref = find_label2(&v2->val->u.ident, vv1->u.identref);
                         if (new_value.u.identref) {
                             new_value.type = T_IDENTREF;
                             touch_label(vv1->u.identref);
