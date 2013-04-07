@@ -22,9 +22,9 @@
 #include "error.h"
 
 enum type_e {
-    T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_IDENT,
-    T_IDENTREF, T_FORWR, T_BACKR, T_ERROR, T_OPER, T_TUPLE, T_LIST, T_MACRO,
-    T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL, T_DEFAULT
+    T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_ADDRESS,
+    T_IDENT, T_IDENTREF, T_FORWR, T_BACKR, T_ERROR, T_OPER, T_TUPLE, T_LIST,
+    T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL, T_DEFAULT
 };
 
 #define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
@@ -42,6 +42,12 @@ enum oper_e {
     O_COND,          /* ?     */
     O_COLON2,        /* :     */
     O_COLON3,        /* :     */
+    O_HASH,          /* #     */
+    O_COMMAX,        /* ,x    */
+    O_COMMAY,        /* ,y    */
+    O_COMMAZ,        /* ,z    */
+    O_COMMAR,        /* ,r    */
+    O_COMMAS,        /* ,s    */
     O_WORD,          /* <>    */
     O_HWORD,         /* >`    */
     O_BSWORD,        /* ><    */
@@ -99,6 +105,18 @@ enum dtype_e {
     D_DWORD = 4
 };
 
+enum atype_e {
+    A_NONE,          /*       */
+    A_IMMEDIATE,     /* #     */
+    A_XR,            /* ,x    */
+    A_YR,            /* ,y    */
+    A_ZR,            /* ,z    */
+    A_RR,            /* ,r    */
+    A_SR,            /* ,s    */
+    A_I,             /* )     */
+    A_LI,            /* ]     */
+};
+
 struct value_s {
     enum type_e type;
     size_t refcount;
@@ -107,6 +125,11 @@ struct value_s {
             uint8_t len;
             ival_t val;
         } num;
+        struct {
+            uint32_t type;
+            address_t val;
+            uint8_t len;
+        } addr;
         struct {
             size_t len;
             size_t chars;
