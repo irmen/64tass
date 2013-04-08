@@ -39,7 +39,7 @@ static struct {
     } *data;
 } file_list = {0,0,NULL};
 
-static struct error_s error_list = {0,0,NULL};
+static struct error_s error_list = {0,0,0,NULL};
 
 void enterfile(const char *name, line_t line) {
 
@@ -58,13 +58,13 @@ void exitfile(void) {
 }
 
 static void adderror2(const uint8_t *s, size_t len) {
-    if (len + error_list.p > error_list.len) {
-        error_list.len += (len > 0x200) ? len : 0x200;
-        error_list.data = realloc(error_list.data, error_list.len);
+    if (len + error_list.len > error_list.max) {
+        error_list.max += (len > 0x200) ? len : 0x200;
+        error_list.data = realloc(error_list.data, error_list.max);
         if (!error_list.data) {fputs("Out of memory\n", stderr);exit(1);}
     }
-    memcpy(error_list.data + error_list.p, s, len);
-    error_list.p += len;
+    memcpy(error_list.data + error_list.len, s, len);
+    error_list.len += len;
 }
 
 static void adderror(const char *s) {
@@ -151,7 +151,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
     if (no<0x40) {
         adderror("warning: ");
         warnings++;
-        if (no == ERROR_WUSER_DEFINED) adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->p);
+        if (no == ERROR_WUSER_DEFINED) adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->len);
         else adderror(terr_warning[no]);
     }
     else if (no<0x80) {
@@ -168,7 +168,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
             adderror("Branch crosses page");
             conderrors++; break;
         case ERROR__USER_DEFINED:
-            adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->p);
+            adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->len);
             conderrors++; break;
         case ERROR___UNKNOWN_CHR:
             sprintf(line,"can't encode character $%02x", *(const uint32_t *)prm); adderror(line);
@@ -290,13 +290,14 @@ void err_msg_conflicts(const str_t *name, linepos_t epoint) {
 }
 
 static void add_user_error2(struct error_s *user_error, const uint8_t *s, size_t len) {
-    if (len + user_error->p > user_error->len) {
-        user_error->len += (len > 0x100) ? len : 0x100;
-        user_error->data = realloc(user_error->data, user_error->len);
+    if (len + user_error->len > user_error->max) {
+        user_error->max += (len > 0x100) ? len : 0x100;
+        user_error->data = realloc(user_error->data, user_error->max);
         if (!user_error->data) {fputs("Out of memory\n", stderr);exit(1);}
     }
-    memcpy(user_error->data + user_error->p, s, len);
-    user_error->p += len;
+    memcpy(user_error->data + user_error->len, s, len);
+    user_error->len += len;
+    user_error->chars += len;
 }
 
 static void add_user_error(struct error_s *user_error, const char *s) {
@@ -308,7 +309,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
     uint32_t addrtype;
     int ind;
 
-    if (!val) {user_error->p=0;return;}
+    if (!val) {user_error->chars = user_error->len = 0;return;}
     switch (val->type) {
     case T_ADDRESS: 
         sprintf(buffer,"$%" PRIxval, val->u.addr.val);
@@ -371,6 +372,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
                add_user_error(user_error, c);
            }
            else add_user_error2(user_error, val->u.str.data, val->u.str.len);
+           user_error->chars -= val->u.str.len - val->u.str.chars;
            break;
        }
     case T_ERROR: add_user_error(user_error, "<error>");break;
@@ -556,9 +558,9 @@ void err_msg_strange_oper(enum oper_e op, const struct value_s *v1, const struct
 
 void freeerrorlist(int print) {
     if (print) {
-        fwrite(error_list.data, error_list.p, 1, stderr);
+        fwrite(error_list.data, error_list.len, 1, stderr);
     }
-    error_list.p = 0;
+    error_list.len = 0;
 }
 
 void err_destroy(void) {
@@ -588,7 +590,7 @@ void err_msg_file(enum errors_e no, const char* prm) {
 }
 
 void error_init(struct error_s *error) {
-    error->p = error->len = 0;
+    error->len = error->chars = error->max = 0;
     error->data = NULL;
 }
 
