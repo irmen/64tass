@@ -552,9 +552,10 @@ that they also denote indirect addressing mode for certain opcodes.
 Built in functions are identifiers followed by parentheses. They accept
 variable number of parameters separated by comma.
 
-       Other built in functions
+             Other built in functions
 min(a, b, ...)        Minimum of values
 max(a, b, ...)        Maximum of values
+repr(a)               Text representation of value
 
 Special addressing mode forcing operators in front of an expression can be used
 to make sure the expected addressing mode is used.

@@ -1322,6 +1322,37 @@ static void functions(struct values_s *vals, unsigned int args) {
             }
             val_replace(&vals->val, &none_value);
             return;
+        } else if (len == 4 && !memcmp(name, "repr", len)) {
+            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
+            else {
+                struct error_s user_error;
+                switch (try_resolv(&v[0])) {
+                case T_ADDRESS:
+                case T_UINT:
+                case T_SINT:
+                case T_NUM:
+                case T_BOOL:
+                case T_FLOAT:
+                case T_STR:
+                case T_CODE:
+                case T_TUPLE:
+                case T_LIST:
+                case T_GAP:
+                    error_init(&user_error);
+                    err_msg_variable(&user_error, v[0].val, 1);
+
+                    new_value.type = T_STR;
+                    new_value.u.str.len = user_error.p;
+                    new_value.u.str.chars = user_error.p;
+                    new_value.u.str.data = realloc(user_error.data, user_error.p);
+                    val_replace_template(&vals->val, &new_value);
+                    return;
+                default: err_msg_wrong_type(v[0].val, v[0].epoint);
+                case T_NONE: break;
+                }
+            }
+            val_replace(&vals->val, &none_value);
+            return;
         } else
             switch (len) {
             case 3:
@@ -2211,6 +2242,24 @@ strretr:
     }
     if (t1 == T_ADDRESS) {
         switch (op) {
+        case O_LOWER:
+            if (v1->u.addr.type == A_IMMEDIATE) {
+                v->type = v1->type;
+                v->u.addr.val = (uint8_t)v1->u.addr.val;
+                v->u.addr.len = 8;
+                v->u.addr.type = v1->u.addr.type;
+                return;
+            }
+            break;
+        case O_HIGHER:
+            if (v1->u.addr.type == A_IMMEDIATE) {
+                v->type = v1->type;
+                v->u.addr.val = (uint8_t)(v1->u.addr.val >> 8);
+                v->u.addr.len = 8;
+                v->u.addr.type = v1->u.addr.type;
+                return;
+            }
+            break;
         case O_COMMAX:
         case O_COMMAY:
         case O_COMMAZ:
@@ -2709,19 +2758,6 @@ strretr:
             }
             t1 = v1->type;
         }
-        if (t2 == T_GAP) {
-            switch (op) {
-            case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
-            case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
-            case O_LT: v->type = T_BOOL; v->u.num.val = (t1 < t2);return;
-            case O_GT: v->type = T_BOOL; v->u.num.val = (t1 > t2);return;
-            case O_LE: v->type = T_BOOL; v->u.num.val = (t1 <= t2);return;
-            case O_GE: v->type = T_BOOL; v->u.num.val = (t1 >= t2);return;
-            default:err_msg_invalid_oper(op, v1, v2, epoint3); 
-                    v->type = T_NONE;
-                    return;
-            }
-        }
     }
     if (t1 == T_CODE) {
         if (t1 == t2) {
@@ -2848,22 +2884,16 @@ strretr:
             }
             t1 = v1->type;
         }
-        if (t2 == T_GAP) {
-            switch (op) {
-            case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
-            case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
-            case O_LT: v->type = T_BOOL; v->u.num.val = (t1 < t2);return;
-            case O_GT: v->type = T_BOOL; v->u.num.val = (t1 > t2);return;
-            case O_LE: v->type = T_BOOL; v->u.num.val = (t1 <= t2);return;
-            case O_GE: v->type = T_BOOL; v->u.num.val = (t1 >= t2);return;
-            default:err_msg_invalid_oper(op, v1, v2, epoint3);
-                    v->type = T_NONE;
-                    return;
-            }
-        }
     }
 
     if (t1 == T_ADDRESS) {
+        if (t1 == t2) {
+            switch (op) {
+            case O_EQ: v->type = T_BOOL; v->u.num.val = (v1->u.addr.type == v2->u.addr.type) && (v1->u.addr.val == v2->u.addr.val); return;
+            case O_NEQ: v->type = T_BOOL; v->u.num.val = (v1->u.addr.type != v2->u.addr.type) || (v1->u.addr.val != v2->u.addr.val); return;
+            default:break;
+            }
+        }
         if (type_is_num(t2)) {
             switch (op) {
             case O_ADD: 
@@ -3054,27 +3084,9 @@ strretr:
             goto strretr;
         }
         if (t2 == T_LIST || t2 == T_TUPLE) {
-            switch (op) {
-            case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
-            case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
-            case O_LT: v->type = T_BOOL; v->u.num.val = (t1 < t2);return;
-            case O_GT: v->type = T_BOOL; v->u.num.val = (t1 > t2);return;
-            case O_LE: v->type = T_BOOL; v->u.num.val = (t1 <= t2);return;
-            case O_GE: v->type = T_BOOL; v->u.num.val = (t1 >= t2);return;
-            case O_IN: inlist(v1, v2, v, epoint, epoint2, epoint3);return;
-            case O_MOD: isnprintf(v1, v2, v, epoint, epoint2);return;
-            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
-            }
-        }
-        if (t2 == T_GAP) {
-            switch (op) {
-            case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
-            case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
-            case O_LT: v->type = T_BOOL; v->u.num.val = (t1 < t2);return;
-            case O_GT: v->type = T_BOOL; v->u.num.val = (t1 > t2);return;
-            case O_LE: v->type = T_BOOL; v->u.num.val = (t1 <= t2);return;
-            case O_GE: v->type = T_BOOL; v->u.num.val = (t1 >= t2);return;
-            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
+            if (op == O_MOD) {
+                isnprintf(v1, v2, v, epoint, epoint2);
+                return;
             }
         }
     }
@@ -3211,19 +3223,6 @@ strretr:
             v2 = &tmp2;
             t2 = v2->type;
             goto strretr;
-        }
-        if (t2 == T_GAP) {
-            switch (op) {
-            case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
-            case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
-            case O_LT: v->type = T_BOOL; v->u.num.val = (t1 < t2);return;
-            case O_GT: v->type = T_BOOL; v->u.num.val = (t1 > t2);return;
-            case O_LE: v->type = T_BOOL; v->u.num.val = (t1 <= t2);return;
-            case O_GE: v->type = T_BOOL; v->u.num.val = (t1 >= t2);return;
-            default:err_msg_invalid_oper(op, v1, v2, epoint3);
-                    v->type = T_NONE;
-                    return;
-            }
         }
     }
 
@@ -3466,17 +3465,6 @@ strretr:
                 }
             }
         }
-        if (t2 == T_STR || t2 == T_GAP) {
-            switch (op) {
-            case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
-            case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
-            case O_LT: v->type = T_BOOL; v->u.num.val = (t1 < t2);return;
-            case O_GT: v->type = T_BOOL; v->u.num.val = (t1 > t2);return;
-            case O_LE: v->type = T_BOOL; v->u.num.val = (t1 <= t2);return;
-            case O_GE: v->type = T_BOOL; v->u.num.val = (t1 >= t2);return;
-            default:err_msg_invalid_oper(op, v1, v2, epoint3); goto errtype;
-            }
-        }
     }
     if (t1 == T_GAP) {
         if (t1 == t2) {
@@ -3487,26 +3475,29 @@ strretr:
             case O_LT:
             case O_GT:
             case O_NEQ: v->type = T_BOOL; v->u.num.val = 0;return;
-            default:err_msg_invalid_oper(op, v1, v2, epoint3);
-                    v->type = T_NONE;
-                    return;
+            default:break;
             }
         }
-        if (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPLE || t2 == T_CODE) {
-            switch (op) {
-            case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
-            case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
-            case O_LT: v->type = T_BOOL; v->u.num.val = (t1 < t2);return;
-            case O_GT: v->type = T_BOOL; v->u.num.val = (t1 > t2);return;
-            case O_LE: v->type = T_BOOL; v->u.num.val = (t1 <= t2);return;
-            case O_GE: v->type = T_BOOL; v->u.num.val = (t1 >= t2);return;
-            case O_IN:
-                if (t2 == T_LIST || t2 == T_TUPLE || t2 == T_CODE) {
-                    inlist(v1, v2, v, epoint, epoint2, epoint3);return;
+    }
+
+    if (t1 != t2) {
+        if (type_is_num(t1) || t1 == T_STR || t1 == T_LIST || t1 == T_TUPLE || t1 == T_CODE || t1 == T_ADDRESS || t1 == T_GAP) {
+            if (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPLE || t2 == T_CODE || t2 == T_ADDRESS || t2 == T_GAP) {
+                switch (op) {
+                case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
+                case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
+                case O_LT: v->type = T_BOOL; v->u.num.val = (t1 < t2);return;
+                case O_GT: v->type = T_BOOL; v->u.num.val = (t1 > t2);return;
+                case O_LE: v->type = T_BOOL; v->u.num.val = (t1 <= t2);return;
+                case O_GE: v->type = T_BOOL; v->u.num.val = (t1 >= t2);return;
+                case O_IN:
+                           if (t2 == T_LIST || t2 == T_TUPLE || t2 == T_CODE) {
+                               inlist(v1, v2, v, epoint, epoint2, epoint3);return;
+                           }
+                default:err_msg_invalid_oper(op, v1, v2, epoint3);
+                        v->type = T_NONE;
+                        return;
                 }
-            default:err_msg_invalid_oper(op, v1, v2, epoint3);
-                    v->type = T_NONE;
-                    return;
             }
         }
     }
