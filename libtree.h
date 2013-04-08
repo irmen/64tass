@@ -55,8 +55,6 @@ typedef void (*avltree_free_fn_t)(struct avltree_node *);
 
 struct avltree {
 	struct avltree_node *root;
-	avltree_cmp_fn_t cmp_fn;
-	avltree_free_fn_t free_fn;
 	int height;
 	struct avltree_node *first, *last;
 };
@@ -64,9 +62,9 @@ struct avltree {
 struct avltree_node *avltree_first(const struct avltree *tree);
 struct avltree_node *avltree_next(const struct avltree_node *node);
 
-struct avltree_node *avltree_lookup(const struct avltree_node *key, const struct avltree *tree);
-struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *tree);
-void avltree_init(struct avltree *tree, avltree_cmp_fn_t cmp, avltree_free_fn_t free);
-void avltree_destroy(struct avltree *tree);
+struct avltree_node *avltree_lookup(const struct avltree_node *key, const struct avltree *tree, avltree_cmp_fn_t cmp);
+struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *tree, avltree_cmp_fn_t cmp);
+void avltree_init(struct avltree *tree);
+void avltree_destroy(struct avltree *tree, avltree_free_fn_t free);
 
 #endif

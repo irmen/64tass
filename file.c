@@ -137,7 +137,7 @@ static void star_free(struct avltree_node *aa)
 {
     struct star_s *a = avltree_container_of(aa, struct star_s, node);
 
-    avltree_destroy(&a->tree);
+    avltree_destroy(&a->tree, star_free);
     free(a);
 }
 
@@ -145,7 +145,7 @@ static void file_free(struct avltree_node *aa)
 {
     struct file_s *a = avltree_container_of(aa, struct file_s, node);
 
-    avltree_destroy(&a->star);
+    avltree_destroy(&a->star, star_free);
     free((char *)a->data);
     free((char *)a->name);
     free((char *)a->realname);
@@ -165,7 +165,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
     lastfi->name=name;
     get_path(NULL, base, base2, sizeof(base2));
     lastfi->base=base2;
-    b=avltree_insert(&lastfi->node, &file_tree);
+    b=avltree_insert(&lastfi->node, &file_tree, file_compare);
     if (!b) { //new file
 	enum filecoding_e type = E_UNKNOWN;
         int ch;
@@ -181,7 +181,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
 	lastfi->p=0;
         lastfi->open=0;
         lastfi->type=ftype;
-        avltree_init(&lastfi->star, star_compare, star_free);
+        avltree_init(&lastfi->star);
         tmp = lastfi;
         lastfi=NULL;
         if (name[0]) {
@@ -389,10 +389,10 @@ struct star_s *new_star(line_t line, int *exists) {
     if (!lastst)
 	if (!(lastst=malloc(sizeof(struct star_s)))) err_msg_out_of_memory();
     lastst->line=line;
-    b=avltree_insert(&lastst->node, star_tree);
+    b=avltree_insert(&lastst->node, star_tree, star_compare);
     if (!b) { //new label
 	*exists=0;
-        avltree_init(&lastst->tree, star_compare, star_free);
+        avltree_init(&lastst->tree);
 	tmp=lastst;
 	lastst=NULL;
 	return tmp;
@@ -402,7 +402,7 @@ struct star_s *new_star(line_t line, int *exists) {
 }
 
 void destroy_file(void) {
-    avltree_destroy(&file_tree);
+    avltree_destroy(&file_tree, file_free);
     free(lastst);
     free(lastfi);
 
@@ -415,6 +415,6 @@ void destroy_file(void) {
 }
 
 void init_file(void) {
-    avltree_init(&file_tree, file_compare, file_free);
+    avltree_init(&file_tree);
 }
 
