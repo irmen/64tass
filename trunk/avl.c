@@ -21,6 +21,8 @@
 
 #include "libtree.h"
 
+
+static avltree_cmp_fn_t cmp_fn;
 /*
  * Iterators
  */
@@ -120,7 +122,7 @@ static inline struct avltree_node *do_lookup(const struct avltree_node *key,
 		if (node->balance != 0)
 			*unbalanced = node;
 
-		res = tree->cmp_fn(node, key);
+		res = cmp_fn(node, key);
 		if (res == 0)
 			return node;
 		*pparent = node;
@@ -133,11 +135,12 @@ static inline struct avltree_node *do_lookup(const struct avltree_node *key,
 }
 
 struct avltree_node *avltree_lookup(const struct avltree_node *key,
-				    const struct avltree *tree)
+				    const struct avltree *tree, avltree_cmp_fn_t cmp)
 {
 	struct avltree_node *parent, *unbalanced;
 	int is_left;
 
+        cmp_fn = cmp;
 	return do_lookup(key, tree, &parent, &unbalanced, &is_left);
 }
 
@@ -151,10 +154,12 @@ static inline void set_child(struct avltree_node *child,
 }
 
 /* Insertion never needs more than 2 rotations */
-struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *tree)
+struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *tree, avltree_cmp_fn_t cmp)
 {
 	struct avltree_node *key, *parent, *unbalanced;
 	int is_left;
+
+        cmp_fn = cmp;
 
 	key = do_lookup(node, tree, &parent, &unbalanced, &is_left);
 	if (key)
@@ -259,28 +264,26 @@ struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *t
 	return NULL;
 }
 
-void avltree_init(struct avltree *tree, avltree_cmp_fn_t cmp, avltree_free_fn_t free)
+void avltree_init(struct avltree *tree)
 {
 	tree->root = NULL;
-	tree->cmp_fn = cmp;
-	tree->free_fn = free;
 	tree->height = -1;
 	tree->first = NULL;
 	tree->last = NULL;
 }
 
-static void destroy(struct avltree *tree, struct avltree_node *node)
+static void destroy(struct avltree *tree, struct avltree_node *node, avltree_free_fn_t free_fn)
 {
         struct avltree_node *tmp;
 	while (node) {
-		destroy(tree, node->left);
+		destroy(tree, node->left, free_fn);
 		tmp = node;
 		node = node->right;
-		tree->free_fn(tmp);
+		free_fn(tmp);
 	}
 }
 
-void avltree_destroy(struct avltree *tree)
+void avltree_destroy(struct avltree *tree, avltree_free_fn_t free_fn)
 {
-	destroy(tree, tree->root);
+	destroy(tree, tree->root, free_fn);
 }

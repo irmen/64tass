@@ -506,6 +506,24 @@ static void trans_free(struct avltree_node *aa)
     free(a);
 }
 
+static int encoding_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    const struct encoding_s *a = cavltree_container_of(aa, struct encoding_s, node);
+    const struct encoding_s *b = cavltree_container_of(bb, struct encoding_s, node);
+
+    return arguments.casesensitive ? str_cmp(&a->name, &b->name) : str_casecmp(&a->name, &b->name);
+}
+
+static void encoding_free(struct avltree_node *aa)
+{
+    struct encoding_s *a = avltree_container_of(aa, struct encoding_s, node);
+
+    free((char *)a->name.data);
+    ternary_cleanup(a->escape);
+    avltree_destroy(&a->trans, trans_free);
+    free(a);
+}
+
 static struct encoding_s *lasten = NULL;
 struct encoding_s *new_encoding(const str_t *name)
 {
@@ -518,11 +536,11 @@ struct encoding_s *new_encoding(const str_t *name)
         }
     }
     lasten->name = *name;
-    b = avltree_insert(&lasten->node, &encoding_tree);
+    b = avltree_insert(&lasten->node, &encoding_tree, encoding_compare);
     if (!b) { //new encoding
         str_cpy(&lasten->name, name);
         lasten->escape=NULL;
-        avltree_init(&lasten->trans, trans_compare, trans_free);
+        avltree_init(&lasten->trans);
         tmp = lasten;
         lasten = NULL;
         return tmp;
@@ -543,7 +561,7 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
     lasttr->start = trans->start;
     lasttr->end = trans->end;
     lasttr->offset = trans->offset;
-    b = avltree_insert(&lasttr->node, &enc->trans);
+    b = avltree_insert(&lasttr->node, &enc->trans, trans_compare);
     if (!b) { //new encoding
         tmp = lasttr;
         lasttr = NULL;
@@ -559,7 +577,7 @@ uint16_t find_trans(uint32_t ch, struct encoding_s *enc)
     struct trans_s tmp;
     tmp.start = tmp.end = ch;
 
-    if (!(c = avltree_lookup(&tmp.node, &enc->trans))) {
+    if (!(c = avltree_lookup(&tmp.node, &enc->trans, trans_compare))) {
         return 256;
     }
     t = cavltree_container_of(c, struct trans_s, node);
@@ -601,24 +619,6 @@ uint32_t find_escape(const uint8_t *text, const uint8_t *end, struct encoding_s 
     return t->code | (t->len << 8);
 }
 
-static int encoding_compare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    const struct encoding_s *a = cavltree_container_of(aa, struct encoding_s, node);
-    const struct encoding_s *b = cavltree_container_of(bb, struct encoding_s, node);
-
-    return arguments.casesensitive ? str_cmp(&a->name, &b->name) : str_casecmp(&a->name, &b->name);
-}
-
-static void encoding_free(struct avltree_node *aa)
-{
-    struct encoding_s *a = avltree_container_of(aa, struct encoding_s, node);
-
-    free((char *)a->name.data);
-    ternary_cleanup(a->escape);
-    avltree_destroy(&a->trans);
-    free(a);
-}
-
 static void add_esc(const char **s, struct encoding_s *tmp) {
     while (*s) {
         new_escape((uint8_t *)*s + 1, (uint8_t *)*s + 1 + strlen(*s + 1), (uint8_t)*s[0], tmp);
@@ -640,7 +640,7 @@ static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
 void init_encoding(int toascii)
 {
     struct encoding_s *tmp;
-    avltree_init(&encoding_tree, encoding_compare, encoding_free);
+    avltree_init(&encoding_tree);
     static const str_t none_enc = {4, (const uint8_t *)"none"};
     static const str_t screen_enc = {6, (const uint8_t *)"screen"};
 
@@ -675,7 +675,7 @@ void init_encoding(int toascii)
 
 void destroy_encoding(void)
 {
-    avltree_destroy(&encoding_tree);
+    avltree_destroy(&encoding_tree, encoding_free);
     free(lasten);
     free(lasttr);
     free(lastes);

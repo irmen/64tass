@@ -66,7 +66,7 @@ static void label_free(struct avltree_node *aa)
 {
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
     free((char *)a->name.data);
-    avltree_destroy(&a->members);
+    avltree_destroy(&a->members, label_free);
     val_destroy(a->value);
 }
 
@@ -94,7 +94,7 @@ struct label_s *find_label(const str_t *name) {
     tmp.name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
 
     while (context) {
-        b=avltree_lookup(&tmp.node, &context->members);
+        b=avltree_lookup(&tmp.node, &context->members, label_compare);
         if (b) return avltree_container_of(b, struct label_s, node);
         context = context->parent;
     }
@@ -107,7 +107,7 @@ struct label_s *find_label2(const str_t *name, const struct label_s *context) {
     tmp.name = *name;
     tmp.name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
 
-    b=avltree_lookup(&tmp.node, &context->members);
+    b=avltree_lookup(&tmp.node, &context->members, label_compare);
     if (!b) return NULL;
     return avltree_container_of(b, struct label_s, node);
 }
@@ -121,14 +121,14 @@ struct label_s *new_label(const str_t *name, struct label_s *context, enum label
     lastlb->name = *name;
     lastlb->name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
 
-    b = avltree_insert(&lastlb->node, &context->members);
+    b = avltree_insert(&lastlb->node, &context->members, label_compare);
     if (!b) { //new label
         str_cpy(&lastlb->name, name);
         lastlb->type = type;
         lastlb->parent = context;
         lastlb->ref = 0;
         lastlb->nested = 0;
-        avltree_init(&lastlb->members, label_compare, label_free);
+        avltree_init(&lastlb->members);
 	*exists = 0;
 	tmp = lastlb;
 	lastlb = NULL;
@@ -139,7 +139,7 @@ struct label_s *new_label(const str_t *name, struct label_s *context, enum label
 }
 
 void init_variables2(struct label_s *label) {
-    avltree_init(&label->members, label_compare, label_free2);
+    avltree_init(&label->members);
     label->parent = NULL;
 }
 
@@ -156,18 +156,18 @@ void init_variables(void)
 
     labels_free = &labels->vals[0];
 
-    avltree_init(&root_label.members, label_compare, label_free);
+    avltree_init(&root_label.members);
 }
 
 void destroy_variables2(struct label_s *label) {
-    avltree_destroy(&label->members);
+    avltree_destroy(&label->members, label_free2);
 }
 
 void destroy_variables(void)
 {
     struct labels_s *old;
 
-    avltree_destroy(&root_label.members);
+    avltree_destroy(&root_label.members, label_free);
 
     while (labels) {
         old = labels;

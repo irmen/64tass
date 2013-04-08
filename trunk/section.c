@@ -38,7 +38,7 @@ static void section_free(struct avltree_node *aa)
 {
     struct section_s *a = avltree_container_of(aa, struct section_s, node);
     free((char *)a->name.data);
-    avltree_destroy(&a->members);
+    avltree_destroy(&a->members, section_free);
     free(a);
 }
 
@@ -50,7 +50,7 @@ struct section_s *find_new_section(const str_t *name, int *exists) {
     tmp.name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
 
     while (context) {
-        b=avltree_lookup(&tmp.node, &context->members);
+        b=avltree_lookup(&tmp.node, &context->members, section_compare);
         if (b) {
             *exists=1;
             return avltree_container_of(b, struct section_s, node);
@@ -69,7 +69,7 @@ struct section_s *new_section(const str_t *name, int *exists) {
 	if (!(lastsc=malloc(sizeof(struct section_s)))) err_msg_out_of_memory();
     lastsc->name = *name;
     lastsc->name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
-    b=avltree_insert(&lastsc->node, &current_section->members);
+    b=avltree_insert(&lastsc->node, &current_section->members, section_compare);
     if (!b) { //new section
         str_cpy(&lastsc->name, name);
         lastsc->parent=current_section;
@@ -86,7 +86,7 @@ struct section_s *new_section(const str_t *name, int *exists) {
         lastsc->next=NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
-        avltree_init(&lastsc->members, section_compare, section_free);
+        avltree_init(&lastsc->members);
 	*exists=0;
 	tmp=lastsc;
 	lastsc=NULL;
@@ -113,7 +113,7 @@ void init_section2(struct section_s *section) {
     section->name.data = NULL;
     section->name.len = 0;
     section->next = NULL;
-    avltree_init(&section->members, section_compare, section_free);
+    avltree_init(&section->members);
 }
 
 void init_section(void) {
@@ -122,7 +122,7 @@ void init_section(void) {
 }
 
 void destroy_section2(struct section_s *section) {
-    avltree_destroy(&section->members);
+    avltree_destroy(&section->members, section_free);
 }
 
 void destroy_section(void) {
