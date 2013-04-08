@@ -4004,7 +4004,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         o_oper[operp++] = op;
         continue;
     other:
-        if (stop != 2 || (operp && (o_oper[operp] == &o_PARENT || o_oper[operp] == &o_FUNC))) ignore();
+        if (stop != 2 || (operp && (o_oper[operp-1] == &o_PARENT || o_oper[operp-1] == &o_FUNC))) ignore();
         ch = here();epoint = lpoint;
         switch (ch) {
         case ',':
