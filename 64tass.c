@@ -924,7 +924,20 @@ struct value_s *compile(struct file_s *cfile)
                     }
                 }
             }
-            if (!islabel && (tmp2=find_label(&labelname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT || tmp2->value->type == T_FUNCTION)) {lpoint.pos--;labelname.len=0;val = tmp2->value; goto as_macro;}
+            if (!islabel) {
+                tmp2=find_label(&labelname);
+                if (tmp2) {
+                    int rec = 100;
+                    while (tmp2->value->type == T_IDENTREF) {
+                        tmp2 = tmp2->value->u.identref;
+                        if (!rec--) {
+                            err_msg2(ERROR__REFRECURSION, NULL, epoint);
+                            break;
+                        }
+                    }
+                    if (tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT || tmp2->value->type == T_FUNCTION)) {if (wht == WHAT_HASHMARK) lpoint.pos--;labelname.len=0;val = tmp2->value; goto as_macro;}
+                }
+            }
             {
                 int labelexists;
                 if (!islabel && tmp2 && tmp2->parent == current_context) {newlabel = tmp2;labelexists = 1;}
@@ -3155,10 +3168,22 @@ struct value_s *compile(struct file_s *cfile)
                             nm[0]=mnemonic[mnem] >> 16;
                             nm[1]=mnemonic[mnem] >> 8;
                             nm[2]=mnemonic[mnem];
-                            if ((tmp2=find_label(&nmname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT || tmp2->value->type == T_FUNCTION)) {
-                                lpoint=oldlpoint;
-                                val = tmp2->value;
-                                goto as_macro;
+
+                            tmp2=find_label(&nmname);
+                            if (tmp2) {
+                                int rec = 100;
+                                while (tmp2->value->type == T_IDENTREF) {
+                                    tmp2 = tmp2->value->u.identref;
+                                    if (!rec--) {
+                                        err_msg2(ERROR__REFRECURSION, NULL, epoint);
+                                        break;
+                                    }
+                                }
+                                if (tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT || tmp2->value->type == T_FUNCTION)) {
+                                    lpoint=oldlpoint;
+                                    val = tmp2->value;
+                                    goto as_macro;
+                                }
                             }
                             err_msg(ERROR_ILLEGAL_OPERA,NULL);
                             goto breakerr;
@@ -3259,7 +3284,18 @@ struct value_s *compile(struct file_s *cfile)
                     }
                     break;
                 }
-                if ((tmp2=find_label(&opname)) && tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT || tmp2->value->type == T_FUNCTION)) {val = tmp2->value;goto as_macro;}
+                tmp2=find_label(&opname);
+                if (tmp2) {
+                    int rec = 100;
+                    while (tmp2->value->type == T_IDENTREF) {
+                        tmp2 = tmp2->value->u.identref;
+                        if (!rec--) {
+                            err_msg2(ERROR__REFRECURSION, NULL, epoint);
+                            break;
+                        }
+                    }
+                    if (tmp2->type == L_LABEL && (tmp2->value->type == T_MACRO || tmp2->value->type == T_SEGMENT || tmp2->value->type == T_FUNCTION)) {val = tmp2->value;goto as_macro;}
+                }
             }            /* fall through */
         default: if (waitfor->skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr; /* skip things if needed */
         }

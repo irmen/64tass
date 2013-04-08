@@ -411,7 +411,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
             add_user_error(user_error, ")");
             break;
         }
-    case T_BOOL: add_user_error(user_error, val->u.num.val ? "<true>" : "<false>");break;
+    case T_BOOL: add_user_error(user_error, val->u.num.val ? "1" : "0");break;
     }
 }
 
