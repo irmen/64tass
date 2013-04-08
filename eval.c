@@ -1342,9 +1342,9 @@ static void functions(struct values_s *vals, unsigned int args) {
                     err_msg_variable(&user_error, v[0].val, 1);
 
                     new_value.type = T_STR;
-                    new_value.u.str.len = user_error.p;
-                    new_value.u.str.chars = user_error.p;
-                    new_value.u.str.data = realloc(user_error.data, user_error.p);
+                    new_value.u.str.len = user_error.len;
+                    new_value.u.str.chars = user_error.chars;
+                    new_value.u.str.data = realloc(user_error.data, user_error.len);
                     val_replace_template(&vals->val, &new_value);
                     return;
                 default: err_msg_wrong_type(v[0].val, v[0].epoint);

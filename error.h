@@ -23,8 +23,9 @@ struct value_s;
 enum oper_e;
 
 struct error_s {
-    size_t p;
+    size_t max;
     size_t len;
+    size_t chars;
     uint8_t *data;
 };
 
