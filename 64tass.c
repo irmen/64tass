@@ -300,17 +300,17 @@ static void set_size(struct label_s *var, size_t size, size_t memp, size_t membp
 static void memskip(address_t db) {
     if (current_section->moved) {
         if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
-        if (current_section->wrapwarn) {if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;}
+        if (current_section->wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;}
         current_section->moved = 0;
     }
-    if (current_section->wrapwarn2) {if (fixeddig) err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;}
+    if (current_section->wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;}
     if (db > (~current_section->l_address & all_mem)) {
         if (db - 1 + current_section->l_address == all_mem) {
             current_section->wrapwarn2 = 1;
             current_section->l_address = 0;
         } else {
             current_section->l_address = (current_section->l_address + db) & all_mem;
-            if (fixeddig) err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;
+            err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;
         }
     } else current_section->l_address += db;
     if (db > (~current_section->address & all_mem2)) {
@@ -323,7 +323,7 @@ static void memskip(address_t db) {
             if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
             current_section->moved = 0;
             current_section->address = (current_section->address + db) & all_mem2;
-            if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;
+            err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;
         }
     } else current_section->address += db;
     memjmp(current_section->address);
@@ -337,10 +337,10 @@ static void pokeb(uint8_t byte)
 {
     if (current_section->moved) {
         if (current_section->address < current_section->start) err_msg(ERROR_OUTOF_SECTION,NULL);
-        if (current_section->wrapwarn) {if (fixeddig) err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;}
+        if (current_section->wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;}
         current_section->moved = 0;
     }
-    if (current_section->wrapwarn2) {if (fixeddig) err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;}
+    if (current_section->wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;}
     if (current_section->dooutput) write_mem(byte ^ outputeor);
     current_section->address++;current_section->l_address++;
     if (current_section->address & ~all_mem2) {
@@ -473,9 +473,10 @@ static void set_cpumode(uint_fast8_t cpumode) {
 }
 
 void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
-    tmp->upass = pass;
+    tmp->defpass = pass;
     if (val_same(tmp->value, val)) return;
     val_replace(&tmp->value, val);
+    if (tmp->usepass < pass) return;
     if (fixeddig && !fix && pass > MAX_PASS) err_msg_cant_calculate(&tmp->name, tmp->epoint);
     fixeddig=fix;
 }
@@ -588,8 +589,8 @@ struct value_s *compile(struct file_s *cfile)
                 } else {
                     label->requires = current_section->requires;
                     label->conflicts = current_section->conflicts;
-                    label->pass = pass;
-                    label->upass = pass;
+                    label->usepass = pass;
+                    label->defpass = pass;
                     label->value = val;
                     label->file = cfile;
                     label->sline = sline;
@@ -625,7 +626,7 @@ struct value_s *compile(struct file_s *cfile)
                             printllist(flist);
                         }
                         if (labelexists) {
-                            if (label->upass != pass) label->ref=0;
+                            if (label->defpass != pass) label->ref=0;
                             if (label->type != L_VAR) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                             else {
                                 label->requires=current_section->requires;
@@ -636,8 +637,8 @@ struct value_s *compile(struct file_s *cfile)
                         } else {
                             label->requires = current_section->requires;
                             label->conflicts = current_section->conflicts;
-                            label->pass = pass;
-                            label->upass = pass;
+                            label->usepass = pass;
+                            label->defpass = pass;
                             label->value = val;
                             label->file = cfile;
                             label->sline = sline;
@@ -662,8 +663,8 @@ struct value_s *compile(struct file_s *cfile)
                         } else {
                             val = val_alloc();
                             val->refcount = 1;
-                            label->pass = pass;
-                            label->upass = pass;
+                            label->usepass = pass;
+                            label->defpass = pass;
                             label->value = val;
                             label->sline = sline;
                             label->file = cfile;
@@ -704,8 +705,8 @@ struct value_s *compile(struct file_s *cfile)
                             val->refcount = 1;
                             label->requires = 0;
                             label->conflicts = 0;
-                            label->pass = pass;
-                            label->upass = pass;
+                            label->usepass = pass;
+                            label->defpass = pass;
                             label->value = val;
                             label->sline = sline;
                             label->file = cfile;
@@ -742,8 +743,8 @@ struct value_s *compile(struct file_s *cfile)
                             val->refcount = 1;
                             label->requires = 0;
                             label->conflicts = 0;
-                            label->pass = pass;
-                            label->upass = pass;
+                            label->usepass = pass;
+                            label->defpass = pass;
                             label->value = val;
                             label->sline = sline;
                             label->file = cfile;
@@ -789,8 +790,8 @@ struct value_s *compile(struct file_s *cfile)
                             } else {
                                 val = val_alloc();
                                 val->refcount = 1;
-                                label->pass = pass;
-                                label->upass = pass;
+                                label->usepass = pass;
+                                label->defpass = pass;
                                 label->value = val;
                                 label->sline = sline;
                                 label->file = cfile;
@@ -822,17 +823,19 @@ struct value_s *compile(struct file_s *cfile)
                                         val->u.code.pass = pass - 1;
                                         val->u.code.size = size;
                                         val->u.code.dtype = dtype;
-                                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&label->name, label->epoint);
-                                        fixeddig = 0;
+                                        if (label->usepass >= pass) {
+                                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&label->name, label->epoint);
+                                            fixeddig = 0;
+                                        }
                                     }
-                                    label->upass = pass;
+                                    label->defpass = pass;
                                     get_mem(&memp, &membp);
                                 }
                             } else {
                                 val = val_alloc();
                                 val->refcount = 1;
-                                label->pass=pass;
-                                label->upass=pass;
+                                label->usepass=pass;
+                                label->defpass=pass;
                                 label->value = val;
                                 label->file = cfile;
                                 label->sline = sline;
@@ -876,8 +879,10 @@ struct value_s *compile(struct file_s *cfile)
                         if (declaration) {
                             if (label->value->u.macro.size != ((current_section->address - oaddr) & all_mem2)) {
                                 label->value->u.macro.size = (current_section->address - oaddr) & all_mem2;
-                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&label->name, label->epoint);
-                                fixeddig = 0;
+                                if (label->usepass >= pass) {
+                                    if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&label->name, label->epoint);
+                                    fixeddig = 0;
+                                }
                             }
                             current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
                             current_section->end=olds.end;current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
@@ -959,15 +964,17 @@ struct value_s *compile(struct file_s *cfile)
                             val->u.code.pass = pass - 1;
                             val->u.code.size = size;
                             val->u.code.dtype = dtype;
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&newlabel->name, newlabel->epoint);
-                            fixeddig = 0;
+                            if (newlabel->usepass >= pass) {
+                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&newlabel->name, newlabel->epoint);
+                                fixeddig = 0;
+                            }
                         }
                         get_mem(&newmemp, &newmembp);
                     }
                 } else {
                     val = val_alloc();
                     val->refcount = 1;
-                    newlabel->pass = pass;
+                    newlabel->usepass = pass;
                     newlabel->value = val;
                     newlabel->file = cfile;
                     newlabel->sline = sline;
@@ -981,7 +988,7 @@ struct value_s *compile(struct file_s *cfile)
                     val->u.code.pass = 0;
                     get_mem(&newmemp, &newmembp);
                 }
-                newlabel->upass = pass;
+                newlabel->defpass = pass;
             }
             if (epoint.pos && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
             if (wht==WHAT_COMMAND) { /* .proc */
@@ -1404,8 +1411,8 @@ struct value_s *compile(struct file_s *cfile)
                 if (prm==CMD_ENDP) { /* .endp */
                     if (close_waitfor(W_ENDP)) {
                     } else if (waitfor->what==W_ENDP2) {
-			if ((current_section->l_address & ~0xff) != (waitfor->laddr & ~0xff) && fixeddig) {
-				err_msg2(ERROR____PAGE_ERROR, &current_section->l_address, epoint);
+			if ((current_section->l_address & ~0xff) != (waitfor->laddr & ~0xff)) {
+                            err_msg2(ERROR____PAGE_ERROR, &current_section->l_address, epoint);
 			}
 			if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, waitfor->memp, waitfor->membp);
                         close_waitfor(W_ENDP2);
@@ -1572,7 +1579,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (prm==CMD_PTEXT) {
                             if (sum>0x100) large=epoint;
 
-                            if (fixeddig && current_section->dooutput) write_mark_mem(sum-1);
+                            if (current_section->dooutput) write_mark_mem(sum-1);
                         }
                         if (large.pos) err_msg2(ERROR_CONSTNT_LARGE, NULL, large);
                     } else if (prm<=CMD_DWORD) { /* .word .int .rta .long */
@@ -2348,8 +2355,8 @@ struct value_s *compile(struct file_s *cfile)
                         } else {
                             var->requires = current_section->requires;
                             var->conflicts = current_section->conflicts;
-                            var->pass = pass;
-                            var->upass = pass;
+                            var->usepass = pass;
+                            var->defpass = pass;
                             var->value = val;
                             var->file = cfile;
                             var->sline = sline;
@@ -2401,8 +2408,8 @@ struct value_s *compile(struct file_s *cfile)
                                 } else {
                                     var->requires = current_section->requires;
                                     var->conflicts = current_section->conflicts;
-                                    var->pass = pass;
-                                    var->upass = pass;
+                                    var->usepass = pass;
+                                    var->defpass = pass;
                                     var->value = &none_value;
                                     var->file = cfile;
                                     var->sline = sline;
@@ -2653,11 +2660,7 @@ struct value_s *compile(struct file_s *cfile)
                             tmp3->end = tmp3->start = tmp3->address = current_section->address;
                             tmp3->l_start = tmp3->l_address = current_section->l_address;
                         }
-                        if (tmp3->size != t) {
-                            tmp3->size = t;
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
-                            fixeddig=0;
-                        }
+                        tmp3->size = t;
                         tmp3->pass=pass;
                         memskip(t);
                     }
@@ -2677,7 +2680,7 @@ struct value_s *compile(struct file_s *cfile)
                             tmp->end = tmp->start = tmp->address = 0;
                             tmp->l_start = tmp->l_address = 0;
                             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
-                            fixeddig=0;
+                            fixeddig = 0;
                         } else if (pass > 1) {
                             err_msg_not_defined(&sectionname, epoint); goto breakerr;
                         }
@@ -2864,7 +2867,7 @@ struct value_s *compile(struct file_s *cfile)
                                 break;
                             case A_I:
                                 if (cnmemonic[ADR_ADDR_I]==0x6C || cnmemonic[ADR_ADDR_I]==0x22) {/* jmp ($ffff), jsr ($ffff) */
-                                    if (fixeddig && opcode!=c65816 && opcode!=c65c02 && opcode!=cr65c02 && opcode!=cw65c02 && opcode!=c65ce02 && opcode!=c65el02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG,NULL);/* jmp ($xxff) */
+                                    if (opcode!=c65816 && opcode!=c65c02 && opcode!=cr65c02 && opcode!=cw65c02 && opcode!=c65ce02 && opcode!=c65el02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG,NULL);/* jmp ($xxff) */
                                     adrgen = AG_B0; opr=ADR_ADDR_I; /* jmp ($ffff) */
                                 } else {
                                     adrgen = AG_ZP; opr=ADR_ZP_I; /* lda ($ff) */
@@ -2945,12 +2948,12 @@ struct value_s *compile(struct file_s *cfile)
                                         w=3;
                                         if (val->type != T_NONE) {
                                             if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) {
-                                                if (fixeddig) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
+                                                err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
                                             } else {
                                                 adr2=(uint16_t)(adr2 - current_section->l_address - 3);
                                                 if (adr2>=0xFF80 || adr2<=0x007F) {
                                                     adr |= ((uint8_t)adr2) << 8; w = 1;
-                                                } else if (fixeddig) {
+                                                } else {
                                                     int dist = (int16_t)adr2;
                                                     dist += (dist < 0) ? 0x80 : -0x7f;
                                                     err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint);w = 1;
@@ -3034,10 +3037,8 @@ struct value_s *compile(struct file_s *cfile)
                                                 }
                                             }
                                         } else {
-                                            if (fixeddig) {
-                                                if (!longbranch && ((uint16_t)(current_section->l_address+2) & 0xff00)!=(oadr & 0xff00)) {
-                                                    if (!allowslowbranch) {err=ERROR__BRANCH_CROSS;continue;}
-                                                }
+                                            if (!longbranch && ((uint16_t)(current_section->l_address+2) & 0xff00)!=(oadr & 0xff00)) {
+                                                if (!allowslowbranch) {err=ERROR__BRANCH_CROSS;continue;}
                                             }
                                             if (cnmemonic[ADR_ADDR]!=____) {
                                                 if (adr==0) ln=-1;
@@ -3053,7 +3054,7 @@ struct value_s *compile(struct file_s *cfile)
                                     }
                                 }
                                 opr = joopr; adr = joadr; ln = joln; longbranch = jolongbranch;
-                                if (fixeddig && min == 10) err_msg2(err, &dist, epoint);
+                                if (min == 10) err_msg2(err, &dist, epoint);
                                 w=0;/* bne */
                                 if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) {
                                     if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
@@ -3066,7 +3067,7 @@ struct value_s *compile(struct file_s *cfile)
                                     if (val->type != T_NONE) {
                                         if (!(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {
                                             adr = (uint16_t)(val->u.num.val-current_section->l_address-3); w = 1;
-                                        } else {if (fixeddig) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;}
+                                        } else {err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;}
                                     } else w = 1;
                                 } else if (val->type != T_NONE) {
                                     if (w == 1 && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) adr = (uint16_t)(val->u.num.val-current_section->l_address-3);
@@ -3089,7 +3090,7 @@ struct value_s *compile(struct file_s *cfile)
                             }
                             else if (cnmemonic[ADR_ADDR]==0x20) {
                                 if ((((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {
-                                    if (fixeddig) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
+                                    err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
                                 } else adrgen = AG_PB;
                                 opr=ADR_ADDR; ln = 2; /* jsr $ffff */
                             } else {

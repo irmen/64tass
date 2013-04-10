@@ -318,8 +318,9 @@ static void get_string(struct value_s *v, uint8_t ch) {
 }
 
 static int touch_label(struct label_s *tmp) {
-    if (referenceit) tmp->ref = 1;tmp->pass=pass;
-    if (tmp->type != L_VAR || tmp->upass==pass) return 0;
+    if (referenceit) tmp->ref = 1;
+    tmp->usepass = pass;
+    if (tmp->type != L_VAR || tmp->defpass == pass) return 0;
     return 1;
 }
 

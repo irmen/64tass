@@ -38,8 +38,8 @@ struct label_s {
     linepos_t epoint;
     unsigned ref:1;
     unsigned nested:1;
-    uint8_t pass;
-    uint8_t upass;
+    uint8_t usepass;
+    uint8_t defpass;
     struct label_s *parent;
     struct avltree members;
 };
