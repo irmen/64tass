@@ -2794,7 +2794,7 @@ struct value_s *compile(struct file_s *cfile)
                         else if (val->type == T_NONE) {
                             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
                             d = fixeddig = 0;
-                        } else {d = 1;}
+                        } else d = 1;
 
                         if (val->type == T_ADDRESS) {
                             adr = val->u.addr.val;
@@ -2826,11 +2826,11 @@ struct value_s *compile(struct file_s *cfile)
                                 break;
                             case A_YR: /* lda $ff,y lda $ffff,y lda $ffffff,y */
                                 if (w==3) {/* auto length */
-                                    if (val->type != T_NONE) {
+                                    if (d) {
                                         if (cnmemonic[ADR_ZP_Y]!=____ && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) {adr = (uint16_t)(adr - dpage);w = 0;}
                                         else if (databank==(adr >> 16)) {w = 1;}
                                     } else w=(cnmemonic[ADR_ADDR_Y]!=____);
-                                } else if (val->type != T_NONE) {
+                                } else if (d) {
                                         if (!w && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) adr = (uint16_t)(adr - dpage);
                                         else if (w == 1 && databank == (adr >> 16)) {}
                                         else w=3;
@@ -2887,25 +2887,29 @@ struct value_s *compile(struct file_s *cfile)
                             if (cnmemonic[ADR_MOVE]!=____) {
                                 struct value_s *val2;
                                 if (w==3) {/* auto length */
-                                    if (val->type != T_NONE) {
+                                    if (d) {
                                         if (!((uval_t)val->u.num.val & ~(uval_t)0xff)) {adr = (uval_t)val->u.num.val << 8; w = 0;}
                                     } else w = 0;
-                                } else if (val->type != T_NONE) {
+                                } else if (d) {
                                     if (!w && (!((uval_t)val->u.num.val & ~(uval_t)0xff))) adr = (uval_t)val->u.num.val << 8;
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no mvp $ffff or mvp $ffffff */
                                 if ((val2 = get_val(T_UINT, NULL))) {
                                     if (val2 == &error_value) d = 0;
+                                    else if (val->type == T_NONE) {
+                                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                        d = fixeddig = 0;
+                                    }
                                     if (!((uval_t)val2->u.num.val & ~(uval_t)0xff)) {adr |= (uint8_t)val2->u.num.val;}
                                     else w = 3;
                                 } else err_msg(ERROR_ILLEGAL_OPERA,NULL);
                                 ln = 2; opr=ADR_MOVE;
                             } else if (cnmemonic[ADR_BIT_ZP]!=____) {
                                 if (w==3) {/* auto length */
-                                    if (val->type != T_NONE) {
+                                    if (d) {
                                         if (!((uval_t)val->u.num.val & ~(uval_t)7)) {longbranch = (uval_t)val->u.num.val << 4; w = 0;}
                                     } else w = 0;
-                                } else if (val->type != T_NONE) {
+                                } else if (d) {
                                     if (!w && (!((uval_t)val->u.num.val & ~(uval_t)7))) longbranch = (uval_t)val->u.num.val << 4;
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
@@ -2915,15 +2919,16 @@ struct value_s *compile(struct file_s *cfile)
                                     else if (val->type == T_NONE) {
                                         if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
                                         d = fixeddig = 0;
-                                    } else {adr = val->u.num.val;d = 1;}
+                                    }
+                                    adr = val->u.num.val;
                                     adrgen = AG_ZP; opr=ADR_BIT_ZP; w = 3;
                                 }
                             } else if (cnmemonic[ADR_BIT_ZP_REL]!=____) {
                                 if (w==3) {/* auto length */
-                                    if (val->type != T_NONE) {
+                                    if (d) {
                                         if (!((uval_t)val->u.num.val & ~(uval_t)7)) {longbranch = (uval_t)val->u.num.val << 4; w = 0;}
                                     } else w = 0;
-                                } else if (val->type != T_NONE) {
+                                } else if (d) {
                                     if (!w && (!((uval_t)val->u.num.val & ~(uval_t)7))) longbranch = (uval_t)val->u.num.val << 4;
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
@@ -2933,10 +2938,12 @@ struct value_s *compile(struct file_s *cfile)
                                     else if (val->type == T_NONE) {
                                         if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
                                         d = fixeddig = 0;
-                                    } else {adr = val->u.num.val;d = 1;}
+                                    }
+                                    adr = val->u.num.val;
                                     w = 3;
-                                    if (val->type == T_NONE) w = 1;
-                                    else if (!((uval_t)val->u.num.val & ~(uval_t)0xffff) && (uint16_t)(val->u.num.val - dpage) < 0x100) {adr = (uint16_t)(val->u.num.val - dpage);w = 0;}
+                                    if (d) {
+                                        if (!((uval_t)val->u.num.val & ~(uval_t)0xffff) && (uint16_t)(val->u.num.val - dpage) < 0x100) {adr = (uint16_t)(val->u.num.val - dpage);w = 0;}
+                                    } else w = 1;
                                     if (w != 3) {
                                         uint32_t adr2=0;
                                         if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -2944,16 +2951,17 @@ struct value_s *compile(struct file_s *cfile)
                                         else if (val->type == T_NONE) {
                                             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
                                             d = fixeddig = 0;
-                                        } else {adr2 = val->u.num.val;d = 1;}
+                                        }
+                                        adr2 = val->u.num.val;
                                         w=3;
-                                        if (val->type != T_NONE) {
+                                        if (d) {
                                             if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) {
-                                                if (d) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
+                                                err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
                                             } else {
                                                 adr2=(uint16_t)(adr2 - current_section->l_address - 3);
                                                 if (adr2>=0xFF80 || adr2<=0x007F) {
                                                     adr |= ((uint8_t)adr2) << 8; w = 1;
-                                                } else if (d) {
+                                                } else {
                                                     int dist = (int16_t)adr2;
                                                     dist += (dist < 0) ? 0x80 : -0x7f;
                                                     err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint);w = 1;
@@ -3058,17 +3066,17 @@ struct value_s *compile(struct file_s *cfile)
                                 if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) {
                                     if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
                                     fixeddig=0;
-                                } else if (d && min == 10) err_msg2(err, &dist, epoint);
+                                } else if (min == 10) err_msg2(err, &dist, epoint);
                                 s->addr = (star + 1 + ln) & all_mem;
                             }
                             else if (cnmemonic[ADR_REL_L]!=____) {
                                 if (w==3) {
-                                    if (val->type != T_NONE) {
+                                    if (d) {
                                         if (!(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {
                                             adr = (uint16_t)(val->u.num.val-current_section->l_address-3); w = 1;
                                         } else {if (d) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;}
                                     } else w = 1;
-                                } else if (val->type != T_NONE) {
+                                } else if (d) {
                                     if (w == 1 && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) adr = (uint16_t)(val->u.num.val-current_section->l_address-3);
                                     else w = 3; /* there's no brl $ffffff! */
                                 } else if (w != 1) w = 3;
@@ -3076,11 +3084,11 @@ struct value_s *compile(struct file_s *cfile)
                             }
                             else if (cnmemonic[ADR_LONG]==0x5C) {
                                 if (w==3) {/* auto length */
-                                    if (val->type != T_NONE) {
+                                    if (d) {
                                         if (cnmemonic[ADR_ADDR]!=____ && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {adr = (uval_t)val->u.num.val;w = 1;}
                                         else if (!((uval_t)val->u.num.val & ~(uval_t)0xffffff)) {adr = (uval_t)val->u.num.val; w = 2;}
                                     } else w = (cnmemonic[ADR_ADDR]==____) + 1;
-                                } else if (val->type != T_NONE) {
+                                } else if (d) {
                                     if (w == 1 && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) adr = (uval_t)val->u.num.val;
                                     else if (w == 2 && !((uval_t)val->u.num.val & ~(uval_t)0xffffff)) adr = (uval_t)val->u.num.val;
                                     else w = 3;
@@ -3101,9 +3109,10 @@ struct value_s *compile(struct file_s *cfile)
                     switch (adrgen) {
                     case AG_ZP: /* zero page address only */
                         if (w==3) {/* auto length */
-                            if (val->type == T_NONE) w = 0;
-                            else if (!(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) {adr = (uint16_t)(adr - dpage);w = 0;}
-                        } else if (val->type != T_NONE) {
+                            if (d) {
+                                if (!(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) {adr = (uint16_t)(adr - dpage);w = 0;}
+                            } else w = 0;
+                        } else if (d) {
                             if (!w && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) adr = (uint16_t)(adr - dpage);
                             else w=3; /* there's no $ffff] or $ffffff! */
                         } else if (w) w = 3;
@@ -3111,9 +3120,10 @@ struct value_s *compile(struct file_s *cfile)
                         break;
                     case AG_B0: /* bank 0 address only */
                         if (w==3) {
-                            if (val->type == T_NONE) w = 1;
-                            else if (!(adr & ~(address_t)0xffff)) {adr = (uint16_t)adr; w = 1;}
-                        } else if (val->type != T_NONE) {
+                            if (d) {
+                                if (!(adr & ~(address_t)0xffff)) {adr = (uint16_t)adr; w = 1;}
+                            } else w = 1;
+                        } else if (d) {
                             if (w == 1 && !(adr & ~(address_t)0xffff)) adr = (uint16_t)adr;
                             else w=3; /* there's no jmp $ffffff! */
                         } else if (w != 1) w = 3;
@@ -3121,10 +3131,10 @@ struct value_s *compile(struct file_s *cfile)
                         break;
                     case AG_PB: /* address in program bank */
                         if (w==3) {
-                            if (val->type != T_NONE) {
+                            if (d) {
                                 if (!((current_section->l_address ^ adr) & ~(address_t)0xffff)) {adr = (uint16_t)adr; w = 1;}
                             } else w = 1;
-                        } else if (val->type != T_NONE) {
+                        } else if (d) {
                             if (w == 1 && !((current_section->l_address ^ adr) & ~(address_t)0xffff)) adr = (uint16_t)adr;
                             else w = 3; /* there's no jsr ($ffff,x)! */
                         } else if (w != 1) w = 3;
@@ -3132,10 +3142,10 @@ struct value_s *compile(struct file_s *cfile)
                         break;
                     case AG_BYTE: /* byte only */
                         if (w==3) {/* auto length */
-                            if (val->type != T_NONE) {
+                            if (d) {
                                 if (!(adr & ~(address_t)0xff)) {w = 0;}
                             } else w = 0;
-                        } else if (val->type != T_NONE) {
+                        } else if (d) {
                             if (!w && !(adr & ~(address_t)0xff)) {}
                             else w = 3;
                         } else if (w) w = 3; /* there's no lda ($ffffff,s),y or lda ($ffff,s),y! */
@@ -3143,12 +3153,12 @@ struct value_s *compile(struct file_s *cfile)
                         break;
                     case AG_DB3: /* 3 choice data bank */
                         if (w==3) {/* auto length */
-                            if (val->type != T_NONE) {
+                            if (d) {
                                 if (cnmemonic[opr]!=____ && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) {adr = (uint16_t)(adr - dpage);w = 0;}
                                 else if (cnmemonic[opr - 1] != ____ && databank == (adr >> 16)) {w = 1;}
                                 else if (!(adr & ~(address_t)0xffffff)) {w = 2;}
                             } else w=(cnmemonic[opr - 1]!=____);
-                        } else if (val->type != T_NONE) {
+                        } else if (d) {
                             if (!w && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) adr = (uint16_t)(adr - dpage);
                             else if (w == 1 && databank == (adr >> 16)) {}
                             else if (w == 2 && !(adr & ~(address_t)0xffffff)) {}
