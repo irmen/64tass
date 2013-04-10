@@ -2867,7 +2867,7 @@ struct value_s *compile(struct file_s *cfile)
                                 break;
                             case A_I:
                                 if (cnmemonic[ADR_ADDR_I]==0x6C || cnmemonic[ADR_ADDR_I]==0x22) {/* jmp ($ffff), jsr ($ffff) */
-                                    if (opcode!=c65816 && opcode!=c65c02 && opcode!=cr65c02 && opcode!=cw65c02 && opcode!=c65ce02 && opcode!=c65el02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG,NULL);/* jmp ($xxff) */
+                                    if (d && opcode!=c65816 && opcode!=c65c02 && opcode!=cr65c02 && opcode!=cw65c02 && opcode!=c65ce02 && opcode!=c65el02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG,NULL);/* jmp ($xxff) */
                                     adrgen = AG_B0; opr=ADR_ADDR_I; /* jmp ($ffff) */
                                 } else {
                                     adrgen = AG_ZP; opr=ADR_ZP_I; /* lda ($ff) */
@@ -2948,12 +2948,12 @@ struct value_s *compile(struct file_s *cfile)
                                         w=3;
                                         if (val->type != T_NONE) {
                                             if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) {
-                                                err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
+                                                if (d) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
                                             } else {
                                                 adr2=(uint16_t)(adr2 - current_section->l_address - 3);
                                                 if (adr2>=0xFF80 || adr2<=0x007F) {
                                                     adr |= ((uint8_t)adr2) << 8; w = 1;
-                                                } else {
+                                                } else if (d) {
                                                     int dist = (int16_t)adr2;
                                                     dist += (dist < 0) ? 0x80 : -0x7f;
                                                     err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint);w = 1;
@@ -3054,12 +3054,11 @@ struct value_s *compile(struct file_s *cfile)
                                     }
                                 }
                                 opr = joopr; adr = joadr; ln = joln; longbranch = jolongbranch;
-                                if (min == 10) err_msg2(err, &dist, epoint);
                                 w=0;/* bne */
                                 if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) {
                                     if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
                                     fixeddig=0;
-                                }
+                                } else if (d && min == 10) err_msg2(err, &dist, epoint);
                                 s->addr = (star + 1 + ln) & all_mem;
                             }
                             else if (cnmemonic[ADR_REL_L]!=____) {
@@ -3067,7 +3066,7 @@ struct value_s *compile(struct file_s *cfile)
                                     if (val->type != T_NONE) {
                                         if (!(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {
                                             adr = (uint16_t)(val->u.num.val-current_section->l_address-3); w = 1;
-                                        } else {err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;}
+                                        } else {if (d) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;}
                                     } else w = 1;
                                 } else if (val->type != T_NONE) {
                                     if (w == 1 && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) adr = (uint16_t)(val->u.num.val-current_section->l_address-3);
@@ -3090,7 +3089,7 @@ struct value_s *compile(struct file_s *cfile)
                             }
                             else if (cnmemonic[ADR_ADDR]==0x20) {
                                 if ((((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {
-                                    err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
+                                    if (d) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
                                 } else adrgen = AG_PB;
                                 opr=ADR_ADDR; ln = 2; /* jsr $ffff */
                             } else {
