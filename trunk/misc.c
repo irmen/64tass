@@ -217,7 +217,7 @@ void labelprint(void) {
             if (l->name.data[0]=='-' || l->name.data[0]=='+') continue;
             if (l->name.data[0]=='.' || l->name.data[0]=='#') continue;
         }
-        if (l->pass<pass) continue;
+        if (l->usepass < pass) continue;
         switch (l->value->type) {
         case T_LBL:
         case T_MACRO:

@@ -33,11 +33,11 @@ struct section_s {
     address_t address;
     address_t l_address;
     address_t end;
-    address_t size;
     address_t unionstart;
     address_t unionend;
     address_t l_unionstart;
     address_t l_unionend;
+    size_t size;
     uint8_t pass;
     uint_fast8_t structrecursion;
     uint_fast8_t logicalrecursion;
