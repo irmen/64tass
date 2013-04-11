@@ -60,7 +60,7 @@ static struct value_s null_tuple = {T_TUPLE, 0, {{0, 0}}};
 
 line_t sline, vline;      /* current line */
 static address_t all_mem, all_mem2;
-uint8_t pass=0;         /* pass */
+uint8_t pass=0, max_pass=MAX_PASS;         /* pass */
 static int listing=0;   /* listing */
 address_t star=0;
 const uint8_t *pline, *llist;   /* current line data */
@@ -284,7 +284,7 @@ static void set_size(struct label_s *var, size_t size, size_t memp, size_t membp
     if (var->value->u.code.size != size) {
         var->value->u.code.size = size;
         if (var->value->u.code.pass) {
-            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&var->name, var->epoint);
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&var->name, var->epoint);
             fixeddig = 0;
         }
     }
@@ -477,7 +477,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     if (val_same(tmp->value, val)) return;
     val_replace(&tmp->value, val);
     if (tmp->usepass < pass) return;
-    if (fixeddig && !fix && pass > MAX_PASS) err_msg_cant_calculate(&tmp->name, tmp->epoint);
+    if (fixeddig && !fix && pass > max_pass) err_msg_cant_calculate(&tmp->name, tmp->epoint);
     fixeddig=fix;
 }
 
@@ -579,7 +579,7 @@ struct value_s *compile(struct file_s *cfile)
                 }
                 label->ref = 0;
                 if (labelexists) {
-                    if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                    if (label->type != L_CONST || label->defpass == pass) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                     else {
                         label->requires = current_section->requires;
                         label->conflicts = current_section->conflicts;
@@ -652,7 +652,7 @@ struct value_s *compile(struct file_s *cfile)
                         int labelexists;
                         label=new_label(&labelname, mycontext, L_CONST, &labelexists);
                         if (labelexists) {
-                            if (label->type != L_CONST || label->value->type != T_LBL || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                            if (label->type != L_CONST || label->defpass == pass) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                             new_value.type = T_LBL;
                             new_value.u.lbl.p = cfile->p;
                             new_value.u.lbl.sline = sline;
@@ -691,7 +691,7 @@ struct value_s *compile(struct file_s *cfile)
                         ignore();
                         label=new_label(&labelname, mycontext, L_LABEL, &labelexists);
                         if (labelexists) {
-                            if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                            if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                             new_value.type = type;
                             new_value.u.macro.p = cfile->p;
                             new_value.u.macro.size = 0;
@@ -729,7 +729,7 @@ struct value_s *compile(struct file_s *cfile)
                         ignore();
                         label=new_label(&labelname, mycontext, L_LABEL, &labelexists);
                         if (labelexists) {
-                            if (label->type != L_LABEL || label->value->type != T_FUNCTION || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                            if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                             new_value.type = T_FUNCTION;
                             new_value.u.func.p = cfile->p;
                             new_value.u.func.sline = sline;
@@ -778,7 +778,7 @@ struct value_s *compile(struct file_s *cfile)
                             current_section->dooutput=0;memjmp(0); oaddr = 0;
 
                             if (labelexists) {
-                                if (label->type != L_LABEL || label->value->type != type || pass == 1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
+                                if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                                 new_value.type = type;
                                 new_value.u.macro.size = (label->value->type == type) ? label->value->u.macro.size : 0;
                                 new_value.u.macro.p = cfile->p;
@@ -808,7 +808,7 @@ struct value_s *compile(struct file_s *cfile)
                             }
                         } else {
                             if (labelexists) {
-                                if (label->type != L_LABEL || label->value->type != T_CODE || pass==1) {
+                                if (label->type != L_LABEL || label->defpass == pass) {
                                     err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                                     label = NULL;
                                 } else {
@@ -824,7 +824,7 @@ struct value_s *compile(struct file_s *cfile)
                                         val->u.code.size = size;
                                         val->u.code.dtype = dtype;
                                         if (label->usepass >= pass) {
-                                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&label->name, label->epoint);
+                                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, label->epoint);
                                             fixeddig = 0;
                                         }
                                     }
@@ -880,7 +880,7 @@ struct value_s *compile(struct file_s *cfile)
                             if (label->value->u.macro.size != ((current_section->address - oaddr) & all_mem2)) {
                                 label->value->u.macro.size = (current_section->address - oaddr) & all_mem2;
                                 if (label->usepass >= pass) {
-                                    if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&label->name, label->epoint);
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, label->epoint);
                                     fixeddig = 0;
                                 }
                             }
@@ -896,23 +896,20 @@ struct value_s *compile(struct file_s *cfile)
                     {
                         struct section_s *tmp;
                         str_t sectionname;
-                        int labelexists;
                         linepos_t opoint;
                         new_waitfor(W_SEND, epoint);waitfor->section=current_section;
                         ignore();opoint=lpoint;
                         sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                         if (!sectionname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        tmp=find_new_section(&sectionname, &labelexists);
-                        if (!tmp->declared) {
-                            if (!labelexists) {
-                                tmp->end = tmp->start = tmp->address = 0;
-                                tmp->l_start = tmp->l_address = 0;
-                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&sectionname, opoint);
-                                fixeddig=0;
-                            } else if (pass > 1) {
-                                err_msg_not_defined(&sectionname, opoint); goto breakerr;
-                            }
-                        } else if (tmp->pass != pass) {
+                        tmp=find_new_section(&sectionname);
+                        if (!tmp->usepass || tmp->defpass < pass - 1) {
+                            if (tmp->usepass && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, opoint); goto breakerr;}
+                            tmp->end = tmp->start = tmp->address = 0;
+                            tmp->l_start = tmp->l_address = 0;
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, opoint);
+                            fixeddig=0;
+                            tmp->defpass = pass - 1;
+                        } else if (tmp->usepass != pass) {
                             if (!tmp->moved) {
                                 if (tmp->end < tmp->address) tmp->end = tmp->address;
                                 tmp->moved = 1;
@@ -921,7 +918,7 @@ struct value_s *compile(struct file_s *cfile)
                             tmp->address = tmp->start;
                             tmp->l_address = tmp->l_start;
                         }
-                        tmp->pass = pass;
+                        tmp->usepass = pass;
                         waitfor->what = W_SEND2;
                         current_section = tmp;
                         memjmp(current_section->address);
@@ -949,7 +946,7 @@ struct value_s *compile(struct file_s *cfile)
                 else newlabel=new_label(&labelname, mycontext, L_LABEL, &labelexists);
                 oaddr=current_section->address;
                 if (labelexists) {
-                    if (newlabel->type != L_LABEL || newlabel->value->type != T_CODE || pass==1) {
+                    if (newlabel->type != L_LABEL || newlabel->defpass == pass) {
                         err_msg_double_defined(&newlabel->name, newlabel->file->realname, newlabel->sline, newlabel->epoint, &labelname, epoint);
                         newlabel = NULL; goto jn;
                     } else {
@@ -965,7 +962,7 @@ struct value_s *compile(struct file_s *cfile)
                             val->u.code.size = size;
                             val->u.code.dtype = dtype;
                             if (newlabel->usepass >= pass) {
-                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&newlabel->name, newlabel->epoint);
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, newlabel->epoint);
                                 fixeddig = 0;
                             }
                         }
@@ -995,7 +992,7 @@ struct value_s *compile(struct file_s *cfile)
                 switch (prm) {
                 case CMD_PROC:
                     new_waitfor(W_PEND, epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
-                    if (!newlabel->ref && pass != 1) waitfor->skip=0;
+                    if (!newlabel->ref && newlabel->value->u.code.pass) waitfor->skip=0;
                     else {
                         newlabel->nested = 1;
                         current_context=newlabel;
@@ -1085,7 +1082,7 @@ struct value_s *compile(struct file_s *cfile)
                 if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, "*=");
                 else if (val->type == T_NONE) {
                     static const str_t starname = {1, (const uint8_t*)"*"};
-                    if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(&starname, epoint);
+                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(&starname, epoint);
                     fixeddig = 0;
                 } else {
                     if (arguments.flat && !current_section->logicalrecursion) {
@@ -1218,7 +1215,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
                         if (val->type == T_NONE) {
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         }
                     } else val = &none_value;
@@ -1295,7 +1292,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
                         if (val->type == T_NONE) {
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         }
                     } else val = &none_value;
@@ -1313,7 +1310,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                         if (!(val = get_vals_tuple(T_NONE))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->type == T_NONE) {
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         }
                         if (val->type == T_TUPLE || val->type == T_LIST) {
@@ -1546,7 +1543,7 @@ struct value_s *compile(struct file_s *cfile)
                                                         break;
                                                     default: err_msg_wrong_type(val2, epoint);
                                                     case T_NONE:
-                                                             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                                              ch2 = fixeddig = 0;
                                                     }
                                                     if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
@@ -1559,7 +1556,7 @@ struct value_s *compile(struct file_s *cfile)
                                         }
                                     default: err_msg_wrong_type(val, epoint);
                                     case T_NONE:
-                                             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                              ch2 = fixeddig = 0;
                                     }
                                     if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
@@ -1657,7 +1654,7 @@ struct value_s *compile(struct file_s *cfile)
                                             break;
                                         default: err_msg_wrong_type(val2, epoint);
                                         case T_NONE:
-                                                 if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                                  ch2 = fixeddig = 0;
                                         }
                                         if (prm==CMD_RTA) ch2--;
@@ -1672,7 +1669,7 @@ struct value_s *compile(struct file_s *cfile)
                                 }
                             default: err_msg_wrong_type(val, epoint);
                             case T_NONE:
-                                     if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                      ch2 = fixeddig = 0;
                             }
                             if (prm==CMD_RTA) ch2--;
@@ -1695,7 +1692,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                         if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->type == T_NONE) {
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         } else {
                             if (val->type != T_STR) {err_msg_wrong_type(val, epoint);goto breakerr;}
@@ -1705,7 +1702,7 @@ struct value_s *compile(struct file_s *cfile)
                         if ((val = get_val(T_UINT, &epoint))) {
                             if (val == &error_value) goto breakerr;
                             if (val->type == T_NONE) {
-                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
                             } else {
                                 if (val->u.num.val<0) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint); goto breakerr;}
@@ -1714,7 +1711,7 @@ struct value_s *compile(struct file_s *cfile)
                             if ((val = get_val(T_UINT, &epoint))) {
                                 if (val == &error_value) goto breakerr;
                                 if (val->type == T_NONE) {
-                                    if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                     fixeddig = 0;
                                 } else {
                                     if (val->u.num.val<0 || (address_t)val->u.num.val > fsize) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
@@ -1751,7 +1748,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else if (val->u.num.val) {
                         if (current_section->structrecursion) {
@@ -1777,7 +1774,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (val == &error_value) goto breakerr;
                     else if (current_section->structrecursion && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".LOGICAL", opoint);
                     else if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else {
                         if ((uval_t)val->u.num.val & ~(uval_t)all_mem) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -1834,7 +1831,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else {
                         if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -1848,7 +1845,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else {
                         if ((val->type != T_NUM || val->u.num.len > 16) && ((uval_t)val->u.num.val & ~(uval_t)0xffff)) err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);
@@ -1866,7 +1863,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else {
                         db=val->u.num.val;
@@ -1875,7 +1872,7 @@ struct value_s *compile(struct file_s *cfile)
                     if ((val = get_val(T_GAP, &epoint))) {
                         if (val == &error_value) goto breakerr;
                         else if (val->type == T_NONE) {
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         } else if (val->type != T_GAP) {
                             if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -1896,19 +1893,19 @@ struct value_s *compile(struct file_s *cfile)
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;current_section->provides=~(uval_t)0;
                     } else current_section->provides=val->u.num.val;
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = current_section->requires = 0;
                     } else current_section->requires=val->u.num.val;
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = current_section->conflicts = 0;
                     } else current_section->conflicts=val->u.num.val;
                     eval_finish();
@@ -1920,13 +1917,13 @@ struct value_s *compile(struct file_s *cfile)
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else if ((val->u.num.val & current_section->provides) ^ val->u.num.val) err_msg_requires(NULL, opoint);
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else if (val->u.num.val & current_section->provides) err_msg_conflicts(NULL, opoint);
                     eval_finish();
@@ -2026,7 +2023,7 @@ struct value_s *compile(struct file_s *cfile)
                              if (val->u.str.len > i) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                              break;
                         case T_NONE: 
-                             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                              try = fixeddig = 0;
                              break;
                         default:
@@ -2040,7 +2037,7 @@ struct value_s *compile(struct file_s *cfile)
                             if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                             if (val == &error_value) goto breakerr;
                             if (val->type == T_NONE) {
-                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 try = fixeddig = 0;
                             } else {
                                 if ((val->type != T_NUM || val->u.num.len > 24) && ((uval_t)val->u.num.val & ~(uval_t)0xffffff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -2056,7 +2053,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                         if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) {
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         } else if (try) {
                             if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -2093,7 +2090,7 @@ struct value_s *compile(struct file_s *cfile)
                              if (!val->u.str.len) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
                              break;
                         case T_NONE: 
-                             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                              try = fixeddig = 0;
                              break;
                         default:
@@ -2108,7 +2105,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (!val) {err_msg(ERROR______EXPECTED,","); val_destroy(v); goto breakerr;}
                         if (val == &error_value) {val_destroy(v); goto breakerr;}
                         if (val->type == T_NONE) {
-                             if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                              fixeddig = 0;
                              val_destroy(v);
                         } else if (try) {
@@ -2147,7 +2144,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (val == &error_value) goto breakerr;
                     if (eval_finish()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL);goto breakerr;}
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else {
                         ival_t cnt = val->u.num.val;
@@ -2161,7 +2158,7 @@ struct value_s *compile(struct file_s *cfile)
 
                             close_waitfor(W_NEXT);
                             if (labelexists && s->addr != star) {
-                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig=0;
                             }
                             s->addr = star;
@@ -2186,7 +2183,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (val == &error_value) goto breakerr;
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else {
                         if (!val->u.num.val || ((uval_t)val->u.num.val & ~(uval_t)all_mem)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -2195,7 +2192,7 @@ struct value_s *compile(struct file_s *cfile)
                     if ((val = get_val(T_GAP, &epoint))) {
                         if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) {
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         } else if (val->type != T_GAP) {
                             if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -2223,7 +2220,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = outputeor = 0;
                     } else {
                         if ((val->type != T_NUM || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
@@ -2257,7 +2254,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else {
                         if (val->type != T_STR) {err_msg_wrong_type(val, epoint);goto breakerr;}
@@ -2281,7 +2278,7 @@ struct value_s *compile(struct file_s *cfile)
 
                             if (starexists && s->addr != star) {
                                 linepos_t nopoint = {0,0};
-                                if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, nopoint);
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, nopoint);
                                 fixeddig=0;
                             }
                             s->addr = star;
@@ -2369,7 +2366,7 @@ struct value_s *compile(struct file_s *cfile)
                     s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
                     if (starexists && s->addr != star) {
                         linepos_t nopoint = {0,0};
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, nopoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, nopoint);
                         fixeddig=0;
                     }
                     s->addr = star;
@@ -2381,7 +2378,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (!get_exp(&w,1)) break; /* ellenorizve. */
                         if (!(val = get_val(T_NONE, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if (val->type == T_NONE) {
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         }
                         if (!val_truth(val)) break;
@@ -2399,6 +2396,7 @@ struct value_s *compile(struct file_s *cfile)
                                 int labelexists;
                                 var=new_label(&varname, mycontext, L_VAR, &labelexists);
                                 if (labelexists) {
+                                    if (var->defpass != pass) var->ref=0;
                                     if (var->type != L_VAR) {
                                         err_msg_double_defined(&var->name, var->file->realname, var->sline, var->epoint, &varname, epoint);
                                         break;
@@ -2454,7 +2452,7 @@ struct value_s *compile(struct file_s *cfile)
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else if (!str_casecmp(&optname, &branch_across)) allowslowbranch=val_truth(val);
                     else if (!str_casecmp(&optname, &longjmp)) longbranchasjmp=val_truth(val);
@@ -2607,32 +2605,30 @@ struct value_s *compile(struct file_s *cfile)
                 }
                 if (prm==CMD_DSECTION) {
                     struct section_s *tmp3;
-                    int labelexists;
                     str_t sectionname;
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".DSECTION");
                     ignore();epoint=lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                     if (!sectionname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp3=new_section(&sectionname, &labelexists);
-                    if (tmp3->declared && pass == 1) err_msg_double_defined(&tmp3->name, tmp3->file, tmp3->sline, tmp3->epoint, &sectionname, epoint);
+                    tmp3=new_section(&sectionname);
+                    if (tmp3->defpass == pass) err_msg_double_defined(&tmp3->name, tmp3->file, tmp3->sline, tmp3->epoint, &sectionname, epoint);
                     else {
                         address_t t;
-                        if (!tmp3->declared) {
-                            if (!labelexists) {
-                                tmp3->wrapwarn = tmp3->wrapwarn2 = tmp3->moved = 0;
-                                tmp3->end = tmp3->start = tmp3->address = current_section->address;
-                                tmp3->l_start = tmp3->l_address = current_section->l_address;
-                            } else {
+                        if (!tmp3->usepass || tmp3->defpass < pass - 1) {
+                            if (tmp3->usepass == pass) {
                                 tmp3->address += current_section->address;
                                 tmp3->start += current_section->address;
                                 tmp3->end += current_section->address;
                                 tmp3->l_address += current_section->l_address;
                                 tmp3->l_start += current_section->l_address;
-                            }
-                            tmp3->pass = pass;
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            } else {
+                                tmp3->wrapwarn = tmp3->wrapwarn2 = tmp3->moved = 0;
+                                tmp3->end = tmp3->start = tmp3->address = current_section->address;
+                                tmp3->l_start = tmp3->l_address = current_section->l_address;
+                                tmp3->usepass = pass;
+                            }  
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
-                            tmp3->declared = 1;
                         }
                         tmp3->provides=~(uval_t)0;tmp3->requires=tmp3->conflicts=0;
                         tmp3->dooutput = current_section->dooutput;
@@ -2646,7 +2642,7 @@ struct value_s *compile(struct file_s *cfile)
                         tmp3->file = cfile->realname;
                         tmp3->sline = sline;
                         tmp3->epoint = epoint;
-                        if (tmp3->pass == pass) {
+                        if (tmp3->usepass == pass) {
                             t = tmp3->end - tmp3->start;
                             tmp3->end = tmp3->start = current_section->address;
                             tmp3->l_start = current_section->l_address;
@@ -2661,7 +2657,8 @@ struct value_s *compile(struct file_s *cfile)
                             tmp3->l_start = tmp3->l_address = current_section->l_address;
                         }
                         tmp3->size = t;
-                        tmp3->pass=pass;
+                        tmp3->usepass = pass;
+                        tmp3->defpass = pass;
                         memskip(t);
                     }
                     break;
@@ -2669,22 +2666,19 @@ struct value_s *compile(struct file_s *cfile)
                 if (prm==CMD_SECTION) {
                     struct section_s *tmp;
                     str_t sectionname;
-                    int labelexists;
                     new_waitfor(W_SEND, epoint);waitfor->section=current_section;
                     ignore();epoint=lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                     if (!sectionname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    tmp=find_new_section(&sectionname, &labelexists);
-                    if (!tmp->declared) {
-                        if (!labelexists) {
-                            tmp->end = tmp->start = tmp->address = 0;
-                            tmp->l_start = tmp->l_address = 0;
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
-                            fixeddig = 0;
-                        } else if (pass > 1) {
-                            err_msg_not_defined(&sectionname, epoint); goto breakerr;
-                        }
-                    } else if (tmp->pass != pass) {
+                    tmp=find_new_section(&sectionname);
+                    if (!tmp->usepass || tmp->defpass < pass - 1) {
+                        if (tmp->usepass && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, epoint); goto breakerr;}
+                        tmp->end = tmp->start = tmp->address = 0;
+                        tmp->l_start = tmp->l_address = 0;
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                        fixeddig = 0;
+                        tmp->defpass = pass - 1;
+                    } else if (tmp->usepass != pass) {
                         if (!tmp->moved) {
                             if (tmp->end < tmp->address) tmp->end = tmp->address;
                             tmp->moved=1;
@@ -2693,7 +2687,7 @@ struct value_s *compile(struct file_s *cfile)
                         tmp->address = tmp->start;
                         tmp->l_address = tmp->l_start;
                     }
-                    tmp->pass = pass;
+                    tmp->usepass = pass;
                     waitfor->what = W_SEND2;
                     current_section = tmp;
                     memjmp(current_section->address);
@@ -2707,7 +2701,7 @@ struct value_s *compile(struct file_s *cfile)
                 if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 if (val == &error_value) goto breakerr;
                 if (val->type == T_NONE) {
-                    if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                     fixeddig = 0;
                     goto breakerr;
                 }
@@ -2792,7 +2786,7 @@ struct value_s *compile(struct file_s *cfile)
                         if (!(val = get_val(T_ADDRESS, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val == &error_value) d = 0;
                         else if (val->type == T_NONE) {
-                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             d = fixeddig = 0;
                         } else d = 1;
 
@@ -2897,7 +2891,7 @@ struct value_s *compile(struct file_s *cfile)
                                 if ((val2 = get_val(T_UINT, NULL))) {
                                     if (val2 == &error_value) d = 0;
                                     else if (val->type == T_NONE) {
-                                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                         d = fixeddig = 0;
                                     }
                                     if (!((uval_t)val2->u.num.val & ~(uval_t)0xff)) {adr |= (uint8_t)val2->u.num.val;}
@@ -2917,7 +2911,7 @@ struct value_s *compile(struct file_s *cfile)
                                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                     if (val == &error_value) d = 0;
                                     else if (val->type == T_NONE) {
-                                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                         d = fixeddig = 0;
                                     }
                                     adr = val->u.num.val;
@@ -2936,7 +2930,7 @@ struct value_s *compile(struct file_s *cfile)
                                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                     if (val == &error_value) d = 0;
                                     else if (val->type == T_NONE) {
-                                        if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                         d = fixeddig = 0;
                                     }
                                     adr = val->u.num.val;
@@ -2949,7 +2943,7 @@ struct value_s *compile(struct file_s *cfile)
                                         if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                         if (val == &error_value) d = 0;
                                         else if (val->type == T_NONE) {
-                                            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                             d = fixeddig = 0;
                                         }
                                         adr2 = val->u.num.val;
@@ -3064,7 +3058,7 @@ struct value_s *compile(struct file_s *cfile)
                                 opr = joopr; adr = joadr; ln = joln; longbranch = jolongbranch;
                                 w=0;/* bne */
                                 if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) {
-                                    if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, epoint);
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                     fixeddig=0;
                                 } else if (min == 10) err_msg2(err, &dist, epoint);
                                 s->addr = (star + 1 + ln) & all_mem;
@@ -3429,7 +3423,7 @@ int main(int argc, char *argv[]) {
 
     /* assemble the input file(s) */
     do {
-        if (pass++>MAX_PASS) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
+        if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
         restart_mem();
         for (i = optind - 1; i<argc; i++) {
@@ -3469,7 +3463,6 @@ int main(int argc, char *argv[]) {
 
     /* assemble again to create listing */
     if (arguments.list) {
-        uint8_t oldpass = pass;
         char **argv2 = argv;
         int argc2 = argc;
         listing=1;
@@ -3490,7 +3483,7 @@ int main(int argc, char *argv[]) {
         while (argc2--) fprintf(flist," %s", *argv2++);
 	time(&t); fprintf(flist,"\n; %s",ctime(&t));
 
-        pass = MAX_PASS + 1;
+        max_pass = pass; pass++;
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
         restart_mem();
         for (i = optind - 1; i<argc; i++) {
@@ -3530,7 +3523,6 @@ int main(int argc, char *argv[]) {
         }
 	fputs("\n;******  End of listing\n", flist);
 	if (flist != stdout) fclose(flist);
-        pass = oldpass + 1;
     }
     memcomp();
 

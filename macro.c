@@ -240,7 +240,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context)
         struct label_s *oldcontext = current_context;
 
         if (labelexists && s->addr != star) {
-            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, lpoint);
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, lpoint);
             fixeddig=0;
         }
         s->addr = star;
@@ -328,7 +328,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) 
         struct label_s *oldcontext = current_context;
 
         if (labelexists && s->addr != star) {
-            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, lpoint);
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, lpoint);
             fixeddig=0;
         }
         s->addr = star;
@@ -534,7 +534,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         const uint8_t *ollist = llist;
 
         if (labelexists && s->addr != star) {
-            if (fixeddig && pass > MAX_PASS) err_msg_cant_calculate(NULL, lpoint);
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, lpoint);
             fixeddig=0;
         }
         s->addr = star;
