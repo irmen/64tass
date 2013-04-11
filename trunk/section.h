@@ -38,7 +38,8 @@ struct section_s {
     address_t l_unionstart;
     address_t l_unionend;
     size_t size;
-    uint8_t pass;
+    uint8_t usepass;
+    uint8_t defpass;
     uint_fast8_t structrecursion;
     uint_fast8_t logicalrecursion;
     unsigned int dooutput:1;
@@ -55,8 +56,8 @@ struct section_s {
     struct avltree members;
 };
 
-extern struct section_s *new_section(const str_t *, int *);
-extern struct section_s *find_new_section(const str_t *, int *);
+extern struct section_s *new_section(const str_t *);
+extern struct section_s *find_new_section(const str_t *);
 extern void init_section(void);
 extern void init_section2(struct section_s *);
 extern void destroy_section(void);

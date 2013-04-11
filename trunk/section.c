@@ -42,26 +42,29 @@ static void section_free(struct avltree_node *aa)
     free(a);
 }
 
-struct section_s *find_new_section(const str_t *name, int *exists) {
+struct section_s *find_new_section(const str_t *name) {
     struct avltree_node *b;
     struct section_s *context = current_section;
-    struct section_s tmp;
+    struct section_s tmp, *tmp2 = NULL;
     tmp.name = *name;
     tmp.name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
 
     while (context) {
         b=avltree_lookup(&tmp.node, &context->members, section_compare);
         if (b) {
-            *exists=1;
-            return avltree_container_of(b, struct section_s, node);
+            tmp2 = avltree_container_of(b, struct section_s, node);
+            if (tmp2->defpass >= pass - 1) {
+                return tmp2;
+            }
         }
         context = context->parent;
     }
-    return new_section(name, exists);
+    if (tmp2) return tmp2;
+    return new_section(name);
 }
 
 static struct section_s *lastsc=NULL;
-struct section_s *new_section(const str_t *name, int *exists) {
+struct section_s *new_section(const str_t *name) {
     struct avltree_node *b;
     struct section_s *tmp;
 
@@ -76,7 +79,8 @@ struct section_s *new_section(const str_t *name, int *exists) {
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->end=lastsc->address=lastsc->l_address=lastsc->size=0;
         lastsc->dooutput=1;
-        lastsc->declared=0;
+        lastsc->defpass=0;
+        lastsc->usepass=0;
         lastsc->unionmode=0;
         lastsc->structrecursion=0;
         lastsc->logicalrecursion=0;
@@ -87,12 +91,10 @@ struct section_s *new_section(const str_t *name, int *exists) {
         prev_section->next = lastsc;
         prev_section = lastsc;
         avltree_init(&lastsc->members);
-	*exists=0;
 	tmp=lastsc;
 	lastsc=NULL;
 	return tmp;
     }
-    *exists=1;
     return avltree_container_of(b, struct section_s, node);            //already exists
 }
 

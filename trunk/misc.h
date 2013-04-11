@@ -74,7 +74,7 @@ extern const uint8_t *pline, *llist;
 extern void status(void);
 extern uint16_t reffile;
 extern uint32_t backr, forwr;
-extern uint8_t pass;
+extern uint8_t pass, max_pass;
 extern void new_waitfor(enum wait_e, linepos_t);
 extern struct value_s *compile(struct file_s *);
 extern void var_assign(struct label_s *, struct value_s *, int);

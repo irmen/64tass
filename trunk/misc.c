@@ -257,16 +257,18 @@ void sectionprint(void) {
     l = root_section.next;
     while (l) {
         char temp[10], temp2[10];
-        if (l->size) {
-            sprintf(temp, "$%04" PRIaddress, l->start);
-            sprintf(temp2, "$%04" PRIaddress, l->start + l->size - 1);
-            printf("Section:         %7s-%-7s ", temp, temp2);
-        } else {
-            printf("Section:                         ");
+        if (l->defpass == pass) {
+            if (l->size) {
+                sprintf(temp, "$%04" PRIaddress, l->start);
+                sprintf(temp2, "$%04" PRIaddress, l->start + l->size - 1);
+                printf("Section:         %7s-%-7s ", temp, temp2);
+            } else {
+                printf("Section:                         ");
+            }
+            sectionprint2(l->parent);
+            fwrite(l->name.data, l->name.len, 1, stdout);
+            putchar('\n');
         }
-        sectionprint2(l->parent);
-        fwrite(l->name.data, l->name.len, 1, stdout);
-        putchar('\n');
         l = l->next;
     }
 }
