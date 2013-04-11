@@ -555,7 +555,7 @@ struct value_s *compile(struct file_s *cfile)
             if (!(waitfor->skip & 1)) {wht=what(&prm);goto jn;} /* skip things if needed */
             if ((wht=what(&prm))==WHAT_EQUAL) { /* variable */
                 struct label_s *label;
-                int labelexists, newl = 0;
+                int labelexists;
                 int oldreferenceit = referenceit;
                 label = find_label2(&labelname, mycontext);
                 if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
@@ -564,7 +564,7 @@ struct value_s *compile(struct file_s *cfile)
                 referenceit = oldreferenceit;
                 if (!val) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 if (label) labelexists = 1;
-                else {label = new_label(&labelname, mycontext, L_CONST, &labelexists);newl = 1;}
+                else label = new_label(&labelname, mycontext, L_CONST, &labelexists);
                 oaddr=current_section->address;
                 if (listing && flist && arguments.source && label->ref) {
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
@@ -577,7 +577,7 @@ struct value_s *compile(struct file_s *cfile)
                     }
                     printllist(flist);
                 }
-                label->ref = newl;
+                label->ref = 0;
                 if (labelexists) {
                     if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &labelname, epoint);
                     else {
