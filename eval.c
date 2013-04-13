@@ -1469,7 +1469,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                 }
             }
             eval_enter();
-            val = function_recurse(vals->val, v, args);
+            val = function_recurse(vals->val, v, args, vals->epoint);
             eval_leave();
             val_replace(&vals->val, val);
             val_destroy(val);

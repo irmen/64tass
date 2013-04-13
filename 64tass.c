@@ -530,7 +530,7 @@ struct value_s *compile(struct file_s *cfile)
                     islabel = 1;goto hh;
                 }
             baj:
-                if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX,NULL, epoint);
+                if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX,NULL, lpoint);
                 goto breakerr;
             } /* not label */
             for (;;) {
@@ -687,7 +687,7 @@ struct value_s *compile(struct file_s *cfile)
                         struct label_s *label;
                         enum type_e type = (prm == CMD_MACRO) ? T_MACRO : T_SEGMENT;
                         int labelexists;
-                        new_waitfor(W_ENDM, epoint);waitfor->skip=0;
+                        new_waitfor(W_ENDM, lpoint);waitfor->skip=0;
                         ignore();
                         label=new_label(&labelname, mycontext, L_LABEL, &labelexists);
                         if (labelexists) {
@@ -725,7 +725,7 @@ struct value_s *compile(struct file_s *cfile)
                     {
                         struct label_s *label;
                         int labelexists;
-                        new_waitfor(W_ENDF, epoint);waitfor->skip=0;
+                        new_waitfor(W_ENDF, lpoint);waitfor->skip=0;
                         ignore();
                         label=new_label(&labelname, mycontext, L_LABEL, &labelexists);
                         if (labelexists) {
@@ -768,7 +768,7 @@ struct value_s *compile(struct file_s *cfile)
                         int declaration = !current_section->structrecursion;
                         int labelexists;
 
-                        new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, epoint);waitfor->skip=0;
+                        new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, lpoint);waitfor->skip=0;
                         ignore();
                         label=new_label(&labelname, mycontext, L_LABEL, &labelexists);oaddr = current_section->address;
                         if (declaration) {
@@ -868,7 +868,7 @@ struct value_s *compile(struct file_s *cfile)
                             current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
                             waitfor->skip=1;
-                            if (label && (label->value->type == T_STRUCT || label->value->type == T_UNION)) macro_recurse(W_ENDS, label->value, label);
+                            if (label && (label->value->type == T_STRUCT || label->value->type == T_UNION)) macro_recurse(W_ENDS, label->value, label, lpoint);
                             else compile(cfile);
                             current_section->unionmode = old_unionmode;
                             current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -897,7 +897,7 @@ struct value_s *compile(struct file_s *cfile)
                         struct section_s *tmp;
                         str_t sectionname;
                         linepos_t opoint;
-                        new_waitfor(W_SEND, epoint);waitfor->section=current_section;
+                        new_waitfor(W_SEND, lpoint);waitfor->section=current_section;
                         ignore();opoint=lpoint;
                         sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                         if (!sectionname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -988,6 +988,7 @@ struct value_s *compile(struct file_s *cfile)
                 newlabel->defpass = pass;
             }
             if (epoint.pos && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
+            epoint = lpoint;
             if (wht==WHAT_COMMAND) { /* .proc */
                 switch (prm) {
                 case CMD_PROC:
@@ -1013,6 +1014,7 @@ struct value_s *compile(struct file_s *cfile)
                 case CMD_DUNION:
                     {
                         int old_unionmode = current_section->unionmode;
+                        linepos_t epoint2;
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
                         current_section->unionmode = (prm==CMD_DUNION);
@@ -1026,12 +1028,12 @@ struct value_s *compile(struct file_s *cfile)
                         newlabel->nested = 1;
                         newlabel->ref=0;
                         if (!get_exp(&w,1)) goto breakerr;
-                        if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val == &error_value) goto breakerr;
-                        if (val->type != ((prm==CMD_DSTRUCT) ? T_STRUCT : T_UNION)) {err_msg_wrong_type(val, epoint); goto breakerr;}
+                        if (val->type != ((prm==CMD_DSTRUCT) ? T_STRUCT : T_UNION)) {err_msg_wrong_type(val, epoint2); goto breakerr;}
                         ignore();if (here() == ',') lpoint.pos++;
                         current_section->structrecursion++;
-                        macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, newlabel);
+                        macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, newlabel, epoint);
                         current_section->structrecursion--;
                         current_section->unionmode = old_unionmode;
                         current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -2250,14 +2252,15 @@ struct value_s *compile(struct file_s *cfile)
                 }
                 if (prm==CMD_INCLUDE || prm == CMD_BINCLUDE) { /* .include, .binclude */
                     struct file_s *f;
+                    linepos_t epoint2;
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->type == T_NONE) {
-                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                         fixeddig = 0;
                     } else {
-                        if (val->type != T_STR) {err_msg_wrong_type(val, epoint);goto breakerr;}
+                        if (val->type != T_STR) {err_msg_wrong_type(val, epoint2);goto breakerr;}
                         if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
 
                         f = openfile(path, cfile->realname, 0, val);
@@ -2282,7 +2285,7 @@ struct value_s *compile(struct file_s *cfile)
                                 fixeddig=0;
                             }
                             s->addr = star;
-                            enterfile(f->realname,sline);
+                            enterfile(f, sline, epoint);
                             sline = vline = 0; f->p=0;
                             star_tree = &s->tree;
                             backr = forwr = 0;
@@ -2574,30 +2577,32 @@ struct value_s *compile(struct file_s *cfile)
                 }
                 if (prm==CMD_DSTRUCT) {
                     int old_unionmode = current_section->unionmode;
+                    linepos_t epoint2;
                     current_section->unionmode = 0;
                     if (!get_exp(&w,1)) goto breakerr;
-                    if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     ignore();if (here() == ',') lpoint.pos++;
-                    if (val->type != T_STRUCT) {err_msg_wrong_type(val, epoint); goto breakerr;}
+                    if (val->type != T_STRUCT) {err_msg_wrong_type(val, epoint2); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse(W_ENDS2, val, current_context);
+                    macro_recurse(W_ENDS2, val, current_context, epoint);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     break;
                 }
                 if (prm==CMD_DUNION) {
                     int old_unionmode = current_section->unionmode;
+                    linepos_t epoint2;
                     address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                     current_section->unionmode = 1;
                     current_section->unionstart = current_section->unionend = current_section->address;
                     if (!get_exp(&w,1)) goto breakerr;
-                    if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val == &error_value) goto breakerr;
                     ignore();if (here() == ',') lpoint.pos++;
-                    if (val->type != T_UNION) {err_msg_wrong_type(val, epoint); goto breakerr;}
+                    if (val->type != T_UNION) {err_msg_wrong_type(val, epoint2); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse(W_ENDU2, val, current_context);
+                    macro_recurse(W_ENDU2, val, current_context, epoint);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -2697,15 +2702,16 @@ struct value_s *compile(struct file_s *cfile)
             }
         case WHAT_HASHMARK:if (waitfor->skip & 1) /* skip things if needed */
             {                   /* macro stuff */
+                linepos_t epoint2;
                 if (!get_exp_var()) goto breakerr;
-                if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 if (val == &error_value) goto breakerr;
                 if (val->type == T_NONE) {
-                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                     fixeddig = 0;
                     goto breakerr;
                 }
-                if (val->type != T_MACRO && val->type != T_SEGMENT && val->type != T_FUNCTION) {err_msg_wrong_type(val, epoint); goto breakerr;}
+                if (val->type != T_MACRO && val->type != T_SEGMENT && val->type != T_FUNCTION) {err_msg_wrong_type(val, epoint2); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
@@ -2729,7 +2735,7 @@ struct value_s *compile(struct file_s *cfile)
                         context=new_label(&tmpname, mycontext, L_LABEL, &labelexists);
                         context->value = &none_value;
                     }
-                    macro_recurse(W_ENDM2, val, context);
+                    macro_recurse(W_ENDM2, val, context, epoint);
                 } else if (val->type == T_FUNCTION) {
                     struct label_s *context;
                     int labelexists;
@@ -2738,8 +2744,8 @@ struct value_s *compile(struct file_s *cfile)
                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                     context=new_label(&tmpname, val->u.func.context, L_LABEL, &labelexists);
                     context->value = &none_value;
-                    func_recurse(W_ENDF2, val, context);
-                } else macro_recurse(W_ENDM2, val, current_context);
+                    func_recurse(W_ENDF2, val, context, epoint);
+                } else macro_recurse(W_ENDM2, val, current_context, epoint);
                 break;
             }
         case WHAT_EXPRESSION:
@@ -2751,7 +2757,7 @@ struct value_s *compile(struct file_s *cfile)
                 if (opname.len == 3 && (prm=lookup_opcode((const char *)opname.data))>=0) {
                     enum opr_e opr;
                     int mnem;
-                    linepos_t oldlpoint;
+                    linepos_t oldlpoint, epoint2;
                     const uint8_t *cnmemonic; /* current nmemonic */
                     int_fast8_t ln;
                     uint8_t cod, longbranch;
@@ -2783,10 +2789,10 @@ struct value_s *compile(struct file_s *cfile)
                         int c;
                     nota:
                         if (!(c=get_exp(&w, 3))) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_val(T_ADDRESS, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_val(T_ADDRESS, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val == &error_value) d = 0;
                         else if (val->type == T_NONE) {
-                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                             d = fixeddig = 0;
                         } else d = 1;
 
@@ -2888,10 +2894,10 @@ struct value_s *compile(struct file_s *cfile)
                                     if (!w && (!((uval_t)val->u.num.val & ~(uval_t)0xff))) adr = (uval_t)val->u.num.val << 8;
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no mvp $ffff or mvp $ffffff */
-                                if ((val2 = get_val(T_UINT, NULL))) {
+                                if ((val2 = get_val(T_UINT, &epoint2))) {
                                     if (val2 == &error_value) d = 0;
                                     else if (val->type == T_NONE) {
-                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                                         d = fixeddig = 0;
                                     }
                                     if (!((uval_t)val2->u.num.val & ~(uval_t)0xff)) {adr |= (uint8_t)val2->u.num.val;}
@@ -2908,10 +2914,10 @@ struct value_s *compile(struct file_s *cfile)
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
                                 if (w != 3) {
-                                    if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                    if (!(val = get_val(T_UINT, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                     if (val == &error_value) d = 0;
                                     else if (val->type == T_NONE) {
-                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                                         d = fixeddig = 0;
                                     }
                                     adr = val->u.num.val;
@@ -2927,10 +2933,10 @@ struct value_s *compile(struct file_s *cfile)
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
                                 if (w != 3) {
-                                    if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                    if (!(val = get_val(T_UINT, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                     if (val == &error_value) d = 0;
                                     else if (val->type == T_NONE) {
-                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                                         d = fixeddig = 0;
                                     }
                                     adr = val->u.num.val;
@@ -2940,10 +2946,10 @@ struct value_s *compile(struct file_s *cfile)
                                     } else w = 1;
                                     if (w != 3) {
                                         uint32_t adr2=0;
-                                        if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                        if (!(val = get_val(T_UINT, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                         if (val == &error_value) d = 0;
                                         else if (val->type == T_NONE) {
-                                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                                             d = fixeddig = 0;
                                         }
                                         adr2 = val->u.num.val;
@@ -3437,7 +3443,7 @@ int main(int argc, char *argv[]) {
             init_macro();
             /*	listing=1;flist=stderr;*/
             if (i == optind - 1) {
-                enterfile("<command line>",0);
+                enterfile(fin, 0, (linepos_t){0,0});
                 fin->p = 0;
                 star_tree = &fin->star;
                 reffile=fin->uid;
@@ -3448,7 +3454,7 @@ int main(int argc, char *argv[]) {
             }
             memjmp(current_section->address);
             cfile = openfile(argv[i], "", 0, NULL);
-            enterfile(argv[i],0);
+            enterfile(cfile, 0, (linepos_t){0,0});
             if (cfile) {
                 cfile->p = 0;
                 star_tree = &cfile->star;
@@ -3499,7 +3505,7 @@ int main(int argc, char *argv[]) {
             init_macro();
 
             if (i == optind - 1) {
-                enterfile("<command line>",0);
+                enterfile(fin, 0, (linepos_t){0,0});
                 fin->p = 0; 
                 star_tree = &fin->star;
                 reffile=fin->uid;
@@ -3511,7 +3517,7 @@ int main(int argc, char *argv[]) {
             memjmp(current_section->address);
 
             cfile = openfile(argv[i], "", 0, NULL);
-            enterfile(argv[i],0);
+            enterfile(cfile, 0, (linepos_t){0,0});
             if (cfile) {
                 cfile->p = 0;
                 star_tree = &cfile->star;
