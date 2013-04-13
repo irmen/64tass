@@ -2137,36 +2137,12 @@ strretr:
 
     if (type_is_int(t1)) {
         switch (op) {
-        case O_LOWER:
-            v->type = T_NUM;
-            v->u.num.len = 8;
-            v->u.num.val = (uint8_t)v1->u.num.val;
-            return;
-        case O_HIGHER: 
-            v->type = T_NUM;
-            v->u.num.len = 8;
-            v->u.num.val = (uint8_t)(v1->u.num.val >> 8);
-            return;
-        case O_BANK: 
-            v->type = T_NUM;
-            v->u.num.len = 8;
-            v->u.num.val = (uint8_t)(v1->u.num.val >> 16);
-            return;
-        case O_BSWORD:
-            v->type = T_NUM;
-            v->u.num.len = 16;
-            v->u.num.val = (uint8_t)(v1->u.num.val >> 8) | (uint16_t)(v1->u.num.val << 8);
-            return;
-        case O_HWORD: 
-            v->type = T_NUM;
-            v->u.num.len = 16;
-            v->u.num.val = (uint16_t)(v1->u.num.val >> 8);
-            return;
-        case O_WORD: 
-            v->type = T_NUM;
-            v->u.num.len = 16;
-            v->u.num.val = (uint16_t)v1->u.num.val;
-            return;
+        case O_LOWER: v->type = T_NUM; v->u.num.len = 8; v->u.num.val = (uint8_t)v1->u.num.val; return;
+        case O_HIGHER: v->type = T_NUM; v->u.num.len = 8; v->u.num.val = (uint8_t)(v1->u.num.val >> 8); return;
+        case O_BANK: v->type = T_NUM; v->u.num.len = 8; v->u.num.val = (uint8_t)(v1->u.num.val >> 16); return;
+        case O_BSWORD: v->type = T_NUM; v->u.num.len = 16; v->u.num.val = (uint8_t)(v1->u.num.val >> 8) | (uint16_t)(v1->u.num.val << 8); return;
+        case O_HWORD: v->type = T_NUM; v->u.num.len = 16; v->u.num.val = (uint16_t)(v1->u.num.val >> 8); return;
+        case O_WORD: v->type = T_NUM; v->u.num.len = 16; v->u.num.val = (uint16_t)v1->u.num.val; return;
         case O_HASH: 
             {
                 uint8_t len = (t1 == T_NUM) ? v1->u.num.len : 8*sizeof(address_t);
@@ -2245,19 +2221,37 @@ strretr:
         switch (op) {
         case O_LOWER:
             if (v1->u.addr.type == A_IMMEDIATE) {
-                v->type = v1->type;
-                v->u.addr.val = (uint8_t)v1->u.addr.val;
-                v->u.addr.len = 8;
-                v->u.addr.type = v1->u.addr.type;
+                v->type = v1->type; v->u.addr.val = (uint8_t)v1->u.addr.val; v->u.addr.len = 8; v->u.addr.type = v1->u.addr.type;
                 return;
             }
             break;
         case O_HIGHER:
             if (v1->u.addr.type == A_IMMEDIATE) {
-                v->type = v1->type;
-                v->u.addr.val = (uint8_t)(v1->u.addr.val >> 8);
-                v->u.addr.len = 8;
-                v->u.addr.type = v1->u.addr.type;
+                v->type = v1->type; v->u.addr.val = (uint8_t)(v1->u.addr.val >> 8); v->u.addr.len = 8; v->u.addr.type = v1->u.addr.type;
+                return;
+            }
+            break;
+        case O_BANK:
+            if (v1->u.addr.type == A_IMMEDIATE) {
+                v->type = v1->type; v->u.addr.val = (uint8_t)(v1->u.addr.val >> 16); v->u.addr.len = 8; v->u.addr.type = v1->u.addr.type;
+                return;
+            }
+            break;
+        case O_BSWORD:
+            if (v1->u.addr.type == A_IMMEDIATE) {
+                v->type = v1->type; v->u.addr.val = (uint8_t)(v1->u.addr.val >> 8) | (uint16_t)(v1->u.addr.val << 8); v->u.addr.len = 16; v->u.addr.type = v1->u.addr.type;
+                return;
+            }
+            break;
+        case O_HWORD:
+            if (v1->u.addr.type == A_IMMEDIATE) {
+                v->type = v1->type; v->u.addr.val = (uint16_t)(v1->u.addr.val >> 8); v->u.addr.len = 16; v->u.addr.type = v1->u.addr.type;
+                return;
+            }
+            break;
+        case O_WORD:
+            if (v1->u.addr.type == A_IMMEDIATE) {
+                v->type = v1->type; v->u.addr.val = (uint16_t)v1->u.addr.val; v->u.addr.len = 16; v->u.addr.type = v1->u.addr.type;
                 return;
             }
             break;
@@ -2556,6 +2550,24 @@ static void onlist(enum oper_e op, struct value_s *v1, struct value_s *v2, struc
     return;
 }
 
+static int check_addr(uint32_t type) {
+    while (type) {
+        switch ((enum atype_e)(type & 15)) {
+        case A_I:
+        case A_LI:
+        case A_IMMEDIATE: return 1;
+        case A_XR:
+        case A_YR:
+        case A_ZR:
+        case A_RR:
+        case A_SR:
+        case A_NONE: break;
+        }
+        type >>= 4;
+    }
+    return 0;
+}
+
 static void apply_op2(enum oper_e op, struct value_s *v1, struct value_s *v2, struct value_s *v, linepos_t epoint, linepos_t epoint2, linepos_t epoint3) {
     enum type_e t1;
     enum type_e t2;
@@ -2700,6 +2712,7 @@ strretr:
             ival_t val1 = v1->u.num.val;
             switch (op) {
             case O_ADD: 
+                if (check_addr(v2->u.addr.type)) break;
                 v->u.addr.val = (t1 == T_SINT) ? (val1 + v2->u.addr.val) : ((uval_t)val1 + v2->u.addr.val);
                 v->u.addr.len = v2->u.addr.len;
                 v->type = t2;
@@ -2890,6 +2903,47 @@ strretr:
     if (t1 == T_ADDRESS) {
         if (t1 == t2) {
             switch (op) {
+            case O_MUL:
+            case O_DIV: 
+            case O_MOD: 
+            case O_ADD:
+            case O_SUB:
+            case O_AND:
+            case O_OR:
+            case O_XOR:
+                if (v1->u.addr.type == A_IMMEDIATE && v2->u.addr.type == A_IMMEDIATE) {
+                    switch (op) {
+                    case O_MUL:
+                        v->u.addr.val = v1->u.addr.val * v2->u.addr.val;break;
+                    case O_DIV: 
+                        if (!v2->u.addr.val) {
+                            v->type = T_ERROR;
+                            v->u.error.num = ERROR_DIVISION_BY_Z;
+                            v->u.error.epoint = epoint2;
+                            return;
+                        }
+                        v->u.addr.val = v1->u.addr.val / v2->u.addr.val;break;
+                    case O_MOD: 
+                        if (!v2->u.addr.val) {
+                            v->type = T_ERROR;
+                            v->u.error.num = ERROR_DIVISION_BY_Z;
+                            v->u.error.epoint = epoint2;
+                            return;
+                        }
+                        v->u.addr.val = v1->u.addr.val % v2->u.addr.val;break;
+                    case O_ADD: v->u.addr.val = v1->u.addr.val + v2->u.addr.val;break;
+                    case O_SUB: v->u.addr.val = v1->u.addr.val - v2->u.addr.val;break;
+                    case O_AND: v->u.addr.val = v1->u.addr.val & v2->u.addr.val;break;
+                    case O_OR: v->u.addr.val = v1->u.addr.val | v2->u.addr.val;break;
+                    case O_XOR: v->u.addr.val = v1->u.addr.val ^ v2->u.addr.val;break;
+                    default:break;
+                    }
+                    v->u.addr.len = 8*sizeof(address_t);
+                    v->type = t1;
+                    v->u.addr.type = v1->u.addr.type;
+                    return;
+                }
+                break;
             case O_EQ: v->type = T_BOOL; v->u.num.val = (v1->u.addr.type == v2->u.addr.type) && (v1->u.addr.val == v2->u.addr.val); return;
             case O_NEQ: v->type = T_BOOL; v->u.num.val = (v1->u.addr.type != v2->u.addr.type) || (v1->u.addr.val != v2->u.addr.val); return;
             default:break;
@@ -2898,12 +2952,14 @@ strretr:
         if (type_is_num(t2)) {
             switch (op) {
             case O_ADD: 
+                if (check_addr(v1->u.addr.type)) break;
                 v->u.addr.val = v1->u.addr.val + to_ival(v2);
                 v->u.addr.len = v1->u.addr.len;
                 v->type = t1;
                 v->u.addr.type = v1->u.addr.type;
                 return;
             case O_SUB: 
+                if (check_addr(v1->u.addr.type)) break;
                 v->u.addr.val = v1->u.addr.val - to_ival(v2);
                 v->u.addr.len = v1->u.addr.len;
                 v->type = t1;
