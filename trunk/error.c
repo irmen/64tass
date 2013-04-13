@@ -22,6 +22,7 @@
 #include <errno.h>
 #include "misc.h"
 #include "values.h"
+#include "file.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -34,22 +35,24 @@ static struct {
     size_t p;
     size_t len;
     struct {
-        line_t line;
-        const char *name;
+        line_t sline;
+        linepos_t epoint;
+        const struct file_s *file;
     } *data;
-} file_list = {0,0,NULL};
+} file_list = {0,0,NULL}, included_from = {0,0,NULL};
 
 static struct error_s error_list = {0,0,0,NULL};
 
-void enterfile(const char *name, line_t line) {
+void enterfile(const struct file_s *file, line_t line, linepos_t epoint) {
 
     if (file_list.p >= file_list.len) {
         file_list.len += 16;
         file_list.data = realloc(file_list.data, file_list.len * sizeof(*file_list.data));
         if (!file_list.data) {fputs("Out of memory\n", stderr);exit(1);}
     }
-    file_list.data[file_list.p].name=name;
-    file_list.data[file_list.p].line=line;
+    file_list.data[file_list.p].file = file;
+    file_list.data[file_list.p].sline = line;
+    file_list.data[file_list.p].epoint = epoint;
     file_list.p++;
 }
 
@@ -76,18 +79,32 @@ static void addorigin(linepos_t lpoint2) {
     size_t i;
 
     if (file_list.p) {
-        adderror(file_list.data[file_list.p - 1].name);
-	sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline, lpoint2.pos - lpoint2.upos + 1); adderror(line);
+        if (file_list.p != included_from.p || memcmp(file_list.data, included_from.data, file_list.p * sizeof(*file_list.data))) {
+            included_from.p = file_list.p;
+            if (file_list.p >= included_from.len) {
+                included_from.len = file_list.p;
+                included_from.data = realloc(included_from.data, included_from.len * sizeof(*included_from.data));
+                if (!included_from.data) {fputs("Out of memory\n", stderr);exit(1);}
+            }
+            memcpy(included_from.data, file_list.data, file_list.p * sizeof(*file_list.data));
+            for (i = file_list.p; i > 1; i--) {
+                adderror( (i == file_list.p) ? "In file included from " : "                      ");
+                adderror(file_list.data[i - 2].file->realname);
+                sprintf(line,":%" PRIuline ":%" PRIlinepos, file_list.data[i - 1].sline, file_list.data[i - 1].epoint.pos - file_list.data[i - 1].epoint.upos + 1);
+                adderror(line);
+                adderror((i > 2) ? ",\n" : ":\n");
+            }
+        }
+        if (file_list.data[file_list.p - 1].file->realname[0]) {
+            adderror(file_list.data[file_list.p - 1].file->realname);
+        } else {
+            adderror("<command line>");
+        }
     } else {
-        adderror("<command line>:0:0: ");
+        adderror("<command line>");
     }
-
-    for (i = file_list.p; i > 1; i--) {
-        adderror("(");
-        adderror(file_list.data[i - 2].name);
-        sprintf(line,":%" PRIuline ") ", file_list.data[i - 1].line);
-        adderror(line);
-    }
+    sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline, lpoint2.pos - lpoint2.upos + 1); 
+    adderror(line);
 }
 
 static const char *terr_warning[]={
@@ -165,7 +182,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
             sprintf(line,"branch too far by %+d bytes", *(const int *)prm); adderror(line);
             conderrors++; break;
         case ERROR__BRANCH_CROSS:
-            adderror("Branch crosses page");
+            adderror("branch crosses page");
             conderrors++; break;
         case ERROR__USER_DEFINED:
             adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->len);
@@ -431,10 +448,10 @@ void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, 
     adderror("'\n");
     if (file[0]) {
         adderror(file);
-	sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline2, epoint.pos - epoint.upos + 1); adderror(line);
     } else {
-        adderror("<command line>:0:0: ");
+        adderror("<command line>");
     }
+    sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline2, epoint.pos - epoint.upos + 1); adderror(line);
     adderror("note: previous definition of '");
     adderror2(name->data, name->len);
     adderror("' was here\n");
@@ -561,10 +578,12 @@ void freeerrorlist(int print) {
         fwrite(error_list.data, error_list.len, 1, stderr);
     }
     error_list.len = 0;
+    included_from.p = 0;
 }
 
 void err_destroy(void) {
     free(file_list.data);
+    free(included_from.data);
     free(error_list.data);
 }
 

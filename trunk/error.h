@@ -20,6 +20,7 @@
 #include "inttypes.h"
 
 struct value_s;
+struct file_s;
 enum oper_e;
 
 struct error_s {
@@ -101,7 +102,7 @@ extern void err_msg_conflicts(const str_t *name, linepos_t epoint);
 extern void err_msg_variable(struct error_s *, struct value_s *, int);
 extern void err_msg_file(enum errors_e, const char*);
 extern void freeerrorlist(int);
-extern void enterfile(const char*, line_t);
+extern void enterfile(const struct file_s *, line_t, linepos_t);
 extern void exitfile(void);
 extern void err_destroy(void);
 extern void err_msg_out_of_memory(void);

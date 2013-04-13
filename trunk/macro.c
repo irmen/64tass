@@ -174,7 +174,7 @@ static size_t macro_param_find(void) {
     return npoint2.pos - opoint2.pos;
 }
 
-void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) {
+void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint) {
     if (macro_parameters.p>100) {
         err_msg(ERROR__MACRECURSION,"!!!!");
         return;
@@ -245,7 +245,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context)
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        enterfile(tmp2->u.macro.file->realname, sline);
+        enterfile(tmp2->u.macro.file, sline, epoint);
         sline = tmp2->u.macro.sline;
         new_waitfor(t, (linepos_t){0,0});
         f = tmp2->u.macro.file;
@@ -263,13 +263,13 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context)
     if (macro_parameters.p) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
 }
 
-void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) {
+void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint) {
     size_t i;
     int w;
     struct label_s *label;
     struct value_s *val;
     int fin = 0;
-    linepos_t epoint;
+    linepos_t epoint2;
 
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
@@ -279,7 +279,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) 
             if (here()==',' || !here() || here()==';') {
                 val = tmp2->u.func.param[i].init;
             } else if (get_exp(&w,4)) {
-                if (!(val = get_val(T_IDENTREF, &epoint))) {
+                if (!(val = get_val(T_IDENTREF, &epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = tmp2->u.func.param[i].init;
                 }
@@ -288,7 +288,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) 
         } else {
             if (fin > 1) {err_msg(ERROR______EXPECTED,","); val = &none_value;}
             else if (get_exp(&w,4)) {
-                if (!(val = get_val(T_IDENTREF, &epoint))) {
+                if (!(val = get_val(T_IDENTREF, &epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = &none_value;
                 }
@@ -299,7 +299,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) 
         else label = new_label(&tmp2->u.func.param[i].name, context, L_CONST, &labelexists);
         label->ref=0;
         if (labelexists) {
-            if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, epoint);
+            if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, epoint2);
             else {
                 label->requires=current_section->requires;
                 label->conflicts=current_section->conflicts;
@@ -333,7 +333,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context) 
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        enterfile(tmp2->u.func.file->realname, sline);
+        enterfile(tmp2->u.func.file, sline, epoint);
         sline = tmp2->u.func.sline;
         new_waitfor(t, (linepos_t){0,0});
         f = tmp2->u.func.file;
@@ -479,7 +479,7 @@ void get_macro_params(struct value_s *v) {
     free(epoints);
 }
 
-struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, unsigned int args) {
+struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, unsigned int args, linepos_t epoint) {
     size_t i;
     struct label_s *label;
     struct value_s *val;
@@ -492,7 +492,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     rlabel.parent = tmp2->u.func.context;
     init_section2(&rsection);
 
-    enterfile(tmp2->u.func.file->realname, sline);
+    enterfile(tmp2->u.func.file, sline, epoint);
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
         val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
