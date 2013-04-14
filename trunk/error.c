@@ -152,6 +152,11 @@ static const char *terr_fatal[]={
     "too many errors\n"
 };
 
+static void inc_errors(void) {
+    if (!errors) conderrors = warnings = error_list.len = 0;
+    errors++;
+}
+
 void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
     char line[linelength];
 
@@ -159,6 +164,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
     if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
 
     if (!arguments.warning && no<0x40) {
+        if (errors) return;
         warnings++;
         return;
     }
@@ -166,12 +172,26 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
     addorigin(lpoint2);
 
     if (no<0x40) {
+        if (errors) return;
         adderror("warning: ");
         warnings++;
         if (no == ERROR_WUSER_DEFINED) adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->len);
         else adderror(terr_warning[no]);
     }
     else if (no<0x80) {
+        if (errors) {
+            switch (no) {
+            case ERROR____PAGE_ERROR:
+            case ERROR_BRANCH_TOOFAR:
+            case ERROR__BRANCH_CROSS:
+            case ERROR__USER_DEFINED:
+            case ERROR___UNKNOWN_CHR:
+            case ERROR_CANT_CROSS_BA:
+            case ERROR_OUTOF_SECTION:
+            case ERROR_CONSTNT_LARGE: return;
+            default: break;
+            }
+        }
         adderror("error: ");
         switch (no) {
         case ERROR____PAGE_ERROR:
@@ -196,7 +216,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
                 case ERROR_CANT_CROSS_BA:
                 case ERROR_OUTOF_SECTION:
                 case ERROR_CONSTNT_LARGE: conderrors++;break;
-                default: errors++;
+                default: inc_errors();
                 }
                 adderror(line);
         }
@@ -205,7 +225,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
         adderror("fatal error: ");
         snprintf(line, linelength, terr_fatal[no & 63], (const char *)prm);
         adderror(line);
-        errors++;
+        if (no == ERROR__TOO_MANY_ERR) errors++; else inc_errors();
         status();exit(1);
     }
     adderror("\n");
@@ -259,7 +279,7 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
         adderror2(name->data, name->len);
         adderror("'\n");
     } else adderror("\n");
-    errors++;
+    inc_errors();
     return;
 }
 
@@ -455,7 +475,7 @@ void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, 
     adderror("note: previous definition of '");
     adderror2(name->data, name->len);
     adderror("' was here\n");
-    errors++;
+    inc_errors();
 }
 
 static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
@@ -604,7 +624,7 @@ void err_msg_file(enum errors_e no, const char* prm) {
     error = strerror(errno);
     adderror(error);
     adderror("\n");
-    errors++;
+    inc_errors();
     status();exit(1);
 }
 
