@@ -2814,9 +2814,9 @@ struct value_s *compile(struct file_s *cfile)
 
                                     if (w==3) w = ln - 1;
                                     else if (w != ln - 1) w = 3;
-                                    if (val->type != T_NONE) {
-                                        if (!w && ln == 1 && (val->u.addr.len <= 8 || !(adr & ~(address_t)0xff))) {}
-                                        else if (w == 1 && ln == 2 && (val->u.addr.len <= 16 || !(adr & ~(address_t)0xffff))) {}
+                                    if (d) {
+                                        if (!w && ln == 1 && (adr <= 0xff || val->u.addr.len <= 8)) {}
+                                        else if (w == 1 && ln == 2 && (adr <= 0xffff || val->u.addr.len <= 16)) {}
                                         else w = 3;
                                     }
                                 }
@@ -2827,11 +2827,11 @@ struct value_s *compile(struct file_s *cfile)
                             case A_YR: /* lda $ff,y lda $ffff,y lda $ffffff,y */
                                 if (w==3) {/* auto length */
                                     if (d) {
-                                        if (cnmemonic[ADR_ZP_Y]!=____ && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) {adr = (uint16_t)(adr - dpage);w = 0;}
-                                        else if (databank==(adr >> 16)) {w = 1;}
+                                        if (cnmemonic[ADR_ZP_Y]!=____ && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) {adr = (uint16_t)(adr - dpage);w = 0;}
+                                        else if (databank == (adr >> 16)) {w = 1;}
                                     } else w=(cnmemonic[ADR_ADDR_Y]!=____);
                                 } else if (d) {
-                                        if (!w && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) adr = (uint16_t)(adr - dpage);
+                                        if (!w && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) adr = (uint16_t)(adr - dpage);
                                         else if (w == 1 && databank == (adr >> 16)) {}
                                         else w=3;
                                 } else if (w > 1) w = 3;
@@ -2888,29 +2888,29 @@ struct value_s *compile(struct file_s *cfile)
                                 struct value_s *val2;
                                 if (w==3) {/* auto length */
                                     if (d) {
-                                        if (!((uval_t)val->u.num.val & ~(uval_t)0xff)) {adr = (uval_t)val->u.num.val << 8; w = 0;}
+                                        if (adr <= 0xff) {adr <<= 8; w = 0;}
                                     } else w = 0;
                                 } else if (d) {
-                                    if (!w && (!((uval_t)val->u.num.val & ~(uval_t)0xff))) adr = (uval_t)val->u.num.val << 8;
+                                    if (!w && adr <= 0xff) adr <<= 8;
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no mvp $ffff or mvp $ffffff */
                                 if ((val2 = get_val(T_UINT, &epoint2))) {
                                     if (val2 == &error_value) d = 0;
-                                    else if (val->type == T_NONE) {
+                                    else if (val2->type == T_NONE) {
                                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                                         d = fixeddig = 0;
                                     }
-                                    if (!((uval_t)val2->u.num.val & ~(uval_t)0xff)) {adr |= (uint8_t)val2->u.num.val;}
+                                    if ((uval_t)val2->u.num.val <= 0xff) {adr |= (uint8_t)val2->u.num.val;}
                                     else w = 3;
                                 } else err_msg(ERROR_ILLEGAL_OPERA,NULL);
                                 ln = 2; opr=ADR_MOVE;
                             } else if (cnmemonic[ADR_BIT_ZP]!=____) {
                                 if (w==3) {/* auto length */
                                     if (d) {
-                                        if (!((uval_t)val->u.num.val & ~(uval_t)7)) {longbranch = (uval_t)val->u.num.val << 4; w = 0;}
+                                        if (adr <= 7) {longbranch = adr << 4; w = 0;}
                                     } else w = 0;
                                 } else if (d) {
-                                    if (!w && (!((uval_t)val->u.num.val & ~(uval_t)7))) longbranch = (uval_t)val->u.num.val << 4;
+                                    if (!w && adr <= 7) longbranch = adr << 4;
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
                                 if (w != 3) {
@@ -2926,10 +2926,10 @@ struct value_s *compile(struct file_s *cfile)
                             } else if (cnmemonic[ADR_BIT_ZP_REL]!=____) {
                                 if (w==3) {/* auto length */
                                     if (d) {
-                                        if (!((uval_t)val->u.num.val & ~(uval_t)7)) {longbranch = (uval_t)val->u.num.val << 4; w = 0;}
+                                        if (adr <= 7) {longbranch = adr << 4; w = 0;}
                                     } else w = 0;
                                 } else if (d) {
-                                    if (!w && (!((uval_t)val->u.num.val & ~(uval_t)7))) longbranch = (uval_t)val->u.num.val << 4;
+                                    if (!w && adr <= 7) longbranch = adr << 4;
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
                                 if (w != 3) {
@@ -2942,10 +2942,10 @@ struct value_s *compile(struct file_s *cfile)
                                     adr = val->u.num.val;
                                     w = 3;
                                     if (d) {
-                                        if (!((uval_t)val->u.num.val & ~(uval_t)0xffff) && (uint16_t)(val->u.num.val - dpage) < 0x100) {adr = (uint16_t)(val->u.num.val - dpage);w = 0;}
+                                        if (adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) {adr = (uint16_t)(adr - dpage);w = 0;}
                                     } else w = 1;
                                     if (w != 3) {
-                                        uint32_t adr2=0;
+                                        uint32_t adr2;
                                         if (!(val = get_val(T_UINT, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                         if (val == &error_value) d = 0;
                                         else if (val->type == T_NONE) {
@@ -2958,8 +2958,8 @@ struct value_s *compile(struct file_s *cfile)
                                             if (((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff) {
                                                 err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
                                             } else {
-                                                adr2=(uint16_t)(adr2 - current_section->l_address - 3);
-                                                if (adr2>=0xFF80 || adr2<=0x007F) {
+                                                adr2 = (uint16_t)(adr2 - current_section->l_address - 3);
+                                                if (adr2 >= 0xFF80 || adr2 <= 0x007F) {
                                                     adr |= ((uint8_t)adr2) << 8; w = 1;
                                                 } else {
                                                     int dist = (int16_t)adr2;
@@ -3072,12 +3072,12 @@ struct value_s *compile(struct file_s *cfile)
                             else if (cnmemonic[ADR_REL_L]!=____) {
                                 if (w==3) {
                                     if (d) {
-                                        if (!(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {
-                                            adr = (uint16_t)(val->u.num.val-current_section->l_address-3); w = 1;
+                                        if ((current_section->l_address ^ adr) <= 0xffff) {
+                                            adr = (uint16_t)(adr - current_section->l_address - 3); w = 1;
                                         } else {if (d) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;}
                                     } else w = 1;
                                 } else if (d) {
-                                    if (w == 1 && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) adr = (uint16_t)(val->u.num.val-current_section->l_address-3);
+                                    if (w == 1 && (current_section->l_address ^ adr) <= 0xffff) adr = (uint16_t)(adr - current_section->l_address - 3);
                                     else w = 3; /* there's no brl $ffffff! */
                                 } else if (w != 1) w = 3;
                                 opr=ADR_REL_L; ln = 2; /* brl */
@@ -3085,21 +3085,18 @@ struct value_s *compile(struct file_s *cfile)
                             else if (cnmemonic[ADR_LONG]==0x5C) {
                                 if (w==3) {/* auto length */
                                     if (d) {
-                                        if (cnmemonic[ADR_ADDR]!=____ && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {adr = (uval_t)val->u.num.val;w = 1;}
-                                        else if (!((uval_t)val->u.num.val & ~(uval_t)0xffffff)) {adr = (uval_t)val->u.num.val; w = 2;}
+                                        if (cnmemonic[ADR_ADDR]!=____ && (current_section->l_address ^ adr) <= 0xffff) w = 1;
+                                        else if (adr <= 0xffffff) w = 2;
                                     } else w = (cnmemonic[ADR_ADDR]==____) + 1;
                                 } else if (d) {
-                                    if (w == 1 && !(((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) adr = (uval_t)val->u.num.val;
-                                    else if (w == 2 && !((uval_t)val->u.num.val & ~(uval_t)0xffffff)) adr = (uval_t)val->u.num.val;
+                                    if (w == 1 && (current_section->l_address ^ adr) <= 0xffff) {}
+                                    else if (w == 2 && adr <= 0xffffff) {}
                                     else w = 3;
                                 }
                                 opr=ADR_ZP-w;ln=w+1; /* jml */
                             }
                             else if (cnmemonic[ADR_ADDR]==0x20) {
-                                if ((((uval_t)current_section->l_address ^ (uval_t)val->u.num.val) & ~(uval_t)0xffff)) {
-                                    if (d) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);w = 1;
-                                } else adrgen = AG_PB;
-                                opr=ADR_ADDR; ln = 2; /* jsr $ffff */
+                                adrgen = AG_PB; opr=ADR_ADDR; /* jsr $ffff */
                             } else {
                                 adrgen = AG_DB3; opr=ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
                             }
@@ -3108,45 +3105,35 @@ struct value_s *compile(struct file_s *cfile)
                     }
                     switch (adrgen) {
                     case AG_ZP: /* zero page address only */
-                        if (w==3) {/* auto length */
-                            if (d) {
-                                if (!(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) {adr = (uint16_t)(adr - dpage);w = 0;}
-                            } else w = 0;
-                        } else if (d) {
-                            if (!w && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) adr = (uint16_t)(adr - dpage);
-                            else w=3; /* there's no $ffff] or $ffffff! */
+                        if (w == 3) w = 0;/* auto length */
+                        if (d) {
+                            if (!w && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) {adr = (uint16_t)(adr - dpage);w = 0;}
+                            else w=3; /* there's no $ffff or $ffffff! */
                         } else if (w) w = 3;
                         ln = 1;
                         break;
                     case AG_B0: /* bank 0 address only */
-                        if (w==3) {
-                            if (d) {
-                                if (!(adr & ~(address_t)0xffff)) {adr = (uint16_t)adr; w = 1;}
-                            } else w = 1;
-                        } else if (d) {
-                            if (w == 1 && !(adr & ~(address_t)0xffff)) adr = (uint16_t)adr;
+                        if (w==3) w = 1;/* auto length */
+                        if (d) {
+                            if (w == 1 && adr <= 0xffff) {}
                             else w=3; /* there's no jmp $ffffff! */
                         } else if (w != 1) w = 3;
                         ln = 2;
                         break;
                     case AG_PB: /* address in program bank */
-                        if (w==3) {
-                            if (d) {
-                                if (!((current_section->l_address ^ adr) & ~(address_t)0xffff)) {adr = (uint16_t)adr; w = 1;}
-                            } else w = 1;
-                        } else if (d) {
-                            if (w == 1 && !((current_section->l_address ^ adr) & ~(address_t)0xffff)) adr = (uint16_t)adr;
-                            else w = 3; /* there's no jsr ($ffff,x)! */
+                        if (w==3) w = 1;/* auto length */
+                        if (d) {
+                            if (w == 1) { 
+                                if ((current_section->l_address ^ adr) <= 0xffff) adr = (uint16_t)adr;
+                                else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                            } else w = 3; /* there's no jsr ($ffff,x)! */
                         } else if (w != 1) w = 3;
                         ln = 2;
                         break;
                     case AG_BYTE: /* byte only */
-                        if (w==3) {/* auto length */
-                            if (d) {
-                                if (!(adr & ~(address_t)0xff)) {w = 0;}
-                            } else w = 0;
-                        } else if (d) {
-                            if (!w && !(adr & ~(address_t)0xff)) {}
+                        if (w==3) w = 0;/* auto length */
+                        if (d) {
+                            if (!w && adr <= 0xff) {}
                             else w = 3;
                         } else if (w) w = 3; /* there's no lda ($ffffff,s),y or lda ($ffff,s),y! */
                         ln = 1;
@@ -3154,14 +3141,14 @@ struct value_s *compile(struct file_s *cfile)
                     case AG_DB3: /* 3 choice data bank */
                         if (w==3) {/* auto length */
                             if (d) {
-                                if (cnmemonic[opr]!=____ && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) {adr = (uint16_t)(adr - dpage);w = 0;}
-                                else if (cnmemonic[opr - 1] != ____ && databank == (adr >> 16)) {w = 1;}
-                                else if (!(adr & ~(address_t)0xffffff)) {w = 2;}
+                                if (cnmemonic[opr]!=____ && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) {adr = (uint16_t)(adr - dpage);w = 0;}
+                                else if (cnmemonic[opr - 1] != ____ && databank == (adr >> 16)) w = 1;
+                                else if (adr <= 0xffffff) w = 2;
                             } else w=(cnmemonic[opr - 1]!=____);
                         } else if (d) {
-                            if (!w && !(adr & ~(address_t)0xffff) && (uint16_t)(adr - dpage) < 0x100) adr = (uint16_t)(adr - dpage);
+                            if (!w && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) adr = (uint16_t)(adr - dpage);
                             else if (w == 1 && databank == (adr >> 16)) {}
-                            else if (w == 2 && !(adr & ~(address_t)0xffffff)) {}
+                            else if (w == 2 && adr <= 0xffffff) {}
                             else w = 3;
                         }
                         opr -= w;ln = w + 1;
