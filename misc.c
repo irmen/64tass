@@ -198,18 +198,16 @@ void tinit(void) {
     init_eval();
 }
 
-void labelprint(void) {
+static void labelname_print(const struct label_s *l, FILE *flab) {
+    if (l->parent->parent) labelname_print(l->parent, flab);
+    fputc('.', flab);
+    fwrite(l->name.data, l->name.len, 1, flab);
+}
+
+static void labelprint2(const struct avltree *members, FILE *flab) {
     const struct avltree_node *n;
     const struct label_s *l;
-    FILE *flab;
-
-    if (arguments.label[0] == '-' && !arguments.label[1]) {
-        flab = stdout;
-    } else {
-        if (!(flab=file_open(arguments.label,"wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
-    }
-    clearerr(flab);
-    n = avltree_first(&root_label.members);
+    n = avltree_first(members);
     while (n) {
         l = cavltree_container_of(n, struct label_s, node);            /* already exists */
         n = avltree_next(n);
@@ -217,7 +215,6 @@ void labelprint(void) {
             if (l->name.data[0]=='-' || l->name.data[0]=='+') continue;
             if (l->name.data[0]=='.' || l->name.data[0]=='#') continue;
         }
-        if (l->usepass < pass) continue;
         switch (l->value->type) {
         case T_LBL:
         case T_MACRO:
@@ -226,19 +223,72 @@ void labelprint(void) {
         case T_STRUCT: continue;
         default:break;
         }
-        switch (l->type) {
-        case L_VAR:
-            fwrite(l->name.data, l->name.len, 1, flab);
-            if (l->name.len < 15) fputs("               " + l->name.len, flab);
-            fputs(" .var ", flab);break;
-        default: 
-            fwrite(l->name.data, l->name.len, 1, flab);
-            if (l->name.len < 16) fputs("                " + l->name.len, flab);
-            fputs("= ", flab);break;
+        if (0) { /* for future use with VICE */
+            if (l->value->type == T_CODE) {
+                fprintf(flab, "al %x ", l->value->u.code.addr);
+                labelname_print(l, flab);
+                switch ((enum dtype_e)l->value->u.code.dtype) {
+                case D_CHAR:
+                case D_BYTE: 
+                    fputs(" byte", flab);
+                    if (l->value->u.code.size > 1) {
+                        fprintf(flab, " %x", l->value->u.code.size);
+                    }
+                    break;
+                case D_INT:
+                case D_WORD: 
+                    fputs(" word", flab);
+                    if (l->value->u.code.size > 2) {
+                        fprintf(flab, " %x", l->value->u.code.size);
+                    }
+                    break;
+                case D_LINT:
+                case D_LONG:
+                    fputs(" long", flab);
+                    if (l->value->u.code.size > 3) {
+                        fprintf(flab, " %x", l->value->u.code.size);
+                    }
+                    break;
+                case D_DINT:
+                case D_DWORD:
+                    fputs(" dword", flab);
+                    if (l->value->u.code.size > 4) {
+                        fprintf(flab, " %x", l->value->u.code.size);
+                    }
+                    break;
+                case D_NONE:
+                    break;
+                }
+                putc('\n', flab);
+            }
+            labelprint2(&l->members, flab);
+        } else {
+            switch (l->type) {
+            case L_VAR:
+                fwrite(l->name.data, l->name.len, 1, flab);
+                if (l->name.len < 15) fputs("               " + l->name.len, flab);
+                fputs(" .var ", flab);break;
+            default: 
+                fwrite(l->name.data, l->name.len, 1, flab);
+                if (l->name.len < 16) fputs("                " + l->name.len, flab);
+                fputs("= ", flab);break;
+            }
+            val_print(l->value, flab);
+            putc('\n', flab);
         }
-        val_print(l->value, flab);
-        putc('\n', flab);
     }
+}
+
+void labelprint(void) {
+    FILE *flab;
+
+    if (arguments.label[0] == '-' && !arguments.label[1]) {
+        flab = stdout;
+    } else {
+        if (!(flab=file_open(arguments.label,"wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
+    }
+    clearerr(flab);
+    labelprint2(&root_label.members, flab);
     if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
     if (flab != stdout) fclose(flab);
 }
