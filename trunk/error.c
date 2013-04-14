@@ -179,53 +179,47 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
         else adderror(terr_warning[no]);
     }
     else if (no<0x80) {
-        if (errors) {
-            switch (no) {
-            case ERROR____PAGE_ERROR:
-            case ERROR_BRANCH_TOOFAR:
-            case ERROR__BRANCH_CROSS:
-            case ERROR__USER_DEFINED:
-            case ERROR___UNKNOWN_CHR:
-            case ERROR_CANT_CROSS_BA:
-            case ERROR_OUTOF_SECTION:
-            case ERROR_CONSTNT_LARGE: return;
-            default: break;
-            }
+        switch (no) {
+        case ERROR____PAGE_ERROR:
+        case ERROR_BRANCH_TOOFAR:
+        case ERROR__BRANCH_CROSS:
+        case ERROR__USER_DEFINED:
+        case ERROR___UNKNOWN_CHR:
+        case ERROR_CANT_CROSS_BA:
+        case ERROR_OUTOF_SECTION:
+        case ERROR_CONSTNT_LARGE:
+            if (errors) return; 
+            conderrors++;break;
+        default: inc_errors();
         }
         adderror("error: ");
         switch (no) {
         case ERROR____PAGE_ERROR:
             adderror("page error at $");
             sprintf(line,"%06" PRIaddress, *(const address_t *)prm); adderror(line);
-            conderrors++; break;
+            break;
         case ERROR_BRANCH_TOOFAR:
             sprintf(line,"branch too far by %+d bytes", *(const int *)prm); adderror(line);
-            conderrors++; break;
+            break;
         case ERROR__BRANCH_CROSS:
             adderror("branch crosses page");
-            conderrors++; break;
+            break;
         case ERROR__USER_DEFINED:
             adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->len);
-            conderrors++; break;
+            break;
         case ERROR___UNKNOWN_CHR:
             sprintf(line,"can't encode character $%02x", *(const uint32_t *)prm); adderror(line);
-            conderrors++; break;
+            break;
         default:
                 snprintf(line,linelength,terr_error[no & 63], (const char *)prm);
-                switch (no) {
-                case ERROR_CANT_CROSS_BA:
-                case ERROR_OUTOF_SECTION:
-                case ERROR_CONSTNT_LARGE: conderrors++;break;
-                default: inc_errors();
-                }
                 adderror(line);
         }
     }
     else {
+        if (no == ERROR__TOO_MANY_ERR) errors++; else inc_errors();
         adderror("fatal error: ");
         snprintf(line, linelength, terr_fatal[no & 63], (const char *)prm);
         adderror(line);
-        if (no == ERROR__TOO_MANY_ERR) errors++; else inc_errors();
         status();exit(1);
     }
     adderror("\n");
@@ -272,6 +266,7 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
         err_msg(ERROR__TOO_MANY_ERR, NULL);
         return;
     }
+    inc_errors();
     addorigin(epoint);
     adderror(msg);
     if (name) {
@@ -279,7 +274,6 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
         adderror2(name->data, name->len);
         adderror("'\n");
     } else adderror("\n");
-    inc_errors();
     return;
 }
 
@@ -462,6 +456,7 @@ void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, 
         return;
     }
 
+    inc_errors();
     addorigin(epoint2);
     adderror("error: duplicate definition '");
     adderror2(labelname2->data, labelname2->len);
@@ -475,7 +470,6 @@ void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, 
     adderror("note: previous definition of '");
     adderror2(name->data, name->len);
     adderror("' was here\n");
-    inc_errors();
 }
 
 static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
@@ -616,6 +610,7 @@ void err_msg_out_of_memory(void)
 
 void err_msg_file(enum errors_e no, const char* prm) {
     char *error;
+    inc_errors();
     addorigin(lpoint);
     adderror("fatal error: ");
     adderror(terr_fatal[no & 63]);
@@ -624,7 +619,6 @@ void err_msg_file(enum errors_e no, const char* prm) {
     error = strerror(errno);
     adderror(error);
     adderror("\n");
-    inc_errors();
     status();exit(1);
 }
 
