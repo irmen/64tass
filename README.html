@@ -273,7 +273,7 @@ exponent. The following operations can be used on them:</p>
 <caption>Floating point operators and functions</caption>
 <tr><td width="80">x + y<td>add x to y<td><code><span>2.2</span> + <span>2.2</span></code> is <code><span>4.4</span></code>
 <tr><td>x - y<td>substract y from x<td><code><span>4.1</span> - <span>1.1</span></code> is <code><span>3.0</span></code>
-<tr><td>x * y<td>multiply x with y<td><code><span>1.5</span> <span>* 3</span></code> is <code><span>4.5</span></code>
+<tr><td>x * y<td>multiply x with y<td><code><span>1.5</span> * <span>3</span></code> is <code><span>4.5</span></code>
 <tr><td>x / y<td>integer divide x by y<td><code><span>7.0</span> / <span>2.0</span></code> is <code><span>3.5</span></code>
 <tr><td>x % y<td>integer modulo of x divided by y<td><code><span>5.0</span> % <span>2.0</span></code> is <code><span>1.0</span></code>
 <tr><td>x ** y<td>x raised t power of y<td><code><span>2.0</span> ** <span>-1</span></code> is <code><span>0.5</span></code>
@@ -562,7 +562,7 @@ copied into the code, with the internal references.
 </p>
 <pre>
 	<b>bne</b> +
-	#somemakro      <i>;let's hope that this segment does</i>
+        <b class="k">#somemakro</b>      <i>;let's hope that this segment does</i>
 +	<b>nop</b>             <i>;not contain forward references...</i>
 </pre>
 
@@ -1102,9 +1102,9 @@ name    <b class="k">.segment</b>
 	<b class="k">.endm</b>
 
         <b>lda</b> #<span>1</span>
-	#name           <i>;call macro</i>
-        #fill <span>$400</span>, <span>$500</span>
-        #fill <span>$500</span>, <span>$600</span>
+        <b class="k">#name</b>           <i>;call macro</i>
+        <b class="k">#fill</b> <span>$400</span>, <span>$500</span>
+        <b class="k">#fill</b> <span>$500</span>, <span>$600</span>
 </pre>
 
 <h4>Parameter references</h4>
@@ -1115,7 +1115,7 @@ name	<b class="k">.macro</b>
 	<b>lda</b> #\1 	<i>;first parameter 23+1</i>
 	<b class="k">.endm</b>
 
-        #name <span>23</span>+<span>1</span>	<i>;call macro</i>
+        <b class="k">#name</b> <span>23</span>+<span>1</span>	<i>;call macro</i>
 </pre>
 
 <p>Parameters can be named, and it's possible to set a default value after an
@@ -1132,7 +1132,7 @@ name	<b class="k">.macro</b> first,b=<span>2</span>,,last
         <b>lda</b> #\last 	<i>;fourth parameter</i>
 	<b class="k">.endm</b>
 
-        #name <span>1</span>, , <span>3</span>, <span>4</span>	<i>;call macro</i>
+        <b class="k">#name</b> <span>1</span>, , <span>3</span>, <span>4</span>	<i>;call macro</i>
 </pre>
 
 <h4>Text references</h4>
@@ -1147,7 +1147,7 @@ name    <b class="k">.macro</b>
         <b class="d">.null</b> <span class="s">"Hello <span>@1</span>!"</span><i>;first parameter</i>
 	<b class="k">.endm</b>
 
-        #name <span class="s">"wth?"</span>	<i>;call macro</i>
+        <b class="k">#name</b> <span class="s">"wth?"</span>	<i>;call macro</i>
 </pre>
 
 <h3>Custom functions</h3>
