@@ -18,10 +18,21 @@
 #ifndef _ERROR_H_
 #define _ERROR_H_
 #include "inttypes.h"
+#include "libtree.h"
 
 struct value_s;
 struct file_s;
+struct label_s;
 enum oper_e;
+
+struct file_list_s {
+    line_t sline;
+    linepos_t epoint;
+    struct file_s *file;
+    struct avltree_node node;
+    struct file_list_s *parent;
+    struct avltree members;
+};
 
 struct error_s {
     size_t max;
@@ -95,15 +106,17 @@ extern void err_msg_wrong_type(const struct value_s *, linepos_t);
 extern void err_msg_cant_calculate(const str_t *name, linepos_t epoint);
 extern void err_msg_invalid_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
 extern void err_msg_strange_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
-extern void err_msg_double_defined(const str_t *, const char *, line_t, linepos_t, const str_t *, linepos_t);
+extern void err_msg_double_defined(const struct label_s *, const str_t *, linepos_t);
+extern void err_msg_shadow_defined(const struct label_s *, const struct label_s *);
 extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_requires(const str_t *name, linepos_t epoint);
 extern void err_msg_conflicts(const str_t *name, linepos_t epoint);
 extern void err_msg_variable(struct error_s *, struct value_s *, int);
 extern void err_msg_file(enum errors_e, const char*);
 extern void freeerrorlist(int);
-extern void enterfile(const struct file_s *, line_t, linepos_t);
+extern struct file_list_s *enterfile(struct file_s *, line_t, linepos_t);
 extern void exitfile(void);
+extern void err_init(void);
 extern void err_destroy(void);
 extern void err_msg_out_of_memory(void);
 extern void error_destroy(struct error_s *);

@@ -21,6 +21,7 @@
 #include "error.h"
 #include "misc.h"
 #include "values.h"
+#include "file.h"
 
 struct label_s root_label;
 struct label_s *current_context = &root_label;
@@ -128,6 +129,7 @@ struct label_s *new_label(const str_t *name, struct label_s *context, enum label
         lastlb->parent = context;
         lastlb->ref = 0;
         lastlb->nested = 0;
+        lastlb->shadowcheck = 0;
         avltree_init(&lastlb->members);
 	*exists = 0;
 	tmp = lastlb;
@@ -135,7 +137,46 @@ struct label_s *new_label(const str_t *name, struct label_s *context, enum label
 	return tmp;
     }
     *exists = 1;
-    return avltree_container_of(b, struct label_s, node);            //already exists
+    return avltree_container_of(b, struct label_s, node);            /* already exists */
+}
+
+void shadow_check(const struct avltree *members) {
+    const struct avltree_node *n, *b;
+    const struct label_s *l, *c;
+
+    return; /* this works, but needs an option to enable */
+
+    n = avltree_first(members);
+    while (n) {
+        l = cavltree_container_of(n, struct label_s, node);            /* already exists */
+        shadow_check(&l->members);
+        n = avltree_next(n);
+        if (l->shadowcheck) {
+            c = l->parent->parent;
+            while (c) {
+                b = avltree_lookup(&l->node, &c->members, label_compare);
+                if (b) {
+                    const struct label_s *l2, *v1, *v2;
+                    int rec = 100;
+                    v1 = l2 = cavltree_container_of(b, struct label_s, node);
+                    while (v1->value->type == T_IDENTREF) {
+                        v1 = v1->value->u.identref;
+                        if (!rec--) break;
+                    }
+                    rec = 100; v2 = l;
+                    while (v2->value->type == T_IDENTREF) {
+                        v2 = v2->value->u.identref;
+                        if (!rec--) break;
+                    }
+                    if (v1 != v2 && !val_same(v1->value, v2->value)) {
+                        err_msg_shadow_defined(l2, l);
+                        break;
+                    }
+                }
+                c = c->parent;
+            }
+        }
+    }
 }
 
 void init_variables2(struct label_s *label) {

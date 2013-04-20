@@ -26,6 +26,7 @@
 #define MAX_PASS 20
 
 struct file_s;
+struct file_list_s;
 struct label_s;
 
 enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_X, WHAT_Y, WHAT_Z, WHAT_XZ, WHAT_R, WHAT_RZ,
@@ -76,7 +77,7 @@ extern uint16_t reffile;
 extern uint32_t backr, forwr;
 extern uint8_t pass, max_pass;
 extern void new_waitfor(enum wait_e, linepos_t);
-extern struct value_s *compile(struct file_s *);
+extern struct value_s *compile(struct file_list_s *);
 extern void var_assign(struct label_s *, struct value_s *, int);
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++

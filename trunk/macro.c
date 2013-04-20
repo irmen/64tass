@@ -227,10 +227,10 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context,
     if (t == W_ENDS) {
         struct label_s *oldcontext = current_context;
         current_context = context;
-        compile(tmp2->u.macro.file);
+        compile(tmp2->u.macro.file_list);
         current_context = oldcontext;
     } else {
-        size_t oldpos = tmp2->u.macro.file->p;
+        size_t oldpos;
         line_t lin = sline;
         struct file_s *f;
         int labelexists;
@@ -238,6 +238,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context,
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
         struct label_s *oldcontext = current_context;
+        struct file_list_s *cflist;
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, lpoint);
@@ -245,13 +246,13 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context,
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        enterfile(tmp2->u.macro.file, sline, epoint);
+        cflist = enterfile(tmp2->u.macro.file_list->file, sline, epoint);
         sline = tmp2->u.macro.sline;
         new_waitfor(t, (linepos_t){0,0});
-        f = tmp2->u.macro.file;
-        f->p = tmp2->u.macro.p;
+        f = cflist->file;
+        oldpos = f->p; f->p = tmp2->u.macro.p;
         current_context = context;
-        compile(f);
+        compile(cflist);
         current_context = oldcontext;star = s->addr;
         f->p = oldpos;
         exitfile();
@@ -299,7 +300,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, 
         else label = new_label(&tmp2->u.func.param[i].name, context, L_CONST, &labelexists);
         label->ref=0;
         if (labelexists) {
-            if (label->type != L_CONST || pass==1) err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, epoint2);
+            if (label->type != L_CONST || pass==1) err_msg_double_defined(label, &tmp2->u.func.param[i].name, epoint2);
             else {
                 label->requires=current_section->requires;
                 label->conflicts=current_section->conflicts;
@@ -311,14 +312,14 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, 
             label->usepass = pass;
             label->defpass = pass;
             label->value = val_reference(val);
-            label->file = tmp2->u.func.file;
+            label->file_list = tmp2->u.func.file_list;
             label->sline = tmp2->u.func.sline;
             label->epoint = tmp2->u.func.param[i].epoint;
         }
     }
     if (i == tmp2->u.func.argc && here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     {
-        size_t oldpos = tmp2->u.func.file->p;
+        size_t oldpos;
         line_t lin = sline;
         struct file_s *f;
         int labelexists;
@@ -326,6 +327,7 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, 
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
         struct label_s *oldcontext = current_context;
+        struct file_list_s *cflist;
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, lpoint);
@@ -333,13 +335,13 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, 
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        enterfile(tmp2->u.func.file, sline, epoint);
+        cflist = enterfile(tmp2->u.func.file_list->file, sline, epoint);
         sline = tmp2->u.func.sline;
         new_waitfor(t, (linepos_t){0,0});
-        f = tmp2->u.func.file;
-        f->p = tmp2->u.func.p;
+        f = cflist->file;
+        oldpos = f->p; f->p = tmp2->u.func.p;
         current_context = context;
-        val = compile(f);
+        val = compile(cflist);
         current_context = oldcontext;star = s->addr;
         if (val) val_destroy(val);
         f->p = oldpos;
@@ -375,7 +377,14 @@ void get_func_params(struct value_s *v) {
                     if (!str_casecmp(&new_value.u.func.param[j].name, &label)) break;
                 }
             }
-            if (j != i) err_msg_double_defined(&new_value.u.func.param[j].name, v->u.func.file->realname, v->u.func.sline, new_value.u.func.param[j].epoint, &label, new_value.u.func.param[i].epoint);
+            if (j != i) {
+                struct label_s tmp;
+                tmp.name = new_value.u.func.param[j].name;
+                tmp.file_list = v->u.func.file_list;
+                tmp.sline = v->u.func.sline;
+                tmp.epoint = new_value.u.func.param[j].epoint;
+                err_msg_double_defined(&tmp, &label, new_value.u.func.param[i].epoint);
+            }
         } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, new_value.u.func.param[i].epoint);break;}
         new_value.u.func.param[i].init = NULL;
         ignore();
@@ -444,7 +453,14 @@ void get_macro_params(struct value_s *v) {
                     if (!str_casecmp(&new_value.u.macro.param[j].name, &label)) break;
                 }
             }
-            if (j != i) err_msg_double_defined(&new_value.u.macro.param[j].name, v->u.macro.file->realname, v->u.macro.sline, epoints[j], &label, epoints[i]);
+            if (j != i) {
+                struct label_s tmp;
+                tmp.name = new_value.u.macro.param[j].name;
+                tmp.file_list = v->u.macro.file_list;
+                tmp.sline = v->u.macro.sline;
+                tmp.epoint = epoints[j];
+                err_msg_double_defined(&tmp, &label, epoints[i]);
+            }
         } else {new_value.u.macro.param[i].name.len = 0; new_value.u.macro.param[i].name.data = NULL;}
         ignore();
         if (here() == '=') {
@@ -488,11 +504,12 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     struct label_s *oldcontext = current_context;
     struct section_s rsection;
     struct section_s *oldsection = current_section;
+    struct file_list_s *cflist;
     init_variables2(&rlabel);
     rlabel.parent = tmp2->u.func.context;
     init_section2(&rsection);
 
-    enterfile(tmp2->u.func.file, sline, epoint);
+    cflist = enterfile(tmp2->u.func.file_list->file, sline, epoint);
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
         val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
@@ -502,7 +519,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
             if (label->type != L_CONST || pass==1) {
                 line_t oline = sline;
                 sline = tmp2->u.func.sline;
-                err_msg_double_defined(&label->name, label->file->realname, label->sline, label->epoint, &tmp2->u.func.param[i].name, tmp2->u.func.param[i].epoint);
+                err_msg_double_defined(label, &tmp2->u.func.param[i].name, tmp2->u.func.param[i].epoint);
                 sline = oline;
             }
             else {
@@ -516,13 +533,13 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
             label->usepass = pass;
             label->defpass = pass;
             label->value = val_reference(val);
-            label->file = tmp2->u.func.file;
+            label->file_list = tmp2->u.func.file_list;
             label->sline = tmp2->u.func.sline;
             label->epoint = tmp2->u.func.param[i].epoint;
         }
     }
     {
-        size_t oldpos = tmp2->u.func.file->p;
+        size_t oldpos;
         line_t lin = sline;
         struct file_s *f;
         int labelexists;
@@ -541,13 +558,13 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         star_tree = &s->tree;vline=0;
         sline = tmp2->u.func.sline;
         new_waitfor(W_ENDF2, (linepos_t){0,0});
-        f = tmp2->u.func.file;
-        f->p = tmp2->u.func.p;
+        f = cflist->file;
+        oldpos = f->p; f->p = tmp2->u.func.p;
         current_context = &rlabel;
         current_section = &rsection;
         reset_section();
         rsection.dooutput = 0;
-        retval = compile(f);
+        retval = compile(cflist);
         current_section = oldsection;
         current_context = oldcontext;star = s->addr;
         lpoint = opoint;

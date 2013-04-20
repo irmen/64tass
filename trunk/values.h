@@ -149,7 +149,7 @@ struct value_s {
         } list;
         struct {
             size_t p;
-            struct file_s *file;
+            struct file_list_s *file_list;
             struct label_s *context;
             line_t sline;
             size_t argc;
@@ -162,7 +162,7 @@ struct value_s {
         struct {
             size_t size;
             size_t p;
-            struct file_s *file;
+            struct file_list_s *file_list;
             line_t sline;
             size_t argc;
             struct {
@@ -174,7 +174,7 @@ struct value_s {
             size_t p;
             line_t sline;
             size_t waitforp;
-            const struct file_s *file;
+            const struct file_list_s *file_list;
             const struct label_s *parent;
         } lbl;
         struct {
