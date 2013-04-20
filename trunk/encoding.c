@@ -491,10 +491,10 @@ static int trans_compare(const struct avltree_node *aa, const struct avltree_nod
     const struct trans_s *a = cavltree_container_of(aa, struct trans_s, node);
     const struct trans_s *b = cavltree_container_of(bb, struct trans_s, node);
 
-    if (a->start > b->start && a->start > b->end) {
+    if (a->start > b->end) {
         return -1;
     }
-    if (a->end < b->end && a->end < b->start) {
+    if (a->end < b->start) {
         return 1;
     }
     return 0;
