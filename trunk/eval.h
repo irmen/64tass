@@ -30,7 +30,7 @@ extern int eval_finish(void);
 extern uint_fast16_t petascii(size_t *, const struct value_s *);
 extern int str_to_num(const struct value_s *, enum type_e, struct value_s *, linepos_t);
 extern struct value_s error_value;
-extern inline uint8_t get_val_len2(const struct value_s *);
+extern uint8_t get_val_len(uval_t, enum type_e);
 extern size_t get_label(void);
 extern int val_equals(struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t);
 extern int val_inlist(struct value_s *, struct value_s *, linepos_t, linepos_t, linepos_t);

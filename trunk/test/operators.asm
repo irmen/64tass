@@ -101,12 +101,12 @@
     .cerror (1,2)..(3,4)!=(1,2,3,4)
     .cerror [1,2]..[3,4]!=[1,2,3,4]
 
-    .cerror 3[0]!=1
+    .cerror (3 | %)[0]!=1
     .cerror $1234[4:8]!=3
     .cerror $9..($1234 >> 4)!=$9123
-    .cerror len(15)!=4
-    .cerror len(-64)!=7
-    .cerror len(+63)!=7
+    .cerror len(15 | %)!=4
+    .cerror len((-64) | %)!=7
+    .cerror len((+63) | %)!=7
     .cerror len(-$123)!=12
     .cerror len(~%101)!=3
 
