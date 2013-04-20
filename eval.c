@@ -369,6 +369,7 @@ static void try_resolv_ident(struct values_s *vals) {
         l = find_label(&val->u.ident);
         v = val_realloc(&vals->val);
         if (l) {
+            l->shadowcheck = 1;
             v->type = T_IDENTREF;
             v->u.identref = l;
         } else {

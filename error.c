@@ -23,6 +23,7 @@
 #include "misc.h"
 #include "values.h"
 #include "file.h"
+#include "variables.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -31,33 +32,51 @@
 
 unsigned int errors=0,conderrors=0,warnings=0;
 
-static struct {
-    size_t p;
-    size_t len;
-    struct {
-        line_t sline;
-        linepos_t epoint;
-        const struct file_s *file;
-    } *data;
-} file_list = {0,0,NULL}, included_from = {0,0,NULL};
+static struct file_list_s file_list;
+static struct file_list_s *included_from;
+static struct file_list_s *current_file_list;
 
 static struct error_s error_list = {0,0,0,NULL};
 
-void enterfile(const struct file_s *file, line_t line, linepos_t epoint) {
+static int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    const struct file_list_s *a = cavltree_container_of(aa, struct file_list_s, node);
+    const struct file_list_s *b = cavltree_container_of(bb, struct file_list_s, node);
+    if (a->file->uid != b->file->uid) return a->file->uid - b->file->uid;
+    if (a->sline != b->sline) return a->sline - b->sline;
+    return a->epoint.pos - b->epoint.pos;
+}
 
-    if (file_list.p >= file_list.len) {
-        file_list.len += 16;
-        file_list.data = realloc(file_list.data, file_list.len * sizeof(*file_list.data));
-        if (!file_list.data) {fputs("Out of memory\n", stderr);exit(1);}
+static void file_list_free(struct avltree_node *aa)
+{
+    struct file_list_s *a = avltree_container_of(aa, struct file_list_s, node);
+    avltree_destroy(&a->members, file_list_free);
+    free(a);
+}
+
+static struct file_list_s *lastfl = NULL;
+struct file_list_s *enterfile(struct file_s *file, line_t line, linepos_t epoint) {
+    struct avltree_node *b;
+    if (!lastfl)
+        if (!(lastfl=malloc(sizeof(struct file_list_s)))) err_msg_out_of_memory();
+    lastfl->file = file;
+    lastfl->sline = line;
+    lastfl->epoint = epoint;
+
+    b = avltree_insert(&lastfl->node, &current_file_list->members, file_list_compare);
+    if (!b) {
+        lastfl->parent = current_file_list;
+        avltree_init(&lastfl->members);
+        current_file_list = lastfl;
+        lastfl = NULL;
+        return current_file_list;
     }
-    file_list.data[file_list.p].file = file;
-    file_list.data[file_list.p].sline = line;
-    file_list.data[file_list.p].epoint = epoint;
-    file_list.p++;
+    current_file_list = avltree_container_of(b, struct file_list_s, node);
+    return current_file_list;
 }
 
 void exitfile(void) {
-    if (file_list.p) file_list.p--;
+    if (current_file_list->parent) current_file_list = current_file_list->parent;
 }
 
 static void adderror2(const uint8_t *s, size_t len) {
@@ -74,36 +93,31 @@ static void adderror(const char *s) {
     adderror2((const uint8_t *)s, strlen(s));
 }
 
-static void addorigin(linepos_t lpoint2) {
+static void addorigin(struct file_list_s *cflist, line_t lnum, linepos_t lpoint2) {
     char line[linelength];
-    size_t i;
 
-    if (file_list.p) {
-        if (file_list.p != included_from.p || memcmp(file_list.data, included_from.data, file_list.p * sizeof(*file_list.data))) {
-            included_from.p = file_list.p;
-            if (file_list.p >= included_from.len) {
-                included_from.len = file_list.p;
-                included_from.data = realloc(included_from.data, included_from.len * sizeof(*included_from.data));
-                if (!included_from.data) {fputs("Out of memory\n", stderr);exit(1);}
-            }
-            memcpy(included_from.data, file_list.data, file_list.p * sizeof(*file_list.data));
-            for (i = file_list.p; i > 1; i--) {
-                adderror( (i == file_list.p) ? "In file included from " : "                      ");
-                adderror(file_list.data[i - 2].file->realname);
-                sprintf(line,":%" PRIuline ":%" PRIlinepos, file_list.data[i - 1].sline, file_list.data[i - 1].epoint.pos - file_list.data[i - 1].epoint.upos + 1);
+    if (cflist->parent) {
+        if (cflist != included_from) {
+            included_from = cflist;
+            while (included_from->parent->parent) {
+                adderror( (included_from == cflist) ? "In file included from " : "                      ");
+                adderror(included_from->parent->file->realname);
+                sprintf(line,":%" PRIuline ":%" PRIlinepos, included_from->sline, included_from->epoint.pos - included_from->epoint.upos + 1);
                 adderror(line);
-                adderror((i > 2) ? ",\n" : ":\n");
+                included_from = included_from->parent;
+                adderror(included_from->parent->parent ? ",\n" : ":\n");
             }
+            included_from = cflist;
         }
-        if (file_list.data[file_list.p - 1].file->realname[0]) {
-            adderror(file_list.data[file_list.p - 1].file->realname);
+        if (cflist->file->realname[0]) {
+            adderror(cflist->file->realname);
         } else {
             adderror("<command line>");
         }
     } else {
         adderror("<command line>");
     }
-    sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline, lpoint2.pos - lpoint2.upos + 1); 
+    sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", lnum, lpoint2.pos - lpoint2.upos + 1); 
     adderror(line);
 }
 
@@ -169,10 +183,9 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
         return;
     }
 
-    addorigin(lpoint2);
-
     if (no<0x40) {
         if (errors) return;
+        addorigin(current_file_list, sline, lpoint2);
         adderror("warning: ");
         warnings++;
         if (no == ERROR_WUSER_DEFINED) adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->len);
@@ -192,6 +205,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
             conderrors++;break;
         default: inc_errors();
         }
+        addorigin(current_file_list, sline, lpoint2);
         adderror("error: ");
         switch (no) {
         case ERROR____PAGE_ERROR:
@@ -217,6 +231,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
     }
     else {
         if (no == ERROR__TOO_MANY_ERR) errors++; else inc_errors();
+        addorigin(current_file_list, sline, lpoint2);
         adderror("fatal error: ");
         snprintf(line, linelength, terr_fatal[no & 63], (const char *)prm);
         adderror(line);
@@ -267,7 +282,7 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
         return;
     }
     inc_errors();
-    addorigin(epoint);
+    addorigin(current_file_list, sline, epoint);
     adderror(msg);
     if (name) {
         adderror(" '");
@@ -448,8 +463,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
     }
 }
 
-void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
-    char line[linelength];
+static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, line_t line, linepos_t epoint2) {
 
     if (errors+conderrors==99) {
         err_msg(ERROR__TOO_MANY_ERR, NULL);
@@ -457,19 +471,22 @@ void err_msg_double_defined(const str_t *name, const char *file, line_t sline2, 
     }
 
     inc_errors();
-    addorigin(epoint2);
-    adderror("error: duplicate definition '");
+    addorigin(cflist, line, epoint2);
+    adderror(msg);
     adderror2(labelname2->data, labelname2->len);
     adderror("'\n");
-    if (file[0]) {
-        adderror(file);
-    } else {
-        adderror("<command line>");
-    }
-    sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", sline2, epoint.pos - epoint.upos + 1); adderror(line);
+    addorigin(l->file_list, l->sline, l->epoint);
     adderror("note: previous definition of '");
-    adderror2(name->data, name->len);
+    adderror2(l->name.data, l->name.len);
     adderror("' was here\n");
+}
+
+void err_msg_double_defined(const struct label_s *l, const str_t *labelname2, linepos_t epoint2) {
+    err_msg_double_defined2("error: duplicate definition '", l, current_file_list, labelname2, sline, epoint2);
+}
+
+void err_msg_shadow_defined(const struct label_s *l, const struct label_s *l2) {
+    err_msg_double_defined2("error: shadow definition '", l, l2->file_list, &l2->name, l2->sline, l2->epoint);
 }
 
 static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
@@ -490,7 +507,7 @@ static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, c
         return 0;
     }
 
-    addorigin(epoint);
+    addorigin(current_file_list, sline, epoint);
 
     adderror(msg);
     if (v2) {
@@ -592,12 +609,20 @@ void freeerrorlist(int print) {
         fwrite(error_list.data, error_list.len, 1, stderr);
     }
     error_list.len = 0;
-    included_from.p = 0;
+    current_file_list = &file_list;
+    included_from = &file_list;
+}
+
+void err_init(void) {
+    avltree_init(&file_list.members);
+    error_init(&error_list);
+    current_file_list = &file_list;
+    included_from = &file_list;
 }
 
 void err_destroy(void) {
-    free(file_list.data);
-    free(included_from.data);
+    avltree_destroy(&file_list.members, file_list_free);
+    free(lastfl);
     free(error_list.data);
 }
 
@@ -611,7 +636,7 @@ void err_msg_out_of_memory(void)
 void err_msg_file(enum errors_e no, const char* prm) {
     char *error;
     inc_errors();
-    addorigin(lpoint);
+    addorigin(current_file_list, sline, lpoint);
     adderror("fatal error: ");
     adderror(terr_fatal[no & 63]);
     adderror(prm);

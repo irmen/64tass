@@ -50,7 +50,7 @@ struct section_s {
     unsigned int wrapwarn2:1;
     struct section_s *parent;
     struct section_s *next;
-    const char *file;
+    struct file_list_s *file_list;
     line_t sline;
     linepos_t epoint;
     struct avltree members;

@@ -191,6 +191,7 @@ void tinit(void) {
     root_label.parent = NULL;
     root_label.name.data = NULL;
     root_label.name.len = 0;
+    err_init();
     init_section();
     init_file();
     init_values();
