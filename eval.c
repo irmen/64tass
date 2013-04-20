@@ -63,7 +63,7 @@ struct value_s error_value = {T_NONE, 0, {{0, 0}}};
 struct encoding_s *actual_encoding;
 int referenceit = 1;
 
-static uint8_t get_val_len(uval_t val, enum type_e type) {
+uint8_t get_val_len(uval_t val, enum type_e type) {
     int span, bits;
 
     switch (type) {
@@ -91,10 +91,6 @@ static uint8_t get_val_len(uval_t val, enum type_e type) {
     default:
         return 8*sizeof(uval_t);
     }
-}
-
-inline uint8_t get_val_len2(const struct value_s *v) {
-    return (v->type == T_NUM) ? v->u.num.len : get_val_len((uval_t)v->u.num.val, v->type);
 }
 
 size_t get_label(void) {
@@ -1164,12 +1160,14 @@ static void functions(struct values_s *vals, unsigned int args) {
                     new_value.u.num.val = v[0].val->u.code.size / (new_value.u.num.val + !new_value.u.num.val);
                     val_replace(&vals->val, &new_value);
                     return;
-                case T_UINT:
-                case T_SINT:
                 case T_NUM:
+                    new_value.type = T_UINT;
+                    new_value.u.num.val = v[0].val->u.num.len;
+                    val_replace(&vals->val, &new_value);
+                    return;
                 case T_BOOL:
                     new_value.type = T_UINT;
-                    new_value.u.num.val = get_val_len2(v[0].val);
+                    new_value.u.num.val = 1;
                     val_replace(&vals->val, &new_value);
                     return;
                 default: err_msg_wrong_type(v[0].val, v[0].epoint);
@@ -1679,7 +1677,7 @@ static void bits_iindex(struct values_s *vals, const struct value_s *list, linep
     size_t len;
     ival_t offs;
 
-    len = get_val_len2(vals->val);
+    len = (vals->val->type == T_NUM) ? vals->val->u.num.len : 1;
     new_value.type = T_NUM;
     new_value.u.num.len = (list->u.list.len < 8*sizeof(uval_t)) ? list->u.list.len : 8*sizeof(uval_t);
     new_value.u.num.val = 0;
@@ -1922,8 +1920,6 @@ static void indexes(struct values_s *vals, unsigned int args) {
     case T_TUPLE:
     case T_STR:
     case T_CODE:
-    case T_UINT:
-    case T_SINT:
     case T_NUM:
     case T_BOOL:
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[1].epoint); else
@@ -1946,7 +1942,8 @@ static void indexes(struct values_s *vals, unsigned int args) {
                         break;
                     case T_LIST:
                     case T_TUPLE: len = vals->val->u.list.len; break;
-                    default: len = get_val_len2(vals->val); break;
+                    case T_BOOL: len = 1; break;
+                    default: len = vals->val->u.num.len; break;
                     }
 
                     offs = indexoffs(v[0].val, len);
@@ -2036,8 +2033,6 @@ static void slices(struct values_s *vals, unsigned int args) {
     case T_TUPLE:
     case T_STR:
     case T_CODE:
-    case T_UINT:
-    case T_SINT:
     case T_NUM:
     case T_BOOL:
         if (args > 3 || args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[0].epoint); else {
@@ -2051,7 +2046,8 @@ static void slices(struct values_s *vals, unsigned int args) {
                 break;
             case T_LIST:
             case T_TUPLE: len = vals->val->u.list.len; break;
-            default: len = get_val_len2(vals->val); break;
+            case T_BOOL: len = 1; break;
+            default: len = vals->val->u.num.len; break;
             }
             end = (ival_t)len;
             for (i = args - 1; i >= 0; i--) {
@@ -2693,8 +2689,8 @@ strretr:
                         }
                         break;
             case O_CONCAT: 
-                        {
-                            uint8_t l1 = get_val_len2(v1), l2 = get_val_len2(v2);
+                        if (t2 == T_NUM || t2 == T_BOOL) {
+                            uint8_t l1 = (v1->type == T_NUM) ? v1->u.num.len : 1, l2 = (v2->type == T_NUM) ? v2->u.num.len : 1;
                             v->type = T_NUM;
                             v->u.num.len = addlen(l1 ,l2);
                             if (l1 < (8*sizeof(uval_t))) val1 &= (((uval_t)1 << l1)-1);

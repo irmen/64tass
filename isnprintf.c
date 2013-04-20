@@ -230,7 +230,8 @@ static void bin(struct DATA *p, const struct value_s *v)
 
     d = asint(v, &minus);
     if (minus < 0) return;
-    for (i = get_val_len2(v) - 1, j = 0; i >= 0; i--, j++) {
+    i = (v->type == T_NUM) ? v->u.num.len : get_val_len(v->u.num.val, v->type);
+    for (i = i - 1, j = 0; i >= 0; i--, j++) {
         tmp[j] = (d & (1 << i)) ? '1' : '0';
         if (!j && tmp[j] == '0' && i) j--;
     }
