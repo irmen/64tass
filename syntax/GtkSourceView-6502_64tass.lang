@@ -89,11 +89,11 @@
     </context>
 
     <context id="hex" style-ref="base-n-integer">
-      <match>(?&lt;![\w\.])\$[0-9a-f]+(?![\w\.])</match>
+      <match>(?&lt;![\w\.])\$[0-9a-f]+</match>
     </context>
 
     <context id="binary" style-ref="base-n-integer">
-      <match>(?&lt;![\w\.])%[01]+(?![\w\.])</match>
+      <match>(?&lt;![\w\.])%[01]+</match>
     </context>
 
     <context id="float" style-ref="floating-point">
@@ -102,6 +102,10 @@
 
     <context id="identifier" style-ref="label">
       <match>[a-z_][a-z_0-9]*</match>
+    </context>
+
+    <context id="preidentifier" style-ref="preprocessor">
+      <match>\\[a-z_][a-z_0-9]*|\\[1-9@]|\\\{[^}]*\}</match>
     </context>
 
     <context id="label" end-at-line-end="true">
@@ -121,16 +125,17 @@
     </context>
 
     <context id="operator" style-ref="operator">
-      <match>[-+!~&lt;&gt;&amp;,.|^*/%=()\[\]?:`]</match>
+      <match>[-+!~&lt;&gt;&amp;,.|^*/%=()\[\]?:`#]</match>
     </context>
 
     <context id="register" style-ref="register">
-      <match>,[xy](?![a-z0-9_])</match>
+      <match>,[xy]\b</match>
     </context>
 
     <context id="miscparam">
       <include>
         <context ref="identifier"/>
+        <context ref="preidentifier"/>
         <context ref="float"/>
         <context ref="decimal"/>
         <context ref="hex"/>
@@ -142,7 +147,7 @@
     </context>
 
     <context id="opcode" end-at-line-end="true">
-      <start>(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)(?:\s+(#|a(\s|(?=;)|$))?|(?=;)|$)</start>
+      <start>(adc|and|asl|bcc|bcs|beq|bge|bit|blt|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpx|cpy|dec|dex|dey|eor|gcc|gcs|geq|gge|glt|gmi|gne|gpl|gvc|gvs|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|shl|shr|sta|stx|sty|tax|tay|tsx|txa|txs|tya)(?:\s+(a(\s|(?=;)|$))?|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="opcode"/>
         <context sub-pattern="1" where="start" style-ref="opcode"/>
@@ -181,7 +186,7 @@
     </context>
 
     <context id="preprocessor-macro" end-at-line-end="true">
-      <start>\.(macro|segment|endm|function|endf)(\s|(?=;)|$)|#[a-z_][a-z_0-9]*(\s|(?=;)|$)</start>
+      <start>\.(macro|segment|endm|function|endf)(\s|(?=;)|$)|[#.][a-z_][a-z_0-9]*(\s|(?=;)|$)</start>
       <include>
         <context sub-pattern="0" where="start" style-ref="preprocessor"/>
         <context ref="miscparam"/>

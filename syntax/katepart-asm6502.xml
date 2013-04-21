@@ -104,13 +104,13 @@
         <RegExpr beginRegion="section" String="\.section\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="section" String="\.send\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="struct" String="\.struct\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="struct" String="\.ends\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="struct" String="\.ends\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="union" String="\.union\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="union" String="\.endu\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="union" String="\.endu\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="page" String="\.page\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="page" String="\.endp\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="macro" String="\.(macro|segment)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
-        <RegExpr endRegion="macro" String="\.endm\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="macro" String="\.endm\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="function" String="\.function\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="function" String="\.endf\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="for" String="\.(for|rept)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>

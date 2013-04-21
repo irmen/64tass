@@ -174,10 +174,11 @@ static size_t macro_param_find(void) {
     return npoint2.pos - opoint2.pos;
 }
 
-void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint) {
+struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint) {
+    struct value_s *val;
     if (macro_parameters.p>100) {
         err_msg(ERROR__MACRECURSION,"!!!!");
-        return;
+        return NULL;
     }
     if (macro_parameters.p >= macro_parameters.len) {
         macro_parameters.len += 1;
@@ -227,7 +228,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context,
     if (t == W_ENDS) {
         struct label_s *oldcontext = current_context;
         current_context = context;
-        compile(tmp2->u.macro.file_list);
+        val = compile(tmp2->u.macro.file_list);
         current_context = oldcontext;
     } else {
         size_t oldpos;
@@ -252,7 +253,7 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context,
         f = cflist->file;
         oldpos = f->p; f->p = tmp2->u.macro.p;
         current_context = context;
-        compile(cflist);
+        val = compile(cflist);
         current_context = oldcontext;star = s->addr;
         f->p = oldpos;
         exitfile();
@@ -262,9 +263,10 @@ void macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context,
     val_destroy(macro_parameters.current->macro);
     macro_parameters.p--;
     if (macro_parameters.p) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
+    return val;
 }
 
-void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint) {
+struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint) {
     size_t i;
     int w;
     struct label_s *label;
@@ -343,12 +345,12 @@ void func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, 
         current_context = context;
         val = compile(cflist);
         current_context = oldcontext;star = s->addr;
-        if (val) val_destroy(val);
         f->p = oldpos;
         exitfile();
         star_tree = stree_old; vline = ovline;
         sline = lin;
     }
+    return val;
 }
 
 void get_func_params(struct value_s *v) {
@@ -557,7 +559,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         s->addr = star;
         star_tree = &s->tree;vline=0;
         sline = tmp2->u.func.sline;
-        new_waitfor(W_ENDF2, (linepos_t){0,0});
+        new_waitfor(W_ENDF3, (linepos_t){0,0});
         f = cflist->file;
         oldpos = f->p; f->p = tmp2->u.func.p;
         current_context = &rlabel;

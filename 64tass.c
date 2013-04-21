@@ -56,7 +56,6 @@ static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
 static struct value_s none_value = {T_NONE, 0, {{0, 0}}};
 static struct value_s new_value = {T_NONE, 0, {{0, 0}}};
-static struct value_s null_tuple = {T_TUPLE, 0, {{0, 0}}};
 
 line_t sline, vline;      /* current line */
 static address_t all_mem, all_mem2;
@@ -415,7 +414,7 @@ static int what(int *tempno) {
                 }
             }
 	    *tempno=sizeof(command)/sizeof(command[0]);
-	    return 0;
+	    return WHAT_COMMAND;
 	}
     case WHAT_COMA:
 	lpoint.pos++;
@@ -872,8 +871,9 @@ struct value_s *compile(struct file_list_s *cflist)
                             current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
                             waitfor->skip=1;
-                            if (label && (label->value->type == T_STRUCT || label->value->type == T_UNION)) macro_recurse(W_ENDS, label->value, label, lpoint);
-                            else compile(cflist);
+                            if (label && (label->value->type == T_STRUCT || label->value->type == T_UNION)) val = macro_recurse(W_ENDS, label->value, label, lpoint);
+                            else val = compile(cflist);
+                            if (val) val_destroy(val);
                             current_section->unionmode = old_unionmode;
                             current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
                             current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
@@ -957,9 +957,10 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (newlabel->type != L_LABEL || newlabel->defpass == pass) {
                         err_msg_double_defined(newlabel, &labelname, epoint);
                         newlabel = NULL; goto jn;
-                    } else {
-                        newlabel->requires = current_section->requires;
-                        newlabel->conflicts = current_section->conflicts;
+                    }
+                    newlabel->requires = current_section->requires;
+                    newlabel->conflicts = current_section->conflicts;
+                    if (!newlabel->update_after) {
                         if (newlabel->value->u.code.addr != current_section->l_address) {
                             size_t size = newlabel->value->u.code.size;
                             signed char dtype = newlabel->value->u.code.dtype;
@@ -975,6 +976,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                         }
                         get_mem(&newmemp, &newmembp);
+                        newlabel->defpass = pass;
                     }
                 } else {
                     val = val_alloc();
@@ -992,8 +994,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     val->u.code.dtype = D_NONE;
                     val->u.code.pass = 0;
                     get_mem(&newmemp, &newmembp);
+                    newlabel->defpass = pass;
                 }
-                newlabel->defpass = pass;
             }
             if (epoint.pos && !islabel) err_msg2(ERROR_LABEL_NOT_LEF,NULL,epoint);
             epoint = lpoint;
@@ -1033,7 +1035,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
                             printllist(flist);
                         }
-                        newlabel->nested = 1;
+                        newlabel->nested = !newlabel->update_after || newlabel->value->type != T_IDENTREF;
                         newlabel->ref=0;
                         if (!get_exp(&w,1)) goto breakerr;
                         if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1041,7 +1043,15 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->type != ((prm==CMD_DSTRUCT) ? T_STRUCT : T_UNION)) {err_msg_wrong_type(val, epoint2); goto breakerr;}
                         ignore();if (here() == ',') lpoint.pos++;
                         current_section->structrecursion++;
-                        macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, newlabel, epoint);
+                        val = macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, newlabel, epoint);
+                        if (val) {
+                            if (newlabel) {
+                                newlabel->update_after = 1;
+                                var_assign(newlabel, val, 0);
+                                newlabel->nested = newlabel->value->type != T_IDENTREF;
+                            }
+                            val_destroy(val);
+                        }
                         current_section->structrecursion--;
                         current_section->unionmode = old_unionmode;
                         current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -1335,8 +1345,12 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 if (prm==CMD_ENDM) { /* .endm */
                     if (close_waitfor(W_ENDM)) {
+                        lpoint.pos += strlen((const char *)pline + lpoint.pos);
                     } else if (close_waitfor(W_ENDM2)) {
                         nobreak=0;
+                        if (here() && here() != ';' && get_exp(&w,0)) {
+                            retval = get_vals_tuple(T_IDENTREF);
+                        } 
                     } else err_msg2(ERROR______EXPECTED,".MACRO or .SEGMENT", epoint);
                     break;
                 }
@@ -1346,9 +1360,13 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else if (close_waitfor(W_ENDF2)) {
                         nobreak = 0;
                         if (here() && here() != ';' && get_exp(&w,0)) {
+                            retval = get_vals_tuple(T_IDENTREF);
+                        } 
+                    } else if (close_waitfor(W_ENDF3)) {
+                        nobreak = 0;
+                        if (here() && here() != ';' && get_exp(&w,0)) {
                             retval = get_vals_tuple(T_NONE);
                         } 
-                        if (!retval) retval = &null_tuple;
                     } else {err_msg2(ERROR______EXPECTED,".FUNCTION", epoint);goto breakerr;}
                     break;
                 }
@@ -1374,8 +1392,12 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 if (prm==CMD_ENDS) { /* .ends */
                     if (close_waitfor(W_ENDS)) {
+                        lpoint.pos += strlen((const char *)pline + lpoint.pos);
                     } else if (close_waitfor(W_ENDS2)) {
                         nobreak=0;
+                        if (here() && here() != ';' && get_exp(&w,0)) {
+                            retval = get_vals_tuple(T_IDENTREF);
+                        } 
                     } else err_msg2(ERROR______EXPECTED,".STRUCT", epoint); break;
                     break;
                 }
@@ -2496,6 +2518,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             case W_SWITCH: msg = ".ENDSWITCH"; break;
                             case W_ENDM2:
                             case W_ENDM: msg = ".ENDM"; break;
+                            case W_ENDF3:
                             case W_ENDF2:
                             case W_ENDF: msg = ".ENDF"; break;
                             case W_NEXT2:
@@ -2594,7 +2617,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     ignore();if (here() == ',') lpoint.pos++;
                     if (val->type != T_STRUCT) {err_msg_wrong_type(val, epoint2); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse(W_ENDS2, val, current_context, epoint);
+                    val = macro_recurse(W_ENDS2, val, current_context, epoint);
+                    if (val) val_destroy(val);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     break;
@@ -2611,7 +2635,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     ignore();if (here() == ',') lpoint.pos++;
                     if (val->type != T_UNION) {err_msg_wrong_type(val, epoint2); goto breakerr;}
                     current_section->structrecursion++;
-                    macro_recurse(W_ENDU2, val, current_context, epoint);
+                    val = macro_recurse(W_ENDU2, val, current_context, epoint);
+                    if (val) val_destroy(val);
                     current_section->structrecursion--;
                     current_section->unionmode = old_unionmode;
                     current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -2714,6 +2739,10 @@ struct value_s *compile(struct file_list_s *cflist)
                     newlabel = NULL;
                     break;
                 }
+                if (prm != sizeof(command)/sizeof(command[0])) {
+                    err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;
+                }
+                /* fall through */
             }
         case WHAT_HASHMARK:if (waitfor->skip & 1) /* skip things if needed */
             {                   /* macro stuff */
@@ -2740,7 +2769,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (val->type == T_MACRO) {
                     struct label_s *context;
                     if (newlabel) {
-                        newlabel->nested = 1;
+                        newlabel->nested = !newlabel->update_after || newlabel->value->type != T_IDENTREF;
                         context=newlabel;
                     } else {
                         int labelexists;
@@ -2750,7 +2779,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         context=new_label(&tmpname, mycontext, L_LABEL, &labelexists);
                         context->value = &none_value;
                     }
-                    macro_recurse(W_ENDM2, val, context, epoint);
+                    val = macro_recurse(W_ENDM2, val, context, epoint);
                 } else if (val->type == T_FUNCTION) {
                     struct label_s *context;
                     int labelexists;
@@ -2759,8 +2788,16 @@ struct value_s *compile(struct file_list_s *cflist)
                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                     context=new_label(&tmpname, val->u.func.context, L_LABEL, &labelexists);
                     context->value = &none_value;
-                    func_recurse(W_ENDF2, val, context, epoint);
-                } else macro_recurse(W_ENDM2, val, current_context, epoint);
+                    val = func_recurse(W_ENDF2, val, context, epoint);
+                } else val = macro_recurse(W_ENDM2, val, current_context, epoint);
+                if (val) {
+                    if (newlabel) {
+                        newlabel->update_after = 1;
+                        var_assign(newlabel, val, 0);
+                        newlabel->nested = newlabel->value->type != T_IDENTREF;
+                    }
+                    val_destroy(val);
+                }
                 break;
             }
         case WHAT_EXPRESSION:
@@ -3320,7 +3357,7 @@ struct value_s *compile(struct file_list_s *cflist)
     finish:
         ignore();if (here() && here()!=';' && (waitfor->skip & 1)) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     breakerr:
-        if (newlabel) set_size(newlabel, current_section->address - oaddr, newmemp, newmembp);
+        if (newlabel && !newlabel->update_after) set_size(newlabel, current_section->address - oaddr, newmemp, newmembp);
         continue;
     }
 
@@ -3337,6 +3374,7 @@ struct value_s *compile(struct file_list_s *cflist)
         case W_ENDP: msg = ".ENDP"; break;
         case W_ENDM2:
         case W_ENDM: msg = ".ENDM"; break;
+        case W_ENDF3:
         case W_ENDF2:
         case W_ENDF: msg = ".ENDF"; break;
         case W_NEXT2:
