@@ -130,6 +130,7 @@ struct label_s *new_label(const str_t *name, struct label_s *context, enum label
         lastlb->ref = 0;
         lastlb->nested = 0;
         lastlb->shadowcheck = 0;
+        lastlb->update_after = 0;
         avltree_init(&lastlb->members);
 	*exists = 0;
 	tmp = lastlb;

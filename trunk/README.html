@@ -340,7 +340,7 @@ Doubling the quotes inside the strings escapes them.</p>
 <caption>String operators and functions</caption>
 <tr><td>..<td>concatenate strings<td><code><span class="s">"a"</span>..<span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
 <tr><td>in<td>is substring of<td><code><span class="s">"b"</span> <span class="k">in</span> <span class="s">"abc"</span></code> is true
-<tr><td>%<td>string formatting<td><code><span class="s">"%02x"</span> % (<span>12</span>,)</code> is <code><span class="s">"0c"</span></code>
+<tr><td>%<td>string formatting<td><code><span class="s">"<span>%02x</span>"</span> % (<span>12</span>,)</code> is <code><span class="s">"0c"</span></code>
 <tr><td>x<td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
 <tr><td>x[i]<td>character from start<td><code><span class="s">"abc"</span>[<span>1</span>]</code> is <code><span class="s">"b"</span></code>
 <tr><td>x[i]<td>character from end<td><code><span class="s">"abc"</span>[<span>-1</span>]</code> is <code><span class="s">"c"</span></code>
@@ -979,9 +979,10 @@ is the sum of lengths of all items.</p>
 
 <dl class="dir">
 <dt><b>.struct</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
-<dt><b>.ends</b>
+<dt><b>.ends</b> [&lt;result&gt;][,&lt;result&gt; ...]
 <dd>Structure definition, with named parameters and default values
 <dt><b>.dstruct</b> &lt;name&gt;[,&lt;initialization values&gt;]
+<dt><b>.&lt;name&gt;</b> [&lt;initialization values&gt;]
 <dd>Create instance of structure with initialization values
 </dl>
 
@@ -992,8 +993,8 @@ y       <b class="d">.byte</b> <span>0</span>         <i>;content compiled here<
         <b class="k">.ends</b>           <i>;useful inside unions</i>
 
 nn_s    <b class="k">.struct</b> <span class="l">col</span>,<span class="l">row</span> <i>;named struct</i>
-x       <b class="d">.byte</b> <span class="l">\col</span>      <i>;labels are not visible</i>
-y       <b class="d">.byte</b> <span class="l">\row</span>      <i>;no content is compiled here</i>
+x       <b class="d">.byte</b> <span class="k">\col</span>      <i>;labels are not visible</i>
+y       <b class="d">.byte</b> <span class="k">\row</span>      <i>;no content is compiled here</i>
         <b class="k">.ends</b>           <i>;it's just a definition</i>
 
 nn      <b class="d">.dstruct</b> <span class="l">nn_s</span>,<span>1</span>,<span>2</span><i>;struct instance, content here</i>
@@ -1013,6 +1014,7 @@ length of it's longest item.</p>
 <dt><b>.endu</b>
 <dd>Union definition, with named parameters and default values
 <dt><b>.dunion</b> &lt;name&gt;[,&lt;initialization values&gt;]
+<dt><b>.&lt;name&gt;</b> [&lt;initialization values&gt;]
 <dd>Create instance of union with initialization values
 </dl>
 
@@ -1024,7 +1026,7 @@ y       <b class="d">.word</b> <span>0</span>         <i>;content compiled here<
 
 nn_u    <b class="k">.union</b>          <i>;named union</i>
 x       <b class="d">.byte</b> <span>?</span>         <i>;labels are not visible</i>
-y       <b class="d">.word</b> <span class="l">\1</span>        <i>;no content is compiled here</i>
+y       <b class="d">.word</b> <span class="k">\1</span>        <i>;no content is compiled here</i>
         <b class="k">.endu</b>           <i>;it's just a definition</i>
 
 nn      <b class="d">.dunion</b> <span class="l">nn_u</span>,<span>1</span>  <i>;union instance here</i>
@@ -1058,13 +1060,13 @@ are assigned after in the <q>zp</q> section.</p>
         <b>*=</b> <span>$02</span>
         <b class="k">.union</b>          <i>;spare some memory</i>
          <b class="k">.struct</b>
-          <b class="k">.dsection</b> <span class="l">zp1</span> <i>;declare zp1 section</i>
+          <b class="d">.dsection</b> <span class="l">zp1</span> <i>;declare zp1 section</i>
          <b class="k">.ends</b>
          <b class="k">.struct</b>
-          <b class="k">.dsection</b> <span class="l">zp2</span> <i>;declare zp2 section</i>
+          <b class="d">.dsection</b> <span class="l">zp2</span> <i>;declare zp2 section</i>
          <b class="k">.ends</b>
         <b class="k">.endu</b>
-        <b class="k">.dsection</b> <span class="l">zp</span>    <i>;declare zp section</i>
+        <b class="d">.dsection</b> <span class="l">zp</span>    <i>;declare zp section</i>
 </pre>
 
 <h3>Macros</h3>
@@ -1074,37 +1076,43 @@ replaced by the parameter texts.</p>
 
 <dl class="dir">
 <dt><b>.segment</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
-<dt><b>.endm</b>
+<dt><b>.endm</b> [&lt;result&gt;][,&lt;result&gt; ...]
 <dd>Copies the code segment as it is, so symbols can be used from
 outside, but this also means multiple use will result in double defines
 unless anonymous labels are used.
 <dt><b>.macro</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
-<dt><b>.endm</b>
+<dt><b>.endm</b> [&lt;result&gt;][,&lt;result&gt; ...]
 <dd>The code is enclosed in it's own block so symbols inside are
 non-accessible, unless a label is prefixed at the place of use, then local
 labels can be accessed through that label.
-<dt><b>#&lt;macro&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] ...]
-<dd>Invoke the macro after <q>#</q> with the parameters. Normally the name of
+<dt><b>#&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] ...]
+<dt><b>.&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] ...]
+<dd>Invoke the macro after <q>#</q> or <q>.</q> with the parameters. Normally the name of
 the macro is used, but it can be any expression.
 </dl>
 
 <pre width=80>
+;<i>A simple macro</i>
 copy    <b class="k">.macro</b>
-lp      <b>lda</b> \1,x
-        <b>sta</b> \2,x
-	<b>inx</b>
-        <b>bne</b> <span class="l">lp</span>
+        <b>ldx</b> #<span class="k">size</span>(<span class="k">\1</span>)
+lp      <b>lda</b> <span class="k">\1</span>,x
+        <b>sta</b> <span class="k">\2</span>,x
+	<b>dex</b>
+        <b>bpl</b> <span class="l">lp</span>
 	<b class="k">.endm</b>
 
-name    <b class="k">.segment</b>
-        <b>sta</b> <span>$d020</span>
-        <b>sta</b> <span>$d021</span>
-	<b class="k">.endm</b>
+        <b class="k">#copy</b> <span class="l">label</span>, <span>$500</span>
 
-        <b>lda</b> #<span>1</span>
-        <b class="k">#name</b>           <i>;call macro</i>
-        <b class="k">#fill</b> <span>$400</span>, <span>$500</span>
-        <b class="k">#fill</b> <span>$500</span>, <span>$600</span>
+;<i>Use macro as an assembler directive</i>
+lohi    <b class="k">.macro</b>
+lo	<b class="d">.byte</b> &lt;(<span class="k">\@</span>)
+hi	<b class="d">.byte</b> &gt;(<span class="k">\@</span>)
+        <b class="k">.endm</b>
+
+var     <b class="k">.lohi</b> <span>1234</span>, <span>5678</span>
+
+        <b>lda</b> <span class="l">var</span>.<span class="l">lo</span>,y
+        <b>ldx</b> <span class="l">var</span>.<span class="l">hi</span>,y
 </pre>
 
 <h4>Parameter references</h4>
@@ -1112,7 +1120,7 @@ name    <b class="k">.segment</b>
 The entire parameter list including separators is <code>\@</code>.</p>
 <pre width=80>
 name	<b class="k">.macro</b>
-	<b>lda</b> #\1 	<i>;first parameter 23+1</i>
+        <b>lda</b> #<span class="k">\1</span> 	<i>;first parameter 23+1</i>
 	<b class="k">.endm</b>
 
         <b class="k">#name</b> <span>23</span>+<span>1</span>	<i>;call macro</i>
@@ -1126,10 +1134,10 @@ equal sign which is used as a replacement when the parameter is missing.</p>
 name reference syntax.</p>
 <pre width=80>
 name	<b class="k">.macro</b> first,b=<span>2</span>,,last
-        <b>lda</b> #\first	<i>;first parameter</i>
-        <b>lda</b> #\b 	<i>;second parameter</i>
-        <b>lda</b> #\3 	<i>;third parameter</i>
-        <b>lda</b> #\last 	<i>;fourth parameter</i>
+        <b>lda</b> #<span class="k">\first</span>	<i>;first parameter</i>
+        <b>lda</b> #<span class="k">\b</span> 	<i>;second parameter</i>
+        <b>lda</b> #<span class="k">\3</span> 	<i>;third parameter</i>
+        <b>lda</b> #<span class="k">\last</span> 	<i>;fourth parameter</i>
 	<b class="k">.endm</b>
 
         <b class="k">#name</b> <span>1</span>, , <span>3</span>, <span>4</span>	<i>;call macro</i>
@@ -1158,22 +1166,38 @@ custom ones for frequently used calculations.</p>
 <dt><b>.function</b> &lt;name&gt;[=&lt;default&gt;]][,&lt;name&gt;[=&lt;default&gt;] ...]
 <dt><b>.endf</b> [&lt;result&gt;][,&lt;result&gt; ...]
 <dd>Defines a user function
+<dt><b>#&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] ...]
+<dt><b>.&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] ...]
+<dt><b>&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] ...]
+<dd>Invoke a function like a macro, directive or pseudo instruction.
 </dl>
 
 <p>Parameters are assigned to constant references. It's possible to use less
 parameters if the missing ones have a default value, but more parameters are
-not accepted. It's possible to return multiple values, these are returned as
-tuple.</p>
+not accepted. Multiple values are returned as a tuple.</p>
 <p>Functions can span multiple lines but unlike macros they can't create new
 code. Only those external variables and functions are available which were
 accessible at the place of definition, but not those at the place of
 invocation.</p>
-
 <pre width=80>
 wpack   <b class="k">.function</b> <span class="l">a</span>,<span class="l">b</span>=<span>0</span>
         <b class="k">.endf</b> <span class="l">a</span>+<span class="l">b</span>*<span>256</span>
 
-        <b class="d">.word</b> <span class="k">wpack</span>(<span>1</span>),<span class="k">wpack</span>(<span>2</span>,<span>3</span>)
+        <b class="d">.word</b> <span class="k">wpack</span>(<span>1</span>), <span class="k">wpack</span>(<span>2</span>,<span>3</span>)
+</pre>
+
+<p>If a function is used as macro, directive or pseudo instruction and there's
+a label in front then the returned value is assigned to it. If nothing is
+returned then it's used as regular label. Of course when used like this it can
+create code and access local variables.</p>
+
+<pre width=80>
+mva     <b class="k">.function</b> <span class="l">s</span>,<span class="l">d</span>
+        <b>lda</b> <span class="l">s</span>
+        <b>sta</b> <span class="l">d</span>
+        <b class="k">.endf</b>
+
+        <b class="k">mva</b> #<span>1</span>, <span class="l">label</span>
 </pre>
 
 <h3>Conditional assembly</h3>
@@ -1325,7 +1349,7 @@ file separately, like bitmap and colors for example.
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>,<span>2</span>,<span>1000</span> <i>;skip start address, 1000 bytes max</i>
 
         <b>*=</b> <span>$1000</span>	            <i>;load music to $1000 and</i>
-        <b class="d">.binary</b> <span class="s">"music.dmc"</span>,<span>2</span>       <i>;strip load address</i>
+        <b class="d">.binary</b> <span class="s">"music.sid"</span>,<span>$7e</span>     <i>;strip SID header</i>
 </pre>
 
 </dl>
@@ -1396,19 +1420,19 @@ start of <code>.dsection</code> is not allowed.</p>
 
 <pre width=80>
         <b>*=</b> <span>$02</span>
-        <b class="k">.dsection</b> <span class="l">zp</span>   <i>;declare zeropage section</i>
+        <b class="d">.dsection</b> <span class="l">zp</span>   <i>;declare zeropage section</i>
         <b class="k">.cerror</b> *&gt;<span>$30</span>,<span class="s">"Too many zeropage variables"</span>
 
         <b>*=</b> <span>$334</span>
-        <b class="k">.dsection</b> <span class="l">bss</span>   <i>;declare uninitialized variable section</i>
+        <b class="d">.dsection</b> <span class="l">bss</span>   <i>;declare uninitialized variable section</i>
         <b class="k">.cerror</b> *&gt;<span>$400</span>,<span class="s">"Too many variables"</span>
 
         <b>*=</b> <span>$0801</span>
-        <b class="k">.dsection</b> <span class="l">code</span>   <i>;declare code section</i>
+        <b class="d">.dsection</b> <span class="l">code</span>   <i>;declare code section</i>
         <b class="k">.cerror</b> *&gt;<span>$1000</span>,<span class="s">"Program too long!"</span>
 
         <b>*=</b> <span>$1000</span>
-        <b class="k">.dsection</b> <span class="l">data</span>   <i>;declare data section</i>
+        <b class="d">.dsection</b> <span class="l">data</span>   <i>;declare data section</i>
         <b class="k">.cerror</b> *&gt;<span>$2000</span>,<span class="s">"Data too long!"</span>
 <i>;--------------------</i>
         <b class="k">.section</b> <span class="l">code</span>
@@ -1475,14 +1499,14 @@ shared for all banks.</p>
 <i>;First 8K bank at the beginning, PC at $8000</i>
         <b>*=</b> <span>$0000</span>
         <b class="k">.logical</b> <span>$8000</span>
-        <b class="k">.dsection</b> <span class="l">bank1</span>
+        <b class="d">.dsection</b> <span class="l">bank1</span>
         <b class="k">.cerror</b> *&gt;<span>$a000</span>, <span class="s">"Bank1 too long"</span>
 	<b class="k">.here</b>
 
 bank1	<b class="k">.block</b>          <i>;Make all symbols local</i>
         <b class="k">.section</b> <span class="l">bank1</span>
-        <b class="k">.dsection</b> <span class="l">code</span>  <i>;Code and data sections in bank1</i>
-        <b class="k">.dsection</b> <span class="l">data</span>
+        <b class="d">.dsection</b> <span class="l">code</span>  <i>;Code and data sections in bank1</i>
+        <b class="d">.dsection</b> <span class="l">data</span>
         <b class="k">.section</b> <span class="l">code</span>   <i>;Pre-open code section</i>
 	<b class="k">.include</b> <span class="s">"code.asm"</span><i>; see below</i>
 	<b class="k">.include</b> <span class="s">"iter.asm"</span>
@@ -1493,14 +1517,14 @@ bank1	<b class="k">.block</b>          <i>;Make all symbols local</i>
 <i>;Second 8K bank at $2000, PC at $8000</i>
         <b>*=</b> <span>$2000</span>
         <b class="k">.logical</b> <span>$8000</span>
-        <b class="k">.dsection</b> <span class="l">bank2</span>
+        <b class="d">.dsection</b> <span class="l">bank2</span>
         <b class="k">.cerror</b> *&gt;<span>$a000</span>, <span class="s">"Bank2 too long"</span>
 	<b class="k">.here</b>
 
 bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
         <b class="k">.section</b> <span class="l">bank2</span>
-        <b class="k">.dsection</b> <span class="l">code</span>  <i>;Code and data sections in bank2</i>
-        <b class="k">.dsection</b> <span class="l">data</span>
+        <b class="d">.dsection</b> <span class="l">code</span>  <i>;Code and data sections in bank2</i>
+        <b class="d">.dsection</b> <span class="l">data</span>
         <b class="k">.section</b> <span class="l">code</span>   <i>;Pre-open code section</i>
 	<b class="k">.include</b> <span class="s">"scr.asm"</span>
         <b class="k">.send</b> <span class="l">code</span>
@@ -1509,7 +1533,7 @@ bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
 
 <i>;Common data, avoid initialized variables here!</i>
         <b>*=</b> <span>$c000</span>
-        <b class="k">.dsection</b> <span class="l">bss</span>
+        <b class="d">.dsection</b> <span class="l">bss</span>
         <b class="k">.cerror</b> *&gt;<span>$d000</span>, <span class="s">"Too much common data"</span>
 <i>;------------- The following is in "code.asm"</i>
 code    <b>sei</b>

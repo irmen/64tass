@@ -39,6 +39,7 @@ struct label_s {
     unsigned ref:1;
     unsigned nested:1;
     unsigned shadowcheck:1;
+    unsigned update_after:1;
     uint8_t usepass;
     uint8_t defpass;
     struct label_s *parent;

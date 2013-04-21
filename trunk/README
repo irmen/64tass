@@ -854,9 +854,10 @@ Structures are for organizing sequential data, so the length of a structure is
 the sum of lengths of all items.
 
 .struct [<name>][=<default>]][,[<name>][=<default>] ...]
-.ends
+.ends [<result>][,<result> ...]
     Structure definition, with named parameters and default values
 .dstruct <name>[,<initialization values>]
+.<name> [<initialization values>]
     Create instance of structure with initialization values
 
         .struct         ;anonymous struct
@@ -885,6 +886,7 @@ length of it's longest item.
 .endu
     Union definition, with named parameters and default values
 .dunion <name>[,<initialization values>]
+.<name> [<initialization values>]
     Create instance of union with initialization values
 
         .union          ;anonymous union
@@ -940,35 +942,41 @@ invocation is a copy of the macro's content with parameter references replaced
 by the parameter texts.
 
 .segment [<name>][=<default>]][,[<name>][=<default>] ...]
-.endm
+.endm [<result>][,<result> ...]
     Copies the code segment as it is, so symbols can be used from outside, but
     this also means multiple use will result in double defines unless anonymous
     labels are used.
 .macro [<name>][=<default>]][,[<name>][=<default>] ...]
-.endm
+.endm [<result>][,<result> ...]
     The code is enclosed in it's own block so symbols inside are
     non-accessible, unless a label is prefixed at the place of use, then local
     labels can be accessed through that label.
-#<macro> [<param>][[,][<param>] ...]
-    Invoke the macro after `#' with the parameters. Normally the name of the
-    macro is used, but it can be any expression.
+#<name> [<param>][[,][<param>] ...]
+.<name> [<param>][[,][<param>] ...]
+    Invoke the macro after `#' or `.' with the parameters. Normally the name of
+    the macro is used, but it can be any expression.
 
+;A simple macro
 copy    .macro
+        ldx #size(\1)
 lp      lda \1,x
         sta \2,x
-        inx
-        bne lp
+        dex
+        bpl lp
         .endm
 
-name    .segment
-        sta $d020
-        sta $d021
+        #copy label, $500
+
+;Use macro as an assembler directive
+lohi    .macro
+lo      .byte <(\@)
+hi      .byte >(\@)
         .endm
 
-        lda #1
-        #name           ;call macro
-        #fill $400, $500
-        #fill $500, $600
+var     .lohi 1234, 5678
+
+        lda var.lo,y
+        ldx var.hi,y
 
 Parameter references
 
@@ -1018,11 +1026,14 @@ ones for frequently used calculations.
 .function <name>[=<default>]][,<name>[=<default>] ...]
 .endf [<result>][,<result> ...]
     Defines a user function
+#<name> [<param>][[,][<param>] ...]
+.<name> [<param>][[,][<param>] ...]
+<name> [<param>][[,][<param>] ...]
+    Invoke a function like a macro, directive or pseudo instruction.
 
 Parameters are assigned to constant references. It's possible to use less
 parameters if the missing ones have a default value, but more parameters are
-not accepted. It's possible to return multiple values, these are returned as
-tuple.
+not accepted. Multiple values are returned as a tuple.
 
 Functions can span multiple lines but unlike macros they can't create new code.
 Only those external variables and functions are available which were accessible
@@ -1031,7 +1042,19 @@ at the place of definition, but not those at the place of invocation.
 wpack   .function a,b=0
         .endf a+b*256
 
-        .word wpack(1),wpack(2,3)
+        .word wpack(1), wpack(2,3)
+
+If a function is used as macro, directive or pseudo instruction and there's a
+label in front then the returned value is assigned to it. If nothing is
+returned then it's used as regular label. Of course when used like this it can
+create code and access local variables.
+
+mva     .function s,d
+        lda s
+        sta d
+        .endf
+
+        mva #1, label
 
 Conditional assembly
 
@@ -1171,7 +1194,7 @@ directory separator and use lower/uppercase consistently in filenames!
             .binary "stuffz.bin",2,1000 ;skip start address, 1000 bytes max
 
             *= $1000                    ;load music to $1000 and
-            .binary "music.dmc",2       ;strip load address
+            .binary "music.sid",$7e     ;strip SID header
 
 Blocks
 
