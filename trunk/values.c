@@ -264,7 +264,7 @@ int val_same(const struct value_s *val, const struct value_s *val2) {
     case T_GAP:
         return val->type == val2->type;
     case T_IDENTREF:
-        return val->type == val2->type && val->u.identref == val2->u.identref;
+        return val->type == val2->type && val->u.identref.label == val2->u.identref.label;
     default: /* not possible here */
         exit(2);
     }
@@ -366,10 +366,10 @@ void val_print(const struct value_s *value, FILE *flab) {
         putc(value->u.num.val ? '1' : '0', flab);
         break;
     case T_IDENTREF:
-        if (value->u.identref->parent != &root_label) {
+        if (value->u.identref.label->parent != &root_label) {
             int rec = 100;
             while (value->type == T_IDENTREF) {
-                value = value->u.identref->value;
+                value = value->u.identref.label->value;
                 if (!rec--) {
                     putc('!', flab);
                     return;
@@ -377,7 +377,7 @@ void val_print(const struct value_s *value, FILE *flab) {
             }
             val_print(value, flab);
         } else {
-            fwrite(value->u.identref->name.data, value->u.identref->name.len, 1, flab);
+            fwrite(value->u.identref.label->name.data, value->u.identref.label->name.len, 1, flab);
         }
         break;
     case T_GAP:

@@ -127,6 +127,23 @@
     .cerror ? in (1,2)
     .cerror !(? in (1,?,3))
 
+a   .block
+c   = 1
+    .bend
+
+b   .block
+c   = 2
+-
+    .bend
+
+    .cerror (a,b).c != (a.c, b.c)
+    .cerror a.(c,c) != (a.c, a.c)
+    .cerror (a,b).(c,c) != (a.c, b.c)
+    .cerror b.(-) != b
+    .cerror b.(-,-) != (b,b)
+    .cerror (b,b).(-,-) != (b,b)
+    .cerror (b,b).(-) != (b,b)
+
 ; check all operators
 
 ; bit or

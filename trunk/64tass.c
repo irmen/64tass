@@ -587,8 +587,8 @@ struct value_s *compile(struct file_list_s *cflist)
                         label->requires = current_section->requires;
                         label->conflicts = current_section->conflicts;
                         var_assign(label, val, 0);
-                        val_destroy(val);
                     }
+                    val_destroy(val);
                 } else {
                     label->requires = current_section->requires;
                     label->conflicts = current_section->conflicts;
@@ -635,8 +635,8 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->requires=current_section->requires;
                                 label->conflicts=current_section->conflicts;
                                 var_assign(label, val, fixeddig);
-                                val_destroy(val);
                             }
+                            val_destroy(val);
                         } else {
                             label->requires = current_section->requires;
                             label->conflicts = current_section->conflicts;
@@ -936,7 +936,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct label_s *tmp3 = tmp2;
                     int rec = 100;
                     while (tmp2->value->type == T_IDENTREF) {
-                        tmp2 = tmp2->value->u.identref;
+                        tmp2 = tmp2->value->u.identref.label;
                         if (!rec--) {
                             err_msg2(ERROR__REFRECURSION, NULL, epoint);
                             break;
@@ -1027,9 +1027,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         linepos_t epoint2;
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
-                        current_section->unionmode = (prm==CMD_DUNION);
-                        current_section->unionstart = current_section->unionend = current_section->address;
-                        current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                         if (listing && flist && arguments.source) {
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
                             fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
@@ -1039,10 +1036,17 @@ struct value_s *compile(struct file_list_s *cflist)
                         newlabel->ref=0;
                         if (!get_exp(&w,1)) goto breakerr;
                         if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        if (val == &error_value) goto breakerr;
+                        if (val->type == T_NONE) {
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                            fixeddig = 0;
+                            goto finish;
+                        }
                         if (val->type != ((prm==CMD_DSTRUCT) ? T_STRUCT : T_UNION)) {err_msg_wrong_type(val, epoint2); goto breakerr;}
                         ignore();if (here() == ',') lpoint.pos++;
                         current_section->structrecursion++;
+                        current_section->unionmode = (prm==CMD_DUNION);
+                        current_section->unionstart = current_section->unionend = current_section->address;
+                        current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                         val = macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, newlabel, epoint);
                         if (val) {
                             if (newlabel) {
@@ -1089,7 +1093,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 if (!get_exp(&w,0)) goto breakerr;
                 if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (val == &error_value) goto breakerr;
                 eval_finish();
                 if (listing && flist && arguments.source) {
                     lastl=LIST_NONE;
@@ -1504,7 +1507,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0)) goto breakerr;
                         while ((val = get_val(T_NONE, &epoint))) {
-                            if (val == &error_value) continue;
                             if (val->type != T_STR || val->u.str.len) {
                                 size_t i = 0;
                                 do {
@@ -1633,7 +1635,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                         while ((val = get_val(T_NONE, &epoint))) {
-                            if (val == &error_value) ch2 = 0; else
                             switch (val->type) {
                             case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
                             case T_STR: if (str_to_num(val, T_NUM, &new_value, epoint)) {large = epoint; ch2 = 0; break;} val = &new_value;
@@ -1732,7 +1733,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             val2 = val;
                         }
                         if ((val = get_val(T_UINT, &epoint))) {
-                            if (val == &error_value) goto breakerr;
                             if (val->type == T_NONE) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
@@ -1741,7 +1741,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 foffset = val->u.num.val;
                             }
                             if ((val = get_val(T_UINT, &epoint))) {
-                                if (val == &error_value) goto breakerr;
                                 if (val->type == T_NONE) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                     fixeddig = 0;
@@ -1777,7 +1776,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     current_section->wrapwarn = current_section->wrapwarn2 = 0;
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_SINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
@@ -1803,8 +1801,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
-                    if (val == &error_value) goto breakerr;
-                    else if (current_section->structrecursion && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".LOGICAL", opoint);
+                    if (current_section->structrecursion && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".LOGICAL", opoint);
                     else if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
@@ -1860,7 +1857,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_DATABANK) { /* .databank */
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
@@ -1874,7 +1870,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_DPAGE) { /* .dpage */
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
@@ -1893,7 +1888,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
@@ -1902,8 +1896,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (db && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);goto breakerr;}
                     }
                     if ((val = get_val(T_GAP, &epoint))) {
-                        if (val == &error_value) goto breakerr;
-                        else if (val->type == T_NONE) {
+                        if (val->type == T_NONE) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
                         } else if (val->type != T_GAP) {
@@ -1923,19 +1916,16 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_ASSERT) { /* .assert */
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;current_section->provides=~(uval_t)0;
                     } else current_section->provides=val->u.num.val;
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = current_section->requires = 0;
                     } else current_section->requires=val->u.num.val;
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = current_section->conflicts = 0;
@@ -1947,13 +1937,11 @@ struct value_s *compile(struct file_list_s *cflist)
                     linepos_t opoint = epoint;
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
                     } else if ((val->u.num.val & current_section->provides) ^ val->u.num.val) err_msg_requires(NULL, opoint);
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                         fixeddig = 0;
@@ -2067,7 +2055,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             val = get_val(T_UINT, &epoint);
                             actual_encoding = old;
                             if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
-                            if (val == &error_value) goto breakerr;
                             if (val->type == T_NONE) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 try = fixeddig = 0;
@@ -2083,7 +2070,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         val = get_val(T_UINT, &epoint);
                         actual_encoding = old;
                         if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
-                        if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
@@ -2135,7 +2121,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         val = get_val(T_UINT, &epoint);
                         actual_encoding = old;
                         if (!val) {err_msg(ERROR______EXPECTED,","); val_destroy(v); goto breakerr;}
-                        if (val == &error_value) {val_destroy(v); goto breakerr;}
                         if (val->type == T_NONE) {
                              if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                              fixeddig = 0;
@@ -2173,7 +2158,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     new_waitfor(W_NEXT, epoint);waitfor->skip=0;
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     if (eval_finish()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL);goto breakerr;}
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
@@ -2212,7 +2196,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_UINT, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
@@ -2222,7 +2205,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         else align = val->u.num.val;
                     }
                     if ((val = get_val(T_GAP, &epoint))) {
-                        if (val == &error_value) goto breakerr;
                         if (val->type == T_NONE) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                             fixeddig = 0;
@@ -2249,7 +2231,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_EOR) {   /* .eor */
                     if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(T_NUM, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     eval_finish();
                     if (val->type == T_NONE) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
@@ -2381,8 +2362,8 @@ struct value_s *compile(struct file_list_s *cflist)
                                 var->requires=current_section->requires;
                                 var->conflicts=current_section->conflicts;
                                 var_assign(var, val, fixeddig);
-                                val_destroy(val);
                             }
+                            val_destroy(val);
                         } else {
                             var->requires = current_section->requires;
                             var->conflicts = current_section->conflicts;
@@ -2504,8 +2485,12 @@ struct value_s *compile(struct file_list_s *cflist)
                     int noerr = 1;
                     if (!get_exp(&w,0)) goto breakerr;
                     if (!(val = get_val(T_NONE, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
                     eval_finish();
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                        fixeddig = 0;
+                        goto breakerr;
+                    }
                     ignore();if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
                     if (val->type != T_LBL) {err_msg_wrong_type(val, epoint); goto breakerr;}
                     if (val->u.lbl.file_list == cflist && val->u.lbl.parent == current_context) {
@@ -2613,7 +2598,11 @@ struct value_s *compile(struct file_list_s *cflist)
                     current_section->unionmode = 0;
                     if (!get_exp(&w,1)) goto breakerr;
                     if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                        fixeddig = 0;
+                        goto breakerr;
+                    }
                     ignore();if (here() == ',') lpoint.pos++;
                     if (val->type != T_STRUCT) {err_msg_wrong_type(val, epoint2); goto breakerr;}
                     current_section->structrecursion++;
@@ -2631,7 +2620,11 @@ struct value_s *compile(struct file_list_s *cflist)
                     current_section->unionstart = current_section->unionend = current_section->address;
                     if (!get_exp(&w,1)) goto breakerr;
                     if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (val == &error_value) goto breakerr;
+                    if (val->type == T_NONE) {
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                        fixeddig = 0;
+                        goto breakerr;
+                    }
                     ignore();if (here() == ',') lpoint.pos++;
                     if (val->type != T_UNION) {err_msg_wrong_type(val, epoint2); goto breakerr;}
                     current_section->structrecursion++;
@@ -2749,7 +2742,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 linepos_t epoint2;
                 if (!get_exp_var()) goto breakerr;
                 if (!(val = get_val(T_NONE, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                if (val == &error_value) goto breakerr;
                 if (val->type == T_NONE) {
                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                     fixeddig = 0;
@@ -2842,8 +2834,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     nota:
                         if (!(c=get_exp(&w, 3))) goto breakerr; /* ellenorizve. */
                         if (!(val = get_val(T_ADDRESS, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        if (val == &error_value) d = 0;
-                        else if (val->type == T_NONE) {
+                        if (val->type == T_NONE) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                             d = fixeddig = 0;
                         } else d = 1;
@@ -2947,8 +2938,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     else w = 3;
                                 } else if (w) w = 3; /* there's no mvp $ffff or mvp $ffffff */
                                 if ((val2 = get_val(T_UINT, &epoint2))) {
-                                    if (val2 == &error_value) d = 0;
-                                    else if (val2->type == T_NONE) {
+                                    if (val2->type == T_NONE) {
                                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                                         d = fixeddig = 0;
                                     }
@@ -2967,8 +2957,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
                                 if (w != 3) {
                                     if (!(val = get_val(T_UINT, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                                    if (val == &error_value) d = 0;
-                                    else if (val->type == T_NONE) {
+                                    if (val->type == T_NONE) {
                                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                                         d = fixeddig = 0;
                                     }
@@ -2986,8 +2975,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
                                 if (w != 3) {
                                     if (!(val = get_val(T_UINT, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                                    if (val == &error_value) d = 0;
-                                    else if (val->type == T_NONE) {
+                                    if (val->type == T_NONE) {
                                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                                         d = fixeddig = 0;
                                     }
@@ -2999,8 +2987,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     if (w != 3) {
                                         uint32_t adr2;
                                         if (!(val = get_val(T_UINT, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                                        if (val == &error_value) d = 0;
-                                        else if (val->type == T_NONE) {
+                                        if (val->type == T_NONE) {
                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                                             d = fixeddig = 0;
                                         }
@@ -3037,7 +3024,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 s = new_star(vline+1, &labelexists);olabelexists=labelexists;
 
                                 for (; c; c = !!(val = get_val(T_UINT, NULL))) {
-                                    if (val != &error_value && val->type != T_NONE) {
+                                    if (val->type != T_NONE) {
                                         uint16_t oadr = val->u.num.val;
                                         adr = (uval_t)val->u.num.val;
                                         labelexists = olabelexists;
@@ -3223,7 +3210,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 struct label_s *tmp3 = tmp2;
                                 int rec = 100;
                                 while (tmp2->value->type == T_IDENTREF) {
-                                    tmp2 = tmp2->value->u.identref;
+                                    tmp2 = tmp2->value->u.identref.label;
                                     if (!rec--) {
                                         err_msg2(ERROR__REFRECURSION, NULL, epoint);
                                         break;
@@ -3340,7 +3327,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct label_s *tmp3 = tmp2;
                     int rec = 100;
                     while (tmp2->value->type == T_IDENTREF) {
-                        tmp2 = tmp2->value->u.identref;
+                        tmp2 = tmp2->value->u.identref.label;
                         if (!rec--) {
                             err_msg2(ERROR__REFRECURSION, NULL, epoint);
                             break;

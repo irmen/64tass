@@ -58,7 +58,6 @@ static struct value_s false_value = {T_BOOL, 0, {{1, 0}}};
 static struct value_s null_str = {T_STR, 0, {{0, 0}}};
 static struct value_s null_tuple = {T_TUPLE, 0, {{0, 0}}};
 static struct value_s null_list = {T_LIST, 0, {{0, 0}}};
-struct value_s error_value = {T_NONE, 0, {{0, 0}}};
 
 struct encoding_s *actual_encoding;
 int referenceit = 1;
@@ -320,114 +319,174 @@ static int touch_label(struct label_s *tmp) {
     return 1;
 }
 
-static void try_resolv_ident(struct values_s *vals) {
+static int try_resolv_ident(struct value_s *v1, struct value_s *v) {
     char idents[100];
     str_t ident;
-    struct value_s *val = vals->val, *v;
     struct label_s *l;
+    linepos_t epoint;
 
-    switch (val->type) {
-    case T_FORWR: 
-        sprintf(idents,"+%x+%x", reffile, forwr + val->u.ref - 1);
+    switch (v1->type) {
+    case T_ANONIDENT: 
+        sprintf(idents, (v1->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v1->u.anonident.count >= 0) ? forwr : backr) + v1->u.anonident.count);
         ident.data = (const uint8_t *)idents;
         ident.len = strlen(idents);
         l = find_label(&ident);
-        v = val_realloc(&vals->val);
         if (l) {
+            v->u.identref.epoint = v1->u.anonident.epoint;
             v->type = T_IDENTREF;
-            v->u.identref = l;
-        } else {
-            v->type = T_ERROR;
-            v->u.error.num = ERROR___NOT_DEFINED;
-            v->u.error.epoint = vals->epoint;
-            v->u.error.u.ident.len = 1;
-            v->u.error.u.ident.data = (const uint8_t *)"+";
+            v->u.identref.label = l;
+            return 1;
         }
-        break;
-    case T_BACKR: 
-        sprintf(idents,"-%x-%x", reffile, backr - val->u.ref);
-        ident.data = (const uint8_t *)idents;
-        ident.len = strlen(idents);
-        l = find_label(&ident);
-        v = val_realloc(&vals->val);
-        if (l) {
-            v->type = T_IDENTREF;
-            v->u.identref = l;
-        } else {
-            v->type = T_ERROR;
-            v->u.error.num = ERROR___NOT_DEFINED;
-            v->u.error.epoint = vals->epoint;
-            v->u.error.u.ident.len = 1;
-            v->u.error.u.ident.data = (const uint8_t *)"-";
-        }
-        break;
+        v->u.error.epoint = v1->u.anonident.epoint;
+        v->type = T_ERROR;
+        v->u.error.num = ERROR___NOT_DEFINED;
+        v->u.error.u.ident.len = 1;
+        v->u.error.u.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
+        return -1;
     case T_IDENT: 
-        l = find_label(&val->u.ident);
-        v = val_realloc(&vals->val);
+        l = find_label(&v1->u.ident.name);
         if (l) {
             l->shadowcheck = 1;
+            v->u.identref.epoint = v1->u.ident.epoint;
             v->type = T_IDENTREF;
-            v->u.identref = l;
-        } else {
-            v->u.error.u.ident = val->u.ident;
-            v->type = T_ERROR;
-            v->u.error.epoint = vals->epoint;
-            v->u.error.num = ERROR___NOT_DEFINED;
+            v->u.identref.label = l;
+            return 1;
         }
-        break;
-    default: return;
+        epoint = v1->u.ident.epoint;
+        v->u.error.u.ident = v1->u.ident.name;
+        v->type = T_ERROR;
+        v->u.error.epoint = epoint;
+        v->u.error.num = ERROR___NOT_DEFINED;
+        return -1;
+    default: return 0;
     }
 }
 
-static struct value_s *unwind_identrefs(struct values_s *vals, struct value_s *v) {
-    struct value_s *vold = vals->val;
-    struct value_s *v1 = vold;
-    int rec = 100;
-    while (v1->type == T_IDENTREF) {
-        if (pass != 1 && v1->u.identref->value->type != T_IDENTREF) {
-            if (v1->u.identref->requires & ~current_section->provides) {
-                v->u.error.u.ident = vold->u.identref->name;
-                v->type = T_ERROR;
-                v->u.error.epoint = vals->epoint;
-                v->u.error.num = ERROR_REQUIREMENTS_;
-                return v;
-            }
-            if (v1->u.identref->conflicts & current_section->provides) {
-                v->u.error.u.ident = vold->u.identref->name;
-                v->type = T_ERROR;
-                v->u.error.epoint = vals->epoint;
-                v->u.error.num = ERROR______CONFLICT;
-                return v;
-            }
-        }
-        if (touch_label(v1->u.identref)) {
-            v->u.error.u.ident = vold->u.identref->name;
+static struct value_s *last_access_check(struct label_s *l, struct value_s *v, linepos_t epoint) {
+    if (pass != 1) {
+        if (l->requires & ~current_section->provides) {
+            v->u.error.u.ident = l->name;
             v->type = T_ERROR;
-            v->u.error.epoint = vals->epoint;
-            v->u.error.num = ERROR___NOT_DEFINED;
-            return v;
+            v->u.error.epoint = epoint;
+            v->u.error.num = ERROR_REQUIREMENTS_;
+            return NULL;
         }
-        v1 = v1->u.identref->value;
-        if (!rec--) {
-            err_msg2(ERROR__REFRECURSION, NULL, vals->epoint);
-            v->type = T_NONE;
+        if (l->conflicts & current_section->provides) {
+            v->u.error.u.ident = l->name;
+            v->type = T_ERROR;
+            v->u.error.epoint = epoint;
+            v->u.error.num = ERROR______CONFLICT;
+            return NULL;
+        }
+    }
+    return l->value;
+}
+
+static struct value_s *unwind_identrefs(struct value_s *vold, struct value_s *v) {
+    struct value_s *v1 = vold;
+    int rec;
+
+    for (rec = 0; rec < 100; rec++) {
+        if (touch_label(v1->u.identref.label)) {
+            linepos_t epoint = vold->u.identref.epoint;
+            v->u.error.u.ident = vold->u.identref.label->name;
+            v->type = T_ERROR;
+            v->u.error.epoint = epoint;
+            v->u.error.num = ERROR___NOT_DEFINED;
+            return NULL;
+        }
+        if (v1->u.identref.label->value->type != T_IDENTREF) {
             return v1;
         }
+        v1 = v1->u.identref.label->value;
     } 
+    err_msg2(ERROR__REFRECURSION, NULL, vold->u.identref.epoint);
+    v->type = T_NONE;
+    return NULL;
+}
+
+static inline struct value_s *try_resolv_identref(struct value_s *v1, struct value_s *v) {
+    if (v1->type == T_IDENTREF) {
+        struct value_s *vold = v1;
+        v1 = unwind_identrefs(v1, v);
+        if (v1) v1 = last_access_check(v1->u.identref.label, v, vold->u.identref.epoint);
+    }
     return v1;
 }
 
-static void try_resolv_identref(struct values_s *vals) {
-    struct value_s *val = vals->val, tmp;
-    val = unwind_identrefs(vals, &tmp);
-    if (val == &tmp) val_replace_template(&vals->val, val);
-    else val_replace(&vals->val, val);
+static void try_resolv_identref2(struct values_s *value) {
+    struct value_s tmp, *v2;
+    if (value->val->type == T_IDENTREF) {
+        v2 = try_resolv_identref(value->val, &tmp);
+        if (v2) {
+            val_replace(&value->val, v2);
+            return;
+        }
+        val_replace_template(&value->val, &tmp);
+    }
 }
 
-static enum type_e try_resolv(struct values_s *vals) {
-    try_resolv_ident(vals);
-    try_resolv_identref(vals);
-    return vals->val->type;
+static enum type_e try_resolv(struct values_s *value) {
+    struct value_s *v1 = value->val, *v2;
+    int res;
+    struct value_s tmp;
+    res = try_resolv_ident(v1, &tmp);
+    if (!res) {
+        try_resolv_identref2(value);
+        return value->val->type;
+    }
+    if (tmp.type == T_IDENTREF) {
+        v2 = try_resolv_identref(&tmp, &tmp);
+        if (v2) {
+            val_replace(&value->val, v2);
+            return v2->type;
+        }
+    }
+    val_replace_template(&value->val, &tmp);
+    return tmp.type;
+}
+
+static int try_resolv_rec(struct value_s **value) {
+    int res, err = 0;
+    struct value_s tmp, *v2;
+    if (value[0]->type == T_TUPLE || value[0]->type == T_LIST) {
+        size_t i;
+        for (i = 0; i < value[0]->u.list.len; i++) {
+            if (try_resolv_rec(&value[0]->u.list.data[i])) err = 1;
+        }
+        return err;
+    }
+    res = try_resolv_ident(value[0], &tmp);
+    if (!res) {
+        if (value[0]->type == T_IDENTREF) {
+            v2 = try_resolv_identref(value[0], &tmp);
+            if (v2) {
+                val_replace(value, v2);
+                return err;
+            }
+            err_msg_wrong_type(&tmp, tmp.u.error.epoint);
+            val_replace_template(value, &none_value);
+            return 1;
+        }
+        return err;
+    }
+    if (res < 0) {
+        err_msg_wrong_type(&tmp, tmp.u.error.epoint);
+        val_replace_template(value, &none_value);
+        return 1;
+    }
+    if (tmp.type == T_IDENTREF) {
+        v2 = try_resolv_identref(&tmp, &tmp);
+        if (v2) {
+            val_replace(value, v2);
+            return err;
+        }
+        err_msg_wrong_type(&tmp, tmp.u.error.epoint);
+        val_replace_template(value, &none_value);
+        return 1;
+    }
+    val_replace_template(value, &tmp);
+    return err;
 }
 
 static void get_star(struct value_s *v) {
@@ -598,8 +657,9 @@ rest:
             if (!get_label()) goto syntaxe;
             val = push(epoint);
             val->type = T_IDENT;
-            val->u.ident.data = pline + epoint.pos;
-            val->u.ident.len = lpoint.pos - epoint.pos;
+            val->u.ident.name.data = pline + epoint.pos;
+            val->u.ident.name.len = lpoint.pos - epoint.pos;
+            val->u.ident.epoint = epoint;
         }
     other:
         if (stop != 2) ignore();
@@ -628,8 +688,9 @@ rest:
                 epoint.pos++;
                 val = push(epoint);
                 val->type = T_IDENT;
-                val->u.ident.data = pline + epoint.pos;
-                val->u.ident.len = lpoint.pos - epoint.pos;
+                val->u.ident.name.data = pline + epoint.pos;
+                val->u.ident.name.len = lpoint.pos - epoint.pos;
+                val->u.ident.epoint = epoint;
                 goto other;
             }
             goto rest;
@@ -884,12 +945,16 @@ struct value_s *get_val(enum type_e type, linepos_t *epoint) {/* length in bytes
     } else {
         res = get_val2(eval);
     }
-    if (res) return (res > 0) ? NULL : &error_value;
+    if (res) return (res > 0) ? NULL : &none_value;
 
     value = eval->values;
 
     if (epoint) *epoint = value->epoint;
-    try_resolv_ident(value);
+    if (value->val->refcount != 1) {
+        struct value_s tmp;
+        res = try_resolv_ident(value->val, &tmp);
+        if (res) val_replace_template(&value->val, &tmp);
+    } else try_resolv_ident(value->val, value->val);
 
     switch (value->val->type) {
     case T_STR:
@@ -909,8 +974,11 @@ struct value_s *get_val(enum type_e type, linepos_t *epoint) {/* length in bytes
     case T_FUNCTION:
     case T_ADDRESS:
     case T_IDENTREF:
-        if (type == T_IDENTREF) return value->val;
-        try_resolv_identref(value);
+        if (type == T_IDENTREF) {
+            if (value->val->type != T_IDENTREF) try_resolv_rec(&value->val);
+            return value->val;
+        }
+        try_resolv_rec(&value->val);
         if (type == T_NONE) return value->val;
         if (type == T_ADDRESS) {
             if (value->val->type == T_ADDRESS) return value->val;
@@ -944,7 +1012,7 @@ struct value_s *get_val(enum type_e type, linepos_t *epoint) {/* length in bytes
         }
     default:
         err_msg_wrong_type(value->val, value->epoint);
-        return &error_value;
+        return &none_value;
     case T_NONE: break;
     }
     return &none_value;
@@ -1127,8 +1195,8 @@ static void functions(struct values_s *vals, unsigned int args) {
     enum func_e func = F_NONE;
 
     if (vals->val->type == T_IDENT) {
-        len = vals->val->u.ident.len;
-        name = vals->val->u.ident.data;
+        len = vals->val->u.ident.name.len;
+        name = vals->val->u.ident.name.data;
 
         /* len(a) - length of string in characters */
         if (len == 3 && !memcmp(name, "len", len)) {
@@ -1460,7 +1528,15 @@ static void functions(struct values_s *vals, unsigned int args) {
                 val_replace(&vals->val, &none_value);
                 return;
             }
-            for (i = 0; i < args; i++) try_resolv_ident(&v[i]);
+            for (i = 0; i < args; i++) {
+                if (v[i].val->refcount != 1) {
+                    struct value_s tmp;
+                    int res;
+                    res = try_resolv_ident(v[i].val, &tmp);
+                    if (res) val_replace_template(&v[i].val, &tmp);
+                } else try_resolv_ident(v[i].val, v[i].val);
+                if (v[i].val->type != T_IDENTREF) try_resolv_rec(&v[i].val);
+            }
             for (; i < vals->val->u.func.argc; i++) {
                 if (!vals->val->u.func.param[i].init) {
                     err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals->epoint);
@@ -2123,10 +2199,18 @@ static void apply_op(enum oper_e op, struct value_s *v1, struct value_s *v, line
     enum type_e t1;
     struct value_s tmp1;
     char line[linelength]; 
-    struct values_s vals1 = {v1, epoint};
+    int res;
 
-    v1 = unwind_identrefs(&vals1, &tmp1);
+    res = try_resolv_ident(v1, v);
+    if (res < 0) return;
+    if (res) v1 = v;
     t1 = v1->type;
+    if (t1 == T_IDENTREF) {
+        v1 = unwind_identrefs(v1, v);
+        if (v1) v1 = last_access_check(v1->u.identref.label, v, epoint);
+        if (!v1) return;
+        t1 = v1->type;
+    }
 strretr:
     if (t1 == T_NONE) {
         v->type = T_NONE;
@@ -2570,21 +2654,87 @@ static void apply_op2(enum oper_e op, struct value_s *v1, struct value_s *v2, st
     enum type_e t1;
     enum type_e t2;
     struct value_s tmp1, tmp2;
-    struct values_s vals1 = {v1, epoint}, vals2 = {v2, epoint2};
 
-    v1 = unwind_identrefs(&vals1, &tmp1);
     t1 = v1->type;
-    v2 = unwind_identrefs(&vals2, &tmp2);
     t2 = v2->type;
 strretr:
+    if (t1 == T_IDENT || t1 == T_ANONIDENT) {
+        int res;
+        res = try_resolv_ident(v1, v);
+        if (res < 0) return;
+        if (res) v1 = v;
+        t1 = v1->type;
+    }
+    if (t1 == T_IDENTREF) {
+        v1 = unwind_identrefs(v1, v);
+        if (!v1) return;
+        if (op == O_MEMBER) { 
+            struct label_s *l;
+            if (t2 == T_IDENT) {
+                l = find_label2(&v2->u.ident.name, v1->u.identref.label);
+                if (l) {
+                    v->u.identref.epoint = v2->u.ident.epoint;
+                    v->type = T_IDENTREF;
+                    v->u.identref.label = l;
+                    return;
+                } 
+                epoint = v2->u.ident.epoint;
+                v->u.error.u.ident = v2->u.ident.name;
+                v->type = T_ERROR;
+                v->u.error.num = ERROR___NOT_DEFINED;
+                v->u.error.epoint = epoint;
+                return;
+            }
+            if (t2 == T_ANONIDENT) {
+                char idents[100];
+                str_t ident;
+                sprintf(idents, (v2->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v2->u.anonident.count >= 0) ? forwr : backr) + v2->u.anonident.count);
+                ident.data = (const uint8_t *)idents;
+                ident.len = strlen(idents);
+                l = find_label2(&ident, v1->u.identref.label);
+                if (l) {
+                    v->u.identref.epoint = v2->u.anonident.epoint;
+                    v->type = T_IDENTREF;
+                    v->u.identref.label = l;
+                    return;
+                }
+                v->u.error.epoint = v2->u.anonident.epoint;
+                v->type = T_ERROR;
+                v->u.error.num = ERROR___NOT_DEFINED;
+                v->u.error.u.ident.len = 1;
+                v->u.error.u.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
+                return;
+            }
+            if (t2 == T_LIST || t2 == T_TUPLE) {
+                onlist(op, v1, v2, v, epoint, epoint2, epoint3);
+                return;
+            }
+        }
+        v1 = last_access_check(v1->u.identref.label, v, epoint);
+        if (!v1) return;
+        t1 = v1->type;
+    }
     if (t1 == T_NONE) {v->type = T_NONE;return;}
+    if (op != O_MEMBER) {
+        int res;
+        res = try_resolv_ident(v2, &tmp2);
+        if (res) {
+            v2 = &tmp2;
+            t2 = v2->type;
+        }
+        if (t2 == T_IDENTREF) {
+            v2 = unwind_identrefs(v2, v);
+            if (v2) v2 = last_access_check(v2->u.identref.label, v, epoint2);
+            if (!v2) return;
+            t2 = v2->type;
+        }
+    }
     if (t2 == T_NONE) {
     errtype:
         if (v == v1) val_destroy2(v1);
         v->type = T_NONE;
         return;
     }
-
     if (type_is_int(t1)) {
         if (type_is_int(t2)) {
             ival_t val1 = v1->u.num.val;
@@ -3297,6 +3447,7 @@ strretr:
             case O_ASHIFT:
             case O_RSHIFT:
             case O_EXP:
+            case O_MEMBER:
                 {
                     struct value_s **vals;
                     const struct value_s *vx;
@@ -3437,7 +3588,7 @@ strretr:
             }
             return;
         }
-        if (type_is_num(t2) || t2 == T_CODE) {
+        if (type_is_num(t2) || t2 == T_CODE || t2 == T_IDENT || t2 == T_ANONIDENT) {
             switch (op) {
             case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
             case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
@@ -3615,53 +3766,6 @@ static int get_val2(struct eval_context_s *ev) {
         if (vsp == 0) goto syntaxe;
         v1 = &values[vsp-1];
         switch (op) {
-        case O_MEMBER:
-            {
-                struct value_s *vv1;
-                int rec = 100;
-                v2 = v1; vsp--;
-                if (vsp == 0) goto syntaxe;
-                v1 = &values[vsp-1];
-                if (v1->val->type == T_NONE) continue;
-                try_resolv_ident(v1);
-                vv1 = v1->val;
-            membretr:
-                if (vv1->type == T_IDENTREF) {
-                    if (!vv1->u.identref->nested) {
-                        if (touch_label(vv1->u.identref)) {
-                            vv1->u.error.u.ident = vv1->u.identref->name;
-                            vv1->type = T_ERROR;
-                            vv1->u.error.num = ERROR___NOT_DEFINED;
-                            vv1->u.error.epoint = v1->epoint;
-                            continue;
-                        }
-                        vv1 = vv1->u.identref->value;
-                        if (vv1->type == T_NONE) goto errtype;
-                        if (rec--) goto membretr;
-                        err_msg2(ERROR__REFRECURSION, NULL, v1->epoint);
-                        goto errtype;
-                    }
-                    if (v2->val->type == T_IDENT) {
-                        new_value.u.identref = find_label2(&v2->val->u.ident, vv1->u.identref);
-                        if (new_value.u.identref) {
-                            new_value.type = T_IDENTREF;
-                            touch_label(vv1->u.identref);
-                        } else {
-                            new_value.type = T_ERROR;
-                            new_value.u.error.num = ERROR___NOT_DEFINED;
-                            new_value.u.error.epoint = v2->epoint;
-                            new_value.u.error.u.ident = v2->val->u.ident;
-                        }
-                        val_replace(&v1->val, &new_value);
-                        v1->epoint=v2->epoint;
-                        continue;
-                    } else err_msg_invalid_oper(op, vv1, v2->val, v2->epoint);
-                } else if (vv1->type == T_ERROR) continue;
-                else err_msg_invalid_oper(op, vv1, v2->val, v1->epoint);
-            errtype:
-                val_replace(&v1->val, &none_value);
-                continue;
-            }
         case O_FUNC:
         case O_INDEX:
         case O_SLICE:
@@ -3684,7 +3788,7 @@ static int get_val2(struct eval_context_s *ev) {
         case O_TUPLE:
         case O_LIST:
             {
-                unsigned int args = 0, args2, tup = (op == O_RPARENT), expl = (op == O_TUPLE || op == O_LIST);
+                unsigned int args = 0, tup = (op == O_RPARENT), expl = (op == O_TUPLE || op == O_LIST);
                 op = (op == O_RBRACKET || op == O_LIST) ? O_BRACKET : O_PARENT;
                 while (v1->val->type != T_OPER || v1->val->u.oper.op != op) {
                     args++;
@@ -3736,22 +3840,9 @@ static int get_val2(struct eval_context_s *ev) {
                 val->type = (op == O_BRACKET) ? T_LIST : T_TUPLE;
                 val->u.list.len = args;
                 if (args) {
-                    args2 = args;
                     val->u.list.data = malloc(args * sizeof(val->u.list.data[0]));
                     if (!val->u.list.data) err_msg_out_of_memory();
                     while (args--) {
-                        try_resolv(&values[vsp-1]);
-                        if (values[vsp-1].val->type == T_ERROR) {
-                            while (args2 > args + 1) {
-                                args2--;
-                                val_destroy(val->u.list.data[args2]);
-                            }
-                            free(val->u.list.data);
-                            val->type = T_ERROR;
-                            val->u.error = values[vsp-1].val->u.error;
-                            vsp -= args + 1;
-                            break;
-                        } 
                         val->u.list.data[args] = values[vsp-1].val;
                         values[vsp-1].val = &none_value;
                         vsp--;
@@ -3782,7 +3873,8 @@ static int get_val2(struct eval_context_s *ev) {
                 }
                 continue;
             default: err_msg_invalid_oper(O_COND, values[vsp-1].val, NULL, values[vsp-1].epoint); 
-                     goto errtype;
+                     val_replace(&values[vsp-1].val, &none_value);
+                     continue;
             case T_NONE: continue;
             }
         case O_QUEST:
@@ -3790,13 +3882,15 @@ static int get_val2(struct eval_context_s *ev) {
             if (vsp == 0) goto syntaxe;
             v1 = &values[vsp-1];
             err_msg2(ERROR______EXPECTED,"':'", o_out->epoint);
-            goto errtype;
+            val_replace(&v1->val, &none_value);
+            continue;
         case O_COLON:
             v2 = v1; vsp--;
             if (vsp == 0) goto syntaxe;
             v1 = &values[vsp-1];
             err_msg2(ERROR______EXPECTED,"'?'", o_out->epoint);
-            goto errtype;
+            val_replace(&v1->val, &none_value);
+            continue;
         case O_WORD:    /* <> */
         case O_HWORD:   /* >` */
         case O_BSWORD:  /* >< */
@@ -3814,7 +3908,6 @@ static int get_val2(struct eval_context_s *ev) {
         case O_NEG:     /* -  */
         case O_POS:     /* +  */
             {
-                try_resolv_ident(v1);
                 if (v1->val->refcount != 1) {
                     apply_op(op, v1->val, &new_value, v1->epoint, o_out->epoint);
                     val_replace_template(&v1->val, &new_value);
@@ -3837,7 +3930,8 @@ static int get_val2(struct eval_context_s *ev) {
                 v1->epoint = o_out->epoint;
                 continue;
             default: err_msg_invalid_oper(op, v1->val, NULL, v1->epoint);
-                     goto errtype;
+                     val_replace(&v1->val, &none_value);
+                     continue;
             case T_ERROR:
             case T_NONE: continue;
             }
@@ -3886,10 +3980,12 @@ static int get_val2(struct eval_context_s *ev) {
                     val_replace(&v1->val, v2->val);
                     continue;
                 default: err_msg_invalid_oper(op, v1->val, v2->val, v2->epoint); 
-                         goto errtype;
+                         val_replace(&v1->val, &none_value);
+                         continue;
                 }
             default: err_msg_invalid_oper(op, v1->val, v2->val, v1->epoint); 
-                     goto errtype;
+                     val_replace(&v1->val, &none_value);
+                     continue;
             case T_ERROR:
             case T_NONE: continue;
             }
@@ -3902,8 +3998,6 @@ static int get_val2(struct eval_context_s *ev) {
             ev->outp2 = ev->outp;
             return -1;
         }
-        try_resolv_ident(v2);
-        try_resolv_ident(v1);
 
         if (v1->val->refcount != 1) {
             apply_op2(op, v1->val, v2->val, &new_value, v1->epoint, v2->epoint, o_out->epoint);
@@ -4027,8 +4121,9 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             if (get_label()) {
                 val = push(epoint);
                 val->type = T_IDENT;
-                val->u.ident.data = pline + epoint.pos;
-                val->u.ident.len = lpoint.pos - epoint.pos;
+                val->u.ident.name.data = pline + epoint.pos;
+                val->u.ident.name.len = lpoint.pos - epoint.pos;
+                val->u.ident.epoint = epoint;
                 goto other;
             }
         tryanon:
@@ -4036,15 +4131,17 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             while (operp && o_oper[operp-1] == &o_POS) operp--;
             if (db != operp) {
                 val = push(epoints[operp]);
-                val->type = T_FORWR;
-                val->u.ref = db - operp;
+                val->type = T_ANONIDENT;
+                val->u.anonident.count = db - operp -1;
+                val->u.anonident.epoint = epoint;
                 goto other;
             }
             while (operp && o_oper[operp-1] == &o_NEG) operp--;
             if (db != operp) {
                 val = push(epoints[operp]);
-                val->type = T_BACKR;
-                val->u.ref = db - operp;
+                val->type = T_ANONIDENT;
+                val->u.anonident.count = operp - db;
+                val->u.anonident.epoint = epoint;
                 goto other;
             }
             goto syntaxe;
@@ -4097,8 +4194,9 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
                 epoint.pos++;
                 val = push(epoint);
                 val->type = T_IDENT;
-                val->u.ident.data = pline + epoint.pos;
-                val->u.ident.len = llen;
+                val->u.ident.name.data = pline + epoint.pos;
+                val->u.ident.name.len = llen;
+                val->u.ident.epoint = epoint;
                 goto other;
             }
             continue;
@@ -4244,27 +4342,15 @@ struct value_s *get_vals_tuple(enum type_e type) {
                 if (!vals) err_msg_out_of_memory();
             }
             if (i == 1) {
-                struct values_s vals2 = {retval, epoint};
-                try_resolv_identref(&vals2);
-                if (vals2.val->type == T_NONE) {
-                    free(vals);
-                    return vals2.val;
-                }
-                vals[0] = vals2.val;
-                type = T_NONE;
-            }
-            if (val->type == T_NONE) {
-                val_destroy(val);
-                while (--i) val_destroy(vals[i]);
-                free(vals);
-                return &none_value;
+                if (retval->type == T_IDENTREF) try_resolv_rec(&retval);
+                vals[0] = retval;
             }
             vals[i] = val;
-            eval->values->val = &none_value;
         } else {
             retval = val;
-            eval->values->val = &none_value;
+            type = T_NONE;
         }
+        eval->values->val = &none_value;
         i++;
     }
     eval_finish();

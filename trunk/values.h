@@ -23,7 +23,7 @@
 
 enum type_e {
     T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_ADDRESS,
-    T_IDENT, T_IDENTREF, T_FORWR, T_BACKR, T_ERROR, T_OPER, T_TUPLE, T_LIST,
+    T_IDENT, T_ANONIDENT, T_IDENTREF, T_ERROR, T_OPER, T_TUPLE, T_LIST,
     T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL, T_DEFAULT
 };
 
@@ -188,9 +188,18 @@ struct value_s {
                 str_t ident;
             } u;
         } error;
-        str_t ident;
-        struct label_s *identref;
-        uint8_t ref;
+        struct {
+            str_t name;
+            linepos_t epoint;
+        } ident;
+        struct {
+            struct label_s *label;
+            linepos_t epoint;
+        } identref;
+        struct {
+            int32_t count;
+            linepos_t epoint;
+        } anonident;
         double real;
     } u;
 };
