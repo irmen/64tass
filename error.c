@@ -255,8 +255,7 @@ static const char *type_name(enum type_e t) {
     case T_IDENT: return "<ident>";
     case T_IDENTREF: return "<identref>";
     case T_NONE: return "<none>";
-    case T_BACKR: return "<backr>";
-    case T_FORWR: return "<forwr>";
+    case T_ANONIDENT: return "<anonident>";
     case T_OPER: return "<operator>";
     case T_GAP: return "<uninit>";
     case T_LIST: return "<list>";
@@ -425,8 +424,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
     case T_IDENT: add_user_error(user_error, "<ident>");break;
     case T_IDENTREF: add_user_error(user_error, "<identref>");break;
     case T_NONE: add_user_error(user_error, "<none>");break;
-    case T_BACKR: add_user_error(user_error, "<backr>");break;
-    case T_FORWR: add_user_error(user_error, "<forwr>");break;
+    case T_ANONIDENT: add_user_error(user_error, "<anonident>");break;
     case T_OPER: add_user_error(user_error, "<operator>");break;
     case T_MACRO: add_user_error(user_error, "<macro>");break;
     case T_SEGMENT: add_user_error(user_error, "<segment>");break;
