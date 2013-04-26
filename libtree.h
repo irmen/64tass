@@ -47,7 +47,7 @@
 struct avltree_node {
 	struct avltree_node *left, *right;
 	struct avltree_node *parent;
-	signed balance:3;		/* balance factor [-2:+2] */
+	int balance;		/* balance factor [-2:+2] */
 };
 
 typedef int (*avltree_cmp_fn_t)(const struct avltree_node *, const struct avltree_node *);
