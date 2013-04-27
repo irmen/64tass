@@ -29,6 +29,7 @@
 #include "file.h"
 #include "eval.h"
 #include "variables.h"
+#include "ternary.h"
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL};
 
@@ -184,6 +185,7 @@ void tfree(void) {
     err_destroy();
     destroy_encoding();
     destroy_values();
+    destroy_ternary();
 }
 
 void tinit(void) {
@@ -197,6 +199,7 @@ void tinit(void) {
     init_values();
     init_variables();
     init_eval();
+    init_ternary();
 }
 
 static void labelname_print(const struct label_s *l, FILE *flab) {

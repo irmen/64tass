@@ -20,6 +20,43 @@
 #include "ternary.h"
 #include <stdlib.h>
 #include "misc.h"
+#include "error.h"
+
+static union tern_u {
+    ternary_node tern;
+    union tern_u *next;
+} *terns_free = NULL;
+
+static struct terns_s {
+    union tern_u terns[255];
+    struct terns_s *next;
+} *terns = NULL;
+
+static void tern_free(union tern_u *tern) {
+    //free(tern); return;
+    tern->next = terns_free;
+    terns_free = tern;
+}
+
+static ternary_node *tern_alloc(void) {
+    ternary_node *tern;
+    size_t i;
+    //return malloc(sizeof(ternary_node));
+    tern = (ternary_node *)terns_free;
+    terns_free = terns_free->next;
+    if (!terns_free) {
+        struct terns_s *old = terns;
+        terns = malloc(sizeof(struct terns_s));
+        if (!terns) err_msg_out_of_memory();
+        for (i = 0; i < 254; i++) {
+            terns->terns[i].next = &terns->terns[i+1];
+        }
+        terns->terns[i].next = NULL;
+        terns->next = old;
+        terns_free = &terns->terns[0];
+    }
+    return tern;
+}
 
 /* Non-recursive so we don't waste stack space/time on large
    insertions. */
@@ -58,11 +95,11 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
        the string, into the tree rooted at curr */
     for (;;) {
         /* Allocate the memory for the node, and fill it in */
-        *pcurr = (ternary_tree) malloc (sizeof (ternary_node));
+        *pcurr = tern_alloc();
         if (!pcurr) return NULL;
         curr = *pcurr;
         curr->splitchar = spchar;
-        curr->lokid = curr->hikid = curr->eqkid = 0;
+        curr->lokid = curr->hikid = curr->eqkid = NULL;
 
         /* Place nodes until we hit the end of the string.
            When we hit it, place the data in the right place, and
@@ -91,7 +128,7 @@ void ternary_cleanup (ternary_tree p)
             ternary_cleanup (p->eqkid);
         else free(p->eqkid);
         ternary_cleanup (p->hikid);
-        free(p);
+        tern_free((union tern_u *)p);
     }
 }
 
@@ -123,3 +160,27 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
     return last ? (void *)last->eqkid : NULL;
 }
 
+void init_ternary(void)
+{
+    size_t i;
+    terns = malloc(sizeof(struct terns_s));
+    if (!terns) err_msg_out_of_memory();
+    for (i = 0; i < 254; i++) {
+        terns->terns[i].next = &terns->terns[i+1];
+    }
+    terns->terns[i].next = NULL;
+    terns->next = NULL;
+
+    terns_free = &terns->terns[0];
+}
+
+void destroy_ternary(void)
+{
+    struct terns_s *old;
+
+    while (terns) {
+        old = terns;
+        terns = terns->next;
+        free(old);
+    }
+}
