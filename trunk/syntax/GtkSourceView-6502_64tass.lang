@@ -125,7 +125,7 @@
     </context>
 
     <context id="operator" style-ref="operator">
-      <match>[-+!~&lt;&gt;&amp;,.|^*/%=()\[\]?:`#]</match>
+      <match>[-+!~&lt;&gt;&amp;,.|^*/%=(){}\[\]?:`#]</match>
     </context>
 
     <context id="register" style-ref="register">

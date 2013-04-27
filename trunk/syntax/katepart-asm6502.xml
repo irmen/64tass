@@ -57,7 +57,7 @@
         <RegExpr String=";.*$" attribute="Comment" context="#stay"/>
       </context>
       <context name="Miscparam" attribute="Normal Text" lineEndContext="Base">
-        <RegExpr String="[\-+]+\s*(?=($|[),;.\]]))" attribute="Label" context="Miscparam2"/>
+        <RegExpr String="[\-+]+\s*(?=($|[)},;.\]]))" attribute="Label" context="Miscparam2"/>
         <RegExpr String="[a-z_][a-z_0-9]*\s*(?=\()" attribute="Normal Text" context="#stay" insensitive="TRUE"/>
         <RegExpr String="[a-z_][a-z_0-9]*" attribute="Label" context="Miscparam2" insensitive="TRUE"/>
         <RegExpr String="\\[a-z_][a-z_0-9]*" attribute="Preprocessor" context="Miscparam2" insensitive="TRUE"/>
@@ -69,8 +69,8 @@
         <RegExpr String="\$[a-f0-9]*" attribute="Hex" context="Miscparam2" insensitive="TRUE"/>
         <RegExpr String="(\.[0-9]+|[0-9]+\.(?!\.)[0-9]*)(e[+-]?[0-9]*)?|([0-9]+e[+-]?[0-9]*)" attribute="Float" context="Miscparam2" insensitive="TRUE"/>
         <RegExpr String="-?[1-9][0-9]*|0" attribute="Decimal" context="Miscparam2"/>
-        <RegExpr String="[,(\[+\-!~&lt;&gt;#`\^:]"  attribute="Operator" context="#stay"/>
-        <RegExpr String="[)\]]"  attribute="Operator" context="Miscparam2"/>
+        <RegExpr String="[,({\[+\-!~&lt;&gt;#`\^:]"  attribute="Operator" context="#stay"/>
+        <RegExpr String="[)}\]]"  attribute="Operator" context="Miscparam2"/>
         <DetectChar char="&quot;" attribute="String" context="string1"/>
         <DetectChar char="'" attribute="String" context="string2"/>
         <RegExpr String=";.*$" attribute="Comment" context="#pop"/>
@@ -78,9 +78,9 @@
       </context>
       <context name="Miscparam2" attribute="Normal Text" lineEndContext="Base">
         <RegExpr String=",[xyrs]\b"  attribute="Operator" context="#stay"/>
-        <RegExpr String="[)\]]"  attribute="Operator" context="#stay"/>
+        <RegExpr String="[)}\]]"  attribute="Operator" context="#stay"/>
         <RegExpr String="&amp;&amp;|\|\||^^|\*\*|//|\.\.|==|&lt;[&lt;=]|&gt;[&gt;=]||&lt;&gh;|&gt;&gt;&gt;|!=|\bx\b|\bin\b"  attribute="Operator" context="Miscparam"/>
-        <RegExpr String="[,(\[&amp;|^*%/\-+.?:=&lt;&gt;]"  attribute="Operator" context="Miscparam"/>
+        <RegExpr String="[,({\[&amp;|^*%/\-+.?:=&lt;&gt;]"  attribute="Operator" context="Miscparam"/>
         <RegExpr String=";.*$" attribute="Comment" context="#pop"/>
         <RegExpr String="[^ \t]" attribute="Error" context="#stay"/>
       </context>
