@@ -138,7 +138,6 @@ static void star_free(struct avltree_node *aa)
     struct star_s *a = avltree_container_of(aa, struct star_s, node);
 
     avltree_destroy(&a->tree, star_free);
-    free(a);
 }
 
 static void file_free(struct avltree_node *aa)
@@ -382,19 +381,30 @@ void closefile(struct file_s *f) {
     if (f->open) f->open--;
 }
 
-static struct star_s *lastst=NULL;
+static struct stars_s {
+    struct star_s stars[255];
+    struct stars_s *next;
+} *stars = NULL;
+
+static struct star_s *lastst;
+static int starsp;
 struct star_s *new_star(line_t line, int *exists) {
     struct avltree_node *b;
     struct star_s *tmp;
-    if (!lastst)
-	if (!(lastst=malloc(sizeof(struct star_s)))) err_msg_out_of_memory();
     lastst->line=line;
     b=avltree_insert(&lastst->node, star_tree, star_compare);
     if (!b) { //new label
 	*exists=0;
         avltree_init(&lastst->tree);
-	tmp=lastst;
-	lastst=NULL;
+        if (starsp == 254) {
+            struct stars_s *old = stars;
+            stars = malloc(sizeof(struct stars_s));
+            if (!stars) err_msg_out_of_memory();
+            stars->next = old;
+            starsp = 0;
+        } else starsp++;
+        tmp = lastst;
+        lastst = &stars->stars[starsp];
 	return tmp;
     }
     *exists=1;
@@ -402,8 +412,9 @@ struct star_s *new_star(line_t line, int *exists) {
 }
 
 void destroy_file(void) {
+    struct stars_s *old;
+
     avltree_destroy(&file_tree, file_free);
-    free(lastst);
     free(lastfi);
 
     include_list_last = include_list.next;
@@ -412,9 +423,20 @@ void destroy_file(void) {
         include_list_last = tmp->next;
         free(tmp);
     }
+
+    while (stars) {
+        old = stars;
+        stars = stars->next;
+        free(old);
+    }
 }
 
 void init_file(void) {
     avltree_init(&file_tree);
+    stars = malloc(sizeof(struct stars_s));
+    if (!stars) err_msg_out_of_memory();
+    stars->next = NULL;
+    starsp = 0;
+    lastst = &stars->stars[starsp];
 }
 
