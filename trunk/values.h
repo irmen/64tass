@@ -23,8 +23,9 @@
 
 enum type_e {
     T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_ADDRESS,
-    T_IDENT, T_ANONIDENT, T_IDENTREF, T_ERROR, T_OPER, T_TUPLE, T_LIST,
-    T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL, T_DEFAULT
+    T_IDENT, T_ANONIDENT, T_IDENTREF, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST,
+    T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL,
+    T_DEFAULT
 };
 
 #define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
@@ -36,6 +37,7 @@ enum oper_e {
     O_INDEX,         /* a[    */
     O_SLICE,         /* a[x:  */
     O_SLICE2,        /* a[x:: */
+    O_BRACE,         /* {a}   */
     O_BRACKET,       /* [a]   */
     O_PARENT,        /* (a)   */
     O_COMMA,         /* ,     */
@@ -87,8 +89,10 @@ enum oper_e {
 
     O_TUPLE,         /* )     */
     O_LIST,          /* ]     */
+    O_DICT,          /* }     */
     O_RPARENT,       /* )     */
     O_RBRACKET,      /* ]     */
+    O_RBRACE,        /* }     */
     O_QUEST,         /* ?     */
     O_COLON          /* :     */
 };
@@ -115,6 +119,13 @@ enum atype_e {
     A_SR,            /* ,s    */
     A_I,             /* )     */
     A_LI,            /* ]     */
+};
+
+struct pair_s {
+    int hash;
+    struct value_s *key;
+    struct value_s *data;
+    struct avltree_node node;
 };
 
 struct value_s {
@@ -147,6 +158,14 @@ struct value_s {
             size_t len;
             struct value_s **data;
         } list;
+        struct {
+            struct value_s *key;
+            struct value_s *data;
+        } pair;
+        struct {
+            size_t len;
+            struct avltree members;
+        } dict;
         struct {
             size_t p;
             struct file_list_s *file_list;
@@ -215,6 +234,8 @@ extern int val_same(const struct value_s *, const struct value_s *);
 extern int val_truth(const struct value_s *);
 extern struct value_s *val_reference(struct value_s *);
 extern void val_print(const struct value_s *, FILE *);
+extern int val_hash(const struct value_s *);
+extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
 
 extern void destroy_values(void);
 extern void init_values(void);

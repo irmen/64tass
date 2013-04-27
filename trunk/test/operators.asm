@@ -143,6 +143,7 @@ c   = 2
     .cerror b.(-,-) != (b,b)
     .cerror (b,b).(-,-) != (b,b)
     .cerror (b,b).(-) != (b,b)
+    .cerror {1:"test","3":4}[1] != "test"
 
 ; check all operators
 

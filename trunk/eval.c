@@ -509,12 +509,15 @@ static void get_star(struct value_s *v) {
 
 static struct value_s o_TUPLE = { T_OPER, 0, .u.oper = {O_TUPLE, 0}};
 static struct value_s o_LIST = { T_OPER, 0, .u.oper = {O_LIST, 0}};
+static struct value_s o_DICT = { T_OPER, 0, .u.oper = {O_DICT, 0}};
 static struct value_s o_RPARENT = { T_OPER, 0, .u.oper = {O_RPARENT, 0}};
 static struct value_s o_RBRACKET = { T_OPER, 0, .u.oper = {O_RBRACKET, 0}};
+static struct value_s o_RBRACE = { T_OPER, 0, .u.oper = {O_RBRACE, 0}};
 static struct value_s o_FUNC = { T_OPER, 0, .u.oper = {O_FUNC, 0}};
 static struct value_s o_INDEX = { T_OPER, 0, .u.oper = {O_INDEX, 0}};
 static struct value_s o_SLICE = { T_OPER, 0, .u.oper = {O_SLICE, 0}};
 static struct value_s o_SLICE2 = { T_OPER, 0, .u.oper = {O_SLICE2, 0}};
+static struct value_s o_BRACE = { T_OPER, 0, .u.oper = {O_BRACE, 0}};
 static struct value_s o_BRACKET = { T_OPER, 0, .u.oper = {O_BRACKET, 0}};
 static struct value_s o_PARENT = { T_OPER, 0, .u.oper = {O_PARENT, 0}};
 static struct value_s o_SEPARATOR = { T_OPER, 0, .u.oper = {O_SEPARATOR, 1}};
@@ -967,6 +970,7 @@ struct value_s *get_val(enum type_e type, linepos_t *epoint) {/* length in bytes
     case T_GAP:
     case T_LIST:
     case T_TUPLE:
+    case T_DICT:
     case T_MACRO:
     case T_SEGMENT:
     case T_UNION:
@@ -1211,6 +1215,11 @@ static void functions(struct values_s *vals, unsigned int args) {
                 case T_TUPLE:
                     new_value.type = T_UINT;
                     new_value.u.num.val = v[0].val->u.list.len;
+                    val_replace(&vals->val, &new_value);
+                    return;
+                case T_DICT:
+                    new_value.type = T_UINT;
+                    new_value.u.num.val = v[0].val->u.dict.len;
                     val_replace(&vals->val, &new_value);
                     return;
                 case T_CODE:
@@ -2086,6 +2095,42 @@ static void indexes(struct values_s *vals, unsigned int args) {
                 case T_LIST:
                 case T_TUPLE: list_iindex(vals, v[0].val, v[0].epoint); return;
                 default: bits_iindex(vals, v[0].val, v[0].epoint); return;
+                }
+            default: err_msg_invalid_oper(O_INDEX, v[0].val, NULL, v[0].epoint);
+            case T_NONE: 
+                val_replace(&vals->val, &none_value);
+                return;
+            }
+        break;
+    case T_DICT:
+        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, vals[1].epoint); else
+            switch (try_resolv(&v[0])) {
+            case T_UINT:
+            case T_SINT:
+            case T_NUM:
+            case T_BOOL:
+            case T_FLOAT:
+            case T_STR:
+                {
+                    struct pair_s pair;
+                    const struct avltree_node *b;
+                    pair.hash = val_hash(v[0].val);
+                    pair.key = v[0].val;
+                    b = avltree_lookup(&pair.node, &vals->val->u.dict.members, pair_compare);
+                    if (b) {
+                        const struct pair_s *p;
+                        struct value_s *val;
+                        p = cavltree_container_of(b, struct pair_s, node);
+                        val = val_reference(p->data);
+                        val_replace(&vals->val, val);
+                        val_destroy(val);
+                        return;
+                    }
+                    new_value.type = T_ERROR;
+                    new_value.u.error.num = ERROR_____KEY_ERROR;
+                    new_value.u.error.epoint = v[0].epoint;
+                    val_replace_template(&vals->val, &new_value);
+                    return;
                 }
             default: err_msg_invalid_oper(O_INDEX, v[0].val, NULL, v[0].epoint);
             case T_NONE: 
@@ -3742,7 +3787,7 @@ static int get_val2(struct eval_context_s *ev) {
     for (i = ev->outp2; i < ev->outp; i++) {
         o_out = &ev->o_out[i];
         val = o_out->val;
-        if (val->type != T_OPER || val == &o_PARENT || val == &o_BRACKET) {
+        if (val->type != T_OPER || val == &o_PARENT || val == &o_BRACKET || val == &o_BRACE) {
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
                 ev->values_size += 16;
@@ -3850,6 +3895,54 @@ static int get_val2(struct eval_context_s *ev) {
                 } else val->u.list.data = NULL;
                 continue;
             }
+        case O_RBRACE:
+        case O_DICT:
+            {
+                unsigned int args = 0;
+                while (v1->val->type != T_OPER || v1->val->u.oper.op != O_BRACE) {
+                    args++;
+                    if (vsp <= args) goto syntaxe;
+                    v1 = &values[vsp-1-args];
+                }
+                val = val_realloc(&v1->val);
+                val->type = T_DICT;
+                val->u.dict.len = 0;
+                avltree_init(&val->u.dict.members);
+                if (args) {
+                    unsigned int j;
+                    vsp -= args;
+                    for (j = 0; j < args; j++) {
+                        if (values[vsp+j].val->type == T_PAIR) {
+                            struct pair_s *p, *p2;
+                            struct avltree_node *b;
+                            if (!(p=malloc(sizeof(struct pair_s)))) err_msg_out_of_memory();
+                            p->key = values[vsp+j].val->u.pair.key;
+                            switch (p->key->type) {
+                            case T_BOOL:
+                            case T_NUM:
+                            case T_SINT:
+                            case T_UINT:
+                            case T_STR:
+                            case T_FLOAT:
+                                p->hash = val_hash(values[vsp+j].val->u.pair.key);
+                                p->data = values[vsp+j].val->u.pair.data;
+                                b = avltree_insert(&p->node, &val->u.dict.members, pair_compare);
+                                if (b) {
+                                    p2 = avltree_container_of(b, struct pair_s, node);
+                                    val_replace(&p2->data, p->data);
+                                    free(p);
+                                } else {
+                                    values[vsp+j].val = &none_value;
+                                    val->u.dict.len++;
+                                }
+                                break;
+                            default: err_msg_wrong_type(p->key, values[vsp+j].epoint);
+                            }
+                        } else err_msg_wrong_type(values[vsp+j].val, values[vsp+j].epoint);
+                    }
+                }
+                continue;
+            }
         case O_COND:
             v2 = v1; vsp--;
             if (vsp == 0) goto syntaxe;
@@ -3885,11 +3978,13 @@ static int get_val2(struct eval_context_s *ev) {
             val_replace(&v1->val, &none_value);
             continue;
         case O_COLON:
-            v2 = v1; vsp--;
+            v2 = v1; v1 = &values[--vsp-1];
             if (vsp == 0) goto syntaxe;
-            v1 = &values[vsp-1];
-            err_msg2(ERROR______EXPECTED,"'?'", o_out->epoint);
-            val_replace(&v1->val, &none_value);
+            new_value.type = T_PAIR;
+            new_value.u.pair.key = v1->val;
+            new_value.u.pair.data = v2->val;
+            val_set_template(&v1->val, &new_value);
+            v2->val = &none_value;
             continue;
         case O_WORD:    /* <> */
         case O_HWORD:   /* >` */
@@ -4071,6 +4166,12 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
                 else if (o_oper[operp-1] == &o_BRACKET) goto other;
             }
             goto tryanon;
+        case '}':
+            if (operp) { 
+                if (o_oper[operp-1] == &o_COMMA) {operp--;op = &o_DICT;goto brhack;}
+                else if (o_oper[operp-1] == &o_BRACE) goto other;
+            }
+            goto tryanon;
         case ':':
             if (operp && o_oper[operp-1] == &o_INDEX) {
                 val = push(epoint);
@@ -4091,6 +4192,11 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             epoints[operp]=epoint;
             o_oper[operp++] = &o_BRACKET; lpoint.pos++;
             push_oper(&o_BRACKET, epoint);
+            continue;
+        case '{':
+            epoints[operp]=epoint;
+            o_oper[operp++] = &o_BRACE; lpoint.pos++;
+            push_oper(&o_BRACE, epoint);
             continue;
         case '+': op = &o_POS; break;
         case '-': op = &o_NEG; break;
@@ -4277,7 +4383,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             op = &o_RPARENT;
         tphack:
             while (operp && o_oper[operp-1] != &o_PARENT && o_oper[operp-1] != &o_FUNC) {
-                if (o_oper[operp-1] == &o_BRACKET || o_oper[operp-1] == &o_INDEX || o_oper[operp-1] == &o_SLICE || o_oper[operp-1] == &o_SLICE2) {err_msg(ERROR______EXPECTED,"("); goto error;}
+                if (o_oper[operp-1] == &o_BRACKET || o_oper[operp-1] == &o_INDEX || o_oper[operp-1] == &o_SLICE || o_oper[operp-1] == &o_SLICE2 || o_oper[operp-1] == &o_BRACE) {err_msg(ERROR______EXPECTED,"("); goto error;}
                 operp--;
                 push_oper(o_oper[operp], epoints[operp]);
             }
@@ -4290,7 +4396,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             op = &o_RBRACKET;
         lshack:
             while (operp && o_oper[operp-1] != &o_BRACKET && o_oper[operp-1] != &o_INDEX && o_oper[operp-1] != &o_SLICE && o_oper[operp-1] != &o_SLICE2) {
-                if (o_oper[operp-1] == &o_PARENT || o_oper[operp-1] == &o_FUNC) {err_msg(ERROR______EXPECTED,"["); goto error;}
+                if (o_oper[operp-1] == &o_PARENT || o_oper[operp-1] == &o_FUNC || o_oper[operp-1] == &o_BRACE) {err_msg(ERROR______EXPECTED,"["); goto error;}
                 operp--;
                 push_oper(o_oper[operp], epoints[operp]);
             }
@@ -4298,6 +4404,19 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
             operp--;
             push_oper((o_oper[operp] == &o_BRACKET) ? op : o_oper[operp], epoints[operp]);
+            goto other;
+        case '}':
+            op = &o_RBRACE;
+        brhack:
+            while (operp && o_oper[operp-1] != &o_BRACE) {
+                if (o_oper[operp-1] == &o_BRACKET || o_oper[operp-1] == &o_INDEX || o_oper[operp-1] == &o_SLICE || o_oper[operp-1] == &o_SLICE2 || o_oper[operp-1] == &o_PARENT || o_oper[operp-1] == &o_FUNC) {err_msg(ERROR______EXPECTED,"{"); goto error;}
+                operp--;
+                push_oper(o_oper[operp], epoints[operp]);
+            }
+            lpoint.pos++;
+            if (!operp) {err_msg(ERROR______EXPECTED,"{"); goto error;}
+            operp--;
+            push_oper((o_oper[operp] == &o_BRACE) ? op : o_oper[operp], epoints[operp]);
             goto other;
         case 0:
         case ';': break;
@@ -4313,6 +4432,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         while (operp) {
             if (o_oper[operp-1] == &o_PARENT || o_oper[operp-1] == &o_FUNC) {err_msg(ERROR______EXPECTED,")"); goto error;}
             if (o_oper[operp-1] == &o_BRACKET || o_oper[operp-1] == &o_INDEX || o_oper[operp-1] == &o_SLICE || o_oper[operp-1] == &o_SLICE2) {err_msg(ERROR______EXPECTED,"]"); goto error;}
+            if (o_oper[operp-1] == &o_BRACE) {err_msg(ERROR______EXPECTED,"}"); goto error;}
             operp--;
             push_oper(o_oper[operp], epoints[operp]);
         }

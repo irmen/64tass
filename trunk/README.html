@@ -493,6 +493,25 @@ scrlo   <b class="d">.byte</b> &lt;(<u>-</u>)
 scrhi   <b class="d">.byte</b> &gt;(<u>-</u>)
 </pre>
 
+<h3>Dictionaries</h3>
+
+<p>Dictionaries are unsorted lists holding key and value pairs. Definition is
+done by collecting key:value pairs separated by comma between braces <code>{1:"a",
+"a":1}</code>. An empty dictionary is <code>{}</code>.  Currently this type is
+immutable. Numeric and string keys are accepted, the value can be anything.</p>
+
+<table border="0" class="oper">
+<caption>Dictionary operators and functions</caption>
+<tr><td>x[i]<td>value lookup<td><code>{<span class="s">"1"</span>:<span>2</span>}[<span class="s">"1"</span>]</code> is <code><span>2</span></code>
+<tr><td>len(x)<td>number of elements<td><code><span class="k">len</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>])</code> is <code><span>2</span></code>
+</table>
+
+<p>A dictionary has a truth value of true if it contains at least one key value pair.</p>
+
+<pre width=80>
+        <b class="d">.text</b> {<span>1</span>:<span class="s">"one"</span>, <span>2</span>:<span class="s">"two"</span>}[<span>2</span>]<i>; "two"</i>
+</pre>
+
 <h3>Labels</h3>
 <p>Normal labels can be defined at the start of each line. Each of them is uniq
 and can't be redefined. In arithmetic operations they represent the numeric

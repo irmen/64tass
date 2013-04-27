@@ -407,6 +407,22 @@ a few examples:
 scrlo   .byte <(-)
 scrhi   .byte >(-)
 
+Dictionaries
+
+Dictionaries are unsorted lists holding key and value pairs. Definition is done
+by collecting key:value pairs separated by comma between braces {1:"a", "a":1}.
+An empty dictionary is {}. Currently this type is immutable. Numeric and string
+keys are accepted, the value can be anything.
+
+      Dictionary operators and functions
+x[i]   value lookup       {"1":2}["1"] is 2
+len(x) number of elements len({1:2, 3:4]) is 2
+
+A dictionary has a truth value of true if it contains at least one key value
+pair.
+
+        .text {1:"one", 2:"two"}[2]; "two"
+
 Labels
 
 Normal labels can be defined at the start of each line. Each of them is uniq
