@@ -59,6 +59,14 @@ struct value_s *val_alloc(void) {
     return val;
 }
 
+static void dict_free(struct avltree_node *aa)
+{
+    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
+    val_destroy(a->key);
+    val_destroy(a->data);
+    free(a);
+}
+
 void val_destroy2(struct value_s *val) {
     switch (val->type) {
     case T_STR: free((uint8_t *)val->u.str.data); break;
@@ -66,6 +74,13 @@ void val_destroy2(struct value_s *val) {
     case T_TUPLE: 
         while (val->u.list.len) val_destroy(val->u.list.data[--val->u.list.len]);
         free(val->u.list.data); break;
+    case T_PAIR: 
+        val_destroy(val->u.pair.key);
+        val_destroy(val->u.pair.data);
+        break;
+    case T_DICT: 
+        avltree_destroy(&val->u.dict.members, dict_free);
+        break;
     case T_MACRO:
     case T_SEGMENT:
     case T_STRUCT:
@@ -134,6 +149,27 @@ static void val_copy2(struct value_s *val, const struct value_s *val2) {
                 val->u.list.data[i] = val_reference(val2->u.list.data[i]);
             val->u.list.len = i;
         } else val->u.list.data = NULL;
+        break;
+    case T_PAIR:
+        val->u.pair.key = val_reference(val2->u.pair.key);
+        val->u.pair.data = val_reference(val2->u.pair.data);
+        break;
+    case T_DICT:
+        avltree_init(&val->u.dict.members);
+        if (val2->u.dict.len) {
+            const struct avltree_node *n = avltree_first(&val->u.dict.members);
+            const struct pair_s *p;
+            struct pair_s *p2;
+            while (n) {
+                p = cavltree_container_of(n, struct pair_s, node);
+                if (!(p2=malloc(sizeof(struct pair_s)))) err_msg_out_of_memory();
+                p2->hash = p->hash;
+                p2->key = val_reference(p->key);
+                p2->data = val_reference(p->data);
+                avltree_insert(&p2->node, &val->u.dict.members, pair_compare);
+                n = avltree_next(n);
+            }
+        }
         break;
     case T_MACRO:
     case T_SEGMENT:
@@ -260,6 +296,32 @@ int val_same(const struct value_s *val, const struct value_s *val2) {
             return 1;
         }
         break;
+    case T_PAIR:
+        if (val2->type == val->type) {
+            if (!val_same(val->u.pair.key, val2->u.pair.key)) return 0;
+            if (!val_same(val->u.pair.data, val2->u.pair.data)) return 0;
+            return 1;
+        }
+        break;
+    case T_DICT:
+        if (val2->type == val->type) {
+            const struct avltree_node *n;
+            const struct avltree_node *n2;
+            if (val->u.dict.len != val2->u.dict.len) return 0;
+            n = avltree_first(&val->u.dict.members);
+            n2 = avltree_first(&val2->u.dict.members);
+            while (n && n2) {
+                const struct pair_s *p, *p2;
+                if (pair_compare(n, n2)) return 0;
+                p = cavltree_container_of(n, struct pair_s, node);
+                p2 = cavltree_container_of(n2, struct pair_s, node);
+                if (!val_same(p->data, p2->data)) return 0;
+                n = avltree_next(n);
+                n2 = avltree_next(n2);
+            }
+            return n == n2;
+        }
+        break;
     case T_NONE:
     case T_GAP:
         return val->type == val2->type;
@@ -287,6 +349,10 @@ int val_truth(const struct value_s *val) {
     case T_LIST:
     case T_TUPLE:
         return !!val->u.list.len;
+    case T_PAIR:
+        return 1;
+    case T_DICT:
+        return !!val->u.dict.len;
     case T_ADDRESS:
         return !!val->u.addr.val;
     default:
@@ -362,6 +428,30 @@ void val_print(const struct value_s *value, FILE *flab) {
             fputc(')', flab);
             break;
         }
+    case T_DICT:
+        {
+            const struct avltree_node *n;
+            const struct pair_s *p;
+            int first = 0;
+            fputc('{', flab);
+            n = avltree_first(&value->u.dict.members);
+            while (n) {
+                p = cavltree_container_of(n, struct pair_s, node);
+                if (first) fputc(',', flab);
+                val_print(p->key, flab);
+                fputc(':', flab);
+                val_print(p->data, flab);
+                first = 1;
+                n = avltree_next(n);
+            }
+            fputc('}', flab);
+            break;
+        }
+    case T_PAIR:
+        val_print(value->u.pair.key, flab);
+        fputc(':', flab);
+        val_print(value->u.pair.data, flab);
+        break;
     case T_BOOL:
         putc(value->u.num.val ? '1' : '0', flab);
         break;
@@ -387,6 +477,112 @@ void val_print(const struct value_s *value, FILE *flab) {
         putc('!', flab);
         break;
     }
+}
+
+int val_hash(const struct value_s *val) {
+    switch (val->type) {
+    case T_SINT:
+    case T_UINT:
+    case T_BOOL:
+    case T_NUM: return val->u.num.val & ((~(unsigned int)0) >> 1);
+    case T_STR: 
+        {
+            size_t l = val->u.str.len;
+            const uint8_t *s2 = val->u.str.data;
+            unsigned int h;
+            if (!l) return 0;
+            h = *s2 << 7;
+            while (l--) h = (1000003 * h) ^ *s2++;
+            h ^= val->u.str.len;
+            return h & ((~(unsigned int)0) >> 1);
+        }
+    case T_FLOAT: 
+        {
+            double integer, r;
+            int exp;
+            unsigned int h;
+            r = val->u.real;
+
+            if (modf(r, &integer) == 0.0) {
+                return ((unsigned int)integer) & ((~(unsigned int)0) >> 1);
+            }
+            r = frexp(r, &exp);
+            r *= 2147483648.0; 
+            h = r; 
+            r = (r - (double)h) * 2147483648.0;
+            h ^= (int)r ^ (exp << 15);
+            return h & ((~(unsigned int)0) >> 1);
+        }
+    default:
+        return 0;
+    }
+}
+
+int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
+    const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
+    enum type_e t1;
+    enum type_e t2;
+    const struct value_s *v1, *v2;
+    int h = a->hash - b->hash;
+
+    if (h) return h;
+    v1 = a->key; v2 = b->key;
+    t1 = v1->type;
+    t2 = v2->type;
+
+    switch (t1) {
+    case T_SINT:
+        switch (t2) {
+        case T_FLOAT:
+            return ((double)v1->u.num.val > v2->u.real) - ((double)v1->u.num.val < v2->u.real);
+        case T_UINT:
+        case T_BOOL:
+        case T_NUM: 
+            if (v1->u.num.val < 0) return -1;
+            if (v2->u.num.val < 0) return -1;
+        case T_SINT: return (v1->u.num.val > v2->u.num.val) - (v1->u.num.val < v2->u.num.val);
+        default: break;
+        }
+        break;
+    case T_UINT:
+    case T_BOOL:
+    case T_NUM:
+        switch (t2) {
+        case T_FLOAT:
+            return ((double)((uval_t)v1->u.num.val) > v2->u.real) - ((double)((uval_t)v1->u.num.val) < v2->u.real);
+        case T_SINT: 
+            if (v2->u.num.val < 0) return 1;
+        case T_UINT:
+        case T_BOOL:
+        case T_NUM: return ((uval_t)v1->u.num.val > (uval_t)v2->u.num.val) - ((uval_t)v1->u.num.val < (uval_t)v2->u.num.val);
+        default: break;
+        }
+        break;
+    case T_FLOAT:
+        switch (t2) {
+        case T_FLOAT:
+            return (v1->u.real > v2->u.real) - (v1->u.real < v2->u.real);
+        case T_SINT: 
+            return (v1->u.real > (double)v2->u.num.val) - (v1->u.real < (double)v2->u.num.val);
+        case T_UINT:
+        case T_BOOL:
+        case T_NUM: return (v1->u.real > (double)((uval_t)v2->u.num.val)) - (v1->u.real < (double)((uval_t)v2->u.num.val));
+        default: break;
+        }
+    case T_STR: 
+        if (t1 == t2) {
+            h = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len : v2->u.str.len);
+            if (h) return h;
+            return (v1->u.str.len > v2->u.str.len) - (v1->u.str.len < v2->u.str.len);
+        }
+        break;
+    default: break;
+    }
+    h = t1 - t2;
+    if (h) return h;
+    return 0;
 }
 
 void init_values(void)

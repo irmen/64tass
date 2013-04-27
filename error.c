@@ -148,6 +148,7 @@ static const char *terr_error[]={
     "negative number raised on fractional power",
     "string constant too long for a number",
     "index out of range",
+    "key error",
     "%s\n",
 };
 static const char *terr_fatal[]={
@@ -260,6 +261,8 @@ static const char *type_name(enum type_e t) {
     case T_GAP: return "<uninit>";
     case T_LIST: return "<list>";
     case T_TUPLE: return "<tuple>";
+    case T_PAIR: return "<pair>";
+    case T_DICT: return "<dictionary>";
     case T_FLOAT: return "<float>";
     case T_BOOL: return "<bool>";
     case T_MACRO: return "<macro>";
@@ -274,6 +277,18 @@ static const char *type_name(enum type_e t) {
     return NULL;
 }
 
+static void str_name(const uint8_t *data, size_t len) {
+    adderror(" '");
+    if (len) {
+        if (data[0] == '-') {
+            adderror("-");
+        } else if (data[0] == '+') {
+            adderror("+");
+        } else adderror2(data, len);
+    }
+    adderror("'");
+}
+
 static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoint) {
     if (pass == 1) return;
     if (errors+conderrors==99) {
@@ -283,11 +298,8 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
     inc_errors();
     addorigin(current_file_list, sline, epoint);
     adderror(msg);
-    if (name) {
-        adderror(" '");
-        adderror2(name->data, name->len);
-        adderror("'\n");
-    } else adderror("\n");
+    if (name) str_name(name->data, name->len);
+    adderror("\n");
     return;
 }
 
@@ -303,6 +315,7 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
         case ERROR_CONSTNT_LARGE:
         case ERROR_NEGFRAC_POWER:
         case ERROR_BIG_STRING_CO:
+        case ERROR_____KEY_ERROR:
         case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, val->u.error.epoint);return;
         }
     }
@@ -457,6 +470,30 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
             add_user_error(user_error, ")");
             break;
         }
+    case T_DICT:
+        {
+            const struct avltree_node *n;
+            const struct pair_s *p;
+            int first = 0;
+            add_user_error(user_error, "{");
+            n = avltree_first(&val->u.dict.members);
+            while (n) {
+                p = cavltree_container_of(n, struct pair_s, node);
+                if (first) add_user_error(user_error, ",");
+                err_msg_variable(user_error, p->key, 1);
+                add_user_error(user_error, ":");
+                err_msg_variable(user_error, p->data, 1);
+                first = 1;
+                n = avltree_next(n);
+            }
+            add_user_error(user_error, "}");
+            break;
+        }
+    case T_PAIR:
+        err_msg_variable(user_error, val->u.pair.key, 1);
+        add_user_error(user_error, ":");
+        err_msg_variable(user_error, val->u.pair.data, 1);
+        break;
     case T_BOOL: add_user_error(user_error, val->u.num.val ? "1" : "0");break;
     }
 }
@@ -471,20 +508,20 @@ static void err_msg_double_defined2(const char *msg, const struct label_s *l, st
     inc_errors();
     addorigin(cflist, line, epoint2);
     adderror(msg);
-    adderror2(labelname2->data, labelname2->len);
-    adderror("'\n");
+    str_name(labelname2->data, labelname2->len);
+    adderror("\n");
     addorigin(l->file_list, l->sline, l->epoint);
-    adderror("note: previous definition of '");
-    adderror2(l->name.data, l->name.len);
-    adderror("' was here\n");
+    adderror("note: previous definition of");
+    str_name(l->name.data, l->name.len);
+    adderror(" was here\n");
 }
 
 void err_msg_double_defined(const struct label_s *l, const str_t *labelname2, linepos_t epoint2) {
-    err_msg_double_defined2("error: duplicate definition '", l, current_file_list, labelname2, sline, epoint2);
+    err_msg_double_defined2("error: duplicate definition", l, current_file_list, labelname2, sline, epoint2);
 }
 
 void err_msg_shadow_defined(const struct label_s *l, const struct label_s *l2) {
-    err_msg_double_defined2("error: shadow definition '", l, l2->file_list, &l2->name, l2->sline, l2->epoint);
+    err_msg_double_defined2("error: shadow definition", l, l2->file_list, &l2->name, l2->sline, l2->epoint);
 }
 
 static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
@@ -519,6 +556,7 @@ static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, c
     case O_INDEX:   name = "indexing '[]";break;
     case O_SLICE: 
     case O_SLICE2:  name = "slicing '[:]";break;
+    case O_BRACE:   name = "'{";break;
     case O_BRACKET: name = "'[";break;
     case O_PARENT:  name = "'(";break;
     case O_COND:    name = "condition '?";break;
@@ -572,6 +610,8 @@ static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, c
     case O_RPARENT: name = "')";break;
     case O_LIST: 
     case O_RBRACKET:name = "']";break;
+    case O_DICT: 
+    case O_RBRACE:name = "'}";break;
     case O_QUEST:   name = "'?";break;
     }
     adderror(name);
