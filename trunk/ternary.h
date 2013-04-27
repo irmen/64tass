@@ -34,6 +34,9 @@ typedef struct ternary_node_def
 }
 ternary_node;
 
+void init_ternary(void);
+void destroy_ternary(void);
+
 /* Insert string S into tree P, associating it with DATA. 
    Return the data in the tree associated with the string if it's
    already there, and replace is 0.
