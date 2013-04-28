@@ -2644,7 +2644,31 @@ static void inlist(struct value_s *v1, struct value_s *v2, struct value_s *v, li
         if (v == v1) val_destroy2(v1);
         v->type = T_BOOL; v->u.num.val = 0;
         return;
-    default: err_msg_wrong_type(v2, epoint2); 
+    case T_DICT:
+        {
+            struct pair_s p;
+            struct avltree_node *b;
+
+            switch (v1->type) {
+            case T_SINT:
+            case T_UINT:
+            case T_NUM:
+            case T_BOOL:
+            case T_FLOAT:
+            case T_STR:
+                p.key = v1;
+                p.hash = val_hash(v1);
+                b = avltree_lookup(&p.node, &v2->u.dict.members, pair_compare);
+                if (v == v1) val_destroy2(v1);
+                v->type = T_BOOL; v->u.num.val = (b != NULL);
+                break;
+            default: err_msg_invalid_oper(O_IN, v1, v2, epoint3);
+                     if (v == v1) val_destroy2(v1);
+                     v->type = T_NONE;
+            }
+            return;
+        }
+    default: err_msg_invalid_oper(O_IN, v1, v2, epoint3);
     case T_NONE: 
              if (v == v1) val_destroy2(v1);
              v->type = T_NONE;
@@ -3732,8 +3756,8 @@ strretr:
     }
 
     if (t1 != t2) {
-        if (type_is_num(t1) || t1 == T_STR || t1 == T_LIST || t1 == T_TUPLE || t1 == T_CODE || t1 == T_ADDRESS || t1 == T_GAP) {
-            if (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPLE || t2 == T_CODE || t2 == T_ADDRESS || t2 == T_GAP) {
+        if (type_is_num(t1) || t1 == T_STR || t1 == T_LIST || t1 == T_TUPLE || t1 == T_CODE || t1 == T_ADDRESS || t1 == T_GAP || t1 == T_DICT) {
+            if (type_is_num(t2) || t2 == T_STR || t2 == T_LIST || t2 == T_TUPLE || t2 == T_CODE || t2 == T_ADDRESS || t2 == T_GAP || t2 == T_DICT) {
                 switch (op) {
                 case O_EQ: v->type = T_BOOL; v->u.num.val = 0;return;
                 case O_NEQ: v->type = T_BOOL; v->u.num.val = 1;return;
@@ -3741,11 +3765,9 @@ strretr:
                 case O_GT: v->type = T_BOOL; v->u.num.val = (t1 > t2);return;
                 case O_LE: v->type = T_BOOL; v->u.num.val = (t1 <= t2);return;
                 case O_GE: v->type = T_BOOL; v->u.num.val = (t1 >= t2);return;
-                case O_IN:
-                           if (t2 == T_LIST || t2 == T_TUPLE || t2 == T_CODE) {
-                               inlist(v1, v2, v, epoint, epoint2, epoint3);return;
-                           }
+                case O_IN: inlist(v1, v2, v, epoint, epoint2, epoint3);return;
                 default:err_msg_invalid_oper(op, v1, v2, epoint3);
+                       if (v == v1) val_destroy2(v1);
                         v->type = T_NONE;
                         return;
                 }
