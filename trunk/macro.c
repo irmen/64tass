@@ -164,8 +164,8 @@ static size_t macro_param_find(void) {
         if (ch == '"'  && !(q & 2)) { q^=1; }
         else if (ch == '\'' && !(q & 1)) { q^=2; }
         if (!q) {
-            if (ch == '(' || ch =='[') par[pp++]=ch;
-            else if (pp && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='['))) pp--;
+            if (ch == '(' || ch == '[' ||| ch == '{') par[pp++]=ch;
+            else if (pp && ((ch == ')' && par[pp-1]=='(') || (ch == ']' && par[pp-1]=='[') || (ch == '}' && par[pp-1]=='{'))) pp--;
         }
         lpoint.pos++;
     }
