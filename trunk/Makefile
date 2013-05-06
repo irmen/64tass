@@ -1,9 +1,10 @@
 CC = gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o
+LIBS = -lm
 LANG = C
 REVISION := $(shell svnversion)
 CFLAGS = -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\" $(REVISION)\"" -g -Wstrict-aliasing=2
-LDFLAGS = -g -lm
+LDFLAGS = -g
 CFLAGS += $(LDFLAGS)
 
 .SILENT:
@@ -11,6 +12,7 @@ CFLAGS += $(LDFLAGS)
 all: 64tass README
 
 64tass: $(OBJ)
+	$(CC) -o $@ $^ $(LIBS)
 
 64tass.o: 64tass.c opcodes.h misc.h inttypes.h eval.h values.h error.h \
  section.h libtree.h encoding.h file.h variables.h mem.h macro.h
