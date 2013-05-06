@@ -157,7 +157,7 @@ static void val_copy2(struct value_s *val, const struct value_s *val2) {
     case T_DICT:
         avltree_init(&val->u.dict.members);
         if (val2->u.dict.len) {
-            const struct avltree_node *n = avltree_first(&val->u.dict.members);
+            const struct avltree_node *n = avltree_first(&val2->u.dict.members);
             const struct pair_s *p;
             struct pair_s *p2;
             while (n) {
