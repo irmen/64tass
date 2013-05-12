@@ -76,6 +76,7 @@ enum errors_e {
     ERROR_BIG_STRING_CO,
     ERROR___INDEX_RANGE,
     ERROR_____KEY_ERROR,
+    ERROR__NOT_HASHABLE,
     ERROR__USER_DEFINED,
     ERROR____PAGE_ERROR,
     ERROR__BRANCH_CROSS,
@@ -85,6 +86,7 @@ enum errors_e {
     ERROR___NOT_DEFINED,
     ERROR_REQUIREMENTS_,
     ERROR______CONFLICT,
+    ERROR__INVALID_OPER,
 
     ERROR_CANT_FINDFILE=0x80,
     ERROR__READING_FILE,
@@ -105,8 +107,8 @@ extern void err_msg(enum errors_e, const void*);
 extern void err_msg2(enum errors_e, const void*, linepos_t);
 extern void err_msg_wrong_type(const struct value_s *, linepos_t);
 extern void err_msg_cant_calculate(const str_t *name, linepos_t epoint);
-extern void err_msg_invalid_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
-extern void err_msg_strange_oper(enum oper_e, const struct value_s *, const struct value_s *, linepos_t);
+extern void err_msg_invalid_oper(const struct value_s *, const struct value_s *, const struct value_s *, linepos_t);
+extern void err_msg_strange_oper(const struct value_s *, const struct value_s *, const struct value_s *, linepos_t);
 extern void err_msg_double_defined(const struct label_s *, const str_t *, linepos_t);
 extern void err_msg_shadow_defined(const struct label_s *, const struct label_s *);
 extern void err_msg_not_defined(const str_t *, linepos_t);
@@ -120,7 +122,7 @@ extern void exitfile(void);
 extern void err_init(void);
 extern void err_destroy(void);
 extern void err_msg_out_of_memory(void);
-extern void error_destroy(struct error_s *);
+extern void errors_destroy(struct error_s *);
 extern void error_init(struct error_s *);
 
 #endif

@@ -15,28 +15,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#ifndef EVAL_H
-#define EVAL_H
-#include "values.h"
-#include "obj.h"
+#ifndef _FLOATOBJ_H
+#define _FLOATOBJ_H
 
-extern int get_exp(int *, int);
-extern int get_exp_var(void);
-extern struct value_s *get_val(obj_t, linepos_t *);
-extern void destroy_eval(void);
-extern void init_eval(void);
-extern void eval_enter(void);
-extern void eval_leave(void);
-extern int eval_finish(void);
-extern uint_fast16_t petascii(size_t *, const struct value_s *);
-extern int str_to_num(const struct value_s *, obj_t, struct value_s *, linepos_t);
-extern uint8_t get_val_len(uval_t, enum type_e);
-extern size_t get_label(void);
-extern struct value_s *get_vals_tuple(obj_t);
-ival_t indexoffs(const struct value_s *, size_t);
+extern obj_t FLOAT_OBJ;
 
-struct values_s {
-    struct value_s *val;
-    linepos_t epoint;
-};
+extern void floatobj_init(void);
 #endif

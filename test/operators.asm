@@ -21,6 +21,9 @@
     .cerror 0 && unknown
     .cerror !(1 || unknown)
 
+    .cerror (5 <=> 7) != -1
+    .cerror (6 <=> 6) != 0
+    .cerror (7 <=> 5) != 1
     .cerror 1==0
     .cerror 0!=0
     .cerror 1 < 0
@@ -37,7 +40,6 @@
     .cerror 7^12!=11
     .cerror 1 << 3 != 8
     .cerror -8 >> 3 != -1
-    .cerror -8 >>> 3 == -1
     .cerror ~0!=-1
     .cerror (^2049)!="2049"
     .cerror 2**3 != 8
@@ -106,7 +108,7 @@
     .cerror $9..($1234 >> 4)!=$9123
     .cerror len(15 | %)!=4
     .cerror len((-64) | %)!=7
-    .cerror len((+63) | %)!=7
+    .cerror len((+63) | %)!=6
     .cerror len(-$123)!=12
     .cerror len(~%101)!=3
 
@@ -137,7 +139,7 @@ c   = 2
     .bend
 
     .cerror (a,b).c != (a.c, b.c)
-    .cerror a.(c,c) != (a.c, a.c)
+    .cerror a.(c,c) != (a.c, a.c), a.(c,c), (a.c, a.c)
     .cerror (a,b).(c,c) != (a.c, b.c)
     .cerror b.(-) != b
     .cerror b.(-,-) != (b,b)

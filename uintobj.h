@@ -15,28 +15,14 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#ifndef EVAL_H
-#define EVAL_H
-#include "values.h"
-#include "obj.h"
+#ifndef _UINTOBJ_H
+#define _UINTOBJ_H
+enum oper_e;
 
-extern int get_exp(int *, int);
-extern int get_exp_var(void);
-extern struct value_s *get_val(obj_t, linepos_t *);
-extern void destroy_eval(void);
-extern void init_eval(void);
-extern void eval_enter(void);
-extern void eval_leave(void);
-extern int eval_finish(void);
-extern uint_fast16_t petascii(size_t *, const struct value_s *);
-extern int str_to_num(const struct value_s *, obj_t, struct value_s *, linepos_t);
-extern uint8_t get_val_len(uval_t, enum type_e);
-extern size_t get_label(void);
-extern struct value_s *get_vals_tuple(obj_t);
-ival_t indexoffs(const struct value_s *, size_t);
+extern obj_t UINT_OBJ;
 
-struct values_s {
-    struct value_s *val;
-    linepos_t epoint;
-};
+extern void uintobj_init(void);
+extern int calc2_uint_uint(oper_t, uval_t, uval_t);
+extern int calc2_uint_sint(oper_t, uval_t, ival_t);
+extern int calc1_uint(oper_t, uval_t);
 #endif

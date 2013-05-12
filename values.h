@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include "inttypes.h"
 #include "error.h"
+#include "obj.h"
 
 enum type_e {
     T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_ADDRESS,
@@ -44,6 +45,10 @@ enum oper_e {
     O_COND,          /* ?     */
     O_COLON2,        /* :     */
     O_COLON3,        /* :     */
+    O_LOR,           /* ||    */
+    O_LXOR,          /* ^^    */
+    O_LAND,          /* &&    */
+
     O_HASH,          /* #     */
     O_COMMAX,        /* ,x    */
     O_COMMAY,        /* ,y    */
@@ -57,12 +62,14 @@ enum oper_e {
     O_HIGHER,        /* >     */
     O_BANK,          /* `     */
     O_STRING,        /* ^     */
-    O_LOR,           /* ||    */
-    O_LXOR,          /* ^^    */
-    O_LAND,          /* &&    */
-    O_IN,            /* in    */
+    O_NEG,           /* -     */
+    O_POS,           /* +     */
+    O_INV,           /* ~     */
+    O_LNOT,          /* !     */
+
+    O_CMP,           /* <=>   */
     O_EQ,            /* =     */
-    O_NEQ,           /* !=    */
+    O_NE,            /* !=    */
     O_LT,            /* <     */
     O_GT,            /* >     */
     O_GE,            /* >=    */
@@ -71,21 +78,18 @@ enum oper_e {
     O_XOR,           /* ^     */
     O_AND,           /* &     */
     O_LSHIFT,        /* <<    */
-    O_ASHIFT,        /* >>    */
-    O_RSHIFT,        /* >>>   */
+    O_RSHIFT,        /* >>    */
     O_ADD,           /* +     */
     O_SUB,           /* -     */
     O_MUL,           /* *     */
     O_DIV,           /* /     */
     O_MOD,           /* %     */
     O_EXP,           /* **    */
-    O_X,             /* x     */
-    O_CONCAT,        /* ..    */
     O_MEMBER,        /* .     */
-    O_NEG,           /* -     */
-    O_POS,           /* +     */
-    O_INV,           /* ~     */
-    O_LNOT,          /* !     */
+    O_CONCAT,        /* ..    */
+
+    O_X,             /* x     */
+    O_IN,            /* in    */
 
     O_TUPLE,         /* )     */
     O_LIST,          /* ]     */
@@ -128,8 +132,19 @@ struct pair_s {
     struct avltree_node node;
 };
 
+struct oper_s {
+    const struct value_s *op;
+    struct value_s *v1;
+    struct value_s *v2;
+    struct value_s *v;
+    linepos_t epoint;
+    linepos_t epoint2;
+    linepos_t epoint3;
+};
+typedef struct oper_s *oper_t;
+
 struct value_s {
-    enum type_e type;
+    obj_t obj;
     size_t refcount;
     union {
         struct {
@@ -197,6 +212,7 @@ struct value_s {
             const struct label_s *parent;
         } lbl;
         struct {
+            const char *name;
             enum oper_e op;
             int prio;
         } oper;
@@ -205,6 +221,11 @@ struct value_s {
             linepos_t epoint;
             union {
                 str_t ident;
+                struct {
+                    const struct value_s *op;
+                    struct value_s *v1;
+                    struct value_s *v2;
+                } invoper;
             } u;
         } error;
         struct {
@@ -225,17 +246,84 @@ struct value_s {
 
 extern struct value_s *val_alloc(void);
 extern void val_destroy(struct value_s *);
-extern void val_destroy2(struct value_s *);
 extern void val_replace(struct value_s **, struct value_s *);
 extern void val_replace_template(struct value_s **, const struct value_s *);
 extern struct value_s *val_realloc(struct value_s **);
 extern void val_set_template(struct value_s **, const struct value_s *);
-extern int val_same(const struct value_s *, const struct value_s *);
-extern int val_truth(const struct value_s *);
 extern struct value_s *val_reference(struct value_s *);
 extern void val_print(const struct value_s *, FILE *);
 extern int val_hash(const struct value_s *);
 extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
+
+extern struct value_s none_value;
+extern struct value_s true_value;
+extern struct value_s false_value;
+extern struct value_s null_str;
+extern struct value_s null_tuple;
+extern struct value_s null_list;
+
+extern struct value_s o_TUPLE;
+extern struct value_s o_LIST;
+extern struct value_s o_DICT;
+extern struct value_s o_RPARENT;
+extern struct value_s o_RBRACKET;
+extern struct value_s o_RBRACE;
+extern struct value_s o_FUNC;
+extern struct value_s o_INDEX;
+extern struct value_s o_SLICE;
+extern struct value_s o_SLICE2;
+extern struct value_s o_BRACE;
+extern struct value_s o_BRACKET;
+extern struct value_s o_PARENT;
+extern struct value_s o_SEPARATOR;
+extern struct value_s o_COMMA;
+extern struct value_s o_QUEST;
+extern struct value_s o_COLON;
+extern struct value_s o_COND;
+extern struct value_s o_COLON2;
+extern struct value_s o_COLON3;
+extern struct value_s o_HASH;
+extern struct value_s o_COMMAX;
+extern struct value_s o_COMMAY;
+extern struct value_s o_COMMAZ;
+extern struct value_s o_COMMAS;
+extern struct value_s o_COMMAR;
+extern struct value_s o_WORD;
+extern struct value_s o_HWORD;
+extern struct value_s o_BSWORD;
+extern struct value_s o_LOWER;
+extern struct value_s o_HIGHER;
+extern struct value_s o_BANK;
+extern struct value_s o_STRING;
+extern struct value_s o_LOR;
+extern struct value_s o_LXOR;
+extern struct value_s o_LAND;
+extern struct value_s o_IN;
+extern struct value_s o_CMP;
+extern struct value_s o_EQ;
+extern struct value_s o_NE;
+extern struct value_s o_LT;
+extern struct value_s o_GT;
+extern struct value_s o_GE;
+extern struct value_s o_LE;
+extern struct value_s o_OR;
+extern struct value_s o_XOR;
+extern struct value_s o_AND;
+extern struct value_s o_LSHIFT;
+extern struct value_s o_RSHIFT;
+extern struct value_s o_ADD;
+extern struct value_s o_SUB;
+extern struct value_s o_MUL;
+extern struct value_s o_DIV;
+extern struct value_s o_MOD;
+extern struct value_s o_EXP;
+extern struct value_s o_NEG;
+extern struct value_s o_POS;
+extern struct value_s o_INV;
+extern struct value_s o_LNOT;
+extern struct value_s o_CONCAT;
+extern struct value_s o_X;
+extern struct value_s o_MEMBER;
 
 extern void destroy_values(void);
 extern void init_values(void);

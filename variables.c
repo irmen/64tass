@@ -22,6 +22,7 @@
 #include "misc.h"
 #include "values.h"
 #include "file.h"
+#include "listobj.h"
 
 struct label_s root_label;
 struct label_s *current_context = &root_label;
@@ -160,16 +161,16 @@ void shadow_check(const struct avltree *members) {
                     const struct label_s *l2, *v1, *v2;
                     int rec = 100;
                     v1 = l2 = cavltree_container_of(b, struct label_s, node);
-                    while (v1->value->type == T_IDENTREF) {
+                    while (v1->value->obj == IDENTREF_OBJ) {
                         v1 = v1->value->u.identref.label;
                         if (!rec--) break;
                     }
                     rec = 100; v2 = l;
-                    while (v2->value->type == T_IDENTREF) {
+                    while (v2->value->obj == IDENTREF_OBJ) {
                         v2 = v2->value->u.identref.label;
                         if (!rec--) break;
                     }
-                    if (v1 != v2 && !val_same(v1->value, v2->value)) {
+                    if (v1 != v2 && !obj_same(v1->value, v2->value)) {
                         err_msg_shadow_defined(l2, l);
                         break;
                     }

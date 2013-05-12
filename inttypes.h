@@ -44,4 +44,13 @@ typedef uint32_t uval_t;
 #define PRIxval PRIx32
 #define PRIuval PRIu32
 #define PRIXval PRIX32
+
+#ifdef UNUSED
+#elif defined(__GNUC__)
+# define UNUSED(x) UNUSED_ ## x __attribute__((unused))
+#elif defined(__LCLINT__)
+# define UNUSED(x) /*@unused@*/ x
+#else
+# define UNUSED(x) x
+#endif
 #endif

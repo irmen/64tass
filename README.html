@@ -7,7 +7,6 @@
 <style>
 dt {margin-top:0.5em}
 dt + dt {margin-top:0em}
-dl.dir dt {font-family:monospace}
 body {width:50em;font-size:12pt;}
 h1, h2, h3, h4 {font-family:sans}
 hr {display:none}
@@ -24,16 +23,14 @@ pre i {color:brown;}
 pre u, code u {text-decoration:none;color:green;}
 p, dd {text-align:justify;word-break:hypenate;}
 p + p {text-indent:3ex;margin-top:-0.5em}
-table {border-bottom:2px solid black;border-top:2px solid black;border-collapse:collapse;width:100%;margin-top:0.5em;margin-bottom:0.5em;}
+table {border-bottom:2px solid black;border-top:2px solid black;border-collapse:collapse;width:100%;margin-top:0.5em;margin-bottom:0.5em; border-spacing: 0px;}
 td, th {padding: 0px 1ex 0px 1ex;border-left:1px solid silver;border-top:1px solid silver}
 tr:nth-child(odd) {background: #fafaff;}
 td:first-child, th:first-child {border-left: 0px;}
 caption {caption-side:bottom;} 
-table.opcodes th, table.opcodes td {text-align:left;font-family:monospace;table-layout:fixed;}
-table.oper td:first-child {font-family:monospace;}
+table.opcodes th, table.opcodes td {text-align:left;table-layout:fixed;}
 table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
-table.trans td {font-family:monospace;}
-table.esc td {font-family:monospace;}
+dl.dir dt, table.oper td:first-child, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre {font-family:monospace;font-size:12pt;}
 
 thead th {background-color:#eee;border-bottom:1px solid black;}
 
@@ -44,13 +41,16 @@ thead th {background-color:#eee;border-bottom:1px solid black;}
 }
 
 body { counter-reset: countcaption;}
-h1 { counter-reset: counth2; }
+h1 { counter-reset: counth2; font-size: 2em; margin: 0.67em 0; }
+
 h2:before { content: counter(counth2) " "; counter-increment: counth2; min-width: 40pt;display:inline-block;}
 h2 { counter-reset: counth3; }
 h3:before { content: counter(counth2) "." counter(counth3) " "; counter-increment: counth3; min-width: 40pt;display:inline-block;}
 h3 { counter-reset: counth4; }
 h4:before { content: counter(counth2) "." counter(counth3) "." counter(counth4) " "; counter-increment: counth4; min-width: 40pt;display:inline-block;}
 caption:before { content: "Table " counter(countcaption) ": "; counter-increment: countcaption; font-weight:bold;}
+
+q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 
 </style>
 </head>
@@ -213,6 +213,7 @@ encoding at the place of use. The following operations are accepted:</p>
 <tr><td>&lt;&gt;<td>lower word<td><code>&lt;&gt;<span>$123456</span></code> is <code><span>$3456</span></code>
 <tr><td>&gt;`<td>higher word<td><code>&lt;`<span>$123456</span></code> is <code><span>$1234</span></code>
 <tr><td>&gt;&lt;<td>lower byte swapped word<td><code>&gt;&lt;<span>$123456</span></code> is <code><span>$5634</span></code>
+<tr><td>x &lt;=&gt; y<td>x compares to y<td><code><span>2</span> &lt;=&gt; <span>5</span></code> is -1
 <tr><td>x == y<td>x equals to y<td><code><span>2</span> == <span>3</span></code> is false
 <tr><td>x != y<td>x does not equal to y<td><code><span>2</span> != <span>3</span></code> is true
 <tr><td>x &lt; y<td>x is less than y<td><code><span>2</span> &lt; <span>3</span></code> is true
@@ -224,7 +225,6 @@ encoding at the place of use. The following operations are accepted:</p>
 <tr><td>x &amp; y<td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
 <tr><td>x &lt;&lt; y<td>logical shift left<td><code><span>1</span> &lt;&lt; <span>3</span></code> is <code><span>8</span></code>
 <tr><td>x &gt;&gt; y<td>arithmetic shift right<td><code><span>-8</span> &gt;&gt; <span>3</span></code> is <code><span>-1</span></code>
-<!-- <tr><td>x &gt;&gt;&gt; y<td>logical shift right<td><code><span>-8</span> &gt;&gt; <span>3</span></code> is <code><span>-1</span></code> -->
 <tr><td>~x<td>invert bits<td><code>~<span>%101</span></code> is <code><span>%010</span></code>
 <tr><td>..<td>concatenate bits<td><code><span>$a</span>..<span>$b</span></code> is <code><span>$ab</span></code>
 <tr><td>x[n]<td>extract bit(s)<td><code><span>$a</span>[<span>1</span>]</code> is <code><span>0</span></code>
@@ -277,15 +277,21 @@ exponent. The following operations can be used on them:</p>
 <tr><td>x / y<td>integer divide x by y<td><code><span>7.0</span> / <span>2.0</span></code> is <code><span>3.5</span></code>
 <tr><td>x % y<td>integer modulo of x divided by y<td><code><span>5.0</span> % <span>2.0</span></code> is <code><span>1.0</span></code>
 <tr><td>x ** y<td>x raised t power of y<td><code><span>2.0</span> ** <span>-1</span></code> is <code><span>0.5</span></code>
-<tr><td>~x<td>&minus;(x+1) value<td><code>~<span>2.1</span></code> is <code><span>-3.1</span></code>
 <tr><td>-x<td>negated value<td><code>-<span>2.0</span></code> is <code><span>-2.0</span></code>
 <tr><td>+x<td>unchanged<td><code>+<span>2.0</span></code> is <code><span>2.0</span></code>
+<tr><td>x &lt;=&gt; y<td>x compares to y<td><code><span>5.0</span> &lt;=&gt; <span>3.0</span></code> is 1
 <tr><td>x == y<td>x equals to y<td><code><span>2.0</span> == <span>3.0</span></code> is false
 <tr><td>x != y<td>x does not equal to y<td><code><span>2.0</span> != <span>3.0</span></code> is true
 <tr><td>x &lt; y<td>x is less than y<td><code><span>2.0</span> &lt; <span>3.0</span></code> is true
 <tr><td>x &gt; y<td>x is more than y<td><code><span>2.0</span> &gt; <span>3.0</span></code> is false
 <tr><td>x &gt;= y<td>x is more than y or equals<td><code><span>2.0</span> &gt;= <span>3.0</span></code> is false
 <tr><td>x &lt;= y<td>x is less than y or equals<td><code><span>2.0</span> &lt;= <span>3.0</span></code> is true
+<tr><td>x | y<td>bitwise or<td><code><span>2.5</span> | <span>6.5</span></code> is <code><span>6.5</span></code>
+<tr><td>x ^ y<td>bitwise xor<td><code><span>2.5</span> ^ <span>6.5</span></code> is <code><span>4.0</span></code>
+<tr><td>x &amp; y<td>bitwise and<td><code><span>2.5</span> &amp; <span>6.5</span></code> is <code><span>2.5</span></code>
+<tr><td>x &lt;&lt; y<td>logical shift left<td><code><span>1.0</span> &lt;&lt; <span>3.0</span></code> is <code><span>8.0</span></code>
+<tr><td>x &gt;&gt; y<td>arithmetic shift right<td><code><span>-8.0</span> &gt;&gt; <span>4</span></code> is <code><span>-0.5</span></code>
+<tr><td>~x<td>almost &minus;x<td><code>~<span>2.1</span></code> is almost <code><span>-2.1</span></code>
 <tr><td>abs(a)<td>absolute value<td><code><span class="k">abs</span>(<span>-1.0</span>)</code> is <code><span>1.0</span></code>
 <tr><td>sign(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>-4.0</span>)</code> is <code><span>-1</span></code>
 <tr><td>floor(a)<td>round down<td><code><span class="k">floor</span>(<span>-4.8</span>)</code> is <code><span>-5.0</span></code>
@@ -323,6 +329,11 @@ exponent. The following operations can be used on them:</p>
 and e is <code>exp(1)</code>.</p>
 
 <p>Floating point numbers are automatically truncated to integer as necessary.</p>
+
+<p>Fixed point conversion can be done by using the shift operators for example
+a 8.16 fixed point number can be calculated as <code>(3.14 &lt;&lt; 16) &amp; $ffffff</code>.
+The binary operators operate like if the floating point number would be a fixed
+point one. This is the reason for the strange definiton of inversion.</p>
 
 <pre width=80>
         <b class="d">.byte</b> <span>3.66e1</span>       <i>; real, truncated to 36</i>
