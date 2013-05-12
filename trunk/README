@@ -153,6 +153,7 @@ x ** y   x raised t power of y            2 ** 4 is 16
 <>       lower word                       <>$123456 is $3456
 >`       higher word                      <`$123456 is $1234
 ><       lower byte swapped word          ><$123456 is $5634
+x <=> y  x compares to y                  2 <=> 5 is -1
 x == y   x equals to y                    2 == 3 is false
 x != y   x does not equal to y            2 != 3 is true
 x < y    x is less than y                 2 < 3 is true
@@ -211,15 +212,21 @@ x * y       multiply x with y                1.5 * 3 is 4.5
 x / y       integer divide x by y            7.0 / 2.0 is 3.5
 x % y       integer modulo of x divided by y 5.0 % 2.0 is 1.0
 x ** y      x raised t power of y            2.0 ** -1 is 0.5
-~x          ?(x+1) value                     ~2.1 is -3.1
 -x          negated value                    -2.0 is -2.0
 +x          unchanged                        +2.0 is 2.0
+x <=> y     x compares to y                  5.0 <=> 3.0 is 1
 x == y      x equals to y                    2.0 == 3.0 is false
 x != y      x does not equal to y            2.0 != 3.0 is true
 x < y       x is less than y                 2.0 < 3.0 is true
 x > y       x is more than y                 2.0 > 3.0 is false
 x >= y      x is more than y or equals       2.0 >= 3.0 is false
 x <= y      x is less than y or equals       2.0 <= 3.0 is true
+x | y       bitwise or                       2.5 | 6.5 is 6.5
+x ^ y       bitwise xor                      2.5 ^ 6.5 is 4.0
+x & y       bitwise and                      2.5 & 6.5 is 2.5
+x << y      logical shift left               1.0 << 3.0 is 8.0
+x >> y      arithmetic shift right           -8.0 >> 4 is -0.5
+~x          almost ?x                        ~2.1 is almost -2.1
 abs(a)      absolute value                   abs(-1.0) is 1.0
 sign(a)     sign value (?1, 0, 1)            sign(-4.0) is -1
 floor(a)    round down                       floor(-4.8) is -5.0
@@ -257,6 +264,11 @@ There are no predefined floating point constants, define them as necessary.
 Hint: pi is rad(180) and e is exp(1).
 
 Floating point numbers are automatically truncated to integer as necessary.
+
+Fixed point conversion can be done by using the shift operators for example a
+8.16 fixed point number can be calculated as (3.14 << 16) & $ffffff. The binary
+operators operate like if the floating point number would be a fixed point one.
+This is the reason for the strange definiton of inversion.
 
         .byte 3.66e1       ; real, truncated to 36
 

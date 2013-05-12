@@ -23,6 +23,82 @@
 #include "misc.h"
 #include "values.h"
 
+#include "boolobj.h"
+#include "listobj.h"
+#include "strobj.h"
+#include "uintobj.h"
+#include "sintobj.h"
+
+struct value_s none_value;
+struct value_s true_value;
+struct value_s false_value;
+struct value_s null_str;
+struct value_s null_tuple;
+struct value_s null_list;
+
+struct value_s o_TUPLE;
+struct value_s o_LIST;
+struct value_s o_DICT;
+struct value_s o_RPARENT;
+struct value_s o_RBRACKET;
+struct value_s o_RBRACE;
+struct value_s o_FUNC;
+struct value_s o_INDEX;
+struct value_s o_SLICE;
+struct value_s o_SLICE2;
+struct value_s o_BRACE;
+struct value_s o_BRACKET;
+struct value_s o_PARENT;
+struct value_s o_SEPARATOR;
+struct value_s o_COMMA;
+struct value_s o_QUEST;
+struct value_s o_COLON;
+struct value_s o_COND;
+struct value_s o_COLON2;
+struct value_s o_COLON3;
+struct value_s o_HASH;
+struct value_s o_COMMAX;
+struct value_s o_COMMAY;
+struct value_s o_COMMAZ;
+struct value_s o_COMMAS;
+struct value_s o_COMMAR;
+struct value_s o_WORD;
+struct value_s o_HWORD;
+struct value_s o_BSWORD;
+struct value_s o_LOWER;
+struct value_s o_HIGHER;
+struct value_s o_BANK;
+struct value_s o_STRING;
+struct value_s o_LOR;
+struct value_s o_LXOR;
+struct value_s o_LAND;
+struct value_s o_IN;
+struct value_s o_CMP;
+struct value_s o_EQ;
+struct value_s o_NE;
+struct value_s o_LT;
+struct value_s o_GT;
+struct value_s o_GE;
+struct value_s o_LE;
+struct value_s o_OR;
+struct value_s o_XOR;
+struct value_s o_AND;
+struct value_s o_LSHIFT;
+struct value_s o_RSHIFT;
+struct value_s o_ADD;
+struct value_s o_SUB;
+struct value_s o_MUL;
+struct value_s o_DIV;
+struct value_s o_MOD;
+struct value_s o_EXP;
+struct value_s o_NEG;
+struct value_s o_POS;
+struct value_s o_INV;
+struct value_s o_LNOT;
+struct value_s o_CONCAT;
+struct value_s o_X;
+struct value_s o_MEMBER;
+
 static union values_u {
     struct value_s val;
     union values_u *next;
@@ -56,166 +132,44 @@ struct value_s *val_alloc(void) {
         values->next = old;
         values_free = &values->vals[0];
     }
+    val->refcount = 1;
     return val;
-}
-
-static void dict_free(struct avltree_node *aa)
-{
-    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
-    val_destroy(a->key);
-    val_destroy(a->data);
-    free(a);
-}
-
-void val_destroy2(struct value_s *val) {
-    switch (val->type) {
-    case T_STR: free((uint8_t *)val->u.str.data); break;
-    case T_LIST: 
-    case T_TUPLE: 
-        while (val->u.list.len) val_destroy(val->u.list.data[--val->u.list.len]);
-        free(val->u.list.data); break;
-    case T_PAIR: 
-        val_destroy(val->u.pair.key);
-        val_destroy(val->u.pair.data);
-        break;
-    case T_DICT: 
-        avltree_destroy(&val->u.dict.members, dict_free);
-        break;
-    case T_MACRO:
-    case T_SEGMENT:
-    case T_STRUCT:
-    case T_UNION:
-        while (val->u.macro.argc) {
-            --val->u.macro.argc;
-            free((char *)val->u.macro.param[val->u.macro.argc].name.data);
-            free((char *)val->u.macro.param[val->u.macro.argc].init.data);
-        }
-        free(val->u.macro.param);break;
-    case T_FUNCTION:
-        while (val->u.func.argc) {
-            --val->u.func.argc;
-            free((char *)val->u.func.param[val->u.func.argc].name.data);
-            if (val->u.func.param[val->u.func.argc].init) val_destroy(val->u.func.param[val->u.func.argc].init);
-        }
-        free(val->u.func.param); break;
-    default:
-        break;
-    }
 }
 
 void val_destroy(struct value_s *val) {
     if (!val->refcount) {
-        val_destroy2(val);
+        obj_destroy(val);
         return;
     }
     if (val->refcount == 1) {
-        val_destroy2(val);
+        obj_destroy(val);
         value_free((union values_u *)val);
     } else val->refcount--;
 }
 
+struct value_s *val_reference(struct value_s *val2) {
+    struct value_s *val;
+    if (val2->refcount) {val2->refcount++;return val2;}
+    val = val_alloc();
+    val2->obj->copy(val2, val);
+    return val;
+}
+
 struct value_s *val_realloc(struct value_s **val) {
-    if (val[0]->refcount == 1) {
-        val_destroy2(*val);
+    if ((*val)->refcount == 1) {
+        obj_destroy(*val);
         return *val;
     }
-    if (val[0]->refcount) val[0]->refcount--;
+    if ((*val)->refcount) (*val)->refcount--;
     *val = val_alloc();
-    val[0]->refcount = 1;
     return *val;
-}
-
-static void val_copy2(struct value_s *val, const struct value_s *val2) {
-    size_t i;
-
-    *val = *val2;
-    val->refcount = 1;
-    switch (val2->type) {
-    case T_STR: 
-        if (val2->u.str.len) {
-            uint8_t *s;
-            s = malloc(val2->u.str.len);
-            if (!s) err_msg_out_of_memory();
-            memcpy(s, val2->u.str.data, val2->u.str.len);
-            val->u.str.data = s;
-        } else val->u.str.data = NULL;
-        break;
-    case T_LIST:
-    case T_TUPLE:
-        if (val2->u.list.len) {
-            val->u.list.data = malloc(val2->u.list.len * sizeof(val->u.list.data[0]));
-            if (!val->u.list.data) err_msg_out_of_memory();
-            for (i = 0; i < val2->u.list.len; i++)
-                val->u.list.data[i] = val_reference(val2->u.list.data[i]);
-            val->u.list.len = i;
-        } else val->u.list.data = NULL;
-        break;
-    case T_PAIR:
-        val->u.pair.key = val_reference(val2->u.pair.key);
-        val->u.pair.data = val_reference(val2->u.pair.data);
-        break;
-    case T_DICT:
-        avltree_init(&val->u.dict.members);
-        if (val2->u.dict.len) {
-            const struct avltree_node *n = avltree_first(&val2->u.dict.members);
-            const struct pair_s *p;
-            struct pair_s *p2;
-            while (n) {
-                p = cavltree_container_of(n, struct pair_s, node);
-                if (!(p2=malloc(sizeof(struct pair_s)))) err_msg_out_of_memory();
-                p2->hash = p->hash;
-                p2->key = val_reference(p->key);
-                p2->data = val_reference(p->data);
-                avltree_insert(&p2->node, &val->u.dict.members, pair_compare);
-                n = avltree_next(n);
-            }
-        }
-        break;
-    case T_MACRO:
-    case T_SEGMENT:
-    case T_STRUCT:
-    case T_UNION:
-        if (val2->u.macro.argc) {
-            val->u.macro.param = malloc(val2->u.macro.argc * sizeof(val->u.macro.param[0]));
-            if (!val->u.macro.param) err_msg_out_of_memory();
-            for (i = 0; i < val2->u.macro.argc; i++) {
-                str_cpy(&val->u.macro.param[i].name, &val2->u.macro.param[i].name);
-                str_cpy(&val->u.macro.param[i].init, &val2->u.macro.param[i].init);
-            }
-            val->u.macro.argc = i;
-        } else val->u.macro.param = NULL;
-        break;
-    case T_FUNCTION:
-        if (val2->u.func.argc) {
-            val->u.func.param = malloc(val2->u.func.argc * sizeof(val->u.func.param[0]));
-            if (!val->u.func.param) err_msg_out_of_memory();
-            for (i = 0; i < val2->u.func.argc; i++) {
-                str_cpy(&val->u.func.param[i].name, &val2->u.func.param[i].name);
-                if (val2->u.func.param[i].init) {
-                    val->u.func.param[i].init = val_reference(val2->u.func.param[i].init);
-                } else val->u.func.param[i].init = NULL;
-                val->u.func.param[i].epoint = val2->u.func.param[i].epoint;
-            }
-            val->u.func.argc = i;
-        } else val->u.func.param = NULL;
-        break;
-    default:
-        break;
-    }
-}
-
-static struct value_s *val_copy(const struct value_s *val2) {
-    struct value_s *val = val_alloc();
-    if (!val) err_msg_out_of_memory();
-    val_copy2(val, val2);
-    return val;
 }
 
 void val_replace(struct value_s **val, struct value_s *val2) {
     if (*val == val2) return;
-    if (val[0]->refcount == 1 && val2->refcount == 0) {
-        val_destroy2(*val);
-        val_copy2(*val, val2);
+    if ((*val)->refcount == 1 && val2->refcount == 0) {
+        obj_destroy(*val);
+        val2->obj->copy(val2, *val);
         return;
     }
     val_destroy(*val);
@@ -223,365 +177,35 @@ void val_replace(struct value_s **val, struct value_s *val2) {
 }
 
 void val_replace_template(struct value_s **val, const struct value_s *val2) {
-    if (val[0]->refcount == 1) {
-        val_destroy2(*val);
+    if ((*val)->refcount == 1) {
+        obj_destroy(*val);
     } else { 
         val_destroy(*val);
         *val = val_alloc();
-        if (!*val) err_msg_out_of_memory();
     }
-    **val = *val2;
-    val[0]->refcount = 1;
+    val2->obj->copy_temp(val2, *val);
 }
 
 void val_set_template(struct value_s **val, const struct value_s *val2) {
     *val = val_alloc();
-    if (!*val) err_msg_out_of_memory();
-    **val = *val2;
-    val[0]->refcount = 1;
-}
-
-struct value_s *val_reference(struct value_s *val2) {
-    if (val2->refcount) {val2->refcount++;return val2;}
-    return val_copy(val2);
-}
-
-int val_same(const struct value_s *val, const struct value_s *val2) {
-    size_t i;
-
-    switch (val->type) {
-    case T_SINT:
-    case T_UINT:
-    case T_BOOL:
-        return val2->type == val->type && val->u.num.val == val2->u.num.val;
-    case T_CODE:
-        return val2->type == val->type && val->u.code.addr == val2->u.code.addr && val->u.code.size == val2->u.code.size && val->u.code.dtype == val2->u.code.dtype;
-    case T_LBL:
-        return val2->type == val->type && val->u.lbl.p == val2->u.lbl.p && val->u.lbl.sline == val2->u.lbl.sline && val->u.lbl.waitforp == val2->u.lbl.waitforp && val->u.lbl.file_list == val2->u.lbl.file_list && val->u.lbl.parent == val2->u.lbl.parent;
-    case T_MACRO:
-    case T_SEGMENT:
-    case T_STRUCT:
-    case T_UNION:
-        if (val2->type != val->type || val->u.macro.p != val2->u.macro.p || val->u.macro.file_list != val2->u.macro.file_list || val->u.macro.sline != val2->u.macro.sline || val->u.macro.size != val2->u.macro.size) return 0;
-        for (i = 0; i < val->u.macro.argc; i++) {
-            if (str_cmp(&val->u.macro.param[i].name, &val2->u.macro.param[i].name)) return 0;
-            if (str_cmp(&val->u.macro.param[i].init, &val2->u.macro.param[i].init)) return 0;
-        }
-        return 1;
-    case T_FUNCTION:
-        if (val2->type != val->type || val->u.func.p != val2->u.func.p || val->u.func.file_list != val2->u.func.file_list || val->u.func.sline != val2->u.func.sline || val->u.func.context != val2->u.func.context) return 0;
-        for (i = 0; i < val->u.func.argc; i++) {
-            if (str_cmp(&val->u.func.param[i].name, &val2->u.func.param[i].name)) return 0;
-            if (val->u.func.param[i].init != val2->u.func.param[i].init && (!val->u.func.param[i].init || !val2->u.func.param[i].init || !val_same(val->u.func.param[i].init, val2->u.func.param[i].init))) return 0;
-            if (val->u.func.param[i].epoint.pos != val2->u.func.param[i].epoint.pos) return 0;
-            if (val->u.func.param[i].epoint.upos != val2->u.func.param[i].epoint.upos) return 0;
-        }
-        return 1;
-    case T_ADDRESS:
-        return val2->type == val->type && val->u.addr.type == val2->u.addr.type && val->u.addr.val == val2->u.addr.val && val->u.addr.len == val2->u.addr.len;
-    case T_NUM:
-        return val2->type == val->type && val->u.num.len == val2->u.num.len && val->u.num.val == val2->u.num.val;
-    case T_FLOAT:
-        return val2->type == val->type && val->u.real == val2->u.real;
-    case T_STR: 
-        return val2->type == val->type && val->u.str.len == val2->u.str.len && (
-                    val->u.str.data == val2->u.str.data ||
-                !memcmp(val->u.str.data, val2->u.str.data, val2->u.str.len));
-    case T_LIST:
-    case T_TUPLE:
-        if (val2->type == val->type) {
-            if (val->u.list.len != val2->u.list.len) return 0;
-            for (i = 0; i < val->u.list.len; i++) 
-                if (!val_same(val->u.list.data[i], val2->u.list.data[i])) return 0;
-            return 1;
-        }
-        break;
-    case T_PAIR:
-        if (val2->type == val->type) {
-            if (!val_same(val->u.pair.key, val2->u.pair.key)) return 0;
-            if (!val_same(val->u.pair.data, val2->u.pair.data)) return 0;
-            return 1;
-        }
-        break;
-    case T_DICT:
-        if (val2->type == val->type) {
-            const struct avltree_node *n;
-            const struct avltree_node *n2;
-            if (val->u.dict.len != val2->u.dict.len) return 0;
-            n = avltree_first(&val->u.dict.members);
-            n2 = avltree_first(&val2->u.dict.members);
-            while (n && n2) {
-                const struct pair_s *p, *p2;
-                if (pair_compare(n, n2)) return 0;
-                p = cavltree_container_of(n, struct pair_s, node);
-                p2 = cavltree_container_of(n2, struct pair_s, node);
-                if (!val_same(p->data, p2->data)) return 0;
-                n = avltree_next(n);
-                n2 = avltree_next(n2);
-            }
-            return n == n2;
-        }
-        break;
-    case T_NONE:
-    case T_GAP:
-        return val->type == val2->type;
-    case T_IDENTREF:
-        return val->type == val2->type && val->u.identref.label == val2->u.identref.label;
-    default: /* not possible here */
-        exit(2);
-    }
-    return 0;
-}
-
-int val_truth(const struct value_s *val) {
-    switch (val->type) {
-    case T_SINT:
-    case T_UINT:
-    case T_NUM:
-    case T_BOOL:
-        return !!val->u.num.val;
-    case T_CODE:
-        return !!val->u.code.addr;
-    case T_FLOAT:
-        return !!val->u.real;
-    case T_STR: 
-        return !!val->u.str.len;
-    case T_LIST:
-    case T_TUPLE:
-        return !!val->u.list.len;
-    case T_PAIR:
-        return 1;
-    case T_DICT:
-        return !!val->u.dict.len;
-    case T_ADDRESS:
-        return !!val->u.addr.val;
-    default:
-        return 0;
-    }
-}
-
-void val_print(const struct value_s *value, FILE *flab) {
-    switch (value->type) {
-    case T_NUM:
-        fprintf(flab,"$%" PRIxval, (uval_t)value->u.num.val);
-        break;
-    case T_CODE:
-        fprintf(flab,"$%" PRIxval, (uval_t)value->u.code.addr);
-        break;
-    case T_UINT:
-        fprintf(flab,"%" PRIuval, (uval_t)value->u.num.val);
-        break;
-    case T_SINT:
-        fprintf(flab,"%+" PRIdval, (ival_t)value->u.num.val);
-        break;
-    case T_FLOAT:
-        {
-            char num[100];
-            int i = 0;
-            sprintf(num, "%.10g", value->u.real);
-            while (num[i] && num[i]!='.' && num[i]!='e' && num[i]!='n' && num[i]!='i') i++;
-            if (!num[i]) {num[i++]='.';num[i++]='0';num[i]=0;}
-            fputs(num, flab);
-        }
-        break;
-    case T_STR:
-        {
-            size_t val;
-            uint32_t ch;
-            uint8_t c;
-            c = memchr(value->u.str.data, '"', value->u.str.len) ? '\'' : '"';
-            fputc(c, flab);
-            for (val = 0;val < value->u.str.len;) {
-                ch = value->u.str.data[val];
-                if (ch & 0x80) val += utf8in(value->u.str.data + val, &ch); else val++;
-                if (ch == c) fputc(c, flab);
-                if (ch < 32 || ch > 127) fprintf(flab,"{$%02x}", ch);
-                else fputc(ch, flab);
-            }
-            fputc(c, flab);
-            break;
-        }
-    case T_LIST:
-        {
-            size_t val;
-            int first = 0;
-            fputc('[', flab);
-            for (val = 0;val < value->u.list.len; val++) {
-                if (first) fputc(',', flab);
-                val_print(value->u.list.data[val], flab);
-                first = 1;
-            }
-            fputc(']', flab);
-            break;
-        }
-    case T_TUPLE:
-        {
-            size_t val;
-            int first = 0;
-            fputc('(', flab);
-            for (val = 0;val < value->u.list.len; val++) {
-                if (first) fputc(',', flab);
-                val_print(value->u.list.data[val], flab);
-                first = 1;
-            }
-            if (value->u.list.len == 1) fputc(',', flab);
-            fputc(')', flab);
-            break;
-        }
-    case T_DICT:
-        {
-            const struct avltree_node *n;
-            const struct pair_s *p;
-            int first = 0;
-            fputc('{', flab);
-            n = avltree_first(&value->u.dict.members);
-            while (n) {
-                p = cavltree_container_of(n, struct pair_s, node);
-                if (first) fputc(',', flab);
-                val_print(p->key, flab);
-                fputc(':', flab);
-                val_print(p->data, flab);
-                first = 1;
-                n = avltree_next(n);
-            }
-            fputc('}', flab);
-            break;
-        }
-    case T_PAIR:
-        val_print(value->u.pair.key, flab);
-        fputc(':', flab);
-        val_print(value->u.pair.data, flab);
-        break;
-    case T_BOOL:
-        putc(value->u.num.val ? '1' : '0', flab);
-        break;
-    case T_IDENTREF:
-        if (value->u.identref.label->parent != &root_label) {
-            int rec = 100;
-            while (value->type == T_IDENTREF) {
-                value = value->u.identref.label->value;
-                if (!rec--) {
-                    putc('!', flab);
-                    return;
-                }
-            }
-            val_print(value, flab);
-        } else {
-            fwrite(value->u.identref.label->name.data, value->u.identref.label->name.len, 1, flab);
-        }
-        break;
-    case T_GAP:
-        putc('?', flab);
-        break;
-    default:
-        putc('!', flab);
-        break;
-    }
-}
-
-int val_hash(const struct value_s *val) {
-    switch (val->type) {
-    case T_SINT:
-    case T_UINT:
-    case T_BOOL:
-    case T_NUM: return val->u.num.val & ((~(unsigned int)0) >> 1);
-    case T_STR: 
-        {
-            size_t l = val->u.str.len;
-            const uint8_t *s2 = val->u.str.data;
-            unsigned int h;
-            if (!l) return 0;
-            h = *s2 << 7;
-            while (l--) h = (1000003 * h) ^ *s2++;
-            h ^= val->u.str.len;
-            return h & ((~(unsigned int)0) >> 1);
-        }
-    case T_FLOAT: 
-        {
-            double integer, r;
-            int exp;
-            unsigned int h;
-            r = val->u.real;
-
-            if (modf(r, &integer) == 0.0) {
-                return ((unsigned int)integer) & ((~(unsigned int)0) >> 1);
-            }
-            r = frexp(r, &exp);
-            r *= 2147483648.0; 
-            h = r; 
-            r = (r - (double)h) * 2147483648.0;
-            h ^= (int)r ^ (exp << 15);
-            return h & ((~(unsigned int)0) >> 1);
-        }
-    default:
-        return 0;
-    }
+    val2->obj->copy_temp(val2, *val);
 }
 
 int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
     const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
-    enum type_e t1;
-    enum type_e t2;
-    const struct value_s *v1, *v2;
+    struct value_s tmp;
+    struct oper_s oper;
     int h = a->hash - b->hash;
 
     if (h) return h;
-    v1 = a->key; v2 = b->key;
-    t1 = v1->type;
-    t2 = v2->type;
-
-    switch (t1) {
-    case T_SINT:
-        switch (t2) {
-        case T_FLOAT:
-            return ((double)v1->u.num.val > v2->u.real) - ((double)v1->u.num.val < v2->u.real);
-        case T_UINT:
-        case T_BOOL:
-        case T_NUM: 
-            if (v1->u.num.val < 0) return -1;
-            if (v2->u.num.val < 0) return -1;
-        case T_SINT: return (v1->u.num.val > v2->u.num.val) - (v1->u.num.val < v2->u.num.val);
-        default: break;
-        }
-        break;
-    case T_UINT:
-    case T_BOOL:
-    case T_NUM:
-        switch (t2) {
-        case T_FLOAT:
-            return ((double)((uval_t)v1->u.num.val) > v2->u.real) - ((double)((uval_t)v1->u.num.val) < v2->u.real);
-        case T_SINT: 
-            if (v2->u.num.val < 0) return 1;
-        case T_UINT:
-        case T_BOOL:
-        case T_NUM: return ((uval_t)v1->u.num.val > (uval_t)v2->u.num.val) - ((uval_t)v1->u.num.val < (uval_t)v2->u.num.val);
-        default: break;
-        }
-        break;
-    case T_FLOAT:
-        switch (t2) {
-        case T_FLOAT:
-            return (v1->u.real > v2->u.real) - (v1->u.real < v2->u.real);
-        case T_SINT: 
-            return (v1->u.real > (double)v2->u.num.val) - (v1->u.real < (double)v2->u.num.val);
-        case T_UINT:
-        case T_BOOL:
-        case T_NUM: return (v1->u.real > (double)((uval_t)v2->u.num.val)) - (v1->u.real < (double)((uval_t)v2->u.num.val));
-        default: break;
-        }
-    case T_STR: 
-        if (t1 == t2) {
-            h = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len : v2->u.str.len);
-            if (h) return h;
-            return (v1->u.str.len > v2->u.str.len) - (v1->u.str.len < v2->u.str.len);
-        }
-        break;
-    default: break;
-    }
-    h = t1 - t2;
-    if (h) return h;
+    oper.op = &o_CMP;
+    oper.v1 = a->key;
+    oper.v2 = b->key;
+    oper.v = &tmp;
+    oper.v1->obj->calc2(&oper);
+    if (tmp.obj == UINT_OBJ || tmp.obj == SINT_OBJ) return tmp.u.num.val;
     return 0;
 }
 
@@ -597,6 +221,339 @@ void init_values(void)
     values->next = NULL;
 
     values_free = &values->vals[0];
+
+    none_value.obj = NONE_OBJ;
+    none_value.refcount = 0;
+    true_value.obj = BOOL_OBJ;
+    true_value.refcount = 0;
+    true_value.u.num.val = 1;
+    false_value.obj = BOOL_OBJ;
+    false_value.refcount = 0;
+    false_value.u.num.val = 0;
+    null_str.obj = STR_OBJ;
+    null_str.refcount = 0;
+    null_str.u.str.len = 0;
+    null_str.u.str.chars = 0;
+    null_str.u.str.data = NULL;
+    null_tuple.obj = TUPLE_OBJ;
+    null_tuple.refcount = 0;
+    null_tuple.u.list.len = 0;
+    null_tuple.u.list.data = NULL;
+    null_list.obj = LIST_OBJ;
+    null_list.refcount = 0;
+    null_list.u.list.len = 0;
+    null_list.u.list.data = NULL;
+
+    o_TUPLE.obj = OPER_OBJ;
+    o_TUPLE.refcount = 0;
+    o_TUPLE.u.oper.name = "')";
+    o_TUPLE.u.oper.op = O_TUPLE;
+    o_TUPLE.u.oper.prio = 0;
+    o_LIST.obj = OPER_OBJ;
+    o_LIST.refcount = 0;
+    o_LIST.u.oper.name = "']";
+    o_LIST.u.oper.op = O_LIST;
+    o_LIST.u.oper.prio = 0;
+    o_DICT.obj = OPER_OBJ;
+    o_DICT.refcount = 0;
+    o_DICT.u.oper.name = "'}";
+    o_DICT.u.oper.op = O_DICT;
+    o_DICT.u.oper.prio = 0;
+    o_RPARENT.obj = OPER_OBJ;
+    o_RPARENT.refcount = 0;
+    o_RPARENT.u.oper.name = "')";
+    o_RPARENT.u.oper.op = O_RPARENT;
+    o_RPARENT.u.oper.prio = 0;
+    o_RBRACKET.obj = OPER_OBJ;
+    o_RBRACKET.refcount = 0;
+    o_RBRACKET.u.oper.name = "']";
+    o_RBRACKET.u.oper.op = O_RBRACKET;
+    o_RBRACKET.u.oper.prio = 0;
+    o_RBRACE.obj = OPER_OBJ;
+    o_RBRACE.refcount = 0;
+    o_RBRACE.u.oper.name = "'}";
+    o_RBRACE.u.oper.op = O_RBRACE;
+    o_RBRACE.u.oper.prio = 0;
+    o_FUNC.obj = OPER_OBJ;
+    o_FUNC.refcount = 0;
+    o_FUNC.u.oper.name = "function call '()";
+    o_FUNC.u.oper.op = O_FUNC;
+    o_FUNC.u.oper.prio = 0;
+    o_INDEX.obj = OPER_OBJ;
+    o_INDEX.refcount = 0;
+    o_INDEX.u.oper.name = "indexing '[]";
+    o_INDEX.u.oper.op = O_INDEX;
+    o_INDEX.u.oper.prio = 0;
+    o_SLICE.obj = OPER_OBJ;
+    o_SLICE.refcount = 0;
+    o_SLICE.u.oper.name = "slicing '[:]";
+    o_SLICE.u.oper.op = O_SLICE;
+    o_SLICE.u.oper.prio = 0;
+    o_SLICE2.obj = OPER_OBJ;
+    o_SLICE2.refcount = 0;
+    o_SLICE2.u.oper.name = "slicing '[:]";
+    o_SLICE2.u.oper.op = O_SLICE2;
+    o_SLICE2.u.oper.prio = 0;
+    o_BRACE.obj = OPER_OBJ;
+    o_BRACE.refcount = 0;
+    o_BRACE.u.oper.name = "'{";
+    o_BRACE.u.oper.op = O_BRACE;
+    o_BRACE.u.oper.prio = 0;
+    o_BRACKET.obj = OPER_OBJ;
+    o_BRACKET.refcount = 0;
+    o_BRACKET.u.oper.name = "'[";
+    o_BRACKET.u.oper.op = O_BRACKET;
+    o_BRACKET.u.oper.prio = 0;
+    o_PARENT.obj = OPER_OBJ;
+    o_PARENT.refcount = 0;
+    o_PARENT.u.oper.name = "'(";
+    o_PARENT.u.oper.op = O_PARENT;
+    o_PARENT.u.oper.prio = 0;
+    o_SEPARATOR.obj = OPER_OBJ;
+    o_SEPARATOR.refcount = 0;
+    o_SEPARATOR.u.oper.name = "',";
+    o_SEPARATOR.u.oper.op = O_SEPARATOR;
+    o_SEPARATOR.u.oper.prio = 1;
+    o_COMMA.obj = OPER_OBJ;
+    o_COMMA.refcount = 0;
+    o_COMMA.u.oper.name = "',";
+    o_COMMA.u.oper.op = O_COMMA;
+    o_COMMA.u.oper.prio = 1;
+    o_QUEST.obj = OPER_OBJ;
+    o_QUEST.refcount = 0;
+    o_QUEST.u.oper.name = "'?";
+    o_QUEST.u.oper.op = O_QUEST;
+    o_QUEST.u.oper.prio = 2;
+    o_COLON.obj = OPER_OBJ;
+    o_COLON.refcount = 0;
+    o_COLON.u.oper.name = "':";
+    o_COLON.u.oper.op = O_COLON;
+    o_COLON.u.oper.prio = 2;
+    o_COND.obj = OPER_OBJ;
+    o_COND.refcount = 0;
+    o_COND.u.oper.name = "condition '?";
+    o_COND.u.oper.op = O_COND;
+    o_COND.u.oper.prio = 3;
+    o_COLON2.obj = OPER_OBJ;
+    o_COLON2.refcount = 0;
+    o_COLON2.u.oper.name = "':";
+    o_COLON2.u.oper.op = O_COLON2;
+    o_COLON2.u.oper.prio = 3;
+    o_COLON3.obj = OPER_OBJ;
+    o_COLON3.refcount = 0;
+    o_COLON3.u.oper.name = "':";
+    o_COLON3.u.oper.op = O_COLON3;
+    o_COLON3.u.oper.prio = 3;
+    o_HASH.obj = OPER_OBJ;
+    o_HASH.refcount = 0;
+    o_HASH.u.oper.name = "immediate '#";
+    o_HASH.u.oper.op = O_HASH;
+    o_HASH.u.oper.prio = 3;
+    o_COMMAX.obj = OPER_OBJ;
+    o_COMMAX.refcount = 0;
+    o_COMMAX.u.oper.name = "register indexing ',x";
+    o_COMMAX.u.oper.op = O_COMMAX;
+    o_COMMAX.u.oper.prio = 4;
+    o_COMMAY.obj = OPER_OBJ;
+    o_COMMAY.refcount = 0;
+    o_COMMAY.u.oper.name = "register indexing ',y";
+    o_COMMAY.u.oper.op = O_COMMAY;
+    o_COMMAY.u.oper.prio = 4;
+    o_COMMAZ.obj = OPER_OBJ;
+    o_COMMAZ.refcount = 0;
+    o_COMMAZ.u.oper.name = "register indexing ',z";
+    o_COMMAZ.u.oper.op = O_COMMAZ;
+    o_COMMAZ.u.oper.prio = 4;
+    o_COMMAS.obj = OPER_OBJ;
+    o_COMMAS.refcount = 0;
+    o_COMMAS.u.oper.name = "register indexing ',s";
+    o_COMMAS.u.oper.op = O_COMMAS;
+    o_COMMAS.u.oper.prio = 4;
+    o_COMMAR.obj = OPER_OBJ;
+    o_COMMAR.refcount = 0;
+    o_COMMAR.u.oper.name = "register indexing ',r";
+    o_COMMAR.u.oper.op = O_COMMAR;
+    o_COMMAR.u.oper.prio = 4;
+    o_WORD.obj = OPER_OBJ;
+    o_WORD.refcount = 0;
+    o_WORD.u.oper.name = "word '<>";
+    o_WORD.u.oper.op = O_WORD;
+    o_WORD.u.oper.prio = 4;
+    o_HWORD.obj = OPER_OBJ;
+    o_HWORD.refcount = 0;
+    o_HWORD.u.oper.name = "high word '>`";
+    o_HWORD.u.oper.op = O_HWORD;
+    o_HWORD.u.oper.prio = 4;
+    o_BSWORD.obj = OPER_OBJ;
+    o_BSWORD.refcount = 0;
+    o_BSWORD.u.oper.name = "swapped word '><";
+    o_BSWORD.u.oper.op = O_BSWORD;
+    o_BSWORD.u.oper.prio = 4;
+    o_LOWER.obj = OPER_OBJ;
+    o_LOWER.refcount = 0;
+    o_LOWER.u.oper.name = "low byte '<";
+    o_LOWER.u.oper.op = O_LOWER;
+    o_LOWER.u.oper.prio = 4;
+    o_HIGHER.obj = OPER_OBJ;
+    o_HIGHER.refcount = 0;
+    o_HIGHER.u.oper.name = "high byte '>";
+    o_HIGHER.u.oper.op = O_HIGHER;
+    o_HIGHER.u.oper.prio = 4;
+    o_BANK.obj = OPER_OBJ;
+    o_BANK.refcount = 0;
+    o_BANK.u.oper.name = "bank byte '`";
+    o_BANK.u.oper.op = O_BANK;
+    o_BANK.u.oper.prio = 4;
+    o_STRING.obj = OPER_OBJ;
+    o_STRING.refcount = 0;
+    o_STRING.u.oper.name = "string '^";
+    o_STRING.u.oper.op = O_STRING;
+    o_STRING.u.oper.prio = 4;
+    o_LOR.obj = OPER_OBJ;
+    o_LOR.refcount = 0;
+    o_LOR.u.oper.name = "logical or '||";
+    o_LOR.u.oper.op = O_LOR;
+    o_LOR.u.oper.prio = 5;
+    o_LXOR.obj = OPER_OBJ;
+    o_LXOR.refcount = 0;
+    o_LXOR.u.oper.name = "logical xor '^^";
+    o_LXOR.u.oper.op = O_LXOR;
+    o_LXOR.u.oper.prio = 6;
+    o_LAND.obj = OPER_OBJ;
+    o_LAND.refcount = 0;
+    o_LAND.u.oper.name = "logical and '&&";
+    o_LAND.u.oper.op = O_LAND;
+    o_LAND.u.oper.prio = 7;
+    o_IN.obj = OPER_OBJ;
+    o_IN.refcount = 0;
+    o_IN.u.oper.name = "membership 'in";
+    o_IN.u.oper.op = O_IN;
+    o_IN.u.oper.prio = 8;
+    o_CMP.obj = OPER_OBJ;
+    o_CMP.refcount = 0;
+    o_CMP.u.oper.name = "compare '<=>";
+    o_CMP.u.oper.op = O_CMP;
+    o_CMP.u.oper.prio = 8;
+    o_EQ.obj = OPER_OBJ;
+    o_EQ.refcount = 0;
+    o_EQ.u.oper.name = "equal '==";
+    o_EQ.u.oper.op = O_EQ;
+    o_EQ.u.oper.prio = 8;
+    o_NE.obj = OPER_OBJ;
+    o_NE.refcount = 0;
+    o_NE.u.oper.name = "not equal '!=";
+    o_NE.u.oper.op = O_NE;
+    o_NE.u.oper.prio = 8;
+    o_LT.obj = OPER_OBJ;
+    o_LT.refcount = 0;
+    o_LT.u.oper.name = "less than '<";
+    o_LT.u.oper.op = O_LT;
+    o_LT.u.oper.prio = 8;
+    o_GT.obj = OPER_OBJ;
+    o_GT.refcount = 0;
+    o_GT.u.oper.name = "greater than '>";
+    o_GT.u.oper.op = O_GT;
+    o_GT.u.oper.prio = 8;
+    o_GE.obj = OPER_OBJ;
+    o_GE.refcount = 0;
+    o_GE.u.oper.name = "greater than or equal '>=";
+    o_GE.u.oper.op = O_GE;
+    o_GE.u.oper.prio = 8;
+    o_LE.obj = OPER_OBJ;
+    o_LE.refcount = 0;
+    o_LE.u.oper.name = "less than or equal '<=";
+    o_LE.u.oper.op = O_LE;
+    o_LE.u.oper.prio = 8;
+    o_OR.obj = OPER_OBJ;
+    o_OR.refcount = 0;
+    o_OR.u.oper.name = "binary or '|";
+    o_OR.u.oper.op = O_OR;
+    o_OR.u.oper.prio = 9;
+    o_XOR.obj = OPER_OBJ;
+    o_XOR.refcount = 0;
+    o_XOR.u.oper.name = "binary exclusive or '^";
+    o_XOR.u.oper.op = O_XOR;
+    o_XOR.u.oper.prio = 10;
+    o_AND.obj = OPER_OBJ;
+    o_AND.refcount = 0;
+    o_AND.u.oper.name = "binary and '&";
+    o_AND.u.oper.op = O_AND;
+    o_AND.u.oper.prio = 11;
+    o_LSHIFT.obj = OPER_OBJ;
+    o_LSHIFT.refcount = 0;
+    o_LSHIFT.u.oper.name = "binary left shift '<<";
+    o_LSHIFT.u.oper.op = O_LSHIFT;
+    o_LSHIFT.u.oper.prio = 12;
+    o_RSHIFT.obj = OPER_OBJ;
+    o_RSHIFT.refcount = 0;
+    o_RSHIFT.u.oper.name = "binary right shift '>>";
+    o_RSHIFT.u.oper.op = O_RSHIFT;
+    o_RSHIFT.u.oper.prio = 12;
+    o_ADD.obj = OPER_OBJ;
+    o_ADD.refcount = 0;
+    o_ADD.u.oper.name = "add '+";
+    o_ADD.u.oper.op = O_ADD;
+    o_ADD.u.oper.prio = 13;
+    o_SUB.obj = OPER_OBJ;
+    o_SUB.refcount = 0;
+    o_SUB.u.oper.name = "substract '-";
+    o_SUB.u.oper.op = O_SUB;
+    o_SUB.u.oper.prio = 13;
+    o_MUL.obj = OPER_OBJ;
+    o_MUL.refcount = 0;
+    o_MUL.u.oper.name = "multiply '*";
+    o_MUL.u.oper.op = O_MUL;
+    o_MUL.u.oper.prio = 14;
+    o_DIV.obj = OPER_OBJ;
+    o_DIV.refcount = 0;
+    o_DIV.u.oper.name = "division '/";
+    o_DIV.u.oper.op = O_DIV;
+    o_DIV.u.oper.prio = 14;
+    o_MOD.obj = OPER_OBJ;
+    o_MOD.refcount = 0;
+    o_MOD.u.oper.name = "modulo '%";
+    o_MOD.u.oper.op = O_MOD;
+    o_MOD.u.oper.prio = 14;
+    o_EXP.obj = OPER_OBJ;
+    o_EXP.refcount = 0;
+    o_EXP.u.oper.name = "exponent '**";
+    o_EXP.u.oper.op = O_EXP;
+    o_EXP.u.oper.prio = 15;
+    o_NEG.obj = OPER_OBJ;
+    o_NEG.refcount = 0;
+    o_NEG.u.oper.name = "unary negative '-";
+    o_NEG.u.oper.op = O_NEG;
+    o_NEG.u.oper.prio = 16;
+    o_POS.obj = OPER_OBJ;
+    o_POS.refcount = 0;
+    o_POS.u.oper.name = "unary positive '+";
+    o_POS.u.oper.op = O_POS;
+    o_POS.u.oper.prio = 16;
+    o_INV.obj = OPER_OBJ;
+    o_INV.refcount = 0;
+    o_INV.u.oper.name = "binary invert '~";
+    o_INV.u.oper.op = O_INV;
+    o_INV.u.oper.prio = 16;
+    o_LNOT.obj = OPER_OBJ;
+    o_LNOT.refcount = 0;
+    o_LNOT.u.oper.name = "logical not '!";
+    o_LNOT.u.oper.op = O_LNOT;
+    o_LNOT.u.oper.prio = 16;
+    o_CONCAT.obj = OPER_OBJ;
+    o_CONCAT.refcount = 0;
+    o_CONCAT.u.oper.name = "concat '..";
+    o_CONCAT.u.oper.op = O_CONCAT;
+    o_CONCAT.u.oper.prio = 17;
+    o_X.obj = OPER_OBJ;
+    o_X.refcount = 0;
+    o_X.u.oper.name = "repeat 'x";
+    o_X.u.oper.op = O_X;
+    o_X.u.oper.prio = 18;
+    o_MEMBER.obj = OPER_OBJ;
+    o_MEMBER.refcount = 0;
+    o_MEMBER.u.oper.name = "member '.";
+    o_MEMBER.u.oper.op = O_MEMBER;
+    o_MEMBER.u.oper.prio = 19;
 }
 
 void destroy_values(void)

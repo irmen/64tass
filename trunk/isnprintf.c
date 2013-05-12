@@ -52,7 +52,9 @@
 #include "error.h"
 #include "eval.h"
 
-static struct value_s none_value = {T_NONE, 0, {}};
+#include "numobj.h"
+#include "strobj.h"
+
 static struct value_s return_value;
 static size_t returnsize = 0;
 static linepos_t epoint;
@@ -134,7 +136,7 @@ static inline void PAD_LEFT(struct DATA *p)
 static uval_t asint(const struct value_s *v, int *minus)
 {
     uval_t d;
-    switch (v->type) {
+    switch (v->obj->type) {
     case T_SINT: 
         if ((ival_t)v->u.num.val < 0) {
             d = (uval_t)-v->u.num.val; *minus = 1;
@@ -230,7 +232,7 @@ static void bin(struct DATA *p, const struct value_s *v)
 
     d = asint(v, &minus);
     if (minus < 0) return;
-    i = (v->type == T_NUM) ? v->u.num.len : get_val_len(v->u.num.val, v->type);
+    i = (v->obj == NUM_OBJ) ? v->u.num.len : get_val_len(v->u.num.val, v->obj->type);
     for (i = i - 1, j = 0; i >= 0; i--, j++) {
         tmp[j] = (d & (1 << i)) ? '1' : '0';
         if (!j && tmp[j] == '0' && i) j--;
@@ -251,7 +253,7 @@ static void bin(struct DATA *p, const struct value_s *v)
 static inline void chars(const struct value_s *v)
 {
     uint32_t ch;
-    switch (v->type) {
+    switch (v->obj->type) {
     case T_SINT: if ((ival_t)v->u.num.val < 0) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
     case T_NUM:
     case T_UINT:
@@ -280,7 +282,7 @@ static void strings(struct DATA *p, const struct value_s *v)
     const uint8_t *tmp;
     uint32_t ch;
 
-    switch (v->type) {
+    switch (v->obj->type) {
     case T_STR: break;
     default: err_msg_wrong_type(v, epoint);
     case T_NONE: return;
@@ -306,7 +308,7 @@ static void floating(struct DATA *p, const struct value_s *v)
     int minus;
     double d;
 
-    switch (v->type) {
+    switch (v->obj->type) {
     case T_SINT: if ((ival_t)v->u.num.val < 0) {d = (uval_t)-v->u.num.val;minus = 1;} else {d = (uval_t)v->u.num.val; minus = 0;} break;
     case T_NUM:
     case T_UINT:
@@ -468,7 +470,7 @@ void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_
         }
     }
     if (v == v1) free((uint8_t *)v1->u.str.data);
-    v->type = T_STR;
+    v->obj = STR_OBJ;
     v->u.str.data = return_value.u.str.data;
     v->u.str.len = return_value.u.str.len;
     v->u.str.chars = return_value.u.str.chars;

@@ -24,6 +24,7 @@
 #include "values.h"
 #include "file.h"
 #include "variables.h"
+#include "listobj.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -149,6 +150,7 @@ static const char *terr_error[]={
     "string constant too long for a number",
     "index out of range",
     "key error",
+    "not hashable",
     "%s\n",
 };
 static const char *terr_fatal[]={
@@ -245,38 +247,6 @@ void err_msg(enum errors_e no, const void* prm) {
     err_msg2(no, prm, lpoint);
 }
 
-static const char *type_name(enum type_e t) {
-    switch (t) {
-    case T_ADDRESS: return "<address>";
-    case T_SINT: return "<sint>";
-    case T_UINT: return "<uint>";
-    case T_NUM: return "<num>";
-    case T_STR: return "<string>";
-    case T_ERROR: return "<error>";
-    case T_IDENT: return "<ident>";
-    case T_IDENTREF: return "<identref>";
-    case T_NONE: return "<none>";
-    case T_ANONIDENT: return "<anonident>";
-    case T_OPER: return "<operator>";
-    case T_GAP: return "<uninit>";
-    case T_LIST: return "<list>";
-    case T_TUPLE: return "<tuple>";
-    case T_PAIR: return "<pair>";
-    case T_DICT: return "<dictionary>";
-    case T_FLOAT: return "<float>";
-    case T_BOOL: return "<bool>";
-    case T_MACRO: return "<macro>";
-    case T_SEGMENT: return "<segment>";
-    case T_STRUCT: return "<struct>";
-    case T_UNION: return "<union>";
-    case T_FUNCTION: return "<function>";
-    case T_CODE: return "<code>";
-    case T_LBL: return "<lbl>";
-    case T_DEFAULT: return "<default>";
-    }
-    return NULL;
-}
-
 static void str_name(const uint8_t *data, size_t len) {
     adderror(" '");
     if (len) {
@@ -304,23 +274,23 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
 }
 
 void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
-    const char *name;
     if (pass == 1) return;
-    if (val->type == T_ERROR) {
+    if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
         case ERROR___NOT_DEFINED: err_msg_not_defined(&val->u.error.u.ident, val->u.error.epoint);return;
         case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, val->u.error.epoint);return;
         case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, val->u.error.epoint);return;
+        case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, val->u.error.epoint);return;
         case ERROR___INDEX_RANGE:
         case ERROR_CONSTNT_LARGE:
         case ERROR_NEGFRAC_POWER:
         case ERROR_BIG_STRING_CO:
         case ERROR_____KEY_ERROR:
+        case ERROR__NOT_HASHABLE:
         case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, val->u.error.epoint);return;
         }
     }
-    name = type_name(val->type);
-    err_msg2(ERROR____WRONG_TYPE, name, epoint);
+    err_msg2(ERROR____WRONG_TYPE, val->obj->name, epoint);
 }
 
 void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {
@@ -368,7 +338,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
     int ind;
 
     if (!val) {user_error->chars = user_error->len = 0;return;}
-    switch (val->type) {
+    switch (val->obj->type) {
     case T_ADDRESS: 
         sprintf(buffer,"$%" PRIxval, val->u.addr.val);
         addrtype = val->u.addr.type;
@@ -433,19 +403,6 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
            user_error->chars -= val->u.str.len - val->u.str.chars;
            break;
        }
-    case T_ERROR: add_user_error(user_error, "<error>");break;
-    case T_IDENT: add_user_error(user_error, "<ident>");break;
-    case T_IDENTREF: add_user_error(user_error, "<identref>");break;
-    case T_NONE: add_user_error(user_error, "<none>");break;
-    case T_ANONIDENT: add_user_error(user_error, "<anonident>");break;
-    case T_OPER: add_user_error(user_error, "<operator>");break;
-    case T_MACRO: add_user_error(user_error, "<macro>");break;
-    case T_SEGMENT: add_user_error(user_error, "<segment>");break;
-    case T_STRUCT: add_user_error(user_error, "<struct>");break;
-    case T_UNION: add_user_error(user_error, "<union>");break;
-    case T_FUNCTION: add_user_error(user_error, "<function>");break;
-    case T_LBL: add_user_error(user_error, "<lbl>");break;
-    case T_DEFAULT: add_user_error(user_error, "<default>");break;
     case T_GAP: add_user_error(user_error, "?");break;
     case T_LIST:
         {
@@ -495,6 +452,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
         err_msg_variable(user_error, val->u.pair.data, 1);
         break;
     case T_BOOL: add_user_error(user_error, val->u.num.val ? "1" : "0");break;
+    default: add_user_error(user_error, val->obj->name);break;
     }
 }
 
@@ -524,15 +482,13 @@ void err_msg_shadow_defined(const struct label_s *l, const struct label_s *l2) {
     err_msg_double_defined2("error: shadow definition", l, l2->file_list, &l2->name, l2->sline, l2->epoint);
 }
 
-static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
-    const char *name = "";
-
+static int err_oper(const char *msg, const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
     if (pass == 1) return 0;
-    if (v1->type == T_ERROR) {
+    if (v1->obj == ERROR_OBJ) {
         err_msg_wrong_type(v1, v1->u.error.epoint);
         return 0;
     }
-    if (v2 && v2->type == T_ERROR) {
+    if (v2 && v2->obj == ERROR_OBJ) {
         err_msg_wrong_type(v2, v2->u.error.epoint);
         return 0;
     }
@@ -550,90 +506,26 @@ static int err_oper(const char *msg, enum oper_e op, const struct value_s *v1, c
     } else {
         adderror(" type argument to ");
     }
-    switch (op) {
-    case O_SEPARATOR: name = "',";break;
-    case O_FUNC:    name = "function call '()";break;
-    case O_INDEX:   name = "indexing '[]";break;
-    case O_SLICE: 
-    case O_SLICE2:  name = "slicing '[:]";break;
-    case O_BRACE:   name = "'{";break;
-    case O_BRACKET: name = "'[";break;
-    case O_PARENT:  name = "'(";break;
-    case O_COND:    name = "condition '?";break;
-    case O_COLON:
-    case O_COLON2:
-    case O_COLON3:  name = "':";break;
-    case O_COMMA:   name = "',";break;
-    case O_HASH:    name = "immediate '#";break;
-    case O_COMMAX:  name = "register indexing ',x";break;
-    case O_COMMAY:  name = "register indexing ',y";break;
-    case O_COMMAZ:  name = "register indexing ',z";break;
-    case O_COMMAR:  name = "register indexing ',r";break;
-    case O_COMMAS:  name = "register indexing ',s";break;
-    case O_WORD:    name = "word '<>";break;
-    case O_HWORD:   name = "high word '>`";break;
-    case O_BSWORD:  name = "swapped word '><";break;
-    case O_LOWER:   name = "low byte '<";break;
-    case O_HIGHER:  name = "high byte '>";break;
-    case O_BANK:    name = "bank byte '`";break;
-    case O_STRING:  name = "string '^";break;
-    case O_LOR:     name = "logical or '||";break;
-    case O_LXOR:    name = "logical xor '^^";break;
-    case O_LAND:    name = "logical and '&&";break;
-    case O_IN:      name = "membership 'in";break;
-    case O_EQ:      name = "equal '==";break;
-    case O_NEQ:     name = "not equal '!=";break;
-    case O_LT:      name = "less than '<";break;
-    case O_GT:      name = "greater than '>";break;
-    case O_GE:      name = "greater than or equal '>=";break;
-    case O_LE:      name = "less than or equal '<=";break;
-    case O_OR:      name = "binary or '|";break;
-    case O_XOR:     name = "binary exclusive or '^";break;
-    case O_AND:     name = "binary and '&";break;
-    case O_LSHIFT:  name = "binary left shift '<<";break;
-    case O_ASHIFT:  name = "arithmetic right shift '>>";break;
-    case O_RSHIFT:  name = "binary right shift '>>>";break;
-    case O_ADD:     name = "add '+";break;
-    case O_SUB:     name = "substract '-";break;
-    case O_MUL:     name = "multiply '*";break;
-    case O_DIV:     name = "division '/";break;
-    case O_MOD:     name = "modulo '%";break;
-    case O_EXP:     name = "exponent '**";break;
-    case O_X:       name = "repeat 'x";break;
-    case O_CONCAT:  name = "concat '..";break;
-    case O_MEMBER:  name = "member '.";break;
-    case O_NEG:     name = "unary negative '-";break;
-    case O_POS:     name = "unary positive '+";break;
-    case O_INV:     name = "binary invert '~";break;
-    case O_LNOT:    name = "logical not '!";break;
-    case O_TUPLE: 
-    case O_RPARENT: name = "')";break;
-    case O_LIST: 
-    case O_RBRACKET:name = "']";break;
-    case O_DICT: 
-    case O_RBRACE:name = "'}";break;
-    case O_QUEST:   name = "'?";break;
-    }
-    adderror(name);
+    adderror(op->u.oper.name);
 
     if (v2) {
         adderror("' '");
-        adderror(type_name(v1->type));
+        adderror(v1->obj->name);
         adderror("' and '");
-        adderror(type_name(v2->type));
+        adderror(v2->obj->name);
     } else {
         adderror("' '");
-        adderror(type_name(v1->type));
+        adderror(v1->obj->name);
     }
     adderror("'\n");
     return 1;
 }
 
-void err_msg_invalid_oper(enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
+void err_msg_invalid_oper(const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
     if (err_oper("error: invalid", op, v1, v2, epoint)) errors++;
 }
 
-void err_msg_strange_oper(enum oper_e op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
+void err_msg_strange_oper(const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
     return;
     if (!arguments.warning) {
         warnings++;
@@ -690,6 +582,6 @@ void error_init(struct error_s *error) {
     error->data = NULL;
 }
 
-void error_destroy(struct error_s *error) {
+void errors_destroy(struct error_s *error) {
     free(error->data);
 }

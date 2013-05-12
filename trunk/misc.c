@@ -31,6 +31,9 @@
 #include "variables.h"
 #include "ternary.h"
 
+#include "listobj.h"
+#include "codeobj.h"
+
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL};
 
 const uint8_t whatis[256]={
@@ -193,6 +196,7 @@ void tinit(void) {
     root_label.parent = NULL;
     root_label.name.data = NULL;
     root_label.name.len = 0;
+    objects_init();
     err_init();
     init_section();
     init_file();
@@ -219,7 +223,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
             if (l->name.data[0]=='-' || l->name.data[0]=='+') continue;
             if (l->name.data[0]=='.' || l->name.data[0]=='#') continue;
         }
-        switch (l->value->type) {
+        switch (l->value->obj->type) {
         case T_LBL:
         case T_MACRO:
         case T_SEGMENT:
@@ -228,7 +232,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
         default:break;
         }
         if (0) { /* for future use with VICE */
-            if (l->value->type == T_CODE) {
+            if (l->value->obj == CODE_OBJ) {
                 fprintf(flab, "al %x ", l->value->u.code.addr);
                 labelname_print(l, flab);
                 switch ((enum dtype_e)l->value->u.code.dtype) {
@@ -277,7 +281,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
                 if (l->name.len < 16) fputs("                " + l->name.len, flab);
                 fputs("= ", flab);break;
             }
-            val_print(l->value, flab);
+            obj_print(l->value, flab);
             putc('\n', flab);
         }
     }
@@ -388,6 +392,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                         fin->len += linelength;
                         if (!(fin->data=realloc(fin->data, fin->len))) exit(1);
                     }
+
                     p=&fin->data[fin->p];
                     while ((ch=*c++)) {
                         switch (type) {

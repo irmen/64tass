@@ -25,6 +25,7 @@
 #include "eval.h"
 #include "section.h"
 #include "variables.h"
+#include "listobj.h"
 
 static struct {
     uint8_t p, len;
@@ -58,7 +59,7 @@ void mtranslate(void)
             if ((ch=pline[lpoint.pos+1]) >= '1' && ch <= '9') {
                 /* \1..\9 */
                 if ((j=ch-'1') >= macro_parameters.current->len || !macro_parameters.current->param[j].data) {
-                    if (macro_parameters.current->macro->type == T_STRUCT || macro_parameters.current->macro->type == T_UNION) {
+                    if (macro_parameters.current->macro->obj == STRUCT_OBJ || macro_parameters.current->macro->obj == UNION_OBJ) {
                         lpoint.pos++;
                         ch = '?';
                         goto ok;
@@ -101,7 +102,7 @@ void mtranslate(void)
                             if (str_casecmp(&macro_parameters.current->macro->u.macro.param[j].name, &label)) continue;
                         }
                         if (!macro_parameters.current->param[j].data) {
-                            if (macro_parameters.current->macro->type == T_STRUCT || macro_parameters.current->macro->type == T_UNION) {
+                            if (macro_parameters.current->macro->obj == STRUCT_OBJ || macro_parameters.current->macro->obj == UNION_OBJ) {
                                 lpoint.pos--;
                                 ch = '?';
                                 goto ok;
@@ -149,9 +150,6 @@ void mtranslate(void)
     cucc[p]=0;
     pline = cucc; lpoint = (linepos_t){0,0};
 }
-
-static struct value_s none_value = {T_NONE, 0, {}};
-static struct value_s null_tuple = {T_TUPLE, 0, {}};
 
 static size_t macro_param_find(void) {
     uint_fast8_t q = 0, ch;
@@ -282,7 +280,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
             if (here()==',' || !here() || here()==';') {
                 val = tmp2->u.func.param[i].init;
             } else if (get_exp(&w,4)) {
-                if (!(val = get_val(T_IDENTREF, &epoint2))) {
+                if (!(val = get_val(IDENTREF_OBJ, &epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = tmp2->u.func.param[i].init;
                 }
@@ -291,7 +289,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         } else {
             if (fin > 1) {err_msg(ERROR______EXPECTED,","); val = &none_value;}
             else if (get_exp(&w,4)) {
-                if (!(val = get_val(T_IDENTREF, &epoint2))) {
+                if (!(val = get_val(IDENTREF_OBJ, &epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = &none_value;
                 }
@@ -396,7 +394,7 @@ void get_func_params(struct value_s *v) {
                 i++;
                 break;
             }
-            if (!(val = get_val(T_IDENTREF, NULL))) {
+            if (!(val = get_val(IDENTREF_OBJ, NULL))) {
                 err_msg(ERROR_GENERL_SYNTAX, NULL); 
                 i++;
                 break;
