@@ -258,7 +258,7 @@ static void rcalc2(oper_t op) {
     case T_CODE: if (calc2_double(op, op->v1->u.code.addr, op->v2->u.real)) break; return;
     default:
         if (op->op != &o_IN) {
-            op->v2->obj->rcalc2(op); return;
+            op->v1->obj->calc2(op); return;
         }
     }
     obj_oper_error(op);

@@ -355,7 +355,10 @@ static void calc2(oper_t op) {
             v->u.list.len = i;
             v->u.list.data = vals;
             return;
-        default: v2->obj->rcalc2(op);return;
+        default: 
+            if (op->op != &o_CONCAT) {
+                v2->obj->rcalc2(op);return;
+            }
         }
         break;
     }
@@ -439,7 +442,10 @@ static void rcalc2(oper_t op) {
             v->u.list.len = i;
             v->u.list.data = vals;
             return;
-        default: v1->obj->calc2(op);return;
+        default: 
+            if (op->op != &o_X && op->op != &o_CONCAT) {
+                v1->obj->calc2(op);return;
+            }
         }
         break;
     }
