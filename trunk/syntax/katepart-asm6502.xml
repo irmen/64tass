@@ -63,12 +63,14 @@
         <RegExpr String="\\[a-z_][a-z_0-9]*" attribute="Preprocessor" context="Miscparam2" insensitive="TRUE"/>
         <RegExpr String="\\\{[a-z_][a-z_0-9]*\}" attribute="Preprocessor" context="Miscparam" insensitive="TRUE"/>
         <RegExpr String="\\[@1-9]" attribute="Preprocessor" context="Miscparam2" insensitive="TRUE"/>
+        <RegExpr String="%((\.[01]+|[01]+\.(?!\.)[01]*)([ep][+-]?[0-9]*)?|([01]+[ep][+-]?[0-9]*))" attribute="Float" context="Miscparam2" insensitive="TRUE"/>
         <RegExpr String="%[01]*" attribute="Bin" context="Miscparam2"/>
         <RegExpr String="[*?]" attribute="Hex" context="Miscparam2"/>
         <RegExpr String="@[bwl]" attribute="Operator" context="#stay"/>
+        <RegExpr String="(\.[0-9]+|[0-9]+\.(?!\.)[0-9]*)([ep][+-]?[0-9]*)?|([0-9]+[ep][+-]?[0-9]*)" attribute="Float" context="Miscparam2" insensitive="TRUE"/>
+        <RegExpr String="[1-9][0-9]*|0" attribute="Decimal" context="Miscparam2"/>
+        <RegExpr String="\$((\.[0-9a-f]+|[0-9a-f]+\.(?!\.)[0-9a-f]*)([ep][+-]?[0-9]*)?|([0-9a-f]+[ep][+-]?[0-9]*))" attribute="Float" context="Miscparam2" insensitive="TRUE"/>
         <RegExpr String="\$[a-f0-9]*" attribute="Hex" context="Miscparam2" insensitive="TRUE"/>
-        <RegExpr String="(\.[0-9]+|[0-9]+\.(?!\.)[0-9]*)(e[+-]?[0-9]*)?|([0-9]+e[+-]?[0-9]*)" attribute="Float" context="Miscparam2" insensitive="TRUE"/>
-        <RegExpr String="-?[1-9][0-9]*|0" attribute="Decimal" context="Miscparam2"/>
         <RegExpr String="[,({\[+\-!~&lt;&gt;#`\^:]"  attribute="Operator" context="#stay"/>
         <RegExpr String="[)}\]]"  attribute="Operator" context="Miscparam2"/>
         <DetectChar char="&quot;" attribute="String" context="string1"/>
