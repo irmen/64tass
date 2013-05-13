@@ -102,49 +102,6 @@ size_t get_label(void) {
     return lpoint.pos - e.pos;
 }
 
-static void get_hex(struct value_s *v) {
-    uval_t val = 0;
-    linepos_t start;
-    ignore();
-    start = lpoint;
-    while (here() == 0x30) lpoint.pos++;
-    while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
-        val = (val << 4) + (here() & 15);
-        if (here() & 0x40) val += 9;
-        lpoint.pos++;
-    }
-    v->obj = NUM_OBJ;
-    v->u.num.val = val;
-    v->u.num.len = (lpoint.pos - start.pos) * 4;
-    if (v->u.num.len > 8*sizeof(val)) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_CONSTNT_LARGE;
-        v->u.error.epoint = start;
-    }
-    return;
-}
-
-static void get_bin(struct value_s *v) {
-    uval_t val = 0;
-    linepos_t start;
-    ignore();
-    start = lpoint;
-    while (here() == 0x30) lpoint.pos++;
-    while ((here() & 0xfe) == '0') {
-        val = (val << 1) | (here() & 1);
-        lpoint.pos++;
-    }
-    v->obj = NUM_OBJ;
-    v->u.num.val = val;
-    v->u.num.len = lpoint.pos - start.pos;
-    if (v->u.num.len > 8*sizeof(val)) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_CONSTNT_LARGE;
-        v->u.error.epoint = start;
-    }
-    return;
-}
-
 static int get_dec(struct value_s *v) {
     uval_t val = 0;
     int large = 0;
@@ -155,7 +112,7 @@ static int get_dec(struct value_s *v) {
                if ((uval_t)(here() & 15) > (((uval_t)1 << (8 * sizeof(val) - 1)) % 5) * 2) large = 1;
             } else large = 1;
         }
-        val=(val * 10) + (here() & 15);
+        val = val * 10 + (here() & 15);
         lpoint.pos++;
     }
     v->obj = UINT_OBJ;
@@ -163,30 +120,198 @@ static int get_dec(struct value_s *v) {
     return large;
 }
 
-static void get_float(struct value_s *v) {
-    linepos_t start = lpoint;
-
-    while ((uint8_t)(here() ^ '0') < 10) lpoint.pos++;
-    if (here()=='.') {
-        do {
-            lpoint.pos++;
-        } while ((uint8_t)(here() ^ '0') < 10);
+static void get_exponent(struct value_s *v, double real) {
+    int exp = 0;
+    int base;
+    switch (here()) {
+    case 'P':
+    case 'p': base = 2; break;
+    case 'E':
+    case 'e': base = 10; break;
+    default: base = 0;
     }
-    if ((here() | 0x20)=='e') {
-        if ((pline[lpoint.pos + 1]=='-' || pline[lpoint.pos + 1]=='+') && (uint8_t)(pline[lpoint.pos + 2] ^ '0') < 10) lpoint.pos++;
-        if ((uint8_t)(pline[lpoint.pos + 1] ^ '0') < 10) {
-            do {
-                lpoint.pos++;
-            } while ((uint8_t)(here() ^ '0') < 10);
+    if (base) {
+        int neg = 0;
+        neg = (pline[lpoint.pos + 1] == '-');
+        if (neg || pline[lpoint.pos + 1] == '+') {
+            if (((uint8_t)pline[lpoint.pos + 2] ^ '0') < 10) lpoint.pos++;
         }
+        if (((uint8_t)pline[lpoint.pos + 1] ^ '0') < 10) {
+            lpoint.pos++;
+            if (get_dec(v)) {
+                v->obj = FLOAT_OBJ;
+                v->u.real = HUGE_VAL;
+                return;
+            }
+            exp = neg ? -v->u.num.val : v->u.num.val;
+        }
+        if (exp) real *= pow(base, exp);
     }
-    v->u.real = strtod((const char *)pline + start.pos, NULL);
     v->obj = FLOAT_OBJ;
-    if (v->u.real == HUGE_VAL) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_CONSTNT_LARGE;
-        v->u.error.epoint = start;
+    v->u.real = real;
+    return;
+}
+
+static void get_hex(struct value_s *v) {
+    uval_t val = 0;
+    uval_t val2;
+    double real;
+    linepos_t start;
+    ignore();
+    start.pos = lpoint.pos;
+    while (here() == 0x30) lpoint.pos++;
+    while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
+        if (val & (0xf << (sizeof(uval_t)*8-4))) {
+            real = val;
+            while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
+                real = real * 16.0 + (here() & 15);
+                if (here() & 0x40) real += 9;
+                lpoint.pos++;
+            }
+            if (here() == '.' && pline[lpoint.pos + 1] != '.') goto procreal;
+            get_exponent(v, real);
+            return;
+        }
+        val = (val << 4) + (here() & 15);
+        if (here() & 0x40) val += 9;
+        lpoint.pos++;
     }
+    if (here() == '.' && pline[lpoint.pos + 1] != '.') {
+        real = val;
+    procreal: val2 = 0;
+        lpoint.pos++;
+        start.pos = lpoint.pos;
+        while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
+            if (val2 & (0xf << (sizeof(uval_t)*8-4))) {
+                real += (double)val2 * pow(16.0, (int)start.pos - (int)lpoint.pos);
+                val2 = 0;
+            }
+            val2 = (val2 << 4) + (here() & 15);
+            if (here() & 0x40) val2 += 9;
+            lpoint.pos++;
+        }
+        if (val2) real += (double)val2 * pow(16.0, (int)start.pos - (int)lpoint.pos);
+        get_exponent(v, real);
+        return;
+    }
+    switch (here() | 0x20) {
+    case 'e':
+    case 'p':
+        if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
+            if (((uint8_t)pline[lpoint.pos + 2] ^ '0') < 10) {get_exponent(v, val);return;}
+        } else if (((uint8_t)pline[lpoint.pos + 1] ^ '0') < 10) {get_exponent(v, val);return;}
+    default: break;
+    }
+    v->obj = NUM_OBJ;
+    v->u.num.val = val;
+    v->u.num.len = (lpoint.pos - start.pos) * 4;
+    return;
+}
+
+static void get_bin(struct value_s *v) {
+    uval_t val = 0;
+    uval_t val2;
+    linepos_t start;
+    double real;
+    ignore();
+    start.pos = lpoint.pos;
+    while (here() == 0x30) lpoint.pos++;
+    while ((here() & 0xfe) == '0') {
+        if (val & (1 << (sizeof(uval_t)*8-1))) {
+            real = val;
+            while ((here() & 0xfe) == '0') {
+                real = real * 2.0 + (here() & 1);
+                lpoint.pos++;
+            }
+            if (here() == '.' && pline[lpoint.pos + 1] != '.') goto procreal;
+            get_exponent(v, real);
+            return;
+        }
+        val = (val << 1) | (here() & 1);
+        lpoint.pos++;
+    }
+    if (here() == '.' && pline[lpoint.pos + 1] != '.') {
+        real = val;
+    procreal: val2 = 0;
+        lpoint.pos++;
+        start.pos = lpoint.pos;
+        while ((here() & 0xfe) == '0') {
+            if (val2 & (1 << (sizeof(uval_t)*8-1))) {
+                real += (double)val2 * pow(2.0, (int)start.pos - (int)lpoint.pos);
+                val2 = 0;
+            }
+            val2 = (val2 << 1) | (here() & 1);
+            lpoint.pos++;
+        }
+        if (val2) real += (double)val2 * pow(2.0, (int)start.pos - (int)lpoint.pos);
+        get_exponent(v, real);
+        return;
+    }
+    switch (here() | 0x20) {
+    case 'e':
+    case 'p':
+        if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
+            if (((uint8_t)pline[lpoint.pos + 2] ^ '0') < 10) {get_exponent(v, val);return;}
+        } else if (((uint8_t)pline[lpoint.pos + 1] ^ '0') < 10) {get_exponent(v, val);return;}
+    default: break;
+    }
+    v->obj = NUM_OBJ;
+    v->u.num.val = val;
+    v->u.num.len = lpoint.pos - start.pos;
+    return;
+}
+
+static void get_float(struct value_s *v) {
+    uval_t val = 0;
+    uval_t val2;
+    double real;
+    linepos_t start;
+    ignore();
+    start.pos = lpoint.pos;
+    while (here() == 0x30) lpoint.pos++;
+    while ((uint8_t)(here() ^ '0') < 10) {
+        if (val >= ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
+            if ((val > ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) || ((uval_t)(here() & 15) >= (((uval_t)1 << (8 * sizeof(val) - 1)) % 5) * 2)) {
+                real = val;
+                while ((uint8_t)(here() ^ '0') < 10) {
+                    real = real * 10.0 + (here() & 15);
+                    lpoint.pos++;
+                }
+                if (here() == '.' && pline[lpoint.pos + 1] != '.') goto procreal;
+                get_exponent(v, real);
+                return;
+            }
+        }
+        val = val * 10 + (here() & 15);
+        lpoint.pos++;
+    }
+    if (here() == '.' && pline[lpoint.pos + 1] != '.') {
+        real = val;
+    procreal: val2 = 0;
+        lpoint.pos++;
+        start.pos = lpoint.pos;
+        while ((uint8_t)(here() ^ '0') < 10) {
+            if (val2 >= ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
+                real += (double)val2 * pow(10.0, (int)start.pos - (int)lpoint.pos);
+                val2 = 0;
+            }
+            val2 = val2 * 10 + (here() & 15);
+            lpoint.pos++;
+        }
+        if (val2) real += (double)val2 * pow(10.0, (int)start.pos - (int)lpoint.pos);
+        get_exponent(v, real);
+        return;
+    }
+    switch (here() | 0x20) {
+    case 'e':
+    case 'p':
+        if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
+            if (((uint8_t)pline[lpoint.pos + 2] ^ '0') < 10) {get_exponent(v, val);return;}
+        } else if (((uint8_t)pline[lpoint.pos + 1] ^ '0') < 10) {get_exponent(v, val);return;}
+    default: break;
+    }
+    v->obj = UINT_OBJ;
+    v->u.num.val = val;
     return;
 }
 
@@ -584,9 +709,10 @@ rest:
         }
         if (ch>='0' && ch<='9') {val = push(epoint); if (get_dec(val)) goto pushlarge;
         pushval:
-            if (type_is_int(val->obj->type) && (val->u.num.val & ~0xffff)) {
+            if (val->obj == FLOAT_OBJ || (type_is_int(val->obj->type) && (val->u.num.val & ~0xffff))) {
             pushlarge:
                 err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);large=1;
+                val->obj = UINT_OBJ;
                 val->u.num.val = 0xffff;
             }
         } else {
@@ -2221,15 +2347,17 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         case '\'': lpoint.pos++;val = push(epoint);get_string(val, ch);goto other;
         case '*': lpoint.pos++;val = push(epoint);get_star(val);goto other;
         case '?': lpoint.pos++;val = push(epoint);val->obj = GAP_OBJ;goto other;
-        case '.': if ((uint8_t)(pline[lpoint.pos+1] ^ 0x30) < 10) {val = push(epoint);goto pushfloat;}
+        case '.': if ((uint8_t)(pline[lpoint.pos+1] ^ 0x30) < 10) goto pushfloat;
         default: 
             if (ch>='0' && ch<='9') {
+            pushfloat:
                 val = push(epoint);
-                if (get_dec(val)) {
-                pushfloat:
-                    lpoint = epoint;
-                    get_float(val);
-                } else if ((here() == '.' && pline[lpoint.pos + 1] != '.') || (here() | 0x20) == 'e') goto pushfloat;
+                get_float(val);
+                if (val->obj == FLOAT_OBJ && val->u.real == HUGE_VAL) {
+                    val->obj = ERROR_OBJ;
+                    val->u.error.num = ERROR_CONSTNT_LARGE;
+                    val->u.error.epoint = epoint;
+                }
                 goto other;
             }
             if (get_label()) {

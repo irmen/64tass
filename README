@@ -1,4 +1,4 @@
-64tass v1.5x r380 manual
+64tass v1.5x r459 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -202,8 +202,9 @@ Integers are automatically promoted to float as necessary in expressions.
 
 Floating point constants
 
-Floating point constants have a decimal mark in them and optionally an
-exponent. The following operations can be used on them:
+Floating point constants have a radix point in them and optionally an exponent.
+A decimal exponent is `e' while a binary one is `p'. The following operations
+can be used:
 
               Floating point operators and functions
 x + y       add x to y                       2.2 + 2.2 is 4.4
@@ -270,7 +271,9 @@ Fixed point conversion can be done by using the shift operators for example a
 operators operate like if the floating point number would be a fixed point one.
 This is the reason for the strange definiton of inversion.
 
-        .byte 3.66e1       ; real, truncated to 36
+        .byte 3.66e1       ; 36.6, truncated to 36
+        .byte $1.8p4       ; 4:4 fixed point number (1.5)
+        .int 12.2p8        ; 8:8 fixed point number (12.2)
 
 String constants
 
@@ -336,7 +339,8 @@ flags, minimum field length, and conversion type. The these flags can be used:
 
 The following conversions are implemented:
 
-      Formatting conversions
+           Formatting conversions
+a A   hexadecimal floating point (uppercase)
 b     binary
 c     unicode character
 d     decimal

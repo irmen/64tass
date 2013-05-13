@@ -310,6 +310,12 @@ static void calc2(oper_t op) {
     case T_TUPLE:
     case T_LIST:
         if (calc2_list(op)) break; return;
+    case T_IDENT:
+    case T_ANONIDENT:
+    case T_IDENTREF:
+        if (op->op != &o_MEMBER) {
+            v2->obj->rcalc2(op);return;
+        }
     default:
         switch (op->op->u.oper.op) {
         case O_MUL:
@@ -324,6 +330,7 @@ static void calc2(oper_t op) {
         case O_RSHIFT:
         case O_EXP:
         case O_MEMBER:
+        case O_CONCAT:
             if (v == v1) {
                 for (;i < v1->u.list.len; i++) {
                     op->v1 = v1->u.list.data[i];
@@ -356,9 +363,7 @@ static void calc2(oper_t op) {
             v->u.list.data = vals;
             return;
         default: 
-            if (op->op != &o_CONCAT) {
-                v2->obj->rcalc2(op);return;
-            }
+            v2->obj->rcalc2(op);return;
         }
         break;
     }
@@ -392,12 +397,20 @@ static void rcalc2(oper_t op) {
     case T_TUPLE:
     case T_LIST:
         if (calc2_list(op)) break; return;
+    case T_IDENT:
+    case T_ANONIDENT:
+    case T_IDENTREF:
+        if (op->op != &o_MEMBER) {
+            v1->obj->calc2(op);return;
+        }
+        goto def;
     case T_STR: 
         if (op->op == &o_MOD) {
             isnprintf(v1, v2, v, op->epoint, op->epoint2); return;
         }
         /* fall through */
     default:
+    def:
         switch (op->op->u.oper.op) {
         case O_MUL:
         case O_DIV:
@@ -411,6 +424,7 @@ static void rcalc2(oper_t op) {
         case O_RSHIFT:
         case O_EXP:
         case O_MEMBER:
+        case O_CONCAT:
             if (v == v2) {
                 for (;i < v2->u.list.len; i++) {
                     op->v2 = v2->u.list.data[i];
@@ -443,7 +457,7 @@ static void rcalc2(oper_t op) {
             v->u.list.data = vals;
             return;
         default: 
-            if (op->op != &o_X && op->op != &o_CONCAT) {
+            if (op->op != &o_X) {
                 v1->obj->calc2(op);return;
             }
         }

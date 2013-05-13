@@ -55,7 +55,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.5x r380 manual</h1>
+<h1>64tass v1.5x r459 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -266,8 +266,9 @@ used.</p>
 
 <h3>Floating point constants</h3>
 
-<p>Floating point constants have a decimal mark in them and optionally an
-exponent. The following operations can be used on them:</p>
+<p>Floating point constants have a radix point in them and optionally
+an exponent. A decimal exponent is <q>e</q> while a binary one is <q>p</q>. The
+following operations can be used:</p>
 
 <table border="0" class="oper">
 <caption>Floating point operators and functions</caption>
@@ -336,7 +337,9 @@ The binary operators operate like if the floating point number would be a fixed
 point one. This is the reason for the strange definiton of inversion.</p>
 
 <pre width=80>
-        <b class="d">.byte</b> <span>3.66e1</span>       <i>; real, truncated to 36</i>
+        <b class="d">.byte</b> <span>3.66e1</span>       <i>; 36.6, truncated to 36</i>
+        <b class="d">.byte</b> <span>$1.8p4</span>       <i>; 4:4 fixed point number (1.5)</i>
+        <b class="d">.int</b> <span>12.2p8</span>        <i>; 8:8 fixed point number (12.2)</i>
 </pre>
 
 <h3>String constants</h3>
@@ -412,7 +415,8 @@ can be used:</p>
 
 <table border="0" class="oper">
 <caption>Formatting conversions</caption>
-<tr><td width="40">b<td>binary
+<tr><td width="40">a&nbsp;A<td>hexadecimal floating point (uppercase)
+<tr><td>b<td>binary
 <tr><td>c<td>unicode character
 <tr><td>d<td>decimal
 <tr><td>e&nbsp;E<td>exponential float (uppercase)

@@ -49,7 +49,6 @@
     <style id="decimal" _name="Decimal number" map-to="def:decimal"/>
     <style id="base-n-integer" _name="Base-N number" map-to="def:base-n-integer"/>
     <style id="floating-point" _name="Floating point number" map-to="def:floating-point"/>
-    <style id="string" _name="String" map-to="def:string"/>
     <style id="label" _name="Label" map-to="def:identifier"/>
     <style id="preprocessor" _name="Preprocessor" map-to="def:preprocessor"/>
   </styles>
@@ -89,15 +88,23 @@
     </context>
 
     <context id="hex" style-ref="base-n-integer">
-      <match>(?&lt;![\w\.])\$[0-9a-f]+</match>
+      <match>(?&lt;![\w\.])\$[0-9a-f]+(?![\w\.])</match>
     </context>
 
     <context id="binary" style-ref="base-n-integer">
-      <match>(?&lt;![\w\.])%[01]+</match>
+      <match>(?&lt;![\w\.])%[01]+(?![\w\.])</match>
     </context>
 
     <context id="float" style-ref="floating-point">
-      <match>(?&lt;![\w\.])((\.[0-9]+|[0-9]+\.[0-9]*)(e[+-]?[0-9]*)?|([0-9]+e[+-]?[0-9]*))(?![\w\.])</match>
+      <match>(?&lt;![\w\.])((\.[0-9]+|[0-9]+\.[0-9]*)([ep][+-]?[0-9]*)?|([0-9]+[ep][+-]?[0-9]*))(?![\w\.])</match>
+    </context>
+
+    <context id="hfloat" style-ref="floating-point">
+      <match>(?&lt;![\w\.])\$((\.[0-9a-f]+|[0-9a-f]+\.[0-9a-f]*)([ep][+-]?[0-9]*)?|([0-9a-f]+[ep][+-]?[0-9]*))(?![\w\.])</match>
+    </context>
+
+    <context id="bfloat" style-ref="floating-point">
+      <match>(?&lt;![\w\.])%((\.[01]+|[01]+\.[01]*)([ep][+-]?[0-9]*)?|([01]+[ep][+-]?[0-9]*))(?![\w\.])</match>
     </context>
 
     <context id="identifier" style-ref="label">
@@ -136,6 +143,8 @@
       <include>
         <context ref="identifier"/>
         <context ref="preidentifier"/>
+        <context ref="bfloat"/>
+        <context ref="hfloat"/>
         <context ref="float"/>
         <context ref="decimal"/>
         <context ref="hex"/>

@@ -304,7 +304,7 @@ static void strings(struct DATA *p, const struct value_s *v)
 /* %f or %g  floating point representation */
 static void floating(struct DATA *p, const struct value_s *v)
 {
-    char tmp[100], *t, form[10];
+    char tmp[400], *t, form[10];
     int minus;
     double d;
 
@@ -326,11 +326,12 @@ static void floating(struct DATA *p, const struct value_s *v)
     *t++ = '*';
     *t++ = *p->pf;
     *t++ = 0;
-    sprintf(tmp, form, (p->precision < 80) ? p->precision : 80, d);
+    snprintf(tmp, sizeof(tmp), form, (p->precision < 80) ? p->precision : 80, d);
+    t = tmp;
 
+    if (t[0] == '0' && (t[1] | 0x20) == 'x') *(++t) = '$';
     p->width -= strlen(tmp);
     PAD_RIGHT2(p, 0, minus);
-    t = tmp;
     while (*t) { /* the integral */
         PUT_CHAR(*t);
         t++;
@@ -407,6 +408,9 @@ void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_
                 case 'e':
                 case 'E':  /* Exponent double */
                 case 'f':  /* float, double */
+                case 'F':
+                case 'a':
+                case 'A':
                 case 'g':
                 case 'G':
                     STAR_ARGS(&data);
