@@ -138,7 +138,7 @@ static int invalid_hash(const struct value_s *v1, struct value_s *v, linepos_t e
     }
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR__NOT_HASHABLE;
-    v->u.error.epoint = epoint;
+    v->u.error.epoint = *epoint;
     return -1;
 }
 
@@ -152,7 +152,7 @@ static void invalid_convert(struct value_s *v1, struct value_s *v, obj_t UNUSED(
     tmp.v1 = v1;
     tmp.v2 = NULL;
     tmp.v = v;
-    tmp.epoint3 = epoint;
+    tmp.epoint3 = *epoint;
     obj_oper_error(&tmp);
 }
 
@@ -198,7 +198,7 @@ static void invalid_slice(struct value_s *v1, ival_t UNUSED(offs), ival_t UNUSED
     oper.v1 = v1;
     oper.v2 = NULL;
     oper.v = v;
-    oper.epoint3 = epoint;
+    oper.epoint3 = *epoint;
     obj_oper_error(&oper);
 }
 
@@ -389,7 +389,7 @@ static void dict_rcalc2(oper_t op) {
         struct avltree_node *b;
 
         p.key = op->v1;
-        p.hash = obj_hash(p.key, op->v, op->epoint);
+        p.hash = obj_hash(p.key, op->v, &op->epoint);
         if (p.hash >= 0) {
             b = avltree_lookup(&p.node, &op->v2->u.dict.members, pair_compare);
             if (op->v == op->v1) obj_destroy(op->v);
@@ -464,7 +464,7 @@ static void gap_print(const struct value_s *UNUSED(v1), FILE *f) {
 
 static int ident_resolv(struct value_s *v1, struct value_s *v) {
     struct label_s *l = find_label(&v1->u.ident.name);
-    linepos_t epoint;
+    struct linepos_s epoint;
     if (l) {
         l->shadowcheck = 1;
         v->u.identref.epoint = v1->u.ident.epoint;
@@ -610,7 +610,7 @@ static int identref_same(const struct value_s *v1, const struct value_s *v2) {
 static struct value_s *identref_resolv(struct value_s *v1, struct value_s *v) {
     struct value_s *vv = v1;
     struct label_s *l;
-    linepos_t epoint;
+    struct linepos_s epoint;
     int rec;
 
     for (rec = 0; rec < 100; rec++) {
@@ -628,7 +628,7 @@ static struct value_s *identref_resolv(struct value_s *v1, struct value_s *v) {
         if (l->value->obj != IDENTREF_OBJ) return vv;
         vv = l->value;
     } 
-    err_msg2(ERROR__REFRECURSION, NULL, v1->u.identref.epoint);
+    err_msg2(ERROR__REFRECURSION, NULL, &v1->u.identref.epoint);
     v->obj = NONE_OBJ;
     return NULL;
 }
@@ -638,14 +638,14 @@ static struct value_s *identref_access_check(struct label_s *l, struct value_s *
         if (l->requires & ~current_section->provides) {
             v->u.error.u.ident = l->name;
             v->obj = ERROR_OBJ;
-            v->u.error.epoint = epoint;
+            v->u.error.epoint = *epoint;
             v->u.error.num = ERROR_REQUIREMENTS_;
             return NULL;
         }
         if (l->conflicts & current_section->provides) {
             v->u.error.u.ident = l->name;
             v->obj = ERROR_OBJ;
-            v->u.error.epoint = epoint;
+            v->u.error.epoint = *epoint;
             v->u.error.num = ERROR______CONFLICT;
             return NULL;
         }
@@ -657,7 +657,7 @@ static void identref_calc1(oper_t op) {
     struct value_s *v1;
     v1 = identref_resolv(op->v1, op->v);
     if (!v1) return;
-    v1 = identref_access_check(v1->u.identref.label, op->v, op->epoint);
+    v1 = identref_access_check(v1->u.identref.label, op->v, &op->epoint);
     if (v1) {
         struct value_s *old = op->v1;
         op->v1 = v1;
@@ -678,7 +678,7 @@ static int identref_hash(const struct value_s *v1, struct value_s *v, linepos_t 
 static void identref_calc2(oper_t op) {
     struct label_s *l;
     struct value_s *v1, *v = op->v, *v2 = op->v2;
-    linepos_t epoint;
+    struct linepos_s epoint;
 
     v1 = identref_resolv(op->v1, v);
     if (!v1) return;
@@ -725,7 +725,7 @@ static void identref_calc2(oper_t op) {
         default: break;
         }
     }
-    v1 = identref_access_check(v1->u.identref.label, v, epoint);
+    v1 = identref_access_check(v1->u.identref.label, v, &epoint);
     if (v1) {
         struct value_s *old = op->v1;
         op->v1 = v1;
@@ -738,7 +738,7 @@ static void identref_rcalc2(oper_t op) {
     struct value_s *v2;
     v2 = identref_resolv(op->v2, op->v);
     if (!v2) return;
-    v2 = identref_access_check(op->v2->u.identref.label, op->v, op->epoint2);
+    v2 = identref_access_check(op->v2->u.identref.label, op->v, &op->epoint2);
     if (v2) {
         struct value_s *old = op->v2;
         op->v2 = v2;

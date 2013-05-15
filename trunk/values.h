@@ -137,9 +137,9 @@ struct oper_s {
     struct value_s *v1;
     struct value_s *v2;
     struct value_s *v;
-    linepos_t epoint;
-    linepos_t epoint2;
-    linepos_t epoint3;
+    struct linepos_s epoint;
+    struct linepos_s epoint2;
+    struct linepos_s epoint3;
 };
 typedef struct oper_s *oper_t;
 
@@ -190,7 +190,7 @@ struct value_s {
             struct {
                 str_t name;
                 struct value_s *init;
-                linepos_t epoint;
+                struct linepos_s epoint;
             } *param; 
         } func;
         struct {
@@ -218,7 +218,7 @@ struct value_s {
         } oper;
         struct {
             int num;
-            linepos_t epoint;
+            struct linepos_s epoint;
             union {
                 str_t ident;
                 struct {
@@ -230,15 +230,15 @@ struct value_s {
         } error;
         struct {
             str_t name;
-            linepos_t epoint;
+            struct linepos_s epoint;
         } ident;
         struct {
             struct label_s *label;
-            linepos_t epoint;
+            struct linepos_s epoint;
         } identref;
         struct {
             int32_t count;
-            linepos_t epoint;
+            struct linepos_s epoint;
         } anonident;
         double real;
     } u;

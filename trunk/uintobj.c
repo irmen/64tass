@@ -119,7 +119,7 @@ int calc1_uint(oper_t op, uval_t v1) {
         v->u.num.val = !v1;
         return 0;
     case O_STRING:
-        convert(op->v1, v, STR_OBJ, op->epoint, op->epoint3);
+        convert(op->v1, v, STR_OBJ, &op->epoint, &op->epoint3);
         return 0;
     default: return 1;
     }

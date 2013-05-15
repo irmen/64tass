@@ -309,7 +309,7 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
     if (v1->u.code.pass != pass) {
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR___NOT_DEFINED;
-        v->u.error.epoint = epoint;
+        v->u.error.epoint = *epoint;
         v->u.error.u.ident.len = 6;
         v->u.error.u.ident.data = (const uint8_t *)"<code>";
         return;

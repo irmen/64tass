@@ -22,7 +22,7 @@
 
 extern int get_exp(int *, int);
 extern int get_exp_var(void);
-extern struct value_s *get_val(obj_t, linepos_t *);
+extern struct value_s *get_val(obj_t, struct linepos_s *);
 extern void destroy_eval(void);
 extern void init_eval(void);
 extern void eval_enter(void);
@@ -37,6 +37,6 @@ ival_t indexoffs(const struct value_s *, size_t);
 
 struct values_s {
     struct value_s *val;
-    linepos_t epoint;
+    struct linepos_s epoint;
 };
 #endif

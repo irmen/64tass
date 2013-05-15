@@ -52,7 +52,7 @@ struct section_s {
     struct section_s *next;
     struct file_list_s *file_list;
     line_t sline;
-    linepos_t epoint;
+    struct linepos_s epoint;
     struct avltree members;
 };
 

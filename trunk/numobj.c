@@ -101,7 +101,7 @@ int calc1_num(oper_t op, uval_t v1, uint8_t len) {
         v->u.num.val = !v1;
         return 0;
     case O_STRING:
-        convert(op->v1, v, STR_OBJ, op->epoint, op->epoint3);
+        convert(op->v1, v, STR_OBJ, &op->epoint, &op->epoint3);
         return 0;
     default: return 1;
     }
