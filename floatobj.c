@@ -104,7 +104,7 @@ static int calc1_double(oper_t op, double v1) {
         v->u.num.val = !v1;
         return 0;
     case O_STRING:
-        convert(op->v1, v, STR_OBJ, op->epoint, op->epoint3);
+        convert(op->v1, v, STR_OBJ, &op->epoint, &op->epoint3);
         return 0;
     default: return calc1_sint(op, v1);
     }

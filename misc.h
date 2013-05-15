@@ -66,7 +66,7 @@ struct arguments_s {
 };
 
 extern line_t sline, vline;
-extern linepos_t lpoint; 
+extern struct linepos_s lpoint; 
 extern struct avltree *star_tree;
 extern int fixeddig;
 extern unsigned int errors,conderrors,warnings;

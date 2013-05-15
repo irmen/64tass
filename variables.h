@@ -35,7 +35,7 @@ struct label_s {
     uval_t conflicts;
     struct file_list_s *file_list;
     line_t sline;
-    linepos_t epoint;
+    struct linepos_s epoint;
     unsigned ref:1;
     unsigned nested:1;
     unsigned shadowcheck:1;

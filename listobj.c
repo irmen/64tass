@@ -406,7 +406,7 @@ static void rcalc2(oper_t op) {
         goto def;
     case T_STR: 
         if (op->op == &o_MOD) {
-            isnprintf(v1, v2, v, op->epoint, op->epoint2); return;
+            isnprintf(v1, v2, v, &op->epoint, &op->epoint2); return;
         }
         /* fall through */
     default:

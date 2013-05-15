@@ -94,7 +94,7 @@ static void convert(struct value_s *v1, struct value_s *v, obj_t t, linepos_t UN
                     if (v == v1) destroy(v1);
                     v->obj = ERROR_OBJ;
                     v->u.error.num = ERROR_BIG_STRING_CO;
-                    v->u.error.epoint = epoint2;
+                    v->u.error.epoint = *epoint2;
                     return;
                 }
 
@@ -116,7 +116,7 @@ static void convert(struct value_s *v1, struct value_s *v, obj_t t, linepos_t UN
             if (v == v1) destroy(v1);
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_BIG_STRING_CO;
-            v->u.error.epoint = epoint2;
+            v->u.error.epoint = *epoint2;
             return;
         }
         if (v == v1) destroy(v1);
@@ -150,10 +150,10 @@ static void calc1(oper_t op) {
         op->v->u.num.val = !op->v1->u.str.len;
         return;
     case O_STRING:
-        convert(op->v1, op->v, STR_OBJ, op->epoint, op->epoint3);
+        convert(op->v1, op->v, STR_OBJ, &op->epoint, &op->epoint3);
         return;
     default:
-        convert(op->v1, op->v, NUM_OBJ, op->epoint, op->epoint);
+        convert(op->v1, op->v, NUM_OBJ, &op->epoint, &op->epoint);
         if (op->v->obj == NUM_OBJ) {
             struct value_s *old = op->v1;
             op->v1 = op->v;
@@ -180,9 +180,9 @@ static int calc2_str(oper_t op) {
     case O_RSHIFT:
         {
             struct value_s tmp;
-            convert(v1, &tmp, NUM_OBJ, op->epoint, op->epoint);
+            convert(v1, &tmp, NUM_OBJ, &op->epoint, &op->epoint);
             if (tmp.obj == NUM_OBJ) {
-                convert(v2, v, NUM_OBJ, op->epoint2, op->epoint2);
+                convert(v2, v, NUM_OBJ, &op->epoint2, &op->epoint2);
                 if (v->obj == NUM_OBJ) {
                     if (v1 == v || v2 == v) destroy(v);
                     return calc2_num_num(op, tmp.u.num.val, tmp.u.num.len, v->u.num.val, v->u.num.len);
@@ -326,7 +326,7 @@ static void calc2(oper_t op) {
     case T_ADDRESS: 
         {
             struct value_s tmp;
-            convert(v1, &tmp, NUM_OBJ, op->epoint, op->epoint);
+            convert(v1, &tmp, NUM_OBJ, &op->epoint, &op->epoint);
             if (tmp.obj == NUM_OBJ) {
                 if (v1 == v) destroy(v);
                 op->v1 = &tmp;
@@ -338,7 +338,7 @@ static void calc2(oper_t op) {
     case T_TUPLE:
     case T_LIST: 
         if (op->op == &o_MOD) {
-            isnprintf(v1, v2, v, op->epoint, op->epoint2); return;
+            isnprintf(v1, v2, v, &op->epoint, &op->epoint2); return;
         }
         v2->obj->rcalc2(op); return;
     default: break;
@@ -359,7 +359,7 @@ static void rcalc2(oper_t op) {
     case T_ADDRESS: 
         {
             struct value_s tmp;
-            convert(v2, &tmp, NUM_OBJ, op->epoint, op->epoint);
+            convert(v2, &tmp, NUM_OBJ, &op->epoint, &op->epoint);
             if (tmp.obj == NUM_OBJ) {
                 if (v2 == v) destroy(v);
                 op->v2 = &tmp;

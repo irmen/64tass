@@ -62,7 +62,7 @@ struct file_list_s *enterfile(struct file_s *file, line_t line, linepos_t epoint
         if (!(lastfl=malloc(sizeof(struct file_list_s)))) err_msg_out_of_memory();
     lastfl->file = file;
     lastfl->sline = line;
-    lastfl->epoint = epoint;
+    lastfl->epoint = *epoint;
 
     b = avltree_insert(&lastfl->node, &current_file_list->members, file_list_compare);
     if (!b) {
@@ -118,7 +118,7 @@ static void addorigin(struct file_list_s *cflist, line_t lnum, linepos_t lpoint2
     } else {
         adderror("<command line>");
     }
-    sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", lnum, lpoint2.pos - lpoint2.upos + 1); 
+    sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", lnum, lpoint2->pos - lpoint2->upos + 1); 
     adderror(line);
 }
 
@@ -244,7 +244,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
 }
 
 void err_msg(enum errors_e no, const void* prm) {
-    err_msg2(no, prm, lpoint);
+    err_msg2(no, prm, &lpoint);
 }
 
 static void str_name(const uint8_t *data, size_t len) {
@@ -277,17 +277,17 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
     if (pass == 1) return;
     if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
-        case ERROR___NOT_DEFINED: err_msg_not_defined(&val->u.error.u.ident, val->u.error.epoint);return;
-        case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, val->u.error.epoint);return;
-        case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, val->u.error.epoint);return;
-        case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, val->u.error.epoint);return;
+        case ERROR___NOT_DEFINED: err_msg_not_defined(&val->u.error.u.ident, &val->u.error.epoint);return;
+        case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, &val->u.error.epoint);return;
+        case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, &val->u.error.epoint);return;
+        case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, &val->u.error.epoint);return;
         case ERROR___INDEX_RANGE:
         case ERROR_CONSTNT_LARGE:
         case ERROR_NEGFRAC_POWER:
         case ERROR_BIG_STRING_CO:
         case ERROR_____KEY_ERROR:
         case ERROR__NOT_HASHABLE:
-        case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, val->u.error.epoint);return;
+        case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);return;
         }
     }
     err_msg2(ERROR____WRONG_TYPE, val->obj->name, epoint);
@@ -468,7 +468,7 @@ static void err_msg_double_defined2(const char *msg, const struct label_s *l, st
     adderror(msg);
     str_name(labelname2->data, labelname2->len);
     adderror("\n");
-    addorigin(l->file_list, l->sline, l->epoint);
+    addorigin(l->file_list, l->sline, &l->epoint);
     adderror("note: previous definition of");
     str_name(l->name.data, l->name.len);
     adderror(" was here\n");
@@ -479,17 +479,17 @@ void err_msg_double_defined(const struct label_s *l, const str_t *labelname2, li
 }
 
 void err_msg_shadow_defined(const struct label_s *l, const struct label_s *l2) {
-    err_msg_double_defined2("error: shadow definition", l, l2->file_list, &l2->name, l2->sline, l2->epoint);
+    err_msg_double_defined2("error: shadow definition", l, l2->file_list, &l2->name, l2->sline, &l2->epoint);
 }
 
 static int err_oper(const char *msg, const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
     if (pass == 1) return 0;
     if (v1->obj == ERROR_OBJ) {
-        err_msg_wrong_type(v1, v1->u.error.epoint);
+        err_msg_wrong_type(v1, &v1->u.error.epoint);
         return 0;
     }
     if (v2 && v2->obj == ERROR_OBJ) {
-        err_msg_wrong_type(v2, v2->u.error.epoint);
+        err_msg_wrong_type(v2, &v2->u.error.epoint);
         return 0;
     }
 
@@ -566,7 +566,7 @@ void err_msg_out_of_memory(void)
 void err_msg_file(enum errors_e no, const char* prm) {
     char *error;
     inc_errors();
-    addorigin(current_file_list, sline, lpoint);
+    addorigin(current_file_list, sline, &lpoint);
     adderror("fatal error: ");
     adderror(terr_fatal[no & 63]);
     adderror(prm);

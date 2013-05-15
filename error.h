@@ -27,7 +27,7 @@ enum oper_e;
 
 struct file_list_s {
     line_t sline;
-    linepos_t epoint;
+    struct linepos_s epoint;
     struct file_s *file;
     struct avltree_node node;
     struct file_list_s *parent;

@@ -35,7 +35,8 @@ typedef uint_fast32_t line_t;
 typedef uint_fast32_t address_t;
 #define PRIaddress PRIxFAST32
 typedef uint_fast16_t linecpos_t;
-typedef struct {uint_fast16_t pos, upos;} linepos_t;
+struct linepos_s {uint_fast16_t pos, upos;};
+typedef const struct linepos_s *linepos_t;
 typedef struct {size_t len;const uint8_t *data;} str_t;
 #define PRIlinepos PRIuFAST16
 typedef int32_t ival_t;
