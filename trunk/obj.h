@@ -33,7 +33,6 @@ enum oper_e;
 #define obj_hash(v, v2, epoint) v->obj->hash(v, v2, epoint)
 
 typedef const struct obj_s* obj_t;
-typedef struct oper_s* oper_t;
 struct obj_s {
     int type;
     const char *name;
@@ -44,17 +43,17 @@ struct obj_s {
     int (*truth)(const struct value_s *);
     int (*hash)(const struct value_s *, struct value_s *, linepos_t);
     void (*convert)(struct value_s *, struct value_s *, obj_t, linepos_t, linepos_t);
-    void (*calc1)(oper_t);
-    void (*calc2)(oper_t);
-    void (*rcalc2)(oper_t);
-    void (*repeat)(oper_t, uval_t);
+    void (*calc1)(struct oper_s *);
+    void (*calc2)(struct oper_s *);
+    void (*rcalc2)(struct oper_s *);
+    void (*repeat)(struct oper_s *, uval_t);
     void (*print)(const struct value_s *, FILE *);
-    void (*iindex)(oper_t);
+    void (*iindex)(struct oper_s *);
     void (*slice)(struct value_s *, ival_t, ival_t, ival_t, struct value_s *, linepos_t);
 };
 
 extern void obj_init(struct obj_s *, enum type_e, const char *);
-extern void obj_oper_error(oper_t);
+extern void obj_oper_error(struct oper_s *);
 extern void objects_init(void);
 
 extern obj_t LBL_OBJ;

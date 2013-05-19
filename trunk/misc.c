@@ -192,7 +192,7 @@ void tfree(void) {
 }
 
 void tinit(void) {
-    root_label.type = T_NONE;
+    root_label.type = L_CONST;
     root_label.parent = NULL;
     root_label.name.data = NULL;
     root_label.name.len = 0;
@@ -274,11 +274,11 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
             switch (l->type) {
             case L_VAR:
                 fwrite(l->name.data, l->name.len, 1, flab);
-                if (l->name.len < 15) fputs("               " + l->name.len, flab);
+                if (l->name.len < 15) fputs(&"               "[l->name.len], flab);
                 fputs(" .var ", flab);break;
             default: 
                 fwrite(l->name.data, l->name.len, 1, flab);
-                if (l->name.len < 16) fputs("                " + l->name.len, flab);
+                if (l->name.len < 16) fputs(&"                "[l->name.len], flab);
                 fputs("= ", flab);break;
             }
             obj_print(l->value, flab);
