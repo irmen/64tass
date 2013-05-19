@@ -18,11 +18,10 @@
 #ifndef _NUMOBJ_H
 #define _NUMOBJ_H
 struct oper_s;
-typedef struct oper_s *oper_t;
 
 extern obj_t NUM_OBJ;
 
 extern void numobj_init(void);
-extern int calc2_num_num(oper_t, uval_t, uint8_t, uval_t, uint8_t);
-extern int calc1_num(oper_t, uval_t, uint8_t);
+extern int calc2_num_num(struct oper_s *, uval_t, uint8_t, uval_t, uint8_t);
+extern int calc1_num(struct oper_s *, uval_t, uint8_t);
 #endif
