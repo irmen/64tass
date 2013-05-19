@@ -22,15 +22,19 @@
 struct value_s;
 struct oper_s;
 struct values_s;
-enum type_e;
-enum atype_e;
-enum oper_e;
 
 #define obj_print(v, f) do { const struct value_s *_v_ = (v); _v_->obj->print(_v_, f); } while (0)
 #define obj_destroy(v) do { struct value_s *_v_ = (v); _v_->obj->destroy(_v_); } while (0)
 #define obj_same(v, v2) v->obj->same(v, v2)
 #define obj_truth(v) v->obj->truth(v)
 #define obj_hash(v, v2, epoint) v->obj->hash(v, v2, epoint)
+
+enum type_e {
+    T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_ADDRESS,
+    T_IDENT, T_ANONIDENT, T_IDENTREF, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST,
+    T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL,
+    T_DEFAULT
+};
 
 typedef const struct obj_s* obj_t;
 struct obj_s {
