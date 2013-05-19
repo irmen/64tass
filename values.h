@@ -22,13 +22,6 @@
 #include "error.h"
 #include "obj.h"
 
-enum type_e {
-    T_NONE, T_BOOL, T_NUM, T_UINT, T_SINT, T_FLOAT, T_STR, T_GAP, T_ADDRESS,
-    T_IDENT, T_ANONIDENT, T_IDENTREF, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST,
-    T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL,
-    T_DEFAULT
-};
-
 #define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
 #define type_is_num(a) ((a) >= T_BOOL && (a) <= T_FLOAT) 
 

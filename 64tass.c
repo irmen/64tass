@@ -27,7 +27,9 @@
 
 */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #define _MAIN_C_
 #ifdef _WIN32
 #include <windows.h>
@@ -256,7 +258,7 @@ void new_waitfor(enum wait_e what, linepos_t epoint) {
     waitfor_p++;
     if (waitfor_p >= waitfor_len) {
         waitfor_len += 8;
-        waitfors = realloc(waitfors, waitfor_len * sizeof(struct waitfor_s));
+        waitfors = (struct waitfor_s *)realloc(waitfors, waitfor_len * sizeof(struct waitfor_s));
         if (!waitfors) err_msg_out_of_memory();
     }
     waitfor = &waitfors[waitfor_p];
@@ -1422,7 +1424,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (sectionname.len) {
                             int notsame = arguments.casesensitive ? str_cmp(&sectionname, &current_section->name) : str_casecmp(&sectionname, &current_section->name);
                             if (notsame) {
-                                char *s = malloc(current_section->name.len + 1);
+                                char *s = (char *)malloc(current_section->name.len + 1);
                                 if (!s) err_msg_out_of_memory();
                                 memcpy(s, current_section->name.data, current_section->name.len);
                                 s[current_section->name.len] = '\0';
@@ -2013,7 +2015,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     for (;;) {
                         int endok = 0;
                         size_t i = 0;
-                        int try = 1;
+                        int tryit = 1;
 
                         actual_encoding = NULL;
                         val = get_val(NONE_OBJ, &epoint);
@@ -2052,7 +2054,7 @@ struct value_s *compile(struct file_list_s *cflist)
                              break;
                         case T_NONE: 
                              if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                             try = fixeddig = 0;
+                             tryit = fixeddig = 0;
                              break;
                         default:
                             err_msg_wrong_type(val, &epoint);
@@ -2065,7 +2067,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                             if (val->obj == NONE_OBJ) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                                try = fixeddig = 0;
+                                tryit = fixeddig = 0;
                             } else {
                                 if ((val->obj != NUM_OBJ || val->u.num.len > 24) && ((uval_t)val->u.num.val & ~(uval_t)0xffffff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
                                 if (tmp.start > (uint32_t)val->u.num.val) {
@@ -2081,7 +2083,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
-                        } else if (try) {
+                        } else if (tryit) {
                             if ((val->obj != NUM_OBJ || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
                             tmp.offset = val->u.num.val;
                             t = new_trans(&tmp, actual_encoding);
@@ -2104,7 +2106,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     for (;;) {
                         struct linepos_s opoint;
                         struct value_s *v;
-                        int try = 1;
+                        int tryit = 1;
 
                         actual_encoding = NULL;
                         val = get_val(NONE_OBJ, &epoint);
@@ -2117,7 +2119,7 @@ struct value_s *compile(struct file_list_s *cflist)
                              break;
                         case T_NONE: 
                              if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                             try = fixeddig = 0;
+                             tryit = fixeddig = 0;
                              break;
                         default:
                             err_msg_wrong_type(val, &epoint);
@@ -2133,7 +2135,7 @@ struct value_s *compile(struct file_list_s *cflist)
                              if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                              fixeddig = 0;
                              val_destroy(v);
-                        } else if (try) {
+                        } else if (tryit) {
                             if ((val->obj != NUM_OBJ || val->u.num.len > 8) && ((uval_t)val->u.num.val & ~(uval_t)0xff)) err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
                             t = new_escape(v->u.str.data, v->u.str.data + v->u.str.len, (uint8_t)val->u.num.val, actual_encoding);
                             val_destroy(v);
@@ -2480,7 +2482,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else if (!str_casecmp(&optname, &branch_across)) allowslowbranch = obj_truth(val);
                     else if (!str_casecmp(&optname, &longjmp)) longbranchasjmp = obj_truth(val);
                     else {
-                        char *s = malloc(optname.len + 1);
+                        char *s = (char *)malloc(optname.len + 1);
                         if (!s) err_msg_out_of_memory();
                         memcpy(s, optname.data, optname.len);
                         s[optname.len] = '\0';
@@ -2817,7 +2819,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     int d;
                 as_opcode:
 
-                    opr = 0;mnem = prm;
+                    opr = ADR_IMPLIED;mnem = prm;
                     oldlpoint = lpoint;
                     cnmemonic = &opcode[prm*ADR_LEN];
                     ln = 0; cod = 0; longbranch = 0; adr = 0; adrgen = AG_NONE;
@@ -3198,7 +3200,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             else if (w == 2 && adr <= 0xffffff) {}
                             else w = 3;
                         }
-                        opr -= w;ln = w + 1;
+                        opr = opr - w;ln = w + 1;
                         break;
                     case AG_NONE:
                         break;
@@ -3524,11 +3526,11 @@ int main(int argc, char *argv[]) {
         }
 	fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
         if (*argv2) {
-            char *new = strrchr(*argv2, '/');
-            if (new) *argv2 = new + 1;
+            char *newp = strrchr(*argv2, '/');
+            if (newp) *argv2 = newp + 1;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-            new = strrchr(*argv2, '\\');
-            if (new) *argv2 = new + 1;
+            newp = strrchr(*argv2, '\\');
+            if (newp) *argv2 = newp + 1;
 #endif
         }
         while (argc2--) fprintf(flist," %s", *argv2++);

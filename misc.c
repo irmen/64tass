@@ -17,7 +17,9 @@
 */
 
 #define _MISC_C_
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include "misc.h"
 #include <stdlib.h>
 #include <string.h>
@@ -128,7 +130,7 @@ int str_casecmp(const str_t *s1, const str_t *s2) {
 void str_cpy(str_t *s1, const str_t *s2) {
     s1->len = s2->len;
     if (s2->data) {
-        uint8_t *s = malloc(s2->len);
+        uint8_t *s = (uint8_t *)malloc(s2->len);
         if (!s) err_msg_out_of_memory();
         memcpy(s, s2->data, s2->len);
         s1->data = s;
@@ -390,7 +392,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
 
                     if (fin->p + linelength > fin->len) {
                         fin->len += linelength;
-                        if (!(fin->data=realloc(fin->data, fin->len))) exit(1);
+                        if (!(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
                     }
 
                     p=&fin->data[fin->p];
@@ -538,7 +540,7 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                     exit(1);
         }
     closefile(fin); fin->len = fin->p; fin->p = 0;
-    if (fin->data && !(fin->data=realloc(fin->data, fin->len))) exit(1);
+    if (fin->data && !(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
     if (argc <= optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
               "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);

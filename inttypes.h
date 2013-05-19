@@ -26,7 +26,7 @@
 #define PRIX32 "X"
 #endif
 #ifndef PRIxPTR
-#define PRIxPTR "lx"
+#define PRIxPTR "x"
 #endif
 
 typedef uint_fast32_t line_t;
