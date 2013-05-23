@@ -1258,13 +1258,20 @@ static const struct value_s *apply_func(enum func_e func, struct value_s *v1, li
 static void functions(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
-    size_t len;
-    const uint8_t *name;
     enum func_e func = F_NONE;
 
     if (vals->val->obj == IDENT_OBJ) {
+        size_t len;
+        const uint8_t *name;
+
         len = vals->val->u.ident.name.len;
         name = vals->val->u.ident.name.data;
+        if (!arguments.casesensitive && len < 20) {
+            uint8_t name2[20]; /* built in functions have short names */
+            size_t i;
+            for (i = 0;i < len; i++) name2[i] = lowcase(name[i]);
+            name = name2;
+        }
 
         /* len(a) - length of string in characters */
         if (len == 3 && !memcmp(name, "len", len)) {
