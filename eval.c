@@ -736,7 +736,9 @@ rest:
             lpoint.pos++;
             llen = get_label();
             if (llen == 1) {
-                switch (pline[epoint.pos + 1] | 0x20) {
+                uint8_t c = pline[epoint.pos + 1];
+                if (!arguments.casesensitive) c |= 0x20;
+                switch (c) {
                 case 'x': epoints[operp] = epoint; o_oper[operp++] = &o_COMMAX;goto other;
                 case 'y': epoints[operp] = epoint; o_oper[operp++] = &o_COMMAY;goto other;
                 default: break;
@@ -2278,7 +2280,9 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
     case 0:
     case ';': err_msg(ERROR_MISSING_ARGUM,NULL); return 0;
     case '@':
-        switch (pline[++lpoint.pos] | 0x20) {
+        ch = pline[++lpoint.pos];
+        if (!arguments.casesensitive) ch |= 0x20;
+        switch (ch) {
         case 'b':*wd=0;break;
         case 'w':*wd=1;break;
         case 'l':*wd=2;break;
@@ -2412,7 +2416,9 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             lpoint.pos++;
             llen = get_label();
             if (llen == 1) {
-                switch (pline[epoint.pos + 1] | 0x20) {
+                uint8_t c = pline[epoint.pos + 1];
+                if (!arguments.casesensitive) c |= 0x20;
+                switch (c) {
                 case 'x': op = &o_COMMAX;llen=0;break;
                 case 'y': op = &o_COMMAY;llen=0;break;
                 case 'z': op = &o_COMMAZ;llen=0;break;

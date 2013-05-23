@@ -395,49 +395,40 @@ static int what(int *tempno) {
     switch (ch=whatis[(int)here()]) {
     case WHAT_COMMAND:
 	{
-            char cmd[20];
-            unsigned int no, also, felso, elozo;
+            unsigned int no, also = 0, felso, elozo;
+            const uint8_t *label;
             size_t l;
             int s4;
             lpoint.pos++;
-            for (also = l = 0; l + 1 < sizeof(cmd); l++) {
-                cmd[l]=pline[lpoint.pos + l] | 0x20;
-                if (!pline[lpoint.pos + l] || cmd[l] < 'a' || cmd[l] > 'z') {
-                    cmd[l]=(cmd[l] >= '0' && cmd[l] <= '9') || cmd[l]=='_';
-                    l++;break;
-                }
-            }
-            l--;
-            if (!cmd[l]) {
-                felso=sizeof(command)/sizeof(command[0]);
-                no=felso/2;
-                for (;;) {  /* do binary search */
-                    if (!(s4=strcmp(cmd, command[no] + 1))) {
-                        lpoint.pos += l;
-                        no = (uint8_t)command[no][0];
-                        if (no==CMD_ENDIF) no=CMD_FI;
-                        *tempno=no;
-                        return WHAT_COMMAND;
-                    }
+            label = pline + lpoint.pos;
+            l = get_label();
+            if (l && l < 19) {
+                char cmd[20];
+                if (!arguments.casesensitive) {
+                    size_t i;
+                    for (i = 0; i < l; i++) cmd[i] = lowcase(label[i]);
+                } else memcpy(cmd, label, l);
+                cmd[l] = 0;
+                if (l) {
+                    felso=sizeof(command)/sizeof(command[0]);
+                    no=felso/2;
+                    for (;;) {  /* do binary search */
+                        if (!(s4=strcmp(cmd, command[no] + 1))) {
+                            no = (uint8_t)command[no][0];
+                            if (no==CMD_ENDIF) no=CMD_FI;
+                            *tempno=no;
+                            return WHAT_COMMAND;
+                        }
 
-                    elozo = no;
-                    no = ((s4>0) ? (felso+(also=no)) : (also+(felso=no)))/2;
-                    if (elozo == no) break;
+                        elozo = no;
+                        no = ((s4>0) ? (felso+(also=no)) : (also+(felso=no)))/2;
+                        if (elozo == no) break;
+                    }
                 }
             }
+            lpoint.pos -= l;
 	    *tempno=sizeof(command)/sizeof(command[0]);
 	    return WHAT_COMMAND;
-	}
-    case WHAT_COMA:
-	lpoint.pos++;
-        ignore();
-	switch (get() | 0x20) {
-	case 'y': ignore();return WHAT_Y;
-	case 'z': ignore();return WHAT_Z;
-	case 'x': ignore();if (here()==')') {lpoint.pos++;ignore();return WHAT_XZ;} else return WHAT_X;
-	case 's': ignore();if (here()==')') {lpoint.pos++;ignore();return WHAT_SZ;} else return WHAT_S;
-	case 'r': ignore();if (here()==')') {lpoint.pos++;ignore();return WHAT_RZ;} else return WHAT_R;
-	default: lpoint.pos--;return WHAT_COMA;
 	}
     case WHAT_CHAR:
     case WHAT_LBL:
@@ -2479,8 +2470,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
-                    } else if (!str_casecmp(&optname, &branch_across)) allowslowbranch = obj_truth(val);
-                    else if (!str_casecmp(&optname, &longjmp)) longbranchasjmp = obj_truth(val);
+                    } else if ((!arguments.casesensitive && !str_casecmp(&optname, &branch_across)) || (arguments.casesensitive && !str_cmp(&optname, &branch_across))) allowslowbranch = obj_truth(val);
+                    else if ((!arguments.casesensitive && !str_casecmp(&optname, &longjmp)) || (arguments.casesensitive && !str_cmp(&optname, &longjmp))) longbranchasjmp = obj_truth(val);
                     else {
                         char *s = (char *)malloc(optname.len + 1);
                         if (!s) err_msg_out_of_memory();
