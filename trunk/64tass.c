@@ -367,15 +367,15 @@ static void pokeb(uint8_t byte)
 }
 
 static int lookup_opcode(const char *s) {
-    uint8_t s2,s3, ch;
     int32_t s4;
     unsigned int also,felso,elozo, no;
     uint32_t name;
 
-    ch=lowcase(s[0]);
-    s2=lowcase(s[1]);
-    s3=lowcase(s[2]);
-    name = (ch << 16) | (s2 << 8) | s3;
+    if (arguments.casesensitive) {
+        name = (s[0] << 16) | (s[1] << 8) | s[2];
+    } else {
+        name = (lowcase(s[0]) << 16) | (lowcase(s[1]) << 8) | lowcase(s[2]);
+    }
     also = 0;
     no = (felso=last_mnem)/2;
     for (;;) {  /* do binary search */
@@ -2829,7 +2829,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         opr=(cnmemonic[ADR_ACCU]==cnmemonic[ADR_IMPLIED])?ADR_ACCU:ADR_IMPLIED;w=ln=0;d=1;
                     }  /* clc */
                     /* 1 Db */
-                    else if (lowcase(wht)=='a' && cnmemonic[ADR_ACCU]!=____ && (!pline[lpoint.pos+1] || pline[lpoint.pos+1]==';' || pline[lpoint.pos+1]==0x20 || pline[lpoint.pos+1]==0x09))
+                    else if ((wht == 'a' || (!arguments.casesensitive && wht=='A')) && cnmemonic[ADR_ACCU]!=____ && (!pline[lpoint.pos+1] || pline[lpoint.pos+1]==';' || pline[lpoint.pos+1]==0x20 || pline[lpoint.pos+1]==0x09))
                     {
                         static const str_t alabel = {1, (const uint8_t *)"a"};
                         struct linepos_s opoint = lpoint;
