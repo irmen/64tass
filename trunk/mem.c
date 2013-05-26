@@ -247,15 +247,15 @@ void write_mark_mem(uint8_t c) {
 
 
 extern void printllist(FILE *, int);
+extern int printaddr(FILE *, char, address_t);
 
 void list_mem(FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl) { 
-    unsigned int i, lcol;
     address_t myaddr;
     size_t len;
-    int first = 1;
+    int first = 1, l, lcol;
 
     for (;omemp <= memblocks.p;omemp++, first = 0) {
-        lcol = arguments.source ? 25 : 49;
+        lcol = arguments.source ? 8 : 16;
         if (omemp < memblocks.p) {
             if (first && oaddr < memblocks.data[omemp].addr) {
                 len = 0; myaddr = oaddr; omemp--;
@@ -277,26 +277,30 @@ void list_mem(FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl)
             }
         }
         if (*lastl != LIST_DATA) {putc('\n',flist);*lastl = LIST_DATA;}
+        l = printaddr(flist, '>', myaddr);
         if (dooutput) {
-            fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", myaddr);
-            while (len) {
-                if (lcol == 1) {
-                    if (arguments.source && llist) {
-                        printllist(flist, 32);
-                    } else putc('\n',flist);
-                    fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", myaddr);lcol=49;
+            if (len) {
+                while (l < 8) {l += 8; fputc('\t', flist);}
+                l &= ~7;
+                while (len) {
+                    if (!lcol--) {
+                        if (arguments.source && llist) {
+                            printllist(flist, l);
+                        } else putc('\n',flist);
+                        l = printaddr(flist, '>', myaddr);
+                        while (l < 8) {l += 8; fputc('\t', flist);}
+                        l &= ~7;
+                        lcol=15;
+                    }
+                    l += fprintf(flist," %02x", mem.data[ptextaddr++]);
+                    myaddr = (myaddr + 1) & all_mem;
+                    len--;
                 }
-                fprintf(flist," %02x", mem.data[ptextaddr++]);
-                myaddr = (myaddr + 1) & all_mem;
-
-                lcol-=3;
-                len--;
             }
-        } else fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", oaddr);
+        }
 
         if (arguments.source && llist) {
-            for (i = 0; i < lcol - 1; i += 8) putc('\t',flist);
-            printllist(flist, 32);
+            printllist(flist, l);
         } else putc('\n',flist);
     }
 }

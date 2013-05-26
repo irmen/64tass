@@ -233,13 +233,17 @@ void status(void) {
     free(waitfors);
 }
 
+int printaddr(FILE *f, char c, address_t addr) {
+    return fprintf(f, (all_mem == 0xffff) ? "%c%04" PRIaddress : "%c%06" PRIaddress, c, addr);
+}
+
 void printllist(FILE *f, int l) {
     const uint8_t *c = llist, *last, *n;
     uint32_t ch;
 
-    if (l >= 40) {fputc('\n', f); l = 0;}
-    while (l < 40) { l += 8; fputc('\t', f);} 
     if (c) {
+        if (l >= 40) {fputc('\n', f); l = 0;}
+        while (l < 40) { l += 8; fputc('\t', f);} 
         last = c;
         while ((ch = *c)) {
             if (ch & 0x80) n=c+utf8in(c, &ch); else n=c+1;
@@ -852,7 +856,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (listing && flist && arguments.source) {
                             int l;
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                            l = printaddr(flist, '.', current_section->address);
                             printllist(flist, l);
                         }
                         current_section->structrecursion++;
@@ -1001,9 +1005,11 @@ struct value_s *compile(struct file_list_s *cflist)
                         newlabel->nested = 1;
                         current_context=newlabel;
                         if (listing && flist && arguments.source) {
+                            int l;
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                            fprintf(flist, (all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t", current_section->address);
+                            l = printaddr(flist, '.', current_section->address);
                             if (labelname.len) {
+                                while (l < 40) { l += 8; fputc('\t', flist); }
                                 if (labelname.data[0] == '-' || labelname.data[0] == '+') fputc(labelname.data[0], flist);
                                 else fwrite(labelname.data, labelname.len, 1, flist);
                             }
@@ -1023,7 +1029,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (listing && flist && arguments.source) {
                             int l;
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                            l = printaddr(flist, '.', current_section->address);
                             printllist(flist, l);
                         }
                         newlabel->nested = !newlabel->update_after || newlabel->value->obj != IDENTREF_OBJ;
@@ -1059,9 +1065,11 @@ struct value_s *compile(struct file_list_s *cflist)
                 case CMD_SECTION:
                     waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     if (newlabel->ref && listing && flist && arguments.source) {
+                        int l;
                         if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                        fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t", current_section->address);
+                        l = printaddr(flist, '.', current_section->address);
                         if (labelname.len) {
+                            while (l < 40) { l += 8; fputc('\t', flist); }
                             if (labelname.data[0] == '-' || labelname.data[0] == '+') fputc(labelname.data[0], flist);
                             else fwrite(labelname.data, labelname.len, 1, flist);
                         }
@@ -1091,7 +1099,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (listing && flist && arguments.source) {
                     int l;
                     lastl=LIST_NONE;
-                    if (wasref) l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                    if (wasref) l = printaddr(flist, '.', current_section->address);
                     else l = 0;
                     printllist(flist, l);
                 }
@@ -1137,7 +1145,7 @@ struct value_s *compile(struct file_list_s *cflist)
             if (listing && flist && arguments.source && (waitfor->skip & 1) && wasref) {
                 int l;
                 if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                l = printaddr(flist, '.', current_section->address);
                 printllist(flist, l);
             }
             break;
@@ -1153,7 +1161,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         case CMD_ENDU:
                         case CMD_UNION:
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                            l = printaddr(flist, '.', current_section->address);
                             printllist(flist, l);
                         case CMD_ALIGN:
                         case CMD_FILL:
@@ -1176,15 +1184,16 @@ struct value_s *compile(struct file_list_s *cflist)
                         case CMD_DSTRUCT:
                         case CMD_BINCLUDE:
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                            if (wasref) l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                            if (wasref) l = printaddr(flist, '.', current_section->address);
                             else l = 0;
                             printllist(flist, l);
                             break;
                         default:
                             if (wasref) {
                                 if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                                fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
+                                l = printaddr(flist, '.',current_section->address);
                                 if (labelname.len) {
+                                    while (l < 40) { l += 8; fputc('\t', flist); }
                                     if (labelname.data[0] == '-' || labelname.data[0] == '+') fputc(labelname.data[0], flist);
                                     else fwrite(labelname.data, labelname.len, 1, flist);
                                 }
@@ -1832,9 +1841,11 @@ struct value_s *compile(struct file_list_s *cflist)
                         current_context=newlabel;
                         waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                         if (newlabel->ref && listing && flist && arguments.source) {
+                            int l;
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
+                            l = printaddr(flist, '.', current_section->address);
                             if (labelname.len) {
+                                while (l < 40) { l += 8; fputc('\t', flist); }
                                 if (labelname.data[0] == '-' || labelname.data[0] == '+') fputc(labelname.data[0], flist);
                                 else fwrite(labelname.data, labelname.len, 1, flist);
                             }
@@ -2747,9 +2758,11 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (val->obj != MACRO_OBJ && val->obj != SEGMENT_OBJ && val->obj != FUNCTION_OBJ) {err_msg_wrong_type(val, &epoint2); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
+                    int l;
                     if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                    fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
+                    l = printaddr(flist, '.', current_section->address);
                     if (labelname.len) {
+                        while (l < 40) { l += 8; fputc('\t', flist); }
                         if (labelname.data[0] == '-' || labelname.data[0] == '+') fputc(labelname.data[0], flist);
                         else fwrite(labelname.data, labelname.len, 1, flist);
                     }
