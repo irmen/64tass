@@ -246,7 +246,7 @@ void write_mark_mem(uint8_t c) {
 }
 
 
-extern void printllist(FILE *);
+extern void printllist(FILE *, int);
 
 void list_mem(FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl) { 
     unsigned int i, lcol;
@@ -282,7 +282,7 @@ void list_mem(FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl)
             while (len) {
                 if (lcol == 1) {
                     if (arguments.source && llist) {
-                        putc('\t', flist);printllist(flist);
+                        printllist(flist, 32);
                     } else putc('\n',flist);
                     fprintf(flist,(all_mem==0xffff)?">%04" PRIaddress "\t":">%06" PRIaddress " ", myaddr);lcol=49;
                 }
@@ -296,7 +296,7 @@ void list_mem(FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl)
 
         if (arguments.source && llist) {
             for (i = 0; i < lcol - 1; i += 8) putc('\t',flist);
-            putc('\t', flist);printllist(flist);
+            printllist(flist, 32);
         } else putc('\n',flist);
     }
 }

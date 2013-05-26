@@ -505,29 +505,31 @@ static void repeat(oper_t op, uval_t rep) {
     }
 }
 
-static void print_list(const struct value_s *v1, FILE *f) {
+static int print_list(const struct value_s *v1, FILE *f) {
     size_t val;
-    int first = 0;
+    int first = 0, l = 2;
     fputc('[', f);
     for (val = 0;val < v1->u.list.len; val++) {
         if (first) fputc(',', f);
-        obj_print(v1->u.list.data[val], f);
+        l += v1->u.list.data[val]->obj->print(v1->u.list.data[val], f) + first;
         first = 1;
     }
     fputc(']', f);
+    return l;
 }
 
-static void print_tuple(const struct value_s *v1, FILE *f) {
+static int print_tuple(const struct value_s *v1, FILE *f) {
     size_t val;
-    int first = 0;
+    int first = 0, l = 2;
     fputc('(', f);
     for (val = 0;val < v1->u.list.len; val++) {
         if (first) fputc(',', f);
-        obj_print(v1->u.list.data[val], f);
+        l += v1->u.list.data[val]->obj->print(v1->u.list.data[val], f) + first;
         first = 1;
     }
-    if (v1->u.list.len == 1) fputc(',', f);
+    if (v1->u.list.len == 1) {fputc(',', f);l++;}
     fputc(')', f);
+    return l;
 }
 
 static void iindex(oper_t op) {

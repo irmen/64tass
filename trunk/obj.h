@@ -51,7 +51,7 @@ struct obj_s {
     void (*calc2)(struct oper_s *);
     void (*rcalc2)(struct oper_s *);
     void (*repeat)(struct oper_s *, uval_t);
-    void (*print)(const struct value_s *, FILE *);
+    int (*print)(const struct value_s *, FILE *);
     void (*iindex)(struct oper_s *);
     void (*slice)(struct value_s *, ival_t, ival_t, ival_t, struct value_s *, linepos_t);
 };

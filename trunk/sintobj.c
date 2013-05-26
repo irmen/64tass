@@ -332,8 +332,8 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op);
 }
 
-static void print(const struct value_s *v1, FILE *f) {
-    fprintf(f, "%+" PRIdval, (ival_t)v1->u.num.val);
+static int print(const struct value_s *v1, FILE *f) {
+    return fprintf(f, "%+" PRIdval, (ival_t)v1->u.num.val);
 }
 
 void sintobj_init(void) {

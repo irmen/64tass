@@ -128,8 +128,9 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op);
 }
 
-static void print(const struct value_s *v1, FILE *f) {
+static int print(const struct value_s *v1, FILE *f) {
     putc(v1->u.num.val ? '1' : '0', f);
+    return 1;
 }
 
 void boolobj_init(void) {
