@@ -15,7 +15,7 @@ all: 64tass README
 	$(CC) -o $@ $^ $(LIBS)
 
 64tass.o: 64tass.c opcodes.h misc.h inttypes.h eval.h values.h error.h \
- libtree.h obj.h section.h encoding.h file.h variables.h mem.h macro.h \
+ libtree.h obj.h section.h mem.h encoding.h file.h variables.h macro.h \
  listobj.h codeobj.h numobj.h strobj.h floatobj.h addressobj.h uintobj.h \
  sintobj.h boolobj.h
 addressobj.o: addressobj.c obj.h inttypes.h values.h error.h libtree.h \
@@ -31,7 +31,7 @@ encoding.o: encoding.c encoding.h libtree.h inttypes.h error.h ternary.h \
 error.o: error.c error.h inttypes.h libtree.h misc.h values.h obj.h \
  file.h variables.h listobj.h
 eval.o: eval.c eval.h values.h inttypes.h error.h libtree.h obj.h file.h \
- section.h encoding.h mem.h isnprintf.h macro.h variables.h misc.h \
+ section.h mem.h encoding.h isnprintf.h macro.h variables.h misc.h \
  listobj.h numobj.h floatobj.h strobj.h boolobj.h codeobj.h addressobj.h \
  uintobj.h sintobj.h
 file.o: file.c file.h inttypes.h libtree.h error.h values.h obj.h misc.h
@@ -42,19 +42,19 @@ isnprintf.o: isnprintf.c isnprintf.h inttypes.h misc.h error.h libtree.h \
 listobj.o: listobj.c obj.h inttypes.h values.h error.h libtree.h \
  listobj.h eval.h isnprintf.h boolobj.h
 macro.o: macro.c macro.h inttypes.h misc.h error.h libtree.h file.h \
- eval.h values.h obj.h section.h variables.h listobj.h
+ eval.h values.h obj.h section.h mem.h variables.h listobj.h
 mem.o: mem.c mem.h inttypes.h error.h libtree.h file.h misc.h
 misc.o: misc.c misc.h inttypes.h opcodes.h getopt.h my_getopt.h error.h \
- libtree.h section.h encoding.h file.h eval.h values.h obj.h variables.h \
- ternary.h listobj.h codeobj.h
+ libtree.h section.h mem.h encoding.h file.h eval.h values.h obj.h \
+ variables.h ternary.h codeobj.h
 my_getopt.o: my_getopt.c my_getopt.h
 numobj.o: numobj.c obj.h inttypes.h numobj.h eval.h values.h error.h \
  libtree.h strobj.h addressobj.h boolobj.h uintobj.h sintobj.h
 obj.o: obj.c obj.h inttypes.h values.h error.h libtree.h variables.h \
- misc.h section.h listobj.h boolobj.h numobj.h uintobj.h sintobj.h \
+ misc.h section.h mem.h listobj.h boolobj.h numobj.h uintobj.h sintobj.h \
  addressobj.h codeobj.h floatobj.h strobj.h
 opcodes.o: opcodes.c opcodes.h
-section.o: section.c section.h libtree.h inttypes.h error.h misc.h
+section.o: section.c section.h libtree.h inttypes.h mem.h error.h misc.h
 sintobj.o: sintobj.c obj.h inttypes.h values.h error.h libtree.h \
  sintobj.h numobj.h strobj.h boolobj.h uintobj.h floatobj.h addressobj.h
 strobj.o: strobj.c obj.h inttypes.h values.h error.h libtree.h strobj.h \

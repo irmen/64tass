@@ -1731,7 +1731,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
                         new_value.u.num.val = 0;
                         r = -1;
                         for (i = 0; i < new_value.u.num.len; i++) {
-                            r = read_mem(v2->u.code.memp, v2->u.code.membp, offs++);
+                            r = read_mem(v2->u.code.mem, v2->u.code.memp, v2->u.code.membp, offs++);
                             if (r < 0) break;
                             new_value.u.num.val |= r << (i * 8);
                         }

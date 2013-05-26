@@ -21,6 +21,7 @@
 #include "inttypes.h"
 #include "error.h"
 #include "obj.h"
+struct memblocks_s;
 
 #define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
 #define type_is_num(a) ((a) >= T_BOOL && (a) <= T_FLOAT) 
@@ -159,6 +160,7 @@ struct value_s {
             uint8_t pass;
             signed char dtype;
             address_t addr;
+            const struct memblocks_s *mem;
             size_t memp;
             size_t membp;
         } code;

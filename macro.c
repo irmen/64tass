@@ -565,7 +565,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         oldpos = f->p; f->p = tmp2->u.func.p;
         current_context = &rlabel;
         current_section = &rsection;
-        reset_section();
+        reset_section(current_section);
         rsection.dooutput = 0;
         retval = compile(cflist);
         current_section = oldsection;

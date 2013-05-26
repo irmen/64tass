@@ -32,8 +32,8 @@
 #include "eval.h"
 #include "variables.h"
 #include "ternary.h"
+#include "mem.h"
 
-#include "listobj.h"
 #include "codeobj.h"
 
 struct arguments_s arguments={1,1,0,0,0,1,1,0,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL};
@@ -301,36 +301,6 @@ void labelprint(void) {
     labelprint2(&root_label.members, flab);
     if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
     if (flab != stdout) fclose(flab);
-}
-
-void sectionprint2(const struct section_s *l) {
-    if (l->name.data) {
-        sectionprint2(l->parent);
-        fwrite(l->name.data, l->name.len, 1, stdout);
-        putchar('.');
-    }
-}
-
-void sectionprint(void) {
-    const struct section_s *l;
-
-    l = root_section.next;
-    while (l) {
-        char temp[10], temp2[10];
-        if (l->defpass == pass) {
-            if (l->size) {
-                sprintf(temp, "$%04" PRIaddress, l->start);
-                sprintf(temp2, "$%04" PRIaddress, l->start + l->size - 1);
-                printf("Section:         %7s-%-7s ", temp, temp2);
-            } else {
-                printf("Section:                         ");
-            }
-            sectionprint2(l->parent);
-            fwrite(l->name.data, l->name.len, 1, stdout);
-            putchar('\n');
-        }
-        l = l->next;
-    }
 }
 
 /* ------------------------------------------------------------------ */

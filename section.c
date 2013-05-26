@@ -37,8 +37,9 @@ static int section_compare(const struct avltree_node *aa, const struct avltree_n
 static void section_free(struct avltree_node *aa)
 {
     struct section_s *a = avltree_container_of(aa, struct section_s, node);
-    free((char *)a->name.data);
+    free((uint8_t *)a->name.data);
     avltree_destroy(&a->members, section_free);
+    destroy_memblocks(&a->mem);
     free(a);
 }
 
@@ -90,6 +91,7 @@ struct section_s *new_section(const str_t *name) {
         lastsc->next=NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
+        init_memblocks(&lastsc->mem);
         avltree_init(&lastsc->members);
 	tmp=lastsc;
 	lastsc=NULL;
@@ -98,16 +100,16 @@ struct section_s *new_section(const str_t *name) {
     return avltree_container_of(b, struct section_s, node);            //already exists
 }
 
-void reset_section(void) {
-    current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
-    current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
-    current_section->dooutput=1;
-    current_section->structrecursion=0;
-    current_section->logicalrecursion=0;
-    current_section->moved=0;
-    current_section->wrapwarn=0;
-    current_section->wrapwarn2=0;
-    current_section->unionmode=0;
+void reset_section(struct section_s *section) {
+    section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
+    section->end = section->start = section->l_start = section->address = section->l_address = 0;
+    section->dooutput = 1;
+    section->structrecursion = 0;
+    section->logicalrecursion = 0;
+    section->moved = 0;
+    section->wrapwarn = 0;
+    section->wrapwarn2 = 0;
+    section->unionmode = 0;
 }
 
 void init_section2(struct section_s *section) {
@@ -115,6 +117,7 @@ void init_section2(struct section_s *section) {
     section->name.data = NULL;
     section->name.len = 0;
     section->next = NULL;
+    init_memblocks(&section->mem);
     avltree_init(&section->members);
 }
 
@@ -125,10 +128,51 @@ void init_section(void) {
 
 void destroy_section2(struct section_s *section) {
     avltree_destroy(&section->members, section_free);
+    destroy_memblocks(&section->mem);
 }
 
 void destroy_section(void) {
     free(lastsc);
     destroy_section2(&root_section);
 }
+
+static void sectionprint2(const struct section_s *l) {
+    if (l->name.data) {
+        sectionprint2(l->parent);
+        fwrite(l->name.data, l->name.len, 1, stdout);
+        putchar('.');
+    }
+}
+
+void sectionprint(void) {
+    struct section_s *l;
+    char temp[10], temp2[10];
+
+    l = &root_section;
+    if (l->size) {
+        sprintf(temp, "$%04" PRIaddress, l->start);
+        sprintf(temp2, "$%04" PRIaddress, l->start + l->size - 1);
+        printf("Section:         %7s-%-7s\n", temp, temp2);
+    }
+    memprint(&l->mem);
+    l = root_section.next;
+    while (l) {
+        if (l->defpass == pass) {
+//            printf("Section:           ");
+            if (l->size) {
+                sprintf(temp, "$%04" PRIaddress, l->start);
+                sprintf(temp2, "$%04" PRIaddress, l->start + l->size - 1);
+                printf("Section:         %7s-%-7s ", temp, temp2);
+            } else {
+                printf("Section:                         ");
+            }
+            sectionprint2(l->parent);
+            fwrite(l->name.data, l->name.len, 1, stdout);
+            putchar('\n');
+            memprint(&l->mem);
+        }
+        l = l->next;
+    }
+}
+
 // ---------------------------------------------------------------------------

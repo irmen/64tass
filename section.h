@@ -19,6 +19,7 @@
 #define _SECTION_H_
 #include "libtree.h"
 #include "inttypes.h"
+#include "mem.h"
 
 struct section_s {
     int name_hash;
@@ -38,6 +39,7 @@ struct section_s {
     address_t l_unionstart;
     address_t l_unionend;
     size_t size;
+    struct memblocks_s mem;
     uint8_t usepass;
     uint8_t defpass;
     uint_fast8_t structrecursion;
@@ -62,6 +64,7 @@ extern void init_section(void);
 extern void init_section2(struct section_s *);
 extern void destroy_section(void);
 extern void destroy_section2(struct section_s *);
-extern void reset_section(void);
+extern void reset_section(struct section_s *);
+extern void sectionprint(void);
 extern struct section_s *current_section, root_section;
 #endif
