@@ -233,9 +233,12 @@ void status(void) {
     free(waitfors);
 }
 
-void printllist(FILE *f) {
+void printllist(FILE *f, int l) {
     const uint8_t *c = llist, *last, *n;
     uint32_t ch;
+
+    if (l >= 40) {fputc('\n', f); l = 0;}
+    while (l < 40) { l += 8; fputc('\t', f);} 
     if (c) {
         last = c;
         while ((ch = *c)) {
@@ -573,15 +576,11 @@ struct value_s *compile(struct file_list_s *cflist)
                 else label = new_label(&labelname, mycontext, L_CONST, &labelexists);
                 oaddr=current_section->address;
                 if (listing && flist && arguments.source && label->ref) {
+                    int l;
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                    if (type_is_int(val->obj->type)) {
-                        fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.num.val);
-                    } else if (val->obj->type == T_CODE) {
-                        fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.code.addr);
-                    } else {
-                        fputs("=\t\t\t\t\t", flist);
-                    }
-                    printllist(flist);
+                    fputc('=', flist);
+                    l = val->obj->print(val, flist) + 1;
+                    printllist(flist, l);
                 }
                 label->ref = 0;
                 if (labelexists) {
@@ -621,15 +620,11 @@ struct value_s *compile(struct file_list_s *cflist)
                         else label = new_label(&labelname, mycontext, L_VAR, &labelexists);
                         oaddr=current_section->address;
                         if (listing && flist && arguments.source) {
+                            int l;
                             if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                            if (type_is_int(val->obj->type)) {
-                                fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.num.val);
-                            } else if (val->obj->type == T_CODE) {
-                                fprintf(flist,"=%" PRIxval "\t\t\t\t\t",(uval_t)val->u.code.addr);
-                            } else {
-                                fputs("=\t\t\t\t\t", flist);
-                            }
-                            printllist(flist);
+                            fputc('=', flist);
+                            l = val->obj->print(val, flist) + 1;
+                            printllist(flist, l);
                         }
                         if (labelexists) {
                             if (label->defpass != pass) label->ref=0;
@@ -855,9 +850,10 @@ struct value_s *compile(struct file_list_s *cflist)
                             label->ref = 0;
                         }
                         if (listing && flist && arguments.source) {
+                            int l;
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
-                            printllist(flist);
+                            l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                            printllist(flist, l);
                         }
                         current_section->structrecursion++;
                         if (current_section->structrecursion<100) {
@@ -1025,9 +1021,10 @@ struct value_s *compile(struct file_list_s *cflist)
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
                         if (listing && flist && arguments.source) {
+                            int l;
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
-                            printllist(flist);
+                            l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                            printllist(flist, l);
                         }
                         newlabel->nested = !newlabel->update_after || newlabel->value->obj != IDENTREF_OBJ;
                         newlabel->ref=0;
@@ -1092,12 +1089,11 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (!(val = get_val(UINT_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
                 if (listing && flist && arguments.source) {
+                    int l;
                     lastl=LIST_NONE;
-                    if (wasref)
-                        fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
-                    else
-                        fputs("\n\t\t\t\t\t", flist);
-                    printllist(flist);
+                    if (wasref) l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                    else l = 0;
+                    printllist(flist, l);
                 }
                 if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, "*=");
                 else if (val->obj == NONE_OBJ) {
@@ -1139,15 +1135,17 @@ struct value_s *compile(struct file_list_s *cflist)
         case WHAT_COMMENT:
         case WHAT_EOL:
             if (listing && flist && arguments.source && (waitfor->skip & 1) && wasref) {
+                int l;
                 if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
-                printllist(flist);
+                l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                printllist(flist, l);
             }
             break;
         case WHAT_COMMAND:
             {
                 ignore();
                 if (listing && flist && arguments.source && (waitfor->skip & 1) && prm>CMD_DWORD) {
+                    int l;
                     switch (prm) {
                         case CMD_OFFS:
                         case CMD_ENDS:
@@ -1155,8 +1153,8 @@ struct value_s *compile(struct file_list_s *cflist)
                         case CMD_ENDU:
                         case CMD_UNION:
                             if (lastl!=LIST_DATA) {putc('\n',flist);lastl=LIST_DATA;}
-                            fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
-                            printllist(flist);
+                            l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                            printllist(flist, l);
                         case CMD_ALIGN:
                         case CMD_FILL:
                         case CMD_BINARY:
@@ -1178,11 +1176,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         case CMD_DSTRUCT:
                         case CMD_BINCLUDE:
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
-                            if (wasref)
-                                fprintf(flist,(all_mem==0xffff)?".%04" PRIaddress "\t\t\t\t\t":".%06" PRIaddress "\t\t\t\t\t",current_section->address);
-                            else
-                                fputs("\t\t\t\t\t", flist);
-                            printllist(flist);
+                            if (wasref) l = fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress : ".%06" PRIaddress, current_section->address);
+                            else l = 0;
+                            printllist(flist, l);
                             break;
                         default:
                             if (wasref) {
@@ -3318,7 +3314,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             } else if (arguments.source) putc('\t',flist);
                         } else if (arguments.source) fputs("\t\t\t", flist);
                         if (arguments.source) {
-                            putc('\t', flist);printllist(flist);
+                            printllist(flist, 32);
                         } else putc('\n',flist);
                     }
                     break;

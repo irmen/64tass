@@ -264,13 +264,14 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op);
 }
 
-static void print(const struct value_s *v1, FILE *f) {
+static int print(const struct value_s *v1, FILE *f) {
     char num[100];
-    int i = 0;
-    sprintf(num, "%.10g", v1->u.real);
+    int i = 0, l;
+    l = sprintf(num, "%.10g", v1->u.real);
     while (num[i] && num[i]!='.' && num[i]!='e' && num[i]!='n' && num[i]!='i') i++;
-    if (!num[i]) {num[i++]='.';num[i++]='0';num[i]=0;}
+    if (!num[i]) {num[i++]='.';num[i++]='0';num[i]=0;l+=2;}
     fputs(num, f);
+    return l;
 }
 
 void floatobj_init(void) {

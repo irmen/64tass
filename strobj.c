@@ -378,20 +378,22 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op); return;
 }
 
-static void print(const struct value_s *v1, FILE *f) {
+static int print(const struct value_s *v1, FILE *f) {
     size_t val;
     uint32_t ch;
     uint8_t c;
+    int l = 2;
     c = memchr(v1->u.str.data, '"', v1->u.str.len) ? '\'' : '"';
     fputc(c, f);
     for (val = 0;val < v1->u.str.len;) {
         ch = v1->u.str.data[val];
         if (ch & 0x80) val += utf8in(v1->u.str.data + val, &ch); else val++;
-        if (ch == c) fputc(c, f);
-        if (ch < 32 || ch > 127) fprintf(f,"{$%02x}", ch);
-        else fputc(ch, f);
+        if (ch == c) {fputc(c, f);l++;}
+        if (ch < 32 || ch > 127) l += fprintf(f,"{$%02x}", ch);
+        else {fputc(ch, f);l++;}
     }
     fputc(c, f);
+    return l;
 }
 
 static inline int utf8len(uint8_t ch) {

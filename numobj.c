@@ -194,8 +194,8 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op);
 }
 
-static void print(const struct value_s *v1, FILE *f) {
-    fprintf(f, "$%" PRIxval, (uval_t)v1->u.num.val);
+static int print(const struct value_s *v1, FILE *f) {
+    return fprintf(f, "$%" PRIxval, (uval_t)v1->u.num.val);
 }
 
 static void iindex(oper_t op) {

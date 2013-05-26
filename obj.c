@@ -184,8 +184,8 @@ static void invalid_repeat(oper_t op, uval_t UNUSED(rep)) {
     obj_oper_error(op);
 }
 
-static void invalid_print(const struct value_s *v1, FILE *f) {
-    fprintf(f,"<%s>", v1->obj->name);
+static int invalid_print(const struct value_s *v1, FILE *f) {
+    return fprintf(f,"<%s>", v1->obj->name);
 }
 
 static void invalid_iindex(oper_t op) {
@@ -228,10 +228,12 @@ static int pair_same(const struct value_s *v1, const struct value_s *v2) {
     return 1;
 }
 
-static void pair_print(const struct value_s *v1, FILE *f) {
-    obj_print(v1->u.pair.key, f);
+static int pair_print(const struct value_s *v1, FILE *f) {
+    int l;
+    l = v1->u.pair.key->obj->print(v1->u.pair.key, f);
     fputc(':', f);
-    obj_print(v1->u.pair.data, f);
+    l += v1->u.pair.data->obj->print(v1->u.pair.data, f) + 1;
+    return l;
 }
 
 static void macro_destroy(struct value_s *v1) {
@@ -402,22 +404,23 @@ static void dict_rcalc2(oper_t op) {
     obj_oper_error(op);
 }
 
-static void dict_print(const struct value_s *v1, FILE *f) {
+static int dict_print(const struct value_s *v1, FILE *f) {
     const struct avltree_node *n;
     const struct pair_s *p;
-    int first = 0;
+    int first = 0, l = 2;
     fputc('{', f);
     n = avltree_first(&v1->u.dict.members);
     while (n) {
         p = cavltree_container_of(n, struct pair_s, node);
         if (first) fputc(',', f);
-        obj_print(p->key, f);
+        l += p->key->obj->print(p->key, f) + first;
         fputc(':', f);
-        obj_print(p->data, f);
+        l += p->data->obj->print(p->data, f) + 1;
         first = 1;
         n = avltree_next(n);
     }
     fputc('}', f);
+    return l;
 }
 
 static void error_destroy(struct value_s *v1) {
@@ -458,8 +461,9 @@ static void error_rcalc2(oper_t op) {
     error_copy(op->v2, op->v);
 }
 
-static void gap_print(const struct value_s *UNUSED(v1), FILE *f) {
+static int gap_print(const struct value_s *UNUSED(v1), FILE *f) {
     fputc('?', f);
+    return 1;
 }
 
 static int ident_resolv(struct value_s *v1, struct value_s *v) {
@@ -747,19 +751,17 @@ static void identref_rcalc2(oper_t op) {
     }
 }
 
-static void identref_print(const struct value_s *v1, FILE *f) {
+static int identref_print(const struct value_s *v1, FILE *f) {
     if (v1->u.identref.label->parent != &root_label) {
         struct value_s tmp;
         v1 = identref_resolv((struct value_s *)v1, &tmp);
         if (!v1) {
-            fprintf(f, "<identref>");
-            return;
+            return fprintf(f, "<identref>");
         }
         v1 = v1->u.identref.label->value;
-        obj_print(v1, f);
-    } else {
-        fwrite(v1->u.identref.label->name.data, v1->u.identref.label->name.len, 1, f);
+        return v1->obj->print(v1, f);
     }
+    return fwrite(v1->u.identref.label->name.data, 1, v1->u.identref.label->name.len, f);
 }
 
 static int none_hash(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
