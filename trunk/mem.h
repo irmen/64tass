@@ -20,18 +20,31 @@
 #include <stdio.h>
 #include "inttypes.h"
 enum lastl_e;
+struct memblock_s;
 
-extern void mark_mem(address_t);
-extern void write_mark_mem(uint8_t c);
-extern void list_mem(FILE *, address_t, int, enum lastl_e *);
-extern void memcomp(void);
-extern void memjmp(address_t adr);
-extern void memprint(void);
-extern void output_mem(int);
-extern void write_mem(uint8_t);
-int16_t read_mem(size_t, size_t, size_t);
-extern void get_mem(size_t *, size_t *);
-extern void restart_mem(void);
-extern void init_mem(void);
-extern void destroy_mem(void);
+struct memblocks_s {
+    struct {       //Linear memory dump
+        size_t p, len;
+        uint8_t *data;
+    } mem;
+    unsigned int compressed:1;
+    unsigned int p, len;
+    size_t lastp;
+    address_t lastaddr;
+    struct memblock_s *data;
+};
+
+extern void mark_mem(const struct memblocks_s *, address_t);
+extern void write_mark_mem(struct memblocks_s *, uint8_t);
+extern void list_mem(const struct memblocks_s *, FILE *, address_t, int, enum lastl_e *);
+extern void memjmp(struct memblocks_s *, address_t);
+extern void memref(struct memblocks_s *, struct memblocks_s *);
+extern void memprint(struct memblocks_s *);
+extern void output_mem(struct memblocks_s *, int);
+extern void write_mem(struct memblocks_s *, uint8_t);
+int16_t read_mem(const struct memblocks_s *, size_t, size_t, size_t);
+extern void get_mem(const struct memblocks_s *, size_t *, size_t *);
+extern void restart_memblocks(struct memblocks_s *, address_t);
+extern void init_memblocks(struct memblocks_s *);
+extern void destroy_memblocks(struct memblocks_s *);
 #endif

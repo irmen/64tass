@@ -22,22 +22,11 @@
 #include "file.h"
 #include "misc.h"
 
-static struct {       //Linear memory dump
-    size_t p, len;
-    uint8_t *data;
-} mem;
-
 struct memblock_s { //starts and sizes
     size_t p, len;
     address_t addr;
+    struct memblocks_s *ref;
 };
-
-static struct {
-    unsigned int p, len;
-    size_t lastp;
-    address_t lastaddr;
-    struct memblock_s *data;
-} memblocks;
 
 static int memblockcomp(const void *a, const void *b) {
     const struct memblock_s *aa=(const struct memblock_s *)a;
@@ -45,20 +34,52 @@ static int memblockcomp(const void *a, const void *b) {
     return aa->addr - bb->addr;
 }
 
-void memcomp(void) {
+static void memcomp(struct memblocks_s *memblocks) {
     unsigned int i, j, k;
-    memjmp(0);
-    if (memblocks.p < 2) return;
+    if (memblocks->compressed) return;
+    memblocks->compressed = 1;
+    memjmp(memblocks, 0);
+    for (j = 0; j < memblocks->p; j++) {
+        struct memblocks_s *b = memblocks->data[j].ref;
+        if (b) {
+            size_t rest;
+            memcomp(b);
+            rest = memblocks->p - j - 1;
+            memblocks->p += b->p - 1;
+            if (memblocks->p >= memblocks->len) {
+                memblocks->len = memblocks->p + 64;
+                memblocks->data = realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
+                if (!memblocks->data) err_msg_out_of_memory();
+            }
+            memmove(&memblocks->data[j + b->p], &memblocks->data[j + 1], rest * sizeof(*memblocks->data));
+            for (k = 0; k < b->p; k++) {
+                struct memblock_s *b2 = &memblocks->data[j + k];
+                b2->p = memblocks->mem.p;
+                b2->len = b->data[k].len;
+                b2->ref = NULL;
+                b2->addr = b->data[k].addr;
+                memblocks->mem.p += b2->len;
+                if (memblocks->mem.p >= memblocks->mem.len) {
+                    memblocks->mem.len = memblocks->mem.p + 0x1000;
+                    memblocks->mem.data = realloc(memblocks->mem.data, memblocks->mem.len);
+                    if (!memblocks->mem.data) err_msg_out_of_memory();
+                }
+                memcpy(&memblocks->mem.data[b2->p], &b->mem.data[b->data[k].p], b2->len);
+            }
+            j--;
+        }
+    }
+    if (memblocks->p < 2) return;
 
-    for (k = j = 0; j < memblocks.p; j++) {
-        struct memblock_s *bj = &memblocks.data[j];
+    for (k = j = 0; j < memblocks->p; j++) {
+        struct memblock_s *bj = &memblocks->data[j];
         if (bj->len) {
-            for (i = j + 1; i < memblocks.p; i++) if (memblocks.data[i].len) {
-                struct memblock_s *bi = &memblocks.data[i];
+            for (i = j + 1; i < memblocks->p; i++) if (memblocks->data[i].len) {
+                struct memblock_s *bi = &memblocks->data[i];
                 if (bj->addr <= bi->addr && (bj->addr + bj->len) > bi->addr) {
                     size_t overlap = (bj->addr + bj->len) - bi->addr;
                     if (overlap > bi->len) overlap = bi->len;
-                    memcpy(mem.data + bj->p + (unsigned)(bi->addr - bj->addr), mem.data + bi->p, overlap);
+                    memcpy(memblocks->mem.data + bj->p + (unsigned)(bi->addr - bj->addr), memblocks->mem.data + bi->p, overlap);
                     bi->len -= overlap;
                     bi->p += overlap;
                     bi->addr += overlap;
@@ -74,78 +95,95 @@ void memcomp(void) {
                 }
             }
             if (bj->len) {
-                if (j != k) memblocks.data[k] = *bj;
+                if (j != k) memblocks->data[k] = *bj;
                 k++;
             }
         }
     }
-    memblocks.p = k;
-    qsort(memblocks.data, memblocks.p, sizeof(*memblocks.data), memblockcomp);
+    memblocks->p = k;
+    qsort(memblocks->data, memblocks->p, sizeof(*memblocks->data), memblockcomp);
 }
 
-void memjmp(address_t adr) {
-    if (mem.p == memblocks.lastp) {
-        memblocks.lastaddr = adr;
+void memjmp(struct memblocks_s *memblocks, address_t adr) {
+    if (memblocks->mem.p == memblocks->lastp) {
+        memblocks->lastaddr = adr;
         return;
     }
-    if (memblocks.p>=memblocks.len) {
-        memblocks.len+=64;
-        memblocks.data=realloc(memblocks.data, memblocks.len*sizeof(*memblocks.data));
-        if (!memblocks.data) err_msg_out_of_memory();
+    if (memblocks->p>=memblocks->len) {
+        memblocks->len+=64;
+        memblocks->data=realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
+        if (!memblocks->data) err_msg_out_of_memory();
     }
-    memblocks.data[memblocks.p].len = mem.p - memblocks.lastp;
-    memblocks.data[memblocks.p].p = memblocks.lastp;
-    memblocks.data[memblocks.p++].addr = memblocks.lastaddr;
-    memblocks.lastp = mem.p;
-    memblocks.lastaddr = adr;
+    memblocks->data[memblocks->p].len = memblocks->mem.p - memblocks->lastp;
+    memblocks->data[memblocks->p].p = memblocks->lastp;
+    memblocks->data[memblocks->p].ref = NULL;
+    memblocks->data[memblocks->p++].addr = memblocks->lastaddr;
+    memblocks->lastp = memblocks->mem.p;
+    memblocks->lastaddr = adr;
 }
 
-void memprint(void) {
+void memref(struct memblocks_s *memblocks, struct memblocks_s *ref) {
+    if (memblocks->p >= memblocks->len) {
+        memblocks->len += 64;
+        memblocks->data = realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
+        if (!memblocks->data) err_msg_out_of_memory();
+    }
+    memblocks->data[memblocks->p].len = 0;
+    memblocks->data[memblocks->p].p = memblocks->lastp;
+    memblocks->data[memblocks->p].ref = ref;
+    memblocks->data[memblocks->p++].addr = memblocks->lastaddr;
+}
+
+void memprint(struct memblocks_s *memblocks) {
     char temp[10];
     unsigned int i;
     address_t start, end;
 
-    if (memblocks.p) {
+    memcomp(memblocks);
+
+    if (memblocks->p) {
         i = 0;
-        start = memblocks.data[i].addr;
-        end = memblocks.data[i].addr + memblocks.data[i].len;
-        for (i++; i < memblocks.p; i++) {
-            if (memblocks.data[i].addr != end) {
+        start = memblocks->data[i].addr;
+        end = memblocks->data[i].addr + memblocks->data[i].len;
+        for (i++; i < memblocks->p; i++) {
+            if (memblocks->data[i].addr != end) {
                 sprintf(temp, "$%04" PRIaddress, start);
                 printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
-                start = memblocks.data[i].addr;
+                start = memblocks->data[i].addr;
             }
-            end = memblocks.data[i].addr + memblocks.data[i].len;
+            end = memblocks->data[i].addr + memblocks->data[i].len;
         }
         sprintf(temp, "$%04" PRIaddress, start);
         printf("Memory range:    %7s-$%04" PRIaddress "\n", temp, end-1);
-    } else puts("Memory range:      None");
+    }
 }
 
-void output_mem(int scpumode) {
+void output_mem(struct memblocks_s *memblocks, int scpumode) {
     address_t start;
     size_t size;
     unsigned int i, last;
     FILE* fout;
 
-    if (mem.p) {
+    memcomp(memblocks);
+
+    if (memblocks->mem.p) {
         if (arguments.output[0] == '-' && !arguments.output[1]) {
             fout = stdout;
         } else {
             if ((fout=file_open(arguments.output,"wb"))==NULL) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output);
         }
         clearerr(fout);
-        if (memblocks.p) {
+        if (memblocks->p) {
             i = 0;
-            start = memblocks.data[i].addr;
+            start = memblocks->data[i].addr;
             if (!arguments.nonlinear && arguments.flat) {
                 size = start;
                 while (size--) putc(0, fout);
             }
-            size = memblocks.data[i].len;
+            size = memblocks->data[i].len;
             last = i;
-            for (i++; i < memblocks.p; i++) {
-                if (memblocks.data[i].addr != start + size) {
+            for (i++; i < memblocks->p; i++) {
+                if (memblocks->data[i].addr != start + size) {
                     if (arguments.nonlinear) {
                         putc(size,fout);
                         putc(size >> 8,fout);
@@ -157,17 +195,17 @@ void output_mem(int scpumode) {
                         if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
                     }
                     while (last < i) {
-                        fwrite(mem.data + memblocks.data[last].p, memblocks.data[last].len, 1, fout);
+                        fwrite(memblocks->mem.data + memblocks->data[last].p, memblocks->data[last].len, 1, fout);
                         last++;
                     }
                     if (!arguments.nonlinear) {
-                        size = memblocks.data[i].addr - start - size;
+                        size = memblocks->data[i].addr - start - size;
                         while (size--) putc(0, fout);
                     }
-                    start = memblocks.data[i].addr;
+                    start = memblocks->data[i].addr;
                     size = 0;
                 }
-                size += memblocks.data[i].len;
+                size += memblocks->data[i].len;
             }
             if (arguments.nonlinear) {
                 putc(size,fout);
@@ -180,7 +218,7 @@ void output_mem(int scpumode) {
                 if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
             }
             while (last<i) {
-                fwrite(mem.data + memblocks.data[last].p, memblocks.data[last].len, 1, fout);
+                fwrite(memblocks->mem.data + memblocks->data[last].p, memblocks->data[last].len, 1, fout);
                 last++;
             }
         }
@@ -194,46 +232,46 @@ void output_mem(int scpumode) {
     }
 }
 
-void write_mem(uint8_t c) {
-    if (mem.p >= mem.len) {
-        mem.len += 0x1000;
-        mem.data = realloc(mem.data, mem.len);
-        if (!mem.data) err_msg_out_of_memory();
+void write_mem(struct memblocks_s * memblocks, uint8_t c) {
+    if (memblocks->mem.p >= memblocks->mem.len) {
+        memblocks->mem.len += 0x1000;
+        memblocks->mem.data = realloc(memblocks->mem.data, memblocks->mem.len);
+        if (!memblocks->mem.data) err_msg_out_of_memory();
     }
-    mem.data[mem.p++] = c;
+    memblocks->mem.data[memblocks->mem.p++] = c;
 }
 
 static unsigned int omemp;
 static size_t ptextaddr;
 static address_t oaddr;
 
-void mark_mem(address_t adr) {
-    ptextaddr=mem.p;
-    omemp = memblocks.p;
+void mark_mem(const struct memblocks_s *memblocks, address_t adr) {
+    ptextaddr = memblocks->mem.p;
+    omemp = memblocks->p;
     oaddr = adr;
 }
 
-void get_mem(size_t *memp, size_t *membp) {
-    *memp = mem.p;
-    *membp = memblocks.p;
+void get_mem(const struct memblocks_s *memblocks, size_t *memp, size_t *membp) {
+    *memp = memblocks->mem.p;
+    *membp = memblocks->p;
 }
 
-int16_t read_mem(size_t memp, size_t membp, size_t offs) {
+int16_t read_mem(const struct memblocks_s *memblocks, size_t memp, size_t membp, size_t offs) {
     size_t len;
-    if (memp >= mem.p) return -1;
+    if (memp >= memblocks->mem.p) return -1;
     for (;;) {
-        if (membp < memblocks.p) {
-            len = memblocks.data[membp].len - (memp - memblocks.data[membp].p);
+        if (membp < memblocks->p) {
+            len = memblocks->data[membp].len - (memp - memblocks->data[membp].p);
         } else {
-            len = mem.p - memp;
+            len = memblocks->mem.p - memp;
         }
-        if (offs < len) return mem.data[memp + offs];
+        if (offs < len) return memblocks->mem.data[memp + offs];
         offs -= len;
         memp += len;
-        if (membp + 1 < memblocks.p) {
-            len = memblocks.data[membp + 1].addr - memblocks.data[membp].addr - memblocks.data[membp].len;
-        } else if (membp < memblocks.p) {
-            len = memblocks.lastaddr - memblocks.data[membp].addr - memblocks.data[membp].len;
+        if (membp + 1 < memblocks->p) {
+            len = memblocks->data[membp + 1].addr - memblocks->data[membp].addr - memblocks->data[membp].len;
+        } else if (membp < memblocks->p) {
+            len = memblocks->lastaddr - memblocks->data[membp].addr - memblocks->data[membp].len;
         } else return -1;
         if (offs < len) return -1;
         offs -= len;
@@ -241,37 +279,37 @@ int16_t read_mem(size_t memp, size_t membp, size_t offs) {
     }
 }
 
-void write_mark_mem(uint8_t c) {
-    mem.data[ptextaddr] = c;
+void write_mark_mem(struct memblocks_s *memblocks, uint8_t c) {
+    memblocks->mem.data[ptextaddr] = c;
 }
 
 
 extern void printllist(FILE *, int);
 extern int printaddr(FILE *, char, address_t);
 
-void list_mem(FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl) { 
+void list_mem(const struct memblocks_s *memblocks, FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl) { 
     address_t myaddr;
     size_t len;
     int first = 1, l, lcol;
 
-    for (;omemp <= memblocks.p;omemp++, first = 0) {
+    for (;omemp <= memblocks->p;omemp++, first = 0) {
         lcol = arguments.source ? 8 : 16;
-        if (omemp < memblocks.p) {
-            if (first && oaddr < memblocks.data[omemp].addr) {
+        if (omemp < memblocks->p) {
+            if (first && oaddr < memblocks->data[omemp].addr) {
                 len = 0; myaddr = oaddr; omemp--;
             } else {
-                len = memblocks.data[omemp].len - (ptextaddr - memblocks.data[omemp].p);
-                myaddr = (memblocks.data[omemp].addr + memblocks.data[omemp].len - len) & all_mem;
+                len = memblocks->data[omemp].len - (ptextaddr - memblocks->data[omemp].p);
+                myaddr = (memblocks->data[omemp].addr + memblocks->data[omemp].len - len) & all_mem;
             }
         } else {
-            if (first && oaddr < memblocks.lastaddr) {
+            if (first && oaddr < memblocks->lastaddr) {
                 len = 0; myaddr = oaddr; omemp--;
             } else {
-                myaddr = memblocks.lastaddr + (ptextaddr - memblocks.lastp);
-                len = mem.p - ptextaddr;
+                myaddr = memblocks->lastaddr + (ptextaddr - memblocks->lastp);
+                len = memblocks->mem.p - ptextaddr;
                 if (!len) {
                     if (!llist) continue;
-                    if (omemp) myaddr = (memblocks.data[omemp-1].addr + memblocks.data[omemp-1].len) & all_mem;
+                    if (omemp) myaddr = (memblocks->data[omemp-1].addr + memblocks->data[omemp-1].len) & all_mem;
                     else myaddr = oaddr;
                 }
             }
@@ -292,7 +330,7 @@ void list_mem(FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl)
                         l &= ~7;
                         lcol=15;
                     }
-                    l += fprintf(flist," %02x", mem.data[ptextaddr++]);
+                    l += fprintf(flist," %02x", memblocks->mem.data[ptextaddr++]);
                     myaddr = (myaddr + 1) & all_mem;
                     len--;
                 }
@@ -305,25 +343,27 @@ void list_mem(FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl)
     }
 }
 
-void restart_mem(void) {
-    mem.p = 0;
-    memblocks.lastp = 0;
-    memblocks.p = 0;
-    memblocks.lastaddr = 0;
+void restart_memblocks(struct memblocks_s *memblocks, address_t address) {
+    memblocks->mem.p = 0;
+    memblocks->lastp = 0;
+    memblocks->p = 0;
+    memblocks->lastaddr = address;
+    memblocks->compressed = 0;
 }
 
-void init_mem(void) {
-    mem.p = 0;
-    mem.len = 0;
-    mem.data = NULL;
-    memblocks.p = 0;
-    memblocks.len = 0;
-    memblocks.lastp = 0;
-    memblocks.lastaddr = 0;
-    memblocks.data = NULL;
+void init_memblocks(struct memblocks_s *memblocks) {
+    memblocks->mem.p = 0;
+    memblocks->mem.len = 0;
+    memblocks->mem.data = NULL;
+    memblocks->p = 0;
+    memblocks->len = 0;
+    memblocks->lastp = 0;
+    memblocks->lastaddr = 0;
+    memblocks->data = NULL;
+    memblocks->compressed = 0;
 }
 
-void destroy_mem(void) {
-    free(mem.data);
-    free(memblocks.data);
+void destroy_memblocks(struct memblocks_s *memblocks) {
+    free(memblocks->mem.data);
+    free(memblocks->data);
 }

@@ -152,7 +152,7 @@ static void rcalc2(oper_t op) {
             new_value.u.num.val = 0;
             r = -1;
             for (i = 0; i < len; i++) {
-                r = read_mem(v2->u.code.memp, v2->u.code.membp, offs++);
+                r = read_mem(v2->u.code.mem, v2->u.code.memp, v2->u.code.membp, offs++);
                 if (r < 0) break;
                 new_value.u.num.val |= r << (i * 8);
             }
@@ -261,7 +261,7 @@ static void iindex(oper_t op) {
         val = 0;
         r = -1;
         for (i2 = 0; i2 < len2; i2++) {
-            r = read_mem(v1->u.code.memp, v1->u.code.membp, offs2++);
+            r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
             if (r < 0) break;
             val |= r << (i2 * 8);
         }
@@ -324,7 +324,7 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
         val = 0;
         r = -1;
         for (i2 = 0; i2 < len2; i2++) {
-            r = read_mem(v1->u.code.memp, v1->u.code.membp, offs2++);
+            r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
             if (r < 0) break;
             val |= r << (i2 * 8);
         }
