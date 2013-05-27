@@ -389,7 +389,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
 
     i = lpoint.pos;
     for (;;) {
-        if (!(ch2 = here())) {err_msg(ERROR______EXPECTED,"End of string"); lpoint.pos++; break;}
+        if (!(ch2 = here())) {err_msg(ERROR______EXPECTED,"end of string"); lpoint.pos++; break;}
         if (ch2 & 0x80) {
             u = utf8len(ch2); 
             lpoint.pos += u; lpoint.upos += u - 1;

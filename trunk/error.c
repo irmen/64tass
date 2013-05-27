@@ -95,8 +95,7 @@ static void adderror(const char *s) {
 }
 
 static void addorigin(struct file_list_s *cflist, line_t lnum, linepos_t lpoint2) {
-    char line[linelength];
-
+    char line[256];
     if (cflist->parent) {
         if (cflist != included_from) {
             included_from = cflist;
@@ -133,38 +132,32 @@ static const char *terr_warning[]={
 };
 
 static const char *terr_error[]={
-    "double defined %s",
+    "double defined range",
+    "double defined escape",
     "extra characters on line",
     "constant too large",
     "general syntax",
-    "%s expected",
     "expression syntax",
     "missing argument",
     "illegal operand",
     "division by zero",
-    "wrong type %s",
-    "not allowed here: %s",
     "instruction can't cross banks",
     "address out of section",
     "negative number raised on fractional power",
     "string constant too long for a number",
     "index out of range",
     "key error",
-    "not hashable",
-    "%s\n",
+    "not hashable"
 };
 static const char *terr_fatal[]={
     "can't open file ",
     "error reading file ",
     "can't write object file ",
-    "line too long\n",
     "can't write listing file ",
     "can't write label file ",
     "file recursion\n",
     "macro recursion too deep\n",
     "reference recursion too deep\n",
-    "unknown cpu: %s\n",
-    "unknown option: %s\n",
     "too many passes\n",
     "too many errors\n"
 };
@@ -175,8 +168,6 @@ static void inc_errors(void) {
 }
 
 void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
-    char line[linelength];
-
     if (pass == 1 && no < 0x80) return;
     if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
 
@@ -195,6 +186,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
         else adderror(terr_warning[no]);
     }
     else if (no<0x80) {
+        char line[1024];
         switch (no) {
         case ERROR____PAGE_ERROR:
         case ERROR_BRANCH_TOOFAR:
@@ -227,17 +219,40 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
         case ERROR___UNKNOWN_CHR:
             sprintf(line,"can't encode character $%02x", *(const uint32_t *)prm); adderror(line);
             break;
+        case ERROR______EXPECTED:
+            adderror((char *)prm);
+            adderror(" expected");
+            break;
+        case ERROR____WRONG_TYPE:
+            adderror("wrong type ");
+            adderror((char *)prm);
+            break;
+        case ERROR___NOT_ALLOWED:
+            adderror("not allowed here: ");
+            adderror((char *)prm);
+            break;
         default:
-                snprintf(line,linelength,terr_error[no & 63], (const char *)prm);
-                adderror(line);
+            adderror(terr_error[no & 63]);
         }
     }
     else {
         if (no == ERROR__TOO_MANY_ERR) errors++; else inc_errors();
         addorigin(current_file_list, sline, lpoint2);
         adderror("fatal error: ");
-        snprintf(line, linelength, terr_fatal[no & 63], (const char *)prm);
-        adderror(line);
+        switch (no) {
+        case ERROR___UNKNOWN_CPU:
+            adderror("unknown cpu: ");
+            adderror((char *)prm);
+            adderror("\n");
+            break;
+        case ERROR_UNKNOWN_OPTIO:
+            adderror("unknown option: ");
+            adderror((char *)prm);
+            adderror("\n");
+            break;
+        default:
+            adderror(terr_fatal[no & 63]);
+        }
         status();exit(1);
     }
     adderror("\n");

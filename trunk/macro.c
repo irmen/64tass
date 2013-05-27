@@ -32,7 +32,10 @@ static struct {
     struct {
         size_t len, size;
         str_t *param, all;
-        uint8_t *pline;
+        struct {
+            size_t len;
+            uint8_t *data;
+        } pline;
         struct value_s *macro;
     } *params, *current;
 } macro_parameters = {0, 0, NULL, NULL};
@@ -43,11 +46,9 @@ void mtranslate(void)
     uint_fast8_t q;
     uint_fast16_t j;
     size_t p;
-    uint8_t ch, *cucc;
+    uint8_t ch;
 
     if (!macro_parameters.p) return;
-
-    cucc = macro_parameters.current->pline;
 
     q=p=0;
     for (; (ch = here()); lpoint.pos++) {
@@ -67,19 +68,23 @@ void mtranslate(void)
                     err_msg(ERROR_MISSING_ARGUM,NULL);
                     break;
                 }
-                if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                else {
-                    memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
-                    p += macro_parameters.current->param[j].len;
+                if (p + macro_parameters.current->param[j].len >= macro_parameters.current->pline.len) {
+                    macro_parameters.current->pline.len += macro_parameters.current->param[j].len + 1024;
+                    macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
+                    if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
                 }
+                memcpy((char *)macro_parameters.current->pline.data + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
+                p += macro_parameters.current->param[j].len;
                 lpoint.pos++;continue;
             } else if (ch=='@') {
                 /* \@ gives complete parameter list */
-                if (p + macro_parameters.current->all.len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                else {
-                    memcpy(cucc + p, macro_parameters.current->all.data, macro_parameters.current->all.len);
-                    p += macro_parameters.current->all.len;
+                if (p + macro_parameters.current->all.len >= macro_parameters.current->pline.len) {
+                    macro_parameters.current->pline.len += macro_parameters.current->all.len + 1024;
+                    macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
+                    if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
                 }
+                memcpy((char *)macro_parameters.current->pline.data + p, macro_parameters.current->all.data, macro_parameters.current->all.len);
+                p += macro_parameters.current->all.len;
                 lpoint.pos++;continue;
             } else {
                 struct linepos_s e = lpoint;
@@ -110,11 +115,13 @@ void mtranslate(void)
                             err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
                             break;
                         }
-                        if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                        else {
-                            memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
-                            p += macro_parameters.current->param[j].len;
+                        if (p + macro_parameters.current->param[j].len >= macro_parameters.current->pline.len) {
+                            macro_parameters.current->pline.len += macro_parameters.current->param[j].len + 1024;
+                            macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
+                            if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
                         }
+                        memcpy((char *)macro_parameters.current->pline.data + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
+                        p += macro_parameters.current->param[j].len;
                         break;
                     }
                     if (j < macro_parameters.current->macro->u.macro.argc) {
@@ -130,25 +137,31 @@ void mtranslate(void)
             if ((ch=pline[lpoint.pos+1])>='1' && ch<='9') {
                 /* @1..@9 */
                 if ((j=ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
-                if (p + macro_parameters.current->param[j].len >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
-                else {
-                    if (macro_parameters.current->param[j].len > 1 && macro_parameters.current->param[j].data[0] == '"' && macro_parameters.current->param[j].data[macro_parameters.current->param[j].len-1]=='"') {
-                        memcpy(cucc + p, macro_parameters.current->param[j].data + 1, macro_parameters.current->param[j].len - 2);
-                        p += macro_parameters.current->param[j].len - 2;
-                    } else {
-                        memcpy(cucc + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
-                        p += macro_parameters.current->param[j].len;
-                    }
+                if (p + macro_parameters.current->param[j].len >= macro_parameters.current->pline.len) {
+                    macro_parameters.current->pline.len += macro_parameters.current->param[j].len + 1024;
+                    macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
+                    if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
+                }
+                if (macro_parameters.current->param[j].len > 1 && macro_parameters.current->param[j].data[0] == '"' && macro_parameters.current->param[j].data[macro_parameters.current->param[j].len-1]=='"') {
+                    memcpy((char *)macro_parameters.current->pline.data + p, macro_parameters.current->param[j].data + 1, macro_parameters.current->param[j].len - 2);
+                    p += macro_parameters.current->param[j].len - 2;
+                } else {
+                    memcpy((char *)macro_parameters.current->pline.data + p, macro_parameters.current->param[j].data, macro_parameters.current->param[j].len);
+                    p += macro_parameters.current->param[j].len;
                 }
                 lpoint.pos++;continue;
             } else ch='@';
         }
     ok:
-        cucc[p++]=ch;
-        if (p >= linelength) err_msg(ERROR_LINE_TOO_LONG,NULL);
+        if (p + 1 >= macro_parameters.current->pline.len) {
+            macro_parameters.current->pline.len += 1024;
+            macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
+            if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
+        }
+        macro_parameters.current->pline.data[p++]=ch;
     }
-    cucc[p]=0;
-    pline = cucc; lpoint.pos = lpoint.upos = 0;
+    macro_parameters.current->pline.data[p]=0;
+    pline = macro_parameters.current->pline.data; lpoint.pos = lpoint.upos = 0;
 }
 
 static size_t macro_param_find(void) {
@@ -184,7 +197,8 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         if (!macro_parameters.params) err_msg_out_of_memory();
         macro_parameters.params[macro_parameters.p].param = NULL;
         macro_parameters.params[macro_parameters.p].size = 0;
-        macro_parameters.params[macro_parameters.p].pline = malloc(linelength);
+        macro_parameters.params[macro_parameters.p].pline.len = 0;
+        macro_parameters.params[macro_parameters.p].pline.data = NULL;
     }
     macro_parameters.current = &macro_parameters.params[macro_parameters.p];
     macro_parameters.current->macro = val_reference(tmp2);
@@ -590,7 +604,7 @@ void init_macro(void) {
 void free_macro(void) {
     int i;
     for (i = 0; i < macro_parameters.len; i++) {
-        free(macro_parameters.params[i].pline);
+        free(macro_parameters.params[i].pline.data);
         free(macro_parameters.params[i].param);
     }
     free(macro_parameters.params);

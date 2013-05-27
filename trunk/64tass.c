@@ -76,7 +76,6 @@ static int listing=0;   /* listing */
 address_t star=0;
 const uint8_t *pline, *llist;   /* current line data */
 struct linepos_s lpoint;        /* position in current line */
-static char path[linelength];   /* path */
 static FILE* flist = NULL;      /* listfile */
 static enum lastl_e lastl;
 static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
@@ -447,16 +446,16 @@ static int what(int *tempno) {
     }
 }
 
-static int get_hack(void) {
+static int get_cpu(char *cpu) {
     int q=1;
     unsigned int i=0, i2;
     i2 = i;
     ignore();
     if (here()=='\"') {lpoint.pos++;q=0;}
-    while (here() && (here()!=';' || !q) && (here()!='\"' || q) && i<sizeof(path)) path[i++]=get();
-    if (i>=sizeof(path) || (!q && here()!='\"')) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
-    if (!q) lpoint.pos++; else while (i && (path[i-1]==0x20 || path[i-1]==0x09)) i--;
-    path[i]=0;
+    while (here() && (here()!=';' || !q) && (here()!='\"' || q) && i < 20) cpu[i++]=get();
+    if (i >= 20 || (!q && here()!='\"')) {err_msg(ERROR_GENERL_SYNTAX, NULL); return 1;}
+    if (!q) lpoint.pos++; else while (i && (cpu[i-1]==0x20 || cpu[i-1]==0x09)) i--;
+    cpu[i]=0;
     ignore();
     if (i <= i2) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
     return 0;
@@ -1721,6 +1720,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (uninit) memskip(uninit);
                         if (large.pos) err_msg2(ERROR_CONSTNT_LARGE, NULL, &large);
                     } else if (prm==CMD_BINARY) { /* .binary */
+                        const char *path = NULL;
                         size_t foffset = 0;
                         struct value_s *val2 = NULL;
                         address_t fsize = all_mem+1;
@@ -1734,7 +1734,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             fixeddig = 0;
                         } else {
                             if (val->obj != STR_OBJ) {err_msg_wrong_type(val, &epoint);goto breakerr;}
-                            if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);goto breakerr;}
+                            path = get_path(val, cfile->realname);
                             val2 = val;
                         }
                         if ((val = get_val(UINT_OBJ, &epoint))) {
@@ -1742,8 +1742,8 @@ struct value_s *compile(struct file_list_s *cflist)
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = 0;
                             } else {
-                                if (val->u.num.val<0) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint); goto breakerr;}
-                                foffset = val->u.num.val;
+                                if (val->u.num.val<0) err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
+                                else foffset = val->u.num.val;
                             }
                             if ((val = get_val(UINT_OBJ, &epoint))) {
                                 if (val->obj == NONE_OBJ) {
@@ -1765,6 +1765,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 }
                             }
                         }
+                        free((char *)path);
                     }
 
                     if (listing && flist) {
@@ -2085,7 +2086,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             tmp.offset = val->u.num.val;
                             t = new_trans(&tmp, actual_encoding);
                             if (t->start != tmp.start || t->end != tmp.end || t->offset != tmp.offset) {
-                                err_msg2(ERROR_DOUBLE_DEFINE, "range", &epoint); goto breakerr;
+                                err_msg2(ERROR__DOUBLE_RANGE, NULL, &epoint); goto breakerr;
                             }
                         }
                     }
@@ -2137,7 +2138,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             t = new_escape(v->u.str.data, v->u.str.data + v->u.str.len, (uint8_t)val->u.num.val, actual_encoding);
                             val_destroy(v);
                             if (t->code != (uint8_t)val->u.num.val) {
-                                err_msg2(ERROR_DOUBLE_DEFINE,"escape", &opoint); goto breakerr;
+                                err_msg2(ERROR_DOUBLE_ESCAPE, NULL, &opoint); goto breakerr;
                             }
                         }
                     }
@@ -2146,18 +2147,19 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 if (prm==CMD_CPU) { /* .cpu */
                     int def;
-                    if (get_hack()) goto breakerr;
+                    char cpu[20];
+                    if (get_cpu(cpu)) goto breakerr;
                     def=arguments.cpumode;
-                    if (!strcmp(path,"6502")) def=OPCODES_C6502;
-                    else if (!strcasecmp(path,"65c02")) def=OPCODES_C65C02;
-                    else if (!strcasecmp(path,"65ce02")) def=OPCODES_C65CE02;
-                    else if (!strcasecmp(path,"6502i")) def=OPCODES_C6502I;
-                    else if (!strcmp(path,"65816")) def=OPCODES_C65816;
-                    else if (!strcasecmp(path,"65dtv02")) def=OPCODES_C65DTV02;
-                    else if (!strcasecmp(path,"65el02")) def=OPCODES_C65EL02;
-                    else if (!strcmp(path,"r65c02")) def=OPCODES_CR65C02;
-                    else if (!strcmp(path,"w65c02")) def=OPCODES_CW65C02;
-                    else if (strcasecmp(path,"default")) err_msg(ERROR___UNKNOWN_CPU,path);
+                    if (!strcmp(cpu,"6502")) def=OPCODES_C6502;
+                    else if (!strcasecmp(cpu,"65c02")) def=OPCODES_C65C02;
+                    else if (!strcasecmp(cpu,"65ce02")) def=OPCODES_C65CE02;
+                    else if (!strcasecmp(cpu,"6502i")) def=OPCODES_C6502I;
+                    else if (!strcmp(cpu,"65816")) def=OPCODES_C65816;
+                    else if (!strcasecmp(cpu,"65dtv02")) def=OPCODES_C65DTV02;
+                    else if (!strcasecmp(cpu,"65el02")) def=OPCODES_C65EL02;
+                    else if (!strcmp(cpu,"r65c02")) def=OPCODES_CR65C02;
+                    else if (!strcmp(cpu,"w65c02")) def=OPCODES_CW65C02;
+                    else if (strcasecmp(cpu,"default")) err_msg(ERROR___UNKNOWN_CPU,cpu);
                     set_cpumode(def);
                     break;
                 }
@@ -2278,10 +2280,12 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                         fixeddig = 0;
                     } else {
+                        const char *path;
                         if (val->obj != STR_OBJ) {err_msg_wrong_type(val, &epoint2);goto breakerr;}
-                        if (get_path(val, cfile->realname, path, sizeof(path))) {err_msg(ERROR_CONSTNT_LARGE,NULL);goto breakerr;}
+                        path = get_path(val, cfile->realname);
 
                         f = openfile(path, cfile->realname, 0, val);
+                        free((char *)path);
                         if (f->open>1) {
                             err_msg(ERROR_FILERECURSION,NULL);
                         } else {
@@ -2343,7 +2347,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     line_t lin, xlin;
                     struct linepos_s apoint, bpoint;
                     int nopos = -1;
-                    uint8_t expr[linelength];
+                    uint8_t *expr;
                     struct label_s *var;
                     struct star_s *s;
                     struct avltree *stree_old;
@@ -2351,7 +2355,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     int starexists;
 
                     new_waitfor(W_NEXT, &epoint);waitfor->skip=0;
-                    if (strlen((const char *)pline)>=linelength) {err_msg(ERROR_LINE_TOO_LONG,NULL);goto breakerr;}
                     if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { /* label */
                         int labelexists;
                         str_t varname;
@@ -2394,7 +2397,9 @@ struct value_s *compile(struct file_list_s *cflist)
                     s->addr = star;
                     star_tree = &s->tree;vline=0;
                     xlin=lin=sline; xpos=pos=cfile->p; apoint = lpoint;
-                    strcpy((char *)expr, (const char *)pline);var = NULL;
+                    expr = (uint8_t *)malloc(strlen((char *)pline) + 1);
+                    if (!expr) err_msg_out_of_memory();
+                    strcpy((char *)expr, (char *)pline); var = NULL;
                     for (;;) {
                         lpoint=apoint;
                         if (!get_exp(&w,1)) break; /* ellenorizve. */
@@ -2452,6 +2457,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             ignore();if (here() && here()!=';') {err_msg(ERROR_EXTRA_CHAR_OL,NULL);break;}
                         }
                     }
+                    free(expr);
                     if (pos!=xpos || lin!=xlin) close_waitfor(W_NEXT);
                     sline=xlin;cfile->p=xpos;
                     star_tree = stree_old; vline = ovline;

@@ -356,22 +356,23 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
             case 'D':
                 {
                     const uint8_t *c = (uint8_t *)optarg;
-                    uint8_t *p=&fin->data[fin->p], ch2;
-                    int i, j;
+                    uint8_t *p, ch2;
                     uint32_t ch = 0;
 
-                    if (fin->p + linelength > fin->len) {
-                        fin->len += linelength;
-                        if (!(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
-                    }
-
-                    p=&fin->data[fin->p];
+                    p = fin->data + fin->p; 
                     while ((ch=*c++)) {
+                        int i, j;
+                        if (p + 6*6 + 1 > fin->data + fin->len) {
+                            size_t o = p - fin->data;
+                            fin->len += 1024;
+                            if (!(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
+                            p = fin->data + o;
+                        }
                         switch (type) {
                         case UNKNOWN:
                         case UTF8:
                             if (ch < 0x80) {
-                                i = 0;
+                                break;
                             } else if (ch < 0xc0) {
                                 if (type == UNKNOWN) {
                                     type = ISO1; break;
@@ -415,7 +416,12 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                             break;
                         }
                         if (ch && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
-                        if (p > &fin->data[fin->p + linelength - 6*6]) break;
+                    }
+                    if (p >= fin->data + fin->len) {
+                        size_t o = p - fin->data;
+                        fin->len += 1024;
+                        if (!(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
+                        p = fin->data + o;
                     }
                     *p++ = 0;
                     fin->p = p - fin->data;

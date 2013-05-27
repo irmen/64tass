@@ -2012,8 +2012,6 @@ Out of memory
     won't happen ;)
 Can't write object file:
     cannot write the result
-Line too long
-    input line was too long
 Can't write listing file:
     cannot write the list file
 Can't write label file:
