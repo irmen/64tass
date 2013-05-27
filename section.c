@@ -158,7 +158,6 @@ void sectionprint(void) {
     l = root_section.next;
     while (l) {
         if (l->defpass == pass) {
-//            printf("Section:           ");
             if (l->size) {
                 sprintf(temp, "$%04" PRIaddress, l->start);
                 sprintf(temp2, "$%04" PRIaddress, l->start + l->size - 1);

@@ -38,7 +38,7 @@ enum type_e {
 
 typedef const struct obj_s* obj_t;
 struct obj_s {
-    int type;
+    enum type_e type;
     const char *name;
     void (*destroy)(struct value_s *);
     void (*copy)(const struct value_s *, struct value_s *);

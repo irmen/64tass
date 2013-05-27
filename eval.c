@@ -406,12 +406,12 @@ static void get_string(struct value_s *v, uint8_t ch) {
         v->obj = STR_OBJ;
         v->u.str.len = lpoint.pos - i - 1 - r;
         v->u.str.chars = i2;
-        d = malloc(v->u.str.len);
+        d = (uint8_t *)malloc(v->u.str.len);
         if (!d) err_msg_out_of_memory();
         v->u.str.data = d;
         e = pline + lpoint.pos - 1;
         while (e > p) {
-            p2 = memchr(p, ch, e - p);
+            p2 = (const uint8_t *)memchr(p, ch, e - p);
             if (p2) {
                 memcpy(d, p, p2 - p + 1);
                 d += p2 - p + 1; p = p2 + 2;
@@ -425,7 +425,7 @@ static void get_string(struct value_s *v, uint8_t ch) {
         v->obj = STR_OBJ;
         v->u.str.len = lpoint.pos - i - 1;
         v->u.str.chars = i2;
-        d = malloc(v->u.str.len);
+        d = (uint8_t *)malloc(v->u.str.len);
         if (!d) err_msg_out_of_memory();
         v->u.str.data = d;
         memcpy(d, pline + i, v->u.str.len);
@@ -646,7 +646,7 @@ static inline struct value_s *push(linepos_t epoint) {
     if (eval->outp >= eval->out_size) {
         size_t i;
         eval->out_size += 64;
-        eval->o_out = realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
+        eval->o_out = (struct values_s *)realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
         for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = &none_value;
     }
     o_out = &eval->o_out[eval->outp++];
@@ -658,7 +658,7 @@ static inline void push_oper(struct value_s *val, linepos_t epoint) {
     if (eval->outp >= eval->out_size) {
         size_t i;
         eval->out_size += 64;
-        eval->o_out = realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
+        eval->o_out = (struct values_s *)realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
         for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = &none_value;
     } else val_destroy(eval->o_out[eval->outp].val);
     eval->o_out[eval->outp].val = val;
@@ -828,7 +828,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
                 ev->values_size += 16;
-                ev->values = values = realloc(ev->values, sizeof(struct values_s)*ev->values_size);
+                ev->values = values = (struct values_s *)realloc(ev->values, sizeof(struct values_s)*ev->values_size);
                 if (!values) err_msg_out_of_memory();
                 for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
             }
@@ -1239,7 +1239,7 @@ static const struct value_s *apply_func(enum func_e func, struct value_s *v1, li
                 struct value_s **vals;
                 const struct value_s *val;
                 if (v1->u.list.len) {
-                    vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+                    vals = (struct value_s **)malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                     if (!vals) err_msg_out_of_memory();
                     for (;i < v1->u.list.len; i++) {
                         val = apply_func(func, v1->u.list.data[i], epoint);
@@ -1364,7 +1364,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                     if (end > start) end = start;
                     len2 = (start - end - step - 1) / -step;
                 }
-                val = malloc(len2 * sizeof(new_value.u.list.data[0]));
+                val = (struct value_s **)malloc(len2 * sizeof(new_value.u.list.data[0]));
                 if (!val) err_msg_out_of_memory();
                 i = 0;
                 while ((end > start && step > 0) || (end < start && step < 0)) {
@@ -1494,7 +1494,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                     new_value.obj = STR_OBJ;
                     new_value.u.str.len = user_error.len;
                     new_value.u.str.chars = user_error.chars;
-                    new_value.u.str.data = realloc(user_error.data, user_error.len);
+                    new_value.u.str.data = (uint8_t *)realloc(user_error.data, user_error.len);
                     val_replace_template(&vals->val, &new_value);
                     return;
                 default: err_msg_wrong_type(v[0].val, &v[0].epoint);
@@ -1939,7 +1939,7 @@ static int get_val2(struct eval_context_s *ev) {
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
                 ev->values_size += 16;
-                ev->values = values = realloc(values, sizeof(struct values_s)*ev->values_size);
+                ev->values = values = (struct values_s *)realloc(values, sizeof(struct values_s)*ev->values_size);
                 if (!values) err_msg_out_of_memory();
                 for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
             }
@@ -2034,7 +2034,7 @@ static int get_val2(struct eval_context_s *ev) {
                 val->obj = (op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ;
                 val->u.list.len = args;
                 if (args) {
-                    val->u.list.data = malloc(args * sizeof(val->u.list.data[0]));
+                    val->u.list.data = (struct value_s **)malloc(args * sizeof(val->u.list.data[0]));
                     if (!val->u.list.data) err_msg_out_of_memory();
                     while (args--) {
                         val->u.list.data[args] = values[vsp-1].val;
@@ -2064,7 +2064,7 @@ static int get_val2(struct eval_context_s *ev) {
                         if (values[vsp+j].val->obj == PAIR_OBJ) {
                             struct pair_s *p, *p2;
                             struct avltree_node *b;
-                            if (!(p=malloc(sizeof(struct pair_s)))) err_msg_out_of_memory();
+                            if (!(p=(struct pair_s *)malloc(sizeof(struct pair_s)))) err_msg_out_of_memory();
                             p->key = values[vsp+j].val->u.pair.key;
                             p->data = values[vsp+j].val->u.pair.data;
                             p->hash = obj_hash(p->key, &new_value, &values[vsp+j].epoint);
@@ -2607,7 +2607,7 @@ struct value_s *get_vals_tuple(obj_t obj) {
         if (i) {
             if (i >= ln) {
                 ln += 16;
-                vals = realloc(vals, ln * sizeof(retval->u.list.data[0]));
+                vals = (struct value_s **)realloc(vals, ln * sizeof(retval->u.list.data[0]));
                 if (!vals) err_msg_out_of_memory();
             }
             if (i == 1) {
@@ -2628,7 +2628,7 @@ struct value_s *get_vals_tuple(obj_t obj) {
         retval->obj = TUPLE_OBJ;
         retval->u.list.len = i;
         if (i != ln) {
-            vals = realloc(vals, i * sizeof(val->u.list.data[0]));
+            vals = (struct value_s **)realloc(vals, i * sizeof(val->u.list.data[0]));
             if (!vals) err_msg_out_of_memory();
         }
         retval->u.list.data = vals;
