@@ -83,7 +83,6 @@ extern void var_assign(struct label_s *, struct value_s *, int);
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
 #define get() pline[lpoint.pos++]
 #define here() pline[lpoint.pos]
-#define linelength 4096
 
 extern const uint8_t whatis[256];
 extern void tfree(void);

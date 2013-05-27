@@ -56,6 +56,6 @@ extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);
 extern void include_list_add(const char *);
-extern int get_path(const struct value_s *, const char *, char *, size_t);
+extern const char *get_path(const struct value_s *, const char *);
 
 #endif

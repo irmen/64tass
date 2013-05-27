@@ -49,7 +49,8 @@ void include_list_add(const char *path)
     if (i != j) strcat(include_list_last->path, "/");
 }
 
-int get_path(const struct value_s *v, const char *base, char *path, size_t size) {
+const char *get_path(const struct value_s *v, const char *base) {
+    char *path;
     size_t i;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
     size_t j;
@@ -66,10 +67,12 @@ int get_path(const struct value_s *v, const char *base, char *path, size_t size)
     i = c ? (c - base + 1) : 0;
 #endif
 
-    if (i && i < size) memcpy(path, base, i); else i = 0;
     if (!v) {
+        path = (char *)malloc(i + 1);
+        if (!path) err_msg_out_of_memory();
+        memcpy(path, base, i);
         path[i] = 0;
-        return 0;
+        return path;
     }
 
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
@@ -79,10 +82,12 @@ int get_path(const struct value_s *v, const char *base, char *path, size_t size)
     if (v->u.str.len && v->u.str.data[0]=='/') i = 0;
 #endif
 
-    if (i + v->u.str.len + 1 >= size) return 1;
+    path = (char *)malloc(i + v->u.str.len + 1);
+    if (!path) err_msg_out_of_memory();
+    memcpy(path, base, i);
     memcpy(path + i, v->u.str.data, v->u.str.len);
     path[i + v->u.str.len] = 0;
-    return 0;
+    return path;
 }
 
 FILE *file_open(const char *name, const char *mode)
@@ -155,15 +160,15 @@ static void file_free(struct avltree_node *aa)
 static struct file_s *lastfi=NULL;
 static uint16_t curfnum=1;
 struct file_s *openfile(const char* name, const char *base, int ftype, const struct value_s *val) {
-    char base2[linelength];
+    const char *base2;
     struct avltree_node *b;
     struct file_s *tmp;
     char *s;
     if (!lastfi)
 	if (!(lastfi=malloc(sizeof(struct file_s)))) err_msg_out_of_memory();
     lastfi->name=name;
-    get_path(NULL, base, base2, sizeof(base2));
-    lastfi->base=base2;
+    base2 = get_path(NULL, base);
+    lastfi->base = base2;
     b=avltree_insert(&lastfi->node, &file_tree, file_compare);
     if (!b) { //new file
 	enum filecoding_e type = E_UNKNOWN;
@@ -173,8 +178,6 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
 
 	if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
         strcpy(s, name);lastfi->name = s;
-	if (!(s=malloc(strlen(base2)+1))) err_msg_out_of_memory();
-        strcpy(s, base2);lastfi->base = s;
 	lastfi->data=NULL;
 	lastfi->len=0;
 	lastfi->p=0;
@@ -184,54 +187,79 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         tmp = lastfi;
         lastfi=NULL;
         if (name[0]) {
-            const char *usedname = name;
-            char path[linelength];
+            const char *path = NULL;
             if (val) {
                 struct include_list_s *i = include_list.next;
-                f=file_open(name, "rb");
+                f = file_open(name, "rb");
                 while (!f && i) {
-                    if (get_path(val, i->path, path, sizeof(path))) continue;
+                    free((char *)path);
+                    path = get_path(val, i->path);
                     f = file_open(path, "rb");
-                    usedname = path;
                     i = i->next;
                 }
             } else {
                 if (name[0]=='-' && !name[1]) f=stdin;
                 else f=file_open(name, "rb");
             }
-            if (!(s=malloc(strlen(usedname)+1))) err_msg_out_of_memory();
-            strcpy(s, usedname);tmp->realname = s;
+            if (!path) {
+                if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
+                strcpy(s, name);
+                path = s;
+            }
+            tmp->realname = path;
             if (!f) {
-                if (val) if (get_path(val, "", path, sizeof(path))) val = NULL;
+                path = val ? get_path(val, "") : NULL;
                 err_msg_file(ERROR_CANT_FINDFILE, val ? path : name);
+                free((char *)path);
                 return NULL;
             }
             if (ftype) {
                 if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Reading file:      %s\n",tmp->realname);
-                do {
-                    if (tmp->p + linelength > tmp->len) {
-                        tmp->len += linelength * 2;
-                        tmp->data=realloc(tmp->data, tmp->len);
+                if (!fseek(f, 0, SEEK_END)) {
+                    long len = ftell(f);
+                    if (len >= 0) {
+                        tmp->data = malloc(len);
+                        if (!tmp->data) err_msg_out_of_memory();
+                        tmp->len = len;
                     }
-                    tmp->p += fread(&tmp->data[tmp->p], 1, tmp->len - tmp->p, f);
+                    rewind(f);
+                }
+                do {
+                    if (tmp->p + 4096 > tmp->len) {
+                        tmp->len += 4096;
+                        tmp->data = realloc(tmp->data, tmp->len);
+                        if (!tmp->data) err_msg_out_of_memory();
+                    }
+                    tmp->p += fread(tmp->data + tmp->p, 1, tmp->len - tmp->p, f);
                 } while (!feof(f));
             } else {
                 if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",tmp->realname);
                 ch=getc(f);
                 ungetc(ch, f); 
                 if (!ch) type = E_UTF16BE; /* most likely */
-
+                if (!fseek(f, 0, SEEK_END)) {
+                    long len = ftell(f);
+                    if (len >= 0) {
+                        tmp->data = malloc(len + 4096);
+                        if (!tmp->data) err_msg_out_of_memory();
+                        tmp->len = len + 4096;
+                    }
+                    rewind(f);
+                }
                 do {
                     int i, j, ch2;
                     uint8_t *p;
                     uint32_t lastchar;
 
-                    if (tmp->p + linelength > tmp->len) {
-                        tmp->len += linelength * 2;
-                        tmp->data=realloc(tmp->data, tmp->len);
-                    }
-                    p=&tmp->data[tmp->p];
+                    p = tmp->data + tmp->p;
                     for (;;) {
+                        if (p + 6*6 + 1 > tmp->data + tmp->len) {
+                            size_t o = p - tmp->data;
+                            tmp->len += 4096;
+                            tmp->data = realloc(tmp->data, tmp->len);
+                            if (!tmp->data) err_msg_out_of_memory();
+                            p = tmp->data + o;
+                        }
                         lastchar = c;
                         if (arguments.toascii) {
                             switch (type) {
@@ -342,14 +370,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                             break;
                         }
                         if (c && c < 0x80) *p++ = c; else p = utf8out(c, p);
-                        if (p > &tmp->data[tmp->p + linelength - 6*6]) {
-                            err_msg(ERROR_LINE_TOO_LONG,NULL);ch=EOF;break;
-                        }
                     }
-                    i = p - &tmp->data[tmp->p];
-                    p=&tmp->data[tmp->p];
-                    if (i)
-                        while (i && p[i-1]==' ') i--;
+                    i = (p - tmp->data) - tmp->p;
+                    p = tmp->data + tmp->p;
+                    while (i && p[i-1]==' ') i--;
                     p[i++] = 0;
                     tmp->p += i;
 
@@ -360,6 +384,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             if (f!=stdin) fclose(f);
             tmp->len = tmp->p;
             tmp->data=realloc(tmp->data, tmp->len);
+            if (!tmp->data) err_msg_out_of_memory();
             tmp->coding = type;
         } else {
             if (!(s=malloc(1))) err_msg_out_of_memory();
@@ -370,6 +395,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
 
         tmp->uid=curfnum++;
     } else {
+        free((char *)base2);
         tmp = avltree_container_of(b, struct file_s, node);
         if (tmp->type != ftype) err_msg_file(ERROR__READING_FILE, name);
     }
