@@ -195,7 +195,7 @@ int calc2_sint_uint(oper_t op, ival_t v1, uval_t v2) {
             v->u.num.val = 0; return 0;
         }
         v->obj = SINT_OBJ; 
-        v->u.num.val = -((uval_t)-v1 >> v2); return 0;
+        v->u.num.val = ~((uval_t)~v1 >> v2); return 0;
     default: break;
     }
     return 1;

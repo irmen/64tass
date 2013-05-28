@@ -112,6 +112,8 @@
     .cerror len(-$123)!=12
     .cerror len(~%101)!=3
 
+    .cerror (-680876936 >> 8) != -2659676
+
     .cerror !(1 in [1,2,3])
     .cerror 1 in [2,3]
     .cerror !("a" in "abc")
