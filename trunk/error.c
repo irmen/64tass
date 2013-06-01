@@ -15,21 +15,14 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#include "error.h"
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include "error.h"
 #include "misc.h"
 #include "values.h"
 #include "file.h"
 #include "variables.h"
-#include "listobj.h"
-
-#if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
-#else
-#define snprintf(str, size, format, var) sprintf(str, format, var)
-#endif
+#include "64tass.h"
 
 unsigned int errors=0,conderrors=0,warnings=0;
 

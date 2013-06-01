@@ -33,7 +33,8 @@ extern int str_to_num(const struct value_s *, obj_t, struct value_s *, linepos_t
 extern uint8_t get_val_len(uval_t, enum type_e);
 extern size_t get_label(void);
 extern struct value_s *get_vals_tuple(obj_t);
-ival_t indexoffs(const struct value_s *, size_t);
+extern ival_t indexoffs(const struct value_s *, size_t);
+extern struct encoding_s *actual_encoding;
 
 struct values_s {
     struct value_s *val;

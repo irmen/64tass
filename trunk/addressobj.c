@@ -15,14 +15,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#include <stdlib.h>
-#include "obj.h"
 #include "values.h"
 #include "addressobj.h"
 
 #include "boolobj.h"
-#include "strobj.h"
-#include "numobj.h"
 #include "sintobj.h"
 #include "uintobj.h"
 

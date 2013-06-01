@@ -15,13 +15,12 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#include <stdlib.h>
 #include <string.h>
-#include "obj.h"
 #include "values.h"
 #include "variables.h"
 #include "misc.h"
 #include "section.h"
+#include "64tass.h"
 
 #include "listobj.h"
 #include "boolobj.h"

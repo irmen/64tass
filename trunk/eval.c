@@ -18,24 +18,19 @@
 
 #include "eval.h"
 #include <string.h>
-#include <stdlib.h>
 #include <math.h>
 #include "file.h"
-#include "error.h"
 #include "section.h"
 #include "encoding.h"
-#include "mem.h"
-#include "isnprintf.h"
 #include "macro.h"
-#include "values.h"
 #include "variables.h"
+#include "64tass.h"
 #include "misc.h"
 
 #include "listobj.h"
 #include "numobj.h"
 #include "floatobj.h"
 #include "strobj.h"
-#include "boolobj.h"
 #include "codeobj.h"
 #include "addressobj.h"
 #include "uintobj.h"

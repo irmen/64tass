@@ -16,8 +16,6 @@
 
 */
 #include "encoding.h"
-#include <stdlib.h>
-#include "libtree.h"
 #include "error.h"
 #include "string.h"
 #include "ternary.h"

@@ -16,11 +16,10 @@
 
 */
 #include <string.h>
-#include <stdlib.h>
 #include "file.h"
-#include "error.h"
 #include "values.h"
 #include "misc.h"
+#include "64tass.h"
 
 struct include_list_s {
     struct include_list_s *next;
