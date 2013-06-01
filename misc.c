@@ -21,18 +21,16 @@
 #define _GNU_SOURCE
 #endif
 #include "misc.h"
-#include <stdlib.h>
 #include <string.h>
+#include "64tass.h"
 #include "opcodes.h"
 #include "getopt.h"
-#include "error.h"
 #include "section.h"
 #include "encoding.h"
 #include "file.h"
 #include "eval.h"
 #include "variables.h"
 #include "ternary.h"
-#include "mem.h"
 
 #include "codeobj.h"
 

@@ -17,10 +17,10 @@
 */
 #include "mem.h"
 #include <string.h>
-#include <stdlib.h>
 #include "error.h"
 #include "file.h"
 #include "misc.h"
+#include "64tass.h"
 
 struct memblock_s { //starts and sizes
     size_t p, len;
@@ -282,10 +282,6 @@ int16_t read_mem(const struct memblocks_s *memblocks, size_t memp, size_t membp,
 void write_mark_mem(struct memblocks_s *memblocks, uint8_t c) {
     memblocks->mem.data[ptextaddr] = c;
 }
-
-
-extern void printllist(FILE *, int);
-extern int printaddr(FILE *, char, address_t);
 
 void list_mem(const struct memblocks_s *memblocks, FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl) { 
     address_t myaddr;

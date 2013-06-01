@@ -35,24 +35,18 @@
 #include <windows.h>
 #include <wincon.h>
 #endif
-#include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 
 #include <time.h>
-#include <errno.h>
 
+#include "64tass.h"
 #include "opcodes.h"
 #include "misc.h"
 #include "eval.h"
-#include "obj.h"
-#include "error.h"
 #include "section.h"
 #include "encoding.h"
 #include "file.h"
-#include "values.h"
 #include "variables.h"
-#include "mem.h"
 #include "macro.h"
 
 #include "listobj.h"
@@ -275,7 +269,7 @@ void new_waitfor(enum wait_e what, linepos_t epoint) {
     waitfor->skip = prevwaitfor->skip;
 }
 
-void reset_waitfor(void) {
+static void reset_waitfor(void) {
     struct linepos_s lpos = {0,0};
     waitfor_p = -1;
     new_waitfor(W_NONE, &lpos);
@@ -283,7 +277,7 @@ void reset_waitfor(void) {
     prevwaitfor = waitfor;
 }
 
-int close_waitfor(enum wait_e what) {
+static int close_waitfor(enum wait_e what) {
     if (waitfor->what == what) {
         if (waitfor->val) val_destroy(waitfor->val);
         waitfor_p--;

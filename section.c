@@ -16,10 +16,9 @@
 
 */
 #include "section.h"
-#include <stdlib.h>
-#include <string.h>
 #include "error.h"
 #include "misc.h"
+#include "64tass.h"
 
 struct section_s root_section;
 struct section_s *current_section = &root_section;
