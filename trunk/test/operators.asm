@@ -69,6 +69,24 @@
     .cerror "abcdef"[::3]!="ad"
     .cerror "abcdef"[:-2:2]!="ac"
     .cerror "abcdef"[1:-2:2]!="bd"
+    .cerror "abcdef"[[1,3,5]]!="bdf"
+
+    .cerror b"abcdef"[1]!="b"
+    .cerror b"abcdef"[1:]!=b"bcdef"
+    .cerror b"abcdef"[:2]!=b"ab"
+    .cerror b"abcdef"[:22]!=b"abcdef"
+    .cerror b"abcdef"[1:2]!=b"b"
+    .cerror b"abcdef"[-2:-1]!=b"e"
+    .cerror b"abcdef"[-23:-1]!=b"abcde"
+    .cerror b"abcdef"[-2:]!=b"ef"
+    .cerror b"abcdef"[:]!=b"abcdef"
+    .cerror b"abcdef"[22:]!=b""
+    .cerror b"abcdef"[-2:-13]!=b""
+    .cerror b"abcdef"[::2]!=b"ace"
+    .cerror b"abcdef"[::3]!=b"ad"
+    .cerror b"abcdef"[:-2:2]!=b"ac"
+    .cerror b"abcdef"[1:-2:2]!=b"bd"
+    .cerror b"abcdef"[[1,3,5]]!=b"bdf"
 
     .cerror (1,2,3,4,5,6)[1]!=2
     .cerror (1,2,3,4,5,6)[1:]!=(2,3,4,5,6)
@@ -85,6 +103,7 @@
     .cerror (1,2,3,4,5,6)[::3]!=(1,4)
     .cerror (1,2,3,4,5,6)[:-2:2]!=(1,3)
     .cerror (1,2,3,4,5,6)[1:-2:2]!=(2,4)
+    .cerror (1,2,3,4,5,6)[[1,3,5]]!=(2,4,6)
 
     .cerror (0 ? 2 : 3)!=3
     .cerror (1 ? 2 : 3)!=2
@@ -100,6 +119,9 @@
     .cerror "abc"[-1 ? 1 : 2 : 0 ? 1 : 2]!="b"
     .cerror [-1 ? 1 : 2 , 0 ? 1 : 2]!=[1,2]
     .cerror "a".."b"!="ab"
+    .cerror "a"..b"b"!=b"ab"
+    .cerror b"a".."b"!=b"ab"
+    .cerror b"a"..b"b"!=b"ab"
     .cerror (1,2)..(3,4)!=(1,2,3,4)
     .cerror [1,2]..[3,4]!=[1,2,3,4]
 

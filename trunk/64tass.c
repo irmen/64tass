@@ -58,6 +58,7 @@
 #include "uintobj.h"
 #include "sintobj.h"
 #include "boolobj.h"
+#include "bytesobj.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
@@ -1254,6 +1255,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         case T_CODE:
                         case T_FLOAT:
                         case T_STR:
+                        case T_BYTES:
                         case T_NUM: waitfor->skip = obj_truth(val) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         default: err_msg_wrong_type(val, &epoint);
                         case T_NONE: waitfor->skip = (prevwaitfor->skip & 1) << 1;break;
@@ -1267,6 +1269,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         case T_CODE:
                         case T_FLOAT:
                         case T_STR:
+                        case T_BYTES:
                         case T_NUM: waitfor->skip = (!obj_truth(val)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         default: err_msg_wrong_type(val, &epoint);
                         case T_NONE: waitfor->skip = (prevwaitfor->skip & 1) << 1;break;
@@ -1280,6 +1283,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         case T_NUM: waitfor->skip = (arguments.tasmcomp ? (~val->u.num.val & 0x8000) : 1) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         case T_CODE: waitfor->skip = (arguments.tasmcomp ? (~val->u.code.addr & 0x8000) : 1) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         case T_FLOAT: waitfor->skip = (val->u.real >= 0.0) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
+                        case T_BYTES:
                         case T_STR: waitfor->skip = prevwaitfor->skip & 1;break;
                         default: err_msg_wrong_type(val, &epoint);
                         case T_NONE: waitfor->skip = (prevwaitfor->skip & 1) << 1;break;
@@ -1293,6 +1297,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         case T_NUM: waitfor->skip = (arguments.tasmcomp ? (val->u.num.val & 0x8000) : 0) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         case T_CODE: waitfor->skip = (arguments.tasmcomp ? (val->u.code.addr & 0x8000) : 0) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         case T_FLOAT: waitfor->skip = (val->u.real < 0.0) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
+                        case T_BYTES:
                         case T_STR: waitfor->skip = (prevwaitfor->skip & 1) << 1;break;
                         default: err_msg_wrong_type(val, &epoint);
                         case T_NONE: waitfor->skip = (prevwaitfor->skip & 1) << 1;break;
@@ -1505,7 +1510,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0)) goto breakerr;
                         while ((val = get_val(NONE_OBJ, &epoint))) {
-                            if (val->obj != STR_OBJ || val->u.str.len) {
+                            if ((val->obj != STR_OBJ || val->u.str.len) && (val->obj != BYTES_OBJ || val->u.bytes.len)) {
                                 size_t i = 0;
                                 do {
                                     if (ch2 >= 0) {
@@ -1519,6 +1524,9 @@ struct value_s *compile(struct file_list_s *cflist)
                                     case T_STR:
                                         ch2 = petascii(&i, val);
                                         if (ch2 > 255) i = val->u.str.len;
+                                        break;
+                                    case T_BYTES:
+                                        ch2 = val->u.bytes.data[i++];
                                         break;
                                     case T_BOOL:
                                     case T_NUM:
@@ -1544,6 +1552,8 @@ struct value_s *compile(struct file_list_s *cflist)
                                             ch2 = -1;
                                             for (li=0; li < val->u.list.len; li++) {
                                                 struct value_s *val2 = val->u.list.data[li];
+                                                if (val2->obj == STR_OBJ && !val2->u.str.len) continue;
+                                                if (val2->obj == BYTES_OBJ && !val2->u.bytes.len) continue;
                                                 i = 0;
                                                 do {
                                                     if (ch2 >= 0) {
@@ -1555,6 +1565,9 @@ struct value_s *compile(struct file_list_s *cflist)
                                                     case T_STR:
                                                         ch2 = petascii(&i, val2);
                                                         if (ch2 > 255) i = val2->u.str.len;
+                                                        break;
+                                                    case T_BYTES:
+                                                        ch2 = val2->u.bytes.data[i++];
                                                         break;
                                                     case T_BOOL:
                                                     case T_NUM:
@@ -1582,7 +1595,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                                         if (ch2>=0x80) large=epoint;
                                                         if (prm==CMD_SHIFTL) ch2<<=1;
                                                     } else if (prm==CMD_NULL && !ch2 && val->obj != NONE_OBJ) large=epoint;
-                                                } while (val2->obj == STR_OBJ && val2->u.str.len > i);
+                                                } while ((val2->obj == STR_OBJ && val2->u.str.len > i) || (val2->obj == BYTES_OBJ && val2->u.bytes.len > i));
                                             }
                                             continue;
                                         }
@@ -1595,7 +1608,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                         if (ch2>=0x80) large=epoint;
                                         if (prm==CMD_SHIFTL) ch2<<=1;
                                     } else if (prm==CMD_NULL && !ch2 && val->obj != NONE_OBJ) large=epoint;
-                                } while (val->obj == STR_OBJ && val->u.str.len > i);
+                                } while ((val->obj == STR_OBJ && val->u.str.len > i) || (val->obj == BYTES_OBJ && val->u.bytes.len > i));
                             }
                         }
                         if (uninit) {memskip(uninit);sum += uninit;}
@@ -1633,9 +1646,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                         while ((val = get_val(NONE_OBJ, &epoint))) {
+                            if (val->obj == STR_OBJ) {val->obj->convert(val, &new_value, NUM_OBJ, &epoint, &epoint);val = &new_value;}
                             switch (val->obj->type) {
                             case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
-                            case T_STR: if (str_to_num(val, NUM_OBJ, &new_value, &epoint)) {large = epoint; ch2 = 0; break;} val = &new_value;
                             case T_FLOAT:
                             case T_CODE:
                             case T_NUM:
@@ -1661,9 +1674,9 @@ struct value_s *compile(struct file_list_s *cflist)
                                     size_t li;
                                     for (li=0; li < val->u.list.len; li++) {
                                         struct value_s *val2 = val->u.list.data[li];
+                                        if (val2->obj == STR_OBJ) {val2->obj->convert(val2, &new_value, NUM_OBJ, &epoint, &epoint);val2 = &new_value;}
                                         switch (val2->obj->type) {
                                         case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
-                                        case T_STR: if (str_to_num(val2, NUM_OBJ, &new_value, &epoint)) {large = epoint; ch2 = 0; break;} val2 = &new_value;
                                         case T_FLOAT:
                                         case T_CODE:
                                         case T_NUM:
@@ -1683,11 +1696,41 @@ struct value_s *compile(struct file_list_s *cflist)
                                             }
                                             ch2 = uv;
                                             break;
+                                        case T_BYTES:
+                                            {
+                                                size_t li2;
+                                                for (li2=0; li2 < val2->u.bytes.len; li2++) {
+                                                    ch2 = val2->u.bytes.data[li2];
+                                                    if (prm==CMD_RTA) ch2--;
+
+                                                    if (uninit) {memskip(uninit);uninit = 0;}
+                                                    pokeb((uint8_t)ch2);
+                                                    if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
+                                                    if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
+                                                    if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
+                                                }
+                                                continue;
+                                            }
                                         default: err_msg_wrong_type(val2, &epoint);
                                         case T_NONE:
                                                  if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                                  ch2 = fixeddig = 0;
                                         }
+                                        if (prm==CMD_RTA) ch2--;
+
+                                        if (uninit) {memskip(uninit);uninit = 0;}
+                                        pokeb((uint8_t)ch2);
+                                        if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
+                                        if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
+                                        if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
+                                    }
+                                    continue;
+                                }
+                            case T_BYTES:
+                                {
+                                    size_t li;
+                                    for (li=0; li < val->u.bytes.len; li++) {
+                                        ch2 = val->u.bytes.data[li];
                                         if (prm==CMD_RTA) ch2--;
 
                                         if (uninit) {memskip(uninit);uninit = 0;}

@@ -31,6 +31,7 @@
 #include "codeobj.h"
 #include "floatobj.h"
 #include "strobj.h"
+#include "bytesobj.h"
 
 int referenceit = 1;
 
@@ -74,27 +75,12 @@ void obj_oper_error(oper_t op) {
     struct value_s *e1, *e2;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     switch (op->op->u.oper.op) {
-    case O_CMP: 
-        if (v == v1 || v == v2) obj_destroy(v);
-        v->u.num.val = (v1->obj->type > v2->obj->type) - (v1->obj->type < v2->obj->type); v->obj = (v1->obj->type < v2->obj->type) ? SINT_OBJ : UINT_OBJ; return;
     case O_EQ: 
         if (v == v1 || v == v2) obj_destroy(v);
         v->u.num.val = (v1->obj->type == v2->obj->type); v->obj = BOOL_OBJ; return;
     case O_NE:
         if (v == v1 || v == v2) obj_destroy(v);
         v->u.num.val = (v1->obj->type != v2->obj->type); v->obj = BOOL_OBJ; return;
-    case O_LT: 
-        if (v == v1 || v == v2) obj_destroy(v);
-        v->u.num.val = (v1->obj->type < v2->obj->type); v->obj = BOOL_OBJ; return;
-    case O_GT: 
-        if (v == v1 || v == v2) obj_destroy(v);
-        v->u.num.val = (v1->obj->type > v2->obj->type); v->obj = BOOL_OBJ; return;
-    case O_LE: 
-        if (v == v1 || v == v2) obj_destroy(v);
-        v->u.num.val = (v1->obj->type <= v2->obj->type); v->obj = BOOL_OBJ; return;
-    case O_GE: 
-        if (v == v1 || v == v2) obj_destroy(v);
-        v->u.num.val = (v1->obj->type >= v2->obj->type); v->obj = BOOL_OBJ; return;
     default: break;
     }
     if (v == v1) {
@@ -822,6 +808,7 @@ void objects_init(void) {
     codeobj_init();
     strobj_init();
     listobj_init();
+    bytesobj_init();
 
     obj_init(&macro_obj, T_MACRO, "<macro>");
     macro_obj.destroy = macro_destroy;

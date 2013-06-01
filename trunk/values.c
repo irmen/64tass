@@ -22,11 +22,13 @@
 #include "strobj.h"
 #include "uintobj.h"
 #include "sintobj.h"
+#include "bytesobj.h"
 
 struct value_s none_value;
 struct value_s true_value;
 struct value_s false_value;
 struct value_s null_str;
+struct value_s null_bytes;
 struct value_s null_tuple;
 struct value_s null_list;
 
@@ -229,6 +231,10 @@ void init_values(void)
     null_str.u.str.len = 0;
     null_str.u.str.chars = 0;
     null_str.u.str.data = NULL;
+    null_bytes.obj = BYTES_OBJ;
+    null_bytes.refcount = 0;
+    null_bytes.u.str.len = 0;
+    null_bytes.u.str.data = NULL;
     null_tuple.obj = TUPLE_OBJ;
     null_tuple.refcount = 0;
     null_tuple.u.list.len = 0;

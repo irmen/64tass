@@ -156,6 +156,10 @@ struct value_s {
             const uint8_t *data;
         } str;
         struct {
+            size_t len;
+            const uint8_t *data;
+        } bytes;
+        struct {
             size_t size;
             uint8_t pass;
             signed char dtype;
@@ -254,6 +258,7 @@ extern struct value_s none_value;
 extern struct value_s true_value;
 extern struct value_s false_value;
 extern struct value_s null_str;
+extern struct value_s null_bytes;
 extern struct value_s null_tuple;
 extern struct value_s null_list;
 
