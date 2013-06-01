@@ -411,6 +411,18 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr)
            user_error->chars -= val->u.str.len - val->u.str.chars;
            break;
        }
+    case T_BYTES:
+        {
+            size_t i;
+            add_user_error(user_error, "bytes([");
+            for (i = 0;i < val->u.bytes.len; i++) {
+                char tmp[10];
+                sprintf(tmp, i ? ",$%02x" : "$%02x", val->u.bytes.data[i]);
+                add_user_error(user_error, tmp);
+            }
+            add_user_error(user_error, "])");
+            break;
+        }
     case T_GAP: add_user_error(user_error, "?");break;
     case T_LIST:
         {

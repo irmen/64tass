@@ -35,6 +35,7 @@
 #include "addressobj.h"
 #include "uintobj.h"
 #include "sintobj.h"
+#include "bytesobj.h"
 
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -327,43 +328,6 @@ uint_fast16_t petascii(size_t *i, const struct value_s *v) {
     err_msg(ERROR___UNKNOWN_CHR, &ch);
     ch = 0;
     return ch;
-}
-
-int str_to_num(const struct value_s *v1, obj_t obj, struct value_s *v, linepos_t epoint) {
-    uint16_t ch;
-    unsigned int large = 0;
-    size_t i = 0;
-    uval_t val = 0;
-
-    if (actual_encoding) {
-        while (v1->u.str.len > i) {
-            if (large >= (arguments.tasmcomp ? 8 : (8 * sizeof(val)))) {
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = *epoint;
-                return 1;
-            }
-
-            ch = petascii(&i, v1);
-            if (ch > 255) {
-                v->obj = NONE_OBJ;return 1;
-            }
-
-            val |= (uint8_t)ch << large;
-            large += 8;
-        }
-    } else if (v1->u.str.len) {
-        uint32_t ch2;
-
-        ch2 = v1->u.str.data[0];
-        if (ch2 & 0x80) i = utf8in(v1->u.str.data, &ch2); else i=1;
-        val = ch2;
-        large = 32;
-    }
-    v->obj = obj;
-    v->u.num.val = val;
-    v->u.num.len = large;
-    return 0;
 }
 
 static inline int utf8len(uint8_t ch) {
@@ -844,7 +808,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         v1 = &values[vsp-1];
         t1 = try_resolv(v1);
         if (t1 == T_STR) {
-            str_to_num(v1->val, NUM_OBJ, &tmp, &v1->epoint);
+            STR_OBJ->convert(v1->val, &tmp, NUM_OBJ, &v1->epoint, &v1->epoint);
             val_replace_template(&v1->val, &tmp);
             t1 = v1->val->obj->type;
         }
@@ -929,7 +893,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         v2 = &values[vsp-2];
         t2 = try_resolv(v2);
         if (t2 == T_STR) {
-            str_to_num(v2->val, NUM_OBJ, &tmp, &v2->epoint);
+            STR_OBJ->convert(v2->val, &tmp, NUM_OBJ, &v2->epoint, &v2->epoint);
             val_replace_template(&v2->val, &tmp); 
             t2 = v2->val->obj->type;
         }
@@ -1020,6 +984,7 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
 
     switch (value->val->obj->type) {
     case T_STR:
+    case T_BYTES:
     case T_SINT:
     case T_UINT:
     case T_CODE:
@@ -1050,7 +1015,7 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
         if (type_is_int(obj->type) || obj == GAP_OBJ) {
             switch (value->val->obj->type) {
             case T_STR:
-                str_to_num(value->val, (obj == GAP_OBJ) ? NUM_OBJ : obj, &new_value, &value->epoint);
+                value->val->obj->convert(value->val, &new_value, NUM_OBJ, &value->epoint, &value->epoint);
                 val_replace_template(&value->val, &new_value);
             case T_UINT:
             case T_SINT:
@@ -1277,6 +1242,11 @@ static void functions(struct values_s *vals, unsigned int args) {
                 case T_STR:
                     new_value.obj = UINT_OBJ;
                     new_value.u.num.val = v[0].val->u.str.chars;
+                    val_replace_template(&vals->val, &new_value);
+                    return;
+                case T_BYTES:
+                    new_value.obj = UINT_OBJ;
+                    new_value.u.num.val = v[0].val->u.bytes.len;
                     val_replace_template(&vals->val, &new_value);
                     return;
                 case T_LIST:
@@ -1667,6 +1637,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
     case T_LIST:
     case T_TUPLE:
     case T_STR:
+    case T_BYTES:
     case T_CODE:
     case T_NUM:
     case T_BOOL:
@@ -1684,6 +1655,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
                     ival_t offs;
                     switch (vals->val->obj->type) {
                     case T_STR: len = vals->val->u.str.chars; break;
+                    case T_BYTES: len = vals->val->u.bytes.len; break;
                     case T_CODE:
                         len = (vals->val->u.code.dtype < 0) ? -vals->val->u.code.dtype : vals->val->u.code.dtype;
                         len = vals->val->u.code.size / (len + !len);
@@ -1708,6 +1680,12 @@ static void indexes(struct values_s *vals, unsigned int args) {
                             STR_OBJ->slice(vals->val, offs, offs + 1, 1, &new_value, &vals->epoint);
                             val_replace_template(&vals->val, &new_value);
                         } else STR_OBJ->slice(vals->val, offs, offs + 1, 1, vals->val, &vals->epoint); 
+                        break;
+                    case T_BYTES: 
+                        new_value.obj = NUM_OBJ;
+                        new_value.u.num.len = 8;
+                        new_value.u.num.val = vals->val->u.bytes.data[offs];
+                        val_replace_template(&vals->val, &new_value);
                         break;
                     case T_CODE: 
                         v2 = vals->val;
@@ -1822,6 +1800,7 @@ static void slices(struct values_s *vals, unsigned int args) {
     case T_LIST:
     case T_TUPLE:
     case T_STR:
+    case T_BYTES:
     case T_CODE:
     case T_NUM:
     case T_BOOL:
@@ -1830,6 +1809,7 @@ static void slices(struct values_s *vals, unsigned int args) {
             ival_t offs = 0, end, step = 1;
             switch (vals->val->obj->type) {
             case T_STR: len = vals->val->u.str.chars; break;
+            case T_BYTES: len = vals->val->u.bytes.len; break;
             case T_CODE: 
                 len = (vals->val->u.code.dtype < 0) ? -vals->val->u.code.dtype : vals->val->u.code.dtype;
                 len = vals->val->u.code.size / (len + !len);
@@ -2001,7 +1981,7 @@ static int get_val2(struct eval_context_s *ev) {
                         }
                         try_resolv(&values[vsp-1]);
                         if (values[vsp-1].val->obj == STR_OBJ) {
-                            str_to_num(values[vsp-1].val, NUM_OBJ, &new_value, &values[vsp-1].epoint);
+                            STR_OBJ->convert(values[vsp-1].val, &new_value, NUM_OBJ, &values[vsp-1].epoint, &values[vsp-1].epoint);
                             val_replace_template(&values[vsp-1].val, &new_value);
                         }
                         if (type_is_num(values[vsp-1].val->obj->type) || values[vsp-1].val->obj == CODE_OBJ) {
@@ -2090,6 +2070,7 @@ static int get_val2(struct eval_context_s *ev) {
             switch (try_resolv(&values[vsp-1])) {
             case T_CODE: err_msg_strange_oper(op2, v1->val, NULL, &v1->epoint);
             case T_STR:
+            case T_BYTES:
             case T_UINT:
             case T_SINT: 
             case T_NUM:
@@ -2145,6 +2126,7 @@ static int get_val2(struct eval_context_s *ev) {
             {
                 oper.op = op2;
                 oper.v1 = v1->val;
+                oper.v2 = NULL;
                 oper.epoint = v1->epoint;
                 oper.epoint3 = o_out->epoint;
                 if (oper.v1->refcount != 1) {
@@ -2171,6 +2153,7 @@ static int get_val2(struct eval_context_s *ev) {
             case T_BOOL:
             case T_UINT:
             case T_STR:
+            case T_BYTES:
             case T_FLOAT:
             case T_LIST:
             case T_TUPLE:
@@ -2189,6 +2172,7 @@ static int get_val2(struct eval_context_s *ev) {
                 case T_BOOL:
                 case T_UINT:
                 case T_STR:
+                case T_BYTES:
                 case T_FLOAT:
                 case T_LIST:
                 case T_TUPLE:
@@ -2367,6 +2351,11 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
                     val->u.error.num = ERROR_CONSTNT_LARGE;
                     val->u.error.epoint = epoint;
                 }
+                goto other;
+            }
+            if ((ch | (arguments.casesensitive ? 0 : 0x20)) == 'b' && (pline[lpoint.pos + 1] == '"' || pline[lpoint.pos + 1] == '\'')) {
+                lpoint.pos += 2; val = push(&epoint); get_string(val, pline[lpoint.pos - 1]);
+                val->obj->convert(val, val, BYTES_OBJ, &epoint, &epoint);
                 goto other;
             }
             if (get_label()) {

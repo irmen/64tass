@@ -275,7 +275,7 @@ This is the reason for the strange definiton of inversion.
         .byte $1.8p4       ; 4:4 fixed point number (1.5)
         .int 12.2p8        ; 8:8 fixed point number (12.2)
 
-String constants
+Character string constants
 
 Strings are enclosed in single or double quotes and can hold any unicode
 character. Operations like indexing or slicing are always done on the original
@@ -352,6 +352,34 @@ x X   hexadecimal (uppercase)
 %     percent sign
 
         .text "%#04x bytes left" % (1000,)   ; $03e8 bytes left
+
+Byte string constants
+
+Byte strings are like strings, but hold bytes instead of characters. They can
+be created by prefixing quoted strings with a `b', this converts the string
+using the current encoding to bytes.
+
+       Byte string operators and functions
+..     concatenate strings b"a"..b"b" is b"ab"
+in     is substring of     b"b" in b"abc" is true
+x      repeat              b"ab" x 3 is b"ababab"
+x[i]   byte from start     b"abc"[1] is b"b"
+x[i]   byte from end       b"abc"[-1] is b"c"
+x[s]   no change           b"abc"[:] is b"abc"
+x[s]   cut off start       b"abc"[1:] is b"bc"
+x[s]   cut off end         b"abc"[:-1] is b"ab"
+x[s]   reverse             b"abc"[::-1] is b"cba"
+len(x) number of bytes     len(b"abc") is 3
+
+A byte string has a truth value of true if it contains at least one byte.
+
+Indexing and slicing works as with character strings.
+
+        .enc screen     ;use screen encoding
+mystr   = b"oeU"        ;convert text to bytes
+        .enc none       ;normal encoding
+
+        .text mystr     ;text as originally encoded
 
 List and tuples
 

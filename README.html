@@ -344,7 +344,7 @@ point one. This is the reason for the strange definiton of inversion.</p>
         <b class="d">.int</b> <span>12.2p8</span>        <i>; 8:8 fixed point number (12.2)</i>
 </pre>
 
-<h3>String constants</h3>
+<h3>Character string constants</h3>
 
 <p>Strings are enclosed in single or double quotes and can hold any unicode
 character. Operations like indexing or slicing are always done on the original
@@ -431,6 +431,38 @@ can be used:</p>
 
 <pre width=80>
         <b class="d">.text</b> <span class="s">"<span>%#04x</span> bytes left"</span> % (<span>1000</span>,)   <i>; $03e8 bytes left</i>
+</pre>
+
+<h3>Byte string constants</h3>
+
+<p>Byte strings are like strings, but hold bytes instead of characters. They
+can be created by prefixing quoted strings with a <q>b</q>, this converts the
+string using the current encoding to bytes.</p>
+
+<table border="0" class="oper">
+<caption>Byte string operators and functions</caption>
+<tr><td>..<td>concatenate strings<td><code><span class="s">b"a"</span>..<span class="s">b"b"</span></code> is <code><span class="s">b"ab"</span></code>
+<tr><td>in<td>is substring of<td><code><span class="s">b"b"</span> <span class="k">in</span> <span class="s">b"abc"</span></code> is true
+<tr><td>x<td>repeat<td><code><span class="s">b"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">b"ababab"</span></code>
+<tr><td>x[i]<td>byte from start<td><code><span class="s">b"abc"</span>[<span>1</span>]</code> is <code><span class="s">b"b"</span></code>
+<tr><td>x[i]<td>byte from end<td><code><span class="s">b"abc"</span>[<span>-1</span>]</code> is <code><span class="s">b"c"</span></code>
+<tr><td>x[s]<td>no change<td><code><span class="s">b"abc"</span>[:]</code> is <code><span class="s">b"abc"</span></code>
+<tr><td>x[s]<td>cut off start<td><code><span class="s">b"abc"</span>[<span>1</span>:]</code> is <code><span class="s">b"bc"</span></code>
+<tr><td>x[s]<td>cut off end<td><code><span class="s">b"abc"</span>[:<span>-1</span>]</code> is <code><span class="s">b"ab"</span></code>
+<tr><td>x[s]<td>reverse<td><code><span class="s">b"abc"</span>[::<span>-1</span>]</code> is <code><span class="s">b"cba"</span></code>
+<tr><td>len(x)<td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
+</table>
+
+<p>A byte string has a truth value of true if it contains at least one byte.</p>
+
+<p>Indexing and slicing works as with character strings.</p>
+
+<pre width=80>
+        <b class="k">.enc</b> screen	<i>;use screen encoding</i>
+mystr   <b>=</b> <span class="s">b"oeU"</span>        <i>;convert text to bytes</i>
+        <b class="k">.enc</b> none	<i>;normal encoding</i>
+
+        <b class="d">.text</b> <u>mystr</u>     <i>;text as originally encoded</i>
 </pre>
 
 <h3>List and tuples</h3>

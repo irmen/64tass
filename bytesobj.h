@@ -15,28 +15,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-#ifndef EVAL_H
-#define EVAL_H
-#include "values.h"
-#include "obj.h"
+#ifndef _BYTESOBJ_H
+#define _BYTESOBJ_H
 
-extern int get_exp(int *, int);
-extern int get_exp_var(void);
-extern struct value_s *get_val(obj_t, struct linepos_s *);
-extern void destroy_eval(void);
-extern void init_eval(void);
-extern void eval_enter(void);
-extern void eval_leave(void);
-extern int eval_finish(void);
-extern uint_fast16_t petascii(size_t *, const struct value_s *);
-extern uint8_t get_val_len(uval_t, enum type_e);
-extern size_t get_label(void);
-extern struct value_s *get_vals_tuple(obj_t);
-extern ival_t indexoffs(const struct value_s *, size_t);
-extern struct encoding_s *actual_encoding;
+extern obj_t BYTES_OBJ;
 
-struct values_s {
-    struct value_s *val;
-    struct linepos_s epoint;
-};
+extern void bytesobj_init(void);
 #endif

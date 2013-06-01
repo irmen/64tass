@@ -26,6 +26,7 @@
 #include "uintobj.h"
 #include "boolobj.h"
 #include "sintobj.h"
+#include "bytesobj.h"
 
 struct encoding_s;
 static struct obj_s obj;
@@ -124,17 +125,37 @@ static void convert(struct value_s *v1, struct value_s *v, obj_t t, linepos_t UN
         return;
     }
     if (t == STR_OBJ) {
-        if (v == v1) return;
-        v->obj = t;
-        v->u.str.len = v1->u.str.len;
-        v->u.str.chars = v1->u.str.chars;
-        if (v->u.str.len) {
-            uint8_t *s;
-            s = malloc(v->u.str.len);
+        if (v != v1) copy(v1, v);
+        return;
+    }
+    if (t == BYTES_OBJ) {
+        size_t len = v1->u.str.len, len2 = 0;
+        uint8_t *s;
+        if (len) {
+            s = malloc(len);
             if (!s) err_msg_out_of_memory();
-            memcpy(s, v1->u.str.data, v->u.str.len);
-            v->u.str.data = s;
-        } else v->u.str.data = NULL;
+
+            if (actual_encoding) {
+                size_t i = 0;
+                int16_t ch;
+                while (v1->u.str.len > i) {
+                    ch = petascii(&i, v1);
+                    if (ch > 255) {
+                        free(s);
+                        v->obj = NONE_OBJ;
+                        return;
+                    }
+                    s[len2++] = ch;
+                }
+            } else {
+                memcpy(s, v1->u.str.data, len);
+                len2 = len;
+            }
+        } else s = NULL;
+        if (v == v1) destroy(v1);
+        v->obj = t;
+        v->u.bytes.len = len2;
+        v->u.bytes.data = s;
         return;
     }
     return;
@@ -333,6 +354,18 @@ static void calc2(oper_t op) {
             } else tmp.obj->copy_temp(&tmp, v);
         }
         return;
+    case T_BYTES: 
+        {
+            struct value_s tmp;
+            convert(v1, &tmp, BYTES_OBJ, &op->epoint, &op->epoint);
+            if (tmp.obj == BYTES_OBJ) {
+                if (v1 == v) destroy(v);
+                op->v1 = &tmp;
+                BYTES_OBJ->calc2(op);
+                op->v1 = v1;
+            } else tmp.obj->copy_temp(&tmp, v);
+        }
+        return;
     case T_TUPLE:
     case T_LIST: 
         if (op->op == &o_MOD) {
@@ -362,6 +395,18 @@ static void rcalc2(oper_t op) {
                 if (v2 == v) destroy(v);
                 op->v2 = &tmp;
                 NUM_OBJ->rcalc2(op); 
+                op->v2 = v2;
+            } else tmp.obj->copy_temp(&tmp, v);
+        }
+        return;
+    case T_BYTES: 
+        {
+            struct value_s tmp;
+            convert(v2, &tmp, BYTES_OBJ, &op->epoint, &op->epoint);
+            if (tmp.obj == BYTES_OBJ) {
+                if (v2 == v) destroy(v);
+                op->v2 = &tmp;
+                BYTES_OBJ->rcalc2(op); 
                 op->v2 = v2;
             } else tmp.obj->copy_temp(&tmp, v);
         }
