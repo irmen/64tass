@@ -21,10 +21,10 @@
 #include <stdio.h>
 #include "inttypes.h"
 #ifndef REVISION
-#define REVISION "?"
+#define REVISION "484?"
 #endif
 #undef VERSION
-#define VERSION "1.5x" REVISION
+#define VERSION "1.50." REVISION
 #define MAX_PASS 20
 
 struct file_list_s;

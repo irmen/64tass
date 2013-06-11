@@ -1,15 +1,13 @@
-CC = gcc
+CC = i686-w64-mingw32-gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o numobj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o sintobj.o uintobj.o bytesobj.o
 LIBS = -lm
 LANG = C
 REVISION := $(shell svnversion)
-CFLAGS = -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -g -Wstrict-aliasing=2 -Werror=missing-prototypes
-LDFLAGS = -g
+CFLAGS = -O2 -march=i586 -W -Wall -Wextra -DREVISION="\"$(REVISION)\""
+LDFLAGS = -s
 CFLAGS += $(LDFLAGS)
 
 .SILENT:
-
-all: 64tass README
 
 64tass: $(OBJ)
 	$(CC) -o $@ $^ $(LIBS)
@@ -71,9 +69,6 @@ values.o: values.c values.h inttypes.h error.h libtree.h obj.h boolobj.h \
  listobj.h strobj.h uintobj.h sintobj.h bytesobj.h
 variables.o: variables.c variables.h libtree.h inttypes.h misc.h values.h \
  error.h obj.h
-
-README: README.html
-	-w3m -dump -no-graph README.html | sed -e 's/\s\+$$//' >README
 
 .PHONY: clean
 
