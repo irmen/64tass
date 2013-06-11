@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include "inttypes.h"
 #ifndef REVISION
-#define REVISION "484?"
+#define REVISION "486?"
 #endif
 #undef VERSION
 #define VERSION "1.50." REVISION
