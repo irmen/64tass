@@ -47,16 +47,16 @@
 #define PRIxPTR "x"
 #endif
 
-typedef uint_fast32_t line_t;
+typedef uint32_t line_t;
 #define PRIuline PRIu32
 #define PRIxline PRIx32
 typedef uint32_t address_t;
 #define PRIaddress PRIx32
 typedef uint32_t linecpos_t;
 struct linepos_s {uint32_t pos, upos;};
+#define PRIlinepos PRIu32
 typedef const struct linepos_s *linepos_t;
 typedef struct {size_t len;const uint8_t *data;} str_t;
-#define PRIlinepos PRIuFAST16
 typedef int32_t ival_t;
 #define PRIdval PRId32
 typedef uint32_t uval_t;
