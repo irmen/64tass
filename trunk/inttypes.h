@@ -48,12 +48,12 @@
 #endif
 
 typedef uint_fast32_t line_t;
-#define PRIuline PRIuFAST32
-#define PRIxline PRIxFAST32
-typedef uint_fast32_t address_t;
-#define PRIaddress PRIxFAST32
-typedef uint_fast16_t linecpos_t;
-struct linepos_s {uint_fast16_t pos, upos;};
+#define PRIuline PRIu32
+#define PRIxline PRIx32
+typedef uint32_t address_t;
+#define PRIaddress PRIx32
+typedef uint32_t linecpos_t;
+struct linepos_s {uint32_t pos, upos;};
 typedef const struct linepos_s *linepos_t;
 typedef struct {size_t len;const uint8_t *data;} str_t;
 #define PRIlinepos PRIuFAST16

@@ -1594,7 +1594,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                                     if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
                                                         if (ch2>=0x80) large=epoint;
                                                         if (prm==CMD_SHIFTL) ch2<<=1;
-                                                    } else if (prm==CMD_NULL && !ch2 && val->obj != NONE_OBJ) large=epoint;
+                                                    } else if (prm==CMD_NULL && !ch2 && val2->obj != NONE_OBJ) large=epoint;
                                                 } while ((val2->obj == STR_OBJ && val2->u.str.len > i) || (val2->obj == BYTES_OBJ && val2->u.bytes.len > i));
                                             }
                                             continue;

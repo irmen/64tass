@@ -4,7 +4,7 @@
 <title>64tass v1.5x manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
-<meta name="Keywords" content="6502 assembler, 65816 assembler, 65C02 assembler, dtv assembler, c64 cross assembler, 6510 assembler">
+<meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
 <meta name="Author" content="Kajtar Zsolt">
 <style>
 dt {margin-top:0.5em}
@@ -57,7 +57,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.5x r459 manual</h1>
+<h1>64tass v1.5x r484 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -195,9 +195,8 @@ hibytes <b class="d">.byte</b> &gt;(<u>-</u>)      <i>; high bytes</i>
 <h3>Integer constants</h3>
 
 <p>Integer constants can be entered as decimal (<code>[0-9]+</code>),
-hexadecimal (<code>$[0-9a-f]*</code>) or binary (<code>%[01]*</code>). Short
-strings of few characters are converted to a numeric constant using the current
-encoding at the place of use. The following operations are accepted:</p>
+hexadecimal (<code>$[0-9a-f]*</code>) or binary (<code>%[01]*</code>).
+The following operations are accepted:</p>
 
 <table border="0" class="oper">
 <caption>Integer operators and functions</caption>
@@ -244,6 +243,9 @@ also set when slicing, bit (1), byte (8) or word (16) extraction is
 used.</p>
 
 <p>Integers are automatically promoted to float as necessary in expressions.</p>
+
+<p><b>The precision is limited to 32 bits in this version. This might change in
+the future, so don't rely on clipping of higher bits.</b></p>
 
 <pre width=80>
         <b class="d">.byte</b> <span>23</span>        <i>; decimal</i>
@@ -574,6 +576,10 @@ content is not forward referencable, only the address of label. Usually the
 size of a single element is a byte, but this can be more for data definitions.
 Trying to <q>overwrite</q> the same memory locations later does not affect the
 content anymore.</p>
+
+<p><b>Indexing and slicing of labels to access the compiled content might be
+implemented differently in future releases. Use this feature at your own
+risk for now, you might need to update your code later.</b></p>
 
 <table border="0" class="oper">
 <caption>Label operators and functions</caption>
@@ -2291,7 +2297,7 @@ Improved TASS compatibility, PETSCII codes by Groepaz.</p>
 
 <p>Additional code: my_getopt command-line argument parser by Benjamin
 Sittler, avl tree code by Franck Bui-Huu, ternary tree code by Daniel
-Berlin, snprintf Alain Magloire.</p>
+Berlin, snprintf Alain Magloire, Amiga OS4 support files by Janne Per&auml;aho.</p>
 
 <p>Main developer and maintainer: soci at c64.rulez.org</p>
 <hr>
