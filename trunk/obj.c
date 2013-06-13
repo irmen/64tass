@@ -129,7 +129,7 @@ static int invalid_hash(const struct value_s *v1, struct value_s *v, linepos_t e
 }
 
 static int gap_hash(const struct value_s *UNUSED(v1), struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
-    return (unsigned int)GAP_OBJ & ((~(unsigned int)0) >> 1);
+    return 0; /* whatever, there's only one */
 }
 
 static void invalid_convert(struct value_s *v1, struct value_s *v, obj_t UNUSED(t), linepos_t epoint, linepos_t UNUSED(epoint2)) {

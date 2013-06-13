@@ -203,7 +203,7 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     oper.v = &tmp;
     oper.v1->obj->calc2(&oper);
     if (tmp.obj == UINT_OBJ || tmp.obj == SINT_OBJ) return tmp.u.num.val;
-    return 0;
+    return oper.v1->obj->type - oper.v2->obj->type;
 }
 
 void init_values(void)
