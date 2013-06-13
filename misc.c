@@ -241,28 +241,28 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
                 case D_BYTE: 
                     fputs(" byte", flab);
                     if (l->value->u.code.size > 1) {
-                        fprintf(flab, " %x", l->value->u.code.size);
+                        fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
                     }
                     break;
                 case D_INT:
                 case D_WORD: 
                     fputs(" word", flab);
                     if (l->value->u.code.size > 2) {
-                        fprintf(flab, " %x", l->value->u.code.size);
+                        fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
                     }
                     break;
                 case D_LINT:
                 case D_LONG:
                     fputs(" long", flab);
                     if (l->value->u.code.size > 3) {
-                        fprintf(flab, " %x", l->value->u.code.size);
+                        fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
                     }
                     break;
                 case D_DINT:
                 case D_DWORD:
                     fputs(" dword", flab);
                     if (l->value->u.code.size > 4) {
-                        fprintf(flab, " %x", l->value->u.code.size);
+                        fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
                     }
                     break;
                 case D_NONE:

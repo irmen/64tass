@@ -47,6 +47,10 @@
 #define PRIxPTR "x"
 #endif
 
+#ifndef PRIxSIZE
+#define PRIxSIZE "zx"
+#endif
+
 typedef uint32_t line_t;
 #define PRIuline PRIu32
 #define PRIxline PRIx32
