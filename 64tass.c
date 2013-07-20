@@ -3115,8 +3115,8 @@ struct value_s *compile(struct file_list_s *cflist)
                                                         if (!labelexists) adr=(uint16_t)(adr-1);
                                                         ln=2;
                                                     } else if (cnmemonic[ADR_REL] == 0x82 && opcode==c65el02) {
-                                                        int dist2 = (int16_t)adr; dist2 += (dist < 0) ? 0x80 : -0x7f;
-                                                        if (!dist || ((dist2 > 0) ? dist2 : -dist2) < ((dist > 0) ? dist : -dist)) dist = dist2;
+                                                        int dist2 = (int16_t)adr; dist2 += (dist2 < 0) ? 0x80 : -0x7f;
+                                                        if (!dist || abs(dist2) < abs(dist)) dist = dist2;
                                                         err = ERROR_BRANCH_TOOFAR;continue; /* rer not a branch */
                                                     } else {
                                                         longbranch=cnmemonic[ADR_REL]^0x4C;
@@ -3135,8 +3135,8 @@ struct value_s *compile(struct file_list_s *cflist)
                                                     }
                                                     ln=2;
                                                 } else {
-                                                    int dist2 = (int16_t)adr; dist2 += (dist < 0) ? 0x80 : -0x7f;
-                                                    if (!dist || ((dist2 > 0) ? dist2 : -dist2) < ((dist > 0) ? dist : -dist)) dist = dist2;
+                                                    int dist2 = (int16_t)adr; dist2 += (dist2 < 0) ? 0x80 : -0x7f;
+                                                    if (!dist || abs(dist2) < abs(dist)) dist = dist2;
                                                     err = ERROR_BRANCH_TOOFAR;continue;
                                                 }
                                             }
