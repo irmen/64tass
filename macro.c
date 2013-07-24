@@ -66,7 +66,7 @@ void mtranslate(void)
                     err_msg(ERROR_MISSING_ARGUM,NULL);
                     break;
                 }
-                if (p + macro_parameters.current->param[j].len >= macro_parameters.current->pline.len) {
+                if (p + macro_parameters.current->param[j].len > macro_parameters.current->pline.len) {
                     macro_parameters.current->pline.len += macro_parameters.current->param[j].len + 1024;
                     macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
                     if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
@@ -76,7 +76,7 @@ void mtranslate(void)
                 lpoint.pos++;continue;
             } else if (ch=='@') {
                 /* \@ gives complete parameter list */
-                if (p + macro_parameters.current->all.len >= macro_parameters.current->pline.len) {
+                if (p + macro_parameters.current->all.len > macro_parameters.current->pline.len) {
                     macro_parameters.current->pline.len += macro_parameters.current->all.len + 1024;
                     macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
                     if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
@@ -113,7 +113,7 @@ void mtranslate(void)
                             err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
                             break;
                         }
-                        if (p + macro_parameters.current->param[j].len >= macro_parameters.current->pline.len) {
+                        if (p + macro_parameters.current->param[j].len > macro_parameters.current->pline.len) {
                             macro_parameters.current->pline.len += macro_parameters.current->param[j].len + 1024;
                             macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
                             if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
@@ -135,7 +135,7 @@ void mtranslate(void)
             if ((ch=pline[lpoint.pos+1])>='1' && ch<='9') {
                 /* @1..@9 */
                 if ((j=ch-'1') >= macro_parameters.current->len) {err_msg(ERROR_MISSING_ARGUM,NULL); break;}
-                if (p + macro_parameters.current->param[j].len >= macro_parameters.current->pline.len) {
+                if (p + macro_parameters.current->param[j].len > macro_parameters.current->pline.len) {
                     macro_parameters.current->pline.len += macro_parameters.current->param[j].len + 1024;
                     macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
                     if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
@@ -151,12 +151,17 @@ void mtranslate(void)
             } else ch='@';
         }
     ok:
-        if (p + 1 >= macro_parameters.current->pline.len) {
+        if (p + 1 > macro_parameters.current->pline.len) {
             macro_parameters.current->pline.len += 1024;
             macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
             if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
         }
         macro_parameters.current->pline.data[p++]=ch;
+    }
+    if (p + 1 > macro_parameters.current->pline.len) {
+        macro_parameters.current->pline.len += 1024;
+        macro_parameters.current->pline.data = realloc((char *)macro_parameters.current->pline.data, macro_parameters.current->pline.len);
+        if (!macro_parameters.current->pline.data) err_msg_out_of_memory();
     }
     macro_parameters.current->pline.data[p]=0;
     pline = macro_parameters.current->pline.data; lpoint.pos = lpoint.upos = 0;
