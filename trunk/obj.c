@@ -674,6 +674,10 @@ static void identref_calc2(oper_t op) {
     if (!v1) return;
 
     if (op->op == &o_MEMBER) {
+        if (v1->u.identref.label->value->obj == NONE_OBJ) {
+            v->obj = NONE_OBJ;
+            return;
+        }
         switch (v2->obj->type) {
         case T_IDENT:
             l = find_label2(&v2->u.ident.name, v1->u.identref.label);
