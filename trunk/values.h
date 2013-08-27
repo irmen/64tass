@@ -22,10 +22,10 @@
 #include "inttypes.h"
 #include "error.h"
 #include "obj.h"
-struct memblocks_s;
+#include "intobj.h"
+#include "bitsobj.h"
 
-#define type_is_int(a) ((a) >= T_BOOL && (a) <= T_SINT) 
-#define type_is_num(a) ((a) >= T_BOOL && (a) <= T_FLOAT) 
+struct memblocks_s;
 
 enum oper_e {
     O_SEPARATOR,     /* ,     */
@@ -142,10 +142,7 @@ struct value_s {
     obj_t obj;
     size_t refcount;
     union {
-        struct {
-            uint8_t len;
-            ival_t val;
-        } num;
+        integer_t integer;
         struct {
             uint32_t type;
             address_t val;
@@ -160,6 +157,7 @@ struct value_s {
             size_t len;
             const uint8_t *data;
         } bytes;
+        bits_t bits;
         struct {
             size_t size;
             uint8_t pass;
@@ -217,7 +215,7 @@ struct value_s {
             int prio;
         } oper;
         struct {
-            int num;
+            enum errors_e num;
             struct linepos_s epoint;
             union {
                 str_t ident;
@@ -226,6 +224,7 @@ struct value_s {
                     struct value_s *v1;
                     struct value_s *v2;
                 } invoper;
+                int bits;
             } u;
         } error;
         struct {
@@ -241,6 +240,7 @@ struct value_s {
             struct linepos_s epoint;
         } anonident;
         double real;
+        int boolean;
     } u;
 };
 
@@ -251,8 +251,7 @@ extern void val_replace_template(struct value_s **, const struct value_s *);
 extern struct value_s *val_realloc(struct value_s **);
 extern void val_set_template(struct value_s **, const struct value_s *);
 extern struct value_s *val_reference(struct value_s *);
-extern void val_print(const struct value_s *, FILE *);
-extern int val_hash(const struct value_s *);
+extern int val_print(const struct value_s *, FILE *);
 extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
 
 extern struct value_s none_value;
@@ -260,6 +259,7 @@ extern struct value_s true_value;
 extern struct value_s false_value;
 extern struct value_s null_str;
 extern struct value_s null_bytes;
+extern struct value_s null_bits;
 extern struct value_s null_tuple;
 extern struct value_s null_list;
 

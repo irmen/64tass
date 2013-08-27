@@ -21,15 +21,16 @@
 #include "boolobj.h"
 #include "listobj.h"
 #include "strobj.h"
-#include "uintobj.h"
-#include "sintobj.h"
+#include "intobj.h"
 #include "bytesobj.h"
+#include "bitsobj.h"
 
 struct value_s none_value;
 struct value_s true_value;
 struct value_s false_value;
 struct value_s null_str;
 struct value_s null_bytes;
+struct value_s null_bits;
 struct value_s null_tuple;
 struct value_s null_list;
 
@@ -120,7 +121,7 @@ struct value_s *val_alloc(void) {
     values_free = values_free->next;
     if (!values_free) {
         struct values_s *old = values;
-        values = malloc(sizeof(struct values_s));
+        values = (struct values_s *)malloc(sizeof(struct values_s));
         if (!values) err_msg_out_of_memory();
         for (i = 0; i < 254; i++) {
             values->vals[i].next = &values->vals[i+1];
@@ -202,14 +203,23 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     oper.v2 = b->key;
     oper.v = &tmp;
     oper.v1->obj->calc2(&oper);
-    if (tmp.obj == UINT_OBJ || tmp.obj == SINT_OBJ) return tmp.u.num.val;
+    if (tmp.obj == INT_OBJ) return tmp.u.integer.len;
     return oper.v1->obj->type - oper.v2->obj->type;
+}
+
+int val_print(const struct value_s *v1, FILE *f) {
+    struct value_s tmp;
+    int len;
+    v1->obj->repr(v1, &tmp);
+    len = fwrite(tmp.u.str.data, 1, tmp.u.str.len, f);
+    tmp.obj->destroy(&tmp);
+    return len;
 }
 
 void init_values(void)
 {
     size_t i;
-    values = malloc(sizeof(struct values_s));
+    values = (struct values_s *)malloc(sizeof(struct values_s));
     if (!values) err_msg_out_of_memory();
     for (i = 0; i < 254; i++) {
         values->vals[i].next = &values->vals[i+1];
@@ -223,10 +233,10 @@ void init_values(void)
     none_value.refcount = 0;
     true_value.obj = BOOL_OBJ;
     true_value.refcount = 0;
-    true_value.u.num.val = 1;
+    true_value.u.boolean = 1;
     false_value.obj = BOOL_OBJ;
     false_value.refcount = 0;
-    false_value.u.num.val = 0;
+    false_value.u.boolean = 0;
     null_str.obj = STR_OBJ;
     null_str.refcount = 0;
     null_str.u.str.len = 0;
@@ -234,8 +244,15 @@ void init_values(void)
     null_str.u.str.data = NULL;
     null_bytes.obj = BYTES_OBJ;
     null_bytes.refcount = 0;
-    null_bytes.u.str.len = 0;
-    null_bytes.u.str.data = NULL;
+    null_bytes.u.bytes.len = 0;
+    null_bytes.u.bytes.data = NULL;
+    null_bits.obj = BITS_OBJ;
+    null_bits.refcount = 0;
+    null_bits.u.bits.len = 0;
+    null_bits.u.bits.bits = 0;
+    null_bits.u.bits.inv = 0;
+    null_bits.u.bits.val[0] = 0;
+    null_bits.u.bits.data = null_bits.u.bits.val;
     null_tuple.obj = TUPLE_OBJ;
     null_tuple.refcount = 0;
     null_tuple.u.list.len = 0;
@@ -407,7 +424,7 @@ void init_values(void)
     o_BANK.u.oper.prio = 4;
     o_STRING.obj = OPER_OBJ;
     o_STRING.refcount = 0;
-    o_STRING.u.oper.name = "string '^";
+    o_STRING.u.oper.name = "decimal string '^";
     o_STRING.u.oper.op = O_STRING;
     o_STRING.u.oper.prio = 4;
     o_LOR.obj = OPER_OBJ;
@@ -497,7 +514,7 @@ void init_values(void)
     o_ADD.u.oper.prio = 13;
     o_SUB.obj = OPER_OBJ;
     o_SUB.refcount = 0;
-    o_SUB.u.oper.name = "substract '-";
+    o_SUB.u.oper.name = "subtract '-";
     o_SUB.u.oper.op = O_SUB;
     o_SUB.u.oper.prio = 13;
     o_MUL.obj = OPER_OBJ;
@@ -542,7 +559,7 @@ void init_values(void)
     o_LNOT.u.oper.prio = 16;
     o_CONCAT.obj = OPER_OBJ;
     o_CONCAT.refcount = 0;
-    o_CONCAT.u.oper.name = "concat '..";
+    o_CONCAT.u.oper.name = "concatenate '..";
     o_CONCAT.u.oper.op = O_CONCAT;
     o_CONCAT.u.oper.prio = 17;
     o_X.obj = OPER_OBJ;

@@ -18,8 +18,14 @@
 */
 #ifndef _BOOLOBJ_H
 #define _BOOLOBJ_H
+struct value_s;
 
 extern obj_t BOOL_OBJ;
 
 extern void boolobj_init(void);
+
+static inline void bool_from_int(struct value_s *v, int i) {
+    v->obj = BOOL_OBJ;
+    v->u.boolean = i;
+}
 #endif

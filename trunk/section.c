@@ -69,8 +69,10 @@ struct section_s *new_section(const str_t *name) {
     struct avltree_node *b;
     struct section_s *tmp;
 
-    if (!lastsc)
-	if (!(lastsc=malloc(sizeof(struct section_s)))) err_msg_out_of_memory();
+    if (!lastsc) {
+	lastsc = (struct section_s *)malloc(sizeof(struct section_s));
+	if (!lastsc) err_msg_out_of_memory();
+    }
     lastsc->name = *name;
     lastsc->name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
     b=avltree_insert(&lastsc->node, &current_section->members, section_compare);

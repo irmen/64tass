@@ -22,4 +22,6 @@
 extern obj_t BYTES_OBJ;
 
 extern void bytesobj_init(void);
+
+extern int bytes_from_str(struct value_s *, const struct value_s *);
 #endif

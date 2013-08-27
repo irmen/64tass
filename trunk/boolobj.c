@@ -19,8 +19,9 @@
 #include "values.h"
 #include "boolobj.h"
 
-#include "sintobj.h"
-#include "uintobj.h"
+#include "intobj.h"
+#include "strobj.h"
+#include "addressobj.h"
 
 static struct obj_s obj;
 
@@ -29,76 +30,135 @@ obj_t BOOL_OBJ = &obj;
 static void copy(const struct value_s *v1, struct value_s *v) {
     v->obj = BOOL_OBJ;
     v->refcount = 1;
-    v->u.num.val = v1->u.num.val;
+    v->u.boolean = v1->u.boolean;
 }
 
 static int same(const struct value_s *v1, const struct value_s *v2) {
-    return v2->obj == BOOL_OBJ && v1->u.num.val == v2->u.num.val;
+    return v2->obj == BOOL_OBJ && v1->u.boolean == v2->u.boolean;
 }
 
 static int truth(const struct value_s *v1) {
-    return !!v1->u.num.val;
+    return v1->u.boolean;
 }
 
 static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
-    return v1->u.num.val & ((~(unsigned int)0) >> 1);
+    return v1->u.boolean;
 }
 
-static void convert(struct value_s *v1, struct value_s *v, obj_t t, linepos_t epoint, linepos_t epoint2) {
-    obj.convert = UINT_OBJ->convert;
-    obj.convert(v1, v, t, epoint, epoint2);
+static void repr(const struct value_s *v1, struct value_s *v) {
+    uint8_t *s = (uint8_t *)malloc(1);
+    if (!s) err_msg_out_of_memory();
+    *s = v1->u.boolean + '0';
+    v->obj = STR_OBJ;
+    v->u.str.data = s;
+    v->u.str.len = 1;
+    v->u.str.chars = 1;
+    return;
+}
+
+static int MUST_CHECK ival(const struct value_s *v1, struct value_s *UNUSED(v), ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    *iv = v1->u.boolean;
+    return 0;
+}
+
+static int MUST_CHECK uval(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    *uv = v1->u.boolean;
+    return 0;
+}
+
+static int MUST_CHECK real(const struct value_s *v1, struct value_s *UNUSED(v), double *r, linepos_t UNUSED(epoint)) {
+    *r = v1->u.boolean;
+    return 0;
+}
+
+static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
+    *s = v1->u.boolean;
+    return 0;
+}
+
+static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    int_from_int(v, v1->u.boolean);
+}
+
+static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    int_from_int(v, v1->u.boolean);
 }
 
 static void calc1(oper_t op) {
-    if (!calc1_uint(op, op->v1->u.num.val)) return;
+    struct value_s *v = op->v;
+    int v1 = op->v1->u.boolean;
+    enum atype_e am;
+    switch (op->op->u.oper.op) {
+    case O_BANK:
+    case O_HIGHER:
+        bits_from_u8(v, 0);
+        return;
+    case O_LOWER:
+        bits_from_u8(v, v1);
+        return;
+    case O_HWORD:
+        bits_from_u16(v, 0);
+        return;
+    case O_WORD:
+        bits_from_u16(v, v1);
+        return;
+    case O_BSWORD:
+        bits_from_u16(v, v1 << 8);
+        return;
+    case O_COMMAS: am = A_SR; goto addr;
+    case O_COMMAR: am = A_RR; goto addr;
+    case O_COMMAZ: am = A_ZR; goto addr;
+    case O_COMMAY: am = A_YR; goto addr;
+    case O_COMMAX: am = A_XR; goto addr;
+    case O_HASH: am = A_IMMEDIATE;
+    addr:
+        v->obj = ADDRESS_OBJ; 
+        v->u.addr.val = v1; 
+        v->u.addr.len = 1;
+        v->u.addr.type = (op->v1->u.addr.type << 4) | am;
+        return;
+    case O_INV:
+        int_from_int(v, ~v1);
+        return;
+    case O_NEG:
+        int_from_int(v, -v1);
+        return;
+    case O_POS:
+        int_from_int(v, v1);
+        return;
+    case O_LNOT: bool_from_int(v, !truth(op->v1)); return;
+    case O_STRING: repr(op->v1, v);break;
+    default: break;
+    }
     obj_oper_error(op);
 }
 
-static int calc2_bool_bool(oper_t op, unsigned int v1, unsigned int v2) {
+static int calc2_bool_bool(oper_t op, int v1, int v2) {
     struct value_s *v = op->v;
     switch (op->op->u.oper.op) {
-    case O_CMP: v->obj = (v1 < v2) ? SINT_OBJ : UINT_OBJ; v->u.num.val = (int)v1 - (int)v2; return 0;
-    case O_EQ: v->obj = BOOL_OBJ; v->u.num.val = (v1 == v2); return 0;
-    case O_NE: v->obj = BOOL_OBJ; v->u.num.val = (v1 != v2); return 0;
-    case O_LT: v->obj = BOOL_OBJ; v->u.num.val = (v1 < v2); return 0;
-    case O_LE: v->obj = BOOL_OBJ; v->u.num.val = (v1 <= v2); return 0;
-    case O_GT: v->obj = BOOL_OBJ; v->u.num.val = (v1 > v2); return 0;
-    case O_GE: v->obj = BOOL_OBJ; v->u.num.val = (v1 >= v2); return 0;
-    case O_ADD: 
-        v->obj = UINT_OBJ; 
-        v->u.num.val = v1 + v2; return 0;
-    case O_SUB: 
-        v->obj = (v1 < v2) ? SINT_OBJ : UINT_OBJ;
-        v->u.num.val = v1 - v2; return 0;
-    case O_MUL:
-        v->obj = UINT_OBJ; 
-        v->u.num.val = v1 * v2; return 0;
+    case O_CMP: int_from_int(v, v1 - v2); return 0;
+    case O_EQ: bool_from_int(v, v1 == v2); return 0;
+    case O_NE: bool_from_int(v, v1 != v2); return 0;
+    case O_LT: bool_from_int(v, v1 < v2); return 0;
+    case O_LE: bool_from_int(v, v1 <= v2); return 0;
+    case O_GT: bool_from_int(v, v1 > v2); return 0;
+    case O_GE: bool_from_int(v, v1 >= v2); return 0;
+    case O_ADD: int_from_int(v, v1 + v2); return 0;
+    case O_SUB: int_from_int(v, v1 - v2); return 0;
+    case O_MUL: int_from_int(v, v1 & v2); return 0;
     case O_DIV:
         if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
-        v->obj = UINT_OBJ; 
-        v->u.num.val = v1 / v2; return 0;
+        int_from_int(v, v1); return 0;
     case O_MOD:
         if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
-        v->obj = UINT_OBJ; 
-        v->u.num.val = v1 % v2; return 0;
-    case O_EXP:
-        v->obj = UINT_OBJ; 
-        v->u.num.val = v1 || !v2; return 0;
-    case O_AND:
-        v->obj = BOOL_OBJ; 
-        v->u.num.val = v1 & v2; return 0;
-    case O_OR:
-        v->obj = BOOL_OBJ; 
-        v->u.num.val = v1 | v2; return 0;
-    case O_XOR:
-        v->obj = BOOL_OBJ; 
-        v->u.num.val = v1 ^ v2; return 0;
-    case O_LSHIFT:
-        v->obj = UINT_OBJ; 
-        v->u.num.val = v1 << v2; return 0;
-    case O_RSHIFT:
-        v->obj = UINT_OBJ; 
-        v->u.num.val = v1 >> v2; return 0;
+        int_from_int(v, 0); return 0;
+    case O_EXP: int_from_int(v, v1 | !v1); return 0;
+    case O_AND: bool_from_int(v, v1 & v2); return 0;
+    case O_OR: bool_from_int(v, v1 | v2); return 0;
+    case O_XOR: bool_from_int(v, v1 ^ v2); return 0;
+    case O_LSHIFT: int_from_int(v, v1 << v2); return 0;
+    case O_RSHIFT: int_from_int(v, v1 >> v2); return 0;
+    case O_CONCAT: bits_from_bools(v, v1, v2); return 0;
     default: break;
     }
     return 1;
@@ -106,29 +166,21 @@ static int calc2_bool_bool(oper_t op, unsigned int v1, unsigned int v2) {
 
 static void calc2(oper_t op) {
     switch (op->v2->obj->type) {
-    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.num.val, op->v2->u.num.val)) break; return;
+    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.boolean, op->v2->u.boolean)) break; return;
     default: op->v2->obj->rcalc2(op); return;
     }
     obj_oper_error(op);
 }
 
 static void rcalc2(oper_t op) {
-    if (op->op == &o_X) {
-        op->v1->obj->repeat(op, op->v2->u.num.val); return;
-    }
     switch (op->v1->obj->type) {
-    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.num.val, op->v2->u.num.val)) break; return;
+    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.boolean, op->v2->u.boolean)) break; return;
     default:
         if (op->op != &o_IN) {
             op->v1->obj->calc2(op); return;
         }
     }
     obj_oper_error(op);
-}
-
-static int print(const struct value_s *v1, FILE *f) {
-    putc(v1->u.num.val ? '1' : '0', f);
-    return 1;
 }
 
 void boolobj_init(void) {
@@ -138,9 +190,14 @@ void boolobj_init(void) {
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;
-    obj.convert = convert;
+    obj.repr = repr;
+    obj.ival = ival;
+    obj.uval = uval;
+    obj.real = real;
+    obj.sign = sign;
+    obj.abs = absolute;
+    obj.integer = integer;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
-    obj.print = print;
 }

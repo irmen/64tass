@@ -47,7 +47,7 @@ static struct label_s *var_alloc(void) {
     labels_free = labels_free->next;
     if (!labels_free) {
         struct labels_s *old = labels;
-        labels = malloc(sizeof(struct labels_s));
+        labels = (struct labels_s *)malloc(sizeof(struct labels_s));
         if (!labels) err_msg_out_of_memory();
         for (i = 0; i < 254; i++) {
             labels->vals[i].next = &labels->vals[i+1];
@@ -185,7 +185,7 @@ void init_variables2(struct label_s *label) {
 void init_variables(void)
 {
     size_t i;
-    labels = malloc(sizeof(struct labels_s));
+    labels = (struct labels_s *)malloc(sizeof(struct labels_s));
     if (!labels) err_msg_out_of_memory();
     for (i = 0; i < 254; i++) {
         labels->vals[i].next = &labels->vals[i+1];

@@ -24,6 +24,7 @@
 #include "file.h"
 #include "variables.h"
 #include "64tass.h"
+#include "strobj.h"
 
 unsigned int errors=0,conderrors=0,warnings=0;
 
@@ -52,8 +53,10 @@ static void file_list_free(struct avltree_node *aa)
 static struct file_list_s *lastfl = NULL;
 struct file_list_s *enterfile(struct file_s *file, line_t line, linepos_t epoint) {
     struct avltree_node *b;
-    if (!lastfl)
-        if (!(lastfl=malloc(sizeof(struct file_list_s)))) err_msg_out_of_memory();
+    if (!lastfl) {
+        lastfl = (struct file_list_s *)malloc(sizeof(struct file_list_s));
+        if (!lastfl) err_msg_out_of_memory();
+    }
     lastfl->file = file;
     lastfl->sline = line;
     lastfl->epoint = *epoint;
@@ -77,7 +80,7 @@ void exitfile(void) {
 static void adderror2(const uint8_t *s, size_t len) {
     if (len + error_list.len > error_list.max) {
         error_list.max += (len > 0x200) ? len : 0x200;
-        error_list.data = realloc(error_list.data, error_list.max);
+        error_list.data = (uint8_t *)realloc(error_list.data, error_list.max);
         if (!error_list.data) {fputs("Out of memory\n", stderr);exit(1);}
     }
     memcpy(error_list.data + error_list.len, s, len);
@@ -116,9 +119,9 @@ static void addorigin(struct file_list_s *cflist, line_t lnum, linepos_t lpoint2
 }
 
 static const char *terr_warning[]={
-    "top of memory excedeed",
+    "top of memory exceeded",
     "possibly incorrectly used a",
-    "memory bank excedeed",
+    "memory bank exceeded",
     "possible jmp ($xxff) bug",
     "long branch used",
     "directive ignored",
@@ -141,7 +144,14 @@ static const char *terr_error[]={
     "string constant too long for a number",
     "index out of range",
     "key error",
-    "not hashable"
+    "not hashable",
+    "can't convert to a %d bit signed integer",
+    "can't convert to a %d bit unsigned integer",
+    "can't convert to float",
+    "can't get sign",
+    "can't get absolute value",
+    "can't convert to integer",
+    "can't get length"
 };
 static const char *terr_fatal[]={
     "can't open file ",
@@ -282,6 +292,24 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
     return;
 }
 
+static void err_msg_big_integer(const char *msg, int bits, linepos_t epoint) {
+    char msg2[256];
+    if (pass == 1) return;
+    if (errors+conderrors==99) {
+        err_msg(ERROR__TOO_MANY_ERR, NULL);
+        return;
+    }
+    if (fixeddig) inc_errors(); else {
+        if (errors) return; 
+        conderrors++;
+    }
+    addorigin(current_file_list, sline, epoint);
+    sprintf(msg2, msg, bits);
+    adderror(msg2);
+    adderror("\n");
+    return;
+}
+
 void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
     if (pass == 1) return;
     if (val->obj == ERROR_OBJ) {
@@ -290,13 +318,20 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
         case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, &val->u.error.epoint);return;
         case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, &val->u.error.epoint);return;
         case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, &val->u.error.epoint);return;
+        case ERROR_____CANT_IVAL:
+        case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->u.error.num & 63], val->u.error.u.bits, &val->u.error.epoint);return;
         case ERROR___INDEX_RANGE:
         case ERROR_CONSTNT_LARGE:
         case ERROR_NEGFRAC_POWER:
         case ERROR_BIG_STRING_CO:
         case ERROR_____KEY_ERROR:
         case ERROR__NOT_HASHABLE:
+        case ERROR_____CANT_REAL:
+        case ERROR_____CANT_SIGN:
+        case ERROR______CANT_ABS:
+        case ERROR______CANT_INT:
         case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);return;
+        default: break;
         }
     }
     err_msg2(ERROR____WRONG_TYPE, val->obj->name, epoint);
@@ -329,7 +364,7 @@ void err_msg_conflicts(const str_t *name, linepos_t epoint) {
 static void add_user_error2(struct error_s *user_error, const uint8_t *s, size_t len) {
     if (len + user_error->len > user_error->max) {
         user_error->max += (len > 0x100) ? len : 0x100;
-        user_error->data = realloc(user_error->data, user_error->max);
+        user_error->data = (uint8_t *)realloc(user_error->data, user_error->max);
         if (!user_error->data) {fputs("Out of memory\n", stderr);exit(1);}
     }
     memcpy(user_error->data + user_error->len, s, len);
@@ -337,144 +372,15 @@ static void add_user_error2(struct error_s *user_error, const uint8_t *s, size_t
     user_error->chars += len;
 }
 
-static void add_user_error(struct error_s *user_error, const char *s) {
-    add_user_error2(user_error, (const uint8_t *)s, strlen(s));
-}
-
-void err_msg_variable(struct error_s *user_error, struct value_s *val, int repr) {
-    char buffer[100], buffer2[100];
-    uint32_t addrtype;
-    int ind;
-
+void err_msg_variable(struct error_s *user_error, struct value_s *val) {
+    struct value_s tmp;
     if (!val) {user_error->chars = user_error->len = 0;return;}
-    switch (val->obj->type) {
-    case T_ADDRESS: 
-        sprintf(buffer,"$%" PRIxval, val->u.addr.val);
-        addrtype = val->u.addr.type;
-        ind = 99;
-        buffer2[ind] = '\0';
-        while (addrtype & 0xfff) {
-            switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
-            case A_NONE:break;
-            case A_XR: strcat(buffer, ",x");break;
-            case A_YR: strcat(buffer, ",y");break;
-            case A_ZR: strcat(buffer, ",z");break;
-            case A_SR: strcat(buffer, ",s");break;
-            case A_RR: strcat(buffer, ",r");break;
-            case A_I: buffer2[--ind] = '(';strcat(buffer, ")");break;
-            case A_LI: buffer2[--ind] = '[';strcat(buffer, "]");break;
-            case A_IMMEDIATE: buffer2[--ind] = '#';break;
-            }
-            addrtype <<= 4;
-        }
-        add_user_error(user_error, buffer2 + ind);
-        add_user_error(user_error, buffer);
-        break;
-    case T_SINT: sprintf(buffer,"%+" PRIdval, val->u.num.val); add_user_error(user_error, buffer); break;
-    case T_UINT: sprintf(buffer,"%" PRIuval, val->u.num.val); add_user_error(user_error, buffer); break;
-    case T_NUM: {
-        sprintf(buffer2,"$%%0%d%s", (val->u.num.len + 3) / 4 + !val->u.num.len, PRIxval);
-        sprintf(buffer, buffer2, val->u.num.val);
-        add_user_error(user_error, buffer); break;
-    }
-    case T_CODE: sprintf(buffer,"$%" PRIxval, val->u.code.addr); add_user_error(user_error, buffer); break;
-    case T_FLOAT:
-       {
-           int i = 0;
-           sprintf(buffer, "%.10g", val->u.real);
-           while (buffer[i] && buffer[i]!='.' && buffer[i]!='e' && buffer[i]!='n' && buffer[i]!='i') i++;
-           if (!buffer[i]) {buffer[i++]='.';buffer[i++]='0';buffer[i]=0;}
-           add_user_error(user_error, buffer);
-           break;
-       }
-    case T_STR:
-       {
-           if (repr) {
-               const char *c;
-               const uint8_t *p, *c2;
-               c = memchr(val->u.str.data, '"', val->u.str.len) ? "'" : "\"";
-               add_user_error(user_error, c);
-               p = val->u.str.data;
-               while (p < val->u.str.data + val->u.str.len) {
-                   c2 = memchr(p, c[0], val->u.str.len + (val->u.str.data - p));
-                   if (c2) {
-                       add_user_error2(user_error, p, c2 - p + 1);
-                       add_user_error(user_error, c);
-                       p = c2 + 1;
-                   } else {
-                       add_user_error2(user_error, p, val->u.str.len + (val->u.str.data - p));
-                       p = val->u.str.data + val->u.str.len;
-                   }
-               }
-               add_user_error(user_error, c);
-           }
-           else add_user_error2(user_error, val->u.str.data, val->u.str.len);
-           user_error->chars -= val->u.str.len - val->u.str.chars;
-           break;
-       }
-    case T_BYTES:
-        {
-            size_t i;
-            add_user_error(user_error, "bytes([");
-            for (i = 0;i < val->u.bytes.len; i++) {
-                char tmp[10];
-                sprintf(tmp, i ? ",$%02x" : "$%02x", val->u.bytes.data[i]);
-                add_user_error(user_error, tmp);
-            }
-            add_user_error(user_error, "])");
-            break;
-        }
-    case T_GAP: add_user_error(user_error, "?");break;
-    case T_LIST:
-        {
-            size_t i;
-            add_user_error(user_error, "[");
-            for (i = 0;i < val->u.list.len; i++) {
-                if (i) add_user_error(user_error, ",");
-                err_msg_variable(user_error, val->u.list.data[i], 1);
-            }
-            add_user_error(user_error, "]");
-            break;
-        }
-    case T_TUPLE:
-        {
-            size_t i;
-            add_user_error(user_error, "(");
-            for (i = 0;i < val->u.list.len; i++) {
-                if (i) add_user_error(user_error, ",");
-                err_msg_variable(user_error, val->u.list.data[i], 1);
-            }
-            if (val->u.list.len == 1) add_user_error(user_error, ",");
-            add_user_error(user_error, ")");
-            break;
-        }
-    case T_DICT:
-        {
-            const struct avltree_node *n;
-            const struct pair_s *p;
-            int first = 0;
-            add_user_error(user_error, "{");
-            n = avltree_first(&val->u.dict.members);
-            while (n) {
-                p = cavltree_container_of(n, struct pair_s, node);
-                if (first) add_user_error(user_error, ",");
-                err_msg_variable(user_error, p->key, 1);
-                add_user_error(user_error, ":");
-                err_msg_variable(user_error, p->data, 1);
-                first = 1;
-                n = avltree_next(n);
-            }
-            add_user_error(user_error, "}");
-            break;
-        }
-    case T_PAIR:
-        err_msg_variable(user_error, val->u.pair.key, 1);
-        add_user_error(user_error, ":");
-        err_msg_variable(user_error, val->u.pair.data, 1);
-        break;
-    case T_BOOL: add_user_error(user_error, val->u.num.val ? "1" : "0");break;
-    default: add_user_error(user_error, val->obj->name);break;
-    }
+    val->obj->str(val, &tmp);
+    if (tmp.obj == STR_OBJ) {
+        add_user_error2(user_error, tmp.u.str.data, tmp.u.str.len);
+        user_error->chars -= tmp.u.str.len - tmp.u.str.chars;
+    } else err_msg_wrong_type(&tmp, &lpoint);
+    tmp.obj->destroy(&tmp);
 }
 
 static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, line_t line, linepos_t epoint2) {

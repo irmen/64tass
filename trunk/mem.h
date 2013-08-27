@@ -43,7 +43,7 @@ extern void memref(struct memblocks_s *, struct memblocks_s *);
 extern void memprint(struct memblocks_s *);
 extern void output_mem(struct memblocks_s *, int);
 extern void write_mem(struct memblocks_s *, uint8_t);
-int16_t read_mem(const struct memblocks_s *, size_t, size_t, size_t);
+extern int16_t read_mem(const struct memblocks_s *, size_t, size_t, size_t);
 extern void get_mem(const struct memblocks_s *, size_t *, size_t *);
 extern void restart_memblocks(struct memblocks_s *, address_t);
 extern void init_memblocks(struct memblocks_s *);

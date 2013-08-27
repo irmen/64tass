@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.5x manual</title>
+<title>64tass v1.51 r492 manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -57,17 +57,18 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.5x r484 manual</h1>
+<h1>64tass v1.51 r492 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
 
 <ul>
-<li>Open source, mostly portable C
+<li>Open source, mostly portable C with minimal dependencies
 <li>Familiar syntax to Omicron TASS and TASM.
 <li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
-<li>Integer, floating point, string and array arithmetic available
-<li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded sources and strings
+<li>Arbitrary-precision integers and bitstrings, double precision floating point numbers
+<li>Character and byte strings, array arithmetic
+<li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files and strings
 <li>Built in <q>linker</q> with section support
 <li>CPU or flat address space for creating huge binaries (e.g. cartridges)
 <li>Conditional compilation, macros, struct/union structures, scopes.
@@ -90,12 +91,12 @@ ASCII.</p>
 <p>There are also some useful parameters which are described later.</p>
 <p>For comfortable compiling I use such <q>Makefile</q>s (for <a href="http://en.wikipedia.org/wiki/Make_%28software%29">make</a>):</p>
 <pre width=80 class="make">
-<span>demo.prg:</span> source.asm makros.asm pic.drp music.bin
+<span>demo.prg:</span> source.asm macros.asm pic.drp music.bin
         <span class="cmd">64tass -C -a -B -i source.asm -o demo.tmp</span>
         <span class="cmd">pucrunch -ffast -x 2048 demo.tmp &gt;demo.prg</span>
 </pre>
 <p>This way <q>demo.prg</q> is recreated by compiling <q>source.asm</q>
-whenever <q>source.asm</q>, <q>makros.asm</q>, <q>pic.drp</q> or <q>music.bin</q> had changed.</p>
+whenever <q>source.asm</q>, <q>macros.asm</q>, <q>pic.drp</q> or <q>music.bin</q> had changed.</p>
 <p>Of course it's not much harder to create something similar for win32 (make.bat),
 however this will always compile and compress:</p>
 <pre width=80>
@@ -112,7 +113,7 @@ using an intermediate temporary file:</p>
 <span>demo.prg:</span> demo.tmp
 	<span class="cmd">pucrunch -ffast -x 2048</span> $&lt; &gt;$@
 
-<span>demo.tmp:</span> source.asm makros.asm pic.drp music.bin
+<span>demo.tmp:</span> source.asm macros.asm pic.drp music.bin
         <span class="cmd">64tass -C -a -B -i</span> $&lt; <span class="cmd">-o</span> $@
 
 <b>.INTERMEDIATE:</b> demo.tmp
@@ -134,7 +135,7 @@ compression:</p>
 start	<b>rts</b>
 </pre>
 
-<p>A frequently comming up question is, how to automatically allocate
+<p>A frequently coming up question is, how to automatically allocate
 memory, without hacks like <code>*=*+1</code>? Sure
 there's <code>.byte</code> and friends for variables with initial values
 but what about zero page, or RAM outside of program area? The solution
@@ -194,27 +195,27 @@ hibytes <b class="d">.byte</b> &gt;(<u>-</u>)      <i>; high bytes</i>
 
 <h3>Integer constants</h3>
 
-<p>Integer constants can be entered as decimal (<code>[0-9]+</code>),
-hexadecimal (<code>$[0-9a-f]*</code>) or binary (<code>%[01]*</code>).
-The following operations are accepted:</p>
+<p>Integer constants can be entered as a string of decimal numbers of arbitary length. The
+following operations are accepted:</p>
 
 <table border="0" class="oper">
 <caption>Integer operators and functions</caption>
 <tr><td width="60">x + y<td>add x to y<td><code><span>2</span> + <span>2</span></code> is <code><span>4</span></code>
-<tr><td>x - y<td>substract y from x<td><code><span>4</span> - <span>1</span></code> is <code><span>3</span></code>
+<tr><td>x - y<td>subtract y from x<td><code><span>4</span> - <span>1</span></code> is <code><span>3</span></code>
 <tr><td>x * y<td>multiply x with y<td><code><span>2</span> * <span>3</span></code> is <code><span>6</span></code>
 <tr><td>x / y<td>integer divide x by y<td><code><span>7</span> / <span>2</span></code> is <code><span>3</span></code>
 <tr><td>x % y<td>integer modulo of x divided by y<td><code><span>5</span> % <span>2</span></code> is <code><span>1</span></code>
 <tr><td>x ** y<td>x raised t power of y<td><code><span>2</span> ** <span>4</span></code> is <code><span>16</span></code>
 <tr><td>-x<td>negated value<td><code>-<span>2</span></code> is <code><span>-2</span></code>
 <tr><td>+x<td>unchanged<td><code>+<span>2</span></code> is <code><span>2</span></code>
-<tr><td>&lt;<td>lower byte<td><code>&lt;<span>$1234</span></code> is <code><span>$34</span></code>
-<tr><td>&gt;<td>higher byte<td><code>&gt;<span>$1234</span></code> is <code><span>$12</span></code>
-<tr><td>`<td>bank byte<td><code>`<span>$123456</span></code> is <code><span>$12</span></code>
-<tr><td>&lt;&gt;<td>lower word<td><code>&lt;&gt;<span>$123456</span></code> is <code><span>$3456</span></code>
-<tr><td>&gt;`<td>higher word<td><code>&lt;`<span>$123456</span></code> is <code><span>$1234</span></code>
-<tr><td>&gt;&lt;<td>lower byte swapped word<td><code>&gt;&lt;<span>$123456</span></code> is <code><span>$5634</span></code>
-<tr><td>x &lt;=&gt; y<td>x compares to y<td><code><span>2</span> &lt;=&gt; <span>5</span></code> is -1
+<tr><td>~x<td>&minus;x &minus; 1<td><code>~<span>3</span></code> is <code><span>-4</span></code>
+<tr><td>&lt;<td>lower byte<td><code>&lt;<span>2049</span></code> is <code><span>$01</span></code>
+<tr><td>&gt;<td>higher byte<td><code>&gt;<span>2049</span></code> is <code><span>$08</span></code>
+<tr><td>`<td>bank byte<td><code>`<span>65536</span></code> is <code><span>$01</span></code>
+<tr><td>&lt;&gt;<td>lower word<td><code>&lt;&gt;<span>65537</span></code> is <code><span>$0001</span></code>
+<tr><td>&gt;`<td>higher word<td><code>&lt;`<span>65537</span></code> is <code><span>$1000</span></code>
+<tr><td>&gt;&lt;<td>lower byte swapped word<td><code>&gt;&lt;<span>2049</span></code> is <code><span>$0108</span></code>
+                <tr><td>x &lt;=&gt; y<td>x compares to y<td><code><span>2</span> &lt;=&gt; <span>5</span></code> is <code><span>-1<span></code>
 <tr><td>x == y<td>x equals to y<td><code><span>2</span> == <span>3</span></code> is false
 <tr><td>x != y<td>x does not equal to y<td><code><span>2</span> != <span>3</span></code> is true
 <tr><td>x &lt; y<td>x is less than y<td><code><span>2</span> &lt; <span>3</span></code> is true
@@ -226,31 +227,16 @@ The following operations are accepted:</p>
 <tr><td>x &amp; y<td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
 <tr><td>x &lt;&lt; y<td>logical shift left<td><code><span>1</span> &lt;&lt; <span>3</span></code> is <code><span>8</span></code>
 <tr><td>x &gt;&gt; y<td>arithmetic shift right<td><code><span>-8</span> &gt;&gt; <span>3</span></code> is <code><span>-1</span></code>
-<tr><td>~x<td>invert bits<td><code>~<span>%101</span></code> is <code><span>%010</span></code>
-<tr><td>..<td>concatenate bits<td><code><span>$a</span>..<span>$b</span></code> is <code><span>$ab</span></code>
-<tr><td>x[n]<td>extract bit(s)<td><code><span>$a</span>[<span>1</span>]</code> is <code><span>0</span></code>
-<tr><td>x[s]<td>slice bits<td><code><span>$1234</span>[<span>4</span>:<span>8</span>]</code> is <code><span>$3</span></code>
-<tr><td>len(a)<td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
-<tr><td>float(a)<td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
+<tr><td>int(a)<td>convert to integer<td><code><span class="k">int</span>(<span>%11</span>)</code> is <code><span>3</span></code>
 </table>
 
 <p>An integer has a truth value of true if it's non-zero. The
 true value is the same as 1.</p>
 
-<p>Length of a numeric constants are defined in bits and is calculated from the
-number of digits used for hexadecimal (4 each) and binary (1 each) definitions. It's
-also set when slicing, bit (1), byte (8) or word (16) extraction is
-used.</p>
-
 <p>Integers are automatically promoted to float as necessary in expressions.</p>
-
-<p><b>The precision is limited to 32 bits in this version. This might change in
-the future, so don't rely on clipping of higher bits.</b></p>
 
 <pre width=80>
         <b class="d">.byte</b> <span>23</span>        <i>; decimal</i>
-        <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
-        <b class="d">.byte</b> <span>%00011111</span> <i>; binary</i>
 
         <b>lda</b> #&lt;<u>label</u>
         <b>ldy</b> #&gt;<u>label</u>
@@ -263,8 +249,45 @@ the future, so don't rely on clipping of higher bits.</b></p>
 
         <b>lda</b> #((<u>bitmap</u> &amp; <span>$2000</span>) &gt;&gt; <span>10</span>) | ((<u>screen</u> &amp; <span>$3c00</span>) &gt;&gt; <span>6</span>)
         <b>sta</b> <span>$d018</span>
+</pre>
+
+<h3>Bit string constants</h3>
+
+<p>Bit string constants can be entered as hexadecimal by a leading dollar sign or binary with a leading percent sign.
+The following operations are accepted:</p>
+
+<table border="0" class="oper">
+<caption>Bit string operators and functions</caption>
+<tr><td>~x<td>invert bits<td><code>~<span>%101</span></code> is <code><span>~%101</span></code>
+<tr><td>..<td>concatenate bits<td><code><span>$a</span>..<span>$b</span></code> is <code><span>$ab</span></code>
+<tr><td>y x n<td>repeat<td><code><span>%101</span> <span class="k">x</span> <span>3</span></code> is <code><span>%101101101</span></code>
+<tr><td>x[n]<td>extract bit(s)<td><code><span>$a</span>[<span>1</span>]</code> is <code><span>0</span></code>
+<tr><td>x[s]<td>slice bits<td><code><span>$1234</span>[<span>4</span>:<span>8</span>]</code> is <code><span>$3</span></code>
+<tr><td>x | y<td>bitwise or<td><code><span>~$2</span> | <span>$6</span></code> is <code><span>~$0</span></code>
+<tr><td>x ^ y<td>bitwise xor<td><code><span>~$2</span> ^ <span>$6</span></code> is <code><span>~$4</span></code>
+<tr><td>x &amp; y<td>bitwise and<td><code><span>~$2</span> &amp; <span>$6</span></code> is <code><span>$4</span></code>
+<tr><td>len(a)<td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
+</table>
+
+<p>An bit string has a truth value of true if it's non-zero.</p>
+
+<p>Length of bit string constants are defined in bits and is calculated from
+the number of digits used including leading zeros.</p>
+
+<p>Bit strings are automatically promoted to integer or floating point as necessary in
+expressions. The higher bits are extended with zeros or ones as needed.</p>
+
+<pre width=80>
+        <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
+        <b class="d">.byte</b> <span>%00011111</span> <i>; binary</i>
+
+        <b>lda</b> <span>$01</span>
+        <b>and</b> #~<span>$07</span>
+        <b>ora</b> #<span>$05</span>
+        <b>sta</b> <span>$01</span>
+
         <b>lda</b> <span>$d015</span>
-        <b>and</b> #~<span>%00100000</span>
+        <b>and</b> #~<span>%00100000</span> <i>;clear a bit</i>
         <b>sta</b> <span>$d015</span>
 </pre>
 
@@ -277,7 +300,7 @@ following operations can be used:</p>
 <table border="0" class="oper">
 <caption>Floating point operators and functions</caption>
 <tr><td width="80">x + y<td>add x to y<td><code><span>2.2</span> + <span>2.2</span></code> is <code><span>4.4</span></code>
-<tr><td>x - y<td>substract y from x<td><code><span>4.1</span> - <span>1.1</span></code> is <code><span>3.0</span></code>
+<tr><td>x - y<td>subtract y from x<td><code><span>4.1</span> - <span>1.1</span></code> is <code><span>3.0</span></code>
 <tr><td>x * y<td>multiply x with y<td><code><span>1.5</span> * <span>3</span></code> is <code><span>4.5</span></code>
 <tr><td>x / y<td>integer divide x by y<td><code><span>7.0</span> / <span>2.0</span></code> is <code><span>3.5</span></code>
 <tr><td>x % y<td>integer modulo of x divided by y<td><code><span>5.0</span> % <span>2.0</span></code> is <code><span>1.0</span></code>
@@ -323,7 +346,7 @@ following operations can be used:</p>
 <tr><td>deg(a)<td>radian to degrees<td><code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 <tr><td>hypot(y,&nbsp;x)<td>polar distance<td><code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
 <tr><td>atan2(y,&nbsp;x)<td>polar angle<td><code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>int(a)<td>convert to integer<td><code><span class="k">int</span>(<span>3.8</span>)</code> is <code><span>3</span></code>
+<tr><td>float(a)<td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
 </table>
 
 <p>A floating point number has a truth value of true if it's non-zero.</p>
@@ -338,7 +361,7 @@ and e is <code>exp(1)</code>.</p>
 <p>Fixed point conversion can be done by using the shift operators for example
 a 8.16 fixed point number can be calculated as <code>(3.14 &lt;&lt; 16) &amp; $ffffff</code>.
 The binary operators operate like if the floating point number would be a fixed
-point one. This is the reason for the strange definiton of inversion.</p>
+point one. This is the reason for the strange definition of inversion.</p>
 
 <pre width=80>
         <b class="d">.byte</b> <span>3.66e1</span>       <i>; 36.6, truncated to 36</i>
@@ -348,7 +371,7 @@ point one. This is the reason for the strange definiton of inversion.</p>
 
 <h3>Character string constants</h3>
 
-<p>Strings are enclosed in single or double quotes and can hold any unicode
+<p>Strings are enclosed in single or double quotes and can hold any Unicode
 character. Operations like indexing or slicing are always done on the original
 representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
@@ -359,7 +382,7 @@ Doubling the quotes inside the strings escapes them.</p>
 <tr><td>..<td>concatenate strings<td><code><span class="s">"a"</span>..<span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
 <tr><td>in<td>is substring of<td><code><span class="s">"b"</span> <span class="k">in</span> <span class="s">"abc"</span></code> is true
 <tr><td>%<td>string formatting<td><code><span class="s">"<span>%02x</span>"</span> % (<span>12</span>,)</code> is <code><span class="s">"0c"</span></code>
-<tr><td>x<td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
+<tr><td>y x n<td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
 <tr><td>x[i]<td>character from start<td><code><span class="s">"abc"</span>[<span>1</span>]</code> is <code><span class="s">"b"</span></code>
 <tr><td>x[i]<td>character from end<td><code><span class="s">"abc"</span>[<span>-1</span>]</code> is <code><span class="s">"c"</span></code>
 <tr><td>x[s]<td>no change<td><code><span class="s">"abc"</span>[:]</code> is <code><span class="s">"abc"</span></code>
@@ -367,12 +390,14 @@ Doubling the quotes inside the strings escapes them.</p>
 <tr><td>x[s]<td>cut off end<td><code><span class="s">"abc"</span>[:<span>-1</span>]</code> is <code><span class="s">"ab"</span></code>
 <tr><td>x[s]<td>reverse<td><code><span class="s">"abc"</span>[::<span>-1</span>]</code> is <code><span class="s">"cba"</span></code>
 <tr><td>len(x)<td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td>str(a)<td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
+<tr><td>repr(a)<td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
 </table>
 
 <p>A string has a truth value of true if it contains at least one character.</p>
 
-<p>Strings are converted to numeric constants as necessary using the current
-encoding and escape rules, for example when using a sane encoding <code>"z" - "a"</code> is
+<p>Strings are converted to integers, byte and bit strings as necessary using the current
+encoding and escape rules. For example when using a sane encoding <code>"z" - "a"</code> is
 <code>25</code>.</p>
 
 <p>Indexing characters with positive integers start with zero. Negative indexes
@@ -427,6 +452,7 @@ can be used:</p>
 <tr><td>f&nbsp;F<td>floating point (uppercase)
 <tr><td>g&nbsp;G<td>exponential/floating point
 <tr><td>s<td>string
+<tr><td>r<td>representation
 <tr><td>x&nbsp;X<td>hexadecimal (uppercase)
 <tr><td>%<td>percent sign
 </table>
@@ -445,7 +471,7 @@ string using the current encoding to bytes.</p>
 <caption>Byte string operators and functions</caption>
 <tr><td>..<td>concatenate strings<td><code><span class="s">b"a"</span>..<span class="s">b"b"</span></code> is <code><span class="s">b"ab"</span></code>
 <tr><td>in<td>is substring of<td><code><span class="s">b"b"</span> <span class="k">in</span> <span class="s">b"abc"</span></code> is true
-<tr><td>x<td>repeat<td><code><span class="s">b"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">b"ababab"</span></code>
+<tr><td>y x n<td>repeat<td><code><span class="s">b"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">b"ababab"</span></code>
 <tr><td>x[i]<td>byte from start<td><code><span class="s">b"abc"</span>[<span>1</span>]</code> is <code><span class="s">b"b"</span></code>
 <tr><td>x[i]<td>byte from end<td><code><span class="s">b"abc"</span>[<span>-1</span>]</code> is <code><span class="s">b"c"</span></code>
 <tr><td>x[s]<td>no change<td><code><span class="s">b"abc"</span>[:]</code> is <code><span class="s">b"abc"</span></code>
@@ -481,7 +507,7 @@ types are immutable.</p>
 <caption>List and tuple operators and functions</caption>
 <tr><td>..<td>concatenate lists<td><code>[<span>1</span>]..[<span>2</span>]</code> is <code>[<span>1</span>, <span>2</span>]</code>
 <tr><td>in<td>is member of list<td><code><span>2</span> <span class="k">in</span> [<span>1</span>, <span>2</span>, <span>3</span>]</code> is true
-<tr><td>x<td>repeat<td><code>[<span>1</span>, <span>2</span>] <span class="k">x</span> <span>2</span></code> is <code>[<span>1</span>, <span>2</span>, <span>1</span>, <span>2</span>]</code>
+<tr><td>y x n<td>repeat<td><code>[<span>1</span>, <span>2</span>] <span class="k">x</span> <span>2</span></code> is <code>[<span>1</span>, <span>2</span>, <span>1</span>, <span>2</span>]</code>
 <tr><td>x[i]<td>element from start<td><code>(<span class="s">"1"</span>, <span>2</span>)[<span>1</span>]</code> is <code><span>2</span></code>
 <tr><td>x[i]<td>element from end<td><code>(<span class="s">"1"</span>, <span>2</span>, <span>3</span>)[<span>-1</span>]</code> is <code><span>3</span></code>
 <tr><td>x[s]<td>no change<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[:]</code> is <code>(<span>1</span>, <span>2</span>, <span>3</span>)</code>
@@ -502,7 +528,7 @@ therefore <code>[1, 2] + 1</code> is <code>[2, 3]</code>, and <code>abs([1,
 elements, so <code>[1, 2] + [3, 4]</code> is <code>[4, 6]</code>.</p>
 
 <p>When lists form an array and columns/rows are missing the smaller array is
-stretched to fill in the gaps if possible, so <code>[[1],[2]] * [3, 4]</code>
+stretched to fill in the gaps if possible, so <code>[[1], [2]] * [3, 4]</code>
 is <code>[[3, 4], [6, 8]]</code>.</p>
 
 <p>Indexing elements with positive integers start with zero. Negative indexes
@@ -741,7 +767,6 @@ variable number of parameters separated by comma.</p>
 <caption>Other built in functions</caption>
 <tr><td width="150">min(a, b, ...)<td>Minimum of values
 <tr><td>max(a, b, ...)<td>Maximum of values
-<tr><td>repr(a)<td>Text representation of value
 </table>
 
 <p>Special addressing mode forcing operators in front of an expression can be
@@ -807,7 +832,7 @@ loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst
 
 <h3>Dumping data</h3>
 <h4>Storing numeric data</h4>
-<p>Multi byte numeric data is stored in the little endian order, which is the
+<p>Multi byte numeric data is stored in the little-endian order, which is the
 natural byte order for 65xx processors. Numeric ranges are enforced depending
 on the directives used.</p>
 <p>When using lists or tuples their values will be used one by one.
@@ -850,13 +875,13 @@ jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)-<u>smod</u>-<s
         <b>jmp</b> (<u>jumps</u>,x)
 
 jumps   <b class="d">.word</b> <u>routine1</u>, <u>routine2</u>
-<i>;On 65816 substract the current program bank</i>
+<i>;On 65816 subtract the current program bank</i>
 jumps2  <b class="d">.word</b> (<u>routine1</u>, <u>routine2</u>) - (<u>*</u> &amp; ~<span>$ffff</span>)
 </pre>
 
 <dt><b>.rta</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Create return address constants, which are 16&nbsp;bit unsigned
-constants (usually addresses) but with one substracted.
+constants (usually addresses) but with one subtracted.
 <pre width=80>
 <i>;Computed jumps by using stack</i>
 	<b>asl</b>
@@ -867,7 +892,7 @@ constants (usually addresses) but with one substracted.
 	<b>pha</b>
 	<b>rts</b>
 rets	<b class="d">.rta</b> <span>$fce2</span>, <u>routine1</u>, <u>routine2</u>
-<i>;On 65816 substract the current program bank</i>
+<i>;On 65816 subtract the current program bank</i>
 rets2	<b class="d">.rta</b> (<span>$fce2</span>, <u>routine1</u>, <u>routine2</u>) - (<u>*</u> &amp; ~<span>$ffff</span>)
 </pre>
 
@@ -928,7 +953,7 @@ in to represent control characters.</p>
 
 <dt><b>.shift</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Same as <code>.text</code>, but the last byte will have the highest bit set.
-Any character which already has the most significiant bit set will cause an error.
+Any character which already has the most significant bit set will cause an error.
 <pre width=80>
         <b>ldx</b> #<span>0</span>
 loop	<b>lda</b> <u>txt</u>,x
@@ -944,7 +969,7 @@ txt	<b class="d">.shift</b> <span class="s">"some text"</span>
 
 <dt><b>.shiftl</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
 <dd>Same as <code>.text</code>, but all bytes are shifted to left, and the last
-character gets the lowest bit set. Any character which already has the most significiant
+character gets the lowest bit set. Any character which already has the most significant
 bit set will cause an error as this would be cut off.
 <pre width=80>
         <b>ldx</b> #<span>0</span>
@@ -996,8 +1021,8 @@ txt	<b class="d">.ptext</b> <span class="s">"note"</span>
 </dl>
 
 <h3>Text encoding</h3>
-<p>64tass supports sources written in utf8, utf16 (be/le) and raw 8-bit encoding. To take
-advantage of this capability custom encodings can be defined to map unicode characters
+<p>64tass supports sources written in UTF-8, UTF-16 (be/le) and RAW 8&nbsp;bit encoding. To take
+advantage of this capability custom encodings can be defined to map Unicode characters
 to 8&nbsp;bit values in strings.</p>
 <dl class="dir">
 <dt><b>.enc</b> &lt;name&gt;
@@ -1006,11 +1031,11 @@ to 8&nbsp;bit values in strings.</p>
 start without any character or escape definitions, add some as required.
 </dl>
 <pre width=80>
-	<b class="k">.enc</b> screen	<i>;screencode mode</i>
-        <b class="d">.text</b> <span class="s">"text with screencodes"</span>
-        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare screencode</i>
+	<b class="k">.enc</b> screen	<i>;screen code mode</i>
+        <b class="d">.text</b> <span class="s">"text with screen codes"</span>
+        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare screen code</i>
 	<b class="k">.enc</b> none	<i>;normal mode again</i>
-        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare ascii</i>
+        <b>cmp</b> #<span class="s">"u"</span>	<i>;compare ASCII</i>
 </pre>
 <dl class="dir">
 <dt><b>.cdef</b> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, ...]
@@ -1053,26 +1078,26 @@ instead of an error.</p>
 is the sum of lengths of all items.</p>
 
 <dl class="dir">
-<dt><b>.struct</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
-<dt><b>.ends</b> [&lt;result&gt;][,&lt;result&gt; ...]
+<dt><b>.struct</b> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] ...]
+<dt><b>.ends</b> [&lt;result&gt;][, &lt;result&gt; ...]
 <dd>Structure definition, with named parameters and default values
-<dt><b>.dstruct</b> &lt;name&gt;[,&lt;initialization values&gt;]
+<dt><b>.dstruct</b> &lt;name&gt;[, &lt;initialization values&gt;]
 <dt><b>.&lt;name&gt;</b> [&lt;initialization values&gt;]
 <dd>Create instance of structure with initialization values
 </dl>
 
 <pre width=80>
-        <b class="k">.struct</b>         <i>;anonymous struct</i>
+        <b class="k">.struct</b>         <i>;anonymous structure</i>
 x       <b class="d">.byte</b> <span>0</span>         <i>;labels are visible</i>
 y       <b class="d">.byte</b> <span>0</span>         <i>;content compiled here</i>
         <b class="k">.ends</b>           <i>;useful inside unions</i>
 
-nn_s    <b class="k">.struct</b> <u>col</u>,<u>row</u> <i>;named struct</i>
+nn_s    <b class="k">.struct</b> <u>col</u>, <u>row</u><i>;named structure</i>
 x       <b class="d">.byte</b> <span class="k">\col</span>      <i>;labels are not visible</i>
 y       <b class="d">.byte</b> <span class="k">\row</span>      <i>;no content is compiled here</i>
         <b class="k">.ends</b>           <i>;it's just a definition</i>
 
-nn      <b class="d">.dstruct</b> <u>nn_s</u>,<span>1</span>,<span>2</span><i>;struct instance, content here</i>
+nn      <b class="d">.dstruct</b> <u>nn_s</u>, <span>1</span>, <span>2</span><i>;structure instance, content here</i>
 
         <b>lda</b> <u>nn</u>.<u>x</u>        <i>;direct field access</i>
         <b>ldy</b> #<u>nn_s</u>.<u>x</u>     <i>;get offset of field</i>
@@ -1085,10 +1110,10 @@ counter remains the same on each line. Therefore the length of a union is the
 length of it's longest item.</p>
 
 <dl class="dir">
-<dt><b>.union</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
+<dt><b>.union</b> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] ...]
 <dt><b>.endu</b>
 <dd>Union definition, with named parameters and default values
-<dt><b>.dunion</b> &lt;name&gt;[,&lt;initialization values&gt;]
+<dt><b>.dunion</b> &lt;name&gt;[, &lt;initialization values&gt;]
 <dt><b>.&lt;name&gt;</b> [&lt;initialization values&gt;]
 <dd>Create instance of union with initialization values
 </dl>
@@ -1104,7 +1129,7 @@ x       <b class="d">.byte</b> <span>?</span>         <i>;labels are not visible
 y       <b class="d">.word</b> <span class="k">\1</span>        <i>;no content is compiled here</i>
         <b class="k">.endu</b>           <i>;it's just a definition</i>
 
-nn      <b class="d">.dunion</b> <u>nn_u</u>,<span>1</span>  <i>;union instance here</i>
+nn      <b class="d">.dunion</b> <u>nn_u</u>, <span>1</span> <i>;union instance here</i>
 
         <b>lda</b> <u>nn</u>.<u>x</u>        <i>;direct field access</i>
         <b>ldy</b> #<u>nn_u</u>.<u>x</u>     <i>;get offset of field</i>
@@ -1116,7 +1141,7 @@ nn      <b class="d">.dunion</b> <u>nn_u</u>,<span>1</span>  <i>;union instance 
 
 <pre width=80>
         <b class="k">.union</b>
-        <b class="d">.binary</b> <span class="s">"pic.drp"</span>,<span>2</span>
+        <b class="d">.binary</b> <span class="s">"pic.drp"</span>, <span>2</span>
         <b class="k">.struct</b>
 color	<b class="d">.fill</b> <span>1024</span>
 screen	<b class="d">.fill</b> <span>1024</span>
@@ -1150,13 +1175,13 @@ Each invocation is a copy of the macro's content with parameter references
 replaced by the parameter texts.</p>
 
 <dl class="dir">
-<dt><b>.segment</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
-<dt><b>.endm</b> [&lt;result&gt;][,&lt;result&gt; ...]
+<dt><b>.segment</b> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] ...]
+<dt><b>.endm</b> [&lt;result&gt;][, &lt;result&gt; ...]
 <dd>Copies the code segment as it is, so symbols can be used from
 outside, but this also means multiple use will result in double defines
 unless anonymous labels are used.
-<dt><b>.macro</b> [&lt;name&gt;][=&lt;default&gt;]][,[&lt;name&gt;][=&lt;default&gt;] ...]
-<dt><b>.endm</b> [&lt;result&gt;][,&lt;result&gt; ...]
+<dt><b>.macro</b> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] ...]
+<dt><b>.endm</b> [&lt;result&gt;][, &lt;result&gt; ...]
 <dd>The code is enclosed in it's own block so symbols inside are
 non-accessible, unless a label is prefixed at the place of use, then local
 labels can be accessed through that label.
@@ -1208,7 +1233,7 @@ equal sign which is used as a replacement when the parameter is missing.</p>
 <code>\{name}</code>. Names must match completely, if unsure use the quoted
 name reference syntax.</p>
 <pre width=80>
-name	<b class="k">.macro</b> first,b=<span>2</span>,,last
+name	<b class="k">.macro</b> first, b=<span>2</span>, , last
         <b>lda</b> #<span class="k">\first</span>	<i>;first parameter</i>
         <b>lda</b> #<span class="k">\b</span> 	<i>;second parameter</i>
         <b>lda</b> #<span class="k">\3</span> 	<i>;third parameter</i>
@@ -1221,7 +1246,7 @@ name	<b class="k">.macro</b> first,b=<span>2</span>,,last
 <h4>Text references</h4>
 <p>In the original turbo assembler normal references are passed by value and
 can only appear in place of one. Text references on the other hand can appear
-everywhere and will work in place of eg quoted text or opcodes and labels. The
+everywhere and will work in place of e.g. quoted text or opcodes and labels. The
 first 9 parameters can be referenced as text by
 <code>@1</code>...<code>@9</code>.</p>
 <pre width=80>
@@ -1238,8 +1263,8 @@ name    <b class="k">.macro</b>
 custom ones for frequently used calculations.</p>
 
 <dl class="dir">
-<dt><b>.function</b> &lt;name&gt;[=&lt;default&gt;]][,&lt;name&gt;[=&lt;default&gt;] ...]
-<dt><b>.endf</b> [&lt;result&gt;][,&lt;result&gt; ...]
+<dt><b>.function</b> &lt;name&gt;[=&lt;default&gt;]][, &lt;name&gt;[=&lt;default&gt;] ...]
+<dt><b>.endf</b> [&lt;result&gt;][, &lt;result&gt; ...]
 <dd>Defines a user function
 <dt><b>#&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] ...]
 <dt><b>.&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] ...]
@@ -1255,10 +1280,10 @@ code. Only those external variables and functions are available which were
 accessible at the place of definition, but not those at the place of
 invocation.</p>
 <pre width=80>
-wpack   <b class="k">.function</b> <u>a</u>,<u>b</u>=<span>0</span>
+wpack   <b class="k">.function</b> <u>a</u>, <u>b</u>=<span>0</span>
         <b class="k">.endf</b> <u>a</u>+<u>b</u>*<span>256</span>
 
-        <b class="d">.word</b> <span class="k">wpack</span>(<span>1</span>), <span class="k">wpack</span>(<span>2</span>,<span>3</span>)
+        <b class="d">.word</b> <span class="k">wpack</span>(<span>1</span>), <span class="k">wpack</span>(<span>2</span>, <span>3</span>)
 </pre>
 
 <p>If a function is used as macro, directive or pseudo instruction and there's
@@ -1267,7 +1292,7 @@ returned then it's used as regular label. Of course when used like this it can
 create code and access local variables.</p>
 
 <pre width=80>
-mva     <b class="k">.function</b> <u>s</u>,<u>d</u>
+mva     <b class="k">.function</b> <u>s</u>, <u>d</u>
         <b>lda</b> <u>s</u>
         <b>sta</b> <u>d</u>
         <b class="k">.endf</b>
@@ -1279,7 +1304,7 @@ mva     <b class="k">.function</b> <u>s</u>,<u>d</u>
 <p>To prevent parts of source from compiling conditional constructs can be
 used. This is useful when multiple slightly different versions needs to be
 compiled from the same source.</p>
-<h4>If, elsif, else</h4>
+<h4>If, else if, else</h4>
 <dl class="dir">
 <dt><b>.if</b> &lt;expression&gt;
 <dd>Compile, if result is true (not zero)
@@ -1324,7 +1349,7 @@ statement.</p>
 <dl class="dir">
 <dt><b>.switch</b> &lt;expression&gt;
 <dd>Evaluate expression and remember it
-<dt><b>.case</b> &lt;expression&gt;[,&lt;expression&gt; ...]
+<dt><b>.case</b> &lt;expression&gt;[, &lt;expression&gt; ...]
 <dd>Compile if the previous conditions were all skipped and one of the values equals
 <dt><b>.default</b>
 <dd>Compile if the previous conditions were all skipped
@@ -1347,7 +1372,7 @@ statement.</p>
 
 <h3>Repetitions</h3>
 <dl class="dir">
-<dt><b>.for</b> &lt;variable&gt;=&lt;expression&gt;,&lt;expression&gt;,&lt;variable&gt;=&lt;expression&gt;
+<dt><b>.for</b> &lt;variable&gt;=&lt;expression&gt;, &lt;expression&gt;, &lt;variable&gt;=&lt;expression&gt;
 <dt><b>.next</b>
 <dd>Compile loop, only anonymous references are allowed as labels inside
 <pre width=80>
@@ -1420,11 +1445,11 @@ menu    <b class="k">.binclude</b> <span class="s">"menu.asm"</span>        <i>;
 file separately, like bitmap and colors for example.
 <pre width=80>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>        <i>;simple include, all bytes</i>
-        <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>,<span>2</span>      <i>;skip start address</i>
-        <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>,<span>2</span>,<span>1000</span> <i>;skip start address, 1000 bytes max</i>
+        <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>, <span>2</span>     <i>;skip start address</i>
+        <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>, <span>2</span>, <span>1000</span><i>;skip start address, 1000 bytes max</i>
 
         <b>*=</b> <span>$1000</span>	            <i>;load music to $1000 and</i>
-        <b class="d">.binary</b> <span class="s">"music.sid"</span>,<span>$7e</span>     <i>;strip SID header</i>
+        <b class="d">.binary</b> <span class="s">"music.sid"</span>, <span>$7e</span>    <i>;strip SID header</i>
 </pre>
 
 </dl>
@@ -1496,19 +1521,19 @@ start of <code>.dsection</code> is not allowed.</p>
 <pre width=80>
         <b>*=</b> <span>$02</span>
         <b class="d">.dsection</b> <u>zp</u>   <i>;declare zeropage section</i>
-        <b class="k">.cerror</b> *&gt;<span>$30</span>,<span class="s">"Too many zeropage variables"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$30</span>, <span class="s">"Too many zeropage variables"</span>
 
         <b>*=</b> <span>$334</span>
         <b class="d">.dsection</b> <u>bss</u>   <i>;declare uninitialized variable section</i>
-        <b class="k">.cerror</b> *&gt;<span>$400</span>,<span class="s">"Too many variables"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$400</span>, <span class="s">"Too many variables"</span>
 
         <b>*=</b> <span>$0801</span>
         <b class="d">.dsection</b> <u>code</u>   <i>;declare code section</i>
-        <b class="k">.cerror</b> *&gt;<span>$1000</span>,<span class="s">"Program too long!"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$1000</span>, <span class="s">"Program too long!"</span>
 
         <b>*=</b> <span>$1000</span>
         <b class="d">.dsection</b> <u>data</u>   <i>;declare data section</i>
-        <b class="k">.cerror</b> *&gt;<span>$2000</span>,<span class="s">"Data too long!"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$2000</span>, <span class="s">"Data too long!"</span>
 <i>;--------------------</i>
         <b class="k">.section</b> <u>code</u>
         <b class="d">.word</b> <u>ss</u>, <span>2005</span>
@@ -1575,7 +1600,7 @@ shared for all banks.</p>
         <b>*=</b> <span>$0000</span>
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank1</u>
-        <b class="k">.cerror</b> *&gt;<span>$a000</span>, <span class="s">"Bank1 too long"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank1 too long"</span>
 	<b class="k">.here</b>
 
 bank1	<b class="k">.block</b>          <i>;Make all symbols local</i>
@@ -1593,7 +1618,7 @@ bank1	<b class="k">.block</b>          <i>;Make all symbols local</i>
         <b>*=</b> <span>$2000</span>
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank2</u>
-        <b class="k">.cerror</b> *&gt;<span>$a000</span>, <span class="s">"Bank2 too long"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank2 too long"</span>
 	<b class="k">.here</b>
 
 bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
@@ -1609,7 +1634,7 @@ bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
 <i>;Common data, avoid initialized variables here!</i>
         <b>*=</b> <span>$c000</span>
         <b class="d">.dsection</b> <u>bss</u>
-        <b class="k">.cerror</b> *&gt;<span>$d000</span>, <span class="s">"Too much common data"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$d000</span>, <span class="s">"Too much common data"</span>
 <i>;------------- The following is in "code.asm"</i>
 code    <b>sei</b>
 
@@ -1642,14 +1667,14 @@ routine <b class="d">.word</b> <u>print</u>
 </pre>
 
 <dt><b>.databank</b> &lt;expression&gt;
-<dd>Set databank (65816). Absolute addressing is used only for symbols in this
+<dd>Set data bank (65816). Absolute addressing is used only for symbols in this
 bank, anything else (except direct page) is using long addressing.
 <pre width=80>
         <b class="k">.databank</b> <span>$10</span>   <i>;$10xxxx</i>
 </pre>
 
 <dt><b>.dpage</b> &lt;expression&gt;
-<dd>Set directpage. Direct or zero page addressing is only used for addresses
+<dd>Set direct page. Direct or zero page addressing is only used for addresses
 in the following 256 byte range, anything else is using absolute or long
 addressing.
 <pre width=80>
@@ -1662,18 +1687,18 @@ addressing.
 
 <dt><b>.page</b>
 <dt><b>.endp</b>
-<dd>Gives an error on page boundary crossing, eg. for timing sensitive code.
+<dd>Gives an error on page boundary crossing, e.g. for timing sensitive code.
 
 <pre width=80>
 	<b class="k">.page</b>
-table   <b class="d">.byte</b> <span>0</span>,<span>1</span>,<span>2</span>,<span>3</span>,<span>4</span>,<span>5</span>,<span>6</span>,<span>7</span>
+table   <b class="d">.byte</b> <span>0</span>, <span>1</span>, <span>2</span>, <span>3</span>, <span>4</span>, <span>5</span>, <span>6</span>, <span>7</span>
 	<b class="k">.endp</b>
 </pre>
 
 <dt><b>.option</b> allow_branch_across_page
 <dd>Switches error generation on page boundary crossing during relative branch.
 Such a condition on 6502 adds 1 extra cycle to the execution time, which
-can ruin the timing of a carefuly cycle counted code.
+can ruin the timing of a carefully cycle counted code.
 <pre width=80>
         <b class="k">.option</b> allow_branch_across_page = <span>0</span>
         <b>ldx</b> #<span>3</span>          <i>;now this will execute in</i>
@@ -1687,7 +1712,7 @@ can ruin the timing of a carefuly cycle counted code.
 <dd>Exit with error or conditionally exit with error
 <pre width=80>
         <b class="k">.error</b> <span class="s">"Unfinished here..."</span>
-        <b class="k">.cerror</b> *&gt;<span>$1200</span>, <span class="s">"Program too long by "</span>, *-<span>$1200</span>, <span class="s">" bytes"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$1200</span>, <span class="s">"Program too long by "</span>, <u>*</u> - <span>$1200</span>, <span class="s">" bytes"</span>
 </pre>
 
 <dt><b>.warn</b> &lt;message&gt; [, &lt;message&gt;, ...]
@@ -1695,7 +1720,7 @@ can ruin the timing of a carefuly cycle counted code.
 <dd>Display a warning message always or depending on a condition
 <pre width=80>
         <b class="k">.warn</b> <span class="s">"FIXME: handle negative values too!"</span>
-        <b class="k">.cwarn</b> *&gt;<span>$1200</span>, <span class="s">"This may not work!"</span>
+        <b class="k">.cwarn</b> <u>*</u> &gt; <span>$1200</span>, <span class="s">"This may not work!"</span>
 </pre>
 
 </dl>
@@ -1725,11 +1750,11 @@ can ruin the timing of a carefuly cycle counted code.
 <dd>Terminate assembly. Any content after this directive is ignored.
 
 <dt><b>.eor</b> &lt;expression&gt;
-<dd>Eor output with some 8&nbsp;bit value. Useful for reverse screencode text for example,
+<dd>XOR output with a 8&nbsp;bit value. Useful for reverse screen code text for example,
 or for silly <q>encryption</q>.
 
 <dt><b>.var</b> &lt;expression&gt;
-<dd>Defines a variable identified by the label preceeding, which
+<dd>Defines a variable identified by the label preceding, which
 is set to the value of expression or reference of variable.
 
 <dt><b>.assert</b>
@@ -1825,12 +1850,12 @@ instruction.</p>
 sourcefile directly, or do the following:</p>
 <ul>
 <li>load turbo assembler, start (by sys9*4096 or sys8*4096 depending on version)
-<li><- (arrow left) then l to load a sourcefile
-<li><- (arrow left) then w to write a sourcefile in petscii format
+<li>&lt;- (arrow left) then l to load a source file
+<li>&lt;- (arrow left) then w to write a source file in PETSCII format
 <li>convert the result to ASCII using petcat (from the vice package)
 </ul>
 <p>The resulting file should then (with the restrictions below) assemble using the
-following commandline:</p>
+following command line:</p>
 <pre width=80>
 64tass -C -T -a -W -i source.asm -o outfile.prg
 </pre>
@@ -1947,10 +1972,10 @@ a DOS based Turbo Assembler editor, which could create PETSCII files for
 <p>Using this option will change the default <q>none</q> and <q>screen</q> encodings to
 map 'a'-'z' and 'A'-'Z' into the correct PETSCII range of $41-$5A and $C1-$DA,
 which is more suitable for an ASCII editor. It also adds predefined petcat style
-PETASCII literals to the default encodings.</p>
-<p><b>For writing sources in utf8/utf16 encodings this option is required!</b> The
+PETSCII literals to the default encodings.</p>
+<p><b>For writing sources in UTF-8/UTF-16 encodings this option is required!</b> The
 symbol names are still limited to ASCII, but custom string encodings can take
-advantage of the full unicode set.</p>
+advantage of the full Unicode set.</p>
 <pre width=80>
 64tass a.asm
 
@@ -2221,11 +2246,11 @@ format of messages is the following:</p>
 
 <h3>Warnings</h3>
 <dl>
-<dt>Top of memory excedeed
+<dt>Top of memory exceeded
 <dd>compile continues at the bottom ($0000)
 <dt>Possibly incorrectly used A
 <dd>do not use <q>a</q> as label
-<dt>Memory bank excedeed
+<dt>Memory bank exceeded
 <dd>compile continues in the next 64&nbsp;KiB bank, however execution may not
 <dt>Possible jmp ($xxff) bug
 <dd>yet another 65xx feature...
@@ -2284,13 +2309,13 @@ format of messages is the following:</p>
 <dt>Unknown CPU
 <dd>CPU type not known
 <dt>Ooops! Too many passes...
-<dd>With a carefuly crafted source file it's possible to create unresolvable situations. Fix your code.
+<dd>With a carefully crafted source file it's possible to create unresolvable situations. Fix your code.
 </dl>
 
 <hr>
 <h2>Credits</h2>
 
-<p>Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
+<p>Original written for DOS by Marek Matula of Taboo, then ported to ANSI C by
 BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
 optimizations, multi pass compile and a lot of features by Soci/Singular.
 Improved TASS compatibility, PETSCII codes by Groepaz.</p>

@@ -34,7 +34,7 @@ static struct avltree file_tree;
 
 void include_list_add(const char *path)
 {
-    int i, j;
+    size_t i, j, len;
     j = i = strlen(path);
     if (!i) return;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
@@ -42,7 +42,9 @@ void include_list_add(const char *path)
 #else
     if (path[i-1] != '/') j++;
 #endif
-    include_list_last->next = malloc(j + sizeof(struct include_list_s));
+    len = j + sizeof(struct include_list_s);
+    include_list_last->next = (struct include_list_s *)malloc(len);
+    if (!include_list_last->next || len < sizeof(struct include_list_s)) err_msg_out_of_memory();
     include_list_last = include_list_last->next;
     include_list_last->next = NULL;
     strcpy(include_list_last->path, path);
@@ -51,7 +53,7 @@ void include_list_add(const char *path)
 
 const char *get_path(const struct value_s *v, const char *base) {
     char *path;
-    size_t i;
+    size_t i, len;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
     size_t j;
 
@@ -62,14 +64,15 @@ const char *get_path(const struct value_s *v, const char *base) {
         i--;
     }
 #else
-    char *c;
+    const char *c;
     c = strrchr(base, '/');
     i = c ? (c - base + 1) : 0;
 #endif
 
     if (!v) {
-        path = (char *)malloc(i + 1);
-        if (!path) err_msg_out_of_memory();
+        len = i + 1;
+        path = (char *)malloc(len);
+        if (!path || len < 1) err_msg_out_of_memory(); /* overflow */
         memcpy(path, base, i);
         path[i] = 0;
         return path;
@@ -81,9 +84,11 @@ const char *get_path(const struct value_s *v, const char *base) {
 #else
     if (v->u.str.len && v->u.str.data[0]=='/') i = 0;
 #endif
-
-    path = (char *)malloc(i + v->u.str.len + 1);
-    if (!path) err_msg_out_of_memory();
+    len = i + v->u.str.len;
+    if (len < i) err_msg_out_of_memory(); /* overflow */
+    len += 1;
+    path = (char *)malloc(len);
+    if (!path || len < 1) err_msg_out_of_memory(); /* overflow */
     memcpy(path, base, i);
     memcpy(path + i, v->u.str.data, v->u.str.len);
     path[i + v->u.str.len] = 0;
@@ -97,8 +102,9 @@ FILE *file_open(const char *name, const char *mode)
     wchar_t *wname, *c2, wmode[3];
     const uint8_t *c;
     uint32_t ch;
-    wname = malloc(strlen(name)*sizeof(wchar_t)+sizeof(wchar_t));
-    if (!wname) err_msg_out_of_memory();
+    size_t len = strlen(name) + 1;
+    wname = (wchar_t *)malloc(len * sizeof(wchar_t));
+    if (!wname || len > ((size_t)~0) / sizeof(wchar_t)) err_msg_out_of_memory();
     c2 = wname; c = (uint8_t *)name;
     while (*c) {
         ch = *c;
@@ -164,8 +170,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
     struct avltree_node *b;
     struct file_s *tmp;
     char *s;
-    if (!lastfi)
-	if (!(lastfi=malloc(sizeof(struct file_s)))) err_msg_out_of_memory();
+    if (!lastfi) {
+	lastfi = (struct file_s *)malloc(sizeof(struct file_s));
+	if (!lastfi) err_msg_out_of_memory();
+    }
     lastfi->name=name;
     base2 = get_path(NULL, base);
     lastfi->base = base2;
@@ -176,7 +184,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         FILE *f;
         uint32_t c = 0;
 
-	if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
+	s = (char *)malloc(strlen(name) + 1);
+	if (!s) err_msg_out_of_memory();
         strcpy(s, name);lastfi->name = s;
 	lastfi->data=NULL;
 	lastfi->len=0;
@@ -202,7 +211,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 else f=file_open(name, "rb");
             }
             if (!path) {
-                if (!(s=malloc(strlen(name)+1))) err_msg_out_of_memory();
+                s = (char *)malloc(strlen(name) + 1);
+                if (!s) err_msg_out_of_memory();
                 strcpy(s, name);
                 path = s;
             }
@@ -218,7 +228,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 if (!fseek(f, 0, SEEK_END)) {
                     long len = ftell(f);
                     if (len >= 0) {
-                        tmp->data = malloc(len);
+                        tmp->data = (uint8_t *)malloc(len);
                         if (!tmp->data) err_msg_out_of_memory();
                         tmp->len = len;
                     }
@@ -227,8 +237,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 do {
                     if (tmp->p + 4096 > tmp->len) {
                         tmp->len += 4096;
-                        tmp->data = realloc(tmp->data, tmp->len);
-                        if (!tmp->data) err_msg_out_of_memory();
+                        tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
+                        if (!tmp->data || tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
                     }
                     tmp->p += fread(tmp->data + tmp->p, 1, tmp->len - tmp->p, f);
                 } while (!feof(f));
@@ -240,9 +250,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 if (!fseek(f, 0, SEEK_END)) {
                     long len = ftell(f);
                     if (len >= 0) {
-                        tmp->data = malloc(len + 4096);
-                        if (!tmp->data) err_msg_out_of_memory();
-                        tmp->len = len + 4096;
+                        len += 4096;
+                        tmp->data = (uint8_t *)malloc(len);
+                        if (!tmp->data || len < 4096) err_msg_out_of_memory(); /* overflow */
+                        tmp->len = len;
                     }
                     rewind(f);
                 }
@@ -256,8 +267,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                         if (p + 6*6 + 1 > tmp->data + tmp->len) {
                             size_t o = p - tmp->data;
                             tmp->len += 4096;
-                            tmp->data = realloc(tmp->data, tmp->len);
-                            if (!tmp->data) err_msg_out_of_memory();
+                            tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
+                            if (!tmp->data || tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
                             p = tmp->data + o;
                         }
                         lastchar = c;
@@ -383,11 +394,12 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             if (ferror(f)) err_msg_file(ERROR__READING_FILE, name);
             if (f!=stdin) fclose(f);
             tmp->len = tmp->p;
-            tmp->data=realloc(tmp->data, tmp->len);
+            tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
             if (!tmp->data) err_msg_out_of_memory();
             tmp->coding = type;
         } else {
-            if (!(s=malloc(1))) err_msg_out_of_memory();
+            s = (char *)malloc(1);
+            if (!s) err_msg_out_of_memory();
             s[0] = 0; tmp->realname = s;
             tmp->coding = E_UNKNOWN;
         }
@@ -424,7 +436,7 @@ struct star_s *new_star(line_t line, int *exists) {
         avltree_init(&lastst->tree);
         if (starsp == 254) {
             struct stars_s *old = stars;
-            stars = malloc(sizeof(struct stars_s));
+            stars = (struct stars_s *)malloc(sizeof(struct stars_s));
             if (!stars) err_msg_out_of_memory();
             stars->next = old;
             starsp = 0;
@@ -459,7 +471,7 @@ void destroy_file(void) {
 
 void init_file(void) {
     avltree_init(&file_tree);
-    stars = malloc(sizeof(struct stars_s));
+    stars = (struct stars_s *)malloc(sizeof(struct stars_s));
     if (!stars) err_msg_out_of_memory();
     stars->next = NULL;
     starsp = 0;

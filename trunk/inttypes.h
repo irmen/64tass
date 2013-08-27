@@ -77,3 +77,10 @@ typedef uint32_t uval_t;
 # define UNUSED(x) x
 #endif
 #endif
+
+#ifdef MUST_CHECK
+#elif defined(__GNUC__)
+#define MUST_CHECK __attribute__ ((warn_unused_result))
+#else
+#define MUST_CHECK
+#endif

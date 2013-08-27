@@ -24,11 +24,10 @@
 #include "64tass.h"
 
 #include "strobj.h"
-#include "numobj.h"
-#include "sintobj.h"
-#include "uintobj.h"
+#include "addressobj.h"
 #include "listobj.h"
 #include "boolobj.h"
+#include "intobj.h"
 
 static struct obj_s obj;
 
@@ -42,77 +41,166 @@ static int truth(const struct value_s *v1) {
     return !!v1->u.code.addr;
 }
 
-static void convert(struct value_s *v1, struct value_s *v, obj_t t, linepos_t UNUSED(epoint), linepos_t UNUSED(epoint2)) {
-    if (t == STR_OBJ) {
-        char line[100]; 
-        uint8_t *s;
-        v->obj = t;
-        v->u.str.len = sprintf(line, "%" PRIuval, (uval_t)v1->u.code.addr);
-        v->u.str.chars = v->u.str.len;
-        s = malloc(v->u.str.len);
-        if (!s) err_msg_out_of_memory();
-        memcpy(s, line, v->u.str.len);
-        v->u.str.data = s;
-        return;
+static void repr(const struct value_s *v1, struct value_s *v) {
+    char line[sizeof(address_t)*2+2];
+    int len;
+    uint8_t *s;
+    len = sprintf(line, "$%" PRIxval, v1->u.code.addr);
+    v->obj = STR_OBJ;
+    v->u.str.len = len;
+    v->u.str.chars = len;
+    s = (uint8_t *)malloc(v->u.str.len);
+    if (!s) err_msg_out_of_memory();
+    memcpy(s, line, v->u.str.len);
+    v->u.str.data = s;
+    return;
+}
+
+static void repr2(const struct value_s *v1, struct value_s *v) {
+    char line[100]; 
+    uint8_t *s;
+    v->obj = STR_OBJ;
+    v->u.str.len = sprintf(line, "%" PRIuval, (uval_t)v1->u.code.addr);
+    v->u.str.chars = v->u.str.len;
+    s = (uint8_t *)malloc(v->u.str.len);
+    if (!s) err_msg_out_of_memory();
+    memcpy(s, line, v->u.str.len);
+    v->u.str.data = s;
+    return;
+}
+
+static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+    *iv = v1->u.code.addr;
+    if (*iv >> (bits-1)) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_IVAL;
+        v->u.error.u.bits = bits;
+        v->u.error.epoint = *epoint;
+        return 1;
     }
-    if (t == NUM_OBJ) {
-        v->obj = NUM_OBJ;
-        v->u.num.val = v1->u.code.addr;
-        v->u.num.len = 8*sizeof(address_t);
-        return;
+    return 0;
+}
+
+static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+    *uv = v1->u.code.addr;
+    if (bits < 8*(int)sizeof(uval_t) && *uv >> bits) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_UVAL;
+        v->u.error.u.bits = bits;
+        v->u.error.epoint = *epoint;
+        return 1;
     }
-    ////////////////////////obj_oper_error(O_STRING, v1, NULL, v, epoint);
+    return 0;
+}
+
+static int MUST_CHECK real(const struct value_s *v1, struct value_s *UNUSED(v), double *r, linepos_t UNUSED(epoint)) {
+    *r = v1->u.code.addr;
+    return 0;
+}
+
+static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
+    *s = v1->u.code.addr != 0;
+    return 0;
+}
+
+static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    int_from_uval(v, v1->u.code.addr);
+}
+
+static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    int_from_uval(v, v1->u.code.addr);
+}
+
+static int calc1_num(oper_t op, uval_t v1, uint8_t len) {
+    struct value_s *v = op->v;
+    enum atype_e am;
+
+    switch (op->op->u.oper.op) {
+    case O_BANK: v1 >>= 8;
+    case O_HIGHER: v1 >>= 8;
+    case O_LOWER:
+        bits_from_u8(v, v1);
+        return 0;
+    case O_HWORD: v1 >>= 8;
+    case O_WORD:
+        bits_from_u16(v, v1);
+        return 0;
+    case O_BSWORD:
+        v1 = (uint8_t)(v1 >> 8) | (uint16_t)(v1 << 8); 
+        bits_from_u16(v, v1);
+        return 0;
+    case O_COMMAS: am = A_SR; goto addr;
+    case O_COMMAR: am = A_RR; goto addr;
+    case O_COMMAZ: am = A_ZR; goto addr;
+    case O_COMMAY: am = A_YR; goto addr;
+    case O_COMMAX: am = A_XR; goto addr;
+    case O_HASH: am = A_IMMEDIATE;
+    addr:
+        v->obj = ADDRESS_OBJ; 
+        v->u.addr.val = v1; 
+        v->u.addr.len = len;
+        v->u.addr.type = am; 
+        return 0;
+    case O_INV:
+        v1 = ~v1;
+        break;
+    case O_NEG:
+        v1 = -v1;
+    case O_POS:
+        break;
+    case O_LNOT: bool_from_int(v, !truth(op->v1)); return 0;
+    case O_STRING: repr2(op->v1, v); return 0;
+    default: return 1;
+    }
+    int_from_uval(v, v1);
+    return 0;
 }
 
 static void calc1(oper_t op) {
-    if (!calc1_uint(op, op->v1->u.code.addr)) return;
+    if (!calc1_num(op, op->v1->u.code.addr, 32)) return;
     obj_oper_error(op);
 }
 
 static void calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s tmp;
+    ival_t iv;
     switch (v2->obj->type) {
-    case T_NUM: 
-        switch (op->op->u.oper.op) {
-        case O_AND:
-        case O_OR:
-        case O_XOR: if (calc2_num_num(op, v1->u.code.addr, 0, v2->u.num.val, v2->u.num.len)) break; return;
-        default: break;
-        }
-        /* fall through */
     case T_BOOL:
-    case T_UINT:
-        switch (op->op->u.oper.op) {
-        case O_ADD:
-            v->obj = CODE_OBJ;
-            v->u.code.addr = v1->u.code.addr + (uval_t)v2->u.num.val;
-            v->u.code.size = 0;
-            v->u.code.dtype = D_NONE; return;
-        case O_SUB:
-            v->obj = CODE_OBJ;
-            v->u.code.addr = v1->u.code.addr - (uval_t)v2->u.num.val;
-            v->u.code.size = 0;
-            v->u.code.dtype = D_NONE; return;
-        default: break;
-        }
-        if (calc2_uint_uint(op, v1->u.code.addr, v2->u.num.val)) break; return;
-    case T_SINT:
-        switch (op->op->u.oper.op) {
-        case O_ADD:
-            v->obj = CODE_OBJ;
-            v->u.code.addr = v1->u.code.addr + v2->u.num.val;
-            v->u.code.size = 0;
-            v->u.code.dtype = D_NONE; return;
-        case O_SUB:
-            v->obj = CODE_OBJ;
-            v->u.code.addr = v1->u.code.addr - v2->u.num.val;
-            v->u.code.size = 0;
-            v->u.code.dtype = D_NONE; return;
-        default: break;
-        }
-        if (calc2_uint_sint(op, v1->u.code.addr, v2->u.num.val)) break; return;
+    case T_INT:
+    case T_BITS:
     case T_CODE:
-        if (calc2_uint_uint(op, v1->u.code.addr, v2->u.code.addr)) break; return;
+        switch (op->op->u.oper.op) {
+        case O_ADD:
+            if (v2->obj->ival(v2, &tmp, &iv, 8*sizeof(ival_t), &op->epoint2)) {
+                if (v1 == v || v2 == v) v->obj->destroy(v);
+                tmp.obj->copy_temp(&tmp, v);
+                return;
+            }
+            v->obj = CODE_OBJ;
+            v->u.code.addr = v1->u.code.addr + iv;
+            v->u.code.size = 0;
+            v->u.code.dtype = D_NONE; return;
+        case O_SUB:
+            if (v2->obj->ival(v2, &tmp, &iv, 8*sizeof(ival_t), &op->epoint2)) {
+                if (v1 == v || v2 == v) v->obj->destroy(v);
+                tmp.obj->copy_temp(&tmp, v);
+                return;
+            }
+            v->obj = CODE_OBJ;
+            v->u.code.addr = v1->u.code.addr - iv;
+            v->u.code.size = 0;
+            v->u.code.dtype = D_NONE; return;
+        default: break;
+        }
+        int_from_uval(&tmp, v1->u.code.addr);
+        if (v1 == v) v->obj->destroy(v);
+        op->v1 = &tmp;
+        tmp.refcount = 0;
+        tmp.obj->calc2(op);
+        op->v1 = v1;
+        tmp.obj->destroy(&tmp);
+        return;
     default: v2->obj->rcalc2(op); return;
     }
     obj_oper_error(op);
@@ -120,14 +208,14 @@ static void calc2(oper_t op) {
 
 static void rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    if (op->op == &o_X) {
-        v1->obj->repeat(op, v2->u.code.addr); return;
-    }
+    struct value_s tmp;
+    ival_t iv;
     if (op->op == &o_IN) {
         struct oper_s oper;
         size_t i, len, offs;
         struct value_s new_value;
         int16_t r;
+        uval_t uval;
 
         if (v2->u.code.pass != pass) {
             v->obj = ERROR_OBJ;
@@ -147,75 +235,59 @@ static void rcalc2(oper_t op) {
         oper.epoint2 = op->epoint2;
         oper.epoint3 = op->epoint3;
         for (offs = 0; offs < v2->u.code.size;) {
-            new_value.u.num.val = 0;
+            uval = 0;
             r = -1;
             for (i = 0; i < len; i++) {
                 r = read_mem(v2->u.code.mem, v2->u.code.memp, v2->u.code.membp, offs++);
                 if (r < 0) break;
-                new_value.u.num.val |= r << (i * 8);
+                uval |= r << (i * 8);
             }
             if (v2->u.code.dtype < 0 && (r & 0x80)) {
-                for (; i < sizeof(new_value.u.num.val); i++) {
-                    new_value.u.num.val |= 0xff << (i * 8);
+                for (; i < sizeof(uval); i++) {
+                    uval |= 0xff << (i * 8);
                 }
             }
-            if (r < 0) {
-                new_value.obj = GAP_OBJ;
-            } else if (v2->u.code.dtype < 0) {
-                new_value.obj = SINT_OBJ;
-            } else {
-                new_value.obj = NUM_OBJ;
-                new_value.u.num.len = len * 8;
-            }
+            if (r < 0) new_value.obj = GAP_OBJ;
+            else if (v2->u.code.dtype < 0) int_from_ival(&new_value, (ival_t)uval);
+            else int_from_uval(&new_value, uval);
             new_value.obj->calc2(&oper);
-            if (new_value.obj == BOOL_OBJ && new_value.u.num.val) {
+            if (new_value.obj == BOOL_OBJ && new_value.u.boolean) {
                 if (v == v1) obj_destroy(v);
-                v->obj = BOOL_OBJ; v->u.num.val = 1;
+                bool_from_int(v, 1);
                 return;
             }
         }
         if (v == v1) obj_destroy(v);
-        v->obj = BOOL_OBJ; v->u.num.val = 0;
+        bool_from_int(v, 0);
         return;
     }
     switch (v1->obj->type) {
-    case T_NUM: 
-        switch (op->op->u.oper.op) {
-        case O_LSHIFT:
-        case O_RSHIFT:
-        case O_AND:
-        case O_OR:
-        case O_XOR: if (calc2_num_num(op, v1->u.num.val, v1->u.num.len, v2->u.code.addr, 0)) break; return;
-        default: break;
-        }
-        /* fall through */
+    case T_CODE:
     case T_BOOL:
-    case T_UINT:
+    case T_INT:
+    case T_BITS:
         if (op->op == &o_ADD) {
+            if (v1->obj->ival(v1, &tmp, &iv, 8*sizeof(ival_t), &op->epoint)) {
+                if (v1 == v || v2 == v) v->obj->destroy(v);
+                tmp.obj->copy_temp(&tmp, v);
+                return;
+            }
             v->obj = CODE_OBJ;
-            v->u.code.addr = (uval_t)v1->u.num.val + v2->u.code.addr;
+            v->u.code.addr = (uval_t)v2->u.code.addr + iv;
             v->u.code.size = 0;
             v->u.code.dtype = D_NONE; return;
         }
-        if (calc2_uint_uint(op, v1->u.num.val, v2->u.code.addr)) break; return;
-    case T_SINT:
-        if (op->op == &o_ADD) {
-            v->obj = CODE_OBJ;
-            v->u.code.addr = v1->u.num.val + v2->u.code.addr;
-            v->u.code.size = 0;
-            v->u.code.dtype = D_NONE;
-            return;
-        }
-        if (calc2_sint_uint(op, v1->u.num.val, v2->u.code.addr)) break; return;
-    case T_CODE:
-        if (calc2_uint_uint(op, v1->u.code.addr, v2->u.code.addr)) break; return;
+        int_from_uval(&tmp, v2->u.code.addr);
+        if (v2 == v) v->obj->destroy(v);
+        op->v2 = &tmp;
+        tmp.refcount = 0;
+        tmp.obj->rcalc2(op);
+        op->v2 = v2;
+        tmp.obj->destroy(&tmp);
+        return;
     default: v1->obj->calc2(op); return;
     }
     obj_oper_error(op);
-}
-
-static int print(const struct value_s *v1, FILE *f) {
-    return fprintf(f, "$%" PRIxval, (uval_t)v1->u.code.addr);
 }
 
 static void iindex(oper_t op) {
@@ -228,9 +300,6 @@ static void iindex(oper_t op) {
     uval_t val;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
 
-    if (!v2->u.list.len) {
-        TUPLE_OBJ->copy(&null_tuple, v); return;
-    }
     if (v1->u.code.pass != pass) {
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR___NOT_DEFINED;
@@ -239,50 +308,75 @@ static void iindex(oper_t op) {
         v->u.error.u.ident.data = (const uint8_t *)"<code>";
         return;
     }
-    vals = malloc(v2->u.list.len * sizeof(v2->u.list.data[0]));
-    if (!vals) err_msg_out_of_memory();
+
     len2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
     len2 = len2 + !len2;
     len = v1->u.code.size / len2;
-    for (i = 0; i < v2->u.list.len; i++) {
-        offs = indexoffs(v2->u.list.data[i], len);
-        if (offs < 0) {
-            v->u.list.data = vals;
-            v->u.list.len = i;
-            TUPLE_OBJ->destroy(v);
-            v->obj = ERROR_OBJ;
-            v->u.error.num = ERROR___INDEX_RANGE;
-            v->u.error.epoint = op->epoint2;
-            return;
+
+    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+        if (!v2->u.list.len) {
+            TUPLE_OBJ->copy(&null_tuple, v); return;
         }
-        offs2 = offs * len2;
-        val = 0;
-        r = -1;
-        for (i2 = 0; i2 < len2; i2++) {
-            r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
-            if (r < 0) break;
-            val |= r << (i2 * 8);
-        }
-        if (v1->u.code.dtype < 0 && (r & 0x80)) {
-            for (; i2 < sizeof(val); i2++) {
-                val |= 0xff << (i2 * 8);
+        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v2->u.list.data[0]));
+        if (!vals) err_msg_out_of_memory();
+        for (i = 0; i < v2->u.list.len; i++) {
+            offs = indexoffs(v2->u.list.data[i], len);
+            if (offs < 0) {
+                v->u.list.data = vals;
+                v->u.list.len = i;
+                TUPLE_OBJ->destroy(v);
+                v->obj = ERROR_OBJ;
+                v->u.error.num = ERROR___INDEX_RANGE;
+                v->u.error.epoint = op->epoint2;
+                return;
             }
+            offs2 = offs * len2;
+            val = 0;
+            r = -1;
+            for (i2 = 0; i2 < len2; i2++) {
+                r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
+                if (r < 0) break;
+                val |= r << (i2 * 8);
+            }
+            if (v1->u.code.dtype < 0 && (r & 0x80)) {
+                for (; i2 < sizeof(val); i2++) {
+                    val |= 0xff << (i2 * 8);
+                }
+            }
+            vals[i] = val_alloc();
+            if (r < 0) vals[i]->obj = GAP_OBJ;
+            else if (v1->u.code.dtype < 0) int_from_ival(vals[i],  (ival_t)val);
+            else int_from_uval(vals[i], val);
         }
-        vals[i] = val_alloc();
-        if (r < 0) {
-            vals[i]->obj = GAP_OBJ;
-        } else if (v1->u.code.dtype < 0) {
-            vals[i]->obj = SINT_OBJ;
-            vals[i]->u.num.val = val;
-        } else {
-            vals[i]->obj = NUM_OBJ;
-            vals[i]->u.num.len = len2 * 8;
-            vals[i]->u.num.val = val;
+        v->obj = TUPLE_OBJ;
+        v->u.list.data = vals;
+        v->u.list.len = i;
+        return;
+    }
+    offs = indexoffs(v2, len);
+    if (offs < 0) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR___INDEX_RANGE;
+        v->u.error.epoint = op->epoint2;
+        return;
+    }
+
+    offs2 = offs * len2;
+    val = 0;
+    r = -1;
+    for (i2 = 0; i2 < len2; i2++) {
+        r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
+        if (r < 0) break;
+        val |= r << (i2 * 8);
+    }
+    if (v1->u.code.dtype < 0 && (r & 0x80)) {
+        for (; i2 < sizeof(val); i2++) {
+            val |= 0xff << (i2 * 8);
         }
     }
-    v->obj = TUPLE_OBJ;
-    v->u.list.data = vals;
-    v->u.list.len = i;
+    if (r < 0) v->obj = GAP_OBJ;
+    else if (v1->u.code.dtype < 0) int_from_ival(v,  (ival_t)val);
+    else int_from_uval(v, val);
 }
 
 static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t epoint) {
@@ -312,7 +406,7 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
         v->u.error.u.ident.data = (const uint8_t *)"<code>";
         return;
     }
-    vals = malloc(len * sizeof(v1->u.list.data[0]));
+    vals = (struct value_s **)malloc(len * sizeof(v1->u.list.data[0]));
     if (!vals) err_msg_out_of_memory();
     i = 0;
     len2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
@@ -331,16 +425,9 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
                 val |= 0xff << (i2 * 8);
             }
         }
-        if (r < 0) {
-            vals[i]->obj = GAP_OBJ;
-        } else if (v1->u.code.dtype < 0) {
-            vals[i]->obj = SINT_OBJ;
-            vals[i]->u.num.val = val;
-        } else {
-            vals[i]->obj = NUM_OBJ;
-            vals[i]->u.num.len = len2 * 8;
-            vals[i]->u.num.val = val;
-        }
+        if (r < 0) vals[i]->obj = GAP_OBJ;
+        else if (v1->u.code.dtype < 0) int_from_ival(vals[i], (ival_t)val);
+        else int_from_uval(vals[i], val);
         i++; offs += step;
     }
     v->obj = TUPLE_OBJ;
@@ -352,11 +439,16 @@ void codeobj_init(void) {
     obj_init(&obj, T_CODE, "<code>");
     obj.same = same;
     obj.truth = truth;
-    obj.convert = convert;
+    obj.repr = repr;
+    obj.ival = ival;
+    obj.uval = uval;
+    obj.real = real;
+    obj.sign = sign;
+    obj.abs = absolute;
+    obj.integer = integer;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
-    obj.print = print;
     obj.iindex = iindex;
     obj.slice = slice;
 }
