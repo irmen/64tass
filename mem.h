@@ -29,7 +29,7 @@ struct memblocks_s {
         uint8_t *data;
     } mem;
     unsigned int compressed:1;
-    unsigned int p, len;
+    size_t p, len;
     size_t lastp;
     address_t lastaddr;
     struct memblock_s *data;

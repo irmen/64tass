@@ -1571,7 +1571,8 @@ static int get_val2(struct eval_context_s *ev) {
         case O_TUPLE:
         case O_LIST:
             {
-                unsigned int args = 0, tup = (op == O_RPARENT), expl = (op == O_TUPLE || op == O_LIST);
+                unsigned int tup = (op == O_RPARENT), expl = (op == O_TUPLE || op == O_LIST);
+                size_t args = 0;
                 op = (op == O_RBRACKET || op == O_LIST) ? O_BRACKET : O_PARENT;
                 while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != op) {
                     args++;
