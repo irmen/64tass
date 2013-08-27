@@ -51,7 +51,6 @@
 #include "misc.h"
 #include "eval.h"
 
-#include "numobj.h"
 #include "strobj.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
@@ -100,8 +99,8 @@ static inline void PUT_CHAR(uint32_t c) {
     uint8_t *p = (uint8_t *)return_value.u.str.data;
     if (return_value.u.str.len + 6 >= returnsize) {
         returnsize += 256;
-        p = realloc(p, returnsize);
-        if (!p) err_msg_out_of_memory();
+        p = (uint8_t *)realloc(p, returnsize);
+        if (!p || returnsize < 256) err_msg_out_of_memory(); /* overflow */
         return_value.u.str.data = p;
     }
     p = utf8out(c, p + return_value.u.str.len);
@@ -137,48 +136,26 @@ static inline void PAD_LEFT(struct DATA *p)
     }
 }
 
-static uval_t asint(const struct value_s *v, int *minus)
-{
-    uval_t d;
-    switch (v->obj->type) {
-    case T_SINT: 
-        if ((ival_t)v->u.num.val < 0) {
-            d = (uval_t)-v->u.num.val; *minus = 1;
-        } else {
-            d = (uval_t)v->u.num.val; *minus = 0;
-        }
-        break;
-    case T_NUM:
-    case T_UINT:
-    case T_BOOL: d = (uval_t)v->u.num.val; *minus = 0;break;
-    case T_CODE: d = (uval_t)v->u.code.addr; *minus = 0;break;
-    case T_FLOAT: 
-        if ((ival_t)v->u.num.val < 0) {
-            d = (uval_t)-v->u.real; *minus = 1;
-        } else {
-            d = (uval_t)v->u.real; *minus = 0;
-        }
-        break;
-    default: err_msg_wrong_type(v, epoint);
-    case T_NONE: *minus = -1; d = 0; break;
-    }
-    return d;
-}
-
 /* if width and prec. in the args */
 static void STAR_ARGS(struct DATA *p)
 {
-    uval_t v;
-    int minus;
+    struct value_s err;
+    uval_t uval;
     if (p->star_w == FOUND) {
-        v = asint(next_arg(), &minus);
-        if (minus < 0) return;
-        p->width = v;
+        const struct value_s *v = next_arg();
+        if (v->obj->uval(v, &err, &uval, 8*sizeof(uval_t)-1, epoint)) {
+            err_msg_wrong_type(&err, epoint);
+            uval = 0;
+        }
+        p->width = uval;
     }
     if (p->star_p == FOUND) {
-        v = asint(next_arg(), &minus);
-        if (minus < 0) return;
-        p->precision = v;
+        const struct value_s *v = next_arg();
+        if (v->obj->uval(v, &err, &uval, 8*sizeof(uval_t)-1, epoint)) {
+            err_msg_wrong_type(&err, epoint);
+            uval = 0;
+        }
+        p->precision = uval;
     }
 }
 
@@ -187,96 +164,149 @@ static void STAR_ARGS(struct DATA *p)
  */
 static void decimal(struct DATA *p, const struct value_s *v)
 {
-    char tmp[100], *t;
     int minus;
-    uval_t d;
+    struct value_s tmp2, tmp;
+    size_t i;
 
-    d = asint(v, &minus);
-    if (minus < 0) return;
-    sprintf(tmp, "%" PRIuval, d);
-
-    p->width -= strlen(tmp);
-    PAD_RIGHT2(p, 0, minus);
-    t = tmp;
-    while (*t) { /* the integral */
-        PUT_CHAR(*t);
-        t++;
+    if (v->obj == NONE_OBJ) int_from_int(&tmp2, 0);
+    else {
+        v->obj->integer(v, &tmp2, epoint);
+        if (tmp2.obj != INT_OBJ) {
+            err_msg_wrong_type(&tmp2, epoint);
+            tmp2.obj->destroy(&tmp2);
+            int_from_int(&tmp2, 0);
+        }
     }
+
+    minus = (tmp2.u.integer.len < 0);
+    tmp2.obj->str(&tmp2, &tmp);
+
+    p->width -= tmp.u.str.len - minus;
+    PAD_RIGHT2(p, 0, minus);
+    for (i = minus ;i < tmp.u.str.len;i++) PUT_CHAR(tmp.u.str.data[i]);
     PAD_LEFT(p);
+    tmp.obj->destroy(&tmp);
+    tmp2.obj->destroy(&tmp2);
 }
 
 /* for %x %X hexadecimal representation */
 static void hexa(struct DATA *p, const struct value_s *v)
 {
-    char tmp[100], *t;
     int minus;
-    uval_t d;
+    struct value_s tmp;
+    const char *hex = (*p->pf == 'x') ? "0123456789abcdef" : "0123456789ABCDEF";
+    size_t bits;
+    int bp, bp2, b;
 
-    d = asint(v, &minus);
-    if (minus < 0) return;
-    sprintf(tmp, (*p->pf == 'x') ? "%" PRIxval : "%" PRIXval, d);
+    if (v->obj == NONE_OBJ) int_from_int(&tmp, 0);
+    else {
+        v->obj->integer(v, &tmp, epoint);
+        if (tmp.obj != INT_OBJ) {
+            err_msg_wrong_type(&tmp, epoint);
+            tmp.obj->destroy(&tmp);
+            int_from_int(&tmp, 0);
+        }
+    }
 
-    p->width -= strlen(tmp);
+    minus = (tmp.u.integer.len < 0);
+    bits = 30 * abs(tmp.u.integer.len);
+    if (bits & 3) {
+        bits &= ~3;
+        bp = bits % 30;
+        bp2 = bits / 30;
+        if (bp <= (30 - 4)) b = tmp.u.integer.data[bp2] >> bp;
+        else {
+            b = tmp.u.integer.data[bp2] >> bp;
+            if (bp2 + 1 < tmp.u.integer.len) b |= tmp.u.integer.data[bp2 + 1] << (30 - bp);
+        }
+    } else {
+        b = 0;
+        bp = bits % 30;
+        bp2 = bits / 30;
+    }
+    while (!b && bp | bp2) {
+        if (bp >= 4) bp -=4; else { bp2--; bp = 30 - 4 + bp; }
+        if (bp <= (30 - 4)) b = tmp.u.integer.data[bp2] >> bp;
+        else b = (tmp.u.integer.data[bp2] >> bp) | (tmp.u.integer.data[bp2 + 1] << (30 - bp));
+        b &= 15;
+    }
+    bits = bp2 * 30 + bp + 4;
+
+    p->width -= (bits + 3) / 4;
     PAD_RIGHT2(p, '$', minus);
-    t = tmp;
-    while (*t) { /* hexa */
-        PUT_CHAR(*t);
-        t++;
+    
+    b = tmp.u.integer.data[bp2] >> bp;
+    if (bp > 30 - 4 && bp2 + 1 < tmp.u.integer.len) b |= tmp.u.integer.data[bp2 + 1] << (30 - bp);
+    PUT_CHAR(hex[b & 15]);
+  
+    while (bp | bp2) {
+        if (bp >= 4) bp -=4; else { bp2--; bp = 30 - 4 + bp; }
+        b = tmp.u.integer.data[bp2] >> bp;
+        if (bp > 30 - 4) b |= (tmp.u.integer.data[bp2 + 1] << (30 - bp));
+        PUT_CHAR(hex[b & 15]);
     }
     PAD_LEFT(p);
+    tmp.obj->destroy(&tmp);
 }
 
 /* for %b binary representation */
 static void bin(struct DATA *p, const struct value_s *v)
 {
-    char tmp[100], *t;
-    int minus;
-    int i, j;
-    uval_t d;
+    int i;
+    struct value_s err;
 
-    d = asint(v, &minus);
-    if (minus < 0) return;
-    i = (v->obj == NUM_OBJ) ? v->u.num.len : get_val_len(v->u.num.val, v->obj->type);
-    for (i = i - 1, j = 0; i >= 0; i--, j++) {
-        tmp[j] = (d & (1 << i)) ? '1' : '0';
-        if (!j && tmp[j] == '0' && i) j--;
+    if (v->obj == NONE_OBJ) int_from_int(&err, 0);
+    else {
+        v->obj->integer(v, &err, epoint);
+        if (err.obj != INT_OBJ) {
+            err_msg_wrong_type(&err, epoint);
+            err.obj->destroy(&err);
+            int_from_int(&err, 0);
+        }
     }
-    tmp[j] = 0;
+    i = abs(err.u.integer.len);
+    if (i) {
+        int minus;
+        int span, bits;
+        uval_t val = err.u.integer.data[i - 1];
+        minus = (err.u.integer.len < 0);
+        span = 4 * sizeof(digit_t); bits = 0;
+        while (span) {
+            if (val >> (bits + span)) {
+                bits |= span;
+            }
+            span >>= 1;
+        }
+        i = (i - 1) * 30 + bits + 1;
 
-    p->width -= j;
-    PAD_RIGHT2(p, '%', minus);
-    t = tmp;
-    while (*t) { /* bin */
-        PUT_CHAR(*t);
-        t++;
+        p->width -= i;
+        PAD_RIGHT2(p, '%', minus);
+        for (i = i - 1; i >= 0; i--) {
+            PUT_CHAR((err.u.integer.data[i / 30] & (1 << (i % 30))) ? '1' : '0');
+        }
+    } else {
+        p->width -= 1;
+        PAD_RIGHT2(p, '%', 0);
+        PUT_CHAR('0');
     }
+
     PAD_LEFT(p);
+    err.obj->destroy(&err);
 }
 
 /* %c chars */
 static inline void chars(const struct value_s *v)
 {
-    uint32_t ch;
-    switch (v->obj->type) {
-    case T_SINT: if ((ival_t)v->u.num.val < 0) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
-    case T_NUM:
-    case T_UINT:
-    case T_BOOL: 
-        if ((uval_t)v->u.num.val & ~(uval_t)0xffffff) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
-        PUT_CHAR(v->u.num.val); return;
-    case T_CODE:
-        if ((uval_t)v->u.code.addr & ~(uval_t)0xffffff) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
-        PUT_CHAR(v->u.code.addr); return;
-    case T_FLOAT:
-        if (v->u.real < 0.0 || ((uval_t)v->u.real & ~(uval_t)0xffffff)) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
-        PUT_CHAR(v->u.real); return;
-    case T_STR:
-        if (v->u.str.chars != 1) {err_msg2(ERROR_CONSTNT_LARGE,NULL, epoint);return;}
-        if (v->u.str.data[0] & 0x80) utf8in(v->u.str.data, &ch); else ch = v->u.str.data[0];
-        PUT_CHAR(ch); return;
-    default: err_msg_wrong_type(v, epoint);
-    case T_NONE: return;
+    uval_t uval;
+    struct value_s err;
+
+    if (v->obj == NONE_OBJ) uval = 0;
+    if (v->obj->uval(v, &err, &uval, 24, epoint)) {
+        err_msg_wrong_type(&err, epoint);
+        uval = 0;
     }
+
+    PUT_CHAR(uval);
 }
 
 /* %s strings */
@@ -285,15 +315,12 @@ static void strings(struct DATA *p, const struct value_s *v)
     int i;
     const uint8_t *tmp;
     uint32_t ch;
+    struct value_s err;
 
-    switch (v->obj->type) {
-    case T_STR: break;
-    default: err_msg_wrong_type(v, epoint);
-    case T_NONE: return;
-    }
-
-    tmp = v->u.str.data;
-    i = v->u.str.chars;
+    if (*p->pf == 'r') v->obj->repr(v, &err);
+    else v->obj->str(v, &err);
+    tmp = err.u.str.data;
+    i = err.u.str.chars;
     if (p->precision != NOT_FOUND) /* the smallest number */
         i = (i < p->precision ? i : p->precision);
     p->width -= i;
@@ -303,6 +330,7 @@ static void strings(struct DATA *p, const struct value_s *v)
         PUT_CHAR(ch);
     }
     PAD_LEFT(p);
+    err.obj->destroy(&err);
 }
 
 /* %f or %g  floating point representation */
@@ -311,17 +339,14 @@ static void floating(struct DATA *p, const struct value_s *v)
     char tmp[400], *t, form[10];
     int minus;
     double d;
+    struct value_s err;
 
-    switch (v->obj->type) {
-    case T_SINT: if ((ival_t)v->u.num.val < 0) {d = (uval_t)-v->u.num.val;minus = 1;} else {d = (uval_t)v->u.num.val; minus = 0;} break;
-    case T_NUM:
-    case T_UINT:
-    case T_BOOL: d = (uval_t)v->u.num.val; minus = 0; break;
-    case T_CODE: d = (uval_t)v->u.code.addr; minus = 0; break;
-    case T_FLOAT: if (v->u.real < 0.0) { d = -v->u.real; minus = 1;} else { d = v->u.real; minus = 0; } break;
-    default: err_msg_wrong_type(v, epoint);
-    case T_NONE: return;
+    if (v->obj == NONE_OBJ) d = 0.0;
+    else if (v->obj->real(v, &err, &d, epoint)) {
+        err_msg_wrong_type(&err, epoint);
+        d = 0.0;
     }
+    if (d < 0.0) { d = -d; minus = 1;} else minus = 0;
     if (p->precision == NOT_FOUND) p->precision = 6;
     t = form;
     *t++ = '%';
@@ -333,7 +358,6 @@ static void floating(struct DATA *p, const struct value_s *v)
     snprintf(tmp, sizeof(tmp), form, (p->precision < 80) ? p->precision : 80, d);
     t = tmp;
 
-    if (t[0] == '0' && (t[1] | 0x20) == 'x') *(++t) = '$';
     p->width -= strlen(tmp);
     PAD_RIGHT2(p, 0, minus);
     while (*t) { /* the integral */
@@ -441,6 +465,7 @@ void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_
                     chars(next_arg());
                     state = 0;
                     break;
+                case 'r':  /* repr */
                 case 's':  /* string */
                     STAR_ARGS(&data);
                     strings(&data, next_arg());
@@ -464,7 +489,7 @@ void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_
                     break;
                 default:
                     {
-                        uint8_t str[2] = {'%', *data.pf};
+                        uint8_t str[2] = {'%', (uint8_t)*data.pf};
                         str_t msg = {2, str};
                         err_msg_not_defined(&msg, se);
                     }

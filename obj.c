@@ -25,14 +25,13 @@
 
 #include "listobj.h"
 #include "boolobj.h"
-#include "numobj.h"
-#include "uintobj.h"
-#include "sintobj.h"
 #include "addressobj.h"
 #include "codeobj.h"
 #include "floatobj.h"
 #include "strobj.h"
 #include "bytesobj.h"
+#include "bitsobj.h"
+#include "intobj.h"
 
 int referenceit = 1;
 
@@ -78,10 +77,10 @@ void obj_oper_error(oper_t op) {
     switch (op->op->u.oper.op) {
     case O_EQ: 
         if (v == v1 || v == v2) obj_destroy(v);
-        v->u.num.val = (v1->obj->type == v2->obj->type); v->obj = BOOL_OBJ; return;
+        bool_from_int(v, v1->obj->type == v2->obj->type); return;
     case O_NE:
         if (v == v1 || v == v2) obj_destroy(v);
-        v->u.num.val = (v1->obj->type != v2->obj->type); v->obj = BOOL_OBJ; return;
+        bool_from_int(v, v1->obj->type != v2->obj->type); return;
     default: break;
     }
     if (v == v1) {
@@ -128,18 +127,45 @@ static int invalid_hash(const struct value_s *v1, struct value_s *v, linepos_t e
     return -1;
 }
 
+static void invalid_repr(const struct value_s *v1, struct value_s *v) {
+    uint8_t *s;
+    const char *name;
+    if (v1->obj == ERROR_OBJ) {
+        if (v != v1) error_copy(v1, v);
+        return;
+    }
+    name = v1->obj->name;
+    if (v == v1) v->obj->destroy(v);
+    v->obj = STR_OBJ;
+    v->u.str.len = strlen(name);
+    v->u.str.chars = v->u.str.len;
+    s = (uint8_t *)malloc(v->u.str.len);
+    if (!s) err_msg_out_of_memory();
+    memcpy(s, name, v->u.str.len);
+    v->u.str.data = s;
+}
+
+static void invalid_str(const struct value_s *v1, struct value_s *v) {
+    if (v1->obj == ERROR_OBJ) {
+        if (v != v1) error_copy(v1, v);
+        return;
+    }
+    return v1->obj->repr(v1, v);
+}
+
 static int gap_hash(const struct value_s *UNUSED(v1), struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
     return 0; /* whatever, there's only one */
 }
 
-static void invalid_convert(struct value_s *v1, struct value_s *v, obj_t UNUSED(t), linepos_t epoint, linepos_t UNUSED(epoint2)) {
-    struct oper_s tmp;
-    tmp.op = &o_STRING;
-    tmp.v1 = v1;
-    tmp.v2 = NULL;
-    tmp.v = v;
-    tmp.epoint3 = *epoint;
-    obj_oper_error(&tmp);
+static void gap_repr(const struct value_s *UNUSED(v1), struct value_s *v) {
+    uint8_t *s;
+    v->obj = STR_OBJ;
+    v->u.str.len = 1;
+    v->u.str.chars = 1;
+    s = (uint8_t *)malloc(v->u.str.len);
+    if (!s) err_msg_out_of_memory();
+    *s = '?';
+    v->u.str.data = s;
 }
 
 static void invalid_calc1(oper_t op) {
@@ -170,10 +196,6 @@ static void invalid_repeat(oper_t op, uval_t UNUSED(rep)) {
     obj_oper_error(op);
 }
 
-static int invalid_print(const struct value_s *v1, FILE *f) {
-    return fprintf(f,"<%s>", v1->obj->name);
-}
-
 static void invalid_iindex(oper_t op) {
     obj_oper_error(op);
 }
@@ -186,6 +208,55 @@ static void invalid_slice(struct value_s *v1, ival_t UNUSED(offs), ival_t UNUSED
     oper.v = v;
     oper.epoint3 = *epoint;
     obj_oper_error(&oper);
+}
+
+static int MUST_CHECK invalid_ival(const struct value_s *UNUSED(v1), struct value_s *v, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR______CANT_INT;
+    v->u.error.epoint = *epoint;
+    return 1;
+}
+
+static int MUST_CHECK invalid_uval(const struct value_s *UNUSED(v1), struct value_s *v, uval_t *UNUSED(uv), int UNUSED(bits), linepos_t epoint) {
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR______CANT_INT;
+    v->u.error.epoint = *epoint;
+    return 1;
+}
+
+static int MUST_CHECK invalid_real(const struct value_s *UNUSED(v1), struct value_s *v, double *UNUSED(r), linepos_t epoint) {
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR_____CANT_REAL;
+    v->u.error.epoint = *epoint;
+    return 1;
+}
+
+static int MUST_CHECK invalid_sign(const struct value_s *UNUSED(v1), struct value_s *v, int *UNUSED(s), linepos_t epoint) {
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR_____CANT_SIGN;
+    v->u.error.epoint = *epoint;
+    return 1;
+}
+
+static void invalid_abs(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (v1 == v) v->obj->destroy(v);
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR______CANT_ABS;
+    v->u.error.epoint = *epoint;
+}
+
+static void invalid_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (v1 == v) v->obj->destroy(v);
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR______CANT_INT;
+    v->u.error.epoint = *epoint;
+}
+
+static int MUST_CHECK invalid_len(const struct value_s *UNUSED(v1), struct value_s *v, uval_t *UNUSED(uv), linepos_t epoint) {
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR______CANT_LEN;
+    v->u.error.epoint = *epoint;
+    return 1;
 }
 
 static void pair_destroy(struct value_s *v1) {
@@ -214,12 +285,32 @@ static int pair_same(const struct value_s *v1, const struct value_s *v2) {
     return 1;
 }
 
-static int pair_print(const struct value_s *v1, FILE *f) {
-    int l;
-    l = v1->u.pair.key->obj->print(v1->u.pair.key, f);
-    fputc(':', f);
-    l += v1->u.pair.data->obj->print(v1->u.pair.data, f) + 1;
-    return l;
+static void pair_repr(const struct value_s *v1, struct value_s *v) {
+    size_t len = 1, chars;
+    struct value_s tmp[2];
+    uint8_t *s;
+
+    v1->u.pair.key->obj->repr(v1->u.pair.key, &tmp[0]);
+    len += tmp[0].u.str.len;
+    if (len < tmp[0].u.str.len) err_msg_out_of_memory(); /* overflow */
+    v1->u.pair.data->obj->repr(v1->u.pair.data, &tmp[1]);
+    len += tmp[1].u.str.len;
+    s = (uint8_t *)malloc(len);
+    if (!s || len < tmp[1].u.str.len) err_msg_out_of_memory(); /* overflow */
+    memcpy(s, tmp[0].u.str.data, tmp[0].u.str.len);
+    len = tmp[0].u.str.len;
+    chars = tmp[0].u.str.len - tmp[0].u.str.chars;
+    tmp[0].obj->destroy(&tmp[0]);
+    s[len++] = ':';
+    memcpy(s + len, tmp[1].u.str.data, tmp[1].u.str.len);
+    len += tmp[1].u.str.len;
+    chars += tmp[1].u.str.len - tmp[1].u.str.chars;
+    tmp[1].obj->destroy(&tmp[1]);
+    if (v1 == v) v->obj->destroy(v);
+    v->obj = STR_OBJ;
+    v->u.str.data = s;
+    v->u.str.len = len;
+    v->u.str.chars = len - chars;
 }
 
 static void macro_destroy(struct value_s *v1) {
@@ -332,7 +423,8 @@ static void dict_copy(const struct value_s *v1, struct value_s *v) {
         struct pair_s *p2;
         while (n) {
             p = cavltree_container_of(n, struct pair_s, node);
-            if (!(p2=malloc(sizeof(struct pair_s)))) err_msg_out_of_memory();
+            p2 = (struct pair_s *)malloc(sizeof(struct pair_s));
+            if (!p2) err_msg_out_of_memory();
             p2->hash = p->hash;
             p2->key = val_reference(p->key);
             p2->data = val_reference(p->data);
@@ -371,6 +463,65 @@ static int dict_truth(const struct value_s *v1) {
     return !!v1->u.dict.len;
 }
 
+static int MUST_CHECK dict_len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
+    *uv = v1->u.dict.len;
+    return 0;
+}
+
+static void dict_repr(const struct value_s *v1, struct value_s *v) {
+    const struct avltree_node *n;
+    const struct pair_s *p;
+    size_t i, len = 2, chars = 0;
+    struct value_s *tmp = NULL;
+    uint8_t *s;
+    if (v1->u.dict.len) {
+        len = v1->u.dict.len + v1->u.dict.len;
+        tmp = (struct value_s *)malloc(len * sizeof(struct value_s));
+        if (!tmp || len < v1->u.dict.len || len > ((size_t)~0) / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
+        len += 1;
+        if (len < 1) err_msg_out_of_memory(); /* overflow */
+
+        n = avltree_first(&v1->u.dict.members); i = 0;
+        while (n) {
+            p = cavltree_container_of(n, struct pair_s, node);
+            p->key->obj->repr(p->key, &tmp[i]);
+            len += tmp[i].u.str.len;
+            if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
+            i++;
+            p->data->obj->repr(p->data, &tmp[i]);
+            n = avltree_next(n);
+            len += tmp[i].u.str.len;
+            if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
+            i++;
+        }
+    }
+    s = (uint8_t *)malloc(len);
+    if (!s) err_msg_out_of_memory();
+    len = 0;
+    s[len++] = '{';
+    for (i = 0;i < v1->u.dict.len * 2;) {
+        if (i) s[len++] = ',';
+        memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
+        len += tmp[i].u.str.len;
+        chars += tmp[i].u.str.len - tmp[i].u.str.chars;
+        tmp[i].obj->destroy(&tmp[i]);
+        i++;
+        s[len++] = ':';
+        memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
+        len += tmp[i].u.str.len;
+        chars += tmp[i].u.str.len - tmp[i].u.str.chars;
+        tmp[i].obj->destroy(&tmp[i]);
+        i++;
+    }
+    s[len++] = '}';
+    free(tmp);
+    if (v1 == v) v->obj->destroy(v);
+    v->obj = STR_OBJ;
+    v->u.str.data = s;
+    v->u.str.len = len;
+    v->u.str.chars = len - chars;
+}
+
 static void dict_rcalc2(oper_t op) {
     if (op->op == &o_IN) {
         struct pair_s p;
@@ -381,32 +532,13 @@ static void dict_rcalc2(oper_t op) {
         if (p.hash >= 0) {
             b = avltree_lookup(&p.node, &op->v2->u.dict.members, pair_compare);
             if (op->v == op->v1) obj_destroy(op->v);
-            op->v->obj = BOOL_OBJ; op->v->u.num.val = (b != NULL); return;
+            bool_from_int(op->v, b != NULL); return;
         }
         return;
-    } else if (op->op != &o_X) {
+    } else {
         op->v1->obj->calc2(op); return;
     }
     obj_oper_error(op);
-}
-
-static int dict_print(const struct value_s *v1, FILE *f) {
-    const struct avltree_node *n;
-    const struct pair_s *p;
-    int first = 0, l = 2;
-    fputc('{', f);
-    n = avltree_first(&v1->u.dict.members);
-    while (n) {
-        p = cavltree_container_of(n, struct pair_s, node);
-        if (first) fputc(',', f);
-        l += p->key->obj->print(p->key, f) + first;
-        fputc(':', f);
-        l += p->data->obj->print(p->data, f) + 1;
-        first = 1;
-        n = avltree_next(n);
-    }
-    fputc('}', f);
-    return l;
 }
 
 static void error_destroy(struct value_s *v1) {
@@ -447,8 +579,36 @@ static void error_rcalc2(oper_t op) {
     error_copy(op->v2, op->v);
 }
 
-static int gap_print(const struct value_s *UNUSED(v1), FILE *f) {
-    fputc('?', f);
+static int MUST_CHECK error_ival(const struct value_s *v1, struct value_s *v, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    error_copy(v1, v);
+    return 1;
+}
+
+static int MUST_CHECK error_uval(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(uv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    error_copy(v1, v);
+    return 1;
+}
+
+static int MUST_CHECK error_real(const struct value_s *v1, struct value_s *v, double *UNUSED(r), linepos_t UNUSED(epoint)) {
+    error_copy(v1, v);
+    return 1;
+}
+
+static int MUST_CHECK error_sign(const struct value_s *v1, struct value_s *v, int *UNUSED(s), linepos_t UNUSED(epoint)) {
+    error_copy(v1, v);
+    return 1;
+}
+
+static void error_abs(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    error_copy(v1, v);
+}
+
+static void error_integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    error_copy(v1, v);
+}
+
+static int MUST_CHECK error_len(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(len), linepos_t UNUSED(epoint)) {
+    error_copy(v1, v);
     return 1;
 }
 
@@ -518,6 +678,69 @@ static int ident_hash(const struct value_s *v1, struct value_s *v, linepos_t epo
         tmp.obj->copy_temp(&tmp, v);
     }
     return -1;
+}
+
+static void ident_repr(const struct value_s *v1, struct value_s *v) {
+    if (v1 == v) {
+        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->repr(v, v);
+    } else {
+        struct value_s tmp;
+        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->repr(&tmp, v);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+}
+
+static int MUST_CHECK ident_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+    if (v1 == v) {
+        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->ival(v, v, iv, bits, epoint);
+    } else {
+        struct value_s tmp;
+        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->ival(&tmp, v, iv, bits, epoint);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+    return 1;
+}
+
+static int MUST_CHECK ident_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+    if (v1 == v) {
+        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->uval(v, v, uv, bits, epoint);
+    } else {
+        struct value_s tmp;
+        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->uval(&tmp, v, uv, bits, epoint);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+    return 1;
+}
+
+static void ident_str(const struct value_s *v1, struct value_s *v) {
+    if (v1 == v) {
+        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->str(v, v);
+    } else {
+        struct value_s tmp;
+        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->str(&tmp, v);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+}
+
+static int MUST_CHECK ident_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
+    if (v1 == v) {
+        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->real(v, v, r, epoint);
+    } else {
+        struct value_s tmp;
+        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->real(&tmp, v, r, epoint);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+    return 1;
+}
+
+static void ident_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (v1 == v) {
+        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->integer(v, v, epoint);
+    } else {
+        struct value_s tmp;
+        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->integer(&tmp, v, epoint);
+        tmp.obj->copy_temp(&tmp, v);
+    }
 }
 
 static int anonident_resolv(struct value_s *v1, struct value_s *v) {
@@ -593,6 +816,69 @@ static int anonident_hash(const struct value_s *v1, struct value_s *v, linepos_t
     return -1;
 }
 
+static void anonident_repr(const struct value_s *v1, struct value_s *v) {
+    if (v1 == v) {
+        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->repr(v, v);
+    } else {
+        struct value_s tmp;
+        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->repr(&tmp, v);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+}
+
+static int MUST_CHECK anonident_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+    if (v1 == v) {
+        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->ival(v, v, iv, bits, epoint);
+    } else {
+        struct value_s tmp;
+        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->ival(&tmp, v, iv, bits, epoint);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+    return 1;
+}
+
+static int MUST_CHECK anonident_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+    if (v1 == v) {
+        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->uval(v, v, uv, bits, epoint);
+    } else {
+        struct value_s tmp;
+        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->uval(&tmp, v, uv, bits, epoint);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+    return 1;
+}
+
+static void anonident_str(const struct value_s *v1, struct value_s *v) {
+    if (v1 == v) {
+        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->str(v, v);
+    } else {
+        struct value_s tmp;
+        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->str(&tmp, v);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+}
+
+static int MUST_CHECK anonident_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
+    if (v1 == v) {
+        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->real(v, v, r, epoint);
+    } else {
+        struct value_s tmp;
+        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->real(&tmp, v, r, epoint);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+    return 1;
+}
+
+static void anonident_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (v1 == v) {
+        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->integer(v, v, epoint);
+    } else {
+        struct value_s tmp;
+        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->integer(&tmp, v, epoint);
+        tmp.obj->copy_temp(&tmp, v);
+    }
+}
+
 static int identref_same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == IDENTREF_OBJ && v1->u.identref.label == v2->u.identref.label;
 }
@@ -663,6 +949,59 @@ static int identref_hash(const struct value_s *v1, struct value_s *v, linepos_t 
     vv = identref_access_check(vv->u.identref.label, v, epoint);
     if (vv) return vv->obj->hash(vv, v, epoint);
     return -1;
+}
+
+static void identref_repr(const struct value_s *v1, struct value_s *v) {
+    struct value_s *vv;
+    struct linepos_s epoint = {0,0};
+    vv = identref_resolv((struct value_s *)v1, v);
+    if (!vv) return;
+    vv = identref_access_check(vv->u.identref.label, v, &epoint);
+    if (vv) return vv->obj->repr(vv, v);
+}
+
+static int MUST_CHECK identref_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+    struct value_s *vv;
+    vv = identref_resolv((struct value_s *)v1, v);
+    if (!vv) return 1;
+    vv = identref_access_check(vv->u.identref.label, v, epoint);
+    if (vv) return vv->obj->ival(vv, v, iv, bits, epoint);
+    return 1;
+}
+
+static int MUST_CHECK identref_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+    struct value_s *vv;
+    vv = identref_resolv((struct value_s *)v1, v);
+    if (!vv) return 1;
+    vv = identref_access_check(vv->u.identref.label, v, epoint);
+    if (vv) return vv->obj->uval(vv, v, uv, bits, epoint);
+    return 1;
+}
+
+static void identref_str(const struct value_s *v1, struct value_s *v) {
+    struct value_s *vv;
+    struct linepos_s epoint = {0,0};
+    vv = identref_resolv((struct value_s *)v1, v);
+    if (!vv) return;
+    vv = identref_access_check(vv->u.identref.label, v, &epoint);
+    if (vv) return vv->obj->str(vv, v);
+}
+
+static int MUST_CHECK identref_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
+    struct value_s *vv;
+    vv = identref_resolv((struct value_s *)v1, v);
+    if (!vv) return 1;
+    vv = identref_access_check(vv->u.identref.label, v, epoint);
+    if (vv) return vv->obj->real(vv, v, r, epoint);
+    return 1;
+}
+
+static void identref_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    struct value_s *vv;
+    vv = identref_resolv((struct value_s *)v1, v);
+    if (!vv) return;
+    vv = identref_access_check(vv->u.identref.label, v, epoint);
+    if (vv) return vv->obj->integer(vv, v, epoint);
 }
 
 static void identref_calc2(oper_t op) {
@@ -741,19 +1080,6 @@ static void identref_rcalc2(oper_t op) {
     }
 }
 
-static int identref_print(const struct value_s *v1, FILE *f) {
-    if (v1->u.identref.label->parent != &root_label) {
-        struct value_s tmp;
-        v1 = identref_resolv((struct value_s *)v1, &tmp);
-        if (!v1) {
-            return fprintf(f, "<identref>");
-        }
-        v1 = v1->u.identref.label->value;
-        return v1->obj->print(v1, f);
-    }
-    return fwrite(v1->u.identref.label->name.data, 1, v1->u.identref.label->name.len, f);
-}
-
 static int none_hash(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     if (v == v1) obj_destroy(v);
     v->obj = NONE_OBJ;
@@ -780,6 +1106,60 @@ static void none_rcalc2(oper_t op) {
     op->v->obj = NONE_OBJ;
 }
 
+static int MUST_CHECK none_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ) {
+        return ERROR_OBJ->ival(v1, v, iv, bits, epoint);
+    }
+    *iv = 0;
+    return 0;
+}
+
+static int MUST_CHECK none_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ) {
+        return ERROR_OBJ->uval(v1, v, uv, bits, epoint);
+    }
+    *uv = 0;
+    return 0;
+}
+
+static int MUST_CHECK none_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ) {
+        return ERROR_OBJ->real(v1, v, r, epoint);
+    }
+    *r = 0.0;
+    return 0;
+}
+
+static int MUST_CHECK none_sign(const struct value_s *v1, struct value_s *v, int *s, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ) {
+        return ERROR_OBJ->sign(v1, v, s, epoint);
+    }
+    *s = 0;
+    return 0;
+}
+
+static void none_abs(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ) {
+        return ERROR_OBJ->abs(v1, v, epoint);
+    }
+    v->obj = NONE_OBJ;
+}
+
+static void none_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ) {
+        return ERROR_OBJ->abs(v1, v, epoint);
+    }
+    v->obj = NONE_OBJ;
+}
+
+static int MUST_CHECK none_len(const struct value_s *v1, struct value_s *v, uval_t *len, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ) {
+        return ERROR_OBJ->len(v1, v, len, epoint);
+    }
+    *len = 0;
+    return 0;
+}
+
 static int lbl_same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == LBL_OBJ && v1->u.lbl.p == v2->u.lbl.p && v1->u.lbl.sline == v2->u.lbl.sline && v1->u.lbl.waitforp == v2->u.lbl.waitforp && v1->u.lbl.file_list == v2->u.lbl.file_list && v1->u.lbl.parent == v2->u.lbl.parent;
 }
@@ -793,27 +1173,33 @@ void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->same = invalid_same;
     obj->truth = invalid_truth;
     obj->hash = invalid_hash;
-    obj->convert = invalid_convert;
+    obj->repr = invalid_repr;
+    obj->str = invalid_str;
     obj->calc1 = invalid_calc1;
     obj->calc2 = invalid_calc2;
     obj->rcalc2 = invalid_rcalc2;
     obj->repeat = invalid_repeat;
-    obj->print = invalid_print;
     obj->iindex = invalid_iindex;
     obj->slice = invalid_slice;
+    obj->ival = invalid_ival;
+    obj->uval = invalid_uval;
+    obj->real = invalid_real;
+    obj->sign = invalid_sign;
+    obj->abs = invalid_abs;
+    obj->integer = invalid_integer;
+    obj->len = invalid_len;
 };
 
 void objects_init(void) {
-    numobj_init();
     boolobj_init();
-    sintobj_init();
-    uintobj_init();
     floatobj_init();
     addressobj_init();
     codeobj_init();
     strobj_init();
     listobj_init();
     bytesobj_init();
+    bitsobj_init();
+    intobj_init();
 
     obj_init(&macro_obj, T_MACRO, "<macro>");
     macro_obj.destroy = macro_destroy;
@@ -845,15 +1231,27 @@ void objects_init(void) {
     obj_init(&identref_obj, T_IDENTREF, "<identref>");
     identref_obj.same = identref_same;
     identref_obj.hash = identref_hash;
+    identref_obj.repr = identref_repr;
+    identref_obj.ival = identref_ival;
+    identref_obj.uval = identref_uval;
+    identref_obj.str = identref_str;
+    identref_obj.real = identref_real;
+    identref_obj.integer = identref_integer;
     identref_obj.calc1 = identref_calc1;
     identref_obj.calc2 = identref_calc2;
     identref_obj.rcalc2 = identref_rcalc2;
-    identref_obj.print = identref_print;
     obj_init(&none_obj, T_NONE, "<none>");
     none_obj.hash = none_hash;
     none_obj.calc1 = none_calc1;
     none_obj.calc2 = none_calc2;
     none_obj.rcalc2 = none_rcalc2;
+    none_obj.ival = none_ival;
+    none_obj.uval = none_uval;
+    none_obj.real = none_real;
+    none_obj.sign = none_sign;
+    none_obj.abs = none_abs;
+    none_obj.integer = none_integer;
+    none_obj.len = none_len;
     obj_init(&error_obj, T_ERROR, "<error>");
     error_obj.destroy = error_destroy;
     error_obj.copy = error_copy;
@@ -861,16 +1259,35 @@ void objects_init(void) {
     error_obj.calc1 = error_calc1;
     error_obj.calc2 = error_calc2;
     error_obj.rcalc2 = error_rcalc2;
+    error_obj.ival = error_ival;
+    error_obj.uval = error_uval;
+    error_obj.real = error_real;
+    error_obj.sign = error_sign;
+    error_obj.abs = error_abs;
+    error_obj.integer = error_integer;
+    error_obj.len = error_len;
     obj_init(&gap_obj, T_GAP, "<gap>");
     gap_obj.hash = gap_hash;
-    gap_obj.print = gap_print;
+    gap_obj.repr = gap_repr;
     obj_init(&ident_obj, T_IDENT, "<ident>");
     ident_obj.hash = ident_hash;
+    ident_obj.repr = ident_repr;
+    ident_obj.str = ident_str;
+    ident_obj.ival = ident_ival;
+    ident_obj.uval = ident_uval;
+    ident_obj.real = ident_real;
+    ident_obj.integer = ident_integer;
     ident_obj.calc1 = ident_calc1;
     ident_obj.calc2 = ident_calc2;
     ident_obj.rcalc2 = ident_rcalc2;
     obj_init(&anonident_obj, T_ANONIDENT, "<anonident>");
     anonident_obj.hash = anonident_hash;
+    anonident_obj.repr = anonident_repr;
+    anonident_obj.str = anonident_str;
+    anonident_obj.ival = anonident_ival;
+    anonident_obj.uval = anonident_uval;
+    anonident_obj.real = anonident_real;
+    anonident_obj.integer = anonident_integer;
     anonident_obj.calc1 = anonident_calc1;
     anonident_obj.calc2 = anonident_calc2;
     anonident_obj.rcalc2 = anonident_rcalc2;
@@ -882,13 +1299,14 @@ void objects_init(void) {
     dict_obj.copy_temp = dict_copy_temp;
     dict_obj.same = dict_same;
     dict_obj.truth = dict_truth;
-    dict_obj.print = dict_print;
+    dict_obj.len = dict_len;
+    dict_obj.repr = dict_repr;
     dict_obj.rcalc2 = dict_rcalc2;
     obj_init(&pair_obj, T_PAIR, "<pair>");
     pair_obj.destroy = pair_destroy;
     pair_obj.copy = pair_copy;
     pair_obj.copy_temp = pair_copy_temp;
     pair_obj.same = pair_same;
-    pair_obj.print = pair_print;
+    pair_obj.repr = pair_repr;
 };
 

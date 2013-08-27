@@ -49,8 +49,8 @@ static void memcomp(struct memblocks_s *memblocks) {
             memblocks->p += b->p - 1;
             if (memblocks->p >= memblocks->len) {
                 memblocks->len = memblocks->p + 64;
-                memblocks->data = realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
-                if (!memblocks->data) err_msg_out_of_memory();
+                memblocks->data = (struct memblock_s *)realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
+                if (!memblocks->data || memblocks->len < 64 || memblocks->len > ((size_t)~0) / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
             }
             memmove(&memblocks->data[j + b->p], &memblocks->data[j + 1], rest * sizeof(*memblocks->data));
             for (k = 0; k < b->p; k++) {
@@ -62,8 +62,8 @@ static void memcomp(struct memblocks_s *memblocks) {
                 memblocks->mem.p += b2->len;
                 if (memblocks->mem.p >= memblocks->mem.len) {
                     memblocks->mem.len = memblocks->mem.p + 0x1000;
-                    memblocks->mem.data = realloc(memblocks->mem.data, memblocks->mem.len);
-                    if (!memblocks->mem.data) err_msg_out_of_memory();
+                    memblocks->mem.data = (uint8_t *)realloc(memblocks->mem.data, memblocks->mem.len);
+                    if (!memblocks->mem.data || memblocks->mem.len < 0x1000) err_msg_out_of_memory(); /* overflow */
                 }
                 memcpy(&memblocks->mem.data[b2->p], &b->mem.data[b->data[k].p], b2->len);
             }
@@ -111,9 +111,9 @@ void memjmp(struct memblocks_s *memblocks, address_t adr) {
         return;
     }
     if (memblocks->p>=memblocks->len) {
-        memblocks->len+=64;
-        memblocks->data=realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
-        if (!memblocks->data) err_msg_out_of_memory();
+        memblocks->len += 64;
+        memblocks->data = (struct memblock_s *)realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
+        if (!memblocks->data || memblocks->len < 64 || memblocks->len > ((size_t)~0) / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
     }
     memblocks->data[memblocks->p].len = memblocks->mem.p - memblocks->lastp;
     memblocks->data[memblocks->p].p = memblocks->lastp;
@@ -126,8 +126,8 @@ void memjmp(struct memblocks_s *memblocks, address_t adr) {
 void memref(struct memblocks_s *memblocks, struct memblocks_s *ref) {
     if (memblocks->p >= memblocks->len) {
         memblocks->len += 64;
-        memblocks->data = realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
-        if (!memblocks->data) err_msg_out_of_memory();
+        memblocks->data = (struct memblock_s *)realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
+        if (!memblocks->data || memblocks->len < 64 || memblocks->len > ((size_t)~0) / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
     }
     memblocks->data[memblocks->p].len = 0;
     memblocks->data[memblocks->p].p = memblocks->lastp;
@@ -236,8 +236,8 @@ void output_mem(struct memblocks_s *memblocks, int scpumode) {
 void write_mem(struct memblocks_s * memblocks, uint8_t c) {
     if (memblocks->mem.p >= memblocks->mem.len) {
         memblocks->mem.len += 0x1000;
-        memblocks->mem.data = realloc(memblocks->mem.data, memblocks->mem.len);
-        if (!memblocks->mem.data) err_msg_out_of_memory();
+        memblocks->mem.data = (uint8_t *)realloc(memblocks->mem.data, memblocks->mem.len);
+        if (!memblocks->mem.data || memblocks->mem.len < 0x1000) err_msg_out_of_memory(); /* overflow */
     }
     memblocks->mem.data[memblocks->mem.p++] = c;
 }

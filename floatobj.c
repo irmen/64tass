@@ -22,10 +22,9 @@
 #include "floatobj.h"
 
 #include "strobj.h"
-#include "numobj.h"
 #include "boolobj.h"
-#include "sintobj.h"
-#include "uintobj.h"
+#include "intobj.h"
+#include "addressobj.h"
 
 static struct obj_s obj;
 
@@ -62,49 +61,123 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
     return h & ((~(unsigned int)0) >> 1);
 }
 
-static void convert(struct value_s *v1, struct value_s *v, obj_t t, linepos_t UNUSED(epoint), linepos_t UNUSED(epoint2)) {
-    if (t == STR_OBJ) {
-        char line[100]; 
-        int i = 0;
-        uint8_t *s;
-        sprintf(line, "%.10g", v1->u.real);
-        while (line[i] && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
-        if (!line[i]) {line[i++]='.';line[i++]='0';line[i]=0;}
-        v->obj = t;
-        v->u.str.len = i + strlen(line + i);
-        v->u.str.chars = v->u.str.len;
-        s = malloc(v->u.str.len);
-        if (!s) err_msg_out_of_memory();
-        memcpy(s, line, v->u.str.len);
-        v->u.str.data = s;
-        return;
+static void repr(const struct value_s *v1, struct value_s *v) {
+    char line[100]; 
+    int i = 0;
+    uint8_t *s;
+    sprintf(line, "%.10g", v1->u.real);
+    while (line[i] && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
+    if (!line[i]) {line[i++]='.';line[i++]='0';line[i]=0;}
+    v->obj = STR_OBJ;
+    v->u.str.len = i + strlen(line + i);
+    v->u.str.chars = v->u.str.len;
+    s = (uint8_t *)malloc(v->u.str.len);
+    if (!s) err_msg_out_of_memory();
+    memcpy(s, line, v->u.str.len);
+    v->u.str.data = s;
+    return;
+}
+
+static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+    if (-v1->u.real >= (double)(~((~(uval_t)0) >> 1)) + 1.0 || v1->u.real >= (double)((~(uval_t)0) >> 1) + 1.0) {
+        *iv = 0;
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_IVAL;
+        v->u.error.u.bits = bits;
+        v->u.error.epoint = *epoint;
+        return 1;
     }
-    /////////////////////////////////////obj_oper_error(O_STRING, v1, NULL, v, epoint);
+    *iv = v1->u.real;
+    if (((*iv >= 0) ? *iv : (~*iv)) >> (bits-1)) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_IVAL;
+        v->u.error.u.bits = bits;
+        v->u.error.epoint = *epoint;
+        return 1;
+    }
+    return 0;
+}
+
+static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+    if (v1->u.real <= -1.0 || v1->u.real >= (double)(~(uval_t)0) + 1.0) {
+        *uv = 0;
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_UVAL;
+        v->u.error.u.bits = bits;
+        v->u.error.epoint = *epoint;
+        return 1;
+    }
+    *uv = v1->u.real;
+    if (bits < 8*(int)sizeof(uval_t) && *uv >> bits) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_UVAL;
+        v->u.error.u.bits = bits;
+        v->u.error.epoint = *epoint;
+        return 1;
+    }
+    return 0;
+}
+
+static int MUST_CHECK real(const struct value_s *v1, struct value_s *UNUSED(v), double *r, linepos_t UNUSED(epoint)) {
+    *r = v1->u.real;
+    return 0;
+}
+
+static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
+    *s = (v1->u.real > 0.0) - (v1->u.real < 0.0);
+    return 0;
+}
+
+static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    if (v != v1) copy(v1, v);
+    if (v->u.real < 0.0) v->u.real = -v->u.real;
+}
+
+static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    return int_from_double(v, v1->u.real, epoint);
 }
 
 static int calc1_double(oper_t op, double v1) {
     struct value_s *v = op->v;
+    struct value_s tmp;
+    ival_t val = op->v1->u.real;
+    uval_t uv;
+    enum atype_e am;
     switch (op->op->u.oper.op) {
-    case O_INV:
-        v->obj = FLOAT_OBJ;
-        v->u.real = -0.5/((double)((uval_t)1 << (8 * sizeof(uval_t) - 1)))-v1;
+    case O_BANK: val >>= 8;
+    case O_HIGHER: val >>= 8;
+    case O_LOWER:
+        bits_from_u8(v, val);
         return 0;
-    case O_NEG:
-        v->obj = FLOAT_OBJ;
-        v->u.real = -v1;
+    case O_HWORD: val >>= 8;
+    case O_WORD:
+        bits_from_u16(v, val);
         return 0;
-    case O_POS:
-        v->obj = FLOAT_OBJ;
-        v->u.real = v1;
+    case O_BSWORD:
+        bits_from_u16(v, (uint8_t)(val >> 8) | (uint16_t)(val << 8));
         return 0;
-    case O_LNOT:
-        v->obj = BOOL_OBJ; 
-        v->u.num.val = !v1;
+    case O_COMMAS: am =  A_SR; goto addr;
+    case O_COMMAR: am =  A_RR; goto addr;
+    case O_COMMAZ: am =  A_ZR; goto addr;
+    case O_COMMAY: am =  A_YR; goto addr;
+    case O_COMMAX: am =  A_XR; goto addr;
+    case O_HASH: am = A_IMMEDIATE;
+    addr:
+        if (uval(op->v1, &tmp, &uv, 8 * sizeof(address_t), &op->epoint)) {
+            tmp.obj->copy_temp(&tmp, v);
+            return 0;
+        }
+        v->obj = ADDRESS_OBJ;
+        v->u.addr.val = uv; 
+        v->u.addr.len = 8 * sizeof(address_t);
+        v->u.addr.type = am; 
         return 0;
-    case O_STRING:
-        convert(op->v1, v, STR_OBJ, &op->epoint, &op->epoint3);
-        return 0;
-    default: return calc1_sint(op, v1);
+    case O_INV: float_from_double(v, -0.5/((double)((uval_t)1 << (8 * sizeof(uval_t) - 1)))-v1); return 0;
+    case O_NEG: float_from_double(v, -v1); return 0;
+    case O_POS: float_from_double(v, v1); return 0;
+    case O_LNOT: bool_from_int(v, !truth(op->v1)); return 0;
+    case O_STRING: repr(op->v1, v); return 0;
+    default: break;
     }
     return 1;
 }
@@ -119,29 +192,22 @@ static int almost_equal(double a, double b) {
     return b - a < b * 0.0000000005;
 }
 
-static int calc2_double(oper_t op, double v1, double v2) {
+int calc2_double(oper_t op, double v1, double v2) {
     struct value_s *v = op->v;
     switch (op->op->u.oper.op) {
-    case O_CMP: v->u.num.val = almost_equal(v1, v2) ? 0 : ((v1 > v2) - (v1 < v2)); v->obj = (v->u.num.val < 0) ? SINT_OBJ : UINT_OBJ; return 0;
-    case O_EQ: v->obj = BOOL_OBJ; v->u.num.val = almost_equal(v1, v2); return 0;
-    case O_NE: v->obj = BOOL_OBJ; v->u.num.val = !almost_equal(v1, v2); return 0;
-    case O_LT: v->obj = BOOL_OBJ; v->u.num.val = (v1 < v2) && !almost_equal(v1, v2); return 0;
-    case O_LE: v->obj = BOOL_OBJ; v->u.num.val = (v1 < v2) || almost_equal(v1, v2); return 0;
-    case O_GT: v->obj = BOOL_OBJ; v->u.num.val = (v1 > v2) && !almost_equal(v1, v2); return 0;
-    case O_GE: v->obj = BOOL_OBJ; v->u.num.val = (v1 > v2) || almost_equal(v1, v2); return 0;
-    case O_ADD: 
-        v->obj = FLOAT_OBJ; 
-        v->u.real = v1 + v2; return 0;
-    case O_SUB: 
-        v->obj = FLOAT_OBJ; 
-        v->u.real = v1 - v2; return 0;
-    case O_MUL:
-        v->obj = FLOAT_OBJ; 
-        v->u.real = v1 * v2; return 0;
+    case O_CMP: int_from_int(v, almost_equal(v1, v2) ? 0 : ((v1 > v2) - (v1 < v2))); return 0;
+    case O_EQ: bool_from_int(v, almost_equal(v1, v2)); return 0;
+    case O_NE: bool_from_int(v, !almost_equal(v1, v2)); return 0;
+    case O_LT: bool_from_int(v, (v1 < v2) && !almost_equal(v1, v2)); return 0;
+    case O_LE: bool_from_int(v, (v1 < v2) || almost_equal(v1, v2)); return 0;
+    case O_GT: bool_from_int(v, (v1 > v2) && !almost_equal(v1, v2)); return 0;
+    case O_GE: bool_from_int(v, (v1 > v2) || almost_equal(v1, v2)); return 0;
+    case O_ADD: float_from_double(v, v1 + v2); return 0;
+    case O_SUB: float_from_double(v, v1 - v2); return 0;
+    case O_MUL: float_from_double(v, v1 * v2); return 0;
     case O_DIV:
         if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
-        v->obj = FLOAT_OBJ; 
-        v->u.real = v1 / v2; return 0;
+        float_from_double(v, v1 / v2); return 0;
     case O_MOD:
         if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
         v->obj = FLOAT_OBJ; 
@@ -169,14 +235,8 @@ static int calc2_double(oper_t op, double v1, double v2) {
         v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v->u.real += ((uval_t)floor(v1 * 2.0) ^ (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
         return 0;
-    case O_LSHIFT:
-        v->obj = FLOAT_OBJ; 
-        v->u.real = v1 * pow(2.0, v2); 
-        return 0;
-    case O_RSHIFT:
-        v->obj = FLOAT_OBJ; 
-        v->u.real = v1 * pow(2.0, -v2);
-        return 0;
+    case O_LSHIFT: float_from_double(v, v1 * pow(2.0, v2)); return 0;
+    case O_RSHIFT: float_from_double(v, v1 * pow(2.0, -v2)); return 0;
     case O_EXP: 
         if (!v1) {
             if (v2 < 0.0) {
@@ -208,68 +268,52 @@ static int calc2_double(oper_t op, double v1, double v2) {
     return 1;
 }
 
+void float_from_double(struct value_s *v, double d) {
+    v->obj = FLOAT_OBJ;
+    v->u.real = d;
+}
+
 static void calc2(oper_t op) {
+    double d;
+    struct value_s tmp;
     switch (op->v2->obj->type) {
-    case T_NUM: 
-        if (op->v1->u.real == floor(op->v1->u.real)) {
-            switch (op->op->u.oper.op) {
-            case O_AND:
-            case O_OR:
-            case O_XOR: if (calc2_num_num(op, op->v1->u.real, 0, op->v2->u.num.val, op->v2->u.num.len)) break; return;
-            default: break;
-            }
-        }
-        /* fall through */
     case T_BOOL:
-    case T_UINT: if (calc2_double(op, op->v1->u.real, (uval_t)op->v2->u.num.val)) break; return;
-    case T_SINT: if (calc2_double(op, op->v1->u.real, op->v2->u.num.val)) break; return;
-    case T_FLOAT: if (calc2_double(op, op->v1->u.real, op->v2->u.real)) break; return;
-    case T_CODE: if (calc2_double(op, op->v1->u.real, op->v2->u.code.addr)) break; return;
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_CODE: 
+        if (op->v2->obj->real(op->v2, op->v, &d, &op->epoint2)) {
+            if (op->v1 == op->v || op->v2 == op->v) op->v->obj->destroy(op->v);
+            tmp.obj->copy_temp(&tmp, op->v);
+            return;
+        }
+        if (calc2_double(op, op->v1->u.real, d)) break; return;
     default: op->v2->obj->rcalc2(op); return;
     }
     obj_oper_error(op);
 }
 
 static void rcalc2(oper_t op) {
-    if (op->op == &o_X) {
-        if (op->v2->u.real == floor(op->v2->u.real)) op->v1->obj->repeat(op, (op->v2->u.real > 0) ? op->v2->u.real : 0);
-        else obj_oper_error(op);
-        return;
-    }
+    double d;
+    struct value_s tmp;
     switch (op->v1->obj->type) {
-    case T_NUM: 
-        if (op->v2->u.real == floor(op->v2->u.real)) {
-            switch (op->op->u.oper.op) {
-            case O_LSHIFT:
-            case O_RSHIFT:
-            case O_AND:
-            case O_OR:
-            case O_XOR: if (calc2_num_num(op, op->v1->u.num.val, 0, op->v2->u.num.val, op->v2->u.num.len)) break; return;
-            default: break;
-            }
-        }
-        /* fall through */
     case T_BOOL:
-    case T_UINT: if (calc2_double(op, (uval_t)op->v1->u.num.val, op->v2->u.real)) break; return;
-    case T_SINT: if (calc2_double(op, op->v1->u.num.val, op->v2->u.real)) break; return;
-    case T_FLOAT: if (calc2_double(op, op->v1->u.real, op->v2->u.real)) break; return;
-    case T_CODE: if (calc2_double(op, op->v1->u.code.addr, op->v2->u.real)) break; return;
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_CODE:
+        if (op->v1->obj->real(op->v1, &tmp, &d, &op->epoint)) {
+            if (op->v1 == op->v || op->v2 == op->v) op->v->obj->destroy(op->v);
+            tmp.obj->copy_temp(&tmp, op->v);
+            return;
+        }
+        if (calc2_double(op, d, op->v2->u.real)) break; return;
     default:
         if (op->op != &o_IN) {
             op->v1->obj->calc2(op); return;
         }
     }
     obj_oper_error(op);
-}
-
-static int print(const struct value_s *v1, FILE *f) {
-    char num[100];
-    int i = 0, l;
-    l = sprintf(num, "%.10g", v1->u.real);
-    while (num[i] && num[i]!='.' && num[i]!='e' && num[i]!='n' && num[i]!='i') i++;
-    if (!num[i]) {num[i++]='.';num[i++]='0';num[i]=0;l+=2;}
-    fputs(num, f);
-    return l;
 }
 
 void floatobj_init(void) {
@@ -279,9 +323,14 @@ void floatobj_init(void) {
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;
-    obj.convert = convert;
+    obj.repr = repr;
+    obj.ival = ival;
+    obj.uval = uval;
+    obj.real = real;
+    obj.sign = sign;
+    obj.abs = absolute;
+    obj.integer = integer;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
-    obj.print = print;
 }

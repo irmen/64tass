@@ -1,4 +1,15 @@
 
+    .cerror 10 / 3 != 3
+    .cerror 10 % 3 != 1
+    .cerror (-10) / 3 != -4
+    .cerror (-10) % 3 != 2
+    .cerror 10 / (-3) != -4
+    .cerror 10 % (-3) != -2
+    .cerror (-10) / (-3) != 3
+    .cerror (-10) % (-3) != -1
+
+    .end
+
 ; "logical" operators
 
     .cerror ("" && []) != ""

@@ -16,12 +16,13 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include <string.h>
 #include "values.h"
 #include "addressobj.h"
 
 #include "boolobj.h"
-#include "sintobj.h"
-#include "uintobj.h"
+#include "intobj.h"
+#include "strobj.h"
 
 static struct obj_s obj;
 
@@ -41,6 +42,45 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
 
 static int truth(const struct value_s *v1) {
     return !!v1->u.addr.val;
+}
+
+static void repr(const struct value_s *v1, struct value_s *v) {
+    uint8_t *s;
+    size_t len;
+    char buffer[100], buffer2[100];
+    uint32_t addrtype;
+    int ind, ind2;
+
+    ind2 = sprintf(buffer,"$%" PRIxval, v1->u.addr.val);
+    addrtype = v1->u.addr.type;
+    ind = 99;
+    buffer2[ind] = '\0';
+    while (addrtype & 0xfff) {
+        switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
+        case A_NONE:break;
+        case A_XR: buffer[ind2++] = ','; buffer[ind2++] = 'x';break;
+        case A_YR: buffer[ind2++] = ','; buffer[ind2++] = 'y';break;
+        case A_ZR: buffer[ind2++] = ','; buffer[ind2++] = 'z';break;
+        case A_SR: buffer[ind2++] = ','; buffer[ind2++] = 's';break;
+        case A_RR: buffer[ind2++] = ','; buffer[ind2++] = 'r';break;
+        case A_I: buffer2[--ind] = '('; buffer[ind2++] = ')';break;
+        case A_LI: buffer2[--ind] = '['; buffer[ind2++] = ']';break;
+        case A_IMMEDIATE: buffer2[--ind] = '#';break;
+        }
+        addrtype <<= 4;
+    }
+
+    len = 99 - ind + ind2;
+
+    if (v == v1) v->obj->destroy(v);
+    v->obj = STR_OBJ;
+    v->u.str.len = len;
+    v->u.str.chars = len;
+    s = (uint8_t *)malloc(v->u.str.len);
+    if (!s) err_msg_out_of_memory();
+    memcpy(s, buffer2 + ind, 99 - ind);
+    memcpy(s + 99 - ind, buffer, ind2);
+    v->u.str.data = s;
 }
 
 static inline int check_addr(uint32_t type) {
@@ -123,10 +163,7 @@ static void calc1(oper_t op) {
         v->u.addr.len = op->v1->u.addr.len;
         v->u.addr.type = A_IMMEDIATE;
         return;
-    case O_LNOT:
-        v->obj = BOOL_OBJ; 
-        v->u.num.val = !v1;
-        return;
+    case O_LNOT: bool_from_int(v, !truth(op->v1)); return;
     case O_STRING: break;
     default: break;
     }
@@ -136,13 +173,13 @@ static void calc1(oper_t op) {
 static int calc2_address(oper_t op, address_t v1, address_t v2) {
     struct value_s *v = op->v;
     switch (op->op->u.oper.op) {
-    case O_CMP: v->obj = (v1 < v2) ? SINT_OBJ : UINT_OBJ; v->u.num.val = (v1 > v2) - (v1 < v2); return 0;
-    case O_EQ: v->obj = BOOL_OBJ; v->u.num.val = (v1 == v2); return 0;
-    case O_NE: v->obj = BOOL_OBJ; v->u.num.val = (v1 != v2); return 0;
-    case O_LT: v->obj = BOOL_OBJ; v->u.num.val = (v1 < v2); return 0;
-    case O_LE: v->obj = BOOL_OBJ; v->u.num.val = (v1 <= v2); return 0;
-    case O_GT: v->obj = BOOL_OBJ; v->u.num.val = (v1 > v2); return 0;
-    case O_GE: v->obj = BOOL_OBJ; v->u.num.val = (v1 >= v2); return 0;
+    case O_CMP: int_from_int(v, (v1 > v2) - (v1 < v2)); return 0;
+    case O_EQ: bool_from_int(v, v1 == v2); return 0;
+    case O_NE: bool_from_int(v, v1 != v2); return 0;
+    case O_LT: bool_from_int(v, v1 < v2); return 0;
+    case O_LE: bool_from_int(v, v1 <= v2); return 0;
+    case O_GT: bool_from_int(v, v1 > v2); return 0;
+    case O_GE: bool_from_int(v, v1 >= v2); return 0;
     case O_ADD: 
         v->obj = ADDRESS_OBJ; 
         v->u.addr.val = v1 + v2; return 0;
@@ -167,68 +204,50 @@ static int calc2_address(oper_t op, address_t v1, address_t v2) {
 
 static void calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s tmp;
+    ival_t ival;
     switch (v2->obj->type) {
     case T_ADDRESS:
         if (v1->u.addr.type != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) break;
         if (calc2_address(op, v1->u.addr.val, v2->u.addr.val)) break; 
-        v->u.addr.type = A_IMMEDIATE;
-        v->u.addr.len = 8*sizeof(address_t);
+        if (v->obj == ADDRESS_OBJ) {
+            v->u.addr.type = A_IMMEDIATE;
+            v->u.addr.len = 8*sizeof(address_t);
+        }
         return;
     case T_BOOL:
-    case T_UINT:
-    case T_NUM: 
-        if ((op->op != &o_ADD && op->op != &o_SUB) || check_addr(v1->u.addr.type)) break;
-        if (calc2_address(op, v1->u.addr.val, (uval_t)v2->u.num.val)) break; 
-        v->u.addr.type = v1->u.addr.type;
-        v->u.addr.len = v1->u.addr.len;
-        return;
-    case T_SINT: 
-        switch (op->op->u.oper.op) {
-        case O_ADD:
-            if (check_addr(v1->u.addr.type)) break;
-            if (v2->u.num.val >= 0) {
-                if (calc2_address(op, v1->u.addr.val, v2->u.num.val)) break;
-            } else {
-                op->op = &o_SUB;
-                if (calc2_address(op, v1->u.addr.val, -v2->u.num.val)) break;
-                op->op = &o_ADD;
-            }
-            v->u.addr.type = v1->u.addr.type;
-            v->u.addr.len = v1->u.addr.len; return;
-        case O_SUB:
-            if (check_addr(v1->u.addr.type)) break;
-            if (v2->u.num.val >= 0) {
-                if (calc2_address(op, v1->u.addr.val, v2->u.num.val)) break;
-            } else {
-                op->op = &o_ADD;
-                if (calc2_address(op, v1->u.addr.val, -v2->u.num.val)) break;
-                op->op = &o_SUB;
-            }
-            v->u.addr.type = v1->u.addr.type;
-            v->u.addr.len = v1->u.addr.len; return;
-        default: break;
-        }
-        break;
+    case T_INT:
+    case T_BITS:
     case T_FLOAT: 
+    case T_CODE: 
         switch (op->op->u.oper.op) {
         case O_ADD:
             if (check_addr(v1->u.addr.type)) break;
-            if (v2->u.real >= 0.0) {
-                if (calc2_address(op, v1->u.addr.val, v2->u.real)) break;
+            if (v2->obj->ival(v2, &tmp, &ival, 8*sizeof(ival_t), &op->epoint2)) {
+                if (v1 == v || v2 == v) v->obj->destroy(v);
+                tmp.obj->copy_temp(&tmp, v);
+                return;
+            }
+            if (ival >= 0) {
+                if (calc2_address(op, v1->u.addr.val, ival)) break;
             } else {
                 op->op = &o_SUB;
-                if (calc2_address(op, v1->u.addr.val, -v2->u.real)) break;
+                if (calc2_address(op, v1->u.addr.val, -ival)) break;
                 op->op = &o_ADD;
             }
             v->u.addr.type = v1->u.addr.type;
             v->u.addr.len = v1->u.addr.len; return;
         case O_SUB:
             if (check_addr(v1->u.addr.type)) break;
-            if (v2->u.real >= 0) {
-                if (calc2_address(op, v1->u.addr.val, v2->u.real)) break;
+            if (v2->obj->ival(v2, &tmp, &ival, 8*sizeof(ival_t), &op->epoint2)) {
+                if (v1 == v || v2 == v) v->obj->destroy(v);
+                tmp.obj->copy_temp(&tmp, v);
+            }
+            if (ival >= 0) {
+                if (calc2_address(op, v1->u.addr.val, ival)) break;
             } else {
                 op->op = &o_ADD;
-                if (calc2_address(op, v1->u.addr.val, -v2->u.real)) break;
+                if (calc2_address(op, v1->u.addr.val, -ival)) break;
                 op->op = &o_SUB;
             }
             v->u.addr.type = v1->u.addr.type;
@@ -236,54 +255,40 @@ static void calc2(oper_t op) {
         default: break;
         }
         break;
-    case T_CODE: 
-        if ((op->op != &o_ADD && op->op != &o_SUB) || check_addr(v1->u.addr.type)) break;
-        if (calc2_address(op, v1->u.addr.val, v2->u.code.addr)) break;
-        v->u.addr.type = v1->u.addr.type;
-        v->u.addr.len = v1->u.addr.len;
-        return;
     default: v2->obj->rcalc2(op); return;
     }
     obj_oper_error(op);
 }
 
 static void rcalc2(oper_t op) {
+    ival_t ival;
+    struct value_s tmp;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     switch (v1->obj->type) {
     case T_ADDRESS:
         if (v1->u.addr.type != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) break;
         if (calc2_address(op, v1->u.addr.val, v2->u.addr.val)) break;
-        v->u.addr.type = A_IMMEDIATE;
-        v->u.addr.len = 8*sizeof(address_t);
+        if (v->obj == ADDRESS_OBJ) {
+            v->u.addr.type = A_IMMEDIATE;
+            v->u.addr.len = 8*sizeof(address_t);
+        }
         return;
     case T_BOOL:
-    case T_UINT:
-    case T_NUM: 
-        if (op->op != &o_ADD || check_addr(v2->u.addr.type)) break;
-        if (calc2_address(op, (uval_t)v1->u.num.val, v2->u.addr.val)) break;
-        v->u.addr.type = v2->u.addr.type;
-        v->u.addr.len = v2->u.addr.len;
-        return;
-    case T_SINT: 
-        if (op->op != &o_ADD || check_addr(v2->u.addr.type)) break;
-        if (calc2_address(op, v1->u.num.val, v2->u.addr.val)) break;
-        v->u.addr.type = v2->u.addr.type;
-        v->u.addr.len = v2->u.addr.len;
-        return;
+    case T_INT:
+    case T_BITS:
     case T_FLOAT: 
-        if (op->op != &o_ADD || check_addr(v2->u.addr.type)) break;
-        if (calc2_address(op, v1->u.real, v2->u.addr.val)) break;
-        v->u.addr.type = v2->u.addr.type;
-        v->u.addr.len = v2->u.addr.len;
-        return;
     case T_CODE: 
         if (op->op != &o_ADD || check_addr(v2->u.addr.type)) break;
-        if (calc2_address(op, v1->u.code.addr, v2->u.addr.val)) break;
+        if (v1->obj->ival(v1, &tmp, &ival, 8*sizeof(ival_t), &op->epoint)) {
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            tmp.obj->copy_temp(&tmp, v);
+        }
+        if (calc2_address(op, ival, v2->u.addr.val)) break;
         v->u.addr.type = v2->u.addr.type;
         v->u.addr.len = v2->u.addr.len;
         return;
     default:
-        if (op->op != &o_IN && op->op != &o_X) {
+        if (op->op != &o_IN) {
             v1->obj->calc2(op); return;
         }
     }
@@ -296,6 +301,7 @@ void addressobj_init(void) {
     obj.copy_temp = copy;
     obj.same = same;
     obj.truth = truth;
+    obj.repr = repr;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

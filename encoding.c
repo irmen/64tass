@@ -530,9 +530,8 @@ struct encoding_s *new_encoding(const str_t *name)
     struct encoding_s *tmp;
 
     if (!lasten) {
-        if (!(lasten = malloc(sizeof(struct encoding_s)))) {
-            err_msg_out_of_memory();
-        }
+        lasten = (struct encoding_s *)malloc(sizeof(struct encoding_s));
+        if (!lasten) err_msg_out_of_memory();
     }
     lasten->name = *name;
     b = avltree_insert(&lasten->node, &encoding_tree, encoding_compare);
@@ -553,9 +552,8 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
     struct avltree_node *b;
     struct trans_s *tmp;
     if (!lasttr) {
-        if (!(lasttr = malloc(sizeof(struct trans_s)))) {
-            err_msg_out_of_memory();
-        }
+        lasttr = (struct trans_s *)malloc(sizeof(struct trans_s));
+        if (!lasttr) err_msg_out_of_memory();
     }
     lasttr->start = trans->start;
     lasttr->end = trans->end;
@@ -592,13 +590,12 @@ struct escape_s *new_escape(const uint8_t *s, const uint8_t *end, uint8_t code, 
     struct escape_s *b;
     struct escape_s *tmp;
     if (!lastes) {
-        if (!(lastes = malloc(sizeof(struct escape_s)))) {
-            err_msg_out_of_memory();
-        }
+        lastes = (struct escape_s *)malloc(sizeof(struct escape_s));
+        if (!lastes) err_msg_out_of_memory();
     }
     lastes->len = end - s;
     lastes->code = code;
-    b = ternary_insert(&enc->escape, s, end, lastes, 0);
+    b = (struct escape_s *)ternary_insert(&enc->escape, s, end, lastes, 0);
     if (!b) err_msg_out_of_memory();
     if (b == lastes) { //new escape
         tmp = lastes;
@@ -612,7 +609,7 @@ uint32_t find_escape(const uint8_t *text, const uint8_t *end, struct encoding_s 
 {
     struct escape_s *t;
 
-    t = ternary_search(enc->escape, text, end);
+    t = (struct escape_s *)ternary_search(enc->escape, text, end);
     if (!t) return 0;
 
     return t->code | (t->len << 8);

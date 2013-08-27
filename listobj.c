@@ -16,11 +16,13 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include <string.h>
 #include "values.h"
 #include "listobj.h"
 #include "eval.h"
 #include "isnprintf.h"
 #include "boolobj.h"
+#include "strobj.h"
 
 static struct obj_s list_obj;
 static struct obj_s tuple_obj;
@@ -41,7 +43,7 @@ static void copy(const struct value_s *v1, struct value_s *v) {
     size_t len = v1->u.list.len;
     if (len) {
         size_t i;
-        vals = malloc(len * sizeof(v->u.list.data[0]));
+        vals = (struct value_s **)malloc(len * sizeof(v->u.list.data[0]));
         if (!vals) err_msg_out_of_memory();
         for (i = 0; i < len; i++) {
             vals[i] = val_reference(v1->u.list.data[i]);
@@ -73,14 +75,112 @@ static int truth(const struct value_s *v1) {
     return !!v1->u.list.len;
 }
 
+static void repr_list(const struct value_s *v1, struct value_s *v) {
+    size_t i, len = 2, chars = 0;
+    struct value_s *tmp = NULL;
+    uint8_t *s;
+    if (v1->u.list.len) {
+        tmp = (struct value_s *)malloc(v1->u.list.len * sizeof(struct value_s));
+        if (!tmp || v1->u.list.len > ((size_t)~0) / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
+        for (i = 0;i < v1->u.list.len; i++) {
+            v1->u.list.data[i]->obj->repr(v1->u.list.data[i], &tmp[i]);
+            if (tmp[i].obj != STR_OBJ) {
+                if (v1 == v) v->obj->destroy(v);
+                tmp[i].obj->copy_temp(&tmp[i], v);
+                while (i--) tmp[i].obj->destroy(&tmp[i]);
+                free(tmp);
+                return;
+            }
+            len += tmp[i].u.str.len;
+            if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
+        }
+        if (i > 1) {
+            i--;
+            len += i;
+            if (len < i) err_msg_out_of_memory(); /* overflow */
+        }
+    }
+    s = (uint8_t *)malloc(len);
+    if (!s) err_msg_out_of_memory();
+    len = 0;
+    s[len++] = '[';
+    for (i = 0;i < v1->u.list.len; i++) {
+        if (i) s[len++] = ',';
+        if (tmp[i].u.str.len) {
+            memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
+            len += tmp[i].u.str.len;
+            chars += tmp[i].u.str.len - tmp[i].u.str.chars;
+        }
+        tmp[i].obj->destroy(&tmp[i]);
+    }
+    s[len++] = ']';
+    free(tmp);
+    if (v1 == v) v->obj->destroy(v);
+    v->obj = STR_OBJ;
+    v->u.str.data = s;
+    v->u.str.len = len;
+    v->u.str.chars = len - chars;
+}
+
+static void repr_tuple(const struct value_s *v1, struct value_s *v) {
+    size_t i, len = 2, chars = 0;
+    struct value_s *tmp = NULL;
+    uint8_t *s;
+    if (v1->u.list.len) {
+        tmp = (struct value_s *)malloc(v1->u.list.len * sizeof(struct value_s));
+        if (!tmp || v1->u.list.len > ((size_t)~0) / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
+        for (i = 0;i < v1->u.list.len; i++) {
+            v1->u.list.data[i]->obj->repr(v1->u.list.data[i], &tmp[i]);
+            if (tmp[i].obj != STR_OBJ) {
+                if (v1 == v) v->obj->destroy(v);
+                tmp[i].obj->copy_temp(&tmp[i], v);
+                while (i--) tmp[i].obj->destroy(&tmp[i]);
+                free(tmp);
+                return;
+            }
+            len += tmp[i].u.str.len;
+            if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
+        }
+        if (i) {
+            len += i;
+            if (len < i) err_msg_out_of_memory(); /* overflow */
+        }
+    }
+    s = (uint8_t *)malloc(len);
+    if (!s) err_msg_out_of_memory();
+    len = 0;
+    s[len++] = '(';
+    for (i = 0;i < v1->u.list.len; i++) {
+        if (i) s[len++] = ',';
+        if (tmp[i].u.str.len) {
+            memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
+            len += tmp[i].u.str.len;
+            chars += tmp[i].u.str.len - tmp[i].u.str.chars;
+        }
+        tmp[i].obj->destroy(&tmp[i]);
+    }
+    if (i == 1) s[len++] = ',';
+    s[len++] = ')';
+    free(tmp);
+    if (v1 == v) v->obj->destroy(v);
+    v->obj = STR_OBJ;
+    v->u.str.data = s;
+    v->u.str.len = len;
+    v->u.str.chars = len - chars;
+}
+
+static int MUST_CHECK len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
+    *uv = v1->u.list.len;
+    return 0;
+}
+
 static void calc1(oper_t op) {
     struct value_s *v1 = op->v1, *v = op->v;
     size_t i = 0;
     struct value_s **vals, new_value;
     if (op->op == &o_LNOT) {
         if (v1 == v) destroy(v);
-        v->obj = BOOL_OBJ; 
-        v->u.num.val = !v1->u.list.len;
+        bool_from_int(v, !v1->u.list.len);
         return;
     }
     if (v == v1) {
@@ -100,7 +200,7 @@ static void calc1(oper_t op) {
         return;
     }
     if (v1->u.list.len) {
-        vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+        vals = (struct value_s **)malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
         if (!vals) err_msg_out_of_memory();
         for (;i < v1->u.list.len; i++) {
             op->v1 = v1->u.list.data[i];
@@ -119,7 +219,7 @@ static void calc1(oper_t op) {
 static int calc2_list(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     size_t i;
-    ival_t val;
+    int val;
 
     if (v1->obj != v2->obj) return 1;
     switch (op->op->u.oper.op) {
@@ -156,7 +256,7 @@ static int calc2_list(oper_t op) {
                 if (v1->u.list.len == 1) {
                     if (v2->u.list.len) {
                         op->v1 = v1->u.list.data[0];
-                        vals = malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
+                        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
                         if (!vals) err_msg_out_of_memory();
                         for (; i < v2->u.list.len; i++) {
                             op->v = vals[i] = val_alloc();
@@ -170,7 +270,7 @@ static int calc2_list(oper_t op) {
                 } else if (v2->u.list.len == 1) {
                     if (v1->u.list.len) {
                         op->v2 = v2->u.list.data[0];
-                        vals = malloc(v1->u.list.len * sizeof(v->u.list.data[0]));
+                        vals = (struct value_s **)malloc(v1->u.list.len * sizeof(v->u.list.data[0]));
                         if (!vals) err_msg_out_of_memory();
                         for (; i < v1->u.list.len; i++) {
                             op->v = vals[i] = val_alloc();
@@ -183,7 +283,7 @@ static int calc2_list(oper_t op) {
                     } else vals = NULL;
                 } else if (v1->u.list.len == v2->u.list.len) {
                     if (v1->u.list.len) {
-                        vals = malloc(v1->u.list.len * sizeof(v->u.list.data[0]));
+                        vals = (struct value_s **)malloc(v1->u.list.len * sizeof(v->u.list.data[0]));
                         if (!vals) err_msg_out_of_memory();
                         for (; i < v1->u.list.len; i++) {
                             op->v = vals[i] = val_alloc();
@@ -201,7 +301,7 @@ static int calc2_list(oper_t op) {
                 }
             } else if (d1 > d2) {
                 if (v1->u.list.len) {
-                    vals = malloc(v1->u.list.len * sizeof(v->u.list.data[0]));
+                    vals = (struct value_s **)malloc(v1->u.list.len * sizeof(v->u.list.data[0]));
                     if (!vals) err_msg_out_of_memory();
                     for (; i < v1->u.list.len; i++) {
                         op->v = vals[i] = val_alloc();
@@ -212,7 +312,7 @@ static int calc2_list(oper_t op) {
                     op->v1 = v1;
                 } else vals = NULL;
             } else if (v2->u.list.len) {
-                vals = malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
+                vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
                 if (!vals) err_msg_out_of_memory();
                 for (; i < v2->u.list.len; i++) {
                     op->v = vals[i] = val_alloc();
@@ -237,7 +337,7 @@ static int calc2_list(oper_t op) {
             op->v1 = v1->u.list.data[i];
             op->v2 = v2->u.list.data[i];
             op->v1->obj->calc2(op);
-            if (tmp.obj != BOOL_OBJ || !tmp.u.num.val) { val = 0; break; }
+            if (tmp.obj != BOOL_OBJ || !tmp.u.boolean) { val = 0; break; }
         }
         op->v = v;
         op->v1 = v1;
@@ -252,7 +352,7 @@ static int calc2_list(oper_t op) {
             op->v1 = v1->u.list.data[i];
             op->v2 = v2->u.list.data[i];
             op->v1->obj->calc2(op);
-            if (tmp.obj == BOOL_OBJ && tmp.u.num.val) { val = 1; break; }
+            if (tmp.obj == BOOL_OBJ && tmp.u.boolean) { val = 1; break; }
         }
         op->v = v;
         op->v1 = v1;
@@ -271,16 +371,17 @@ static int calc2_list(oper_t op) {
             size_t len;
 
             len = v1->u.list.len + v2->u.list.len;
+            if (len < v2->u.list.len) err_msg_out_of_memory(); /* overflow */
             if (v == v1) {
                 if (!v2->u.list.len) return 0;
-                vals = realloc(v1->u.list.data, len * sizeof(v->u.list.data[0]));
-                if (!vals) err_msg_out_of_memory();
+                vals = (struct value_s **)realloc(v1->u.list.data, len * sizeof(v->u.list.data[0]));
+                if (!vals || len > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
                 for (i = v1->u.list.len; i < len; i++) {
                     vals[i] = val_reference(v2->u.list.data[i - v1->u.list.len]);
                 }
             } else if (len) {
-                vals = malloc(len * sizeof(v->u.list.data[0]));
-                if (!vals) err_msg_out_of_memory();
+                vals = (struct value_s **)malloc(len * sizeof(v->u.list.data[0]));
+                if (!vals || len > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
                 for (i = 0; i < v1->u.list.len; i++) {
                     vals[i] = val_reference(v1->u.list.data[i]);
                 }
@@ -296,7 +397,7 @@ static int calc2_list(oper_t op) {
     default: return 1;
     }
     if (v == v1 || v == v2) destroy(v);
-    v->obj = BOOL_OBJ; v->u.num.val = val;
+    bool_from_int(v, val);
     return 0;
 }
 
@@ -347,7 +448,7 @@ static void calc2(oper_t op) {
                 return;
             }
             if (v1->u.list.len) {
-                vals = malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+                vals = (struct value_s **)malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
                 if (!vals) err_msg_out_of_memory();
                 for (;i < v1->u.list.len; i++) {
                     op->v1 = v1->u.list.data[i];
@@ -380,16 +481,16 @@ static void rcalc2(oper_t op) {
         for (;i < v2->u.list.len; i++) {
             op->v2 = v2->u.list.data[i];
             v1->obj->calc2(op);
-            if (tmp.obj == BOOL_OBJ && tmp.u.num.val) {
+            if (tmp.obj == BOOL_OBJ && tmp.u.boolean) {
                 if (v == v1) obj_destroy(v);
-                v->obj = BOOL_OBJ; v->u.num.val = 1;
+                bool_from_int(v, 1);
                 return;
             }
         }
         op->v = v;
         op->v2 = v2;
         if (v == v1) obj_destroy(v);
-        v->obj = BOOL_OBJ; v->u.num.val = 0;
+        bool_from_int(v, 0);
         return;
     }
     switch (v1->obj->type) {
@@ -441,7 +542,7 @@ static void rcalc2(oper_t op) {
                 return;
             }
             if (v2->u.list.len) {
-                vals = malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
+                vals = (struct value_s **)malloc(v2->u.list.len * sizeof(new_value.u.list.data[0]));
                 if (!vals) err_msg_out_of_memory();
                 for (;i < v2->u.list.len; i++) {
                     op->v = vals[i] = val_alloc();
@@ -451,14 +552,13 @@ static void rcalc2(oper_t op) {
                 op->v = v;
                 op->v2 = v2;
             } else vals = NULL;
+            if (v == v1) v->obj->destroy(v);
             v->obj = v2->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
             return;
         default: 
-            if (op->op != &o_X) {
-                v1->obj->calc2(op);return;
-            }
+            v1->obj->calc2(op);return;
         }
         break;
     }
@@ -481,8 +581,9 @@ static void repeat(oper_t op, uval_t rep) {
         if (rep == 1) return;
         i = len = v->u.list.len;
         v->u.list.len *= rep;
-        v->u.list.data = realloc(v->u.list.data, v->u.list.len * sizeof(v->u.list.data[0]));
-        if (!v->u.list.data) err_msg_out_of_memory();
+        if (len > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
+        v->u.list.data = (struct value_s **)realloc(v->u.list.data, v->u.list.len * sizeof(v->u.list.data[0]));
+        if (!v->u.list.data || v->u.list.len > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
         while (--rep) {
             for (j = 0;j < len; j++, i++) {
                 v->u.list.data[i] = val_reference(v->u.list.data[j]);
@@ -490,8 +591,10 @@ static void repeat(oper_t op, uval_t rep) {
         }
     } else {
         if (v1->u.list.len && rep) {
-            vals = malloc(v1->u.list.len * rep * sizeof(v->u.list.data[0]));
-            if (!vals) err_msg_out_of_memory();
+            len = v1->u.list.len * rep;
+            if (v1->u.list.len > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
+            vals = (struct value_s **)malloc(len * sizeof(v->u.list.data[0]));
+            if (!vals || len > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
             while (rep--) {
                 for (j = 0;j < v1->u.list.len; j++, i++) {
                     vals[i] = val_reference(v1->u.list.data[j]);
@@ -504,64 +607,54 @@ static void repeat(oper_t op, uval_t rep) {
     }
 }
 
-static int print_list(const struct value_s *v1, FILE *f) {
-    size_t val;
-    int first = 0, l = 2;
-    fputc('[', f);
-    for (val = 0;val < v1->u.list.len; val++) {
-        if (first) fputc(',', f);
-        l += v1->u.list.data[val]->obj->print(v1->u.list.data[val], f) + first;
-        first = 1;
-    }
-    fputc(']', f);
-    return l;
-}
-
-static int print_tuple(const struct value_s *v1, FILE *f) {
-    size_t val;
-    int first = 0, l = 2;
-    fputc('(', f);
-    for (val = 0;val < v1->u.list.len; val++) {
-        if (first) fputc(',', f);
-        l += v1->u.list.data[val]->obj->print(v1->u.list.data[val], f) + first;
-        first = 1;
-    }
-    if (v1->u.list.len == 1) {fputc(',', f);l++;}
-    fputc(')', f);
-    return l;
-}
-
 static void iindex(oper_t op) {
     struct value_s **vals;
-    size_t i;
+    size_t i, len;
     ival_t offs;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
 
-    if (!v2->u.list.len) {
-        if (v1 == v) destroy(v);
-        copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
-        return;
-    }
-    vals = malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
-    if (!vals) err_msg_out_of_memory();
-    for (i = 0; i < v2->u.list.len; i++) {
-        offs = indexoffs(v2->u.list.data[i], v1->u.list.len);
-        if (offs < 0) {
+    len = v1->u.list.len;
+
+    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+        if (!v2->u.list.len) {
             if (v1 == v) destroy(v);
-            v->u.list.len = i;
-            v->u.list.data = vals;
-            destroy(v);
-            v->obj = ERROR_OBJ;
-            v->u.error.num = ERROR___INDEX_RANGE;
-            v->u.error.epoint = op->epoint2;
+            copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
             return;
         }
-        vals[i] = val_reference(v1->u.list.data[offs]);
+        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
+        if (!vals) err_msg_out_of_memory();
+        for (i = 0; i < v2->u.list.len; i++) {
+            offs = indexoffs(v2->u.list.data[i], len);
+            if (offs < 0) {
+                if (v1 == v) destroy(v);
+                v->u.list.len = i;
+                v->u.list.data = vals;
+                destroy(v);
+                v->obj = ERROR_OBJ;
+                v->u.error.num = ERROR___INDEX_RANGE;
+                v->u.error.epoint = op->epoint2;
+                return;
+            }
+            vals[i] = val_reference(v1->u.list.data[offs]);
+        }
+        if (v1 == v) destroy(v);
+        v->obj = v1->obj;
+        v->u.list.len = i;
+        v->u.list.data = vals;
+        return;
     }
+    offs = indexoffs(v2, len);
+    if (offs < 0) {
+        if (v1 == v) destroy(v);
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR___INDEX_RANGE;
+        v->u.error.epoint = op->epoint2;
+        return;
+    }
+    v2 = val_reference(v1->u.list.data[offs]);
     if (v1 == v) destroy(v);
-    v->obj = v1->obj;
-    v->u.list.len = i;
-    v->u.list.data = vals;
+    v2->obj->copy(v2, v);
+    val_destroy(v2);
 }
 
 static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -587,7 +680,7 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
         if (v1 != v) copy(v1, v);
         return; /* original tuple */
     }
-    vals = malloc(len * sizeof(v->u.list.data[0]));
+    vals = (struct value_s **)malloc(len * sizeof(v->u.list.data[0]));
     if (!vals) err_msg_out_of_memory();
     i = 0;
     while ((end > offs && step > 0) || (end < offs && step < 0)) {
@@ -606,6 +699,7 @@ static void init(struct obj_s *obj) {
     obj->copy_temp = copy_temp;
     obj->same = same;
     obj->truth = truth;
+    obj->len = len;
     obj->calc1 = calc1;
     obj->calc2 = calc2;
     obj->rcalc2 = rcalc2;
@@ -617,8 +711,8 @@ static void init(struct obj_s *obj) {
 void listobj_init(void) {
     obj_init(&list_obj, T_LIST, "<list>");
     init(&list_obj);
-    list_obj.print = print_list;
+    list_obj.repr = repr_list;
     obj_init(&tuple_obj, T_TUPLE, "<tuple>");
     init(&tuple_obj);
-    tuple_obj.print = print_tuple;
+    tuple_obj.repr = repr_tuple;
 }

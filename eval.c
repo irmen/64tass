@@ -29,14 +29,12 @@
 #include "misc.h"
 
 #include "listobj.h"
-#include "numobj.h"
 #include "floatobj.h"
 #include "strobj.h"
 #include "codeobj.h"
 #include "addressobj.h"
-#include "uintobj.h"
-#include "sintobj.h"
 #include "bytesobj.h"
+#include "intobj.h"
 
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -60,36 +58,6 @@ inline double hypot(double a, double b) {return sqrt(a*a+b*b);}
 
 struct encoding_s *actual_encoding;
 
-uint8_t get_val_len(uval_t val, enum type_e type) {
-    int span, bits;
-
-    switch (type) {
-    case T_SINT:
-        span = 4 * sizeof(uval_t); bits = 0;
-        if ((ival_t)val < 0) val = ~val;
-        while (span) {
-            if (val >> (bits + span)) {
-                bits |= span;
-            }
-            span >>= 1;
-        }
-        return bits + 2;
-    case T_UINT:
-        span = 4 * sizeof(uval_t); bits = 0;
-        while (span) {
-            if (val >> (bits + span)) {
-                bits |= span;
-            }
-            span >>= 1;
-        }
-        return bits + 1;
-    case T_BOOL:
-        return 1;
-    default:
-        return 8*sizeof(uval_t);
-    }
-}
-
 size_t get_label(void) {
     uint8_t ch;
     struct linepos_s e;
@@ -99,217 +67,143 @@ size_t get_label(void) {
     return lpoint.pos - e.pos;
 }
 
-static int get_dec(struct value_s *v) {
-    uval_t val = 0;
-    int large = 0;
-    while (here() == '0') lpoint.pos++;
-    while ((uint8_t)(here() ^ '0') < 10) {
-        if (val >= ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
-            if (val == ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
-               if ((uval_t)(here() & 15) > (((uval_t)1 << (8 * sizeof(val) - 1)) % 5) * 2) large = 1;
-            } else large = 1;
-        }
-        val = val * 10 + (here() & 15);
-        lpoint.pos++;
-    }
-    v->obj = UINT_OBJ;
-    v->u.num.val = val;
-    return large;
+static void get_dec(struct value_s *v) {
+    ignore();
+    while (here() == 0x30) lpoint.pos++;
+    lpoint.pos += int_from_decstr(v, pline + lpoint.pos);
 }
 
-static void get_exponent(struct value_s *v, double real) {
-    int exp = 0;
+static void get_exponent(struct value_s *v, double real, struct value_s *err) {
     int base;
-    switch (here()) {
-    case 'P':
+
+    v->obj->destroy(v); 
+    switch (here() | 0x20) {
     case 'p': base = 2; break;
-    case 'E':
     case 'e': base = 10; break;
     default: base = 0;
     }
     if (base) {
         int neg = 0;
+        ival_t exp;
         neg = (pline[lpoint.pos + 1] == '-');
         if (neg || pline[lpoint.pos + 1] == '+') {
-            if (((uint8_t)pline[lpoint.pos + 2] ^ '0') < 10) lpoint.pos++;
+            if ((pline[lpoint.pos + 2] ^ 0x30) < 10) lpoint.pos++;
         }
-        if (((uint8_t)pline[lpoint.pos + 1] ^ '0') < 10) {
+        if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
+            struct value_s tmp;
+            size_t len;
             lpoint.pos++;
-            if (get_dec(v)) {
-                v->obj = FLOAT_OBJ;
-                v->u.real = HUGE_VAL;
-                return;
-            }
-            exp = neg ? -v->u.num.val : v->u.num.val;
+
+            len = int_from_decstr(&tmp, pline + lpoint.pos);
+            if (tmp.obj->ival(&tmp, err, &exp, 8*sizeof(uval_t), &lpoint)) exp = 0;
+            tmp.obj->destroy(&tmp);
+            lpoint.pos += len;
+
+            if (neg) exp = -exp;
         }
         if (exp) real *= pow(base, exp);
     }
+    if (err->obj != NONE_OBJ) {
+        err->obj->copy_temp(err, v);
+        return;
+    }
     v->obj = FLOAT_OBJ;
     v->u.real = real;
+}
+
+static void get_exponent2(struct value_s *v) {
+    struct value_s err;
+    double real;
+    switch (here() | 0x20) {
+    case 'e':
+    case 'p':
+        if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
+            if ((pline[lpoint.pos + 2] ^ 0x30) < 10) {
+                err.obj = NONE_OBJ;
+                if (v->obj->real(v, &err, &real, &lpoint)) real = 0;
+                return get_exponent(v, real, &err);
+            }
+        } else if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
+            err.obj = NONE_OBJ;
+            if (v->obj->real(v, &err, &real, &lpoint)) real = 0;
+            return get_exponent(v, real, &err);
+        }
+    default: break;
+    }
     return;
 }
 
 static void get_hex(struct value_s *v) {
-    uval_t val = 0;
-    uval_t val2;
-    double real;
-    struct linepos_s start;
+    struct value_s tmp, err;
+    size_t len;
     ignore();
-    start.pos = lpoint.pos;
-    while (here() == 0x30) lpoint.pos++;
-    while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
-        if (val & (0xf << (sizeof(uval_t)*8-4))) {
-            real = val;
-            while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
-                real = real * 16.0 + (here() & 15);
-                if (here() & 0x40) real += 9;
-                lpoint.pos++;
-            }
-            if (here() == '.' && pline[lpoint.pos + 1] != '.') goto procreal;
-            get_exponent(v, real);
-            return;
-        }
-        val = (val << 4) + (here() & 15);
-        if (here() & 0x40) val += 9;
-        lpoint.pos++;
+    len = bits_from_hexstr(v, pline + lpoint.pos);
+
+    if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
+        double real, real2;
+        err.obj = NONE_OBJ;
+        if (v->obj->real(v, &err, &real, &lpoint)) real = 0;
+        lpoint.pos += len + 1;
+
+        len = bits_from_hexstr(&tmp, pline + lpoint.pos);
+        if (tmp.obj->real(&tmp, &err, &real2, &lpoint)) real2 = 0;
+        tmp.obj->destroy(&tmp);
+        lpoint.pos += len;
+
+        if (real2) real += real2 * pow(16.0, -(double)len);
+        return get_exponent(v, real, &err);
     }
-    if (here() == '.' && pline[lpoint.pos + 1] != '.') {
-        real = val;
-    procreal: val2 = 0;
-        lpoint.pos++;
-        start.pos = lpoint.pos;
-        while ((here() ^ 0x30) < 10 || (uint8_t)((here() | 0x20) - 0x61) < 6 ) {
-            if (val2 & (0xf << (sizeof(uval_t)*8-4))) {
-                real += (double)val2 * pow(16.0, (int)start.pos - (int)lpoint.pos);
-                val2 = 0;
-            }
-            val2 = (val2 << 4) + (here() & 15);
-            if (here() & 0x40) val2 += 9;
-            lpoint.pos++;
-        }
-        if (val2) real += (double)val2 * pow(16.0, (int)start.pos - (int)lpoint.pos);
-        get_exponent(v, real);
-        return;
-    }
-    switch (here() | 0x20) {
-    case 'e':
-    case 'p':
-        if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
-            if (((uint8_t)pline[lpoint.pos + 2] ^ '0') < 10) {get_exponent(v, val);return;}
-        } else if (((uint8_t)pline[lpoint.pos + 1] ^ '0') < 10) {get_exponent(v, val);return;}
-    default: break;
-    }
-    v->obj = NUM_OBJ;
-    v->u.num.val = val;
-    v->u.num.len = (lpoint.pos - start.pos) * 4;
-    return;
+    lpoint.pos += len;
+    return get_exponent2(v);
 }
 
 static void get_bin(struct value_s *v) {
-    uval_t val = 0;
-    uval_t val2;
-    struct linepos_s start;
-    double real;
+    struct value_s tmp, err;
+    size_t len;
     ignore();
-    start.pos = lpoint.pos;
-    while (here() == 0x30) lpoint.pos++;
-    while ((here() & 0xfe) == '0') {
-        if (val & (1 << (sizeof(uval_t)*8-1))) {
-            real = val;
-            while ((here() & 0xfe) == '0') {
-                real = real * 2.0 + (here() & 1);
-                lpoint.pos++;
-            }
-            if (here() == '.' && pline[lpoint.pos + 1] != '.') goto procreal;
-            get_exponent(v, real);
-            return;
-        }
-        val = (val << 1) | (here() & 1);
-        lpoint.pos++;
+    len = bits_from_binstr(v, pline + lpoint.pos);
+
+    if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
+        double real, real2;
+        err.obj = NONE_OBJ;
+        if (v->obj->real(v, &err, &real, &lpoint)) real = 0;
+        lpoint.pos += len + 1;
+
+        len = bits_from_binstr(&tmp, pline + lpoint.pos);
+        if (tmp.obj->real(&tmp, &err, &real2, &lpoint)) real2 = 0;
+        tmp.obj->destroy(&tmp);
+        lpoint.pos += len;
+
+        if (real2) real += real2 * pow(2.0, -(double)len);
+        return get_exponent(v, real, &err);
     }
-    if (here() == '.' && pline[lpoint.pos + 1] != '.') {
-        real = val;
-    procreal: val2 = 0;
-        lpoint.pos++;
-        start.pos = lpoint.pos;
-        while ((here() & 0xfe) == '0') {
-            if (val2 & (1 << (sizeof(uval_t)*8-1))) {
-                real += (double)val2 * pow(2.0, (int)start.pos - (int)lpoint.pos);
-                val2 = 0;
-            }
-            val2 = (val2 << 1) | (here() & 1);
-            lpoint.pos++;
-        }
-        if (val2) real += (double)val2 * pow(2.0, (int)start.pos - (int)lpoint.pos);
-        get_exponent(v, real);
-        return;
-    }
-    switch (here() | 0x20) {
-    case 'e':
-    case 'p':
-        if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
-            if (((uint8_t)pline[lpoint.pos + 2] ^ '0') < 10) {get_exponent(v, val);return;}
-        } else if (((uint8_t)pline[lpoint.pos + 1] ^ '0') < 10) {get_exponent(v, val);return;}
-    default: break;
-    }
-    v->obj = NUM_OBJ;
-    v->u.num.val = val;
-    v->u.num.len = lpoint.pos - start.pos;
-    return;
+    lpoint.pos += len;
+    return get_exponent2(v);
 }
 
 static void get_float(struct value_s *v) {
-    uval_t val = 0;
-    uval_t val2;
-    double real;
-    struct linepos_s start;
+    size_t len;
+    struct value_s tmp, err;
     ignore();
-    start.pos = lpoint.pos;
     while (here() == 0x30) lpoint.pos++;
-    while ((uint8_t)(here() ^ '0') < 10) {
-        if (val >= ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
-            if ((val > ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) || ((uval_t)(here() & 15) >= (((uval_t)1 << (8 * sizeof(val) - 1)) % 5) * 2)) {
-                real = val;
-                while ((uint8_t)(here() ^ '0') < 10) {
-                    real = real * 10.0 + (here() & 15);
-                    lpoint.pos++;
-                }
-                if (here() == '.' && pline[lpoint.pos + 1] != '.') goto procreal;
-                get_exponent(v, real);
-                return;
-            }
-        }
-        val = val * 10 + (here() & 15);
-        lpoint.pos++;
-    }
-    if (here() == '.' && pline[lpoint.pos + 1] != '.') {
-        real = val;
-    procreal: val2 = 0;
-        lpoint.pos++;
-        start.pos = lpoint.pos;
-        while ((uint8_t)(here() ^ '0') < 10) {
-            if (val2 >= ((uval_t)1 << (8 * sizeof(val) - 1)) / 5) {
-                real += (double)val2 * pow(10.0, (int)start.pos - (int)lpoint.pos);
-                val2 = 0;
-            }
-            val2 = val2 * 10 + (here() & 15);
-            lpoint.pos++;
-        }
-        if (val2) real += (double)val2 * pow(10.0, (int)start.pos - (int)lpoint.pos);
-        get_exponent(v, real);
+    len = int_from_decstr(v, pline + lpoint.pos);
+    if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
+        double real, real2;
+        err.obj = NONE_OBJ;
+        if (v->obj->real(v, &err, &real, &lpoint)) real = 0;
+        lpoint.pos += len + 1;
+
+        len = int_from_decstr(&tmp, pline + lpoint.pos);
+        if (tmp.obj->real(&tmp, &err, &real2, &lpoint)) real2 = 0;
+        tmp.obj->destroy(&tmp);
+        lpoint.pos += len;
+
+        if (real2) real += real2 * pow(10.0, -(double)len);
+        get_exponent(v, real, &err);
         return;
     }
-    switch (here() | 0x20) {
-    case 'e':
-    case 'p':
-        if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
-            if (((uint8_t)pline[lpoint.pos + 2] ^ '0') < 10) {get_exponent(v, val);return;}
-        } else if (((uint8_t)pline[lpoint.pos + 1] ^ '0') < 10) {get_exponent(v, val);return;}
-    default: break;
-    }
-    v->obj = UINT_OBJ;
-    v->u.num.val = val;
-    return;
+    lpoint.pos += len;
+    return get_exponent2(v);
 }
 
 uint_fast16_t petascii(size_t *i, const struct value_s *v) {
@@ -588,7 +482,7 @@ static void get_star(struct value_s *v) {
     v->u.code.membp = ~(size_t)0;
 }
 
-static int evxnum, evx_p;
+static size_t evxnum, evx_p;
 static struct eval_context_s {
     struct values_s *values;
     size_t values_size;
@@ -607,6 +501,7 @@ static inline struct value_s *push(linepos_t epoint) {
         size_t i;
         eval->out_size += 64;
         eval->o_out = (struct values_s *)realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
+        if (!eval->o_out || eval->out_size < 64 || eval->out_size > ((size_t)~0) / sizeof(eval->o_out[0])) err_msg_out_of_memory(); /* overflow */
         for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = &none_value;
     }
     o_out = &eval->o_out[eval->outp++];
@@ -619,6 +514,7 @@ static inline void push_oper(struct value_s *val, linepos_t epoint) {
         size_t i;
         eval->out_size += 64;
         eval->o_out = (struct values_s *)realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
+        if (!eval->o_out || eval->out_size < 64 || eval->out_size > ((size_t)~0) / sizeof(eval->o_out[0])) err_msg_out_of_memory(); /* overflow */
         for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = &none_value;
     } else val_destroy(eval->o_out[eval->outp].val);
     eval->o_out[eval->outp].val = val;
@@ -662,27 +558,18 @@ rest:
 
         switch (ch) {
         case '(': lpoint.pos++;o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_PARENT;continue;
-        case '$': lpoint.pos++;val = push(&epoint);get_hex(val);goto pushval;
-        case '%': lpoint.pos++;val = push(&epoint);get_bin(val);goto pushval;
-        case '"': lpoint.pos++;val = push(&epoint);get_string(val, ch);goto pushval;
-        case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto pushval;
+        case '$': lpoint.pos++;val = push(&epoint);get_hex(val);goto other;
+        case '%': lpoint.pos++;val = push(&epoint);get_bin(val);goto other;
+        case '"': lpoint.pos++;val = push(&epoint);get_string(val, ch);goto other;
+        case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
         }
-        if (ch>='0' && ch<='9') {val = push(&epoint); if (get_dec(val)) goto pushlarge;
-        pushval:
-            if (val->obj == FLOAT_OBJ || (type_is_int(val->obj->type) && (val->u.num.val & ~0xffff))) {
-            pushlarge:
-                err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);large=1;
-                val->obj = UINT_OBJ;
-                val->u.num.val = 0xffff;
-            }
-        } else {
-            if (!get_label()) goto syntaxe;
-            val = push(&epoint);
-            val->obj = IDENT_OBJ;
-            val->u.ident.name.data = pline + epoint.pos;
-            val->u.ident.name.len = lpoint.pos - epoint.pos;
-            val->u.ident.epoint = epoint;
-        }
+        if (ch>='0' && ch<='9') {val = push(&epoint); get_dec(val);goto other;} 
+        if (!get_label()) goto syntaxe;
+        val = push(&epoint);
+        val->obj = IDENT_OBJ;
+        val->u.ident.name.data = pline + epoint.pos;
+        val->u.ident.name.len = lpoint.pos - epoint.pos;
+        val->u.ident.epoint = epoint;
     other:
         if (stop != 2) ignore();
         ch = here(); epoint=lpoint;
@@ -754,26 +641,13 @@ rest:
     return cd;
 }
 
-static ival_t to_ival(const struct value_s *val) {
-    switch (val->obj->type) {
-    case T_FLOAT: return (ival_t)val->u.real;
-    case T_SINT: return val->u.num.val;
-    case T_CODE: return (ival_t)val->u.code.addr;
-    case T_NUM:
-    case T_BOOL:
-    case T_UINT: return (ival_t)val->u.num.val;
-    default:
-         return 0;
-    }
-}
-
 static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
     size_t vsp = 0;
     enum type_e t1, t2;
     enum oper_e op;
     const struct value_s *op2;
     size_t i;
-    struct value_s tmp, *val, new_value;
+    struct value_s *val, new_value;
     struct values_s *v1, *v2;
     struct values_s *o_out;
     struct values_s *values;
@@ -788,8 +662,8 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
                 ev->values_size += 16;
-                ev->values = values = (struct values_s *)realloc(ev->values, sizeof(struct values_s)*ev->values_size);
-                if (!values) err_msg_out_of_memory();
+                ev->values = values = (struct values_s *)realloc(ev->values, ev->values_size * sizeof(struct values_s));
+                if (!values || ev->values_size < 16 || ev->values_size > ((size_t)~0) / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                 for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
             }
             val_destroy(values[vsp].val);
@@ -808,11 +682,6 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         if (vsp < 1) goto syntaxe;
         v1 = &values[vsp-1];
         t1 = try_resolv(v1);
-        if (t1 == T_STR) {
-            STR_OBJ->convert(v1->val, &tmp, NUM_OBJ, &v1->epoint, &v1->epoint);
-            val_replace_template(&v1->val, &tmp);
-            t1 = v1->val->obj->type;
-        }
         switch (op) {
         case O_LOWER:
         case O_HIGHER:
@@ -840,12 +709,18 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                 val_replace(&v1->val, &none_value); 
                 break;
             case T_CODE:
-            case T_UINT:
-            case T_SINT:
-            case T_NUM:
+            case T_INT:
+            case T_BITS:
+            case T_STR:
             case T_BOOL:
                 {
-                    uint16_t val1 = to_ival(v1->val);
+                    uint16_t val1;
+                    uval_t uval;
+                    if (v1->val->obj->uval(v1->val, &new_value, &uval, 8*sizeof(uval_t), &v1->epoint)) {
+                        val_replace_template(&v1->val, &new_value);
+                        break;
+                    }
+                    val1 = uval;
 
                     switch (op) {
                     case O_HASH:
@@ -870,9 +745,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                         continue;
                     default: break;
                     }
-                    new_value.obj = NUM_OBJ;
-                    new_value.u.num.val = val1;
-                    new_value.u.num.len = 8;
+                    int_from_uval(&new_value, val1);
                     val_replace_template(&v1->val, &new_value);
                     break;
                 }
@@ -893,26 +766,33 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         }
         v2 = &values[vsp-2];
         t2 = try_resolv(v2);
-        if (t2 == T_STR) {
-            STR_OBJ->convert(v2->val, &tmp, NUM_OBJ, &v2->epoint, &v2->epoint);
-            val_replace_template(&v2->val, &tmp); 
-            t2 = v2->val->obj->type;
-        }
         switch (t1) {
-        case T_SINT:
-        case T_UINT:
+        case T_INT:
+        case T_BITS:
         case T_CODE:
-        case T_NUM:
+        case T_STR:
         case T_BOOL:
             switch (t2) {
-            case T_UINT:
-            case T_SINT:
+            case T_INT:
+            case T_BITS:
             case T_CODE:
-            case T_NUM:
+            case T_STR:
             case T_BOOL:
                 {
-                    uint16_t val1 = to_ival(v1->val);
-                    uint16_t val2 = to_ival(v2->val);
+                    uint16_t val1, val2;
+                    uval_t uval;
+                    if (v1->val->obj->uval(v1->val, &new_value, &uval, 8*sizeof(uval_t), &v1->epoint)) {
+                        vsp--;
+                        val_replace_template(&v2->val, &new_value);
+                        continue;
+                    }
+                    val1 = uval;
+                    if (v2->val->obj->uval(v2->val, &new_value, &uval, 8*sizeof(uval_t), &v2->epoint)) {
+                        vsp--;
+                        val_replace_template(&v2->val, &new_value);
+                        continue;
+                    }
+                    val2 = uval;
 
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
@@ -931,9 +811,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     default: break;
                     }
                     vsp--;
-                    new_value.obj = NUM_OBJ;
-                    new_value.u.num.val = val1;
-                    new_value.u.num.len = 16;
+                    int_from_uval(&new_value, val1);
                     val_replace_template(&v2->val, &new_value);
                     continue;
                 }
@@ -965,7 +843,6 @@ static int get_val2(struct eval_context_s *);
 struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes, defined */
     int res;
     struct values_s *value;
-    struct value_s new_value;
 
     if (arguments.tasmcomp) {
         res = get_val2_compat(eval);
@@ -986,10 +863,9 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
     switch (value->val->obj->type) {
     case T_STR:
     case T_BYTES:
-    case T_SINT:
-    case T_UINT:
+    case T_INT:
+    case T_BITS:
     case T_CODE:
-    case T_NUM:
     case T_BOOL:
     case T_FLOAT:
     case T_GAP:
@@ -1011,33 +887,19 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
         if (obj == NONE_OBJ) return value->val;
         if (obj == ADDRESS_OBJ) {
             if (value->val->obj == ADDRESS_OBJ) return value->val;
-            obj = UINT_OBJ;
+            obj = INT_OBJ;
         }
-        if (type_is_int(obj->type) || obj == GAP_OBJ) {
-            switch (value->val->obj->type) {
-            case T_STR:
-                value->val->obj->convert(value->val, &new_value, NUM_OBJ, &value->epoint, &value->epoint);
-                val_replace_template(&value->val, &new_value);
-            case T_UINT:
-            case T_SINT:
-            case T_NUM:
-            case T_BOOL:
-            case T_NONE:
-                return value->val;
-            case T_CODE:
-                new_value.obj = UINT_OBJ;
-                new_value.u.num.val = value->val->u.code.addr;
-                val_replace_template(&value->val, &new_value);
-                return value->val;
-            case T_FLOAT:
-                new_value.obj = (obj == SINT_OBJ) ? obj : UINT_OBJ;
-                new_value.u.num.val = (ival_t)value->val->u.real;
-                val_replace_template(&value->val, &new_value);
-                return value->val;
-            case T_GAP: if (obj == GAP_OBJ) return value->val;
-            default:
-                break;
-            }
+        switch (value->val->obj->type) {
+        case T_STR:
+        case T_INT:
+        case T_BITS:
+        case T_BOOL:
+        case T_NONE:
+        case T_CODE:
+        case T_FLOAT:
+            return value->val;
+        case T_GAP: if (obj == GAP_OBJ) return value->val;
+        default: break;
         }
     default:
         err_msg_wrong_type(value->val, &value->epoint);
@@ -1045,19 +907,6 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
     case T_NONE: break;
     }
     return &none_value;
-}
-
-static double to_float(const struct value_s *val) {
-    switch (val->obj->type) {
-    case T_FLOAT: return val->u.real;
-    case T_SINT: return (ival_t)val->u.num.val;
-    case T_CODE: return val->u.code.addr;
-    case T_NUM:
-    case T_BOOL:
-    case T_UINT: return (uval_t)val->u.num.val;
-    default:
-         return 0.0;
-    }
 }
 
 enum func_e {
@@ -1070,129 +919,43 @@ enum func_e {
 /* return templates only! */
 static const struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
     static struct value_s new_value;
+    double real;
     switch (func) {
     case F_SIGN:
         switch (v1->obj->type) {
-        case T_SINT:
-            new_value.obj = SINT_OBJ;
-            new_value.u.num.val = ((ival_t)v1->u.num.val > 0) - ((ival_t)v1->u.num.val < 0);
-            return &new_value;
-        case T_UINT:
-        case T_NUM:
-        case T_BOOL:
-            new_value.obj = SINT_OBJ;
-            new_value.u.num.val = ((uval_t)v1->u.num.val) > 0;
-            return &new_value;
-        case T_CODE:
-            new_value.obj = SINT_OBJ;
-            new_value.u.num.val = v1->u.code.addr > 0;
-            return &new_value;
-        case T_FLOAT:
-            new_value.obj = SINT_OBJ;
-            new_value.u.num.val = (v1->u.real > 0.0) - (v1->u.real < 0.0);
-            return &new_value;
         case T_LIST:
         case T_TUPLE: break;
-        default: err_msg_wrong_type(v1, epoint);
+        default:
+            {
+                int s;
+                if (!v1->obj->sign(v1, &new_value, &s, epoint)) int_from_int(&new_value, s);
+                return &new_value;
+            }
         case T_NONE: return &none_value;
         }
         break;
     case F_ABS:
         switch (v1->obj->type) {
-        case T_SINT:
-        case T_UINT:
-        case T_NUM:
-        case T_BOOL:
-            new_value.obj = v1->obj;
-            new_value.u.num.val = (v1->obj == SINT_OBJ && v1->u.num.val < 0) ? -v1->u.num.val : v1->u.num.val;
-            new_value.u.num.len = v1->u.num.len;
-            return &new_value;
-        case T_CODE:
-            new_value.obj = UINT_OBJ;
-            new_value.u.num.val = v1->u.code.addr;
-            return &new_value;
-        case T_FLOAT:
-            new_value.obj = FLOAT_OBJ;
-            new_value.u.real = (v1->u.real < 0.0) ? -v1->u.real : v1->u.real;
-            return &new_value;
         case T_LIST:
         case T_TUPLE: break;
-        default: err_msg_wrong_type(v1, epoint);
+        default: 
+            v1->obj->abs(v1, &new_value, epoint);
+            return &new_value;
         case T_NONE: return &none_value;
         }
         break;
     case F_INT:
-        switch (v1->obj->type) {
-        case T_UINT:
-        case T_NUM:
-        case T_BOOL:
-            new_value.obj = UINT_OBJ;
-            new_value.u.num.val = v1->u.num.val;
-            return &new_value;
-        case T_CODE:
-            new_value.obj = UINT_OBJ;
-            new_value.u.num.val = v1->u.code.addr;
-            return &new_value;
-        case T_SINT:
-            new_value.obj = SINT_OBJ;
-            new_value.u.num.val = v1->u.num.val;
-            return &new_value;
-        case T_FLOAT:
-            new_value.obj = (v1->u.real < 0.0) ? SINT_OBJ : UINT_OBJ;
-            new_value.u.num.val = (ival_t)v1->u.real;
-            return &new_value;
+        switch (v1->obj->type) { 
         case T_LIST:
         case T_TUPLE: break;
-        default: err_msg_wrong_type(v1, epoint);
+        default:
+            v1->obj->integer(v1, &new_value, epoint);
+            return &new_value;
         case T_NONE: return &none_value;
         }
     default: break;
     }
     switch (v1->obj->type) {
-    case T_FLOAT:
-    case T_SINT:
-    case T_UINT:
-    case T_CODE:
-    case T_NUM:
-    case T_BOOL:
-        new_value.obj = FLOAT_OBJ;
-        new_value.u.real = to_float(v1);
-        switch (func) {
-        case F_FLOOR: new_value.u.real = floor(new_value.u.real);break;
-        case F_CEIL: new_value.u.real = ceil(new_value.u.real);break;
-        case F_SQRT: 
-                     if (new_value.u.real < 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                     else new_value.u.real = sqrt(new_value.u.real);break;
-        case F_LOG10:
-                     if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                     else new_value.u.real = log10(new_value.u.real);break;
-        case F_LOG:
-                     if (new_value.u.real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                     else new_value.u.real = log(new_value.u.real);break;
-        case F_EXP: new_value.u.real = exp(new_value.u.real);break;
-        case F_SIN: new_value.u.real = sin(new_value.u.real);break;
-        case F_COS: new_value.u.real = cos(new_value.u.real);break;
-        case F_TAN: new_value.u.real = tan(new_value.u.real);break;
-        case F_ACOS: 
-                    if (new_value.u.real < -1.0 || new_value.u.real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                    else new_value.u.real = acos(new_value.u.real);break;
-        case F_ASIN: 
-                    if (new_value.u.real < -1.0 || new_value.u.real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                    else new_value.u.real = asin(new_value.u.real);break;
-        case F_ATAN: new_value.u.real = atan(new_value.u.real);break;
-        case F_CBRT: new_value.u.real = cbrt(new_value.u.real);break;
-        case F_ROUND: new_value.u.real = round(new_value.u.real);break;
-        case F_TRUNC: new_value.u.real = trunc(new_value.u.real);break;
-        case F_FRAC: new_value.u.real -= trunc(new_value.u.real);break;
-        case F_RAD: new_value.u.real = new_value.u.real * M_PI / 180.0;break;
-        case F_DEG: new_value.u.real = new_value.u.real * 180.0 / M_PI;break;
-        case F_COSH: new_value.u.real = cosh(new_value.u.real);break;
-        case F_SINH: new_value.u.real = sinh(new_value.u.real);break;
-        case F_TANH: new_value.u.real = tanh(new_value.u.real);break;
-        case F_FLOAT: break; /* nothing to do */
-        default:break;
-        }
-        break;
     case T_LIST:
     case T_TUPLE:
             {
@@ -1212,7 +975,47 @@ static const struct value_s *apply_func(enum func_e func, struct value_s *v1, li
                 new_value.u.list.data = vals;
                 break;
             }
-    default: err_msg_wrong_type(v1, epoint);
+    default:
+        new_value.obj = FLOAT_OBJ;
+        if (!v1->obj->real(v1, &new_value, &real, epoint)) {
+            switch (func) {
+            case F_FLOOR: real = floor(real);break;
+            case F_CEIL: real = ceil(real);break;
+            case F_SQRT: 
+                         if (real < 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                         else real = sqrt(real);break;
+            case F_LOG10:
+                         if (real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                         else real = log10(real);break;
+            case F_LOG:
+                         if (real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                         else real = log(real);break;
+            case F_EXP: real = exp(real);break;
+            case F_SIN: real = sin(real);break;
+            case F_COS: real = cos(real);break;
+            case F_TAN: real = tan(real);break;
+            case F_ACOS: 
+                        if (real < -1.0 || real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                        else real = acos(real);break;
+            case F_ASIN: 
+                        if (real < -1.0 || real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
+                        else real = asin(real);break;
+            case F_ATAN: real = atan(real);break;
+            case F_CBRT: real = cbrt(real);break;
+            case F_ROUND: real = round(real);break;
+            case F_TRUNC: real = trunc(real);break;
+            case F_FRAC: real -= trunc(real);break;
+            case F_RAD: real = real * M_PI / 180.0;break;
+            case F_DEG: real = real * 180.0 / M_PI;break;
+            case F_COSH: real = cosh(real);break;
+            case F_SINH: real = sinh(real);break;
+            case F_TANH: real = tanh(real);break;
+            case F_FLOAT: break; /* nothing to do */
+            default:break;
+            }
+            float_from_double(&new_value, real);
+        }
+        break;
     case T_NONE: return &none_value;
     }
     return &new_value;
@@ -1238,29 +1041,9 @@ static void functions(struct values_s *vals, unsigned int args) {
 
         /* len(a) - length of string in characters */
         if (len == 3 && !memcmp(name, "len", len)) {
-            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else
+            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else {
+                uval_t uv;
                 switch (try_resolv(&v[0])) {
-                case T_STR:
-                    new_value.obj = UINT_OBJ;
-                    new_value.u.num.val = v[0].val->u.str.chars;
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                case T_BYTES:
-                    new_value.obj = UINT_OBJ;
-                    new_value.u.num.val = v[0].val->u.bytes.len;
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                case T_LIST:
-                case T_TUPLE:
-                    new_value.obj = UINT_OBJ;
-                    new_value.u.num.val = v[0].val->u.list.len;
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                case T_DICT:
-                    new_value.obj = UINT_OBJ;
-                    new_value.u.num.val = v[0].val->u.dict.len;
-                    val_replace_template(&vals->val, &new_value);
-                    return;
                 case T_CODE:
                     if (!v[0].val->u.code.pass) {
                         new_value.obj = ERROR_OBJ;
@@ -1271,24 +1054,16 @@ static void functions(struct values_s *vals, unsigned int args) {
                         val_replace_template(&vals->val, &new_value);
                         return;
                     }
-                    new_value.obj = UINT_OBJ;
-                    new_value.u.num.val = (v[0].val->u.code.dtype < 0) ? -v[0].val->u.code.dtype : v[0].val->u.code.dtype;
-                    new_value.u.num.val = v[0].val->u.code.size / (new_value.u.num.val + !new_value.u.num.val);
+                    int_from_uval(&new_value, v[0].val->u.code.size / (abs(v[0].val->u.code.dtype) + !v[0].val->u.code.dtype));
                     val_replace_template(&vals->val, &new_value);
                     return;
-                case T_NUM:
-                    new_value.obj = UINT_OBJ;
-                    new_value.u.num.val = v[0].val->u.num.len;
+                default:
+                    if (!v[0].val->obj->len(v[0].val, &new_value, &uv, &vals->epoint)) int_from_uval(&new_value, uv);
                     val_replace_template(&vals->val, &new_value);
                     return;
-                case T_BOOL:
-                    new_value.obj = UINT_OBJ;
-                    new_value.u.num.val = 1;
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                default: err_msg_wrong_type(v[0].val, &v[0].epoint);
                 case T_NONE: break;
                 }
+            }
             val_replace(&vals->val, &none_value);
             return;
         } /* range([start],end,[step]) */
@@ -1299,23 +1074,17 @@ static void functions(struct values_s *vals, unsigned int args) {
             if (args < 1 || args > 3) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else {
                 for (i = 0; i < args; i++) {
                     switch (try_resolv(&v[i])) {
-                    case T_CODE:
-                    case T_SINT:
-                    case T_UINT:
-                    case T_NUM:
-                    case T_BOOL:
-                        break;
-                    default: err_msg_wrong_type(v[i].val, &v[i].epoint);
+                    default: break;
                     case T_NONE: 
                              val_replace(&vals->val, &none_value);
                              return;
                     }
                 }
                 switch (args) {
-                case 1: end = to_ival(v[0].val);break;
-                case 3: step = to_ival(v[2].val);
-                case 2: start = to_ival(v[0].val);
-                        end = to_ival(v[1].val);break;
+                case 1: if (v[0].val->obj->ival(v[0].val, &new_value, &end, 8*sizeof(ival_t), &v[0].epoint)) { val_replace_template(&vals->val, &new_value);return;} break;
+                case 3: if (v[2].val->obj->ival(v[2].val, &new_value, &step, 8*sizeof(ival_t), &v[2].epoint)) { val_replace_template(&vals->val, &new_value);return;}
+                case 2: if (v[0].val->obj->ival(v[0].val, &new_value, &start, 8*sizeof(ival_t), &v[0].epoint)) { val_replace_template(&vals->val, &new_value);return;}
+                        if (v[1].val->obj->ival(v[1].val, &new_value, &end, 8*sizeof(ival_t), &v[1].epoint)) { val_replace_template(&vals->val, &new_value);return;} break;
                 }
                 if (step == 0) {
                     new_value.obj = ERROR_OBJ;
@@ -1331,77 +1100,16 @@ static void functions(struct values_s *vals, unsigned int args) {
                     len2 = (start - end - step - 1) / -step;
                 }
                 val = (struct value_s **)malloc(len2 * sizeof(new_value.u.list.data[0]));
-                if (!val) err_msg_out_of_memory();
+                if (!val || len2 > ((size_t)~0) / sizeof(new_value.u.list.data[0])) err_msg_out_of_memory(); /* overflow */
                 i = 0;
                 while ((end > start && step > 0) || (end < start && step < 0)) {
                     val[i] = val_alloc();
-                    val[i]->obj = (start >= 0) ? UINT_OBJ : SINT_OBJ;
-                    val[i]->u.num.val = start;
+                    int_from_ival(val[i], start);
                     i++; start += step;
                 }
                 new_value.obj = LIST_OBJ;
                 new_value.u.list.len = len2;
                 new_value.u.list.data = val;
-                val_replace_template(&vals->val, &new_value);
-                return;
-            }
-            val_replace(&vals->val, &none_value);
-            return;
-        } /* min(a, b, ...) - minimum value */
-        if (len == 3 && !memcmp(name, "min", len)) {
-            ival_t min = 0;
-            if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
-            else {
-                int volt = 1, t = 1;
-                while (args--) {
-                    switch (try_resolv(&v[args])) {
-                    case T_SINT:
-                        if (volt || (!t && min < 0) || v[args].val->u.num.val < min) {min = v[args].val->u.num.val;t = 1;}
-                        break;
-                    case T_UINT:
-                    case T_NUM:
-                    case T_BOOL:
-                        if (volt || ((!t || min > 0) && (uval_t)v[args].val->u.num.val < (uval_t)min)) {min = v[args].val->u.num.val; t = 0;}
-                        break;
-                    default: err_msg_wrong_type(v[args].val, &v[args].epoint);
-                    case T_NONE:
-                             val_replace(&vals->val, &none_value);
-                             return;
-                    }
-                    volt = 0;
-                }
-                new_value.obj = t ? SINT_OBJ : UINT_OBJ;
-                new_value.u.num.val = min;
-                val_replace_template(&vals->val, &new_value);
-                return;
-            }
-            val_replace(&vals->val, &none_value);
-            return;
-        } /* max(a, b, ...) - maximum value */
-        else if (len == 3 && !memcmp(name, "max", len)) {
-            ival_t max = 0;
-            if (args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
-            else {
-                int volt = 1, t = 1;
-                while (args--) {
-                    switch (try_resolv(&v[args])) {
-                    case T_SINT:
-                        if (volt || ((t || max < 0) && v[args].val->u.num.val > max)) {max = v[args].val->u.num.val;t = 1;}
-                        break;
-                    case T_UINT:
-                    case T_NUM:
-                    case T_BOOL:
-                        if (volt || (t && max < 0) || (uval_t)v[args].val->u.num.val > (uval_t)max) {max = v[args].val->u.num.val;t = 0;}
-                        break;
-                    default: err_msg_wrong_type(v[args].val, &v[args].epoint);
-                    case T_NONE:
-                             val_replace(&vals->val, &none_value);
-                             return;
-                    }
-                    volt = 0;
-                }
-                new_value.obj = t ? SINT_OBJ : UINT_OBJ;
-                new_value.u.num.val = max;
                 val_replace_template(&vals->val, &new_value);
                 return;
             }
@@ -1422,14 +1130,12 @@ static void functions(struct values_s *vals, unsigned int args) {
                         val_replace_template(&vals->val, &new_value);
                         return;
                     }
-                    new_value.obj = UINT_OBJ;
-                    new_value.u.num.val = v[0].val->u.code.size;
+                    int_from_uval(&new_value, v[0].val->u.code.size);
                     val_replace_template(&vals->val, &new_value);
                     return;
                 case T_STRUCT:
                 case T_UNION:
-                    new_value.obj = UINT_OBJ;
-                    new_value.u.num.val = v[0].val->u.macro.size;
+                    int_from_uval(&new_value, v[0].val->u.macro.size);
                     val_replace_template(&vals->val, &new_value);
                     return;
                 default: err_msg_wrong_type(v[0].val, &v[0].epoint);
@@ -1441,29 +1147,24 @@ static void functions(struct values_s *vals, unsigned int args) {
         } else if (len == 4 && !memcmp(name, "repr", len)) {
             if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
             else {
-                struct error_s user_error;
                 switch (try_resolv(&v[0])) {
-                case T_ADDRESS:
-                case T_UINT:
-                case T_SINT:
-                case T_NUM:
-                case T_BOOL:
-                case T_FLOAT:
-                case T_STR:
-                case T_CODE:
-                case T_TUPLE:
-                case T_LIST:
-                case T_GAP:
-                    error_init(&user_error);
-                    err_msg_variable(&user_error, v[0].val, 1);
-
-                    new_value.obj = STR_OBJ;
-                    new_value.u.str.len = user_error.len;
-                    new_value.u.str.chars = user_error.chars;
-                    new_value.u.str.data = (uint8_t *)realloc(user_error.data, user_error.len);
+                default:
+                    v[0].val->obj->repr(v[0].val, &new_value);
                     val_replace_template(&vals->val, &new_value);
                     return;
-                default: err_msg_wrong_type(v[0].val, &v[0].epoint);
+                case T_NONE: break;
+                }
+            }
+            val_replace(&vals->val, &none_value);
+            return;
+        } else if (len == 3 && !memcmp(name, "str", len)) {
+            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
+            else {
+                switch (try_resolv(&v[0])) {
+                default:
+                    v[0].val->obj->str(v[0].val, &new_value);
+                    val_replace_template(&vals->val, &new_value);
+                    return;
                 case T_NONE: break;
                 }
             }
@@ -1520,22 +1221,18 @@ static void functions(struct values_s *vals, unsigned int args) {
             double val1, val2;
             if (args != 2) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else
                 switch (try_resolv(&v[0])) {
-                case T_SINT:
-                case T_UINT:
-                case T_CODE:
-                case T_NUM:
-                case T_BOOL:
-                case T_FLOAT:
+                default:
                     switch (try_resolv(&v[1])) {
-                    case T_SINT:
-                    case T_UINT:
-                    case T_CODE:
-                    case T_NUM:
-                    case T_BOOL:
-                    case T_FLOAT:
+                    default:
                         new_value.obj = FLOAT_OBJ;
-                        val1 = to_float(v[0].val);
-                        val2 = to_float(v[1].val);
+                        if (v[0].val->obj->real(v[0].val, &new_value, &val1, &v[0].epoint)) {
+                            val_replace_template(&vals->val, &new_value);
+                            return;
+                        }
+                        if (v[1].val->obj->real(v[1].val, &new_value, &val2, &v[1].epoint)) {
+                            val_replace_template(&vals->val, &new_value);
+                            return;
+                        }
                         switch (func) {
                         case F_HYPOT: new_value.u.real = hypot(val1, val2);break;
                         case F_ATAN2: new_value.u.real = atan2(val1, val2);break;
@@ -1554,12 +1251,10 @@ static void functions(struct values_s *vals, unsigned int args) {
                         }
                         val_replace_template(&vals->val, &new_value);
                         return;
-                    default: err_msg_wrong_type(v[1].val, &v[1].epoint);
                     case T_NONE:break;
                     }
                     val_replace(&vals->val, &none_value);
                     return;
-                default: err_msg_wrong_type(v[0].val, &v[0].epoint);
                 case T_NONE: break;
                 }
             val_replace(&vals->val, &none_value);
@@ -1609,30 +1304,21 @@ static void functions(struct values_s *vals, unsigned int args) {
 }
 
 ival_t indexoffs(const struct value_s *v, size_t len) {
-    switch (v->obj->type) {
-    case T_CODE:
-        if ((uval_t)v->u.code.addr < len) return (ival_t)v->u.code.addr;
-        return -1;
-    case T_UINT:
-    case T_SINT:
-    case T_NUM:
-    case T_BOOL: break;
-    default: return -1;
-    }
+    struct value_s tmp;
+    ival_t ival;
+    if (v->obj->ival(v, &tmp, &ival, 8*sizeof(ival_t), &lpoint)) return -1;
 
-    if (v->obj != SINT_OBJ || v->u.num.val >= 0) {
-        if ((uval_t)v->u.num.val < len) return v->u.num.val;
+    if (ival >= 0) {
+        if ((size_t)ival < len) return ival;
     } else {
-        if ((uval_t)-v->u.num.val <= len) return len + v->u.num.val;
+        if ((size_t)-ival <= len) return len + ival;
     }
     return -1;
 }
 
 static void indexes(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
-    struct value_s *v2, new_value;
-    int16_t r;
-    size_t i;
+    struct value_s new_value;
 
     switch (try_resolv(vals)) {
     case T_LIST:
@@ -1640,101 +1326,11 @@ static void indexes(struct values_s *vals, unsigned int args) {
     case T_STR:
     case T_BYTES:
     case T_CODE:
-    case T_NUM:
     case T_BOOL:
-        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals[1].epoint); else
+    case T_BITS:
+        if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA, NULL, &vals[1].epoint); else {
             switch (try_resolv(&v[0])) {
-            case T_CODE:
-                    err_msg_strange_oper(&o_INDEX, v[0].val, NULL, &v[0].epoint);
-            case T_UINT:
-            case T_SINT:
-            case T_NUM:
-            case T_BOOL:
-                {
-                    struct value_s *val;
-                    size_t len;
-                    ival_t offs;
-                    switch (vals->val->obj->type) {
-                    case T_STR: len = vals->val->u.str.chars; break;
-                    case T_BYTES: len = vals->val->u.bytes.len; break;
-                    case T_CODE:
-                        len = (vals->val->u.code.dtype < 0) ? -vals->val->u.code.dtype : vals->val->u.code.dtype;
-                        len = vals->val->u.code.size / (len + !len);
-                        break;
-                    case T_LIST:
-                    case T_TUPLE: len = vals->val->u.list.len; break;
-                    case T_BOOL: len = 1; break;
-                    default: len = vals->val->u.num.len; break;
-                    }
-
-                    offs = indexoffs(v[0].val, len);
-                    if (offs < 0) {
-                        new_value.obj = ERROR_OBJ;
-                        new_value.u.error.num = ERROR___INDEX_RANGE;
-                        new_value.u.error.epoint = v[0].epoint;
-                        val_replace_template(&vals->val, &new_value);
-                        return;
-                    }
-                    switch (vals->val->obj->type) {
-                    case T_STR: 
-                        if (vals->val->refcount != 1) {
-                            STR_OBJ->slice(vals->val, offs, offs + 1, 1, &new_value, &vals->epoint);
-                            val_replace_template(&vals->val, &new_value);
-                        } else STR_OBJ->slice(vals->val, offs, offs + 1, 1, vals->val, &vals->epoint); 
-                        break;
-                    case T_BYTES: 
-                        new_value.obj = NUM_OBJ;
-                        new_value.u.num.len = 8;
-                        new_value.u.num.val = vals->val->u.bytes.data[offs];
-                        val_replace_template(&vals->val, &new_value);
-                        break;
-                    case T_CODE: 
-                        v2 = vals->val;
-                        if (v2->u.code.pass != pass) {
-                            new_value.obj = ERROR_OBJ;
-                            new_value.u.error.num = ERROR___NOT_DEFINED;
-                            new_value.u.error.epoint = vals->epoint;
-                            new_value.u.error.u.ident.len = 6;
-                            new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
-                            val_replace_template(&vals->val, &new_value);
-                            return;
-                        }
-                        new_value.u.num.len = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
-                        new_value.u.num.len = new_value.u.num.len + !new_value.u.num.len;
-                        offs *= new_value.u.num.len;
-                        new_value.u.num.val = 0;
-                        r = -1;
-                        for (i = 0; i < new_value.u.num.len; i++) {
-                            r = read_mem(v2->u.code.mem, v2->u.code.memp, v2->u.code.membp, offs++);
-                            if (r < 0) break;
-                            new_value.u.num.val |= r << (i * 8);
-                        }
-                        if (v2->u.code.dtype < 0 && (r & 0x80)) {
-                            for (; i < sizeof(new_value.u.num.val); i++) {
-                                new_value.u.num.val |= 0xff << (i * 8);
-                            }
-                        }
-                        new_value.u.num.len *= 8;
-                        new_value.obj = (r < 0) ? GAP_OBJ : ((v2->u.code.dtype < 0) ? SINT_OBJ : NUM_OBJ);
-                        val_replace_template(&vals->val, &new_value);
-                        break;
-                    case T_LIST:
-                    case T_TUPLE:
-                        val = val_reference(vals->val->u.list.data[offs]);
-                        val_replace(&vals->val, val);
-                        val_destroy(val);
-                        break;
-                    default:
-                        new_value.obj = NUM_OBJ;
-                        new_value.u.num.len = 1;
-                        new_value.u.num.val = (vals->val->u.num.val >> offs) & 1;
-                        val_replace_template(&vals->val, &new_value);
-                        break;
-                    }
-                }
-                return;
-            case T_LIST:
-            case T_TUPLE:
+            default: 
                 {
                     struct oper_s oper;
                     oper.op = &o_INDEX;
@@ -1753,11 +1349,11 @@ static void indexes(struct values_s *vals, unsigned int args) {
                     }
                     return;
                 }
-            default: err_msg_invalid_oper(&o_INDEX, v[0].val, NULL, &v[0].epoint);
             case T_NONE: 
                 val_replace(&vals->val, &none_value);
                 return;
             }
+        }
         break;
     case T_DICT:
         if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals[1].epoint); else {
@@ -1802,32 +1398,30 @@ static void slices(struct values_s *vals, unsigned int args) {
     case T_TUPLE:
     case T_STR:
     case T_BYTES:
+    case T_BITS:
     case T_CODE:
-    case T_NUM:
-    case T_BOOL:
         if (args > 3 || args < 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals[0].epoint); else {
             uval_t len;
             ival_t offs = 0, end, step = 1;
             switch (vals->val->obj->type) {
             case T_STR: len = vals->val->u.str.chars; break;
             case T_BYTES: len = vals->val->u.bytes.len; break;
+            case T_BITS: len = vals->val->u.bits.bits; break;
             case T_CODE: 
                 len = (vals->val->u.code.dtype < 0) ? -vals->val->u.code.dtype : vals->val->u.code.dtype;
                 len = vals->val->u.code.size / (len + !len);
                 break;
             case T_LIST:
             case T_TUPLE: len = vals->val->u.list.len; break;
-            case T_BOOL: len = 1; break;
-            default: len = vals->val->u.num.len; break;
+            default: len = 0; break;
             }
             end = (ival_t)len;
             for (i = args - 1; i >= 0; i--) {
                 switch (try_resolv(&v[i])) {
                 case T_CODE:
                     err_msg_strange_oper(&o_SLICE, v[i].val, NULL, &v[i].epoint);
-                case T_SINT:
-                case T_UINT:
-                case T_NUM:
+                case T_INT:
+                case T_BITS:
                 case T_BOOL:
                 case T_DEFAULT:
                     break;
@@ -1839,7 +1433,10 @@ static void slices(struct values_s *vals, unsigned int args) {
             }
             if (args > 2) {
                 if (v[2].val->obj != DEFAULT_OBJ) {
-                    step = to_ival(v[2].val);
+                    if (v[2].val->obj->ival(v[2].val, &new_value, &step, 8*sizeof(ival_t), &v[2].epoint)) {
+                        val_replace_template(&vals->val, &new_value);
+                        return;
+                    }
                     if (step == 0) {
                         new_value.obj = ERROR_OBJ;
                         new_value.u.error.num = ERROR_DIVISION_BY_Z;
@@ -1852,7 +1449,10 @@ static void slices(struct values_s *vals, unsigned int args) {
             if (args > 1) {
                 if (v[1].val->obj == DEFAULT_OBJ) end = (step > 0) ? (ival_t)len : -1;
                 else {
-                    end = to_ival(v[1].val);
+                    if (v[1].val->obj->ival(v[1].val, &new_value, &end, 8*sizeof(ival_t), &v[1].epoint)) {
+                        val_replace_template(&vals->val, &new_value);
+                        return;
+                    }
                     if (end >= 0) {
                         if (end > (ival_t)len) end = len;
                     } else {
@@ -1863,7 +1463,10 @@ static void slices(struct values_s *vals, unsigned int args) {
             } else end = len;
             if (v[0].val->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
             else {
-                offs = to_ival(v[0].val);
+                if (v[0].val->obj->ival(v[0].val, &new_value, &offs, 8*sizeof(ival_t), &v[0].epoint)) {
+                    val_replace_template(&vals->val, &new_value);
+                    return;
+                }
                 if (offs >= 0) {
                     if (offs > (ival_t)len - (step < 0)) offs = len - (step < 0);
                 } else {
@@ -1887,7 +1490,17 @@ static void slices(struct values_s *vals, unsigned int args) {
 }
 
 static inline void apply_op2(oper_t op) {
-    if (op->op == &o_IN || op->op == &o_X) op->v2->obj->rcalc2(op);
+    if (op->op == &o_IN) op->v2->obj->rcalc2(op);
+    else if (op->op == &o_X) {
+        ival_t shift;
+        struct value_s tmp;
+        if (op->v2->obj->ival(op->v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
+            if (op->v1 == op->v || op->v2 == op->v) op->v->obj->destroy(op->v);
+            tmp.obj->copy_temp(&tmp, op->v);
+            return;
+        }
+        op->v1->obj->repeat(op, (shift > 0) ? shift : 0); return;
+    }
     else op->v1->obj->calc2(op);
 }
 
@@ -1915,8 +1528,8 @@ static int get_val2(struct eval_context_s *ev) {
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
                 ev->values_size += 16;
-                ev->values = values = (struct values_s *)realloc(values, sizeof(struct values_s)*ev->values_size);
-                if (!values) err_msg_out_of_memory();
+                ev->values = values = (struct values_s *)realloc(values, ev->values_size * sizeof(struct values_s));
+                if (!values || ev->values_size < 16 || ev->values_size > ((size_t)~0) / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                 for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
             }
             val_destroy(values[vsp].val);
@@ -1981,18 +1594,26 @@ static int get_val2(struct eval_context_s *ev) {
                             val_replace(&v1->val, values[vsp-1].val); vsp--;continue;
                         }
                         try_resolv(&values[vsp-1]);
-                        if (values[vsp-1].val->obj == STR_OBJ) {
-                            STR_OBJ->convert(values[vsp-1].val, &new_value, NUM_OBJ, &values[vsp-1].epoint, &values[vsp-1].epoint);
-                            val_replace_template(&values[vsp-1].val, &new_value);
-                        }
-                        if (type_is_num(values[vsp-1].val->obj->type) || values[vsp-1].val->obj == CODE_OBJ) {
-                            uint8_t len = (values[vsp-1].val->obj == NUM_OBJ) ? values[vsp-1].val->u.num.len : 8*sizeof(address_t);
-                            val = val_realloc(&v1->val);
-                            val->obj = ADDRESS_OBJ;
-                            val->u.addr.val = to_ival(values[vsp-1].val);
-                            val->u.addr.len = len;
-                            val->u.addr.type = (op == O_BRACKET) ? A_LI : A_I;
-                            vsp--; continue;
+                        switch (values[vsp-1].val->obj->type) {
+                        case T_BOOL:
+                        case T_STR:
+                        case T_INT:
+                        case T_BITS:
+                        case T_CODE:
+                            { 
+                                uval_t uval;
+                                int res;
+                                val = val_realloc(&v1->val);
+                                res = values[vsp-1].val->obj->uval(values[vsp-1].val, val, &uval, 8*sizeof(uval_t), &values[vsp-1].epoint);
+                                if (!res) {
+                                    val->obj = ADDRESS_OBJ;
+                                    val->u.addr.val = uval;
+                                    val->u.addr.len = 8*sizeof(uval);
+                                    val->u.addr.type = (op == O_BRACKET) ? A_LI : A_I;
+                                }
+                                vsp--; continue;
+                            }
+                        default : break;
                         }
                         if (values[vsp-1].val->obj == ADDRESS_OBJ) {
                             val = val_realloc(&v1->val);
@@ -2011,7 +1632,7 @@ static int get_val2(struct eval_context_s *ev) {
                 val->u.list.len = args;
                 if (args) {
                     val->u.list.data = (struct value_s **)malloc(args * sizeof(val->u.list.data[0]));
-                    if (!val->u.list.data) err_msg_out_of_memory();
+                    if (!val->u.list.data || args > ((size_t)~0) / sizeof(val->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
                     while (args--) {
                         val->u.list.data[args] = values[vsp-1].val;
                         values[vsp-1].val = &none_value;
@@ -2040,7 +1661,8 @@ static int get_val2(struct eval_context_s *ev) {
                         if (values[vsp+j].val->obj == PAIR_OBJ) {
                             struct pair_s *p, *p2;
                             struct avltree_node *b;
-                            if (!(p=(struct pair_s *)malloc(sizeof(struct pair_s)))) err_msg_out_of_memory();
+                            p = (struct pair_s *)malloc(sizeof(struct pair_s));
+                            if (!p) err_msg_out_of_memory();
                             p->key = values[vsp+j].val->u.pair.key;
                             p->data = values[vsp+j].val->u.pair.data;
                             p->hash = obj_hash(p->key, &new_value, &values[vsp+j].epoint);
@@ -2072,9 +1694,8 @@ static int get_val2(struct eval_context_s *ev) {
             case T_CODE: err_msg_strange_oper(op2, v1->val, NULL, &v1->epoint);
             case T_STR:
             case T_BYTES:
-            case T_UINT:
-            case T_SINT: 
-            case T_NUM:
+            case T_INT: 
+            case T_BITS: 
             case T_BOOL:
             case T_LIST:
             case T_TUPLE:
@@ -2148,11 +1769,10 @@ static int get_val2(struct eval_context_s *ev) {
             if (vsp == 0) goto syntaxe;
             t1 = try_resolv(v1);
             switch (t1) {
-            case T_SINT:
+            case T_INT:
+            case T_BITS:
             case T_CODE:
-            case T_NUM: 
             case T_BOOL:
-            case T_UINT:
             case T_STR:
             case T_BYTES:
             case T_FLOAT:
@@ -2167,11 +1787,10 @@ static int get_val2(struct eval_context_s *ev) {
                 }
                 t2 = try_resolv(v2);
                 switch (t2) {
-                case T_SINT:
                 case T_CODE:
-                case T_NUM: 
                 case T_BOOL:
-                case T_UINT:
+                case T_INT:
+                case T_BITS:
                 case T_STR:
                 case T_BYTES:
                 case T_FLOAT:
@@ -2356,7 +1975,12 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             }
             if ((ch | (arguments.casesensitive ? 0 : 0x20)) == 'b' && (pline[lpoint.pos + 1] == '"' || pline[lpoint.pos + 1] == '\'')) {
                 lpoint.pos += 2; val = push(&epoint); get_string(val, pline[lpoint.pos - 1]);
-                val->obj->convert(val, val, BYTES_OBJ, &epoint, &epoint);
+                if (bytes_from_str(val, val)) {
+                    val->obj->destroy(val);
+                    val->obj = ERROR_OBJ;
+                    val->u.error.num = ERROR_BIG_STRING_CO;
+                    val->u.error.epoint = epoint;
+                }
                 goto other;
             }
             if (get_label()) {
@@ -2374,7 +1998,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
                 val = push(&o_oper[operp].epoint);
                 val->obj = ANONIDENT_OBJ;
                 val->u.anonident.count = db - operp -1;
-                val->u.anonident.epoint = epoint;
+                val->u.anonident.epoint = o_oper[operp].epoint;
                 goto other;
             }
             while (operp && o_oper[operp-1].val == &o_NEG) operp--;
@@ -2382,7 +2006,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
                 val = push(&o_oper[operp].epoint);
                 val->obj = ANONIDENT_OBJ;
                 val->u.anonident.count = operp - db;
-                val->u.anonident.epoint = epoint;
+                val->u.anonident.epoint = o_oper[operp].epoint;
                 goto other;
             }
             goto syntaxe;
@@ -2603,7 +2227,7 @@ struct value_s *get_vals_tuple(obj_t obj) {
             if (i >= ln) {
                 ln += 16;
                 vals = (struct value_s **)realloc(vals, ln * sizeof(retval->u.list.data[0]));
-                if (!vals) err_msg_out_of_memory();
+                if (!vals || ln < 16 || ln > ((size_t)~0) / sizeof(retval->u.list.data[0])) err_msg_out_of_memory();
             }
             if (i == 1) {
                 if (retval->obj == IDENTREF_OBJ) try_resolv_rec(&retval);
@@ -2624,7 +2248,7 @@ struct value_s *get_vals_tuple(obj_t obj) {
         retval->u.list.len = i;
         if (i != ln) {
             vals = (struct value_s **)realloc(vals, i * sizeof(val->u.list.data[0]));
-            if (!vals) err_msg_out_of_memory();
+            if (!vals || i > ((size_t)~0) / sizeof(val->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
         }
         retval->u.list.data = vals;
     }
@@ -2636,7 +2260,7 @@ void eval_enter(void) {
     if (evx_p >= evxnum) {
         evxnum++;
         evx = (struct eval_context_s **)realloc(evx, evxnum * sizeof(struct eval_context_s *));
-        if (!evx) err_msg_out_of_memory();
+        if (!evx || evxnum < 1 || evxnum > ((size_t)~0) / sizeof(struct eval_context_s *)) err_msg_out_of_memory(); /* overflow */
         eval = (struct eval_context_s *)malloc(sizeof(struct eval_context_s));
         if (!eval) err_msg_out_of_memory();
         eval->values = NULL;
@@ -2656,7 +2280,7 @@ void eval_leave(void) {
 
 void init_eval(void) {
     evxnum = 0;
-    evx_p = -1;
+    evx_p = (size_t)-1;
     eval_enter();
 }
 

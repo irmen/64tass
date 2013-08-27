@@ -1,13 +1,15 @@
-64tass v1.5x r484 manual
+64tass v1.51 r492 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
 
-  * Open source, mostly portable C
+  * Open source, mostly portable C with minimal dependencies
   * Familiar syntax to Omicron TASS and TASM.
   * Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
-  * Integer, floating point, string and array arithmetic available
-  * Handles UTF-8, UTF-16 and 8 bit RAW encoded sources and strings
+  * Arbitrary-precision integers and bitstrings, double precision floating
+    point numbers
+  * Character and byte strings, array arithmetic
+  * Handles UTF-8, UTF-16 and 8 bit RAW encoded source files and strings
   * Built in `linker' with section support
   * CPU or flat address space for creating huge binaries (e.g. cartridges)
   * Conditional compilation, macros, struct/union structures, scopes.
@@ -31,12 +33,12 @@ There are also some useful parameters which are described later.
 
 For comfortable compiling I use such `Makefile's (for make):
 
-demo.prg: source.asm makros.asm pic.drp music.bin
+demo.prg: source.asm macros.asm pic.drp music.bin
         64tass -C -a -B -i source.asm -o demo.tmp
         pucrunch -ffast -x 2048 demo.tmp >demo.prg
 
 This way `demo.prg' is recreated by compiling `source.asm' whenever
-`source.asm', `makros.asm', `pic.drp' or `music.bin' had changed.
+`source.asm', `macros.asm', `pic.drp' or `music.bin' had changed.
 
 Of course it's not much harder to create something similar for win32
 (make.bat), however this will always compile and compress:
@@ -54,7 +56,7 @@ all: demo.prg
 demo.prg: demo.tmp
         pucrunch -ffast -x 2048 $< >$@
 
-demo.tmp: source.asm makros.asm pic.drp music.bin
+demo.tmp: source.asm macros.asm pic.drp music.bin
         64tass -C -a -B -i $< -o $@
 
 .INTERMEDIATE: demo.tmp
@@ -74,7 +76,7 @@ that the resulting file is directly runnable without additional compression:
 
 start   rts
 
-A frequently comming up question is, how to automatically allocate memory,
+A frequently coming up question is, how to automatically allocate memory,
 without hacks like *=*+1? Sure there's .byte and friends for variables with
 initial values but what about zero page, or RAM outside of program area? The
 solution is to not use an initial value by using '?' or not giving a fill byte
@@ -133,24 +135,25 @@ Expressions and data types
 
 Integer constants
 
-Integer constants can be entered as decimal ([0-9]+), hexadecimal ($[0-9a-f]*)
-or binary (%[01]*). The following operations are accepted:
+Integer constants can be entered as a string of decimal numbers of arbitary
+length. The following operations are accepted:
 
-              Integer operators and functions
+             Integer operators and functions
 x + y    add x to y                       2 + 2 is 4
-x - y    substract y from x               4 - 1 is 3
+x - y    subtract y from x                4 - 1 is 3
 x * y    multiply x with y                2 * 3 is 6
 x / y    integer divide x by y            7 / 2 is 3
 x % y    integer modulo of x divided by y 5 % 2 is 1
 x ** y   x raised t power of y            2 ** 4 is 16
 -x       negated value                    -2 is -2
 +x       unchanged                        +2 is 2
-<        lower byte                       <$1234 is $34
->        higher byte                      >$1234 is $12
-`        bank byte                        `$123456 is $12
-<>       lower word                       <>$123456 is $3456
->`       higher word                      <`$123456 is $1234
-><       lower byte swapped word          ><$123456 is $5634
+~x       ?x ? 1                           ~3 is -4
+<        lower byte                       <2049 is $01
+>        higher byte                      >2049 is $08
+`        bank byte                        `65536 is $01
+<>       lower word                       <>65537 is $0001
+>`       higher word                      <`65537 is $1000
+><       lower byte swapped word          ><2049 is $0108
 x <=> y  x compares to y                  2 <=> 5 is -1
 x == y   x equals to y                    2 == 3 is false
 x != y   x does not equal to y            2 != 3 is true
@@ -163,28 +166,14 @@ x ^ y    bitwise xor                      2 ^ 6 is 4
 x & y    bitwise and                      2 & 6 is 2
 x << y   logical shift left               1 << 3 is 8
 x >> y   arithmetic shift right           -8 >> 3 is -1
-~x       invert bits                      ~%101 is %010
-..       concatenate bits                 $a..$b is $ab
-x[n]     extract bit(s)                   $a[1] is 0
-x[s]     slice bits                       $1234[4:8] is $3
-len(a)   length in bits                   len($034) is 12
-float(a) convert to floating point        float(1) is 1.0
+int(a)   convert to integer               int(%11) is 3
 
 An integer has a truth value of true if it's non-zero. The true value is the
 same as 1.
 
-Length of a numeric constants are defined in bits and is calculated from the
-number of digits used for hexadecimal (4 each) and binary (1 each) definitions.
-It's also set when slicing, bit (1), byte (8) or word (16) extraction is used.
-
 Integers are automatically promoted to float as necessary in expressions.
 
-The precision is limited to 32 bits in this version. This might change in the
-future, so don't rely on clipping of higher bits.
-
         .byte 23        ; decimal
-        .byte $33       ; hex
-        .byte %00011111 ; binary
 
         lda #<label
         ldy #>label
@@ -197,8 +186,42 @@ future, so don't rely on clipping of higher bits.
 
         lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
         sta $d018
+
+Bit string constants
+
+Bit string constants can be entered as hexadecimal by a leading dollar sign or
+binary with a leading percent sign. The following operations are accepted:
+
+      Bit string operators and functions
+~x     invert bits      ~%101 is ~%101
+..     concatenate bits $a..$b is $ab
+y x n  repeat           %101 x 3 is %101101101
+x[n]   extract bit(s)   $a[1] is 0
+x[s]   slice bits       $1234[4:8] is $3
+x | y  bitwise or       ~$2 | $6 is ~$0
+x ^ y  bitwise xor      ~$2 ^ $6 is ~$4
+x & y  bitwise and      ~$2 & $6 is $4
+len(a) length in bits   len($034) is 12
+
+An bit string has a truth value of true if it's non-zero.
+
+Length of bit string constants are defined in bits and is calculated from the
+number of digits used including leading zeros.
+
+Bit strings are automatically promoted to integer or floating point as
+necessary in expressions. The higher bits are extended with zeros or ones as
+needed.
+
+        .byte $33       ; hex
+        .byte %00011111 ; binary
+
+        lda $01
+        and #~$07
+        ora #$05
+        sta $01
+
         lda $d015
-        and #~%00100000
+        and #~%00100000 ;clear a bit
         sta $d015
 
 Floating point constants
@@ -209,7 +232,7 @@ can be used:
 
               Floating point operators and functions
 x + y       add x to y                       2.2 + 2.2 is 4.4
-x - y       substract y from x               4.1 - 1.1 is 3.0
+x - y       subtract y from x                4.1 - 1.1 is 3.0
 x * y       multiply x with y                1.5 * 3 is 4.5
 x / y       integer divide x by y            7.0 / 2.0 is 3.5
 x % y       integer modulo of x divided by y 5.0 % 2.0 is 1.0
@@ -255,7 +278,7 @@ rad(a)      degrees to radian                rad(0.0) is 0.0
 deg(a)      radian to degrees                deg(0.0) is 0.0
 hypot(y, x) polar distance                   hypot(4.0, 3.0) is 5.0
 atan2(y, x) polar angle                      atan2(0.0, 3.0) is 0.0
-int(a)      convert to integer               int(3.8) is 3
+float(a)    convert to floating point        float(1) is 1.0
 
 A floating point number has a truth value of true if it's non-zero.
 
@@ -270,7 +293,7 @@ Floating point numbers are automatically truncated to integer as necessary.
 Fixed point conversion can be done by using the shift operators for example a
 8.16 fixed point number can be calculated as (3.14 << 16) & $ffffff. The binary
 operators operate like if the floating point number would be a fixed point one.
-This is the reason for the strange definiton of inversion.
+This is the reason for the strange definition of inversion.
 
         .byte 3.66e1       ; 36.6, truncated to 36
         .byte $1.8p4       ; 4:4 fixed point number (1.5)
@@ -278,30 +301,32 @@ This is the reason for the strange definiton of inversion.
 
 Character string constants
 
-Strings are enclosed in single or double quotes and can hold any unicode
+Strings are enclosed in single or double quotes and can hold any Unicode
 character. Operations like indexing or slicing are always done on the original
 representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside the strings escapes them.
 
-          String operators and functions
-..     concatenate strings  "a".."b" is "ab"
-in     is substring of      "b" in "abc" is true
-%      string formatting    "%02x" % (12,) is "0c"
-x      repeat               "ab" x 3 is "ababab"
-x[i]   character from start "abc"[1] is "b"
-x[i]   character from end   "abc"[-1] is "c"
-x[s]   no change            "abc"[:] is "abc"
-x[s]   cut off start        "abc"[1:] is "bc"
-x[s]   cut off end          "abc"[:-1] is "ab"
-x[s]   reverse              "abc"[::-1] is "cba"
-len(x) number of characters len("abc") is 3
+            String operators and functions
+..      concatenate strings      "a".."b" is "ab"
+in      is substring of          "b" in "abc" is true
+%       string formatting        "%02x" % (12,) is "0c"
+y x n   repeat                   "ab" x 3 is "ababab"
+x[i]    character from start     "abc"[1] is "b"
+x[i]    character from end       "abc"[-1] is "c"
+x[s]    no change                "abc"[:] is "abc"
+x[s]    cut off start            "abc"[1:] is "bc"
+x[s]    cut off end              "abc"[:-1] is "ab"
+x[s]    reverse                  "abc"[::-1] is "cba"
+len(x)  number of characters     len("abc") is 3
+str(a)  convert to string        str($1) is "$1"
+repr(a) representation to string str("a") is '"a"'
 
 A string has a truth value of true if it contains at least one character.
 
-Strings are converted to numeric constants as necessary using the current
-encoding and escape rules, for example when using a sane encoding "z" - "a" is
-25.
+Strings are converted to integers, byte and bit strings as necessary using the
+current encoding and escape rules. For example when using a sane encoding "z" -
+"a" is 25.
 
 Indexing characters with positive integers start with zero. Negative indexes
 are translated internally by adding the number of characters to them, therefore
@@ -349,6 +374,7 @@ e E   exponential float (uppercase)
 f F   floating point (uppercase)
 g G   exponential/floating point
 s     string
+r     representation
 x X   hexadecimal (uppercase)
 %     percent sign
 
@@ -363,7 +389,7 @@ using the current encoding to bytes.
        Byte string operators and functions
 ..     concatenate strings b"a"..b"b" is b"ab"
 in     is substring of     b"b" in b"abc" is true
-x      repeat              b"ab" x 3 is b"ababab"
+y x n  repeat              b"ab" x 3 is b"ababab"
 x[i]   byte from start     b"abc"[1] is b"b"
 x[i]   byte from end       b"abc"[-1] is b"c"
 x[s]   no change           b"abc"[:] is b"abc"
@@ -394,7 +420,7 @@ Currently both types are immutable.
                     List and tuple operators and functions
 ..           concatenate lists                     [1]..[2] is [1, 2]
 in           is member of list                     2 in [1, 2, 3] is true
-x            repeat                                [1, 2] x 2 is [1, 2, 1, 2]
+y x n        repeat                                [1, 2] x 2 is [1, 2, 1, 2]
 x[i]         element from start                    ("1", 2)[1] is 2
 x[i]         element from end                      ("1", 2, 3)[-1] is 3
 x[s]         no change                             (1, 2, 3)[:] is (1, 2, 3)
@@ -414,7 +440,7 @@ Arithmetic operations between lists are applied one by one on their elements,
 so [1, 2] + [3, 4] is [4, 6].
 
 When lists form an array and columns/rows are missing the smaller array is
-stretched to fill in the gaps if possible, so [[1],[2]] * [3, 4] is [[3, 4],
+stretched to fill in the gaps if possible, so [[1], [2]] * [3, 4] is [[3, 4],
 [6, 8]].
 
 Indexing elements with positive integers start with zero. Negative indexes are
@@ -618,10 +644,9 @@ that they also denote indirect addressing mode for certain opcodes.
 Built in functions are identifiers followed by parentheses. They accept
 variable number of parameters separated by comma.
 
-             Other built in functions
+       Other built in functions
 min(a, b, ...)        Minimum of values
 max(a, b, ...)        Maximum of values
-repr(a)               Text representation of value
 
 Special addressing mode forcing operators in front of an expression can be used
 to make sure the expected addressing mode is used.
@@ -683,7 +708,7 @@ Dumping data
 
 Storing numeric data
 
-Multi byte numeric data is stored in the little endian order, which is the
+Multi byte numeric data is stored in the little-endian order, which is the
 natural byte order for 65xx processors. Numeric ranges are enforced depending
 on the directives used.
 
@@ -726,12 +751,12 @@ using the current encoding.
             jmp (jumps,x)
 
     jumps   .word routine1, routine2
-    ;On 65816 substract the current program bank
+    ;On 65816 subtract the current program bank
     jumps2  .word (routine1, routine2) - (* & ~$ffff)
 
 .rta <expression>[, <expression>, ...]
     Create return address constants, which are 16 bit unsigned constants
-    (usually addresses) but with one substracted.
+    (usually addresses) but with one subtracted.
 
     ;Computed jumps by using stack
             asl
@@ -742,7 +767,7 @@ using the current encoding.
             pha
             rts
     rets    .rta $fce2, routine1, routine2
-    ;On 65816 substract the current program bank
+    ;On 65816 subtract the current program bank
     rets2   .rta ($fce2, routine1, routine2) - (* & ~$ffff)
 
 .long <expression>[, <expression>, ...]
@@ -799,7 +824,7 @@ to represent control characters.
 
 .shift <expression>[, <expression>, ...]
     Same as .text, but the last byte will have the highest bit set. Any
-    character which already has the most significiant bit set will cause an
+    character which already has the most significant bit set will cause an
     error.
 
             ldx #0
@@ -816,7 +841,7 @@ to represent control characters.
 .shiftl <expression>[, <expression>, ...]
     Same as .text, but all bytes are shifted to left, and the last character
     gets the lowest bit set. Any character which already has the most
-    significiant bit set will cause an error as this would be cut off.
+    significant bit set will cause an error as this would be cut off.
 
             ldx #0
     loop    lda txt,x
@@ -864,20 +889,20 @@ to represent control characters.
 
 Text encoding
 
-64tass supports sources written in utf8, utf16 (be/le) and raw 8-bit encoding.
-To take advantage of this capability custom encodings can be defined to map
-unicode characters to 8 bit values in strings.
+64tass supports sources written in UTF-8, UTF-16 (be/le) and RAW 8 bit
+encoding. To take advantage of this capability custom encodings can be defined
+to map Unicode characters to 8 bit values in strings.
 
 .enc <name>
     Selects text encoding, predefined encodings are `none' and `screen' (screen
     code), anything else is user defined. All user encodings start without any
     character or escape definitions, add some as required.
 
-        .enc screen     ;screencode mode
-        .text "text with screencodes"
-        cmp #"u"        ;compare screencode
+        .enc screen     ;screen code mode
+        .text "text with screen codes"
+        cmp #"u"        ;compare screen code
         .enc none       ;normal mode again
-        cmp #"u"        ;compare ascii
+        cmp #"u"        ;compare ASCII
 
 .cdef <start>, <end>, <coded> [, <start>, <end>, <coded>, ...]
 .cdef "<start><end>", <coded> [, "<start><end>", <coded>, ...]
@@ -919,24 +944,24 @@ Structure
 Structures are for organizing sequential data, so the length of a structure is
 the sum of lengths of all items.
 
-.struct [<name>][=<default>]][,[<name>][=<default>] ...]
-.ends [<result>][,<result> ...]
+.struct [<name>][=<default>]][, [<name>][=<default>] ...]
+.ends [<result>][, <result> ...]
     Structure definition, with named parameters and default values
-.dstruct <name>[,<initialization values>]
+.dstruct <name>[, <initialization values>]
 .<name> [<initialization values>]
     Create instance of structure with initialization values
 
-        .struct         ;anonymous struct
+        .struct         ;anonymous structure
 x       .byte 0         ;labels are visible
 y       .byte 0         ;content compiled here
         .ends           ;useful inside unions
 
-nn_s    .struct col,row ;named struct
+nn_s    .struct col, row;named structure
 x       .byte \col      ;labels are not visible
 y       .byte \row      ;no content is compiled here
         .ends           ;it's just a definition
 
-nn      .dstruct nn_s,1,2;struct instance, content here
+nn      .dstruct nn_s, 1, 2;structure instance, content here
 
         lda nn.x        ;direct field access
         ldy #nn_s.x     ;get offset of field
@@ -948,10 +973,10 @@ Unions can be used for overlapping data as the compile offset and program
 counter remains the same on each line. Therefore the length of a union is the
 length of it's longest item.
 
-.union [<name>][=<default>]][,[<name>][=<default>] ...]
+.union [<name>][=<default>]][, [<name>][=<default>] ...]
 .endu
     Union definition, with named parameters and default values
-.dunion <name>[,<initialization values>]
+.dunion <name>[, <initialization values>]
 .<name> [<initialization values>]
     Create instance of union with initialization values
 
@@ -965,7 +990,7 @@ x       .byte ?         ;labels are not visible
 y       .word \1        ;no content is compiled here
         .endu           ;it's just a definition
 
-nn      .dunion nn_u,1  ;union instance here
+nn      .dunion nn_u, 1 ;union instance here
 
         lda nn.x        ;direct field access
         ldy #nn_u.x     ;get offset of field
@@ -976,7 +1001,7 @@ Combined use of structures and unions
 The example below shows how to define structure to a binary include.
 
         .union
-        .binary "pic.drp",2
+        .binary "pic.drp", 2
         .struct
 color   .fill 1024
 screen  .fill 1024
@@ -1007,13 +1032,13 @@ Macros can be used to reduce typing of frequently used source lines. Each
 invocation is a copy of the macro's content with parameter references replaced
 by the parameter texts.
 
-.segment [<name>][=<default>]][,[<name>][=<default>] ...]
-.endm [<result>][,<result> ...]
+.segment [<name>][=<default>]][, [<name>][=<default>] ...]
+.endm [<result>][, <result> ...]
     Copies the code segment as it is, so symbols can be used from outside, but
     this also means multiple use will result in double defines unless anonymous
     labels are used.
-.macro [<name>][=<default>]][,[<name>][=<default>] ...]
-.endm [<result>][,<result> ...]
+.macro [<name>][=<default>]][, [<name>][=<default>] ...]
+.endm [<result>][, <result> ...]
     The code is enclosed in it's own block so symbols inside are
     non-accessible, unless a label is prefixed at the place of use, then local
     labels can be accessed through that label.
@@ -1061,7 +1086,7 @@ equal sign which is used as a replacement when the parameter is missing.
 These named parameters can be referenced by \name or \{name}. Names must match
 completely, if unsure use the quoted name reference syntax.
 
-name    .macro first,b=2,,last
+name    .macro first, b=2, , last
         lda #\first     ;first parameter
         lda #\b         ;second parameter
         lda #\3         ;third parameter
@@ -1074,8 +1099,8 @@ Text references
 
 In the original turbo assembler normal references are passed by value and can
 only appear in place of one. Text references on the other hand can appear
-everywhere and will work in place of eg quoted text or opcodes and labels. The
-first 9 parameters can be referenced as text by @1...@9.
+everywhere and will work in place of e.g. quoted text or opcodes and labels.
+The first 9 parameters can be referenced as text by @1...@9.
 
 name    .macro
         jsr print
@@ -1089,8 +1114,8 @@ Custom functions
 Beyond the built in functions mentioned earlier it's possible to define custom
 ones for frequently used calculations.
 
-.function <name>[=<default>]][,<name>[=<default>] ...]
-.endf [<result>][,<result> ...]
+.function <name>[=<default>]][, <name>[=<default>] ...]
+.endf [<result>][, <result> ...]
     Defines a user function
 #<name> [<param>][[,][<param>] ...]
 .<name> [<param>][[,][<param>] ...]
@@ -1105,17 +1130,17 @@ Functions can span multiple lines but unlike macros they can't create new code.
 Only those external variables and functions are available which were accessible
 at the place of definition, but not those at the place of invocation.
 
-wpack   .function a,b=0
+wpack   .function a, b=0
         .endf a+b*256
 
-        .word wpack(1), wpack(2,3)
+        .word wpack(1), wpack(2, 3)
 
 If a function is used as macro, directive or pseudo instruction and there's a
 label in front then the returned value is assigned to it. If nothing is
 returned then it's used as regular label. Of course when used like this it can
 create code and access local variables.
 
-mva     .function s,d
+mva     .function s, d
         lda s
         sta d
         .endf
@@ -1128,7 +1153,7 @@ To prevent parts of source from compiling conditional constructs can be used.
 This is useful when multiple slightly different versions needs to be compiled
 from the same source.
 
-If, elsif, else
+If, else if, else
 
 .if <expression>
     Compile, if result is true (not zero)
@@ -1169,7 +1194,7 @@ written only once in the switch statement.
 
 .switch <expression>
     Evaluate expression and remember it
-.case <expression>[,<expression> ...]
+.case <expression>[, <expression> ...]
     Compile if the previous conditions were all skipped and one of the values
     equals
 .default
@@ -1190,7 +1215,7 @@ written only once in the switch statement.
 
 Repetitions
 
-.for <variable>=<expression>,<expression>,<variable>=<expression>
+.for <variable>=<expression>, <expression>, <variable>=<expression>
 .next
     Compile loop, only anonymous references are allowed as labels inside
 
@@ -1256,11 +1281,11 @@ directory separator and use lower/uppercase consistently in filenames!
     for example.
 
             .binary "stuffz.bin"        ;simple include, all bytes
-            .binary "stuffz.bin",2      ;skip start address
-            .binary "stuffz.bin",2,1000 ;skip start address, 1000 bytes max
+            .binary "stuffz.bin", 2     ;skip start address
+            .binary "stuffz.bin", 2, 1000;skip start address, 1000 bytes max
 
             *= $1000                    ;load music to $1000 and
-            .binary "music.sid",$7e     ;strip SID header
+            .binary "music.sid", $7e    ;strip SID header
 
 Blocks
 
@@ -1321,19 +1346,19 @@ start of .dsection is not allowed.
 
         *= $02
         .dsection zp   ;declare zeropage section
-        .cerror *>$30,"Too many zeropage variables"
+        .cerror * > $30, "Too many zeropage variables"
 
         *= $334
         .dsection bss   ;declare uninitialized variable section
-        .cerror *>$400,"Too many variables"
+        .cerror * > $400, "Too many variables"
 
         *= $0801
         .dsection code   ;declare code section
-        .cerror *>$1000,"Program too long!"
+        .cerror * > $1000, "Program too long!"
 
         *= $1000
         .dsection data   ;declare data section
-        .cerror *>$2000,"Data too long!"
+        .cerror * > $2000, "Data too long!"
 ;--------------------
         .section code
         .word ss, 2005
@@ -1397,7 +1422,7 @@ and `data' sections they use, while the `bss' section is shared for all banks.
         *= $0000
         .logical $8000
         .dsection bank1
-        .cerror *>$a000, "Bank1 too long"
+        .cerror * > $a000, "Bank1 too long"
         .here
 
 bank1   .block          ;Make all symbols local
@@ -1415,7 +1440,7 @@ bank1   .block          ;Make all symbols local
         *= $2000
         .logical $8000
         .dsection bank2
-        .cerror *>$a000, "Bank2 too long"
+        .cerror * > $a000, "Bank2 too long"
         .here
 
 bank2   .block          ;Make all symbols local
@@ -1431,7 +1456,7 @@ bank2   .block          ;Make all symbols local
 ;Common data, avoid initialized variables here!
         *= $c000
         .dsection bss
-        .cerror *>$d000, "Too much common data"
+        .cerror * > $d000, "Too much common data"
 ;------------- The following is in "code.asm"
 code    sei
 
@@ -1460,13 +1485,13 @@ routine .word print
             ldx #$1000
 
 .databank <expression>
-    Set databank (65816). Absolute addressing is used only for symbols in this
+    Set data bank (65816). Absolute addressing is used only for symbols in this
     bank, anything else (except direct page) is using long addressing.
 
             .databank $10   ;$10xxxx
 
 .dpage <expression>
-    Set directpage. Direct or zero page addressing is only used for addresses
+    Set direct page. Direct or zero page addressing is only used for addresses
     in the following 256 byte range, anything else is using absolute or long
     addressing.
 
@@ -1476,16 +1501,16 @@ Controlling errors
 
 .page
 .endp
-    Gives an error on page boundary crossing, eg. for timing sensitive code.
+    Gives an error on page boundary crossing, e.g. for timing sensitive code.
 
             .page
-    table   .byte 0,1,2,3,4,5,6,7
+    table   .byte 0, 1, 2, 3, 4, 5, 6, 7
             .endp
 
 .option allow_branch_across_page
     Switches error generation on page boundary crossing during relative branch.
     Such a condition on 6502 adds 1 extra cycle to the execution time, which
-    can ruin the timing of a carefuly cycle counted code.
+    can ruin the timing of a carefully cycle counted code.
 
             .option allow_branch_across_page = 0
             ldx #3          ;now this will execute in
@@ -1498,14 +1523,14 @@ Controlling errors
     Exit with error or conditionally exit with error
 
             .error "Unfinished here..."
-            .cerror *>$1200, "Program too long by ", *-$1200, " bytes"
+            .cerror * > $1200, "Program too long by ", * - $1200, " bytes"
 
 .warn <message> [, <message>, ...]
 .cwarn <condition>, <message> [, <message>, ...]
     Display a warning message always or depending on a condition
 
             .warn "FIXME: handle negative values too!"
-            .cwarn *>$1200, "This may not work!"
+            .cwarn * > $1200, "This may not work!"
 
 Target
 
@@ -1528,10 +1553,10 @@ Misc
 .end
     Terminate assembly. Any content after this directive is ignored.
 .eor <expression>
-    Eor output with some 8 bit value. Useful for reverse screencode text for
+    XOR output with a 8 bit value. Useful for reverse screen code text for
     example, or for silly `encryption'.
 .var <expression>
-    Defines a variable identified by the label preceeding, which is set to the
+    Defines a variable identified by the label preceding, which is set to the
     value of expression or reference of variable.
 .assert
 .check
@@ -1617,12 +1642,12 @@ sourcefile directly, or do the following:
 
   * load turbo assembler, start (by sys9*4096 or sys8*4096 depending on
     version)
-  * <- (arrow left) then l to load a sourcefile
-  * <- (arrow left) then w to write a sourcefile in petscii format
+  * <- (arrow left) then l to load a source file
+  * <- (arrow left) then w to write a source file in PETSCII format
   * convert the result to ASCII using petcat (from the vice package)
 
 The resulting file should then (with the restrictions below) assemble using the
-following commandline:
+following command line:
 
 64tass -C -T -a -W -i source.asm -o outfile.prg
 
@@ -1741,11 +1766,11 @@ Operation options
     Using this option will change the default `none' and `screen' encodings to
     map 'a'-'z' and 'A'-'Z' into the correct PETSCII range of $41-$5A and
     $C1-$DA, which is more suitable for an ASCII editor. It also adds
-    predefined petcat style PETASCII literals to the default encodings.
+    predefined petcat style PETSCII literals to the default encodings.
 
-    For writing sources in utf8/utf16 encodings this option is required! The
+    For writing sources in UTF-8/UTF-16 encodings this option is required! The
     symbol names are still limited to ASCII, but custom string encodings can
-    take advantage of the full unicode set.
+    take advantage of the full Unicode set.
 
     64tass a.asm
 
@@ -1995,11 +2020,11 @@ a.asm:4:8: error: page error at $0007d0
 
 Warnings
 
-Top of memory excedeed
+Top of memory exceeded
     compile continues at the bottom ($0000)
 Possibly incorrectly used A
     do not use `a' as label
-Memory bank excedeed
+Memory bank exceeded
     compile continues in the next 64 KiB bank, however execution may not
 Possible jmp ($xxff) bug
     yet another 65xx feature...
@@ -2056,14 +2081,14 @@ Macro recursion too deep
 Unknown CPU
     CPU type not known
 Ooops! Too many passes...
-    With a carefuly crafted source file it's possible to create unresolvable
+    With a carefully crafted source file it's possible to create unresolvable
     situations. Fix your code.
 
 -------------------------------------------------------------------------------
 
 Credits
 
-Original written for DOS by Marek Matula of Taboo, then ported to ansi C by
+Original written for DOS by Marek Matula of Taboo, then ported to ANSI C by
 BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
 optimizations, multi pass compile and a lot of features by Soci/Singular.
 Improved TASS compatibility, PETSCII codes by Groepaz.

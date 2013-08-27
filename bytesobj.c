@@ -22,10 +22,10 @@
 #include "eval.h"
 #include "isnprintf.h"
 
-#include "numobj.h"
-#include "uintobj.h"
+#include "intobj.h"
 #include "boolobj.h"
-#include "sintobj.h"
+#include "strobj.h"
+#include "listobj.h"
 
 static struct obj_s obj;
 
@@ -41,7 +41,7 @@ static void copy(const struct value_s *v1, struct value_s *v) {
     v->refcount = 1;
     v->u.bytes.len = v1->u.bytes.len;
     if (v1->u.bytes.len) {
-        s = malloc(v1->u.bytes.len);
+        s = (uint8_t *)malloc(v1->u.bytes.len);
         if (!s) err_msg_out_of_memory();
         memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
     } else s = NULL;
@@ -65,6 +65,28 @@ static int truth(const struct value_s *v1) {
     return !!v1->u.bytes.len;
 }
 
+static void repr(const struct value_s *v1, struct value_s *v) {
+    size_t i, len, len2;
+    uint8_t *s;
+    len2 = v1->u.bytes.len * 4;
+    len = 9 - (v1->u.bytes.len > 0) + len2;
+    s = (uint8_t *)malloc(len);
+    if (!s || len < len2 || v1->u.bytes.len > ((size_t)~0) / 4) err_msg_out_of_memory();
+
+    memcpy(s, "bytes([", 7);
+    len = 7;
+    for (i = 0;i < v1->u.bytes.len; i++) {
+        len += sprintf((char *)s + len, i ? ",$%02x" : "$%02x", v1->u.bytes.data[i]);
+    }
+    s[len++] = ']';
+    s[len++] = ')';
+    if (v == v1) v->obj->destroy(v);
+    v->obj = STR_OBJ;
+    v->u.str.len = len;
+    v->u.str.chars = len;
+    v->u.str.data = s;
+}
+
 static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
     size_t l = v1->u.bytes.len;
     const uint8_t *s2 = v1->u.bytes.data;
@@ -76,48 +98,110 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
     return h & ((~(unsigned int)0) >> 1);
 }
 
-static void convert(struct value_s *v1, struct value_s *v, obj_t t, linepos_t UNUSED(epoint), linepos_t epoint2) {
-    if (t == NUM_OBJ) {
-        uval_t val;
+int bytes_from_str(struct value_s *v, const struct value_s *v1) {
+    size_t len = v1->u.str.len, len2 = 0;
+    uint8_t *s;
+    if (len) {
+        s = (uint8_t *)malloc(len);
+        if (!s) err_msg_out_of_memory();
 
-        if (v1->u.bytes.len == 1) {
-            val = v1->u.bytes.data[0];
+        if (actual_encoding) {
+            size_t i = 0;
+            int16_t ch;
+            while (len > i) {
+                ch = petascii(&i, v1);
+                if (ch > 255) {
+                    free(s);
+                    v->obj = NONE_OBJ;
+                    return 1;
+                }
+                s[len2++] = ch;
+            }
         } else {
-            if (v == v1) destroy(v1);
-            v->obj = ERROR_OBJ;
-            v->u.error.num = ERROR_BIG_STRING_CO;
-            v->u.error.epoint = *epoint2;
-            return;
+            memcpy(s, v1->u.str.data, len);
+            len2 = len;
         }
-        if (v == v1) destroy(v1);
-        v->obj = t;
-        v->u.num.val = val;
-        v->u.num.len = 8;
-        return;
-    }
-    if (t == BYTES_OBJ) {
-        if (v != v1) copy(v1, v);
-        return;
-    }
-    return;
+    } else s = NULL;
+    if (v == v1) v->obj->destroy(v);
+    v->obj = BYTES_OBJ;
+    v->u.bytes.len = len2;
+    v->u.bytes.data = s;
+    return 0;
+}
+
+static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+    struct value_s tmp;
+    int ret;
+    int_from_bytes(&tmp, v1);
+    ret = tmp.obj->ival(&tmp, v, iv, bits, epoint);
+    tmp.obj->destroy(&tmp);
+    return ret;
+}
+
+static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+    struct value_s tmp;
+    int ret;
+    int_from_bytes(&tmp, v1);
+    ret = tmp.obj->uval(&tmp, v, uv, bits, epoint);
+    tmp.obj->destroy(&tmp);
+    return ret;
+}
+
+static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
+    struct value_s tmp;
+    int ret;
+    int_from_bytes(&tmp, v1);
+    ret = tmp.obj->real(&tmp, v, r, epoint);
+    tmp.obj->destroy(&tmp);
+    return ret;
+}
+
+static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
+    *s = !!v1->u.bytes.len;
+    return 0;
+}
+
+static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    if (v1 != v) copy(v1, v);
+}
+
+static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    struct value_s tmp;
+    int_from_bytes(&tmp, v1);
+    if (v == v1) v->obj->destroy(v);
+    tmp.obj->copy_temp(&tmp, v);
+}
+
+static int MUST_CHECK len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
+    *uv = v1->u.bytes.len;
+    return 0;
 }
 
 static void calc1(oper_t op) {
+    struct value_s *v1 = op->v1, *v = op->v;
+    struct value_s tmp;
     switch (op->op->u.oper.op) {
+    case O_NEG:
+    case O_POS:
+    case O_STRING: int_from_bytes(&tmp, v1);
+        break;
     case O_LNOT:
-        if (op->v1 == op->v) destroy(op->v);
-        op->v->obj = BOOL_OBJ; 
-        op->v->u.num.val = !op->v1->u.bytes.len;
-        return;
-    default:
+        if (v1 == v) destroy(v);
+        return bool_from_int(v, !truth(v1)); 
+    default: bits_from_bytes(&tmp, v1);
         break;
     }
-    obj_oper_error(op);
+    if (v == v1) destroy(v);
+    op->v1 = &tmp;
+    tmp.refcount = 0;
+    tmp.obj->calc1(op);
+    op->v1 = v1;
+    tmp.obj->destroy(&tmp);
 }
 
 static int calc2_bytes(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    ival_t val;
+    int val;
     switch (op->op->u.oper.op) {
     case O_CMP:
         {
@@ -125,7 +209,7 @@ static int calc2_bytes(oper_t op) {
             if (h) h = (h > 0) - (h < 0);
             else h = (v1->u.bytes.len > v2->u.bytes.len) - (v1->u.bytes.len < v2->u.bytes.len);
             if (v == v1 || v == v2) destroy(v);
-            v->obj = (h < 0) ? SINT_OBJ : UINT_OBJ; v->u.num.val = h;
+            int_from_int(v, h);
             return 0;
         }
     case O_EQ:
@@ -158,17 +242,18 @@ static int calc2_bytes(oper_t op) {
             len = v1->u.bytes.len;
             v->u.bytes.len += v2->u.bytes.len;
             s = (uint8_t *)v1->u.bytes.data;
-            s = realloc(s, v->u.bytes.len);
-            if (!s) err_msg_out_of_memory();
+            s = (uint8_t *)realloc(s, v->u.bytes.len);
+            if (!s || v->u.bytes.len < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
             memcpy(s + len, v2->u.bytes.data, v2->u.bytes.len);
             v->u.bytes.data = s;
             return 0;
         } 
         v->obj = BYTES_OBJ;
         v->u.bytes.len = v1->u.bytes.len + v2->u.bytes.len;
+        if (v->u.bytes.len < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
         if (v->u.bytes.len) {
             uint8_t *s;
-            s = malloc(v->u.bytes.len);
+            s = (uint8_t *)malloc(v->u.bytes.len);
             if (!s) err_msg_out_of_memory();
             memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
             memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
@@ -183,7 +268,7 @@ static int calc2_bytes(oper_t op) {
             c2 = v2->u.bytes.data;
             e = c2 + v2->u.bytes.len - v1->u.bytes.len;
             for (;;) {   
-                c = memchr(c2, v1->u.bytes.data[0], e - c2 + 1);
+                c = (uint8_t *)memchr(c2, v1->u.bytes.data[0], e - c2 + 1);
                 if (!c) { val = 0; break; }
                 if (!memcmp(c, v1->u.bytes.data, v1->u.bytes.len)) { val = 1; break; }
                 c2 = c + 1;
@@ -193,7 +278,7 @@ static int calc2_bytes(oper_t op) {
     default: return 1;
     }
     if (v == v1 || v == v2) destroy(v);
-    v->obj = BOOL_OBJ; v->u.num.val = val;
+    bool_from_int(v, val);
     return 0;
 }
 
@@ -213,7 +298,7 @@ static void repeat(oper_t op, uval_t rep) {
         }
         v->u.bytes.len *= rep;
         s = (uint8_t *)v1->u.bytes.data;
-        s = realloc(s, v->u.bytes.len);
+        s = (uint8_t *)realloc(s, v->u.bytes.len);
         if (!s) err_msg_out_of_memory();
         v->u.bytes.data = s;
         while (--rep) {
@@ -225,8 +310,8 @@ static void repeat(oper_t op, uval_t rep) {
         v->u.bytes.len = 0;
         if (v1->u.bytes.len && rep) {
             uint8_t *s;
-            s = malloc(v1->u.bytes.len * rep);
-            if (!s) err_msg_out_of_memory();
+            s = (uint8_t *)malloc(v1->u.bytes.len * rep);
+            if (!s || v1->u.bytes.len > ((size_t)~0) / rep) err_msg_out_of_memory();
             while (rep--) {
                 memcpy(s + v->u.bytes.len, v1->u.bytes.data, v1->u.bytes.len);
                 v->u.bytes.len += v1->u.bytes.len;
@@ -239,13 +324,35 @@ static void repeat(oper_t op, uval_t rep) {
 
 static void calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s tmp;
     switch (v2->obj->type) {
     case T_BYTES: if (calc2_bytes(op)) break; return;
+    case T_BOOL:
+    case T_INT:
+    case T_BITS: 
+    case T_FLOAT:
+    case T_CODE: 
+    case T_ADDRESS: 
+        {
+            switch (op->op->u.oper.op) {
+            case O_CONCAT:
+            case O_AND:
+            case O_OR:
+            case O_XOR:
+            case O_LSHIFT:
+            case O_RSHIFT: bits_from_bytes(&tmp, v1); break;
+            default: int_from_bytes(&tmp, v1);
+            }
+            if (v1 == v) v->obj->destroy(v);
+            op->v1 = &tmp;
+            tmp.refcount = 0;
+            tmp.obj->calc2(op);
+            op->v1 = v1;
+            tmp.obj->destroy(&tmp);
+        }
+        return;
     case T_TUPLE:
     case T_LIST: 
-        if (op->op == &o_MOD) {
-            isnprintf(v1, v2, v, &op->epoint, &op->epoint2); return;
-        }
     case T_STR: 
         v2->obj->rcalc2(op); return;
     default: break;
@@ -254,9 +361,32 @@ static void calc2(oper_t op) {
 }
 
 static void rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s tmp;
     switch (v1->obj->type) {
     case T_BYTES: if (calc2_bytes(op)) break; return;
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_CODE:
+    case T_ADDRESS: 
+        {
+            switch (op->op->u.oper.op) {
+            case O_CONCAT:
+            case O_AND:
+            case O_OR:
+            case O_XOR: bits_from_bytes(&tmp, v2); break;
+            default: int_from_bytes(&tmp, v2);
+            }
+            if (v2 == v) v->obj->destroy(v);
+            op->v2 = &tmp;
+            tmp.refcount = 0;
+            tmp.obj->rcalc2(op); 
+            op->v2 = v2;
+            tmp.obj->destroy(&tmp);
+        }
+        return;
     case T_TUPLE:
     case T_LIST: 
     case T_STR: 
@@ -268,20 +398,6 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op); return;
 }
 
-static int print(const struct value_s *v1, FILE *f) {
-    size_t val;
-    uint32_t ch;
-    int l;
-    l = printf("bytes([");
-    for (val = 0;val < v1->u.bytes.len; val++) {
-        ch = v1->u.bytes.data[val];
-        if (val) {fputc(',', f);l++;}
-        l += fprintf(f,"$%02x", ch);
-    }
-    l += printf("])");
-    return l;
-}
-
 static void iindex(oper_t op) {
     const uint8_t *p;
     uint8_t *p2;
@@ -290,31 +406,50 @@ static void iindex(oper_t op) {
     size_t i;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
 
-    if (!v2->u.list.len) {
-        if (v1 == v) destroy(v);
-        copy(&null_bytes, v);return;
-    }
     len = v1->u.bytes.len;
-    len2 = v2->u.list.len;
-    p2 = malloc(len2);
-    if (!p2) err_msg_out_of_memory();
-    p = p2;
-    for (i = 0; i < v2->u.list.len; i++) {
-        offs = indexoffs(v2->u.list.data[i], len);
-        if (offs < 0) {
-            free((uint8_t *)p);
+
+    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+        if (!v2->u.list.len) {
             if (v1 == v) destroy(v);
-            v->obj = ERROR_OBJ;
-            v->u.error.num = ERROR___INDEX_RANGE;
-            v->u.error.epoint = op->epoint2;
-            return;
+            copy(&null_bytes, v);return;
         }
-        *p2++ = v1->u.bytes.data[offs];
+        len2 = v2->u.list.len;
+        p2 = (uint8_t *)malloc(len2);
+        if (!p2) err_msg_out_of_memory();
+        p = p2;
+        for (i = 0; i < v2->u.list.len; i++) {
+            offs = indexoffs(v2->u.list.data[i], len);
+            if (offs < 0) {
+                free((uint8_t *)p);
+                if (v1 == v) destroy(v);
+                v->obj = ERROR_OBJ;
+                v->u.error.num = ERROR___INDEX_RANGE;
+                v->u.error.epoint = op->epoint2;
+                return;
+            }
+            *p2++ = v1->u.bytes.data[offs];
+        }
+        if (v == v1) destroy(v);
+        v->obj = BYTES_OBJ;
+        v->u.bytes.len = len2;
+        v->u.bytes.data = p;
+        return;
     }
-    if (v == v1) destroy(v);
+    offs = indexoffs(v2, len);
+    if (offs < 0) {
+        if (v1 == v) destroy(v);
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR___INDEX_RANGE;
+        v->u.error.epoint = op->epoint2;
+        return;
+    }
+    p2 = (uint8_t *)malloc(1);
+    if (!p2) err_msg_out_of_memory();
+    p2[0] = v1->u.bytes.data[offs];
+    if (v1 == v) destroy(v);
     v->obj = BYTES_OBJ;
-    v->u.bytes.len = len2;
-    v->u.bytes.data = p;
+    v->u.bytes.len = 1;
+    v->u.bytes.data = p2;
 }
 
 static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -338,12 +473,12 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
             if (v1 != v) copy(v1, v);
             return; /* original bytes */
         }
-        p2 = malloc(len);
+        p2 = (uint8_t *)malloc(len);
         if (!p2) err_msg_out_of_memory();
         p = p2;
         memcpy(p2, v1->u.bytes.data + offs, len);
     } else {
-        p2 = malloc(len);
+        p2 = (uint8_t *)malloc(len);
         if (!p2) err_msg_out_of_memory();
         p = p2;
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
@@ -365,12 +500,18 @@ void bytesobj_init(void) {
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;
-    obj.convert = convert;
+    obj.repr = repr;
+    obj.ival = ival;
+    obj.uval = uval;
+    obj.real = real;
+    obj.sign = sign;
+    obj.abs = absolute;
+    obj.integer = integer;
+    obj.len = len;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
     obj.repeat = repeat;
-    obj.print = print;
     obj.iindex = iindex;
     obj.slice = slice;
 }
