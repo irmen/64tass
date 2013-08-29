@@ -42,17 +42,23 @@
 #endif 
 #if _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
+double round(double);
+double trunc(double);
 inline double round(double a) {return (a < 0.0) ? ceil(a-0.5) : floor(a+0.5);}
 inline double trunc(double a) {return (a > 0.0) ? floor(a) : ceil(a);}
 #endif 
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
+double sinh(double);
+double cosh(double);
+double tanh(double);
 inline double sinh(double a) {return (exp(a) - exp(-a)) / 2.0;}
 inline double cosh(double a) {return (exp(a) + exp(-a)) / 2.0;}
 inline double tanh(double a) {return sinh(a) / cosh(a);}
 #endif
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
+double hypot(double, double);
 inline double hypot(double a, double b) {return sqrt(a*a+b*b);}
 #endif
 

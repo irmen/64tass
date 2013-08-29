@@ -19,6 +19,7 @@
 #ifndef _INTTYPES2_H
 #define _INTTYPES2_H
 
+#include <unistd.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
