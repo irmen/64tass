@@ -3259,7 +3259,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 if (olabelexists && s->addr != ((star + 1 + ln) & all_mem)) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                     fixeddig=0;
-                                } else if (erro == 10 && erro != ERROR_WUSER_DEFINED) err_msg2(erro, &dist, &epoint);
+                                } else if (min == 10 && erro != ERROR_WUSER_DEFINED) err_msg2(erro, &dist, &epoint);
                                 s->addr = (star + 1 + ln) & all_mem;
                             }
                             else if (cnmemonic[ADR_REL_L]!=____) {
