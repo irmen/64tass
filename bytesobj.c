@@ -32,7 +32,16 @@ static struct obj_s obj;
 obj_t BYTES_OBJ = &obj;
 
 static void destroy(struct value_s *v1) {
-    free((uint8_t*)v1->u.bytes.data);
+    if (v1->u.bytes.val != v1->u.bytes.data) free(v1->u.bytes.data);
+}
+
+static uint8_t *bnew(struct value_s *v, size_t len) {
+    if (len > sizeof(v->u.bytes.val)) {
+        uint8_t *s = (uint8_t *)malloc(len);
+        if (!s) err_msg_out_of_memory();
+        return s; 
+    }
+    return v->u.bytes.val;
 }
 
 static void copy(const struct value_s *v1, struct value_s *v) {
@@ -41,9 +50,8 @@ static void copy(const struct value_s *v1, struct value_s *v) {
     v->refcount = 1;
     v->u.bytes.len = v1->u.bytes.len;
     if (v1->u.bytes.len) {
-        s = (uint8_t *)malloc(v1->u.bytes.len);
-        if (!s) err_msg_out_of_memory();
-        memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
+        s = bnew(v, v->u.bytes.len);
+        memcpy(s, v1->u.bytes.data, v->u.bytes.len);
     } else s = NULL;
     v->u.bytes.data = s;
 }
@@ -52,7 +60,10 @@ static void copy_temp(const struct value_s *v1, struct value_s *v) {
     v->obj = BYTES_OBJ;
     v->refcount = 1;
     v->u.bytes.len = v1->u.bytes.len;
-    v->u.bytes.data = v1->u.bytes.data;
+    if (v1->u.bytes.data == v1->u.bytes.val) {
+        v->u.bytes.data = v->u.bytes.val;
+        if (v->u.bytes.len) memcpy(v->u.bytes.data, v1->u.bytes.data, v->u.bytes.len);
+    } else v->u.bytes.data = v1->u.bytes.data;
 }
 
 static int same(const struct value_s *v1, const struct value_s *v2) {
@@ -71,7 +82,7 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     len2 = v1->u.bytes.len * 4;
     len = 9 - (v1->u.bytes.len > 0) + len2;
     s = (uint8_t *)malloc(len);
-    if (!s || len < len2 || v1->u.bytes.len > ((size_t)~0) / 4) err_msg_out_of_memory();
+    if (!s || len < len2 || v1->u.bytes.len > ((size_t)~0) / 4) err_msg_out_of_memory(); /* overflow */
 
     memcpy(s, "bytes([", 7);
     len = 7;
@@ -101,10 +112,9 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
 int bytes_from_str(struct value_s *v, const struct value_s *v1) {
     size_t len = v1->u.str.len, len2 = 0;
     uint8_t *s;
+    struct value_s tmp;
     if (len) {
-        s = (uint8_t *)malloc(len);
-        if (!s) err_msg_out_of_memory();
-
+        s = bnew(&tmp, len);
         if (actual_encoding) {
             size_t i = 0;
             int16_t ch;
@@ -123,6 +133,11 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
         }
     } else s = NULL;
     if (v == v1) v->obj->destroy(v);
+    if (len2 <= sizeof(v->u.bytes.val)) {
+        memcpy(v->u.bytes.val, s, len2);
+        if (tmp.u.bytes.val != s) free(s);
+        s = v->u.bytes.val;
+    }
     v->obj = BYTES_OBJ;
     v->u.bytes.len = len2;
     v->u.bytes.data = s;
@@ -186,15 +201,12 @@ static void getiter(struct value_s *v1, struct value_s *v) {
 
 static struct value_s *MUST_CHECK next(struct value_s *v1, struct value_s *v) {
     const struct value_s *vv1 = v1->u.iter.data;
-    uint8_t *s;
     if (v1->u.iter.val >= vv1->u.bytes.len) return NULL;
-    s = (uint8_t *)malloc(1);
-    if (!s) err_msg_out_of_memory();
-    *s = vv1->u.bytes.data[v1->u.iter.val++];
 
+    v->u.bytes.val[0] = vv1->u.bytes.data[v1->u.iter.val++];
     v->obj = BYTES_OBJ;
     v->u.bytes.len = 1;
-    v->u.bytes.data = s;
+    v->u.bytes.data = v->u.bytes.val;
     return v;
 }
 
@@ -273,9 +285,7 @@ static int calc2_bytes(oper_t op) {
         v->u.bytes.len = v1->u.bytes.len + v2->u.bytes.len;
         if (v->u.bytes.len < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
         if (v->u.bytes.len) {
-            uint8_t *s;
-            s = (uint8_t *)malloc(v->u.bytes.len);
-            if (!s) err_msg_out_of_memory();
+            uint8_t *s = bnew(v, v->u.bytes.len);
             memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
             memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
             v->u.bytes.data = s;
@@ -331,8 +341,8 @@ static void repeat(oper_t op, uval_t rep) {
         v->u.bytes.len = 0;
         if (v1->u.bytes.len && rep) {
             uint8_t *s;
-            s = (uint8_t *)malloc(v1->u.bytes.len * rep);
-            if (!s || v1->u.bytes.len > ((size_t)~0) / rep) err_msg_out_of_memory();
+            if (v1->u.bytes.len > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
+            s = bnew(v, v1->u.bytes.len * rep);
             while (rep--) {
                 memcpy(s + v->u.bytes.len, v1->u.bytes.data, v1->u.bytes.len);
                 v->u.bytes.len += v1->u.bytes.len;
@@ -420,12 +430,12 @@ static void rcalc2(oper_t op) {
 }
 
 static void iindex(oper_t op) {
-    const uint8_t *p;
+    uint8_t *p, b;
     uint8_t *p2;
     size_t len, len2;
     ival_t offs;
     size_t i;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp;
 
     len = v1->u.bytes.len;
 
@@ -435,13 +445,11 @@ static void iindex(oper_t op) {
             copy(&null_bytes, v);return;
         }
         len2 = v2->u.list.len;
-        p2 = (uint8_t *)malloc(len2);
-        if (!p2) err_msg_out_of_memory();
-        p = p2;
-        for (i = 0; i < v2->u.list.len; i++) {
+        p = p2 = bnew(&tmp, len2);
+        for (i = 0; i < len2; i++) {
             offs = indexoffs(v2->u.list.data[i], len);
             if (offs < 0) {
-                free((uint8_t *)p);
+                if (p != tmp.u.bytes.val) free(p);
                 if (v1 == v) destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR___INDEX_RANGE;
@@ -451,6 +459,10 @@ static void iindex(oper_t op) {
             *p2++ = v1->u.bytes.data[offs];
         }
         if (v == v1) destroy(v);
+        if (len2 <= sizeof(v->u.bytes.val)) {
+            memcpy(v->u.bytes.val, p, len2);
+            p = v->u.bytes.val;
+        }
         v->obj = BYTES_OBJ;
         v->u.bytes.len = len2;
         v->u.bytes.data = p;
@@ -464,19 +476,19 @@ static void iindex(oper_t op) {
         v->u.error.epoint = op->epoint2;
         return;
     }
-    p2 = (uint8_t *)malloc(1);
-    if (!p2) err_msg_out_of_memory();
-    p2[0] = v1->u.bytes.data[offs];
+    b = v1->u.bytes.data[offs];
     if (v1 == v) destroy(v);
     v->obj = BYTES_OBJ;
     v->u.bytes.len = 1;
-    v->u.bytes.data = p2;
+    v->u.bytes.val[0] = b;
+    v->u.bytes.data = v->u.bytes.val;
 }
 
 static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t UNUSED(epoint)) {
     size_t len;
-    const uint8_t *p;
+    uint8_t *p;
     uint8_t *p2;
+    struct value_s tmp;
 
     if (step > 0) {
         if (offs > end) offs = end;
@@ -494,20 +506,20 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
             if (v1 != v) copy(v1, v);
             return; /* original bytes */
         }
-        p2 = (uint8_t *)malloc(len);
-        if (!p2) err_msg_out_of_memory();
-        p = p2;
+        p = p2 = bnew(&tmp, len);
         memcpy(p2, v1->u.bytes.data + offs, len);
     } else {
-        p2 = (uint8_t *)malloc(len);
-        if (!p2) err_msg_out_of_memory();
-        p = p2;
+        p = p2 = bnew(&tmp, len);
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
             *p2++ = v1->u.bytes.data[offs];
             offs += step;
         }
     }
     if (v == v1) destroy(v);
+    if (len <= sizeof(v->u.bytes.val)) {
+        memcpy(v->u.bytes.val, p, len);
+        p = v->u.bytes.val;
+    }
     v->obj = BYTES_OBJ;
     v->u.bytes.len = len;
     v->u.bytes.data = p;
