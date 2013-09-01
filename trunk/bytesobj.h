@@ -21,6 +21,12 @@
 
 extern obj_t BYTES_OBJ;
 
+typedef struct {
+    size_t len;
+    uint8_t val[4];
+    uint8_t *data;
+} bytes_t;
+
 extern void bytesobj_init(void);
 
 extern int bytes_from_str(struct value_s *, const struct value_s *);

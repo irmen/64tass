@@ -24,6 +24,7 @@
 #include "obj.h"
 #include "intobj.h"
 #include "bitsobj.h"
+#include "bytesobj.h"
 
 struct memblocks_s;
 
@@ -153,10 +154,7 @@ struct value_s {
             size_t chars;
             const uint8_t *data;
         } str;
-        struct {
-            size_t len;
-            const uint8_t *data;
-        } bytes;
+        bytes_t bytes;
         bits_t bits;
         struct {
             size_t size;

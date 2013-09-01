@@ -245,7 +245,7 @@ void init_values(void)
     null_bytes.obj = BYTES_OBJ;
     null_bytes.refcount = 0;
     null_bytes.u.bytes.len = 0;
-    null_bytes.u.bytes.data = NULL;
+    null_bytes.u.bytes.data = null_bytes.u.bytes.val;
     null_bits.obj = BITS_OBJ;
     null_bits.refcount = 0;
     null_bits.u.bits.len = 0;
