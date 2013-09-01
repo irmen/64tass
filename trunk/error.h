@@ -82,6 +82,7 @@ enum errors_e {
     ERROR______CANT_ABS,
     ERROR______CANT_INT,
     ERROR______CANT_LEN,
+    ERROR______NOT_ITER,
     ERROR__USER_DEFINED,
     ERROR____PAGE_ERROR,
     ERROR__BRANCH_CROSS,

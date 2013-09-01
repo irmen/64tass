@@ -151,7 +151,8 @@ static const char *terr_error[]={
     "can't get sign",
     "can't get absolute value",
     "can't convert to integer",
-    "can't get length"
+    "can't get length",
+    "not iterable"
 };
 static const char *terr_fatal[]={
     "can't open file ",
