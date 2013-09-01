@@ -574,7 +574,9 @@ struct value_s *compile(struct file_list_s *cflist)
                     int l;
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                     fputc('=', flist);
+                    referenceit = 0;
                     l = val_print(val, flist) + 1;
+                    referenceit = oldreferenceit;
                     printllist(flist, l);
                 }
                 label->ref = 0;
@@ -618,7 +620,9 @@ struct value_s *compile(struct file_list_s *cflist)
                             int l;
                             if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                             fputc('=', flist);
+                            referenceit = 0;
                             l = val_print(val, flist) + 1;
+                            referenceit = oldreferenceit;
                             printllist(flist, l);
                         }
                         if (labelexists) {
