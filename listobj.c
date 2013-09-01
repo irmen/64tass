@@ -174,6 +174,19 @@ static int MUST_CHECK len(const struct value_s *v1, struct value_s *UNUSED(v), u
     return 0;
 }
 
+static void getiter(struct value_s *v1, struct value_s *v) {
+    v->obj = ITER_OBJ;
+    v->u.iter.val = 0;
+    v->u.iter.iter = &v->u.iter.val;
+    v->u.iter.data = val_reference(v1);
+}
+
+static struct value_s *MUST_CHECK next(struct value_s *v1, struct value_s *UNUSED(v)) {
+    const struct value_s *vv1 = v1->u.iter.data;
+    if (v1->u.iter.val >= vv1->u.list.len) return NULL;
+    return val_reference(vv1->u.list.data[v1->u.iter.val++]);
+}
+
 static void calc1(oper_t op) {
     struct value_s *v1 = op->v1, *v = op->v;
     size_t i = 0;
@@ -700,6 +713,8 @@ static void init(struct obj_s *obj) {
     obj->same = same;
     obj->truth = truth;
     obj->len = len;
+    obj->getiter = getiter;
+    obj->next = next;
     obj->calc1 = calc1;
     obj->calc2 = calc2;
     obj->rcalc2 = rcalc2;

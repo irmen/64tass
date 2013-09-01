@@ -1501,7 +1501,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (what2 != W_NONE) new_waitfor(what2, &epoint);
                     break;/* skip things if needed */
                 }
-                if (prm<=CMD_DWORD || prm==CMD_BINARY) { /* .byte .text .rta .char .int .word .long */
+                if (prm<=CMD_DWORD || prm==CMD_BINARY) { /* .text .rta .char .int .word .long */
                     size_t uninit = 0;
                     size_t sum = 0;
 
@@ -1518,104 +1518,43 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (!get_exp(&w,0)) goto breakerr;
                         err.obj = NONE_OBJ;
                         while ((val = get_val(NONE_OBJ, &epoint))) {
-                            if ((val->obj != STR_OBJ || val->u.str.len) && (val->obj != BYTES_OBJ || val->u.bytes.len)) {
-                                size_t i = 0;
-                                do {
-                                    if (ch2 >= 0) {
-                                        if (uninit) { memskip(uninit); sum += uninit; uninit = 0; }
-                                        pokeb(ch2);
-                                        sum++;
-                                    }
+                            struct value_s iter, item, *val2;
+                            uval_t uval;
+                            item.refcount = 0;
+                            if (val->obj == STR_OBJ) {
+                                struct value_s *tmp = val_alloc();
+                                bytes_from_str(tmp, val);
+                                tmp->obj->getiter(tmp, &iter);
+                                val_destroy(tmp);
+                            } else val->obj->getiter(val, &iter);
 
-                                    switch (val->obj->type) {
-                                    case T_GAP:ch2 = -1; uninit++; continue;
-                                    case T_STR:
-                                        ch2 = petascii(&i, val);
-                                        if (ch2 > 255) i = val->u.str.len;
-                                        break;
-                                    case T_BYTES:
-                                        ch2 = val->u.bytes.data[i++];
-                                        break;
-                                    case T_FLOAT:
-                                    case T_CODE:
-                                    case T_BOOL:
-                                    case T_INT:
-                                    case T_BITS:
-                                        {
-                                            uval_t uval;
-                                            if (val->obj->uval(val, &err, &uval, bits, &epoint)) uval = 0;
-                                            ch2 = (uint8_t)uval;
-                                            break;
-                                        }
-                                    case T_LIST:
-                                    case T_TUPLE:
-                                        {
-                                            size_t li;
-                                            ch2 = -1;
-                                            for (li=0; li < val->u.list.len; li++) {
-                                                struct value_s *val2 = val->u.list.data[li];
-                                                if (val2->obj == STR_OBJ && !val2->u.str.len) continue;
-                                                if (val2->obj == BYTES_OBJ && !val2->u.bytes.len) continue;
-                                                i = 0;
-                                                do {
-                                                    if (ch2 >= 0) {
-                                                        if (uninit) { memskip(uninit); sum += uninit; uninit = 0; }
-                                                        pokeb(ch2); sum++;
-                                                    }
-                                                    switch (val2->obj->type) {
-                                                    case T_GAP:ch2 = -1; uninit++; continue;
-                                                    case T_STR:
-                                                        ch2 = petascii(&i, val2);
-                                                        if (ch2 > 255) i = val2->u.str.len;
-                                                        break;
-                                                    case T_BYTES:
-                                                        ch2 = val2->u.bytes.data[i++];
-                                                        break;
-                                                    case T_FLOAT:
-                                                    case T_CODE:
-                                                    case T_BOOL:
-                                                    case T_INT:
-                                                    case T_BITS:
-                                                        {
-                                                            uval_t uval;
-                                                            if (val2->obj->uval(val2, &err, &uval, bits, &epoint)) uval = 0;
-                                                            ch2 = (uint8_t)uval;
-                                                            break;
-                                                        }
-                                                    default: err_msg_wrong_type(val2, &epoint);
-                                                    case T_NONE:
-                                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                                                             ch2 = fixeddig = 0;
-                                                    }
-                                                    if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
-                                                        if (ch2>=0x80) {
-                                                            err.obj = ERROR_OBJ;
-                                                            err.u.error.num = ERROR_____CANT_UVAL;
-                                                            err.u.error.u.bits = bits;
-                                                            err.u.error.epoint = epoint;
-                                                        }
-                                                        if (prm==CMD_SHIFTL) ch2<<=1;
-                                                    } else if (prm==CMD_NULL && !ch2 && val2->obj != NONE_OBJ) large=epoint;
-                                                } while ((val2->obj == STR_OBJ && val2->u.str.len > i) || (val2->obj == BYTES_OBJ && val2->u.bytes.len > i));
-                                            }
-                                            continue;
-                                        }
-                                    default: err_msg_wrong_type(val, &epoint);
-                                    case T_NONE:
-                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                                             ch2 = fixeddig = 0;
+                            while ((val2 = iter.obj->next(&iter, &item))) {
+                                if (ch2 >= 0) {
+                                    if (uninit) { memskip(uninit); sum += uninit; uninit = 0; }
+                                    pokeb(ch2); sum++;
+                                }
+                                switch (val2->obj->type) {
+                                case T_GAP:ch2 = -1; uninit++; continue;
+                                default:
+                                    if (val2->obj->uval(val2, &err, &uval, bits, &epoint)) uval = 0;
+                                    ch2 = (uint8_t)uval;
+                                    break;
+                                case T_NONE:
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                    ch2 = fixeddig = 0;
+                                }
+                                if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
+                                    if (ch2>=0x80) {
+                                        err.obj = ERROR_OBJ;
+                                        err.u.error.num = ERROR_____CANT_UVAL;
+                                        err.u.error.u.bits = bits;
+                                        err.u.error.epoint = epoint;
                                     }
-                                    if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
-                                        if (ch2>=0x80) {
-                                            err.obj = ERROR_OBJ;
-                                            err.u.error.num = ERROR_____CANT_UVAL;
-                                            err.u.error.u.bits = bits;
-                                            err.u.error.epoint = epoint;
-                                        }
-                                        if (prm==CMD_SHIFTL) ch2<<=1;
-                                    } else if (prm==CMD_NULL && !ch2 && val->obj != NONE_OBJ) large=epoint;
-                                } while ((val->obj == STR_OBJ && val->u.str.len > i) || (val->obj == BYTES_OBJ && val->u.bytes.len > i));
+                                    if (prm==CMD_SHIFTL) ch2<<=1;
+                                } else if (prm==CMD_NULL && !ch2 && val2->obj != NONE_OBJ) large=epoint;
+                                val_destroy(val2);
                             }
+                            iter.obj->destroy(&iter);
                         }
                         if (uninit) {memskip(uninit);sum += uninit;}
                         if (ch2>=0) {
@@ -1635,7 +1574,8 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
                         }
-                    } else if (prm<=CMD_DWORD) { /* .word .int .rta .long */
+                    } else if (prm<=CMD_DWORD) { /* .byte .word .int .rta .long */
+                        int bits;
                         uint32_t ch2;
                         uval_t uv;
                         ival_t iv;
@@ -1657,124 +1597,48 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                             newlabel->value->u.code.dtype = dtype;
                         }
+                        switch (prm) {
+                        case CMD_CHAR: bits = -8; break;
+                        case CMD_INT: bits = -16; break;
+                        case CMD_LINT: bits = -24; break;
+                        case CMD_DINT: bits = -32; break;
+                        case CMD_BYTE: bits = 8; break;
+                        default: bits = 16; break;
+                        case CMD_LONG: bits = 24; break;
+                        case CMD_DWORD: bits = 32; break;
+                        }
                         if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                         while ((val = get_val(NONE_OBJ, &epoint))) {
-                            int bits;
-                            switch (val->obj->type) {
-                            case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
-                            case T_FLOAT:
-                            case T_CODE:
-                            case T_BOOL:
-                            case T_INT:
-                            case T_BITS:
-                            case T_STR:
-                                switch (prm) {
-                                case CMD_CHAR: bits = -8; break;
-                                case CMD_INT: bits = -16; break;
-                                case CMD_LINT: bits = -24; break;
-                                case CMD_DINT: bits = -32; break;
-                                case CMD_BYTE: bits = 8; break;
-                                default: bits = 16; break;
-                                case CMD_LONG: bits = 24; break;
-                                case CMD_DWORD: bits = 32; break;
-                                }
-                                if (bits >= 0) {
-                                    if (val->obj->uval(val, &err, &uv, bits, &epoint)) uv = 0; 
-                                    ch2 = uv;
-                                } else {
-                                    if (val->obj->ival(val, &err, &iv, -bits, &epoint)) iv = 0; 
-                                    ch2 = iv;
-                                }
-                                break;
-                            case T_LIST:
-                            case T_TUPLE:
-                                {
-                                    size_t li;
-                                    for (li=0; li < val->u.list.len; li++) {
-                                        struct value_s *val2 = val->u.list.data[li];
-                                        switch (val2->obj->type) {
-                                        case T_GAP:uninit += 1 + (prm>=CMD_RTA) + (prm>=CMD_LINT) + (prm >= CMD_DINT);continue;
-                                        case T_FLOAT:
-                                        case T_CODE:
-                                        case T_BOOL:
-                                        case T_INT:
-                                        case T_BITS:
-                                        case T_STR:
-                                            switch (prm) {
-                                            case CMD_CHAR: bits = -8; break;
-                                            case CMD_INT: bits = -16; break;
-                                            case CMD_LINT: bits = -24; break;
-                                            case CMD_DINT: bits = -32; break;
-                                            case CMD_BYTE: bits = 8; break;
-                                            default: bits = 16; break;
-                                            case CMD_LONG: bits = 24; break;
-                                            case CMD_DWORD: bits = 32; break;
-                                            }
-                                            if (bits >= 0) {
-                                                if (val2->obj->uval(val2, &err, &uv, bits, &epoint)) uv = 0;
-                                                ch2 = uv;
-                                            } else {
-                                                if (val2->obj->ival(val2, &err, &iv, -bits, &epoint)) iv = 0;
-                                                ch2 = iv;
-                                            }
-                                            break;
-                                        case T_BYTES:
-                                            {
-                                                size_t li2;
-                                                for (li2=0; li2 < val2->u.bytes.len; li2++) {
-                                                    ch2 = val2->u.bytes.data[li2];
-                                                    if (prm==CMD_RTA) ch2--;
-
-                                                    if (uninit) {memskip(uninit);uninit = 0;}
-                                                    pokeb((uint8_t)ch2);
-                                                    if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
-                                                    if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
-                                                    if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
-                                                }
-                                                continue;
-                                            }
-                                        default: err_msg_wrong_type(val2, &epoint);
-                                        case T_NONE:
-                                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                                                 ch2 = fixeddig = 0;
-                                        }
-                                        if (prm==CMD_RTA) ch2--;
-
-                                        if (uninit) {memskip(uninit);uninit = 0;}
-                                        pokeb((uint8_t)ch2);
-                                        if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
-                                        if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
-                                        if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
+                            struct value_s iter, item, *val2;
+                            item.refcount = 0;
+                            if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) val->obj->getiter(val, &iter);
+                            else invalid_getiter(val, &iter);
+                            while ((val2 = iter.obj->next(&iter, &item))) {
+                                switch (val2->obj->type) {
+                                case T_GAP: uninit += abs(bits) / 8; continue;
+                                default:
+                                    if (bits >= 0) {
+                                        if (val2->obj->uval(val2, &err, &uv, bits, &epoint)) uv = 0;
+                                        ch2 = uv;
+                                    } else {
+                                        if (val2->obj->ival(val2, &err, &iv, -bits, &epoint)) iv = 0;
+                                        ch2 = iv;
                                     }
-                                    continue;
+                                    break;
+                                case T_NONE:
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                    ch2 = fixeddig = 0;
                                 }
-                            case T_BYTES:
-                                {
-                                    size_t li;
-                                    for (li=0; li < val->u.bytes.len; li++) {
-                                        ch2 = val->u.bytes.data[li];
-                                        if (prm==CMD_RTA) ch2--;
+                                if (prm==CMD_RTA) ch2--;
 
-                                        if (uninit) {memskip(uninit);uninit = 0;}
-                                        pokeb((uint8_t)ch2);
-                                        if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
-                                        if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
-                                        if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
-                                    }
-                                    continue;
-                                }
-                            default: err_msg_wrong_type(val, &epoint);
-                            case T_NONE:
-                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                                     ch2 = fixeddig = 0;
+                                if (uninit) {memskip(uninit);uninit = 0;}
+                                pokeb((uint8_t)ch2);
+                                if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
+                                if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
+                                if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
+                                val_destroy(val2);
                             }
-                            if (prm==CMD_RTA) ch2--;
-
-                            if (uninit) {memskip(uninit);uninit = 0;}
-                            pokeb((uint8_t)ch2);
-                            if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
-                            if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
-                            if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
+                            iter.obj->destroy(&iter);
                         }
                         if (uninit) memskip(uninit);
                         if (err.obj != NONE_OBJ) {

@@ -51,6 +51,7 @@ static struct obj_s oper_obj;
 static struct obj_s default_obj;
 static struct obj_s dict_obj;
 static struct obj_s pair_obj;
+static struct obj_s iter_obj;
 
 obj_t MACRO_OBJ = &macro_obj;
 obj_t SEGMENT_OBJ = &segment_obj;
@@ -68,6 +69,7 @@ obj_t OPER_OBJ = &oper_obj;
 obj_t DEFAULT_OBJ = &default_obj;
 obj_t DICT_OBJ = &dict_obj;
 obj_t PAIR_OBJ = &pair_obj;
+obj_t ITER_OBJ = &iter_obj;
 
 static void error_copy(const struct value_s *, struct value_s *);
 
@@ -259,6 +261,21 @@ static int MUST_CHECK invalid_len(const struct value_s *UNUSED(v1), struct value
     return 1;
 }
 
+void invalid_getiter(struct value_s *v1, struct value_s *v) {
+    v->obj = ITER_OBJ;
+    v->u.iter.data = val_reference(v1);
+    v->u.iter.iter = NULL;
+    v->u.iter.val = 1;
+}
+
+static struct value_s *MUST_CHECK invalid_next(struct value_s *v1, struct value_s *UNUSED(v)) {
+    if (v1->u.iter.val) {
+        v1->u.iter.val = 0;
+        return val_reference(v1->u.iter.data);
+    }
+    return NULL;
+}
+
 static void pair_destroy(struct value_s *v1) {
     val_destroy(v1->u.pair.key);
     val_destroy(v1->u.pair.data);
@@ -311,6 +328,16 @@ static void pair_repr(const struct value_s *v1, struct value_s *v) {
     v->u.str.data = s;
     v->u.str.len = len;
     v->u.str.chars = len - chars;
+}
+
+static void iter_destroy(struct value_s *v1) {
+    if (v1->u.iter.iter != &v1->u.iter.val) free(v1->u.iter.iter);
+    val_destroy((struct value_s *)v1->u.iter.data);
+}
+
+static struct value_s *MUST_CHECK iter_next(struct value_s *v1, struct value_s *v) {
+    if (!v1->u.iter.iter) return invalid_next(v1, v);
+    return v1->u.iter.data->obj->next(v1, v);
 }
 
 static void macro_destroy(struct value_s *v1) {
@@ -1188,6 +1215,8 @@ void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->abs = invalid_abs;
     obj->integer = invalid_integer;
     obj->len = invalid_len;
+    obj->getiter = invalid_getiter;
+    obj->next = invalid_next;
 };
 
 void objects_init(void) {
@@ -1308,5 +1337,8 @@ void objects_init(void) {
     pair_obj.copy_temp = pair_copy_temp;
     pair_obj.same = pair_same;
     pair_obj.repr = pair_repr;
+    obj_init(&iter_obj, T_ITER, "<iter>");
+    iter_obj.destroy = iter_destroy;
+    iter_obj.next = iter_next;
 };
 

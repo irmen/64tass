@@ -33,6 +33,16 @@ static struct obj_s obj;
 
 obj_t STR_OBJ = &obj;
 
+static inline int utf8len(uint8_t ch) {
+    if (ch < 0x80) return 1;
+    if (ch < 0xe0) return 2;
+    if (ch < 0xf0) return 3;
+    if (ch < 0xf8) return 4;
+    if (ch < 0xfc) return 5;
+    return 6;
+}
+
+
 static void destroy(struct value_s *v1) {
     free((uint8_t*)v1->u.str.data);
 }
@@ -207,6 +217,31 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoin
 static int MUST_CHECK len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
     *uv = v1->u.str.chars;
     return 0;
+}
+
+static void getiter(struct value_s *v1, struct value_s *v) {
+    v->obj = ITER_OBJ;
+    v->u.iter.val = 0;
+    v->u.iter.iter = &v->u.iter.val;
+    v->u.iter.data = val_reference(v1);
+}
+
+static struct value_s *MUST_CHECK next(struct value_s *v1, struct value_s *v) {
+    const struct value_s *vv1 = v1->u.iter.data;
+    int len;
+    uint8_t *s;
+    if (v1->u.iter.val >= vv1->u.str.len) return NULL;
+    len = utf8len(vv1->u.str.data[v1->u.iter.val]);
+    s = (uint8_t *)malloc(len);
+    if (!s) err_msg_out_of_memory();
+    memcpy(s, vv1->u.str.data + v1->u.iter.val, len);
+    v1->u.iter.val += len;
+
+    v->obj = STR_OBJ;
+    v->u.str.chars = 1;
+    v->u.str.len = len;
+    v->u.str.data = s;
+    return v;
 }
 
 static void calc1(oper_t op) {
@@ -573,15 +608,6 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op); return;
 }
 
-static inline int utf8len(uint8_t ch) {
-    if (ch < 0x80) return 1;
-    if (ch < 0xe0) return 2;
-    if (ch < 0xf0) return 3;
-    if (ch < 0xf8) return 4;
-    if (ch < 0xfc) return 5;
-    return 6;
-}
-
 static void iindex(oper_t op) {
     const uint8_t *p;
     uint8_t *p2;
@@ -799,6 +825,8 @@ void strobj_init(void) {
     obj.abs = absolute;
     obj.integer = integer;
     obj.len = len;
+    obj.getiter = getiter;
+    obj.next = next;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

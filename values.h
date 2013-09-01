@@ -239,6 +239,11 @@ struct value_s {
             int32_t count;
             struct linepos_s epoint;
         } anonident;
+        struct {
+            void *iter;
+            size_t val;
+            struct value_s *data;
+        } iter;
         double real;
         int boolean;
     } u;

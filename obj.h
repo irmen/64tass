@@ -34,7 +34,7 @@ enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
     T_IDENT, T_ANONIDENT, T_IDENTREF, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL,
-    T_DEFAULT
+    T_DEFAULT, T_ITER
 };
 
 typedef const struct obj_s* obj_t;
@@ -62,11 +62,14 @@ struct obj_s {
     void (*abs)(const struct value_s *, struct value_s *, linepos_t);
     void (*integer)(const struct value_s *, struct value_s *, linepos_t);
     int (*len)(const struct value_s *, struct value_s *, uval_t *, linepos_t) MUST_CHECK;
+    void (*getiter)(struct value_s *, struct value_s *);
+    struct value_s *(*next)(struct value_s *, struct value_s *) MUST_CHECK;
 };
 
 extern void obj_init(struct obj_s *, enum type_e, const char *);
 extern void obj_oper_error(struct oper_s *);
 extern void objects_init(void);
+extern void invalid_getiter(struct value_s *, struct value_s *);
 
 extern obj_t LBL_OBJ;
 extern obj_t MACRO_OBJ;
@@ -84,6 +87,7 @@ extern obj_t OPER_OBJ;
 extern obj_t DEFAULT_OBJ;
 extern obj_t DICT_OBJ;
 extern obj_t PAIR_OBJ;
+extern obj_t ITER_OBJ;
 
 extern int referenceit;
 #endif

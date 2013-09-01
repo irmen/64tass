@@ -177,6 +177,27 @@ static int MUST_CHECK len(const struct value_s *v1, struct value_s *UNUSED(v), u
     return 0;
 }
 
+static void getiter(struct value_s *v1, struct value_s *v) {
+    v->obj = ITER_OBJ;
+    v->u.iter.val = 0;
+    v->u.iter.iter = &v->u.iter.val;
+    v->u.iter.data = val_reference(v1);
+}
+
+static struct value_s *MUST_CHECK next(struct value_s *v1, struct value_s *v) {
+    const struct value_s *vv1 = v1->u.iter.data;
+    uint8_t *s;
+    if (v1->u.iter.val >= vv1->u.bytes.len) return NULL;
+    s = (uint8_t *)malloc(1);
+    if (!s) err_msg_out_of_memory();
+    *s = vv1->u.bytes.data[v1->u.iter.val++];
+
+    v->obj = BYTES_OBJ;
+    v->u.bytes.len = 1;
+    v->u.bytes.data = s;
+    return v;
+}
+
 static void calc1(oper_t op) {
     struct value_s *v1 = op->v1, *v = op->v;
     struct value_s tmp;
@@ -508,6 +529,8 @@ void bytesobj_init(void) {
     obj.abs = absolute;
     obj.integer = integer;
     obj.len = len;
+    obj.getiter = getiter;
+    obj.next = next;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
