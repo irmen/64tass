@@ -231,66 +231,8 @@ uint_fast16_t petascii(size_t *i, const struct value_s *v) {
     return ch;
 }
 
-static inline int utf8len(uint8_t ch) {
-    if (ch < 0x80) return 1;
-    if (ch < 0xe0) return 2;
-    if (ch < 0xf0) return 3;
-    if (ch < 0xf8) return 4;
-    if (ch < 0xfc) return 5;
-    return 6;
-}
-
-static void get_string(struct value_s *v, uint8_t ch) {
-    size_t i2 = 0;
-    size_t i;
-    unsigned int u;
-    size_t r = 0;
-    uint8_t ch2;
-
-    i = lpoint.pos;
-    for (;;) {
-        if (!(ch2 = here())) {err_msg(ERROR______EXPECTED,"end of string"); lpoint.pos++; break;}
-        if (ch2 & 0x80) {
-            u = utf8len(ch2); 
-            lpoint.pos += u; lpoint.upos += u - 1;
-        } else lpoint.pos++;
-        if (ch2 == ch) {
-            if (here() == ch && !arguments.tasmcomp) {lpoint.pos++;r++;} /* handle 'it''s' */
-            else break; /* end of string; */
-        }
-        i2++;
-    }
-    if (r) {
-        const uint8_t *p = (const uint8_t *)pline + i, *e, *p2;
-        uint8_t *d;
-        v->obj = STR_OBJ;
-        v->u.str.len = lpoint.pos - i - 1 - r;
-        v->u.str.chars = i2;
-        d = (uint8_t *)malloc(v->u.str.len);
-        if (!d) err_msg_out_of_memory();
-        v->u.str.data = d;
-        e = pline + lpoint.pos - 1;
-        while (e > p) {
-            p2 = (const uint8_t *)memchr(p, ch, e - p);
-            if (p2) {
-                memcpy(d, p, p2 - p + 1);
-                d += p2 - p + 1; p = p2 + 2;
-            } else {
-                memcpy(d, p, e - p);
-                p = e;
-            }
-        }
-    } else {
-        uint8_t *d;
-        v->obj = STR_OBJ;
-        v->u.str.len = lpoint.pos - i - 1;
-        v->u.str.chars = i2;
-        d = (uint8_t *)malloc(v->u.str.len);
-        if (!d) err_msg_out_of_memory();
-        v->u.str.data = d;
-        memcpy(d, pline + i, v->u.str.len);
-    }
-    return;
+static void get_string(struct value_s *v) {
+    lpoint.pos += str_from_str(v, &lpoint.upos, pline + lpoint.pos);
 }
 
 static int touch_label(struct label_s *tmp) {
@@ -566,7 +508,7 @@ rest:
         case '(': lpoint.pos++;o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_PARENT;continue;
         case '$': lpoint.pos++;val = push(&epoint);get_hex(val);goto other;
         case '%': lpoint.pos++;val = push(&epoint);get_bin(val);goto other;
-        case '"': lpoint.pos++;val = push(&epoint);get_string(val, ch);goto other;
+        case '"': val = push(&epoint);get_string(val);goto other;
         case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
         }
         if (ch>='0' && ch<='9') {val = push(&epoint); get_dec(val);goto other;} 
@@ -1964,7 +1906,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         case '$': lpoint.pos++;val = push(&epoint);get_hex(val);goto other;
         case '%': lpoint.pos++;val = push(&epoint);get_bin(val);goto other;
         case '"':
-        case '\'': lpoint.pos++;val = push(&epoint);get_string(val, ch);goto other;
+        case '\'': val = push(&epoint);get_string(val);goto other;
         case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
         case '?': lpoint.pos++;val = push(&epoint);val->obj = GAP_OBJ;goto other;
         case '.': if ((uint8_t)(pline[lpoint.pos+1] ^ 0x30) < 10) goto pushfloat;
@@ -1981,7 +1923,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
                 goto other;
             }
             if ((ch | (arguments.casesensitive ? 0 : 0x20)) == 'b' && (pline[lpoint.pos + 1] == '"' || pline[lpoint.pos + 1] == '\'')) {
-                lpoint.pos += 2; val = push(&epoint); get_string(val, pline[lpoint.pos - 1]);
+                lpoint.pos++; val = push(&epoint); get_string(val);
                 if (bytes_from_str(val, val)) {
                     val->obj->destroy(val);
                     val->obj = ERROR_OBJ;
