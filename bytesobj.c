@@ -39,7 +39,7 @@ static uint8_t *bnew(struct value_s *v, size_t len) {
     if (len > sizeof(v->u.bytes.val)) {
         uint8_t *s = (uint8_t *)malloc(len);
         if (!s) err_msg_out_of_memory();
-        return s; 
+        return s;
     }
     return v->u.bytes.val;
 }
@@ -177,7 +177,10 @@ static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), 
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    if (v1 != v) copy(v1, v);
+    struct value_s tmp;
+    int_from_bytes(&tmp, v1);
+    if (v == v1) v->obj->destroy(v);
+    tmp.obj->copy_temp(&tmp, v);
 }
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -220,7 +223,7 @@ static void calc1(oper_t op) {
         break;
     case O_LNOT:
         if (v1 == v) destroy(v);
-        return bool_from_int(v, !truth(v1)); 
+        return bool_from_int(v, !truth(v1));
     default: bits_from_bytes(&tmp, v1);
         break;
     }
@@ -274,13 +277,19 @@ static int calc2_bytes(oper_t op) {
             if (!v2->u.bytes.len) return 0;
             len = v1->u.bytes.len;
             v->u.bytes.len += v2->u.bytes.len;
+            if (v->u.bytes.len < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
             s = (uint8_t *)v1->u.bytes.data;
-            s = (uint8_t *)realloc(s, v->u.bytes.len);
-            if (!s || v->u.bytes.len < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
+            if (s != v1->u.bytes.val) {
+                s = (uint8_t *)realloc(s, v->u.bytes.len);
+                if (!s) err_msg_out_of_memory();
+            } else {
+                s = bnew(v, v->u.bytes.len);
+                if (s != v1->u.bytes.val) memcpy(s, v1->u.bytes.val, v1->u.bytes.len);
+            }
             memcpy(s + len, v2->u.bytes.data, v2->u.bytes.len);
             v->u.bytes.data = s;
             return 0;
-        } 
+        }
         v->obj = BYTES_OBJ;
         v->u.bytes.len = v1->u.bytes.len + v2->u.bytes.len;
         if (v->u.bytes.len < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
@@ -298,7 +307,7 @@ static int calc2_bytes(oper_t op) {
             if (v1->u.bytes.len > v2->u.bytes.len) { val = 0; break; }
             c2 = v2->u.bytes.data;
             e = c2 + v2->u.bytes.len - v1->u.bytes.len;
-            for (;;) {   
+            for (;;) {
                 c = (uint8_t *)memchr(c2, v1->u.bytes.data[0], e - c2 + 1);
                 if (!c) { val = 0; break; }
                 if (!memcmp(c, v1->u.bytes.data, v1->u.bytes.len)) { val = 1; break; }
@@ -314,43 +323,27 @@ static int calc2_bytes(oper_t op) {
 }
 
 static void repeat(oper_t op, uval_t rep) {
-    struct value_s *v1 = op->v1, *v = op->v;
-    if (v == v1) {
-        uint8_t *s;
+    struct value_s *v1 = op->v1, *v = op->v, tmp;
+    v->obj = BYTES_OBJ;
+    if (v1->u.bytes.len && rep) {
+        uint8_t *s, *s2;
         size_t len = v1->u.bytes.len;
-        
-        if (!rep || !len) {
-            if (v1 == v) destroy(v);
-            copy(&null_bytes, v); return;
-        }
-        if (rep == 1) {
-            if (v1 != v) copy(v1, v);
-            return;
-        }
-        v->u.bytes.len *= rep;
-        s = (uint8_t *)v1->u.bytes.data;
-        s = (uint8_t *)realloc(s, v->u.bytes.len);
-        if (!s) err_msg_out_of_memory();
-        v->u.bytes.data = s;
-        while (--rep) {
-            memcpy(s + len, s, len);
-            s += len;
-        }
-    } else {
-        v->obj = BYTES_OBJ;
+        if (len > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
+        s2 = s = bnew(&tmp, len * rep);
         v->u.bytes.len = 0;
-        if (v1->u.bytes.len && rep) {
-            uint8_t *s;
-            if (v1->u.bytes.len > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
-            s = bnew(v, v1->u.bytes.len * rep);
-            while (rep--) {
-                memcpy(s + v->u.bytes.len, v1->u.bytes.data, v1->u.bytes.len);
-                v->u.bytes.len += v1->u.bytes.len;
-            }
-            v->u.bytes.data = s;
-        } else v->u.bytes.data = NULL;
+        while (rep--) {
+            memcpy(s + v->u.bytes.len, v1->u.bytes.data, len);
+            v->u.bytes.len += len;
+        }
+        if (v->u.bytes.len <= sizeof(v->u.bytes.val)) {
+            memcpy(v->u.bytes.val, s2, v->u.bytes.len);
+            s2 = v->u.bytes.val;
+        }
+        v->u.bytes.data = s2;
+        return;
     }
-    return;
+    v->u.bytes.data = v->u.bytes.val;
+    v->u.bytes.len = 0;
 }
 
 static void calc2(oper_t op) {
@@ -360,10 +353,10 @@ static void calc2(oper_t op) {
     case T_BYTES: if (calc2_bytes(op)) break; return;
     case T_BOOL:
     case T_INT:
-    case T_BITS: 
+    case T_BITS:
     case T_FLOAT:
-    case T_CODE: 
-    case T_ADDRESS: 
+    case T_CODE:
+    case T_ADDRESS:
         {
             switch (op->op->u.oper.op) {
             case O_CONCAT:
@@ -383,8 +376,8 @@ static void calc2(oper_t op) {
         }
         return;
     case T_TUPLE:
-    case T_LIST: 
-    case T_STR: 
+    case T_LIST:
+    case T_STR:
         v2->obj->rcalc2(op); return;
     default: break;
     }
@@ -401,7 +394,7 @@ static void rcalc2(oper_t op) {
     case T_BITS:
     case T_FLOAT:
     case T_CODE:
-    case T_ADDRESS: 
+    case T_ADDRESS:
         {
             switch (op->op->u.oper.op) {
             case O_CONCAT:
@@ -413,14 +406,14 @@ static void rcalc2(oper_t op) {
             if (v2 == v) v->obj->destroy(v);
             op->v2 = &tmp;
             tmp.refcount = 0;
-            tmp.obj->rcalc2(op); 
+            tmp.obj->rcalc2(op);
             op->v2 = v2;
             tmp.obj->destroy(&tmp);
         }
         return;
     case T_TUPLE:
-    case T_LIST: 
-    case T_STR: 
+    case T_LIST:
+    case T_STR:
         if (op->op != &o_IN) {
             v1->obj->calc2(op); return;
         }

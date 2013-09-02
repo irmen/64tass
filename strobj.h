@@ -21,5 +21,13 @@
 
 extern obj_t STR_OBJ;
 
+typedef struct {
+    size_t len;
+    size_t chars;
+    uint8_t val[4];
+    uint8_t *data;
+} ustr_t;
+
 extern void strobj_init(void);
+extern size_t str_from_str(struct value_s *, size_t *, const uint8_t *);
 #endif
