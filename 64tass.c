@@ -564,7 +564,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 label = find_label2(&labelname, mycontext);
                 if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
                 referenceit &= label ? label->ref : 1;
-                val = get_vals_tuple(IDENTREF_OBJ);
+                val = get_vals_tuple();
                 referenceit = oldreferenceit;
                 if (!val) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                 if (label) labelexists = 1;
@@ -610,7 +610,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         label=find_label2(&labelname, mycontext);
                         if (!get_exp(&w, 0)) goto breakerr; /* ellenorizve. */
                         referenceit &= label ? label->ref : 1;
-                        val = get_vals_tuple(IDENTREF_OBJ);
+                        val = get_vals_tuple();
                         referenceit = oldreferenceit;
                         if (!val) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                         if (label) labelexists = 1;
@@ -694,8 +694,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             new_value.obj = obj;
                             new_value.u.macro.p = cfile->p;
                             new_value.u.macro.size = 0;
-                            new_value.u.macro.sline = sline;
-                            new_value.u.macro.file_list = cflist;
+                            new_value.u.macro.parent = label;
                             get_macro_params(&new_value);
                             var_assign(label, &new_value, 0);
                             val_destroy(&new_value);
@@ -712,8 +711,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             val->obj = obj;
                             val->u.macro.p = cfile->p;
                             val->u.macro.size = 0;
-                            val->u.macro.sline = sline;
-                            val->u.macro.file_list = cflist;
+                            val->u.macro.parent = label;
                             get_macro_params(val);
                         }
                         label->ref=0;
@@ -779,8 +777,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 new_value.obj = obj;
                                 new_value.u.macro.size = (label->value->obj == obj) ? label->value->u.macro.size : 0;
                                 new_value.u.macro.p = cfile->p;
-                                new_value.u.macro.sline = sline;
-                                new_value.u.macro.file_list = cflist;
+                                new_value.u.macro.parent = label;
                                 get_macro_params(&new_value);
                                 var_assign(label, &new_value, 0);
                                 val_destroy(&new_value);
@@ -798,8 +795,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val->obj = obj;
                                 val->u.macro.size = 0;
                                 val->u.macro.p = cfile->p;
-                                val->u.macro.sline = sline;
-                                val->u.macro.file_list = cflist;
+                                val->u.macro.parent = label;
                                 get_macro_params(val);
                             }
                         } else {
@@ -819,6 +815,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                         val->u.code.pass = pass - 1;
                                         val->u.code.size = size;
                                         val->u.code.dtype = dtype;
+                                        val->u.code.parent = label;
                                         if (label->usepass >= pass) {
                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
                                             fixeddig = 0;
@@ -842,6 +839,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val->u.code.size = 0;
                                 val->u.code.dtype = D_NONE;
                                 val->u.code.pass = 0;
+                                val->u.code.parent = label;
                                 get_mem(&current_section->mem, &memp, &membp);
                             }
                         }
@@ -927,17 +925,8 @@ struct value_s *compile(struct file_list_s *cflist)
             if (!islabel) {
                 tmp2 = find_label(&labelname);
                 if (tmp2) {
-                    struct label_s *tmp3 = tmp2;
-                    int rec = 100;
-                    while (tmp2->value->obj == IDENTREF_OBJ) {
-                        tmp2 = tmp2->value->u.identref.label;
-                        if (!rec--) {
-                            err_msg2(ERROR__REFRECURSION, NULL, &epoint);
-                            break;
-                        }
-                    }
                     if (tmp2->type == L_LABEL && (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ)) {
-                        tmp3->shadowcheck = 1;
+                        tmp2->shadowcheck = 1;
                         if (wht == WHAT_HASHMARK) lpoint.pos--;labelname.len=0;val = tmp2->value; goto as_macro;
                     }
                 }
@@ -964,6 +953,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             val->u.code.pass = pass - 1;
                             val->u.code.size = size;
                             val->u.code.dtype = dtype;
+                            val->u.code.parent = newlabel;
                             if (newlabel->usepass >= pass) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
                                 fixeddig = 0;
@@ -986,6 +976,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     val->u.code.size = 0;
                     val->u.code.dtype = D_NONE;
                     val->u.code.pass = 0;
+                    val->u.code.parent = newlabel;
                     get_mem(&current_section->mem, &newmemp, &newmembp);
                     newlabel->defpass = pass;
                 }
@@ -1028,7 +1019,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             l = printaddr(flist, '.', current_section->address);
                             printllist(flist, l);
                         }
-                        newlabel->nested = !newlabel->update_after || newlabel->value->obj != IDENTREF_OBJ;
+                        newlabel->nested = 1;
                         newlabel->ref=0;
                         if (!get_exp(&w,1)) goto breakerr;
                         if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
@@ -1048,7 +1039,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (newlabel) {
                                 newlabel->update_after = 1;
                                 var_assign(newlabel, val, 0);
-                                newlabel->nested = newlabel->value->obj != IDENTREF_OBJ;
+                                newlabel->nested = 1;
                             }
                             val_destroy(val);
                         }
@@ -1338,7 +1329,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct value_s result;
                         struct oper_s tmp;
                         if (!get_exp(&w,0)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_vals_tuple(NONE_OBJ))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_vals_tuple())) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
@@ -1361,7 +1352,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else if (close_waitfor(W_ENDM2)) {
                         nobreak=0;
                         if (here() && here() != ';' && get_exp(&w,0)) {
-                            retval = get_vals_tuple(IDENTREF_OBJ);
+                            retval = get_vals_tuple();
                         } 
                     } else err_msg2(ERROR______EXPECTED,".MACRO or .SEGMENT", &epoint);
                     break;
@@ -1372,12 +1363,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else if (close_waitfor(W_ENDF2)) {
                         nobreak = 0;
                         if (here() && here() != ';' && get_exp(&w,0)) {
-                            retval = get_vals_tuple(IDENTREF_OBJ);
-                        } 
-                    } else if (close_waitfor(W_ENDF3)) {
-                        nobreak = 0;
-                        if (here() && here() != ';' && get_exp(&w,0)) {
-                            retval = get_vals_tuple(NONE_OBJ);
+                            retval = get_vals_tuple();
                         } 
                     } else {err_msg2(ERROR______EXPECTED,".FUNCTION", &epoint);goto breakerr;}
                     break;
@@ -1408,7 +1394,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else if (close_waitfor(W_ENDS2)) {
                         nobreak=0;
                         if (here() && here() != ';' && get_exp(&w,0)) {
-                            retval = get_vals_tuple(IDENTREF_OBJ);
+                            retval = get_vals_tuple();
                         } 
                     } else err_msg2(ERROR______EXPECTED,".STRUCT", &epoint); break;
                     break;
@@ -2353,7 +2339,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                         lpoint.pos++;
                         if (!get_exp(&w,1)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_vals_tuple(IDENTREF_OBJ))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_vals_tuple())) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         var=new_label(&varname, mycontext, L_VAR, &labelexists);
                         if (labelexists) {
                             if (var->type != L_VAR) err_msg_double_defined(var, &varname, &epoint);
@@ -2440,7 +2426,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (nopos > 0) {
                             lpoint = bpoint;
                             if (!get_exp(&w,1)) break; /* ellenorizve. */
-                            if (!(val = get_vals_tuple(IDENTREF_OBJ))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                            if (!(val = get_vals_tuple())) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                             var_assign(var, val, fixeddig);
                             val_destroy(val);
                             ignore();if (here() && here()!=';') {err_msg(ERROR_EXTRA_CHAR_OL,NULL);break;}
@@ -2505,7 +2491,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             case W_SWITCH: msg = ".ENDSWITCH"; break;
                             case W_ENDM2:
                             case W_ENDM: msg = ".ENDM"; break;
-                            case W_ENDF3:
                             case W_ENDF2:
                             case W_ENDF: msg = ".ENDF"; break;
                             case W_NEXT2:
@@ -2770,7 +2755,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (val->obj == MACRO_OBJ) {
                     struct label_s *context;
                     if (newlabel) {
-                        newlabel->nested = !newlabel->update_after || newlabel->value->obj != IDENTREF_OBJ;
+                        newlabel->nested = 1;
                         context=newlabel;
                     } else {
                         int labelexists;
@@ -2783,19 +2768,22 @@ struct value_s *compile(struct file_list_s *cflist)
                     val = macro_recurse(W_ENDM2, val, context, &epoint);
                 } else if (val->obj == FUNCTION_OBJ) {
                     struct label_s *context;
+                    struct value_s *function;
                     int labelexists;
                     str_t tmpname;
                     sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                     context=new_label(&tmpname, val->u.func.context, L_LABEL, &labelexists);
                     context->value = &none_value;
-                    val = func_recurse(W_ENDF2, val, context, &epoint);
+                    function = val_reference(val);
+                    val = func_recurse(W_ENDF2, function, context, &epoint);
+                    val_destroy(function);
                 } else val = macro_recurse(W_ENDM2, val, current_context, &epoint);
                 if (val) {
                     if (newlabel) {
                         newlabel->update_after = 1;
                         var_assign(newlabel, val, 0);
-                        newlabel->nested = newlabel->value->obj != IDENTREF_OBJ;
+                        newlabel->nested = 1;
                     }
                     val_destroy(val);
                 }
@@ -2932,11 +2920,14 @@ struct value_s *compile(struct file_list_s *cflist)
                                     adrgen = AG_ZP; opr=ADR_ZP_LI; /* lda [$ff] */
                                 }
                                 break;
+                            case A_NONE:
+                                goto noneaddr;
                             default:w = 0;break; /* non-existing */
                             }
                         } else {
                             uval_t uval;
                             struct value_s err;
+                        noneaddr:
                             if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) {err_msg_wrong_type(&err, &epoint); uval = 0;}
                             adr = uval;
                             if (cnmemonic[ADR_MOVE]!=____) {
@@ -3229,17 +3220,8 @@ struct value_s *compile(struct file_list_s *cflist)
 
                             tmp2 = find_label(&nmname);
                             if (tmp2) {
-                                struct label_s *tmp3 = tmp2;
-                                int rec = 100;
-                                while (tmp2->value->obj == IDENTREF_OBJ) {
-                                    tmp2 = tmp2->value->u.identref.label;
-                                    if (!rec--) {
-                                        err_msg2(ERROR__REFRECURSION, NULL, &epoint);
-                                        break;
-                                    }
-                                }
                                 if (tmp2->type == L_LABEL && (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ)) {
-                                    tmp3->shadowcheck = 1;
+                                    tmp2->shadowcheck = 1;
                                     lpoint=oldlpoint;
                                     val = tmp2->value;
                                     goto as_macro;
@@ -3346,17 +3328,8 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 tmp2 = find_label(&opname);
                 if (tmp2) {
-                    struct label_s *tmp3 = tmp2;
-                    int rec = 100;
-                    while (tmp2->value->obj == IDENTREF_OBJ) {
-                        tmp2 = tmp2->value->u.identref.label;
-                        if (!rec--) {
-                            err_msg2(ERROR__REFRECURSION, NULL, &epoint);
-                            break;
-                        }
-                    }
                     if (tmp2->type == L_LABEL && (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ)) {
-                        tmp3->shadowcheck = 1;
+                        tmp2->shadowcheck = 1;
                         val = tmp2->value;goto as_macro;
                     }
                 }
@@ -3383,7 +3356,6 @@ struct value_s *compile(struct file_list_s *cflist)
         case W_ENDP: msg = ".ENDP"; break;
         case W_ENDM2:
         case W_ENDM: msg = ".ENDM"; break;
-        case W_ENDF3:
         case W_ENDF2:
         case W_ENDF: msg = ".ENDF"; break;
         case W_NEXT2:

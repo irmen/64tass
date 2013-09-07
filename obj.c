@@ -22,6 +22,7 @@
 #include "misc.h"
 #include "section.h"
 #include "64tass.h"
+#include "eval.h"
 
 #include "listobj.h"
 #include "boolobj.h"
@@ -41,7 +42,6 @@ static struct obj_s lbl_obj;
 static struct obj_s function_obj;
 static struct obj_s struct_obj;
 static struct obj_s union_obj;
-static struct obj_s identref_obj;
 static struct obj_s none_obj;
 static struct obj_s error_obj;
 static struct obj_s gap_obj;
@@ -59,7 +59,6 @@ obj_t LBL_OBJ = &lbl_obj;
 obj_t FUNCTION_OBJ = &function_obj;
 obj_t STRUCT_OBJ = &struct_obj;
 obj_t UNION_OBJ = &union_obj;
-obj_t IDENTREF_OBJ = &identref_obj;
 obj_t NONE_OBJ = &none_obj;
 obj_t ERROR_OBJ = &error_obj;
 obj_t GAP_OBJ = &gap_obj;
@@ -373,7 +372,7 @@ static void macro_copy_temp(const struct value_s *v1, struct value_s *v) {
 
 static int macro_same(const struct value_s *v1, const struct value_s *v2) {
     size_t i;
-    if (v1->obj != v2->obj || v1->u.macro.p != v2->u.macro.p || v1->u.macro.file_list != v2->u.macro.file_list || v1->u.macro.sline != v2->u.macro.sline || v1->u.macro.size != v2->u.macro.size) return 0;
+    if (v1->obj != v2->obj || v1->u.macro.p != v2->u.macro.p || v1->u.macro.size != v2->u.macro.size || v1->u.macro.parent != v2->u.macro.parent) return 0;
     for (i = 0; i < v1->u.macro.argc; i++) {
         if (str_cmp(&v1->u.macro.param[i].name, &v2->u.macro.param[i].name)) return 0;
         if (str_cmp(&v1->u.macro.param[i].init, &v2->u.macro.param[i].init)) return 0;
@@ -639,138 +638,92 @@ static int MUST_CHECK error_len(const struct value_s *v1, struct value_s *v, uva
     return 1;
 }
 
-static int ident_resolv(struct value_s *v1, struct value_s *v) {
+static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v) {
     struct label_s *l = find_label(&v1->u.ident.name);
     struct linepos_s epoint;
-    if (l) {
+    if (l && touch_label(l)) {
         l->shadowcheck = 1;
-        v->u.identref.epoint = v1->u.ident.epoint;
-        v->obj = IDENTREF_OBJ;
-        v->u.identref.label = l;
-        return 1;
+        return l->value;
     }
     epoint = v1->u.ident.epoint;
     v->u.error.u.ident = v1->u.ident.name;
     v->obj = ERROR_OBJ;
     v->u.error.epoint = epoint;
     v->u.error.num = ERROR___NOT_DEFINED;
-    return 0;
+    return v;
 }
 
 static void ident_calc1(oper_t op) {
-    if (op->v1 == op->v) {
-        if (ident_resolv(op->v1, op->v)) IDENTREF_OBJ->calc1(op);
-    } else {
-        struct value_s tmp, *old = op->v1;
-        op->v1 = &tmp;
-        if (ident_resolv(old, &tmp)) IDENTREF_OBJ->calc1(op);
-        else tmp.obj->copy_temp(&tmp, op->v);
-        op->v1 = old;
-    }
+    struct value_s *v, *v1 = op->v1, tmp;
+    v = ident_resolv(v1, (v1 == op->v) ? op->v : &tmp);
+    op->v1 = v;
+    v->obj->calc1(op);
+    op->v1 = v1;
 }
 
 static void ident_calc2(oper_t op) {
-    if (op->v1 == op->v) {
-        if (ident_resolv(op->v1, op->v)) IDENTREF_OBJ->calc2(op);
-    } else {
-        struct value_s tmp, *old = op->v1;
-        op->v1 = &tmp;
-        if (ident_resolv(old, &tmp)) IDENTREF_OBJ->calc2(op);
-        else tmp.obj->copy_temp(&tmp, op->v);
-        op->v1 = old;
-    }
+    struct value_s *v, *v1 = op->v1, tmp;
+    v = ident_resolv(v1, (v1 == op->v) ? op->v : &tmp);
+    op->v1 = v;
+    v->obj->calc2(op);
+    op->v1 = v1;
 }
 
 static void ident_rcalc2(oper_t op) {
+    struct value_s *v, *v2, tmp;
     if (op->op == &o_MEMBER) {
         op->v1->obj->calc2(op);return;
     }
-    if (op->v2 == op->v) {
-        if (ident_resolv(op->v2, op->v)) IDENTREF_OBJ->rcalc2(op);
-    } else {
-        struct value_s tmp, *old = op->v2; 
-        op->v2 = &tmp;
-        if (ident_resolv(old, &tmp)) IDENTREF_OBJ->rcalc2(op);
-        else tmp.obj->copy_temp(&tmp, op->v);
-        op->v2 = old;
-    }
+    v2 = op->v2;
+    v = ident_resolv(v2, (v2 == op->v) ? op->v : &tmp);
+    op->v2 = v;
+    v->obj->rcalc2(op);
+    op->v2 = v2;
 }
 
 static int ident_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1 == v) {
-        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->hash(v, v, epoint);
-    } else {
-        struct value_s tmp;
-        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->hash(&tmp, v, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
-    return -1;
+    struct value_s tmp;
+    v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->hash(v1, v, epoint);
 }
 
 static void ident_repr(const struct value_s *v1, struct value_s *v) {
-    if (v1 == v) {
-        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->repr(v, v);
-    } else {
-        struct value_s tmp;
-        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->repr(&tmp, v);
-        tmp.obj->copy_temp(&tmp, v);
-    }
+    struct value_s tmp;
+    v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->repr(v1, v);
 }
 
 static int MUST_CHECK ident_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    if (v1 == v) {
-        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->ival(v, v, iv, bits, epoint);
-    } else {
-        struct value_s tmp;
-        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->ival(&tmp, v, iv, bits, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
-    return 1;
+    struct value_s tmp;
+    v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->ival(v1, v, iv, bits, epoint);
 }
 
 static int MUST_CHECK ident_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    if (v1 == v) {
-        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->uval(v, v, uv, bits, epoint);
-    } else {
-        struct value_s tmp;
-        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->uval(&tmp, v, uv, bits, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
-    return 1;
+    struct value_s tmp;
+    v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->uval(v1, v, uv, bits, epoint);
 }
 
 static void ident_str(const struct value_s *v1, struct value_s *v) {
-    if (v1 == v) {
-        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->str(v, v);
-    } else {
-        struct value_s tmp;
-        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->str(&tmp, v);
-        tmp.obj->copy_temp(&tmp, v);
-    }
+    struct value_s tmp;
+    v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->str(v1, v);
 }
 
 static int MUST_CHECK ident_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    if (v1 == v) {
-        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->real(v, v, r, epoint);
-    } else {
-        struct value_s tmp;
-        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->real(&tmp, v, r, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
-    return 1;
+    struct value_s tmp;
+    v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->real(v1, v, r, epoint);
 }
 
 static void ident_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1 == v) {
-        if (ident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->integer(v, v, epoint);
-    } else {
-        struct value_s tmp;
-        if (ident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->integer(&tmp, v, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
+    struct value_s tmp;
+    v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->integer(v1, v, epoint);
 }
 
-static int anonident_resolv(struct value_s *v1, struct value_s *v) {
+static struct value_s *anonident_resolv(const struct value_s *v1, struct value_s *v) {
     char idents[100];
     str_t ident;
     struct label_s *l;
@@ -779,332 +732,83 @@ static int anonident_resolv(struct value_s *v1, struct value_s *v) {
     ident.data = (const uint8_t *)idents;
     ident.len = strlen(idents);
     l = find_label(&ident);
-    if (l) {
-        v->u.identref.epoint = v1->u.anonident.epoint;
-        v->obj = IDENTREF_OBJ;
-        v->u.identref.label = l;
-        return 1;
-    }
+    if (l && touch_label(l)) return l->value;
     v->u.error.epoint = v1->u.anonident.epoint;
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR___NOT_DEFINED;
     v->u.error.u.ident.len = 1;
     v->u.error.u.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
-    return 0;
+    return v;
 }
 
 static void anonident_calc1(oper_t op) {
-    if (op->v1 == op->v) {
-        if (anonident_resolv(op->v1, op->v)) IDENTREF_OBJ->calc1(op);
-    } else {
-        struct value_s tmp, *old = op->v1; 
-        op->v1 = &tmp;
-        if (anonident_resolv(old, &tmp)) IDENTREF_OBJ->calc1(op);
-        else tmp.obj->copy_temp(&tmp, op->v);
-        op->v1 = old;
-    }
+    struct value_s *v, *v1 = op->v1, tmp;
+    v = anonident_resolv(v1, (v1 == op->v) ? op->v : &tmp);
+    op->v1 = v;
+    v->obj->calc1(op);
+    op->v1 = v1;
 }
 
 static void anonident_calc2(oper_t op) {
-    if (op->v1 == op->v) {
-        if (anonident_resolv(op->v1, op->v)) IDENTREF_OBJ->calc2(op);
-    } else {
-        struct value_s tmp, *old = op->v1; 
-        op->v1 = &tmp;
-        if (anonident_resolv(old, &tmp)) IDENTREF_OBJ->calc2(op);
-        else tmp.obj->copy_temp(&tmp, op->v);
-        op->v1 = old;
-    }
+    struct value_s *v, *v1 = op->v1, tmp;
+    v = anonident_resolv(v1, (v1 == op->v) ? op->v : &tmp);
+    op->v1 = v;
+    v->obj->calc2(op);
+    op->v1 = v1;
 }
 
 static void anonident_rcalc2(oper_t op) {
+    struct value_s *v, *v2, tmp;
     if (op->op == &o_MEMBER) {
         op->v1->obj->calc2(op);return;
     }
-    if (op->v2 == op->v) {
-        if (anonident_resolv(op->v2, op->v)) IDENTREF_OBJ->rcalc2(op);
-    } else {
-        struct value_s tmp, *old = op->v2; 
-        op->v2 = &tmp;
-        if (anonident_resolv(old, &tmp)) IDENTREF_OBJ->rcalc2(op);
-        else tmp.obj->copy_temp(&tmp, op->v);
-        op->v2 = old;
-    }
+    v2 = op->v2;
+    v = anonident_resolv(v2, (v2 == op->v) ? op->v : &tmp);
+    op->v2 = v;
+    v->obj->rcalc2(op);
+    op->v2 = v2;
 }
 
 static int anonident_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1 == v) {
-        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->hash(v, v, epoint);
-    } else {
-        struct value_s tmp;
-        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->hash(&tmp, v, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
-    return -1;
+    struct value_s tmp;
+    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->hash(v1, v, epoint);
 }
 
 static void anonident_repr(const struct value_s *v1, struct value_s *v) {
-    if (v1 == v) {
-        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->repr(v, v);
-    } else {
-        struct value_s tmp;
-        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->repr(&tmp, v);
-        tmp.obj->copy_temp(&tmp, v);
-    }
+    struct value_s tmp;
+    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->repr(v1, v);
 }
 
 static int MUST_CHECK anonident_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    if (v1 == v) {
-        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->ival(v, v, iv, bits, epoint);
-    } else {
-        struct value_s tmp;
-        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->ival(&tmp, v, iv, bits, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
-    return 1;
+    struct value_s tmp;
+    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->ival(v1, v, iv, bits, epoint);
 }
 
 static int MUST_CHECK anonident_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    if (v1 == v) {
-        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->uval(v, v, uv, bits, epoint);
-    } else {
-        struct value_s tmp;
-        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->uval(&tmp, v, uv, bits, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
-    return 1;
+    struct value_s tmp;
+    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->uval(v1, v, uv, bits, epoint);
 }
 
 static void anonident_str(const struct value_s *v1, struct value_s *v) {
-    if (v1 == v) {
-        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->str(v, v);
-    } else {
-        struct value_s tmp;
-        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->str(&tmp, v);
-        tmp.obj->copy_temp(&tmp, v);
-    }
+    struct value_s tmp;
+    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->str(v1, v);
 }
 
 static int MUST_CHECK anonident_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    if (v1 == v) {
-        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->real(v, v, r, epoint);
-    } else {
-        struct value_s tmp;
-        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->real(&tmp, v, r, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
-    return 1;
+    struct value_s tmp;
+    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->real(v1, v, r, epoint);
 }
 
 static void anonident_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1 == v) {
-        if (anonident_resolv((struct value_s *)v1, v)) return IDENTREF_OBJ->integer(v, v, epoint);
-    } else {
-        struct value_s tmp;
-        if (anonident_resolv((struct value_s *)v1, &tmp)) return IDENTREF_OBJ->integer(&tmp, v, epoint);
-        tmp.obj->copy_temp(&tmp, v);
-    }
-}
-
-static int identref_same(const struct value_s *v1, const struct value_s *v2) {
-    return v2->obj == IDENTREF_OBJ && v1->u.identref.label == v2->u.identref.label;
-}
-
-static struct value_s *identref_resolv(struct value_s *v1, struct value_s *v) {
-    struct value_s *vv = v1;
-    struct label_s *l;
-    struct linepos_s epoint;
-    int rec;
-
-    for (rec = 0; rec < 100; rec++) {
-        l = vv->u.identref.label;
-        if (referenceit) l->ref = 1;
-        l->usepass = pass;
-        if (l->type == L_VAR && l->defpass != pass) {
-            epoint = v1->u.identref.epoint;
-            v->u.error.u.ident = v1->u.identref.label->name;
-            v->obj = ERROR_OBJ;
-            v->u.error.epoint = epoint;
-            v->u.error.num = ERROR___NOT_DEFINED;
-            return NULL;
-        }
-        if (l->value->obj != IDENTREF_OBJ) return vv;
-        vv = l->value;
-    } 
-    err_msg2(ERROR__REFRECURSION, NULL, &v1->u.identref.epoint);
-    v->obj = NONE_OBJ;
-    return NULL;
-}
-
-static struct value_s *identref_access_check(struct label_s *l, struct value_s *v, linepos_t epoint) {
-    if (pass != 1) {
-        if (l->requires & ~current_section->provides) {
-            v->u.error.u.ident = l->name;
-            v->obj = ERROR_OBJ;
-            v->u.error.epoint = *epoint;
-            v->u.error.num = ERROR_REQUIREMENTS_;
-            return NULL;
-        }
-        if (l->conflicts & current_section->provides) {
-            v->u.error.u.ident = l->name;
-            v->obj = ERROR_OBJ;
-            v->u.error.epoint = *epoint;
-            v->u.error.num = ERROR______CONFLICT;
-            return NULL;
-        }
-    }
-    return l->value;
-}
-
-static void identref_calc1(oper_t op) {
-    struct value_s *v1;
-    v1 = identref_resolv(op->v1, op->v);
-    if (!v1) return;
-    v1 = identref_access_check(v1->u.identref.label, op->v, &op->epoint);
-    if (v1) {
-        struct value_s *old = op->v1;
-        op->v1 = v1;
-        v1->obj->calc1(op);
-        op->v1 = old;
-    }
-}
-
-static int identref_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    struct value_s *vv;
-    vv = identref_resolv((struct value_s *)v1, v);
-    if (!vv) return -1;
-    vv = identref_access_check(vv->u.identref.label, v, epoint);
-    if (vv) return vv->obj->hash(vv, v, epoint);
-    return -1;
-}
-
-static void identref_repr(const struct value_s *v1, struct value_s *v) {
-    struct value_s *vv;
-    struct linepos_s epoint = {0,0};
-    vv = identref_resolv((struct value_s *)v1, v);
-    if (!vv) return;
-    vv = identref_access_check(vv->u.identref.label, v, &epoint);
-    if (vv) return vv->obj->repr(vv, v);
-}
-
-static int MUST_CHECK identref_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s *vv;
-    vv = identref_resolv((struct value_s *)v1, v);
-    if (!vv) return 1;
-    vv = identref_access_check(vv->u.identref.label, v, epoint);
-    if (vv) return vv->obj->ival(vv, v, iv, bits, epoint);
-    return 1;
-}
-
-static int MUST_CHECK identref_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s *vv;
-    vv = identref_resolv((struct value_s *)v1, v);
-    if (!vv) return 1;
-    vv = identref_access_check(vv->u.identref.label, v, epoint);
-    if (vv) return vv->obj->uval(vv, v, uv, bits, epoint);
-    return 1;
-}
-
-static void identref_str(const struct value_s *v1, struct value_s *v) {
-    struct value_s *vv;
-    struct linepos_s epoint = {0,0};
-    vv = identref_resolv((struct value_s *)v1, v);
-    if (!vv) return;
-    vv = identref_access_check(vv->u.identref.label, v, &epoint);
-    if (vv) return vv->obj->str(vv, v);
-}
-
-static int MUST_CHECK identref_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    struct value_s *vv;
-    vv = identref_resolv((struct value_s *)v1, v);
-    if (!vv) return 1;
-    vv = identref_access_check(vv->u.identref.label, v, epoint);
-    if (vv) return vv->obj->real(vv, v, r, epoint);
-    return 1;
-}
-
-static void identref_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    struct value_s *vv;
-    vv = identref_resolv((struct value_s *)v1, v);
-    if (!vv) return;
-    vv = identref_access_check(vv->u.identref.label, v, epoint);
-    if (vv) return vv->obj->integer(vv, v, epoint);
-}
-
-static void identref_calc2(oper_t op) {
-    struct label_s *l;
-    struct value_s *v1, *v = op->v, *v2 = op->v2;
-    struct linepos_s epoint;
-
-    v1 = identref_resolv(op->v1, v);
-    if (!v1) return;
-
-    if (op->op == &o_MEMBER) {
-        if (v1->u.identref.label->value->obj == NONE_OBJ) {
-            v->obj = NONE_OBJ;
-            return;
-        }
-        switch (v2->obj->type) {
-        case T_IDENT:
-            l = find_label2(&v2->u.ident.name, v1->u.identref.label);
-            if (l) {
-                v->u.identref.epoint = v2->u.ident.epoint;
-                v->obj = IDENTREF_OBJ;
-                v->u.identref.label = l;
-                return;
-            } 
-            epoint = v2->u.ident.epoint;
-            v->u.error.u.ident = v2->u.ident.name;
-            v->obj = ERROR_OBJ;
-            v->u.error.num = ERROR___NOT_DEFINED;
-            v->u.error.epoint = epoint;
-            return;
-        case T_ANONIDENT:
-            {
-                char idents[100];
-                str_t ident;
-                sprintf(idents, (v2->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v2->u.anonident.count >= 0) ? forwr : backr) + v2->u.anonident.count);
-                ident.data = (const uint8_t *)idents;
-                ident.len = strlen(idents);
-                l = find_label2(&ident, v1->u.identref.label);
-                if (l) {
-                    v->u.identref.epoint = v2->u.anonident.epoint;
-                    v->obj = IDENTREF_OBJ;
-                    v->u.identref.label = l;
-                    return;
-                }
-                v->u.error.epoint = v2->u.anonident.epoint;
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR___NOT_DEFINED;
-                v->u.error.u.ident.len = 1;
-                v->u.error.u.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
-                return;
-            }
-        case T_TUPLE:
-        case T_LIST: v2->obj->rcalc2(op); return;
-        default: break;
-        }
-    }
-    v1 = identref_access_check(v1->u.identref.label, v, &epoint);
-    if (v1) {
-        struct value_s *old = op->v1;
-        op->v1 = v1;
-        v1->obj->calc2(op);
-        op->v1 = old;
-    }
-}
-
-static void identref_rcalc2(oper_t op) {
-    struct value_s *v2;
-    v2 = identref_resolv(op->v2, op->v);
-    if (!v2) return;
-    v2 = identref_access_check(op->v2->u.identref.label, op->v, &op->epoint2);
-    if (v2) {
-        struct value_s *old = op->v2;
-        op->v2 = v2;
-        v2->obj->rcalc2(op);
-        op->v2 = old;
-    }
+    struct value_s tmp;
+    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->integer(v1, v, epoint);
 }
 
 static int none_hash(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -1191,6 +895,51 @@ static int lbl_same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == LBL_OBJ && v1->u.lbl.p == v2->u.lbl.p && v1->u.lbl.sline == v2->u.lbl.sline && v1->u.lbl.waitforp == v2->u.lbl.waitforp && v1->u.lbl.file_list == v2->u.lbl.file_list && v1->u.lbl.parent == v2->u.lbl.parent;
 }
 
+static void struct_calc2(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    if (op->op == &o_MEMBER) {
+        struct label_s *l;
+        struct linepos_s epoint;
+        switch (v2->obj->type) {
+        case T_IDENT:
+            l = find_label2(&v2->u.ident.name, v1->u.macro.parent);
+            if (l && touch_label(l)) {
+                l->value->obj->copy(l->value, op->v);
+                return;
+            }
+            epoint = v2->u.ident.epoint;
+            v->u.error.u.ident = v2->u.ident.name;
+            v->obj = ERROR_OBJ;
+            v->u.error.num = ERROR___NOT_DEFINED;
+            v->u.error.epoint = epoint;
+            return;
+        case T_ANONIDENT:
+            {
+                char idents[100];
+                str_t ident;
+                sprintf(idents, (v2->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v2->u.anonident.count >= 0) ? forwr : backr) + v2->u.anonident.count);
+                ident.data = (const uint8_t *)idents;
+                ident.len = strlen(idents);
+                l = find_label2(&ident, v1->u.macro.parent);
+                if (l && touch_label(l)) {
+                    l->value->obj->copy(l->value, op->v);
+                    return;
+                }
+                v->u.error.epoint = v2->u.anonident.epoint;
+                v->obj = ERROR_OBJ;
+                v->u.error.num = ERROR___NOT_DEFINED;
+                v->u.error.u.ident.len = 1;
+                v->u.error.u.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
+                return;
+            }
+        case T_TUPLE:
+        case T_LIST: v2->obj->rcalc2(op); return;
+        default: v2->obj->rcalc2(op); return;
+        }
+    }
+    obj_oper_error(op);
+}
+
 void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->type = type;
     obj->name = name;
@@ -1252,23 +1001,13 @@ void objects_init(void) {
     struct_obj.copy = macro_copy;
     struct_obj.copy_temp = macro_copy_temp;
     struct_obj.same = macro_same;
+    struct_obj.calc2 = struct_calc2;
     obj_init(&union_obj, T_UNION, "<union>");
     union_obj.destroy = macro_destroy;
     union_obj.copy = macro_copy;
     union_obj.copy_temp = macro_copy_temp;
     union_obj.same = macro_same;
-    obj_init(&identref_obj, T_IDENTREF, "<identref>");
-    identref_obj.same = identref_same;
-    identref_obj.hash = identref_hash;
-    identref_obj.repr = identref_repr;
-    identref_obj.ival = identref_ival;
-    identref_obj.uval = identref_uval;
-    identref_obj.str = identref_str;
-    identref_obj.real = identref_real;
-    identref_obj.integer = identref_integer;
-    identref_obj.calc1 = identref_calc1;
-    identref_obj.calc2 = identref_calc2;
-    identref_obj.rcalc2 = identref_rcalc2;
+    union_obj.calc2 = struct_calc2;
     obj_init(&none_obj, T_NONE, "<none>");
     none_obj.hash = none_hash;
     none_obj.calc1 = none_calc1;

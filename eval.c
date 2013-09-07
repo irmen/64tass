@@ -235,14 +235,14 @@ static void get_string(struct value_s *v) {
     lpoint.pos += str_from_str(v, &lpoint.upos, pline + lpoint.pos);
 }
 
-static int touch_label(struct label_s *tmp) {
+int touch_label(struct label_s *tmp) {
     if (referenceit) tmp->ref = 1;
     tmp->usepass = pass;
-    if (tmp->type != L_VAR || tmp->defpass == pass) return 0;
-    return 1;
+    if (tmp->type != L_VAR || tmp->defpass == pass) return 1;
+    return 0;
 }
 
-static int try_resolv_ident(struct value_s *v1, struct value_s *v) {
+static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
     char idents[100];
     str_t ident;
     struct label_s *l;
@@ -254,124 +254,46 @@ static int try_resolv_ident(struct value_s *v1, struct value_s *v) {
         ident.data = (const uint8_t *)idents;
         ident.len = strlen(idents);
         l = find_label(&ident);
-        if (l) {
-            v->u.identref.epoint = v1->u.anonident.epoint;
-            v->obj = IDENTREF_OBJ;
-            v->u.identref.label = l;
-            return 1;
+        if (l && touch_label(l)) {
+            return l->value;
         }
         v->u.error.epoint = v1->u.anonident.epoint;
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR___NOT_DEFINED;
         v->u.error.u.ident.len = 1;
         v->u.error.u.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
-        return -1;
+        return NULL;
     case T_IDENT: 
         l = find_label(&v1->u.ident.name);
-        if (l) {
+        if (l && touch_label(l)) {
             l->shadowcheck = 1;
-            v->u.identref.epoint = v1->u.ident.epoint;
-            v->obj = IDENTREF_OBJ;
-            v->u.identref.label = l;
-            return 1;
+            return l->value;
         }
         epoint = v1->u.ident.epoint;
         v->u.error.u.ident = v1->u.ident.name;
         v->obj = ERROR_OBJ;
         v->u.error.epoint = epoint;
         v->u.error.num = ERROR___NOT_DEFINED;
-        return -1;
-    default: return 0;
-    }
-}
-
-static struct value_s *last_access_check(struct label_s *l, struct value_s *v, linepos_t epoint) {
-    if (pass != 1) {
-        if (l->requires & ~current_section->provides) {
-            v->u.error.u.ident = l->name;
-            v->obj = ERROR_OBJ;
-            v->u.error.epoint = *epoint;
-            v->u.error.num = ERROR_REQUIREMENTS_;
-            return NULL;
-        }
-        if (l->conflicts & current_section->provides) {
-            v->u.error.u.ident = l->name;
-            v->obj = ERROR_OBJ;
-            v->u.error.epoint = *epoint;
-            v->u.error.num = ERROR______CONFLICT;
-            return NULL;
-        }
-    }
-    return l->value;
-}
-
-static struct value_s *unwind_identrefs(struct value_s *vold, struct value_s *v) {
-    struct value_s *v1 = vold;
-    int rec;
-
-    for (rec = 0; rec < 100; rec++) {
-        if (touch_label(v1->u.identref.label)) {
-            struct linepos_s epoint = vold->u.identref.epoint;
-            v->u.error.u.ident = vold->u.identref.label->name;
-            v->obj = ERROR_OBJ;
-            v->u.error.epoint = epoint;
-            v->u.error.num = ERROR___NOT_DEFINED;
-            return NULL;
-        }
-        if (v1->u.identref.label->value->obj != IDENTREF_OBJ) {
-            return v1;
-        }
-        v1 = v1->u.identref.label->value;
-    } 
-    err_msg2(ERROR__REFRECURSION, NULL, &vold->u.identref.epoint);
-    v->obj = NONE_OBJ;
-    return NULL;
-}
-
-static inline struct value_s *try_resolv_identref(struct value_s *v1, struct value_s *v) {
-    if (v1->obj == IDENTREF_OBJ) {
-        struct value_s *vold = v1;
-        v1 = unwind_identrefs(v1, v);
-        if (v1) v1 = last_access_check(v1->u.identref.label, v, &vold->u.identref.epoint);
-    }
-    return v1;
-}
-
-static void try_resolv_identref2(struct values_s *value) {
-    struct value_s tmp, *v2;
-    if (value->val->obj == IDENTREF_OBJ) {
-        v2 = try_resolv_identref(value->val, &tmp);
-        if (v2) {
-            val_replace(&value->val, v2);
-            return;
-        }
-        val_replace_template(&value->val, &tmp);
+        return NULL;
+    default: return v1;
     }
 }
 
 static enum type_e try_resolv(struct values_s *value) {
     struct value_s *v1 = value->val, *v2;
-    int res;
     struct value_s tmp;
-    res = try_resolv_ident(v1, &tmp);
-    if (!res) {
-        try_resolv_identref2(value);
-        return value->val->obj->type;
+    v2 = try_resolv_ident(v1, &tmp);
+    if (!v2) {
+        val_replace_template(&value->val, &tmp);
+        return tmp.obj->type;
     }
-    if (tmp.obj == IDENTREF_OBJ) {
-        v2 = try_resolv_identref(&tmp, &tmp);
-        if (v2) {
-            val_replace(&value->val, v2);
-            return v2->obj->type;
-        }
-    }
-    val_replace_template(&value->val, &tmp);
-    return tmp.obj->type;
+    if (v1 != v2) val_replace(&value->val, v2);
+    return v2->obj->type;
 }
 
 static int try_resolv_rec(struct value_s **value) {
-    int res, err = 0;
-    struct value_s tmp, *v2;
+    int err = 0;
+    struct value_s tmp, *v2, *v1;
     if (value[0]->obj == TUPLE_OBJ || value[0]->obj == LIST_OBJ) {
         size_t i;
         for (i = 0; i < value[0]->u.list.len; i++) {
@@ -379,36 +301,14 @@ static int try_resolv_rec(struct value_s **value) {
         }
         return err;
     }
-    res = try_resolv_ident(value[0], &tmp);
-    if (!res) {
-        if (value[0]->obj == IDENTREF_OBJ) {
-            v2 = try_resolv_identref(value[0], &tmp);
-            if (v2) {
-                val_replace(value, v2);
-                return err;
-            }
-            err_msg_wrong_type(&tmp, &tmp.u.error.epoint);
-            val_replace_template(value, &none_value);
-            return 1;
-        }
+    v1 = value[0];
+    v2 = try_resolv_ident(v1, &tmp);
+    if (!v2) {
+        err_msg_wrong_type(&tmp, &tmp.u.error.epoint);
+        val_replace_template(value, &none_value);
         return err;
     }
-    if (res < 0) {
-        err_msg_wrong_type(&tmp, &tmp.u.error.epoint);
-        val_replace_template(value, &none_value);
-        return 1;
-    }
-    if (tmp.obj == IDENTREF_OBJ) {
-        v2 = try_resolv_identref(&tmp, &tmp);
-        if (v2) {
-            val_replace(value, v2);
-            return err;
-        }
-        err_msg_wrong_type(&tmp, &tmp.u.error.epoint);
-        val_replace_template(value, &none_value);
-        return 1;
-    }
-    val_replace_template(value, &tmp);
+    if (v1 != v2) val_replace(value, v2);
     return err;
 }
 
@@ -422,12 +322,10 @@ static void get_star(struct value_s *v) {
         fixeddig=0;
     }
     tmp->addr=star;
-    v->obj = CODE_OBJ;
-    v->u.code.addr = star;
-    v->u.code.size = 0;
-    v->u.code.dtype = D_NONE;
-    v->u.code.memp = ~(size_t)0;
-    v->u.code.membp = ~(size_t)0;
+    v->obj = ADDRESS_OBJ;
+    v->u.addr.type = A_NONE;
+    v->u.addr.val = star;
+    v->u.addr.len = sizeof(address_t);
 }
 
 static size_t evxnum, evx_p;
@@ -802,11 +700,7 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
     value = eval->values;
 
     if (epoint) *epoint = value->epoint;
-    if (value->val->refcount != 1) {
-        struct value_s tmp;
-        res = try_resolv_ident(value->val, &tmp);
-        if (res) val_replace_template(&value->val, &tmp);
-    } else try_resolv_ident(value->val, value->val);
+    try_resolv_rec(&value->val);
 
     switch (value->val->obj->type) {
     case T_STR:
@@ -826,12 +720,6 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
     case T_STRUCT:
     case T_FUNCTION:
     case T_ADDRESS:
-    case T_IDENTREF:
-        if (obj == IDENTREF_OBJ) {
-            if (value->val->obj != IDENTREF_OBJ) try_resolv_rec(&value->val);
-            return value->val;
-        }
-        try_resolv_rec(&value->val);
         if (obj == NONE_OBJ) return value->val;
         if (obj == ADDRESS_OBJ) {
             if (value->val->obj == ADDRESS_OBJ) return value->val;
@@ -1220,13 +1108,7 @@ static void functions(struct values_s *vals, unsigned int args) {
                 return;
             }
             for (i = 0; i < args; i++) {
-                if (v[i].val->refcount != 1) {
-                    struct value_s tmp;
-                    int res;
-                    res = try_resolv_ident(v[i].val, &tmp);
-                    if (res) val_replace_template(&v[i].val, &tmp);
-                } else try_resolv_ident(v[i].val, v[i].val);
-                if (v[i].val->obj != IDENTREF_OBJ) try_resolv_rec(&v[i].val);
+                try_resolv_rec(&v[i].val);
             }
             for (; i < vals->val->u.func.argc; i++) {
                 if (!vals->val->u.func.param[i].init) {
@@ -2167,26 +2049,20 @@ int get_exp_var(void) {
     return get_exp(&w, 2);
 }
 
-struct value_s *get_vals_tuple(obj_t obj) {
+struct value_s *get_vals_tuple(void) {
     size_t ln = 0, i = 0;
     struct value_s **vals = NULL, *retval = NULL, *val;
     struct linepos_s epoint;
-    while ((val = get_val(obj, &epoint))) {
+    while ((val = get_val(NONE_OBJ, &epoint))) {
         if (i) {
             if (i >= ln) {
                 ln += 16;
                 vals = (struct value_s **)realloc(vals, ln * sizeof(retval->u.list.data[0]));
                 if (!vals || ln < 16 || ln > ((size_t)~0) / sizeof(retval->u.list.data[0])) err_msg_out_of_memory();
             }
-            if (i == 1) {
-                if (retval->obj == IDENTREF_OBJ) try_resolv_rec(&retval);
-                vals[0] = retval;
-            }
+            if (i == 1) vals[0] = retval;
             vals[i] = val;
-        } else {
-            retval = val;
-            obj = NONE_OBJ;
-        }
+        } else retval = val;
         eval->values->val = &none_value;
         i++;
     }

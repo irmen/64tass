@@ -177,13 +177,12 @@ struct value_s {
         struct {
             size_t size;
             size_t p;
-            struct file_list_s *file_list;
-            line_t sline;
             size_t argc;
             struct {
                 str_t name;
                 str_t init;
             } *param; 
+            struct label_s *parent;
         } macro;
         struct {
             size_t p;
@@ -214,10 +213,6 @@ struct value_s {
             str_t name;
             struct linepos_s epoint;
         } ident;
-        struct {
-            struct label_s *label;
-            struct linepos_s epoint;
-        } identref;
         struct {
             int32_t count;
             struct linepos_s epoint;

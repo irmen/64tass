@@ -167,7 +167,10 @@ static int calc2_bool_bool(oper_t op, int v1, int v2) {
 static void calc2(oper_t op) {
     switch (op->v2->obj->type) {
     case T_BOOL: if (calc2_bool_bool(op, op->v1->u.boolean, op->v2->u.boolean)) break; return;
-    default: op->v2->obj->rcalc2(op); return;
+    default: 
+        if (op->op != &o_MEMBER) {
+            op->v2->obj->rcalc2(op); return;
+        }
     }
     obj_oper_error(op);
 }

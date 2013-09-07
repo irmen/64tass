@@ -1005,7 +1005,10 @@ static void calc2(oper_t op) {
         if (op->op == &o_MOD) {
             isnprintf(v1, v2, v, &op->epoint, &op->epoint2); return;
         }
-    default: op->v2->obj->rcalc2(op); return;
+    default: 
+        if (op->op != &o_MEMBER) {
+            op->v2->obj->rcalc2(op); return;
+        }
     }
     obj_oper_error(op);
 }

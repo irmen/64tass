@@ -425,7 +425,6 @@ static void calc2(oper_t op) {
         if (calc2_list(op)) break; return;
     case T_IDENT:
     case T_ANONIDENT:
-    case T_IDENTREF:
         if (op->op != &o_MEMBER) {
             v2->obj->rcalc2(op);return;
         }
@@ -512,7 +511,6 @@ static void rcalc2(oper_t op) {
         if (calc2_list(op)) break; return;
     case T_IDENT:
     case T_ANONIDENT:
-    case T_IDENTREF:
         if (op->op != &o_MEMBER) {
             v1->obj->calc2(op);return;
         }

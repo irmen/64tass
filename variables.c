@@ -155,17 +155,8 @@ void shadow_check(const struct avltree *members) {
                 b = avltree_lookup(&l->node, &c->members, label_compare);
                 if (b) {
                     const struct label_s *l2, *v1, *v2;
-                    int rec = 100;
                     v1 = l2 = cavltree_container_of(b, struct label_s, node);
-                    while (v1->value->obj == IDENTREF_OBJ) {
-                        v1 = v1->value->u.identref.label;
-                        if (!rec--) break;
-                    }
-                    rec = 100; v2 = l;
-                    while (v2->value->obj == IDENTREF_OBJ) {
-                        v2 = v2->value->u.identref.label;
-                        if (!rec--) break;
-                    }
+                    v2 = l;
                     if (v1 != v2 && !obj_same(v1->value, v2->value)) {
                         err_msg_shadow_defined(l2, l);
                         break;

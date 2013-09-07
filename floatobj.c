@@ -288,7 +288,10 @@ static void calc2(oper_t op) {
             return;
         }
         if (calc2_double(op, op->v1->u.real, d)) break; return;
-    default: op->v2->obj->rcalc2(op); return;
+    default:
+        if (op->op != &o_MEMBER) {
+            op->v2->obj->rcalc2(op); return;
+        }
     }
     obj_oper_error(op);
 }

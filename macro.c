@@ -243,7 +243,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
     if (t == W_ENDS) {
         struct label_s *oldcontext = current_context;
         current_context = context;
-        val = compile(tmp2->u.macro.file_list);
+        val = compile(tmp2->u.macro.parent->file_list);
         current_context = oldcontext;
     } else {
         size_t oldpos;
@@ -263,8 +263,8 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        cflist = enterfile(tmp2->u.macro.file_list->file, sline, epoint);
-        sline = tmp2->u.macro.sline;
+        cflist = enterfile(tmp2->u.macro.parent->file_list->file, sline, epoint);
+        sline = tmp2->u.macro.parent->sline;
         new_waitfor(t, &nopoint);
         f = cflist->file;
         oldpos = f->p; f->p = tmp2->u.macro.p;
@@ -298,7 +298,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
             if (here()==',' || !here() || here()==';') {
                 val = tmp2->u.func.param[i].init;
             } else if (get_exp(&w,4)) {
-                if (!(val = get_val(IDENTREF_OBJ, &epoint2))) {
+                if (!(val = get_val(NONE_OBJ, &epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = tmp2->u.func.param[i].init;
                 }
@@ -307,7 +307,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         } else {
             if (fin > 1) {err_msg(ERROR______EXPECTED,","); val = &none_value;}
             else if (get_exp(&w,4)) {
-                if (!(val = get_val(IDENTREF_OBJ, &epoint2))) {
+                if (!(val = get_val(NONE_OBJ, &epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = &none_value;
                 }
@@ -413,7 +413,7 @@ void get_func_params(struct value_s *v) {
                 i++;
                 break;
             }
-            if (!(val = get_val(IDENTREF_OBJ, NULL))) {
+            if (!(val = get_val(NONE_OBJ, NULL))) {
                 err_msg(ERROR_GENERL_SYNTAX, NULL); 
                 i++;
                 break;
@@ -475,8 +475,8 @@ void get_macro_params(struct value_s *v) {
             if (j != i) {
                 struct label_s tmp;
                 tmp.name = new_value.u.macro.param[j].name;
-                tmp.file_list = v->u.macro.file_list;
-                tmp.sline = v->u.macro.sline;
+                tmp.file_list = v->u.macro.parent->file_list;
+                tmp.sline = v->u.macro.parent->sline;
                 tmp.epoint = epoints[j];
                 err_msg_double_defined(&tmp, &label, &epoints[i]);
             }
@@ -577,7 +577,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         s->addr = star;
         star_tree = &s->tree;vline=0;
         sline = tmp2->u.func.sline;
-        new_waitfor(W_ENDF3, &nopoint);
+        new_waitfor(W_ENDF2, &nopoint);
         f = cflist->file;
         oldpos = f->p; f->p = tmp2->u.func.p;
         current_context = &rlabel;

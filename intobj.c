@@ -1528,7 +1528,10 @@ static void calc2(oper_t op) {
         int_from_int(&tmp, op->v2->u.boolean);
         op->v2 = &tmp;
         if (calc2_int(op)) break; return;
-    default: op->v2->obj->rcalc2(op); return;
+    default: 
+        if (op->op != &o_MEMBER) {
+            op->v2->obj->rcalc2(op); return;
+        }
     }
     obj_oper_error(op);
 }
