@@ -495,21 +495,14 @@ pair.
 
         .text {1:"one", 2:"two"}[2]; "two"
 
-Labels
+Code
 
-Normal labels can be defined at the start of each line. Each of them is uniq
-and can't be redefined. In arithmetic operations they represent the numeric
-addresses of a memory location. Additionally they also hold the compiled code
-and data definitions in binary format.
+Code holds the result of compilation in binary and other enclosed objects. In
+an arithmetic operation it's used as the numeric address of the memory where it
+starts. The compiled content remains static even if later parts of the source
+overwrite the same memory area.
 
-A label represents by default only the single line it is found on unless block
-directives are used where it's extended till the end of block. The content is
-not forward referencable, only the address of label. Usually the size of a
-single element is a byte, but this can be more for data definitions. Trying to
-`overwrite' the same memory locations later does not affect the content
-anymore.
-
-Indexing and slicing of labels to access the compiled content might be
+Indexing and slicing of code to access the compiled content might be
 implemented differently in future releases. Use this feature at your own risk
 for now, you might need to update your code later.
 
@@ -524,7 +517,7 @@ x[s]    reverse, as tuple       label[::-1]
 len(x)  number of elements      len(label)
 size(a) size in bytes           size(label)
 
-A label has a truth value of true when it's address is non-zero.
+A code object has a truth value of true when it's address is non-zero.
 
 mydata  .word 1, 4, 3
 mycode  .block
@@ -537,7 +530,41 @@ local   lda #0
         ldx #mydata[1]    ;2nd element, 4
         jmp mycode.local  ;address of local label
 
-The assembler supports anonymous labels, also called as forward (+) and
+Symbols
+
+Named symbols are starting with letters and containing letters, numbers and
+underscores. There are anonymous symbols as well, see below.
+
+Constant symbols can be created with the equal sign. These are not
+re-definable. Forward referencing to them is allowed as they retain the
+reference to constant objects over compilation passes.
+
+Symbols in front of code or certain assembler directives are created as
+constant symbols too. They are binded to the object following them.
+
+border  = $d020     ;a constant reference
+f       .block
+g        .block
+n        nop        ;jump here
+         .bend
+        .bend
+
+        inc border  ;inc $d020
+        jsr labelref.n
+
+labelref = f.g
+
+Re-definable symbols can be created by the .var directive. As they don't carry
+their content over from the previous pass it's not possible to use them before
+definition.
+
+variabl .var 1
+        .rept 10
+        .byte variabl
+variabl .var variabl+1
+        .next
+
+The assembler supports anonymous symbols, also called as forward (+) and
 backward (-) references. `-' means one backward, `--' means two backward, etc.
 also the same for forward, but with `+'.
 
@@ -553,9 +580,10 @@ also the same for forward, but with `+'.
         dey
         bne --
 
-Excessive nesting or long distance references create a poorly readable code.
-It's also very easy to insert a few new references in a way to break the old
-ones around by mistake.
+Excessive nesting or long distance references create poorly readable code. It's
+also very easy to copy-paste a few lines of code with these references into a
+code fragment already containing similar references. The result is usually a
+long debugging session to find out what went wrong.
 
 These references are also useful in segments, but this can create a nice traps,
 as segments are copied into the code, with the internal references.
@@ -563,37 +591,6 @@ as segments are copied into the code, with the internal references.
         bne +
         #somemakro      ;let's hope that this segment does
 +       nop             ;not contain forward references...
-
-Constant and variable references
-
-References can reference labels, results from expressions or other references.
-
-Constant references can be created with the equal sign. These are not
-redefinable. Forward referencing to them is allowed as they retain the
-reference to constant objects over compilation passes.
-
-border  = $d020     ;a constant reference
-f       .block
-g        .block
-n        nop        ;jump here
-         .bend
-        .bend
-
-        inc border  ;inc $d020
-        jsr labelref.n
-
-labelref = f.g
-
-Redefinable references can be created by the .var directive. As it's
-redefinable it can only be used in code after it's definition. Even tricks like
-using constant references on them will not help with forward referencing. They
-simply don't carry their last reference over from the previous pass.
-
-variabl .var 1
-        .rept 10
-        .byte variabl
-variabl .var variabl+1
-        .next
 
 Uninitialized memory
 
@@ -677,7 +674,7 @@ set or what the special star label gets when referenced.
 .logical <expression>
 .here
     Changes the program counter, the compile offset is not changed. Can be
-    nested.
+    nested of course.
 .align <modulo>[, <fill>]
     Align code to a dividable program counter address by gap or filler bytes
 

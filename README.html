@@ -590,20 +590,13 @@ immutable. Numeric and string keys are accepted, the value can be anything.</p>
         <b class="d">.text</b> {<span>1</span>:<span class="s">"one"</span>, <span>2</span>:<span class="s">"two"</span>}[<span>2</span>]<i>; "two"</i>
 </pre>
 
-<h3>Labels</h3>
-<p>Normal labels can be defined at the start of each line. Each of them is uniq
-and can't be redefined. In arithmetic operations they represent the numeric
-addresses of a memory location. Additionally they also hold the compiled code
-and data definitions in binary format.</p>
+<h3>Code</h3>
+<p>Code holds the result of compilation in binary and other enclosed objects.
+In an arithmetic operation it's used as the numeric address of the memory where
+it starts. The compiled content remains static even if later parts of the
+source overwrite the same memory area.</p>
 
-<p>A label represents by default only the single line it is found on unless
-block directives are used where it's extended till the end of block. The
-content is not forward referencable, only the address of label. Usually the
-size of a single element is a byte, but this can be more for data definitions.
-Trying to <q>overwrite</q> the same memory locations later does not affect the
-content anymore.</p>
-
-<p><b>Indexing and slicing of labels to access the compiled content might be
+<p><b>Indexing and slicing of code to access the compiled content might be
 implemented differently in future releases. Use this feature at your own
 risk for now, you might need to update your code later.</b></p>
 
@@ -620,7 +613,7 @@ risk for now, you might need to update your code later.</b></p>
 <tr><td>size(a)<td>size in bytes<td><code><span class="k">size</span>(<u>label</u>)</code>
 </table>
 
-<p>A label has a truth value of true when it's address is non-zero.</p>
+<p>A code object has a truth value of true when it's address is non-zero.</p>
 
 <pre width=80>
 mydata  <b class="d">.word</b> <span>1</span>, <span>4</span>, <span>3</span>
@@ -635,7 +628,45 @@ local   <b>lda</b> #<span>0</span>
         <b>jmp</b> <u>mycode</u>.<u>local</u>  <i>;address of local label</i>
 </pre>
 
-<p>The assembler supports anonymous labels, also called as forward (<tt>+</tt>)
+<h3>Symbols</h3>
+
+<p>Named symbols are starting with letters and containing letters, numbers and
+underscores. There are anonymous symbols as well, see below.</p>
+
+<p>Constant symbols can be created with the equal sign. These are not
+re-definable. Forward referencing to them is allowed as they retain the
+reference to constant objects over compilation passes.</p>
+
+<p>Symbols in front of code or certain assembler directives are created as
+constant symbols too. They are binded to the object following them.</p>
+
+<pre width=80>
+border  <b>=</b> <span>$d020</span>     <i>;a constant reference</i>
+f       <b class="k">.block</b>
+g        <b class="k">.block</b>
+n        <b>nop</b>        <i>;jump here</i>
+	 <b class="k">.bend</b>
+	<b class="k">.bend</b>
+
+        <b>inc</b> <u>border</u>  <i>;inc $d020</i>
+        <b>jsr</b> <u>labelref</u>.<u>n</u>
+
+labelref <b>=</b> <u>f</u>.<u>g</u>
+</pre>
+
+<p>Re-definable symbols can be created by the <code>.var</code> directive. As
+they don't carry their content over from the previous pass it's not possible to
+use them before definition.</p>
+
+<pre width=80>
+variabl	<b class="k">.var</b> <span>1</span>
+        <b class="k">.rept</b> <span>10</span>
+        <b class="d">.byte</b> <u>variabl</u>
+variabl	<b class="k">.var</b> <u>variabl</u>+<span>1</span>
+	<b class="k">.next</b>
+</pre>
+
+<p>The assembler supports anonymous symbols, also called as forward (<tt>+</tt>)
 and backward (<tt>-</tt>) references. <q><tt>-</tt></q> means one backward,
 <q><tt>--</tt></q> means two backward, etc. also the same for forward, but with
 <q><tt>+</tt></q>.</p>
@@ -654,54 +685,18 @@ and backward (<tt>-</tt>) references. <q><tt>-</tt></q> means one backward,
 	<b>bne</b> --
 </pre>
 
-<p>Excessive nesting or long distance references create a poorly readable code.
-It's also very easy to insert a few new references in a way to break the old
-ones around by mistake.</p>
+<p>Excessive nesting or long distance references create poorly readable code.
+It's also very easy to copy-paste a few lines of code with these references into
+a code fragment already containing similar references. The result is usually a
+long debugging session to find out what went wrong.</p>
 
-<p>These references are also useful in segments, but this can create a nice traps, as segments are
-copied into the code, with the internal references.
-</p>
-<pre>
+<p>These references are also useful in segments, but this can create a nice
+traps, as segments are copied into the code, with the internal references.</p>
+
+<pre width=80>
 	<b>bne</b> +
         <b class="k">#somemakro</b>      <i>;let's hope that this segment does</i>
 +	<b>nop</b>             <i>;not contain forward references...</i>
-</pre>
-
-<h3>Constant and variable references</h3>
-
-<p>References can reference labels, results from expressions or other
-references.</p>
-
-<p>Constant references can be created with the equal sign. These are not
-redefinable. Forward referencing to them is allowed as they retain the
-reference to constant objects over compilation passes.</p>
-
-<pre width=80>
-border  <b>=</b> <span>$d020</span>     <i>;a constant reference</i>
-f       <b class="k">.block</b>
-g        <b class="k">.block</b>
-n        <b>nop</b>        <i>;jump here</i>
-	 <b class="k">.bend</b>
-	<b class="k">.bend</b>
-
-        <b>inc</b> <u>border</u>  <i>;inc $d020</i>
-        <b>jsr</b> <u>labelref</u>.<u>n</u>
-
-labelref <b>=</b> <u>f</u>.<u>g</u>
-</pre>
-
-<p>Redefinable references can be created by the <code>.var</code> directive.
-As it's redefinable it can only be used in code after it's definition. Even
-tricks like using constant references on them will not help with forward
-referencing. They simply don't carry their last reference over from the
-previous pass.</p>
-
-<pre width=80>
-variabl	<b class="k">.var</b> <span>1</span>
-        <b class="k">.rept</b> <span>10</span>
-        <b class="d">.byte</b> <u>variabl</u>
-variabl	<b class="k">.var</b> <u>variabl</u>+<span>1</span>
-	<b class="k">.next</b>
 </pre>
 
 <h3>Uninitialized memory</h3>
@@ -801,7 +796,7 @@ in the expression.
 stays the same as before.
 <dt><b>.logical</b> &lt;expression&gt;
 <dt><b>.here</b>
-<dd>Changes the program counter, the compile offset is not changed. Can be nested.
+<dd>Changes the program counter, the compile offset is not changed. Can be nested of course.
 <dt><b>.align</b> &lt;modulo&gt;[, &lt;fill&gt;]
 <dd>Align code to a dividable program counter address by gap or filler bytes
 </dl>
