@@ -848,10 +848,11 @@ static void rshift(const struct value_s *vv1, const struct value_s *vv2, uval_t 
     sz = vv1->u.bits.len - word;
     if (sz <= 0 || bits <= s) {
         if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
+        vv->u.bits.data = vv->u.bits.val;
         vv->u.bits.val[0] = 0;
         vv->u.bits.len = 0;
+        vv->u.bits.inv = 0;
         vv->u.bits.bits = 0;
-        vv->u.bits.data = vv->u.bits.val;
         return;
     }
     bits -= s;
