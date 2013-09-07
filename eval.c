@@ -90,12 +90,12 @@ static void get_exponent(struct value_s *v, double real, struct value_s *err) {
     }
     if (base) {
         int neg = 0;
-        ival_t exp;
         neg = (pline[lpoint.pos + 1] == '-');
         if (neg || pline[lpoint.pos + 1] == '+') {
             if ((pline[lpoint.pos + 2] ^ 0x30) < 10) lpoint.pos++;
         }
         if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
+            ival_t exp;
             struct value_s tmp;
             size_t len;
             lpoint.pos++;
@@ -106,8 +106,8 @@ static void get_exponent(struct value_s *v, double real, struct value_s *err) {
             lpoint.pos += len;
 
             if (neg) exp = -exp;
+            if (exp) real *= pow(base, exp);
         }
-        if (exp) real *= pow(base, exp);
     }
     if (err->obj != NONE_OBJ) {
         err->obj->copy_temp(err, v);
