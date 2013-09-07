@@ -3467,7 +3467,7 @@ int main2(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
 #endif
     time_t t;
-    int optind, i;
+    int opts, i;
     struct file_s *fin, *cfile;
     struct file_list_s *cflist;
     static const str_t none_enc = {4, (const uint8_t *)"none"};
@@ -3475,7 +3475,7 @@ int main(int argc, char *argv[]) {
     tinit();
 
     fin = openfile("", "", 0, NULL);
-    optind = testarg(argc,argv, fin);
+    opts = testarg(argc,argv, fin);
     init_encoding(arguments.toascii);
 
     if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1]))
@@ -3489,7 +3489,7 @@ int main(int argc, char *argv[]) {
         if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
         restart_memblocks(&root_section.mem, 0);
-        for (i = optind - 1; i<argc; i++) {
+        for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;
@@ -3499,7 +3499,7 @@ int main(int argc, char *argv[]) {
             reset_section(current_section);
             init_macro();
             /*	listing=1;flist=stderr;*/
-            if (i == optind - 1) {
+            if (i == opts - 1) {
                 cflist = enterfile(fin, 0, &nopoint);
                 fin->p = 0;
                 star_tree = &fin->star;
@@ -3550,8 +3550,8 @@ int main(int argc, char *argv[]) {
         max_pass = pass; pass++;
         fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
         restart_memblocks(&root_section.mem, 0);
-        for (i = optind - 1; i<argc; i++) {
-            if (i >= optind) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
+        for (i = opts - 1; i<argc; i++) {
+            if (i >= opts) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
@@ -3562,7 +3562,7 @@ int main(int argc, char *argv[]) {
             reset_section(current_section);
             init_macro();
 
-            if (i == optind - 1) {
+            if (i == opts - 1) {
                 cflist = enterfile(fin, 0, &nopoint);
                 fin->p = 0; 
                 star_tree = &fin->star;
