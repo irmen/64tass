@@ -32,8 +32,8 @@ struct values_s;
 
 enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
-    T_IDENT, T_ANONIDENT, T_IDENTREF, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST,
-    T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL,
+    T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST, T_DICT,
+    T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL,
     T_DEFAULT, T_ITER
 };
 
@@ -77,7 +77,6 @@ extern obj_t SEGMENT_OBJ;
 extern obj_t FUNCTION_OBJ;
 extern obj_t STRUCT_OBJ;
 extern obj_t UNION_OBJ;
-extern obj_t IDENTREF_OBJ;
 extern obj_t NONE_OBJ;
 extern obj_t ERROR_OBJ;
 extern obj_t GAP_OBJ;

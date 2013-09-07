@@ -44,6 +44,72 @@ static int truth(const struct value_s *v1) {
     return !!v1->u.addr.val;
 }
 
+static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+    *iv = v1->u.addr.val;
+    if (v1->u.addr.type != A_NONE || *iv >> (bits-1)) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_IVAL;
+        v->u.error.u.bits = bits;
+        v->u.error.epoint = *epoint;
+        return 1;
+    }
+    return 0;
+}
+
+static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+    *uv = v1->u.addr.val;
+    if (v1->u.addr.type != A_NONE || (bits < 8*(int)sizeof(uval_t) && *uv >> bits)) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_UVAL;
+        v->u.error.u.bits = bits;
+        v->u.error.epoint = *epoint;
+        return 1;
+    }
+    return 0;
+}
+
+static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
+    if (v1->u.addr.type != A_NONE) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_REAL;
+        v->u.error.epoint = *epoint;
+        return 1;
+    }
+    *r = v1->u.addr.val;
+    return 0;
+}
+
+static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, linepos_t epoint) {
+    if (v1->u.addr.type != A_NONE) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_SIGN;
+        v->u.error.epoint = *epoint;
+        return 1;
+    }
+    *s = v1->u.addr.val != 0;
+    return 0;
+}
+
+static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (v1->u.addr.type != A_NONE) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR______CANT_ABS;
+        v->u.error.epoint = *epoint;
+        return;
+    }
+    int_from_uval(v, v1->u.addr.val);
+}
+
+static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (v1->u.addr.type != A_NONE) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR______CANT_ABS;
+        v->u.error.epoint = *epoint;
+        return;
+    }
+    int_from_uval(v, v1->u.addr.val);
+}
+
 static void repr(const struct value_s *v1, struct value_s *v) {
     uint8_t *s;
     size_t len;
@@ -109,26 +175,26 @@ static void calc1(oper_t op) {
     case O_BANK: v1 >>= 8;
     case O_HIGHER: v1 >>= 8;
     case O_LOWER:
-        if (op->v1->u.addr.type != A_IMMEDIATE) break;
+        if (op->v1->u.addr.type != A_IMMEDIATE && op->v1->u.addr.type != A_NONE) break;
         v->obj = ADDRESS_OBJ; 
         v->u.addr.val = (uint8_t)v1; 
         v->u.addr.len = 8; 
-        v->u.addr.type = A_IMMEDIATE;
+        v->u.addr.type = op->v1->u.addr.type;
         return;
     case O_HWORD: v1 >>= 8;
     case O_WORD:
-        if (op->v1->u.addr.type != A_IMMEDIATE) break;
+        if (op->v1->u.addr.type != A_IMMEDIATE && op->v1->u.addr.type != A_NONE) break;
         v->obj = ADDRESS_OBJ;
         v->u.addr.val = (uint16_t)v1;
         v->u.addr.len = 16; 
-        v->u.addr.type = A_IMMEDIATE;
+        v->u.addr.type = op->v1->u.addr.type;
         return;
     case O_BSWORD:
-        if (op->v1->u.addr.type != A_IMMEDIATE) break;
+        if (op->v1->u.addr.type != A_IMMEDIATE && op->v1->u.addr.type != A_NONE) break;
         v->obj = ADDRESS_OBJ; 
         v->u.addr.val = (uint8_t)(v1 >> 8) | (uint16_t)(v1 << 8);
         v->u.addr.len = 16;
-        v->u.addr.type = A_IMMEDIATE;
+        v->u.addr.type = op->v1->u.addr.type;
         return;
     case O_COMMAS: am = A_SR; goto addr;
     case O_COMMAR: am = A_RR; goto addr;
@@ -197,6 +263,23 @@ static int calc2_address(oper_t op, address_t v1, address_t v2) {
         if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
         v->obj = ADDRESS_OBJ; 
         v->u.addr.val = v1 % v2; return 0;
+    case O_LSHIFT:
+        v->obj = ADDRESS_OBJ;
+        if (v2 >= 8*sizeof(address_t)) v->u.addr.val = 0;
+        else v->u.addr.val = v1 << v2; return 0;
+    case O_RSHIFT:
+        v->obj = ADDRESS_OBJ;
+        if (v2 >= 8*sizeof(address_t)) v->u.addr.val = 0;
+        else v->u.addr.val = v1 >> v2; return 0;
+    case O_AND: 
+        v->obj = ADDRESS_OBJ; 
+        v->u.addr.val = v1 & v2; return 0;
+    case O_OR: 
+        v->obj = ADDRESS_OBJ; 
+        v->u.addr.val = v1 | v2; return 0;
+    case O_XOR: 
+        v->obj = ADDRESS_OBJ; 
+        v->u.addr.val = v1 ^ v2; return 0;
     default: break;
     }
     return 1;
@@ -206,12 +289,15 @@ static void calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct value_s tmp;
     ival_t ival;
+    uval_t uv;
     switch (v2->obj->type) {
     case T_ADDRESS:
-        if (v1->u.addr.type != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) break;
+        if (v1->u.addr.type != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) 
+            if (v1->u.addr.type != A_NONE || v2->u.addr.type != A_NONE) 
+                break;
         if (calc2_address(op, v1->u.addr.val, v2->u.addr.val)) break; 
         if (v->obj == ADDRESS_OBJ) {
-            v->u.addr.type = A_IMMEDIATE;
+            v->u.addr.type = v1->u.addr.type;
             v->u.addr.len = 8*sizeof(address_t);
         }
         return;
@@ -220,9 +306,9 @@ static void calc2(oper_t op) {
     case T_BITS:
     case T_FLOAT: 
     case T_CODE: 
+        if (check_addr(v1->u.addr.type)) break;
         switch (op->op->u.oper.op) {
         case O_ADD:
-            if (check_addr(v1->u.addr.type)) break;
             if (v2->obj->ival(v2, &tmp, &ival, 8*sizeof(ival_t), &op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
@@ -238,7 +324,6 @@ static void calc2(oper_t op) {
             v->u.addr.type = v1->u.addr.type;
             v->u.addr.len = v1->u.addr.len; return;
         case O_SUB:
-            if (check_addr(v1->u.addr.type)) break;
             if (v2->obj->ival(v2, &tmp, &ival, 8*sizeof(ival_t), &op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
@@ -252,24 +337,41 @@ static void calc2(oper_t op) {
             }
             v->u.addr.type = v1->u.addr.type;
             v->u.addr.len = v1->u.addr.len; return;
-        default: break;
+        default: 
+            if (v2->obj->uval(v2, &tmp, &uv, 8*sizeof(uval_t), &op->epoint2)) {
+                if (v1 == v || v2 == v) v->obj->destroy(v);
+                tmp.obj->copy_temp(&tmp, v);
+                return;
+            }
+            if (calc2_address(op, v1->u.addr.val, uv)) break; 
+            if (v->obj == ADDRESS_OBJ) {
+                v->u.addr.type = v1->u.addr.type;
+                v->u.addr.len = v1->u.addr.len;
+            }
+            return;
         }
         break;
-    default: v2->obj->rcalc2(op); return;
+    default: 
+        if (op->op != &o_MEMBER) {
+            v2->obj->rcalc2(op); return;
+        }
     }
     obj_oper_error(op);
 }
 
 static void rcalc2(oper_t op) {
     ival_t ival;
+    uval_t uv;
     struct value_s tmp;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     switch (v1->obj->type) {
     case T_ADDRESS:
-        if (v1->u.addr.type != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) break;
+        if (v1->u.addr.type != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) 
+            if (v1->u.addr.type != A_NONE || v2->u.addr.type != A_NONE) 
+                break;
         if (calc2_address(op, v1->u.addr.val, v2->u.addr.val)) break;
         if (v->obj == ADDRESS_OBJ) {
-            v->u.addr.type = A_IMMEDIATE;
+            v->u.addr.type = v2->u.addr.type;
             v->u.addr.len = 8*sizeof(address_t);
         }
         return;
@@ -278,14 +380,27 @@ static void rcalc2(oper_t op) {
     case T_BITS:
     case T_FLOAT: 
     case T_CODE: 
-        if (op->op != &o_ADD || check_addr(v2->u.addr.type)) break;
-        if (v1->obj->ival(v1, &tmp, &ival, 8*sizeof(ival_t), &op->epoint)) {
+        if (check_addr(v2->u.addr.type)) break;
+        if (op->op == &o_ADD) { 
+            if (v1->obj->ival(v1, &tmp, &ival, 8*sizeof(ival_t), &op->epoint)) {
+                if (v1 == v || v2 == v) v->obj->destroy(v);
+                tmp.obj->copy_temp(&tmp, v);
+            }
+            if (calc2_address(op, ival, v2->u.addr.val)) break;
+            v->u.addr.type = v2->u.addr.type;
+            v->u.addr.len = v2->u.addr.len;
+            return;
+        }
+        if (v1->obj->uval(v1, &tmp, &uv, 8*sizeof(uval_t), &op->epoint)) {
             if (v1 == v || v2 == v) v->obj->destroy(v);
             tmp.obj->copy_temp(&tmp, v);
+            return;
         }
-        if (calc2_address(op, ival, v2->u.addr.val)) break;
-        v->u.addr.type = v2->u.addr.type;
-        v->u.addr.len = v2->u.addr.len;
+        if (calc2_address(op, uv, v2->u.addr.val)) break; 
+        if (v->obj == ADDRESS_OBJ) {
+            v->u.addr.type = v2->u.addr.type;
+            v->u.addr.len = v2->u.addr.len;
+        }
         return;
     default:
         if (op->op != &o_IN) {
@@ -302,6 +417,12 @@ void addressobj_init(void) {
     obj.same = same;
     obj.truth = truth;
     obj.repr = repr;
+    obj.ival = ival;
+    obj.uval = uval;
+    obj.real = real;
+    obj.sign = sign;
+    obj.abs = absolute;
+    obj.integer = integer;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

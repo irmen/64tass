@@ -22,19 +22,42 @@
 #include "eval.h"
 #include "mem.h"
 #include "64tass.h"
+#include "section.h"
 
 #include "strobj.h"
 #include "addressobj.h"
 #include "listobj.h"
 #include "boolobj.h"
 #include "intobj.h"
+#include "variables.h"
 
 static struct obj_s obj;
 
 obj_t CODE_OBJ = &obj;
 
+
+static int access_check(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (pass != 1) {
+        if (v1->u.code.parent->requires & ~current_section->provides) {
+            v->u.error.u.ident = v1->u.code.parent->name;
+            v->obj = ERROR_OBJ;
+            v->u.error.epoint = *epoint;
+            v->u.error.num = ERROR_REQUIREMENTS_;
+            return 1;
+        }
+        if (v1->u.code.parent->conflicts & current_section->provides) {
+            v->u.error.u.ident = v1->u.code.parent->name;
+            v->obj = ERROR_OBJ;
+            v->u.error.epoint = *epoint;
+            v->u.error.num = ERROR______CONFLICT;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int same(const struct value_s *v1, const struct value_s *v2) {
-    return v2->obj == CODE_OBJ && v1->u.code.addr == v2->u.code.addr && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype;
+    return v2->obj == CODE_OBJ && v1->u.code.addr == v2->u.code.addr && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.parent == v2->u.code.parent;
 }
 
 static int truth(const struct value_s *v1) {
@@ -70,6 +93,7 @@ static void repr2(const struct value_s *v1, struct value_s *v) {
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+    if (access_check(v1, v, epoint)) return 1;
     *iv = v1->u.code.addr;
     if (*iv >> (bits-1)) {
         v->obj = ERROR_OBJ;
@@ -82,6 +106,7 @@ static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *
 }
 
 static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+    if (access_check(v1, v, epoint)) return 1;
     *uv = v1->u.code.addr;
     if (bits < 8*(int)sizeof(uval_t) && *uv >> bits) {
         v->obj = ERROR_OBJ;
@@ -93,21 +118,25 @@ static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *
     return 0;
 }
 
-static int MUST_CHECK real(const struct value_s *v1, struct value_s *UNUSED(v), double *r, linepos_t UNUSED(epoint)) {
+static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
+    if (access_check(v1, v, epoint)) return 1;
     *r = v1->u.code.addr;
     return 0;
 }
 
-static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
+static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, linepos_t epoint) {
+    if (access_check(v1, v, epoint)) return 1;
     *s = v1->u.code.addr != 0;
     return 0;
 }
 
-static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (access_check(v1, v, epoint)) return;
     int_from_uval(v, v1->u.code.addr);
 }
 
-static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (access_check(v1, v, epoint)) return;
     int_from_uval(v, v1->u.code.addr);
 }
 
@@ -115,6 +144,7 @@ static int calc1_num(oper_t op, uval_t v1, uint8_t len) {
     struct value_s *v = op->v;
     enum atype_e am;
 
+    if (access_check(op->v1, v, &op->epoint)) return 0;
     switch (op->op->u.oper.op) {
     case O_BANK: v1 >>= 8;
     case O_HIGHER: v1 >>= 8;
@@ -165,11 +195,52 @@ static void calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct value_s tmp;
     ival_t iv;
+    if (op->op == &o_MEMBER) {
+        struct label_s *l;
+        struct linepos_s epoint;
+        switch (v2->obj->type) {
+        case T_IDENT:
+            l = find_label2(&v2->u.ident.name, v1->u.code.parent);
+            if (l && touch_label(l)) {
+                l->value->obj->copy(l->value, op->v);
+                return;
+            } 
+            epoint = v2->u.ident.epoint;
+            v->u.error.u.ident = v2->u.ident.name;
+            v->obj = ERROR_OBJ;
+            v->u.error.num = ERROR___NOT_DEFINED;
+            v->u.error.epoint = epoint;
+            return;
+        case T_ANONIDENT:
+            {
+                char idents[100];
+                str_t ident;
+                sprintf(idents, (v2->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v2->u.anonident.count >= 0) ? forwr : backr) + v2->u.anonident.count);
+                ident.data = (const uint8_t *)idents;
+                ident.len = strlen(idents);
+                l = find_label2(&ident, v1->u.code.parent);
+                if (l && touch_label(l)) {
+                    l->value->obj->copy(l->value, op->v);
+                    return;
+                }
+                v->u.error.epoint = v2->u.anonident.epoint;
+                v->obj = ERROR_OBJ;
+                v->u.error.num = ERROR___NOT_DEFINED;
+                v->u.error.u.ident.len = 1;
+                v->u.error.u.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
+                return;
+            }
+        case T_TUPLE:
+        case T_LIST: v2->obj->rcalc2(op); return;
+        default: v2->obj->rcalc2(op); return;
+        }
+    }
     switch (v2->obj->type) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
     case T_CODE:
+        if (access_check(op->v1, v, &op->epoint)) return;
         switch (op->op->u.oper.op) {
         case O_ADD:
             if (v2->obj->ival(v2, &tmp, &iv, 8*sizeof(ival_t), &op->epoint2)) {
@@ -180,7 +251,8 @@ static void calc2(oper_t op) {
             v->obj = CODE_OBJ;
             v->u.code.addr = v1->u.code.addr + iv;
             v->u.code.size = 0;
-            v->u.code.dtype = D_NONE; return;
+            v->u.code.dtype = D_NONE; 
+            v->u.code.parent = v1->u.code.parent; return;
         case O_SUB:
             if (v2->obj->ival(v2, &tmp, &iv, 8*sizeof(ival_t), &op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
@@ -190,7 +262,8 @@ static void calc2(oper_t op) {
             v->obj = CODE_OBJ;
             v->u.code.addr = v1->u.code.addr - iv;
             v->u.code.size = 0;
-            v->u.code.dtype = D_NONE; return;
+            v->u.code.dtype = D_NONE; 
+            v->u.code.parent = v1->u.code.parent; return;
         default: break;
         }
         int_from_uval(&tmp, v1->u.code.addr);
@@ -266,6 +339,7 @@ static void rcalc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
+        if (access_check(op->v2, v, &op->epoint2)) return;
         if (op->op == &o_ADD) {
             if (v1->obj->ival(v1, &tmp, &iv, 8*sizeof(ival_t), &op->epoint)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
@@ -275,7 +349,8 @@ static void rcalc2(oper_t op) {
             v->obj = CODE_OBJ;
             v->u.code.addr = (uval_t)v2->u.code.addr + iv;
             v->u.code.size = 0;
-            v->u.code.dtype = D_NONE; return;
+            v->u.code.dtype = D_NONE;
+            v->u.code.parent = v2->u.code.parent; return;
         }
         int_from_uval(&tmp, v2->u.code.addr);
         if (v2 == v) v->obj->destroy(v);

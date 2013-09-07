@@ -31,8 +31,9 @@ extern void eval_leave(void);
 extern int eval_finish(void);
 extern uint_fast16_t petascii(size_t *, const struct value_s *);
 extern size_t get_label(void);
-extern struct value_s *get_vals_tuple(obj_t);
+extern struct value_s *get_vals_tuple(void);
 extern ival_t indexoffs(const struct value_s *, size_t);
+extern int touch_label(struct label_s *);
 extern struct encoding_s *actual_encoding;
 
 struct values_s {
