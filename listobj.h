@@ -22,5 +22,10 @@
 extern obj_t LIST_OBJ;
 extern obj_t TUPLE_OBJ;
 
+typedef struct {
+    size_t len;
+    struct value_s **data;
+} list_t;
+
 extern void listobj_init(void);
 #endif

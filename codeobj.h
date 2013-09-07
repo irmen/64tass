@@ -21,5 +21,15 @@
 
 extern obj_t CODE_OBJ;
 
+typedef struct {
+    size_t size;
+    uint8_t pass;
+    signed char dtype;
+    address_t addr;
+    const struct memblocks_s *mem;
+    size_t memp;
+    size_t membp;
+} code_t;
+
 extern void codeobj_init(void);
 #endif
