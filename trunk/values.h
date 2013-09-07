@@ -26,6 +26,9 @@
 #include "bitsobj.h"
 #include "bytesobj.h"
 #include "strobj.h"
+#include "listobj.h"
+#include "codeobj.h"
+#include "addressobj.h"
 
 struct memblocks_s;
 
@@ -145,27 +148,12 @@ struct value_s {
     size_t refcount;
     union {
         integer_t integer;
-        struct {
-            uint32_t type;
-            address_t val;
-            uint8_t len;
-        } addr;
+        addr_t addr;
         ustr_t str;
         bytes_t bytes;
         bits_t bits;
-        struct {
-            size_t size;
-            uint8_t pass;
-            signed char dtype;
-            address_t addr;
-            const struct memblocks_s *mem;
-            size_t memp;
-            size_t membp;
-        } code;
-        struct {
-            size_t len;
-            struct value_s **data;
-        } list;
+        code_t code;
+        list_t list;
         struct {
             struct value_s *key;
             struct value_s *data;
