@@ -2857,7 +2857,12 @@ struct value_s *compile(struct file_list_s *cflist)
                         } else d = 1;
 
                         if (val->obj == ADDRESS_OBJ) {
-                            adr = val->u.addr.val;
+                            struct value_s err;
+                            uval_t uv;
+                            if (val->u.addr.type != A_IMMEDIATE) {
+                                if (val->u.addr.val->obj->uval(val->u.addr.val, &err, &uv, 8*sizeof(uv), &epoint)) {err_msg_wrong_type(&err, &epoint); adr = 0;}
+                                else adr = uv;
+                            }
                             switch (val->u.addr.type) {
                             case A_IMMEDIATE:
                                 if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____ && prm) { /* 0x69 hack */
@@ -2875,8 +2880,14 @@ struct value_s *compile(struct file_list_s *cflist)
                                     if (w==3) w = ln - 1;
                                     else if (w != ln - 1) w = 3;
                                     if (d) {
-                                        if (!w && ln == 1 && (adr <= 0xff || val->u.addr.len <= 8)) {}
-                                        else if (w == 1 && ln == 2 && (adr <= 0xffff || val->u.addr.len <= 16)) {}
+                                        if (!w && ln == 1) {
+                                            if (val->u.addr.val->obj->uval(val->u.addr.val, &err, &uv, 8, &epoint)) {err_msg_wrong_type(&err, &epoint); adr = 0; }
+                                            else adr = uv;
+                                        }
+                                        else if (w == 1 && ln == 2) {
+                                            if (val->u.addr.val->obj->uval(val->u.addr.val, &err, &uv, 16, &epoint)) {err_msg_wrong_type(&err, &epoint); adr = 0; }
+                                            else adr = uv;
+                                        }
                                         else w = 3;
                                     }
                                 }

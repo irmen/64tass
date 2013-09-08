@@ -473,11 +473,10 @@ void bits_from_bytes(struct value_s *v, const struct value_s *v1) {
 }
 
 static void calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v = op->v;
+    struct value_s *v1 = op->v1, *v = op->v, *v2;
     struct value_s tmp;
     uval_t uv;
     enum atype_e am;
-    int bits;
     switch (op->op->u.oper.op) {
     case O_BANK:
         uv = v1->u.bits.len > 1 ? v1->u.bits.data[1] : 0;
@@ -522,17 +521,13 @@ static void calc1(oper_t op) {
     case O_COMMAX: am =  A_XR; goto addr;
     case O_HASH: am = A_IMMEDIATE;
     addr:
-        if (uval(v1, &tmp, &uv, 8 * sizeof(address_t), &op->epoint)) {
-            if (v == v1) destroy(v);
-            tmp.obj->copy_temp(&tmp, v);
-            return;
-        }
-        bits = v1->u.bits.bits;
-        if (v == v1) destroy(v);
+        if (v == v1) {
+            v2 = val_alloc();
+            copy_temp(v1, v2);
+        } else v2 = val_reference(v1);
         v->obj = ADDRESS_OBJ;
-        v->u.addr.val = uv; 
-        v->u.addr.len = bits;
-        v->u.addr.type = am; 
+        v->u.addr.val = v2;
+        v->u.addr.type = am;
         return;
     case O_INV:
         if (v != v1) copy(v1, v);

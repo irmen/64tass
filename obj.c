@@ -591,8 +591,29 @@ static void error_copy_temp(const struct value_s *v1, struct value_s *v) {
 }
 
 static void error_calc1(oper_t op) {
-    if (op->v == op->v1) return;
-    error_copy(op->v1, op->v);
+    struct value_s *v = op->v, *v1 = op->v1, *v2;
+    enum atype_e am;
+    switch (op->op->u.oper.op) {
+    case O_COMMAS: am = A_SR; goto addr;
+    case O_COMMAR: am = A_RR; goto addr;
+    case O_COMMAZ: am = A_ZR; goto addr;
+    case O_COMMAY: am = A_YR; goto addr;
+    case O_COMMAX: am = A_XR; goto addr;
+    case O_HASH: am = A_IMMEDIATE;
+    addr:
+        if (v == op->v1) {
+            v2 = val_alloc();
+            error_copy_temp(v1, v2);
+        } else v2 = val_reference(v1);
+        v->obj = ADDRESS_OBJ; 
+        v->u.addr.val = v2;
+        v->u.addr.type = am;
+        return;
+    default:
+        break;
+    }
+    if (v == op->v1) return;
+    error_copy(op->v1, v);
 }
 
 static void error_calc2(oper_t op) {
@@ -652,6 +673,7 @@ static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v)
     v->obj = ERROR_OBJ;
     v->u.error.epoint = epoint;
     v->u.error.num = ERROR___NOT_DEFINED;
+    v->refcount = 0;
     return v;
 }
 
@@ -742,6 +764,7 @@ static struct value_s *anonident_resolv(const struct value_s *v1, struct value_s
     v->u.error.u.notdef.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
     v->u.error.u.notdef.label = current_context;
     v->u.error.u.notdef.down = 1;
+    v->refcount = 0;
     return v;
 }
 
@@ -822,7 +845,24 @@ static int none_hash(const struct value_s *v1, struct value_s *v, linepos_t UNUS
 }
 
 static void none_calc1(oper_t op) {
-    op->v->obj = NONE_OBJ;
+    struct value_s *v = op->v;
+    enum atype_e am;
+    switch (op->op->u.oper.op) {
+    case O_COMMAS: am = A_SR; goto addr;
+    case O_COMMAR: am = A_RR; goto addr;
+    case O_COMMAZ: am = A_ZR; goto addr;
+    case O_COMMAY: am = A_YR; goto addr;
+    case O_COMMAX: am = A_XR; goto addr;
+    case O_HASH: am = A_IMMEDIATE;
+    addr:
+        v->obj = ADDRESS_OBJ; 
+        v->u.addr.val = &none_value;
+        v->u.addr.type = am;
+        return;
+    default:
+        break;
+    }
+    v->obj = NONE_OBJ;
 }
 
 static void none_calc2(oper_t op) {

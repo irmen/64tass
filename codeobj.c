@@ -35,7 +35,6 @@ static struct obj_s obj;
 
 obj_t CODE_OBJ = &obj;
 
-
 static int access_check(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     if (pass != 1) {
         if (v1->u.code.parent->requires & ~current_section->provides) {
@@ -54,6 +53,12 @@ static int access_check(const struct value_s *v1, struct value_s *v, linepos_t e
         }
     }
     return 0;
+}
+
+static void copy(const struct value_s *v1, struct value_s *v) {
+    v->obj = CODE_OBJ;
+    v->refcount = 1;
+    memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
 }
 
 static int same(const struct value_s *v1, const struct value_s *v2) {
@@ -140,25 +145,25 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoin
     int_from_uval(v, v1->u.code.addr);
 }
 
-static int calc1_num(oper_t op, uval_t v1, uint8_t len) {
-    struct value_s *v = op->v;
+static void calc1(oper_t op) {
+    struct value_s *v = op->v, *v1 = op->v1, *v2;
     enum atype_e am;
-
-    if (access_check(op->v1, v, &op->epoint)) return 0;
+    uval_t val = v1->u.code.addr;
+    if (access_check(op->v1, v, &op->epoint)) return;
     switch (op->op->u.oper.op) {
-    case O_BANK: v1 >>= 8;
-    case O_HIGHER: v1 >>= 8;
+    case O_BANK: val >>= 8;
+    case O_HIGHER: val >>= 8;
     case O_LOWER:
-        bits_from_u8(v, v1);
-        return 0;
-    case O_HWORD: v1 >>= 8;
+        bits_from_u8(v, val);
+        return;
+    case O_HWORD: val >>= 8;
     case O_WORD:
-        bits_from_u16(v, v1);
-        return 0;
+        bits_from_u16(v, val);
+        return;
     case O_BSWORD:
-        v1 = (uint8_t)(v1 >> 8) | (uint16_t)(v1 << 8); 
-        bits_from_u16(v, v1);
-        return 0;
+        val = (uint8_t)(val >> 8) | (uint16_t)(val << 8); 
+        bits_from_u16(v, val);
+        return;
     case O_COMMAS: am = A_SR; goto addr;
     case O_COMMAR: am = A_RR; goto addr;
     case O_COMMAZ: am = A_ZR; goto addr;
@@ -166,28 +171,26 @@ static int calc1_num(oper_t op, uval_t v1, uint8_t len) {
     case O_COMMAX: am = A_XR; goto addr;
     case O_HASH: am = A_IMMEDIATE;
     addr:
+        if (v == v1) {
+            v2 = val_alloc();
+            copy(v1, v2);
+        } else v2 = val_reference(v1);
         v->obj = ADDRESS_OBJ; 
-        v->u.addr.val = v1; 
-        v->u.addr.len = len;
+        v->u.addr.val = v2; 
         v->u.addr.type = am; 
-        return 0;
+        return;
     case O_INV:
-        v1 = ~v1;
-        break;
     case O_NEG:
-        v1 = -v1;
     case O_POS:
-        break;
-    case O_LNOT: bool_from_int(v, !truth(op->v1)); return 0;
-    case O_STRING: repr2(op->v1, v); return 0;
-    default: return 1;
+        int_from_uval(v, val);
+        op->v1 = v;
+        v->obj->calc1(op);
+        op->v1 = v1;
+        return;
+    case O_LNOT: bool_from_int(v, !truth(v1)); return;
+    case O_STRING: repr2(v1, v); return;
+    default: break;
     }
-    int_from_uval(v, v1);
-    return 0;
-}
-
-static void calc1(oper_t op) {
-    if (!calc1_num(op, op->v1->u.code.addr, 32)) return;
     obj_oper_error(op);
 }
 
@@ -515,6 +518,7 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
 
 void codeobj_init(void) {
     obj_init(&obj, T_CODE, "<code>");
+    obj.copy = copy;
     obj.same = same;
     obj.truth = truth;
     obj.repr = repr;

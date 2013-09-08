@@ -53,7 +53,7 @@ static digit_t *inew(struct value_s *v, size_t len) {
 }
 
 static void copy(const struct value_s *v1, struct value_s *v) {
-    v->obj = v1->obj;
+    v->obj = INT_OBJ;
     v->refcount = 1;
     v->u.integer.len = v1->u.integer.len;
     if (v1->u.integer.len) {
@@ -279,9 +279,8 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSE
 static void iadd(const struct value_s *, const struct value_s *, struct value_s *);
 static void isub(const struct value_s *, const struct value_s *, struct value_s *);
 
-static int calc1_int(oper_t op) {
-    struct value_s *v1 = op->v1, *v = op->v;
-    struct value_s tmp;
+static void calc1(oper_t op) {
+    struct value_s *v1 = op->v1, *v = op->v, *v2;
     uval_t uv;
     enum atype_e am;
     switch (op->op->u.oper.op) {
@@ -290,37 +289,37 @@ static int calc1_int(oper_t op) {
         if (v1->u.integer.len < 0) uv = -uv;
         if (v == v1) destroy(v);
         bits_from_u8(v, uv >> 16);
-        return 0;
+        return;
     case O_HIGHER:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
         if (v == v1) destroy(v);
         bits_from_u8(v, uv >> 8);
-        return 0;
+        return;
     case O_LOWER:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
         if (v == v1) destroy(v);
         bits_from_u8(v, uv);
-        return 0;
+        return;
     case O_HWORD:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
         if (v == v1) destroy(v);
         bits_from_u16(v, uv >> 8);
-        return 0;
+        return;
     case O_WORD:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
         if (v == v1) destroy(v);
         bits_from_u16(v, uv);
-        return 0;
+        return;
     case O_BSWORD:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
         if (v == v1) destroy(v);
         bits_from_u16(v, (uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
-        return 0;
+        return;
     case O_COMMAS: am =  A_SR; goto addr;
     case O_COMMAR: am =  A_RR; goto addr;
     case O_COMMAZ: am =  A_ZR; goto addr;
@@ -328,17 +327,14 @@ static int calc1_int(oper_t op) {
     case O_COMMAX: am =  A_XR; goto addr;
     case O_HASH: am = A_IMMEDIATE;
     addr:
-        if (uval(v1, &tmp, &uv, 8 * sizeof(address_t), &op->epoint)) {
-            if (v == v1) destroy(v);
-            tmp.obj->copy_temp(&tmp, v);
-            return 0;
-        }
-        if (v == v1) destroy(v);
+        if (v == v1) {
+            v2 = val_alloc();
+            copy_temp(v1, v2);
+        } else v2 = val_reference(v1);
         v->obj = ADDRESS_OBJ;
-        v->u.addr.val = uv; 
-        v->u.addr.len = 8 * sizeof(address_t);
-        v->u.addr.type = am; 
-        return 0;
+        v->u.addr.val = v2;
+        v->u.addr.type = am;
+        return;
     case O_INV:
         v->obj = INT_OBJ;
         if (v1->u.integer.len < 0) isub(v1, &one, v);
@@ -346,24 +342,20 @@ static int calc1_int(oper_t op) {
             iadd(v1, &one, v);
             v->u.integer.len = -v->u.integer.len;
         }
-        return 0;
+        return;
     case O_NEG:
         if (v != v1) copy(v1, v);
         v->u.integer.len = -v->u.integer.len;
-        return 0;
+        return;
     case O_POS:
         if (v != v1) copy(v1, v);
-        return 0;
+        return;
     case O_LNOT: 
         if (v == v1) destroy(v);
-        bool_from_int(v, !truth(v1)); return 0;
-    case O_STRING: repr(v1, v); return 0;
-    default: return 1;
+        bool_from_int(v, !truth(v1)); return;
+    case O_STRING: repr(v1, v); return;
+    default: break;
     }
-}
-
-static void calc1(oper_t op) {
-    if (!calc1_int(op)) return;
     obj_oper_error(op);
 }
 

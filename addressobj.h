@@ -21,10 +21,10 @@
 
 extern obj_t ADDRESS_OBJ;
 
+typedef uint32_t atype_t;
 typedef struct {
-    uint32_t type;
-    address_t val;
-    uint8_t len;
+    atype_t type;
+    struct value_s *val;
 } addr_t;
 
 extern void addressobj_init(void);

@@ -313,9 +313,25 @@ size_t str_from_str(struct value_s *v, linecpos_t *upos, const uint8_t *s) {
 }
 
 static void calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v = op->v;
+    struct value_s *v1 = op->v1, *v = op->v, *v2;
     struct value_s tmp;
+    enum atype_e am;
     switch (op->op->u.oper.op) {
+    case O_COMMAS: am = A_SR; goto addr;
+    case O_COMMAR: am = A_RR; goto addr;
+    case O_COMMAZ: am = A_ZR; goto addr;
+    case O_COMMAY: am = A_YR; goto addr;
+    case O_COMMAX: am = A_XR; goto addr;
+    case O_HASH: am = A_IMMEDIATE;
+    addr:
+        if (v == v1) {
+            v2 = val_alloc();
+            copy_temp(v1, v2);
+        } else v2 = val_reference(v1);
+        v->obj = ADDRESS_OBJ; 
+        v->u.addr.val = v2;
+        v->u.addr.type = am;
+        return;
     case O_NEG:
     case O_POS:
     case O_STRING:
@@ -336,6 +352,7 @@ static void calc1(oper_t op) {
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_BIG_STRING_CO;
             v->u.error.epoint = op->epoint;
+            return;
         }
         break;
     }

@@ -137,25 +137,24 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoin
     return int_from_double(v, v1->u.real, epoint);
 }
 
-static int calc1_double(oper_t op, double v1) {
-    struct value_s *v = op->v;
-    struct value_s tmp;
-    ival_t val = op->v1->u.real;
-    uval_t uv;
+static void calc1(oper_t op) {
+    struct value_s *v = op->v, *v2;
+    double v1 = op->v1->u.real;
+    ival_t val = v1;
     enum atype_e am;
     switch (op->op->u.oper.op) {
     case O_BANK: val >>= 8;
     case O_HIGHER: val >>= 8;
     case O_LOWER:
         bits_from_u8(v, val);
-        return 0;
+        return;
     case O_HWORD: val >>= 8;
     case O_WORD:
         bits_from_u16(v, val);
-        return 0;
+        return;
     case O_BSWORD:
         bits_from_u16(v, (uint8_t)(val >> 8) | (uint16_t)(val << 8));
-        return 0;
+        return;
     case O_COMMAS: am =  A_SR; goto addr;
     case O_COMMAR: am =  A_RR; goto addr;
     case O_COMMAZ: am =  A_ZR; goto addr;
@@ -163,27 +162,21 @@ static int calc1_double(oper_t op, double v1) {
     case O_COMMAX: am =  A_XR; goto addr;
     case O_HASH: am = A_IMMEDIATE;
     addr:
-        if (uval(op->v1, &tmp, &uv, 8 * sizeof(address_t), &op->epoint)) {
-            tmp.obj->copy_temp(&tmp, v);
-            return 0;
-        }
+        if (v == op->v1) {
+            v2 = val_alloc();
+            copy(op->v1, v2);
+        } else v2 = val_reference(op->v1);
         v->obj = ADDRESS_OBJ;
-        v->u.addr.val = uv; 
-        v->u.addr.len = 8 * sizeof(address_t);
+        v->u.addr.val = v2;
         v->u.addr.type = am; 
-        return 0;
-    case O_INV: float_from_double(v, -0.5/((double)((uval_t)1 << (8 * sizeof(uval_t) - 1)))-v1); return 0;
-    case O_NEG: float_from_double(v, -v1); return 0;
-    case O_POS: float_from_double(v, v1); return 0;
-    case O_LNOT: bool_from_int(v, !truth(op->v1)); return 0;
-    case O_STRING: repr(op->v1, v); return 0;
+        return;
+    case O_INV: float_from_double(v, -0.5/((double)((uval_t)1 << (8 * sizeof(uval_t) - 1)))-v1); return;
+    case O_NEG: float_from_double(v, -v1); return;
+    case O_POS: float_from_double(v, v1); return;
+    case O_LNOT: bool_from_int(v, !truth(op->v1)); return;
+    case O_STRING: repr(op->v1, v); return;
     default: break;
     }
-    return 1;
-}
-
-static void calc1(oper_t op) {
-    if (!calc1_double(op, op->v1->u.real)) return;
     obj_oper_error(op);
 }
 
