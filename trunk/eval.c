@@ -328,8 +328,8 @@ static void get_star(struct value_s *v) {
     tmp->addr=star;
     v->obj = ADDRESS_OBJ;
     v->u.addr.type = A_NONE;
-    v->u.addr.val = star;
-    v->u.addr.len = sizeof(address_t);
+    v->u.addr.val = val_alloc();
+    int_from_uval(v->u.addr.val, star);
 }
 
 static size_t evxnum, evx_p;
@@ -548,8 +548,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     new_value.obj = ADDRESS_OBJ;
                     new_value.u.addr.type = v1->val->u.addr.type << 4;
                     new_value.u.addr.type |= (op == O_TUPLE) ? A_I : (op == O_COMMAX) ? A_XR : A_YR;
-                    new_value.u.addr.val = v1->val->u.addr.val;
-                    new_value.u.addr.len = v1->val->u.addr.len;
+                    new_value.u.addr.val = val_reference(v1->val->u.addr.val);
                     val_replace_template(&v1->val, &new_value);
                     v1->epoint = o_out->epoint;
                     continue;
@@ -578,8 +577,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     case O_COMMAY:
                         new_value.obj = ADDRESS_OBJ;
                         new_value.u.addr.type = (op == O_HASH) ? A_IMMEDIATE : (op == O_COMMAX) ? A_XR : A_YR;
-                        new_value.u.addr.val = val1;
-                        new_value.u.addr.len = 16;
+                        new_value.u.addr.val = val_reference(v1->val);
                         val_replace_template(&v1->val, &new_value);
                         v1->epoint = o_out->epoint;
                         continue;
@@ -588,8 +586,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     case O_TUPLE:
                         new_value.obj = ADDRESS_OBJ;
                         new_value.u.addr.type = A_I;
-                        new_value.u.addr.val = val1;
-                        new_value.u.addr.len = 16;
+                        new_value.u.addr.val = val_reference(v1->val);
                         val_replace_template(&v1->val, &new_value);
                         v1->epoint = o_out->epoint;
                         continue;
@@ -1433,28 +1430,20 @@ static int get_val2(struct eval_context_s *ev) {
                         case T_INT:
                         case T_BITS:
                         case T_CODE:
-                            { 
-                                uval_t uval;
-                                int res;
-                                val = val_realloc(&v1->val);
-                                res = values[vsp-1].val->obj->uval(values[vsp-1].val, val, &uval, 8*sizeof(uval_t), &values[vsp-1].epoint);
-                                if (!res) {
-                                    val->obj = ADDRESS_OBJ;
-                                    val->u.addr.val = uval;
-                                    val->u.addr.len = 8*sizeof(uval);
-                                    val->u.addr.type = (op == O_BRACKET) ? A_LI : A_I;
-                                }
-                                vsp--; continue;
-                            }
-                        default : break;
-                        }
-                        if (values[vsp-1].val->obj == ADDRESS_OBJ) {
+                        case T_FLOAT:
+                        case T_BYTES:
                             val = val_realloc(&v1->val);
                             val->obj = ADDRESS_OBJ;
-                            val->u.addr.val = values[vsp-1].val->u.addr.val;
-                            val->u.addr.len = values[vsp-1].val->u.addr.len;
+                            val->u.addr.val = val_reference(values[vsp-1].val);
+                            val->u.addr.type = (op == O_BRACKET) ? A_LI : A_I;
+                            vsp--; continue;
+                        case T_ADDRESS:
+                            val = val_realloc(&v1->val);
+                            val->obj = ADDRESS_OBJ;
+                            val->u.addr.val = val_reference(values[vsp-1].val->u.addr.val);
                             val->u.addr.type = (values[vsp-1].val->u.addr.type << 4) | ((op == O_BRACKET) ? A_LI : A_I);
                             vsp--; continue;
+                        default : break;
                         }
                     } else if (tup) {
                         val_replace(&v1->val, values[vsp-1].val); vsp--;continue;
@@ -2065,7 +2054,7 @@ struct value_s *get_vals_tuple(void) {
             if (i == 1) vals[0] = retval;
             vals[i] = val;
         } else retval = val;
-        eval->values->val = &none_value;
+        if (val->obj != NONE_OBJ) eval->values->val = &none_value;
         i++;
     }
     eval_finish();

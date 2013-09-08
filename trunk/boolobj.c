@@ -85,8 +85,7 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSE
 }
 
 static void calc1(oper_t op) {
-    struct value_s *v = op->v;
-    int v1 = op->v1->u.boolean;
+    struct value_s *v = op->v, *v1 = op->v1, *v2;
     enum atype_e am;
     switch (op->op->u.oper.op) {
     case O_BANK:
@@ -94,16 +93,16 @@ static void calc1(oper_t op) {
         bits_from_u8(v, 0);
         return;
     case O_LOWER:
-        bits_from_u8(v, v1);
+        bits_from_u8(v, v1->u.boolean);
         return;
     case O_HWORD:
         bits_from_u16(v, 0);
         return;
     case O_WORD:
-        bits_from_u16(v, v1);
+        bits_from_u16(v, v1->u.boolean);
         return;
     case O_BSWORD:
-        bits_from_u16(v, v1 << 8);
+        bits_from_u16(v, v1->u.boolean << 8);
         return;
     case O_COMMAS: am = A_SR; goto addr;
     case O_COMMAR: am = A_RR; goto addr;
@@ -112,22 +111,25 @@ static void calc1(oper_t op) {
     case O_COMMAX: am = A_XR; goto addr;
     case O_HASH: am = A_IMMEDIATE;
     addr:
+        if (v == v1) {
+            v2 = val_alloc();
+            copy(v1, v2);
+        } else v2 = val_reference(v1);
         v->obj = ADDRESS_OBJ; 
-        v->u.addr.val = v1; 
-        v->u.addr.len = 1;
-        v->u.addr.type = (op->v1->u.addr.type << 4) | am;
+        v->u.addr.val = v2;
+        v->u.addr.type = am;
         return;
     case O_INV:
-        int_from_int(v, ~v1);
+        int_from_int(v, ~v1->u.boolean);
         return;
     case O_NEG:
-        int_from_int(v, -v1);
+        int_from_int(v, -v1->u.boolean);
         return;
     case O_POS:
-        int_from_int(v, v1);
+        int_from_int(v, v1->u.boolean);
         return;
-    case O_LNOT: bool_from_int(v, !truth(op->v1)); return;
-    case O_STRING: repr(op->v1, v);break;
+    case O_LNOT: bool_from_int(v, !truth(v1)); return;
+    case O_STRING: repr(v1, v);break;
     default: break;
     }
     obj_oper_error(op);
