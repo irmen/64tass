@@ -258,10 +258,12 @@ static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
             return l->value;
         }
         v->u.error.epoint = v1->u.anonident.epoint;
+        v->u.error.u.notdef.label = current_context;
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR___NOT_DEFINED;
-        v->u.error.u.ident.len = 1;
-        v->u.error.u.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
+        v->u.error.u.notdef.ident.len = 1;
+        v->u.error.u.notdef.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
+        v->u.error.u.notdef.down = 1;
         return NULL;
     case T_IDENT: 
         l = find_label(&v1->u.ident.name);
@@ -270,7 +272,9 @@ static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
             return l->value;
         }
         epoint = v1->u.ident.epoint;
-        v->u.error.u.ident = v1->u.ident.name;
+        v->u.error.u.notdef.ident = v1->u.ident.name;
+        v->u.error.u.notdef.label = current_context;
+        v->u.error.u.notdef.down = 1;
         v->obj = ERROR_OBJ;
         v->u.error.epoint = epoint;
         v->u.error.num = ERROR___NOT_DEFINED;
@@ -883,10 +887,9 @@ static void functions(struct values_s *vals, unsigned int args) {
                 case T_CODE:
                     if (!v[0].val->u.code.pass) {
                         new_value.obj = ERROR_OBJ;
-                        new_value.u.error.num = ERROR___NOT_DEFINED;
+                        new_value.u.error.num = ERROR____NO_FORWARD;
                         new_value.u.error.epoint = v[0].epoint;
-                        new_value.u.error.u.ident.len = 6;
-                        new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
+                        new_value.u.error.u.ident = v[0].val->u.code.parent->name;
                         val_replace_template(&vals->val, &new_value);
                         return;
                     }
@@ -959,10 +962,9 @@ static void functions(struct values_s *vals, unsigned int args) {
                 case T_CODE:
                     if (!v[0].val->u.code.pass) {
                         new_value.obj = ERROR_OBJ;
-                        new_value.u.error.num = ERROR___NOT_DEFINED;
+                        new_value.u.error.num = ERROR____NO_FORWARD;
                         new_value.u.error.epoint = v[0].epoint;
-                        new_value.u.error.u.ident.len = 6;
-                        new_value.u.error.u.ident.data = (const uint8_t *)"<code>";
+                        new_value.u.error.u.ident = v[0].val->u.code.parent->name;
                         val_replace_template(&vals->val, &new_value);
                         return;
                     }

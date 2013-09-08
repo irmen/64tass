@@ -196,17 +196,20 @@ static void calc2(oper_t op) {
     struct value_s tmp;
     ival_t iv;
     if (op->op == &o_MEMBER) {
-        struct label_s *l;
+        struct label_s *l, *l2;
         struct linepos_s epoint;
         switch (v2->obj->type) {
         case T_IDENT:
-            l = find_label2(&v2->u.ident.name, v1->u.code.parent);
+            l2 = v1->u.code.parent;
+            l = find_label2(&v2->u.ident.name, l2);
             if (l && touch_label(l)) {
                 l->value->obj->copy(l->value, op->v);
                 return;
             } 
             epoint = v2->u.ident.epoint;
-            v->u.error.u.ident = v2->u.ident.name;
+            v->u.error.u.notdef.ident = v2->u.ident.name;
+            v->u.error.u.notdef.label = l2;
+            v->u.error.u.notdef.down = 0;
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = epoint;
@@ -218,16 +221,19 @@ static void calc2(oper_t op) {
                 sprintf(idents, (v2->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v2->u.anonident.count >= 0) ? forwr : backr) + v2->u.anonident.count);
                 ident.data = (const uint8_t *)idents;
                 ident.len = strlen(idents);
-                l = find_label2(&ident, v1->u.code.parent);
+                l2 = v1->u.code.parent;
+                l = find_label2(&ident, l2);
                 if (l && touch_label(l)) {
                     l->value->obj->copy(l->value, op->v);
                     return;
                 }
                 v->u.error.epoint = v2->u.anonident.epoint;
+                v->u.error.u.notdef.label = l2;
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR___NOT_DEFINED;
-                v->u.error.u.ident.len = 1;
-                v->u.error.u.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
+                v->u.error.u.notdef.ident.len = 1;
+                v->u.error.u.notdef.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
+                v->u.error.u.notdef.down = 0;
                 return;
             }
         case T_TUPLE:
@@ -292,10 +298,9 @@ static void rcalc2(oper_t op) {
 
         if (v2->u.code.pass != pass) {
             v->obj = ERROR_OBJ;
-            v->u.error.num = ERROR___NOT_DEFINED;
+            v->u.error.num = ERROR____NO_FORWARD;
             v->u.error.epoint = op->epoint2;
-            v->u.error.u.ident.len = 6;
-            v->u.error.u.ident.data = (const uint8_t *)"<code>";
+            v->u.error.u.ident = v2->u.code.parent->name;
             return;
         }
         len = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
@@ -377,10 +382,9 @@ static void iindex(oper_t op) {
 
     if (v1->u.code.pass != pass) {
         v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR___NOT_DEFINED;
+        v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = op->epoint;
-        v->u.error.u.ident.len = 6;
-        v->u.error.u.ident.data = (const uint8_t *)"<code>";
+        v->u.error.u.ident = v1->u.code.parent->name;
         return;
     }
 
@@ -475,10 +479,9 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
     }
     if (v1->u.code.pass != pass) {
         v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR___NOT_DEFINED;
+        v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = *epoint;
-        v->u.error.u.ident.len = 6;
-        v->u.error.u.ident.data = (const uint8_t *)"<code>";
+        v->u.error.u.ident = v1->u.code.parent->name;
         return;
     }
     vals = (struct value_s **)malloc(len * sizeof(v1->u.list.data[0]));

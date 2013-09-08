@@ -206,6 +206,11 @@ struct value_s {
                     struct value_s *v1;
                     struct value_s *v2;
                 } invoper;
+                struct {
+                    str_t ident;
+                    const struct label_s *label;
+                    int down;
+                } notdef;
                 int bits;
             } u;
         } error;

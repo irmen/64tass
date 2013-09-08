@@ -187,6 +187,8 @@ void init_variables(void)
     labels_free = &labels->vals[0];
 
     avltree_init(&root_label.members);
+    root_label.name.len = 8;
+    root_label.name.data = (const uint8_t *)"<global>";
 }
 
 void destroy_variables2(struct label_s *label) {

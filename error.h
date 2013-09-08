@@ -93,6 +93,7 @@ enum errors_e {
     ERROR___NOT_ALLOWED,
 
     ERROR___NOT_DEFINED,
+    ERROR____NO_FORWARD,
     ERROR_REQUIREMENTS_,
     ERROR______CONFLICT,
     ERROR__INVALID_OPER,
