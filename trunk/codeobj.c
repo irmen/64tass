@@ -297,7 +297,7 @@ static void rcalc2(oper_t op) {
         size_t i, len, offs;
         struct value_s new_value;
         int16_t r;
-        uval_t uval;
+        uval_t uv;
 
         if (v2->u.code.pass != pass) {
             v->obj = ERROR_OBJ;
@@ -316,21 +316,21 @@ static void rcalc2(oper_t op) {
         oper.epoint2 = op->epoint2;
         oper.epoint3 = op->epoint3;
         for (offs = 0; offs < v2->u.code.size;) {
-            uval = 0;
+            uv = 0;
             r = -1;
             for (i = 0; i < len; i++) {
                 r = read_mem(v2->u.code.mem, v2->u.code.memp, v2->u.code.membp, offs++);
                 if (r < 0) break;
-                uval |= r << (i * 8);
+                uv |= r << (i * 8);
             }
             if (v2->u.code.dtype < 0 && (r & 0x80)) {
-                for (; i < sizeof(uval); i++) {
-                    uval |= 0xff << (i * 8);
+                for (; i < sizeof(uv); i++) {
+                    uv |= 0xff << (i * 8);
                 }
             }
             if (r < 0) new_value.obj = GAP_OBJ;
-            else if (v2->u.code.dtype < 0) int_from_ival(&new_value, (ival_t)uval);
-            else int_from_uval(&new_value, uval);
+            else if (v2->u.code.dtype < 0) int_from_ival(&new_value, (ival_t)uv);
+            else int_from_uval(&new_value, uv);
             new_value.obj->calc2(&oper);
             if (new_value.obj == BOOL_OBJ && new_value.u.boolean) {
                 if (v == v1) obj_destroy(v);

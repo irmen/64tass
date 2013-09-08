@@ -46,18 +46,18 @@ static int truth(const struct value_s *v1) {
 
 static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
     double integer, r;
-    int exp;
+    int expo;
     unsigned int h;
     r = v1->u.real;
 
     if (modf(r, &integer) == 0.0) {
         return ((unsigned int)integer) & ((~(unsigned int)0) >> 1);
     }
-    r = frexp(r, &exp);
+    r = frexp(r, &expo);
     r *= 2147483648.0; 
     h = r; 
     r = (r - (double)h) * 2147483648.0;
-    h ^= (int)r ^ (exp << 15);
+    h ^= (int)r ^ (expo << 15);
     return h & ((~(unsigned int)0) >> 1);
 }
 

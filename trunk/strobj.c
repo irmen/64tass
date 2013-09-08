@@ -247,17 +247,17 @@ static void getiter(struct value_s *v1, struct value_s *v) {
 
 static struct value_s *MUST_CHECK next(struct value_s *v1, struct value_s *v) {
     const struct value_s *vv1 = v1->u.iter.data;
-    int len;
+    int ln;
     uint8_t *s;
     if (v1->u.iter.val >= vv1->u.str.len) return NULL;
-    len = utf8len(vv1->u.str.data[v1->u.iter.val]);
-    s = snew(v, len);
-    memcpy(s, vv1->u.str.data + v1->u.iter.val, len);
-    v1->u.iter.val += len;
+    ln = utf8len(vv1->u.str.data[v1->u.iter.val]);
+    s = snew(v, ln);
+    memcpy(s, vv1->u.str.data + v1->u.iter.val, ln);
+    v1->u.iter.val += ln;
 
     v->obj = STR_OBJ;
     v->u.str.chars = 1;
-    v->u.str.len = len;
+    v->u.str.len = ln;
     v->u.str.data = s;
     return v;
 }
@@ -469,9 +469,9 @@ static int calc2_str(oper_t op) {
     case O_CONCAT:
         if (v == v1) {
             uint8_t *s;
-            size_t len;
+            size_t ln;
             if (!v2->u.str.len) return 0;
-            len = v1->u.str.len;
+            ln = v1->u.str.len;
             v->u.str.len += v2->u.str.len;
             v->u.str.chars += v2->u.str.chars;
             if (v->u.str.len < v2->u.str.len) err_msg_out_of_memory(); /* overflow */
@@ -483,7 +483,7 @@ static int calc2_str(oper_t op) {
                 s = snew(v, v->u.str.len);
                 if (s != v1->u.str.val) memcpy(s, v1->u.str.val, v1->u.str.len);
             }
-            memcpy(s + len, v2->u.str.data, v2->u.str.len);
+            memcpy(s + ln, v2->u.str.data, v2->u.str.len);
             v->u.str.data = s;
             return 0;
         }
@@ -525,14 +525,14 @@ static void repeat(oper_t op, uval_t rep) {
     v->obj = STR_OBJ;
     if (v1->u.str.len && rep) {
         uint8_t *s, *s2;
-        size_t len = v1->u.str.len;
+        size_t ln = v1->u.str.len;
         size_t chars = v1->u.str.chars;
-        if (len > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
-        s2 = s = snew(&tmp, len * rep);
+        if (ln > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
+        s2 = s = snew(&tmp, ln * rep);
         v->u.str.len = 0;
         while (rep--) {
-            memcpy(s + v->u.str.len, v1->u.str.data, len);
-            v->u.str.len += len;
+            memcpy(s + v->u.str.len, v1->u.str.data, ln);
+            v->u.str.len += ln;
         }
         if (v->u.str.len <= sizeof(v->u.str.val)) {
             memcpy(v->u.str.val, s2, v->u.str.len);
@@ -677,12 +677,12 @@ static void rcalc2(oper_t op) {
 static void iindex(oper_t op) {
     uint8_t *p;
     uint8_t *p2;
-    size_t len, len2;
+    size_t len1, len2;
     ival_t offs;
     size_t i;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp;
 
-    len = v1->u.str.chars;
+    len1 = v1->u.str.chars;
 
     if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
@@ -693,7 +693,7 @@ static void iindex(oper_t op) {
             len2 = v2->u.list.len;
             p = p2 = snew(&tmp, len2);
             for (i = 0; i < v2->u.list.len; i++) {
-                offs = indexoffs(v2->u.list.data[i], len);
+                offs = indexoffs(v2->u.list.data[i], len1);
                 if (offs < 0) {
                     if (p != tmp.u.str.val) free(p);
                     if (v1 == v) destroy(v);
@@ -714,7 +714,7 @@ static void iindex(oper_t op) {
             j = 0;
 
             for (i = 0; i < v2->u.list.len; i++) {
-                offs = indexoffs(v2->u.list.data[i], len);
+                offs = indexoffs(v2->u.list.data[i], len1);
                 if (offs < 0) {
                     if (o != tmp.u.str.val) free(o);
                     v->obj = ERROR_OBJ;
@@ -757,12 +757,12 @@ static void iindex(oper_t op) {
             p = v->u.str.val;
         }
         v->obj = STR_OBJ;
-        v->u.str.chars = len;
+        v->u.str.chars = len1;
         v->u.str.len = len2;
         v->u.str.data = p;
         return;
     }
-    offs = indexoffs(v2, len);
+    offs = indexoffs(v2, len1);
     if (offs < 0) {
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
@@ -772,48 +772,48 @@ static void iindex(oper_t op) {
     }
 
     if (v1->u.str.len == v1->u.str.chars) {
-        len = 1;
+        len1 = 1;
         p2 = v->u.str.val;
         p2[0] = v1->u.str.data[offs];
     }
     else {
         p = v1->u.str.data;
         while (offs--) p += utf8len(*p);
-        len = utf8len(*p);
-        p2 = snew(v, len);
-        memcpy(p2, p, len);
+        len1 = utf8len(*p);
+        p2 = snew(v, len1);
+        memcpy(p2, p, len1);
     }
     if (v1 == v) destroy(v);
     v->obj = STR_OBJ;
     v->u.str.data = p2;
     v->u.str.chars = 1;
-    v->u.str.len = len;
+    v->u.str.len = len1;
 }
 
 static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t UNUSED(epoint)) {
-    size_t len, len2;
+    size_t len1, len2;
     uint8_t *p;
     uint8_t *p2;
     struct value_s tmp;
 
     if (step > 0) {
         if (offs > end) offs = end;
-        len = (end - offs + step - 1) / step;
+        len1 = (end - offs + step - 1) / step;
     } else {
         if (end > offs) end = offs;
-        len = (offs - end - step - 1) / -step;
+        len1 = (offs - end - step - 1) / -step;
     }
-    if (!len) {
+    if (!len1) {
         if (v1 == v) destroy(v);
         copy(&null_str, v);return;
     }
     if (step == 1) {
-        if (len == v1->u.str.chars) {
+        if (len1 == v1->u.str.chars) {
             if (v1 != v) copy(v1, v);
             return; /* original string */
         }
         if (v1->u.str.len == v1->u.str.chars) {
-            len2 = len;
+            len2 = len1;
         } else {
             ival_t i;
             p = v1->u.str.data;
@@ -830,7 +830,7 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
         memcpy(p2, v1->u.str.data + offs, len2);
     } else {
         if (v1->u.str.len == v1->u.str.chars) {
-            len2 = len;
+            len2 = len1;
             p = p2 = snew(&tmp, len2);
             while ((end > offs && step > 0) || (end < offs && step < 0)) {
                 *p2++ = v1->u.str.data[offs];
@@ -875,7 +875,7 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
         p = v->u.str.val;
     }
     v->obj = STR_OBJ;
-    v->u.str.chars = len;
+    v->u.str.chars = len1;
     v->u.str.len = len2;
     v->u.str.data = p;
 }

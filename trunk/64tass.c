@@ -1921,7 +1921,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_WARN || prm==CMD_CWARN || prm==CMD_ERROR || prm==CMD_CERROR) { /* .warn .cwarn .error .cerror */
                     int rc;
                     int first = 1;
-                    int write = 1;
+                    int writeit = 1;
                     struct encoding_s *old = actual_encoding;
                     struct error_s user_error;
                     error_init(&user_error);
@@ -1939,17 +1939,17 @@ struct value_s *compile(struct file_list_s *cflist)
                             first = 0;
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
                                 if (val->obj == ERROR_OBJ) err_msg_wrong_type(val, &epoint);
-                                write = obj_truth(val);
+                                writeit = obj_truth(val);
                                 continue;
                             }
-                            write = 1;
+                            writeit = 1;
                         }
-                        if (write) {
+                        if (writeit) {
                             if (val->obj == ERROR_OBJ) err_msg_wrong_type(val, &epoint);
                             else if (val->obj != NONE_OBJ) err_msg_variable(&user_error, val);
                         }
                     }
-                    if (write) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED, &user_error, &epoint);
+                    if (writeit) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED, &user_error, &epoint);
                     errors_destroy(&user_error);
                     eval_finish();
                     break;

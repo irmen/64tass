@@ -381,29 +381,29 @@ static int calc2_list(oper_t op) {
     case O_CONCAT:
         {
             struct value_s **vals;
-            size_t len;
+            size_t ln;
 
-            len = v1->u.list.len + v2->u.list.len;
-            if (len < v2->u.list.len) err_msg_out_of_memory(); /* overflow */
+            ln = v1->u.list.len + v2->u.list.len;
+            if (ln < v2->u.list.len) err_msg_out_of_memory(); /* overflow */
             if (v == v1) {
                 if (!v2->u.list.len) return 0;
-                vals = (struct value_s **)realloc(v1->u.list.data, len * sizeof(v->u.list.data[0]));
-                if (!vals || len > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
-                for (i = v1->u.list.len; i < len; i++) {
+                vals = (struct value_s **)realloc(v1->u.list.data, ln * sizeof(v->u.list.data[0]));
+                if (!vals || ln > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
+                for (i = v1->u.list.len; i < ln; i++) {
                     vals[i] = val_reference(v2->u.list.data[i - v1->u.list.len]);
                 }
-            } else if (len) {
-                vals = (struct value_s **)malloc(len * sizeof(v->u.list.data[0]));
-                if (!vals || len > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
+            } else if (ln) {
+                vals = (struct value_s **)malloc(ln * sizeof(v->u.list.data[0]));
+                if (!vals || ln > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
                 for (i = 0; i < v1->u.list.len; i++) {
                     vals[i] = val_reference(v1->u.list.data[i]);
                 }
-                for (; i < len; i++) {
+                for (; i < ln; i++) {
                     vals[i] = val_reference(v2->u.list.data[i - v1->u.list.len]);
                 }
             } else vals = NULL;
             v->obj = v1->obj;
-            v->u.list.len = len;
+            v->u.list.len = ln;
             v->u.list.data = vals;
             return 0;
         }
@@ -577,7 +577,7 @@ static void rcalc2(oper_t op) {
 }
 
 static void repeat(oper_t op, uval_t rep) {
-    size_t i = 0, j, len;
+    size_t i = 0, j, ln;
     struct value_s **vals;
     struct value_s *v1 = op->v1, *v = op->v;
 
@@ -590,22 +590,22 @@ static void repeat(oper_t op, uval_t rep) {
             return;
         }
         if (rep == 1) return;
-        i = len = v->u.list.len;
+        i = ln = v->u.list.len;
         v->u.list.len *= rep;
-        if (len > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
+        if (ln > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
         v->u.list.data = (struct value_s **)realloc(v->u.list.data, v->u.list.len * sizeof(v->u.list.data[0]));
         if (!v->u.list.data || v->u.list.len > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
         while (--rep) {
-            for (j = 0;j < len; j++, i++) {
+            for (j = 0;j < ln; j++, i++) {
                 v->u.list.data[i] = val_reference(v->u.list.data[j]);
             }
         }
     } else {
         if (v1->u.list.len && rep) {
-            len = v1->u.list.len * rep;
+            ln = v1->u.list.len * rep;
             if (v1->u.list.len > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
-            vals = (struct value_s **)malloc(len * sizeof(v->u.list.data[0]));
-            if (!vals || len > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
+            vals = (struct value_s **)malloc(ln * sizeof(v->u.list.data[0]));
+            if (!vals || ln > ((size_t)~0) / sizeof(v->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
             while (rep--) {
                 for (j = 0;j < v1->u.list.len; j++, i++) {
                     vals[i] = val_reference(v1->u.list.data[j]);
@@ -620,11 +620,11 @@ static void repeat(oper_t op, uval_t rep) {
 
 static void iindex(oper_t op) {
     struct value_s **vals;
-    size_t i, len;
+    size_t i, ln;
     ival_t offs;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
 
-    len = v1->u.list.len;
+    ln = v1->u.list.len;
 
     if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
@@ -635,7 +635,7 @@ static void iindex(oper_t op) {
         vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
         if (!vals) err_msg_out_of_memory();
         for (i = 0; i < v2->u.list.len; i++) {
-            offs = indexoffs(v2->u.list.data[i], len);
+            offs = indexoffs(v2->u.list.data[i], ln);
             if (offs < 0) {
                 if (v1 == v) destroy(v);
                 v->u.list.len = i;
@@ -654,7 +654,7 @@ static void iindex(oper_t op) {
         v->u.list.data = vals;
         return;
     }
-    offs = indexoffs(v2, len);
+    offs = indexoffs(v2, ln);
     if (offs < 0) {
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
@@ -671,27 +671,27 @@ static void iindex(oper_t op) {
 static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t UNUSED(epoint)) {
     struct value_s **vals;
     size_t i;
-    size_t len;
+    size_t ln;
 
     if (step > 0) {
         if (end < offs) end = offs;
-        len = (end - offs + step - 1) / step;
+        ln = (end - offs + step - 1) / step;
     } else {
         if (end > offs) end = offs;
-        len = (offs - end - step - 1) / -step;
+        ln = (offs - end - step - 1) / -step;
     }
 
-    if (!len) {
+    if (!ln) {
         if (v1 == v) destroy(v);
         copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
         return;
     }
 
-    if (step == 1 && len == v1->u.list.len && v1->obj == TUPLE_OBJ) {
+    if (step == 1 && ln == v1->u.list.len && v1->obj == TUPLE_OBJ) {
         if (v1 != v) copy(v1, v);
         return; /* original tuple */
     }
-    vals = (struct value_s **)malloc(len * sizeof(v->u.list.data[0]));
+    vals = (struct value_s **)malloc(ln * sizeof(v->u.list.data[0]));
     if (!vals) err_msg_out_of_memory();
     i = 0;
     while ((end > offs && step > 0) || (end < offs && step < 0)) {
