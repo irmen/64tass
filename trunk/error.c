@@ -33,6 +33,15 @@ static struct file_list_s *included_from;
 static struct file_list_s *current_file_list;
 
 static struct error_s error_list = {0,0,0,NULL};
+static struct avltree notdefines;
+static int notdefinespass;
+
+struct notdefines_s {
+    str_t name;
+    const struct label_s *parent;
+    uint8_t pass;
+    struct avltree_node node;
+};
 
 static int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
@@ -93,7 +102,7 @@ static void adderror(const char *s) {
 
 static void addorigin(struct file_list_s *cflist, line_t lnum, linepos_t lpoint2) {
     char line[256];
-    if (cflist->parent) {
+    if (cflist && cflist->parent) {
         if (cflist != included_from) {
             included_from = cflist;
             while (included_from->parent->parent) {
@@ -274,6 +283,8 @@ static void str_name(const uint8_t *data, size_t len) {
             adderror("-");
         } else if (data[0] == '+') {
             adderror("+");
+        } else if (data[0] == '.' || data[0] == '#') {
+            adderror("<anonymous>");
         } else adderror2(data, len);
     }
     adderror("'");
@@ -311,11 +322,73 @@ static void err_msg_big_integer(const char *msg, int bits, linepos_t epoint) {
     return;
 }
 
+static void err_msg_no_forward(const str_t *name, linepos_t epoint) {
+    if (pass == 1) return;
+    err_msg_str_name("error: too early to reference", name, epoint);
+    return;
+}
+
+static int notdefines_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    const struct notdefines_s *a = cavltree_container_of(aa, struct notdefines_s, node);
+    const struct notdefines_s *b = cavltree_container_of(bb, struct notdefines_s, node);
+    int h = a->parent - b->parent;
+    if (h) return h; 
+    return arguments.casesensitive ? str_cmp(&a->name, &b->name) : str_casecmp(&a->name, &b->name);
+}
+
+static void notdefines_free(struct avltree_node *aa) {
+    struct notdefines_s *a = avltree_container_of(aa, struct notdefines_s, node);
+    free((uint8_t *)a->name.data);
+    free(a);
+}
+
+static struct notdefines_s *lastnd = NULL;
+static void err_msg_not_defined2(const str_t *name, const struct label_s *l, int down, linepos_t epoint) {
+    struct notdefines_s *tmp2;
+    struct avltree_node *b;
+    if (pass == 1) return;
+    if (!lastnd) {
+        lastnd = (struct notdefines_s *)malloc(sizeof(struct notdefines_s));
+        if (!lastnd) err_msg_out_of_memory();
+    }
+    lastnd->name = *name;
+    lastnd->parent = l;
+    lastnd->pass = pass;
+    b=avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
+    if (b) {
+        tmp2 = avltree_container_of(b, struct notdefines_s, node);
+        if (tmp2->pass == pass) {
+            return;
+        }
+        tmp2->pass = pass;
+    } else {
+        str_cpy(&lastnd->name, name);
+        lastnd = NULL;
+    }
+    err_msg_str_name("error: not defined", name, epoint);
+    if (0 && !l->file_list) {
+        err_msg_str_name("note: searched in the global scope", NULL, epoint);
+    } else {
+        addorigin(l->file_list, l->sline, &l->epoint);
+        adderror("note: searched in");
+        str_name(l->name.data, l->name.len);
+        if (down) adderror(" defined here, and in all it's parents\n");
+        else adderror(" defined here\n");
+    }
+    if (notdefinespass != pass) {
+        notdefinespass = pass;
+        err_msg_str_name("note: each undefined identifier is reported only once for each scope", NULL, epoint);
+    }
+    return;
+}
+
 void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
     if (pass == 1) return;
     if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
-        case ERROR___NOT_DEFINED: err_msg_not_defined(&val->u.error.u.ident, &val->u.error.epoint);return;
+        case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.label, val->u.error.u.notdef.down, &val->u.error.epoint);return;
+        case ERROR____NO_FORWARD: err_msg_no_forward(&val->u.error.u.ident, &val->u.error.epoint);return;
         case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, &val->u.error.epoint);return;
         case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, &val->u.error.epoint);return;
         case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, &val->u.error.epoint);return;
@@ -476,12 +549,15 @@ void err_init(void) {
     error_init(&error_list);
     current_file_list = &file_list;
     included_from = &file_list;
+    avltree_init(&notdefines);
 }
 
 void err_destroy(void) {
     avltree_destroy(&file_list.members, file_list_free);
     free(lastfl);
     free(error_list.data);
+    avltree_destroy(&notdefines, notdefines_free);
+    free(lastnd);
 }
 
 void err_msg_out_of_memory(void)

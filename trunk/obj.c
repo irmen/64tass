@@ -646,7 +646,9 @@ static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v)
         return l->value;
     }
     epoint = v1->u.ident.epoint;
-    v->u.error.u.ident = v1->u.ident.name;
+    v->u.error.u.notdef.ident = v1->u.ident.name;
+    v->u.error.u.notdef.label = current_context;
+    v->u.error.u.notdef.down = 1;
     v->obj = ERROR_OBJ;
     v->u.error.epoint = epoint;
     v->u.error.num = ERROR___NOT_DEFINED;
@@ -736,8 +738,10 @@ static struct value_s *anonident_resolv(const struct value_s *v1, struct value_s
     v->u.error.epoint = v1->u.anonident.epoint;
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR___NOT_DEFINED;
-    v->u.error.u.ident.len = 1;
-    v->u.error.u.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
+    v->u.error.u.notdef.ident.len = 1;
+    v->u.error.u.notdef.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
+    v->u.error.u.notdef.label = current_context;
+    v->u.error.u.notdef.down = 1;
     return v;
 }
 
@@ -898,17 +902,20 @@ static int lbl_same(const struct value_s *v1, const struct value_s *v2) {
 static void struct_calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     if (op->op == &o_MEMBER) {
-        struct label_s *l;
+        struct label_s *l, *l2;
         struct linepos_s epoint;
         switch (v2->obj->type) {
         case T_IDENT:
-            l = find_label2(&v2->u.ident.name, v1->u.macro.parent);
+            l2 = v1->u.macro.parent;
+            l = find_label2(&v2->u.ident.name, l2);
             if (l && touch_label(l)) {
                 l->value->obj->copy(l->value, op->v);
                 return;
             }
             epoint = v2->u.ident.epoint;
-            v->u.error.u.ident = v2->u.ident.name;
+            v->u.error.u.notdef.ident = v2->u.ident.name;
+            v->u.error.u.notdef.label = l2;
+            v->u.error.u.notdef.down = 0;
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = epoint;
@@ -920,7 +927,8 @@ static void struct_calc2(oper_t op) {
                 sprintf(idents, (v2->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v2->u.anonident.count >= 0) ? forwr : backr) + v2->u.anonident.count);
                 ident.data = (const uint8_t *)idents;
                 ident.len = strlen(idents);
-                l = find_label2(&ident, v1->u.macro.parent);
+                l2 = v1->u.macro.parent;
+                l = find_label2(&ident, l2);
                 if (l && touch_label(l)) {
                     l->value->obj->copy(l->value, op->v);
                     return;
@@ -928,8 +936,10 @@ static void struct_calc2(oper_t op) {
                 v->u.error.epoint = v2->u.anonident.epoint;
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR___NOT_DEFINED;
-                v->u.error.u.ident.len = 1;
-                v->u.error.u.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
+                v->u.error.u.notdef.ident.len = 1;
+                v->u.error.u.notdef.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
+                v->u.error.u.notdef.label = l2;
+                v->u.error.u.notdef.down = 0;
                 return;
             }
         case T_TUPLE:

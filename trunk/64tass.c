@@ -1782,7 +1782,12 @@ struct value_s *compile(struct file_list_s *cflist)
                         sprintf(reflabel, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                         current_context=new_label(&tmpname, mycontext, L_LABEL, &labelexists);
-                        current_context->value = &none_value;
+                        if (!labelexists) {
+                            current_context->value = &none_value;
+                            current_context->file_list = cflist;
+                            current_context->sline = sline;
+                            current_context->epoint = epoint;
+                        }
                     }
                     break;
                 }
@@ -2298,7 +2303,12 @@ struct value_s *compile(struct file_list_s *cflist)
                                     sprintf(reflabel, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
                                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                                     current_context=new_label(&tmpname, mycontext, L_LABEL, &labelexists);
-                                    current_context->value = &none_value;
+                                    if (!labelexists) {
+                                        current_context->value = &none_value;
+                                        current_context->file_list = cflist;
+                                        current_context->sline = sline;
+                                        current_context->epoint = epoint;
+                                    }
                                 }
                                 compile(cflist2);
                                 current_context = current_context->parent;
@@ -2763,7 +2773,12 @@ struct value_s *compile(struct file_list_s *cflist)
                         sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                         context=new_label(&tmpname, mycontext, L_LABEL, &labelexists);
-                        context->value = &none_value;
+                        if (!labelexists) {
+                            context->value = &none_value;
+                            context->file_list = cflist;
+                            context->sline = sline;
+                            context->epoint = epoint;
+                        }
                     }
                     val = macro_recurse(W_ENDM2, val, context, &epoint);
                 } else if (val->obj == FUNCTION_OBJ) {
@@ -2774,7 +2789,12 @@ struct value_s *compile(struct file_list_s *cflist)
                     sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                     context=new_label(&tmpname, val->u.func.context, L_LABEL, &labelexists);
-                    context->value = &none_value;
+                    if (!labelexists) {
+                        context->value = &none_value;
+                        context->file_list = cflist;
+                        context->sline = sline;
+                        context->epoint = epoint;
+                    }
                     function = val_reference(val);
                     val = func_recurse(W_ENDF2, function, context, &epoint);
                     val_destroy(function);
