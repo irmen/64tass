@@ -266,7 +266,7 @@ static void bits_from_u24(struct value_s *v, int i) {
 
 size_t bits_from_hexstr(struct value_s *v, const uint8_t *s) {
     size_t i = 0, j = 0, sz, l;
-    bdigit_t uval = 0;
+    bdigit_t uv = 0;
     int bits = 0;
     bdigit_t *d;
     v->obj = BITS_OBJ;
@@ -288,14 +288,14 @@ size_t bits_from_hexstr(struct value_s *v, const uint8_t *s) {
 
     while (i) {
         i--;
-        if (s[i] < 0x40) uval |= (s[i] & 15) << bits;
-        else uval |= ((s[i] & 7) + 9) << bits;
+        if (s[i] < 0x40) uv |= (s[i] & 15) << bits;
+        else uv |= ((s[i] & 7) + 9) << bits;
         if (bits == (8 * sizeof(bdigit_t) - 4)) {
-            d[j++] = uval;
-            bits = uval = 0;
+            d[j++] = uv;
+            bits = uv = 0;
         } else bits += 4;
     }
-    if (bits) d[j] = uval;
+    if (bits) d[j] = uv;
 
     while (sz && !d[sz - 1]) sz--;
     if (sz <= 2 && v->u.bits.val != d) {
@@ -312,7 +312,7 @@ size_t bits_from_hexstr(struct value_s *v, const uint8_t *s) {
 
 size_t bits_from_binstr(struct value_s *v, const uint8_t *s) {
     size_t i = 0, j = 0, sz, l;
-    uval_t uval = 0;
+    uval_t uv = 0;
     int bits = 0;
     bdigit_t *d;
     v->obj = BITS_OBJ;
@@ -334,13 +334,13 @@ size_t bits_from_binstr(struct value_s *v, const uint8_t *s) {
 
     while (i) {
         i--;
-        if (s[i] == 0x31) uval |= 1 << bits;
+        if (s[i] == 0x31) uv |= 1 << bits;
         if (bits == (8 * sizeof(bdigit_t) - 1)) {
-            d[j++] = uval;
-            bits = uval = 0;
+            d[j++] = uv;
+            bits = uv = 0;
         } else bits++;
     }
-    if (bits) d[j] = uval;
+    if (bits) d[j] = uv;
 
     while (sz && !d[sz - 1]) sz--;
     if (sz <= 2 && v->u.bits.val != d) {
@@ -359,7 +359,7 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
     uint16_t ch;
 
     if (actual_encoding) {
-        uval_t uval = 0;
+        uval_t uv = 0;
         unsigned int bits = 0;
         size_t i = 0, j = 0, sz;
         bdigit_t *d, tmp[2];
@@ -385,17 +385,17 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
             ch = petascii(&i, v1);
             if (ch > 255) return 1;
 
-            uval |= (uint8_t)ch << bits;
+            uv |= (uint8_t)ch << bits;
             bits += 8;
             if (bits >= 8 * sizeof(bdigit_t)) {
                 if (j >= sz) err_msg_out_of_memory();
-                d[j++] = uval;
-                bits = uval = 0;
+                d[j++] = uv;
+                bits = uv = 0;
             }
         }
         if (bits) {
             if (j >= sz) err_msg_out_of_memory();
-            d[j] = uval;
+            d[j] = uv;
             sz = j + 1;
         } else sz = j;
 
@@ -426,7 +426,7 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
 void bits_from_bytes(struct value_s *v, const struct value_s *v1) {
     unsigned int bits = 0;
     size_t i = 0, j = 0, sz;
-    bdigit_t *d, tmp[2], uval = 0;
+    bdigit_t *d, tmp[2], uv = 0;
 
     if (!v1->u.bytes.len) {
         v->obj = BITS_OBJ;
@@ -446,15 +446,15 @@ void bits_from_bytes(struct value_s *v, const struct value_s *v1) {
     } else d = tmp;
 
     while (v1->u.bytes.len > i) {
-        uval |= v1->u.bytes.data[i++] << bits;
+        uv |= v1->u.bytes.data[i++] << bits;
         bits += 8;
         if (bits >= 8 * sizeof(bdigit_t)) {
-            d[j++] = uval;
-            bits = uval = 0;
+            d[j++] = uv;
+            bits = uv = 0;
         }
     }
     if (bits) {
-        d[j] = uval;
+        d[j] = uv;
         sz = j + 1;
     } else sz = j;
 
@@ -1046,7 +1046,7 @@ static void rcalc2(oper_t op) {
 }
 
 static void iindex(oper_t op) {
-    size_t len, sz;
+    size_t ln, sz;
     ival_t offs;
     size_t i, j, o;
     struct value_s *vv1 = op->v1, *vv2 = op->v2, *vv = op->v;
@@ -1055,7 +1055,7 @@ static void iindex(oper_t op) {
     bdigit_t inv = -vv1->u.bits.inv;
     int bits;
 
-    len = vv1->u.bits.bits;
+    ln = vv1->u.bits.bits;
 
     if (vv2->obj == TUPLE_OBJ || vv2->obj == LIST_OBJ) {
         if (!vv2->u.list.len) {
@@ -1073,7 +1073,7 @@ static void iindex(oper_t op) {
         uv = inv;
         bits = j = 0;
         for (i = 0; i < vv2->u.list.len; i++) {
-            offs = indexoffs(vv2->u.list.data[i], len);
+            offs = indexoffs(vv2->u.list.data[i], ln);
             if (offs < 0) {
                 if (tmp != v) free(v);
                 if (vv1 == vv) destroy(vv);
@@ -1109,7 +1109,7 @@ static void iindex(oper_t op) {
         vv->u.bits.data = v;
         return;
     }
-    offs = indexoffs(vv2, len);
+    offs = indexoffs(vv2, ln);
     if (offs < 0) {
         if (vv1 == vv) destroy(vv);
         vv->obj = ERROR_OBJ;
@@ -1128,7 +1128,7 @@ static void iindex(oper_t op) {
 }
 
 static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, struct value_s *vv, linepos_t UNUSED(epoint)) {
-    size_t len, bo, wo, bl, wl, i, sz;
+    size_t ln, bo, wo, bl, wl, i, sz;
     bdigit_t uv, tmp[2];
     bdigit_t *v, *v1;
     bdigit_t inv = -vv1->u.bits.inv;
@@ -1136,25 +1136,25 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
 
     if (step > 0) {
         if (offs > end) offs = end;
-        len = (end - offs + step - 1) / step;
+        ln = (end - offs + step - 1) / step;
     } else {
         if (end > offs) end = offs;
-        len = (offs - end - step - 1) / -step;
+        ln = (offs - end - step - 1) / -step;
     }
-    if (!len) {
+    if (!ln) {
         if (vv1 == vv) destroy(vv);
         copy(&null_bits, vv);return;
     }
     if (step == 1) {
-        if (len == vv1->u.bits.len) {
+        if (ln == vv1->u.bits.len) {
             if (vv1 != vv) copy(vv1, vv);
             return; /* original bits */
         }
 
         bo = offs % (8 * sizeof(bdigit_t));
         wo = offs / 8 / sizeof(bdigit_t);
-        bl = len % (8 * sizeof(bdigit_t));
-        wl = len / 8 / sizeof(bdigit_t);
+        bl = ln % (8 * sizeof(bdigit_t));
+        wl = ln / 8 / sizeof(bdigit_t);
 
         sz = wl + (bl > 0);
         if (sz > 2) {
@@ -1178,8 +1178,8 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
         }
         if (bl) v[i] &= ((1 << bl) - 1);
     } else {
-        sz = len / 8 / sizeof(bdigit_t);
-        if (len % (8 * sizeof(bdigit_t))) sz++;
+        sz = ln / 8 / sizeof(bdigit_t);
+        if (ln % (8 * sizeof(bdigit_t))) sz++;
         if (sz > 2) {
             v = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
             if (!v || sz > ((size_t)~0) / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
@@ -1210,7 +1210,7 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
         v = vv->u.bits.val;
     }
     vv->obj = BITS_OBJ;
-    vv->u.bits.bits = len;
+    vv->u.bits.bits = ln;
     vv->u.bits.len = sz;
     vv->u.bits.inv = 0;
     vv->u.bits.data = v;

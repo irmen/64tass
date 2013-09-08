@@ -1072,7 +1072,7 @@ void int_from_ival(struct value_s *v, ival_t i) {
 }
 
 void int_from_double(struct value_s *v, double f, linepos_t epoint) {
-    int neg, exp;
+    int neg, expo;
     double frac;
     size_t sz;
     digit_t *d;
@@ -1085,16 +1085,16 @@ void int_from_double(struct value_s *v, double f, linepos_t epoint) {
     neg = (f < 0.0);
     if (neg) f = -f;
 
-    frac = frexp(f, &exp);
-    if (exp < 0) return int_from_int(v, 0);
-    sz = (exp - 1) / SHIFT + 1;
+    frac = frexp(f, &expo);
+    if (expo < 0) return int_from_int(v, 0);
+    sz = (expo - 1) / SHIFT + 1;
 
     d = inew(v, sz);
     v->obj = INT_OBJ;
     v->u.integer.len = neg ? -sz : +sz;
     v->u.integer.data = d;
 
-    frac = ldexp(frac, (exp - 1) % SHIFT + 1);
+    frac = ldexp(frac, (expo - 1) % SHIFT + 1);
 
     while (sz--) {
         digit_t dg = (digit_t)frac & MASK;
@@ -1104,7 +1104,7 @@ void int_from_double(struct value_s *v, double f, linepos_t epoint) {
 }
 
 void int_from_bytes(struct value_s *v, const struct value_s *v1) {
-    uval_t uval = 0;
+    uval_t uv = 0;
     int bits = 0;
     size_t i = 0, j = 0, sz;
     digit_t *d, tmp[2];
@@ -1119,18 +1119,18 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
 
     b = v1->u.bytes.data;
     while (v1->u.bytes.len > i) {
-        uval |= b[i] << bits;
+        uv |= b[i] << bits;
         bits += 8 * sizeof(b[0]);
         if (bits >= SHIFT) {
             if (j >= sz) err_msg_out_of_memory();
-            d[j++] = uval & MASK;
+            d[j++] = uv & MASK;
             bits -= SHIFT;
-            uval = b[i] >> (8 * sizeof(b[0]) - bits);
+            uv = b[i] >> (8 * sizeof(b[0]) - bits);
         }
         i++;
     }
     if (j >= sz) err_msg_out_of_memory();
-    if (bits) d[j++] = uval & MASK;
+    if (bits) d[j++] = uv & MASK;
     sz = j;
 
     while (sz && !d[sz - 1]) sz--;
@@ -1146,7 +1146,7 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
 }
 
 void int_from_bits(struct value_s *v, const struct value_s *v1) {
-    uval_t uval = 0;
+    uval_t uv = 0;
     int bits = 0;
     int inv;
     size_t i = 0, j = 0, sz;
@@ -1173,43 +1173,43 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
     if (inv) {
         int c = 1;
         while (v1->u.bits.len > i) {
-            uval |= (bdigit_t)(b[i] + c) << bits;
+            uv |= (bdigit_t)(b[i] + c) << bits;
             bits += 8 * sizeof(bdigit_t);
             if (bits >= SHIFT) {
                 if (j >= sz) err_msg_out_of_memory();
-                d[j++] = uval & MASK;
+                d[j++] = uv & MASK;
                 bits -= SHIFT;
-                uval = (bdigit_t)(b[i] + c) >> (8 * sizeof(bdigit_t) - bits);
+                uv = (bdigit_t)(b[i] + c) >> (8 * sizeof(bdigit_t) - bits);
             }
             if (b[i] < ((bdigit_t)~0)) c = 0;
             i++;
         }
         if (c) {
-            uval |= 1 << bits;
+            uv |= 1 << bits;
             bits++;
             if (bits >= SHIFT) {
                 if (j >= sz) err_msg_out_of_memory();
-                d[j++] = uval & MASK;
-                uval >>= SHIFT;
+                d[j++] = uv & MASK;
+                uv >>= SHIFT;
                 bits -= SHIFT;
             }
         }
         if (j >= sz) err_msg_out_of_memory();
-        if (bits) d[j++] = uval & MASK;
+        if (bits) d[j++] = uv & MASK;
     } else {
         while (v1->u.bits.len > i) {
-            uval |= b[i] << bits;
+            uv |= b[i] << bits;
             bits += 8 * sizeof(bdigit_t);
             if (bits >= SHIFT) {
                 if (j >= sz) err_msg_out_of_memory();
-                d[j++] = uval & MASK;
+                d[j++] = uv & MASK;
                 bits -= SHIFT;
-                uval = b[i] >> (8 * sizeof(bdigit_t) - bits);
+                uv = b[i] >> (8 * sizeof(bdigit_t) - bits);
             }
             i++;
         }
         if (j >= sz) err_msg_out_of_memory();
-        if (bits) d[j++] = uval & MASK;
+        if (bits) d[j++] = uv & MASK;
     }
     sz = j;
 
@@ -1229,7 +1229,7 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
     uint16_t ch;
 
     if (actual_encoding) {
-        uval_t uval = 0;
+        uval_t uv = 0;
         int bits = 0;
         size_t i = 0, j = 0, sz;
         digit_t *d, tmp[2];
@@ -1253,17 +1253,17 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
             ch = petascii(&i, v1);
             if (ch > 255) return 1;
 
-            uval |= (uint8_t)ch << bits;
+            uv |= (uint8_t)ch << bits;
             bits += 8;
             if (bits >= SHIFT) {
                 if (j >= sz) err_msg_out_of_memory();
-                d[j++] = uval & MASK;
+                d[j++] = uv & MASK;
                 bits -= SHIFT;
-                uval = (uint8_t)ch >> (8 - bits);
+                uv = (uint8_t)ch >> (8 - bits);
             }
         }
         if (j >= sz) err_msg_out_of_memory();
-        if (bits) d[j++] = uval & MASK;
+        if (bits) d[j++] = uv & MASK;
         sz = j;
 
         while (sz && !d[sz - 1]) sz--;

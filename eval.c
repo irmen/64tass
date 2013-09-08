@@ -95,18 +95,18 @@ static void get_exponent(struct value_s *v, double real, struct value_s *err) {
             if ((pline[lpoint.pos + 2] ^ 0x30) < 10) lpoint.pos++;
         }
         if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
-            ival_t exp;
+            ival_t expo;
             struct value_s tmp;
             size_t len;
             lpoint.pos++;
 
             len = int_from_decstr(&tmp, pline + lpoint.pos);
-            if (tmp.obj->ival(&tmp, err, &exp, 8*sizeof(uval_t), &lpoint)) exp = 0;
+            if (tmp.obj->ival(&tmp, err, &expo, 8*sizeof(uval_t), &lpoint)) expo = 0;
             tmp.obj->destroy(&tmp);
             lpoint.pos += len;
 
-            if (neg) exp = -exp;
-            if (exp) real *= pow(base, exp);
+            if (neg) expo = -expo;
+            if (expo) real *= pow(base, expo);
         }
     }
     if (err->obj != NONE_OBJ) {
@@ -1400,7 +1400,7 @@ static int get_val2(struct eval_context_s *ev) {
         case O_TUPLE:
         case O_LIST:
             {
-                unsigned int tup = (op == O_RPARENT), expl = (op == O_TUPLE || op == O_LIST);
+                unsigned int tup = (op == O_RPARENT), expc = (op == O_TUPLE || op == O_LIST);
                 size_t args = 0;
                 op = (op == O_RBRACKET || op == O_LIST) ? O_BRACKET : O_PARENT;
                 while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != op) {
@@ -1409,7 +1409,7 @@ static int get_val2(struct eval_context_s *ev) {
                     v1 = &values[vsp-1-args];
                 }
                 if (args == 1) {
-                    if (stop && !expl) {
+                    if (stop && !expc) {
                         size_t j = i + 1;
                         if (tup && j < ev->outp && (ev->o_out[j].val->obj != OPER_OBJ || (
                                         ev->o_out[j].val != &o_SEPARATOR && /* (3),2 */

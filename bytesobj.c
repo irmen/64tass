@@ -289,9 +289,9 @@ static int calc2_bytes(oper_t op) {
     case O_CONCAT:
         if (v == v1) {
             uint8_t *s;
-            size_t len;
+            size_t ln;
             if (!v2->u.bytes.len) return 0;
-            len = v1->u.bytes.len;
+            ln = v1->u.bytes.len;
             v->u.bytes.len += v2->u.bytes.len;
             if (v->u.bytes.len < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
             s = (uint8_t *)v1->u.bytes.data;
@@ -302,7 +302,7 @@ static int calc2_bytes(oper_t op) {
                 s = bnew(v, v->u.bytes.len);
                 if (s != v1->u.bytes.val) memcpy(s, v1->u.bytes.val, v1->u.bytes.len);
             }
-            memcpy(s + len, v2->u.bytes.data, v2->u.bytes.len);
+            memcpy(s + ln, v2->u.bytes.data, v2->u.bytes.len);
             v->u.bytes.data = s;
             return 0;
         }
@@ -343,13 +343,13 @@ static void repeat(oper_t op, uval_t rep) {
     v->obj = BYTES_OBJ;
     if (v1->u.bytes.len && rep) {
         uint8_t *s, *s2;
-        size_t len = v1->u.bytes.len;
-        if (len > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
-        s2 = s = bnew(&tmp, len * rep);
+        size_t ln = v1->u.bytes.len;
+        if (ln > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
+        s2 = s = bnew(&tmp, ln * rep);
         v->u.bytes.len = 0;
         while (rep--) {
-            memcpy(s + v->u.bytes.len, v1->u.bytes.data, len);
-            v->u.bytes.len += len;
+            memcpy(s + v->u.bytes.len, v1->u.bytes.data, ln);
+            v->u.bytes.len += ln;
         }
         if (v->u.bytes.len <= sizeof(v->u.bytes.val)) {
             memcpy(v->u.bytes.val, s2, v->u.bytes.len);
@@ -441,12 +441,12 @@ static void rcalc2(oper_t op) {
 static void iindex(oper_t op) {
     uint8_t *p, b;
     uint8_t *p2;
-    size_t len, len2;
+    size_t len1, len2;
     ival_t offs;
     size_t i;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp;
 
-    len = v1->u.bytes.len;
+    len1 = v1->u.bytes.len;
 
     if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
@@ -456,7 +456,7 @@ static void iindex(oper_t op) {
         len2 = v2->u.list.len;
         p = p2 = bnew(&tmp, len2);
         for (i = 0; i < len2; i++) {
-            offs = indexoffs(v2->u.list.data[i], len);
+            offs = indexoffs(v2->u.list.data[i], len1);
             if (offs < 0) {
                 if (p != tmp.u.bytes.val) free(p);
                 if (v1 == v) destroy(v);
@@ -477,7 +477,7 @@ static void iindex(oper_t op) {
         v->u.bytes.data = p;
         return;
     }
-    offs = indexoffs(v2, len);
+    offs = indexoffs(v2, len1);
     if (offs < 0) {
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
@@ -494,43 +494,43 @@ static void iindex(oper_t op) {
 }
 
 static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t UNUSED(epoint)) {
-    size_t len;
+    size_t len1;
     uint8_t *p;
     uint8_t *p2;
     struct value_s tmp;
 
     if (step > 0) {
         if (offs > end) offs = end;
-        len = (end - offs + step - 1) / step;
+        len1 = (end - offs + step - 1) / step;
     } else {
         if (end > offs) end = offs;
-        len = (offs - end - step - 1) / -step;
+        len1 = (offs - end - step - 1) / -step;
     }
-    if (!len) {
+    if (!len1) {
         if (v1 == v) destroy(v);
         copy(&null_bytes, v);return;
     }
     if (step == 1) {
-        if (len == v1->u.bytes.len) {
+        if (len1 == v1->u.bytes.len) {
             if (v1 != v) copy(v1, v);
             return; /* original bytes */
         }
-        p = p2 = bnew(&tmp, len);
-        memcpy(p2, v1->u.bytes.data + offs, len);
+        p = p2 = bnew(&tmp, len1);
+        memcpy(p2, v1->u.bytes.data + offs, len1);
     } else {
-        p = p2 = bnew(&tmp, len);
+        p = p2 = bnew(&tmp, len1);
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
             *p2++ = v1->u.bytes.data[offs];
             offs += step;
         }
     }
     if (v == v1) destroy(v);
-    if (len <= sizeof(v->u.bytes.val)) {
-        memcpy(v->u.bytes.val, p, len);
+    if (len1 <= sizeof(v->u.bytes.val)) {
+        memcpy(v->u.bytes.val, p, len1);
         p = v->u.bytes.val;
     }
     v->obj = BYTES_OBJ;
-    v->u.bytes.len = len;
+    v->u.bytes.len = len1;
     v->u.bytes.data = p;
 }
 
