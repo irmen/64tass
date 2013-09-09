@@ -164,7 +164,7 @@ static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *
             if (bits < 8 * (int)sizeof(bdigit_t) && *uv >> bits) break;
             if (v1->u.bits.inv) *uv = ~*uv;
             return 0;
-    case 0: *uv = 0; return 0;
+    case 0: *uv = v1->u.bits.inv ? ~(uval_t)0 : 0; return 0;
     default: break;
     }
     *uv = 0;
