@@ -2872,8 +2872,8 @@ struct value_s *compile(struct file_list_s *cflist)
                                     if (cod==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {/* cpx cpy ldx ldy */
                                         if (longindex) ln++;
                                     }
-                                    else if (cod==0xF4) ln=2; /* pea #$ffff */
-                                    else if (cod!=0xC2 && cod!=0xE2) {/* not sep rep=all accu */
+                                    else if (cod==0xF4) ln=2; /* pea/phw #$ffff */
+                                    else if (cod!=0xC2 && cod!=0xE2 && cod!=0x00 && cod!=0x02 && cod!=0xEF) {/* not sep rep brk cop mmu=all accu */
                                         if (longaccu) ln++;
                                     }
 
