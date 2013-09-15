@@ -473,10 +473,9 @@ void bits_from_bytes(struct value_s *v, const struct value_s *v1) {
 }
 
 static void calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v = op->v, *v2;
+    struct value_s *v1 = op->v1, *v = op->v;
     struct value_s tmp;
     uval_t uv;
-    enum atype_e am;
     switch (op->op->u.oper.op) {
     case O_BANK:
         uv = v1->u.bits.len > 1 ? v1->u.bits.data[1] : 0;
@@ -513,24 +512,6 @@ static void calc1(oper_t op) {
         if (v1->u.bits.inv) uv = ~uv;
         if (v == v1) destroy(v);
         bits_from_u16(v, (uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
-        return;
-    case O_COMMAS: am =  A_SR; goto addr;
-    case O_COMMAR: am =  A_RR; goto addr;
-    case O_COMMAZ: am =  A_ZR; goto addr;
-    case O_COMMAY: am =  A_YR; goto addr;
-    case O_COMMAX: am =  A_XR; goto addr;
-    case O_COMMAD: am = A_DR; goto addr;
-    case O_COMMAB: am = A_BR; goto addr;
-    case O_COMMAK: am = A_KR; goto addr;
-    case O_HASH: am = A_IMMEDIATE;
-    addr:
-        if (v == v1) {
-            v2 = val_alloc();
-            copy_temp(v1, v2);
-        } else v2 = val_reference(v1);
-        v->obj = ADDRESS_OBJ;
-        v->u.addr.val = v2;
-        v->u.addr.type = am;
         return;
     case O_INV:
         if (v != v1) copy(v1, v);

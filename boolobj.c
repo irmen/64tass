@@ -85,8 +85,7 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSE
 }
 
 static void calc1(oper_t op) {
-    struct value_s *v = op->v, *v1 = op->v1, *v2;
-    enum atype_e am;
+    struct value_s *v = op->v, *v1 = op->v1;
     switch (op->op->u.oper.op) {
     case O_BANK:
     case O_HIGHER:
@@ -103,24 +102,6 @@ static void calc1(oper_t op) {
         return;
     case O_BSWORD:
         bits_from_u16(v, v1->u.boolean << 8);
-        return;
-    case O_COMMAS: am = A_SR; goto addr;
-    case O_COMMAR: am = A_RR; goto addr;
-    case O_COMMAZ: am = A_ZR; goto addr;
-    case O_COMMAY: am = A_YR; goto addr;
-    case O_COMMAX: am = A_XR; goto addr;
-    case O_COMMAD: am = A_DR; goto addr;
-    case O_COMMAB: am = A_BR; goto addr;
-    case O_COMMAK: am = A_KR; goto addr;
-    case O_HASH: am = A_IMMEDIATE;
-    addr:
-        if (v == v1) {
-            v2 = val_alloc();
-            copy(v1, v2);
-        } else v2 = val_reference(v1);
-        v->obj = ADDRESS_OBJ; 
-        v->u.addr.val = v2;
-        v->u.addr.type = am;
         return;
     case O_INV:
         int_from_int(v, ~v1->u.boolean);
