@@ -189,7 +189,7 @@ static inline int check_addr(atype_t type) {
 }
 
 static void calc1(oper_t op) {
-    struct value_s *v = op->v, *v1 = op->v1, *v2;
+    struct value_s *v = op->v, *v1 = op->v1;
     atype_t am;
     switch (op->op->u.oper.op) {
     case O_BANK:
@@ -211,26 +211,6 @@ static void calc1(oper_t op) {
         v->u.addr.type = am;
         op->v1 = v1;
         op->v = v;
-        return;
-    case O_COMMAS: am = A_SR; goto addr;
-    case O_COMMAR: am = A_RR; goto addr;
-    case O_COMMAZ: am = A_ZR; goto addr;
-    case O_COMMAY: am = A_YR; goto addr;
-    case O_COMMAX: am = A_XR; goto addr;
-    case O_COMMAD: am = A_DR; goto addr;
-    case O_COMMAB: am = A_BR; goto addr;
-    case O_COMMAK: am = A_KR; goto addr;
-    case O_HASH: am = A_IMMEDIATE;
-    addr:
-        am |= v1->u.addr.type << 4;
-        if (v == v1) {
-            v2 = val_alloc();
-            v1->u.addr.val->obj->copy(v1->u.addr.val, v2);
-            destroy(v);
-        } else v2 = val_reference(v1->u.addr.val);
-        v->obj = ADDRESS_OBJ; 
-        v->u.addr.val = v2;
-        v->u.addr.type = am;
         return;
     case O_LNOT: bool_from_int(v, !truth(v1)); return;
     case O_STRING: break;

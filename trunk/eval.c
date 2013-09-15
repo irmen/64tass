@@ -1346,6 +1346,7 @@ static int get_val2(struct eval_context_s *ev) {
     struct value_s new_value;
     struct values_s *values;
     struct oper_s oper;
+    atype_t am;
 
     if (ev->outp2 >= ev->outp) return 1;
     values = ev->values;
@@ -1557,46 +1558,53 @@ static int get_val2(struct eval_context_s *ev) {
         case O_HIGHER:  /* >  */
         case O_BANK:    /* `  */
         case O_STRING:  /* ^  */
-        case O_HASH:    /* #  */
-        case O_COMMAX:  /* ,x */
-        case O_COMMAY:  /* ,y */
-        case O_COMMAZ:  /* ,z */
-        case O_COMMAR:  /* ,r */
-        case O_COMMAS:  /* ,s */
-        case O_COMMAD:  /* ,d */
-        case O_COMMAB:  /* ,b */
-        case O_COMMAK:  /* ,k */
         case O_INV:     /* ~  */
         case O_NEG:     /* -  */
         case O_POS:     /* +  */
         case O_LNOT:    /* !  */
-            {
-                oper.op = op2;
-                oper.v1 = v1->val;
-                oper.v2 = NULL;
-                oper.epoint = v1->epoint;
-                oper.epoint3 = o_out->epoint;
-                if (oper.v1->refcount != 1) {
-                    oper.v = &new_value;
-                    oper.v1->obj->calc1(&oper);
-                    val_replace_template(&v1->val, &new_value);
-                } else {
-                    oper.v = oper.v1;
-                    oper.v1->obj->calc1(&oper);
-                }
-                switch (op) {
-                default: v1->epoint = o_out->epoint;
-                case O_COMMAX:        /* ,x */
-                case O_COMMAY:        /* ,y */
-                case O_COMMAZ:        /* ,z */
-                case O_COMMAR:        /* ,r */
-                case O_COMMAS:        /* ,s */
-                case O_COMMAD:        /* ,d */
-                case O_COMMAB:        /* ,b */
-                case O_COMMAK: break; /* ,k */
-                }
-                continue;
+            oper.op = op2;
+            oper.v1 = v1->val;
+            oper.v2 = NULL;
+            oper.epoint = v1->epoint;
+            oper.epoint3 = o_out->epoint;
+            if (oper.v1->refcount != 1) {
+                oper.v = &new_value;
+                oper.v1->obj->calc1(&oper);
+                val_replace_template(&v1->val, &new_value);
+            } else {
+                oper.v = oper.v1;
+                oper.v1->obj->calc1(&oper);
             }
+            v1->epoint = o_out->epoint;
+            continue;
+        case O_COMMAS: am = A_SR; goto addr;  /* ,s */
+        case O_COMMAR: am = A_RR; goto addr;  /* ,r */
+        case O_COMMAZ: am = A_ZR; goto addr;  /* ,z */
+        case O_COMMAY: am = A_YR; goto addr;  /* ,y */
+        case O_COMMAX: am = A_XR; goto addr;  /* ,x */
+        case O_COMMAD: am = A_DR; goto addr;  /* ,d */
+        case O_COMMAB: am = A_BR; goto addr;  /* ,b */
+        case O_COMMAK: am = A_KR; goto addr;  /* ,k */
+        case O_HASH: am = A_IMMEDIATE;        /* #  */
+        addr:
+            if (try_resolv(v1) == T_ADDRESS) {
+                if (v1->val->refcount == 1) v1->val->u.addr.type = am | (v1->val->u.addr.type << 4);
+                else {
+                    v1->val->refcount--;
+                    new_value.obj = ADDRESS_OBJ;
+                    new_value.u.addr.val = val_reference(v1->val->u.addr.val);
+                    new_value.u.addr.type = am | (v1->val->u.addr.type << 4);
+                    val_set_template(&v1->val, &new_value);
+                }
+            } else {
+                struct value_s *tmp = v1->val;
+                v1->val = val_alloc();
+                v1->val->obj = ADDRESS_OBJ;
+                v1->val->u.addr.val = tmp;
+                v1->val->u.addr.type = am;
+            }
+            if (op == O_HASH) v1->epoint = o_out->epoint;
+            continue;
         case O_LAND:
         case O_LOR:
         case O_LXOR:

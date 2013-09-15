@@ -138,10 +138,9 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoin
 }
 
 static void calc1(oper_t op) {
-    struct value_s *v = op->v, *v2;
+    struct value_s *v = op->v;
     double v1 = op->v1->u.real;
     ival_t val = v1;
-    enum atype_e am;
     switch (op->op->u.oper.op) {
     case O_BANK: val >>= 8;
     case O_HIGHER: val >>= 8;
@@ -154,24 +153,6 @@ static void calc1(oper_t op) {
         return;
     case O_BSWORD:
         bits_from_u16(v, (uint8_t)(val >> 8) | (uint16_t)(val << 8));
-        return;
-    case O_COMMAS: am =  A_SR; goto addr;
-    case O_COMMAR: am =  A_RR; goto addr;
-    case O_COMMAZ: am =  A_ZR; goto addr;
-    case O_COMMAY: am =  A_YR; goto addr;
-    case O_COMMAX: am =  A_XR; goto addr;
-    case O_COMMAD: am = A_DR; goto addr;
-    case O_COMMAB: am = A_BR; goto addr;
-    case O_COMMAK: am = A_KR; goto addr;
-    case O_HASH: am = A_IMMEDIATE;
-    addr:
-        if (v == op->v1) {
-            v2 = val_alloc();
-            copy(op->v1, v2);
-        } else v2 = val_reference(op->v1);
-        v->obj = ADDRESS_OBJ;
-        v->u.addr.val = v2;
-        v->u.addr.type = am; 
         return;
     case O_INV: float_from_double(v, -0.5/((double)((uval_t)1 << (8 * sizeof(uval_t) - 1)))-v1); return;
     case O_NEG: float_from_double(v, -v1); return;
