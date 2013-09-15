@@ -55,6 +55,9 @@ enum oper_e {
     O_COMMAZ,        /* ,z    */
     O_COMMAR,        /* ,r    */
     O_COMMAS,        /* ,s    */
+    O_COMMAD,        /* ,d    */
+    O_COMMAB,        /* ,b    */
+    O_COMMAK,        /* ,k    */
     O_WORD,          /* <>    */
     O_HWORD,         /* >`    */
     O_BSWORD,        /* ><    */
@@ -121,6 +124,9 @@ enum atype_e {
     A_ZR,            /* ,z    */
     A_RR,            /* ,r    */
     A_SR,            /* ,s    */
+    A_DR,            /* ,d    */
+    A_BR,            /* ,b    */
+    A_KR,            /* ,k    */
     A_I,             /* )     */
     A_LI,            /* ]     */
 };
@@ -277,6 +283,9 @@ extern struct value_s o_COMMAY;
 extern struct value_s o_COMMAZ;
 extern struct value_s o_COMMAS;
 extern struct value_s o_COMMAR;
+extern struct value_s o_COMMAD;
+extern struct value_s o_COMMAB;
+extern struct value_s o_COMMAK;
 extern struct value_s o_WORD;
 extern struct value_s o_HWORD;
 extern struct value_s o_BSWORD;

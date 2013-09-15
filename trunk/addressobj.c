@@ -142,6 +142,9 @@ static void repr(const struct value_s *v1, struct value_s *v) {
         case A_ZR: buffer[ind2++] = ','; buffer[ind2++] = 'z';break;
         case A_SR: buffer[ind2++] = ','; buffer[ind2++] = 's';break;
         case A_RR: buffer[ind2++] = ','; buffer[ind2++] = 'r';break;
+        case A_DR: buffer[ind2++] = ','; buffer[ind2++] = 'd';break;
+        case A_BR: buffer[ind2++] = ','; buffer[ind2++] = 'b';break;
+        case A_KR: buffer[ind2++] = ','; buffer[ind2++] = 'k';break;
         case A_I: buffer2[--ind] = '('; buffer[ind2++] = ')';break;
         case A_LI: buffer2[--ind] = '['; buffer[ind2++] = ']';break;
         case A_IMMEDIATE: buffer2[--ind] = '#';break;
@@ -170,6 +173,9 @@ static inline int check_addr(atype_t type) {
         case A_I:
         case A_LI:
         case A_IMMEDIATE: return 1;
+        case A_KR:
+        case A_DR:
+        case A_BR:
         case A_XR:
         case A_YR:
         case A_ZR:
@@ -211,6 +217,9 @@ static void calc1(oper_t op) {
     case O_COMMAZ: am = A_ZR; goto addr;
     case O_COMMAY: am = A_YR; goto addr;
     case O_COMMAX: am = A_XR; goto addr;
+    case O_COMMAD: am = A_DR; goto addr;
+    case O_COMMAB: am = A_BR; goto addr;
+    case O_COMMAK: am = A_KR; goto addr;
     case O_HASH: am = A_IMMEDIATE;
     addr:
         am |= v1->u.addr.type << 4;

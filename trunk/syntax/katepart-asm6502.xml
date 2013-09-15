@@ -81,7 +81,7 @@
         <RegExpr String="[^ \t]" attribute="Error" context="#stay"/>
       </context>
       <context name="Miscparam2" attribute="Normal Text" lineEndContext="Base">
-        <RegExpr String=",[xyrs]\b"  attribute="Operator" context="#stay"/>
+        <RegExpr String=",[xyzrsdbk]\b"  attribute="Operator" context="#stay"/>
         <RegExpr String="[)}\]]"  attribute="Operator" context="#stay"/>
         <RegExpr String="&amp;&amp;|\|\||^^|\*\*|//|\.\.|==|&lt;[&lt;=]|&gt;[&gt;=]||&lt;&gh;|&gt;&gt;&gt;|!=|\bx\b|\bin\b"  attribute="Operator" context="Miscparam"/>
         <RegExpr String="[,({\[&amp;|^*%/\-+.?:=&lt;&gt;]"  attribute="Operator" context="Miscparam"/>

@@ -599,6 +599,9 @@ static void error_calc1(oper_t op) {
     case O_COMMAZ: am = A_ZR; goto addr;
     case O_COMMAY: am = A_YR; goto addr;
     case O_COMMAX: am = A_XR; goto addr;
+    case O_COMMAD: am = A_DR; goto addr;
+    case O_COMMAB: am = A_BR; goto addr;
+    case O_COMMAK: am = A_KR; goto addr;
     case O_HASH: am = A_IMMEDIATE;
     addr:
         if (v == op->v1) {
@@ -853,6 +856,9 @@ static void none_calc1(oper_t op) {
     case O_COMMAZ: am = A_ZR; goto addr;
     case O_COMMAY: am = A_YR; goto addr;
     case O_COMMAX: am = A_XR; goto addr;
+    case O_COMMAD: am = A_DR; goto addr;
+    case O_COMMAB: am = A_BR; goto addr;
+    case O_COMMAK: am = A_KR; goto addr;
     case O_HASH: am = A_IMMEDIATE;
     addr:
         v->obj = ADDRESS_OBJ; 
