@@ -3093,10 +3093,18 @@ struct value_s *compile(struct file_list_s *cflist)
                                         adr = (uval_t)uval;
                                         labelexists = olabelexists;
 
-                                        if (labelexists && adr >= s->addr) {
-                                            adr=(uint16_t)(adr - s->addr);
+                                        if (val->obj == CODE_OBJ) {
+                                            if (labelexists && pass != val->u.code.pass) {
+                                                adr=(uint16_t)(adr - s->addr);
+                                            } else {
+                                                adr=(uint16_t)(adr - current_section->l_address - 2);labelexists=0;
+                                            }
                                         } else {
-                                            adr=(uint16_t)(adr - current_section->l_address - 2);labelexists=0;
+                                            if (labelexists && adr >= s->addr) {
+                                                adr=(uint16_t)(adr - s->addr);
+                                            } else {
+                                                adr=(uint16_t)(adr - current_section->l_address - 2);labelexists=0;
+                                            }
                                         }
                                         ln=1;opr=ADR_REL;longbranch=0;
                                         if (((uval_t)current_section->l_address ^ (uval_t)uval) > 0xffff) {
