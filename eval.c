@@ -1563,6 +1563,9 @@ static int get_val2(struct eval_context_s *ev) {
         case O_COMMAZ:  /* ,z */
         case O_COMMAR:  /* ,r */
         case O_COMMAS:  /* ,s */
+        case O_COMMAD:  /* ,d */
+        case O_COMMAB:  /* ,b */
+        case O_COMMAK:  /* ,k */
         case O_INV:     /* ~  */
         case O_NEG:     /* -  */
         case O_POS:     /* +  */
@@ -1581,7 +1584,17 @@ static int get_val2(struct eval_context_s *ev) {
                     oper.v = oper.v1;
                     oper.v1->obj->calc1(&oper);
                 }
-                v1->epoint = o_out->epoint;
+                switch (op) {
+                default: v1->epoint = o_out->epoint;
+                case O_COMMAX:        /* ,x */
+                case O_COMMAY:        /* ,y */
+                case O_COMMAZ:        /* ,z */
+                case O_COMMAR:        /* ,r */
+                case O_COMMAS:        /* ,s */
+                case O_COMMAD:        /* ,d */
+                case O_COMMAB:        /* ,b */
+                case O_COMMAK: break; /* ,k */
+                }
                 continue;
             }
         case O_LAND:
@@ -1858,6 +1871,9 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
                 case 'z': op = &o_COMMAZ;llen=0;break;
                 case 'r': op = &o_COMMAR;llen=0;break;
                 case 's': op = &o_COMMAS;llen=0;break;
+                case 'd': op = &o_COMMAD;llen=0;break;
+                case 'b': op = &o_COMMAB;llen=0;break;
+                case 'k': op = &o_COMMAK;llen=0;break;
                 default: op = &o_COMMA;break;
                 }
             } else op = &o_COMMA;

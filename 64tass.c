@@ -1098,10 +1098,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else {
                     struct value_s err;
                     uval_t uval;
-                    if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) {
-                        err_msg_wrong_type(&err, &epoint);
-                        uval = 0;
-                    }
+                    if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) { err_msg_wrong_type(&err, &epoint); uval = 0; }
                     if (arguments.flat && !current_section->logicalrecursion) {
                         if ((address_t)uval & ~all_mem2) {
                             err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
@@ -1437,7 +1434,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_ENDP) { /* .endp */
                     if (close_waitfor(W_ENDP)) {
                     } else if (waitfor->what==W_ENDP2) {
-			if ((current_section->l_address & ~0xff) != (waitfor->laddr & ~0xff)) {
+			if ((current_section->l_address ^ waitfor->laddr) > 0xff) {
                             err_msg2(ERROR____PAGE_ERROR, &current_section->l_address, &epoint);
 			}
 			if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
@@ -1735,7 +1732,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
+                        if (val->obj->uval(val, &err, &uval, 24, &epoint)) err_msg_wrong_type(&err, &epoint); 
                         else if (uval & ~(uval_t)all_mem) err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
                         else current_section->l_address = (address_t)uval;
                     }
@@ -2811,7 +2808,7 @@ struct value_s *compile(struct file_list_s *cflist)
             }
         case WHAT_EXPRESSION:
             if (waitfor->skip & 1) {
-                enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_NONE } adrgen;
+                enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_WORD, AG_NONE } adrgen;
                 str_t opname;
 
                 opname.data = pline + lpoint.pos; opname.len = get_label();
@@ -2824,6 +2821,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     uint8_t cod, longbranch;
                     uint32_t adr;
                     int d;
+                    uval_t uval;
+                    struct value_s err;
                 as_opcode:
 
                     opr = ADR_IMPLIED;mnem = prm;
@@ -2847,9 +2846,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     /* 2 Db */
                     else {
-                        int c;
                     nota:
-                        if (!(c=get_exp(&w, 3))) goto breakerr; /* ellenorizve. */
+                        if (!get_exp(&w, 3)) goto breakerr; /* ellenorizve. */
                         if (!(val = get_val(ADDRESS_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
@@ -2857,18 +2855,14 @@ struct value_s *compile(struct file_list_s *cflist)
                         } else d = 1;
 
                         if (val->obj == ADDRESS_OBJ) {
-                            struct value_s err;
-                            uval_t uv;
-                            if (val->u.addr.type != A_IMMEDIATE) {
-                                if (val->u.addr.val->obj->uval(val->u.addr.val, &err, &uv, 8*sizeof(uv), &epoint)) {err_msg_wrong_type(&err, &epoint); adr = 0;}
-                                else adr = uv;
-                            }
-                            switch (val->u.addr.type) {
+                            atype_t am = val->u.addr.type;
+                            val = val->u.addr.val;
+                            switch (am) {
                             case A_IMMEDIATE:
                                 if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____ && prm) { /* 0x69 hack */
                                     lpoint.pos += strlen((const char *)pline + lpoint.pos);ln=w=d=1;
                                 } else {
-                                    ln=1;
+                                    ln=w=1;
                                     if (cod==0xE0 || cod==0xC0 || cod==0xA2 || cod==0xA0) {/* cpx cpy ldx ldy */
                                         if (longindex) ln++;
                                     }
@@ -2877,35 +2871,54 @@ struct value_s *compile(struct file_list_s *cflist)
                                         if (longaccu) ln++;
                                     }
 
-                                    if (w==3) w = ln - 1;
-                                    else if (w != ln - 1) w = 3;
                                     if (d) {
-                                        if (!w && ln == 1) {
-                                            if (val->u.addr.val->obj->uval(val->u.addr.val, &err, &uv, 8, &epoint)) {err_msg_wrong_type(&err, &epoint); adr = 0; }
-                                            else adr = uv;
-                                        }
-                                        else if (w == 1 && ln == 2) {
-                                            if (val->u.addr.val->obj->uval(val->u.addr.val, &err, &uv, 16, &epoint)) {err_msg_wrong_type(&err, &epoint); adr = 0; }
-                                            else adr = uv;
-                                        }
-                                        else w = 3;
+                                        if (val->obj->uval(val, &err, &uval, ln * 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                        else adr = uval;
                                     }
                                 }
+                                break;
+                            case A_BR:
+                                if (cnmemonic[ADR_ADDR] != 0x4C && cnmemonic[ADR_ADDR] != 0x20 && cnmemonic[ADR_ADDR] != 0xF4) {/* jmp $ffff, jsr $ffff, pea */
+                                    adrgen = AG_WORD; opr=ADR_ADDR; /* lda $ffff,b */
+                                } else w = 0;
+                                break;
+                            case A_KR:
+                                if (cnmemonic[ADR_ADDR] == 0x4C || cnmemonic[ADR_ADDR] == 0x20) {/* jmp $ffff, jsr $ffff */
+                                    adrgen = AG_WORD; opr = ADR_ADDR; /* jmp $ffff */
+                                } else w = 0;
+                                break;
+                            case A_DR:
+                                adrgen = AG_BYTE; opr=ADR_ZP; /* lda $ff,d */
+                                break;
+                            case (A_BR << 4) | A_XR:
+                                adrgen = AG_WORD; opr=ADR_ADDR_X; /* lda $ffff,b,x */
+                                break;
+                            case (A_DR << 4) | A_XR:
+                                adrgen = AG_BYTE; opr=ADR_ZP_X; /* lda $ff,d,x */
                                 break;
                             case A_XR:
                                 adrgen = AG_DB3; opr=ADR_ZP_X; /* lda $ff,x lda $ffff,x lda $ffffff,x */
                                 break;
+                            case (A_BR << 4) | A_YR:
+                                adrgen = AG_WORD; opr=ADR_ADDR_Y; /* ldx $ffff,b,y */
+                                break;
+                            case (A_DR << 4) | A_YR:
+                                adrgen = AG_BYTE; opr=ADR_ZP_Y; /* ldx $ff,d,y */
+                                break;
                             case A_YR: /* lda $ff,y lda $ffff,y lda $ffffff,y */
                                 if (w==3) {/* auto length */
                                     if (d) {
-                                        if (cnmemonic[ADR_ZP_Y]!=____ && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) {adr = (uint16_t)(adr - dpage);w = 0;}
-                                        else if (databank == (adr >> 16)) {w = 1;}
+                                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) {err_msg_wrong_type(&err, &epoint2); w = (cnmemonic[ADR_ADDR_Y]!=____);}
+                                        else if (cnmemonic[ADR_ZP_Y]!=____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage);w = 0;}
+                                        else if (databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
+                                        else {err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint); w = (cnmemonic[ADR_ADDR_Y]!=____);}
                                     } else w=(cnmemonic[ADR_ADDR_Y]!=____);
                                 } else if (d) {
-                                        if (!w && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) adr = (uint16_t)(adr - dpage);
-                                        else if (w == 1 && databank == (adr >> 16)) {}
-                                        else w=3;
-                                } else if (w > 1) w = 3;
+                                    if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                    else if (!w && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) adr = (uint16_t)(uval - dpage);
+                                    else if (w == 1 && databank == (uval >> 16)) adr = (uint16_t)uval;
+                                    else {err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint); w = cnmemonic[ADR_ADDR_Y]!=____;}
+                                } else if (w > 1) {err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint); w = (cnmemonic[ADR_ADDR_Y]!=____);}
                                 opr=ADR_ZP_Y-w;ln=w+1; /* ldx $ff,y lda $ffff,y */
                                 break;
                             case A_SR:
@@ -2914,8 +2927,14 @@ struct value_s *compile(struct file_list_s *cflist)
                             case A_RR:
                                 adrgen = AG_BYTE; opr=ADR_ZP_R; /* lda $ff,r */
                                 break;
+                            case (A_DR << 8) | (A_I << 4) | A_YR:
+                                adrgen = AG_BYTE; opr=ADR_ZP_I_Y; /* lda ($ff,d),y */
+                                break;
                             case (A_I << 4) | A_YR:
                                 adrgen = AG_ZP; opr=ADR_ZP_I_Y; /* lda ($ff),y */
+                                break;
+                            case (A_DR << 8) | (A_I << 4) | A_ZR:
+                                adrgen = AG_BYTE; opr=ADR_ZP_I_Z; /* lda ($ff,d),z */
                                 break;
                             case (A_I << 4) | A_ZR:
                                 adrgen = AG_ZP; opr=ADR_ZP_I_Z; /* lda ($ff),z */
@@ -2925,6 +2944,9 @@ struct value_s *compile(struct file_list_s *cflist)
                                 break;
                             case (A_RR << 8) | (A_I << 4) | A_YR:
                                 adrgen = AG_BYTE; opr=ADR_ZP_R_I_Y; /* lda ($ff,r),y */
+                                break;
+                            case (A_DR << 8) | (A_LI << 4) | A_YR:
+                                adrgen = AG_BYTE; opr=ADR_ZP_LI_Y; /* lda [$ff,d],y */
                                 break;
                             case (A_LI << 4) | A_YR:
                                 adrgen = AG_ZP; opr=ADR_ZP_LI_Y; /* lda [$ff],y */
@@ -2936,6 +2958,14 @@ struct value_s *compile(struct file_list_s *cflist)
                                     adrgen = AG_ZP; opr=ADR_ZP_X_I; /* lda ($ff,x) */
                                 }
                                 break;
+                            case (A_KR << 8) | (A_XR << 4) | A_I:
+                                if (cnmemonic[ADR_ADDR_X_I]==0x7C || cnmemonic[ADR_ADDR_X_I]==0xFC || cnmemonic[ADR_ADDR_X_I]==0x23) {/* jmp ($ffff,x) jsr ($ffff,x) */
+                                    adrgen = AG_WORD; opr=ADR_ADDR_X_I; /* jmp ($ffff,k,x) */
+                                }
+                                break;
+                            case (A_DR << 8) | (A_XR << 4) | A_I:
+                                adrgen = AG_BYTE; opr=ADR_ZP_X_I; /* lda ($ff,d,x) */
+                                break;
                             case A_I:
                                 if (cnmemonic[ADR_ADDR_I]==0x6C || cnmemonic[ADR_ADDR_I]==0x22) {/* jmp ($ffff), jsr ($ffff) */
                                     if (d && opcode!=c65816 && opcode!=c65c02 && opcode!=cr65c02 && opcode!=cw65c02 && opcode!=c65ce02 && opcode!=c65el02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG,NULL);/* jmp ($xxff) */
@@ -2944,6 +2974,9 @@ struct value_s *compile(struct file_list_s *cflist)
                                     adrgen = AG_ZP; opr=ADR_ZP_I; /* lda ($ff) */
                                 }
                                 break;
+                            case (A_DR << 4) | A_I:
+                                adrgen = AG_BYTE; opr=ADR_ZP_I; /* lda ($ff,d) */
+                                break;
                             case A_LI:
                                 if (cnmemonic[ADR_ADDR_LI]==0xDC) { /* jmp [$ffff] */
                                     adrgen = AG_B0; opr=ADR_ADDR_LI; /* jmp [$ffff] */
@@ -2951,112 +2984,95 @@ struct value_s *compile(struct file_list_s *cflist)
                                     adrgen = AG_ZP; opr=ADR_ZP_LI; /* lda [$ff] */
                                 }
                                 break;
+                            case (A_DR << 4) | A_LI:
+                                adrgen = AG_BYTE; opr=ADR_ZP_LI; /* lda [$ff,d] */
+                                break;
                             case A_NONE:
                                 goto noneaddr;
                             default:w = 0;break; /* non-existing */
                             }
                         } else {
-                            uval_t uval;
-                            struct value_s err;
                         noneaddr:
-                            if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) {err_msg_wrong_type(&err, &epoint); uval = 0;}
-                            adr = uval;
                             if (cnmemonic[ADR_MOVE]!=____) {
-                                struct value_s *val2;
-                                if (w==3) {/* auto length */
-                                    if (d) {
-                                        if (adr <= 0xff) {adr <<= 8; w = 0;}
-                                    } else w = 0;
-                                } else if (d) {
-                                    if (!w && adr <= 0xff) adr <<= 8;
-                                    else w = 3;
-                                } else if (w) w = 3; /* there's no mvp $ffff or mvp $ffffff */
-                                if ((val2 = get_val(NONE_OBJ, &epoint2))) {
-                                    if (val2->obj == NONE_OBJ) {
-                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
-                                        uval = d = fixeddig = 0;
-                                    } else {
-                                        if (val2->obj->uval(val2, &err, &uval, 8*sizeof(uval_t), &epoint)) {err_msg_wrong_type(&err, &epoint); uval = 0;}
-                                    }
-                                    if (uval <= 0xff) {adr |= (uint8_t)uval;}
-                                    else w = 3;
-                                } else err_msg(ERROR_ILLEGAL_OPERA,NULL);
+                                w = 0;
+                                if (d) {
+                                    if (val->obj->uval(val, &err, &uval, 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                    else adr = (uint16_t)uval << 8;
+                                }
+                                if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                if (val->obj == NONE_OBJ) {
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                                    d = fixeddig = 0;
+                                } else {
+                                    if (val->obj->uval(val, &err, &uval, 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                    else adr |= (uint8_t)uval;
+                                }
                                 ln = 2; opr=ADR_MOVE;
                             } else if (cnmemonic[ADR_BIT_ZP]!=____) {
-                                if (w==3) {/* auto length */
-                                    if (d) {
-                                        if (adr <= 7) {longbranch = adr << 4; w = 0;}
-                                    } else w = 0;
-                                } else if (d) {
-                                    if (!w && adr <= 7) longbranch = adr << 4;
-                                    else w = 3;
-                                } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
-                                if (w != 3) {
-                                    if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                                    if (val->obj == NONE_OBJ) {
-                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
-                                        uval = d = fixeddig = 0;
-                                    } else {
-                                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) {err_msg_wrong_type(&err, &epoint); uval = 0;}
-                                    }
-                                    adr = uval;
-                                    adrgen = AG_ZP; opr=ADR_BIT_ZP; w = 3;
+                                w = 0;
+                                if (d) {
+                                    if (val->obj->uval(val, &err, &uval, 3, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                    else longbranch = (uval << 4) & 0x70;
                                 }
+                                if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                if (val->obj == NONE_OBJ) {
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                                    d = fixeddig = 0;
+                                } else if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_DR) {
+                                    d = 1;
+                                    val = val->u.addr.val;
+                                    adrgen = AG_BYTE;
+                                } else {
+                                    d = 1;
+                                    adrgen = AG_ZP;
+                                }
+                                ln = 1; opr = ADR_BIT_ZP;
                             } else if (cnmemonic[ADR_BIT_ZP_REL]!=____) {
-                                if (w==3) {/* auto length */
-                                    if (d) {
-                                        if (adr <= 7) {longbranch = adr << 4; w = 0;}
-                                    } else w = 0;
-                                } else if (d) {
-                                    if (!w && adr <= 7) longbranch = adr << 4;
-                                    else w = 3;
-                                } else if (w) w = 3; /* there's no rmb $ffff,xx or smb $ffffff,xx */
-                                if (w != 3) {
-                                    if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                                    if (val->obj == NONE_OBJ) {
-                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
-                                        uval = d = fixeddig = 0;
-                                    } else {
-                                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) {err_msg_wrong_type(&err, &epoint); uval = 0;}
-                                    }
-                                    adr = uval;
-                                    w = 3;
-                                    if (d) {
-                                        if (adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) {adr = (uint16_t)(adr - dpage);w = 0;}
-                                    } else w = 1;
-                                    if (w != 3) {
-                                        uint32_t adr2;
-                                        if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                                        if (val->obj == NONE_OBJ) {
-                                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
-                                            uval = d = fixeddig = 0;
-                                        } else {
-                                            if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) {err_msg_wrong_type(&err, &epoint); uval = 0;}
-                                        }
-                                        adr2 = uval;
-                                        w=3;
-                                        if (d) {
-                                            if (((uval_t)current_section->l_address ^ (uval_t)adr2) & ~(uval_t)0xffff) {
-                                                err_msg2(ERROR_CANT_CROSS_BA, NULL, &epoint);w = 1;
-                                            } else {
-                                                adr2 = (uint16_t)(adr2 - current_section->l_address - 3);
-                                                if (adr2 >= 0xFF80 || adr2 <= 0x007F) {
-                                                    adr |= ((uint8_t)adr2) << 8; w = 1;
-                                                } else {
-                                                    int dist = (int16_t)adr2;
-                                                    dist += (dist < 0) ? 0x80 : -0x7f;
-                                                    err_msg2(ERROR_BRANCH_TOOFAR, &dist, &epoint);w = 1;
-                                                }
-                                            }
-                                        } else w = 1;
-                                    }
-                                    ln = 2;opr=ADR_BIT_ZP_REL;
+                                w = 0;
+                                if (d) {
+                                    if (val->obj->uval(val, &err, &uval, 3, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                    else longbranch = (uval << 4) & 0x70;
                                 }
+                                if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                if (val->obj == NONE_OBJ) {
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                                    d = fixeddig = 0;
+                                } else if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_DR) {
+                                    val = val->u.addr.val;
+                                    if (val->obj->uval(val, &err, &uval, 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                    else adr = (uint8_t)uval;
+                                } else {
+                                    if (val->obj->uval(val, &err, &uval, 16, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                    else adr = (uint16_t)(uval - dpage);
+                                    if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, NULL, &epoint2); 
+                                }
+                                if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                if (val->obj == NONE_OBJ) {
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                                    d = fixeddig = 0;
+                                } else {
+                                    if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_KR) {
+                                        val = val->u.addr.val;
+                                        if (val->obj->uval(val, &err, &uval, 16, &epoint2)) {err_msg_wrong_type(&err, &epoint2); uval = current_section->l_address + 3;}
+                                    } else {
+                                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) {err_msg_wrong_type(&err, &epoint2); uval = current_section->l_address + 3;}
+                                        else if (((uval_t)current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, &epoint);
+                                    }
+                                    uval = (uint16_t)(uval - current_section->l_address - 3);
+                                    if (uval >= 0xFF80 || uval <= 0x007F) {
+                                        adr |= ((uint8_t)uval) << 8;
+                                    } else {
+                                        int dist = (int16_t)uval;
+                                        dist += (dist < 0) ? 0x80 : -0x7f;
+                                        err_msg2(ERROR_BRANCH_TOOFAR, &dist, &epoint);
+                                    }
+                                }
+                                ln = 2;opr=ADR_BIT_ZP_REL;
                             } else if (cnmemonic[ADR_REL]!=____) {
                                 struct star_s *s;
                                 int olabelexists;
                                 int_fast8_t min = 10;
-                                uint32_t joadr = adr;
+                                uint32_t joadr;
                                 int_fast8_t joln = 1;
                                 uint8_t jolongbranch = longbranch;
                                 enum opr_e joopr = ADR_REL;
@@ -3065,10 +3081,14 @@ struct value_s *compile(struct file_list_s *cflist)
                                 int dist = 0;
                                 s = new_star(vline+1, &labelexists);olabelexists=labelexists;
 
-                                for (; c; c = !!(val = get_val(NONE_OBJ, NULL))) {
+                                if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                else adr = uval;
+                                joadr = adr;
+
+                                for (; val; val = get_val(NONE_OBJ, NULL)) {
                                     if (val->obj != NONE_OBJ) {
                                         uint16_t oadr;
-                                        if (val->obj->uval(val, NULL, &uval, 8*sizeof(uval_t), &epoint)) continue;
+                                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) continue;
                                         oadr = uval;
                                         adr = (uval_t)uval;
                                         labelexists = olabelexists;
@@ -3079,7 +3099,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                             adr=(uint16_t)(adr - current_section->l_address - 2);labelexists=0;
                                         }
                                         ln=1;opr=ADR_REL;longbranch=0;
-                                        if (((uval_t)current_section->l_address ^ (uval_t)uval) & ~(uval_t)0xffff) {
+                                        if (((uval_t)current_section->l_address ^ (uval_t)uval) > 0xffff) {
                                             erro = ERROR_CANT_CROSS_BA; continue;
                                         }
                                         if (adr<0xFF80 && adr>0x007F) {
@@ -3153,33 +3173,32 @@ struct value_s *compile(struct file_list_s *cflist)
                                 s->addr = (star + 1 + ln) & all_mem;
                             }
                             else if (cnmemonic[ADR_REL_L]!=____) {
-                                if (w==3) {
-                                    if (d) {
-                                        if ((current_section->l_address ^ adr) <= 0xffff) {
-                                            adr = (uint16_t)(adr - current_section->l_address - 3); w = 1;
-                                        } else {if (d) err_msg2(ERROR_CANT_CROSS_BA, NULL, &epoint);w = 1;}
-                                    } else w = 1;
-                                } else if (d) {
-                                    if (w == 1 && (current_section->l_address ^ adr) <= 0xffff) adr = (uint16_t)(adr - current_section->l_address - 3);
-                                    else w = 3; /* there's no brl $ffffff! */
-                                } else if (w != 1) w = 3;
+                                w = 0;
+                                if (d) {
+                                    if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                    if ((current_section->l_address ^ uval) <= 0xffff) {
+                                        adr = (uint16_t)(uval - current_section->l_address - 3);
+                                    } else err_msg2(ERROR_CANT_CROSS_BA, NULL, &epoint);
+                                }
                                 opr=ADR_REL_L; ln = 2; /* brl */
                             }
                             else if (cnmemonic[ADR_LONG]==0x5C) {
                                 if (w==3) {/* auto length */
                                     if (d) {
-                                        if (cnmemonic[ADR_ADDR]!=____ && (current_section->l_address ^ adr) <= 0xffff) w = 1;
-                                        else if (adr <= 0xffffff) w = 2;
+                                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                        else if (cnmemonic[ADR_ADDR]!=____ && (current_section->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
+                                        else {adr = uval; w = 2;}
                                     } else w = (cnmemonic[ADR_ADDR]==____) + 1;
                                 } else if (d) {
-                                    if (w == 1 && (current_section->l_address ^ adr) <= 0xffff) {}
-                                    else if (w == 2 && adr <= 0xffffff) {}
-                                    else w = 3;
+                                    if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                    else if (w == 1 && (current_section->l_address ^ uval) <= 0xffff) adr = uval;
+                                    else if (w == 2) adr = uval;
                                 }
                                 opr=ADR_ZP-w;ln=w+1; /* jml */
-                            }
-                            else if (cnmemonic[ADR_ADDR]==0x20) {
+                            } else if (cnmemonic[ADR_ADDR]==0x20) {
                                 adrgen = AG_PB; opr=ADR_ADDR; /* jsr $ffff */
+                            } else if (cnmemonic[ADR_ADDR]==0xF4) {
+                                adrgen = AG_WORD; opr=ADR_ADDR; /* pea $ffff */
                             } else {
                                 adrgen = AG_DB3; opr=ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
                             }
@@ -3188,53 +3207,67 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     switch (adrgen) {
                     case AG_ZP: /* zero page address only */
-                        if (w == 3) w = 0;/* auto length */
+                        if (w==3) w = 0;/* auto length */
+                        else if (w != 0) err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint); 
                         if (d) {
-                            if (!w && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) {adr = (uint16_t)(adr - dpage);w = 0;}
-                            else w=3; /* there's no $ffff or $ffffff! */
-                        } else if (w) w = 3;
+                            if (val->obj->uval(val, &err, &uval, 16, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                            else adr = (uint16_t)(uval - dpage);
+                            if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, NULL, &epoint2); 
+                        }
                         ln = 1;
                         break;
                     case AG_B0: /* bank 0 address only */
                         if (w==3) w = 1;/* auto length */
+                        else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint);
                         if (d) {
-                            if (w == 1 && adr <= 0xffff) {}
-                            else w=3; /* there's no jmp $ffffff! */
-                        } else if (w != 1) w = 3;
+                            if (val->obj->uval(val, &err, &uval, 16, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                            else adr = uval;
+                        }
                         ln = 2;
                         break;
                     case AG_PB: /* address in program bank */
                         if (w==3) w = 1;/* auto length */
+                        else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint);
                         if (d) {
-                            if (w == 1) { 
-                                if ((current_section->l_address ^ adr) <= 0xffff) adr = (uint16_t)adr;
-                                else err_msg2(ERROR_CANT_CROSS_BA, NULL, &epoint);
-                            } else w = 3; /* there's no jsr ($ffff,x)! */
-                        } else if (w != 1) w = 3;
+                            if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                            else if ((current_section->l_address ^ uval) <= 0xffff) adr = (uint16_t)uval;
+                            else err_msg2(ERROR_CANT_CROSS_BA, NULL, &epoint);
+                        }
                         ln = 2;
                         break;
                     case AG_BYTE: /* byte only */
                         if (w==3) w = 0;/* auto length */
+                        else if (w != 0) err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint);
                         if (d) {
-                            if (!w && adr <= 0xff) {}
-                            else w = 3;
-                        } else if (w) w = 3; /* there's no lda ($ffffff,s),y or lda ($ffff,s),y! */
+                            if (val->obj->uval(val, &err, &uval, 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                            else adr = uval;
+                        }
                         ln = 1;
                         break;
                     case AG_DB3: /* 3 choice data bank */
                         if (w==3) {/* auto length */
                             if (d) {
-                                if (cnmemonic[opr]!=____ && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) {adr = (uint16_t)(adr - dpage);w = 0;}
-                                else if (cnmemonic[opr - 1] != ____ && databank == (adr >> 16)) w = 1;
-                                else if (adr <= 0xffffff) w = 2;
+                                if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                else if (cnmemonic[opr]!=____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage);w = 0;}
+                                else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
+                                else {adr = uval; w = 2;}
                             } else w=(cnmemonic[opr - 1]!=____);
                         } else if (d) {
-                            if (!w && adr <= 0xffff && (uint16_t)(adr - dpage) <= 0xff) adr = (uint16_t)(adr - dpage);
-                            else if (w == 1 && databank == (adr >> 16)) {}
-                            else if (w == 2 && adr <= 0xffffff) {}
-                            else w = 3;
+                            if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                            else if (!w && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) adr = (uint16_t)(uval - dpage);
+                            else if (w == 1 && databank == (adr >> 16)) adr = (uint16_t)uval;
+                            else if (w == 2) adr = uval;
                         }
                         opr = opr - w;ln = w + 1;
+                        break;
+                    case AG_WORD: /* word only */
+                        if (w==3) w = 1;/* auto length */
+                        else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint);
+                        if (d) {
+                            if (val->obj->uval(val, &err, &uval, 16, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                            else adr = uval;
+                        }
+                        ln = 2;
                         break;
                     case AG_NONE:
                         break;
@@ -3258,7 +3291,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     goto as_macro;
                                 }
                             }
-                            err_msg(ERROR_ILLEGAL_OPERA,NULL);
+                            err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint); 
                             goto breakerr;
                         }
                     }

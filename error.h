@@ -83,6 +83,8 @@ enum errors_e {
     ERROR______CANT_INT,
     ERROR______CANT_LEN,
     ERROR______NOT_ITER,
+    ERROR_NO_ADDRESSING,
+    ERROR____NOT_DIRECT,
     ERROR__USER_DEFINED,
     ERROR____PAGE_ERROR,
     ERROR__BRANCH_CROSS,
