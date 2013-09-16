@@ -27,7 +27,6 @@ struct values_s;
 #define obj_print(v, f) val_print(v, f)
 #define obj_destroy(v) do { struct value_s *_v_ = (v); _v_->obj->destroy(_v_); } while (0)
 #define obj_same(v, v2) v->obj->same(v, v2)
-#define obj_truth(v) v->obj->truth(v)
 #define obj_hash(v, v2, epoint) v->obj->hash(v, v2, epoint)
 
 enum type_e {
@@ -35,6 +34,10 @@ enum type_e {
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST, T_DICT,
     T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL,
     T_DEFAULT, T_ITER
+};
+
+enum truth_e {
+    TRUTH_BOOL, TRUTH_ALL, TRUTH_ANY
 };
 
 typedef const struct obj_s* obj_t;
@@ -45,7 +48,7 @@ struct obj_s {
     void (*copy)(const struct value_s *, struct value_s *);
     void (*copy_temp)(const struct value_s *, struct value_s *);
     int (*same)(const struct value_s *, const struct value_s *);
-    int (*truth)(const struct value_s *);
+    int (*truth)(const struct value_s *, struct value_s *, int *, enum truth_e, linepos_t) MUST_CHECK;
     int (*hash)(const struct value_s *, struct value_s *, linepos_t);
     void (*repr)(const struct value_s *, struct value_s *);
     void (*str)(const struct value_s *, struct value_s *);

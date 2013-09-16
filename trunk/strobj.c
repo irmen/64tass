@@ -86,8 +86,19 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
             !memcmp(v1->u.str.data, v2->u.str.data, v2->u.str.len));
 }
 
-static int truth(const struct value_s *v1) {
-    return !!v1->u.str.len;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+    int ret;
+    struct value_s tmp;
+    if (bytes_from_str(&tmp, v1)) {
+        if (v == v1) destroy(v);
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_BIG_STRING_CO;
+        v->u.error.epoint = *epoint;
+        return 1;
+    }
+    ret = tmp.obj->truth(&tmp, v, truth, type, epoint);
+    tmp.obj->destroy(&tmp);
+    return ret;
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {
@@ -195,7 +206,7 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
 static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, linepos_t epoint) {
     struct value_s tmp;
     int ret;
-    if (bits_from_str(&tmp, v1)) {
+    if (bytes_from_str(&tmp, v1)) {
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_BIG_STRING_CO;
         v->u.error.epoint = *epoint;
@@ -327,9 +338,6 @@ static void calc1(oper_t op) {
             return;
         }
         break;
-    case O_LNOT:
-        if (v1 == v) destroy(v);
-        return bool_from_int(v, !truth(v1));
     default:
         if (bits_from_str(&tmp, v1)) {
             if (v == v1) destroy(v);
@@ -590,7 +598,13 @@ static void calc2(oper_t op) {
         if (op->op == &o_MOD) {
             isnprintf(v1, v2, v, &op->epoint, &op->epoint2); return;
         }
-        v2->obj->rcalc2(op); return;
+        /* fall through */
+    case T_IDENT:
+    case T_ANONIDENT:
+    case T_GAP:
+        if (op->op != &o_MEMBER) {
+            v2->obj->rcalc2(op); return;
+        }
     default: break;
     }
     obj_oper_error(op);

@@ -144,7 +144,7 @@ x - y    subtract y from x                4 - 1 is 3
 x * y    multiply x with y                2 * 3 is 6
 x / y    integer divide x by y            7 / 2 is 3
 x % y    integer modulo of x divided by y 5 % 2 is 1
-x ** y   x raised t power of y            2 ** 4 is 16
+x ** y   x raised to power of y           2 ** 4 is 16
 -x       negated value                    -2 is -2
 +x       unchanged                        +2 is 2
 ~x       ?x ? 1                           ~3 is -4
@@ -166,7 +166,10 @@ x ^ y    bitwise xor                      2 ^ 6 is 4
 x & y    bitwise and                      2 & 6 is 2
 x << y   logical shift left               1 << 3 is 8
 x >> y   arithmetic shift right           -8 >> 3 is -1
-int(a)   convert to integer               int(%11) is 3
+abs(a)   absolute value                   abs(-1) is 1
+sign(a)  sign value (?1, 0, 1)            sign(-4) is -1
+int(a)   convert to integer               int(11) is 11
+bool(a)  convert to boolean               bool(1) is true
 
 An integer has a truth value of true if it's non-zero. The true value is the
 same as 1.
@@ -192,18 +195,24 @@ Bit string constants
 Bit string constants can be entered as hexadecimal by a leading dollar sign or
 binary with a leading percent sign. The following operations are accepted:
 
-      Bit string operators and functions
-~x     invert bits      ~%101 is ~%101
-..     concatenate bits $a..$b is $ab
-y x n  repeat           %101 x 3 is %101101101
-x[n]   extract bit(s)   $a[1] is 0
-x[s]   slice bits       $1234[4:8] is $3
-x | y  bitwise or       ~$2 | $6 is ~$0
-x ^ y  bitwise xor      ~$2 ^ $6 is ~$4
-x & y  bitwise and      ~$2 & $6 is $4
-len(a) length in bits   len($034) is 12
+             Bit string operators and functions
+~x      invert bits                    ~%101 is ~%101
+..      concatenate bits               $a..$b is $ab
+y x n   repeat                         %101 x 3 is %101101101
+x[n]    extract bit(s)                 $a[1] is 0
+x[s]    slice bits                     $1234[4:8] is $3
+x | y   bitwise or                     ~$2 | $6 is ~$0
+x ^ y   bitwise xor                    ~$2 ^ $6 is ~$4
+x & y   bitwise and                    ~$2 & $6 is $4
+abs(a)  absolute value                 abs(%11) is 3
+sign(a) sign value (?1, 0, 1)          sign(~%11) is -1
+int(a)  convert to integer             int(%11) is 3
+bool(a) convert to boolean             bool(%11) is true
+len(a)  length in bits                 len($034) is 12
+all(a)  all bits set or no bits at all all($f) is true
+any(a)  at least one bit set           any(~$f) is false
 
-An bit string has a truth value of true if it's non-zero.
+A bit string has a truth value of true if it's integer value is non-zero.
 
 Length of bit string constants are defined in bits and is calculated from the
 number of digits used including leading zeros.
@@ -255,7 +264,7 @@ x >> y      arithmetic shift right           -8.0 >> 4 is -0.5
 abs(a)      absolute value                   abs(-1.0) is 1.0
 sign(a)     sign value (?1, 0, 1)            sign(-4.0) is -1
 floor(a)    round down                       floor(-4.8) is -5.0
-round(a)    round to nearest away from zero  floor(4.8) is 5.0
+round(a)    round to nearest away from zero  round(4.8) is 5.0
 ceil(a)     round up                         ceil(1.1) is 2.0
 trunc(a)    round down towards zero          trunc(-1.9) is -1
 frac(a)     fractional part                  frac(1.1) is 0.1
@@ -307,22 +316,26 @@ representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside the strings escapes them.
 
-            String operators and functions
-..      concatenate strings      "a".."b" is "ab"
-in      is substring of          "b" in "abc" is true
-%       string formatting        "%02x" % (12,) is "0c"
-y x n   repeat                   "ab" x 3 is "ababab"
-x[i]    character from start     "abc"[1] is "b"
-x[i]    character from end       "abc"[-1] is "c"
-x[s]    no change                "abc"[:] is "abc"
-x[s]    cut off start            "abc"[1:] is "bc"
-x[s]    cut off end              "abc"[:-1] is "ab"
-x[s]    reverse                  "abc"[::-1] is "cba"
-len(x)  number of characters     len("abc") is 3
-str(a)  convert to string        str($1) is "$1"
-repr(a) representation to string str("a") is '"a"'
+                    String operators and functions
+..      concatenate strings                     "a".."b" is "ab"
+in      is substring of                         "b" in "abc" is true
+%       string formatting                       "%02x" % (12,) is "0c"
+a x n   repeat                                  "ab" x 3 is "ababab"
+a[i]    character from start                    "abc"[1] is "b"
+a[i]    character from end                      "abc"[-1] is "c"
+a[s]    no change                               "abc"[:] is "abc"
+a[s]    cut off start                           "abc"[1:] is "bc"
+a[s]    cut off end                             "abc"[:-1] is "ab"
+a[s]    reverse                                 "abc"[::-1] is "cba"
+bool(a) convert to boolean                      bool("a") is true
+len(a)  number of characters                    len("abc") is 3
+all(a)  all characters non-zero or empty string all("c") is true
+any(a)  at least one non-zero character         any("c") is true
+str(a)  convert to string                       str($1) is "$1"
+repr(a) representation to string                str("a") is '"a"'
 
-A string has a truth value of true if it contains at least one character.
+A string has a truth value of true if it contains at least one character which
+is not translated to zero.
 
 Strings are converted to integers, byte and bit strings as necessary using the
 current encoding and escape rules. For example when using a sane encoding "z" -
@@ -386,19 +399,23 @@ Byte strings are like strings, but hold bytes instead of characters. They can
 be created by prefixing quoted strings with a `b', this converts the string
 using the current encoding to bytes.
 
-       Byte string operators and functions
-..     concatenate strings b"a"..b"b" is b"ab"
-in     is substring of     b"b" in b"abc" is true
-y x n  repeat              b"ab" x 3 is b"ababab"
-x[i]   byte from start     b"abc"[1] is b"b"
-x[i]   byte from end       b"abc"[-1] is b"c"
-x[s]   no change           b"abc"[:] is b"abc"
-x[s]   cut off start       b"abc"[1:] is b"bc"
-x[s]   cut off end         b"abc"[:-1] is b"ab"
-x[s]   reverse             b"abc"[::-1] is b"cba"
-len(x) number of bytes     len(b"abc") is 3
+             Byte string operators and functions
+..      concatenate strings            b"a"..b"b" is b"ab"
+in      is substring of                b"b" in b"abc" is true
+a x n   repeat                         b"ab" x 3 is b"ababab"
+a[i]    byte from start                b"abc"[1] is b"b"
+a[i]    byte from end                  b"abc"[-1] is b"c"
+a[s]    no change                      b"abc"[:] is b"abc"
+a[s]    cut off start                  b"abc"[1:] is b"bc"
+a[s]    cut off end                    b"abc"[:-1] is b"ab"
+a[s]    reverse                        b"abc"[::-1] is b"cba"
+bool(a) convert to boolean             bool(b"a") is true
+len(a)  number of bytes                len(b"abc") is 3
+all(a)  all bytes non-zero or no bytes all(b"c") is true
+any(a)  at least one non-zero byte     any(b"c") is true
 
-A byte string has a truth value of true if it contains at least one byte.
+A byte string has a truth value of true if it contains at least one non-zero
+byte.
 
 Indexing and slicing works as with character strings.
 
@@ -420,14 +437,16 @@ Currently both types are immutable.
                     List and tuple operators and functions
 ..           concatenate lists                     [1]..[2] is [1, 2]
 in           is member of list                     2 in [1, 2, 3] is true
-y x n        repeat                                [1, 2] x 2 is [1, 2, 1, 2]
-x[i]         element from start                    ("1", 2)[1] is 2
-x[i]         element from end                      ("1", 2, 3)[-1] is 3
-x[s]         no change                             (1, 2, 3)[:] is (1, 2, 3)
-x[s]         cut off start                         (1, 2, 3)[1:] is (2, 3)
-x[s]         cut off end                           (1, 2.0, 3)[:-1] is (1, 2.0)
-x[s]         reverse                               (1, 2, 3)[::-1] is (3, 2, 1)
-len(x)       number of elements                    len([1, 2, 3]) is 3
+a x n        repeat                                [1, 2] x 2 is [1, 2, 1, 2]
+a[i]         element from start                    ("1", 2)[1] is 2
+a[i]         element from end                      ("1", 2, 3)[-1] is 3
+a[s]         no change                             (1, 2, 3)[:] is (1, 2, 3)
+a[s]         cut off start                         (1, 2, 3)[1:] is (2, 3)
+a[s]         cut off end                           (1, 2.0, 3)[:-1] is (1, 2.0)
+a[s]         reverse                               (1, 2, 3)[::-1] is (3, 2, 1)
+len(a)       number of elements                    len([1, 2, 3]) is 3
+all(a)       all elements true or empty list       all([1, 1, 0]) is false
+any(a)       at least one true element             any([1, 1, 0]) is true
 range(s,e,t) create a list with values from a      range(3) is [0,1,2]
              range
 
@@ -508,13 +527,13 @@ for now, you might need to update your code later.
 
          Label operators and functions
 .       member                  label.locallabel
-x[i]    element from start      label[1]
-x[i]    element from end        label[-1]
-x[s]    copy as tuple           label[:]
-x[s]    cut off start, as tuple label[1:]
-x[s]    cut off end, as tuple   label[:-1]
-x[s]    reverse, as tuple       label[::-1]
-len(x)  number of elements      len(label)
+a[i]    element from start      label[1]
+a[i]    element from end        label[-1]
+a[s]    copy as tuple           label[:]
+a[s]    cut off start, as tuple label[1:]
+a[s]    cut off end, as tuple   label[:-1]
+a[s]    reverse, as tuple       label[::-1]
+len(a)  number of elements      len(label)
 size(a) size in bytes           size(label)
 
 A code object has a truth value of true when it's address is non-zero.
@@ -641,9 +660,9 @@ that they also denote indirect addressing mode for certain opcodes.
 Built in functions are identifiers followed by parentheses. They accept
 variable number of parameters separated by comma.
 
-       Other built in functions
-min(a, b, ...)        Minimum of values
-max(a, b, ...)        Maximum of values
+               Other built in functions
+all(a)                All elements true or no elements
+any(a)                Any elements true
 
 Special addressing mode forcing operators in front of an expression can be used
 to make sure the expected addressing mode is used.

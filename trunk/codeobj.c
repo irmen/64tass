@@ -65,8 +65,9 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == CODE_OBJ && v1->u.code.addr == v2->u.code.addr && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.parent == v2->u.code.parent;
 }
 
-static int truth(const struct value_s *v1) {
-    return !!v1->u.code.addr;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *truth, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    *truth = !!v1->u.code.addr;
+    return 0;
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {
@@ -145,6 +146,18 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoin
     int_from_uval(v, v1->u.code.addr);
 }
 
+static int MUST_CHECK len(const struct value_s *v1, struct value_s *v, uval_t *len, linepos_t epoint) {
+    if (!v1->u.code.pass) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR____NO_FORWARD;
+        v->u.error.epoint = *epoint;
+        v->u.error.u.ident = v1->u.code.parent->name;
+        return 1;
+    }
+    *len = v1->u.code.size / (abs(v1->u.code.dtype) + !v1->u.code.dtype);
+    return 0;
+}
+
 static void calc1(oper_t op) {
     struct value_s *v = op->v, *v1 = op->v1;
     uval_t val = v1->u.code.addr;
@@ -171,7 +184,6 @@ static void calc1(oper_t op) {
         v->obj->calc1(op);
         op->v1 = v1;
         return;
-    case O_LNOT: bool_from_int(v, !truth(v1)); return;
     case O_STRING: repr2(v1, v); return;
     default: break;
     }
@@ -512,6 +524,7 @@ void codeobj_init(void) {
     obj.sign = sign;
     obj.abs = absolute;
     obj.integer = integer;
+    obj.len = len;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

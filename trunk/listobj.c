@@ -71,8 +71,36 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return 1;
 }
 
-static int truth(const struct value_s *v1) {
-    return !!v1->u.list.len;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+    size_t i;
+    switch (type) {
+    case TRUTH_ALL:
+        *truth = 1;
+        for (i = 0; i < v1->u.list.len; i++) {
+            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], v, truth, type, epoint)) return 1;
+            if (!*truth) break;
+        }
+        return 0;
+    case TRUTH_ANY:
+        *truth = 0;
+        for (i = 0; i < v1->u.list.len; i++) {
+            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], v, truth, type, epoint)) return 1;
+            if (*truth) break;
+        }
+        return 0;
+    case TRUTH_BOOL:
+        switch (v1->u.list.len) {
+        case 0: *truth = 0; return 0;
+        case 1: return v1->u.list.data[0]->obj->truth(v1->u.list.data[0], v, truth, type, epoint);
+        default: break;
+        }
+        break;
+    default: break;
+    }
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR_____CANT_BOOL;
+    v->u.error.epoint = *epoint;
+    return 1;
 }
 
 static void repr_list(const struct value_s *v1, struct value_s *v) {
@@ -236,6 +264,13 @@ static int calc2_list(oper_t op) {
 
     if (v1->obj != v2->obj) return 1;
     switch (op->op->u.oper.op) {
+    case O_CMP:
+    case O_EQ:
+    case O_NE:
+    case O_LT:
+    case O_LE:
+    case O_GT:
+    case O_GE: 
     case O_MUL:
     case O_DIV:
     case O_MOD:
@@ -341,43 +376,6 @@ static int calc2_list(oper_t op) {
             v->u.list.data = vals;
             return 0;
         }
-    case O_EQ:
-        if (v1->u.list.len != v2->u.list.len) { val = 0; break; }
-        val = 1;
-        for (i = 0; i < v2->u.list.len; i++) {
-            struct value_s tmp;
-            op->v = &tmp;
-            op->v1 = v1->u.list.data[i];
-            op->v2 = v2->u.list.data[i];
-            op->v1->obj->calc2(op);
-            if (tmp.obj != BOOL_OBJ || !tmp.u.boolean) { val = 0; break; }
-        }
-        op->v = v;
-        op->v1 = v1;
-        op->v2 = v2;
-        break;
-    case O_NE:
-        if (v1->u.list.len != v2->u.list.len) { val = 1; break; }
-        val = 0;
-        for (i = 0; i < v2->u.list.len; i++) {
-            struct value_s tmp;
-            op->v = &tmp;
-            op->v1 = v1->u.list.data[i];
-            op->v2 = v2->u.list.data[i];
-            op->v1->obj->calc2(op);
-            if (tmp.obj == BOOL_OBJ && tmp.u.boolean) { val = 1; break; }
-        }
-        op->v = v;
-        op->v1 = v1;
-        op->v2 = v2;
-        break;
-    case O_CMP:
-    case O_LT:
-    case O_LE:
-    case O_GT:
-    case O_GE:    /* TODO */
-        obj_oper_error(op);
-        return 0;
     case O_CONCAT:
         {
             struct value_s **vals;
@@ -429,55 +427,37 @@ static void calc2(oper_t op) {
             v2->obj->rcalc2(op);return;
         }
     default:
-        switch (op->op->u.oper.op) {
-        case O_MUL:
-        case O_DIV:
-        case O_MOD:
-        case O_ADD:
-        case O_SUB:
-        case O_AND:
-        case O_OR:
-        case O_XOR:
-        case O_LSHIFT:
-        case O_RSHIFT:
-        case O_EXP:
-        case O_MEMBER:
-        case O_CONCAT:
-            if (v == v1) {
-                for (;i < v1->u.list.len; i++) {
-                    op->v1 = v1->u.list.data[i];
-                    if (op->v1->refcount != 1) {
-                        op->v = &new_value;
-                        op->v1->obj->calc2(op);
-                        val_replace_template(v->u.list.data + i, &new_value);
-                    } else {
-                        op->v = op->v1;
-                        op->v1->obj->calc2(op);
-                    }
-                }
-                op->v = v;
-                op->v1 = v1;
-                return;
-            }
-            if (v1->u.list.len) {
-                vals = (struct value_s **)malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
-                if (!vals) err_msg_out_of_memory();
-                for (;i < v1->u.list.len; i++) {
-                    op->v1 = v1->u.list.data[i];
-                    op->v = vals[i] = val_alloc();
+        if (v == v1) {
+            for (;i < v1->u.list.len; i++) {
+                op->v1 = v1->u.list.data[i];
+                if (op->v1->refcount != 1) {
+                    op->v = &new_value;
+                    op->v1->obj->calc2(op);
+                    val_replace_template(v->u.list.data + i, &new_value);
+                } else {
+                    op->v = op->v1;
                     op->v1->obj->calc2(op);
                 }
-                op->v = v;
-                op->v1 = v1;
-            } else vals = NULL;
-            v->obj = v1->obj;
-            v->u.list.len = i;
-            v->u.list.data = vals;
+            }
+            op->v = v;
+            op->v1 = v1;
             return;
-        default: 
-            v2->obj->rcalc2(op);return;
         }
-        break;
+        if (v1->u.list.len) {
+            vals = (struct value_s **)malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
+            if (!vals) err_msg_out_of_memory();
+            for (;i < v1->u.list.len; i++) {
+                op->v1 = v1->u.list.data[i];
+                op->v = vals[i] = val_alloc();
+                op->v1->obj->calc2(op);
+            }
+            op->v = v;
+            op->v1 = v1;
+        } else vals = NULL;
+        v->obj = v1->obj;
+        v->u.list.len = i;
+        v->u.list.data = vals;
+        return;
     }
     obj_oper_error(op);
 }

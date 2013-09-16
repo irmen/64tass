@@ -37,8 +37,9 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == BOOL_OBJ && v1->u.boolean == v2->u.boolean;
 }
 
-static int truth(const struct value_s *v1) {
-    return v1->u.boolean;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *truth, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    *truth = v1->u.boolean;
+    return 0;
 }
 
 static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
@@ -112,7 +113,6 @@ static void calc1(oper_t op) {
     case O_POS:
         int_from_int(v, v1->u.boolean);
         return;
-    case O_LNOT: bool_from_int(v, !truth(v1)); return;
     case O_STRING: repr(v1, v);break;
     default: break;
     }

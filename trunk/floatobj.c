@@ -40,8 +40,9 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == FLOAT_OBJ && v1->u.real == v2->u.real;
 }
 
-static int truth(const struct value_s *v1) {
-    return !!v1->u.real;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *truth, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    *truth = !!v1->u.real;
+    return 0;
 }
 
 static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
@@ -157,7 +158,6 @@ static void calc1(oper_t op) {
     case O_INV: float_from_double(v, -0.5/((double)((uval_t)1 << (8 * sizeof(uval_t) - 1)))-v1); return;
     case O_NEG: float_from_double(v, -v1); return;
     case O_POS: float_from_double(v, v1); return;
-    case O_LNOT: bool_from_int(v, !truth(op->v1)); return;
     case O_STRING: repr(op->v1, v); return;
     default: break;
     }
@@ -165,8 +165,8 @@ static void calc1(oper_t op) {
 }
 
 static int almost_equal(double a, double b) {
-    if (a > b) return a - b < a * 0.0000000005;
-    return b - a < b * 0.0000000005;
+    if (a > b) return a - b <= a * 0.0000000005;
+    return b - a <= b * 0.0000000005;
 }
 
 int calc2_double(oper_t op, double v1, double v2) {

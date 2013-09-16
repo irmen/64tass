@@ -50,8 +50,14 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == ADDRESS_OBJ && v1->u.addr.type == v2->u.addr.type && obj_same(v1->u.addr.val, v2->u.addr.val);
 }
 
-static int truth(const struct value_s *v1) {
-    return v1->u.addr.val->obj->truth(v1->u.addr.val);
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+    if (v1->u.addr.type == A_NONE) {
+        return v1->u.addr.val->obj->truth(v1->u.addr.val, v, truth, type, epoint);
+    }
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR_____CANT_BOOL;
+    v->u.error.epoint = *epoint;
+    return 1;
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
@@ -212,7 +218,6 @@ static void calc1(oper_t op) {
         op->v1 = v1;
         op->v = v;
         return;
-    case O_LNOT: bool_from_int(v, !truth(v1)); return;
     case O_STRING: break;
     default: break;
     }
@@ -221,21 +226,60 @@ static void calc1(oper_t op) {
 
 static void calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s tmp;
     atype_t am;
     switch (v2->obj->type) {
     case T_ADDRESS:
-        am = v1->u.addr.type;
-        if (am != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) 
-            if (am != A_NONE || v2->u.addr.type != A_NONE) 
-                break;
-        op->v = val_alloc();
-        op->v1 = v1->u.addr.val;
-        op->v2 = v2->u.addr.val;
-        op->v1->obj->calc2(op);
-        if (v == v1 || v == v2) destroy(v);
-        v->obj = ADDRESS_OBJ;
-        v->u.addr.val = op->v;
-        v->u.addr.type = am;
+        switch (op->op->u.oper.op) {
+        case O_CMP:
+            if (v1->u.addr.type == v2->u.addr.type) {
+                op->v = &tmp;
+                op->v1 = v1->u.addr.val;
+                op->v2 = v2->u.addr.val;
+                op->v1->obj->calc2(op);
+            } else int_from_int(&tmp, (v1->u.addr.type > v2->u.addr.type) - (v1->u.addr.type < v2->u.addr.type));
+            if (v == v1 || v == v2) destroy(v);
+            tmp.obj->copy_temp(&tmp, v);
+            break;
+        case O_EQ:
+        case O_NE:
+        case O_LT:
+        case O_LE:
+        case O_GT:
+        case O_GE: 
+            if (v1->u.addr.type == v2->u.addr.type) {
+                op->v = &tmp;
+                op->v1 = v1->u.addr.val;
+                op->v2 = v2->u.addr.val;
+                op->v1->obj->calc2(op);
+            } else switch (op->op->u.oper.op) {
+            case O_EQ: bool_from_int(&tmp, v1->u.addr.type == v2->u.addr.type); break;
+            case O_NE: bool_from_int(&tmp, v1->u.addr.type != v2->u.addr.type); break;
+            case O_LT: bool_from_int(&tmp, v1->u.addr.type < v2->u.addr.type); break;
+            case O_LE: bool_from_int(&tmp, v1->u.addr.type <= v2->u.addr.type); break;
+            case O_GT: bool_from_int(&tmp, v1->u.addr.type > v2->u.addr.type); break;
+            case O_GE: bool_from_int(&tmp, v1->u.addr.type >= v2->u.addr.type); break;
+            default: break;
+            }
+            if (v == v1 || v == v2) destroy(v);
+            tmp.obj->copy_temp(&tmp, v);
+            break;
+        default:
+            am = v1->u.addr.type;
+            if (am != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) 
+                if (am != A_NONE || v2->u.addr.type != A_NONE) {
+                    obj_oper_error(op);
+                    return;
+                }
+            op->v = val_alloc();
+            op->v1 = v1->u.addr.val;
+            op->v2 = v2->u.addr.val;
+            op->v1->obj->calc2(op);
+            if (v == v1 || v == v2) destroy(v);
+            v->obj = ADDRESS_OBJ;
+            v->u.addr.val = op->v;
+            v->u.addr.type = am;
+        }
         op->v = v;
         op->v1 = v1;
         op->v2 = v2;
@@ -269,23 +313,6 @@ static void rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     atype_t am;
     switch (v1->obj->type) {
-    case T_ADDRESS:
-        am = v2->u.addr.type;
-        if (v1->u.addr.type != A_IMMEDIATE || am != A_IMMEDIATE) 
-            if (v1->u.addr.type != A_NONE || am != A_NONE) 
-                break;
-        op->v = val_alloc();
-        op->v1 = v1->u.addr.val;
-        op->v2 = v2->u.addr.val;
-        op->v2->obj->rcalc2(op);
-        if (v == v1 || v == v2) destroy(v);
-        v->obj = ADDRESS_OBJ;
-        v->u.addr.val = op->v;
-        v->u.addr.type = am;
-        op->v = v;
-        op->v1 = v1;
-        op->v2 = v2;
-        return;
     case T_BOOL:
     case T_INT:
     case T_BITS:
@@ -304,8 +331,9 @@ static void rcalc2(oper_t op) {
         op->v2 = v2;
         return;
     default:
+    case T_ADDRESS:
         if (op->op != &o_IN) {
-            v1->obj->calc2(op); return;
+            return v1->obj->calc2(op);
         }
     }
     obj_oper_error(op);
