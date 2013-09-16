@@ -1223,6 +1223,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uint8_t skwait = waitfor->skip;
                     ival_t ival;
                     struct value_s err;
+                    int truth;
                     if (prm==CMD_ELSIF) {
                         if (waitfor->what!=W_FI2) {err_msg2(ERROR______EXPECTED,".IF", &epoint); break;}
                     } else new_waitfor(W_FI2, &epoint);
@@ -1238,63 +1239,43 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else val = &none_value;
                     switch (prm) {
                     case CMD_ELSIF:
-                        if (val->obj == ERROR_OBJ) err_msg_wrong_type(val, &epoint);
-                        waitfor->skip = obj_truth(val) ? (waitfor->skip >> 1) : (waitfor->skip & 2);
+                        if (val->obj == NONE_OBJ) truth = 0;
+                        else if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); truth = 0; }
+                        waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
                         break;
                     case CMD_IF:
-                        if (val->obj == ERROR_OBJ) err_msg_wrong_type(val, &epoint);
-                        waitfor->skip = obj_truth(val) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                        if (val->obj == NONE_OBJ) truth = 0;
+                        else if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); truth = 0; }
+                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     case CMD_IFNE:
-                        switch (val->obj->type) {
-                        case T_INT:
-                        case T_BITS:
-                        case T_BOOL:
-                        case T_CODE:
-                        case T_FLOAT:
-                        case T_STR: waitfor->skip = obj_truth(val) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
-                        default: err_msg_wrong_type(val, &epoint);
-                        case T_NONE: waitfor->skip = (prevwaitfor->skip & 1) << 1;break;
-                        }
-                        break;
                     case CMD_IFEQ:
-                        switch (val->obj->type) {
-                        case T_INT:
-                        case T_BITS:
-                        case T_BOOL:
-                        case T_CODE:
-                        case T_FLOAT:
-                        case T_STR: waitfor->skip = (!obj_truth(val)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
-                        default: err_msg_wrong_type(val, &epoint);
-                        case T_NONE: waitfor->skip = (prevwaitfor->skip & 1) << 1;break;
+                        if (val->obj == NONE_OBJ) truth = 0;
+                        else {
+                            int sign;
+                            if (val->obj->sign(val, &err, &sign, &epoint)) {
+                                err_msg_wrong_type(&err, &epoint);
+                                truth = 0;
+                            } else truth = (sign == 0) ^ (prm == CMD_IFNE);
                         }
+                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         break;
                     case CMD_IFPL:
                     case CMD_IFMI:
-                        switch (val->obj->type) {
-                        case T_INT: 
-                        case T_BITS:
-                        case T_BOOL:
-                        case T_CODE:
-                        case T_FLOAT:
-                            if (arguments.tasmcomp) {
-                                if (val->obj->ival(val, &err, &ival, 8*sizeof(uval_t), &epoint)) {
-                                    err_msg_wrong_type(&err, &epoint);
-                                    ival = 0;
-                                } else ival = !(ival & 0x8000) ^ (prm == CMD_IFMI);
-                            } else {
-                                int sign;
-                                if (val->obj->sign(val, &err, &sign, &epoint)) {
-                                    err_msg_wrong_type(&err, &epoint);
-                                    ival = 0;
-                                } else ival = (sign >= 0) ^ (prm == CMD_IFMI);
-                            }
-                            break;
-                        case T_STR: ival = (prm == CMD_IFPL);break;
-                        default: err_msg_wrong_type(val, &epoint);
-                        case T_NONE: ival = 0;break;
+                        if (val->obj == NONE_OBJ) truth = 0;
+                        else if (arguments.tasmcomp) {
+                            if (val->obj->ival(val, &err, &ival, 8*sizeof(uval_t), &epoint)) {
+                                err_msg_wrong_type(&err, &epoint);
+                                truth = 0;
+                            } else truth = !(ival & 0x8000) ^ (prm == CMD_IFMI);
+                        } else {
+                            int sign;
+                            if (val->obj->sign(val, &err, &sign, &epoint)) {
+                                err_msg_wrong_type(&err, &epoint);
+                                truth = 0;
+                            } else truth = (sign >= 0) ^ (prm == CMD_IFMI);
                         }
-                        waitfor->skip = ival ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
+                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         break;
                     }
                     break;
@@ -1921,6 +1902,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     int writeit = 1;
                     struct encoding_s *old = actual_encoding;
                     struct error_s user_error;
+                    struct linepos_s epoint2;
                     error_init(&user_error);
                     actual_encoding = NULL;
                     rc = get_exp(&w,0);
@@ -1929,20 +1911,21 @@ struct value_s *compile(struct file_list_s *cflist)
                     err_msg_variable(&user_error, NULL);
                     for (;;) {
                         actual_encoding = NULL;
-                        val = get_val(NONE_OBJ, &epoint);
+                        val = get_val(NONE_OBJ, &epoint2);
                         actual_encoding = old;
                         if (!val) break;
                         if (first) {
                             first = 0;
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
-                                if (val->obj == ERROR_OBJ) err_msg_wrong_type(val, &epoint);
-                                writeit = obj_truth(val);
+                                struct value_s err;
+                                if (val->obj == NONE_OBJ) writeit = 0;
+                                else if (val->obj->truth(val, &err, &writeit, TRUTH_BOOL, &epoint2)) {err_msg_wrong_type(&err, &epoint2); writeit = 0; }
                                 continue;
                             }
                             writeit = 1;
                         }
                         if (writeit) {
-                            if (val->obj == ERROR_OBJ) err_msg_wrong_type(val, &epoint);
+                            if (val->obj == ERROR_OBJ) err_msg_wrong_type(val, &epoint2);
                             else if (val->obj != NONE_OBJ) err_msg_variable(&user_error, val);
                         }
                     }
@@ -2333,8 +2316,9 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct label_s *var;
                     struct star_s *s;
                     struct avltree *stree_old;
+                    struct value_s err;
                     line_t ovline;
-                    int starexists;
+                    int starexists, truth;
 
                     new_waitfor(W_NEXT, &epoint);waitfor->skip=0;
                     if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { /* label */
@@ -2385,12 +2369,14 @@ struct value_s *compile(struct file_list_s *cflist)
                     for (;;) {
                         lpoint=apoint;
                         if (!get_exp(&w,1)) break; /* ellenorizve. */
-                        if (!(val = get_val(NONE_OBJ, NULL))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                        if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
+                            break;
                         }
-                        if (!obj_truth(val)) break;
+                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); break; }
+                        if (!truth) break;
                         if (nopos < 0) {
                             str_t varname;
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
@@ -2453,6 +2439,8 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_OPTION) { /* .option */
                     static const str_t branch_across = {24, (const uint8_t *)"allow_branch_across_page"};
                     static const str_t longjmp = {22, (const uint8_t *)"auto_longbranch_as_jmp"};
+                    int truth;
+                    struct value_s err;
                     str_t optname;
                     optname.data = pline + lpoint.pos; optname.len = get_label();
                     if (!optname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -2464,8 +2452,14 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
-                    } else if ((!arguments.casesensitive && !str_casecmp(&optname, &branch_across)) || (arguments.casesensitive && !str_cmp(&optname, &branch_across))) allowslowbranch = obj_truth(val);
-                    else if ((!arguments.casesensitive && !str_casecmp(&optname, &longjmp)) || (arguments.casesensitive && !str_cmp(&optname, &longjmp))) longbranchasjmp = obj_truth(val);
+                    } else if ((!arguments.casesensitive && !str_casecmp(&optname, &branch_across)) || (arguments.casesensitive && !str_cmp(&optname, &branch_across))) {
+                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); break; }
+                        else allowslowbranch = truth;
+                    }
+                    else if ((!arguments.casesensitive && !str_casecmp(&optname, &longjmp)) || (arguments.casesensitive && !str_cmp(&optname, &longjmp))) {
+                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); break; }
+                        else longbranchasjmp = truth;
+                    }
                     else {
                         char *s = (char *)malloc(optname.len + 1);
                         if (!s) err_msg_out_of_memory();

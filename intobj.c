@@ -86,8 +86,9 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return !memcmp(v1->u.integer.data, v2->u.integer.data, abs(v1->u.integer.len) * sizeof(digit_t));
 }
 
-static int truth(const struct value_s *v1) {
-    return !!v1->u.integer.len;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *truth, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    *truth = !!v1->u.integer.len;
+    return 0;
 }
 
 static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
@@ -334,9 +335,6 @@ static void calc1(oper_t op) {
     case O_POS:
         if (v != v1) copy(v1, v);
         return;
-    case O_LNOT: 
-        if (v == v1) destroy(v);
-        bool_from_int(v, !truth(v1)); return;
     case O_STRING: repr(v1, v); return;
     default: break;
     }

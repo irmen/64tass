@@ -84,9 +84,43 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return !memcmp(v1->u.bits.data, v2->u.bits.data, v1->u.bits.len * sizeof(bdigit_t));
 }
 
-static int truth(const struct value_s *v1) {
-    if (v1->u.bits.len) return 1;
-    return v1->u.bits.inv;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+    size_t i;
+    bdigit_t b;
+    switch (type) {
+    case TRUTH_ALL:
+        *truth = 1;
+        for (i = 0; i < v1->u.bits.bits / 8 / sizeof(bdigit_t); i++) {
+            b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
+            if (!v1->u.bits.inv) b = ~b;
+            if (b) {*truth = 0; return 0;}
+        }
+        b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
+        if (!v1->u.bits.inv) b = ~b;
+        b <<= 8 * sizeof(bdigit_t) - v1->u.bits.bits % (8 * sizeof(bdigit_t));
+        if (b) *truth = 0;
+        return 0;
+    case TRUTH_ANY:
+        *truth = 0;
+        for (i = 0; i < v1->u.bits.bits / 8 / sizeof(bdigit_t); i++) {
+            b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
+            if (v1->u.bits.inv) b = ~b;
+            if (b) {*truth = 1; return 0;}
+        }
+        b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
+        if (v1->u.bits.inv) b = ~b;
+        b <<= 8 * sizeof(bdigit_t) - v1->u.bits.bits % (8 * sizeof(bdigit_t));
+        if (b) *truth = 1;
+        return 0;
+    case TRUTH_BOOL:
+        *truth = !!v1->u.bits.len || v1->u.bits.inv;
+        return 0;
+    default: break;
+    }
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR_____CANT_BOOL;
+    v->u.error.epoint = *epoint;
+    return 1;
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {
@@ -527,10 +561,6 @@ static void calc1(oper_t op) {
         tmp.obj->calc1(op);
         op->v1 = v1;
         tmp.obj->destroy(&tmp);
-        return;
-    case O_LNOT:
-        if (v1 == v) destroy(v);
-        bool_from_int(v, !truth(v1)); 
         return;
     default:
         break;

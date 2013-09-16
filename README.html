@@ -205,7 +205,7 @@ following operations are accepted:</p>
 <tr><td>x * y<td>multiply x with y<td><code><span>2</span> * <span>3</span></code> is <code><span>6</span></code>
 <tr><td>x / y<td>integer divide x by y<td><code><span>7</span> / <span>2</span></code> is <code><span>3</span></code>
 <tr><td>x % y<td>integer modulo of x divided by y<td><code><span>5</span> % <span>2</span></code> is <code><span>1</span></code>
-<tr><td>x ** y<td>x raised t power of y<td><code><span>2</span> ** <span>4</span></code> is <code><span>16</span></code>
+<tr><td>x ** y<td>x raised to power of y<td><code><span>2</span> ** <span>4</span></code> is <code><span>16</span></code>
 <tr><td>-x<td>negated value<td><code>-<span>2</span></code> is <code><span>-2</span></code>
 <tr><td>+x<td>unchanged<td><code>+<span>2</span></code> is <code><span>2</span></code>
 <tr><td>~x<td>&minus;x &minus; 1<td><code>~<span>3</span></code> is <code><span>-4</span></code>
@@ -227,7 +227,10 @@ following operations are accepted:</p>
 <tr><td>x &amp; y<td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
 <tr><td>x &lt;&lt; y<td>logical shift left<td><code><span>1</span> &lt;&lt; <span>3</span></code> is <code><span>8</span></code>
 <tr><td>x &gt;&gt; y<td>arithmetic shift right<td><code><span>-8</span> &gt;&gt; <span>3</span></code> is <code><span>-1</span></code>
-<tr><td>int(a)<td>convert to integer<td><code><span class="k">int</span>(<span>%11</span>)</code> is <code><span>3</span></code>
+<tr><td>abs(a)<td>absolute value<td><code><span class="k">abs</span>(<span>-1</span>)</code> is <code><span>1</span></code>
+<tr><td>sign(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>-4</span>)</code> is <code><span>-1</span></code>
+<tr><td>int(a)<td>convert to integer<td><code><span class="k">int</span>(<span>11</span>)</code> is <code><span>11</span></code>
+<tr><td>bool(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span>1</span>)</code> is true
 </table>
 
 <p>An integer has a truth value of true if it's non-zero. The
@@ -266,10 +269,16 @@ The following operations are accepted:</p>
 <tr><td>x | y<td>bitwise or<td><code><span>~$2</span> | <span>$6</span></code> is <code><span>~$0</span></code>
 <tr><td>x ^ y<td>bitwise xor<td><code><span>~$2</span> ^ <span>$6</span></code> is <code><span>~$4</span></code>
 <tr><td>x &amp; y<td>bitwise and<td><code><span>~$2</span> &amp; <span>$6</span></code> is <code><span>$4</span></code>
+<tr><td>abs(a)<td>absolute value<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
+<tr><td>sign(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>-1</span></code>
+<tr><td>int(a)<td>convert to integer<td><code><span class="k">int</span>(<span>%11</span>)</code> is <code><span>3</span></code>
+<tr><td>bool(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span>%11</span>)</code> is true
 <tr><td>len(a)<td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
+<tr><td>all(a)<td>all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is true
+<tr><td>any(a)<td>at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is false
 </table>
 
-<p>An bit string has a truth value of true if it's non-zero.</p>
+<p>A bit string has a truth value of true if it's integer value is non-zero.</p>
 
 <p>Length of bit string constants are defined in bits and is calculated from
 the number of digits used including leading zeros.</p>
@@ -323,7 +332,7 @@ following operations can be used:</p>
 <tr><td>abs(a)<td>absolute value<td><code><span class="k">abs</span>(<span>-1.0</span>)</code> is <code><span>1.0</span></code>
 <tr><td>sign(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>-4.0</span>)</code> is <code><span>-1</span></code>
 <tr><td>floor(a)<td>round down<td><code><span class="k">floor</span>(<span>-4.8</span>)</code> is <code><span>-5.0</span></code>
-<tr><td>round(a)<td>round to nearest away from zero<td><code><span class="k">floor</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
+<tr><td>round(a)<td>round to nearest away from zero<td><code><span class="k">round</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
 <tr><td>ceil(a)<td>round up<td><code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
 <tr><td>trunc(a)<td>round down towards zero<td><code><span class="k">trunc</span>(<span>-1.9</span>)</code> is <code><span>-1</span></code>
 <tr><td>frac(a)<td>fractional part<td><code><span class="k">frac</span>(<span>1.1</span>)</code> is <code><span>0.1</span></code>
@@ -382,19 +391,22 @@ Doubling the quotes inside the strings escapes them.</p>
 <tr><td>..<td>concatenate strings<td><code><span class="s">"a"</span>..<span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
 <tr><td>in<td>is substring of<td><code><span class="s">"b"</span> <span class="k">in</span> <span class="s">"abc"</span></code> is true
 <tr><td>%<td>string formatting<td><code><span class="s">"<span>%02x</span>"</span> % (<span>12</span>,)</code> is <code><span class="s">"0c"</span></code>
-<tr><td>y x n<td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
-<tr><td>x[i]<td>character from start<td><code><span class="s">"abc"</span>[<span>1</span>]</code> is <code><span class="s">"b"</span></code>
-<tr><td>x[i]<td>character from end<td><code><span class="s">"abc"</span>[<span>-1</span>]</code> is <code><span class="s">"c"</span></code>
-<tr><td>x[s]<td>no change<td><code><span class="s">"abc"</span>[:]</code> is <code><span class="s">"abc"</span></code>
-<tr><td>x[s]<td>cut off start<td><code><span class="s">"abc"</span>[<span>1</span>:]</code> is <code><span class="s">"bc"</span></code>
-<tr><td>x[s]<td>cut off end<td><code><span class="s">"abc"</span>[:<span>-1</span>]</code> is <code><span class="s">"ab"</span></code>
-<tr><td>x[s]<td>reverse<td><code><span class="s">"abc"</span>[::<span>-1</span>]</code> is <code><span class="s">"cba"</span></code>
-<tr><td>len(x)<td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td>a x n<td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
+<tr><td>a[i]<td>character from start<td><code><span class="s">"abc"</span>[<span>1</span>]</code> is <code><span class="s">"b"</span></code>
+<tr><td>a[i]<td>character from end<td><code><span class="s">"abc"</span>[<span>-1</span>]</code> is <code><span class="s">"c"</span></code>
+<tr><td>a[s]<td>no change<td><code><span class="s">"abc"</span>[:]</code> is <code><span class="s">"abc"</span></code>
+<tr><td>a[s]<td>cut off start<td><code><span class="s">"abc"</span>[<span>1</span>:]</code> is <code><span class="s">"bc"</span></code>
+<tr><td>a[s]<td>cut off end<td><code><span class="s">"abc"</span>[:<span>-1</span>]</code> is <code><span class="s">"ab"</span></code>
+<tr><td>a[s]<td>reverse<td><code><span class="s">"abc"</span>[::<span>-1</span>]</code> is <code><span class="s">"cba"</span></code>
+<tr><td>bool(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">"a"</span>)</code> is true
+<tr><td>len(a)<td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td>all(a)<td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is true
+<tr><td>any(a)<td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is true
 <tr><td>str(a)<td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
 <tr><td>repr(a)<td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
 </table>
 
-<p>A string has a truth value of true if it contains at least one character.</p>
+<p>A string has a truth value of true if it contains at least one character which is not translated to zero.</p>
 
 <p>Strings are converted to integers, byte and bit strings as necessary using the current
 encoding and escape rules. For example when using a sane encoding <code>"z" - "a"</code> is
@@ -471,17 +483,20 @@ string using the current encoding to bytes.</p>
 <caption>Byte string operators and functions</caption>
 <tr><td>..<td>concatenate strings<td><code><span class="s">b"a"</span>..<span class="s">b"b"</span></code> is <code><span class="s">b"ab"</span></code>
 <tr><td>in<td>is substring of<td><code><span class="s">b"b"</span> <span class="k">in</span> <span class="s">b"abc"</span></code> is true
-<tr><td>y x n<td>repeat<td><code><span class="s">b"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">b"ababab"</span></code>
-<tr><td>x[i]<td>byte from start<td><code><span class="s">b"abc"</span>[<span>1</span>]</code> is <code><span class="s">b"b"</span></code>
-<tr><td>x[i]<td>byte from end<td><code><span class="s">b"abc"</span>[<span>-1</span>]</code> is <code><span class="s">b"c"</span></code>
-<tr><td>x[s]<td>no change<td><code><span class="s">b"abc"</span>[:]</code> is <code><span class="s">b"abc"</span></code>
-<tr><td>x[s]<td>cut off start<td><code><span class="s">b"abc"</span>[<span>1</span>:]</code> is <code><span class="s">b"bc"</span></code>
-<tr><td>x[s]<td>cut off end<td><code><span class="s">b"abc"</span>[:<span>-1</span>]</code> is <code><span class="s">b"ab"</span></code>
-<tr><td>x[s]<td>reverse<td><code><span class="s">b"abc"</span>[::<span>-1</span>]</code> is <code><span class="s">b"cba"</span></code>
-<tr><td>len(x)<td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td>a x n<td>repeat<td><code><span class="s">b"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">b"ababab"</span></code>
+<tr><td>a[i]<td>byte from start<td><code><span class="s">b"abc"</span>[<span>1</span>]</code> is <code><span class="s">b"b"</span></code>
+<tr><td>a[i]<td>byte from end<td><code><span class="s">b"abc"</span>[<span>-1</span>]</code> is <code><span class="s">b"c"</span></code>
+<tr><td>a[s]<td>no change<td><code><span class="s">b"abc"</span>[:]</code> is <code><span class="s">b"abc"</span></code>
+<tr><td>a[s]<td>cut off start<td><code><span class="s">b"abc"</span>[<span>1</span>:]</code> is <code><span class="s">b"bc"</span></code>
+<tr><td>a[s]<td>cut off end<td><code><span class="s">b"abc"</span>[:<span>-1</span>]</code> is <code><span class="s">b"ab"</span></code>
+<tr><td>a[s]<td>reverse<td><code><span class="s">b"abc"</span>[::<span>-1</span>]</code> is <code><span class="s">b"cba"</span></code>
+<tr><td>bool(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">b"a"</span>)</code> is true
+<tr><td>len(a)<td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td>all(a)<td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is true
+<tr><td>any(a)<td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is true
 </table>
 
-<p>A byte string has a truth value of true if it contains at least one byte.</p>
+<p>A byte string has a truth value of true if it contains at least one non-zero byte.</p>
 
 <p>Indexing and slicing works as with character strings.</p>
 
@@ -507,14 +522,16 @@ types are immutable.</p>
 <caption>List and tuple operators and functions</caption>
 <tr><td>..<td>concatenate lists<td><code>[<span>1</span>]..[<span>2</span>]</code> is <code>[<span>1</span>, <span>2</span>]</code>
 <tr><td>in<td>is member of list<td><code><span>2</span> <span class="k">in</span> [<span>1</span>, <span>2</span>, <span>3</span>]</code> is true
-<tr><td>y x n<td>repeat<td><code>[<span>1</span>, <span>2</span>] <span class="k">x</span> <span>2</span></code> is <code>[<span>1</span>, <span>2</span>, <span>1</span>, <span>2</span>]</code>
-<tr><td>x[i]<td>element from start<td><code>(<span class="s">"1"</span>, <span>2</span>)[<span>1</span>]</code> is <code><span>2</span></code>
-<tr><td>x[i]<td>element from end<td><code>(<span class="s">"1"</span>, <span>2</span>, <span>3</span>)[<span>-1</span>]</code> is <code><span>3</span></code>
-<tr><td>x[s]<td>no change<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[:]</code> is <code>(<span>1</span>, <span>2</span>, <span>3</span>)</code>
-<tr><td>x[s]<td>cut off start<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[<span>1</span>:]</code> is <code>(<span>2</span>, <span>3</span>)</code>
-<tr><td>x[s]<td>cut off end<td><code>(<span>1</span>, <span>2.0</span>, <span>3</span>)[:<span>-1</span>]</code> is <code>(<span>1</span>, <span>2.0</span>)</code>
-<tr><td>x[s]<td>reverse<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[::<span>-1</span>]</code> is <code>(<span>3</span>, <span>2</span>, <span>1</span>)</code>
-<tr><td>len(x)<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
+<tr><td>a x n<td>repeat<td><code>[<span>1</span>, <span>2</span>] <span class="k">x</span> <span>2</span></code> is <code>[<span>1</span>, <span>2</span>, <span>1</span>, <span>2</span>]</code>
+<tr><td>a[i]<td>element from start<td><code>(<span class="s">"1"</span>, <span>2</span>)[<span>1</span>]</code> is <code><span>2</span></code>
+<tr><td>a[i]<td>element from end<td><code>(<span class="s">"1"</span>, <span>2</span>, <span>3</span>)[<span>-1</span>]</code> is <code><span>3</span></code>
+<tr><td>a[s]<td>no change<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[:]</code> is <code>(<span>1</span>, <span>2</span>, <span>3</span>)</code>
+<tr><td>a[s]<td>cut off start<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[<span>1</span>:]</code> is <code>(<span>2</span>, <span>3</span>)</code>
+<tr><td>a[s]<td>cut off end<td><code>(<span>1</span>, <span>2.0</span>, <span>3</span>)[:<span>-1</span>]</code> is <code>(<span>1</span>, <span>2.0</span>)</code>
+<tr><td>a[s]<td>reverse<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[::<span>-1</span>]</code> is <code>(<span>3</span>, <span>2</span>, <span>1</span>)</code>
+<tr><td>len(a)<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
+<tr><td>all(a)<td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is false
+<tr><td>any(a)<td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is true
 <tr><td>range(s,e,t)<td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
 </table>
 
@@ -603,13 +620,13 @@ risk for now, you might need to update your code later.</b></p>
 <table border="0" class="oper">
 <caption>Label operators and functions</caption>
 <tr><td>.<td>member<td><code><u>label</u>.<u>locallabel</u></code>
-<tr><td>x[i]<td>element from start<td><code><u>label</u>[<span>1</span>]</code>
-<tr><td>x[i]<td>element from end<td><code><u>label</u>[<span>-1</span>]</code>
-<tr><td>x[s]<td>copy as tuple<td><code><u>label</u>[:]</code>
-<tr><td>x[s]<td>cut off start, as tuple<td><code><u>label</u>[<span>1</span>:]</code>
-<tr><td>x[s]<td>cut off end, as tuple<td><code><u>label</u>[:<span>-1</span>]</code>
-<tr><td>x[s]<td>reverse, as tuple<td><code><u>label</u>[::<span>-1</span>]</code>
-<tr><td>len(x)<td>number of elements<td><code><span class="k">len</span>(<u>label</u>)</code>
+<tr><td>a[i]<td>element from start<td><code><u>label</u>[<span>1</span>]</code>
+<tr><td>a[i]<td>element from end<td><code><u>label</u>[<span>-1</span>]</code>
+<tr><td>a[s]<td>copy as tuple<td><code><u>label</u>[:]</code>
+<tr><td>a[s]<td>cut off start, as tuple<td><code><u>label</u>[<span>1</span>:]</code>
+<tr><td>a[s]<td>cut off end, as tuple<td><code><u>label</u>[:<span>-1</span>]</code>
+<tr><td>a[s]<td>reverse, as tuple<td><code><u>label</u>[::<span>-1</span>]</code>
+<tr><td>len(a)<td>number of elements<td><code><span class="k">len</span>(<u>label</u>)</code>
 <tr><td>size(a)<td>size in bytes<td><code><span class="k">size</span>(<u>label</u>)</code>
 </table>
 
@@ -760,8 +777,8 @@ variable number of parameters separated by comma.</p>
 
 <table border="0" class="oper">
 <caption>Other built in functions</caption>
-<tr><td width="150">min(a, b, ...)<td>Minimum of values
-<tr><td>max(a, b, ...)<td>Maximum of values
+<tr><td width="150">all(a)<td>All elements true or no elements
+<tr><td>any(a)<td>Any elements true
 </table>
 
 <p>Special addressing mode forcing operators in front of an expression can be

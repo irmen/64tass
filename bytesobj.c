@@ -72,8 +72,28 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
             !memcmp(v1->u.bytes.data, v2->u.bytes.data, v2->u.bytes.len));
 }
 
-static int truth(const struct value_s *v1) {
-    return !!v1->u.bytes.len;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+    size_t i;
+    switch (type) {
+    case TRUTH_ALL:
+        *truth = 1;
+        for (i = 0; i < v1->u.bytes.len; i++) {
+            if (!v1->u.bytes.data[i]) {*truth = 0; break;}
+        }
+        return 0;
+    case TRUTH_ANY:
+    case TRUTH_BOOL:
+        *truth = 0;
+        for (i = 0; i < v1->u.bytes.len; i++) {
+            if (v1->u.bytes.data[i]) {*truth = 1; break;}
+        }
+        return 0;
+    default: break;
+    }
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR_____CANT_BOOL;
+    v->u.error.epoint = *epoint;
+    return 1;
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {
@@ -172,7 +192,11 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
 }
 
 static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
-    *s = !!v1->u.bytes.len;
+    size_t i;
+    for (i = 0; i < v1->u.bytes.len; i++) {
+        if (v1->u.bytes.data[i]) {*s = 1; return 0;}
+    }
+    *s = 0;
     return 0;
 }
 
@@ -221,9 +245,6 @@ static void calc1(oper_t op) {
     case O_POS:
     case O_STRING: int_from_bytes(&tmp, v1);
         break;
-    case O_LNOT:
-        if (v1 == v) destroy(v);
-        return bool_from_int(v, !truth(v1));
     default: bits_from_bytes(&tmp, v1);
         break;
     }
@@ -378,7 +399,12 @@ static void calc2(oper_t op) {
     case T_TUPLE:
     case T_LIST:
     case T_STR:
-        v2->obj->rcalc2(op); return;
+    case T_IDENT:
+    case T_ANONIDENT:
+    case T_GAP:
+        if (op->op != &o_MEMBER) {
+            v2->obj->rcalc2(op); return;
+        }
     default: break;
     }
     obj_oper_error(op);

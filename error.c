@@ -161,6 +161,7 @@ static const char *terr_error[]={
     "can't get absolute value",
     "can't convert to integer",
     "can't get length",
+    "can't convert to boolean",
     "not iterable",
     "no fitting addressing mode for opcode",
     "not a direct page address"
@@ -406,6 +407,8 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
         case ERROR_____CANT_SIGN:
         case ERROR______CANT_ABS:
         case ERROR______CANT_INT:
+        case ERROR______CANT_LEN:
+        case ERROR_____CANT_BOOL:
         case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);return;
         default: break;
         }
@@ -526,15 +529,6 @@ static int err_oper(const char *msg, const struct value_s *op, const struct valu
 
 void err_msg_invalid_oper(const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
     if (err_oper("error: invalid", op, v1, v2, epoint)) errors++;
-}
-
-void err_msg_strange_oper(const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
-    return;
-    if (!arguments.warning) {
-        warnings++;
-        return;
-    }
-    if (err_oper("warning: possibly wrong", op, v1, v2, epoint)) warnings++;
 }
 
 void freeerrorlist(int print) {

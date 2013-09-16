@@ -75,15 +75,6 @@ static void error_copy(const struct value_s *, struct value_s *);
 void obj_oper_error(oper_t op) {
     struct value_s *e1, *e2;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    switch (op->op->u.oper.op) {
-    case O_EQ: 
-        if (v == v1 || v == v2) obj_destroy(v);
-        bool_from_int(v, v1->obj->type == v2->obj->type); return;
-    case O_NE:
-        if (v == v1 || v == v2) obj_destroy(v);
-        bool_from_int(v, v1->obj->type != v2->obj->type); return;
-    default: break;
-    }
     if (v == v1) {
         e1 = val_alloc();
         v->obj->copy_temp(v1, e1);
@@ -113,7 +104,10 @@ static int invalid_same(const struct value_s *v1, const struct value_s *v2) {
     return v1->obj == v2->obj;
 }
 
-static int invalid_truth(const struct value_s *UNUSED(v1)) {
+static int invalid_truth(const struct value_s *UNUSED(v1), struct value_s *v, int *UNUSED(truth), enum truth_e UNUSED(type), linepos_t epoint) {
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR_____CANT_BOOL;
+    v->u.error.epoint = *epoint;
     return 1;
 }
 
@@ -167,6 +161,90 @@ static void gap_repr(const struct value_s *UNUSED(v1), struct value_s *v) {
     if (!s) err_msg_out_of_memory();
     *s = '?';
     v->u.str.data = s;
+}
+
+static void gap_calc1(oper_t op) {
+    struct value_s *v1 = op->v1, *v = op->v;
+    switch (op->op->u.oper.op) {
+    case O_BANK: 
+    case O_HIGHER:
+    case O_LOWER:
+    case O_HWORD:
+    case O_WORD:
+    case O_BSWORD:
+    case O_INV:
+    case O_NEG:
+    case O_POS:
+        if (v != v1) v->obj = GAP_OBJ;
+        return;
+    case O_STRING: gap_repr(v1, v); return;
+    default: break;
+    }
+    obj_oper_error(op);
+}
+
+static void gap_calc2(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    switch (v2->obj->type) {
+    case T_STR:
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_CODE:
+    case T_ADDRESS:
+    case T_BYTES:
+    case T_GAP:
+        switch (op->op->u.oper.op) {
+        case O_EQ: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, v2->obj == GAP_OBJ); return;
+        case O_NE: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, v2->obj != GAP_OBJ); return;
+        default: break;
+        }
+        break;
+    case T_TUPLE:
+    case T_LIST:
+    case T_IDENT:
+    case T_ANONIDENT:
+        if (op->op != &o_MEMBER) {
+            v2->obj->rcalc2(op); return;
+        }
+    default: break;
+    }
+    obj_oper_error(op);
+}
+
+static void gap_rcalc2(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    switch (v1->obj->type) {
+    case T_STR:
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_CODE:
+    case T_ADDRESS:
+    case T_BYTES:
+    case T_GAP:
+        switch (op->op->u.oper.op) {
+        case O_EQ: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, v1->obj == GAP_OBJ); return;
+        case O_NE: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, v1->obj != GAP_OBJ); return;
+        default: break;
+        }
+        break;
+    case T_TUPLE:
+    case T_LIST:
+        v2->obj->calc2(op); return;
+    default: break;
+    }
+    obj_oper_error(op);
 }
 
 static void invalid_calc1(oper_t op) {
@@ -485,10 +563,6 @@ static int dict_same(const struct value_s *v1, const struct value_s *v2) {
     return n == n2;
 }
 
-static int dict_truth(const struct value_s *v1) {
-    return !!v1->u.dict.len;
-}
-
 static int MUST_CHECK dict_len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
     *uv = v1->u.dict.len;
     return 0;
@@ -639,21 +713,42 @@ static int MUST_CHECK error_len(const struct value_s *v1, struct value_s *v, uva
 }
 
 static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v) {
-    struct label_s *l = find_label(&v1->u.ident.name);
-    struct linepos_s epoint;
-    if (l && touch_label(l)) {
-        l->shadowcheck = 1;
-        return l->value;
+    if (v1->obj == ANONIDENT_OBJ) {
+        char idents[100];
+        str_t ident;
+        struct label_s *l;
+
+        sprintf(idents, (v1->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v1->u.anonident.count >= 0) ? forwr : backr) + v1->u.anonident.count);
+        ident.data = (const uint8_t *)idents;
+        ident.len = strlen(idents);
+        l = find_label(&ident);
+        if (l && touch_label(l)) return l->value;
+        v->u.error.epoint = v1->u.anonident.epoint;
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR___NOT_DEFINED;
+        v->u.error.u.notdef.ident.len = 1;
+        v->u.error.u.notdef.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
+        v->u.error.u.notdef.label = current_context;
+        v->u.error.u.notdef.down = 1;
+        v->refcount = 0;
+        return v;
+    } else {
+        struct label_s *l = find_label(&v1->u.ident.name);
+        struct linepos_s epoint;
+        if (l && touch_label(l)) {
+            l->shadowcheck = 1;
+            return l->value;
+        }
+        epoint = v1->u.ident.epoint;
+        v->u.error.u.notdef.ident = v1->u.ident.name;
+        v->u.error.u.notdef.label = current_context;
+        v->u.error.u.notdef.down = 1;
+        v->obj = ERROR_OBJ;
+        v->u.error.epoint = epoint;
+        v->u.error.num = ERROR___NOT_DEFINED;
+        v->refcount = 0;
+        return v;
     }
-    epoint = v1->u.ident.epoint;
-    v->u.error.u.notdef.ident = v1->u.ident.name;
-    v->u.error.u.notdef.label = current_context;
-    v->u.error.u.notdef.down = 1;
-    v->obj = ERROR_OBJ;
-    v->u.error.epoint = epoint;
-    v->u.error.num = ERROR___NOT_DEFINED;
-    v->refcount = 0;
-    return v;
 }
 
 static void ident_calc1(oper_t op) {
@@ -726,95 +821,10 @@ static void ident_integer(const struct value_s *v1, struct value_s *v, linepos_t
     return v1->obj->integer(v1, v, epoint);
 }
 
-static struct value_s *anonident_resolv(const struct value_s *v1, struct value_s *v) {
-    char idents[100];
-    str_t ident;
-    struct label_s *l;
-
-    sprintf(idents, (v1->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v1->u.anonident.count >= 0) ? forwr : backr) + v1->u.anonident.count);
-    ident.data = (const uint8_t *)idents;
-    ident.len = strlen(idents);
-    l = find_label(&ident);
-    if (l && touch_label(l)) return l->value;
-    v->u.error.epoint = v1->u.anonident.epoint;
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR___NOT_DEFINED;
-    v->u.error.u.notdef.ident.len = 1;
-    v->u.error.u.notdef.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
-    v->u.error.u.notdef.label = current_context;
-    v->u.error.u.notdef.down = 1;
-    v->refcount = 0;
-    return v;
-}
-
-static void anonident_calc1(oper_t op) {
-    struct value_s *v, *v1 = op->v1, tmp;
-    v = anonident_resolv(v1, (v1 == op->v) ? op->v : &tmp);
-    op->v1 = v;
-    v->obj->calc1(op);
-    op->v1 = v1;
-}
-
-static void anonident_calc2(oper_t op) {
-    struct value_s *v, *v1 = op->v1, tmp;
-    v = anonident_resolv(v1, (v1 == op->v) ? op->v : &tmp);
-    op->v1 = v;
-    v->obj->calc2(op);
-    op->v1 = v1;
-}
-
-static void anonident_rcalc2(oper_t op) {
-    struct value_s *v, *v2, tmp;
-    if (op->op == &o_MEMBER) {
-        op->v1->obj->calc2(op);return;
-    }
-    v2 = op->v2;
-    v = anonident_resolv(v2, (v2 == op->v) ? op->v : &tmp);
-    op->v2 = v;
-    v->obj->rcalc2(op);
-    op->v2 = v2;
-}
-
-static int anonident_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+static int MUST_CHECK ident_len(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
     struct value_s tmp;
-    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
-    return v1->obj->hash(v1, v, epoint);
-}
-
-static void anonident_repr(const struct value_s *v1, struct value_s *v) {
-    struct value_s tmp;
-    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
-    return v1->obj->repr(v1, v);
-}
-
-static int MUST_CHECK anonident_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s tmp;
-    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
-    return v1->obj->ival(v1, v, iv, bits, epoint);
-}
-
-static int MUST_CHECK anonident_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s tmp;
-    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
-    return v1->obj->uval(v1, v, uv, bits, epoint);
-}
-
-static void anonident_str(const struct value_s *v1, struct value_s *v) {
-    struct value_s tmp;
-    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
-    return v1->obj->str(v1, v);
-}
-
-static int MUST_CHECK anonident_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    struct value_s tmp;
-    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
-    return v1->obj->real(v1, v, r, epoint);
-}
-
-static void anonident_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    struct value_s tmp;
-    v1 = anonident_resolv(v1, (v1 == v) ? v : &tmp);
-    return v1->obj->integer(v1, v, epoint);
+    v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->len(v1, v, uv, epoint);
 }
 
 static int none_hash(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -1049,6 +1059,9 @@ void objects_init(void) {
     obj_init(&gap_obj, T_GAP, "<gap>");
     gap_obj.hash = gap_hash;
     gap_obj.repr = gap_repr;
+    gap_obj.calc1 = gap_calc1;
+    gap_obj.calc2 = gap_calc2;
+    gap_obj.rcalc2 = gap_rcalc2;
     obj_init(&ident_obj, T_IDENT, "<ident>");
     ident_obj.hash = ident_hash;
     ident_obj.repr = ident_repr;
@@ -1057,20 +1070,22 @@ void objects_init(void) {
     ident_obj.uval = ident_uval;
     ident_obj.real = ident_real;
     ident_obj.integer = ident_integer;
+    ident_obj.len = ident_len;
     ident_obj.calc1 = ident_calc1;
     ident_obj.calc2 = ident_calc2;
     ident_obj.rcalc2 = ident_rcalc2;
     obj_init(&anonident_obj, T_ANONIDENT, "<anonident>");
-    anonident_obj.hash = anonident_hash;
-    anonident_obj.repr = anonident_repr;
-    anonident_obj.str = anonident_str;
-    anonident_obj.ival = anonident_ival;
-    anonident_obj.uval = anonident_uval;
-    anonident_obj.real = anonident_real;
-    anonident_obj.integer = anonident_integer;
-    anonident_obj.calc1 = anonident_calc1;
-    anonident_obj.calc2 = anonident_calc2;
-    anonident_obj.rcalc2 = anonident_rcalc2;
+    anonident_obj.hash = ident_hash;
+    anonident_obj.repr = ident_repr;
+    anonident_obj.str = ident_str;
+    anonident_obj.ival = ident_ival;
+    anonident_obj.uval = ident_uval;
+    anonident_obj.real = ident_real;
+    anonident_obj.integer = ident_integer;
+    anonident_obj.len = ident_len;
+    anonident_obj.calc1 = ident_calc1;
+    anonident_obj.calc2 = ident_calc2;
+    anonident_obj.rcalc2 = ident_rcalc2;
     obj_init(&oper_obj, T_OPER, "<oper>");
     obj_init(&default_obj, T_DEFAULT, "<default>");
     obj_init(&dict_obj, T_DICT, "<dict>");
@@ -1078,7 +1093,6 @@ void objects_init(void) {
     dict_obj.copy = dict_copy;
     dict_obj.copy_temp = dict_copy_temp;
     dict_obj.same = dict_same;
-    dict_obj.truth = dict_truth;
     dict_obj.len = dict_len;
     dict_obj.repr = dict_repr;
     dict_obj.rcalc2 = dict_rcalc2;

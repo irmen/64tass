@@ -35,6 +35,7 @@
 #include "addressobj.h"
 #include "bytesobj.h"
 #include "intobj.h"
+#include "boolobj.h"
 
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -750,13 +751,14 @@ enum func_e {
     F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT, F_LOG,
     F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG,
     F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW, F_SIGN, F_ABS, F_FLOAT,
-    F_INT
+    F_INT, F_ALL, F_ANY, F_BOOL
 };
 
 /* return templates only! */
 static const struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
     static struct value_s new_value;
     double real;
+    int truth;
     switch (func) {
     case F_SIGN:
         switch (v1->obj->type) {
@@ -790,6 +792,23 @@ static const struct value_s *apply_func(enum func_e func, struct value_s *v1, li
             return &new_value;
         case T_NONE: return &none_value;
         }
+        break;
+    case F_BOOL:
+        switch (v1->obj->type) { 
+        case T_LIST:
+        case T_TUPLE: break;
+        default:
+            if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_BOOL, epoint)) bool_from_int(&new_value, truth);
+            return &new_value;
+        case T_NONE: return &none_value;
+        }
+        break;
+    case F_ANY:
+        if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_ANY, epoint)) bool_from_int(&new_value, truth);
+        return &new_value;
+    case F_ALL:
+        if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_ALL, epoint)) bool_from_int(&new_value, truth);
+        return &new_value;
     default: break;
     }
     switch (v1->obj->type) {
@@ -880,25 +899,9 @@ static void functions(struct values_s *vals, unsigned int args) {
         if (len == 3 && !memcmp(name, "len", len)) {
             if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else {
                 uval_t uv;
-                switch (try_resolv(&v[0])) {
-                case T_CODE:
-                    if (!v[0].val->u.code.pass) {
-                        new_value.obj = ERROR_OBJ;
-                        new_value.u.error.num = ERROR____NO_FORWARD;
-                        new_value.u.error.epoint = v[0].epoint;
-                        new_value.u.error.u.ident = v[0].val->u.code.parent->name;
-                        val_replace_template(&vals->val, &new_value);
-                        return;
-                    }
-                    int_from_uval(&new_value, v[0].val->u.code.size / (abs(v[0].val->u.code.dtype) + !v[0].val->u.code.dtype));
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                default:
-                    if (!v[0].val->obj->len(v[0].val, &new_value, &uv, &vals->epoint)) int_from_uval(&new_value, uv);
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                case T_NONE: break;
-                }
+                if (!v[0].val->obj->len(v[0].val, &new_value, &uv, &vals->epoint)) int_from_uval(&new_value, uv);
+                val_replace_template(&vals->val, &new_value);
+                return;
             }
             val_replace(&vals->val, &none_value);
             return;
@@ -952,7 +955,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             val_replace(&vals->val, &none_value);
             return;
         } /* size(a) - size of data structure at location */
-        else if (len == 4 && !memcmp(name, "size", len)) {
+        if (len == 4 && !memcmp(name, "size", len)) {
             if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
             else {
                 switch (try_resolv(&v[0])) {
@@ -979,7 +982,8 @@ static void functions(struct values_s *vals, unsigned int args) {
             }
             val_replace(&vals->val, &none_value);
             return;
-        } else if (len == 4 && !memcmp(name, "repr", len)) {
+        } /* repr(a) - representation */
+        if (len == 4 && !memcmp(name, "repr", len)) {
             if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
             else {
                 switch (try_resolv(&v[0])) {
@@ -992,7 +996,8 @@ static void functions(struct values_s *vals, unsigned int args) {
             }
             val_replace(&vals->val, &none_value);
             return;
-        } else if (len == 3 && !memcmp(name, "str", len)) {
+        } /* str(a) - string */
+        if (len == 3 && !memcmp(name, "str", len)) {
             if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
             else {
                 switch (try_resolv(&v[0])) {
@@ -1005,40 +1010,43 @@ static void functions(struct values_s *vals, unsigned int args) {
             }
             val_replace(&vals->val, &none_value);
             return;
-        } else
-            switch (len) {
-            case 3:
-                if (!memcmp(name, "log", 3)) func = F_LOG; 
-                else if (!memcmp(name, "exp", 3)) func = F_EXP; 
-                else if (!memcmp(name, "sin", 3)) func = F_SIN; 
-                else if (!memcmp(name, "cos", 3)) func = F_COS; 
-                else if (!memcmp(name, "tan", 3)) func = F_TAN; 
-                else if (!memcmp(name, "rad", 3)) func = F_RAD; 
-                else if (!memcmp(name, "deg", 3)) func = F_DEG; 
-                else if (!memcmp(name, "abs", 3)) func = F_ABS; 
-                else if (!memcmp(name, "int", 3)) func = F_INT;
-                break;
-            case 4:
-                if (!memcmp(name, "ceil", 4)) func = F_CEIL;
-                else if (!memcmp(name, "frac", 4)) func = F_FRAC; 
-                else if (!memcmp(name, "sqrt", 4)) func = F_SQRT; 
-                else if (!memcmp(name, "acos", 4)) func = F_ACOS; 
-                else if (!memcmp(name, "asin", 4)) func = F_ASIN; 
-                else if (!memcmp(name, "atan", 4)) func = F_ATAN; 
-                else if (!memcmp(name, "cbrt", 4)) func = F_CBRT; 
-                else if (!memcmp(name, "cosh", 4)) func = F_COSH; 
-                else if (!memcmp(name, "sinh", 4)) func = F_SINH; 
-                else if (!memcmp(name, "tanh", 4)) func = F_TANH; 
-                else if (!memcmp(name, "sign", 4)) func = F_SIGN; 
-                break;
-            case 5:
-                if (!memcmp(name, "floor", 5)) func = F_FLOOR;
-                else if (!memcmp(name, "round", 5)) func = F_ROUND;
-                else if (!memcmp(name, "trunc", 5)) func = F_TRUNC; 
-                else if (!memcmp(name, "log10", 5)) func = F_LOG10; 
-                else if (!memcmp(name, "float", 5)) func = F_FLOAT; 
-                break;
-            }
+        } 
+        switch (len) {
+        case 3:
+            if (!memcmp(name, "log", 3)) func = F_LOG; 
+            else if (!memcmp(name, "exp", 3)) func = F_EXP; 
+            else if (!memcmp(name, "sin", 3)) func = F_SIN; 
+            else if (!memcmp(name, "cos", 3)) func = F_COS; 
+            else if (!memcmp(name, "tan", 3)) func = F_TAN; 
+            else if (!memcmp(name, "rad", 3)) func = F_RAD; 
+            else if (!memcmp(name, "deg", 3)) func = F_DEG; 
+            else if (!memcmp(name, "abs", 3)) func = F_ABS; 
+            else if (!memcmp(name, "int", 3)) func = F_INT;
+            else if (!memcmp(name, "all", 3)) func = F_ALL;
+            else if (!memcmp(name, "any", 3)) func = F_ANY;
+            break;
+        case 4:
+            if (!memcmp(name, "ceil", 4)) func = F_CEIL;
+            else if (!memcmp(name, "frac", 4)) func = F_FRAC; 
+            else if (!memcmp(name, "sqrt", 4)) func = F_SQRT; 
+            else if (!memcmp(name, "acos", 4)) func = F_ACOS; 
+            else if (!memcmp(name, "asin", 4)) func = F_ASIN; 
+            else if (!memcmp(name, "atan", 4)) func = F_ATAN; 
+            else if (!memcmp(name, "cbrt", 4)) func = F_CBRT; 
+            else if (!memcmp(name, "cosh", 4)) func = F_COSH; 
+            else if (!memcmp(name, "sinh", 4)) func = F_SINH; 
+            else if (!memcmp(name, "tanh", 4)) func = F_TANH; 
+            else if (!memcmp(name, "sign", 4)) func = F_SIGN; 
+            else if (!memcmp(name, "bool", 4)) func = F_BOOL; 
+            break;
+        case 5:
+            if (!memcmp(name, "floor", 5)) func = F_FLOOR;
+            else if (!memcmp(name, "round", 5)) func = F_ROUND;
+            else if (!memcmp(name, "trunc", 5)) func = F_TRUNC; 
+            else if (!memcmp(name, "log10", 5)) func = F_LOG10; 
+            else if (!memcmp(name, "float", 5)) func = F_FLOAT; 
+            break;
+        }
 
         if (func != F_NONE) {
             const struct value_s *val;
@@ -1248,7 +1256,6 @@ static void slices(struct values_s *vals, unsigned int args) {
             for (i = args - 1; i >= 0; i--) {
                 switch (try_resolv(&v[i])) {
                 case T_CODE:
-                    err_msg_strange_oper(&o_SLICE, v[i].val, NULL, &v[i].epoint);
                 case T_INT:
                 case T_BITS:
                 case T_BOOL:
@@ -1346,6 +1353,7 @@ static int get_val2(struct eval_context_s *ev) {
     struct value_s new_value;
     struct values_s *values;
     struct oper_s oper;
+    int truth;
     atype_t am;
 
     if (ev->outp2 >= ev->outp) return 1;
@@ -1514,7 +1522,7 @@ static int get_val2(struct eval_context_s *ev) {
             v1 = &values[vsp-1]; vsp--;
             if (vsp == 0) goto syntaxe;
             switch (try_resolv(&values[vsp-1])) {
-            case T_CODE: err_msg_strange_oper(op2, v1->val, NULL, &v1->epoint);
+            case T_CODE:
             case T_STR:
             case T_BYTES:
             case T_INT: 
@@ -1522,7 +1530,11 @@ static int get_val2(struct eval_context_s *ev) {
             case T_BOOL:
             case T_LIST:
             case T_TUPLE:
-                if (obj_truth(values[vsp-1].val)) {
+                if (values[vsp-1].val->obj->truth(values[vsp-1].val, &new_value, &truth, TRUTH_BOOL, &values[vsp-1].epoint)) {
+                    val_replace_template(&values[vsp-1].val, &new_value);
+                    continue;
+                }
+                if (truth) {
                     val_replace(&values[vsp-1].val, v1->val);
                     values[vsp-1].epoint = v1->epoint;
                 } else {
@@ -1561,7 +1573,6 @@ static int get_val2(struct eval_context_s *ev) {
         case O_INV:     /* ~  */
         case O_NEG:     /* -  */
         case O_POS:     /* +  */
-        case O_LNOT:    /* !  */
             oper.op = op2;
             oper.v1 = v1->val;
             oper.v2 = NULL;
@@ -1605,24 +1616,30 @@ static int get_val2(struct eval_context_s *ev) {
             }
             if (op == O_HASH) v1->epoint = o_out->epoint;
             continue;
-        case O_LAND:
-        case O_LOR:
-        case O_LXOR:
+        case O_LNOT: /* ! */
+            t1 = try_resolv(v1);
+            switch (t1) {
+            default:
+                if (!v1->val->obj->truth(v1->val, &new_value, &truth, TRUTH_BOOL, &v1->epoint)) bool_from_int(&new_value, !truth); 
+                val_replace_template(&v1->val, &new_value);
+                continue;
+            case T_ERROR:
+            case T_NONE: continue;
+            }
+        case O_LAND: /* && */
+        case O_LOR:  /* || */
+        case O_LXOR: /* ^^ */
             v2 = v1; v1 = &values[--vsp-1];
             if (vsp == 0) goto syntaxe;
             t1 = try_resolv(v1);
             switch (t1) {
-            case T_INT:
-            case T_BITS:
-            case T_CODE:
-            case T_BOOL:
-            case T_STR:
-            case T_BYTES:
-            case T_FLOAT:
-            case T_LIST:
-            case T_TUPLE:
+            default:
                 if (op != O_LXOR) { 
-                    if (obj_truth(v1->val) != (op == O_LOR)) {
+                    if (v1->val->obj->truth(v1->val, &new_value, &truth, TRUTH_BOOL, &v1->epoint)) {
+                        val_replace_template(&v1->val, &new_value);
+                        continue;
+                    }
+                    if (truth != (op == O_LOR)) {
                         val_replace(&v1->val, v2->val);
                         v1->epoint = v2->epoint;
                     }
@@ -1630,32 +1647,30 @@ static int get_val2(struct eval_context_s *ev) {
                 }
                 t2 = try_resolv(v2);
                 switch (t2) {
-                case T_CODE:
-                case T_BOOL:
-                case T_INT:
-                case T_BITS:
-                case T_STR:
-                case T_BYTES:
-                case T_FLOAT:
-                case T_LIST:
-                case T_TUPLE:
-                    if (obj_truth(v1->val)) {
-                        if (obj_truth(v2->val)) val_replace(&v1->val, &false_value);
+                default: 
+                    if (v1->val->obj->truth(v1->val, &new_value, &truth, TRUTH_BOOL, &v1->epoint)) {
+                        val_replace_template(&v1->val, &new_value);
+                        continue;
+                    }
+                    if (truth) {
+                        if (v2->val->obj->truth(v2->val, &new_value, &truth, TRUTH_BOOL, &v2->epoint)) {
+                            val_replace_template(&v1->val, &new_value);
+                            continue;
+                        }
+                        if (truth) val_replace(&v1->val, &false_value);
                     } else {
-                        val_replace(&v1->val, obj_truth(v2->val) ? v2->val : &false_value);
+                        if (v2->val->obj->truth(v2->val, &new_value, &truth, TRUTH_BOOL, &v2->epoint)) {
+                            val_replace_template(&v1->val, &new_value);
+                            continue;
+                        }
+                        val_replace(&v1->val, truth ? v2->val : &false_value);
                     }
                     continue;
                 case T_NONE:
                 case T_ERROR:
                     val_replace(&v1->val, v2->val);
                     continue;
-                default: err_msg_invalid_oper(op2, v1->val, v2->val, &v2->epoint); 
-                         val_replace(&v1->val, &none_value);
-                         continue;
                 }
-            default: err_msg_invalid_oper(op2, v1->val, v2->val, &v1->epoint); 
-                     val_replace(&v1->val, &none_value);
-                     continue;
             case T_ERROR:
             case T_NONE: continue;
             }
