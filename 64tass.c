@@ -2125,9 +2125,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else {
-                        ival_t cnt;
+                        uval_t cnt;
                         struct value_s err;
-                        if (val->obj->ival(val, &err, &cnt, 8*sizeof(ival_t), &epoint)) err_msg_wrong_type(&err, &epoint);
+                        if (val->obj->uval(val, &err, &cnt, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint);
                         else if (cnt > 0) {
                             size_t pos = cfile->p;
                             line_t lin = sline;
