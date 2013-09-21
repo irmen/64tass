@@ -545,7 +545,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 else tmp2 = find_label2(&labelname, mycontext);
                 if (!tmp2) {err_msg_not_defined(&labelname, &epoint); goto breakerr;}
-                if (!tmp2->nested) {
+                if (tmp2->value->obj != CODE_OBJ) {
                     err_msg_not_defined(&labelname, &epoint); goto breakerr;
                 }
                 mycontext = tmp2;
@@ -791,7 +791,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->epoint = epoint;
                                 label->requires = 0;
                                 label->conflicts = 0;
-                                label->nested = 1;
                                 val->obj = obj;
                                 val->u.macro.size = 0;
                                 val->u.macro.p = cfile->p;
@@ -989,7 +988,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     new_waitfor(W_PEND, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     if (!newlabel->ref && newlabel->value->u.code.pass) waitfor->skip=0;
                     else {
-                        newlabel->nested = 1;
                         current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             int l;
@@ -1019,7 +1017,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             l = printaddr(flist, '.', current_section->address);
                             printllist(flist, l);
                         }
-                        newlabel->nested = 1;
                         newlabel->ref=0;
                         if (!get_exp(&w,1)) goto breakerr;
                         if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
@@ -1039,7 +1036,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (newlabel) {
                                 newlabel->update_after = 1;
                                 var_assign(newlabel, val, 0);
-                                newlabel->nested = 1;
                             }
                             val_destroy(val);
                         }
@@ -1739,7 +1735,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_BLOCK) { /* .block */
 		    new_waitfor(W_BEND2, &epoint);
                     if (newlabel) {
-                        newlabel->nested = 1;
                         current_context=newlabel;
                         waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                         if (newlabel->ref && listing && flist && arguments.source) {
@@ -2275,7 +2270,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             reffile=f->uid;
                             if (prm == CMD_BINCLUDE) {
                                 if (newlabel) {
-                                    newlabel->nested = 1;
                                     current_context = newlabel;
                                 } else {
                                     int labelexists;
@@ -2756,7 +2750,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (val->obj == MACRO_OBJ) {
                     struct label_s *context;
                     if (newlabel) {
-                        newlabel->nested = 1;
                         context=newlabel;
                     } else {
                         int labelexists;
@@ -2794,7 +2787,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (newlabel) {
                         newlabel->update_after = 1;
                         var_assign(newlabel, val, 0);
-                        newlabel->nested = 1;
                     }
                     val_destroy(val);
                 }
