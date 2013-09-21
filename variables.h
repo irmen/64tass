@@ -38,7 +38,6 @@ struct label_s {
     line_t sline;
     struct linepos_s epoint;
     unsigned ref:1;
-    unsigned nested:1;
     unsigned shadowcheck:1;
     unsigned update_after:1;
     uint8_t usepass;
