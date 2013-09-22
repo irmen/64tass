@@ -39,14 +39,16 @@ static struct {
 } macro_parameters = {0, 0, NULL, NULL};
 
 //------------------------------------------------------------------------------
-void mtranslate(void)
+int mtranslate(struct file_s *cfile)
 {
     uint_fast8_t q;
     uint_fast16_t j;
     size_t p;
     uint8_t ch;
 
-    if (!macro_parameters.p) return;
+    if (cfile->len <= cfile->p) return 1;
+    pline = cfile->data + cfile->p; lpoint.pos = 0; lpoint.upos = 0; lpoint.line++;vline++; cfile->p += strlen((const char *)pline) + 1;
+    if (!macro_parameters.p) return 0;
 
     q=p=0;
     for (; (ch = here()); lpoint.pos++) {
@@ -165,6 +167,7 @@ void mtranslate(void)
     }
     macro_parameters.current->pline.data[p]=0;
     pline = macro_parameters.current->pline.data; lpoint.pos = lpoint.upos = 0;
+    return 0;
 }
 
 static size_t macro_param_find(void) {
@@ -247,7 +250,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         current_context = oldcontext;
     } else {
         size_t oldpos;
-        line_t lin = sline;
+        line_t lin = lpoint.line;
         struct file_s *f;
         int labelexists;
         struct star_s *s = new_star(vline, &labelexists);
@@ -255,7 +258,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         line_t ovline = vline;
         struct label_s *oldcontext = current_context;
         struct file_list_s *cflist;
-        struct linepos_s nopoint = {0,0};
+        struct linepos_s nopoint = {0,0,0};
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
@@ -263,8 +266,8 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        cflist = enterfile(tmp2->u.macro.parent->file_list->file, sline, epoint);
-        sline = tmp2->u.macro.parent->sline;
+        cflist = enterfile(tmp2->u.macro.parent->file_list->file, epoint);
+        lpoint.line = tmp2->u.macro.parent->epoint.line;
         new_waitfor(t, &nopoint);
         f = cflist->file;
         oldpos = f->p; f->p = tmp2->u.macro.p;
@@ -274,7 +277,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         f->p = oldpos;
         exitfile();
         star_tree = stree_old; vline = ovline;
-        sline = lin;
+        lpoint.line = lin;
     }
     val_destroy(macro_parameters.current->macro);
     macro_parameters.p--;
@@ -282,7 +285,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
     return val;
 }
 
-struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint) {
+struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint, struct file_s *cfile) {
     size_t i;
     int w;
     struct label_s *label;
@@ -297,7 +300,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         if (tmp2->u.func.param[i].init) {
             if (here()==',' || !here() || here()==';') {
                 val = tmp2->u.func.param[i].init;
-            } else if (get_exp(&w,4)) {
+            } else if (get_exp(&w,4,cfile)) {
                 if (!(val = get_val(NONE_OBJ, &epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = tmp2->u.func.param[i].init;
@@ -306,7 +309,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
             ignore();if (here()==',') lpoint.pos++;
         } else {
             if (fin > 1) {err_msg(ERROR______EXPECTED,","); val = &none_value;}
-            else if (get_exp(&w,4)) {
+            else if (get_exp(&w,4,cfile)) {
                 if (!(val = get_val(NONE_OBJ, &epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = &none_value;
@@ -331,14 +334,13 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
             label->defpass = pass;
             label->value = val_reference(val);
             label->file_list = tmp2->u.func.file_list;
-            label->sline = tmp2->u.func.sline;
             label->epoint = tmp2->u.func.param[i].epoint;
         }
     }
     if (i == tmp2->u.func.argc && here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     {
         size_t oldpos;
-        line_t lin = sline;
+        line_t lin = lpoint.line;
         struct file_s *f;
         int labelexists;
         struct star_s *s = new_star(vline, &labelexists);
@@ -346,7 +348,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         line_t ovline = vline;
         struct label_s *oldcontext = current_context;
         struct file_list_s *cflist;
-        struct linepos_s nopoint = {0,0};
+        struct linepos_s nopoint = {0,0,0};
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
@@ -354,8 +356,8 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        cflist = enterfile(tmp2->u.func.file_list->file, sline, epoint);
-        sline = tmp2->u.func.sline;
+        cflist = enterfile(tmp2->u.func.file_list->file, epoint);
+        lpoint.line = tmp2->u.func.sline;
         new_waitfor(t, &nopoint);
         f = cflist->file;
         oldpos = f->p; f->p = tmp2->u.func.p;
@@ -365,12 +367,12 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         f->p = oldpos;
         exitfile();
         star_tree = stree_old; vline = ovline;
-        sline = lin;
+        lpoint.line = lin;
     }
     return val;
 }
 
-void get_func_params(struct value_s *v) {
+void get_func_params(struct value_s *v, struct file_s *cfile) {
     struct value_s *val, new_value;
     size_t len = 0, i, j;
     str_t label;
@@ -400,7 +402,6 @@ void get_func_params(struct value_s *v) {
                 struct label_s tmp;
                 tmp.name = new_value.u.func.param[j].name;
                 tmp.file_list = v->u.func.file_list;
-                tmp.sline = v->u.func.sline;
                 tmp.epoint = new_value.u.func.param[j].epoint;
                 err_msg_double_defined(&tmp, &label, &new_value.u.func.param[i].epoint);
             }
@@ -409,7 +410,7 @@ void get_func_params(struct value_s *v) {
         ignore();
         if (here() == '=') {
             lpoint.pos++;
-            if (!get_exp(&w,1)) {
+            if (!get_exp(&w,1,cfile)) {
                 i++;
                 break;
             }
@@ -476,7 +477,6 @@ void get_macro_params(struct value_s *v) {
                 struct label_s tmp;
                 tmp.name = new_value.u.macro.param[j].name;
                 tmp.file_list = v->u.macro.parent->file_list;
-                tmp.sline = v->u.macro.parent->sline;
                 tmp.epoint = epoints[j];
                 err_msg_double_defined(&tmp, &label, &epoints[i]);
             }
@@ -528,7 +528,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     rlabel.parent = tmp2->u.func.context;
     init_section2(&rsection);
 
-    cflist = enterfile(tmp2->u.func.file_list->file, sline, epoint);
+    cflist = enterfile(tmp2->u.func.file_list->file, epoint);
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
         val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
@@ -536,10 +536,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) {
-                line_t oline = sline;
-                sline = tmp2->u.func.sline;
                 err_msg_double_defined(label, &tmp2->u.func.param[i].name, &tmp2->u.func.param[i].epoint);
-                sline = oline;
             }
             else {
                 label->requires = 0;
@@ -553,13 +550,12 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
             label->defpass = pass;
             label->value = val_reference(val);
             label->file_list = tmp2->u.func.file_list;
-            label->sline = tmp2->u.func.sline;
             label->epoint = tmp2->u.func.param[i].epoint;
         }
     }
     {
         size_t oldpos;
-        line_t lin = sline;
+        line_t lin = lpoint.line;
         struct file_s *f;
         int labelexists;
         struct star_s *s = new_star(vline, &labelexists);
@@ -568,7 +564,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         struct linepos_s opoint = lpoint;
         const uint8_t *opline = pline;
         const uint8_t *ollist = llist;
-        struct linepos_s nopoint = {0,0};
+        struct linepos_s nopoint = {0,0,0};
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
@@ -576,7 +572,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        sline = tmp2->u.func.sline;
+        lpoint.line = tmp2->u.func.sline;
         new_waitfor(W_ENDF2, &nopoint);
         f = cflist->file;
         oldpos = f->p; f->p = tmp2->u.func.p;
@@ -591,7 +587,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         pline = opline;
         f->p = oldpos;
         star_tree = stree_old; vline = ovline;
-        sline = lin;
+        lpoint.line = lin;
         llist = ollist;
     }
     exitfile();

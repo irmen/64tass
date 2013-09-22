@@ -54,7 +54,6 @@ struct section_s {
     struct section_s *parent;
     struct section_s *next;
     struct file_list_s *file_list;
-    line_t sline;
     struct linepos_s epoint;
     struct avltree members;
 };
