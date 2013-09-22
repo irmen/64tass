@@ -46,7 +46,7 @@ enum lastl_e {
     LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU
 };
 
-extern line_t sline, vline;
+extern line_t vline;
 extern struct linepos_s lpoint; 
 extern struct avltree *star_tree;
 extern int fixeddig;
@@ -59,7 +59,7 @@ extern uint8_t pass, max_pass;
 extern void new_waitfor(enum wait_e, linepos_t);
 extern struct value_s *compile(struct file_list_s *);
 extern void var_assign(struct label_s *, struct value_s *, int);
-extern void printllist(FILE *, int);
+extern void printllist(int);
 extern int printaddr(FILE *, char, address_t);
 
 #endif

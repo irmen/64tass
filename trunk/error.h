@@ -26,7 +26,6 @@ struct file_s;
 struct label_s;
 
 struct file_list_s {
-    line_t sline;
     struct linepos_s epoint;
     struct file_s *file;
     struct avltree_node node;
@@ -128,7 +127,7 @@ extern void err_msg_conflicts(const str_t *name, linepos_t);
 extern void err_msg_variable(struct error_s *, struct value_s *);
 extern void err_msg_file(enum errors_e, const char*);
 extern void freeerrorlist(int);
-extern struct file_list_s *enterfile(struct file_s *, line_t, linepos_t);
+extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(void);
 extern void err_destroy(void);

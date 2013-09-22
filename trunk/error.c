@@ -48,7 +48,7 @@ static int file_list_compare(const struct avltree_node *aa, const struct avltree
     const struct file_list_s *a = cavltree_container_of(aa, struct file_list_s, node);
     const struct file_list_s *b = cavltree_container_of(bb, struct file_list_s, node);
     if (a->file->uid != b->file->uid) return a->file->uid - b->file->uid;
-    if (a->sline != b->sline) return a->sline - b->sline;
+    if (a->epoint.line != b->epoint.line) return a->epoint.line - b->epoint.line;
     return a->epoint.pos - b->epoint.pos;
 }
 
@@ -60,14 +60,13 @@ static void file_list_free(struct avltree_node *aa)
 }
 
 static struct file_list_s *lastfl = NULL;
-struct file_list_s *enterfile(struct file_s *file, line_t line, linepos_t epoint) {
+struct file_list_s *enterfile(struct file_s *file, linepos_t epoint) {
     struct avltree_node *b;
     if (!lastfl) {
         lastfl = (struct file_list_s *)malloc(sizeof(struct file_list_s));
         if (!lastfl) err_msg_out_of_memory();
     }
     lastfl->file = file;
-    lastfl->sline = line;
     lastfl->epoint = *epoint;
 
     b = avltree_insert(&lastfl->node, &current_file_list->members, file_list_compare);
@@ -100,7 +99,7 @@ static void adderror(const char *s) {
     adderror2((const uint8_t *)s, strlen(s));
 }
 
-static void addorigin(struct file_list_s *cflist, line_t lnum, linepos_t lpoint2) {
+static void addorigin(struct file_list_s *cflist, linepos_t lpoint2) {
     char line[256];
     if (cflist && cflist->parent) {
         if (cflist != included_from) {
@@ -108,7 +107,7 @@ static void addorigin(struct file_list_s *cflist, line_t lnum, linepos_t lpoint2
             while (included_from->parent->parent) {
                 adderror( (included_from == cflist) ? "In file included from " : "                      ");
                 adderror(included_from->parent->file->realname);
-                sprintf(line,":%" PRIuline ":%" PRIlinepos, included_from->sline, included_from->epoint.pos - included_from->epoint.upos + 1);
+                sprintf(line,":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, included_from->epoint.pos - included_from->epoint.upos + 1);
                 adderror(line);
                 included_from = included_from->parent;
                 adderror(included_from->parent->parent ? ",\n" : ":\n");
@@ -123,7 +122,7 @@ static void addorigin(struct file_list_s *cflist, line_t lnum, linepos_t lpoint2
     } else {
         adderror("<command line>");
     }
-    sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", lnum, lpoint2->pos - lpoint2->upos + 1); 
+    sprintf(line,":%" PRIuline ":%" PRIlinepos ": ", lpoint2->line, lpoint2->pos - lpoint2->upos + 1); 
     adderror(line);
 }
 
@@ -196,7 +195,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
 
     if (no<0x40) {
         if (errors) return;
-        addorigin(current_file_list, sline, lpoint2);
+        addorigin(current_file_list, lpoint2);
         adderror("warning: ");
         warnings++;
         if (no == ERROR_WUSER_DEFINED) adderror2(((struct error_s *)prm)->data, ((struct error_s *)prm)->len);
@@ -217,7 +216,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
             conderrors++;break;
         default: inc_errors();
         }
-        addorigin(current_file_list, sline, lpoint2);
+        addorigin(current_file_list, lpoint2);
         adderror("error: ");
         switch (no) {
         case ERROR____PAGE_ERROR:
@@ -254,7 +253,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
     }
     else {
         if (no == ERROR__TOO_MANY_ERR) errors++; else inc_errors();
-        addorigin(current_file_list, sline, lpoint2);
+        addorigin(current_file_list, lpoint2);
         adderror("fatal error: ");
         switch (no) {
         case ERROR___UNKNOWN_CPU:
@@ -300,7 +299,7 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
         return;
     }
     inc_errors();
-    addorigin(current_file_list, sline, epoint);
+    addorigin(current_file_list, epoint);
     adderror(msg);
     if (name) str_name(name->data, name->len);
     adderror("\n");
@@ -318,7 +317,7 @@ static void err_msg_big_integer(const char *msg, int bits, linepos_t epoint) {
         if (errors) return; 
         conderrors++;
     }
-    addorigin(current_file_list, sline, epoint);
+    addorigin(current_file_list, epoint);
     sprintf(msg2, msg, bits);
     adderror(msg2);
     adderror("\n");
@@ -373,7 +372,7 @@ static void err_msg_not_defined2(const str_t *name, const struct label_s *l, int
     if (0 && !l->file_list) {
         err_msg_str_name("note: searched in the global scope", NULL, epoint);
     } else {
-        addorigin(l->file_list, l->sline, &l->epoint);
+        addorigin(l->file_list, &l->epoint);
         adderror("note: searched in");
         str_name(l->name.data, l->name.len);
         if (down) adderror(" defined here, and in all it's parents\n");
@@ -462,7 +461,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val) {
     tmp.obj->destroy(&tmp);
 }
 
-static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, line_t line, linepos_t epoint2) {
+static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
 
     if (errors+conderrors==99) {
         err_msg(ERROR__TOO_MANY_ERR, NULL);
@@ -470,22 +469,22 @@ static void err_msg_double_defined2(const char *msg, const struct label_s *l, st
     }
 
     inc_errors();
-    addorigin(cflist, line, epoint2);
+    addorigin(cflist, epoint2);
     adderror(msg);
     str_name(labelname2->data, labelname2->len);
     adderror("\n");
-    addorigin(l->file_list, l->sline, &l->epoint);
+    addorigin(l->file_list, &l->epoint);
     adderror("note: previous definition of");
     str_name(l->name.data, l->name.len);
     adderror(" was here\n");
 }
 
 void err_msg_double_defined(const struct label_s *l, const str_t *labelname2, linepos_t epoint2) {
-    err_msg_double_defined2("error: duplicate definition", l, current_file_list, labelname2, sline, epoint2);
+    err_msg_double_defined2("error: duplicate definition", l, current_file_list, labelname2, epoint2);
 }
 
 void err_msg_shadow_defined(const struct label_s *l, const struct label_s *l2) {
-    err_msg_double_defined2("error: shadow definition", l, l2->file_list, &l2->name, l2->sline, &l2->epoint);
+    err_msg_double_defined2("error: shadow definition", l, l2->file_list, &l2->name, &l2->epoint);
 }
 
 static int err_oper(const char *msg, const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
@@ -504,7 +503,7 @@ static int err_oper(const char *msg, const struct value_s *op, const struct valu
         return 0;
     }
 
-    addorigin(current_file_list, sline, epoint);
+    addorigin(current_file_list, epoint);
 
     adderror(msg);
     if (v2) {
@@ -566,7 +565,7 @@ void err_msg_out_of_memory(void)
 void err_msg_file(enum errors_e no, const char* prm) {
     char *error;
     inc_errors();
-    addorigin(current_file_list, sline, &lpoint);
+    addorigin(current_file_list, &lpoint);
     adderror("fatal error: ");
     adderror(terr_fatal[no & 63]);
     adderror(prm);

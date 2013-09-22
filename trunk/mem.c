@@ -320,7 +320,7 @@ void list_mem(const struct memblocks_s *memblocks, FILE *flist, address_t all_me
                 while (len) {
                     if (!lcol--) {
                         if (arguments.source && llist) {
-                            printllist(flist, l);
+                            printllist(l);
                         } else putc('\n',flist);
                         l = printaddr(flist, '>', myaddr);
                         while (l < 8) {l += 8; fputc('\t', flist);}
@@ -335,7 +335,7 @@ void list_mem(const struct memblocks_s *memblocks, FILE *flist, address_t all_me
         }
 
         if (arguments.source && llist) {
-            printllist(flist, l);
+            printllist(l);
         } else putc('\n',flist);
     }
 }

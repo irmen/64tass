@@ -380,7 +380,7 @@ static int get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
     struct values_s o_oper[256];
     uint8_t operp = 0;
     int large=0;
-    struct linepos_s epoint, cpoint = {0, 0};
+    struct linepos_s epoint, cpoint = {0, 0, 0};
     struct value_s *val;
     size_t llen;
     int first;
@@ -1709,8 +1709,7 @@ static int get_val2(struct eval_context_s *ev) {
 /* 3 - opcode */
 /* 4 - opcode, with defaults */
 
-int get_exp(int *wd, int stop) {/* length in bytes, defined */
-    int cd;
+int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, defined */
     char ch;
 
     struct value_s *op;
@@ -1719,6 +1718,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
     struct linepos_s epoint;
     struct value_s *val;
     size_t llen;
+    size_t openclose;
 
     eval->gstop = stop;
     eval->outp2 = 0;
@@ -1730,7 +1730,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
     o_oper[0].val = &o_SEPARATOR;
 
     *wd=3;    /* 0=byte 1=word 2=long 3=negative/too big */
-    cd=0;     /* 0=error, 1=ok, 2=(a, 3=(), 4=[] */
+    openclose=0;
 
     ignore();
     switch (here()) {
@@ -1792,16 +1792,19 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_PARENT; lpoint.pos++;
             push_oper(&o_PARENT, &epoint);
+            openclose++;
             continue;
         case '[':
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_BRACKET; lpoint.pos++;
             push_oper(&o_BRACKET, &epoint);
+            openclose++;
             continue;
         case '{':
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_BRACE; lpoint.pos++;
             push_oper(&o_BRACE, &epoint);
+            openclose++;
             continue;
         case '+': op = &o_POS; break;
         case '-': op = &o_NEG; break;
@@ -1819,6 +1822,16 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
         case '?': lpoint.pos++;val = push(&epoint);val->obj = GAP_OBJ;goto other;
         case '.': if ((uint8_t)(pline[lpoint.pos+1] ^ 0x30) < 10) goto pushfloat;
+        case 0:
+        case ';': 
+            if (openclose) {
+                printllist(0); /* TODO: conditional */
+                if (!mtranslate(cfile)) { /* expand macro parameters, if any */
+                    llist = pline;
+                    continue;
+                }
+            }
+            /* fall through */
         default: 
             if (ch>='0' && ch<='9') {
             pushfloat:
@@ -1937,6 +1950,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             push_oper(&o_PARENT, &epoint);
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_FUNC; lpoint.pos++;
+            openclose++;
             continue;
         case '[':
             prec = o_MEMBER.u.oper.prio;
@@ -1947,6 +1961,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             push_oper(&o_BRACKET, &epoint);
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_INDEX; lpoint.pos++;
+            openclose++;
             continue;
         case '&': if (pline[lpoint.pos+1] == '&') {lpoint.pos+=2;op = &o_LAND;} else {lpoint.pos++;op = &o_AND;} goto push2;
         case '|': if (pline[lpoint.pos+1] == '|') {lpoint.pos+=2;op = &o_LOR;} else {lpoint.pos++;op = &o_OR;} goto push2;
@@ -2004,6 +2019,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         case ')':
             op = &o_RPARENT;
         tphack:
+            openclose--;
             while (operp) {
                 const struct value_s *o = o_oper[operp-1].val;
                 if (o == &o_PARENT || o == &o_FUNC) break;
@@ -2019,6 +2035,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         case ']':
             op = &o_RBRACKET;
         lshack:
+            openclose--;
             while (operp) {
                 const struct value_s *o = o_oper[operp-1].val;
                 if (o == &o_BRACKET || o == &o_INDEX || o == &o_SLICE || o == &o_SLICE2) break;
@@ -2034,6 +2051,7 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
         case '}':
             op = &o_RBRACE;
         brhack:
+            openclose--;
             while (operp) {
                 const struct value_s *o = o_oper[operp-1].val;
                 if (o == &o_BRACE) break;
@@ -2047,7 +2065,15 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             push_oper((o_oper[operp].val == &o_BRACE) ? op : o_oper[operp].val, &o_oper[operp].epoint);
             goto other;
         case 0:
-        case ';': break;
+        case ';': 
+            if (openclose) {
+                printllist(0); /* TODO: conditional */
+                if (!mtranslate(cfile)) { /* expand macro parameters, if any */
+                    llist = pline;
+                    goto other;
+                }
+            }
+            break;
         case '\t':
         case ' ': break;
         default: 
@@ -2065,18 +2091,18 @@ int get_exp(int *wd, int stop) {/* length in bytes, defined */
             operp--;
             push_oper(o_oper[operp].val, &o_oper[operp].epoint);
         }
-        if (!operp) {cd=1;break;}
+        if (!operp) return 1;
     syntaxe:
         err_msg(ERROR_EXPRES_SYNTAX,NULL);
     error:
         return 0;
     }
-    return cd;
+    return 0;
 }
 
-int get_exp_var(void) {
+int get_exp_var(struct file_s *cfile) {
     int w;
-    return get_exp(&w, 2);
+    return get_exp(&w, 2, cfile);
 }
 
 struct value_s *get_vals_tuple(void) {
