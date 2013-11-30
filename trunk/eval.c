@@ -620,12 +620,14 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         case T_CODE:
         case T_STR:
         case T_BOOL:
+        case T_ADDRESS:
             switch (t2) {
             case T_INT:
             case T_BITS:
             case T_CODE:
             case T_STR:
             case T_BOOL:
+            case T_ADDRESS:
                 {
                     uint16_t val1, val2;
                     uval_t uval;
