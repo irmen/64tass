@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.51 r492 manual</title>
+<title>64tass v1.51 r521 manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -57,7 +57,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.51 r492 manual</h1>
+<h1>64tass v1.51 r521 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -1204,7 +1204,7 @@ the macro is used, but it can be any expression.
 </dl>
 
 <pre width=80>
-;<i>A simple macro</i>
+<i>;A simple macro</i>
 copy    <b class="k">.macro</b>
         <b>ldx</b> #<span class="k">size</span>(<span class="k">\1</span>)
 lp      <b>lda</b> <span class="k">\1</span>,x
@@ -1215,7 +1215,7 @@ lp      <b>lda</b> <span class="k">\1</span>,x
 
         <b class="k">#copy</b> <u>label</u>, <span>$500</span>
 
-;<i>Use macro as an assembler directive</i>
+<i>;Use macro as an assembler directive</i>
 lohi    <b class="k">.macro</b>
 lo	<b class="d">.byte</b> &lt;(<span class="k">\@</span>)
 hi	<b class="d">.byte</b> &gt;(<span class="k">\@</span>)
