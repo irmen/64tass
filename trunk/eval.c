@@ -724,6 +724,7 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
     case T_STRUCT:
     case T_FUNCTION:
     case T_ADDRESS:
+    case T_LBL:
         if (obj == NONE_OBJ) return value->val;
         if (obj == ADDRESS_OBJ) {
             if (value->val->obj == ADDRESS_OBJ) return value->val;
