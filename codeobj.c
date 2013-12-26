@@ -192,7 +192,7 @@ static void calc1(oper_t op) {
 
 static void calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp;
+    struct value_s tmp, tmp2;
     ival_t iv;
     if (op->op == &o_MEMBER) {
         struct label_s *l, *l2;
@@ -241,10 +241,26 @@ static void calc2(oper_t op) {
         }
     }
     switch (v2->obj->type) {
+    case T_CODE:
+        if (access_check(op->v1, v, &op->epoint)) return;
+        if (access_check(op->v2, v, &op->epoint)) return;
+        int_from_uval(&tmp, v1->u.code.addr);
+        if (v1 == v) v->obj->destroy(v);
+        op->v1 = &tmp;
+        tmp.refcount = 0;
+        int_from_uval(&tmp2, v2->u.code.addr);
+        if (v2 == v) v->obj->destroy(v);
+        op->v2 = &tmp2;
+        tmp2.refcount = 0;
+        tmp.obj->calc2(op);
+        op->v1 = v1;
+        op->v2 = v2;
+        tmp.obj->destroy(&tmp);
+        tmp2.obj->destroy(&tmp2);
+        return;
     case T_BOOL:
     case T_INT:
     case T_BITS:
-    case T_CODE:
         if (access_check(op->v1, v, &op->epoint)) return;
         switch (op->op->u.oper.op) {
         case O_ADD:
@@ -286,7 +302,7 @@ static void calc2(oper_t op) {
 
 static void rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp;
+    struct value_s tmp, tmp2;
     ival_t iv;
     if (op->op == &o_IN) {
         struct oper_s oper;
@@ -340,6 +356,22 @@ static void rcalc2(oper_t op) {
     }
     switch (v1->obj->type) {
     case T_CODE:
+        if (access_check(op->v2, v, &op->epoint)) return;
+        if (access_check(op->v1, v, &op->epoint)) return;
+        int_from_uval(&tmp, v1->u.code.addr);
+        if (v1 == v) v->obj->destroy(v);
+        op->v1 = &tmp;
+        tmp.refcount = 0;
+        int_from_uval(&tmp2, v2->u.code.addr);
+        if (v2 == v) v->obj->destroy(v);
+        op->v2 = &tmp2;
+        tmp2.refcount = 0;
+        tmp2.obj->rcalc2(op);
+        op->v1 = v1;
+        op->v2 = v2;
+        tmp.obj->destroy(&tmp);
+        tmp2.obj->destroy(&tmp2);
+        return;
     case T_BOOL:
     case T_INT:
     case T_BITS:
