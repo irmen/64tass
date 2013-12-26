@@ -26,6 +26,8 @@
 #include "64tass.h"
 #include "strobj.h"
 
+#define MAX_ERRORS 99
+
 unsigned int errors=0,conderrors=0,warnings=0;
 
 static struct file_list_s file_list;
@@ -185,7 +187,7 @@ static void inc_errors(void) {
 
 void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
     if (pass == 1 && no < 0x80) return;
-    if (errors+conderrors==99 && no>=0x40) no=ERROR__TOO_MANY_ERR;
+    if (errors + conderrors == MAX_ERRORS && no >= 0x40) no = ERROR__TOO_MANY_ERR;
 
     if (!arguments.warning && no<0x40) {
         if (errors) return;
@@ -294,7 +296,7 @@ static void str_name(const uint8_t *data, size_t len) {
 
 static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoint) {
     if (pass == 1) return;
-    if (errors+conderrors==99) {
+    if (errors + conderrors == MAX_ERRORS) {
         err_msg(ERROR__TOO_MANY_ERR, NULL);
         return;
     }
@@ -309,7 +311,7 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
 static void err_msg_big_integer(const char *msg, int bits, linepos_t epoint) {
     char msg2[256];
     if (pass == 1) return;
-    if (errors+conderrors==99) {
+    if (errors + conderrors == MAX_ERRORS) {
         err_msg(ERROR__TOO_MANY_ERR, NULL);
         return;
     }
@@ -369,7 +371,7 @@ static void err_msg_not_defined2(const str_t *name, const struct label_s *l, int
         lastnd = NULL;
     }
     err_msg_str_name("error: not defined", name, epoint);
-    if (0 && !l->file_list) {
+    if (!l->file_list) {
         err_msg_str_name("note: searched in the global scope", NULL, epoint);
     } else {
         addorigin(l->file_list, &l->epoint);
@@ -463,7 +465,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val) {
 
 static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
 
-    if (errors+conderrors==99) {
+    if (errors + conderrors == MAX_ERRORS) {
         err_msg(ERROR__TOO_MANY_ERR, NULL);
         return;
     }
@@ -498,7 +500,7 @@ static int err_oper(const char *msg, const struct value_s *op, const struct valu
         return 0;
     }
 
-    if (errors+conderrors==99) {
+    if (errors + conderrors == MAX_ERRORS) {
         err_msg(ERROR__TOO_MANY_ERR, NULL);
         return 0;
     }
