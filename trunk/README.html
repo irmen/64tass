@@ -815,7 +815,7 @@ stays the same as before.
 <dt><b>.here</b>
 <dd>Changes the program counter, the compile offset is not changed. Can be nested of course.
 <dt><b>.align</b> &lt;modulo&gt;[, &lt;fill&gt;]
-<dd>Align code to a dividable program counter address by gap or filler bytes
+<dd>Align code to a dividable program counter address by inserting uninitialized memory or repeated bytes.
 </dl>
 <pre width=80>
         <b>*=</b> <span>$1000</span>        <i>;set program counter (and offset)</i>
@@ -940,13 +940,6 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 <i>;Store 8.24 signed fixed point constants</i>
         <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * (<span>1</span> &lt;&lt; <span>24</span>)
 </pre>
-
-<dt><b>.fill</b> &lt;length&gt;[, &lt;fill&gt;]
-<dd>Skip bytes (using uninitialized data), or fill with repeated bytes. For multi byte patterns use <code>.rept</code>!
-<pre width=80>
-        <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
-        <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
-</pre>
 </dl>
 
 <h4>Storing text data</h4>
@@ -961,6 +954,14 @@ in to represent control characters.</p>
         <b class="d">.text</b> <span>23</span>, <span>$33</span>	<i>; bytes</i>
         <b class="d">.text</b> <span>%00011111</span>	<i>; more bytes</i>
         <b class="d">.text</b> ^<u>OEU</u>	<i>; the decimal value as string (^23 is $32,$33)</i>
+</pre>
+
+<dt><b>.fill</b> &lt;length&gt;[, &lt;fill&gt;]
+<dd>Skip bytes (using uninitialized data), or fill with repeated bytes. For complex multi byte patterns use <code>.rept</code>!
+<pre width=80>
+        <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
+        <b class="d">.fill</b> <span>$4000</span>, <span>0</span>  <i>;16384 bytes of 0</i>
+        <b class="d">.fill</b> <span>8000</span>, [<span>$55</span>, <span>$aa</span>]<i>;8000 bytes of alternating $55, $aa</i>
 </pre>
 
 <dt><b>.shift</b> &lt;expression&gt;[, &lt;expression&gt;, ...]
@@ -1937,26 +1938,25 @@ you get a related error move the respective label out of the <code>.block</code>
 <dt>no option
 <dd>Outputs CBM format binaries
 <p>The first 2 bytes are the little endian address of the first valid byte (start
-address). Overlapping blocks are flattened and gaps are filled up with zeros.
-Gaps before the first and after the last valid bytes are not saved.</p>
+address). Overlapping blocks are flattened and uninitialized memory is filled up with zeros.
+Uninitialized memory before the first and after the last valid bytes are not saved.</p>
 <p>Used for C64 binaries.</p>
 
 <dt><b>-b</b>, <b>--nostart</b>
 <dd>Output data only without start address
-<p>Overlapping blocks are flattened and gaps are filled up with zeros. Gaps
+<p>Overlapping blocks are flattened and uninitialized memory is filled up with zeros. Uninitialized memory
 before the first and after the last valid bytes are not saved.</p>
 <p>Useful for small ROM files.</p>
 
 <dt><b>-f</b>, <b>--flat</b>
 <dd>Flat address space output mode.
-<p>Overlapping blocks are flattened and gaps are filled up with zeros. Gaps
-before the first valid byte are filled in with zeros. Gaps after the last valid
-bytes are not saved.</p>
+<p>Overlapping blocks are flattened and uninitialized memory is filled up with
+zeros. Uninitialized memory after the last valid byte is not saved.</p>
 <p>Useful for creating huge multi bank ROM files (over 64K). See sections for an example.</p>
 
 <dt><b>-n</b>, <b>--nonlinear</b>
 <dd>Generate nonlinear output file.
-<p>Overlapping blocks are flattened. Blocks are saved in sorted order and gaps are skipped.</p>
+<p>Overlapping blocks are flattened. Blocks are saved in sorted order and uninitialized memory is skipped.</p>
 <p>Used for linkers.</p>
 <pre width=80>
 64tass --nonlinear a.asm
@@ -1985,8 +1985,8 @@ bytes are not saved.</p>
 <dt><b>--atari-xex</b>
 <dd>Generate a Atari XEX output file.
 <p>Overlapping blocks are kept, continuing blocks are concatenated. Saving
-happens in the definition order without sorting, and gaps are skipped in the
-output.</p>
+happens in the definition order without sorting, and uninitialized memory is
+skipped in the output.</p>
 <pre width=80>
 64tass --atari-xex a.asm
         <b>*=</b> <span>$02e0</span>

@@ -1783,9 +1783,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     break;
                 }
-                if (prm==CMD_FILL) { /* .fill */
+                if (prm==CMD_FILL || prm==CMD_ALIGN) { /* .fill, .align */
                     address_t db = 0;
-                    int ch = -1;
                     uval_t uval;
                     struct value_s err;
                     if (newlabel) {
@@ -1793,36 +1792,92 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (prm == CMD_ALIGN && current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else {
                         if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) {
                             err_msg_wrong_type(&err, &epoint); 
-                            uval = 0;
+                            uval = (prm == CMD_ALIGN) ? 1 : 0;
                         }
-                        db = uval;
+                        if (prm == CMD_ALIGN) {
+                            if (!uval || (uval & ~(uval_t)all_mem)) err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
+                            else if (uval > 1 && current_section->l_address % uval) db = uval - (current_section->l_address % uval);
+                        } else db = uval;
                         if (db && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);goto breakerr;}
                     }
-                    if ((val = get_val(GAP_OBJ, &epoint))) {
+                    mark_mem(&current_section->mem, current_section->address);
+                    if ((val = get_val(NONE_OBJ, &epoint))) {
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
-                        } else if (val->obj != GAP_OBJ) {
-                            if (val->obj->uval(val, &err, &uval, 8, &epoint)) {
-                                err_msg_wrong_type(&err, &epoint); 
-                                uval = 0;
+                            memskip(db);
+                        } else {
+                            struct value_s iter, item, *val2;
+                            size_t uninit = 0, sum = 0;
+                            size_t memp, membp;
+                            item.refcount = 0;
+                            err.obj = NONE_OBJ;
+                            get_mem(&current_section->mem, &memp, &membp);
+
+                            if (val->obj == STR_OBJ) {
+                                struct value_s *tmp = val_alloc();
+                                bytes_from_str(tmp, val);
+                                tmp->obj->getiter(tmp, &iter);
+                                val_destroy(tmp);
+                            } else val->obj->getiter(val, &iter);
+
+                            while (db && ((val2 = iter.obj->next(&iter, &item)))) {
+                                db--;
+                                switch (val2->obj->type) {
+                                case T_GAP:uninit++; break;
+                                default:
+                                    if (val2->obj->uval(val2, &err, &uval, 8, &epoint)) uval = 0;
+                                    if (uninit) { memskip(uninit); sum += uninit; uninit = 0; }
+                                    pokeb(uval); sum++;
+                                    break;
+                                case T_NONE:
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                    fixeddig = 0; uninit++;
+                                }
+                                val_destroy(val2);
                             }
-                            ch = (uint8_t)uval;
+                            iter.obj->destroy(&iter);
+                            sum += uninit;
+                            if (db) {
+                                if (sum == 1 && uninit == 0) {
+                                    while (db--) pokeb(uval); /* single byte shortcut */
+                                } else if (sum == uninit) {
+                                    uninit += db; /* gap shortcut */
+                                } else {
+                                    size_t offs = 0;
+                                    while (db) { /* pattern repeat */
+                                        int16_t ch;
+                                        db--;
+                                        ch = read_mem(&current_section->mem, memp, membp, offs);
+                                        if (ch < 0) uninit++;
+                                        else {
+                                            if (uninit) {memskip(uninit); uninit = 0;}
+                                            pokeb(ch);
+                                        }
+                                        offs++;
+                                        if (offs >= sum) offs = 0;
+                                    }
+                                }
+                            }
+                            if (uninit) memskip(uninit);
+                            if (err.obj != NONE_OBJ) {
+                                err_msg_wrong_type(&err, &epoint);
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                fixeddig = 0;
+                            }
                         }
-                    }
-                    eval_finish();
-                    mark_mem(&current_section->mem, current_section->address);
-                    if (ch >= 0) while (db-- > 0) pokeb(ch);
-                    else memskip(db);
+                    } else memskip(db);
                     if (listing && flist) {
                         list_mem(&current_section->mem, flist, all_mem, current_section->dooutput, &lastl);
                     }
+                    eval_finish();
                     break;
                 }
                 if (prm==CMD_ASSERT) { /* .assert */
@@ -2134,48 +2189,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                             star_tree = stree_old; vline = ovline;
                         }
-                    }
-                    break;
-                }
-                if (prm==CMD_ALIGN) { /* .align */
-                    int align = 1, fill=-1;
-                    uval_t uval;
-                    struct value_s err;
-                    if (newlabel) {
-                        newlabel->value->u.code.dtype = D_BYTE;
-                    }
-                    if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
-                    if (val->obj == NONE_OBJ) {
-                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                        fixeddig = 0;
-                    } else {
-                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint);
-                        else if (!uval || (uval & ~(uval_t)all_mem)) err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
-                        else align = uval;
-                    }
-                    if ((val = get_val(GAP_OBJ, &epoint))) {
-                        if (val->obj == NONE_OBJ) {
-                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                            fixeddig = 0;
-                        } else if (val->obj != GAP_OBJ) {
-                            if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_wrong_type(&err, &epoint);
-                            else fill = (uint8_t)uval;
-                        }
-                    }
-                    eval_finish();
-                    mark_mem(&current_section->mem, current_section->address);
-                    if (align>1 && (current_section->l_address % align)) {
-                        if (fill >= 0)
-                            while (current_section->l_address % align) pokeb((uint8_t)fill);
-                        else {
-                            align-=current_section->l_address % align;
-                            if (align) memskip(align);
-                        }
-                    }
-                    if (listing && flist) {
-                        list_mem(&current_section->mem, flist, all_mem, current_section->dooutput, &lastl);
                     }
                     break;
                 }
