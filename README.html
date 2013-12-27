@@ -1934,17 +1934,30 @@ you get a related error move the respective label out of the <code>.block</code>
 64tass a.asm -o a.prg
 </pre>
 
+<dt>no option
+<dd>Outputs CBM format binaries
+<p>The first 2 bytes are the little endian address of the first valid byte (start
+address). Overlapping blocks are flattened and gaps are filled up with zeros.
+Gaps before the first and after the last valid bytes are not saved.</p>
+<p>Used for C64 binaries.</p>
+
 <dt><b>-b</b>, <b>--nostart</b>
-<dd>Strip starting address. Strips the 2 or 3 byte starting address before the
-resulting binary.  Useful for creating small ROM images.
+<dd>Output data only without start address
+<p>Overlapping blocks are flattened and gaps are filled up with zeros. Gaps
+before the first and after the last valid bytes are not saved.</p>
+<p>Useful for small ROM files.</p>
 
 <dt><b>-f</b>, <b>--flat</b>
-<dd>Flat output mode. Output the plain binary image from offset 0. The image
-size can be much larger than the processor address space. Useful for creating
-huge multi bank ROM files.
+<dd>Flat address space output mode.
+<p>Overlapping blocks are flattened and gaps are filled up with zeros. Gaps
+before the first valid byte are filled in with zeros. Gaps after the last valid
+bytes are not saved.</p>
+<p>Useful for creating huge multi bank ROM files (over 64K). See sections for an example.</p>
 
 <dt><b>-n</b>, <b>--nonlinear</b>
-<dd>Generate nonlinear output file. Generates non-linear output for linkers.
+<dd>Generate nonlinear output file.
+<p>Overlapping blocks are flattened. Blocks are saved in sorted order and gaps are skipped.</p>
+<p>Used for linkers.</p>
 <pre width=80>
 64tass --nonlinear a.asm
         <b>*=</b> <span>$1000</span>
@@ -1963,14 +1976,34 @@ huge multi bank ROM files.
 <tr><td><tt>$00, $00</tt><td>end marker (length=0)
 </table>
 
-<dt><b>-W</b>, <b>--wordstart</b>
-<dd>Force 2 byte start address. If 16&nbsp;MiB address space is used for a
-65816, then the starting address of file will be 3 bytes long. This option
-makes it 2 bytes long.
+<dt><b>-X</b>, <b>--long-address</b>
+<dd>Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
 <pre width=80>
-64tass --wordstart --m65816 a.asm
+64tass --long-address --m65816 a.asm
 </pre>
 
+<dt><b>--atari-xex</b>
+<dd>Generate a Atari XEX output file.
+<p>Overlapping blocks are kept, continuing blocks are concatenated. Saving
+happens in the definition order without sorting, and gaps are skipped in the
+output.</p>
+<pre width=80>
+64tass --atari-xex a.asm
+        <b>*=</b> <span>$02e0</span>
+        <b class="d">.word</b> <u>start</u>      <i>;run address</i>
+        <b>*=</b> <span>$2000</span>
+start	<b>rts</b>
+</pre>
+<table border="0">
+<caption>Result of compilation</caption>
+<tr><td><tt>$ff, $ff</tt><td>header, 2 bytes
+<tr><td><tt>$e0, $02</tt><td>little endian start $02e0
+<tr><td><tt>$e1, $02</tt><td>little endian last byte $02e1
+<tr><td><tt>$00, $20</tt><td>start address word
+<tr><td><tt>$00, $20</tt><td>little endian start $2000
+<tr><td><tt>$00, $20</tt><td>little endian last byte $2000
+<tr><td><tt>$60</tt><td>code
+</table>
 </dl>
 
 <h3>Operation options</h3>

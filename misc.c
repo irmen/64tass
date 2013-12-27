@@ -35,7 +35,7 @@
 
 #include "codeobj.h"
 
-struct arguments_s arguments={1,1,0,0,0,1,1,0,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL};
+struct arguments_s arguments={1,1,0,1,1,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL, OUTPUT_CBM};
 
 const uint8_t whatis[256]={
     WHAT_EOL,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -311,7 +311,8 @@ static const struct option long_options[]={
     {"nonlinear"        , no_argument      , 0, 'n'},
     {"nostart"          , no_argument      , 0, 'b'},
     {"flat"             , no_argument      , 0, 'f'},
-    {"wordstart"        , no_argument      , 0, 'W'},
+    {"long-address"     , no_argument      , 0, 'X'},
+    {"atari-xex"        , no_argument      , 0,   7},
     {"ascii"            , no_argument      , 0, 'a'},
     {"tasm-compatible"  , no_argument      , 0, 'T'},
     {"case-sensitive"   , no_argument      , 0, 'C'},
@@ -345,10 +346,11 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
         {
             case 'w':arguments.warning=0;break;
             case 'q':arguments.quiet=0;break;
-            case 'W':arguments.wordstart=1;break;
-            case 'n':arguments.nonlinear=1;break;
-            case 'b':arguments.stripstart=1;break;
-            case 'f':arguments.flat=1;break;
+            case 'X':arguments.longaddr=1;break;
+            case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
+            case 7:arguments.output_mode = OUTPUT_XEX;break;
+            case 'b':arguments.output_mode = OUTPUT_RAW;break;
+            case 'f':arguments.output_mode = OUTPUT_FLAT;break;
             case 'a':arguments.toascii=1;break;
             case 'T':arguments.tasmcomp=1;break;
             case 'o':arguments.output=optarg;break;
@@ -446,8 +448,8 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
                "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
                "        [-l <file>] [-L <file>] [-I <path>] [--ascii] [--nostart]\n"
-               "        [--long-branch] [--case-sensitive] [--flat] [--nonlinear]\n"
-               "        [--tasm-compatible] [--quiet] [--no-warn] [--wordstart] [--m65c02]\n"
+               "        [--long-branch] [--case-sensitive] [--flat] [--atari-xex] [--nonlinear]\n"
+               "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
                "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
                "        [--mw65c02] [--m65ce02] [--labels=<file>] [--list=<file>]\n"
                "        [--no-monitor] [--no-source] [--help] [--usage] [--version]\n"
@@ -466,18 +468,21 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                "64tass Turbo Assembler Macro V" VERSION "\n"
                "\n"
                "  -a, --ascii           Source is not in PETASCII\n"
-               "  -b, --nostart         Strip starting address\n"
                "  -B, --long-branch     Automatic bxx *+3 jmp $xxxx\n"
                "  -C, --case-sensitive  Case sensitive labels\n"
                "  -D <label>=<value>    Define <label> to <value>\n"
-               "  -f, --flat            Generate flat output file\n"
                "  -I <path>             Include search path\n"
-               "  -n, --nonlinear       Generate nonlinear output file\n"
-               "  -o <file>             Place output into <file>\n"
                "  -q, --quiet           Display errors/warnings\n"
                "  -T, --tasm-compatible Enable TASM compatible mode\n"
                "  -w, --no-warn         Suppress warnings\n"
-               "  -W, --wordstart       Force 2 byte start address\n"
+               "\n"
+               " Output selection:\n"
+               "  -o <file>             Place output into <file>\n"
+               "  -b, --nostart         Strip starting address\n"
+               "  -f, --flat            Generate flat output file\n"
+               "  -n, --nonlinear       Generate nonlinear output file\n"
+               "  -X, --long-address    Use 3 byte start/len address\n"
+               "      --atari-xex       Output Atari XEX file\n"
                "\n"
                " Target selection:\n"
                "  -c, --m65c02          CMOS 65C02\n"

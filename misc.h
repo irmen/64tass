@@ -20,6 +20,10 @@
 #define _MISC_H_
 #include "inttypes.h"
 
+enum output_mode_e {
+    OUTPUT_CBM, OUTPUT_RAW, OUTPUT_NONLINEAR, OUTPUT_FLAT, OUTPUT_XEX
+};
+
 struct file_s;
 
 static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
@@ -27,20 +31,18 @@ static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20)
 struct arguments_s {
     unsigned warning:1;
     unsigned quiet:1;
-    unsigned nonlinear:1;
-    unsigned stripstart:1;
     unsigned toascii:1;
     unsigned monitor:1;
     unsigned source:1;
     unsigned casesensitive:1;
     unsigned longbranch:1;
-    unsigned wordstart:1;
+    unsigned longaddr:1;
     unsigned tasmcomp:1;
-    unsigned flat:1;
     const char *output;
     uint8_t cpumode;
     const char *label;
     const char *list;
+    enum output_mode_e output_mode;
 };
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++

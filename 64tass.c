@@ -469,7 +469,7 @@ static void set_cpumode(uint_fast8_t cpumode) {
     case OPCODES_CW65C02:mnemonic=mnemonic_cw65c02;opcode=cw65c02;break;
     default: mnemonic=mnemonic_c6502;opcode=c6502;break;
     }
-    all_mem2 = arguments.flat ? ~(address_t)0 : all_mem;
+    all_mem2 = (arguments.output_mode == OUTPUT_FLAT) ? ~(address_t)0 : all_mem;
 }
 
 void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
@@ -1086,7 +1086,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct value_s err;
                     uval_t uval;
                     if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) { err_msg_wrong_type(&err, &epoint); uval = 0; }
-                    if (arguments.flat && !current_section->logicalrecursion) {
+                    if ((arguments.output_mode == OUTPUT_FLAT) && !current_section->logicalrecursion) {
                         if ((address_t)uval & ~all_mem2) {
                             err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
                         } else {
@@ -3601,7 +3601,7 @@ int main(int argc, char *argv[]) {
 
     if (errors || conderrors) {status();return 1;}
 
-    output_mem(&root_section.mem, scpumode);
+    output_mem(&root_section.mem);
     status();
     return 0;
 }

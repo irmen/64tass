@@ -1738,15 +1738,41 @@ Output options
 
     64tass a.asm -o a.prg
 
+no option
+    Outputs CBM format binaries
+
+    The first 2 bytes are the little endian address of the first valid byte
+    (start address). Overlapping blocks are flattened and gaps are filled up
+    with zeros. Gaps before the first and after the last valid bytes are not
+    saved.
+
+    Used for C64 binaries.
+
 -b, --nostart
-    Strip starting address. Strips the 2 or 3 byte starting address before the
-    resulting binary. Useful for creating small ROM images.
+    Output data only without start address
+
+    Overlapping blocks are flattened and gaps are filled up with zeros. Gaps
+    before the first and after the last valid bytes are not saved.
+
+    Useful for small ROM files.
+
 -f, --flat
-    Flat output mode. Output the plain binary image from offset 0. The image
-    size can be much larger than the processor address space. Useful for
-    creating huge multi bank ROM files.
+    Flat address space output mode.
+
+    Overlapping blocks are flattened and gaps are filled up with zeros. Gaps
+    before the first valid byte are filled in with zeros. Gaps after the last
+    valid bytes are not saved.
+
+    Useful for creating huge multi bank ROM files (over 64K). See sections for
+    an example.
+
 -n, --nonlinear
-    Generate nonlinear output file. Generates non-linear output for linkers.
+    Generate nonlinear output file.
+
+    Overlapping blocks are flattened. Blocks are saved in sorted order and gaps
+    are skipped.
+
+    Used for linkers.
 
     64tass --nonlinear a.asm
             *= $1000
@@ -1763,12 +1789,32 @@ Output options
     $ea      code
     $00, $00 end marker (length=0)
 
--W, --wordstart
-    Force 2 byte start address. If 16 MiB address space is used for a 65816,
-    then the starting address of file will be 3 bytes long. This option makes
-    it 2 bytes long.
+-X, --long-address
+    Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
 
-    64tass --wordstart --m65816 a.asm
+    64tass --long-address --m65816 a.asm
+
+--atari-xex
+    Generate a Atari XEX output file.
+
+    Overlapping blocks are kept, continuing blocks are concatenated. Saving
+    happens in the definition order without sorting, and gaps are skipped in
+    the output.
+
+    64tass --atari-xex a.asm
+            *= $02e0
+            .word start      ;run address
+            *= $2000
+    start   rts
+
+          Result of compilation
+    $ff, $ff header, 2 bytes
+    $e0, $02 little endian start $02e0
+    $e1, $02 little endian last byte $02e1
+    $00, $20 start address word
+    $00, $20 little endian start $2000
+    $00, $20 little endian last byte $2000
+    $60      code
 
 Operation options
 
