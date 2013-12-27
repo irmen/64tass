@@ -40,6 +40,7 @@ static void memcomp(struct memblocks_s *memblocks) {
     if (memblocks->compressed) return;
     memblocks->compressed = 1;
     memjmp(memblocks, 0);
+    if (arguments.output_mode == OUTPUT_XEX) return;
     for (j = 0; j < memblocks->p; j++) {
         struct memblocks_s *b = memblocks->data[j].ref;
         if (b) {
@@ -159,10 +160,117 @@ void memprint(struct memblocks_s *memblocks) {
     }
 }
 
-void output_mem(struct memblocks_s *memblocks, int scpumode) {
+static void putlw(int w, FILE *f) {
+    fputc(w, f);
+    fputc(w >> 8, f);
+}
+
+static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
+    address_t pos;
+    size_t size;
+    unsigned int i;
+
+    if (memblocks->p) {
+        pos = memblocks->data[0].addr;
+        if (arguments.output_mode == OUTPUT_CBM) {
+            putlw(pos, fout);
+            if (arguments.longaddr) putc(pos >> 16,fout);
+        }
+        for (i = 0; i < memblocks->p; i++) {
+            size = memblocks->data[i].addr - pos;
+            while (size--) putc(0, fout);
+            fwrite(memblocks->mem.data + memblocks->data[i].p, memblocks->data[i].len, 1, fout);
+            pos = memblocks->data[i].addr + memblocks->data[i].len;
+        }
+    }
+}
+
+static void output_mem_nonlinear(FILE *fout, const struct memblocks_s *memblocks) {
     address_t start;
     size_t size;
     unsigned int i, last;
+
+    if (memblocks->p) {
+        i = 0;
+        start = memblocks->data[i].addr;
+        size = memblocks->data[i].len;
+        last = i;
+        for (i++; i < memblocks->p; i++) {
+            if (memblocks->data[i].addr != start + size) {
+                putlw(size,fout);
+                if (arguments.longaddr) putc(size >> 16,fout);
+                putlw(start,fout);
+                if (arguments.longaddr) putc(start >> 16,fout);
+                while (last < i) {
+                    fwrite(memblocks->mem.data + memblocks->data[last].p, memblocks->data[last].len, 1, fout);
+                    last++;
+                }
+                start = memblocks->data[i].addr;
+                size = 0;
+            }
+            size += memblocks->data[i].len;
+        }
+        putlw(size,fout);
+        if (arguments.longaddr) putc(size >> 16, fout);
+        putlw(start, fout);
+        if (arguments.longaddr) putc(start >> 16,fout);
+        while (last<i) {
+            fwrite(memblocks->mem.data + memblocks->data[last].p, memblocks->data[last].len, 1, fout);
+            last++;
+        }
+    }
+    putlw(0, fout);
+    if (arguments.longaddr) putc(0, fout);
+}
+
+static void output_mem_flat(FILE *fout, const struct memblocks_s *memblocks) {
+    address_t pos;
+    size_t size;
+    unsigned int i;
+
+    for (pos = i = 0; i < memblocks->p; i++) {
+        size = memblocks->data[i].addr - pos;
+        while (size--) putc(0, fout);
+        fwrite(memblocks->mem.data + memblocks->data[i].p, memblocks->data[i].len, 1, fout);
+        pos = memblocks->data[i].addr + memblocks->data[i].len;
+    }
+}
+
+static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks) {
+    address_t start;
+    size_t size;
+    unsigned int i, last;
+
+    if (memblocks->p) {
+        i = 0;
+        start = memblocks->data[i].addr;
+        size = memblocks->data[i].len;
+        last = i;
+        for (i++; i < memblocks->p; i++) {
+            if (memblocks->data[i].addr != start + size) {
+                if (last == 0 || start == 0xffff) putlw(0xffff, fout);
+                putlw(start, fout);
+                putlw(start + size - 1, fout);
+                while (last < i) {
+                    fwrite(memblocks->mem.data + memblocks->data[last].p, memblocks->data[last].len, 1, fout);
+                    last++;
+                }
+                start = memblocks->data[i].addr;
+                size = 0;
+            }
+            size += memblocks->data[i].len;
+        }
+        if (last == 0 || start == 0xffff) putlw(0xffff, fout);
+        putlw(start, fout);
+        putlw(start + size - 1, fout);
+        while (last<i) {
+            fwrite(memblocks->mem.data + memblocks->data[last].p, memblocks->data[last].len, 1, fout);
+            last++;
+        }
+    }
+}
+
+void output_mem(struct memblocks_s *memblocks) {
     FILE* fout;
 
     memcomp(memblocks);
@@ -174,59 +282,12 @@ void output_mem(struct memblocks_s *memblocks, int scpumode) {
             if ((fout=file_open(arguments.output,"wb"))==NULL) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output);
         }
         clearerr(fout);
-        if (memblocks->p) {
-            i = 0;
-            start = memblocks->data[i].addr;
-            if (!arguments.nonlinear && arguments.flat) {
-                size = start;
-                while (size--) putc(0, fout);
-            }
-            size = memblocks->data[i].len;
-            last = i;
-            for (i++; i < memblocks->p; i++) {
-                if (memblocks->data[i].addr != start + size) {
-                    if (arguments.nonlinear) {
-                        putc(size,fout);
-                        putc(size >> 8,fout);
-                        if (scpumode) putc(size >> 16,fout);
-                    }
-                    if ((!arguments.stripstart && !arguments.flat && last == 0) || arguments.nonlinear) {
-                        putc(start,fout);
-                        putc(start >> 8,fout);
-                        if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
-                    }
-                    while (last < i) {
-                        fwrite(memblocks->mem.data + memblocks->data[last].p, memblocks->data[last].len, 1, fout);
-                        last++;
-                    }
-                    if (!arguments.nonlinear) {
-                        size = memblocks->data[i].addr - start - size;
-                        while (size--) putc(0, fout);
-                    }
-                    start = memblocks->data[i].addr;
-                    size = 0;
-                }
-                size += memblocks->data[i].len;
-            }
-            if (arguments.nonlinear) {
-                putc(size,fout);
-                putc(size >> 8, fout);
-                if (scpumode) putc(size >> 16, fout);
-            }
-            if ((!arguments.stripstart && !arguments.flat && last == 0) || arguments.nonlinear) {
-                putc(start, fout);
-                putc(start >> 8, fout);
-                if (scpumode && (!arguments.wordstart || arguments.nonlinear)) putc(start >> 16,fout);
-            }
-            while (last<i) {
-                fwrite(memblocks->mem.data + memblocks->data[last].p, memblocks->data[last].len, 1, fout);
-                last++;
-            }
-        }
-        if (arguments.nonlinear) {
-            putc(0, fout);
-            putc(0, fout);
-            if (scpumode) putc(0 ,fout);
+        switch (arguments.output_mode) {
+        case OUTPUT_FLAT: output_mem_flat(fout, memblocks); break;
+        case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks); break;
+        case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks); break;
+        case OUTPUT_RAW: 
+        case OUTPUT_CBM: output_mem_c64(fout, memblocks); break;
         }
         if (ferror(fout)) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output);
         if (fout != stdout) fclose(fout);
