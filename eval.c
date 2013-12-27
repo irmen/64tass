@@ -1212,6 +1212,12 @@ static void indexes(struct values_s *vals, unsigned int args) {
                     val_destroy(val);
                     return;
                 }
+                if (vals->val->u.dict.def) {
+                    struct value_s *val = val_reference(vals->val->u.dict.def);
+                    val_replace(&vals->val, val);
+                    val_destroy(val);
+                    return;
+                }
                 new_value.obj = ERROR_OBJ;
                 new_value.u.error.num = ERROR_____KEY_ERROR;
                 new_value.u.error.epoint = v[0].epoint;
@@ -1487,6 +1493,7 @@ static int get_val2(struct eval_context_s *ev) {
                 val = val_realloc(&v1->val);
                 val->obj = DICT_OBJ;
                 val->u.dict.len = 0;
+                val->u.dict.def = NULL;
                 avltree_init(&val->u.dict.members);
                 if (args) {
                     unsigned int j;
@@ -1495,24 +1502,30 @@ static int get_val2(struct eval_context_s *ev) {
                         if (values[vsp+j].val->obj == PAIR_OBJ) {
                             struct pair_s *p, *p2;
                             struct avltree_node *b;
-                            p = (struct pair_s *)malloc(sizeof(struct pair_s));
-                            if (!p) err_msg_out_of_memory();
-                            p->key = values[vsp+j].val->u.pair.key;
-                            p->data = values[vsp+j].val->u.pair.data;
-                            p->hash = obj_hash(p->key, &new_value, &values[vsp+j].epoint);
-                            if (p->hash >= 0) {
-                                b = avltree_insert(&p->node, &val->u.dict.members, pair_compare);
-                                if (b) {
-                                    p2 = avltree_container_of(b, struct pair_s, node);
-                                    val_replace(&p2->data, p->data);
-                                    free(p);
-                                } else {
-                                    values[vsp+j].val = &none_value;
-                                    val->u.dict.len++;
-                                }
+                            if (values[vsp+j].val->u.pair.key->obj == DEFAULT_OBJ) {
+                                if (val->u.dict.def) val_destroy(val->u.dict.def);
+                                val->u.dict.def = values[vsp+j].val->u.pair.data;
+                                values[vsp+j].val = &none_value;
                             } else {
-                                err_msg_wrong_type(p->key, &values[vsp+j].epoint);
-                                free(p);
+                                p = (struct pair_s *)malloc(sizeof(struct pair_s));
+                                if (!p) err_msg_out_of_memory();
+                                p->key = values[vsp+j].val->u.pair.key;
+                                p->data = values[vsp+j].val->u.pair.data;
+                                p->hash = obj_hash(p->key, &new_value, &values[vsp+j].epoint);
+                                if (p->hash >= 0) {
+                                    b = avltree_insert(&p->node, &val->u.dict.members, pair_compare);
+                                    if (b) {
+                                        p2 = avltree_container_of(b, struct pair_s, node);
+                                        val_replace(&p2->data, p->data);
+                                        free(p);
+                                    } else {
+                                        values[vsp+j].val = &none_value;
+                                        val->u.dict.len++;
+                                    }
+                                } else {
+                                    err_msg_wrong_type(p->key, &values[vsp+j].epoint);
+                                    free(p);
+                                }
                             }
                         } else err_msg_wrong_type(values[vsp+j].val, &values[vsp+j].epoint);
                     }
@@ -1786,6 +1799,14 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
                 val->obj = DEFAULT_OBJ;
                 goto other;
             } else if (operp > 1 && o_oper[operp-1].val == &o_COLON3 && o_oper[operp-2].val == &o_SLICE) {
+                val = push(&epoint);
+                val->obj = DEFAULT_OBJ;
+                goto other;
+            } else if (operp && o_oper[operp-1].val == &o_BRACE) {
+                val = push(&epoint);
+                val->obj = DEFAULT_OBJ;
+                goto other;
+            } else if (operp > 1 && o_oper[operp-1].val == &o_COMMA && o_oper[operp-2].val == &o_BRACE) {
                 val = push(&epoint);
                 val->obj = DEFAULT_OBJ;
                 goto other;

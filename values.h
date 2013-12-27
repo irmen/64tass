@@ -167,6 +167,7 @@ struct value_s {
         struct {
             size_t len;
             struct avltree members;
+            struct value_s *def;
         } dict;
         struct {
             size_t p;

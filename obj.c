@@ -514,12 +514,14 @@ static void dict_free(struct avltree_node *aa)
 
 static void dict_destroy(struct value_s *v1) {
     avltree_destroy(&v1->u.dict.members, dict_free);
+    if (v1->u.dict.def) val_destroy(v1->u.dict.def);
 }
 
 static void dict_copy(const struct value_s *v1, struct value_s *v) {
     v->obj = DICT_OBJ;
     v->refcount = 1;
     v->u.dict.len = v1->u.dict.len;
+    v->u.dict.def = v1->u.dict.def ? val_reference(v1->u.dict.def) : NULL;
     avltree_init(&v->u.dict.members);
     if (v1->u.dict.len) {
         const struct avltree_node *n = avltree_first(&v1->u.dict.members);
@@ -543,12 +545,15 @@ static void dict_copy_temp(const struct value_s *v1, struct value_s *v) {
     v->refcount = 1;
     v->u.dict.len = v1->u.dict.len;
     v->u.dict.members = v1->u.dict.members;
+    v->u.dict.def = v1->u.dict.def;
 }
 
 static int dict_same(const struct value_s *v1, const struct value_s *v2) {
     const struct avltree_node *n;
     const struct avltree_node *n2;
     if (v2->obj != DICT_OBJ || v1->u.dict.len != v2->u.dict.len) return 0;
+    if (!v1->u.dict.def ^ !v2->u.dict.def) return 0;
+    if (v1->u.dict.def && v2->u.dict.def && !obj_same(v1->u.dict.def, v2->u.dict.def)) return 0;
     n = avltree_first(&v1->u.dict.members);
     n2 = avltree_first(&v2->u.dict.members);
     while (n && n2) {
@@ -569,30 +574,39 @@ static int MUST_CHECK dict_len(const struct value_s *v1, struct value_s *UNUSED(
 }
 
 static void dict_repr(const struct value_s *v1, struct value_s *v) {
-    const struct avltree_node *n;
     const struct pair_s *p;
     size_t i, len = 2, chars = 0;
     struct value_s *tmp = NULL;
     uint8_t *s;
-    if (v1->u.dict.len) {
-        len = v1->u.dict.len + v1->u.dict.len;
+    unsigned int def = (v1->u.dict.def != NULL);
+    if (v1->u.dict.len || def) {
+        len = v1->u.dict.len * 2;
+        if (len < v1->u.dict.len) err_msg_out_of_memory(); /* overflow */
+        len += def;
         tmp = (struct value_s *)malloc(len * sizeof(struct value_s));
-        if (!tmp || len < v1->u.dict.len || len > ((size_t)~0) / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
-        len += 1;
-        if (len < 1) err_msg_out_of_memory(); /* overflow */
-
-        n = avltree_first(&v1->u.dict.members); i = 0;
-        while (n) {
-            p = cavltree_container_of(n, struct pair_s, node);
-            p->key->obj->repr(p->key, &tmp[i]);
+        if (!tmp || len < def || len > ((size_t)~0) / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
+        len += 1 + def;
+        if (len < 1 + def) err_msg_out_of_memory(); /* overflow */
+        i = 0;
+        if (v1->u.dict.len) {
+            const struct avltree_node *n = avltree_first(&v1->u.dict.members);
+            while (n) {
+                p = cavltree_container_of(n, struct pair_s, node);
+                p->key->obj->repr(p->key, &tmp[i]);
+                len += tmp[i].u.str.len;
+                if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
+                i++;
+                p->data->obj->repr(p->data, &tmp[i]);
+                n = avltree_next(n);
+                len += tmp[i].u.str.len;
+                if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
+                i++;
+            }
+        }
+        if (v1->u.dict.def) {
+            v1->u.dict.def->obj->repr(v1->u.dict.def, &tmp[i]);
             len += tmp[i].u.str.len;
             if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
-            i++;
-            p->data->obj->repr(p->data, &tmp[i]);
-            n = avltree_next(n);
-            len += tmp[i].u.str.len;
-            if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
-            i++;
         }
     }
     s = (uint8_t *)malloc(len);
@@ -606,6 +620,15 @@ static void dict_repr(const struct value_s *v1, struct value_s *v) {
         chars += tmp[i].u.str.len - tmp[i].u.str.chars;
         tmp[i].obj->destroy(&tmp[i]);
         i++;
+        s[len++] = ':';
+        memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
+        len += tmp[i].u.str.len;
+        chars += tmp[i].u.str.len - tmp[i].u.str.chars;
+        tmp[i].obj->destroy(&tmp[i]);
+        i++;
+    }
+    if (v1->u.dict.def) {
+        if (i) s[len++] = ',';
         s[len++] = ':';
         memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
         len += tmp[i].u.str.len;

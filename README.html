@@ -556,7 +556,7 @@ are transformed to positive by adding the number of elements to them, therefor
 <p>Slicing is an operation when parts of list or tuple are extracted from a
 start position to an end position with a step value. These parameters are
 separated with colons enclosed in square brackets and are all optional. Their
-default values are [start:maximum:step=1].  Negative start and end elements are
+default values are [start:maximum:step=1]. Negative start and end elements are
 converted to positive internally by adding the number of elements to them.
 Negative step operates in reverse direction, non single steps will jump over
 elements.</p>
@@ -590,9 +590,13 @@ scrhi   <b class="d">.byte</b> &gt;(<u>-</u>)
 <h3>Dictionaries</h3>
 
 <p>Dictionaries are unsorted lists holding key and value pairs. Definition is
-done by collecting key:value pairs separated by comma between braces <code>{1:"a",
-"a":1}</code>. An empty dictionary is <code>{}</code>.  Currently this type is
-immutable. Numeric and string keys are accepted, the value can be anything.</p>
+done by collecting key:value pairs separated by comma between braces
+<code>{1:"value", "key":1, :"optional default value"}</code>.</p>
+
+<p>Looking up a non existing key is normally an error
+unless a default value is given. An
+empty dictionary is <code>{}</code>. Currently this type is immutable. Numeric
+and string keys are accepted, the value can be anything.</p>
 
 <table border="0" class="oper">
 <caption>Dictionary operators and functions</caption>
@@ -2151,7 +2155,7 @@ disk drive code, etc.
 </pre>
 
 <dt><b>-x</b>, <b>--m65816</b>
-<dd>W65C816. Enables extra opcodes, and full 16&nbsp;MiB address space.  Useful
+<dd>W65C816. Enables extra opcodes, and full 16&nbsp;MiB address space. Useful
 for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones
 ;)
 <pre width=80>
