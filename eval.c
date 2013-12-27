@@ -1563,11 +1563,25 @@ static int get_val2(struct eval_context_s *ev) {
             v2 = v1; v1 = &values[--vsp-1];
             if (vsp == 0) goto syntaxe;
             new_value.obj = PAIR_OBJ;
-            new_value.u.pair.key = v1->val;
-            new_value.u.pair.data = v2->val;
-            val_set_template(&v1->val, &new_value);
-            v2->val = &none_value;
-            continue;
+            t1 = try_resolv(v1);
+            switch (t1) {
+            default:
+                t2 = try_resolv(v2);
+                switch (t2) {
+                default: 
+                    new_value.u.pair.key = v1->val;
+                    new_value.u.pair.data = v2->val;
+                    val_set_template(&v1->val, &new_value);
+                    v2->val = &none_value;
+                    continue;
+                case T_NONE:
+                case T_ERROR:
+                    val_replace(&v1->val, v2->val);
+                    continue;
+                }
+            case T_ERROR:
+            case T_NONE: continue;
+            }
         case O_WORD:    /* <> */
         case O_HWORD:   /* >` */
         case O_BSWORD:  /* >< */
@@ -1800,7 +1814,7 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
                 val->obj = DEFAULT_OBJ;
                 goto other;
             }
-            goto syntaxe;
+            goto tryanon;
         case '(': 
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_PARENT; lpoint.pos++;
@@ -1834,7 +1848,7 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
         case '\'': val = push(&epoint);get_string(val);goto other;
         case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
         case '?': lpoint.pos++;val = push(&epoint);val->obj = GAP_OBJ;goto other;
-        case '.': if ((uint8_t)(pline[lpoint.pos+1] ^ 0x30) < 10) goto pushfloat;
+        case '.': if ((uint8_t)(pline[lpoint.pos+1] ^ 0x30) < 10) goto pushfloat; goto tryanon;
         case 0:
         case ';': 
             if (openclose) {
