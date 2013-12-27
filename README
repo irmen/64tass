@@ -695,7 +695,8 @@ set or what the special star label gets when referenced.
     Changes the program counter, the compile offset is not changed. Can be
     nested of course.
 .align <modulo>[, <fill>]
-    Align code to a dividable program counter address by gap or filler bytes
+    Align code to a dividable program counter address by inserting
+    uninitialized memory or repeated bytes.
 
         *= $1000        ;set program counter (and offset)
 
@@ -817,13 +818,6 @@ using the current encoding.
     ;Store 8.24 signed fixed point constants
             .dint (-3.44, 3.4, 3.52) * (1 << 24)
 
-.fill <length>[, <fill>]
-    Skip bytes (using uninitialized data), or fill with repeated bytes. For
-    multi byte patterns use .rept!
-
-            .fill $100      ;no fill, just reserve $100 bytes
-            .fill $4000, 0  ;16384 bytes of 0
-
 Storing text data
 
 Texts are stored as a string of bytes. Small numeric constants can be mixed in
@@ -837,6 +831,14 @@ to represent control characters.
             .text 23, $33   ; bytes
             .text %00011111 ; more bytes
             .text ^OEU      ; the decimal value as string (^23 is $32,$33)
+
+.fill <length>[, <fill>]
+    Skip bytes (using uninitialized data), or fill with repeated bytes. For
+    complex multi byte patterns use .rept!
+
+            .fill $100      ;no fill, just reserve $100 bytes
+            .fill $4000, 0  ;16384 bytes of 0
+            .fill 8000, [$55, $aa];8000 bytes of alternating $55, $aa
 
 .shift <expression>[, <expression>, ...]
     Same as .text, but the last byte will have the highest bit set. Any
@@ -1742,26 +1744,26 @@ no option
     Outputs CBM format binaries
 
     The first 2 bytes are the little endian address of the first valid byte
-    (start address). Overlapping blocks are flattened and gaps are filled up
-    with zeros. Gaps before the first and after the last valid bytes are not
-    saved.
+    (start address). Overlapping blocks are flattened and uninitialized memory
+    is filled up with zeros. Uninitialized memory before the first and after
+    the last valid bytes are not saved.
 
     Used for C64 binaries.
 
 -b, --nostart
     Output data only without start address
 
-    Overlapping blocks are flattened and gaps are filled up with zeros. Gaps
-    before the first and after the last valid bytes are not saved.
+    Overlapping blocks are flattened and uninitialized memory is filled up with
+    zeros. Uninitialized memory before the first and after the last valid bytes
+    are not saved.
 
     Useful for small ROM files.
 
 -f, --flat
     Flat address space output mode.
 
-    Overlapping blocks are flattened and gaps are filled up with zeros. Gaps
-    before the first valid byte are filled in with zeros. Gaps after the last
-    valid bytes are not saved.
+    Overlapping blocks are flattened and uninitialized memory is filled up with
+    zeros. Uninitialized memory after the last valid byte is not saved.
 
     Useful for creating huge multi bank ROM files (over 64K). See sections for
     an example.
@@ -1769,8 +1771,8 @@ no option
 -n, --nonlinear
     Generate nonlinear output file.
 
-    Overlapping blocks are flattened. Blocks are saved in sorted order and gaps
-    are skipped.
+    Overlapping blocks are flattened. Blocks are saved in sorted order and
+    uninitialized memory is skipped.
 
     Used for linkers.
 
@@ -1798,8 +1800,8 @@ no option
     Generate a Atari XEX output file.
 
     Overlapping blocks are kept, continuing blocks are concatenated. Saving
-    happens in the definition order without sorting, and gaps are skipped in
-    the output.
+    happens in the definition order without sorting, and uninitialized memory
+    is skipped in the output.
 
     64tass --atari-xex a.asm
             *= $02e0
