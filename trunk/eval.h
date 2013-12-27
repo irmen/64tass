@@ -23,7 +23,7 @@
 
 extern int get_exp(int *, int, struct file_s *);
 extern int get_exp_var(struct file_s *);
-extern struct value_s *get_val(obj_t, struct linepos_s *);
+extern struct value_s *get_val(struct linepos_s *);
 extern void destroy_eval(void);
 extern void init_eval(void);
 extern void eval_enter(void);

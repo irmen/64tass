@@ -301,7 +301,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
             if (here()==',' || !here() || here()==';') {
                 val = tmp2->u.func.param[i].init;
             } else if (get_exp(&w,4,cfile)) {
-                if (!(val = get_val(NONE_OBJ, &epoint2))) {
+                if (!(val = get_val(&epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = tmp2->u.func.param[i].init;
                 }
@@ -310,7 +310,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         } else {
             if (fin > 1) {err_msg(ERROR______EXPECTED,","); val = &none_value;}
             else if (get_exp(&w,4,cfile)) {
-                if (!(val = get_val(NONE_OBJ, &epoint2))) {
+                if (!(val = get_val(&epoint2))) {
                     err_msg(ERROR_GENERL_SYNTAX,NULL);
                     val = &none_value;
                 }
@@ -414,7 +414,7 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
                 i++;
                 break;
             }
-            if (!(val = get_val(NONE_OBJ, NULL))) {
+            if (!(val = get_val(NULL))) {
                 err_msg(ERROR_GENERL_SYNTAX, NULL); 
                 i++;
                 break;
