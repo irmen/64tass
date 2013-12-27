@@ -385,9 +385,20 @@ static void pair_repr(const struct value_s *v1, struct value_s *v) {
     uint8_t *s;
 
     v1->u.pair.key->obj->repr(v1->u.pair.key, &tmp[0]);
+    if (tmp[0].obj != STR_OBJ) {
+        if (v1 == v) v->obj->destroy(v);
+        tmp[0].obj->copy_temp(&tmp[0], v);
+        return;
+    }
     len += tmp[0].u.str.len;
     if (len < tmp[0].u.str.len) err_msg_out_of_memory(); /* overflow */
     v1->u.pair.data->obj->repr(v1->u.pair.data, &tmp[1]);
+    if (tmp[1].obj != STR_OBJ) {
+        if (v1 == v) v->obj->destroy(v);
+        tmp[1].obj->copy_temp(&tmp[1], v);
+        tmp[0].obj->destroy(&tmp[0]);
+        return;
+    }
     len += tmp[1].u.str.len;
     s = (uint8_t *)malloc(len);
     if (!s || len < tmp[1].u.str.len) err_msg_out_of_memory(); /* overflow */
@@ -593,20 +604,28 @@ static void dict_repr(const struct value_s *v1, struct value_s *v) {
             while (n) {
                 p = cavltree_container_of(n, struct pair_s, node);
                 p->key->obj->repr(p->key, &tmp[i]);
+                if (tmp[i].obj != STR_OBJ) goto error;
                 len += tmp[i].u.str.len;
                 if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
                 i++;
                 p->data->obj->repr(p->data, &tmp[i]);
-                n = avltree_next(n);
+                if (tmp[i].obj != STR_OBJ) goto error;
                 len += tmp[i].u.str.len;
                 if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
                 i++;
+                n = avltree_next(n);
             }
         }
         if (v1->u.dict.def) {
             v1->u.dict.def->obj->repr(v1->u.dict.def, &tmp[i]);
-            len += tmp[i].u.str.len;
-            if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
+            if (tmp[i].obj != STR_OBJ) {
+            error:
+                if (v1 == v) v->obj->destroy(v);
+                tmp[i].obj->copy_temp(&tmp[i], v);
+                while (i--) tmp[i].obj->destroy(&tmp[i]);
+                free(tmp);
+                return;
+            }
         }
     }
     s = (uint8_t *)malloc(len);
