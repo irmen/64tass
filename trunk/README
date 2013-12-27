@@ -500,9 +500,12 @@ scrhi   .byte >(-)
 Dictionaries
 
 Dictionaries are unsorted lists holding key and value pairs. Definition is done
-by collecting key:value pairs separated by comma between braces {1:"a", "a":1}.
-An empty dictionary is {}. Currently this type is immutable. Numeric and string
-keys are accepted, the value can be anything.
+by collecting key:value pairs separated by comma between braces {1:"value",
+"key":1, :"optional default value"}.
+
+Looking up a non existing key is normally an error unless a default value is
+given. An empty dictionary is {}. Currently this type is immutable. Numeric and
+string keys are accepted, the value can be anything.
 
       Dictionary operators and functions
 x[i]   value lookup       {"1":2}["1"] is 2
