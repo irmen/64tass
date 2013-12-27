@@ -40,8 +40,8 @@ static void memcomp(struct memblocks_s *memblocks) {
     if (memblocks->compressed) return;
     memblocks->compressed = 1;
     memjmp(memblocks, 0);
-    if (arguments.output_mode == OUTPUT_XEX) return;
-    for (j = 0; j < memblocks->p; j++) {
+
+    for (j = 0; j < memblocks->p; j++) { /* replace references with real copies */
         struct memblocks_s *b = memblocks->data[j].ref;
         if (b) {
             size_t rest;
@@ -72,6 +72,7 @@ static void memcomp(struct memblocks_s *memblocks) {
         }
     }
     if (memblocks->p < 2) return;
+    if (arguments.output_mode == OUTPUT_XEX) return;
 
     for (k = j = 0; j < memblocks->p; j++) {
         struct memblock_s *bj = &memblocks->data[j];
