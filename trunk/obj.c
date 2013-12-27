@@ -626,6 +626,8 @@ static void dict_repr(const struct value_s *v1, struct value_s *v) {
                 free(tmp);
                 return;
             }
+            len += tmp[i].u.str.len;
+            if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
         }
     }
     s = (uint8_t *)malloc(len);
@@ -646,7 +648,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v) {
         tmp[i].obj->destroy(&tmp[i]);
         i++;
     }
-    if (v1->u.dict.def) {
+    if (def) {
         if (i) s[len++] = ',';
         s[len++] = ':';
         memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
