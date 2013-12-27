@@ -1488,35 +1488,36 @@ static int get_val2(struct eval_context_s *ev) {
                     unsigned int j;
                     vsp -= args;
                     for (j = 0; j < args; j++) {
-                        if (values[vsp+j].val->obj == PAIR_OBJ) {
+                        v1 = &values[vsp+j];
+                        t1 = try_resolv(v1);
+                        if (t1 == T_PAIR) {
                             struct pair_s *p, *p2;
                             struct avltree_node *b;
-                            if (values[vsp+j].val->u.pair.key->obj == DEFAULT_OBJ) {
+                            if (v1->val->u.pair.key->obj == DEFAULT_OBJ) {
                                 if (val->u.dict.def) val_destroy(val->u.dict.def);
-                                val->u.dict.def = values[vsp+j].val->u.pair.data;
-                                values[vsp+j].val = &none_value;
+                                val->u.dict.def = val_reference(v1->val->u.pair.data);
                             } else {
                                 p = (struct pair_s *)malloc(sizeof(struct pair_s));
                                 if (!p) err_msg_out_of_memory();
-                                p->key = values[vsp+j].val->u.pair.key;
-                                p->data = values[vsp+j].val->u.pair.data;
-                                p->hash = obj_hash(p->key, &new_value, &values[vsp+j].epoint);
+                                p->hash = obj_hash(v1->val->u.pair.key, &new_value, &v1->epoint);
                                 if (p->hash >= 0) {
+                                    p->key = v1->val->u.pair.key;
                                     b = avltree_insert(&p->node, &val->u.dict.members, pair_compare);
                                     if (b) {
                                         p2 = avltree_container_of(b, struct pair_s, node);
-                                        val_replace(&p2->data, p->data);
+                                        val_replace(&p2->data, v1->val->u.pair.data);
                                         free(p);
                                     } else {
-                                        values[vsp+j].val = &none_value;
+                                        p->key = val_reference(p->key);
+                                        p->data = val_reference(v1->val->u.pair.data);
                                         val->u.dict.len++;
                                     }
                                 } else {
-                                    err_msg_wrong_type(p->key, &values[vsp+j].epoint);
+                                    err_msg_wrong_type(p->key, &v1->epoint);
                                     free(p);
                                 }
                             }
-                        } else err_msg_wrong_type(values[vsp+j].val, &values[vsp+j].epoint);
+                        } else err_msg_wrong_type(v1->val, &v1->epoint);
                     }
                 }
                 continue;
