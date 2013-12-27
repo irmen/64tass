@@ -1010,7 +1010,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         newlabel->ref=0;
                         if (!get_exp(&w,1,cfile)) goto breakerr;
-                        if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
+                        if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
@@ -1068,7 +1068,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     current_section->moved = 1;
                 }
                 if (!get_exp(&w,0,cfile)) goto breakerr;
-                if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 eval_finish();
                 if (listing && flist && arguments.source) {
                     int l;
@@ -1217,7 +1217,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else new_waitfor(W_FI2, &epoint);
                     if (((skwait==1) && prm!=CMD_ELSIF) || ((skwait==2) && prm==CMD_ELSIF)) {
                         if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -1272,7 +1272,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     new_waitfor(W_SWITCH2, &epoint);
                     if (skwait==1) {
                         if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -1467,7 +1467,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0,cfile)) goto breakerr;
                         err.obj = NONE_OBJ;
-                        while ((val = get_val(NONE_OBJ, &epoint))) {
+                        while ((val = get_val(&epoint))) {
                             struct value_s iter, item, *val2;
                             uval_t uval;
                             item.refcount = 0;
@@ -1558,7 +1558,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         case CMD_DWORD: bits = 32; break;
                         }
                         if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                        while ((val = get_val(NONE_OBJ, &epoint))) {
+                        while ((val = get_val(&epoint))) {
                             struct value_s iter, item, *val2;
                             item.refcount = 0;
                             if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) val->obj->getiter(val, &iter);
@@ -1607,7 +1607,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             newlabel->value->u.code.dtype = D_BYTE;
                         }
                         if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
@@ -1616,7 +1616,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             path = get_path(val, cfile->realname);
                             val2 = val;
                         }
-                        if ((val = get_val(NONE_OBJ, &epoint))) {
+                        if ((val = get_val(&epoint))) {
                             if (val->obj == NONE_OBJ) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = 0;
@@ -1624,7 +1624,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint);
                                 else foffset = uval;
                             }
-                            if ((val = get_val(NONE_OBJ, &epoint))) {
+                            if ((val = get_val(&epoint))) {
                                 if (val->obj == NONE_OBJ) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                     fixeddig = 0;
@@ -1663,7 +1663,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     current_section->wrapwarn = current_section->wrapwarn2 = 0;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -1692,7 +1692,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address - current_section->address;waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     current_section->logicalrecursion++;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (current_section->structrecursion && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".LOGICAL", &opoint);
                     else if (val->obj == NONE_OBJ) {
@@ -1757,7 +1757,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uval_t uval;
                     struct value_s err;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -1772,7 +1772,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uval_t uval;
                     struct value_s err;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -1791,7 +1791,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         newlabel->value->u.code.dtype = D_BYTE;
                     }
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (prm == CMD_ALIGN && current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".ALIGN");
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -1808,7 +1808,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (db && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);goto breakerr;}
                     }
                     mark_mem(&current_section->mem, current_section->address);
-                    if ((val = get_val(NONE_OBJ, &epoint))) {
+                    if ((val = get_val(&epoint))) {
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
@@ -1884,7 +1884,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uval_t uval;
                     struct value_s err;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;current_section->provides=~(uval_t)0;
@@ -1892,7 +1892,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
                         else current_section->provides = uval;
                     }
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = current_section->requires = 0;
@@ -1900,7 +1900,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
                         else current_section->requires = uval;
                     }
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = current_section->conflicts = 0;
@@ -1916,7 +1916,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uval_t uval;
                     struct value_s err;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
@@ -1924,7 +1924,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
                         else if ((uval & current_section->provides) ^ uval) err_msg_requires(NULL, &opoint);
                     }
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
@@ -1950,7 +1950,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     err_msg_variable(&user_error, NULL);
                     for (;;) {
                         actual_encoding = NULL;
-                        val = get_val(NONE_OBJ, &epoint2);
+                        val = get_val(&epoint2);
                         actual_encoding = old;
                         if (!val) break;
                         if (first) {
@@ -1998,7 +1998,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct value_s err;
 
                         actual_encoding = NULL;
-                        val = get_val(NONE_OBJ, &epoint);
+                        val = get_val(&epoint);
                         actual_encoding = old;
                         if (!val) break;
 
@@ -2041,7 +2041,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (!endok) {
                             actual_encoding = NULL;
-                            val = get_val(NONE_OBJ, &epoint);
+                            val = get_val(&epoint);
                             actual_encoding = old;
                             if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                             if (val->obj == NONE_OBJ) {
@@ -2059,7 +2059,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                         }
                         actual_encoding = NULL;
-                        val = get_val(NONE_OBJ, &epoint);
+                        val = get_val(&epoint);
                         actual_encoding = old;
                         if (!val) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
@@ -2096,7 +2096,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct value_s err;
 
                         actual_encoding = NULL;
-                        val = get_val(NONE_OBJ, &epoint);
+                        val = get_val(&epoint);
                         actual_encoding = old;
                         if (!val) break;
 
@@ -2115,7 +2115,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         v = val_reference(val);
                         actual_encoding = NULL;
                         opoint = epoint;
-                        val = get_val(NONE_OBJ, &epoint);
+                        val = get_val(&epoint);
                         actual_encoding = old;
                         if (!val) {err_msg(ERROR______EXPECTED,","); val_destroy(v); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
@@ -2158,7 +2158,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_REPT) { /* .rept */
                     new_waitfor(W_NEXT, &epoint);waitfor->skip=0;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (eval_finish()) {err_msg(ERROR_EXTRA_CHAR_OL,NULL);goto breakerr;}
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -2196,7 +2196,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uval_t uval;
                     struct value_s err;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -2231,7 +2231,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct file_s *f;
                     struct linepos_s epoint2;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
@@ -2362,7 +2362,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     for (;;) {
                         lpoint=apoint;
                         if (!get_exp(&w,1,cfile)) break; /* ellenorizve. */
-                        if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
+                        if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); break;}
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
@@ -2439,7 +2439,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
                     lpoint.pos++;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -2465,7 +2465,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_GOTO) { /* .goto */
                     int noerr = 1;
                     if (!get_exp(&w,0,cfile)) goto breakerr;
-                    if (!(val = get_val(NONE_OBJ, &epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     eval_finish();
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -2575,7 +2575,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct linepos_s epoint2;
                     current_section->unionmode = 0;
                     if (!get_exp(&w,1,cfile)) goto breakerr;
-                    if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
@@ -2597,7 +2597,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     current_section->unionmode = 1;
                     current_section->unionstart = current_section->unionend = current_section->address;
                     if (!get_exp(&w,1,cfile)) goto breakerr;
-                    if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                     if (val->obj == NONE_OBJ) {
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
@@ -2722,7 +2722,7 @@ struct value_s *compile(struct file_list_s *cflist)
             {                   /* macro stuff */
                 struct linepos_s epoint2;
                 if (!get_exp_var(cfile)) goto breakerr;
-                if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                 if (val->obj == NONE_OBJ) {
                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                     fixeddig = 0;
@@ -2826,7 +2826,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     else {
                     nota:
                         if (!get_exp(&w, 3,cfile)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_val(ADDRESS_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                             d = fixeddig = 0;
@@ -2977,7 +2977,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     if (val->obj->uval(val, &err, &uval, 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
                                     else adr = (uint16_t)uval << 8;
                                 }
-                                if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                 if (val->obj == NONE_OBJ) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                                     d = fixeddig = 0;
@@ -2992,7 +2992,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     if (val->obj->uval(val, &err, &uval, 3, &epoint2)) err_msg_wrong_type(&err, &epoint2);
                                     else longbranch = (uval << 4) & 0x70;
                                 }
-                                if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                 if (val->obj == NONE_OBJ) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                                     d = fixeddig = 0;
@@ -3011,7 +3011,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     if (val->obj->uval(val, &err, &uval, 3, &epoint2)) err_msg_wrong_type(&err, &epoint2);
                                     else longbranch = (uval << 4) & 0x70;
                                 }
-                                if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                 if (val->obj == NONE_OBJ) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                                     d = fixeddig = 0;
@@ -3024,7 +3024,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     else adr = (uint16_t)(uval - dpage);
                                     if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, NULL, &epoint2); 
                                 }
-                                if (!(val = get_val(NONE_OBJ, &epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                                if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                                 if (val->obj == NONE_OBJ) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                                     d = fixeddig = 0;
@@ -3063,7 +3063,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 else adr = uval;
                                 joadr = adr;
 
-                                for (; val; val = get_val(NONE_OBJ, NULL)) {
+                                for (; val; val = get_val(NULL)) {
                                     if (val->obj != NONE_OBJ) {
                                         uint16_t oadr;
                                         if (val->obj->uval(val, &err, &uval, 24, &epoint2)) continue;

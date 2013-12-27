@@ -690,7 +690,7 @@ int eval_finish(void) {
 
 static int get_val2(struct eval_context_s *);
 
-struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes, defined */
+struct value_s *get_val(struct linepos_s *epoint) {/* length in bytes, defined */
     int res;
     struct values_s *value;
 
@@ -706,6 +706,11 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
     if (epoint) *epoint = value->epoint;
     try_resolv_rec(&value->val);
 
+    if (value->val->obj == ERROR_OBJ) {
+        err_msg_wrong_type(value->val, &value->epoint);
+        return &none_value;
+    }
+    return value->val;
     switch (value->val->obj->type) {
     case T_STR:
     case T_BYTES:
@@ -725,23 +730,7 @@ struct value_s *get_val(obj_t obj, struct linepos_s *epoint) {/* length in bytes
     case T_FUNCTION:
     case T_ADDRESS:
     case T_LBL:
-        if (obj == NONE_OBJ) return value->val;
-        if (obj == ADDRESS_OBJ) {
-            if (value->val->obj == ADDRESS_OBJ) return value->val;
-            obj = INT_OBJ;
-        }
-        switch (value->val->obj->type) {
-        case T_STR:
-        case T_INT:
-        case T_BITS:
-        case T_BOOL:
-        case T_NONE:
-        case T_CODE:
-        case T_FLOAT:
-            return value->val;
-        case T_GAP: if (obj == GAP_OBJ) return value->val;
-        default: break;
-        }
+        return value->val;
     default:
         err_msg_wrong_type(value->val, &value->epoint);
         return &none_value;
@@ -2133,7 +2122,7 @@ struct value_s *get_vals_tuple(void) {
     size_t ln = 0, i = 0;
     struct value_s **vals = NULL, *retval = NULL, *val;
     struct linepos_s epoint;
-    while ((val = get_val(NONE_OBJ, &epoint))) {
+    while ((val = get_val(&epoint))) {
         if (i) {
             if (i >= ln) {
                 ln += 16;
@@ -2143,7 +2132,7 @@ struct value_s *get_vals_tuple(void) {
             if (i == 1) vals[0] = retval;
             vals[i] = val;
         } else retval = val;
-        if (val->obj != NONE_OBJ) eval->values->val = &none_value;
+        eval->values->val = &none_value;
         i++;
     }
     eval_finish();
