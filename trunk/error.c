@@ -372,7 +372,8 @@ static void err_msg_not_defined2(const str_t *name, const struct label_s *l, int
     }
     err_msg_str_name("error: not defined", name, epoint);
     if (!l->file_list) {
-        err_msg_str_name("note: searched in the global scope", NULL, epoint);
+        addorigin(current_file_list, epoint);
+        adderror("note: searched in the global scope\n");
     } else {
         addorigin(l->file_list, &l->epoint);
         adderror("note: searched in");
@@ -382,9 +383,9 @@ static void err_msg_not_defined2(const str_t *name, const struct label_s *l, int
     }
     if (notdefinespass != pass) {
         notdefinespass = pass;
-        err_msg_str_name("note: each undefined identifier is reported only once for each scope", NULL, epoint);
+        addorigin(current_file_list, epoint);
+        adderror("note: each undefined identifier is reported only once for each scope\n");
     }
-    return;
 }
 
 void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
