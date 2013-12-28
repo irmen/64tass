@@ -131,7 +131,7 @@ extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(void);
 extern void err_destroy(void);
-extern void err_msg_out_of_memory(void);
+extern void NO_RETURN err_msg_out_of_memory(void);
 extern void errors_destroy(struct error_s *);
 extern void error_init(struct error_s *);
 

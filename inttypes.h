@@ -82,6 +82,8 @@ typedef uint32_t uval_t;
 #ifdef MUST_CHECK
 #elif defined(__GNUC__)
 #define MUST_CHECK __attribute__ ((warn_unused_result))
+#define NO_RETURN  __attribute__((noreturn))
 #else
 #define MUST_CHECK
+#define NO_RETURN
 #endif

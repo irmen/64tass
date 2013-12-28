@@ -373,20 +373,17 @@ static inline void push_oper(struct value_s *val, linepos_t epoint) {
 }
 
 static int get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
-    int cd;
     char ch;
 
     struct value_s *conv, *conv2;
     struct values_s o_oper[256];
     uint8_t operp = 0;
-    int large=0;
     struct linepos_s epoint, cpoint = {0, 0, 0};
     struct value_s *val;
     size_t llen;
     int first;
 
     *wd=3;    /* 0=byte 1=word 2=long 3=negative/too big */
-    cd=0;     /* 0=error, 1=ok, 2=(a, 3=() */
 
     eval->outp = 0;
     o_oper[0].val = &o_SEPARATOR;
@@ -481,15 +478,14 @@ rest:
             break;
         default: goto syntaxe;
         }
-        if (!operp) {cd=1;break;}
+        if (!operp) return 1;
         err_msg(ERROR______EXPECTED,")"); goto error;
     syntaxe:
         err_msg(ERROR_EXPRES_SYNTAX,NULL);
     error:
         return 0;
     }
-    if (large) cd=0;
-    return cd;
+    return 0;
 }
 
 static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
@@ -1554,7 +1550,7 @@ static int get_val2(struct eval_context_s *ev) {
             case T_NONE: continue;
             }
         case O_QUEST:
-            v2 = v1; vsp--;
+            vsp--;
             if (vsp == 0) goto syntaxe;
             v1 = &values[vsp-1];
             err_msg2(ERROR______EXPECTED,"':'", &o_out->epoint);

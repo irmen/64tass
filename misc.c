@@ -303,7 +303,7 @@ void labelprint(void) {
 }
 
 /* ------------------------------------------------------------------ */
-static const char *short_options= "wqnbfWaTCBicxtel:L:I:msV?o:D:";
+static const char *short_options= "wqnbfXaTCBicxtel:L:I:msV?o:D:";
 
 static const struct option long_options[]={
     {"no-warn"          , no_argument      , 0, 'w'},

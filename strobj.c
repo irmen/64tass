@@ -86,7 +86,7 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
             !memcmp(v1->u.str.data, v2->u.str.data, v2->u.str.len));
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
     int ret;
     struct value_s tmp;
     if (bytes_from_str(&tmp, v1)) {
@@ -96,7 +96,7 @@ static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *tr
         v->u.error.epoint = *epoint;
         return 1;
     }
-    ret = tmp.obj->truth(&tmp, v, truth, type, epoint);
+    ret = tmp.obj->truth(&tmp, v, result, type, epoint);
     tmp.obj->destroy(&tmp);
     return ret;
 }
@@ -528,6 +528,7 @@ static void repeat(oper_t op, uval_t rep) {
         }
         if (v->u.str.len <= sizeof(v->u.str.val)) {
             memcpy(v->u.str.val, s2, v->u.str.len);
+            if (tmp.u.str.val != s2) free(s2);
             s2 = v->u.str.val;
         }
         v->u.str.data = s2;

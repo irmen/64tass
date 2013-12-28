@@ -86,8 +86,8 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return !memcmp(v1->u.integer.data, v2->u.integer.data, abs(v1->u.integer.len) * sizeof(digit_t));
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *truth, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
-    *truth = !!v1->u.integer.len;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *result, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    *result = !!v1->u.integer.len;
     return 0;
 }
 
@@ -1235,7 +1235,10 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
 
         while (v1->u.str.len > i) {
             ch = petascii(&i, v1);
-            if (ch > 255) return 1;
+            if (ch > 255) {
+                if (tmp != d) free(d);
+                return 1;
+            }
 
             uv |= (uint8_t)ch << bits;
             bits += 8;

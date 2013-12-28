@@ -40,8 +40,8 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == FLOAT_OBJ && v1->u.real == v2->u.real;
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *truth, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
-    *truth = !!v1->u.real;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *result, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    *result = !!v1->u.real;
     return 0;
 }
 
@@ -259,7 +259,7 @@ static void calc2(oper_t op) {
     case T_BITS:
     case T_FLOAT:
     case T_CODE: 
-        if (op->v2->obj->real(op->v2, op->v, &d, &op->epoint2)) {
+        if (op->v2->obj->real(op->v2, &tmp, &d, &op->epoint2)) {
             if (op->v1 == op->v || op->v2 == op->v) op->v->obj->destroy(op->v);
             tmp.obj->copy_temp(&tmp, op->v);
             return;

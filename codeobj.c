@@ -65,8 +65,8 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == CODE_OBJ && v1->u.code.addr == v2->u.code.addr && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.parent == v2->u.code.parent;
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *truth, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
-    *truth = !!v1->u.code.addr;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *result, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    *result = !!v1->u.code.addr;
     return 0;
 }
 
@@ -146,7 +146,7 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoin
     int_from_uval(v, v1->u.code.addr);
 }
 
-static int MUST_CHECK len(const struct value_s *v1, struct value_s *v, uval_t *len, linepos_t epoint) {
+static int MUST_CHECK len(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
     if (!v1->u.code.pass) {
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR____NO_FORWARD;
@@ -154,7 +154,7 @@ static int MUST_CHECK len(const struct value_s *v1, struct value_s *v, uval_t *l
         v->u.error.u.ident = v1->u.code.parent->name;
         return 1;
     }
-    *len = v1->u.code.size / (abs(v1->u.code.dtype) + !v1->u.code.dtype);
+    *uv = v1->u.code.size / (abs(v1->u.code.dtype) + !v1->u.code.dtype);
     return 0;
 }
 
@@ -306,7 +306,7 @@ static void rcalc2(oper_t op) {
     ival_t iv;
     if (op->op == &o_IN) {
         struct oper_s oper;
-        size_t i, len, offs;
+        size_t i, ln, offs;
         struct value_s new_value;
         int16_t r;
         uval_t uv;
@@ -318,8 +318,8 @@ static void rcalc2(oper_t op) {
             v->u.error.u.ident = v2->u.code.parent->name;
             return;
         }
-        len = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
-        len = len + !len;
+        ln = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
+        ln = ln + !ln;
         oper.op = &o_EQ;
         oper.v1 = &new_value;
         oper.v2 = v1;
@@ -330,7 +330,7 @@ static void rcalc2(oper_t op) {
         for (offs = 0; offs < v2->u.code.size;) {
             uv = 0;
             r = -1;
-            for (i = 0; i < len; i++) {
+            for (i = 0; i < ln; i++) {
                 r = read_mem(v2->u.code.mem, v2->u.code.memp, v2->u.code.membp, offs++);
                 if (r < 0) break;
                 uv |= r << (i * 8);
@@ -404,7 +404,7 @@ static void rcalc2(oper_t op) {
 static void iindex(oper_t op) {
     struct value_s **vals;
     size_t i, i2;
-    size_t len, len2;
+    size_t ln, ln2;
     size_t offs2;
     int16_t r;
     ival_t offs;
@@ -419,9 +419,9 @@ static void iindex(oper_t op) {
         return;
     }
 
-    len2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
-    len2 = len2 + !len2;
-    len = v1->u.code.size / len2;
+    ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
+    ln2 = ln2 + !ln2;
+    ln = v1->u.code.size / ln2;
 
     if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
@@ -430,7 +430,7 @@ static void iindex(oper_t op) {
         vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v2->u.list.data[0]));
         if (!vals) err_msg_out_of_memory();
         for (i = 0; i < v2->u.list.len; i++) {
-            offs = indexoffs(v2->u.list.data[i], len);
+            offs = indexoffs(v2->u.list.data[i], ln);
             if (offs < 0) {
                 v->u.list.data = vals;
                 v->u.list.len = i;
@@ -440,10 +440,10 @@ static void iindex(oper_t op) {
                 v->u.error.epoint = op->epoint2;
                 return;
             }
-            offs2 = offs * len2;
+            offs2 = offs * ln2;
             val = 0;
             r = -1;
-            for (i2 = 0; i2 < len2; i2++) {
+            for (i2 = 0; i2 < ln2; i2++) {
                 r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
                 if (r < 0) break;
                 val |= r << (i2 * 8);
@@ -463,7 +463,7 @@ static void iindex(oper_t op) {
         v->u.list.len = i;
         return;
     }
-    offs = indexoffs(v2, len);
+    offs = indexoffs(v2, ln);
     if (offs < 0) {
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR___INDEX_RANGE;
@@ -471,10 +471,10 @@ static void iindex(oper_t op) {
         return;
     }
 
-    offs2 = offs * len2;
+    offs2 = offs * ln2;
     val = 0;
     r = -1;
-    for (i2 = 0; i2 < len2; i2++) {
+    for (i2 = 0; i2 < ln2; i2++) {
         r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
         if (r < 0) break;
         val |= r << (i2 * 8);
@@ -492,20 +492,20 @@ static void iindex(oper_t op) {
 static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t epoint) {
     struct value_s **vals;
     size_t i, i2;
-    size_t len, len2;
+    size_t ln, ln2;
     size_t offs2;
     int16_t r;
     uval_t val;
 
     if (step > 0) {
         if (end < offs) end = offs;
-        len = (end - offs + step - 1) / step;
+        ln = (end - offs + step - 1) / step;
     } else {
         if (end > offs) end = offs;
-        len = (offs - end - step - 1) / -step;
+        ln = (offs - end - step - 1) / -step;
     }
 
-    if (!len) {
+    if (!ln) {
         TUPLE_OBJ->copy(&null_tuple, v); return;
     }
     if (v1->u.code.pass != pass) {
@@ -515,16 +515,16 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
         v->u.error.u.ident = v1->u.code.parent->name;
         return;
     }
-    vals = (struct value_s **)malloc(len * sizeof(v1->u.list.data[0]));
+    vals = (struct value_s **)malloc(ln * sizeof(v1->u.list.data[0]));
     if (!vals) err_msg_out_of_memory();
     i = 0;
-    len2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
-    len2 = len2 + !len2;
+    ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
+    ln2 = ln2 + !ln2;
     while ((end > offs && step > 0) || (end < offs && step < 0)) {
-        offs2 = offs * len2;
+        offs2 = offs * ln2;
         val = 0;
         r = -1;
-        for (i2 = 0; i2 < len2; i2++) {
+        for (i2 = 0; i2 < ln2; i2++) {
             r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
             if (r < 0) break;
             val |= r << (i2 * 8);
@@ -534,13 +534,14 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
                 val |= 0xff << (i2 * 8);
             }
         }
+        vals[i] = val_alloc();
         if (r < 0) vals[i]->obj = GAP_OBJ;
         else if (v1->u.code.dtype < 0) int_from_ival(vals[i], (ival_t)val);
         else int_from_uval(vals[i], val);
         i++; offs += step;
     }
     v->obj = TUPLE_OBJ;
-    v->u.list.len = len;
+    v->u.list.len = ln;
     v->u.list.data = vals;
 }
 

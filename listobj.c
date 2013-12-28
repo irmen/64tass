@@ -71,27 +71,27 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return 1;
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
     size_t i;
     switch (type) {
     case TRUTH_ALL:
-        *truth = 1;
+        *result = 1;
         for (i = 0; i < v1->u.list.len; i++) {
-            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], v, truth, type, epoint)) return 1;
-            if (!*truth) break;
+            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], v, result, type, epoint)) return 1;
+            if (!*result) break;
         }
         return 0;
     case TRUTH_ANY:
-        *truth = 0;
+        *result = 0;
         for (i = 0; i < v1->u.list.len; i++) {
-            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], v, truth, type, epoint)) return 1;
-            if (*truth) break;
+            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], v, result, type, epoint)) return 1;
+            if (*result) break;
         }
         return 0;
     case TRUTH_BOOL:
         switch (v1->u.list.len) {
-        case 0: *truth = 0; return 0;
-        case 1: return v1->u.list.data[0]->obj->truth(v1->u.list.data[0], v, truth, type, epoint);
+        case 0: *result = 0; return 0;
+        case 1: return v1->u.list.data[0]->obj->truth(v1->u.list.data[0], v, result, type, epoint);
         default: break;
         }
         break;
@@ -104,7 +104,7 @@ static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *tr
     return 1;
 }
 
-static void repr_list(const struct value_s *v1, struct value_s *v) {
+static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
     size_t i, len = 2, chars = 0;
     struct value_s *tmp = NULL;
     uint8_t *s;
@@ -123,53 +123,7 @@ static void repr_list(const struct value_s *v1, struct value_s *v) {
             len += tmp[i].u.str.len;
             if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
         }
-        if (i > 1) {
-            i--;
-            len += i;
-            if (len < i) err_msg_out_of_memory(); /* overflow */
-        }
-    }
-    s = (uint8_t *)malloc(len);
-    if (!s) err_msg_out_of_memory();
-    len = 0;
-    s[len++] = '[';
-    for (i = 0;i < v1->u.list.len; i++) {
-        if (i) s[len++] = ',';
-        if (tmp[i].u.str.len) {
-            memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
-            len += tmp[i].u.str.len;
-            chars += tmp[i].u.str.len - tmp[i].u.str.chars;
-        }
-        tmp[i].obj->destroy(&tmp[i]);
-    }
-    s[len++] = ']';
-    free(tmp);
-    if (v1 == v) v->obj->destroy(v);
-    v->obj = STR_OBJ;
-    v->u.str.data = s;
-    v->u.str.len = len;
-    v->u.str.chars = len - chars;
-}
-
-static void repr_tuple(const struct value_s *v1, struct value_s *v) {
-    size_t i, len = 2, chars = 0;
-    struct value_s *tmp = NULL;
-    uint8_t *s;
-    if (v1->u.list.len) {
-        tmp = (struct value_s *)malloc(v1->u.list.len * sizeof(struct value_s));
-        if (!tmp || v1->u.list.len > ((size_t)~0) / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
-        for (i = 0;i < v1->u.list.len; i++) {
-            v1->u.list.data[i]->obj->repr(v1->u.list.data[i], &tmp[i]);
-            if (tmp[i].obj != STR_OBJ) {
-                if (v1 == v) v->obj->destroy(v);
-                tmp[i].obj->copy_temp(&tmp[i], v);
-                while (i--) tmp[i].obj->destroy(&tmp[i]);
-                free(tmp);
-                return;
-            }
-            len += tmp[i].u.str.len;
-            if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
-        }
+        if (i && (v1->obj == LIST_OBJ)) i--;
         if (i) {
             len += i;
             if (len < i) err_msg_out_of_memory(); /* overflow */
@@ -178,7 +132,7 @@ static void repr_tuple(const struct value_s *v1, struct value_s *v) {
     s = (uint8_t *)malloc(len);
     if (!s) err_msg_out_of_memory();
     len = 0;
-    s[len++] = '(';
+    s[len++] = (v1->obj == LIST_OBJ) ? '[' : '(';
     for (i = 0;i < v1->u.list.len; i++) {
         if (i) s[len++] = ',';
         if (tmp[i].u.str.len) {
@@ -186,10 +140,10 @@ static void repr_tuple(const struct value_s *v1, struct value_s *v) {
             len += tmp[i].u.str.len;
             chars += tmp[i].u.str.len - tmp[i].u.str.chars;
         }
-        tmp[i].obj->destroy(&tmp[i]);
+        STR_OBJ->destroy(&tmp[i]);
     }
-    if (i == 1) s[len++] = ',';
-    s[len++] = ')';
+    if (i == 1 && (v1->obj == TUPLE_OBJ)) s[len++] = ',';
+    s[len++] = (v1->obj == LIST_OBJ) ? ']' : ')';
     free(tmp);
     if (v1 == v) v->obj->destroy(v);
     v->obj = STR_OBJ;
@@ -700,13 +654,12 @@ static void init(struct obj_s *obj) {
     obj->repeat = repeat;
     obj->iindex = iindex;
     obj->slice = slice;
+    obj->repr = repr_listtuple;
 }
 
 void listobj_init(void) {
     obj_init(&list_obj, T_LIST, "<list>");
     init(&list_obj);
-    list_obj.repr = repr_list;
     obj_init(&tuple_obj, T_TUPLE, "<tuple>");
     init(&tuple_obj);
-    tuple_obj.repr = repr_tuple;
 }

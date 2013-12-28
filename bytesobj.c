@@ -72,20 +72,20 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
             !memcmp(v1->u.bytes.data, v2->u.bytes.data, v2->u.bytes.len));
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
     size_t i;
     switch (type) {
     case TRUTH_ALL:
-        *truth = 1;
+        *result = 1;
         for (i = 0; i < v1->u.bytes.len; i++) {
-            if (!v1->u.bytes.data[i]) {*truth = 0; break;}
+            if (!v1->u.bytes.data[i]) {*result = 0; break;}
         }
         return 0;
     case TRUTH_ANY:
     case TRUTH_BOOL:
-        *truth = 0;
+        *result = 0;
         for (i = 0; i < v1->u.bytes.len; i++) {
-            if (v1->u.bytes.data[i]) {*truth = 1; break;}
+            if (v1->u.bytes.data[i]) {*result = 1; break;}
         }
         return 0;
     default: break;
@@ -142,7 +142,7 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
             while (len > i) {
                 ch = petascii(&i, v1);
                 if (ch > 255) {
-                    free(s);
+                    if (tmp.u.bytes.val != s) free(s);
                     v->obj = NONE_OBJ;
                     return 1;
                 }
@@ -154,7 +154,7 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
         }
     } else s = NULL;
     if (v == v1) v->obj->destroy(v);
-    if (len2 <= sizeof(v->u.bytes.val)) {
+    if (len2 && len2 <= sizeof(v->u.bytes.val)) {
         memcpy(v->u.bytes.val, s, len2);
         if (tmp.u.bytes.val != s) free(s);
         s = v->u.bytes.val;
@@ -359,6 +359,7 @@ static void repeat(oper_t op, uval_t rep) {
         }
         if (v->u.bytes.len <= sizeof(v->u.bytes.val)) {
             memcpy(v->u.bytes.val, s2, v->u.bytes.len);
+            if (tmp.u.bytes.val != s2) free(s2);
             s2 = v->u.bytes.val;
         }
         v->u.bytes.data = s2;
