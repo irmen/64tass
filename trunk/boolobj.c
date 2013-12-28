@@ -37,8 +37,8 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == BOOL_OBJ && v1->u.boolean == v2->u.boolean;
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *truth, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
-    *truth = v1->u.boolean;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *result, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    *result = v1->u.boolean;
     return 0;
 }
 

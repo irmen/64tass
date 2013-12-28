@@ -84,36 +84,36 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return !memcmp(v1->u.bits.data, v2->u.bits.data, v1->u.bits.len * sizeof(bdigit_t));
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
     size_t i;
     bdigit_t b;
     switch (type) {
     case TRUTH_ALL:
-        *truth = 1;
+        *result = 1;
         for (i = 0; i < v1->u.bits.bits / 8 / sizeof(bdigit_t); i++) {
             b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
             if (!v1->u.bits.inv) b = ~b;
-            if (b) {*truth = 0; return 0;}
+            if (b) {*result = 0; return 0;}
         }
         b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
         if (!v1->u.bits.inv) b = ~b;
         b <<= 8 * sizeof(bdigit_t) - v1->u.bits.bits % (8 * sizeof(bdigit_t));
-        if (b) *truth = 0;
+        if (b) *result = 0;
         return 0;
     case TRUTH_ANY:
-        *truth = 0;
+        *result = 0;
         for (i = 0; i < v1->u.bits.bits / 8 / sizeof(bdigit_t); i++) {
             b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
             if (v1->u.bits.inv) b = ~b;
-            if (b) {*truth = 1; return 0;}
+            if (b) {*result = 1; return 0;}
         }
         b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
         if (v1->u.bits.inv) b = ~b;
         b <<= 8 * sizeof(bdigit_t) - v1->u.bits.bits % (8 * sizeof(bdigit_t));
-        if (b) *truth = 1;
+        if (b) *result = 1;
         return 0;
     case TRUTH_BOOL:
-        *truth = !!v1->u.bits.len || v1->u.bits.inv;
+        *result = !!v1->u.bits.len || v1->u.bits.inv;
         return 0;
     default: break;
     }
@@ -419,7 +419,10 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
 
         while (v1->u.str.len > i) {
             ch = petascii(&i, v1);
-            if (ch > 255) return 1;
+            if (ch > 255) {
+                if (tmp != d) free(d);
+                return 1;
+            }
 
             uv |= (uint8_t)ch << bits;
             bits += 8;
@@ -1064,7 +1067,7 @@ static void rcalc2(oper_t op) {
 static void iindex(oper_t op) {
     size_t ln, sz;
     ival_t offs;
-    size_t i, j, o;
+    size_t i, o;
     struct value_s *vv1 = op->v1, *vv2 = op->v2, *vv = op->v;
     bdigit_t *v;
     bdigit_t uv, tmp[2];
@@ -1078,8 +1081,7 @@ static void iindex(oper_t op) {
             if (vv1 == vv) destroy(vv);
             copy(&null_bits, vv);return;
         }
-        sz = vv2->u.list.len / 8 / sizeof(bdigit_t);
-        if (vv2->u.list.len % (8 * sizeof(bdigit_t))) sz++;
+        sz = (vv2->u.list.len + 8 * sizeof(bdigit_t) - 1) / (8 * sizeof(bdigit_t));
 
         if (sz > 2) {
             v = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
@@ -1087,7 +1089,7 @@ static void iindex(oper_t op) {
         } else v = tmp;
 
         uv = inv;
-        bits = j = 0;
+        bits = sz = 0;
         for (i = 0; i < vv2->u.list.len; i++) {
             offs = indexoffs(vv2->u.list.data[i], ln);
             if (offs < 0) {
@@ -1104,12 +1106,12 @@ static void iindex(oper_t op) {
             }
             bits++;
             if (bits == 8 * sizeof(bdigit_t)) {
-                v[j++] = uv;
+                v[sz++] = uv;
                 uv = inv;
                 bits = 0;
             }
         }
-        if (bits) v[j] = uv & ((1 << bits) - 1);
+        if (bits) v[sz++] = uv & ((1 << bits) - 1);
 
         while (sz && !v[sz - 1]) sz--;
         if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
@@ -1144,7 +1146,7 @@ static void iindex(oper_t op) {
 }
 
 static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, struct value_s *vv, linepos_t UNUSED(epoint)) {
-    size_t ln, bo, wo, bl, wl, i, sz;
+    size_t ln, bo, wo, bl, wl, sz;
     bdigit_t uv, tmp[2];
     bdigit_t *v, *v1;
     bdigit_t inv = -vv1->u.bits.inv;
@@ -1168,9 +1170,9 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
         }
 
         bo = offs % (8 * sizeof(bdigit_t));
-        wo = offs / 8 / sizeof(bdigit_t);
+        wo = offs / (8 * sizeof(bdigit_t));
         bl = ln % (8 * sizeof(bdigit_t));
-        wl = ln / 8 / sizeof(bdigit_t);
+        wl = ln / (8 * sizeof(bdigit_t));
 
         sz = wl + (bl > 0);
         if (sz > 2) {
@@ -1180,19 +1182,19 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
 
         v1 = vv1->u.bits.data + wo;
         if (bo) {
-            for (i = 0; i < wl; i++) {
-                v[i] = inv ^ (v1[i] >> bo) ^ (v1[i + 1] << (8 * sizeof(bdigit_t) - bo));
+            for (sz = 0; sz < wl; sz++) {
+                v[sz] = inv ^ (v1[sz] >> bo) ^ (v1[sz + 1] << (8 * sizeof(bdigit_t) - bo));
             }
             if (bl) {
-                v[i] = v1[i] >> bo;
-                if (bl > (8 * sizeof(bdigit_t) - bo)) v[i] |= v1[i + 1] << (8 * sizeof(bdigit_t) - bo);
-                v[i] ^= inv;
+                v[sz] = v1[sz] >> bo;
+                if (bl > (8 * sizeof(bdigit_t) - bo)) v[sz] |= v1[sz + 1] << (8 * sizeof(bdigit_t) - bo);
+                v[sz] ^= inv;
             }
         } else {
-            for (i = 0; i < wl; i++) v[i] = v1[i] ^ inv;
-            if (bl) v[i] = v1[i] ^ inv;
+            for (sz = 0; sz < wl; sz++) v[sz] = v1[sz] ^ inv;
+            if (bl) v[sz] = v1[sz] ^ inv;
         }
-        if (bl) v[i] &= ((1 << bl) - 1);
+        if (bl) v[sz++] &= ((1 << bl) - 1);
     } else {
         sz = ln / 8 / sizeof(bdigit_t);
         if (ln % (8 * sizeof(bdigit_t))) sz++;
@@ -1202,7 +1204,7 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
         } else v = tmp;
 
         uv = inv;
-        i = bits = 0;
+        sz = bits = 0;
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
             wo = offs / 8 / sizeof(bdigit_t);
             if (wo < vv1->u.bits.len && ((vv1->u.bits.data[wo] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
@@ -1210,13 +1212,13 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
             }
             bits++;
             if (bits == 8 * sizeof(bdigit_t)) {
-                v[i++] = uv;
+                v[sz++] = uv;
                 uv = inv;
                 bits = 0;
             }
             offs += step;
         }
-        if (bits) v[i] = uv & ((1 << bits) - 1);
+        if (bits) v[sz++] = uv & ((1 << bits) - 1);
     }
     while (sz && !v[sz - 1]) sz--;
     if (vv == vv1) vv->obj->destroy(vv);

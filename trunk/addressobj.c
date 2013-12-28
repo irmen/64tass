@@ -50,9 +50,9 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == ADDRESS_OBJ && v1->u.addr.type == v2->u.addr.type && obj_same(v1->u.addr.val, v2->u.addr.val);
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *truth, enum truth_e type, linepos_t epoint) {
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
     if (v1->u.addr.type == A_NONE) {
-        return v1->u.addr.val->obj->truth(v1->u.addr.val, v, truth, type, epoint);
+        return v1->u.addr.val->obj->truth(v1->u.addr.val, v, result, type, epoint);
     }
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR_____CANT_BOOL;
@@ -259,14 +259,18 @@ static void calc2(oper_t op) {
                 op->v1 = v1->u.addr.val;
                 op->v2 = v2->u.addr.val;
                 op->v1->obj->calc2(op);
-            } else switch (op->op->u.oper.op) {
-            case O_EQ: bool_from_int(&tmp, v1->u.addr.type == v2->u.addr.type); break;
-            case O_NE: bool_from_int(&tmp, v1->u.addr.type != v2->u.addr.type); break;
-            case O_LT: bool_from_int(&tmp, v1->u.addr.type < v2->u.addr.type); break;
-            case O_LE: bool_from_int(&tmp, v1->u.addr.type <= v2->u.addr.type); break;
-            case O_GT: bool_from_int(&tmp, v1->u.addr.type > v2->u.addr.type); break;
-            case O_GE: bool_from_int(&tmp, v1->u.addr.type >= v2->u.addr.type); break;
-            default: break;
+            } else {
+                int r;
+                switch (op->op->u.oper.op) {
+                case O_EQ: r = (v1->u.addr.type == v2->u.addr.type); break;
+                case O_NE: r = (v1->u.addr.type != v2->u.addr.type); break;
+                case O_LT: r = (v1->u.addr.type < v2->u.addr.type); break;
+                case O_LE: r = (v1->u.addr.type <= v2->u.addr.type); break;
+                case O_GT: r = (v1->u.addr.type > v2->u.addr.type); break;
+                case O_GE: r = (v1->u.addr.type >= v2->u.addr.type); break;
+                default: r = 0; break; /* can't happen */
+                }
+                bool_from_int(&tmp, r);
             }
             if (v == v1 || v == v2) destroy(v);
             tmp.obj->copy_temp(&tmp, v);
