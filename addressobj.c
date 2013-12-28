@@ -57,15 +57,16 @@ static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *tr
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR_____CANT_BOOL;
     v->u.error.epoint = *epoint;
+    v->u.error.u.objname = v1->obj->name;
     return 1;
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
         v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_____CANT_IVAL;
-        v->u.error.u.bits = bits;
+        v->u.error.num = ERROR______CANT_INT;
         v->u.error.epoint = *epoint;
+        v->u.error.u.objname = v1->obj->name;
         return 1;
     }
     return v1->u.addr.val->obj->ival(v1->u.addr.val, v, iv, bits, epoint);
@@ -74,9 +75,9 @@ static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *
 static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
         v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_____CANT_UVAL;
-        v->u.error.u.bits = bits;
+        v->u.error.num = ERROR______CANT_INT;
         v->u.error.epoint = *epoint;
+        v->u.error.u.objname = v1->obj->name;
         return 1;
     }
     return v1->u.addr.val->obj->uval(v1->u.addr.val, v, uv, bits, epoint);
@@ -87,6 +88,7 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_____CANT_REAL;
         v->u.error.epoint = *epoint;
+        v->u.error.u.objname = v1->obj->name;
         return 1;
     }
     return v1->u.addr.val->obj->real(v1->u.addr.val, v, r, epoint);
@@ -97,6 +99,7 @@ static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, 
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_____CANT_SIGN;
         v->u.error.epoint = *epoint;
+        v->u.error.u.objname = v1->obj->name;
         return 1;
     }
     return v1->u.addr.val->obj->sign(v1->u.addr.val, v, s, epoint);
@@ -104,9 +107,11 @@ static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, 
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
+        if (v1 == v) v->obj->destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR______CANT_ABS;
         v->u.error.epoint = *epoint;
+        v->u.error.u.objname = v1->obj->name;
         return;
     }
     return v1->u.addr.val->obj->abs(v1->u.addr.val, v, epoint);
@@ -114,9 +119,11 @@ static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoi
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
+        if (v1 == v) v->obj->destroy(v);
         v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR______CANT_ABS;
+        v->u.error.num = ERROR______CANT_INT;
         v->u.error.epoint = *epoint;
+        v->u.error.u.objname = v1->obj->name;
         return;
     }
     return v1->u.addr.val->obj->integer(v1->u.addr.val, v, epoint);

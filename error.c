@@ -308,6 +308,13 @@ static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoin
     return;
 }
 
+static void err_msg_char_name(const char *msg, const char *name, linepos_t epoint) {
+    str_t tmp;
+    tmp.data = (const unsigned char *)name;
+    tmp.len = strlen(name);
+    err_msg_str_name(msg, &tmp, epoint);
+}
+
 static void err_msg_big_integer(const char *msg, int bits, linepos_t epoint) {
     char msg2[256];
     if (pass == 1) return;
@@ -404,14 +411,14 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
         case ERROR_NEGFRAC_POWER:
         case ERROR_BIG_STRING_CO:
         case ERROR_____KEY_ERROR:
+        case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);return;
         case ERROR__NOT_HASHABLE:
         case ERROR_____CANT_REAL:
         case ERROR_____CANT_SIGN:
         case ERROR______CANT_ABS:
         case ERROR______CANT_INT:
         case ERROR______CANT_LEN:
-        case ERROR_____CANT_BOOL:
-        case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);return;
+        case ERROR_____CANT_BOOL: err_msg_char_name(terr_error[val->u.error.num & 63], val->u.error.u.objname, &val->u.error.epoint);return;
         default: break;
         }
     }
