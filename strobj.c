@@ -753,6 +753,7 @@ static void iindex(oper_t op) {
         if (v == v1) destroy(v);
         if (len2 <= sizeof(v->u.str.val)) {
             memcpy(v->u.str.val, p, len2);
+            if (tmp.u.str.val != p) free(p);
             p = v->u.str.val;
         }
         v->obj = STR_OBJ;

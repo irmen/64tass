@@ -759,16 +759,14 @@ static void xor_(const struct value_s *vv1, const struct value_s *vv2, struct va
 static void concat(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
     size_t blen = vv1->u.bits.bits + vv2->u.bits.bits;
     size_t sz, bits, i, j, rbits;
-    bdigit_t *v1, *v, tmp[2], uv;
+    bdigit_t *v1, *v, uv;
     bdigit_t inv = -vv2->u.bits.inv;
+    struct value_s tmp;
 
     if (blen < vv2->u.bits.bits) err_msg_out_of_memory(); /* overflow */
     sz = blen / 8 / sizeof(bdigit_t);
     if (blen % (8 * sizeof(bdigit_t))) sz++;
-    if (sz > 2) {
-        v = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-        if (!v || sz > ((size_t)~0) / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-    } else v = tmp;
+    v = bnew(&tmp, sz);
 
     v1 = vv2->u.bits.data;
     rbits = vv2->u.bits.bits / 8 / sizeof(bdigit_t);
@@ -799,7 +797,7 @@ static void concat(const struct value_s *vv1, const struct value_s *vv2, struct 
     if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
     if (sz <= 2) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        if (tmp != v) free(v);
+        if (tmp.u.bits.val != v) free(v);
         v = vv->u.bits.val;
     }
     vv->obj = BITS_OBJ; 
@@ -812,7 +810,7 @@ static void concat(const struct value_s *vv1, const struct value_s *vv2, struct 
 static void lshift(const struct value_s *vv1, const struct value_s *vv2, size_t s, struct value_s *vv) {
     size_t i, sz, bits, len1, word;
     int bit, inv;
-    bdigit_t *v1, *v;
+    bdigit_t *v1, *v, *o;
 
     word = s / 8 / sizeof(bdigit_t);
     bit = s % (8 * sizeof(bdigit_t));
@@ -825,18 +823,15 @@ static void lshift(const struct value_s *vv1, const struct value_s *vv2, size_t 
     sz += len1;
     if (sz < len1) err_msg_out_of_memory(); /* overflow */
     v = bnew(vv, sz);
-    v += word;
+    o = &v[word];
     if (bit) {
-        v[len1] = 0;
+        o[len1] = 0;
         for (i = len1; i--;) {
-            v[i + 1] |= v1[i] >> (8 * sizeof(bdigit_t) - bit);
-            v[i] = v1[i] << bit;
+            o[i + 1] |= v1[i] >> (8 * sizeof(bdigit_t) - bit);
+            o[i] = v1[i] << bit;
         }
-    } else if (len1) memmove(v, v1, len1 * sizeof(bdigit_t));
-    if (word) {
-        v -= word;
-        memset(v, 0, word * sizeof(bdigit_t));
-    }
+    } else if (len1) memmove(o, v1, len1 * sizeof(bdigit_t));
+    memset(v, 0, word * sizeof(bdigit_t));
 
     while (sz && !v[sz - 1]) sz--;
     if (sz <= 2 && v != vv->u.bits.val) {
