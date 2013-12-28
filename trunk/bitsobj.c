@@ -120,6 +120,7 @@ static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *tr
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR_____CANT_BOOL;
     v->u.error.epoint = *epoint;
+    v->u.error.u.objname = v1->obj->name;
     return 1;
 }
 
@@ -219,6 +220,7 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;
+            v->u.error.u.objname = v1->obj->name;
             return 1;
         }
     }

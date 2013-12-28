@@ -104,21 +104,25 @@ static int invalid_same(const struct value_s *v1, const struct value_s *v2) {
     return v1->obj == v2->obj;
 }
 
-static int invalid_truth(const struct value_s *UNUSED(v1), struct value_s *v, int *UNUSED(truth), enum truth_e UNUSED(type), linepos_t epoint) {
+static void generic_invalid(const struct value_s *v1, struct value_s *v, linepos_t epoint, enum errors_e num) {
+    if (v1->obj == ERROR_OBJ) {
+        if (v != v1) error_copy(v1, v);
+        return;
+    }
+    if (v1 == v) v->obj->destroy(v);
     v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR_____CANT_BOOL;
+    v->u.error.num = num;
     v->u.error.epoint = *epoint;
+    v->u.error.u.objname = v1->obj->name;
+}
+
+static int invalid_truth(const struct value_s *v1, struct value_s *v, int *UNUSED(truth), enum truth_e UNUSED(type), linepos_t epoint) {
+    generic_invalid(v1, v, epoint, ERROR_____CANT_BOOL);
     return 1;
 }
 
 static int invalid_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        if (v != v1) error_copy(v1, v);
-        return -1;
-    }
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR__NOT_HASHABLE;
-    v->u.error.epoint = *epoint;
+    generic_invalid(v1, v, epoint, ERROR__NOT_HASHABLE);
     return -1;
 }
 
@@ -289,52 +293,36 @@ static void invalid_slice(struct value_s *v1, ival_t UNUSED(offs), ival_t UNUSED
     obj_oper_error(&oper);
 }
 
-static int MUST_CHECK invalid_ival(const struct value_s *UNUSED(v1), struct value_s *v, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR______CANT_INT;
-    v->u.error.epoint = *epoint;
+static int MUST_CHECK invalid_ival(const struct value_s *v1, struct value_s *v, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
+    generic_invalid(v1, v, epoint, ERROR______CANT_INT);
     return 1;
 }
 
-static int MUST_CHECK invalid_uval(const struct value_s *UNUSED(v1), struct value_s *v, uval_t *UNUSED(uv), int UNUSED(bits), linepos_t epoint) {
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR______CANT_INT;
-    v->u.error.epoint = *epoint;
+static int MUST_CHECK invalid_uval(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(uv), int UNUSED(bits), linepos_t epoint) {
+    generic_invalid(v1, v, epoint, ERROR______CANT_INT);
     return 1;
 }
 
-static int MUST_CHECK invalid_real(const struct value_s *UNUSED(v1), struct value_s *v, double *UNUSED(r), linepos_t epoint) {
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR_____CANT_REAL;
-    v->u.error.epoint = *epoint;
+static int MUST_CHECK invalid_real(const struct value_s *v1, struct value_s *v, double *UNUSED(r), linepos_t epoint) {
+    generic_invalid(v1, v, epoint, ERROR_____CANT_REAL);
     return 1;
 }
 
-static int MUST_CHECK invalid_sign(const struct value_s *UNUSED(v1), struct value_s *v, int *UNUSED(s), linepos_t epoint) {
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR_____CANT_SIGN;
-    v->u.error.epoint = *epoint;
+static int MUST_CHECK invalid_sign(const struct value_s *v1, struct value_s *v, int *UNUSED(s), linepos_t epoint) {
+    generic_invalid(v1, v, epoint, ERROR_____CANT_SIGN);
     return 1;
 }
 
 static void invalid_abs(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1 == v) v->obj->destroy(v);
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR______CANT_ABS;
-    v->u.error.epoint = *epoint;
+    generic_invalid(v1, v, epoint, ERROR______CANT_ABS);
 }
 
 static void invalid_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1 == v) v->obj->destroy(v);
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR______CANT_INT;
-    v->u.error.epoint = *epoint;
+    generic_invalid(v1, v, epoint, ERROR______CANT_INT);
 }
 
-static int MUST_CHECK invalid_len(const struct value_s *UNUSED(v1), struct value_s *v, uval_t *UNUSED(uv), linepos_t epoint) {
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR______CANT_LEN;
-    v->u.error.epoint = *epoint;
+static int MUST_CHECK invalid_len(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(uv), linepos_t epoint) {
+    generic_invalid(v1, v, epoint, ERROR______CANT_LEN);
     return 1;
 }
 

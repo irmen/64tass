@@ -219,6 +219,7 @@ struct value_s {
                     int down;
                 } notdef;
                 int bits;
+                const char *objname;
             } u;
         } error;
         struct {

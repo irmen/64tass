@@ -256,6 +256,7 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;
+            v->u.error.u.objname = v1->obj->name;
             return 1;
         }
     }
@@ -1060,8 +1061,9 @@ void int_from_double(struct value_s *v, double f, linepos_t epoint) {
     digit_t *d;
     if (f == HUGE_VAL) {
         v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_____CANT_REAL;
+        v->u.error.num = ERROR______CANT_INT;
         v->u.error.epoint = *epoint;
+        v->u.error.u.objname = FLOAT_OBJ->name;
         return;
     }
     neg = (f < 0.0);
