@@ -926,14 +926,16 @@ static void functions(struct values_s *vals, unsigned int args) {
                     if (end > start) end = start;
                     len2 = (start - end - step - 1) / -step;
                 }
-                val = (struct value_s **)malloc(len2 * sizeof(new_value.u.list.data[0]));
-                if (!val || len2 > ((size_t)~0) / sizeof(new_value.u.list.data[0])) err_msg_out_of_memory(); /* overflow */
-                i = 0;
-                while ((end > start && step > 0) || (end < start && step < 0)) {
-                    val[i] = val_alloc();
-                    int_from_ival(val[i], start);
-                    i++; start += step;
-                }
+                if (len2) {
+                    val = (struct value_s **)malloc(len2 * sizeof(new_value.u.list.data[0]));
+                    if (!val || len2 > ((size_t)~0) / sizeof(new_value.u.list.data[0])) err_msg_out_of_memory(); /* overflow */
+                    i = 0;
+                    while ((end > start && step > 0) || (end < start && step < 0)) {
+                        val[i] = val_alloc();
+                        int_from_ival(val[i], start);
+                        i++; start += step;
+                    }
+                } else val = NULL;
                 new_value.obj = LIST_OBJ;
                 new_value.u.list.len = len2;
                 new_value.u.list.data = val;
