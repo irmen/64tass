@@ -1430,6 +1430,10 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else err_msg2(ERROR______EXPECTED,".BLOCK", &epoint); break;
                     break;
                 }
+                if (prm==CMD_END) {
+                    nobreak=0;
+                    break;
+                }
                 if (!(waitfor->skip & 1)) {
                     enum wait_e what2;
                     switch (prm) {
@@ -2205,10 +2209,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_wrong_type(&err, &epoint);
                         else outputeor = uval;
                     }
-                    break;
-                }
-                if (prm==CMD_END) {
-                    nobreak=0;
                     break;
                 }
                 if (prm==CMD_PRON) {
