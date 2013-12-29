@@ -524,7 +524,6 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     struct section_s *oldsection = current_section;
     struct file_list_s *cflist;
 
-    init_variables2(tmp2->u.func.label);
     init_section2(&rsection);
 
     cflist = enterfile(tmp2->u.func.label->file_list->file, epoint);
@@ -594,6 +593,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     }
     exitfile();
     destroy_variables2(tmp2->u.func.label);
+    init_variables2(tmp2->u.func.label);
     destroy_section2(&rsection);
     return retval ? retval : &null_tuple;
 }
