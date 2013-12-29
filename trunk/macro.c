@@ -537,15 +537,14 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         if (labelexists) {
             if (label->type != L_CONST || pass==1) {
                 err_msg_double_defined(label, &tmp2->u.func.param[i].name, &tmp2->u.func.param[i].epoint);
-            }
-            else {
-                label->requires = 0;
-                label->conflicts = 0;
+            } else {
+                label->requires = current_section->requires;
+                label->conflicts = current_section->conflicts;
                 var_assign(label, val, 0);
             }
         } else {
-            label->requires = 0;
-            label->conflicts = 0;
+            label->requires = current_section->requires;
+            label->conflicts = current_section->conflicts;
             label->usepass = pass;
             label->defpass = pass;
             label->value = val_reference(val);
@@ -579,7 +578,11 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         current_context = &rlabel;
         current_section = &rsection;
         reset_section(current_section);
-        rsection.dooutput = 0;
+        current_section->provides = oldsection->provides; 
+        current_section->requires = oldsection->requires;
+        current_section->conflicts = oldsection->conflicts;
+        current_section->l_start = current_section->l_address = star;
+        current_section->dooutput = 0;
         retval = compile(cflist);
         current_section = oldsection;
         current_context = oldcontext;star = s->addr;
