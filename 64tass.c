@@ -62,6 +62,7 @@ static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
 static struct value_s new_value;
 
+int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
 static address_t all_mem, all_mem2;
 uint8_t pass=0, max_pass=MAX_PASS;         /* pass */
@@ -71,7 +72,7 @@ const uint8_t *pline, *llist;   /* current line data */
 struct linepos_s lpoint;        /* position in current line */
 static FILE* flist = NULL;      /* listfile */
 static enum lastl_e lastl;
-static int longaccu=0,longindex=0,scpumode=0,dtvmode=0;
+static int longaccu=0,longindex=0,scpumode=0;
 static uint8_t databank=0;
 static uint16_t dpage=0;
 int fixeddig;
@@ -457,13 +458,13 @@ static int get_cpu(char *cpu) {
 /* ------------------------------------------------------------------------------ */
 
 static void set_cpumode(uint_fast8_t cpumode) {
-    all_mem=0xffff;scpumode=0;dtvmode=0;
+    all_mem=0xffff;scpumode=0;
     switch (last_mnem=cpumode) {
     case OPCODES_C65C02:mnemonic=mnemonic_c65c02;opcode=c65c02;break;
     case OPCODES_C65CE02:mnemonic=mnemonic_c65ce02;opcode=c65ce02;break;
     case OPCODES_C6502I:mnemonic=mnemonic_c6502i;opcode=c6502i;break;
     case OPCODES_C65816:mnemonic=mnemonic_c65816;opcode=c65816;all_mem=0xffffff;scpumode=1;break;
-    case OPCODES_C65DTV02:mnemonic=mnemonic_c65dtv02;opcode=c65dtv02;dtvmode=1;break;
+    case OPCODES_C65DTV02:mnemonic=mnemonic_c65dtv02;opcode=c65dtv02;break;
     case OPCODES_C65EL02:mnemonic=mnemonic_c65el02;opcode=c65el02;break;
     case OPCODES_CR65C02:mnemonic=mnemonic_cr65c02;opcode=cr65c02;break;
     case OPCODES_CW65C02:mnemonic=mnemonic_cw65c02;opcode=cw65c02;break;
@@ -718,6 +719,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         int labelexists;
                         new_waitfor(W_ENDF, &lpoint);waitfor->skip=0;
                         ignore();
+                        if (temporary_label_branch) {err_msg(ERROR___NOT_ALLOWED, ".FUNCTION");goto breakerr;}
                         label=new_label(&labelname, mycontext, L_LABEL, &labelexists);
                         if (labelexists) {
                             if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
@@ -3508,7 +3510,7 @@ int main(int argc, char *argv[]) {
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
-            allowslowbranch=1;
+            allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
@@ -3571,7 +3573,7 @@ int main(int argc, char *argv[]) {
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
             star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
-            allowslowbranch=1;
+            allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
             current_section=&root_section;
