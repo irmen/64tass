@@ -493,7 +493,7 @@ static void function_copy_temp(const struct value_s *v1, struct value_s *v) {
 
 static int function_same(const struct value_s *v1, const struct value_s *v2) {
     size_t i;
-    if (v2->obj != FUNCTION_OBJ || v1->u.func.p != v2->u.func.p || v1->u.func.file_list != v2->u.func.file_list || v1->u.func.sline != v2->u.func.sline || v1->u.func.context != v2->u.func.context) return 0;
+    if (v2->obj != FUNCTION_OBJ || v1->u.func.p != v2->u.func.p || v1->u.func.label != v2->u.func.label) return 0;
     for (i = 0; i < v1->u.func.argc; i++) {
         if (str_cmp(&v1->u.func.param[i].name, &v2->u.func.param[i].name)) return 0;
         if (v1->u.func.param[i].init != v2->u.func.param[i].init && (!v1->u.func.param[i].init || !v2->u.func.param[i].init || !obj_same(v1->u.func.param[i].init, v2->u.func.param[i].init))) return 0;

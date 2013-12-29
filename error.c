@@ -390,7 +390,7 @@ static void err_msg_not_defined2(const str_t *name, const struct label_s *l, int
     }
     if (notdefinespass != pass) {
         notdefinespass = pass;
-        addorigin(current_file_list, epoint);
+        addorigin(l->file_list ? l->file_list : current_file_list, epoint);
         adderror("note: each undefined identifier is reported only once for each scope\n");
     }
 }

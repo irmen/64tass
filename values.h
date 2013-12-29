@@ -171,9 +171,7 @@ struct value_s {
         } dict;
         struct {
             size_t p;
-            struct file_list_s *file_list;
-            struct label_s *context;
-            line_t sline;
+            struct label_s *label;
             size_t argc;
             struct {
                 str_t name;
