@@ -46,6 +46,7 @@ enum lastl_e {
     LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU
 };
 
+extern int temporary_label_branch;
 extern line_t vline;
 extern struct linepos_s lpoint; 
 extern struct avltree *star_tree;

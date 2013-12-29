@@ -574,6 +574,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         f = cflist->file;
         oldpos = f->p; f->p = tmp2->u.func.p;
         current_context = tmp2->u.func.label;
+        temporary_label_branch++;
         current_section = &rsection;
         reset_section(current_section);
         current_section->provides = oldsection->provides; 
@@ -584,6 +585,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         retval = compile(cflist);
         current_section = oldsection;
         current_context = oldcontext;star = s->addr;
+        temporary_label_branch--;
         lpoint = opoint;
         pline = opline;
         f->p = oldpos;
