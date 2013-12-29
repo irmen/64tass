@@ -723,9 +723,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             new_value.obj = FUNCTION_OBJ;
                             new_value.u.func.p = cfile->p;
-                            new_value.u.func.sline = lpoint.line;
-                            new_value.u.func.file_list = cflist;
-                            new_value.u.func.context = current_context;
+                            new_value.u.func.label = label;
                             get_func_params(&new_value, cfile);
                             var_assign(label, &new_value, 0);
                             val_destroy(&new_value);
@@ -740,9 +738,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             label->epoint = epoint;
                             val->obj = FUNCTION_OBJ;
                             val->u.func.p = cfile->p;
-                            val->u.func.sline = lpoint.line;
-                            val->u.func.file_list = cflist;
-                            val->u.func.context = current_context;
+                            val->u.func.label = label;
                             get_func_params(val, cfile);
                         }
                         label->ref=0;
@@ -2765,7 +2761,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     str_t tmpname;
                     sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                    context=new_label(&tmpname, val->u.func.context, L_LABEL, &labelexists);
+                    context=new_label(&tmpname, val->u.func.label->parent, L_LABEL, &labelexists);
                     if (!labelexists) {
                         context->value = &none_value;
                         context->file_list = cflist;

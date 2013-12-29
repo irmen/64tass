@@ -169,7 +169,6 @@ void shadow_check(const struct avltree *members) {
 
 void init_variables2(struct label_s *label) {
     avltree_init(&label->members);
-    label->parent = NULL;
 }
 
 void init_variables(void)
