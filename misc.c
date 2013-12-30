@@ -234,41 +234,46 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
         }
         if (0) { /* for future use with VICE */
             if (l->value->obj == CODE_OBJ) {
-                fprintf(flab, "al %x ", l->value->u.code.addr);
-                labelname_print(l, flab);
-                switch ((enum dtype_e)l->value->u.code.dtype) {
-                case D_CHAR:
-                case D_BYTE: 
-                    fputs(" byte", flab);
-                    if (l->value->u.code.size > 1) {
-                        fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
+                struct value_s tmp;
+                uval_t uv;
+                struct linepos_s epoint;
+                if (!l->value->obj->uval(l->value, &tmp, &uv, 24, &epoint)) {
+                    fprintf(flab, "al %x ", uv);
+                    labelname_print(l, flab);
+                    switch ((enum dtype_e)l->value->u.code.dtype) {
+                    case D_CHAR:
+                    case D_BYTE: 
+                        fputs(" byte", flab);
+                        if (l->value->u.code.size > 1) {
+                            fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
+                        }
+                        break;
+                    case D_INT:
+                    case D_WORD: 
+                        fputs(" word", flab);
+                        if (l->value->u.code.size > 2) {
+                            fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
+                        }
+                        break;
+                    case D_LINT:
+                    case D_LONG:
+                        fputs(" long", flab);
+                        if (l->value->u.code.size > 3) {
+                            fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
+                        }
+                        break;
+                    case D_DINT:
+                    case D_DWORD:
+                        fputs(" dword", flab);
+                        if (l->value->u.code.size > 4) {
+                            fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
+                        }
+                        break;
+                    case D_NONE:
+                        break;
                     }
-                    break;
-                case D_INT:
-                case D_WORD: 
-                    fputs(" word", flab);
-                    if (l->value->u.code.size > 2) {
-                        fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
-                    }
-                    break;
-                case D_LINT:
-                case D_LONG:
-                    fputs(" long", flab);
-                    if (l->value->u.code.size > 3) {
-                        fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
-                    }
-                    break;
-                case D_DINT:
-                case D_DWORD:
-                    fputs(" dword", flab);
-                    if (l->value->u.code.size > 4) {
-                        fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
-                    }
-                    break;
-                case D_NONE:
-                    break;
+                    putc('\n', flab);
                 }
-                putc('\n', flab);
             }
             labelprint2(&l->members, flab);
         } else {

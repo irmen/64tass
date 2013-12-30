@@ -25,7 +25,7 @@ typedef struct {
     size_t size;
     uint8_t pass;
     signed char dtype;
-    address_t addr;
+    struct value_s *addr;
     const struct memblocks_s *mem;
     size_t memp;
     size_t membp;

@@ -794,14 +794,16 @@ struct value_s *compile(struct file_list_s *cflist)
                                     err_msg_double_defined(label, &labelname, &epoint);
                                     label = NULL;
                                 } else {
+                                    struct value_s tmp;
                                     label->requires = current_section->requires;
                                     label->conflicts = current_section->conflicts;
-                                    if (label->value->u.code.addr != current_section->l_address) {
+                                    int_from_uval(&tmp, current_section->l_address);
+                                    if (!tmp.obj->same(&tmp, label->value->u.code.addr)) {
                                         size_t size = label->value->u.code.size;
                                         signed char dtype = label->value->u.code.dtype;
                                         val = val_realloc(&label->value);
                                         val->obj = CODE_OBJ;
-                                        val->u.code.addr = current_section->l_address;
+                                        val_set_template(&val->u.code.addr, &tmp);
                                         val->u.code.pass = pass - 1;
                                         val->u.code.size = size;
                                         val->u.code.dtype = dtype;
@@ -810,7 +812,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
                                             fixeddig = 0;
                                         }
-                                    }
+                                    } else tmp.obj->destroy(&tmp);
                                     label->defpass = pass;
                                     get_mem(&current_section->mem, &memp, &membp);
                                 }
@@ -824,7 +826,8 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->requires=current_section->requires;
                                 label->conflicts=current_section->conflicts;
                                 val->obj = CODE_OBJ;
-                                val->u.code.addr = current_section->l_address;
+                                val->u.code.addr = val_alloc();
+                                int_from_uval(val->u.code.addr, current_section->l_address);
                                 val->u.code.size = 0;
                                 val->u.code.dtype = D_NONE;
                                 val->u.code.pass = 0;
@@ -933,12 +936,14 @@ struct value_s *compile(struct file_list_s *cflist)
                     newlabel->requires = current_section->requires;
                     newlabel->conflicts = current_section->conflicts;
                     if (!newlabel->update_after) {
-                        if (newlabel->value->u.code.addr != current_section->l_address) {
+                        struct value_s tmp;
+                        int_from_uval(&tmp, current_section->l_address);
+                        if (!tmp.obj->same(&tmp, newlabel->value->u.code.addr)) {
                             size_t size = newlabel->value->u.code.size;
                             signed char dtype = newlabel->value->u.code.dtype;
                             val = val_realloc(&newlabel->value);
                             val->obj = CODE_OBJ;
-                            val->u.code.addr = current_section->l_address;
+                            val_set_template(&val->u.code.addr, &tmp);
                             val->u.code.pass = pass - 1;
                             val->u.code.size = size;
                             val->u.code.dtype = dtype;
@@ -947,7 +952,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
                                 fixeddig = 0;
                             }
-                        }
+                        } else tmp.obj->destroy(&tmp);
                         get_mem(&current_section->mem, &newmemp, &newmembp);
                         newlabel->defpass = pass;
                     }
@@ -960,7 +965,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     newlabel->requires=current_section->requires;
                     newlabel->conflicts=current_section->conflicts;
                     val->obj = CODE_OBJ;
-                    val->u.code.addr = current_section->l_address;
+                    val->u.code.addr = val_alloc();
+                    int_from_uval(val->u.code.addr, current_section->l_address);
                     val->u.code.size = 0;
                     val->u.code.dtype = D_NONE;
                     val->u.code.pass = 0;
