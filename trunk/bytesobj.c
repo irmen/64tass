@@ -21,6 +21,7 @@
 #include "bytesobj.h"
 #include "eval.h"
 #include "isnprintf.h"
+#include "misc.h"
 
 #include "intobj.h"
 #include "boolobj.h"
@@ -135,10 +136,10 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
     uint8_t *s;
     struct value_s tmp;
     if (len) {
-        s = bnew(&tmp, len);
         if (actual_encoding) {
             size_t i = 0;
             int16_t ch;
+            s = bnew(&tmp, len);
             while (len > i) {
                 ch = petascii(&i, v1);
                 if (ch > 255) {
@@ -148,9 +149,16 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
                 }
                 s[len2++] = ch;
             }
+        } else if (v1->u.str.chars == 1) {
+            uint32_t ch2 = v1->u.str.data[0];
+            if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
+            s = bnew(&tmp, 3);
+            s[0] = ch2;
+            s[1] = ch2 >> 8;
+            s[2] = ch2 >> 16;
+            len2 = 3;
         } else {
-            memcpy(s, v1->u.str.data, len);
-            len2 = len;
+            return 1;
         }
     } else s = NULL;
     if (v == v1) v->obj->destroy(v);
