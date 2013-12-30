@@ -1094,6 +1094,13 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
     digit_t *d, tmp[2];
     const uint8_t *b;
 
+    if (!v1->u.bytes.len) {
+        v->obj = INT_OBJ;
+        v->u.integer.data = v->u.integer.val;
+        v->u.integer.val[0] = 0;
+        v->u.integer.len = 0;
+        return;
+    }
     sz = (v1->u.bytes.len * 8 + SHIFT - 1) / SHIFT;
     if (v1->u.bytes.len > (((size_t)~0) - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
     if (sz > 2) {
@@ -1265,7 +1272,7 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
         v->u.integer.len = sz;
         return 0;
     } 
-    if (v1->u.str.len == 1) {
+    if (v1->u.str.chars == 1) {
         uint32_t ch2 = v1->u.str.data[0];
         if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
         if (v == v1) v->obj->destroy(v);
