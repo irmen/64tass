@@ -107,7 +107,7 @@ static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, 
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
-        if (v1 == v) v->obj->destroy(v);
+        if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR______CANT_ABS;
         v->u.error.epoint = *epoint;
@@ -119,7 +119,7 @@ static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoi
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
-        if (v1 == v) v->obj->destroy(v);
+        if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR______CANT_INT;
         v->u.error.epoint = *epoint;
@@ -139,7 +139,7 @@ static void repr(const struct value_s *v1, struct value_s *v) {
 
     v1->u.addr.val->obj->repr(v1->u.addr.val, &tmp);
     if (tmp.obj != STR_OBJ) {
-        if (v == v1) v->obj->destroy(v);
+        if (v == v1) destroy(v);
         tmp.obj->copy_temp(&tmp, v);
         return;
     }
@@ -167,7 +167,7 @@ static void repr(const struct value_s *v1, struct value_s *v) {
 
     len = 99 - ind + ind2;
 
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) destroy(v);
     v->obj = STR_OBJ;
     v->u.str.len = len + tmp.u.str.len;
     v->u.str.chars = len + tmp.u.str.chars;
@@ -216,12 +216,14 @@ static void calc1(oper_t op) {
     case O_POS:
         am = v1->u.addr.type;
         if (am != A_IMMEDIATE && am != A_NONE) break;
-        op->v1 = v1->u.addr.val;
+        op->v1 = val_reference(v1->u.addr.val);
         op->v = val_alloc();
+        if (v == v1) destroy(v);
         op->v1->obj->calc1(op);
         v->obj = ADDRESS_OBJ; 
         v->u.addr.val = op->v;
         v->u.addr.type = am;
+        val_destroy(op->v1);
         op->v1 = v1;
         op->v = v;
         return;

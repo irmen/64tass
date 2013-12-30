@@ -55,95 +55,58 @@ static int access_check(const struct value_s *v1, struct value_s *v, linepos_t e
     return 0;
 }
 
+static void destroy(struct value_s *v1) {
+    val_destroy(v1->u.code.addr);
+}
+
 static void copy(const struct value_s *v1, struct value_s *v) {
     v->obj = CODE_OBJ;
     v->refcount = 1;
     memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
+    v->u.code.addr = val_reference(v1->u.code.addr);
 }
 
 static int same(const struct value_s *v1, const struct value_s *v2) {
-    return v2->obj == CODE_OBJ && v1->u.code.addr == v2->u.code.addr && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.parent == v2->u.code.parent;
+    return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || v1->u.code.addr->obj->same(v1->u.code.addr, v2->u.code.addr)) && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.parent == v2->u.code.parent;
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *result, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
-    *result = !!v1->u.code.addr;
-    return 0;
+static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
+    if (access_check(v1, v, epoint)) return 1;
+    return v1->u.code.addr->obj->truth(v1->u.code.addr, v, result, type, epoint);
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {
-    char line[sizeof(address_t)*2+2];
-    int len;
-    uint8_t *s;
-    len = sprintf(line, "$%" PRIxval, v1->u.code.addr);
-    v->obj = STR_OBJ;
-    v->u.str.len = len;
-    v->u.str.chars = len;
-    s = (uint8_t *)malloc(v->u.str.len);
-    if (!s) err_msg_out_of_memory();
-    memcpy(s, line, v->u.str.len);
-    v->u.str.data = s;
-    return;
-}
-
-static void repr2(const struct value_s *v1, struct value_s *v) {
-    char line[100]; 
-    uint8_t *s;
-    v->obj = STR_OBJ;
-    v->u.str.len = sprintf(line, "%" PRIuval, (uval_t)v1->u.code.addr);
-    v->u.str.chars = v->u.str.len;
-    s = (uint8_t *)malloc(v->u.str.len);
-    if (!s) err_msg_out_of_memory();
-    memcpy(s, line, v->u.str.len);
-    v->u.str.data = s;
-    return;
+    return v1->u.code.addr->obj->repr(v1->u.code.addr, v);
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return 1;
-    *iv = v1->u.code.addr;
-    if (*iv >> (bits-1)) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_____CANT_IVAL;
-        v->u.error.u.bits = bits;
-        v->u.error.epoint = *epoint;
-        return 1;
-    }
-    return 0;
+    return v1->u.code.addr->obj->ival(v1->u.code.addr, v, iv, bits, epoint);
 }
 
 static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return 1;
-    *uv = v1->u.code.addr;
-    if (bits < 8*(int)sizeof(uval_t) && *uv >> bits) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_____CANT_UVAL;
-        v->u.error.u.bits = bits;
-        v->u.error.epoint = *epoint;
-        return 1;
-    }
-    return 0;
+    return v1->u.code.addr->obj->uval(v1->u.code.addr, v, uv, bits, epoint);
 }
 
 static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return 1;
-    *r = v1->u.code.addr;
-    return 0;
+    return v1->u.code.addr->obj->real(v1->u.code.addr, v, r, epoint);
 }
 
 static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return 1;
-    *s = v1->u.code.addr != 0;
-    return 0;
+    return v1->u.code.addr->obj->sign(v1->u.code.addr, v, s, epoint);
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return;
-    int_from_uval(v, v1->u.code.addr);
+    return v1->u.code.addr->obj->abs(v1->u.code.addr, v, epoint);
 }
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return;
-    int_from_uval(v, v1->u.code.addr);
+    return v1->u.code.addr->obj->integer(v1->u.code.addr, v, epoint);
 }
 
 static int MUST_CHECK len(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
@@ -160,31 +123,34 @@ static int MUST_CHECK len(const struct value_s *v1, struct value_s *v, uval_t *u
 
 static void calc1(oper_t op) {
     struct value_s *v = op->v, *v1 = op->v1;
-    uval_t val = v1->u.code.addr;
-    if (access_check(op->v1, v, &op->epoint)) return;
     switch (op->op->u.oper.op) {
-    case O_BANK: val >>= 8;
-    case O_HIGHER: val >>= 8;
+    case O_BANK:
+    case O_HIGHER:
     case O_LOWER:
-        bits_from_u8(v, val);
-        return;
-    case O_HWORD: val >>= 8;
+    case O_HWORD:
     case O_WORD:
-        bits_from_u16(v, val);
-        return;
     case O_BSWORD:
-        val = (uint8_t)(val >> 8) | (uint16_t)(val << 8); 
-        bits_from_u16(v, val);
+    case O_STRING:
+        op->v1 = val_reference(v1->u.code.addr);
+        if (v == v1) destroy(v);
+        op->v1->obj->calc1(op);
+        val_destroy(op->v1);
+        op->v1 = v1;
         return;
     case O_INV:
     case O_NEG:
     case O_POS:
-        int_from_uval(v, val);
-        op->v1 = v;
-        v->obj->calc1(op);
+        op->v1 = val_reference(v1->u.code.addr);
+        op->v = val_alloc();
+        if (v == v1) destroy(v);
+        op->v1->obj->calc1(op);
+        v->obj = CODE_OBJ; 
+        if (v != v1) memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
+        v->u.code.addr = op->v;
+        val_destroy(op->v1);
         op->v1 = v1;
+        op->v = v;
         return;
-    case O_STRING: repr2(v1, v); return;
     default: break;
     }
     obj_oper_error(op);
@@ -192,8 +158,6 @@ static void calc1(oper_t op) {
 
 static void calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp, tmp2;
-    ival_t iv;
     if (op->op == &o_MEMBER) {
         struct label_s *l, *l2;
         struct linepos_s epoint;
@@ -244,56 +208,38 @@ static void calc2(oper_t op) {
     case T_CODE:
         if (access_check(op->v1, v, &op->epoint)) return;
         if (access_check(op->v2, v, &op->epoint)) return;
-        int_from_uval(&tmp, v1->u.code.addr);
-        if (v1 == v) v->obj->destroy(v);
-        op->v1 = &tmp;
-        tmp.refcount = 0;
-        int_from_uval(&tmp2, v2->u.code.addr);
-        if (v2 == v) v->obj->destroy(v);
-        op->v2 = &tmp2;
-        tmp2.refcount = 0;
-        tmp.obj->calc2(op);
+        op->v1 = val_reference(v1->u.code.addr);
+        op->v2 = val_reference(v2->u.code.addr);
+        if (v1 == v || v2 == v) v->obj->destroy(v);
+        op->v1->obj->calc2(op);
+        val_destroy(op->v1);
+        val_destroy(op->v2);
         op->v1 = v1;
         op->v2 = v2;
-        tmp.obj->destroy(&tmp);
-        tmp2.obj->destroy(&tmp2);
         return;
     case T_BOOL:
     case T_INT:
     case T_BITS:
         if (access_check(op->v1, v, &op->epoint)) return;
+        op->v1 = val_reference(v1->u.code.addr);
+        if (v == v1 || v == v2) v->obj->destroy(v);
         switch (op->op->u.oper.op) {
         case O_ADD:
-            if (v2->obj->ival(v2, &tmp, &iv, 8*sizeof(ival_t), &op->epoint2)) {
-                if (v1 == v || v2 == v) v->obj->destroy(v);
-                tmp.obj->copy_temp(&tmp, v);
-                return;
-            }
-            v->obj = CODE_OBJ;
-            v->u.code.addr = v1->u.code.addr + iv;
-            v->u.code.size = 0;
-            v->u.code.dtype = D_NONE; 
-            v->u.code.parent = v1->u.code.parent; return;
         case O_SUB:
-            if (v2->obj->ival(v2, &tmp, &iv, 8*sizeof(ival_t), &op->epoint2)) {
-                if (v1 == v || v2 == v) v->obj->destroy(v);
-                tmp.obj->copy_temp(&tmp, v);
-                return;
-            }
-            v->obj = CODE_OBJ;
-            v->u.code.addr = v1->u.code.addr - iv;
-            v->u.code.size = 0;
-            v->u.code.dtype = D_NONE; 
-            v->u.code.parent = v1->u.code.parent; return;
+            op->v = val_alloc();
+            op->v1->obj->calc2(op);
+            v->obj = CODE_OBJ; 
+            if (v != v1) memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
+            v->u.code.addr = op->v;
+            val_destroy(op->v1);
+            op->v = v;
+            op->v1 = v1;
+            return;
         default: break;
         }
-        int_from_uval(&tmp, v1->u.code.addr);
-        if (v1 == v) v->obj->destroy(v);
-        op->v1 = &tmp;
-        tmp.refcount = 0;
-        tmp.obj->calc2(op);
+        op->v1->obj->calc2(op);
+        val_destroy(op->v1);
         op->v1 = v1;
-        tmp.obj->destroy(&tmp);
         return;
     default: v2->obj->rcalc2(op); return;
     }
@@ -302,8 +248,6 @@ static void calc2(oper_t op) {
 
 static void rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp, tmp2;
-    ival_t iv;
     if (op->op == &o_IN) {
         struct oper_s oper;
         size_t i, ln, offs;
@@ -356,45 +300,39 @@ static void rcalc2(oper_t op) {
     }
     switch (v1->obj->type) {
     case T_CODE:
-        if (access_check(op->v2, v, &op->epoint)) return;
         if (access_check(op->v1, v, &op->epoint)) return;
-        int_from_uval(&tmp, v1->u.code.addr);
-        if (v1 == v) v->obj->destroy(v);
-        op->v1 = &tmp;
-        tmp.refcount = 0;
-        int_from_uval(&tmp2, v2->u.code.addr);
-        if (v2 == v) v->obj->destroy(v);
-        op->v2 = &tmp2;
-        tmp2.refcount = 0;
-        tmp2.obj->rcalc2(op);
+        if (access_check(op->v2, v, &op->epoint)) return;
+        op->v1 = val_reference(v1->u.code.addr);
+        op->v2 = val_reference(v2->u.code.addr);
+        if (v1 == v || v2 == v) v->obj->destroy(v);
+        op->v2->obj->rcalc2(op);
+        val_destroy(op->v1);
+        val_destroy(op->v2);
         op->v1 = v1;
         op->v2 = v2;
-        tmp.obj->destroy(&tmp);
-        tmp2.obj->destroy(&tmp2);
         return;
     case T_BOOL:
     case T_INT:
     case T_BITS:
-        if (access_check(op->v2, v, &op->epoint2)) return;
-        if (op->op == &o_ADD) {
-            if (v1->obj->ival(v1, &tmp, &iv, 8*sizeof(ival_t), &op->epoint)) {
-                if (v1 == v || v2 == v) v->obj->destroy(v);
-                tmp.obj->copy_temp(&tmp, v);
-                return;
-            }
-            v->obj = CODE_OBJ;
-            v->u.code.addr = (uval_t)v2->u.code.addr + iv;
-            v->u.code.size = 0;
-            v->u.code.dtype = D_NONE;
-            v->u.code.parent = v2->u.code.parent; return;
+        if (access_check(op->v2, v, &op->epoint)) return;
+        op->v2 = val_reference(v2->u.code.addr);
+        if (v == v1 || v == v2) v->obj->destroy(v);
+        switch (op->op->u.oper.op) {
+        case O_ADD:
+            op->v = val_alloc();
+            op->v2->obj->rcalc2(op);
+            v->obj = CODE_OBJ; 
+            if (v2 != v) memcpy(&v->u.code, &v2->u.code, sizeof(v->u.code));
+            v->u.code.addr = op->v;
+            val_destroy(op->v2);
+            op->v = v;
+            op->v2 = v2;
+            return;
+        default: break;
         }
-        int_from_uval(&tmp, v2->u.code.addr);
-        if (v2 == v) v->obj->destroy(v);
-        op->v2 = &tmp;
-        tmp.refcount = 0;
-        tmp.obj->rcalc2(op);
+        op->v2->obj->rcalc2(op);
+        val_destroy(op->v2);
         op->v2 = v2;
-        tmp.obj->destroy(&tmp);
         return;
     default: v1->obj->calc2(op); return;
     }
@@ -547,6 +485,7 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
 
 void codeobj_init(void) {
     obj_init(&obj, T_CODE, "<code>");
+    obj.destroy = destroy;
     obj.copy = copy;
     obj.same = same;
     obj.truth = truth;
