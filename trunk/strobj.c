@@ -220,13 +220,13 @@ static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     struct value_s tmp;
     if (int_from_str(&tmp, v1)) {
-        if (v == v1) v->obj->destroy(v);
+        if (v == v1) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_BIG_STRING_CO;
         v->u.error.epoint = *epoint;
         return;
     }
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) destroy(v);
     tmp.obj->abs(&tmp, v, epoint);
     tmp.obj->destroy(&tmp);
 }
@@ -234,13 +234,13 @@ static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoi
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     struct value_s tmp;
     if (int_from_str(&tmp, v1)) {
-        if (v == v1) v->obj->destroy(v);
+        if (v == v1) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_BIG_STRING_CO;
         v->u.error.epoint = *epoint;
         return;
     }
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) destroy(v);
     tmp.obj->copy_temp(&tmp, v);
 }
 

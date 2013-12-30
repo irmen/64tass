@@ -207,7 +207,7 @@ static void calc2(oper_t op) {
     switch (v2->obj->type) {
     case T_CODE:
         if (access_check(op->v1, v, &op->epoint)) return;
-        if (access_check(op->v2, v, &op->epoint)) return;
+        if (access_check(op->v2, v, &op->epoint2)) return;
         op->v1 = val_reference(v1->u.code.addr);
         op->v2 = val_reference(v2->u.code.addr);
         if (v1 == v || v2 == v) v->obj->destroy(v);
@@ -301,7 +301,7 @@ static void rcalc2(oper_t op) {
     switch (v1->obj->type) {
     case T_CODE:
         if (access_check(op->v1, v, &op->epoint)) return;
-        if (access_check(op->v2, v, &op->epoint)) return;
+        if (access_check(op->v2, v, &op->epoint2)) return;
         op->v1 = val_reference(v1->u.code.addr);
         op->v2 = val_reference(v2->u.code.addr);
         if (v1 == v || v2 == v) v->obj->destroy(v);
@@ -314,7 +314,7 @@ static void rcalc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
-        if (access_check(op->v2, v, &op->epoint)) return;
+        if (access_check(op->v2, v, &op->epoint2)) return;
         op->v2 = val_reference(v2->u.code.addr);
         if (v == v1 || v == v2) v->obj->destroy(v);
         switch (op->op->u.oper.op) {

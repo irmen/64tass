@@ -113,7 +113,7 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     }
     s[len++] = ']';
     s[len++] = ')';
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) destroy(v);
     v->obj = STR_OBJ;
     v->u.str.len = len;
     v->u.str.chars = len;
@@ -161,7 +161,7 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
             return 1;
         }
     } else s = NULL;
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) destroy(v);
     if (len2 && len2 <= sizeof(v->u.bytes.val)) {
         memcpy(v->u.bytes.val, s, len2);
         if (tmp.u.bytes.val != s) free(s);
@@ -212,14 +212,14 @@ static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     struct value_s tmp;
     int_from_bytes(&tmp, v1);
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) destroy(v);
     tmp.obj->copy_temp(&tmp, v);
 }
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     struct value_s tmp;
     int_from_bytes(&tmp, v1);
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) destroy(v);
     tmp.obj->copy_temp(&tmp, v);
 }
 

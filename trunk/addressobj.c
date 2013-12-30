@@ -51,14 +51,14 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
 }
 
 static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
-    if (v1->u.addr.type == A_NONE) {
-        return v1->u.addr.val->obj->truth(v1->u.addr.val, v, result, type, epoint);
+    if (v1->u.addr.type != A_NONE) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_BOOL;
+        v->u.error.epoint = *epoint;
+        v->u.error.u.objname = v1->obj->name;
+        return 1;
     }
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR_____CANT_BOOL;
-    v->u.error.epoint = *epoint;
-    v->u.error.u.objname = v1->obj->name;
-    return 1;
+    return v1->u.addr.val->obj->truth(v1->u.addr.val, v, result, type, epoint);
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {

@@ -538,6 +538,7 @@ static void calc1(oper_t op) {
         uv = v1->u.bits.len > 1 ? (v1->u.bits.data[1] << 16) : 0;
         uv |= v1->u.bits.len > 0 ? v1->u.bits.data[0] : 0;
         if (v1->u.bits.inv) uv = ~uv;
+        if (v == v1) destroy(v);
         bits_from_u16(v, uv >> 8);
         return;
     case O_WORD:

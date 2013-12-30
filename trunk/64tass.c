@@ -1501,15 +1501,8 @@ struct value_s *compile(struct file_list_s *cflist)
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                     ch2 = fixeddig = 0;
                                 }
-                                if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
-                                    if (ch2>=0x80) {
-                                        err.obj = ERROR_OBJ;
-                                        err.u.error.num = ERROR_____CANT_UVAL;
-                                        err.u.error.u.bits = bits;
-                                        err.u.error.epoint = epoint;
-                                    }
-                                    if (prm==CMD_SHIFTL) ch2<<=1;
-                                } else if (prm==CMD_NULL && !ch2 && val2->obj != NONE_OBJ) large=epoint;
+                                if (prm==CMD_SHIFTL) ch2<<=1;
+                                else if (prm==CMD_NULL && !ch2 && val2->obj != NONE_OBJ) large=epoint;
                                 val_destroy(val2);
                             }
                             iter.obj->destroy(&iter);

@@ -899,14 +899,6 @@ static void functions(struct values_s *vals, unsigned int args) {
             size_t i = 0, len2;
             struct value_s **val;
             if (args < 1 || args > 3) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else {
-                for (i = 0; i < args; i++) {
-                    switch (try_resolv(&v[i])) {
-                    default: break;
-                    case T_NONE: 
-                             val_replace(&vals->val, &none_value);
-                             return;
-                    }
-                }
                 switch (args) {
                 case 1: if (v[0].val->obj->ival(v[0].val, &new_value, &end, 8*sizeof(ival_t), &v[0].epoint)) { val_replace_template(&vals->val, &new_value);return;} break;
                 case 3: if (v[2].val->obj->ival(v[2].val, &new_value, &step, 8*sizeof(ival_t), &v[2].epoint)) { val_replace_template(&vals->val, &new_value);return;}
