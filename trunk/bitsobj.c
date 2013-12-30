@@ -452,7 +452,7 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
         v->u.bits.bits = j * sizeof(bdigit_t) * 8 + bits;
         return 0;
     } 
-    if (v1->u.str.len == 1) {
+    if (v1->u.str.chars == 1) {
         uint32_t ch2 = v1->u.str.data[0];
         if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
         if (v == v1) v->obj->destroy(v);
