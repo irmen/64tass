@@ -1308,13 +1308,26 @@ directory separator and use lower/uppercase consistently in filenames!
             *= $1000                    ;load music to $1000 and
             .binary "music.sid", $7e    ;strip SID header
 
-Blocks
+Scopes
+
+Scopes may contain symbols or other scopes nested. They are useful to avoid
+symbol clashes as the same symbol name can repeated as long as it's in a
+different scope.
+
+In nested scopes the symbol lookup starts from the local scope and goes in the
+direction of the global scope. This means that local variables will `shadow'
+global one with the same name.
 
 .proc
 .pend
-    Procedure start and end of procedure. If it's label is not used then the
-    code won't be compiled at all! All labels inside are local and are
-    accessible through the prefixed label. Useful for building libraries.
+    Procedure start and end of procedure.
+
+    If it's label is not used then the code won't be compiled at all. This is
+    very useful to avoid a lot of .if blocks to exclude unused sections of
+    code.
+
+    All labels inside are local enclosed in a scope and are accessible through
+    the prefixed label. Useful for building libraries.
 
     ize     .proc
             nop
@@ -1326,23 +1339,16 @@ Blocks
 
 .block
 .bend
-    Block start and block end. All labels inside a block are local. If prefixed
-    with a label local variables are accessible through that label, otherwise
-    not at all.
+    Block start and block end.
+
+    All labels inside a block are local enclosed in a scope. If prefixed with a
+    label local variables are accessible through that label using the dot
+    notation, otherwise not at all.
 
             .block
             inc count + 1
     count   ldx #0
             .bend
-
-.comment
-.endc
-    Comment block start and comment block end.
-
-            .comment
-            lda #1          ;this won't be compiled
-            sta $d020
-            .endc
 
 Sections
 
@@ -1579,6 +1585,15 @@ Misc
 .var <expression>
     Defines a variable identified by the label preceding, which is set to the
     value of expression or reference of variable.
+.comment
+.endc
+    Comment block start and comment block end.
+
+            .comment
+            lda #1          ;this won't be compiled
+            sta $d020
+            .endc
+
 .assert
 .check
     Do not use these, the syntax will change in next version!

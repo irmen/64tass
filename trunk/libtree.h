@@ -62,6 +62,7 @@ struct avltree {
 
 struct avltree_node *avltree_first(const struct avltree *tree);
 struct avltree_node *avltree_next(const struct avltree_node *node);
+struct avltree_node *avltree_prev(const struct avltree_node *node);
 
 struct avltree_node *avltree_lookup(const struct avltree_node *key, const struct avltree *tree, avltree_cmp_fn_t cmp);
 struct avltree_node *avltree_insert(struct avltree_node *node, struct avltree *tree, avltree_cmp_fn_t cmp);

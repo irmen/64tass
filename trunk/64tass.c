@@ -75,6 +75,7 @@ static enum lastl_e lastl;
 static int longaccu=0,longindex=0,scpumode=0;
 static uint8_t databank=0;
 static uint16_t dpage=0;
+static int8_t strength=0;
 int fixeddig;
 static int allowslowbranch=1;
 static int longbranchasjmp=0;
@@ -177,6 +178,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x02" "shift",
     "\x03" "shiftl",
     "\x3c" "showmac",
+    "\x56" "strength",
     "\x44" "struct",
     "\x52" "switch",
     "\x00" "text",
@@ -201,7 +203,7 @@ enum command_e {
     CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT,
     CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU, CMD_DUNION, CMD_SECTION,
     CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF, CMD_BINCLUDE, CMD_FUNCTION,
-    CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT, CMD_ENDSWITCH
+    CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT, CMD_ENDSWITCH, CMD_STRENGTH
 };
 
 /* --------------------------------------------------------------------------- */
@@ -561,14 +563,14 @@ struct value_s *compile(struct file_list_s *cflist)
                 struct label_s *label;
                 int labelexists;
                 int oldreferenceit = referenceit;
-                label = find_label2(&labelname, mycontext);
+                label = find_label3(&labelname, mycontext, strength);
                 if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
                 referenceit &= label ? label->ref : 1;
                 val = get_vals_tuple();
                 referenceit = oldreferenceit;
                 if (!val) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                 if (label) labelexists = 1;
-                else label = new_label(&labelname, mycontext, L_CONST, &labelexists);
+                else label = new_label(&labelname, mycontext, L_CONST, strength, &labelexists);
                 oaddr=current_section->address;
                 if (listing && flist && arguments.source && label->ref) {
                     int l;
@@ -606,14 +608,14 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct label_s *label;
                         int labelexists;
                         int oldreferenceit = referenceit;
-                        label=find_label2(&labelname, mycontext);
+                        label=find_label3(&labelname, mycontext, strength);
                         if (!get_exp(&w, 0,cfile)) goto breakerr; /* ellenorizve. */
                         referenceit &= label ? label->ref : 1;
                         val = get_vals_tuple();
                         referenceit = oldreferenceit;
                         if (!val) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                         if (label) labelexists = 1;
-                        else label = new_label(&labelname, mycontext, L_VAR, &labelexists);
+                        else label = new_label(&labelname, mycontext, L_VAR, strength, &labelexists);
                         oaddr=current_section->address;
                         if (listing && flist && arguments.source) {
                             int l;
@@ -648,7 +650,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     { /* label */
                         struct label_s *label;
                         int labelexists;
-                        label=new_label(&labelname, mycontext, L_CONST, &labelexists);
+                        label=new_label(&labelname, mycontext, L_CONST, strength, &labelexists);
                         if (labelexists) {
                             if (label->type != L_CONST || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             new_value.obj = LBL_OBJ;
@@ -685,7 +687,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         int labelexists;
                         new_waitfor(W_ENDM, &lpoint);waitfor->skip=0;
                         ignore();
-                        label=new_label(&labelname, mycontext, L_LABEL, &labelexists);
+                        label=new_label(&labelname, mycontext, L_LABEL, strength, &labelexists);
                         if (labelexists) {
                             if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             new_value.obj = obj;
@@ -720,7 +722,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         new_waitfor(W_ENDF, &lpoint);waitfor->skip=0;
                         ignore();
                         if (temporary_label_branch) {err_msg(ERROR___NOT_ALLOWED, ".FUNCTION");goto breakerr;}
-                        label=new_label(&labelname, mycontext, L_LABEL, &labelexists);
+                        label=new_label(&labelname, mycontext, L_LABEL, strength, &labelexists);
                         if (labelexists) {
                             if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             new_value.obj = FUNCTION_OBJ;
@@ -757,7 +759,7 @@ struct value_s *compile(struct file_list_s *cflist)
 
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &lpoint);waitfor->skip=0;
                         ignore();
-                        label=new_label(&labelname, mycontext, L_LABEL, &labelexists);oaddr = current_section->address;
+                        label=new_label(&labelname, mycontext, L_LABEL, strength, &labelexists);oaddr = current_section->address;
                         if (declaration) {
                             obj_t obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
@@ -925,8 +927,8 @@ struct value_s *compile(struct file_list_s *cflist)
             }
             {
                 int labelexists;
-                if (!islabel && tmp2 && tmp2->parent == current_context) {newlabel = tmp2;labelexists = 1;}
-                else newlabel=new_label(&labelname, mycontext, L_LABEL, &labelexists);
+                if (!islabel && tmp2 && tmp2->parent == current_context && tmp2->strength == strength) {newlabel = tmp2;labelexists = 1;}
+                else newlabel=new_label(&labelname, mycontext, L_LABEL, strength, &labelexists);
                 oaddr=current_section->address;
                 if (labelexists) {
                     if (newlabel->type != L_LABEL || newlabel->defpass == pass) {
@@ -1745,7 +1747,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         str_t tmpname;
                         sprintf(reflabel, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                        current_context=new_label(&tmpname, mycontext, L_LABEL, &labelexists);
+                        current_context=new_label(&tmpname, mycontext, L_LABEL, strength, &labelexists);
                         if (!labelexists) {
                             current_context->value = &none_value;
                             current_context->file_list = cflist;
@@ -1754,8 +1756,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     break;
                 }
-                if (prm==CMD_DATABANK) { /* .databank */
-                    uval_t uval;
+                if (prm==CMD_DATABANK || prm==CMD_DPAGE || prm==CMD_STRENGTH) { /* .databank, .dpage, .strength */
                     struct value_s err;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1764,23 +1765,24 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_wrong_type(&err, &epoint); 
-                        else databank = uval;
-                    }
-                    break;
-                }
-                if (prm==CMD_DPAGE) { /* .dpage */
-                    uval_t uval;
-                    struct value_s err;
-                    if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    eval_finish();
-                    if (val->obj == NONE_OBJ) {
-                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                        fixeddig = 0;
-                    } else {
-                        if (val->obj->uval(val, &err, &uval, 16, &epoint)) err_msg_wrong_type(&err, &epoint); 
-                        else dpage = uval;
+                        uval_t uval;
+                        ival_t ival;
+                        switch (prm) {
+                        case CMD_DATABANK:
+                            if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_wrong_type(&err, &epoint); 
+                            else databank = uval;
+                            break;
+                        case CMD_DPAGE:
+                            if (val->obj->uval(val, &err, &uval, 16, &epoint)) err_msg_wrong_type(&err, &epoint); 
+                            else dpage = uval;
+                            break;
+                        case CMD_STRENGTH:
+                            if (val->obj->ival(val, &err, &ival, 8, &epoint)) err_msg_wrong_type(&err, &epoint); 
+                            else strength = ival;
+                            break;
+                        default:
+                            break;
+                        }
                     }
                     break;
                 }
@@ -2274,7 +2276,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     str_t tmpname;
                                     sprintf(reflabel, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
                                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                                    current_context=new_label(&tmpname, mycontext, L_LABEL, &labelexists);
+                                    current_context=new_label(&tmpname, mycontext, L_LABEL, strength, &labelexists);
                                     if (!labelexists) {
                                         current_context->value = &none_value;
                                         current_context->file_list = cflist;
@@ -2322,7 +2324,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         lpoint.pos++;
                         if (!get_exp(&w,1,cfile)) goto breakerr; /* ellenorizve. */
                         if (!(val = get_vals_tuple())) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        var=new_label(&varname, mycontext, L_VAR, &labelexists);
+                        var=new_label(&varname, mycontext, L_VAR, strength, &labelexists);
                         if (labelexists) {
                             if (var->type != L_VAR) err_msg_double_defined(var, &varname, &epoint);
                             else {
@@ -2379,7 +2381,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (!here() || here()==';') {bpoint.pos = bpoint.upos = 0; nopos = 0;}
                             else {
                                 int labelexists;
-                                var=new_label(&varname, mycontext, L_VAR, &labelexists);
+                                var=new_label(&varname, mycontext, L_VAR, strength, &labelexists);
                                 if (labelexists) {
                                     if (var->defpass != pass) var->ref=0;
                                     if (var->type != L_VAR) {
@@ -2747,7 +2749,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         str_t tmpname;
                         sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                        context=new_label(&tmpname, mycontext, L_LABEL, &labelexists);
+                        context=new_label(&tmpname, mycontext, L_LABEL, strength, &labelexists);
                         if (!labelexists) {
                             context->value = &none_value;
                             context->file_list = cflist;
@@ -2762,7 +2764,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     str_t tmpname;
                     sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                    context=new_label(&tmpname, val->u.func.label->parent, L_LABEL, &labelexists);
+                    context=new_label(&tmpname, val->u.func.label->parent, L_LABEL, strength, &labelexists);
                     if (!labelexists) {
                         context->value = &none_value;
                         context->file_list = cflist;
@@ -3508,7 +3510,7 @@ int main(int argc, char *argv[]) {
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
+            star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;
@@ -3571,7 +3573,7 @@ int main(int argc, char *argv[]) {
             if (i >= opts) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
+            star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
             current_context=&root_label;

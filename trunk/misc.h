@@ -52,7 +52,6 @@ struct arguments_s {
 extern const uint8_t whatis[256];
 extern void tfree(void);
 extern void tinit(void);
-extern void labelprint(void);
 extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
 extern unsigned int utf8in(const uint8_t *, uint32_t *);

@@ -1470,13 +1470,22 @@ file separately, like bitmap and colors for example.
 </pre>
 
 </dl>
-<h3>Blocks</h3>
+<h3>Scopes</h3>
+<p>Scopes may contain symbols or other scopes nested. They are useful to avoid
+symbol clashes as the same symbol name can repeated as long as it's in a
+different scope.</p>
+<p>In nested scopes the symbol lookup starts from the local scope and goes in
+the direction of the global scope. This means that local variables will
+<q>shadow</q> global one with the same name.</p>
 <dl class="dir">
 <dt><b>.proc</b>
 <dt><b>.pend</b>
-<dd>Procedure start and end of procedure. If it's label is not used then
-the code won't be compiled at all!  All labels inside are local and are
-accessible through the prefixed label. Useful for building libraries.
+<dd>Procedure start and end of procedure.
+<p>If it's label is not used then the code won't be compiled at all. This is
+very useful to avoid a lot of <code>.if</code> blocks to exclude unused
+sections of code.</p>
+<p>All labels inside are local enclosed in a scope and are accessible through
+the prefixed label. Useful for building libraries.</p>
 <pre width=80>
 ize     <b class="k">.proc</b>
 	<b>nop</b>
@@ -1489,24 +1498,15 @@ cucc    <b>nop</b>
 
 <dt><b>.block</b>
 <dt><b>.bend</b>
-<dd>Block start and block end. All labels inside a block are local. If prefixed
-with a label local variables are accessible through that label, otherwise not
-at all.
+<dd>Block start and block end.
+<p>All labels inside a block are local enclosed in a scope. If prefixed with a
+label local variables are accessible through that label using the dot notation,
+otherwise not at all.</p>
 <pre width=80>
 	<b class="k">.block</b>
         <b>inc</b> <u>count</u> + <span>1</span>
 count	<b>ldx</b> #<span>0</span>
 	<b class="k">.bend</b>
-</pre>
-
-<dt><b>.comment</b>
-<dt><b>.endc</b>
-<dd>Comment block start and comment block end.
-<pre width=80>
-	<b class="k">.comment</b>
-<i>        lda #1          ;this won't be compiled</i>
-<i>	sta $d020</i>
-	<b class="k">.endc</b>
 </pre>
 </dl>
 
@@ -1773,6 +1773,16 @@ or for silly <q>encryption</q>.
 <dt><b>.var</b> &lt;expression&gt;
 <dd>Defines a variable identified by the label preceding, which
 is set to the value of expression or reference of variable.
+
+<dt><b>.comment</b>
+<dt><b>.endc</b>
+<dd>Comment block start and comment block end.
+<pre width=80>
+	<b class="k">.comment</b>
+<i>        lda #1          ;this won't be compiled</i>
+<i>	sta $d020</i>
+	<b class="k">.endc</b>
+</pre>
 
 <dt><b>.assert</b>
 <dt><b>.check</b>
