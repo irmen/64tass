@@ -34,6 +34,13 @@ static inline struct avltree_node *get_first(struct avltree_node *node)
 	return node;
 }
 
+static inline struct avltree_node *get_last(struct avltree_node *node)
+{
+	while (node->right)
+		node = node->right;
+	return node;
+}
+
 struct avltree_node *avltree_first(const struct avltree *tree)
 {
 	return tree->first;
@@ -47,6 +54,18 @@ struct avltree_node *avltree_next(const struct avltree_node *node)
 		return get_first(node->right);
 
 	while ((parent = node->parent) && parent->right == node)
+		node = parent;
+	return parent;
+}
+
+struct avltree_node *avltree_prev(const struct avltree_node *node)
+{
+	struct avltree_node *parent;
+
+	if (node->left)
+		return get_last(node->left);
+
+	while ((parent = node->parent) && parent->left == node)
 		node = parent;
 	return parent;
 }

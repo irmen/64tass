@@ -41,6 +41,7 @@ struct label_s {
     unsigned update_after:1;
     uint8_t usepass;
     uint8_t defpass;
+    int8_t strength;
     struct label_s *parent;
     struct avltree members;
 };
@@ -48,7 +49,9 @@ struct label_s {
 extern struct label_s *current_context, root_label;
 extern struct label_s *find_label(const str_t *);
 extern struct label_s *find_label2(const str_t *, const struct label_s *);
-extern struct label_s *new_label(const str_t *, struct label_s *, enum label_e, int *);
+extern struct label_s *find_label3(const str_t *, const struct label_s *, int8_t);
+extern struct label_s *new_label(const str_t *, struct label_s *, enum label_e, int8_t, int *);
+extern void labelprint(void);
 extern void shadow_check(const struct avltree *);
 extern void destroy_variables(void);
 extern void destroy_variables2(struct label_s *);

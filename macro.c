@@ -295,7 +295,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
 
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
-        label=find_label2(&tmp2->u.func.param[i].name, context);
+        label=find_label3(&tmp2->u.func.param[i].name, context, 0);
         ignore();if (!here() || here()==';') fin++;
         if (tmp2->u.func.param[i].init) {
             if (here()==',' || !here() || here()==';') {
@@ -318,7 +318,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
             ignore();if (here()==',') lpoint.pos++;
         }
         if (label) labelexists = 1;
-        else label = new_label(&tmp2->u.func.param[i].name, context, L_CONST, &labelexists);
+        else label = new_label(&tmp2->u.func.param[i].name, context, L_CONST, 0, &labelexists);
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) err_msg_double_defined(label, &tmp2->u.func.param[i].name, &epoint2);
@@ -530,7 +530,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
         val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
-        label = new_label(&tmp2->u.func.param[i].name, tmp2->u.func.label, L_CONST, &labelexists);
+        label = new_label(&tmp2->u.func.param[i].name, tmp2->u.func.label, L_CONST, 0, &labelexists);
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) {
