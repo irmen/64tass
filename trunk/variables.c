@@ -174,7 +174,7 @@ struct label_s *new_label(const str_t *name, struct label_s *context, int8_t str
         lastlb->ref = 0;
         lastlb->shadowcheck = 0;
         lastlb->update_after = 0;
-        lastlb->usepass = pass;
+        lastlb->usepass = 0;
         lastlb->defpass = pass;
         avltree_init(&lastlb->members);
 	*exists = 0;
