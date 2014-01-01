@@ -103,14 +103,14 @@ static struct label_s *strongest_label(struct avltree_node *b) {
 
     do {
         c = avltree_container_of(n, struct label_s, node);
-        if (!fixeddig || c->defpass >= pass - 1) a = c;
+        if (c->defpass == pass || (c->constant && (!fixeddig || c->defpass == pass - 1))) a = c;
         n = avltree_next(n);
     } while (n && !label_compare(n, b));
     if (a) return a;
     n = avltree_prev(b);
     while (n && !label_compare(n, b)) {
         c = avltree_container_of(n, struct label_s, node);
-        if (!fixeddig || c->defpass >= pass - 1) return c;
+        if (c->defpass == pass || (c->constant && (!fixeddig || c->defpass == pass - 1))) a = c;
         n = avltree_prev(n);
     }
     return NULL;
@@ -159,7 +159,7 @@ struct label_s *find_label3(const str_t *name, const struct label_s *context, in
 
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb=NULL;
-struct label_s *new_label(const str_t *name, struct label_s *context, enum label_e type, int8_t strength, int *exists) {
+struct label_s *new_label(const str_t *name, struct label_s *context, int8_t strength, int *exists) {
     struct avltree_node *b;
     struct label_s *tmp;
     if (!lastlb) lastlb=var_alloc();
@@ -170,7 +170,6 @@ struct label_s *new_label(const str_t *name, struct label_s *context, enum label
     b = avltree_insert(&lastlb->node, &context->members, label_compare2);
     if (!b) { //new label
         str_cpy(&lastlb->name, name);
-        lastlb->type = type;
         lastlb->parent = context;
         lastlb->ref = 0;
         lastlb->shadowcheck = 0;
@@ -306,15 +305,14 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
             }
             labelprint2(&l->members, flab);
         } else {
-            switch (l->type) {
-            case L_VAR:
-                fwrite(l->name.data, l->name.len, 1, flab);
-                if (l->name.len < 15) fputs(&"               "[l->name.len], flab);
-                fputs(" .var ", flab);break;
-            default: 
+            if (l->constant) {
                 fwrite(l->name.data, l->name.len, 1, flab);
                 if (l->name.len < 16) fputs(&"                "[l->name.len], flab);
-                fputs("= ", flab);break;
+                fputs("= ", flab);
+            } else {
+                fwrite(l->name.data, l->name.len, 1, flab);
+                if (l->name.len < 15) fputs(&"               "[l->name.len], flab);
+                fputs(" .var ", flab);
             }
             obj_print(l->value, flab);
             putc('\n', flab);

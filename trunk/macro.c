@@ -318,16 +318,18 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
             ignore();if (here()==',') lpoint.pos++;
         }
         if (label) labelexists = 1;
-        else label = new_label(&tmp2->u.func.param[i].name, context, L_CONST, strength, &labelexists);
+        else label = new_label(&tmp2->u.func.param[i].name, context, strength, &labelexists);
         label->ref=0;
         if (labelexists) {
-            if (label->type != L_CONST || pass==1) err_msg_double_defined(label, &tmp2->u.func.param[i].name, &epoint2);
+            if (label->defpass == pass) err_msg_double_defined(label, &tmp2->u.func.param[i].name, &epoint2);
             else {
+                label->constant = 1;
                 label->requires=current_section->requires;
                 label->conflicts=current_section->conflicts;
                 var_assign(label, val, 0);
             }
         } else {
+            label->constant = 1;
             label->requires = current_section->requires;
             label->conflicts = current_section->conflicts;
             label->value = val_reference(val);
@@ -528,17 +530,19 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
         val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
-        label = new_label(&tmp2->u.func.param[i].name, tmp2->u.func.label, L_CONST, 0, &labelexists);
+        label = new_label(&tmp2->u.func.param[i].name, tmp2->u.func.label, 0, &labelexists);
         label->ref=0;
         if (labelexists) {
-            if (label->type != L_CONST || pass==1) {
+            if (label->defpass == pass) {
                 err_msg_double_defined(label, &tmp2->u.func.param[i].name, &tmp2->u.func.param[i].epoint);
             } else {
+                label->constant = 1;
                 label->requires = current_section->requires;
                 label->conflicts = current_section->conflicts;
                 var_assign(label, val, 0);
             }
         } else {
+            label->constant = 1;
             label->requires = current_section->requires;
             label->conflicts = current_section->conflicts;
             label->value = val_reference(val);

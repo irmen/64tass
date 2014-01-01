@@ -21,14 +21,9 @@
 #include "libtree.h"
 #include "inttypes.h"
 
-enum label_e {
-    L_LABEL, L_CONST, L_VAR
-};
-
 struct label_s {
     int name_hash;
     str_t name;
-    enum label_e type;
     struct avltree_node node;
 
     struct value_s *value;
@@ -39,6 +34,7 @@ struct label_s {
     unsigned ref:1;
     unsigned shadowcheck:1;
     unsigned update_after:1;
+    unsigned constant:1;
     uint8_t usepass;
     uint8_t defpass;
     int8_t strength;
@@ -50,7 +46,7 @@ extern struct label_s *current_context, root_label;
 extern struct label_s *find_label(const str_t *);
 extern struct label_s *find_label2(const str_t *, const struct label_s *);
 extern struct label_s *find_label3(const str_t *, const struct label_s *, int8_t);
-extern struct label_s *new_label(const str_t *, struct label_s *, enum label_e, int8_t, int *);
+extern struct label_s *new_label(const str_t *, struct label_s *, int8_t, int *);
 extern void labelprint(void);
 extern void shadow_check(const struct avltree *);
 extern void destroy_variables(void);
