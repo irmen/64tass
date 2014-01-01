@@ -27,7 +27,7 @@ enum wait_e;
 
 extern int mtranslate(struct file_s *);
 extern struct value_s *macro_recurse(enum wait_e, struct value_s *, struct label_s *, linepos_t);
-extern struct value_s *func_recurse(enum wait_e, struct value_s *, struct label_s *, linepos_t, struct file_s *);
+extern struct value_s *func_recurse(enum wait_e, struct value_s *, struct label_s *, linepos_t, struct file_s *, int8_t);
 extern struct value_s *function_recurse(struct value_s *, struct values_s *, unsigned int, linepos_t);
 extern void init_macro(void);
 extern void free_macro(void);
