@@ -236,11 +236,9 @@ static void get_string(struct value_s *v) {
     lpoint.pos += str_from_str(v, &lpoint.upos, pline + lpoint.pos);
 }
 
-int touch_label(struct label_s *tmp) {
+void touch_label(struct label_s *tmp) {
     if (referenceit) tmp->ref = 1;
     tmp->usepass = pass;
-    if (tmp->type != L_VAR || tmp->defpass == pass) return 1;
-    return 0;
 }
 
 static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
@@ -255,7 +253,8 @@ static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
         ident.data = (const uint8_t *)idents;
         ident.len = strlen(idents);
         l = find_label(&ident);
-        if (l && touch_label(l)) {
+        if (l) {
+            touch_label(l);
             return l->value;
         }
         v->u.error.epoint = v1->u.anonident.epoint;
@@ -268,7 +267,8 @@ static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
         return NULL;
     case T_IDENT: 
         l = find_label(&v1->u.ident.name);
-        if (l && touch_label(l)) {
+        if (l) {
+            touch_label(l);
             l->shadowcheck = 1;
             return l->value;
         }

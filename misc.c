@@ -193,7 +193,9 @@ void tfree(void) {
 }
 
 void tinit(void) {
-    root_label.type = L_CONST;
+    root_label.constant = 1;
+    root_label.defpass = 1;
+    root_label.usepass = 1;
     root_label.parent = NULL;
     root_label.name.data = NULL;
     root_label.name.len = 0;

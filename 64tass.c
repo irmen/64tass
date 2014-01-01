@@ -570,7 +570,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 referenceit = oldreferenceit;
                 if (!val) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                 if (label) labelexists = 1;
-                else label = new_label(&labelname, mycontext, L_CONST, strength, &labelexists);
+                else label = new_label(&labelname, mycontext, strength, &labelexists);
                 oaddr=current_section->address;
                 if (listing && flist && arguments.source && label->ref) {
                     int l;
@@ -583,14 +583,16 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 label->ref = 0;
                 if (labelexists) {
-                    if (label->type != L_CONST || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
+                    if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                     else {
+                        label->constant = 1;
                         label->requires = current_section->requires;
                         label->conflicts = current_section->conflicts;
                         var_assign(label, val, 0);
                     }
                     val_destroy(val);
                 } else {
+                    label->constant = 1;
                     label->requires = current_section->requires;
                     label->conflicts = current_section->conflicts;
                     label->value = val;
@@ -613,7 +615,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         referenceit = oldreferenceit;
                         if (!val) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                         if (label) labelexists = 1;
-                        else label = new_label(&labelname, mycontext, L_VAR, strength, &labelexists);
+                        else label = new_label(&labelname, mycontext, strength, &labelexists);
                         oaddr=current_section->address;
                         if (listing && flist && arguments.source) {
                             int l;
@@ -626,7 +628,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (labelexists) {
                             if (label->defpass != pass) label->ref=0;
-                            if (label->type != L_VAR) err_msg_double_defined(label, &labelname, &epoint);
+                            if (label->constant) err_msg_double_defined(label, &labelname, &epoint);
                             else {
                                 label->requires=current_section->requires;
                                 label->conflicts=current_section->conflicts;
@@ -634,6 +636,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                             val_destroy(val);
                         } else {
+                            label->constant = 0;
                             label->requires = current_section->requires;
                             label->conflicts = current_section->conflicts;
                             label->value = val;
@@ -646,18 +649,24 @@ struct value_s *compile(struct file_list_s *cflist)
                     { /* label */
                         struct label_s *label;
                         int labelexists;
-                        label=new_label(&labelname, mycontext, L_CONST, strength, &labelexists);
+                        label=new_label(&labelname, mycontext, strength, &labelexists);
                         if (labelexists) {
-                            if (label->type != L_CONST || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
-                            new_value.obj = LBL_OBJ;
-                            new_value.u.lbl.p = cfile->p;
-                            new_value.u.lbl.sline = lpoint.line;
-                            new_value.u.lbl.waitforp = waitfor_p;
-                            new_value.u.lbl.file_list = cflist;
-                            new_value.u.lbl.parent = current_context;
-                            var_assign(label, &new_value, 0);
+                            if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
+                            else {
+                                label->constant = 1;
+                                label->requires = 0;
+                                label->conflicts = 0;
+                                new_value.obj = LBL_OBJ;
+                                new_value.u.lbl.p = cfile->p;
+                                new_value.u.lbl.sline = lpoint.line;
+                                new_value.u.lbl.waitforp = waitfor_p;
+                                new_value.u.lbl.file_list = cflist;
+                                new_value.u.lbl.parent = current_context;
+                                var_assign(label, &new_value, 0);
+                            }
                         } else {
                             val = val_alloc();
+                            label->constant = 1;
                             label->requires = 0;
                             label->conflicts = 0;
                             label->value = val;
@@ -681,18 +690,24 @@ struct value_s *compile(struct file_list_s *cflist)
                         int labelexists;
                         new_waitfor(W_ENDM, &lpoint);waitfor->skip=0;
                         ignore();
-                        label=new_label(&labelname, mycontext, L_LABEL, strength, &labelexists);
+                        label=new_label(&labelname, mycontext, strength, &labelexists);
                         if (labelexists) {
-                            if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
-                            new_value.obj = obj;
-                            new_value.u.macro.p = cfile->p;
-                            new_value.u.macro.size = 0;
-                            new_value.u.macro.parent = label;
-                            get_macro_params(&new_value);
-                            var_assign(label, &new_value, 0);
-                            val_destroy(&new_value);
+                            if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
+                            else {
+                                label->constant = 1;
+                                label->requires = 0;
+                                label->conflicts = 0;
+                                new_value.obj = obj;
+                                new_value.u.macro.p = cfile->p;
+                                new_value.u.macro.size = 0;
+                                new_value.u.macro.parent = label;
+                                get_macro_params(&new_value);
+                                var_assign(label, &new_value, 0);
+                                val_destroy(&new_value);
+                            }
                         } else {
                             val = val_alloc();
+                            label->constant = 1;
                             label->requires = 0;
                             label->conflicts = 0;
                             label->value = val;
@@ -714,17 +729,23 @@ struct value_s *compile(struct file_list_s *cflist)
                         new_waitfor(W_ENDF, &lpoint);waitfor->skip=0;
                         ignore();
                         if (temporary_label_branch) {err_msg(ERROR___NOT_ALLOWED, ".FUNCTION");goto breakerr;}
-                        label=new_label(&labelname, mycontext, L_LABEL, strength, &labelexists);
+                        label=new_label(&labelname, mycontext, strength, &labelexists);
                         if (labelexists) {
-                            if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
-                            new_value.obj = FUNCTION_OBJ;
-                            new_value.u.func.p = cfile->p;
-                            new_value.u.func.label = label;
-                            get_func_params(&new_value, cfile);
-                            var_assign(label, &new_value, 0);
-                            val_destroy(&new_value);
+                            if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
+                            else {
+                                label->constant = 1;
+                                label->requires = 0;
+                                label->conflicts = 0;
+                                new_value.obj = FUNCTION_OBJ;
+                                new_value.u.func.p = cfile->p;
+                                new_value.u.func.label = label;
+                                get_func_params(&new_value, cfile);
+                                var_assign(label, &new_value, 0);
+                                val_destroy(&new_value);
+                            }
                         } else {
                             val = val_alloc();
+                            label->constant = 1;
                             label->requires = 0;
                             label->conflicts = 0;
                             label->value = val;
@@ -749,7 +770,7 @@ struct value_s *compile(struct file_list_s *cflist)
 
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &lpoint);waitfor->skip=0;
                         ignore();
-                        label=new_label(&labelname, mycontext, L_LABEL, strength, &labelexists);oaddr = current_section->address;
+                        label=new_label(&labelname, mycontext, strength, &labelexists);oaddr = current_section->address;
                         if (declaration) {
                             obj_t obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
@@ -757,16 +778,22 @@ struct value_s *compile(struct file_list_s *cflist)
                             current_section->dooutput=0;memjmp(&current_section->mem, 0); oaddr = 0;
 
                             if (labelexists) {
-                                if (label->type != L_LABEL || label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
-                                new_value.obj = obj;
-                                new_value.u.macro.size = (label->value->obj == obj) ? label->value->u.macro.size : 0;
-                                new_value.u.macro.p = cfile->p;
-                                new_value.u.macro.parent = label;
-                                get_macro_params(&new_value);
-                                var_assign(label, &new_value, 0);
-                                val_destroy(&new_value);
+                                if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
+                                else {
+                                    label->constant = 1;
+                                    label->requires = 0;
+                                    label->conflicts = 0;
+                                    new_value.obj = obj;
+                                    new_value.u.macro.size = (label->value->obj == obj) ? label->value->u.macro.size : 0;
+                                    new_value.u.macro.p = cfile->p;
+                                    new_value.u.macro.parent = label;
+                                    get_macro_params(&new_value);
+                                    var_assign(label, &new_value, 0);
+                                    val_destroy(&new_value);
+                                }
                             } else {
                                 val = val_alloc();
+                                label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
                                 label->value = val;
@@ -780,7 +807,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                         } else {
                             if (labelexists) {
-                                if (label->type != L_LABEL || label->defpass == pass) {
+                                if (label->defpass == pass) {
                                     err_msg_double_defined(label, &labelname, &epoint);
                                     label = NULL;
                                 } else {
@@ -905,7 +932,7 @@ struct value_s *compile(struct file_list_s *cflist)
             if (!islabel) {
                 tmp2 = find_label(&labelname);
                 if (tmp2) {
-                    if (tmp2->type == L_LABEL && (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ)) {
+                    if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ) {
                         tmp2->shadowcheck = 1;
                         if (wht == WHAT_HASHMARK) lpoint.pos--;labelname.len=0;val = tmp2->value; goto as_macro;
                     }
@@ -914,13 +941,14 @@ struct value_s *compile(struct file_list_s *cflist)
             {
                 int labelexists;
                 if (!islabel && tmp2 && tmp2->parent == current_context && tmp2->strength == strength) {newlabel = tmp2;labelexists = 1;}
-                else newlabel=new_label(&labelname, mycontext, L_LABEL, strength, &labelexists);
+                else newlabel=new_label(&labelname, mycontext, strength, &labelexists);
                 oaddr=current_section->address;
                 if (labelexists) {
-                    if (newlabel->type != L_LABEL || newlabel->defpass == pass) {
+                    if (newlabel->defpass == pass) {
                         err_msg_double_defined(newlabel, &labelname, &epoint);
                         newlabel = NULL; goto jn;
                     }
+                    newlabel->constant = 1;
                     newlabel->requires = current_section->requires;
                     newlabel->conflicts = current_section->conflicts;
                     if (!newlabel->update_after) {
@@ -946,6 +974,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                 } else {
                     val = val_alloc();
+                    newlabel->constant = 1;
                     newlabel->requires=current_section->requires;
                     newlabel->conflicts=current_section->conflicts;
                     newlabel->value = val;
@@ -1731,8 +1760,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         str_t tmpname;
                         sprintf(reflabel, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                        current_context=new_label(&tmpname, mycontext, L_LABEL, strength, &labelexists);
+                        current_context=new_label(&tmpname, mycontext, strength, &labelexists);
                         if (!labelexists) {
+                            current_context->constant = 1;
                             current_context->requires = 0;
                             current_context->conflicts = 0;
                             current_context->value = &none_value;
@@ -2262,8 +2292,9 @@ struct value_s *compile(struct file_list_s *cflist)
                                     str_t tmpname;
                                     sprintf(reflabel, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
                                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                                    current_context=new_label(&tmpname, mycontext, L_LABEL, strength, &labelexists);
+                                    current_context=new_label(&tmpname, mycontext, strength, &labelexists);
                                     if (!labelexists) {
+                                        current_context->constant = 1;
                                         current_context->requires = 0;
                                         current_context->conflicts = 0;
                                         current_context->value = &none_value;
@@ -2312,9 +2343,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         lpoint.pos++;
                         if (!get_exp(&w,1,cfile)) goto breakerr; /* ellenorizve. */
                         if (!(val = get_vals_tuple())) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        var=new_label(&varname, mycontext, L_VAR, strength, &labelexists);
+                        var=new_label(&varname, mycontext, strength, &labelexists);
                         if (labelexists) {
-                            if (var->type != L_VAR) err_msg_double_defined(var, &varname, &epoint);
+                            if (var->constant) err_msg_double_defined(var, &varname, &epoint);
                             else {
                                 var->requires=current_section->requires;
                                 var->conflicts=current_section->conflicts;
@@ -2322,6 +2353,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                             val_destroy(val);
                         } else {
+                            var->constant = 0;
                             var->requires = current_section->requires;
                             var->conflicts = current_section->conflicts;
                             var->value = val;
@@ -2367,16 +2399,17 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (!here() || here()==';') {bpoint.pos = bpoint.upos = 0; nopos = 0;}
                             else {
                                 int labelexists;
-                                var=new_label(&varname, mycontext, L_VAR, strength, &labelexists);
+                                var=new_label(&varname, mycontext, strength, &labelexists);
                                 if (labelexists) {
                                     if (var->defpass != pass) var->ref=0;
-                                    if (var->type != L_VAR) {
+                                    if (var->constant) {
                                         err_msg_double_defined(var, &varname, &epoint);
                                         break;
                                     }
                                     var->requires = current_section->requires;
                                     var->conflicts = current_section->conflicts;
                                 } else {
+                                    var->constant = 0;
                                     var->requires = current_section->requires;
                                     var->conflicts = current_section->conflicts;
                                     var->value = &none_value;
@@ -2733,8 +2766,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         str_t tmpname;
                         sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                        context=new_label(&tmpname, mycontext, L_LABEL, strength, &labelexists);
+                        context=new_label(&tmpname, mycontext, strength, &labelexists);
                         if (!labelexists) {
+                            context->constant = 1;
                             context->requires = 0;
                             context->conflicts = 0;
                             context->value = &none_value;
@@ -2750,8 +2784,9 @@ struct value_s *compile(struct file_list_s *cflist)
                     str_t tmpname;
                     sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                    context=new_label(&tmpname, val->u.func.label->parent, L_LABEL, strength, &labelexists);
+                    context=new_label(&tmpname, val->u.func.label->parent, strength, &labelexists);
                     if (!labelexists) {
+                        context->constant = 1;
                         context->requires = 0;
                         context->conflicts = 0;
                         context->value = &none_value;
@@ -3257,7 +3292,7 @@ struct value_s *compile(struct file_list_s *cflist)
 
                             tmp2 = find_label(&nmname);
                             if (tmp2) {
-                                if (tmp2->type == L_LABEL && (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ)) {
+                                if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ) {
                                     tmp2->shadowcheck = 1;
                                     lpoint=oldlpoint;
                                     val = tmp2->value;
@@ -3365,7 +3400,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 tmp2 = find_label(&opname);
                 if (tmp2) {
-                    if (tmp2->type == L_LABEL && (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ)) {
+                    if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ) {
                         tmp2->shadowcheck = 1;
                         val = tmp2->value;goto as_macro;
                     }

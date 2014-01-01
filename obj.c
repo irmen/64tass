@@ -754,7 +754,10 @@ static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v)
         ident.data = (const uint8_t *)idents;
         ident.len = strlen(idents);
         l = find_label(&ident);
-        if (l && touch_label(l)) return l->value;
+        if (l) {
+            touch_label(l);
+            return l->value;
+        }
         v->u.error.epoint = v1->u.anonident.epoint;
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR___NOT_DEFINED;
@@ -767,7 +770,8 @@ static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v)
     } else {
         struct label_s *l = find_label(&v1->u.ident.name);
         struct linepos_s epoint;
-        if (l && touch_label(l)) {
+        if (l) {
+            touch_label(l);
             l->shadowcheck = 1;
             return l->value;
         }
@@ -952,7 +956,8 @@ static void struct_calc2(oper_t op) {
         case T_IDENT:
             l2 = v1->u.macro.parent;
             l = find_label2(&v2->u.ident.name, l2);
-            if (l && touch_label(l)) {
+            if (l) {
+                touch_label(l);
                 l->value->obj->copy(l->value, op->v);
                 return;
             }
@@ -973,7 +978,8 @@ static void struct_calc2(oper_t op) {
                 ident.len = strlen(idents);
                 l2 = v1->u.macro.parent;
                 l = find_label2(&ident, l2);
-                if (l && touch_label(l)) {
+                if (l) {
+                    touch_label(l);
                     l->value->obj->copy(l->value, op->v);
                     return;
                 }

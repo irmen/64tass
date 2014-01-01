@@ -165,7 +165,8 @@ static void calc2(oper_t op) {
         case T_IDENT:
             l2 = v1->u.code.parent;
             l = find_label2(&v2->u.ident.name, l2);
-            if (l && touch_label(l)) {
+            if (l) {
+                touch_label(l);
                 l->value->obj->copy(l->value, op->v);
                 return;
             } 
@@ -186,7 +187,8 @@ static void calc2(oper_t op) {
                 ident.len = strlen(idents);
                 l2 = v1->u.code.parent;
                 l = find_label2(&ident, l2);
-                if (l && touch_label(l)) {
+                if (l) {
+                    touch_label(l);
                     l->value->obj->copy(l->value, op->v);
                     return;
                 }
