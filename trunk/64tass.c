@@ -593,8 +593,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else {
                     label->requires = current_section->requires;
                     label->conflicts = current_section->conflicts;
-                    label->usepass = pass;
-                    label->defpass = pass;
                     label->value = val;
                     label->file_list = cflist;
                     label->epoint = epoint;
@@ -638,8 +636,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         } else {
                             label->requires = current_section->requires;
                             label->conflicts = current_section->conflicts;
-                            label->usepass = pass;
-                            label->defpass = pass;
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -664,8 +660,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             val = val_alloc();
                             label->requires = 0;
                             label->conflicts = 0;
-                            label->usepass = pass;
-                            label->defpass = pass;
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -701,8 +695,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             val = val_alloc();
                             label->requires = 0;
                             label->conflicts = 0;
-                            label->usepass = pass;
-                            label->defpass = pass;
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -735,8 +727,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             val = val_alloc();
                             label->requires = 0;
                             label->conflicts = 0;
-                            label->usepass = pass;
-                            label->defpass = pass;
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
@@ -779,8 +769,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val = val_alloc();
                                 label->requires = 0;
                                 label->conflicts = 0;
-                                label->usepass = pass;
-                                label->defpass = pass;
                                 label->value = val;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
@@ -822,8 +810,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val = val_alloc();
                                 label->requires=current_section->requires;
                                 label->conflicts=current_section->conflicts;
-                                label->usepass=pass;
-                                label->defpass=pass;
                                 label->value = val;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
@@ -962,8 +948,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     val = val_alloc();
                     newlabel->requires=current_section->requires;
                     newlabel->conflicts=current_section->conflicts;
-                    newlabel->usepass = pass;
-                    newlabel->defpass = pass;
                     newlabel->value = val;
                     newlabel->file_list = cflist;
                     newlabel->epoint = epoint;
@@ -1751,8 +1735,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (!labelexists) {
                             current_context->requires = 0;
                             current_context->conflicts = 0;
-                            current_context->usepass = pass;
-                            current_context->defpass = pass;
                             current_context->value = &none_value;
                             current_context->file_list = cflist;
                             current_context->epoint = epoint;
@@ -2284,8 +2266,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                     if (!labelexists) {
                                         current_context->requires = 0;
                                         current_context->conflicts = 0;
-                                        current_context->usepass = pass;
-                                        current_context->defpass = pass;
                                         current_context->value = &none_value;
                                         current_context->file_list = cflist;
                                         current_context->epoint = epoint;
@@ -2344,8 +2324,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         } else {
                             var->requires = current_section->requires;
                             var->conflicts = current_section->conflicts;
-                            var->usepass = pass;
-                            var->defpass = pass;
                             var->value = val;
                             var->file_list = cflist;
                             var->epoint = epoint;
@@ -2401,8 +2379,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 } else {
                                     var->requires = current_section->requires;
                                     var->conflicts = current_section->conflicts;
-                                    var->usepass = pass;
-                                    var->defpass = pass;
                                     var->value = &none_value;
                                     var->file_list = cflist;
                                     var->epoint = epoint;
@@ -2761,8 +2737,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (!labelexists) {
                             context->requires = 0;
                             context->conflicts = 0;
-                            context->usepass = pass;
-                            context->defpass = pass;
                             context->value = &none_value;
                             context->file_list = cflist;
                             context->epoint = epoint;
@@ -2780,8 +2754,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (!labelexists) {
                         context->requires = 0;
                         context->conflicts = 0;
-                        context->usepass = pass;
-                        context->defpass = pass;
                         context->value = &none_value;
                         context->file_list = cflist;
                         context->epoint = epoint;

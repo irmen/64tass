@@ -330,8 +330,6 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         } else {
             label->requires = current_section->requires;
             label->conflicts = current_section->conflicts;
-            label->usepass = pass;
-            label->defpass = pass;
             label->value = val_reference(val);
             label->file_list = tmp2->u.func.label->file_list;
             label->epoint = tmp2->u.func.param[i].epoint;
@@ -543,8 +541,6 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         } else {
             label->requires = current_section->requires;
             label->conflicts = current_section->conflicts;
-            label->usepass = pass;
-            label->defpass = pass;
             label->value = val_reference(val);
             label->file_list = cflist;
             label->epoint = tmp2->u.func.param[i].epoint;
