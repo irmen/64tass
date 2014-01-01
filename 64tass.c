@@ -481,7 +481,7 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     val_replace(&tmp->value, val);
     if (tmp->usepass < pass) return;
     if (fixeddig && !fix && pass > max_pass) err_msg_cant_calculate(&tmp->name, &tmp->epoint);
-    fixeddig=fix;
+    fixeddig = fix;
 }
 
 struct value_s *compile(struct file_list_s *cflist)
@@ -508,7 +508,7 @@ struct value_s *compile(struct file_list_s *cflist)
         if (mtranslate(cfile)) break; /* expand macro parameters, if any */
         llist = pline;
         star=current_section->l_address;newlabel = NULL;
-        labelname.len=wasref=0;ignore();epoint = lpoint; mycontext = current_context;
+        labelname.len = wasref = 0;ignore();epoint = lpoint; mycontext = current_context;
         if (current_section->unionmode) {
             if (current_section->address > current_section->unionend) current_section->unionend = current_section->address;
             if (current_section->l_address > current_section->l_unionend) current_section->l_unionend = current_section->l_address;
@@ -627,11 +627,11 @@ struct value_s *compile(struct file_list_s *cflist)
                             printllist(l);
                         }
                         if (labelexists) {
-                            if (label->defpass != pass) label->ref=0;
                             if (label->constant) err_msg_double_defined(label, &labelname, &epoint);
                             else {
-                                label->requires=current_section->requires;
-                                label->conflicts=current_section->conflicts;
+                                if (label->defpass != pass) label->ref = 0;
+                                label->requires = current_section->requires;
+                                label->conflicts = current_section->conflicts;
                                 var_assign(label, val, fixeddig);
                             }
                             val_destroy(val);
@@ -679,7 +679,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             val->u.lbl.file_list = cflist;
                             val->u.lbl.parent = current_context;
                         }
-                        label->ref=0;
+                        label->ref = 0;
                         goto finish;
                     }
                 case CMD_MACRO:/* .macro */
@@ -719,7 +719,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             val->u.macro.parent = label;
                             get_macro_params(val);
                         }
-                        label->ref=0;
+                        label->ref = 0;
                         goto finish;
                     }
                 case CMD_FUNCTION:
@@ -756,7 +756,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             val->u.func.label = label;
                             get_func_params(val, cfile);
                         }
-                        label->ref=0;
+                        label->ref = 0;
                         goto finish;
                     }
                 case CMD_STRUCT:
@@ -1010,7 +1010,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                             fputc('\n', flist);
                         }
-                        newlabel->ref=0;
+                        newlabel->ref = 0;
                     }
                     newlabel = NULL;
                     goto finish;
@@ -1027,7 +1027,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             l = printaddr(flist, '.', current_section->address);
                             printllist(l);
                         }
-                        newlabel->ref=0;
+                        newlabel->ref = 0;
                         if (!get_exp(&w,1,cfile)) goto breakerr;
                         if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
@@ -1068,12 +1068,12 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         fputc('\n', flist);
                     }
-                    newlabel->ref=0;
+                    newlabel->ref = 0;
                     newlabel = NULL;
                     goto finish;
                 }
             }
-            wasref=newlabel->ref;newlabel->ref=0;
+            wasref = newlabel->ref;newlabel->ref = 0;
         }
         jn:
         switch (wht) {
@@ -1772,7 +1772,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     break;
                 }
-                if (prm==CMD_DATABANK || prm==CMD_DPAGE || prm==CMD_STRENGTH) { /* .databank, .dpage, .strength */
+                if (prm==CMD_DATABANK || prm==CMD_DPAGE || prm==CMD_STRENGTH || prm==CMD_EOR) { /* .databank, .dpage, .strength, .eor */
                     struct value_s err;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1795,6 +1795,10 @@ struct value_s *compile(struct file_list_s *cflist)
                         case CMD_STRENGTH:
                             if (val->obj->ival(val, &err, &ival, 8, &epoint)) err_msg_wrong_type(&err, &epoint); 
                             else strength = ival;
+                            break;
+                        case CMD_EOR:
+                            if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_wrong_type(&err, &epoint);
+                            else outputeor = uval;
                             break;
                         default:
                             break;
@@ -2211,21 +2215,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     break;
                 }
-                if (prm==CMD_EOR) {   /* .eor */
-                    uval_t uval;
-                    struct value_s err;
-                    if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                    if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                    eval_finish();
-                    if (val->obj == NONE_OBJ) {
-                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                        fixeddig = outputeor = 0;
-                    } else {
-                        if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_wrong_type(&err, &epoint);
-                        else outputeor = uval;
-                    }
-                    break;
-                }
                 if (prm==CMD_PRON) {
                     listing = (flist != NULL);
                     break;
@@ -2333,35 +2322,38 @@ struct value_s *compile(struct file_list_s *cflist)
                     int starexists, truth;
 
                     new_waitfor(W_NEXT, &epoint);waitfor->skip=0;
-                    if ((wht=what(&prm))==WHAT_EXPRESSION && prm==1) { /* label */
+                    { /* label */
                         int labelexists;
                         str_t varname;
                         epoint = lpoint;
                         varname.data = pline + lpoint.pos; varname.len = get_label();
-                        if (!varname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL);goto breakerr;}
-                        ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
-                        lpoint.pos++;
-                        if (!get_exp(&w,1,cfile)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_vals_tuple())) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                        var=new_label(&varname, mycontext, strength, &labelexists);
-                        if (labelexists) {
-                            if (var->constant) err_msg_double_defined(var, &varname, &epoint);
-                            else {
-                                var->requires=current_section->requires;
-                                var->conflicts=current_section->conflicts;
-                                var_assign(var, val, fixeddig);
+                        if (varname.len) {
+                            ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
+                            lpoint.pos++;
+                            if (!get_exp(&w,1,cfile)) goto breakerr; /* ellenorizve. */
+                            if (!(val = get_vals_tuple())) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                            var=new_label(&varname, mycontext, strength, &labelexists);
+                            if (labelexists) {
+                                if (var->constant) err_msg_double_defined(var, &varname, &epoint);
+                                else {
+                                    if (var->defpass != pass) var->ref = 0;
+                                    var->requires=current_section->requires;
+                                    var->conflicts=current_section->conflicts;
+                                    var_assign(var, val, fixeddig);
+                                }
+                                val_destroy(val);
+                            } else {
+                                var->constant = 0;
+                                var->requires = current_section->requires;
+                                var->conflicts = current_section->conflicts;
+                                var->value = val;
+                                var->file_list = cflist;
+                                var->epoint = epoint;
                             }
-                            val_destroy(val);
-                        } else {
-                            var->constant = 0;
-                            var->requires = current_section->requires;
-                            var->conflicts = current_section->conflicts;
-                            var->value = val;
-                            var->file_list = cflist;
-                            var->epoint = epoint;
+                            ignore();
                         }
                     }
-                    ignore();if (here() != ',') {err_msg(ERROR______EXPECTED,","); goto breakerr;}
+                    if (here() != ',') {err_msg(ERROR______EXPECTED,","); goto breakerr;}
                     lpoint.pos++;
 
                     s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
@@ -2401,11 +2393,11 @@ struct value_s *compile(struct file_list_s *cflist)
                                 int labelexists;
                                 var=new_label(&varname, mycontext, strength, &labelexists);
                                 if (labelexists) {
-                                    if (var->defpass != pass) var->ref=0;
                                     if (var->constant) {
                                         err_msg_double_defined(var, &varname, &epoint);
                                         break;
                                     }
+                                    if (var->defpass != pass) var->ref = 0;
                                     var->requires = current_section->requires;
                                     var->conflicts = current_section->conflicts;
                                 } else {
