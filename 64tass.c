@@ -662,13 +662,13 @@ struct value_s *compile(struct file_list_s *cflist)
                             var_assign(label, &new_value, 0);
                         } else {
                             val = val_alloc();
+                            label->requires = 0;
+                            label->conflicts = 0;
                             label->usepass = pass;
                             label->defpass = pass;
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
-                            label->requires = 0;
-                            label->conflicts = 0;
                             val->obj = LBL_OBJ;
                             val->u.lbl.p = cfile->p;
                             val->u.lbl.sline = lpoint.line;
@@ -777,13 +777,13 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val_destroy(&new_value);
                             } else {
                                 val = val_alloc();
+                                label->requires = 0;
+                                label->conflicts = 0;
                                 label->usepass = pass;
                                 label->defpass = pass;
                                 label->value = val;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                                label->requires = 0;
-                                label->conflicts = 0;
                                 val->obj = obj;
                                 val->u.macro.size = 0;
                                 val->u.macro.p = cfile->p;
@@ -820,13 +820,13 @@ struct value_s *compile(struct file_list_s *cflist)
                                 }
                             } else {
                                 val = val_alloc();
+                                label->requires=current_section->requires;
+                                label->conflicts=current_section->conflicts;
                                 label->usepass=pass;
                                 label->defpass=pass;
                                 label->value = val;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                                label->requires=current_section->requires;
-                                label->conflicts=current_section->conflicts;
                                 val->obj = CODE_OBJ;
                                 val->u.code.addr = val_alloc();
                                 int_from_uval(val->u.code.addr, current_section->l_address);
@@ -960,12 +960,13 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                 } else {
                     val = val_alloc();
+                    newlabel->requires=current_section->requires;
+                    newlabel->conflicts=current_section->conflicts;
                     newlabel->usepass = pass;
+                    newlabel->defpass = pass;
                     newlabel->value = val;
                     newlabel->file_list = cflist;
                     newlabel->epoint = epoint;
-                    newlabel->requires=current_section->requires;
-                    newlabel->conflicts=current_section->conflicts;
                     val->obj = CODE_OBJ;
                     val->u.code.addr = val_alloc();
                     int_from_uval(val->u.code.addr, current_section->l_address);
@@ -974,7 +975,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     val->u.code.pass = 0;
                     val->u.code.parent = newlabel;
                     get_mem(&current_section->mem, &newmemp, &newmembp);
-                    newlabel->defpass = pass;
                 }
             }
             if (epoint.pos && !islabel) err_msg2(ERROR_LABEL_NOT_LEF, NULL, &epoint);
@@ -1749,6 +1749,10 @@ struct value_s *compile(struct file_list_s *cflist)
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                         current_context=new_label(&tmpname, mycontext, L_LABEL, strength, &labelexists);
                         if (!labelexists) {
+                            current_context->requires = 0;
+                            current_context->conflicts = 0;
+                            current_context->usepass = pass;
+                            current_context->defpass = pass;
                             current_context->value = &none_value;
                             current_context->file_list = cflist;
                             current_context->epoint = epoint;
@@ -2278,6 +2282,10 @@ struct value_s *compile(struct file_list_s *cflist)
                                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                                     current_context=new_label(&tmpname, mycontext, L_LABEL, strength, &labelexists);
                                     if (!labelexists) {
+                                        current_context->requires = 0;
+                                        current_context->conflicts = 0;
+                                        current_context->usepass = pass;
+                                        current_context->defpass = pass;
                                         current_context->value = &none_value;
                                         current_context->file_list = cflist;
                                         current_context->epoint = epoint;
@@ -2751,6 +2759,10 @@ struct value_s *compile(struct file_list_s *cflist)
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                         context=new_label(&tmpname, mycontext, L_LABEL, strength, &labelexists);
                         if (!labelexists) {
+                            context->requires = 0;
+                            context->conflicts = 0;
+                            context->usepass = pass;
+                            context->defpass = pass;
                             context->value = &none_value;
                             context->file_list = cflist;
                             context->epoint = epoint;
@@ -2766,12 +2778,16 @@ struct value_s *compile(struct file_list_s *cflist)
                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                     context=new_label(&tmpname, val->u.func.label->parent, L_LABEL, strength, &labelexists);
                     if (!labelexists) {
+                        context->requires = 0;
+                        context->conflicts = 0;
+                        context->usepass = pass;
+                        context->defpass = pass;
                         context->value = &none_value;
                         context->file_list = cflist;
                         context->epoint = epoint;
                     }
                     function = val_reference(val);
-                    val = func_recurse(W_ENDF2, function, context, &epoint, cfile);
+                    val = func_recurse(W_ENDF2, function, context, &epoint, cfile, strength);
                     val_destroy(function);
                 } else val = macro_recurse(W_ENDM2, val, current_context, &epoint);
                 if (val) {

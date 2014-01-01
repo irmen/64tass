@@ -285,7 +285,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
     return val;
 }
 
-struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint, struct file_s *cfile) {
+struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint, struct file_s *cfile, int8_t strength) {
     size_t i;
     int w;
     struct label_s *label;
@@ -295,7 +295,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
 
     for (i = 0; i < tmp2->u.func.argc; i++) {
         int labelexists;
-        label=find_label3(&tmp2->u.func.param[i].name, context, 0);
+        label=find_label3(&tmp2->u.func.param[i].name, context, strength);
         ignore();if (!here() || here()==';') fin++;
         if (tmp2->u.func.param[i].init) {
             if (here()==',' || !here() || here()==';') {
@@ -318,7 +318,7 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
             ignore();if (here()==',') lpoint.pos++;
         }
         if (label) labelexists = 1;
-        else label = new_label(&tmp2->u.func.param[i].name, context, L_CONST, 0, &labelexists);
+        else label = new_label(&tmp2->u.func.param[i].name, context, L_CONST, strength, &labelexists);
         label->ref=0;
         if (labelexists) {
             if (label->type != L_CONST || pass==1) err_msg_double_defined(label, &tmp2->u.func.param[i].name, &epoint2);
