@@ -21,8 +21,6 @@
 #include "addressobj.h"
 
 #include "boolobj.h"
-#include "intobj.h"
-#include "strobj.h"
 
 static struct obj_s obj;
 
