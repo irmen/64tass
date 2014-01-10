@@ -160,35 +160,10 @@ struct value_s {
         bits_t bits;
         code_t code;
         list_t list;
-        struct {
-            struct value_s *key;
-            struct value_s *data;
-        } pair;
-        struct {
-            size_t len;
-            struct avltree members;
-            struct value_s *def;
-        } dict;
-        struct {
-            size_t p;
-            struct label_s *label;
-            size_t argc;
-            struct {
-                str_t name;
-                struct value_s *init;
-                struct linepos_s epoint;
-            } *param; 
-        } func;
-        struct {
-            size_t size;
-            size_t p;
-            size_t argc;
-            struct {
-                str_t name;
-                str_t init;
-            } *param; 
-            struct label_s *parent;
-        } macro;
+        pair_t pair;
+        dict_t dict;
+        func_t func;
+        macro_t macro;
         struct {
             size_t p;
             line_t sline;

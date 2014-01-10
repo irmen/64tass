@@ -23,10 +23,7 @@
 #include "isnprintf.h"
 #include "misc.h"
 
-#include "intobj.h"
 #include "boolobj.h"
-#include "strobj.h"
-#include "listobj.h"
 
 static struct obj_s obj;
 
@@ -161,7 +158,7 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
             return 1;
         }
     } else s = NULL;
-    if (v == v1) destroy(v);
+    if (v == v1) STR_OBJ->destroy(v);
     if (len2 && len2 <= sizeof(v->u.bytes.val)) {
         memcpy(v->u.bytes.val, s, len2);
         if (tmp.u.bytes.val != s) free(s);

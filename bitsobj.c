@@ -24,12 +24,6 @@
 #include "isnprintf.h"
 #include "misc.h"
 
-#include "intobj.h"
-#include "boolobj.h"
-#include "strobj.h"
-#include "addressobj.h"
-#include "listobj.h"
-
 static struct obj_s obj;
 
 obj_t BITS_OBJ = &obj;

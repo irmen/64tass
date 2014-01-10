@@ -29,6 +29,39 @@ struct values_s;
 #define obj_same(v, v2) v->obj->same(v, v2)
 #define obj_hash(v, v2, epoint) v->obj->hash(v, v2, epoint)
 
+typedef struct {
+    struct value_s *key;
+    struct value_s *data;
+} pair_t;
+
+typedef struct {
+    size_t len;
+    struct avltree members;
+    struct value_s *def;
+} dict_t;
+
+typedef struct {
+    size_t p;
+    struct label_s *label;
+    size_t argc;
+    struct {
+	str_t name;
+	struct value_s *init;
+	struct linepos_s epoint;
+    } *param; 
+} func_t;
+
+typedef struct {
+    size_t size;
+    size_t p;
+    size_t argc;
+    struct {
+	str_t name;
+	str_t init;
+    } *param; 
+    struct label_s *parent;
+} macro_t;
+
 enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST, T_DICT,

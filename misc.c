@@ -137,15 +137,6 @@ void str_cpy(str_t *s1, const str_t *s2) {
 }
 
 uint8_t *utf8out(uint32_t i, uint8_t *c) {
-    if (!i) {
-        *c++=0xc0;
-        *c++=0x80;
-	return c;
-    }
-    if (i < 0x80) {
-        *c++=i;
-	return c;
-    }
     if (i < 0x800) {
         *c++=0xc0 | (i >> 6);
         *c++=0x80 | (i & 0x3f);
@@ -165,7 +156,7 @@ uint8_t *utf8out(uint32_t i, uint8_t *c) {
 	return c;
     }
     if (i < 0x4000000) {
-        *c++=0xf0 | (i >> 24);
+        *c++=0xf8 | (i >> 24);
         *c++=0x80 | ((i >> 18) & 0x3f);
         *c++=0x80 | ((i >> 12) & 0x3f);
         *c++=0x80 | ((i >> 6) & 0x3f);
@@ -173,7 +164,7 @@ uint8_t *utf8out(uint32_t i, uint8_t *c) {
 	return c;
     }
     if (i & ~0x7fffffff) return c;
-    *c++=0xf0 | (i >> 30);
+    *c++=0xfc | (i >> 30);
     *c++=0x80 | ((i >> 24) & 0x3f);
     *c++=0x80 | ((i >> 18) & 0x3f);
     *c++=0x80 | ((i >> 12) & 0x3f);

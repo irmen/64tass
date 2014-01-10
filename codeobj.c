@@ -23,13 +23,9 @@
 #include "mem.h"
 #include "64tass.h"
 #include "section.h"
-
-#include "strobj.h"
-#include "addressobj.h"
-#include "listobj.h"
-#include "boolobj.h"
-#include "intobj.h"
 #include "variables.h"
+
+#include "boolobj.h"
 
 static struct obj_s obj;
 

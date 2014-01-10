@@ -103,8 +103,10 @@ static inline void PUT_CHAR(uint32_t c) {
         if (!p || returnsize < 256) err_msg_out_of_memory(); /* overflow */
         return_value.u.str.data = p;
     }
-    p = utf8out(c, p + return_value.u.str.len);
-    return_value.u.str.len = p - return_value.u.str.data;
+    if (c && c < 0x80) p[return_value.u.str.len++] = c; else {
+        p = utf8out(c, p + return_value.u.str.len);
+        return_value.u.str.len = p - return_value.u.str.data;
+    }
     return_value.u.str.chars++;
 }
 
@@ -502,7 +504,7 @@ void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_
             PUT_CHAR(*data.pf);  /* add the char the string */
         }
     }
-    if (v == v1) free((uint8_t *)v1->u.str.data);
+    if (v == v1) STR_OBJ->destroy(v);
     v->obj = STR_OBJ;
     v->u.str.data = return_value.u.str.data;
     v->u.str.len = return_value.u.str.len;

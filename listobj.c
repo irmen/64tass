@@ -22,7 +22,6 @@
 #include "eval.h"
 #include "isnprintf.h"
 #include "boolobj.h"
-#include "strobj.h"
 
 static struct obj_s list_obj;
 static struct obj_s tuple_obj;

@@ -21,10 +21,7 @@
 #include "values.h"
 #include "floatobj.h"
 
-#include "strobj.h"
 #include "boolobj.h"
-#include "intobj.h"
-#include "addressobj.h"
 
 static struct obj_s obj;
 

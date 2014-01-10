@@ -19,10 +19,6 @@
 #include "values.h"
 #include "boolobj.h"
 
-#include "intobj.h"
-#include "strobj.h"
-#include "addressobj.h"
-
 static struct obj_s obj;
 
 obj_t BOOL_OBJ = &obj;

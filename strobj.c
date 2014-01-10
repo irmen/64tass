@@ -24,9 +24,6 @@
 #include "isnprintf.h"
 
 #include "boolobj.h"
-#include "intobj.h"
-#include "bytesobj.h"
-#include "listobj.h"
 
 struct encoding_s;
 static struct obj_s obj;
