@@ -2632,3 +2632,15 @@ RTN 62
                             This alias is not valid
 CLR 64 74 9C 9E
 
+-------------------------------------------------------------------------------
+
+Assembler directives
+
+.al .align .as .assert .bend .binary .binclude .block .byte .case .cdef .cerror
+.char .check .comment .cpu .cwarn .databank .default .dint .dpage .dsection
+.dstruct .dunion .dword .edef .else .elsif .enc .end .endc .endf .endif .endm
+.endp .ends .endswitch .endu .eor .error .fi .fill .for .function .goto .here
+.hidemac .if .ifeq .ifmi .ifne .ifpl .include .int .lbl .lint .logical .long
+.macro .next .null .offs .option .page .pend .proc .proff .pron .ptext .rept
+.rta .section .segment .send .shift .shiftl .showmac .struct .switch .text
+.union .var .warn .word .xl .xs
