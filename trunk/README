@@ -927,13 +927,20 @@ to map Unicode characters to 8 bit values in strings.
 
 .cdef <start>, <end>, <coded> [, <start>, <end>, <coded>, ...]
 .cdef "<start><end>", <coded> [, "<start><end>", <coded>, ...]
-    Defines a character range, and assigns all characters one by one from the
-    8 bit value. The start and end positions are unicode character codes either
-    by numbers or by typing them.
-.edef "<escapetext>", <code> [, "<escapetext>", <code>, ...]
-    Defines an escape sequence, and assigns it to a 8 bit value. When using
-    common prefixes the longest match wins. Useful for defining non-typeable
-    control code aliases.
+    Assigns characters in a range to single bytes.
+
+    This is a simple single character to byte translation definition. It is
+    applied to a range as characters and bytes are usually assigned
+    sequentially. The start and end positions are Unicode character codes
+    either by numbers or by typing them. Overlapping ranges are not allowed.
+
+.edef "<escapetext>", <value> [, "<escapetext>", <value>, ...]
+    Assigns strings to byte sequences as a translated value.
+
+    When these substrings are found in a text they are replaced by bytes
+    defined here. When strings with common prefixes are used the longest match
+    wins. Useful for defining non-typeable control code aliases, or as a simple
+    tokenizer.
 
         .enc petscii    ;define an ascii->petscii encoding
         .cdef " @", 32  ;characters
@@ -945,8 +952,10 @@ to map Unicode characters to 8 bit values in strings.
         .cdef "??", $5e
         .cdef $2190, $2190, $1f;left arrow
 
-        .edef "\n", 13  ;escape sequences
+        .edef "\n", 13  ;one byte control codes
         .edef "{clr}", 147
+        .edef "{crlf}", [13, 10];two byte control code
+        .edef "<nothing>", [];replace with no bytes
 
         .text "{clr}Text in PETSCII\n"
 

@@ -46,9 +46,11 @@ void destroy_ternary(void);
    returns the data you passed in. */
 void *ternary_insert (ternary_tree *, const uint8_t *, const uint8_t *, void *, int);
 
+typedef void (*ternary_free_fn_t)(void *);
+
 /* Delete the ternary search tree rooted at P. 
    Does NOT delete the data you associated with the strings. */
-void ternary_cleanup (ternary_tree);
+void ternary_cleanup (ternary_tree, ternary_free_fn_t);
 
 /* Search the ternary tree for string S, returning the data associated
    with it if found. */
