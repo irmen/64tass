@@ -22,6 +22,7 @@
 #include "inttypes.h"
 
 struct encoding_s;
+struct value_s;
 
 struct trans_s {
     uint32_t start;
@@ -35,12 +36,14 @@ struct escape_s {
     uint8_t code;
 };
 
+extern struct encoding_s *actual_encoding;
 
 extern struct encoding_s *new_encoding(const str_t *);
 extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
 extern uint16_t find_trans(uint32_t, struct encoding_s *);
 extern struct escape_s *new_escape(const uint8_t *, const uint8_t *, uint8_t, struct encoding_s *);
 extern uint32_t find_escape(const uint8_t *, const uint8_t *, struct encoding_s *);
+extern uint_fast16_t petascii(size_t *, const struct value_s *);
 extern void init_encoding(int);
 extern void destroy_encoding(void);
 #endif

@@ -29,12 +29,10 @@ extern void init_eval(void);
 extern void eval_enter(void);
 extern void eval_leave(void);
 extern int eval_finish(void);
-extern uint_fast16_t petascii(size_t *, const struct value_s *);
 extern size_t get_label(void);
 extern struct value_s *get_vals_tuple(void);
 extern ival_t indexoffs(const struct value_s *, size_t);
 extern void touch_label(struct label_s *);
-extern struct encoding_s *actual_encoding;
 
 struct values_s {
     struct value_s *val;

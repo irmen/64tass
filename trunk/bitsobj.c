@@ -23,6 +23,7 @@
 #include "eval.h"
 #include "isnprintf.h"
 #include "misc.h"
+#include "encoding.h"
 
 static struct obj_s obj;
 
