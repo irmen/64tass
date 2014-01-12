@@ -63,8 +63,6 @@ double hypot(double, double);
 inline double hypot(double a, double b) {return sqrt(a*a+b*b);}
 #endif
 
-struct encoding_s *actual_encoding;
-
 size_t get_label(void) {
     uint8_t ch;
     struct linepos_s e;
@@ -211,25 +209,6 @@ static void get_float(struct value_s *v) {
     }
     lpoint.pos += len;
     return get_exponent2(v);
-}
-
-uint_fast16_t petascii(size_t *i, const struct value_s *v) {
-    uint32_t ch, rc2;
-    const uint8_t *text = v->u.str.data + *i;
-    uint16_t rc;
-
-    rc2 = find_escape(text, v->u.str.data + v->u.str.len, actual_encoding);
-    if (rc2) {
-        *i = (rc2 >> 8) + text - v->u.str.data;
-        return rc2 & 0xff;
-    }
-    ch = text[0];
-    if (ch & 0x80) (*i) += utf8in(text, &ch); else (*i)++;
-    rc = find_trans(ch, actual_encoding);
-    if (rc < 256) return rc;
-    err_msg(ERROR___UNKNOWN_CHR, &ch);
-    ch = 0;
-    return ch;
 }
 
 static void get_string(struct value_s *v) {

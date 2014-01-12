@@ -22,6 +22,7 @@
 #include "intobj.h"
 #include "eval.h"
 #include "misc.h"
+#include "encoding.h"
 
 #include "strobj.h"
 #include "boolobj.h"

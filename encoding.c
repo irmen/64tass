@@ -21,6 +21,9 @@
 #include "string.h"
 #include "ternary.h"
 #include "misc.h"
+#include "values.h"
+
+struct encoding_s *actual_encoding;
 
 struct encoding_s {
     str_t name;
@@ -631,6 +634,25 @@ static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
         tmp2.offset = t[i].offset;
         new_trans(&tmp2, tmp);
     }
+}
+
+uint_fast16_t petascii(size_t *i, const struct value_s *v) {
+    uint32_t ch, rc2;
+    const uint8_t *text = v->u.str.data + *i;
+    uint16_t rc;
+
+    rc2 = find_escape(text, v->u.str.data + v->u.str.len, actual_encoding);
+    if (rc2) {
+        *i = (rc2 >> 8) + text - v->u.str.data;
+        return rc2 & 0xff;
+    }
+    ch = text[0];
+    if (ch & 0x80) (*i) += utf8in(text, &ch); else (*i)++;
+    rc = find_trans(ch, actual_encoding);
+    if (rc < 256) return rc;
+    err_msg(ERROR___UNKNOWN_CHR, &ch);
+    ch = 0;
+    return ch;
 }
 
 void init_encoding(int toascii)
