@@ -1092,8 +1092,9 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
     uval_t uv = 0;
     int bits = 0;
     size_t i = 0, j = 0, sz;
-    digit_t *d, tmp[2];
+    digit_t *d;
     const uint8_t *b;
+    struct value_s tmp;
 
     if (!v1->u.bytes.len) {
         v->obj = INT_OBJ;
@@ -1104,10 +1105,7 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
     }
     sz = (v1->u.bytes.len * 8 + SHIFT - 1) / SHIFT;
     if (v1->u.bytes.len > (((size_t)~0) - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
-    if (sz > 2) {
-        d = (digit_t *)malloc(sz * sizeof(digit_t));
-        if (!d || sz > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
-    } else d = tmp;
+    d = inew(&tmp, sz);
 
     b = v1->u.bytes.data;
     while (v1->u.bytes.len > i) {
@@ -1129,7 +1127,7 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
     if (v == v1) v->obj->destroy(v);
     if (sz <= 2) {
         memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
-        if (tmp != d) free(d);
+        if (tmp.u.integer.val != d) free(d);
         d = v->u.integer.val;
     }
     v->obj = INT_OBJ;
@@ -1142,8 +1140,9 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
     int bits = 0;
     int inv;
     size_t i = 0, j = 0, sz;
-    digit_t *d, tmp[2];
+    digit_t *d;
     const bdigit_t *b;
+    struct value_s tmp;
 
     if (!v1->u.bits.len) {
         v->obj = INT_OBJ;
@@ -1156,10 +1155,7 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
     inv = v1->u.bits.inv;
     sz = (v1->u.bits.len * 8 * sizeof(bdigit_t) + SHIFT - 1 + (inv && (bdigit_t)~0 == v1->u.bits.data[v1->u.bits.len - 1])) / SHIFT;
     if (v1->u.bits.len > (((size_t)~0) - SHIFT) / 8 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-    if (sz > 2) {
-        d = (digit_t *)malloc(sz * sizeof(digit_t));
-        if (!d || sz > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
-    } else d = tmp;
+    d = inew(&tmp, sz);
 
     b = v1->u.bits.data;
     if (inv) {
@@ -1209,7 +1205,7 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
     if (v == v1) v->obj->destroy(v);
     if (sz <= 2) {
         memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
-        if (tmp != d) free(d);
+        if (tmp.u.integer.val != d) free(d);
         d = v->u.integer.val;
     }
     v->obj = INT_OBJ;
@@ -1218,13 +1214,14 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
 }
 
 int int_from_str(struct value_s *v, const struct value_s *v1) {
-    uint16_t ch;
+    int ch;
 
     if (actual_encoding) {
         uval_t uv = 0;
         int bits = 0;
-        size_t i = 0, j = 0, sz;
-        digit_t *d, tmp[2];
+        size_t j = 0, sz;
+        digit_t *d;
+        struct value_s tmp;
 
         if (!v1->u.str.len) {
             v->obj = INT_OBJ;
@@ -1236,18 +1233,10 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
 
         sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
         if (v1->u.str.len > (((size_t)~0) - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
-        if (sz > 2) {
-            d = (digit_t *)malloc(sz * sizeof(digit_t));
-            if (!d || sz > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
-        } else d = tmp;
+        d = inew(&tmp, sz);
 
-        while (v1->u.str.len > i) {
-            ch = petascii(&i, v1);
-            if (ch > 255) {
-                if (tmp != d) free(d);
-                return 1;
-            }
-
+        petascii(v1);
+        while ((ch = petascii(NULL)) != EOF) {
             uv |= (uint8_t)ch << bits;
             bits += 8;
             if (bits >= SHIFT) {
@@ -1265,7 +1254,7 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
         if (v == v1) v->obj->destroy(v);
         if (sz <= 2) {
             memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
-            if (tmp != d) free(d);
+            if (tmp.u.integer.val != d) free(d);
             d = v->u.integer.val;
         }
         v->obj = INT_OBJ;
@@ -1327,8 +1316,8 @@ size_t int_from_decstr(struct value_s *v, const uint8_t *s) {
                 sz++;
                 if (sz == 2) { 
                     d = (digit_t *)malloc(2 * sizeof(digit_t));
-                    memcpy(d, v->u.integer.val, 2 * sizeof(digit_t));
                     if (!d) err_msg_out_of_memory();
+                    memcpy(d, v->u.integer.val, 2 * sizeof(digit_t));
                 } else if (sz > 2) {
                     d = (digit_t *)realloc(d, sz * sizeof(digit_t));
                     if (!d || sz > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */

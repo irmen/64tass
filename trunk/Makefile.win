@@ -22,24 +22,25 @@ addressobj.o: addressobj.c values.h inttypes.h error.h libtree.h obj.h \
 avl.o: avl.c libtree.h
 bitsobj.o: bitsobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h eval.h \
- isnprintf.h misc.h boolobj.h
+ isnprintf.h misc.h encoding.h
 boolobj.o: boolobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h boolobj.h
 bytesobj.o: bytesobj.c values.h inttypes.h error.h libtree.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
- eval.h isnprintf.h boolobj.h
+ eval.h isnprintf.h misc.h encoding.h boolobj.h
 codeobj.o: codeobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h eval.h \
- mem.h 64tass.h section.h boolobj.h variables.h
+ mem.h 64tass.h section.h variables.h boolobj.h
 encoding.o: encoding.c encoding.h libtree.h inttypes.h error.h ternary.h \
- misc.h
+ misc.h values.h obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h \
+ codeobj.h addressobj.h
 error.o: error.c error.h inttypes.h libtree.h misc.h values.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  file.h variables.h 64tass.h
 eval.o: eval.c eval.h values.h inttypes.h error.h libtree.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  file.h section.h mem.h encoding.h macro.h variables.h 64tass.h misc.h \
- floatobj.h
+ floatobj.h boolobj.h
 file.o: file.c file.h inttypes.h libtree.h values.h error.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  misc.h 64tass.h
@@ -48,7 +49,7 @@ floatobj.o: floatobj.c values.h inttypes.h error.h libtree.h obj.h \
  floatobj.h boolobj.h
 intobj.o: intobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h eval.h \
- misc.h boolobj.h floatobj.h
+ misc.h encoding.h boolobj.h floatobj.h
 isnprintf.o: isnprintf.c isnprintf.h inttypes.h misc.h eval.h values.h \
  error.h libtree.h obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h \
  codeobj.h addressobj.h
@@ -78,7 +79,7 @@ values.o: values.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h boolobj.h
 variables.o: variables.c variables.h libtree.h inttypes.h misc.h values.h \
  error.h obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h \
- addressobj.h
+ addressobj.h 64tass.h file.h
 
 .PHONY: clean
 

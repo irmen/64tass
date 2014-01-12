@@ -570,23 +570,6 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
     return avltree_container_of(b, struct trans_s, node);            //already exists
 }
 
-uint16_t find_trans(uint32_t ch, struct encoding_s *enc)
-{
-    const struct avltree_node *c;
-    const struct trans_s *t;
-    struct trans_s tmp;
-    tmp.start = tmp.end = ch;
-
-    if (!(c = avltree_lookup(&tmp.node, &enc->trans, trans_compare))) {
-        return 256;
-    }
-    t = cavltree_container_of(c, struct trans_s, node);
-    if (tmp.start >= t->start && tmp.end <= t->end) {
-        return (uint8_t)(ch - t->start + t->offset);
-    }
-    return 256;
-}
-
 static struct escape_s *lastes = NULL;
 struct escape_s *new_escape(const uint8_t *s, const uint8_t *end, uint8_t code, struct encoding_s *enc)
 {
@@ -608,16 +591,6 @@ struct escape_s *new_escape(const uint8_t *s, const uint8_t *end, uint8_t code, 
     return b;            //already exists
 }
 
-uint32_t find_escape(const uint8_t *text, const uint8_t *end, struct encoding_s *enc)
-{
-    struct escape_s *t;
-
-    t = (struct escape_s *)ternary_search(enc->escape, text, end);
-    if (!t) return 0;
-
-    return t->code | (t->len << 8);
-}
-
 static void add_esc(const char **s, struct encoding_s *tmp) {
     while (*s) {
         new_escape((uint8_t *)*s + 1, (uint8_t *)*s + 1 + strlen(*s + 1), (uint8_t)*s[0], tmp);
@@ -636,23 +609,41 @@ static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
     }
 }
 
-uint_fast16_t petascii(size_t *i, const struct value_s *v) {
-    uint32_t ch, rc2;
-    const uint8_t *text = v->u.str.data + *i;
-    uint16_t rc;
+int petascii(const struct value_s *v) {
+    uint32_t ch;
+    struct escape_s *e;
+    const struct avltree_node *c;
+    const struct trans_s *t;
+    struct trans_s tmp;
+    static size_t i, len;
+    static const uint8_t *data;
 
-    rc2 = find_escape(text, v->u.str.data + v->u.str.len, actual_encoding);
-    if (rc2) {
-        *i = (rc2 >> 8) + text - v->u.str.data;
-        return rc2 & 0xff;
+    if (v) {
+        i = 0;
+        len = v->u.str.len;
+        data = v->u.str.data;
+        return 0;
     }
-    ch = text[0];
-    if (ch & 0x80) (*i) += utf8in(text, &ch); else (*i)++;
-    rc = find_trans(ch, actual_encoding);
-    if (rc < 256) return rc;
+    if (i >= len) return EOF;
+
+    e = (struct escape_s *)ternary_search(actual_encoding->escape, data + i, data + len);
+    if (e) {
+        i += e->len;
+        return (uint8_t)e->code;
+    }
+    ch = data[i];
+    if (ch & 0x80) i += utf8in(data + i, &ch); else i++;
+    tmp.start = tmp.end = ch;
+
+    c = avltree_lookup(&tmp.node, &actual_encoding->trans, trans_compare);
+    if (c) {
+        t = cavltree_container_of(c, struct trans_s, node);
+        if (tmp.start >= t->start && tmp.end <= t->end) {
+            return (uint8_t)(ch - t->start + t->offset);
+        }
+    }
     err_msg(ERROR___UNKNOWN_CHR, &ch);
-    ch = 0;
-    return ch;
+    return EOF;
 }
 
 void init_encoding(int toascii)

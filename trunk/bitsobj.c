@@ -387,13 +387,14 @@ size_t bits_from_binstr(struct value_s *v, const uint8_t *s) {
 }
 
 int bits_from_str(struct value_s *v, const struct value_s *v1) {
-    uint16_t ch;
+    int ch;
 
     if (actual_encoding) {
         uval_t uv = 0;
         unsigned int bits = 0;
-        size_t i = 0, j = 0, sz;
-        bdigit_t *d, tmp[2];
+        size_t j = 0, sz;
+        bdigit_t *d;
+        struct value_s tmp;
 
         if (!v1->u.str.len) {
             v->obj = BITS_OBJ;
@@ -407,18 +408,10 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
 
         sz = v1->u.str.len / sizeof(bdigit_t);
         if (v1->u.str.len % sizeof(bdigit_t)) sz++;
-        if (sz > 2) {
-            d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-            if (!d || sz > ((size_t)~0) / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-        } else d = tmp;
+        d = bnew(&tmp, sz);
 
-        while (v1->u.str.len > i) {
-            ch = petascii(&i, v1);
-            if (ch > 255) {
-                if (tmp != d) free(d);
-                return 1;
-            }
-
+        petascii(v1);
+        while ((ch = petascii(NULL)) != EOF) {
             uv |= (uint8_t)ch << bits;
             bits += 8;
             if (bits >= 8 * sizeof(bdigit_t)) {
@@ -437,7 +430,7 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
         if (v == v1) v->obj->destroy(v);
         if (sz <= 2) {
             memcpy(v->u.bits.val, d, sz * sizeof(bdigit_t));
-            if (tmp != d) free(d);
+            if (tmp.u.bits.val != d) free(d);
             d = v->u.bits.val;
         }
         v->obj = BITS_OBJ;
@@ -460,7 +453,8 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
 void bits_from_bytes(struct value_s *v, const struct value_s *v1) {
     unsigned int bits = 0;
     size_t i = 0, j = 0, sz;
-    bdigit_t *d, tmp[2], uv = 0;
+    bdigit_t *d, uv = 0;
+    struct value_s tmp;
 
     if (!v1->u.bytes.len) {
         v->obj = BITS_OBJ;
@@ -474,10 +468,7 @@ void bits_from_bytes(struct value_s *v, const struct value_s *v1) {
 
     sz = v1->u.bytes.len / sizeof(bdigit_t);
     if (v1->u.bytes.len % sizeof(bdigit_t)) sz++;
-    if (sz > 2) {
-        d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-        if (!d || sz > ((size_t)~0) / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-    } else d = tmp;
+    d = bnew(&tmp, sz);
 
     while (v1->u.bytes.len > i) {
         uv |= v1->u.bytes.data[i++] << bits;
@@ -496,7 +487,7 @@ void bits_from_bytes(struct value_s *v, const struct value_s *v1) {
     if (v == v1) v->obj->destroy(v);
     if (sz <= 2) {
         memcpy(v->u.bits.val, d, sz * sizeof(bdigit_t));
-        if (tmp != d) free(d);
+        if (tmp.u.bits.val != d) free(d);
         d = v->u.bits.val;
     }
     v->obj = BITS_OBJ;
@@ -1061,9 +1052,10 @@ static void iindex(oper_t op) {
     size_t i, o;
     struct value_s *vv1 = op->v1, *vv2 = op->v2, *vv = op->v;
     bdigit_t *v;
-    bdigit_t uv, tmp[2];
+    bdigit_t uv;
     bdigit_t inv = -vv1->u.bits.inv;
     int bits;
+    struct value_s tmp;
 
     ln = vv1->u.bits.bits;
 
@@ -1074,17 +1066,14 @@ static void iindex(oper_t op) {
         }
         sz = (vv2->u.list.len + 8 * sizeof(bdigit_t) - 1) / (8 * sizeof(bdigit_t));
 
-        if (sz > 2) {
-            v = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-            if (!v || sz > ((size_t)~0) / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-        } else v = tmp;
+        v = bnew(&tmp, sz);
 
         uv = inv;
         bits = sz = 0;
         for (i = 0; i < vv2->u.list.len; i++) {
             offs = indexoffs(vv2->u.list.data[i], ln);
             if (offs < 0) {
-                if (tmp != v) free(v);
+                if (tmp.u.bits.val != v) free(v);
                 if (vv1 == vv) destroy(vv);
                 vv->obj = ERROR_OBJ;
                 vv->u.error.num = ERROR___INDEX_RANGE;
@@ -1108,7 +1097,7 @@ static void iindex(oper_t op) {
         if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
         if (sz <= 2) {
             memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-            if (tmp != v) free(v);
+            if (tmp.u.bits.val != v) free(v);
             v = vv->u.bits.val;
         }
         vv->obj = BITS_OBJ;
@@ -1138,10 +1127,11 @@ static void iindex(oper_t op) {
 
 static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, struct value_s *vv, linepos_t UNUSED(epoint)) {
     size_t ln, bo, wo, bl, wl, sz;
-    bdigit_t uv, tmp[2];
+    bdigit_t uv;
     bdigit_t *v, *v1;
     bdigit_t inv = -vv1->u.bits.inv;
     int bits;
+    struct value_s tmp;
 
     if (step > 0) {
         if (offs > end) offs = end;
@@ -1166,10 +1156,7 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
         wl = ln / (8 * sizeof(bdigit_t));
 
         sz = wl + (bl > 0);
-        if (sz > 2) {
-            v = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-            if (!v || sz > ((size_t)~0) / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-        } else v = tmp;
+        v = bnew(&tmp, sz);
 
         v1 = vv1->u.bits.data + wo;
         if (bo) {
@@ -1189,10 +1176,7 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
     } else {
         sz = ln / 8 / sizeof(bdigit_t);
         if (ln % (8 * sizeof(bdigit_t))) sz++;
-        if (sz > 2) {
-            v = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-            if (!v || sz > ((size_t)~0) / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-        } else v = tmp;
+        v = bnew(&tmp, sz);
 
         uv = inv;
         sz = bits = 0;
@@ -1215,7 +1199,7 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
     if (vv == vv1) vv->obj->destroy(vv);
     if (sz <= 2) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        if (tmp != v) free(v);
+        if (tmp.u.bits.val != v) free(v);
         v = vv->u.bits.val;
     }
     vv->obj = BITS_OBJ;
