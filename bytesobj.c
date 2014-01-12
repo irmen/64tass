@@ -136,10 +136,22 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
     if (len) {
         if (actual_encoding) {
             int ch;
+            if (len < sizeof(v->u.bytes.val)) len = sizeof(v->u.bytes.val);
             s = bnew(&tmp, len);
-            petascii(v1);
-            while ((ch = petascii(NULL)) != EOF) {
-                if (len2 >= len) err_msg_out_of_memory();
+            encode_string(v1);
+            while ((ch = encode_string(NULL)) != EOF) {
+                if (len2 >= len) {
+                    if (tmp.u.bytes.val == s) {
+                        len = 16;
+                        s = (uint8_t *)malloc(len);
+                        memcpy(s, tmp.u.bytes.val, len2);
+                    } else {
+                        len += 1024;
+                        if (len < 1024) err_msg_out_of_memory(); /* overflow */
+                        s = (uint8_t *)realloc(s, len);
+                    }
+                    if (!s) err_msg_out_of_memory();
+                }
                 s[len2++] = ch;
             }
         } else if (v1->u.str.chars == 1) {
@@ -155,10 +167,13 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
         }
     } else s = NULL;
     if (v == v1) STR_OBJ->destroy(v);
-    if (len2 && len2 <= sizeof(v->u.bytes.val)) {
-        memcpy(v->u.bytes.val, s, len2);
+    if (len2 <= sizeof(v->u.bytes.val)) {
+        if (len2) memcpy(v->u.bytes.val, s, len2);
         if (tmp.u.bytes.val != s) free(s);
         s = v->u.bytes.val;
+    } else if (len2 < len) {
+        s = (uint8_t *)realloc(s, len2);
+        if (!s) err_msg_out_of_memory();
     }
     v->obj = BYTES_OBJ;
     v->u.bytes.len = len2;

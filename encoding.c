@@ -22,6 +22,7 @@
 #include "ternary.h"
 #include "misc.h"
 #include "values.h"
+#include "64tass.h"
 
 struct encoding_s *actual_encoding;
 
@@ -36,6 +37,13 @@ struct trans2_s {
     uint16_t start;
     uint16_t end;
     uint8_t offset;
+};
+
+struct escape_s {
+    size_t strlen;
+    size_t len;
+    uint8_t val[4];
+    uint8_t *data;
 };
 
 static struct avltree encoding_tree;
@@ -516,12 +524,18 @@ static int encoding_compare(const struct avltree_node *aa, const struct avltree_
     return arguments.casesensitive ? str_cmp(&a->name, &b->name) : str_casecmp(&a->name, &b->name);
 }
 
+static void escape_free(void *e) {
+    struct escape_s *esc = (struct escape_s *)e;
+    if (esc->data != esc->val) free(esc->data);
+    free(esc);
+}
+
 static void encoding_free(struct avltree_node *aa)
 {
     struct encoding_s *a = avltree_container_of(aa, struct encoding_s, node);
 
     free((char *)a->name.data);
-    ternary_cleanup(a->escape);
+    ternary_cleanup(a->escape, escape_free);
     avltree_destroy(&a->trans, trans_free);
     free(a);
 }
@@ -571,29 +585,99 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
 }
 
 static struct escape_s *lastes = NULL;
-struct escape_s *new_escape(const uint8_t *s, const uint8_t *end, uint8_t code, struct encoding_s *enc)
+int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *enc, linepos_t epoint)
 {
-    struct escape_s *b;
-    struct escape_s *tmp;
+    struct escape_s *b, tmp;
+    struct value_s iter, item, *val2, err;
+    uval_t uval;
+    size_t i, len;
+    uint8_t *odata = NULL, *d;
+
     if (!lastes) {
         lastes = (struct escape_s *)malloc(sizeof(struct escape_s));
         if (!lastes) err_msg_out_of_memory();
     }
-    lastes->len = end - s;
-    lastes->code = code;
-    b = (struct escape_s *)ternary_insert(&enc->escape, s, end, lastes, 0);
+    b = (struct escape_s *)ternary_insert(&enc->escape, v->u.str.data, v->u.str.data + v->u.str.len, lastes, 0);
     if (!b) err_msg_out_of_memory();
-    if (b == lastes) { //new escape
-        tmp = lastes;
-        lastes = NULL;
-        return tmp;
+    if (b != lastes) {
+        odata = b->data;
+        b->data = NULL; /* lock old one */
     }
-    return b;            //already exists
+
+    i = 0;
+    lastes->data = NULL; /* lock new one */
+    len = sizeof(tmp.val);
+    d = tmp.val;
+
+    item.refcount = 0;
+    if (val->obj == STR_OBJ) {
+        struct value_s *tmp2 = val_alloc();
+        bytes_from_str(tmp2, val);
+        tmp2->obj->getiter(tmp2, &iter);
+        val_destroy(tmp2);
+    } else val->obj->getiter(val, &iter);
+
+    while ((val2 = iter.obj->next(&iter, &item))) {
+        switch (val2->obj->type) {
+        default:
+            if (val2->obj->uval(val2, &err, &uval, 8, epoint)) uval = 0;
+            break;
+        case T_NONE:
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+            uval = fixeddig = 0;
+        }
+        if (i >= len) {
+            if (i == sizeof(tmp.val)) {
+                len = 16;
+                d = (uint8_t *)malloc(len);
+                memcpy(d, tmp.val, i);
+            } else {
+                len += 1024;
+                if (len < 1024) err_msg_out_of_memory(); /* overflow */
+                d = (uint8_t *)realloc(d, len);
+            }
+            if (!d) err_msg_out_of_memory();
+        }
+        d[i++] = (uint8_t)uval;
+        val_destroy(val2);
+    }
+    iter.obj->destroy(&iter);
+
+    if (b == lastes) { //new escape
+        if (d == tmp.val) {
+            memcpy(lastes->val, tmp.val, i);
+            d = lastes->val;
+        } else if (i < len) {
+            d = (uint8_t *)realloc(d, i);
+            if (!d) err_msg_out_of_memory();
+        }
+        lastes->strlen = v->u.str.len;
+        lastes->len = i;
+        lastes->data = d; /* unlock new */
+        lastes = NULL;
+        return 0;
+    }
+    b->data = odata; /* unlock old */
+    i = (i != b->len || !!memcmp(d, b->data, i));
+    if (tmp.val != d) free(d);
+    return i;            //already exists
 }
 
-static void add_esc(const char **s, struct encoding_s *tmp) {
+static void add_esc(const char **s, struct encoding_s *enc) {
+    struct value_s tmp, tmp2;
+    struct linepos_s nopoint = {0,0,0};
+    tmp.refcount = 0;
+    tmp.obj = STR_OBJ;
+    tmp2.refcount = 0;
+    tmp2.obj = BYTES_OBJ;
+    tmp2.u.bytes.len = 1;
+    tmp2.u.bytes.data = tmp2.u.bytes.val;
     while (*s) {
-        new_escape((uint8_t *)*s + 1, (uint8_t *)*s + 1 + strlen(*s + 1), (uint8_t)*s[0], tmp);
+        tmp.u.str.data = (uint8_t *)*s + 1;
+        tmp.u.str.len = strlen((char *)tmp.u.str.data);
+        tmp.u.str.chars = tmp.u.str.len;
+        tmp2.u.bytes.val[0] = *s[0];
+        new_escape(&tmp, &tmp2, enc, &nopoint);
         s++;
     }
 }
@@ -609,27 +693,35 @@ static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
     }
 }
 
-int petascii(const struct value_s *v) {
+int encode_string(const struct value_s *v) {
     uint32_t ch;
-    struct escape_s *e;
+    const struct escape_s *e;
     const struct avltree_node *c;
     const struct trans_s *t;
     struct trans_s tmp;
-    static size_t i, len;
-    static const uint8_t *data;
+    static size_t i, j, len, len2;
+    static const uint8_t *data, *data2;
 
     if (v) {
         i = 0;
+        len2 = 0;
         len = v->u.str.len;
         data = v->u.str.data;
         return 0;
     }
+    if (j < len2) {
+        return data2[j++];
+    }
+next:
     if (i >= len) return EOF;
-
     e = (struct escape_s *)ternary_search(actual_encoding->escape, data + i, data + len);
-    if (e) {
-        i += e->len;
-        return (uint8_t)e->code;
+    if (e && e->data) {
+        i += e->strlen;
+        data2 = e->data;
+        len2 = e->len;
+        if (len2 < 1) goto next;
+        j = 1;
+        return e->data[0];
     }
     ch = data[i];
     if (ch & 0x80) i += utf8in(data + i, &ch); else i++;

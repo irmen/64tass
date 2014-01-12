@@ -2104,7 +2104,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     break;
                 }
                 if (prm==CMD_EDEF) { /* .edef */
-                    struct escape_s *t;
                     struct encoding_s *old = actual_encoding;
                     int rc;
                     actual_encoding = NULL;
@@ -2115,8 +2114,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct linepos_s opoint;
                         struct value_s *v;
                         int tryit = 1;
-                        uval_t uval;
-                        struct value_s err;
 
                         actual_encoding = NULL;
                         val = get_val(&epoint);
@@ -2136,25 +2133,19 @@ struct value_s *compile(struct file_list_s *cflist)
                             goto breakerr;
                         }
                         v = val_reference(val);
-                        actual_encoding = NULL;
                         opoint = epoint;
                         val = get_val(&epoint);
-                        actual_encoding = old;
                         if (!val) {err_msg(ERROR______EXPECTED,","); val_destroy(v); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
                              if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                              fixeddig = 0;
                              val_destroy(v);
                         } else if (tryit) {
-                            if (val->obj->uval(val, &err, &uval, 8, &epoint)) {
-                                err_msg_wrong_type(&err, &epoint);
-                                uval = 0;
-                            }
-                            t = new_escape(v->u.str.data, v->u.str.data + v->u.str.len, (uint8_t)uval, actual_encoding);
-                            val_destroy(v);
-                            if (t->code != (uint8_t)uval) {
+                            if (new_escape(v, val, actual_encoding, &epoint)) {
+                                val_destroy(v);
                                 err_msg2(ERROR_DOUBLE_ESCAPE, NULL, &opoint); goto breakerr;
                             }
+                            val_destroy(v);
                         }
                     }
                     eval_finish();

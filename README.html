@@ -1058,11 +1058,16 @@ start without any character or escape definitions, add some as required.
 <dl class="dir">
 <dt><a name="d_cdef">.cdef</a> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, ...]
 <dt><b>.cdef</b> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, ...]
-<dd>Defines a character range, and assigns all characters one by one from the 8&nbsp;bit value.
-The start and end positions are unicode character codes either by numbers or by typing them.
-<dt><a name="d_edef">.edef</a> "&lt;escapetext&gt;", &lt;code&gt; [, "&lt;escapetext&gt;", &lt;code&gt;, ...]
-<dd>Defines an escape sequence, and assigns it to a 8&nbsp;bit value. When using
-common prefixes the longest match wins. Useful for defining non-typeable control code aliases.
+<dd>Assigns characters in a range to single bytes.
+<p>This is a simple single character to byte translation definition. It is
+applied to a range as characters and bytes are usually assigned sequentially.
+The start and end positions are Unicode character codes either by numbers or by
+typing them. Overlapping ranges are not allowed.</p>
+<dt><a name="d_edef">.edef</a> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, ...]
+<dd>Assigns strings to byte sequences as a translated value.
+<p>When these substrings are found in a text they are replaced by bytes defined here.
+When strings with common prefixes are used the longest match wins. Useful for defining
+non-typeable control code aliases, or as a simple tokenizer.</p>
 </dl>
 <pre width=80>
         <b class="k">.enc</b> petscii	<i>;define an ascii->petscii encoding</i>
@@ -1075,8 +1080,10 @@ common prefixes the longest match wins. Useful for defining non-typeable control
         <b class="k">.cdef</b> <span class="s">"&pi;&pi;"</span>, <span>$5e</span>
         <b class="k">.cdef</b> <span>$2190</span>, <span>$2190</span>, <span>$1f</span><i>;left arrow</i>
 
-        <b class="k">.edef</b> <span class="s">"\n"</span>, <span>13</span>  <i>;escape sequences</i>
+        <b class="k">.edef</b> <span class="s">"\n"</span>, <span>13</span>  <i>;one byte control codes</i>
         <b class="k">.edef</b> <span class="s">"{clr}"</span>, <span>147</span>
+        <b class="k">.edef</b> <span class="s">"{crlf}"</span>, [<span>13</span>, <span>10</span>]<i>;two byte control code</i>
+        <b class="k">.edef</b> <span class="s">"&lt;nothing&gt;"</span>, []<i>;replace with no bytes</i>
 
         <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>\n</span>"</span>
 </pre>

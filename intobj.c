@@ -1119,8 +1119,10 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
         }
         i++;
     }
-    if (j >= sz) err_msg_out_of_memory();
-    if (bits) d[j++] = uv & MASK;
+    if (bits) {
+        if (j >= sz) err_msg_out_of_memory();
+        d[j++] = uv & MASK;
+    }
     sz = j;
 
     while (sz && !d[sz - 1]) sz--;
@@ -1182,8 +1184,6 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
                 bits -= SHIFT;
             }
         }
-        if (j >= sz) err_msg_out_of_memory();
-        if (bits) d[j++] = uv & MASK;
     } else {
         while (v1->u.bits.len > i) {
             uv |= b[i] << bits;
@@ -1196,8 +1196,10 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
             }
             i++;
         }
+    }
+    if (bits) {
         if (j >= sz) err_msg_out_of_memory();
-        if (bits) d[j++] = uv & MASK;
+        d[j++] = uv & MASK;
     }
     sz = j;
 
@@ -1219,7 +1221,7 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
     if (actual_encoding) {
         uval_t uv = 0;
         int bits = 0;
-        size_t j = 0, sz;
+        size_t j = 0, sz, osz;
         digit_t *d;
         struct value_s tmp;
 
@@ -1231,35 +1233,63 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
             return 0;
         }
 
-        sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
-        if (v1->u.str.len > (((size_t)~0) - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
+        if (v1->u.str.len <= 2 * SHIFT / 8) sz = 2;
+        else {
+            sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
+            if (v1->u.str.len > (((size_t)~0) - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
+        }
         d = inew(&tmp, sz);
 
-        petascii(v1);
-        while ((ch = petascii(NULL)) != EOF) {
+        encode_string(v1);
+        while ((ch = encode_string(NULL)) != EOF) {
             uv |= (uint8_t)ch << bits;
             bits += 8;
             if (bits >= SHIFT) {
-                if (j >= sz) err_msg_out_of_memory();
+                if (j >= sz) {
+                    if (tmp.u.integer.val == d) {
+                        sz = 16 / sizeof(digit_t);
+                        d = (digit_t *)malloc(sz * sizeof(digit_t));
+                        memcpy(d, tmp.u.bytes.val, j * sizeof(digit_t));
+                    } else {
+                        sz += 1024 / sizeof(digit_t);
+                        if (sz < 1024 / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+                        d = (digit_t *)realloc(d, sz * sizeof(digit_t));
+                    }
+                    if (!d) err_msg_out_of_memory();
+                }
                 d[j++] = uv & MASK;
                 bits -= SHIFT;
                 uv = (uint8_t)ch >> (8 - bits);
             }
         }
-        if (j >= sz) err_msg_out_of_memory();
-        if (bits) d[j++] = uv & MASK;
-        sz = j;
+        if (bits) {
+            if (j >= sz) {
+                sz++;
+                if (sz < 1) err_msg_out_of_memory(); /* overflow */
+                if (tmp.u.integer.val == d) {
+                    d = (digit_t *)malloc(sz * sizeof(digit_t));
+                    memcpy(d, tmp.u.bytes.val, j * sizeof(digit_t));
+                } else d = (digit_t *)realloc(d, sz * sizeof(digit_t));
+                if (!d) err_msg_out_of_memory();
+            }
+            d[j++] = uv & MASK;
+        }
+        osz = j;
 
-        while (sz && !d[sz - 1]) sz--;
+        while (osz && !d[osz - 1]) osz--;
         if (v == v1) v->obj->destroy(v);
-        if (sz <= 2) {
-            memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
+        if (osz <= 2) {
+            memcpy(v->u.integer.val, d, osz * sizeof(digit_t));
             if (tmp.u.integer.val != d) free(d);
             d = v->u.integer.val;
+        } else if (osz < sz) {
+            d = (digit_t *)realloc(d, osz * sizeof(digit_t));
+            if (!d) err_msg_out_of_memory();
         }
+
         v->obj = INT_OBJ;
         v->u.integer.data = d;
-        v->u.integer.len = sz;
+        v->u.integer.len = osz;
         return 0;
     } 
     if (v1->u.str.chars == 1) {

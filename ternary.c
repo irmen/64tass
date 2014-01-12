@@ -121,15 +121,14 @@ void *ternary_insert(ternary_tree *root, const uint8_t *s, const uint8_t *end, v
 }
 
 /* Free the ternary search tree rooted at p. */
-void ternary_cleanup (ternary_tree p)
+void ternary_cleanup(ternary_tree p, ternary_free_fn_t f)
 {
-    if (p)
-    {
-        ternary_cleanup (p->lokid);
-        if (~p->splitchar)
-            ternary_cleanup (p->eqkid);
-        else free(p->eqkid);
-        ternary_cleanup (p->hikid);
+    if (p) {
+        ternary_cleanup(p->lokid, f);
+        if (~p->splitchar) {
+            ternary_cleanup(p->eqkid, f);
+        } else f(p->eqkid);
+        ternary_cleanup(p->hikid, f);
         tern_free((union tern_u *)p);
     }
 }

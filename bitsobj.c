@@ -392,7 +392,7 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
     if (actual_encoding) {
         uval_t uv = 0;
         unsigned int bits = 0;
-        size_t j = 0, sz;
+        size_t j = 0, sz, osz;
         bdigit_t *d;
         struct value_s tmp;
 
@@ -406,36 +406,61 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
             return 0;
         }
 
-        sz = v1->u.str.len / sizeof(bdigit_t);
-        if (v1->u.str.len % sizeof(bdigit_t)) sz++;
+        if (v1->u.str.len <= 2 * sizeof(bdigit_t)) sz = 2;
+        else {
+            sz = v1->u.str.len / sizeof(bdigit_t);
+            if (v1->u.str.len % sizeof(bdigit_t)) sz++;
+        }
         d = bnew(&tmp, sz);
 
-        petascii(v1);
-        while ((ch = petascii(NULL)) != EOF) {
+        encode_string(v1);
+        while ((ch = encode_string(NULL)) != EOF) {
             uv |= (uint8_t)ch << bits;
             bits += 8;
             if (bits >= 8 * sizeof(bdigit_t)) {
-                if (j >= sz) err_msg_out_of_memory();
+                if (j >= sz) {
+                    if (tmp.u.bits.val == d) {
+                        sz = 16 / sizeof(bdigit_t);
+                        d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
+                        memcpy(d, tmp.u.bytes.val, j * sizeof(bdigit_t));
+                    } else {
+                        sz += 1024 / sizeof(bdigit_t);
+                        if (sz < 1024 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
+                        d = (bdigit_t *)realloc(d, sz * sizeof(bdigit_t));
+                    }
+                    if (!d) err_msg_out_of_memory();
+                }
                 d[j++] = uv;
                 bits = uv = 0;
             }
         }
         if (bits) {
-            if (j >= sz) err_msg_out_of_memory();
-            d[j] = uv;
-            sz = j + 1;
-        } else sz = j;
+            if (j >= sz) {
+                sz++;
+                if (sz < 1) err_msg_out_of_memory(); /* overflow */
+                if (tmp.u.bits.val == d) {
+                    d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
+                    memcpy(d, tmp.u.bytes.val, j * sizeof(bdigit_t));
+                } else d = (bdigit_t *)realloc(d, sz * sizeof(bdigit_t));
+                if (!d) err_msg_out_of_memory();
+            }
+            d[j++] = uv;
+        }
+        osz = j;
 
-        while (sz && !d[sz - 1]) sz--;
+        while (osz && !d[osz - 1]) osz--;
         if (v == v1) v->obj->destroy(v);
-        if (sz <= 2) {
-            memcpy(v->u.bits.val, d, sz * sizeof(bdigit_t));
+        if (osz <= 2) {
+            memcpy(v->u.bits.val, d, osz * sizeof(bdigit_t));
             if (tmp.u.bits.val != d) free(d);
             d = v->u.bits.val;
+        } else if (osz < sz) {
+            d = (bdigit_t *)realloc(d, osz * sizeof(bdigit_t));
+            if (!d) err_msg_out_of_memory();
         }
         v->obj = BITS_OBJ;
         v->u.bits.data = d;
-        v->u.bits.len = sz;
+        v->u.bits.len = osz;
         v->u.bits.inv = 0;
         v->u.bits.bits = j * sizeof(bdigit_t) * 8 + bits;
         return 0;
