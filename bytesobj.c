@@ -135,16 +135,11 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
     struct value_s tmp;
     if (len) {
         if (actual_encoding) {
-            size_t i = 0;
-            int16_t ch;
+            int ch;
             s = bnew(&tmp, len);
-            while (len > i) {
-                ch = petascii(&i, v1);
-                if (ch > 255) {
-                    if (tmp.u.bytes.val != s) free(s);
-                    v->obj = NONE_OBJ;
-                    return 1;
-                }
+            petascii(v1);
+            while ((ch = petascii(NULL)) != EOF) {
+                if (len2 >= len) err_msg_out_of_memory();
                 s[len2++] = ch;
             }
         } else if (v1->u.str.chars == 1) {
