@@ -198,8 +198,8 @@ static void calc2(oper_t op) {
                 return;
             }
         case T_TUPLE:
-        case T_LIST: v2->obj->rcalc2(op); return;
-        default: v2->obj->rcalc2(op); return;
+        case T_LIST: return v2->obj->rcalc2(op);
+        default: return obj_oper_error(op);
         }
     }
     switch (v2->obj->type) {
