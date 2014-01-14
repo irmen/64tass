@@ -554,41 +554,90 @@ local   lda #0
 
 Symbols
 
-Named symbols are starting with letters and containing letters, numbers and
-underscores. There are anonymous symbols as well, see below.
+Symbols are used to reference objects. Regularly named, anonymous and local
+symbols are supported. These can be constant or re-definable.
 
-Constant symbols can be created with the equal sign. These are not
-re-definable. Forward referencing to them is allowed as they retain the
-reference to constant objects over compilation passes.
+Scopes are where symbols are stored and looked up. The global scope is always
+defined and it can contain any number of nested scopes.
 
-Symbols in front of code or certain assembler directives are created as
-constant symbols too. They are binded to the object following them.
+Symbols must be uniquely named in a scope, therefore in big programs it's hard
+to come up with useful and easy to type names. That's why local and anonymous
+symbols exists. And grouping certain related symbols into a scope makes sense
+sometimes too.
 
-border  = $d020     ;a constant reference
+Scopes are usually created by .proc and .block directives, but there are a few
+other ways. Symbols in a scope can be accessed by using the dot operator, which
+is applied between the name of the scope and the symbol (e.g.
+myconsts.math.pi).
+
+Regular symbols
+
+Regular symbol names are starting with a letters and containing letters,
+numbers and underscores. There's no restriction on the length of symbol names.
+
+Care must be taken to not use the duplicate names in the same scope when the
+symbol is used as a constant.
+
+Duplicate names in parent scopes are never a problem, they'll just be
+`shadowed'. This could be either good by reducing collisions and gives the
+ability to override `defaults' defined in lower scopes. On the other hand it's
+possible to mix-up the new symbol with a old one by mistake, which is hard to
+notice.
+
+A regular symbol is looked up first in the current scope, then in lower scopes
+until the global scope is reached.
+
 f       .block
 g        .block
-n        nop        ;jump here
+n        nop            ;jump here
          .bend
         .bend
 
-        inc border  ;inc $d020
-        jsr labelref.n
+        jsr f.g.n       ;reference from a scope
+f.x      = 3            ;create x in scope f with value 3
 
-labelref = f.g
+Local symbols
 
-Re-definable symbols can be created by the .var directive. As they don't carry
-their content over from the previous pass it's not possible to use them before
-definition.
+Local symbols have their own scope between two regularly named code symbols and
+are assigned to the code symbol above them.
 
-variabl .var 1
-        .rept 10
-        .byte variabl
-variabl .var variabl+1
-        .next
+Therefore they're easy to reuse without explicit scope declaration directives.
 
-The assembler supports anonymous symbols, also called as forward (+) and
-backward (-) references. `-' means one backward, `--' means two backward, etc.
-also the same for forward, but with `+'.
+Not all regularly named symbols can be scope boundaries just plain code symbol
+ones without anything or an opcode after them (no macros!). Symbols defined as
+procedures, blocks, macros, functions, structs and unions are ignored. Also
+symbols defined by .var or = don't apply, and there are a few more exceptions,
+so stick to using plain code labels.
+
+The name must start with an underscore (_), otherwise the same character
+restrictions apply as for regular symbols. There's no restriction on the length
+of the name.
+
+Care must be taken to not use the duplicate names in the same scope when the
+symbol is used as a constant.
+
+A local symbol is only looked up in it's own scope and nowhere else.
+
+incr    inc ac
+        bne _skip
+        inc ac+1
+_skip   rts
+
+decr    lda ac
+        bne _skip
+        dec ac+1
+_skip   dec ac          ;symbol reused here
+        jmp incr._skip  ;this works too, but is not advised
+
+Anonymous symbols
+
+Anonymous symbols don't have a unique name and are always called as a single
+plus or minus sign. They are also called as forward (+) and backward (-)
+references.
+
+When referencing them `-' means the first backward, `--' means the second
+backwards and so on. It's the same for forward, but with `+'. In expressions it
+may be necessary to put them into brackets.
 
         ldy #4
 -       ldx #0
@@ -607,12 +656,36 @@ also very easy to copy-paste a few lines of code with these references into a
 code fragment already containing similar references. The result is usually a
 long debugging session to find out what went wrong.
 
-These references are also useful in segments, but this can create a nice traps,
-as segments are copied into the code, with the internal references.
+These references are also useful in segments, but this can create a nice trap
+when segments are copied into the code with their internal references.
 
         bne +
         #somemakro      ;let's hope that this segment does
 +       nop             ;not contain forward references...
+
+A anonymous symbols are looked up first in the current scope, then in lower
+scopes until the global scope is reached.
+
+Constant and re-definable symbols
+
+Constant symbols can be created with the equal sign. These are not
+re-definable. Forward referencing to them is allowed as they retain the objects
+over compilation passes.
+
+Symbols in front of code or certain assembler directives are created as
+constant symbols too. They are binded to the object following them.
+
+Re-definable symbols can be created by the .var directive. These are also
+called as variables as they don't carry their content over from the previous
+pass it's not possible to use them before definition.
+
+border  = $d020         ;a constant
+        inc border      ;inc $d020
+variabl .var 1          ;a variable
+        .rept 10
+        .byte variabl
+variabl .var variabl+1  ;increment it
+        .next
 
 Uninitialized memory
 

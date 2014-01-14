@@ -652,46 +652,90 @@ local   <b>lda</b> #<span>0</span>
 
 <h3>Symbols</h3>
 
-<p>Named symbols are starting with letters and containing letters, numbers and
-underscores. There are anonymous symbols as well, see below.</p>
+<p>Symbols are used to reference objects. Regularly named, anonymous and local
+symbols are supported. These can be constant or re-definable.</p>
 
-<p>Constant symbols can be created with the equal sign. These are not
-re-definable. Forward referencing to them is allowed as they retain the
-reference to constant objects over compilation passes.</p>
+<p>Scopes are where symbols are stored and looked up. The global scope is
+always defined and it can contain any number of nested scopes.</p>
 
-<p>Symbols in front of code or certain assembler directives are created as
-constant symbols too. They are binded to the object following them.</p>
+<p>Symbols must be uniquely named in a scope, therefore in big programs it's
+hard to come up with useful and easy to type names. That's why local and anonymous symbols
+exists. And grouping certain related symbols into a scope makes sense sometimes
+too.</p>
+
+<p>Scopes are usually created by <code>.proc</code> and <code>.block</code>
+directives, but there are a few other ways. Symbols in a scope can be accessed
+by using the dot operator, which is applied between the name of the scope and the symbol (e.g. <code>myconsts.math.pi</code>).</p>
+
+<h4>Regular symbols</h4>
+
+<p>Regular symbol names are starting with a letters and containing letters,
+numbers and underscores. There's no restriction on the length of symbol names.</p>
+
+<p>Care must be taken to not use the duplicate names in the same scope when the
+symbol is used as a constant.</p>
+
+<p>Duplicate names in parent scopes are never a problem, they'll just be
+<q>shadowed</q>. This could be either good by reducing collisions and gives the
+ability to override <q>defaults</q> defined in lower scopes. On the other hand
+it's possible to mix-up the new symbol with a old one by mistake, which is hard
+to notice.</p>
+
+<p>A regular symbol is looked up first in the current scope, then in lower scopes
+until the global scope is reached.</p>
 
 <pre width=80>
-border  <b>=</b> <span>$d020</span>     <i>;a constant reference</i>
 f       <b class="k">.block</b>
 g        <b class="k">.block</b>
-n        <b>nop</b>        <i>;jump here</i>
+n        <b>nop</b>            <i>;jump here</i>
 	 <b class="k">.bend</b>
 	<b class="k">.bend</b>
 
-        <b>inc</b> <u>border</u>  <i>;inc $d020</i>
-        <b>jsr</b> <u>labelref</u>.<u>n</u>
-
-labelref <b>=</b> <u>f</u>.<u>g</u>
+        <b>jsr</b> <u>f</u>.<u>g</u>.<u>n</u>       <i>;reference from a scope</i>
+f.x      <b>=</b> <span>3</span>            <i>;create x in scope f with value 3</i>
 </pre>
 
-<p>Re-definable symbols can be created by the <code>.var</code> directive. As
-they don't carry their content over from the previous pass it's not possible to
-use them before definition.</p>
+<h4>Local symbols</h4>
+
+<p>Local symbols have their own scope between two regularly named code symbols
+and are assigned to the code symbol above them.</p>
+
+<p>Therefore they're easy to reuse without explicit scope declaration directives.<p>
+
+<p>Not all regularly named symbols can be scope boundaries just plain code symbol ones
+without anything or an opcode after them (no macros!). Symbols defined as procedures, blocks,
+macros, functions, structs and unions are ignored. Also symbols defined by
+<code>.var</code> or <code>=</code> don't apply, and there are a few more
+exceptions, so stick to using plain code labels.</p>
+
+<p>The name must start with an underscore (<tt>_</tt>), otherwise the same character
+restrictions apply as for regular symbols. There's no restriction on the length of the name.<p>
+
+<p>Care must be taken to not use the duplicate names in the same scope when the
+symbol is used as a constant.</p>
+
+<p>A local symbol is only looked up in it's own scope and nowhere else.</p>
 
 <pre width=80>
-variabl	<b class="k">.var</b> <span>1</span>
-        <b class="k">.rept</b> <span>10</span>
-        <b class="d">.byte</b> <u>variabl</u>
-variabl	<b class="k">.var</b> <u>variabl</u>+<span>1</span>
-	<b class="k">.next</b>
+incr	<b>inc</b> <u>ac</u>
+        <b>bne</b> <u>_skip</u>
+        <b>inc</b> <u>ac</u>+<span>1</span>
+_skip	<b>rts</b>
+
+decr	<b>lda</b> <u>ac</u>
+        <b>bne</b> <u>_skip</u>
+        <b>dec</b> <u>ac</u>+<span>1</span>
+_skip	<b>dec</b> <u>ac</u>          <i>;symbol reused here</i>
+        <b>jmp</b> <u>incr</u>.<u>_skip</u>  <i>;this works too, but is not advised</i>
 </pre>
 
-<p>The assembler supports anonymous symbols, also called as forward (<tt>+</tt>)
-and backward (<tt>-</tt>) references. <q><tt>-</tt></q> means one backward,
-<q><tt>--</tt></q> means two backward, etc. also the same for forward, but with
-<q><tt>+</tt></q>.</p>
+<h4>Anonymous symbols</h4>
+
+<p>Anonymous symbols don't have a unique name and are always called as a single plus or minus sign. They are also called as forward (<tt>+</tt>)
+and backward (<tt>-</tt>) references.<p>
+<p>When referencing them <q><tt>-</tt></q> means the first backward,
+<q><tt>--</tt></q> means the second backwards and so on. It's the same for forward, but with
+<q><tt>+</tt></q>. In expressions it may be necessary to put them into brackets.</p>
 
 <pre width=80>
         <b>ldy</b> #<span>4</span>
@@ -713,12 +757,38 @@ a code fragment already containing similar references. The result is usually a
 long debugging session to find out what went wrong.</p>
 
 <p>These references are also useful in segments, but this can create a nice
-traps, as segments are copied into the code, with the internal references.</p>
+trap when segments are copied into the code with their internal references.</p>
 
 <pre width=80>
 	<b>bne</b> +
         <b class="k">#somemakro</b>      <i>;let's hope that this segment does</i>
 +	<b>nop</b>             <i>;not contain forward references...</i>
+</pre>
+
+<p>A anonymous symbols are looked up first in the current scope, then in lower scopes
+until the global scope is reached.</p>
+
+<h4>Constant and re-definable symbols</h4>
+
+<p>Constant symbols can be created with the equal sign. These are not
+re-definable. Forward referencing to them is allowed as they retain the
+objects over compilation passes.</p>
+
+<p>Symbols in front of code or certain assembler directives are created as
+constant symbols too. They are binded to the object following them.</p>
+
+<p>Re-definable symbols can be created by the <code>.var</code> directive.
+These are also called as variables as they don't carry their content over from
+the previous pass it's not possible to use them before definition.</p>
+
+<pre width=80>
+border  <b>=</b> <span>$d020</span>         <i>;a constant</i>
+        <b>inc</b> <u>border</u>      <i>;inc $d020</i>
+variabl	<b class="k">.var</b> <span>1</span>          <i>;a variable</i>
+        <b class="k">.rept</b> <span>10</span>
+        <b class="d">.byte</b> <u>variabl</u>
+variabl	<b class="k">.var</b> <u>variabl</u>+<span>1</span>  <i>;increment it</i>
+	<b class="k">.next</b>
 </pre>
 
 <h3>Uninitialized memory</h3>

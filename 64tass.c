@@ -9,7 +9,7 @@
     (c) 2000 BiGFooT/BReeZe^2000
 
     6502/65C02/65816/DTV Turbo Assembler  Version 1.4x
-    (c) 2001-2013 Soci/Singular (soci@c64.rulez.org)
+    (c) 2001-2014 Soci/Singular (soci@c64.rulez.org)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@ static struct waitfor_s {
     struct linepos_s epoint;
     address_t addr;
     address_t laddr;
-    struct label_s *label;
+    struct label_s *label, *cheap_label;
     size_t memp, membp;
     struct section_s *section;
     struct value_s *val;
@@ -490,7 +490,7 @@ struct value_s *compile(struct file_list_s *cflist)
     int prm = 0;
     struct value_s *val;
 
-    struct label_s *newlabel = NULL;
+    struct label_s *newlabel = NULL, *oldcheap = NULL;
     size_t newmemp = 0, newmembp = 0;
     struct label_s *tmp2 = NULL, *mycontext;
     address_t oaddr = 0;
@@ -542,8 +542,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     break;
                 }
                 if (mycontext == current_context) {
-                    tmp2 = find_label(&labelname);
-                    if (tmp2) tmp2->shadowcheck = 1;
+                    tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname);
+                    if (tmp2) tmp2->shadowcheck = (labelname.data[0] != '_');
                 }
                 else tmp2 = find_label2(&labelname, mycontext);
                 if (!tmp2) {err_msg_not_defined(&labelname, &epoint); goto breakerr;}
@@ -552,6 +552,9 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 mycontext = tmp2;
                 lpoint.pos++; islabel = 1; epoint = lpoint;
+            }
+            if (!islabel && labelname.len && labelname.data[0] == '_') {
+                mycontext = cheap_context;
             }
             if (here()==':') {islabel = 1; lpoint.pos++;}
             if (!islabel && labelname.len == 3 && (prm=lookup_opcode((const char *)labelname.data))>=0) {
@@ -930,7 +933,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
             }
             if (!islabel) {
-                tmp2 = find_label(&labelname);
+                tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname);
                 if (tmp2) {
                     if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ) {
                         tmp2->shadowcheck = 1;
@@ -942,6 +945,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 int labelexists;
                 if (!islabel && tmp2 && tmp2->parent == current_context && tmp2->strength == strength) {newlabel = tmp2;labelexists = 1;}
                 else newlabel=new_label(&labelname, mycontext, strength, &labelexists);
+                if (labelname.data[0] != '_') {oldcheap = cheap_context;cheap_context = newlabel;}
                 oaddr=current_section->address;
                 if (labelexists) {
                     if (newlabel->defpass == pass) {
@@ -995,7 +999,7 @@ struct value_s *compile(struct file_list_s *cflist)
             if (wht==WHAT_COMMAND) { /* .proc */
                 switch (prm) {
                 case CMD_PROC:
-                    new_waitfor(W_PEND, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
+                    new_waitfor(W_PEND, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;waitfor->cheap_label = oldcheap;
                     if (!newlabel->ref && newlabel->value->u.code.pass) waitfor->skip=0;
                     else {
                         current_context=newlabel;
@@ -1361,6 +1365,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_PEND) { /* .pend */
                     if (waitfor->what==W_PEND) {
                         if (waitfor->skip & 1) {
+                            if (waitfor->cheap_label) cheap_context = waitfor->cheap_label;
                             if (current_context->parent) {
                                 current_context = current_context->parent;
                             } else err_msg2(ERROR______EXPECTED,".proc", &epoint);
@@ -1443,6 +1448,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (close_waitfor(W_BEND)) {
                     } else if (waitfor->what==W_BEND2) {
 			if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
+                        if (waitfor->cheap_label) cheap_context = waitfor->cheap_label;
 			if (current_context->parent) current_context = current_context->parent;
 			else err_msg2(ERROR______EXPECTED,".block", &epoint);
 			close_waitfor(W_BEND2);
@@ -1742,7 +1748,7 @@ struct value_s *compile(struct file_list_s *cflist)
 		    new_waitfor(W_BEND2, &epoint);
                     if (newlabel) {
                         current_context=newlabel;
-                        waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
+                        waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;waitfor->cheap_label = oldcheap;
                         if (newlabel->ref && listing && flist && arguments.source) {
                             int l;
                             if (lastl!=LIST_CODE) {putc('\n',flist);lastl=LIST_CODE;}
@@ -1761,6 +1767,8 @@ struct value_s *compile(struct file_list_s *cflist)
                         sprintf(reflabel, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
                         tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
                         current_context=new_label(&tmpname, mycontext, strength, &labelexists);
+                        waitfor->cheap_label = cheap_context;
+                        cheap_context = current_context;
                         if (!labelexists) {
                             current_context->constant = 1;
                             current_context->requires = 0;
@@ -2281,9 +2289,12 @@ struct value_s *compile(struct file_list_s *cflist)
                                         current_context->file_list = cflist;
                                         current_context->epoint = epoint;
                                     }
+                                    oldcheap = cheap_context;
                                 }
+                                cheap_context = current_context;
                                 compile(cflist2);
                                 current_context = current_context->parent;
+                                cheap_context = oldcheap;
                             } else compile(cflist2);
                             lpoint.line = lin; vline = vlin;
                             star_tree = stree_old;
@@ -2323,7 +2334,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             lpoint.pos++;
                             if (!get_exp(&w,1,cfile)) goto breakerr; /* ellenorizve. */
                             if (!(val = get_vals_tuple())) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
-                            var=new_label(&varname, mycontext, strength, &labelexists);
+                            var=new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
                             if (labelexists) {
                                 if (var->constant) err_msg_double_defined(var, &varname, &epoint);
                                 else {
@@ -2382,7 +2393,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (!here() || here()==';') {bpoint.pos = bpoint.upos = 0; nopos = 0;}
                             else {
                                 int labelexists;
-                                var=new_label(&varname, mycontext, strength, &labelexists);
+                                var=new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
                                 if (labelexists) {
                                     if (var->constant) {
                                         err_msg_double_defined(var, &varname, &epoint);
@@ -2531,7 +2542,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     break;
                 }
                 if (prm==CMD_PROC) {
-                    new_waitfor(W_PEND, &epoint);waitfor->skip=0;waitfor->label = NULL;
+                    new_waitfor(W_PEND, &epoint);waitfor->skip=0;waitfor->label = NULL;waitfor->cheap_label = NULL;
                     err_msg_not_defined(NULL, &epoint);
                     break;
                 }
@@ -2758,8 +2769,11 @@ struct value_s *compile(struct file_list_s *cflist)
                             context->file_list = cflist;
                             context->epoint = epoint;
                         }
+                        oldcheap = cheap_context;
                     }
+                    cheap_context = context;
                     val = macro_recurse(W_ENDM2, val, context, &epoint);
+                    cheap_context = oldcheap;
                 } else if (val->obj == FUNCTION_OBJ) {
                     struct label_s *context;
                     struct value_s *function;
@@ -2776,9 +2790,12 @@ struct value_s *compile(struct file_list_s *cflist)
                         context->file_list = cflist;
                         context->epoint = epoint;
                     }
+                    oldcheap = cheap_context;
+                    cheap_context = context;
                     function = val_reference(val);
                     val = func_recurse(W_ENDF2, function, context, &epoint, cfile, strength);
                     val_destroy(function);
+                    cheap_context = oldcheap;
                 } else val = macro_recurse(W_ENDM2, val, current_context, &epoint);
                 if (val) {
                     if (newlabel) {
@@ -3519,6 +3536,7 @@ int main(int argc, char *argv[]) {
             star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
+            cheap_context=&root_label;
             current_context=&root_label;
             current_section=&root_section;
             reset_section(current_section);
@@ -3582,6 +3600,7 @@ int main(int argc, char *argv[]) {
             star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
+            cheap_context=&root_label;
             current_context=&root_label;
             current_section=&root_section;
             reset_section(current_section);

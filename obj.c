@@ -768,7 +768,7 @@ static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v)
         v->refcount = 0;
         return v;
     } else {
-        struct label_s *l = find_label(&v1->u.ident.name);
+        struct label_s *l = (v1->u.ident.name.data[0] == '_') ? find_label2(&v1->u.ident.name, cheap_context) : find_label(&v1->u.ident.name);
         struct linepos_s epoint;
         if (l) {
             touch_label(l);

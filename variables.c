@@ -24,6 +24,7 @@
 
 struct label_s root_label;
 struct label_s *current_context = &root_label;
+struct label_s *cheap_context = &root_label;
 
 static union label_u {
     struct label_s val;
