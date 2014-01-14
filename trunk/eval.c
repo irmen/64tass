@@ -245,7 +245,7 @@ static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
         v->u.error.u.notdef.down = 1;
         return NULL;
     case T_IDENT: 
-        l = find_label(&v1->u.ident.name);
+        l = (v1->u.ident.name.data[0] == '_') ? find_label2(&v1->u.ident.name, cheap_context) : find_label(&v1->u.ident.name);
         if (l) {
             touch_label(l);
             l->shadowcheck = 1;
