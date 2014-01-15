@@ -777,8 +777,8 @@ static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v)
         }
         epoint = v1->u.ident.epoint;
         v->u.error.u.notdef.ident = v1->u.ident.name;
-        v->u.error.u.notdef.label = current_context;
-        v->u.error.u.notdef.down = 1;
+        v->u.error.u.notdef.down = (v1->u.ident.name.data[0] != '_');
+        v->u.error.u.notdef.label = v->u.error.u.notdef.down ? current_context : cheap_context;
         v->obj = ERROR_OBJ;
         v->u.error.epoint = epoint;
         v->u.error.num = ERROR___NOT_DEFINED;
