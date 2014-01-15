@@ -2790,15 +2790,13 @@ struct value_s *compile(struct file_list_s *cflist)
                         context->file_list = cflist;
                         context->epoint = epoint;
                     }
-                    oldcheap = cheap_context;
-                    cheap_context = context;
                     function = val_reference(val);
                     val = func_recurse(W_ENDF2, function, context, &epoint, cfile, strength);
                     val_destroy(function);
-                    cheap_context = oldcheap;
                 } else val = macro_recurse(W_ENDM2, val, current_context, &epoint);
                 if (val) {
                     if (newlabel) {
+                        cheap_context = oldcheap;
                         newlabel->update_after = 1;
                         var_assign(newlabel, val, 0);
                     }
