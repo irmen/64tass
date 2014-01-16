@@ -16,15 +16,18 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include <string.h>
 #include "variables.h"
 #include "misc.h"
 #include "values.h"
 #include "64tass.h"
 #include "file.h"
+#include "boolobj.h"
 
-struct label_s root_label;
-struct label_s *current_context = &root_label;
-struct label_s *cheap_context = &root_label;
+struct label_s *root_label;
+struct label_s builtin_label;
+struct label_s *current_context;
+struct label_s *cheap_context;
 
 static union label_u {
     struct label_s val;
@@ -36,8 +39,8 @@ static struct labels_s {
     struct labels_s *next;
 } *labels = NULL;
 
-static void var_free(union label_u *val) {
-    //free(val); return;
+static inline void var_free(union label_u *val) {
+//    return free(val);
     val->next = labels_free;
     labels_free = val;
 }
@@ -45,7 +48,7 @@ static void var_free(union label_u *val) {
 static struct label_s *var_alloc(void) {
     struct label_s *val;
     size_t i;
-    //return malloc(sizeof(struct label_s));
+//    return (struct label_s *)malloc(sizeof(struct label_s));
     val = (struct label_s *)labels_free;
     labels_free = labels_free->next;
     if (!labels_free) {
@@ -69,12 +72,6 @@ static void label_free(struct avltree_node *aa)
     free((char *)a->name.data);
     avltree_destroy(&a->members, label_free);
     val_destroy(a->value);
-}
-
-static void label_free2(struct avltree_node *aa)
-{
-    struct label_s *a = avltree_container_of(aa, struct label_s, node);
-    label_free(aa);
     var_free((union label_u *)a);
 }
 
@@ -124,7 +121,7 @@ struct label_s *find_label(const str_t *name) {
     tmp.name = *name;
     tmp.name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
 
-    while (context) {
+    while (context->parent) {
         b=avltree_lookup(&tmp.node, &context->members, label_compare);
         if (b) {
             c = strongest_label(b);
@@ -132,6 +129,8 @@ struct label_s *find_label(const str_t *name) {
         }
         context = context->parent;
     }
+    b=avltree_lookup(&tmp.node, &builtin_label.members, label_compare);
+    if (b) return avltree_container_of(b, struct label_s, node);
     return NULL;
 }
 
@@ -330,7 +329,7 @@ void labelprint(void) {
         if (!(flab=file_open(arguments.label,"wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
     }
     clearerr(flab);
-    labelprint2(&root_label.members, flab);
+    labelprint2(&root_label->members, flab);
     if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
     if (flab != stdout) fclose(flab);
 }
@@ -340,9 +339,31 @@ void init_variables2(struct label_s *label) {
     avltree_init(&label->members);
 }
 
+static struct label_s *new_builtin(const char *ident) {
+    struct linepos_s nopoint = {0,0,0};
+    str_t name;
+    struct label_s *label;
+    int label_exists;
+    name.len = strlen(ident);
+    name.data = (const uint8_t *)ident;
+    label = new_label(&name, &builtin_label, 0, &label_exists);
+    label->constant = 1;
+    label->requires = 0;
+    label->conflicts = 0;
+    label->value = val_alloc();
+    label->file_list = NULL;
+    label->epoint = nopoint;
+    return label;
+}
+
 void init_variables(void)
 {
     size_t i;
+    str_t name;
+    struct label_s *label;
+    int label_exists;
+    struct linepos_s nopoint = {0,0,0};
+
     labels = (struct labels_s *)malloc(sizeof(struct labels_s));
     if (!labels) err_msg_out_of_memory();
     for (i = 0; i < 254; i++) {
@@ -353,20 +374,41 @@ void init_variables(void)
 
     labels_free = &labels->vals[0];
 
-    avltree_init(&root_label.members);
-    root_label.name.len = 8;
-    root_label.name.data = (const uint8_t *)"<global>";
+    avltree_init(&builtin_label.members);
+    builtin_label.name.len = 9;
+    builtin_label.name.data = (const uint8_t *)"<builtin>";
+    builtin_label.constant = 1;
+    builtin_label.defpass = 1;
+    builtin_label.usepass = 1;
+    builtin_label.parent = NULL;
+
+    name.len = 8;
+    name.data = (const uint8_t *)"<global>";
+    root_label = new_label(&name, &builtin_label, 0, &label_exists);
+    root_label->constant = 1;
+    root_label->requires = 0;
+    root_label->conflicts = 0;
+    root_label->value = &none_value;
+    root_label->file_list = NULL;
+    root_label->epoint = nopoint;
+
+    label = new_builtin("True");
+    bool_from_int(label->value, 1);
+
+    label = new_builtin("False");
+    bool_from_int(label->value, 0);
 }
 
 void destroy_variables2(struct label_s *label) {
-    avltree_destroy(&label->members, label_free2);
+    avltree_destroy(&label->members, label_free);
 }
 
 void destroy_variables(void)
 {
     struct labels_s *old;
 
-    avltree_destroy(&root_label.members, label_free);
+    avltree_destroy(&builtin_label.members, label_free);
+    if (lastlb) var_free((union label_u *)lastlb);
 
     while (labels) {
         old = labels;

@@ -16,6 +16,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include <string.h>
 #include "values.h"
 #include "boolobj.h"
 
@@ -43,13 +44,13 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {
-    uint8_t *s = (uint8_t *)malloc(1);
+    uint8_t *s = (uint8_t *)malloc(4 + !v1->u.boolean);
     if (!s) err_msg_out_of_memory();
-    *s = v1->u.boolean + '0';
     v->obj = STR_OBJ;
     v->u.str.data = s;
-    v->u.str.len = 1;
-    v->u.str.chars = 1;
+    v->u.str.len = 4 + !v1->u.boolean;
+    v->u.str.chars = v->u.str.len;
+    memcpy(s, v1->u.boolean ? "True" : "False", v->u.str.len);
     return;
 }
 
