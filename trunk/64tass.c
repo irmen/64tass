@@ -1513,7 +1513,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     pokeb(ch2); sum++;
                                 }
                                 switch (val2->obj->type) {
-                                case T_GAP:ch2 = -1; uninit++; continue;
+                                case T_GAP:ch2 = -1; uninit++; val_destroy(val2); continue;
                                 default:
                                     if (val2->obj->uval(val2, &err, &uval, bits, &epoint)) uval = 0;
                                     ch2 = (uint8_t)uval;
@@ -1587,7 +1587,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             else invalid_getiter(val, &iter);
                             while ((val2 = iter.obj->next(&iter, &item))) {
                                 switch (val2->obj->type) {
-                                case T_GAP: uninit += abs(bits) / 8; continue;
+                                case T_GAP: uninit += abs(bits) / 8; val_destroy(val2); continue;
                                 default:
                                     if (bits >= 0) {
                                         if (val2->obj->uval(val2, &err, &uv, bits, &epoint)) uv = 0;
