@@ -3534,8 +3534,8 @@ int main(int argc, char *argv[]) {
             star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
-            cheap_context=&root_label;
-            current_context=&root_label;
+            cheap_context=root_label;
+            current_context=root_label;
             current_section=&root_section;
             reset_section(current_section);
             init_macro();
@@ -3561,7 +3561,7 @@ int main(int argc, char *argv[]) {
             }
             exitfile();
         }
-        if (fixeddig && pass != 1) shadow_check(&root_label.members);
+        if (fixeddig && pass != 1) shadow_check(&root_label->members);
         if (errors) {status();return 1;}
     } while (!fixeddig || pass==1);
 
@@ -3598,8 +3598,8 @@ int main(int argc, char *argv[]) {
             star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
-            cheap_context=&root_label;
-            current_context=&root_label;
+            cheap_context=root_label;
+            current_context=root_label;
             current_section=&root_section;
             reset_section(current_section);
             init_macro();

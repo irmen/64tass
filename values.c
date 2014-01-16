@@ -110,8 +110,8 @@ static struct values_s {
     struct values_s *next;
 } *values = NULL;
 
-static void value_free(union values_u *val) {
-    //free(val); return;
+static inline void value_free(union values_u *val) {
+//    return free(val);
     val->next = values_free;
     values_free = val;
 }
@@ -119,7 +119,7 @@ static void value_free(union values_u *val) {
 struct value_s *val_alloc(void) {
     struct value_s *val;
     size_t i;
-    //return malloc(sizeof(struct value_s));
+//    return (struct value_s *)malloc(sizeof(struct value_s));
     val = (struct value_s *)values_free;
     values_free = values_free->next;
     if (!values_free) {
