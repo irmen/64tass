@@ -19,6 +19,18 @@
 #ifndef _CODEOBJ_H
 #define _CODEOBJ_H
 
+enum dtype_e {
+    D_DINT = -4,
+    D_LINT = -3,
+    D_INT = -2,
+    D_CHAR = -1,
+    D_NONE = 0,
+    D_BYTE = 1,
+    D_WORD = 2,
+    D_LONG = 3,
+    D_DWORD = 4
+};
+
 extern obj_t CODE_OBJ;
 
 typedef struct {

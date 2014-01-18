@@ -21,6 +21,21 @@
 
 extern obj_t ADDRESS_OBJ;
 
+enum atype_e {
+    A_NONE,          /*       */
+    A_IMMEDIATE,     /* #     */
+    A_XR,            /* ,x    */
+    A_YR,            /* ,y    */
+    A_ZR,            /* ,z    */
+    A_RR,            /* ,r    */
+    A_SR,            /* ,s    */
+    A_DR,            /* ,d    */
+    A_BR,            /* ,b    */
+    A_KR,            /* ,k    */
+    A_I,             /* )     */
+    A_LI,            /* ]     */
+};
+
 typedef uint32_t atype_t;
 typedef struct {
     atype_t type;
