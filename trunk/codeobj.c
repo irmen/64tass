@@ -220,12 +220,12 @@ static void calc2(oper_t op) {
     case T_BITS:
         if (access_check(op->v1, v, &op->epoint)) return;
         op->v1 = val_reference(v1->u.code.addr);
-        if (v == v1 || v == v2) v->obj->destroy(v);
         switch (op->op->u.oper.op) {
         case O_ADD:
         case O_SUB:
             op->v = val_alloc();
             op->v1->obj->calc2(op);
+            if (v == v2) v->obj->destroy(v);
             v->obj = CODE_OBJ; 
             if (v != v1) memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
             v->u.code.addr = op->v;
@@ -235,6 +235,7 @@ static void calc2(oper_t op) {
             return;
         default: break;
         }
+        if (v == v1) v->obj->destroy(v);
         op->v1->obj->calc2(op);
         val_destroy(op->v1);
         op->v1 = v1;
@@ -314,11 +315,11 @@ static void rcalc2(oper_t op) {
     case T_BITS:
         if (access_check(op->v2, v, &op->epoint2)) return;
         op->v2 = val_reference(v2->u.code.addr);
-        if (v == v1 || v == v2) v->obj->destroy(v);
         switch (op->op->u.oper.op) {
         case O_ADD:
             op->v = val_alloc();
             op->v2->obj->rcalc2(op);
+            if (v == v1) v->obj->destroy(v);
             v->obj = CODE_OBJ; 
             if (v2 != v) memcpy(&v->u.code, &v2->u.code, sizeof(v->u.code));
             v->u.code.addr = op->v;
@@ -328,6 +329,7 @@ static void rcalc2(oper_t op) {
             return;
         default: break;
         }
+        if (v == v2) v->obj->destroy(v);
         op->v2->obj->rcalc2(op);
         val_destroy(op->v2);
         op->v2 = v2;
