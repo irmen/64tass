@@ -161,6 +161,7 @@ static void calc2(oper_t op) {
         case T_IDENT:
             l2 = v1->u.code.parent;
             l = find_label2(&v2->u.ident.name, l2);
+            if (v == v1 || v == v2) v->obj->destroy(v);
             if (l) {
                 touch_label(l);
                 l->value->obj->copy(l->value, op->v);
@@ -183,6 +184,7 @@ static void calc2(oper_t op) {
                 ident.len = strlen(idents);
                 l2 = v1->u.code.parent;
                 l = find_label2(&ident, l2);
+                if (v == v1 || v == v2) v->obj->destroy(v);
                 if (l) {
                     touch_label(l);
                     l->value->obj->copy(l->value, op->v);
@@ -208,7 +210,7 @@ static void calc2(oper_t op) {
         if (access_check(op->v2, v, &op->epoint2)) return;
         op->v1 = val_reference(v1->u.code.addr);
         op->v2 = val_reference(v2->u.code.addr);
-        if (v1 == v || v2 == v) v->obj->destroy(v);
+        if (v1 == v || v2 == v) destroy(v);
         op->v1->obj->calc2(op);
         val_destroy(op->v1);
         val_destroy(op->v2);
@@ -304,7 +306,7 @@ static void rcalc2(oper_t op) {
         if (access_check(op->v2, v, &op->epoint2)) return;
         op->v1 = val_reference(v1->u.code.addr);
         op->v2 = val_reference(v2->u.code.addr);
-        if (v1 == v || v2 == v) v->obj->destroy(v);
+        if (v1 == v || v2 == v) destroy(v);
         op->v2->obj->rcalc2(op);
         val_destroy(op->v1);
         val_destroy(op->v2);
