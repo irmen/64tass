@@ -575,6 +575,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
             default:
                 err_msg_invalid_oper(op2, v1->val, NULL, &o_out->epoint);
                 val_replace(&v1->val, &none_value); 
+            case T_ERROR:
             case T_NONE:break;
             }
             v1->epoint = o_out->epoint;
@@ -641,11 +642,13 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     continue;
                 }
             default: err_msg_invalid_oper(op2, v2->val, v1->val, &o_out->epoint);
+            case T_ERROR:
             case T_NONE:break;
             }
             break;
         default:
             err_msg_invalid_oper(op2, v2->val, v1->val, &o_out->epoint);
+        case T_ERROR:
         case T_NONE:break;
         }
         vsp--; val_replace(&v2->val, &none_value); continue;
@@ -1097,6 +1100,7 @@ static void functions(struct values_s *vals, unsigned int args) {
     default:
         err_msg_invalid_oper(&o_FUNC, vals->val, NULL, &vals->epoint);
         val_replace(&vals->val, &none_value);
+    case T_ERROR:
     case T_NONE: break;
     }
 }
@@ -1186,6 +1190,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
         break;
     default: err_msg_invalid_oper(&o_INDEX, vals->val, NULL, &vals->epoint);
              break;
+    case T_ERROR:
     case T_NONE: return;
     }
     val_replace(&vals->val, &none_value);
@@ -1287,6 +1292,7 @@ static void slices(struct values_s *vals, unsigned int args) {
         return;
     default: err_msg_invalid_oper(&o_SLICE, vals->val, NULL, &vals->epoint);
              val_replace(&vals->val, &none_value);
+    case T_ERROR:
     case T_NONE: return;
     }
     return;
@@ -1520,6 +1526,7 @@ static int get_val2(struct eval_context_s *ev) {
             default: err_msg_invalid_oper(&o_COND, values[vsp-1].val, NULL, &values[vsp-1].epoint); 
                      val_replace(&values[vsp-1].val, &none_value);
                      continue;
+            case T_ERROR:
             case T_NONE: continue;
             }
         case O_QUEST:
@@ -1544,8 +1551,8 @@ static int get_val2(struct eval_context_s *ev) {
                     val_set_template(&v1->val, &new_value);
                     v2->val = &none_value;
                     continue;
-                case T_NONE:
                 case T_ERROR:
+                case T_NONE:
                     val_replace(&v1->val, v2->val);
                     continue;
                 }
@@ -1655,8 +1662,8 @@ static int get_val2(struct eval_context_s *ev) {
                         val_replace(&v1->val, truth ? v2->val : &false_value);
                     }
                     continue;
-                case T_NONE:
                 case T_ERROR:
+                case T_NONE:
                     val_replace(&v1->val, v2->val);
                     continue;
                 }
