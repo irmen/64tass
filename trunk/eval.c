@@ -2116,7 +2116,7 @@ struct value_s *get_vals_tuple(void) {
             if (i == 1) vals[0] = retval;
             vals[i] = val;
         } else retval = val;
-        eval->values->val = &none_value;
+        if (val == eval->values->val) eval->values->val = &none_value;
         i++;
     }
     eval_finish();
