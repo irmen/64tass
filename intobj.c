@@ -388,6 +388,7 @@ static void iadd(const struct value_s *vv1, const struct value_s *vv2, struct va
         free(v);
         v = vv->u.integer.val;
     }
+    if (vv == vv1 || vv == vv2) destroy(vv);
     vv->u.integer.data = v;
     vv->u.integer.len = i;
 }
@@ -423,6 +424,7 @@ static void isub(const struct value_s *vv1, const struct value_s *vv2, struct va
             v1 = vv1->u.integer.data; v2 = vv2->u.integer.data;
             while (i && v1[i - 1] == v2[i - 1]) i--;
             if (!i) {
+                if (vv == vv1 || vv == vv2) destroy(vv);
                 vv->u.integer.len = 0;
                 vv->u.integer.val[0] = 0;
                 vv->u.integer.data = vv->u.integer.val;
@@ -454,6 +456,7 @@ static void isub(const struct value_s *vv1, const struct value_s *vv2, struct va
         free(v);
         v = vv->u.integer.val;
     }
+    if (vv == vv1 || vv == vv2) destroy(vv);
     vv->u.integer.data = v;
     vv->u.integer.len = neg ? -i : i;
 }
