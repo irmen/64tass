@@ -702,44 +702,55 @@ static void error_calc1(oper_t op) {
 }
 
 static void error_calc2(oper_t op) {
-    if (op->v == op->v1) return;
-    error_copy(op->v1, op->v);
+    struct value_s *v = op->v;
+    if (v == op->v1) return;
+    if (v == op->v2) v->obj->destroy(v);
+    error_copy(op->v1, v);
 }
 
 static void error_rcalc2(oper_t op) {
-    if (op->v == op->v2) return;
-    error_copy(op->v2, op->v);
+    struct value_s *v = op->v;
+    if (v == op->v2) return;
+    if (v == op->v1) v->obj->destroy(v);
+    error_copy(op->v2, v);
 }
 
 static int MUST_CHECK error_ival(const struct value_s *v1, struct value_s *v, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    if (v == v1) return 1;
     error_copy(v1, v);
     return 1;
 }
 
 static int MUST_CHECK error_uval(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(uv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    if (v == v1) return 1;
     error_copy(v1, v);
     return 1;
 }
 
 static int MUST_CHECK error_real(const struct value_s *v1, struct value_s *v, double *UNUSED(r), linepos_t UNUSED(epoint)) {
+    if (v == v1) return 1;
     error_copy(v1, v);
     return 1;
 }
 
 static int MUST_CHECK error_sign(const struct value_s *v1, struct value_s *v, int *UNUSED(s), linepos_t UNUSED(epoint)) {
+    if (v == v1) return 1;
     error_copy(v1, v);
     return 1;
 }
 
 static void error_abs(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    if (v == v1) return;
     error_copy(v1, v);
 }
 
 static void error_integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    if (v == v1) return;
     error_copy(v1, v);
 }
 
 static int MUST_CHECK error_len(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(len), linepos_t UNUSED(epoint)) {
+    if (v == v1) return 1;
     error_copy(v1, v);
     return 1;
 }
