@@ -1817,7 +1817,7 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
         case '"':
         case '\'': val = push(&epoint);get_string(val);goto other;
         case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
-        case '?': lpoint.pos++;val = push(&epoint);val->obj = GAP_OBJ;goto other;
+        case '?': lpoint.pos++;push_oper(&gap_value, &epoint);goto other;
         case '.': if ((uint8_t)(pline[lpoint.pos+1] ^ 0x30) < 10) goto pushfloat; goto tryanon;
         case 0:
         case ';': 
