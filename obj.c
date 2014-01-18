@@ -872,8 +872,7 @@ static int MUST_CHECK ident_len(const struct value_s *v1, struct value_s *v, uva
     return v1->obj->len(v1, v, uv, epoint);
 }
 
-static int none_hash(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    if (v == v1) obj_destroy(v);
+static int none_hash(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
     return -1;
 }
@@ -887,6 +886,7 @@ static void none_calc2(oper_t op) {
         ERROR_OBJ->rcalc2(op);
         return;
     }
+    if (op->v == op->v2) op->v->obj->destroy(op->v);
     op->v->obj = NONE_OBJ;
 }
 
@@ -895,61 +895,46 @@ static void none_rcalc2(oper_t op) {
         ERROR_OBJ->calc2(op);
         return;
     }
+    if (op->v == op->v1) op->v->obj->destroy(op->v);
     op->v->obj = NONE_OBJ;
 }
 
-static int MUST_CHECK none_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->ival(v1, v, iv, bits, epoint);
-    }
+static int MUST_CHECK none_ival(const struct value_s *UNUSED(v1), struct value_s *v, ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    v->obj = NONE_OBJ;
     *iv = 0;
-    return 0;
+    return 1;
 }
 
-static int MUST_CHECK none_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->uval(v1, v, uv, bits, epoint);
-    }
+static int MUST_CHECK none_uval(const struct value_s *UNUSED(v1), struct value_s *v, uval_t *uv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+    v->obj = NONE_OBJ;
     *uv = 0;
-    return 0;
+    return 1;
 }
 
-static int MUST_CHECK none_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->real(v1, v, r, epoint);
-    }
+static int MUST_CHECK none_real(const struct value_s *UNUSED(v1), struct value_s *v, double *r, linepos_t UNUSED(epoint)) {
+    v->obj = NONE_OBJ;
     *r = 0.0;
-    return 0;
+    return 1;
 }
 
-static int MUST_CHECK none_sign(const struct value_s *v1, struct value_s *v, int *s, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->sign(v1, v, s, epoint);
-    }
+static int MUST_CHECK none_sign(const struct value_s *UNUSED(v1), struct value_s *v, int *s, linepos_t UNUSED(epoint)) {
+    v->obj = NONE_OBJ;
     *s = 0;
-    return 0;
+    return 1;
 }
 
-static void none_abs(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->abs(v1, v, epoint);
-    }
+static void none_abs(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
 }
 
-static void none_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->abs(v1, v, epoint);
-    }
+static void none_integer(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
 }
 
-static int MUST_CHECK none_len(const struct value_s *v1, struct value_s *v, uval_t *len, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->len(v1, v, len, epoint);
-    }
+static int MUST_CHECK none_len(const struct value_s *UNUSED(v1), struct value_s *v, uval_t *len, linepos_t UNUSED(epoint)) {
+    v->obj = NONE_OBJ;
     *len = 0;
-    return 0;
+    return 1;
 }
 
 static int lbl_same(const struct value_s *v1, const struct value_s *v2) {
