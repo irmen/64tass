@@ -69,6 +69,10 @@ typedef uint32_t uval_t;
 #define PRIuval PRIu32
 #define PRIXval PRIX32
 
+#ifndef SSIZE_MAX
+# define SSIZE_MAX ((ssize_t)(SIZE_MAX / 2))
+#endif
+
 #ifdef UNUSED
 #elif defined(__GNUC__)
 # define UNUSED(x) UNUSED_ ## x __attribute__((unused))
