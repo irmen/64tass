@@ -226,6 +226,7 @@ extern int pair_compare(const struct avltree_node *, const struct avltree_node *
 extern struct value_s none_value;
 extern struct value_s true_value;
 extern struct value_s false_value;
+extern struct value_s gap_value;
 extern struct value_s null_str;
 extern struct value_s null_bytes;
 extern struct value_s null_bits;

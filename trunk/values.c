@@ -28,6 +28,7 @@
 struct value_s none_value;
 struct value_s true_value;
 struct value_s false_value;
+struct value_s gap_value;
 struct value_s null_str;
 struct value_s null_bytes;
 struct value_s null_bits;
@@ -240,6 +241,8 @@ void init_values(void)
     false_value.obj = BOOL_OBJ;
     false_value.refcount = 0;
     false_value.u.boolean = 0;
+    gap_value.obj = GAP_OBJ;
+    gap_value.refcount = 0;
     null_str.obj = STR_OBJ;
     null_str.refcount = 0;
     null_str.u.str.len = 0;
