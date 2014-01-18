@@ -29,6 +29,13 @@ struct values_s;
 #define obj_same(v, v2) v->obj->same(v, v2)
 #define obj_hash(v, v2, epoint) v->obj->hash(v, v2, epoint)
 
+struct pair_s {
+    int hash;
+    struct value_s *key;
+    struct value_s *data;
+    struct avltree_node node;
+};
+
 typedef struct {
     struct value_s *key;
     struct value_s *data;

@@ -104,40 +104,6 @@ enum oper_e {
     O_COLON          /* :     */
 };
 
-enum dtype_e {
-    D_DINT = -4,
-    D_LINT = -3,
-    D_INT = -2,
-    D_CHAR = -1,
-    D_NONE = 0,
-    D_BYTE = 1,
-    D_WORD = 2,
-    D_LONG = 3,
-    D_DWORD = 4
-};
-
-enum atype_e {
-    A_NONE,          /*       */
-    A_IMMEDIATE,     /* #     */
-    A_XR,            /* ,x    */
-    A_YR,            /* ,y    */
-    A_ZR,            /* ,z    */
-    A_RR,            /* ,r    */
-    A_SR,            /* ,s    */
-    A_DR,            /* ,d    */
-    A_BR,            /* ,b    */
-    A_KR,            /* ,k    */
-    A_I,             /* )     */
-    A_LI,            /* ]     */
-};
-
-struct pair_s {
-    int hash;
-    struct value_s *key;
-    struct value_s *data;
-    struct avltree_node node;
-};
-
 struct oper_s {
     const struct value_s *op;
     struct value_s *v1;
