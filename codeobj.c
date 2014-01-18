@@ -228,6 +228,7 @@ static void calc2(oper_t op) {
             if (v == v2) v->obj->destroy(v);
             v->obj = CODE_OBJ; 
             if (v != v1) memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
+            else val_destroy(v->u.code.addr);
             v->u.code.addr = op->v;
             val_destroy(op->v1);
             op->v = v;
@@ -322,6 +323,7 @@ static void rcalc2(oper_t op) {
             if (v == v1) v->obj->destroy(v);
             v->obj = CODE_OBJ; 
             if (v2 != v) memcpy(&v->u.code, &v2->u.code, sizeof(v->u.code));
+            else val_destroy(v->u.code.addr);
             v->u.code.addr = op->v;
             val_destroy(op->v2);
             op->v = v;
