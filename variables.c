@@ -23,6 +23,7 @@
 #include "64tass.h"
 #include "file.h"
 #include "boolobj.h"
+#include "obj.h"
 
 struct label_s *root_label;
 struct label_s builtin_label;
@@ -360,7 +361,6 @@ void init_variables(void)
 {
     size_t i;
     str_t name;
-    struct label_s *label;
     int label_exists;
     struct linepos_s nopoint = {0,0,0};
 
@@ -391,12 +391,25 @@ void init_variables(void)
     root_label->value = &none_value;
     root_label->file_list = NULL;
     root_label->epoint = nopoint;
+}
 
-    label = new_builtin("True");
+void init_defaultlabels(void) {
+    struct label_s *label;
+    struct value_s *v;
+
+    label = new_builtin("true");
     bool_from_int(label->value, 1);
 
-    label = new_builtin("False");
+    label = new_builtin("false");
     bool_from_int(label->value, 0);
+
+    label = new_builtin("a");
+    v = label->value;
+    v->obj = REGISTER_OBJ;
+    v->u.reg.val[0] = 'a';
+    v->u.reg.data = v->u.reg.val;
+    v->u.reg.len = 1;
+    v->u.reg.chars = 1;
 }
 
 void destroy_variables2(struct label_s *label) {

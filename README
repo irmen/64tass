@@ -552,6 +552,92 @@ local   lda #0
         ldx #mydata[1]    ;2nd element, 4
         jmp mycode.local  ;address of local label
 
+Addressing modes
+
+Addressing modes are used for determining addressing modes of instructions.
+
+There must be no white space between the comma and the register letter,
+otherwise the operator is not recognized. On the other hand put a space between
+the comma and a single letter symbol in a list to avoid it being recognized as
+an operator.
+
+  Addressing mode operators
+#  immediate
+(  indirect
+[  long indirect
+,b data bank indexed
+,d direct page indexed
+,k program bank indexed
+,r data stack pointer indexed
+,s stack pointer indexed
+,x x register indexed
+,y y register indexed
+,z z register indexed
+
+Parentheses are used for indirection and square brackets for long indirection.
+These operations are only available after instructions and functions to not
+interfere with their normal use in expressions.
+
+Several addressing mode operators can be combined together. Currently the
+complexity is limited to 3 operators. This is enough to describe all addressing
+modes of the supported CPUs.
+
+                Valid addressing mode operator combinations
+#          immediate                             lda #$12
+(addr)     indirect                              lda ($12), jmp ($1234)
+(addr),y   indirect y indexed                    lda ($12),y
+(addr),z   indirect z indexed                    lda ($12),z
+(addr,x)   x indexed indirect                    lda ($12,x), jmp ($1234,x)
+[addr]     long indirect                         lda [$12], jmp [$1234]
+[addr],y   long indirect y indexed               lda [$12],y
+addr,b     data bank indexed                     lda 0,b
+addr,b,x   data bank x indexed                   lda 0,b,x
+addr,b,y   data bank y indexed                   lda 0,b,y
+addr,d     direct page indexed                   lda 0,d
+addr,d,x   direct page x indexed                 lda 0,d,x
+addr,d,y   direct page y indexed                 ldx 0,d,y
+(addr,d)   direct page indirect                  lda ($12,d)
+(addr,d,x) direct page x indexed indirect        lda ($12,d,x)
+(addr,d),y direct page indirect y indexed        lda ($12,d),y
+(addr,d),z direct page indirect z indexed        lda ($12,d),z
+[addr,d]   direct page long indirect             lda [$12,d]
+[addr,d],y direct page long indirect y indexed   lda [$12,d],y
+addr,k     program bank indexed                  jsr 0,k
+(addr,k,x) program bank x indexed indirect       jmp ($1234,k,x)
+addr,r     data stack indexed                    lda 1,r
+(addr,r),y data stack indexed indirect y indexed lda ($12,r),y
+addr,s     stack indexed                         lda 1,s
+(addr,s),y stack indexed indirect y indexed      lda ($12,s),y
+addr,x     x indexed                             lda $12,x
+addr,y     y indexed                             lda $12,y
+
+Some specialities like move instruction bank constants or bit addressing are
+specially handled by their respective instructions only.
+
+The direct page indexed addressing mode is not affected by the .dpage directive
+and always forces the 8 bit address as is. It's only usable for direct/zero
+page instructions.
+
+The data bank indexed addressing mode is not affected by the .databank
+directive and always forces the 16 bit address as is. It's only usable with
+data bank accessing instructions.
+
+The program bank indexed addressing mode is not affected by the current program
+bank and always generates the 16 bit constant value as is. It's only usable
+with jump instructions.
+
+Normally addressing mode operators are used right after instructions. They can
+also be used for defining stack variable symbols when using a 65816, or to
+force a specific addressing modes.
+
+param   = 1,s             ;define a stack variable
+const   = #1              ;immediate constant
+        lda 0,b           ;always "absolute" lda $0000
+        lda param         ;results in lda $01,s
+        lda param+1       ;results in lda $02,s
+        lda (param),y     ;results in lda ($01,s),y
+        ldx const         ;results in ldx #$01
+
 Symbols
 
 Symbols are used to reference objects. Regularly named, anonymous and local
@@ -1779,18 +1865,6 @@ Labels
 The original turbo assembler uses case sensitive labels, use the -C,
 --case-sensitive option to enable this behaviour.
 
-Another thing worth noting is that the original turbo assembler lets you create
-an interesting ambiguous construct using a label called `a'.
-
-        lsr a    ; uses accu ! (or does it really?)
-a
-        jmp a    ; uses the label address
-        .word a  ; uses the label address
-
-If you get a warning like `warning: Possibly incorrectly used A "lsr a"', then
-there is such an ambiguous situation in your code and you should fix it (by
-renaming the label).
-
 Expression evaluation
 
 There are a few differences which can be worked around by the -T,
@@ -2185,8 +2259,6 @@ Warnings
 
 Top of memory exceeded
     compile continues at the bottom ($0000)
-Possibly incorrectly used A
-    do not use `a' as label
 Memory bank exceeded
     compile continues in the next 64 KiB bank, however execution may not
 Possible jmp ($xxff) bug

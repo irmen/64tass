@@ -52,6 +52,7 @@ static struct obj_s default_obj;
 static struct obj_s dict_obj;
 static struct obj_s pair_obj;
 static struct obj_s iter_obj;
+static struct obj_s register_obj;
 
 obj_t MACRO_OBJ = &macro_obj;
 obj_t SEGMENT_OBJ = &segment_obj;
@@ -69,6 +70,7 @@ obj_t DEFAULT_OBJ = &default_obj;
 obj_t DICT_OBJ = &dict_obj;
 obj_t PAIR_OBJ = &pair_obj;
 obj_t ITER_OBJ = &iter_obj;
+obj_t REGISTER_OBJ = &register_obj;
 
 static void error_copy(const struct value_s *, struct value_s *);
 
@@ -199,6 +201,7 @@ static void gap_calc2(oper_t op) {
     case T_ADDRESS:
     case T_BYTES:
     case T_GAP:
+    case T_REGISTER:
         switch (op->op->u.oper.op) {
         case O_EQ: 
             if (v1 == v || v2 == v) v->obj->destroy(v);
@@ -233,6 +236,7 @@ static void gap_rcalc2(oper_t op) {
     case T_ADDRESS:
     case T_BYTES:
     case T_GAP:
+    case T_REGISTER:
         switch (op->op->u.oper.op) {
         case O_EQ: 
             if (v1 == v || v2 == v) v->obj->destroy(v);
@@ -247,6 +251,170 @@ static void gap_rcalc2(oper_t op) {
     case T_LIST:
         v2->obj->calc2(op); return;
     default: break;
+    }
+    obj_oper_error(op);
+}
+
+static int register_hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
+    size_t l = v1->u.reg.len;
+    const uint8_t *s2 = v1->u.reg.data;
+    unsigned int h;
+    if (!l) return 0;
+    h = *s2 << 7;
+    while (l--) h = (1000003 * h) ^ *s2++;
+    h ^= v1->u.reg.len;
+    return h & ((~(unsigned int)0) >> 1);
+}
+
+static void register_destroy(struct value_s *v1) {
+    if (v1->u.reg.val != v1->u.reg.data) free(v1->u.reg.data);
+}
+
+static uint8_t *register_new(struct value_s *v, size_t len) {
+    if (len > sizeof(v->u.reg.val)) {
+        uint8_t *s = (uint8_t *)malloc(len);
+        if (!s) err_msg_out_of_memory();
+        return s;
+    }
+    return v->u.reg.val;
+}
+
+static void register_copy(const struct value_s *v1, struct value_s *v) {
+    uint8_t *s;
+    v->obj = REGISTER_OBJ;
+    v->refcount = 1;
+    v->u.reg.chars = v1->u.reg.chars;
+    v->u.reg.len = v1->u.reg.len;
+    if (v1->u.reg.len) {
+        s = register_new(v, v->u.reg.len);
+        memcpy(s, v1->u.reg.data, v->u.reg.len);
+    } else s = NULL;
+    v->u.reg.data = s;
+}
+
+static void register_copy_temp(const struct value_s *v1, struct value_s *v) {
+    v->obj = REGISTER_OBJ;
+    v->refcount = 1;
+    v->u.reg.chars = v1->u.reg.chars;
+    v->u.reg.len = v1->u.reg.len;
+    if (v1->u.reg.data == v1->u.reg.val) {
+        v->u.reg.data = v->u.reg.val;
+        if (v->u.reg.len) memcpy(v->u.reg.data, v1->u.reg.data, v->u.reg.len);
+    } else v->u.reg.data = v1->u.reg.data;
+}
+
+static void register_repr(const struct value_s *v1, struct value_s *v) {
+    uint8_t *s;
+    v->obj = STR_OBJ;
+    v->u.str.len = v1->u.reg.len;
+    v->u.str.chars = v->u.reg.chars;
+    s = (uint8_t *)malloc(v->u.reg.len);
+    if (!s) err_msg_out_of_memory();
+    memcpy(s, v1->u.reg.data, v1->u.reg.len);
+    v->u.str.data = s;
+}
+
+static void register_calc2(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    int val;
+    switch (v2->obj->type) {
+    case T_REGISTER:
+        switch (op->op->u.oper.op) {
+        case O_CMP:
+            {
+                int h = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len : v2->u.reg.len);
+                if (h) h = (h > 0) - (h < 0);
+                else h = (v1->u.reg.len > v2->u.reg.len) - (v1->u.reg.len < v2->u.reg.len);
+                if (v == v1 || v == v2) register_destroy(v);
+                int_from_int(v, h);
+                return;
+            }
+        case O_EQ:
+            val = (v1->u.reg.len == v2->u.reg.len) && (v1->u.reg.data == v2->u.reg.data || !memcmp(v1->u.reg.data, v2->u.reg.data, v1->u.reg.len));
+            break;
+        case O_NE:
+            val = (v1->u.reg.len != v2->u.reg.len) || (v1->u.reg.data != v2->u.reg.data && memcmp(v1->u.reg.data, v2->u.reg.data, v1->u.reg.len));
+            break;
+        case O_LT:
+        case O_GT:
+        case O_LE:
+        case O_GE:
+            val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len : v2->u.reg.len);
+            switch (op->op->u.oper.op) {
+            case O_LT: val = val ? (val < 0) : (v1->u.reg.len < v2->u.reg.len); break;
+            case O_GT: val = val ? (val > 0) : (v1->u.reg.len > v2->u.reg.len); break;
+            case O_LE: val = val ? (val < 0) : (v1->u.reg.len <= v2->u.reg.len); break;
+            case O_GE: val = val ? (val > 0) : (v1->u.reg.len >= v2->u.reg.len); break;
+            default: break;
+            }
+            break;
+        default: obj_oper_error(op);
+            return;
+        }
+        if (v == v1 || v == v2) register_destroy(v);
+        bool_from_int(v, val);
+        return;
+    case T_STR:
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_CODE:
+    case T_ADDRESS:
+    case T_BYTES:
+    case T_GAP:
+        switch (op->op->u.oper.op) {
+        case O_EQ: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, 0); return;
+        case O_NE: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, 1); return;
+        default: break;
+        }
+        break;
+    case T_TUPLE:
+    case T_LIST:
+    case T_IDENT:
+    case T_ANONIDENT:
+        if (op->op != &o_MEMBER) {
+            v2->obj->rcalc2(op); return;
+        }
+    default: break;
+    }
+    obj_oper_error(op);
+}
+
+static void register_rcalc2(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    switch (v1->obj->type) {
+    case T_STR:
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_CODE:
+    case T_ADDRESS:
+    case T_BYTES:
+    case T_GAP:
+        switch (op->op->u.oper.op) {
+        case O_EQ: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, 0); return;
+        case O_NE: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, 1); return;
+        default: break;
+        }
+        break;
+    case T_TUPLE:
+    case T_LIST:
+        v2->obj->calc2(op); return;
+    default:
+    case T_REGISTER:
+        if (op->op != &o_IN) {
+            return v1->obj->calc2(op);
+        }
     }
     obj_oper_error(op);
 }
@@ -1137,5 +1305,13 @@ void objects_init(void) {
     obj_init(&iter_obj, T_ITER, "<iter>");
     iter_obj.destroy = iter_destroy;
     iter_obj.next = iter_next;
+    obj_init(&register_obj, T_REGISTER, "<register>");
+    register_obj.destroy = register_destroy;
+    register_obj.copy = register_copy;
+    register_obj.copy_temp = register_copy_temp;
+    register_obj.hash = register_hash;
+    register_obj.repr = register_repr;
+    register_obj.calc2 = register_calc2;
+    register_obj.rcalc2 = register_rcalc2;
 };
 

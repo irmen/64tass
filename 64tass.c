@@ -2832,19 +2832,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (!(wht=here()) || wht==';') {
                         opr=(cnmemonic[ADR_ACCU]==cnmemonic[ADR_IMPLIED])?ADR_ACCU:ADR_IMPLIED;w=ln=0;d=1;
                     }  /* clc */
-                    /* 1 Db */
-                    else if ((wht == 'a' || (!arguments.casesensitive && wht=='A')) && cnmemonic[ADR_ACCU]!=____ && (!pline[lpoint.pos+1] || pline[lpoint.pos+1]==';' || pline[lpoint.pos+1]==0x20 || pline[lpoint.pos+1]==0x09))
-                    {
-                        static const str_t alabel = {1, (const uint8_t *)"a"};
-                        struct linepos_s opoint = lpoint;
-                        lpoint.pos++;ignore();
-                        if (here() && here()!=';') {lpoint=opoint;goto nota;}
-                        if (find_label(&alabel)) err_msg(ERROR_A_USED_AS_LBL,NULL);
-                        opr=ADR_ACCU;w=ln=0;d=1;/* asl a */
-                    }
-                    /* 2 Db */
                     else {
-                    nota:
                         if (!get_exp(&w, 3,cfile)) goto breakerr; /* ellenorizve. */
                         if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
@@ -2989,6 +2977,9 @@ struct value_s *compile(struct file_list_s *cflist)
                                 goto noneaddr;
                             default:w = 0;break; /* non-existing */
                             }
+                        } else if (val->obj == REGISTER_OBJ && val->u.reg.len == 1 && val->u.reg.data[0] == 'a') {
+                            opr=ADR_ACCU;
+                            w=ln=0; 
                         } else {
                         noneaddr:
                             if (cnmemonic[ADR_MOVE]!=____) {
@@ -3517,6 +3508,7 @@ int main(int argc, char *argv[]) {
     fin = openfile("", "", 0, NULL);
     opts = testarg(argc,argv, fin);
     init_encoding(arguments.toascii);
+    init_defaultlabels();
 
     if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1]))
         puts("64tass Turbo Assembler Macro V" VERSION "\n"
