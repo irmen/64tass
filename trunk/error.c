@@ -130,7 +130,6 @@ static void addorigin(struct file_list_s *cflist, linepos_t lpoint2) {
 
 static const char *terr_warning[]={
     "top of memory exceeded",
-    "possibly incorrectly used a",
     "memory bank exceeded",
     "possible jmp ($xxff) bug",
     "long branch used",

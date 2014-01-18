@@ -600,6 +600,7 @@ static void calc2(oper_t op) {
     case T_IDENT:
     case T_ANONIDENT:
     case T_GAP:
+    case T_REGISTER:
         if (op->op != &o_MEMBER) {
             v2->obj->rcalc2(op); return;
         }

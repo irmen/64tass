@@ -69,11 +69,18 @@ typedef struct {
     struct label_s *parent;
 } macro_t;
 
+typedef struct {
+    size_t len;
+    size_t chars;
+    uint8_t val[4];
+    uint8_t *data;
+} registers_t;
+
 enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST, T_DICT,
     T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL,
-    T_DEFAULT, T_ITER
+    T_DEFAULT, T_ITER, T_REGISTER
 };
 
 enum truth_e {
@@ -130,6 +137,7 @@ extern obj_t DEFAULT_OBJ;
 extern obj_t DICT_OBJ;
 extern obj_t PAIR_OBJ;
 extern obj_t ITER_OBJ;
+extern obj_t REGISTER_OBJ;
 
 extern int referenceit;
 #endif

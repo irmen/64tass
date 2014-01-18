@@ -32,7 +32,7 @@ td:first-child, th:first-child {border-left: 0px;}
 caption {caption-side:bottom;} 
 table.opcodes th, table.opcodes td {text-align:left;table-layout:fixed;}
 table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
-dl.dir dt, table.oper td:first-child, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre {font-family:monospace;font-size:12pt;}
+dl.dir dt, table.oper td:first-child, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, table.adroper td:first-child, table.adroper td:last-child {font-family:monospace;font-size:12pt;}
 a[name] {font-weight:bold;}
 
 thead th {background-color:#eee;border-bottom:1px solid black;}
@@ -648,6 +648,99 @@ local   <b>lda</b> #<span>0</span>
         <b>ldx</b> #<u>mycode</u>[<span>0</span>]    <i>;lda instruction, $a9</i>
         <b>ldx</b> #<u>mydata</u>[<span>1</span>]    <i>;2nd element, 4</i>
         <b>jmp</b> <u>mycode</u>.<u>local</u>  <i>;address of local label</i>
+</pre>
+
+<h3>Addressing modes</h3>
+
+<p>Addressing modes are used for determining addressing modes of
+instructions.</p>
+
+<p>There must be no white space between the comma and the register letter,
+otherwise the operator is not recognized. On the other hand put a space between
+the comma and a single letter symbol in a list to avoid it being recognized
+as an operator.</p>
+
+<table border="0" class="oper">
+<caption>Addressing mode operators</caption>
+<tr><td>#<td>immediate
+<tr><td>(<td>indirect
+<tr><td>[<td>long indirect
+<tr><td>,b<td>data bank indexed
+<tr><td>,d<td>direct page indexed
+<tr><td>,k<td>program bank indexed
+<tr><td>,r<td>data stack pointer indexed
+<tr><td>,s<td>stack pointer indexed
+<tr><td>,x<td>x register indexed
+<tr><td>,y<td>y register indexed
+<tr><td>,z<td>z register indexed
+</table>
+
+<p>Parentheses are used for indirection and square brackets for long
+indirection. These operations are only available after instructions and
+functions to not interfere with their normal use in expressions.</p>
+
+<p>Several addressing mode operators can be combined together. <b>Currently the
+complexity is limited to 3 operators. This is enough to describe all addressing
+modes of the supported CPUs.</b></p>
+
+<table border="0" class="adroper">
+<caption>Valid addressing mode operator combinations</caption>
+<tr><td>#<td>immediate<td>lda #$12
+<tr><td>(addr)<td>indirect<td>lda ($12), jmp ($1234)
+<tr><td>(addr),y<td>indirect y indexed<td>lda ($12),y
+<tr><td>(addr),z<td>indirect z indexed<td>lda ($12),z
+<tr><td>(addr,x)<td>x indexed indirect<td>lda ($12,x), jmp ($1234,x)
+<tr><td>[addr]<td>long indirect<td>lda [$12], jmp [$1234]
+<tr><td>[addr],y<td>long indirect y indexed<td>lda [$12],y
+<tr><td>addr,b<td>data bank indexed<td>lda 0,b
+<tr><td>addr,b,x<td>data bank x indexed<td>lda 0,b,x
+<tr><td>addr,b,y<td>data bank y indexed<td>lda 0,b,y
+<tr><td>addr,d<td>direct page indexed<td>lda 0,d
+<tr><td>addr,d,x<td>direct page x indexed<td>lda 0,d,x
+<tr><td>addr,d,y<td>direct page y indexed<td>ldx 0,d,y
+<tr><td>(addr,d)<td>direct page indirect<td>lda ($12,d)
+<tr><td>(addr,d,x)<td>direct page x indexed indirect<td>lda ($12,d,x)
+<tr><td>(addr,d),y<td>direct page indirect y indexed<td>lda ($12,d),y
+<tr><td>(addr,d),z<td>direct page indirect z indexed<td>lda ($12,d),z
+<tr><td>[addr,d]<td>direct page long indirect<td>lda [$12,d]
+<tr><td>[addr,d],y<td>direct page long indirect y indexed<td>lda [$12,d],y
+<tr><td>addr,k<td>program bank indexed<td>jsr 0,k
+<tr><td>(addr,k,x)<td>program bank x indexed indirect<td>jmp ($1234,k,x)
+<tr><td>addr,r<td>data stack indexed<td>lda 1,r
+<tr><td>(addr,r),y<td>data stack indexed indirect y indexed<td>lda ($12,r),y
+<tr><td>addr,s<td>stack indexed<td>lda 1,s
+<tr><td>(addr,s),y<td>stack indexed indirect y indexed<td>lda ($12,s),y
+<tr><td>addr,x<td>x indexed<td>lda $12,x
+<tr><td>addr,y<td>y indexed<td>lda $12,y
+</table>
+
+<p>Some specialities like move instruction bank constants or bit addressing are
+specially handled by their respective instructions only.</p>
+
+<p>The direct page indexed addressing mode is not affected by the
+<code>.dpage</code> directive and always forces the 8&nbsp;bit address as
+is. It's only usable for direct/zero page instructions.</p>
+
+<p>The data bank indexed addressing mode is not affected by the
+<code>.databank</code> directive and always forces the 16&nbsp;bit address 
+as is. It's only usable with data bank accessing instructions.</p>
+
+<p>The program bank indexed addressing mode is not affected by the
+current program bank and always generates the 16&nbsp;bit constant value as
+is. It's only usable with jump instructions.</p>
+
+<p>Normally addressing mode operators are used right after instructions. They
+can also be used for defining stack variable symbols when using a 65816, or to
+force a specific addressing modes.</p>
+
+<pre width=80>
+param   <b>=</b> <span>1</span>,s             <i>;define a stack variable</i>
+const   <b>=</b> #<span>1</span>              <i>;immediate constant</i>
+        <b>lda</b> <span>0</span>,b           <i>;always "absolute" lda $0000</i>
+        <b>lda</b> <u>param</u>         <i>;results in lda $01,s</i>
+        <b>lda</b> <u>param</u>+<span>1</span>       <i>;results in lda $02,s</i>
+        <b>lda</b> (<u>param</u>),y     <i>;results in lda ($01,s),y</i>
+        <b>ldx</b> <u>const</u>         <i>;results in ldx #$01</i>
 </pre>
 
 <h3>Symbols</h3>
@@ -1971,16 +2064,6 @@ The remaining notable differences are listed here.</p>
 <h3>Labels</h3>
 <p>The original turbo assembler uses case sensitive labels, use the <tt>-C, --case-sensitive</tt>
 option to enable this behaviour.</p>
-<p>Another thing worth noting is that the original turbo assembler lets you create
-an interesting ambiguous construct using a label called <q>a</q>.</p>
-<pre width=80>
-        <b>lsr a</b>    <i>; uses accu ! (or does it really?)</i>
-a
-        <b>jmp</b> <u>a</u>    <i>; uses the label address</i>
-        <b class="d">.word</b> <u>a</u>  <i>; uses the label address</i>
-</pre>
-<p>If you get a warning like <q><tt>warning: Possibly incorrectly used A "lsr a"</tt></q>, then there
-is such an ambiguous situation in your code and you should fix it (by renaming the label).</p>
 
 <h3>Expression evaluation</h3>
 
@@ -2384,8 +2467,6 @@ format of messages is the following:</p>
 <dl>
 <dt>Top of memory exceeded
 <dd>compile continues at the bottom ($0000)
-<dt>Possibly incorrectly used A
-<dd>do not use <q>a</q> as label
 <dt>Memory bank exceeded
 <dd>compile continues in the next 64&nbsp;KiB bank, however execution may not
 <dt>Possible jmp ($xxff) bug

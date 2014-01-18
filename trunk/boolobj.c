@@ -50,7 +50,7 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     v->u.str.data = s;
     v->u.str.len = 4 + !v1->u.boolean;
     v->u.str.chars = v->u.str.len;
-    memcpy(s, v1->u.boolean ? "True" : "False", v->u.str.len);
+    memcpy(s, v1->u.boolean ? "true" : "false", v->u.str.len);
     return;
 }
 

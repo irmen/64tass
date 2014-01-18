@@ -176,6 +176,7 @@ struct value_s {
         } iter;
         double real;
         int boolean;
+        registers_t reg;
     } u;
 };
 

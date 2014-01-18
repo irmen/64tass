@@ -50,7 +50,6 @@ extern unsigned int errors, conderrors, warnings;
 
 enum errors_e {
     ERROR_TOP_OF_MEMORY=0x00,
-    ERROR_A_USED_AS_LBL,
     ERROR___BANK_BORDER,
     ERROR______JUMP_BUG,
     ERROR___LONG_BRANCH,

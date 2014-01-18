@@ -708,6 +708,7 @@ struct value_s *get_val(struct linepos_s *epoint) {/* length in bytes, defined *
     case T_FUNCTION:
     case T_ADDRESS:
     case T_LBL:
+    case T_REGISTER:
         return value->val;
     default:
         err_msg_wrong_type(value->val, &value->epoint);
@@ -967,6 +968,31 @@ static void functions(struct values_s *vals, unsigned int args) {
                 switch (try_resolv(&v[0])) {
                 default:
                     v[0].val->obj->str(v[0].val, &new_value);
+                    val_replace_template(&vals->val, &new_value);
+                    return;
+                case T_NONE: break;
+                }
+            }
+            val_replace(&vals->val, &none_value);
+            return;
+        } 
+        if (len == 8 && !memcmp(name, "register", len)) {
+            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
+            else {
+                switch (try_resolv(&v[0])) {
+                default:
+                    v[0].val->obj->str(v[0].val, &new_value);
+                    if (new_value.obj == STR_OBJ) {
+                        size_t slen, chars;
+                        uint8_t *s;
+                        slen = new_value.u.str.len;
+                        chars = new_value.u.str.chars;
+                        s = new_value.u.str.data;
+                        new_value.obj = REGISTER_OBJ;
+                        new_value.u.reg.len = slen;
+                        new_value.u.reg.chars = chars;
+                        new_value.u.reg.data = s;
+                    }
                     val_replace_template(&vals->val, &new_value);
                     return;
                 case T_NONE: break;

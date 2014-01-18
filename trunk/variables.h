@@ -52,5 +52,6 @@ extern void shadow_check(const struct avltree *);
 extern void destroy_variables(void);
 extern void destroy_variables2(struct label_s *);
 extern void init_variables(void);
+extern void init_defaultlabels(void);
 extern void init_variables2(struct label_s *);
 #endif
