@@ -44,10 +44,10 @@ static void destroy(struct value_s *v1) {
     if (v1->u.integer.val != v1->u.integer.data) free(v1->u.integer.data);
 }
 
-static digit_t *inew(struct value_s *v, size_t len) {
+static digit_t *inew(struct value_s *v, ssize_t len) {
     if (len > 2) {
         digit_t *s = (digit_t *)malloc(len * sizeof(digit_t));
-        if (!s || len > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+        if (!s || len > SSIZE_MAX / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
         return s; 
     }
     return v->u.integer.val;
@@ -117,11 +117,11 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {
-    size_t len = abs(v1->u.integer.len);
+    ssize_t len = abs(v1->u.integer.len);
     int neg = v1->u.integer.len < 0;
     uint8_t *s;
     digit_t ten, r, tdigits[16], *out;
-    size_t slen, i, j, sz;
+    size_t slen, i, j, sz, len2;
     if (len <= 1) {
         char tmp[sizeof(digit_t) * 3];
         if (len) len = sprintf(tmp, neg ? "-%d" : "%d", v1->u.integer.val[0]);
@@ -138,10 +138,10 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     }
 
     sz = 1 + (len * SHIFT / (3 * DSHIFT));
-    if (len > ((size_t)~0) / SHIFT) err_msg_out_of_memory(); /* overflow */
+    if (len > SSIZE_MAX / SHIFT) err_msg_out_of_memory(); /* overflow */
     if (sz > 2) {
         out = (digit_t *)malloc(sz * sizeof(digit_t));
-        if (!out || sz > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+        if (!out || sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
     } else out = tdigits;
 
     for (sz = 0, i = len; i--;) {
@@ -165,10 +165,10 @@ static void repr(const struct value_s *v1, struct value_s *v) {
         ten *= 10;
         slen++;
     }
-    len = sz * DSHIFT;
-    slen += len;
+    len2 = sz * DSHIFT;
+    slen += len2;
     s = (uint8_t *)malloc(slen);
-    if (!s || slen < len || sz > ((size_t)~0) / DSHIFT) err_msg_out_of_memory(); /* overflow */
+    if (!s || slen < len2 || sz > SIZE_MAX / DSHIFT) err_msg_out_of_memory(); /* overflow */
     s += slen;
     for (i = 0; i < sz; i++) {
         r = out[i];
@@ -248,7 +248,7 @@ static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *
 }
 
 static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    size_t i, len1 = abs(v1->u.integer.len);
+    ssize_t i, len1 = abs(v1->u.integer.len);
     double d = 0;
     for (i = 0; i < len1; i++) {
         if (v1->u.integer.len < 0) d -= ldexp((double)v1->u.integer.data[i], i * SHIFT);
@@ -344,7 +344,7 @@ static void calc1(oper_t op) {
 }
 
 static void iadd(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
-    size_t i, len1, len2;
+    ssize_t i, len1, len2;
     digit_t *v1, *v2, *v;
     digit_t c;
     len1 = abs(vv1->u.integer.len);
@@ -367,10 +367,8 @@ static void iadd(const struct value_s *vv1, const struct value_s *vv2, struct va
         const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
-    if ((vv == vv1 || vv == vv2) && vv->u.integer.val != vv->u.integer.data) {
-        vv->u.integer.data = v = (digit_t *)realloc(vv->u.integer.data, (len1 + 1) * sizeof(digit_t));
-    } else v = (digit_t *)malloc((len1 + 1) * sizeof(digit_t));
-    if (!v || (len1 + 1) > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+    if (len1 + 1 < 1) err_msg_out_of_memory(); /* overflow */
+    v = inew(vv, len1 + 1);
     v1 = vv1->u.integer.data; v2 = vv2->u.integer.data;
     for (c = i = 0; i < len2; i++) {
         c += v1[i] + v2[i];
@@ -395,7 +393,7 @@ static void iadd(const struct value_s *vv1, const struct value_s *vv2, struct va
 }
 
 static void isub(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
-    size_t i, len1, len2;
+    ssize_t i, len1, len2;
     digit_t *v1, *v2, *v;
     digit_t c;
     int neg;
@@ -437,12 +435,7 @@ static void isub(const struct value_s *vv1, const struct value_s *vv2, struct va
             len1 = len2 = i;
         }
     }
-    if (len1 > 2) {
-        if ((vv == vv1 || vv == vv2) && vv->u.integer.val != vv->u.integer.data) {
-            vv->u.integer.data = v = (digit_t *)realloc(vv->u.integer.data, len1 * sizeof(digit_t));
-        } else v = (digit_t *)malloc(len1 * sizeof(digit_t));
-        if (!v || len1 > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
-    } else v = vv->u.integer.val;
+    v = inew(vv, len1);
     v1 = vv1->u.integer.data; v2 = vv2->u.integer.data;
     for (c = i = 0; i < len2; i++) {
         c = v1[i] - v2[i] - c;
@@ -466,7 +459,7 @@ static void isub(const struct value_s *vv1, const struct value_s *vv2, struct va
 }
 
 static void imul(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
-    size_t i, j, len1, len2, sz;
+    ssize_t i, j, len1, len2, sz;
     digit_t *v1, *v2, *v;
     len1 = abs(vv1->u.integer.len);
     len2 = abs(vv2->u.integer.len);
@@ -474,7 +467,7 @@ static void imul(const struct value_s *vv1, const struct value_s *vv2, struct va
     if (sz < len2) err_msg_out_of_memory(); /* overflow */
     if (sz > 2) {
         v = (digit_t *)calloc(sz, sizeof(digit_t));
-        if (!v || sz > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory();
+        if (!v || sz > SSIZE_MAX / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory();
     } else {
         twodigits_t c = (twodigits_t)vv1->u.integer.val[0] * vv2->u.integer.val[0];
         v = vv->u.integer.val;
@@ -513,7 +506,7 @@ static void imul(const struct value_s *vv1, const struct value_s *vv2, struct va
 }
 
 static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv, struct value_s *rem) {
-    size_t len1, len2;
+    ssize_t len1, len2;
     int neg, negr;
     len2 = abs(vv2->u.integer.len);
     digit_t *v1, *v2, *v;
@@ -536,7 +529,7 @@ static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct
     negr = (vv1->u.integer.len < 0);
     neg = (negr != (vv2->u.integer.len < 0));
     if (len2 == 1) {
-        int i;
+        ssize_t i;
         twodigits_t r = 0;
         digit_t n = v2[0];
         v = inew(vv, len1);
@@ -564,7 +557,7 @@ static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct
     } else {
         typedef int32_t sdigit_t;
         typedef int64_t stwodigits_t;
-        size_t i;
+        ssize_t i;
         int k, d;
         digit_t wm1, wm2, c, q, r, vtop, *v0, *vk, *w0, *ak, *a;
         twodigits_t vvv;
@@ -572,6 +565,7 @@ static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct
         stwodigits_t z;
         struct value_s tmp1, tmp2, tmp3;
 
+        if (len1 + 1 < 1) err_msg_out_of_memory(); /* overflow */
         v0 = inew(&tmp1, len1 + 1);
         w0 = inew(&tmp2, len2);
 
@@ -672,7 +666,7 @@ static void power(const struct value_s *vv1, const struct value_s *vv2, struct v
 }
 
 static void ilshift(const struct value_s *vv1, const struct value_s *vv2, uval_t s, struct value_s *vv) {
-    size_t i, len1, sz;
+    ssize_t i, len1, sz;
     int word, bit, neg;
     digit_t *v1, *v;
 
@@ -708,7 +702,7 @@ static void ilshift(const struct value_s *vv1, const struct value_s *vv2, uval_t
 }
 
 static void irshift(const struct value_s *vv1, const struct value_s *vv2, uval_t s, struct value_s *vv) {
-    size_t i, sz;
+    ssize_t i, sz;
     int word, bit, neg;
     digit_t *v1, *v;
 
@@ -764,7 +758,7 @@ static void irshift(const struct value_s *vv1, const struct value_s *vv2, uval_t
 }
 
 static void iand(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
-    size_t i, len1, len2, sz;
+    ssize_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
     digit_t c;
@@ -838,7 +832,7 @@ static void iand(const struct value_s *vv1, const struct value_s *vv2, struct va
 }
 
 static void ior(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
-    size_t i, len1, len2, sz;
+    ssize_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
     digit_t c;
@@ -918,7 +912,7 @@ static void ior(const struct value_s *vv1, const struct value_s *vv2, struct val
 }
 
 static void ixor(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
-    size_t i, len1, len2, sz;
+    ssize_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
     digit_t c;
@@ -1058,7 +1052,7 @@ void int_from_ival(struct value_s *v, ival_t i) {
 void int_from_double(struct value_s *v, double f, linepos_t epoint) {
     int neg, expo;
     double frac;
-    size_t sz;
+    ssize_t sz;
     digit_t *d;
     if (f == HUGE_VAL) {
         v->obj = ERROR_OBJ;
@@ -1091,7 +1085,8 @@ void int_from_double(struct value_s *v, double f, linepos_t epoint) {
 void int_from_bytes(struct value_s *v, const struct value_s *v1) {
     uval_t uv = 0;
     int bits = 0;
-    size_t i = 0, j = 0, sz;
+    ssize_t j = 0, sz;
+    size_t i = 0;
     digit_t *d;
     const uint8_t *b;
     struct value_s tmp;
@@ -1104,7 +1099,7 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
         return;
     }
     sz = (v1->u.bytes.len * 8 + SHIFT - 1) / SHIFT;
-    if (v1->u.bytes.len > (((size_t)~0) - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
+    if (v1->u.bytes.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
     d = inew(&tmp, sz);
 
     b = v1->u.bytes.data;
@@ -1141,7 +1136,8 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
     uval_t uv = 0;
     int bits = 0;
     int inv;
-    size_t i = 0, j = 0, sz;
+    ssize_t j = 0, sz;
+    size_t i = 0;
     digit_t *d;
     const bdigit_t *b;
     struct value_s tmp;
@@ -1156,7 +1152,7 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
 
     inv = v1->u.bits.inv;
     sz = (v1->u.bits.len * 8 * sizeof(bdigit_t) + SHIFT - 1 + (inv && (bdigit_t)~0 == v1->u.bits.data[v1->u.bits.len - 1])) / SHIFT;
-    if (v1->u.bits.len > (((size_t)~0) - SHIFT) / 8 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
+    if (v1->u.bits.len > (SSIZE_MAX - SHIFT) / 8 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
     d = inew(&tmp, sz);
 
     b = v1->u.bits.data;
@@ -1221,7 +1217,7 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
     if (actual_encoding) {
         uval_t uv = 0;
         int bits = 0;
-        size_t j = 0, sz, osz;
+        ssize_t j = 0, sz, osz;
         digit_t *d;
         struct value_s tmp;
 
@@ -1236,7 +1232,7 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
         if (v1->u.str.len <= 2 * SHIFT / 8) sz = 2;
         else {
             sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
-            if (v1->u.str.len > (((size_t)~0) - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
+            if (v1->u.str.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
         }
         d = inew(&tmp, sz);
 
@@ -1252,7 +1248,7 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
                         memcpy(d, tmp.u.bytes.val, j * sizeof(digit_t));
                     } else {
                         sz += 1024 / sizeof(digit_t);
-                        if (sz < 1024 / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+                        if (sz < 1024 / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
                         d = (digit_t *)realloc(d, sz * sizeof(digit_t));
                     }
                     if (!d) err_msg_out_of_memory();
@@ -1350,7 +1346,7 @@ size_t int_from_decstr(struct value_s *v, const uint8_t *s) {
                     memcpy(d, v->u.integer.val, 2 * sizeof(digit_t));
                 } else if (sz > 2) {
                     d = (digit_t *)realloc(d, sz * sizeof(digit_t));
-                    if (!d || sz > ((size_t)~0) / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+                    if (!d || sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
                 }
                 end2 = d + sz - 1;
             }
