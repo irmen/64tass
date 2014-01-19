@@ -420,6 +420,7 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
         label.data = pline + lpoint.pos;
         label.len = get_label();
         if (label.len) {
+            if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &new_value.u.mfunc.param[i].epoint);break;}
             str_cpy(&new_value.u.mfunc.param[i].name, &label);
             for (j = 0; j < i; j++) if (new_value.u.mfunc.param[j].name.data) {
                 if (arguments.casesensitive) {
@@ -500,6 +501,7 @@ void get_macro_params(struct value_s *v) {
         label.data = pline + lpoint.pos;
         label.len = get_label();
         if (label.len) {
+            if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);new_value.u.macro.param[i].name.len = 0; new_value.u.macro.param[i].name.data = NULL;}
             str_cpy(&new_value.u.macro.param[i].name, &label);
             for (j = 0; j < i; j++) if (new_value.u.macro.param[j].name.data) {
                 if (arguments.casesensitive) {

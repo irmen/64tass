@@ -93,6 +93,7 @@ enum errors_e {
     ERROR______EXPECTED,
     ERROR____WRONG_TYPE,
     ERROR___NOT_ALLOWED,
+    ERROR_RESERVED_LABL,
 
     ERROR___NOT_DEFINED,
     ERROR____NO_FORWARD,
