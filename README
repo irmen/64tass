@@ -2260,8 +2260,9 @@ Other options
 
 Messages
 
-Faults and warnings encountered are sent to standard error for logging. The
-format of messages is the following:
+Faults and warnings encountered are sent to standard error for logging. To
+redirect them into a file append `2>filename.log' after the command. The format
+of messages is the following:
 
 <filename>:<line>:<character>: <severity>: <message>
 
