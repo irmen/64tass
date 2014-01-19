@@ -306,12 +306,17 @@ static void register_copy_temp(const struct value_s *v1, struct value_s *v) {
 
 static void register_repr(const struct value_s *v1, struct value_s *v) {
     uint8_t *s;
+    const char *prefix = "<register '";
+    size_t len = strlen(prefix);
     v->obj = STR_OBJ;
-    v->u.str.len = v1->u.reg.len;
-    v->u.str.chars = v->u.reg.chars;
+    v->u.str.len = v1->u.reg.len + 2 + len;
+    v->u.str.chars = v->u.reg.chars + 2 + len;
     s = (uint8_t *)malloc(v->u.reg.len);
-    if (!s) err_msg_out_of_memory();
-    memcpy(s, v1->u.reg.data, v1->u.reg.len);
+    if (!s || v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
+    memcpy(s, prefix, len);
+    memcpy(s + len, v1->u.reg.data, v1->u.reg.len);
+    s[v->u.str.len - 2] = '\'';
+    s[v->u.str.len - 1] = '>';
     v->u.str.data = s;
 }
 
