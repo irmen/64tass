@@ -1450,7 +1450,7 @@ name    <b class="k">.macro</b>
 custom ones for frequently used calculations.</p>
 
 <dl class="dir">
-<dt><a name="d_function">.function</a> &lt;name&gt;[=&lt;default&gt;]][, &lt;name&gt;[=&lt;default&gt;] ...]
+<dt><a name="d_function">.function</a> &lt;name&gt;[=&lt;default&gt;]][, &lt;name&gt;[=&lt;default&gt;] ...][, *&lt;name&gt;]
 <dt><a name="d_endf">.endf</a> [&lt;result&gt;][, &lt;result&gt; ...]
 <dd>Defines a user function
 <dt><b>#&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] ...]
@@ -1459,9 +1459,12 @@ custom ones for frequently used calculations.</p>
 <dd>Invoke a function like a macro, directive or pseudo instruction.
 </dl>
 
-<p>Parameters are assigned to constant references. It's possible to use less
-parameters if the missing ones have a default value, but more parameters are
-not accepted. Multiple values are returned as a tuple.</p>
+<p>Parameters are assigned to constant symbols in the function scope on
+invocation. The default values are calculated at function definition time only,
+and these values are used at invocation time when a parameter is missing.</p>
+<p>Extra parameters are not accepted, unless the last parameter symbol is
+preceded with a star, in this case these parameters are collected into a tuple.
+Multiple values are returned are also returned as tuple.</p>
 <p>Functions can span multiple lines but unlike macros they can't create new
 code. Only those external variables and functions are available which were
 accessible at the place of definition, but not those at the place of

@@ -1099,11 +1099,6 @@ static void functions(struct values_s *vals, unsigned int args) {
         {
             struct value_s *val;
             unsigned int i;
-            if (args > vals->val->u.func.argc) {
-                err_msg2(ERROR_ILLEGAL_OPERA, NULL, &vals->epoint);
-                val_replace(&vals->val, &none_value);
-                return;
-            }
             for (i = 0; i < args; i++) {
                 try_resolv_rec(&v[i].val);
             }
