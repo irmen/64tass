@@ -1302,7 +1302,7 @@ Custom functions
 Beyond the built in functions mentioned earlier it's possible to define custom
 ones for frequently used calculations.
 
-.function <name>[=<default>]][, <name>[=<default>] ...]
+.function <name>[=<default>]][, <name>[=<default>] ...][, *<name>]
 .endf [<result>][, <result> ...]
     Defines a user function
 #<name> [<param>][[,][<param>] ...]
@@ -1310,9 +1310,13 @@ ones for frequently used calculations.
 <name> [<param>][[,][<param>] ...]
     Invoke a function like a macro, directive or pseudo instruction.
 
-Parameters are assigned to constant references. It's possible to use less
-parameters if the missing ones have a default value, but more parameters are
-not accepted. Multiple values are returned as a tuple.
+Parameters are assigned to constant symbols in the function scope on
+invocation. The default values are calculated at function definition time only,
+and these values are used at invocation time when a parameter is missing.
+
+Extra parameters are not accepted, unless the last parameter symbol is preceded
+with a star, in this case these parameters are collected into a tuple. Multiple
+values are returned are also returned as tuple.
 
 Functions can span multiple lines but unlike macros they can't create new code.
 Only those external variables and functions are available which were accessible
