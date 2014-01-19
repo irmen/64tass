@@ -418,6 +418,7 @@ void init_defaultlabels(void) {
         v->obj = FUNCTION_OBJ;
         v->u.function.name.data = (const uint8_t *)builtin_functions[i].name;
         v->u.function.name.len = strlen(builtin_functions[i].name);
+        v->u.function.name_hash = label->name_hash;
         v->u.function.call = builtin_functions[i].call;
     }
 }

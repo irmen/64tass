@@ -176,9 +176,13 @@ static void calc2(oper_t op) {
             if (v == v1 || v == v2) v->obj->destroy(v);
             if (l) {
                 touch_label(l);
-                l->value->obj->copy(l->value, op->v);
+                l->value->obj->copy(l->value, v);
                 return;
             } 
+            if (!referenceit) {
+                v->obj = NONE_OBJ;
+                return;
+            }
             epoint = v2->u.ident.epoint;
             v->u.error.u.notdef.ident = v2->u.ident.name;
             v->u.error.u.notdef.label = l2;
@@ -200,6 +204,10 @@ static void calc2(oper_t op) {
                 if (l) {
                     touch_label(l);
                     l->value->obj->copy(l->value, op->v);
+                    return;
+                }
+                if (!referenceit) {
+                    v->obj = NONE_OBJ;
                     return;
                 }
                 v->u.error.epoint = v2->u.anonident.epoint;

@@ -26,6 +26,7 @@ typedef void (*function_fn_t)(struct values_s *, unsigned int);
 
 typedef struct {
     str_t name;
+    int name_hash;
     function_fn_t call;
 } function_t;
 

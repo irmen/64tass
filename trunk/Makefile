@@ -2,7 +2,7 @@ CC = gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o
 LIBS = -lm
 LANG = C
-REVISION := $(shell svnversion)
+REVISION := $(shell svnversion | grep "^[1-9]" || echo "582?")
 CFLAGS = -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -g -Wstrict-aliasing=2 -Werror=missing-prototypes
 LDFLAGS = -g
 CFLAGS += $(LDFLAGS)

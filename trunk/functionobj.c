@@ -34,7 +34,7 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
 }
 
 static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
-    return (int)v1->u.function.call & (((unsigned int)~0) >> 1);
+    return v1->u.function.name_hash;
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {

@@ -1971,19 +1971,14 @@ struct value_s *compile(struct file_list_s *cflist)
                     int rc;
                     int first = 1;
                     int writeit = 1;
-                    struct encoding_s *old = actual_encoding;
                     struct error_s user_error;
                     struct linepos_s epoint2;
                     error_init(&user_error);
-                    actual_encoding = NULL;
                     rc = get_exp(&w,0,cfile);
-                    actual_encoding = old;
                     if (!rc) goto breakerr; /* ellenorizve. */
                     err_msg_variable(&user_error, NULL);
                     for (;;) {
-                        actual_encoding = NULL;
                         val = get_val(&epoint2);
-                        actual_encoding = old;
                         if (!val) break;
                         if (first) {
                             first = 0;
@@ -2314,7 +2309,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_FOR) { /* .for */
                     size_t pos, xpos;
                     line_t lin, xlin;
-                    struct linepos_s apoint, bpoint;
+                    struct linepos_s apoint, bpoint = {0,0,0};
                     int nopos = -1;
                     uint8_t *expr;
                     struct label_s *var;
@@ -2846,6 +2841,10 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj == ADDRESS_OBJ) {
                             atype_t am = val->u.addr.type;
                             val = val->u.addr.val;
+                            if (val->obj == NONE_OBJ) {
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                                d = fixeddig = 0;
+                            }
                             switch (am) {
                             case A_IMMEDIATE:
                                 if ((cod=cnmemonic[(opr=ADR_IMMEDIATE)])==____ && prm) { /* 0x69 hack */
