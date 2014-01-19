@@ -1,4 +1,4 @@
-64tass v1.51 r521 manual
+64tass v1.51 r582 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -834,7 +834,6 @@ float(a)              convert to floating point
 int(a)                convert to integer
 len(a)                number of elements
 range(s,e,t)          create a list with values from a range
-register(a)           create custom register
 repr(a)               representation to string
 sign(a)               sign value (?1, 0, 1)
 size(a)               size in bytes
@@ -2823,5 +2822,5 @@ Assembler directives
 Built-in functions
 
 abs acos all any asin atan atan2 bool cbrt ceil cos cosh deg exp float floor
-frac hypot int len log log10 pow rad range register repr round sign sin sinh
-size sqrt str tan tanh trunc
+frac hypot int len log log10 pow rad range repr round sign sin sinh size sqrt
+str tan tanh trunc
