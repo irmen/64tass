@@ -167,6 +167,7 @@ static const char *terr_error[]={
     "no fitting addressing mode for opcode",
     "not a direct page address"
 };
+
 static const char *terr_fatal[]={
     "can't open file ",
     "error reading file ",
@@ -248,6 +249,11 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t lpoint2) {
         case ERROR___NOT_ALLOWED:
             adderror("not allowed here: ");
             adderror((char *)prm);
+            break;
+        case ERROR_RESERVED_LABL:
+            adderror("reserved symbol name '");
+            adderror2(((str_t *)prm)->data, ((str_t *)prm)->len);
+            adderror("'");
             break;
         default:
             adderror(terr_error[no & 63]);

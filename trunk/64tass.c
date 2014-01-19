@@ -562,6 +562,7 @@ struct value_s *compile(struct file_list_s *cflist)
             }
         hh:
             if (!(waitfor->skip & 1)) {wht=what(&prm);goto jn;} /* skip things if needed */
+            if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
             if ((wht=what(&prm))==WHAT_EQUAL) { /* variable */
                 struct label_s *label;
                 int labelexists;
@@ -2330,6 +2331,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         epoint = lpoint;
                         varname.data = pline + lpoint.pos; varname.len = get_label();
                         if (varname.len) {
+                            if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                             lpoint.pos++;
                             if (!get_exp(&w,1,cfile)) goto breakerr; /* ellenorizve. */
@@ -2388,6 +2390,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             epoint = lpoint;
                             varname.data = pline + lpoint.pos; varname.len = get_label();
                             if (!varname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL);break;}
+                            if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
                             lpoint.pos++;ignore();
                             if (!here() || here()==';') {bpoint.pos = bpoint.upos = 0; nopos = 0;}
