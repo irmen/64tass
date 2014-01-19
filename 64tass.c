@@ -3182,7 +3182,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             else if (cnmemonic[ADR_LONG]==0x5C) {
                                 if (w==3) {/* auto length */
                                     if (d) {
-                                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) {err_msg_wrong_type(&err, &epoint2);w = (cnmemonic[ADR_ADDR]==____) + 1;}
                                         else if (cnmemonic[ADR_ADDR]!=____ && (current_section->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
                                         else {adr = uval; w = 2;}
                                     } else w = (cnmemonic[ADR_ADDR]==____) + 1;
@@ -3244,7 +3244,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     case AG_DB3: /* 3 choice data bank */
                         if (w==3) {/* auto length */
                             if (d) {
-                                if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                                if (val->obj->uval(val, &err, &uval, 24, &epoint2)) {err_msg_wrong_type(&err, &epoint2);w=(cnmemonic[opr - 1]!=____);}
                                 else if (cnmemonic[opr]!=____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage);w = 0;}
                                 else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
                                 else {adr = uval; w = 2;}
