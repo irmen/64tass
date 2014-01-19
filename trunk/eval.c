@@ -739,7 +739,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             }
             for (; i < vals->val->u.mfunc.argc; i++) {
                 if (!vals->val->u.mfunc.param[i].init) {
-                    err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
+                    err_msg2(ERROR_MISSING_ARGUM,NULL, &vals->epoint);
                     break;
                 }
             }
