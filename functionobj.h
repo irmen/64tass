@@ -16,21 +16,26 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _MACRO_H_
-#define _MACRO_H_
-#include "inttypes.h"
-struct value_s;
+#ifndef _FUNCTIONOBJ_H
+#define _FUNCTIONOBJ_H
 struct values_s;
-struct label_s;
-struct file_s;
-enum wait_e;
 
-extern int mtranslate(struct file_s *);
-extern struct value_s *macro_recurse(enum wait_e, struct value_s *, struct label_s *, linepos_t);
-extern struct value_s *mfunc_recurse(enum wait_e, struct value_s *, struct label_s *, linepos_t, struct file_s *, int8_t);
-extern struct value_s *mfunc2_recurse(struct value_s *, struct values_s *, unsigned int, linepos_t);
-extern void init_macro(void);
-extern void free_macro(void);
-extern void get_macro_params(struct value_s *);
-extern void get_func_params(struct value_s *, struct file_s *);
+extern obj_t FUNCTION_OBJ;
+
+typedef void (*function_fn_t)(struct values_s *, unsigned int);
+
+typedef struct {
+    str_t name;
+    function_fn_t call;
+} function_t;
+
+struct builtin_functions_s {
+    const char *name;
+    function_fn_t call;
+};
+
+extern struct builtin_functions_s builtin_functions[];
+
+extern void functionobj_init(void);
+
 #endif

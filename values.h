@@ -29,6 +29,7 @@
 #include "listobj.h"
 #include "codeobj.h"
 #include "addressobj.h"
+#include "functionobj.h"
 
 struct memblocks_s;
 
@@ -128,7 +129,7 @@ struct value_s {
         list_t list;
         pair_t pair;
         dict_t dict;
-        func_t func;
+        mfunc_t mfunc;
         macro_t macro;
         struct {
             size_t p;
@@ -177,6 +178,7 @@ struct value_s {
         double real;
         int boolean;
         registers_t reg;
+        function_t function;
     } u;
 };
 

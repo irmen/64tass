@@ -117,6 +117,18 @@ static int MUST_CHECK len(const struct value_s *v1, struct value_s *v, uval_t *u
     return 0;
 }
 
+static int MUST_CHECK size(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
+    if (!v1->u.code.pass) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR____NO_FORWARD;
+        v->u.error.epoint = *epoint;
+        v->u.error.u.ident = v1->u.code.parent->name;
+        return 1;
+    }
+    *uv = v1->u.code.size;
+    return 0;
+}
+
 static void calc1(oper_t op) {
     struct value_s *v = op->v, *v1 = op->v1;
     switch (op->op->u.oper.op) {
@@ -501,6 +513,7 @@ void codeobj_init(void) {
     obj.abs = absolute;
     obj.integer = integer;
     obj.len = len;
+    obj.size = size;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

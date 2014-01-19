@@ -288,7 +288,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
     return val;
 }
 
-struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint, struct file_s *cfile, int8_t strength) {
+struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint, struct file_s *cfile, int8_t strength) {
     size_t i;
     int w;
     struct label_s *label;
@@ -296,12 +296,12 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
     int fin = 0;
     struct linepos_s epoint2;
 
-    for (i = 0; i < tmp2->u.func.argc; i++) {
+    for (i = 0; i < tmp2->u.mfunc.argc; i++) {
         int labelexists;
-        label=find_label3(&tmp2->u.func.param[i].name, context, strength);
+        label=find_label3(&tmp2->u.mfunc.param[i].name, context, strength);
         ignore();if (!here() || here()==';') fin++;
-        if (tmp2->u.func.param[i].init) {
-            if (tmp2->u.func.param[i].init->obj == DEFAULT_OBJ) {
+        if (tmp2->u.mfunc.param[i].init) {
+            if (tmp2->u.mfunc.param[i].init->obj == DEFAULT_OBJ) {
                 tuple = val_alloc();
                 tuple->obj = TUPLE_OBJ;
                 tuple->u.list.len = 0;
@@ -322,13 +322,13 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
                 val = tuple;
             } else {
                 if (here()==',' || !here() || here()==';') {
-                    val = tmp2->u.func.param[i].init;
+                    val = tmp2->u.mfunc.param[i].init;
                 } else if (get_exp(&w,4,cfile)) {
                     if (!(val = get_val(&epoint2))) {
                         err_msg(ERROR_GENERL_SYNTAX,NULL);
-                        val = tmp2->u.func.param[i].init;
+                        val = tmp2->u.mfunc.param[i].init;
                     }
-                } else val = tmp2->u.func.param[i].init;
+                } else val = tmp2->u.mfunc.param[i].init;
             }
         } else {
             if (fin > 1) {err_msg(ERROR______EXPECTED,","); val = &none_value;}
@@ -341,10 +341,10 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         }
         ignore();if (here()==',') lpoint.pos++;
         if (label) labelexists = 1;
-        else label = new_label(&tmp2->u.func.param[i].name, context, strength, &labelexists);
+        else label = new_label(&tmp2->u.mfunc.param[i].name, context, strength, &labelexists);
         label->ref=0;
         if (labelexists) {
-            if (label->defpass == pass) err_msg_double_defined(label, &tmp2->u.func.param[i].name, &epoint2);
+            if (label->defpass == pass) err_msg_double_defined(label, &tmp2->u.mfunc.param[i].name, &epoint2);
             else {
                 label->constant = 1;
                 label->requires=current_section->requires;
@@ -356,12 +356,12 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
             label->requires = current_section->requires;
             label->conflicts = current_section->conflicts;
             label->value = val_reference(val);
-            label->file_list = tmp2->u.func.label->file_list;
-            label->epoint = tmp2->u.func.param[i].epoint;
+            label->file_list = tmp2->u.mfunc.label->file_list;
+            label->epoint = tmp2->u.mfunc.param[i].epoint;
         }
     }
     if (tuple) val_destroy(tuple);
-    if (i == tmp2->u.func.argc && here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+    if (i == tmp2->u.mfunc.argc && here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
     {
         size_t oldpos;
         line_t lin = lpoint.line;
@@ -381,11 +381,11 @@ struct value_s *func_recurse(enum wait_e t, struct value_s *tmp2, struct label_s
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        cflist = enterfile(tmp2->u.func.label->file_list->file, epoint);
-        lpoint.line = tmp2->u.func.label->epoint.line;
+        cflist = enterfile(tmp2->u.mfunc.label->file_list->file, epoint);
+        lpoint.line = tmp2->u.mfunc.label->epoint.line;
         new_waitfor(t, &nopoint);
         f = cflist->file;
-        oldpos = f->p; f->p = tmp2->u.func.p;
+        oldpos = f->p; f->p = tmp2->u.mfunc.p;
         current_context = context; cheap_context = context;
         val = compile(cflist);
         current_context = oldcontext;star = s->addr;
@@ -404,7 +404,7 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
     str_t label;
     int w, stard = 0;
 
-    new_value.u.func.param = NULL;
+    new_value.u.mfunc.param = NULL;
     for (i = 0;;i++) {
         ignore();if (!here() || here() == ';') break;
         if (here()=='*') {
@@ -413,35 +413,35 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
         }
         if (i >= len) {
             len += 16;
-            new_value.u.func.param = realloc(new_value.u.func.param, len * sizeof(new_value.u.func.param[0]));
-            if (!new_value.u.func.param || len < 16 || len > ((size_t)~0) / sizeof(new_value.u.func.param[0])) err_msg_out_of_memory(); /* overflow */
+            new_value.u.mfunc.param = realloc(new_value.u.mfunc.param, len * sizeof(new_value.u.mfunc.param[0]));
+            if (!new_value.u.mfunc.param || len < 16 || len > ((size_t)~0) / sizeof(new_value.u.mfunc.param[0])) err_msg_out_of_memory(); /* overflow */
         }
-        new_value.u.func.param[i].epoint = lpoint;
+        new_value.u.mfunc.param[i].epoint = lpoint;
         label.data = pline + lpoint.pos;
         label.len = get_label();
         if (label.len) {
-            str_cpy(&new_value.u.func.param[i].name, &label);
-            for (j = 0; j < i; j++) if (new_value.u.func.param[j].name.data) {
+            str_cpy(&new_value.u.mfunc.param[i].name, &label);
+            for (j = 0; j < i; j++) if (new_value.u.mfunc.param[j].name.data) {
                 if (arguments.casesensitive) {
-                    if (!str_cmp(&new_value.u.func.param[j].name, &label)) break;
+                    if (!str_cmp(&new_value.u.mfunc.param[j].name, &label)) break;
                 } else {
-                    if (!str_casecmp(&new_value.u.func.param[j].name, &label)) break;
+                    if (!str_casecmp(&new_value.u.mfunc.param[j].name, &label)) break;
                 }
             }
             if (j != i) {
                 struct label_s tmp;
-                tmp.name = new_value.u.func.param[j].name;
-                tmp.file_list = v->u.func.label->file_list;
-                tmp.epoint = new_value.u.func.param[j].epoint;
-                err_msg_double_defined(&tmp, &label, &new_value.u.func.param[i].epoint);
+                tmp.name = new_value.u.mfunc.param[j].name;
+                tmp.file_list = v->u.mfunc.label->file_list;
+                tmp.epoint = new_value.u.mfunc.param[j].epoint;
+                err_msg_double_defined(&tmp, &label, &new_value.u.mfunc.param[i].epoint);
             }
-        } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, &new_value.u.func.param[i].epoint);break;}
+        } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, &new_value.u.mfunc.param[i].epoint);break;}
         ignore();
         if (stard) {
-            new_value.u.func.param[i].init = val_alloc();
-            new_value.u.func.param[i].init->obj = DEFAULT_OBJ;
+            new_value.u.mfunc.param[i].init = val_alloc();
+            new_value.u.mfunc.param[i].init->obj = DEFAULT_OBJ;
         } else {
-            new_value.u.func.param[i].init = NULL;
+            new_value.u.mfunc.param[i].init = NULL;
             if (here() == '=') {
                 lpoint.pos++;
                 if (!get_exp(&w,1,cfile)) {
@@ -453,7 +453,7 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
                     i++;
                     break;
                 }
-                new_value.u.func.param[i].init = val_reference(val);
+                new_value.u.mfunc.param[i].init = val_reference(val);
             }
         }
         if (!here() || here() == ';') {
@@ -469,15 +469,15 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
     }
     if (i != len) {
         if (i) {
-            new_value.u.func.param = realloc(new_value.u.func.param, i * sizeof(new_value.u.func.param[0]));
-            if (!new_value.u.func.param || i > ((size_t)~0) / sizeof(new_value.u.func.param[0])) err_msg_out_of_memory(); /* overflow */
+            new_value.u.mfunc.param = realloc(new_value.u.mfunc.param, i * sizeof(new_value.u.mfunc.param[0]));
+            if (!new_value.u.mfunc.param || i > ((size_t)~0) / sizeof(new_value.u.mfunc.param[0])) err_msg_out_of_memory(); /* overflow */
         } else {
-            free(new_value.u.func.param);
-            new_value.u.func.param = NULL;
+            free(new_value.u.mfunc.param);
+            new_value.u.mfunc.param = NULL;
         }
     }
-    v->u.func.argc = i;
-    v->u.func.param = new_value.u.func.param;
+    v->u.mfunc.argc = i;
+    v->u.mfunc.param = new_value.u.mfunc.param;
 }
 
 void get_macro_params(struct value_s *v) {
@@ -549,7 +549,7 @@ void get_macro_params(struct value_s *v) {
     free(epoints);
 }
 
-struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, unsigned int args, linepos_t epoint) {
+struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsigned int args, linepos_t epoint) {
     size_t i;
     struct label_s *label;
     struct value_s *val, *tuple;
@@ -563,13 +563,13 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
 
     init_section2(&rsection);
 
-    memcpy(&members, &tmp2->u.func.label->members, sizeof(members));
-    init_variables2(tmp2->u.func.label);
-    cflist = enterfile(tmp2->u.func.label->file_list->file, epoint);
+    memcpy(&members, &tmp2->u.mfunc.label->members, sizeof(members));
+    init_variables2(tmp2->u.mfunc.label);
+    cflist = enterfile(tmp2->u.mfunc.label->file_list->file, epoint);
     tuple = NULL;
-    for (i = 0; i < tmp2->u.func.argc; i++) {
+    for (i = 0; i < tmp2->u.mfunc.argc; i++) {
         int labelexists;
-        if (tmp2->u.func.param[i].init && tmp2->u.func.param[i].init->obj == DEFAULT_OBJ) {
+        if (tmp2->u.mfunc.param[i].init && tmp2->u.mfunc.param[i].init->obj == DEFAULT_OBJ) {
             tuple = val_alloc();
             tuple->obj = TUPLE_OBJ;
             if (i < args) {
@@ -587,13 +587,13 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
             }
             val = tuple;
         } else {
-            val = (i < args) ? vals[i].val : tmp2->u.func.param[i].init ? tmp2->u.func.param[i].init : &none_value;
+            val = (i < args) ? vals[i].val : tmp2->u.mfunc.param[i].init ? tmp2->u.mfunc.param[i].init : &none_value;
         }
-        label = new_label(&tmp2->u.func.param[i].name, tmp2->u.func.label, 0, &labelexists);
+        label = new_label(&tmp2->u.mfunc.param[i].name, tmp2->u.mfunc.label, 0, &labelexists);
         label->ref=0;
         if (labelexists) {
             if (label->defpass == pass) {
-                err_msg_double_defined(label, &tmp2->u.func.param[i].name, &tmp2->u.func.param[i].epoint);
+                err_msg_double_defined(label, &tmp2->u.mfunc.param[i].name, &tmp2->u.mfunc.param[i].epoint);
             } else {
                 label->constant = 1;
                 label->requires = current_section->requires;
@@ -606,7 +606,7 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
             label->conflicts = current_section->conflicts;
             label->value = val_reference(val);
             label->file_list = cflist;
-            label->epoint = tmp2->u.func.param[i].epoint;
+            label->epoint = tmp2->u.mfunc.param[i].epoint;
         }
     }
     if (tuple) val_destroy(tuple);
@@ -630,11 +630,11 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        lpoint.line = tmp2->u.func.label->epoint.line;
+        lpoint.line = tmp2->u.mfunc.label->epoint.line;
         new_waitfor(W_ENDF2, &nopoint);
         f = cflist->file;
-        oldpos = f->p; f->p = tmp2->u.func.p;
-        current_context = tmp2->u.func.label;
+        oldpos = f->p; f->p = tmp2->u.mfunc.p;
+        current_context = tmp2->u.mfunc.label;
         cheap_context = current_context;
         temporary_label_branch++;
         current_section = &rsection;
@@ -657,8 +657,8 @@ struct value_s *function_recurse(struct value_s *tmp2, struct values_s *vals, un
         llist = ollist;
     }
     exitfile();
-    destroy_variables2(tmp2->u.func.label);
-    memcpy(&tmp2->u.func.label->members, &members, sizeof(members));
+    destroy_variables2(tmp2->u.mfunc.label);
+    memcpy(&tmp2->u.mfunc.label->members, &members, sizeof(members));
     destroy_section2(&rsection);
     return retval ? retval : &null_tuple;
 }

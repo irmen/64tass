@@ -396,6 +396,7 @@ void init_variables(void)
 void init_defaultlabels(void) {
     struct label_s *label;
     struct value_s *v;
+    int i;
 
     label = new_builtin("true");
     bool_from_int(label->value, 1);
@@ -410,6 +411,15 @@ void init_defaultlabels(void) {
     v->u.reg.data = v->u.reg.val;
     v->u.reg.len = 1;
     v->u.reg.chars = 1;
+
+    for (i = 0; builtin_functions[i].name; i++) {
+        label = new_builtin(builtin_functions[i].name);
+        v = label->value;
+        v->obj = FUNCTION_OBJ;
+        v->u.function.name.data = (const uint8_t *)builtin_functions[i].name;
+        v->u.function.name.len = strlen(builtin_functions[i].name);
+        v->u.function.call = builtin_functions[i].call;
+    }
 }
 
 void destroy_variables2(struct label_s *label) {

@@ -56,7 +56,7 @@ typedef struct {
 	struct value_s *init;
 	struct linepos_s epoint;
     } *param; 
-} func_t;
+} mfunc_t;
 
 typedef struct {
     size_t size;
@@ -79,8 +79,8 @@ typedef struct {
 enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST, T_DICT,
-    T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_FUNCTION, T_CODE, T_LBL,
-    T_DEFAULT, T_ITER, T_REGISTER
+    T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL, T_DEFAULT,
+    T_ITER, T_REGISTER, T_FUNCTION
 };
 
 enum truth_e {
@@ -112,6 +112,7 @@ struct obj_s {
     void (*abs)(const struct value_s *, struct value_s *, linepos_t);
     void (*integer)(const struct value_s *, struct value_s *, linepos_t);
     int (*len)(const struct value_s *, struct value_s *, uval_t *, linepos_t) MUST_CHECK;
+    int (*size)(const struct value_s *, struct value_s *, uval_t *, linepos_t) MUST_CHECK;
     void (*getiter)(struct value_s *, struct value_s *);
     struct value_s *(*next)(struct value_s *, struct value_s *) MUST_CHECK;
 };
@@ -124,7 +125,7 @@ extern void invalid_getiter(struct value_s *, struct value_s *);
 extern obj_t LBL_OBJ;
 extern obj_t MACRO_OBJ;
 extern obj_t SEGMENT_OBJ;
-extern obj_t FUNCTION_OBJ;
+extern obj_t MFUNC_OBJ;
 extern obj_t STRUCT_OBJ;
 extern obj_t UNION_OBJ;
 extern obj_t NONE_OBJ;

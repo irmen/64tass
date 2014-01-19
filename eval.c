@@ -705,7 +705,7 @@ struct value_s *get_val(struct linepos_s *epoint) {/* length in bytes, defined *
     case T_SEGMENT:
     case T_UNION:
     case T_STRUCT:
-    case T_FUNCTION:
+    case T_MFUNC:
     case T_ADDRESS:
     case T_LBL:
     case T_REGISTER:
@@ -718,398 +718,33 @@ struct value_s *get_val(struct linepos_s *epoint) {/* length in bytes, defined *
     return &none_value;
 }
 
-enum func_e {
-    F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT, F_LOG,
-    F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG,
-    F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW, F_SIGN, F_ABS, F_FLOAT,
-    F_INT, F_ALL, F_ANY, F_BOOL
-};
-
-/* return templates only! */
-static const struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
-    static struct value_s new_value;
-    double real;
-    int truth;
-    switch (func) {
-    case F_SIGN:
-        switch (v1->obj->type) {
-        case T_LIST:
-        case T_TUPLE: break;
-        default:
-            {
-                int s;
-                if (!v1->obj->sign(v1, &new_value, &s, epoint)) int_from_int(&new_value, s);
-                return &new_value;
-            }
-        case T_NONE: return &none_value;
-        }
-        break;
-    case F_ABS:
-        switch (v1->obj->type) {
-        case T_LIST:
-        case T_TUPLE: break;
-        default: 
-            v1->obj->abs(v1, &new_value, epoint);
-            return &new_value;
-        case T_NONE: return &none_value;
-        }
-        break;
-    case F_INT:
-        switch (v1->obj->type) { 
-        case T_LIST:
-        case T_TUPLE: break;
-        default:
-            v1->obj->integer(v1, &new_value, epoint);
-            return &new_value;
-        case T_NONE: return &none_value;
-        }
-        break;
-    case F_BOOL:
-        switch (v1->obj->type) { 
-        case T_LIST:
-        case T_TUPLE: break;
-        default:
-            if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_BOOL, epoint)) bool_from_int(&new_value, truth);
-            return &new_value;
-        case T_NONE: return &none_value;
-        }
-        break;
-    case F_ANY:
-        if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_ANY, epoint)) bool_from_int(&new_value, truth);
-        return &new_value;
-    case F_ALL:
-        if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_ALL, epoint)) bool_from_int(&new_value, truth);
-        return &new_value;
-    default: break;
-    }
-    switch (v1->obj->type) {
-    case T_LIST:
-    case T_TUPLE:
-            {
-                size_t i = 0;
-                struct value_s **vals;
-                const struct value_s *val;
-                if (v1->u.list.len) {
-                    vals = (struct value_s **)malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
-                    if (!vals) err_msg_out_of_memory();
-                    for (;i < v1->u.list.len; i++) {
-                        val = apply_func(func, v1->u.list.data[i], epoint);
-                        val_set_template(vals + i, val);
-                    }
-                } else vals = NULL;
-                new_value.obj = v1->obj;
-                new_value.u.list.len = i;
-                new_value.u.list.data = vals;
-                break;
-            }
-    default:
-        new_value.obj = FLOAT_OBJ;
-        if (!v1->obj->real(v1, &new_value, &real, epoint)) {
-            switch (func) {
-            case F_FLOOR: real = floor(real);break;
-            case F_CEIL: real = ceil(real);break;
-            case F_SQRT: 
-                         if (real < 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                         else real = sqrt(real);break;
-            case F_LOG10:
-                         if (real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                         else real = log10(real);break;
-            case F_LOG:
-                         if (real <= 0.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                         else real = log(real);break;
-            case F_EXP: real = exp(real);break;
-            case F_SIN: real = sin(real);break;
-            case F_COS: real = cos(real);break;
-            case F_TAN: real = tan(real);break;
-            case F_ACOS: 
-                        if (real < -1.0 || real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                        else real = acos(real);break;
-            case F_ASIN: 
-                        if (real < -1.0 || real > 1.0) err_msg2(ERROR_CONSTNT_LARGE, NULL, epoint);
-                        else real = asin(real);break;
-            case F_ATAN: real = atan(real);break;
-            case F_CBRT: real = cbrt(real);break;
-            case F_ROUND: real = round(real);break;
-            case F_TRUNC: real = trunc(real);break;
-            case F_FRAC: real -= trunc(real);break;
-            case F_RAD: real = real * M_PI / 180.0;break;
-            case F_DEG: real = real * 180.0 / M_PI;break;
-            case F_COSH: real = cosh(real);break;
-            case F_SINH: real = sinh(real);break;
-            case F_TANH: real = tanh(real);break;
-            case F_FLOAT: break; /* nothing to do */
-            default:break;
-            }
-            float_from_double(&new_value, real);
-        }
-        break;
-    case T_NONE: return &none_value;
-    }
-    return &new_value;
-}
-
 static void functions(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
-    struct value_s new_value;
-    enum func_e func = F_NONE;
 
-    if (vals->val->obj == IDENT_OBJ) {
-        size_t len;
-        const uint8_t *name;
-
-        len = vals->val->u.ident.name.len;
-        name = vals->val->u.ident.name.data;
-        if (!arguments.casesensitive && len < 20) {
-            uint8_t name2[20]; /* built in functions have short names */
-            size_t i;
-            for (i = 0;i < len; i++) name2[i] = lowcase(name[i]);
-            name = name2;
-        }
-
-        /* len(a) - length of string in characters */
-        if (len == 3 && !memcmp(name, "len", len)) {
-            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else {
-                uval_t uv;
-                if (!v[0].val->obj->len(v[0].val, &new_value, &uv, &vals->epoint)) int_from_uval(&new_value, uv);
-                val_replace_template(&vals->val, &new_value);
-                return;
-            }
-            val_replace(&vals->val, &none_value);
-            return;
-        } /* range([start],end,[step]) */
-        if (len == 5 && !memcmp(name, "range", len)) {
-            ival_t start = 0, end, step = 1;
-            size_t i = 0, len2;
-            struct value_s **val;
-            if (args < 1 || args > 3) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else {
-                switch (args) {
-                case 1: if (v[0].val->obj->ival(v[0].val, &new_value, &end, 8*sizeof(ival_t), &v[0].epoint)) { val_replace_template(&vals->val, &new_value);return;} break;
-                case 3: if (v[2].val->obj->ival(v[2].val, &new_value, &step, 8*sizeof(ival_t), &v[2].epoint)) { val_replace_template(&vals->val, &new_value);return;}
-                case 2: if (v[0].val->obj->ival(v[0].val, &new_value, &start, 8*sizeof(ival_t), &v[0].epoint)) { val_replace_template(&vals->val, &new_value);return;}
-                        if (v[1].val->obj->ival(v[1].val, &new_value, &end, 8*sizeof(ival_t), &v[1].epoint)) { val_replace_template(&vals->val, &new_value);return;} break;
-                }
-                if (step == 0) {
-                    new_value.obj = ERROR_OBJ;
-                    new_value.u.error.num = ERROR_DIVISION_BY_Z;
-                    new_value.u.error.epoint = v[2].epoint;
-                    val_replace_template(&vals->val, &new_value); return;
-                }
-                if (step > 0) {
-                    if (end < start) end = start;
-                    len2 = (end - start + step - 1) / step;
-                } else {
-                    if (end > start) end = start;
-                    len2 = (start - end - step - 1) / -step;
-                }
-                if (len2) {
-                    val = (struct value_s **)malloc(len2 * sizeof(new_value.u.list.data[0]));
-                    if (!val || len2 > ((size_t)~0) / sizeof(new_value.u.list.data[0])) err_msg_out_of_memory(); /* overflow */
-                    i = 0;
-                    while ((end > start && step > 0) || (end < start && step < 0)) {
-                        val[i] = val_alloc();
-                        int_from_ival(val[i], start);
-                        i++; start += step;
-                    }
-                } else val = NULL;
-                new_value.obj = LIST_OBJ;
-                new_value.u.list.len = len2;
-                new_value.u.list.data = val;
-                val_replace_template(&vals->val, &new_value);
-                return;
-            }
-            val_replace(&vals->val, &none_value);
-            return;
-        } /* size(a) - size of data structure at location */
-        if (len == 4 && !memcmp(name, "size", len)) {
-            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
-            else {
-                switch (try_resolv(&v[0])) {
-                case T_CODE:
-                    if (!v[0].val->u.code.pass) {
-                        new_value.obj = ERROR_OBJ;
-                        new_value.u.error.num = ERROR____NO_FORWARD;
-                        new_value.u.error.epoint = v[0].epoint;
-                        new_value.u.error.u.ident = v[0].val->u.code.parent->name;
-                        val_replace_template(&vals->val, &new_value);
-                        return;
-                    }
-                    int_from_uval(&new_value, v[0].val->u.code.size);
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                case T_STRUCT:
-                case T_UNION:
-                    int_from_uval(&new_value, v[0].val->u.macro.size);
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                default: err_msg_wrong_type(v[0].val, &v[0].epoint);
-                case T_NONE: break;
-                }
-            }
-            val_replace(&vals->val, &none_value);
-            return;
-        } /* repr(a) - representation */
-        if (len == 4 && !memcmp(name, "repr", len)) {
-            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
-            else {
-                switch (try_resolv(&v[0])) {
-                default:
-                    v[0].val->obj->repr(v[0].val, &new_value);
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                case T_NONE: break;
-                }
-            }
-            val_replace(&vals->val, &none_value);
-            return;
-        } /* str(a) - string */
-        if (len == 3 && !memcmp(name, "str", len)) {
-            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
-            else {
-                switch (try_resolv(&v[0])) {
-                default:
-                    v[0].val->obj->str(v[0].val, &new_value);
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                case T_NONE: break;
-                }
-            }
-            val_replace(&vals->val, &none_value);
-            return;
-        } 
-        if (len == 8 && !memcmp(name, "register", len)) {
-            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
-            else {
-                switch (try_resolv(&v[0])) {
-                default:
-                    v[0].val->obj->str(v[0].val, &new_value);
-                    if (new_value.obj == STR_OBJ) {
-                        size_t slen, chars;
-                        uint8_t *s;
-                        slen = new_value.u.str.len;
-                        chars = new_value.u.str.chars;
-                        s = new_value.u.str.data;
-                        new_value.obj = REGISTER_OBJ;
-                        new_value.u.reg.len = slen;
-                        new_value.u.reg.chars = chars;
-                        new_value.u.reg.data = s;
-                    }
-                    val_replace_template(&vals->val, &new_value);
-                    return;
-                case T_NONE: break;
-                }
-            }
-            val_replace(&vals->val, &none_value);
-            return;
-        } 
-        switch (len) {
-        case 3:
-            if (!memcmp(name, "log", 3)) func = F_LOG; 
-            else if (!memcmp(name, "exp", 3)) func = F_EXP; 
-            else if (!memcmp(name, "sin", 3)) func = F_SIN; 
-            else if (!memcmp(name, "cos", 3)) func = F_COS; 
-            else if (!memcmp(name, "tan", 3)) func = F_TAN; 
-            else if (!memcmp(name, "rad", 3)) func = F_RAD; 
-            else if (!memcmp(name, "deg", 3)) func = F_DEG; 
-            else if (!memcmp(name, "abs", 3)) func = F_ABS; 
-            else if (!memcmp(name, "int", 3)) func = F_INT;
-            else if (!memcmp(name, "all", 3)) func = F_ALL;
-            else if (!memcmp(name, "any", 3)) func = F_ANY;
-            break;
-        case 4:
-            if (!memcmp(name, "ceil", 4)) func = F_CEIL;
-            else if (!memcmp(name, "frac", 4)) func = F_FRAC; 
-            else if (!memcmp(name, "sqrt", 4)) func = F_SQRT; 
-            else if (!memcmp(name, "acos", 4)) func = F_ACOS; 
-            else if (!memcmp(name, "asin", 4)) func = F_ASIN; 
-            else if (!memcmp(name, "atan", 4)) func = F_ATAN; 
-            else if (!memcmp(name, "cbrt", 4)) func = F_CBRT; 
-            else if (!memcmp(name, "cosh", 4)) func = F_COSH; 
-            else if (!memcmp(name, "sinh", 4)) func = F_SINH; 
-            else if (!memcmp(name, "tanh", 4)) func = F_TANH; 
-            else if (!memcmp(name, "sign", 4)) func = F_SIGN; 
-            else if (!memcmp(name, "bool", 4)) func = F_BOOL; 
-            break;
-        case 5:
-            if (!memcmp(name, "floor", 5)) func = F_FLOOR;
-            else if (!memcmp(name, "round", 5)) func = F_ROUND;
-            else if (!memcmp(name, "trunc", 5)) func = F_TRUNC; 
-            else if (!memcmp(name, "log10", 5)) func = F_LOG10; 
-            else if (!memcmp(name, "float", 5)) func = F_FLOAT; 
-            break;
-        }
-
-        if (func != F_NONE) {
-            const struct value_s *val;
-            if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
-            try_resolv(&v[0]);
-            val = apply_func(func, v[0].val, &v[0].epoint);
-            val_replace_template(&vals->val, val);
-            return;
-        }
-        func = F_NONE;
-        if (len == 5 && !memcmp(name, "hypot", len)) func = F_HYPOT; else
-            if (len == 5 && !memcmp(name, "atan2", len)) func = F_ATAN2; else
-                if (len == 3 && !memcmp(name, "pow", len)) func = F_POW;
-        if (func != F_NONE) {
-            double val1, val2;
-            if (args != 2) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else
-                switch (try_resolv(&v[0])) {
-                default:
-                    switch (try_resolv(&v[1])) {
-                    default:
-                        new_value.obj = FLOAT_OBJ;
-                        if (v[0].val->obj->real(v[0].val, &new_value, &val1, &v[0].epoint)) {
-                            val_replace_template(&vals->val, &new_value);
-                            return;
-                        }
-                        if (v[1].val->obj->real(v[1].val, &new_value, &val2, &v[1].epoint)) {
-                            val_replace_template(&vals->val, &new_value);
-                            return;
-                        }
-                        switch (func) {
-                        case F_HYPOT: new_value.u.real = hypot(val1, val2);break;
-                        case F_ATAN2: new_value.u.real = atan2(val1, val2);break;
-                        case F_POW:
-                                      if (val2 < 0.0 && !val1) {
-                                          new_value.obj = ERROR_OBJ;
-                                          new_value.u.error.num = ERROR_DIVISION_BY_Z;
-                                          new_value.u.error.epoint = v[1].epoint;
-                                          val_replace_template(&vals->val, &new_value);
-                                          return;
-                                      }
-                                      else if (val1 < 0.0 && (double)((int)val2) != val2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &v[0].epoint); new_value.u.real = 0.0;}
-                                      else new_value.u.real = pow(val1, val2);
-                                      break;
-                        default: break;
-                        }
-                        val_replace_template(&vals->val, &new_value);
-                        return;
-                    case T_NONE:break;
-                    }
-                    val_replace(&vals->val, &none_value);
-                    return;
-                case T_NONE: break;
-                }
-            val_replace(&vals->val, &none_value);
-            return;
-        }
-    }
     switch (try_resolv(vals)) {
-    case T_FUNCTION:
+    case T_FUNCTION: 
+        {
+            unsigned int i;
+            for (i = 0; i < args; i++) {
+                try_resolv_rec(&v[i].val);
+            }
+            return vals->val->u.function.call(vals, args);
+        }
+    case T_MFUNC:
         {
             struct value_s *val;
             unsigned int i;
             for (i = 0; i < args; i++) {
                 try_resolv_rec(&v[i].val);
             }
-            for (; i < vals->val->u.func.argc; i++) {
-                if (!vals->val->u.func.param[i].init) {
+            for (; i < vals->val->u.mfunc.argc; i++) {
+                if (!vals->val->u.mfunc.param[i].init) {
                     err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
                     break;
                 }
             }
             eval_enter();
-            val = function_recurse(vals->val, v, args, &vals->epoint);
+            val = mfunc2_recurse(vals->val, v, args, &vals->epoint);
             eval_leave();
             if (!val) val_replace_template(&vals->val, &null_tuple);
             else {

@@ -739,9 +739,9 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
-                                new_value.obj = FUNCTION_OBJ;
-                                new_value.u.func.p = cfile->p;
-                                new_value.u.func.label = label;
+                                new_value.obj = MFUNC_OBJ;
+                                new_value.u.mfunc.p = cfile->p;
+                                new_value.u.mfunc.label = label;
                                 get_func_params(&new_value, cfile);
                                 var_assign(label, &new_value, 0);
                                 val_destroy(&new_value);
@@ -754,9 +754,9 @@ struct value_s *compile(struct file_list_s *cflist)
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
-                            val->obj = FUNCTION_OBJ;
-                            val->u.func.p = cfile->p;
-                            val->u.func.label = label;
+                            val->obj = MFUNC_OBJ;
+                            val->u.mfunc.p = cfile->p;
+                            val->u.mfunc.label = label;
                             get_func_params(val, cfile);
                         }
                         label->ref = 0;
@@ -935,7 +935,7 @@ struct value_s *compile(struct file_list_s *cflist)
             if (!islabel) {
                 tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname);
                 if (tmp2) {
-                    if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ) {
+                    if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
                         tmp2->shadowcheck = 1;
                         if (wht == WHAT_HASHMARK) lpoint.pos--;labelname.len=0;val = tmp2->value; goto as_macro;
                     }
@@ -2738,7 +2738,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     fixeddig = 0;
                     goto breakerr;
                 }
-                if (val->obj != MACRO_OBJ && val->obj != SEGMENT_OBJ && val->obj != FUNCTION_OBJ) {err_msg_wrong_type(val, &epoint2); goto breakerr;}
+                if (val->obj != MACRO_OBJ && val->obj != SEGMENT_OBJ && val->obj != MFUNC_OBJ) {err_msg_wrong_type(val, &epoint2); goto breakerr;}
             as_macro:
                 if (listing && flist && arguments.source && wasref) {
                     int l;
@@ -2774,14 +2774,14 @@ struct value_s *compile(struct file_list_s *cflist)
                     cheap_context = context;
                     val = macro_recurse(W_ENDM2, val, context, &epoint);
                     cheap_context = oldcheap;
-                } else if (val->obj == FUNCTION_OBJ) {
+                } else if (val->obj == MFUNC_OBJ) {
                     struct label_s *context;
-                    struct value_s *function;
+                    struct value_s *mfunc;
                     int labelexists;
                     str_t tmpname;
                     sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
                     tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
-                    context=new_label(&tmpname, val->u.func.label->parent, strength, &labelexists);
+                    context=new_label(&tmpname, val->u.mfunc.label->parent, strength, &labelexists);
                     if (!labelexists) {
                         context->constant = 1;
                         context->requires = 0;
@@ -2790,9 +2790,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         context->file_list = cflist;
                         context->epoint = epoint;
                     }
-                    function = val_reference(val);
-                    val = func_recurse(W_ENDF2, function, context, &epoint, cfile, strength);
-                    val_destroy(function);
+                    mfunc = val_reference(val);
+                    val = mfunc_recurse(W_ENDF2, mfunc, context, &epoint, cfile, strength);
+                    val_destroy(mfunc);
                 } else val = macro_recurse(W_ENDM2, val, current_context, &epoint);
                 if (val) {
                     if (newlabel) {
@@ -3281,7 +3281,7 @@ struct value_s *compile(struct file_list_s *cflist)
 
                             tmp2 = find_label(&nmname);
                             if (tmp2) {
-                                if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ) {
+                                if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
                                     tmp2->shadowcheck = 1;
                                     lpoint=oldlpoint;
                                     val = tmp2->value;
@@ -3389,7 +3389,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 tmp2 = find_label(&opname);
                 if (tmp2) {
-                    if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == FUNCTION_OBJ) {
+                    if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
                         tmp2->shadowcheck = 1;
                         val = tmp2->value;goto as_macro;
                     }

@@ -33,13 +33,14 @@
 #include "bytesobj.h"
 #include "bitsobj.h"
 #include "intobj.h"
+#include "functionobj.h"
 
 int referenceit = 1;
 
 static struct obj_s macro_obj;
 static struct obj_s segment_obj;
 static struct obj_s lbl_obj;
-static struct obj_s function_obj;
+static struct obj_s mfunc_obj;
 static struct obj_s struct_obj;
 static struct obj_s union_obj;
 static struct obj_s none_obj;
@@ -57,7 +58,7 @@ static struct obj_s register_obj;
 obj_t MACRO_OBJ = &macro_obj;
 obj_t SEGMENT_OBJ = &segment_obj;
 obj_t LBL_OBJ = &lbl_obj;
-obj_t FUNCTION_OBJ = &function_obj;
+obj_t MFUNC_OBJ = &mfunc_obj;
 obj_t STRUCT_OBJ = &struct_obj;
 obj_t UNION_OBJ = &union_obj;
 obj_t NONE_OBJ = &none_obj;
@@ -494,6 +495,11 @@ static int MUST_CHECK invalid_len(const struct value_s *v1, struct value_s *v, u
     return 1;
 }
 
+static int MUST_CHECK invalid_size(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(uv), linepos_t epoint) {
+    generic_invalid(v1, v, epoint, ERROR_____CANT_SIZE);
+    return 1;
+}
+
 void invalid_getiter(struct value_s *v1, struct value_s *v) {
     v->obj = ITER_OBJ;
     v->u.iter.data = val_reference(v1);
@@ -625,48 +631,48 @@ static int macro_same(const struct value_s *v1, const struct value_s *v2) {
     return 1;
 }
 
-static void function_destroy(struct value_s *v1) {
-    size_t i = v1->u.func.argc;
+static void mfunc_destroy(struct value_s *v1) {
+    size_t i = v1->u.mfunc.argc;
     while (i--) {
-        free((char *)v1->u.func.param[i].name.data);
-        if (v1->u.func.param[i].init) val_destroy(v1->u.func.param[i].init);
+        free((char *)v1->u.mfunc.param[i].name.data);
+        if (v1->u.mfunc.param[i].init) val_destroy(v1->u.mfunc.param[i].init);
     }
-    free(v1->u.func.param);
+    free(v1->u.mfunc.param);
 }
 
-static void function_copy(const struct value_s *v1, struct value_s *v) {
-    v->obj = FUNCTION_OBJ;
+static void mfunc_copy(const struct value_s *v1, struct value_s *v) {
+    v->obj = MFUNC_OBJ;
     v->refcount = 1;
-    memcpy(&v->u.func, &v1->u.func, sizeof(v->u.func));
-    if (v1->u.func.argc) {
+    memcpy(&v->u.mfunc, &v1->u.mfunc, sizeof(v->u.mfunc));
+    if (v1->u.mfunc.argc) {
         size_t i;
-        v->u.func.param = malloc(v1->u.func.argc * sizeof(v->u.func.param[0]));
-        if (!v->u.func.param) err_msg_out_of_memory();
-        for (i = 0; i < v1->u.func.argc; i++) {
-            str_cpy(&v->u.func.param[i].name, &v1->u.func.param[i].name);
-            if (v1->u.func.param[i].init) {
-                v->u.func.param[i].init = val_reference(v1->u.func.param[i].init);
-            } else v->u.func.param[i].init = NULL;
-            v->u.func.param[i].epoint = v1->u.func.param[i].epoint;
+        v->u.mfunc.param = malloc(v1->u.mfunc.argc * sizeof(v->u.mfunc.param[0]));
+        if (!v->u.mfunc.param) err_msg_out_of_memory();
+        for (i = 0; i < v1->u.mfunc.argc; i++) {
+            str_cpy(&v->u.mfunc.param[i].name, &v1->u.mfunc.param[i].name);
+            if (v1->u.mfunc.param[i].init) {
+                v->u.mfunc.param[i].init = val_reference(v1->u.mfunc.param[i].init);
+            } else v->u.mfunc.param[i].init = NULL;
+            v->u.mfunc.param[i].epoint = v1->u.mfunc.param[i].epoint;
         }
-        v->u.func.argc = i;
-    } else v->u.func.param = NULL;
+        v->u.mfunc.argc = i;
+    } else v->u.mfunc.param = NULL;
 }
 
-static void function_copy_temp(const struct value_s *v1, struct value_s *v) {
-    v->obj = FUNCTION_OBJ;
+static void mfunc_copy_temp(const struct value_s *v1, struct value_s *v) {
+    v->obj = MFUNC_OBJ;
     v->refcount = 1;
-    memcpy(&v->u.func, &v1->u.func, sizeof(v->u.func));
+    memcpy(&v->u.mfunc, &v1->u.mfunc, sizeof(v->u.mfunc));
 }
 
-static int function_same(const struct value_s *v1, const struct value_s *v2) {
+static int mfunc_same(const struct value_s *v1, const struct value_s *v2) {
     size_t i;
-    if (v2->obj != FUNCTION_OBJ || v1->u.func.p != v2->u.func.p || v1->u.func.label != v2->u.func.label) return 0;
-    for (i = 0; i < v1->u.func.argc; i++) {
-        if (str_cmp(&v1->u.func.param[i].name, &v2->u.func.param[i].name)) return 0;
-        if (v1->u.func.param[i].init != v2->u.func.param[i].init && (!v1->u.func.param[i].init || !v2->u.func.param[i].init || !obj_same(v1->u.func.param[i].init, v2->u.func.param[i].init))) return 0;
-        if (v1->u.func.param[i].epoint.pos != v2->u.func.param[i].epoint.pos) return 0;
-        if (v1->u.func.param[i].epoint.upos != v2->u.func.param[i].epoint.upos) return 0;
+    if (v2->obj != MFUNC_OBJ || v1->u.mfunc.p != v2->u.mfunc.p || v1->u.mfunc.label != v2->u.mfunc.label) return 0;
+    for (i = 0; i < v1->u.mfunc.argc; i++) {
+        if (str_cmp(&v1->u.mfunc.param[i].name, &v2->u.mfunc.param[i].name)) return 0;
+        if (v1->u.mfunc.param[i].init != v2->u.mfunc.param[i].init && (!v1->u.mfunc.param[i].init || !v2->u.mfunc.param[i].init || !obj_same(v1->u.mfunc.param[i].init, v2->u.mfunc.param[i].init))) return 0;
+        if (v1->u.mfunc.param[i].epoint.pos != v2->u.mfunc.param[i].epoint.pos) return 0;
+        if (v1->u.mfunc.param[i].epoint.upos != v2->u.mfunc.param[i].epoint.upos) return 0;
     }
     return 1;
 }
@@ -1040,6 +1046,12 @@ static int MUST_CHECK ident_len(const struct value_s *v1, struct value_s *v, uva
     return v1->obj->len(v1, v, uv, epoint);
 }
 
+static int MUST_CHECK ident_size(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
+    struct value_s tmp;
+    v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
+    return v1->obj->size(v1, v, uv, epoint);
+}
+
 static int none_hash(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
     return -1;
@@ -1105,8 +1117,19 @@ static int MUST_CHECK none_len(const struct value_s *UNUSED(v1), struct value_s 
     return 1;
 }
 
+static int MUST_CHECK none_size(const struct value_s *UNUSED(v1), struct value_s *v, uval_t *len, linepos_t UNUSED(epoint)) {
+    v->obj = NONE_OBJ;
+    *len = 0;
+    return 1;
+}
+
 static int lbl_same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == LBL_OBJ && v1->u.lbl.p == v2->u.lbl.p && v1->u.lbl.sline == v2->u.lbl.sline && v1->u.lbl.waitforp == v2->u.lbl.waitforp && v1->u.lbl.file_list == v2->u.lbl.file_list && v1->u.lbl.parent == v2->u.lbl.parent;
+}
+
+static int MUST_CHECK struct_size(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
+    *uv = v1->u.macro.size;
+    return 0;
 }
 
 static void struct_calc2(oper_t op) {
@@ -1186,6 +1209,7 @@ void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->abs = invalid_abs;
     obj->integer = invalid_integer;
     obj->len = invalid_len;
+    obj->size = invalid_size;
     obj->getiter = invalid_getiter;
     obj->next = invalid_next;
 };
@@ -1200,6 +1224,7 @@ void objects_init(void) {
     bytesobj_init();
     bitsobj_init();
     intobj_init();
+    functionobj_init();
 
     obj_init(&macro_obj, T_MACRO, "<macro>");
     macro_obj.destroy = macro_destroy;
@@ -1213,22 +1238,24 @@ void objects_init(void) {
     segment_obj.same = macro_same;
     obj_init(&lbl_obj, T_LBL, "<lbl>");
     lbl_obj.same = lbl_same;
-    obj_init(&function_obj, T_FUNCTION, "<function>");
-    function_obj.destroy = function_destroy;
-    function_obj.copy = function_copy;
-    function_obj.copy_temp = function_copy_temp;
-    function_obj.same = function_same;
+    obj_init(&mfunc_obj, T_MFUNC, "<function>");
+    mfunc_obj.destroy = mfunc_destroy;
+    mfunc_obj.copy = mfunc_copy;
+    mfunc_obj.copy_temp = mfunc_copy_temp;
+    mfunc_obj.same = mfunc_same;
     obj_init(&struct_obj, T_STRUCT, "<struct>");
     struct_obj.destroy = macro_destroy;
     struct_obj.copy = macro_copy;
     struct_obj.copy_temp = macro_copy_temp;
     struct_obj.same = macro_same;
+    struct_obj.size = struct_size;
     struct_obj.calc2 = struct_calc2;
     obj_init(&union_obj, T_UNION, "<union>");
     union_obj.destroy = macro_destroy;
     union_obj.copy = macro_copy;
     union_obj.copy_temp = macro_copy_temp;
     union_obj.same = macro_same;
+    union_obj.size = struct_size;
     union_obj.calc2 = struct_calc2;
     obj_init(&none_obj, T_NONE, "<none>");
     none_obj.hash = none_hash;
@@ -1242,6 +1269,7 @@ void objects_init(void) {
     none_obj.abs = none_abs;
     none_obj.integer = none_integer;
     none_obj.len = none_len;
+    none_obj.size = none_size;
     obj_init(&error_obj, T_ERROR, "<error>");
     error_obj.destroy = error_destroy;
     error_obj.copy = error_copy;
@@ -1271,6 +1299,7 @@ void objects_init(void) {
     ident_obj.real = ident_real;
     ident_obj.integer = ident_integer;
     ident_obj.len = ident_len;
+    ident_obj.size = ident_size;
     ident_obj.calc1 = ident_calc1;
     ident_obj.calc2 = ident_calc2;
     ident_obj.rcalc2 = ident_rcalc2;
