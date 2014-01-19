@@ -161,6 +161,7 @@ static const char *terr_error[]={
     "can't get absolute value",
     "can't convert to integer",
     "can't get length",
+    "can't get size",
     "can't convert to boolean",
     "not iterable",
     "no fitting addressing mode for opcode",
@@ -417,6 +418,7 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
         case ERROR______CANT_ABS:
         case ERROR______CANT_INT:
         case ERROR______CANT_LEN:
+        case ERROR_____CANT_SIZE:
         case ERROR_____CANT_BOOL: err_msg_char_name(terr_error[val->u.error.num & 63], val->u.error.u.objname, &val->u.error.epoint);return;
         default: break;
         }

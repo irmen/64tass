@@ -80,6 +80,7 @@ enum errors_e {
     ERROR______CANT_ABS,
     ERROR______CANT_INT,
     ERROR______CANT_LEN,
+    ERROR_____CANT_SIZE,
     ERROR_____CANT_BOOL,
     ERROR______NOT_ITER,
     ERROR_NO_ADDRESSING,
