@@ -10,7 +10,7 @@ the 65xx series of processors. Key features:
     point numbers
   * Character and byte strings, array arithmetic
   * Handles UTF-8, UTF-16 and 8 bit RAW encoded source files and strings
-  * Built in `linker' with section support
+  * Built-in `linker' with section support
   * CPU or flat address space for creating huge binaries (e.g. cartridges)
   * Conditional compilation, macros, struct/union structures, scopes.
 
@@ -483,7 +483,7 @@ keys    .text mylist[::2]    ; keys ("e", "g", "i")
 call_l  .byte <mylist[1::2]-1; routines (<cmd_e-1, <cmd_g-1, <cmd_i-1)
 call_h  .byte >mylist[1::2]-1; routines (>cmd_e-1, >cmd_g-1, >cmd_i-1)
 
-The range(start, end, step) built in function can be used to create lists of
+The range(start, end, step) built-in function can be used to create lists of
 integers in a range with a given step value. At least the end must be given,
 the start defaults to 0 and the step to 1. Sounds not very useful, so here are
 a few examples:
@@ -811,6 +811,9 @@ c ? x : y   if c is true then x otherwise y
         .text MODE == 1 && "simple" || MODE == 2 && "advanced" || "normal"
         .text MODE == 1 ? "simple" : MODE == 2 ? "advanced" : "normal"
 
+Please not that these are not short circuiting operations and both sides are
+calculated even if thrown away later.
+
 Expressions
 
 Parenthesis (( )) can be used to override operator precedence. Don't forget
@@ -818,12 +821,24 @@ that they also denote indirect addressing mode for certain opcodes.
 
         lda #(4+2)*3
 
-Built in functions are identifiers followed by parentheses. They accept
-variable number of parameters separated by comma.
+Built-in functions are identifiers followed by parentheses. They accept
+variable number of parameters separated by comma. For math functions see the
+floating point constants section.
 
-               Other built in functions
-all(a)                All elements true or no elements
-any(a)                Any elements true
+                 General built-in functions
+abs(a)                absolute value
+all(a)                all elements true or no elements
+any(a)                any elements true
+bool(a)               truth value
+float(a)              convert to floating point
+int(a)                convert to integer
+len(a)                number of elements
+range(s,e,t)          create a list with values from a range
+register(a)           create custom register
+repr(a)               representation to string
+sign(a)               sign value (?1, 0, 1)
+size(a)               size in bytes
+str(a)                convert to string
 
 Special addressing mode forcing operators in front of an expression can be used
 to make sure the expected addressing mode is used.
@@ -1299,7 +1314,7 @@ name    .macro
 
 Custom functions
 
-Beyond the built in functions mentioned earlier it's possible to define custom
+Beyond the built-in functions mentioned earlier it's possible to define custom
 ones for frequently used calculations.
 
 .function <name>[=<default>]][, <name>[=<default>] ...][, *<name>]
@@ -2355,7 +2370,7 @@ The `screen' encoding for raw 8-bit
 
 The following translation table applies, no escape sequences.
 
-           Built in PETSCII to PETSCII screen code translation table
+           Built-in PETSCII to PETSCII screen code translation table
        Input               Byte                Input               Byte
 00...1F             80...9F             20...3F             20...3F
 40...5F             00...1F             60...7F             40...5F
@@ -2371,7 +2386,7 @@ The `none' encoding for Unicode
 This is a Unicode to PETSCII mapping, including escape sequences for control
 codes.
 
-                 Built in Unicode to PETSCII translation table
+                 Built-in Unicode to PETSCII translation table
  Glyph        Unicode           Byte     Glyph        Unicode           Byte
  ...@   U+0020...U+0040      20...40    A...Z   U+0041...U+005A      C1...DA
 [       U+005B               5B         ]       U+005D               5D
@@ -2400,7 +2415,7 @@ a...z   U+0061...U+007A      41...5A    ?       U+00A3               5C
 ?       U+2663               D8         ?       U+2665               D3
 ?       U+2666               DA         ?       U+2713               BA
 
-                       Built in PETSCII escape sequences
+                       Built-in PETSCII escape sequences
       Escape       Byte         Escape        Byte          Escape         Byte
 {bell}             07    {black}              90    {blk}                  90
 {blue}             1F    {blu}                1F    {brn}                  95
@@ -2483,7 +2498,7 @@ The `screen' encoding for Unicode
 This is a Unicode to PETSCII screen code mapping, including escape sequences
 for control code screen codes.
 
-           Built in Unicode to PETSCII screen code translation table
+           Built-in Unicode to PETSCII screen code translation table
 Glyph        Unicode        Translated  Glyph        Unicode        Translated
  ...?  U+0020...U+003F     20...3F      @      U+0040              00
 A...Z  U+0041...U+005A     41...5A      [      U+005B              1B
@@ -2513,7 +2528,7 @@ A...Z  U+0041...U+005A     41...5A      [      U+005B              1B
 ?      U+2665              53           ?      U+2666              5A
 ?      U+2713              7A
 
-                 Built in PETSCII screen code escape sequences
+                 Built-in PETSCII screen code escape sequences
    Escape      Byte         Escape         Byte          Escape           Byte
 {cbm-*}       5F     {cbm-+}              66     {cbm--}                 5C
 {cbm-0}       30     {cbm-9}              29     {cbm-@}                 64
@@ -2791,6 +2806,8 @@ CLR 64 74 9C 9E
 
 -------------------------------------------------------------------------------
 
+Appendix
+
 Assembler directives
 
 .al .align .as .assert .bend .binary .binclude .block .byte .case .cdef .cerror
@@ -2801,3 +2818,10 @@ Assembler directives
 .macro .next .null .offs .option .page .pend .proc .proff .pron .ptext .rept
 .rta .section .segment .send .shift .shiftl .showmac .struct .switch .text
 .union .var .warn .word .xl .xs
+-------------------------------------------------------------------------------
+
+Built-in functions
+
+abs acos all any asin atan atan2 bool cbrt ceil cos cosh deg exp float floor
+frac hypot int len log log10 pow rad range register repr round sign sin sinh
+size sqrt str tan tanh trunc

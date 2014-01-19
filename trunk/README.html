@@ -46,11 +46,11 @@ thead th {background-color:#eee;border-bottom:1px solid black;}
 body { counter-reset: countcaption;}
 h1 { counter-reset: counth2; font-size: 2em; margin: 0.67em 0; }
 
-h2:before { content: counter(counth2) " "; counter-increment: counth2; min-width: 40pt;display:inline-block;}
+h2:before { content: counter(counth2) " "; counter-increment: counth2; min-width: 45pt;display:inline-block;}
 h2 { counter-reset: counth3; }
-h3:before { content: counter(counth2) "." counter(counth3) " "; counter-increment: counth3; min-width: 40pt;display:inline-block;}
+h3:before { content: counter(counth2) "." counter(counth3) " "; counter-increment: counth3; min-width: 45pt;display:inline-block;}
 h3 { counter-reset: counth4; }
-h4:before { content: counter(counth2) "." counter(counth3) "." counter(counth4) " "; counter-increment: counth4; min-width: 40pt;display:inline-block;}
+h4:before { content: counter(counth2) "." counter(counth3) "." counter(counth4) " "; counter-increment: counth4; min-width: 45pt;display:inline-block;}
 caption:before { content: "Table " counter(countcaption) ": "; counter-increment: countcaption; font-weight:bold;}
 
 q { quotes: "\201C" "\201D" "\2018" "\2019"; }
@@ -70,7 +70,7 @@ the 65xx series of processors. Key features:</p>
 <li>Arbitrary-precision integers and bitstrings, double precision floating point numbers
 <li>Character and byte strings, array arithmetic
 <li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files and strings
-<li>Built in <q>linker</q> with section support
+<li>Built-in <q>linker</q> with section support
 <li>CPU or flat address space for creating huge binaries (e.g. cartridges)
 <li>Conditional compilation, macros, struct/union structures, scopes.
 </ul>
@@ -228,10 +228,10 @@ following operations are accepted:</p>
 <tr><td>x &amp; y<td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
 <tr><td>x &lt;&lt; y<td>logical shift left<td><code><span>1</span> &lt;&lt; <span>3</span></code> is <code><span>8</span></code>
 <tr><td>x &gt;&gt; y<td>arithmetic shift right<td><code><span>-8</span> &gt;&gt; <span>3</span></code> is <code><span>-1</span></code>
-<tr><td>abs(a)<td>absolute value<td><code><span class="k">abs</span>(<span>-1</span>)</code> is <code><span>1</span></code>
-<tr><td>sign(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>-4</span>)</code> is <code><span>-1</span></code>
-<tr><td>int(a)<td>convert to integer<td><code><span class="k">int</span>(<span>11</span>)</code> is <code><span>11</span></code>
-<tr><td>bool(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span>1</span>)</code> is true
+<tr><td><a name="">abs</a>(a)<td>absolute value<td><code><span class="k">abs</span>(<span>-1</span>)</code> is <code><span>1</span></code>
+<tr><td><a name="">sign</a>(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>-4</span>)</code> is <code><span>-1</span></code>
+<tr><td><a name="">int</a>(a)<td>convert to integer<td><code><span class="k">int</span>(<span>11</span>)</code> is <code><span>11</span></code>
+<tr><td><a name="">bool</a>(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span>1</span>)</code> is true
 </table>
 
 <p>An integer has a truth value of true if it's non-zero. The
@@ -270,13 +270,13 @@ The following operations are accepted:</p>
 <tr><td>x | y<td>bitwise or<td><code><span>~$2</span> | <span>$6</span></code> is <code><span>~$0</span></code>
 <tr><td>x ^ y<td>bitwise xor<td><code><span>~$2</span> ^ <span>$6</span></code> is <code><span>~$4</span></code>
 <tr><td>x &amp; y<td>bitwise and<td><code><span>~$2</span> &amp; <span>$6</span></code> is <code><span>$4</span></code>
-<tr><td>abs(a)<td>absolute value<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
-<tr><td>sign(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>-1</span></code>
-<tr><td>int(a)<td>convert to integer<td><code><span class="k">int</span>(<span>%11</span>)</code> is <code><span>3</span></code>
-<tr><td>bool(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span>%11</span>)</code> is true
-<tr><td>len(a)<td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
-<tr><td>all(a)<td>all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is true
-<tr><td>any(a)<td>at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is false
+<tr><td><a name="">abs</a>(a)<td>absolute value<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
+<tr><td><a name="">sign</a>(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>-1</span></code>
+<tr><td><a name="">int</a>(a)<td>convert to integer<td><code><span class="k">int</span>(<span>%11</span>)</code> is <code><span>3</span></code>
+<tr><td><a name="">bool</a>(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span>%11</span>)</code> is true
+<tr><td><a name="">len</a>(a)<td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
+<tr><td><a name="">all</a>(a)<td>all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is true
+<tr><td><a name="">any</a>(a)<td>at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is false
 </table>
 
 <p>A bit string has a truth value of true if it's integer value is non-zero.</p>
@@ -330,33 +330,33 @@ following operations can be used:</p>
 <tr><td>x &lt;&lt; y<td>logical shift left<td><code><span>1.0</span> &lt;&lt; <span>3.0</span></code> is <code><span>8.0</span></code>
 <tr><td>x &gt;&gt; y<td>arithmetic shift right<td><code><span>-8.0</span> &gt;&gt; <span>4</span></code> is <code><span>-0.5</span></code>
 <tr><td>~x<td>almost &minus;x<td><code>~<span>2.1</span></code> is almost <code><span>-2.1</span></code>
-<tr><td>abs(a)<td>absolute value<td><code><span class="k">abs</span>(<span>-1.0</span>)</code> is <code><span>1.0</span></code>
-<tr><td>sign(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>-4.0</span>)</code> is <code><span>-1</span></code>
-<tr><td>floor(a)<td>round down<td><code><span class="k">floor</span>(<span>-4.8</span>)</code> is <code><span>-5.0</span></code>
-<tr><td>round(a)<td>round to nearest away from zero<td><code><span class="k">round</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
-<tr><td>ceil(a)<td>round up<td><code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
-<tr><td>trunc(a)<td>round down towards zero<td><code><span class="k">trunc</span>(<span>-1.9</span>)</code> is <code><span>-1</span></code>
-<tr><td>frac(a)<td>fractional part<td><code><span class="k">frac</span>(<span>1.1</span>)</code> is <code><span>0.1</span></code>
-<tr><td>sqrt(a)<td>square root<td><code><span class="k">sqrt</span>(<span>16.0</span>)</code> is <code><span>4.0</span></code>
-<tr><td>cbrt(a)<td>cube root<td><code><span class="k">cbrt</span>(<span>27.0</span>)</code> is <code><span>3.0</span></code>
-<tr><td>log10(a)<td>common logarithm<td><code><span class="k">log10</span>(<span>100.0</span>)</code> is <code><span>2.0</span></code>
-<tr><td>log(a)<td>natural logarithm<td><code><span class="k">log</span>(<span>1</span>)</code> is <code><span>0.0</span></code>
-<tr><td>exp(a)<td>exponential<td><code><span class="k">exp</span>(<span>0</span>)</code> is <code><span>1.0</span></code>
-<tr><td>pow(a,&nbsp;b)<td>a raised to power of b<td><code><span class="k">pow</span>(<span>2.0, 3.0</span>)</code> is <code><span>8.0</span></code>
-<tr><td>sin(a)<td>sine<td><code><span class="k">sin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>asin(a)<td>arc sine<td><code><span class="k">asin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>sinh(a)<td>hyperbolic sine<td><code><span class="k">sinh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>cos(a)<td>cosine<td><code><span class="k">cos</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
-<tr><td>acos(a)<td>arc cosine<td><code><span class="k">acos</span>(<span>1.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>cosh(a)<td>hyperbolic cosine<td><code><span class="k">cosh</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
-<tr><td>tan(a)<td>tangent<td><code><span class="k">tan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>atan(a)<td>arc tangent<td><code><span class="k">atan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>tanh(a)<td>hyperbolic tangent<td><code><span class="k">tanh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>rad(a)<td>degrees to radian<td><code><span class="k">rad</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>deg(a)<td>radian to degrees<td><code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>hypot(y,&nbsp;x)<td>polar distance<td><code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
-<tr><td>atan2(y,&nbsp;x)<td>polar angle<td><code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td>float(a)<td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
+<tr><td><a name="">abs</a>(a)<td>absolute value<td><code><span class="k">abs</span>(<span>-1.0</span>)</code> is <code><span>1.0</span></code>
+<tr><td><a name="">sign</a>(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>-4.0</span>)</code> is <code><span>-1</span></code>
+<tr><td><a name="f_floor">floor</a>(a)<td>round down<td><code><span class="k">floor</span>(<span>-4.8</span>)</code> is <code><span>-5.0</span></code>
+<tr><td><a name="f_round">round</a>(a)<td>round to nearest away from zero<td><code><span class="k">round</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
+<tr><td><a name="f_ceil">ceil</a>(a)<td>round up<td><code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
+<tr><td><a name="f_trunc">trunc</a>(a)<td>round down towards zero<td><code><span class="k">trunc</span>(<span>-1.9</span>)</code> is <code><span>-1</span></code>
+<tr><td><a name="f_frac">frac</a>(a)<td>fractional part<td><code><span class="k">frac</span>(<span>1.1</span>)</code> is <code><span>0.1</span></code>
+<tr><td><a name="f_sqrt">sqrt</a>(a)<td>square root<td><code><span class="k">sqrt</span>(<span>16.0</span>)</code> is <code><span>4.0</span></code>
+<tr><td><a name="f_cbrt">cbrt</a>(a)<td>cube root<td><code><span class="k">cbrt</span>(<span>27.0</span>)</code> is <code><span>3.0</span></code>
+<tr><td><a name="f_log10">log10</a>(a)<td>common logarithm<td><code><span class="k">log10</span>(<span>100.0</span>)</code> is <code><span>2.0</span></code>
+<tr><td><a name="f_log">log</a>(a)<td>natural logarithm<td><code><span class="k">log</span>(<span>1</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_exp">exp</a>(a)<td>exponential<td><code><span class="k">exp</span>(<span>0</span>)</code> is <code><span>1.0</span></code>
+<tr><td><a name="f_pow">pow</a>(a,&nbsp;b)<td>a raised to power of b<td><code><span class="k">pow</span>(<span>2.0, 3.0</span>)</code> is <code><span>8.0</span></code>
+<tr><td><a name="f_sin">sin</a>(a)<td>sine<td><code><span class="k">sin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_asin">asin</a>(a)<td>arc sine<td><code><span class="k">asin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_sinh">sinh</a>(a)<td>hyperbolic sine<td><code><span class="k">sinh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_cos">cos</a>(a)<td>cosine<td><code><span class="k">cos</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
+<tr><td><a name="f_acos">acos</a>(a)<td>arc cosine<td><code><span class="k">acos</span>(<span>1.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_cosh">cosh</a>(a)<td>hyperbolic cosine<td><code><span class="k">cosh</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
+<tr><td><a name="f_tan">tan</a>(a)<td>tangent<td><code><span class="k">tan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_atan">atan</a>(a)<td>arc tangent<td><code><span class="k">atan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_tanh">tanh</a>(a)<td>hyperbolic tangent<td><code><span class="k">tanh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_rad">rad</a>(a)<td>degrees to radian<td><code><span class="k">rad</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_deg">deg</a>(a)<td>radian to degrees<td><code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="f_hypot">hypot</a>(y,&nbsp;x)<td>polar distance<td><code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
+<tr><td><a name="f_atan2">atan2</a>(y,&nbsp;x)<td>polar angle<td><code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><a name="">float</a>(a)<td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
 </table>
 
 <p>A floating point number has a truth value of true if it's non-zero.</p>
@@ -399,12 +399,12 @@ Doubling the quotes inside the strings escapes them.</p>
 <tr><td>a[s]<td>cut off start<td><code><span class="s">"abc"</span>[<span>1</span>:]</code> is <code><span class="s">"bc"</span></code>
 <tr><td>a[s]<td>cut off end<td><code><span class="s">"abc"</span>[:<span>-1</span>]</code> is <code><span class="s">"ab"</span></code>
 <tr><td>a[s]<td>reverse<td><code><span class="s">"abc"</span>[::<span>-1</span>]</code> is <code><span class="s">"cba"</span></code>
-<tr><td>bool(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">"a"</span>)</code> is true
-<tr><td>len(a)<td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
-<tr><td>all(a)<td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is true
-<tr><td>any(a)<td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is true
-<tr><td>str(a)<td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
-<tr><td>repr(a)<td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
+<tr><td><a name="">bool</a>(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">"a"</span>)</code> is true
+<tr><td><a name="">len</a>(a)<td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td><a name="">all</a>(a)<td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is true
+<tr><td><a name="">any</a>(a)<td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is true
+<tr><td><a name="">str</a>(a)<td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
+<tr><td><a name="">repr</a>(a)<td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
 </table>
 
 <p>A string has a truth value of true if it contains at least one character which is not translated to zero.</p>
@@ -491,10 +491,10 @@ string using the current encoding to bytes.</p>
 <tr><td>a[s]<td>cut off start<td><code><span class="s">b"abc"</span>[<span>1</span>:]</code> is <code><span class="s">b"bc"</span></code>
 <tr><td>a[s]<td>cut off end<td><code><span class="s">b"abc"</span>[:<span>-1</span>]</code> is <code><span class="s">b"ab"</span></code>
 <tr><td>a[s]<td>reverse<td><code><span class="s">b"abc"</span>[::<span>-1</span>]</code> is <code><span class="s">b"cba"</span></code>
-<tr><td>bool(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">b"a"</span>)</code> is true
-<tr><td>len(a)<td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
-<tr><td>all(a)<td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is true
-<tr><td>any(a)<td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is true
+<tr><td><a name="">bool</a>(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">b"a"</span>)</code> is true
+<tr><td><a name="">len</a>(a)<td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td><a name="">all</a>(a)<td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is true
+<tr><td><a name="">any</a>(a)<td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is true
 </table>
 
 <p>A byte string has a truth value of true if it contains at least one non-zero byte.</p>
@@ -530,10 +530,10 @@ types are immutable.</p>
 <tr><td>a[s]<td>cut off start<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[<span>1</span>:]</code> is <code>(<span>2</span>, <span>3</span>)</code>
 <tr><td>a[s]<td>cut off end<td><code>(<span>1</span>, <span>2.0</span>, <span>3</span>)[:<span>-1</span>]</code> is <code>(<span>1</span>, <span>2.0</span>)</code>
 <tr><td>a[s]<td>reverse<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[::<span>-1</span>]</code> is <code>(<span>3</span>, <span>2</span>, <span>1</span>)</code>
-<tr><td>len(a)<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
-<tr><td>all(a)<td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is false
-<tr><td>any(a)<td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is true
-<tr><td>range(s,e,t)<td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
+<tr><td><a name="">len</a>(a)<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
+<tr><td><a name="">all</a>(a)<td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is false
+<tr><td><a name="">any</a>(a)<td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is true
+<tr><td><a name="">range</a>(s,e,t)<td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
 </table>
 
 <p>A list or tuple has a truth value of true if it contains at least one element.</p>
@@ -572,7 +572,7 @@ call_l  <b class="d">.byte</b> &lt;<u>mylist</u>[<span>1</span>::<span>2</span>]
 call_h  <b class="d">.byte</b> &gt;<u>mylist</u>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&gt;cmd_e-1, &gt;cmd_g-1, &gt;cmd_i-1)</i>
 </pre>
 
-<p>The <code>range(start, end, step)</code> built in function can be used to
+<p>The <code>range(start, end, step)</code> built-in function can be used to
 create lists of integers in a range with a given step value. At least the end
 must be given, the start defaults to 0 and the step to 1. Sounds not very
 useful, so here are a few examples:</p>
@@ -603,7 +603,7 @@ and string keys are accepted, the value can be anything.</p>
 <caption>Dictionary operators and functions</caption>
 <tr><td>x[i]<td>value lookup<td><code>{<span class="s">"1"</span>:<span>2</span>}[<span class="s">"1"</span>]</code> is <code><span>2</span></code>
 <tr><td>in<td>is a key<td><code><span>1</span> <span class="k">in</span> {<span>1</span>:<span>2</span>}</code> is true
-<tr><td>len(x)<td>number of elements<td><code><span class="k">len</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>])</code> is <code><span>2</span></code>
+<tr><td><a name="">len</a>(x)<td>number of elements<td><code><span class="k">len</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>])</code> is <code><span>2</span></code>
 </table>
 
 <p>A dictionary has a truth value of true if it contains at least one key value pair.</p>
@@ -631,8 +631,8 @@ risk for now, you might need to update your code later.</b></p>
 <tr><td>a[s]<td>cut off start, as tuple<td><code><u>label</u>[<span>1</span>:]</code>
 <tr><td>a[s]<td>cut off end, as tuple<td><code><u>label</u>[:<span>-1</span>]</code>
 <tr><td>a[s]<td>reverse, as tuple<td><code><u>label</u>[::<span>-1</span>]</code>
-<tr><td>len(a)<td>number of elements<td><code><span class="k">len</span>(<u>label</u>)</code>
-<tr><td>size(a)<td>size in bytes<td><code><span class="k">size</span>(<u>label</u>)</code>
+<tr><td><a name="">len</a>(a)<td>number of elements<td><code><span class="k">len</span>(<u>label</u>)</code>
+<tr><td><a name="">size</a>(a)<td>size in bytes<td><code><span class="k">size</span>(<u>label</u>)</code>
 </table>
 
 <p>A code object has a truth value of true when it's address is non-zero.</p>
@@ -929,6 +929,9 @@ true or the second (y) if c is false.</p>
         <b class="d">.text</b> <u>MODE</u> == <span>1</span> ? <span class="s">"simple"</span> : <u>MODE</u> == <span>2</span> ? <span class="s">"advanced"</span> : <span class="s">"normal"</span>
 </pre>
 
+<p>Please not that these are not short circuiting operations and both sides are
+calculated even if thrown away later.</p>
+
 <h3>Expressions</h3>
 
 <p>Parenthesis (<code>( )</code>) can be used to override operator precedence.
@@ -939,13 +942,25 @@ opcodes.</p>
         <b>lda</b> #(<span>4</span>+<span>2</span>)*<span>3</span>
 </pre>
 
-<p>Built in functions are identifiers followed by parentheses. They accept
-variable number of parameters separated by comma.</p>
+<p>Built-in functions are identifiers followed by parentheses. They accept
+variable number of parameters separated by comma. For math functions see the
+floating point constants section.</p>
 
 <table border="0" class="oper">
-<caption>Other built in functions</caption>
-<tr><td width="150">all(a)<td>All elements true or no elements
-<tr><td>any(a)<td>Any elements true
+<caption>General built-in functions</caption>
+<tr><td width="150"><a name="f_abs">abs</a>(a)<td>absolute value
+<tr><td><a name="f_all">all</a>(a)<td>all elements true or no elements
+<tr><td><a name="f_any">any</a>(a)<td>any elements true
+<tr><td><a name="f_bool">bool</a>(a)<td>truth value
+<tr><td><a name="f_float">float</a>(a)<td>convert to floating point
+<tr><td><a name="f_int">int</a>(a)<td>convert to integer
+<tr><td><a name="f_len">len</a>(a)<td>number of elements
+<tr><td><a name="f_range">range</a>(s,e,t)<td>create a list with values from a range
+<tr><td><a name="f_register">register</a>(a)<td>create custom register
+<tr><td><a name="f_repr">repr</a>(a)<td>representation to string
+<tr><td><a name="f_sign">sign</a>(a)<td>sign value (&minus;1, 0, 1)
+<tr><td><a name="f_size">size</a>(a)<td>size in bytes
+<tr><td><a name="f_str">str</a>(a)<td>convert to string
 </table>
 
 <p>Special addressing mode forcing operators in front of an expression can be
@@ -1446,7 +1461,7 @@ name    <b class="k">.macro</b>
 </pre>
 
 <h3>Custom functions</h3>
-<p>Beyond the built in functions mentioned earlier it's possible to define
+<p>Beyond the built-in functions mentioned earlier it's possible to define
 custom ones for frequently used calculations.</p>
 
 <dl class="dir">
@@ -2555,7 +2570,7 @@ This mode is for compiling sources which are already PETSCII.</p>
 <h4>The <q>screen</q> encoding for raw 8-bit</h4>
 <p>The following translation table applies, no escape sequences.</p>
 <table width="100%">
-<caption>Built in PETSCII to PETSCII screen code translation table</caption>
+<caption>Built-in PETSCII to PETSCII screen code translation table</caption>
 <thead>
 <tr><th>Input<th>Byte
 <th>Input<th>Byte
@@ -2576,7 +2591,7 @@ This mode is for compiling sources which are already PETSCII.</p>
 <h4>The <q>none</q> encoding for Unicode</h4>
 This is a Unicode to PETSCII mapping, including escape sequences for control codes.
 <table width="100%" class="trans">
-<caption>Built in Unicode to PETSCII translation table</caption>
+<caption>Built-in Unicode to PETSCII translation table</caption>
 <thead>
 <tr><th>Glyph<th>Unicode<th>Byte
 <th>Glyph<th>Unicode<th>Byte
@@ -2637,7 +2652,7 @@ This is a Unicode to PETSCII mapping, including escape sequences for control cod
 </table>
 
 <table width="100%" class="esc">
-<caption>Built in PETSCII escape sequences</caption>
+<caption>Built-in PETSCII escape sequences</caption>
 <thead>
 <tr><th>Escape<th>Byte
 <th>Escape<th>Byte
@@ -2874,7 +2889,7 @@ This is a Unicode to PETSCII mapping, including escape sequences for control cod
 <h4>The <q>screen</q> encoding for Unicode</h4>
 This is a Unicode to PETSCII screen code mapping, including escape sequences for control code screen codes.
 <table width="100%" class="trans">
-<caption>Built in Unicode to PETSCII screen code translation table</caption>
+<caption>Built-in Unicode to PETSCII screen code translation table</caption>
 <thead>
 <tr><th>Glyph<th>Unicode<th>Translated
 <th>Glyph<th>Unicode<th>Translated
@@ -2937,7 +2952,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <table width="100%" class="esc">
-<caption>Built in PETSCII screen code escape sequences</caption>
+<caption>Built-in PETSCII screen code escape sequences</caption>
 <thead>
 <tr><th>Escape<th>Byte
 <th>Escape<th>Byte
@@ -3434,7 +3449,9 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h2>Assembler directives</h2>
+<h2>Appendix</h2>
+
+<h3>Assembler directives</h3>
 <a href="#d_al">.al</a>
 <a href="#d_align">.align</a>
 <a href="#d_as">.as</a>
@@ -3521,5 +3538,45 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_word">.word</a>
 <a href="#d_xl">.xl</a>
 <a href="#d_xs">.xs</a>
+
+<hr>
+<h3>Built-in functions</h3>
+<a href="#f_abs">abs</a>
+<a href="#f_acos">acos</a>
+<a href="#f_all">all</a>
+<a href="#f_any">any</a>
+<a href="#f_asin">asin</a>
+<a href="#f_atan">atan</a>
+<a href="#f_atan2">atan2</a>
+<a href="#f_bool">bool</a>
+<a href="#f_cbrt">cbrt</a>
+<a href="#f_ceil">ceil</a>
+<a href="#f_cos">cos</a>
+<a href="#f_cosh">cosh</a>
+<a href="#f_deg">deg</a>
+<a href="#f_exp">exp</a>
+<a href="#f_float">float</a>
+<a href="#f_floor">floor</a>
+<a href="#f_frac">frac</a>
+<a href="#f_hypot">hypot</a>
+<a href="#f_int">int</a>
+<a href="#f_len">len</a>
+<a href="#f_log">log</a>
+<a href="#f_log10">log10</a>
+<a href="#f_pow">pow</a>
+<a href="#f_rad">rad</a>
+<a href="#f_range">range</a>
+<a href="#f_register">register</a>
+<a href="#f_repr">repr</a>
+<a href="#f_round">round</a>
+<a href="#f_sign">sign</a>
+<a href="#f_sin">sin</a>
+<a href="#f_sinh">sinh</a>
+<a href="#f_size">size</a>
+<a href="#f_sqrt">sqrt</a>
+<a href="#f_str">str</a>
+<a href="#f_tan">tan</a>
+<a href="#f_tanh">tanh</a>
+<a href="#f_trunc">trunc</a>
 
 </body></html>
