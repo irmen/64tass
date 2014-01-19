@@ -811,7 +811,7 @@ c ? x : y   if c is true then x otherwise y
         .text MODE == 1 && "simple" || MODE == 2 && "advanced" || "normal"
         .text MODE == 1 ? "simple" : MODE == 2 ? "advanced" : "normal"
 
-Please not that these are not short circuiting operations and both sides are
+Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.
 
 Expressions
