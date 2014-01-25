@@ -37,7 +37,7 @@ struct memblocks_s {
 
 extern void mark_mem(const struct memblocks_s *, address_t);
 extern void write_mark_mem(struct memblocks_s *, uint8_t);
-extern void list_mem(const struct memblocks_s *, FILE *, address_t, int, enum lastl_e *);
+extern void list_mem(const struct memblocks_s *, FILE *, address_t, int);
 extern void memjmp(struct memblocks_s *, address_t);
 extern void memref(struct memblocks_s *, struct memblocks_s *);
 extern void memprint(struct memblocks_s *);

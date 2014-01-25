@@ -162,8 +162,8 @@ void memprint(struct memblocks_s *memblocks) {
 }
 
 static void putlw(int w, FILE *f) {
-    fputc(w, f);
-    fputc(w >> 8, f);
+    putc(w, f);
+    putc(w >> 8, f);
 }
 
 static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
@@ -346,7 +346,7 @@ void write_mark_mem(struct memblocks_s *memblocks, uint8_t c) {
     memblocks->mem.data[ptextaddr] = c;
 }
 
-void list_mem(const struct memblocks_s *memblocks, FILE *flist, address_t all_mem, int dooutput, enum lastl_e *lastl) { 
+void list_mem(const struct memblocks_s *memblocks, FILE *flist, address_t all_mem, int dooutput) { 
     address_t myaddr;
     size_t len;
     int first = 1, l, lcol;
@@ -373,19 +373,18 @@ void list_mem(const struct memblocks_s *memblocks, FILE *flist, address_t all_me
                 }
             }
         }
-        if (*lastl != LIST_DATA) {putc('\n',flist);*lastl = LIST_DATA;}
-        l = printaddr(flist, '>', myaddr);
+        l = printaddr('>', myaddr, LIST_DATA);
         if (dooutput) {
             if (len) {
-                while (l < 8) {l += 8; fputc('\t', flist);}
+                while (l < 8) {l += 8; putc('\t', flist);}
                 l &= ~7;
                 while (len) {
                     if (!lcol--) {
                         if (arguments.source && llist) {
                             printllist(l);
                         } else putc('\n',flist);
-                        l = printaddr(flist, '>', myaddr);
-                        while (l < 8) {l += 8; fputc('\t', flist);}
+                        l = printaddr('>', myaddr, LIST_DATA);
+                        while (l < 8) {l += 8; putc('\t', flist);}
                         l &= ~7;
                         lcol=15;
                     }

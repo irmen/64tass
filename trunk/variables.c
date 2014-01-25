@@ -238,7 +238,7 @@ static struct label_s *find_strongest_label(struct avltree_node **x) {
 
 static void labelname_print(const struct label_s *l, FILE *flab) {
     if (l->parent->parent) labelname_print(l->parent, flab);
-    fputc('.', flab);
+    putc('.', flab);
     fwrite(l->name.data, l->name.len, 1, flab);
 }
 

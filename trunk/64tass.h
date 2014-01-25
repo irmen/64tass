@@ -62,7 +62,7 @@ extern void new_waitfor(enum wait_e, linepos_t);
 extern struct value_s *compile(struct file_list_s *);
 extern void var_assign(struct label_s *, struct value_s *, int);
 extern void printllist(int);
-extern int printaddr(FILE *, char, address_t);
+extern int printaddr(char, address_t, enum lastl_e);
 extern void pokeb(uint8_t);
 extern void list_instr(uint8_t, uint32_t, int, enum opr_e, uint32_t);
 #endif
