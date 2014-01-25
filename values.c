@@ -34,6 +34,7 @@ struct value_s null_bytes;
 struct value_s null_bits;
 struct value_s null_tuple;
 struct value_s null_list;
+struct value_s null_addrlist;
 
 struct value_s o_TUPLE;
 struct value_s o_LIST;
@@ -267,6 +268,10 @@ void init_values(void)
     null_list.refcount = 0;
     null_list.u.list.len = 0;
     null_list.u.list.data = NULL;
+    null_addrlist.obj = ADDRLIST_OBJ;
+    null_addrlist.refcount = 0;
+    null_addrlist.u.list.len = 0;
+    null_addrlist.u.list.data = NULL;
 
     o_TUPLE.obj = OPER_OBJ;
     o_TUPLE.refcount = 0;

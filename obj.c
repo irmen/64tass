@@ -304,6 +304,10 @@ static void register_copy_temp(const struct value_s *v1, struct value_s *v) {
     } else v->u.reg.data = v1->u.reg.data;
 }
 
+static int register_same(const struct value_s *v1, const struct value_s *v2) {
+    return v2->obj == REGISTER_OBJ && v1->u.reg.len == v2->u.reg.len && (v1->u.reg.data == v2->u.reg.data || !memcmp(v1->u.reg.data, v2->u.reg.data, v2->u.reg.len));
+}
+
 static void register_repr(const struct value_s *v1, struct value_s *v) {
     uint8_t *s;
     const char *prefix = "<register '";
@@ -934,6 +938,20 @@ static int MUST_CHECK error_len(const struct value_s *v1, struct value_s *v, uva
     return 1;
 }
 
+static int MUST_CHECK error_size(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(len), linepos_t UNUSED(epoint)) {
+    if (v == v1) return 1;
+    error_copy(v1, v);
+    return 1;
+}
+
+static void error_repeat(oper_t op, uval_t UNUSED(rep)) {
+    struct value_s *v = op->v;
+    if (v == op->v1) return;
+    if (v == op->v2) v->obj->destroy(v);
+    error_copy(op->v1, v);
+}
+
+
 static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v) {
     if (v1->obj == ANONIDENT_OBJ) {
         char idents[100];
@@ -1055,6 +1073,14 @@ static int MUST_CHECK ident_size(const struct value_s *v1, struct value_s *v, uv
     struct value_s tmp;
     v1 = ident_resolv(v1, (v1 == v) ? v : &tmp);
     return v1->obj->size(v1, v, uv, epoint);
+}
+
+static void ident_repeat(oper_t op, uval_t rep) {
+    struct value_s *v, *v1 = op->v1, tmp;
+    v = ident_resolv(v1, (v1 == op->v) ? op->v : &tmp);
+    op->v1 = v;
+    v->obj->repeat(op, rep);
+    op->v1 = v1;
 }
 
 static int none_hash(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -1282,6 +1308,7 @@ void objects_init(void) {
     error_obj.calc1 = error_calc1;
     error_obj.calc2 = error_calc2;
     error_obj.rcalc2 = error_rcalc2;
+    error_obj.repeat = error_repeat;
     error_obj.ival = error_ival;
     error_obj.uval = error_uval;
     error_obj.real = error_real;
@@ -1289,6 +1316,7 @@ void objects_init(void) {
     error_obj.abs = error_abs;
     error_obj.integer = error_integer;
     error_obj.len = error_len;
+    error_obj.size = error_size;
     obj_init(&gap_obj, T_GAP, "<gap>");
     gap_obj.hash = gap_hash;
     gap_obj.repr = gap_repr;
@@ -1308,6 +1336,7 @@ void objects_init(void) {
     ident_obj.calc1 = ident_calc1;
     ident_obj.calc2 = ident_calc2;
     ident_obj.rcalc2 = ident_rcalc2;
+    ident_obj.repeat = ident_repeat;
     obj_init(&anonident_obj, T_ANONIDENT, "<anonident>");
     anonident_obj.hash = ident_hash;
     anonident_obj.repr = ident_repr;
@@ -1317,9 +1346,11 @@ void objects_init(void) {
     anonident_obj.real = ident_real;
     anonident_obj.integer = ident_integer;
     anonident_obj.len = ident_len;
+    anonident_obj.size = ident_size;
     anonident_obj.calc1 = ident_calc1;
     anonident_obj.calc2 = ident_calc2;
     anonident_obj.rcalc2 = ident_rcalc2;
+    anonident_obj.repeat = ident_repeat;
     obj_init(&oper_obj, T_OPER, "<oper>");
     obj_init(&default_obj, T_DEFAULT, "<default>");
     obj_init(&dict_obj, T_DICT, "<dict>");
@@ -1343,6 +1374,7 @@ void objects_init(void) {
     register_obj.destroy = register_destroy;
     register_obj.copy = register_copy;
     register_obj.copy_temp = register_copy_temp;
+    register_obj.same = register_same;
     register_obj.hash = register_hash;
     register_obj.repr = register_repr;
     register_obj.calc2 = register_calc2;

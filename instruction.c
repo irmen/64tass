@@ -22,7 +22,6 @@
 #include "values.h"
 #include "64tass.h"
 #include "misc.h"
-#include "eval.h"
 #include "section.h"
 #include "file.h"
 
@@ -72,10 +71,9 @@ void select_opcodes(int cpumode) {
     }
 }
 
-int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
+int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos_t epoint, struct linepos_s *epoints) {
     enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_WORD, AG_NONE } adrgen;
     enum opr_e opr;
-    struct linepos_s epoint2;
     const uint8_t *cnmemonic; /* current nmemonic */
     int_fast8_t ln;
     uint8_t cod, longbranch;
@@ -83,18 +81,19 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
     int d;
     uval_t uval;
     struct value_s err, *val;
+    linepos_t epoint2 = &epoints[0];
 
     opr = ADR_IMPLIED;
     cnmemonic = &opcode[prm * ADR_LEN];
     ln = 0; cod = 0; longbranch = 0; adr = 0; adrgen = AG_NONE;
 
-    if (w < 0) {
+    if (vals->obj == ADDRLIST_OBJ && vals->u.list.len < 1) {
         opr = (cnmemonic[ADR_ACCU] == cnmemonic[ADR_IMPLIED]) ? ADR_ACCU : ADR_IMPLIED; w = ln = 0; d = 1;
     }  /* clc */
     else {
-        if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); return 1;}
+        val = (vals->obj == ADDRLIST_OBJ) ? vals->u.list.data[0] : vals;
         if (val->obj == NONE_OBJ) {
-            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
             d = fixeddig = 0;
         } else d = 1;
 
@@ -102,27 +101,28 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
             atype_t am = val->u.addr.type;
             val = val->u.addr.val;
             if (val->obj == NONE_OBJ) {
-                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                 d = fixeddig = 0;
             }
             switch (am) {
             case A_IMMEDIATE:
                 if ((cod = cnmemonic[(opr = ADR_IMMEDIATE)]) == ____ && prm) { /* 0x69 hack */
                     ln = w = d = 1;
-                } else {
-                    ln = w = 1;
-                    if (cod == 0xE0 || cod == 0xC0 || cod == 0xA2 || cod == 0xA0) {/* cpx cpy ldx ldy */
-                        if (longindex) ln++;
-                    }
-                    else if (cod == 0xF4) ln = 2; /* pea/phw #$ffff */
-                    else if (cod != 0xC2 && cod != 0xE2 && cod != 0x00 && cod != 0x02 && cod != 0xEF) {/* not sep rep brk cop mmu=all accu */
-                        if (longaccu) ln++;
-                    }
+                    break;
+                } 
+                if (cnmemonic[ADR_MOVE] != ____) goto noneaddr;
+                ln = w = 1;
+                if (cod == 0xE0 || cod == 0xC0 || cod == 0xA2 || cod == 0xA0) {/* cpx cpy ldx ldy */
+                    if (longindex) ln++;
+                }
+                else if (cod == 0xF4) ln = 2; /* pea/phw #$ffff */
+                else if (cod != 0xC2 && cod != 0xE2 && cod != 0x00 && cod != 0x02 && cod != 0xEF) {/* not sep rep brk cop mmu=all accu */
+                    if (longaccu) ln++;
+                }
 
-                    if (d) {
-                        if (val->obj->uval(val, &err, &uval, ln * 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
-                        else adr = uval;
-                    }
+                if (d) {
+                    if (val->obj->uval(val, &err, &uval, ln * 8, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    else adr = uval;
                 }
                 break;
             case A_BR:
@@ -156,13 +156,13 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
             case A_YR: /* lda $ff,y lda $ffff,y lda $ffffff,y */
                 if (w == 3) {/* auto length */
                     if (d) {
-                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) {err_msg_wrong_type(&err, &epoint2); w = (cnmemonic[ADR_ADDR_Y] != ____);}
+                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); w = (cnmemonic[ADR_ADDR_Y] != ____);}
                         else if (cnmemonic[ADR_ZP_Y] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
                         else if (databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
                         else {err_msg2(ERROR_NO_ADDRESSING, NULL, epoint); w = (cnmemonic[ADR_ADDR_Y] != ____);}
                     } else w = (cnmemonic[ADR_ADDR_Y] != ____);
                 } else if (d) {
-                    if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                    if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
                     else if (!w && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) adr = (uint16_t)(uval - dpage);
                     else if (w == 1 && databank == (uval >> 16)) adr = (uint16_t)uval;
                     else {err_msg2(ERROR_NO_ADDRESSING, NULL, epoint); w = cnmemonic[ADR_ADDR_Y] != ____;}
@@ -237,41 +237,51 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
                 break;
             case A_NONE:
                 goto noneaddr;
-            default: w = 0; break; /* non-existing */
+            default: return 2; /* non-existing */
             }
+            if (vals->obj == ADDRLIST_OBJ && vals->u.list.len != 1) return 2;
         } else if (val->obj == REGISTER_OBJ && val->u.reg.len == 1 && val->u.reg.data[0] == 'a') {
+            if (vals->obj == ADDRLIST_OBJ && vals->u.list.len != 1) return 2;
             opr = ADR_ACCU;
             w = ln = 0; 
         } else {
         noneaddr:
             if (cnmemonic[ADR_MOVE] != ____) {
+                if (vals->obj != ADDRLIST_OBJ || vals->u.list.len != 2) return 2;
                 w = 0;
                 if (d) {
-                    if (val->obj->uval(val, &err, &uval, 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                    if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_wrong_type(&err, epoint2);
                     else adr = (uint16_t)uval << 8;
                 }
-                if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); return 1;}
+                val = vals->u.list.data[1];
+                epoint2 = &epoints[1];
+                if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_IMMEDIATE) val = val->u.addr.val;
                 if (val->obj == NONE_OBJ) {
-                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                     d = fixeddig = 0;
                 } else {
-                    if (val->obj->uval(val, &err, &uval, 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                    if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_wrong_type(&err, epoint2);
                     else adr |= (uint8_t)uval;
                 }
                 ln = 2; opr = ADR_MOVE;
             } else if (cnmemonic[ADR_BIT_ZP] != ____) {
+                if (vals->obj != ADDRLIST_OBJ || vals->u.list.len != 2) return 2;
                 w = 0;
                 if (d) {
-                    if (val->obj->uval(val, &err, &uval, 3, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                    if (val->obj->uval(val, &err, &uval, 3, epoint2)) err_msg_wrong_type(&err, epoint2);
                     else longbranch = (uval << 4) & 0x70;
                 }
-                if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); return 1;}
+                val = vals->u.list.data[1];
+                epoint2 = &epoints[1];
                 if (val->obj == NONE_OBJ) {
-                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                     d = fixeddig = 0;
                 } else if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_DR) {
-                    d = 1;
                     val = val->u.addr.val;
+                    if (val->obj == NONE_OBJ) {
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                        d = fixeddig = 0;
+                    } else d = 1;
                     adrgen = AG_BYTE;
                 } else {
                     d = 1;
@@ -279,34 +289,47 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
                 }
                 ln = 1; opr = ADR_BIT_ZP;
             } else if (cnmemonic[ADR_BIT_ZP_REL] != ____) {
+                if (vals->obj != ADDRLIST_OBJ || vals->u.list.len != 3) return 2;
                 w = 0;
                 if (d) {
-                    if (val->obj->uval(val, &err, &uval, 3, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                    if (val->obj->uval(val, &err, &uval, 3, epoint2)) err_msg_wrong_type(&err, epoint2);
                     else longbranch = (uval << 4) & 0x70;
                 }
-                if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); return 1;}
+                val = vals->u.list.data[1];
+                epoint2 = &epoints[1];
                 if (val->obj == NONE_OBJ) {
-                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                     d = fixeddig = 0;
                 } else if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_DR) {
                     val = val->u.addr.val;
-                    if (val->obj->uval(val, &err, &uval, 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
-                    else adr = (uint8_t)uval;
+                    if (val->obj == NONE_OBJ) {
+                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                        d = fixeddig = 0;
+                    } else {
+                        if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_wrong_type(&err, epoint2);
+                        else adr = (uint8_t)uval;
+                    }
                 } else {
-                    if (val->obj->uval(val, &err, &uval, 16, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                    if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_wrong_type(&err, epoint2);
                     else adr = (uint16_t)(uval - dpage);
-                    if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, NULL, &epoint2); 
+                    if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, NULL, epoint2); 
                 }
-                if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX, NULL); return 1;}
+                val = vals->u.list.data[2];
+                epoint2 = &epoints[2];
                 if (val->obj == NONE_OBJ) {
-                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
+                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                     d = fixeddig = 0;
                 } else {
                     if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_KR) {
                         val = val->u.addr.val;
-                        if (val->obj->uval(val, &err, &uval, 16, &epoint2)) {err_msg_wrong_type(&err, &epoint2); uval = current_section->l_address + 3;}
+                        if (val->obj == NONE_OBJ) {
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                            d = fixeddig = 0;
+                        } else {
+                            if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_wrong_type(&err, epoint2); uval = current_section->l_address + 3;}
+                        }
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) {err_msg_wrong_type(&err, &epoint2); uval = current_section->l_address + 3;}
+                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); uval = current_section->l_address + 3;}
                         else if (((uval_t)current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                     }
                     uval = (uint16_t)(uval - current_section->l_address - 3);
@@ -319,7 +342,8 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
                     }
                 }
                 ln = 2; opr = ADR_BIT_ZP_REL;
-            } else if (cnmemonic[ADR_REL] != ____) {
+            } else if (vals->obj == ADDRLIST_OBJ && vals->u.list.len != 1) return 2;
+            else if (cnmemonic[ADR_REL] != ____) {
                 struct star_s *s;
                 int labelexists;
                 uint16_t oadr;
@@ -331,9 +355,14 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
                     int labelexists2 = labelexists;
                     if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_KR) {
                         val = val->u.addr.val;
-                        if (val->obj->uval(val, &err, &uval, 16, &epoint2)) {err_msg_wrong_type(&err, &epoint2); uval = current_section->l_address + 2;}
+                        if (val->obj == NONE_OBJ) {
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                            d = fixeddig = 0;
+                        } else {
+                            if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_wrong_type(&err, epoint2); uval = current_section->l_address + 2;}
+                        }
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) {err_msg_wrong_type(&err, &epoint2); uval = current_section->l_address + 2;}
+                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); uval = current_section->l_address + 2;}
                         else if (((uval_t)current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                     }
                     oadr = uval;
@@ -415,7 +444,7 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
             else if (cnmemonic[ADR_REL_L] != ____) {
                 w = 0;
                 if (d) {
-                    if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                    if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
                     if ((current_section->l_address ^ uval) <= 0xffff) {
                         adr = (uint16_t)(uval - current_section->l_address - 3);
                     } else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
@@ -425,12 +454,12 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
             else if (cnmemonic[ADR_LONG] == 0x5C) {
                 if (w == 3) {/* auto length */
                     if (d) {
-                        if (val->obj->uval(val, &err, &uval, 24, &epoint2)) {err_msg_wrong_type(&err, &epoint2); w = (cnmemonic[ADR_ADDR] == ____) + 1;}
+                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); w = (cnmemonic[ADR_ADDR] == ____) + 1;}
                         else if (cnmemonic[ADR_ADDR] != ____ && (current_section->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
                         else {adr = uval; w = 2;}
                     } else w = (cnmemonic[ADR_ADDR] == ____) + 1;
                 } else if (d) {
-                    if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+                    if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
                     else if (w == 1 && (current_section->l_address ^ uval) <= 0xffff) adr = uval;
                     else if (w == 2) adr = uval;
                 }
@@ -443,16 +472,15 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
                 adrgen = AG_DB3; opr = ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
             }
         }
-        eval_finish();
     }
     switch (adrgen) {
     case AG_ZP: /* zero page address only */
         if (w == 3) w = 0;/* auto length */
         else if (w != 0) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint); 
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 16, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+            if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_wrong_type(&err, epoint2);
             else adr = (uint16_t)(uval - dpage);
-            if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, NULL, &epoint2); 
+            if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, NULL, epoint2); 
         }
         ln = 1;
         break;
@@ -460,7 +488,7 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
         if (w == 3) w = 1;/* auto length */
         else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint);
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 16, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+            if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_wrong_type(&err, epoint2);
             else adr = uval;
         }
         ln = 2;
@@ -469,7 +497,7 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
         if (w == 3) w = 1;/* auto length */
         else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint);
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+            if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
             else if ((current_section->l_address ^ uval) <= 0xffff) adr = (uint16_t)uval;
             else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         }
@@ -479,7 +507,7 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
         if (w == 3) w = 0;/* auto length */
         else if (w != 0) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint);
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 8, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+            if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_wrong_type(&err, epoint2);
             else adr = uval;
         }
         ln = 1;
@@ -487,13 +515,13 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
     case AG_DB3: /* 3 choice data bank */
         if (w == 3) {/* auto length */
             if (d) {
-                if (val->obj->uval(val, &err, &uval, 24, &epoint2)) {err_msg_wrong_type(&err, &epoint2); w = (cnmemonic[opr - 1] != ____);}
+                if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); w = (cnmemonic[opr - 1] != ____);}
                 else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
                 else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
                 else {adr = uval; w = 2;}
             } else w = (cnmemonic[opr - 1] != ____);
         } else if (d) {
-            if (val->obj->uval(val, &err, &uval, 24, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+            if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
             else if (!w && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) adr = (uint16_t)(uval - dpage);
             else if (w == 1 && databank == (adr >> 16)) adr = (uint16_t)uval;
             else if (w == 2) adr = uval;
@@ -504,7 +532,7 @@ int instruction(int prm, int w, address_t all_mem, linepos_t epoint) {
         if (w == 3) w = 1;/* auto length */
         else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint);
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 16, &epoint2)) err_msg_wrong_type(&err, &epoint2);
+            if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_wrong_type(&err, epoint2);
             else adr = uval;
         }
         ln = 2;

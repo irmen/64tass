@@ -19,8 +19,9 @@
 #ifndef _INSTRUCTION_H_
 #define _INSTRUCTION_H_
 #include "inttypes.h"
+struct value_s;
 
-extern int instruction(int, int, address_t, linepos_t);
+extern int instruction(int, int, address_t, struct value_s *, linepos_t, struct linepos_s *);
 extern void select_opcodes(int);
 extern int lookup_opcode(const char *);
 

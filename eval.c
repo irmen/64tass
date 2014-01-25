@@ -969,6 +969,53 @@ static inline void apply_op2(oper_t op) {
     else op->v1->obj->calc2(op);
 }
 
+static inline void apply_addressing(enum atype_e am, struct value_s **val) {
+    struct value_s new_value;
+    size_t i;
+    switch ((*val)->obj->type) {
+    case T_ADDRESS:
+        if ((*val)->refcount == 1) {
+            (*val)->u.addr.type = am | ((*val)->u.addr.type << 4);
+            return;
+        }
+        new_value.obj = ADDRESS_OBJ;
+        new_value.u.addr.val = val_reference((*val)->u.addr.val);
+        new_value.u.addr.type = am | ((*val)->u.addr.type << 4);
+        if ((*val)->refcount) (*val)->refcount--;
+        val_set_template(val, &new_value);
+        return;
+    case T_LIST:
+    case T_TUPLE:
+        if ((*val)->refcount == 1) {
+            for (i = 0; i < (*val)->u.list.len; i++) {
+                apply_addressing(am, &(*val)->u.list.data[i]);
+            }
+            return;
+        } 
+        new_value.obj = (*val)->obj;
+        new_value.u.list.len = (*val)->u.list.len;
+        if (new_value.u.list.len) {
+            new_value.u.list.data = (struct value_s **)malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
+            if (!new_value.u.list.data) err_msg_out_of_memory();
+        } else new_value.u.list.data = NULL;
+        for (i = 0; i < (*val)->u.list.len; i++) {
+            new_value.u.list.data[i] = val_reference((*val)->u.list.data[i]);
+            apply_addressing(am, &new_value.u.list.data[i]);
+        }
+        if ((*val)->refcount) (*val)->refcount--;
+        val_set_template(val, &new_value);
+        return;
+    default:
+        {
+            struct value_s *tmp = *val;
+            *val = val_alloc();
+            (*val)->obj = ADDRESS_OBJ;
+            (*val)->u.addr.val = tmp;
+            (*val)->u.addr.type = am;
+        }
+    }
+}
+
 static int get_val2(struct eval_context_s *ev) {
     size_t vsp = 0;
     size_t i;
@@ -1063,17 +1110,10 @@ static int get_val2(struct eval_context_s *ev) {
                         }
                         try_resolv(&values[vsp-1]);
                         switch (values[vsp-1].val->obj->type) {
-                        case T_BOOL:
-                        case T_STR:
-                        case T_INT:
-                        case T_BITS:
-                        case T_CODE:
-                        case T_FLOAT:
-                        case T_BYTES:
-                            val = val_realloc(&v1->val);
-                            val->obj = ADDRESS_OBJ;
-                            val->u.addr.val = val_reference(values[vsp-1].val);
-                            val->u.addr.type = (op == O_BRACKET) ? A_LI : A_I;
+                        case T_LIST:
+                        case T_TUPLE:
+                            val_replace(&v1->val, values[vsp-1].val);
+                            apply_addressing((op == O_BRACKET) ? A_LI : A_I, &v1->val);
                             vsp--; continue;
                         case T_ADDRESS:
                             val = val_realloc(&v1->val);
@@ -1081,7 +1121,12 @@ static int get_val2(struct eval_context_s *ev) {
                             val->u.addr.val = val_reference(values[vsp-1].val->u.addr.val);
                             val->u.addr.type = (values[vsp-1].val->u.addr.type << 4) | ((op == O_BRACKET) ? A_LI : A_I);
                             vsp--; continue;
-                        default : break;
+                        default: 
+                            val = val_realloc(&v1->val);
+                            val->obj = ADDRESS_OBJ;
+                            val->u.addr.val = val_reference(values[vsp-1].val);
+                            val->u.addr.type = (op == O_BRACKET) ? A_LI : A_I;
+                            vsp--; continue;
                         }
                     } else if (tup) {
                         val_replace(&v1->val, values[vsp-1].val); vsp--;continue;
@@ -1250,22 +1295,8 @@ static int get_val2(struct eval_context_s *ev) {
         case O_COMMAK: am = A_KR; goto addr;  /* ,k */
         case O_HASH: am = A_IMMEDIATE;        /* #  */
         addr:
-            if (try_resolv(v1) == T_ADDRESS) {
-                if (v1->val->refcount == 1) v1->val->u.addr.type = am | (v1->val->u.addr.type << 4);
-                else {
-                    v1->val->refcount--;
-                    new_value.obj = ADDRESS_OBJ;
-                    new_value.u.addr.val = val_reference(v1->val->u.addr.val);
-                    new_value.u.addr.type = am | (v1->val->u.addr.type << 4);
-                    val_set_template(&v1->val, &new_value);
-                }
-            } else {
-                struct value_s *tmp = v1->val;
-                v1->val = val_alloc();
-                v1->val->obj = ADDRESS_OBJ;
-                v1->val->u.addr.val = tmp;
-                v1->val->u.addr.type = am;
-            }
+            try_resolv(v1);
+            apply_addressing(am, &v1->val);
             if (op == O_HASH) v1->epoint = o_out->epoint;
             continue;
         case O_LNOT: /* ! */
@@ -1794,6 +1825,37 @@ struct value_s *get_vals_tuple(void) {
         retval->u.list.data = vals;
     }
     return retval;
+}
+
+struct value_s *get_vals_addrlist(struct linepos_s *epoints) {
+    size_t ln = 0, i = 0;
+    struct value_s **vals = NULL, *retval = NULL, *val;
+    struct linepos_s epoint;
+    while ((val = get_val((i < 3) ? &epoints[i] : &epoint))) {
+        if (i) {
+            if (i >= ln) {
+                ln += 16;
+                vals = (struct value_s **)realloc(vals, ln * sizeof(retval->u.list.data[0]));
+                if (!vals || ln < 16 || ln > ((size_t)~0) / sizeof(retval->u.list.data[0])) err_msg_out_of_memory();
+            }
+            if (i == 1) vals[0] = retval;
+            vals[i] = val;
+        } else retval = val;
+        if (val == eval->values->val) eval->values->val = &none_value;
+        i++;
+    }
+    eval_finish();
+    if (i > 1) {
+        retval = val_alloc();
+        retval->obj = ADDRLIST_OBJ;
+        retval->u.list.len = i;
+        if (i != ln) {
+            vals = (struct value_s **)realloc(vals, i * sizeof(val->u.list.data[0]));
+            if (!vals || i > ((size_t)~0) / sizeof(val->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
+        }
+        retval->u.list.data = vals;
+    }
+    return retval ? retval : &null_addrlist;
 }
 
 void eval_enter(void) {

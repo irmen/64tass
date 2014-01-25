@@ -201,6 +201,7 @@ extern struct value_s null_bytes;
 extern struct value_s null_bits;
 extern struct value_s null_tuple;
 extern struct value_s null_list;
+extern struct value_s null_addrlist;
 
 extern struct value_s o_TUPLE;
 extern struct value_s o_LIST;

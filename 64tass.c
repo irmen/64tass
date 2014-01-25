@@ -614,11 +614,15 @@ struct value_s *compile(struct file_list_s *cflist)
                 int labelexists;
                 int oldreferenceit = referenceit;
                 label = find_label3(&labelname, mycontext, strength);
-                if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                referenceit &= label ? label->ref : 1;
-                val = get_vals_tuple();
-                referenceit = oldreferenceit;
-                if (!val) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
+                ignore();
+                if (!here() || here() == ';') val = &null_addrlist;
+                else {
+                    struct linepos_s epoints[3];
+                    if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
+                    referenceit &= label ? label->ref : 1;
+                    val = get_vals_addrlist(epoints);
+                    referenceit = oldreferenceit;
+                }
                 if (label) labelexists = 1;
                 else label = new_label(&labelname, mycontext, strength, &labelexists);
                 oaddr=current_section->address;
@@ -659,10 +663,15 @@ struct value_s *compile(struct file_list_s *cflist)
                         int labelexists;
                         int oldreferenceit = referenceit;
                         label=find_label3(&labelname, mycontext, strength);
-                        if (!get_exp(&w, 0,cfile)) goto breakerr; /* ellenorizve. */
-                        referenceit &= label ? label->ref : 1;
-                        val = get_vals_tuple();
-                        referenceit = oldreferenceit;
+                        ignore();
+                        if (!here() || here() == ';') val = &null_addrlist;
+                        else {
+                            struct linepos_s epoints[3];
+                            if (!get_exp(&w, 0,cfile)) goto breakerr; /* ellenorizve. */
+                            referenceit &= label ? label->ref : 1;
+                            val = get_vals_addrlist(epoints);
+                            referenceit = oldreferenceit;
+                        }
                         if (!val) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                         if (label) labelexists = 1;
                         else label = new_label(&labelname, mycontext, strength, &labelexists);
@@ -2845,15 +2854,36 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (opname.len == 3 && (prm=lookup_opcode((const char *)opname.data))>=0) {
                     int ret;
                     struct linepos_s oldlpoint;
+                    struct linepos_s epoints[3];
                     if (0) {
                 as_opcode: 
                         opname = labelname;
                     }
                     ignore();
                     oldlpoint = lpoint;
-                    if (!here() || here() == ';') w = -1;
-                    else if (!get_exp(&w, 3, cfile)) goto breakerr;
-                    ret = instruction(prm, w, all_mem, &epoint);
+                    if (!here() || here() == ';') val = &null_addrlist;
+                    else {
+                        if (!get_exp(&w, 3, cfile)) goto breakerr;
+                        val = get_vals_addrlist(epoints);
+                    }
+                    if (val->obj == TUPLE_OBJ || val->obj == LIST_OBJ) {
+                        size_t i;
+                        epoints[1] = epoints[0];
+                        epoints[2] = epoints[0];
+                        for (i = 0; i < val->u.list.len; i++) {
+                            ret = instruction(prm, w, all_mem, val->u.list.data[i], &epoint, epoints);
+                            if (ret == 0) continue;
+                            if (ret == 2) {
+                                err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint);
+                            }
+                            val_destroy(val);
+                            goto breakerr; /* ellenorizve. */
+                        }
+                        val_destroy(val);
+                        break;
+                    }
+                    ret = instruction(prm, w, all_mem, val, &epoint, epoints);
+                    val_destroy(val);
                     if (ret == 0) break;
                     if (ret == 2) {
                         tmp2 = find_label(&opname);
@@ -2865,7 +2895,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 goto as_macro;
                             }
                         }
-                        fwrite(opname.data, opname.len, 1, stderr);putc('\n', stderr);
                         err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint); 
                     }
                     goto breakerr; /* ellenorizve. */
