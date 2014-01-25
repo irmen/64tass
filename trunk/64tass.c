@@ -2819,7 +2819,10 @@ struct value_s *compile(struct file_list_s *cflist)
                     int d;
                     uval_t uval;
                     struct value_s err;
+                    if (0) {
                 as_opcode:
+                        opname = labelname;
+                    }
 
                     opr = ADR_IMPLIED;mnem = prm;
                     oldlpoint = lpoint;
@@ -3256,13 +3259,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (d) {
                         if (w==3) {err_msg(ERROR_CONSTNT_LARGE,NULL); goto breakerr;}
                         if ((cod=cnmemonic[opr])==____ && (prm || opr!=ADR_IMMEDIATE)) { /* 0x69 hack */
-                            uint8_t nm[3];
-                            str_t nmname = {3, nm};
-                            nm[0]=mnemonic[mnem] >> 16;
-                            nm[1]=mnemonic[mnem] >> 8;
-                            nm[2]=mnemonic[mnem];
-
-                            tmp2 = find_label(&nmname);
+                            tmp2 = find_label(&opname);
                             if (tmp2) {
                                 if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
                                     tmp2->shadowcheck = 1;
