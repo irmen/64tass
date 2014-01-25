@@ -31,6 +31,7 @@ extern void eval_leave(void);
 extern int eval_finish(void);
 extern size_t get_label(void);
 extern struct value_s *get_vals_tuple(void);
+extern struct value_s *get_vals_addrlist(struct linepos_s *);
 extern ival_t indexoffs(const struct value_s *, size_t);
 extern void touch_label(struct label_s *);
 

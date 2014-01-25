@@ -21,6 +21,7 @@
 
 extern obj_t LIST_OBJ;
 extern obj_t TUPLE_OBJ;
+extern obj_t ADDRLIST_OBJ;
 
 typedef struct {
     size_t len;

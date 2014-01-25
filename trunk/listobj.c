@@ -25,9 +25,11 @@
 
 static struct obj_s list_obj;
 static struct obj_s tuple_obj;
+static struct obj_s addrlist_obj;
 
 obj_t LIST_OBJ = &list_obj;
 obj_t TUPLE_OBJ = &tuple_obj;
+obj_t ADDRLIST_OBJ = &addrlist_obj;
 
 static void destroy(struct value_s *v1) {
     size_t i;
@@ -104,7 +106,7 @@ static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *re
 }
 
 static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
-    size_t i, len = 2, chars = 0;
+    size_t i, len = (v1->obj == ADDRLIST_OBJ) ? 0 : 2, chars = 0;
     struct value_s *tmp = NULL;
     uint8_t *s;
     if (v1->u.list.len) {
@@ -122,7 +124,7 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
             len += tmp[i].u.str.len;
             if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
         }
-        if (i && (v1->obj == LIST_OBJ)) i--;
+        if (i && (v1->obj != TUPLE_OBJ)) i--;
         if (i) {
             len += i;
             if (len < i) err_msg_out_of_memory(); /* overflow */
@@ -131,7 +133,7 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
     s = (uint8_t *)malloc(len);
     if (!s) err_msg_out_of_memory();
     len = 0;
-    s[len++] = (v1->obj == LIST_OBJ) ? '[' : '(';
+    if (v1->obj != ADDRLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? '[' : '(';
     for (i = 0;i < v1->u.list.len; i++) {
         if (i) s[len++] = ',';
         if (tmp[i].u.str.len) {
@@ -142,7 +144,7 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
         STR_OBJ->destroy(&tmp[i]);
     }
     if (i == 1 && (v1->obj == TUPLE_OBJ)) s[len++] = ',';
-    s[len++] = (v1->obj == LIST_OBJ) ? ']' : ')';
+    if (v1->obj != ADDRLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? ']' : ')';
     free(tmp);
     if (v1 == v) v->obj->destroy(v);
     v->obj = STR_OBJ;
@@ -661,4 +663,10 @@ void listobj_init(void) {
     init(&list_obj);
     obj_init(&tuple_obj, T_TUPLE, "<tuple>");
     init(&tuple_obj);
+    obj_init(&addrlist_obj, T_ADDRLIST, "<address list>");
+    addrlist_obj.destroy = destroy;
+    addrlist_obj.copy = copy;
+    addrlist_obj.copy_temp = copy_temp;
+    addrlist_obj.same = same;
+    addrlist_obj.repr = repr_listtuple;
 }
