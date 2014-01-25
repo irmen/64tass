@@ -20,6 +20,7 @@
 #define _64TASS_H_
 #include <stdio.h>
 #include "inttypes.h"
+#include "opcodes.h"
 #ifndef REVISION
 #define REVISION "584?"
 #endif
@@ -62,5 +63,6 @@ extern struct value_s *compile(struct file_list_s *);
 extern void var_assign(struct label_s *, struct value_s *, int);
 extern void printllist(int);
 extern int printaddr(FILE *, char, address_t);
-
+extern void pokeb(uint8_t);
+extern void list_instr(uint8_t, uint32_t, int, enum opr_e, uint32_t);
 #endif
