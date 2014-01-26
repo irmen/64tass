@@ -1159,7 +1159,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else {
                     struct value_s err;
                     uval_t uval;
-                    if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) { err_msg_wrong_type(&err, &epoint); uval = 0; }
+                    if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) { err_msg_output_and_destroy(&err); uval = 0; }
                     if ((arguments.output_mode == OUTPUT_FLAT) && !current_section->logicalrecursion) {
                         if ((address_t)uval & ~all_mem2) {
                             err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
@@ -1297,12 +1297,12 @@ struct value_s *compile(struct file_list_s *cflist)
                     switch (prm) {
                     case CMD_ELSIF:
                         if (val->obj == NONE_OBJ) truth = 0;
-                        else if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); truth = 0; }
+                        else if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); truth = 0; }
                         waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
                         break;
                     case CMD_IF:
                         if (val->obj == NONE_OBJ) truth = 0;
-                        else if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); truth = 0; }
+                        else if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); truth = 0; }
                         waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     case CMD_IFNE:
@@ -1310,10 +1310,8 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj == NONE_OBJ) truth = 0;
                         else {
                             int sign;
-                            if (val->obj->sign(val, &err, &sign, &epoint)) {
-                                err_msg_wrong_type(&err, &epoint);
-                                truth = 0;
-                            } else truth = (sign == 0) ^ (prm == CMD_IFNE);
+                            if (val->obj->sign(val, &err, &sign, &epoint)) { err_msg_output_and_destroy(&err); truth = 0; } 
+                            else truth = (sign == 0) ^ (prm == CMD_IFNE);
                         }
                         waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         break;
@@ -1321,16 +1319,12 @@ struct value_s *compile(struct file_list_s *cflist)
                     case CMD_IFMI:
                         if (val->obj == NONE_OBJ) truth = 0;
                         else if (arguments.tasmcomp) {
-                            if (val->obj->ival(val, &err, &ival, 8*sizeof(uval_t), &epoint)) {
-                                err_msg_wrong_type(&err, &epoint);
-                                truth = 0;
-                            } else truth = !(ival & 0x8000) ^ (prm == CMD_IFMI);
+                            if (val->obj->ival(val, &err, &ival, 8*sizeof(uval_t), &epoint)) { err_msg_output_and_destroy(&err); truth = 0; } 
+                            else truth = !(ival & 0x8000) ^ (prm == CMD_IFMI);
                         } else {
                             int sign;
-                            if (val->obj->sign(val, &err, &sign, &epoint)) {
-                                err_msg_wrong_type(&err, &epoint);
-                                truth = 0;
-                            } else truth = (sign >= 0) ^ (prm == CMD_IFMI);
+                            if (val->obj->sign(val, &err, &sign, &epoint)) { err_msg_output_and_destroy(&err); truth = 0; }
+                            else truth = (sign >= 0) ^ (prm == CMD_IFMI);
                         }
                         waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         break;
@@ -1589,7 +1583,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (large.pos) err_msg2(ERROR_CONSTNT_LARGE, NULL, &large);
                         if (err.obj != NONE_OBJ) {
-                            err_msg_wrong_type(&err, &epoint);
+                            err_msg_output_and_destroy(&err);
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
                         }
@@ -1661,7 +1655,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (uninit) memskip(uninit);
                         if (err.obj != NONE_OBJ) {
-                            err_msg_wrong_type(&err, &epoint);
+                            err_msg_output_and_destroy(&err);
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
                         }
@@ -1690,7 +1684,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = 0;
                             } else {
-                                if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint);
+                                if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err);
                                 else foffset = uval;
                             }
                             if ((val = get_val(&epoint))) {
@@ -1698,7 +1692,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                     fixeddig = 0;
                                 } else {
-                                    if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint);
+                                    if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err);
                                     else if ((address_t)uval > fsize) err_msg2(ERROR_CONSTNT_LARGE,NULL, &epoint);
                                     else fsize = uval;
                                 }
@@ -1738,7 +1732,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else {
-                        if (val->obj->ival(val, &err, &ival, 8*sizeof(ival_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
+                        if (val->obj->ival(val, &err, &ival, 8*sizeof(ival_t), &epoint)) err_msg_output_and_destroy(&err); 
                         else if (ival) {
                             if (current_section->structrecursion) {
                                 if (ival < 0) err_msg2(ERROR___NOT_ALLOWED, ".OFFS", &opoint);
@@ -1768,7 +1762,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 24, &epoint)) err_msg_wrong_type(&err, &epoint); 
+                        if (val->obj->uval(val, &err, &uval, 24, &epoint)) err_msg_output_and_destroy(&err); 
                         else if (uval & ~(uval_t)all_mem) err_msg2(ERROR_CONSTNT_LARGE, NULL, &epoint);
                         else current_section->l_address = (address_t)uval;
                     }
@@ -1839,19 +1833,19 @@ struct value_s *compile(struct file_list_s *cflist)
                         ival_t ival;
                         switch (prm) {
                         case CMD_DATABANK:
-                            if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_wrong_type(&err, &epoint); 
+                            if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_output_and_destroy(&err); 
                             else databank = uval;
                             break;
                         case CMD_DPAGE:
-                            if (val->obj->uval(val, &err, &uval, 16, &epoint)) err_msg_wrong_type(&err, &epoint); 
+                            if (val->obj->uval(val, &err, &uval, 16, &epoint)) err_msg_output_and_destroy(&err); 
                             else dpage = uval;
                             break;
                         case CMD_STRENGTH:
-                            if (val->obj->ival(val, &err, &ival, 8, &epoint)) err_msg_wrong_type(&err, &epoint); 
+                            if (val->obj->ival(val, &err, &ival, 8, &epoint)) err_msg_output_and_destroy(&err); 
                             else strength = ival;
                             break;
                         case CMD_EOR:
-                            if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_wrong_type(&err, &epoint);
+                            if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_output_and_destroy(&err);
                             else outputeor = uval;
                             break;
                         default:
@@ -1875,7 +1869,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         fixeddig = 0;
                     } else {
                         if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) {
-                            err_msg_wrong_type(&err, &epoint); 
+                            err_msg_output_and_destroy(&err); 
                             uval = (prm == CMD_ALIGN) ? 1 : 0;
                         }
                         if (prm == CMD_ALIGN) {
@@ -1945,7 +1939,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                             if (uninit) memskip(uninit);
                             if (err.obj != NONE_OBJ) {
-                                err_msg_wrong_type(&err, &epoint);
+                                err_msg_output_and_destroy(&err);
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = 0;
                             }
@@ -1966,7 +1960,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;current_section->provides=~(uval_t)0;
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
+                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err); 
                         else current_section->provides = uval;
                     }
                     if (!(val = get_val(&epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
@@ -1974,7 +1968,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = current_section->requires = 0;
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
+                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err); 
                         else current_section->requires = uval;
                     }
                     if (!(val = get_val(&epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
@@ -1982,7 +1976,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = current_section->conflicts = 0;
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
+                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err); 
                         else current_section->conflicts = uval;
                     }
                     eval_finish();
@@ -1998,7 +1992,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
+                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err); 
                         else if ((uval & current_section->provides) ^ uval) err_msg_requires(NULL, &opoint);
                     }
                     if (!(val = get_val(&epoint))) {err_msg(ERROR______EXPECTED,","); goto breakerr;}
@@ -2006,7 +2000,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint); 
+                        if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err); 
                         else if (uval & current_section->provides) err_msg_conflicts(NULL, &opoint);
                     }
                     eval_finish();
@@ -2030,14 +2024,13 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
                                 struct value_s err;
                                 if (val->obj == NONE_OBJ) writeit = 0;
-                                else if (val->obj->truth(val, &err, &writeit, TRUTH_BOOL, &epoint2)) {err_msg_wrong_type(&err, &epoint2); writeit = 0; }
+                                else if (val->obj->truth(val, &err, &writeit, TRUTH_BOOL, &epoint2)) {err_msg_output_and_destroy(&err); writeit = 0; }
                                 continue;
                             }
                             writeit = 1;
                         }
                         if (writeit) {
-                            if (val->obj == ERROR_OBJ) err_msg_wrong_type(val, &epoint2);
-                            else if (val->obj != NONE_OBJ) err_msg_variable(&user_error, val);
+                            if (val->obj != NONE_OBJ) err_msg_variable(&user_error, val);
                         }
                     }
                     if (writeit) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED, &user_error, &epoint);
@@ -2080,7 +2073,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         case T_INT:
                         case T_BITS:
                              if (val->obj->uval(val, &err, &uval, 24, &epoint)) {
-                                 err_msg_wrong_type(&err, &epoint);
+                                 err_msg_output_and_destroy(&err);
                                  uval = 0;
                              }
                              tmp.start = uval;
@@ -2121,7 +2114,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 tryit = fixeddig = 0;
                             } else {
                                 if (val->obj->uval(val, &err, &uval, 24, &epoint)) {
-                                    err_msg_wrong_type(&err, &epoint);
+                                    err_msg_output_and_destroy(&err);
                                     uval = 0;
                                 }
                                 if (tmp.start > (uint32_t)uval) {
@@ -2139,7 +2132,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             fixeddig = 0;
                         } else if (tryit) {
                             if (val->obj->uval(val, &err, &uval, 8, &epoint)) {
-                                err_msg_wrong_type(&err, &epoint);
+                                err_msg_output_and_destroy(&err);
                                 uval = 0;
                             }
                             tmp.offset = uval;
@@ -2229,7 +2222,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else {
                         uval_t cnt;
                         struct value_s err;
-                        if (val->obj->uval(val, &err, &cnt, 8*sizeof(uval_t), &epoint)) err_msg_wrong_type(&err, &epoint);
+                        if (val->obj->uval(val, &err, &cnt, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err);
                         else if (cnt > 0) {
                             size_t pos = cfile->p;
                             line_t lin = lpoint.line;
@@ -2421,7 +2414,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             fixeddig = 0;
                             break;
                         }
-                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); break; }
+                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
                         if (!truth) break;
                         if (nopos < 0) {
                             str_t varname;
@@ -2498,11 +2491,11 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else if ((!arguments.casesensitive && !str_casecmp(&optname, &branch_across)) || (arguments.casesensitive && !str_cmp(&optname, &branch_across))) {
-                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); break; }
+                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
                         else allowslowbranch = truth;
                     }
                     else if ((!arguments.casesensitive && !str_casecmp(&optname, &longjmp)) || (arguments.casesensitive && !str_cmp(&optname, &longjmp))) {
-                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_wrong_type(&err, &epoint); break; }
+                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
                         else longbranchasjmp = truth;
                     }
                     else {

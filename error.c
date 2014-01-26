@@ -154,6 +154,7 @@ static const char *terr_error[]={
     "index out of range",
     "key error",
     "not hashable",
+    "not a key and value pair",
     "can't convert to a %d bit signed integer",
     "can't convert to a %d bit unsigned integer",
     "can't convert to float",
@@ -401,23 +402,23 @@ static void err_msg_not_defined2(const str_t *name, const struct label_s *l, int
     }
 }
 
-void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
-    if (pass == 1) return;
-    if (val->obj == ERROR_OBJ) {
+static void err_msg_output(const struct value_s *val) {
+    if (pass != 1 && val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
-        case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.label, val->u.error.u.notdef.down, &val->u.error.epoint);return;
-        case ERROR____NO_FORWARD: err_msg_no_forward(&val->u.error.u.ident, &val->u.error.epoint);return;
-        case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, &val->u.error.epoint);return;
-        case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, &val->u.error.epoint);return;
-        case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, &val->u.error.epoint);return;
+        case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.label, val->u.error.u.notdef.down, &val->u.error.epoint);break;
+        case ERROR____NO_FORWARD: err_msg_no_forward(&val->u.error.u.ident, &val->u.error.epoint);break;
+        case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, &val->u.error.epoint);break;
+        case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, &val->u.error.epoint);break;
+        case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, &val->u.error.epoint);break;
         case ERROR_____CANT_IVAL:
-        case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->u.error.num & 63], val->u.error.u.bits, &val->u.error.epoint);return;
+        case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->u.error.num & 63], val->u.error.u.bits, &val->u.error.epoint);break;
         case ERROR___INDEX_RANGE:
         case ERROR_CONSTNT_LARGE:
         case ERROR_NEGFRAC_POWER:
         case ERROR_BIG_STRING_CO:
         case ERROR_____KEY_ERROR:
-        case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);return;
+        case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);break;
+        case ERROR__NOT_KEYVALUE:
         case ERROR__NOT_HASHABLE:
         case ERROR_____CANT_REAL:
         case ERROR_____CANT_SIGN:
@@ -425,10 +426,19 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
         case ERROR______CANT_INT:
         case ERROR______CANT_LEN:
         case ERROR_____CANT_SIZE:
-        case ERROR_____CANT_BOOL: err_msg_char_name(terr_error[val->u.error.num & 63], val->u.error.u.objname, &val->u.error.epoint);return;
+        case ERROR_____CANT_BOOL: err_msg_char_name(terr_error[val->u.error.num & 63], val->u.error.u.objname, &val->u.error.epoint);break;
         default: break;
         }
     }
+}
+
+void err_msg_output_and_destroy(struct value_s *val) {
+    err_msg_output(val);
+    return val->obj->destroy(val);
+}
+
+void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
+    if (pass == 1) return;
     err_msg2(ERROR____WRONG_TYPE, val->obj->name, epoint);
 }
 
@@ -474,7 +484,7 @@ void err_msg_variable(struct error_s *user_error, struct value_s *val) {
     if (tmp.obj == STR_OBJ) {
         add_user_error2(user_error, tmp.u.str.data, tmp.u.str.len);
         user_error->chars -= tmp.u.str.len - tmp.u.str.chars;
-    } else err_msg_wrong_type(&tmp, &lpoint);
+    } else err_msg_output(&tmp);
     tmp.obj->destroy(&tmp);
 }
 
@@ -507,11 +517,11 @@ void err_msg_shadow_defined(const struct label_s *l, const struct label_s *l2) {
 static int err_oper(const char *msg, const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
     if (pass == 1) return 0;
     if (v1->obj == ERROR_OBJ) {
-        err_msg_wrong_type(v1, &v1->u.error.epoint);
+        err_msg_output(v1);
         return 0;
     }
     if (v2 && v2->obj == ERROR_OBJ) {
-        err_msg_wrong_type(v2, &v2->u.error.epoint);
+        err_msg_output(v2);
         return 0;
     }
 

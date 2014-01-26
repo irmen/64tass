@@ -288,7 +288,7 @@ static int try_resolv_rec(struct value_s **value) {
     v1 = value[0];
     v2 = try_resolv_ident(v1, &tmp);
     if (!v2) {
-        err_msg_wrong_type(&tmp, &tmp.u.error.epoint);
+        err_msg_output_and_destroy(&tmp);
         val_replace_template(value, &none_value);
         return err;
     }
@@ -685,7 +685,8 @@ struct value_s *get_val(struct linepos_s *epoint) {/* length in bytes, defined *
     try_resolv_rec(&value->val);
 
     if (value->val->obj == ERROR_OBJ) {
-        err_msg_wrong_type(value->val, &value->epoint);
+        err_msg_output_and_destroy(value->val);
+        value->val->obj = NONE_OBJ;
         return &none_value;
     }
     return value->val;
@@ -1067,6 +1068,11 @@ static int get_val2(struct eval_context_s *ev) {
                     for (j = 0; j < args; j++) {
                         v1 = &values[vsp+j];
                         t1 = try_resolv(v1);
+                        if (t1 == T_NONE || t1 == T_ERROR) {
+                            val->obj->destroy(val);
+                            v1->val->obj->copy_temp(v1->val, val);
+                            break;
+                        }
                         if (t1 == T_COLONLIST) {
                             struct pair_s *p, *p2;
                             struct avltree_node *b;
@@ -1090,11 +1096,20 @@ static int get_val2(struct eval_context_s *ev) {
                                         val->u.dict.len++;
                                     }
                                 } else {
-                                    err_msg_wrong_type(p->key, &v1->epoint);
                                     free(p);
+                                    val->obj->destroy(val);
+                                    new_value.obj->copy_temp(&new_value, val);
+                                    break;
                                 }
                             }
-                        } else err_msg_wrong_type(v1->val, &v1->epoint);
+                            continue;
+                        }
+                        val->obj->destroy(val);
+                        val->obj = ERROR_OBJ;
+                        val->u.error.num = ERROR__NOT_KEYVALUE;
+                        val->u.error.epoint = v1->epoint;
+                        val->u.error.u.objname = v1->val->obj->name;
+                        break;
                     }
                 }
                 continue;

@@ -121,7 +121,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 }
 
                 if (d) {
-                    if (val->obj->uval(val, &err, &uval, ln * 8, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    if (val->obj->uval(val, &err, &uval, ln * 8, epoint2)) err_msg_output_and_destroy(&err);
                     else adr = uval;
                 }
                 break;
@@ -156,13 +156,13 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
             case A_YR: /* lda $ff,y lda $ffff,y lda $ffffff,y */
                 if (w == 3) {/* auto length */
                     if (d) {
-                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); w = (cnmemonic[ADR_ADDR_Y] != ____);}
+                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); w = (cnmemonic[ADR_ADDR_Y] != ____);}
                         else if (cnmemonic[ADR_ZP_Y] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
                         else if (databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
                         else {err_msg2(ERROR_NO_ADDRESSING, NULL, epoint); w = (cnmemonic[ADR_ADDR_Y] != ____);}
                     } else w = (cnmemonic[ADR_ADDR_Y] != ____);
                 } else if (d) {
-                    if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
                     else if (!w && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) adr = (uint16_t)(uval - dpage);
                     else if (w == 1 && databank == (uval >> 16)) adr = (uint16_t)uval;
                     else {err_msg2(ERROR_NO_ADDRESSING, NULL, epoint); w = cnmemonic[ADR_ADDR_Y] != ____;}
@@ -250,7 +250,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 if (vals->obj != ADDRLIST_OBJ || vals->u.list.len != 2) return 2;
                 w = 0;
                 if (d) {
-                    if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
                     else adr = (uint16_t)uval << 8;
                 }
                 val = vals->u.list.data[1];
@@ -260,7 +260,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                     d = fixeddig = 0;
                 } else {
-                    if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
                     else adr |= (uint8_t)uval;
                 }
                 ln = 2; opr = ADR_MOVE;
@@ -268,7 +268,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 if (vals->obj != ADDRLIST_OBJ || vals->u.list.len != 2) return 2;
                 w = 0;
                 if (d) {
-                    if (val->obj->uval(val, &err, &uval, 3, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    if (val->obj->uval(val, &err, &uval, 3, epoint2)) err_msg_output_and_destroy(&err);
                     else longbranch = (uval << 4) & 0x70;
                 }
                 val = vals->u.list.data[1];
@@ -292,7 +292,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 if (vals->obj != ADDRLIST_OBJ || vals->u.list.len != 3) return 2;
                 w = 0;
                 if (d) {
-                    if (val->obj->uval(val, &err, &uval, 3, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    if (val->obj->uval(val, &err, &uval, 3, epoint2)) err_msg_output_and_destroy(&err);
                     else longbranch = (uval << 4) & 0x70;
                 }
                 val = vals->u.list.data[1];
@@ -306,11 +306,11 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                         d = fixeddig = 0;
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_wrong_type(&err, epoint2);
+                        if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
                         else adr = (uint8_t)uval;
                     }
                 } else {
-                    if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_output_and_destroy(&err);
                     else adr = (uint16_t)(uval - dpage);
                     if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, NULL, epoint2); 
                 }
@@ -326,10 +326,10 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                             d = fixeddig = 0;
                         } else {
-                            if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_wrong_type(&err, epoint2); uval = current_section->l_address + 3;}
+                            if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 3;}
                         }
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); uval = current_section->l_address + 3;}
+                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 3;}
                         else if (((uval_t)current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                     }
                     uval = (uint16_t)(uval - current_section->l_address - 3);
@@ -359,10 +359,10 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
                             d = fixeddig = 0;
                         } else {
-                            if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_wrong_type(&err, epoint2); uval = current_section->l_address + 2;}
+                            if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 2;}
                         }
                     } else {
-                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); uval = current_section->l_address + 2;}
+                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 2;}
                         else if (((uval_t)current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                     }
                     oadr = uval;
@@ -444,7 +444,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
             else if (cnmemonic[ADR_REL_L] != ____) {
                 w = 0;
                 if (d) {
-                    if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
                     if ((current_section->l_address ^ uval) <= 0xffff) {
                         adr = (uint16_t)(uval - current_section->l_address - 3);
                     } else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
@@ -454,12 +454,12 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
             else if (cnmemonic[ADR_LONG] == 0x5C) {
                 if (w == 3) {/* auto length */
                     if (d) {
-                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); w = (cnmemonic[ADR_ADDR] == ____) + 1;}
+                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); w = (cnmemonic[ADR_ADDR] == ____) + 1;}
                         else if (cnmemonic[ADR_ADDR] != ____ && (current_section->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
                         else {adr = uval; w = 2;}
                     } else w = (cnmemonic[ADR_ADDR] == ____) + 1;
                 } else if (d) {
-                    if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
+                    if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
                     else if (w == 1 && (current_section->l_address ^ uval) <= 0xffff) adr = uval;
                     else if (w == 2) adr = uval;
                 }
@@ -478,7 +478,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         if (w == 3) w = 0;/* auto length */
         else if (w != 0) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint); 
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_wrong_type(&err, epoint2);
+            if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_output_and_destroy(&err);
             else adr = (uint16_t)(uval - dpage);
             if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, NULL, epoint2); 
         }
@@ -488,7 +488,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         if (w == 3) w = 1;/* auto length */
         else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint);
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_wrong_type(&err, epoint2);
+            if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_output_and_destroy(&err);
             else adr = uval;
         }
         ln = 2;
@@ -497,7 +497,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         if (w == 3) w = 1;/* auto length */
         else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint);
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
+            if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
             else if ((current_section->l_address ^ uval) <= 0xffff) adr = (uint16_t)uval;
             else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         }
@@ -507,7 +507,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         if (w == 3) w = 0;/* auto length */
         else if (w != 0) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint);
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_wrong_type(&err, epoint2);
+            if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
             else adr = uval;
         }
         ln = 1;
@@ -515,13 +515,13 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
     case AG_DB3: /* 3 choice data bank */
         if (w == 3) {/* auto length */
             if (d) {
-                if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_wrong_type(&err, epoint2); w = (cnmemonic[opr - 1] != ____);}
+                if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); w = (cnmemonic[opr - 1] != ____);}
                 else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
                 else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
                 else {adr = uval; w = 2;}
             } else w = (cnmemonic[opr - 1] != ____);
         } else if (d) {
-            if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_wrong_type(&err, epoint2);
+            if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
             else if (!w && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) adr = (uint16_t)(uval - dpage);
             else if (w == 1 && databank == (adr >> 16)) adr = (uint16_t)uval;
             else if (w == 2) adr = uval;
@@ -532,7 +532,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         if (w == 3) w = 1;/* auto length */
         else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint);
         if (d) {
-            if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_wrong_type(&err, epoint2);
+            if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_output_and_destroy(&err);
             else adr = uval;
         }
         ln = 2;
