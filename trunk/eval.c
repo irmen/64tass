@@ -1169,46 +1169,18 @@ static int get_val2(struct eval_context_s *ev) {
             v2 = v1; v1 = &values[--vsp-1];
             if (vsp == 0) goto syntaxe;
             new_value.obj = COLONLIST_OBJ;
-            t1 = try_resolv(v1);
-            switch (t1) {
+            switch (try_resolv(v1)) {
             default:
-                t2 = try_resolv(v2);
-                switch (t2) {
-                case T_COLONLIST:
-                    {
-                        size_t j;
-                        if (t1 == T_COLONLIST) {
-                            new_value.u.list.len = v1->val->u.list.len + v2->val->u.list.len;
-                            new_value.u.list.data = list_create_elements(&new_value, new_value.u.list.len);
-                            for (j = 0; j < v1->val->u.list.len; j++) {
-                                new_value.u.list.data[j] = val_reference(v1->val->u.list.data[j]);
-                            }
-                            for (; j < new_value.u.list.len; j++) {
-                                new_value.u.list.data[j] = val_reference(v2->val->u.list.data[j - v1->val->u.list.len]);
-                            }
-                            val_set_template(&v1->val, &new_value);
-                            continue;
-                        }
+                t2 = v2->val->obj->type;
+                switch (try_resolv(v2)) {
+                default: 
+                    if (t2 == T_COLONLIST) {
                         new_value.u.list.len = v2->val->u.list.len + 1;
                         new_value.u.list.data = list_create_elements(&new_value, new_value.u.list.len);
                         new_value.u.list.data[0] = v1->val;
-                        for (j = 1; j < new_value.u.list.len; j++) {
-                            new_value.u.list.data[j] = val_reference(v2->val->u.list.data[j - 1]);
-                        }
+                        memcpy(&new_value.u.list.data[1], v2->val->u.list.data, v2->val->u.list.len * sizeof(new_value.u.list.data[0]));
                         val_set_template(&v1->val, &new_value);
-                        continue;
-                    }
-                default: 
-                    if (t1 == T_COLONLIST) {
-                        size_t j;
-                        new_value.u.list.len = v1->val->u.list.len + 1;
-                        new_value.u.list.data = list_create_elements(&new_value, new_value.u.list.len);
-                        for (j = 0; j < v1->val->u.list.len; j++) {
-                            new_value.u.list.data[j] = val_reference(v1->val->u.list.data[j]);
-                        }
-                        new_value.u.list.data[j] = v2->val;
-                        val_set_template(&v1->val, &new_value);
-                        v2->val = &none_value;
+                        v2->val->u.list.len = 0;
                         continue;
                     }
                     new_value.u.list.len = 2;
