@@ -66,9 +66,9 @@ typedef struct {
 
 enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
-    T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_PAIR, T_TUPLE, T_LIST, T_DICT,
-    T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL, T_DEFAULT,
-    T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST
+    T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
+    T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
+    T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST
 };
 
 enum truth_e {
@@ -92,7 +92,6 @@ struct obj_s {
     void (*rcalc2)(struct oper_s *);
     void (*repeat)(struct oper_s *, uval_t);
     void (*iindex)(struct oper_s *);
-    void (*slice)(struct value_s *, ival_t, ival_t, ival_t, struct value_s *, linepos_t);
     int (*ival)(const struct value_s *, struct value_s *, ival_t *, int, linepos_t) MUST_CHECK;
     int (*uval)(const struct value_s *, struct value_s *, uval_t *, int, linepos_t) MUST_CHECK;
     int (*real)(const struct value_s *, struct value_s *, double *, linepos_t) MUST_CHECK;

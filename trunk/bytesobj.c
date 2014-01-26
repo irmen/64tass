@@ -472,74 +472,11 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op); return;
 }
 
-static void iindex(oper_t op) {
-    uint8_t *p, b;
-    uint8_t *p2;
-    size_t len1, len2;
-    ival_t offs;
-    size_t i;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp;
-
-    len1 = v1->u.bytes.len;
-
-    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
-        if (!v2->u.list.len) {
-            if (v1 == v) destroy(v);
-            copy(&null_bytes, v);return;
-        }
-        len2 = v2->u.list.len;
-        p = p2 = bnew(&tmp, len2);
-        for (i = 0; i < len2; i++) {
-            offs = indexoffs(v2->u.list.data[i], len1);
-            if (offs < 0) {
-                if (p != tmp.u.bytes.val) free(p);
-                if (v1 == v) destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR___INDEX_RANGE;
-                v->u.error.epoint = op->epoint2;
-                return;
-            }
-            *p2++ = v1->u.bytes.data[offs];
-        }
-        if (v == v1) destroy(v);
-        if (len2 <= sizeof(v->u.bytes.val)) {
-            memcpy(v->u.bytes.val, p, len2);
-            p = v->u.bytes.val;
-        }
-        v->obj = BYTES_OBJ;
-        v->u.bytes.len = len2;
-        v->u.bytes.data = p;
-        return;
-    }
-    offs = indexoffs(v2, len1);
-    if (offs < 0) {
-        if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR___INDEX_RANGE;
-        v->u.error.epoint = op->epoint2;
-        return;
-    }
-    b = v1->u.bytes.data[offs];
-    if (v1 == v) destroy(v);
-    v->obj = BYTES_OBJ;
-    v->u.bytes.len = 1;
-    v->u.bytes.val[0] = b;
-    v->u.bytes.data = v->u.bytes.val;
-}
-
-static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t UNUSED(epoint)) {
-    size_t len1;
+static inline void slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
     uint8_t *p;
     uint8_t *p2;
     struct value_s tmp;
 
-    if (step > 0) {
-        if (offs > end) offs = end;
-        len1 = (end - offs + step - 1) / step;
-    } else {
-        if (end > offs) end = offs;
-        len1 = (offs - end - step - 1) / -step;
-    }
     if (!len1) {
         if (v1 == v) destroy(v);
         copy(&null_bytes, v);return;
@@ -568,6 +505,63 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
     v->u.bytes.data = p;
 }
 
+static void iindex(oper_t op) {
+    uint8_t *p, b;
+    uint8_t *p2;
+    size_t len1, len2;
+    ival_t offs;
+    size_t i;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp, err;
+
+    len1 = v1->u.bytes.len;
+
+    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+        if (!v2->u.list.len) {
+            if (v1 == v) destroy(v);
+            copy(&null_bytes, v);return;
+        }
+        len2 = v2->u.list.len;
+        p = p2 = bnew(&tmp, len2);
+        for (i = 0; i < len2; i++) {
+            offs = indexoffs(v2->u.list.data[i], &err, len1, &op->epoint2);
+            if (offs < 0) {
+                if (p != tmp.u.bytes.val) free(p);
+                if (v1 == v) destroy(v);
+                err.obj->copy_temp(&err, v);
+                return;
+            }
+            *p2++ = v1->u.bytes.data[offs];
+        }
+        if (v == v1) destroy(v);
+        if (len2 <= sizeof(v->u.bytes.val)) {
+            memcpy(v->u.bytes.val, p, len2);
+            p = v->u.bytes.val;
+        }
+        v->obj = BYTES_OBJ;
+        v->u.bytes.len = len2;
+        v->u.bytes.data = p;
+        return;
+    }
+    if (v2->obj == COLONLIST_OBJ) {
+        ival_t len, end, step;
+        len = sliceparams(op, len1, &offs, &end, &step);
+        if (len < 0) return;
+        return slice(v1, len, offs, end, step, v);
+    }
+    offs = indexoffs(v2, &err, len1, &op->epoint2);
+    if (offs < 0) {
+        if (v1 == v) destroy(v);
+        err.obj->copy_temp(&err, v);
+        return;
+    }
+    b = v1->u.bytes.data[offs];
+    if (v1 == v) destroy(v);
+    v->obj = BYTES_OBJ;
+    v->u.bytes.len = 1;
+    v->u.bytes.val[0] = b;
+    v->u.bytes.data = v->u.bytes.val;
+}
+
 void bytesobj_init(void) {
     obj_init(&obj, T_BYTES, "<bytes>");
     obj.destroy = destroy;
@@ -591,5 +585,4 @@ void bytesobj_init(void) {
     obj.rcalc2 = rcalc2;
     obj.repeat = repeat;
     obj.iindex = iindex;
-    obj.slice = slice;
 }

@@ -37,15 +37,12 @@ enum oper_e {
     O_SEPARATOR,     /* ,     */
     O_FUNC,          /* a(    */
     O_INDEX,         /* a[    */
-    O_SLICE,         /* a[x:  */
-    O_SLICE2,        /* a[x:: */
     O_BRACE,         /* {a}   */
     O_BRACKET,       /* [a]   */
     O_PARENT,        /* (a)   */
     O_COMMA,         /* ,     */
     O_COND,          /* ?     */
     O_COLON2,        /* :     */
-    O_COLON3,        /* :     */
     O_LOR,           /* ||    */
     O_LXOR,          /* ^^    */
     O_LAND,          /* &&    */
@@ -209,8 +206,6 @@ extern struct value_s o_RBRACKET;
 extern struct value_s o_RBRACE;
 extern struct value_s o_FUNC;
 extern struct value_s o_INDEX;
-extern struct value_s o_SLICE;
-extern struct value_s o_SLICE2;
 extern struct value_s o_BRACE;
 extern struct value_s o_BRACKET;
 extern struct value_s o_PARENT;
@@ -220,7 +215,6 @@ extern struct value_s o_QUEST;
 extern struct value_s o_COLON;
 extern struct value_s o_COND;
 extern struct value_s o_COLON2;
-extern struct value_s o_COLON3;
 extern struct value_s o_HASH;
 extern struct value_s o_COMMAX;
 extern struct value_s o_COMMAY;

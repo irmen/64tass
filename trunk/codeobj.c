@@ -363,109 +363,13 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op);
 }
 
-static void iindex(oper_t op) {
+static inline void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t epoint) {
     struct value_s **vals;
     size_t i, i2;
-    size_t ln, ln2;
-    size_t offs2;
-    int16_t r;
-    ival_t offs;
-    uval_t val;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-
-    if (v1->u.code.pass != pass) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR____NO_FORWARD;
-        v->u.error.epoint = op->epoint;
-        v->u.error.u.ident = v1->u.code.parent->name;
-        return;
-    }
-
-    ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
-    ln2 = ln2 + !ln2;
-    ln = v1->u.code.size / ln2;
-
-    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
-        if (!v2->u.list.len) {
-            TUPLE_OBJ->copy(&null_tuple, v); return;
-        }
-        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v2->u.list.data[0]));
-        if (!vals) err_msg_out_of_memory();
-        for (i = 0; i < v2->u.list.len; i++) {
-            offs = indexoffs(v2->u.list.data[i], ln);
-            if (offs < 0) {
-                v->u.list.data = vals;
-                v->u.list.len = i;
-                TUPLE_OBJ->destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR___INDEX_RANGE;
-                v->u.error.epoint = op->epoint2;
-                return;
-            }
-            offs2 = offs * ln2;
-            val = 0;
-            r = -1;
-            for (i2 = 0; i2 < ln2; i2++) {
-                r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
-                if (r < 0) break;
-                val |= r << (i2 * 8);
-            }
-            if (v1->u.code.dtype < 0 && (r & 0x80)) {
-                for (; i2 < sizeof(val); i2++) {
-                    val |= 0xff << (i2 * 8);
-                }
-            }
-            vals[i] = val_alloc();
-            if (r < 0) vals[i]->obj = GAP_OBJ;
-            else if (v1->u.code.dtype < 0) int_from_ival(vals[i],  (ival_t)val);
-            else int_from_uval(vals[i], val);
-        }
-        v->obj = TUPLE_OBJ;
-        v->u.list.data = vals;
-        v->u.list.len = i;
-        return;
-    }
-    offs = indexoffs(v2, ln);
-    if (offs < 0) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR___INDEX_RANGE;
-        v->u.error.epoint = op->epoint2;
-        return;
-    }
-
-    offs2 = offs * ln2;
-    val = 0;
-    r = -1;
-    for (i2 = 0; i2 < ln2; i2++) {
-        r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
-        if (r < 0) break;
-        val |= r << (i2 * 8);
-    }
-    if (v1->u.code.dtype < 0 && (r & 0x80)) {
-        for (; i2 < sizeof(val); i2++) {
-            val |= 0xff << (i2 * 8);
-        }
-    }
-    if (r < 0) v->obj = GAP_OBJ;
-    else if (v1->u.code.dtype < 0) int_from_ival(v,  (ival_t)val);
-    else int_from_uval(v, val);
-}
-
-static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t epoint) {
-    struct value_s **vals;
-    size_t i, i2;
-    size_t ln, ln2;
+    size_t ln2;
     size_t offs2;
     int16_t r;
     uval_t val;
-
-    if (step > 0) {
-        if (end < offs) end = offs;
-        ln = (end - offs + step - 1) / step;
-    } else {
-        if (end > offs) end = offs;
-        ln = (offs - end - step - 1) / -step;
-    }
 
     if (!ln) {
         TUPLE_OBJ->copy(&null_tuple, v); return;
@@ -507,6 +411,96 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
     v->u.list.data = vals;
 }
 
+static void iindex(oper_t op) {
+    struct value_s **vals;
+    size_t i, i2;
+    size_t ln, ln2;
+    size_t offs2;
+    int16_t r;
+    ival_t offs;
+    uval_t val;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, err;
+
+    if (v1->u.code.pass != pass) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR____NO_FORWARD;
+        v->u.error.epoint = op->epoint;
+        v->u.error.u.ident = v1->u.code.parent->name;
+        return;
+    }
+
+    ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
+    ln2 = ln2 + !ln2;
+    ln = v1->u.code.size / ln2;
+
+    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+        if (!v2->u.list.len) {
+            TUPLE_OBJ->copy(&null_tuple, v); return;
+        }
+        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v2->u.list.data[0]));
+        if (!vals) err_msg_out_of_memory();
+        for (i = 0; i < v2->u.list.len; i++) {
+            offs = indexoffs(v2->u.list.data[i], &err, ln, &op->epoint2);
+            if (offs < 0) {
+                v->u.list.data = vals;
+                v->u.list.len = i;
+                TUPLE_OBJ->destroy(v);
+                err.obj->copy_temp(&err, v);
+                return;
+            }
+            offs2 = offs * ln2;
+            val = 0;
+            r = -1;
+            for (i2 = 0; i2 < ln2; i2++) {
+                r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
+                if (r < 0) break;
+                val |= r << (i2 * 8);
+            }
+            if (v1->u.code.dtype < 0 && (r & 0x80)) {
+                for (; i2 < sizeof(val); i2++) {
+                    val |= 0xff << (i2 * 8);
+                }
+            }
+            vals[i] = val_alloc();
+            if (r < 0) vals[i]->obj = GAP_OBJ;
+            else if (v1->u.code.dtype < 0) int_from_ival(vals[i],  (ival_t)val);
+            else int_from_uval(vals[i], val);
+        }
+        v->obj = TUPLE_OBJ;
+        v->u.list.data = vals;
+        v->u.list.len = i;
+        return;
+    }
+    if (v2->obj == COLONLIST_OBJ) {
+        ival_t len, end, step;
+        len = sliceparams(op, ln, &offs, &end, &step);
+        if (len < 0) return;
+        return slice(v1, len, offs, end, step, v, &op->epoint);
+    }
+    offs = indexoffs(v2, &err, ln, &op->epoint2);
+    if (offs < 0) {
+        err.obj->copy_temp(&err, v);
+        return;
+    }
+
+    offs2 = offs * ln2;
+    val = 0;
+    r = -1;
+    for (i2 = 0; i2 < ln2; i2++) {
+        r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
+        if (r < 0) break;
+        val |= r << (i2 * 8);
+    }
+    if (v1->u.code.dtype < 0 && (r & 0x80)) {
+        for (; i2 < sizeof(val); i2++) {
+            val |= 0xff << (i2 * 8);
+        }
+    }
+    if (r < 0) v->obj = GAP_OBJ;
+    else if (v1->u.code.dtype < 0) int_from_ival(v,  (ival_t)val);
+    else int_from_uval(v, val);
+}
+
 void codeobj_init(void) {
     obj_init(&obj, T_CODE, "<code>");
     obj.destroy = destroy;
@@ -526,5 +520,4 @@ void codeobj_init(void) {
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
     obj.iindex = iindex;
-    obj.slice = slice;
 }

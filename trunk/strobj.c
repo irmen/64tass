@@ -677,136 +677,12 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op); return;
 }
 
-static void iindex(oper_t op) {
-    uint8_t *p;
-    uint8_t *p2;
-    size_t len1, len2;
-    ival_t offs;
-    size_t i;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp;
-
-    len1 = v1->u.str.chars;
-
-    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
-        if (!v2->u.list.len) {
-            if (v1 == v) destroy(v);
-            copy(&null_str, v);return;
-        }
-        if (v1->u.str.len == v1->u.str.chars) {
-            len2 = v2->u.list.len;
-            p = p2 = snew(&tmp, len2);
-            for (i = 0; i < v2->u.list.len; i++) {
-                offs = indexoffs(v2->u.list.data[i], len1);
-                if (offs < 0) {
-                    if (p != tmp.u.str.val) free(p);
-                    if (v1 == v) destroy(v);
-                    v->obj = ERROR_OBJ;
-                    v->u.error.num = ERROR___INDEX_RANGE;
-                    v->u.error.epoint = op->epoint2;
-                    return;
-                }
-                *p2++ = v1->u.str.data[offs];
-            }
-        }
-        else {
-            ival_t j, k;
-            size_t m = v1->u.str.len;
-            uint8_t *o;
-            o = p2 = snew(&tmp, m);
-            p = v1->u.str.data;
-            j = 0;
-
-            for (i = 0; i < v2->u.list.len; i++) {
-                offs = indexoffs(v2->u.list.data[i], len1);
-                if (offs < 0) {
-                    if (o != tmp.u.str.val) free(o);
-                    v->obj = ERROR_OBJ;
-                    v->u.error.num = ERROR___INDEX_RANGE;
-                    v->u.error.epoint = op->epoint2;
-                    return;
-                }
-                while (offs != j) {
-                    if (offs > j) {
-                        p += utf8len(*p);
-                        j++;
-                    } else {
-                        do { p--; } while (*p >= 0x80 && *p < 0xc0);
-                        j--;
-                    }
-                }
-                k = utf8len(*p);
-                if ((size_t)(p2 + k - o) > m) {
-                    const uint8_t *r = o;
-                    m += 4096;
-                    if (o != tmp.u.str.val) o = (uint8_t *)realloc(o, m);
-                    else {
-                        o = (uint8_t *)malloc(m);
-                        if (o) memcpy(o, tmp.u.str.val, m - 4096);
-                    }
-                    if (!o || m < 4096) err_msg_out_of_memory(); /* overflow */
-                    p2 += o - r;
-                }
-                memcpy(p2, p, k);p2 += k;
-            }
-            len2 = p2 - o;
-            if (len2 > sizeof(v->u.str.val) && o != tmp.u.str.val) {
-                p = (uint8_t *)realloc(o, len2);
-                if (!p) err_msg_out_of_memory();
-            } else p = o;
-        }
-        if (v == v1) destroy(v);
-        if (len2 <= sizeof(v->u.str.val)) {
-            memcpy(v->u.str.val, p, len2);
-            if (tmp.u.str.val != p) free(p);
-            p = v->u.str.val;
-        }
-        v->obj = STR_OBJ;
-        v->u.str.chars = len1;
-        v->u.str.len = len2;
-        v->u.str.data = p;
-        return;
-    }
-    offs = indexoffs(v2, len1);
-    if (offs < 0) {
-        if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR___INDEX_RANGE;
-        v->u.error.epoint = op->epoint2;
-        return;
-    }
-
-    if (v1->u.str.len == v1->u.str.chars) {
-        len1 = 1;
-        p2 = v->u.str.val;
-        p2[0] = v1->u.str.data[offs];
-    }
-    else {
-        p = v1->u.str.data;
-        while (offs--) p += utf8len(*p);
-        len1 = utf8len(*p);
-        p2 = snew(v, len1);
-        memcpy(p2, p, len1);
-    }
-    if (v1 == v) destroy(v);
-    v->obj = STR_OBJ;
-    v->u.str.data = p2;
-    v->u.str.chars = 1;
-    v->u.str.len = len1;
-}
-
-static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t UNUSED(epoint)) {
-    size_t len1, len2;
+static inline void slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
+    size_t len2;
     uint8_t *p;
     uint8_t *p2;
     struct value_s tmp;
 
-    if (step > 0) {
-        if (offs > end) offs = end;
-        len1 = (end - offs + step - 1) / step;
-    } else {
-        if (end > offs) end = offs;
-        len1 = (offs - end - step - 1) / -step;
-    }
     if (!len1) {
         if (v1 == v) destroy(v);
         copy(&null_str, v);return;
@@ -882,6 +758,124 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
     v->u.str.chars = len1;
     v->u.str.len = len2;
     v->u.str.data = p;
+}
+
+static void iindex(oper_t op) {
+    uint8_t *p;
+    uint8_t *p2;
+    size_t len1, len2;
+    ival_t offs;
+    size_t i;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp, err;
+
+    len1 = v1->u.str.chars;
+
+    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+        if (!v2->u.list.len) {
+            if (v1 == v) destroy(v);
+            copy(&null_str, v);return;
+        }
+        if (v1->u.str.len == v1->u.str.chars) {
+            len2 = v2->u.list.len;
+            p = p2 = snew(&tmp, len2);
+            for (i = 0; i < v2->u.list.len; i++) {
+                offs = indexoffs(v2->u.list.data[i], &err, len1, &op->epoint2);
+                if (offs < 0) {
+                    if (p != tmp.u.str.val) free(p);
+                    if (v1 == v) destroy(v);
+                    err.obj->copy_temp(&err, v);
+                    return;
+                }
+                *p2++ = v1->u.str.data[offs];
+            }
+        }
+        else {
+            ival_t j, k;
+            size_t m = v1->u.str.len;
+            uint8_t *o;
+            o = p2 = snew(&tmp, m);
+            p = v1->u.str.data;
+            j = 0;
+
+            for (i = 0; i < v2->u.list.len; i++) {
+                offs = indexoffs(v2->u.list.data[i], &err, len1, &op->epoint2);
+                if (offs < 0) {
+                    if (o != tmp.u.str.val) free(o);
+                    if (v1 == v) destroy(v);
+                    err.obj->copy_temp(&err, v);
+                    return;
+                }
+                while (offs != j) {
+                    if (offs > j) {
+                        p += utf8len(*p);
+                        j++;
+                    } else {
+                        do { p--; } while (*p >= 0x80 && *p < 0xc0);
+                        j--;
+                    }
+                }
+                k = utf8len(*p);
+                if ((size_t)(p2 + k - o) > m) {
+                    const uint8_t *r = o;
+                    m += 4096;
+                    if (o != tmp.u.str.val) o = (uint8_t *)realloc(o, m);
+                    else {
+                        o = (uint8_t *)malloc(m);
+                        if (o) memcpy(o, tmp.u.str.val, m - 4096);
+                    }
+                    if (!o || m < 4096) err_msg_out_of_memory(); /* overflow */
+                    p2 += o - r;
+                }
+                memcpy(p2, p, k);p2 += k;
+            }
+            len2 = p2 - o;
+            if (len2 > sizeof(v->u.str.val) && o != tmp.u.str.val) {
+                p = (uint8_t *)realloc(o, len2);
+                if (!p) err_msg_out_of_memory();
+            } else p = o;
+        }
+        if (v == v1) destroy(v);
+        if (len2 <= sizeof(v->u.str.val)) {
+            memcpy(v->u.str.val, p, len2);
+            if (tmp.u.str.val != p) free(p);
+            p = v->u.str.val;
+        }
+        v->obj = STR_OBJ;
+        v->u.str.chars = len1;
+        v->u.str.len = len2;
+        v->u.str.data = p;
+        return;
+    }
+    if (v2->obj == COLONLIST_OBJ) {
+        ival_t len, end, step;
+        len = sliceparams(op, len1, &offs, &end, &step);
+        if (len < 0) return;
+        return slice(v1, len, offs, end, step, v);
+    }
+    offs = indexoffs(v2, &err, len1, &op->epoint2);
+    if (offs < 0) {
+        if (v1 == v) destroy(v);
+        err.obj->copy_temp(&err, v);
+        return;
+    }
+
+    if (v1->u.str.len == v1->u.str.chars) {
+        len1 = 1;
+        p2 = v->u.str.val;
+        p2[0] = v1->u.str.data[offs];
+    }
+    else {
+        p = v1->u.str.data;
+        while (offs--) p += utf8len(*p);
+        len1 = utf8len(*p);
+        p2 = snew(v, len1);
+        memcpy(p2, p, len1);
+    }
+    if (v1 == v) destroy(v);
+    v->obj = STR_OBJ;
+    v->u.str.data = p2;
+    v->u.str.chars = 1;
+    v->u.str.len = len1;
 }
 
 static void register_repr(const struct value_s *v1, struct value_s *v) {
@@ -1006,7 +1000,6 @@ void strobj_init(void) {
     str_obj.rcalc2 = rcalc2;
     str_obj.repeat = repeat;
     str_obj.iindex = iindex;
-    str_obj.slice = slice;
     obj_init(&register_obj, T_REGISTER, "<register>");
     register_obj.destroy = destroy;
     register_obj.copy = copy;

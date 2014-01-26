@@ -22,7 +22,7 @@
 extern obj_t LIST_OBJ;
 extern obj_t TUPLE_OBJ;
 extern obj_t ADDRLIST_OBJ;
-extern obj_t PAIR_OBJ;
+extern obj_t COLONLIST_OBJ;
 
 typedef struct {
     size_t len;
