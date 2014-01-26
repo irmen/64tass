@@ -132,9 +132,8 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     }
     s[i] = q;
     if (v == v1) destroy(v);
-    if (i2 <= sizeof(v->u.str.val)) {
+    if (s2 == tmp.u.str.val) {
         memcpy(v->u.str.val, s2, i2);
-        if (tmp.u.str.val != s2) free(s2);
         s2 = v->u.str.val;
     }
     v->obj = STR_OBJ;
@@ -318,6 +317,10 @@ size_t str_from_str(struct value_s *v, linecpos_t *upos, const uint8_t *s) {
         memcpy(v->u.str.data, s + 1, v->u.str.len);
     }
     return i;
+}
+
+uint8_t *str_create_elements(struct value_s *v, size_t len) {
+    return snew(v, len);
 }
 
 static void calc1(oper_t op) {
@@ -513,25 +516,26 @@ static void repeat(oper_t op, uval_t rep) {
     struct value_s *v1 = op->v1, *v = op->v, tmp;
     v->obj = STR_OBJ;
     if (v1->u.str.len && rep) {
-        uint8_t *s, *s2;
+        uint8_t *s;
         size_t ln = v1->u.str.len;
         size_t chars = v1->u.str.chars;
-        if (ln > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
-        s2 = s = snew(&tmp, ln * rep);
+        if (ln > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
+        s = snew(&tmp, ln * rep);
         v->u.str.len = 0;
         while (rep--) {
             memcpy(s + v->u.str.len, v1->u.str.data, ln);
             v->u.str.len += ln;
         }
-        if (v->u.str.len <= sizeof(v->u.str.val)) {
-            memcpy(v->u.str.val, s2, v->u.str.len);
-            if (tmp.u.str.val != s2) free(s2);
-            s2 = v->u.str.val;
+        if (v == v1) destroy(v);
+        if (s == tmp.u.str.val) {
+            memcpy(v->u.str.val, s, v->u.str.len);
+            s = v->u.str.val;
         }
-        v->u.str.data = s2;
+        v->u.str.data = s;
         v->u.str.chars = chars * rep;
         return;
     } 
+    if (v == v1) destroy(v);
     v->u.str.data = v->u.str.val;
     v->u.str.len = 0;
     v->u.str.chars = 0;

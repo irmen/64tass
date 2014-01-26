@@ -51,7 +51,6 @@ static struct obj_s anonident_obj;
 static struct obj_s oper_obj;
 static struct obj_s default_obj;
 static struct obj_s dict_obj;
-static struct obj_s pair_obj;
 static struct obj_s iter_obj;
 static struct obj_s register_obj;
 
@@ -69,7 +68,6 @@ obj_t ANONIDENT_OBJ = &anonident_obj;
 obj_t OPER_OBJ = &oper_obj;
 obj_t DEFAULT_OBJ = &default_obj;
 obj_t DICT_OBJ = &dict_obj;
-obj_t PAIR_OBJ = &pair_obj;
 obj_t ITER_OBJ = &iter_obj;
 obj_t REGISTER_OBJ = &register_obj;
 
@@ -141,8 +139,7 @@ static void invalid_repr(const struct value_s *v1, struct value_s *v) {
     v->obj = STR_OBJ;
     v->u.str.len = strlen(name);
     v->u.str.chars = v->u.str.len;
-    s = (uint8_t *)malloc(v->u.str.len);
-    if (!s) err_msg_out_of_memory();
+    s = str_create_elements(v, v->u.str.len);
     memcpy(s, name, v->u.str.len);
     v->u.str.data = s;
 }
@@ -164,8 +161,7 @@ static void gap_repr(const struct value_s *UNUSED(v1), struct value_s *v) {
     v->obj = STR_OBJ;
     v->u.str.len = 1;
     v->u.str.chars = 1;
-    s = (uint8_t *)malloc(v->u.str.len);
-    if (!s) err_msg_out_of_memory();
+    s = str_create_elements(v, v->u.str.len);
     *s = '?';
     v->u.str.data = s;
 }
@@ -315,8 +311,8 @@ static void register_repr(const struct value_s *v1, struct value_s *v) {
     v->obj = STR_OBJ;
     v->u.str.len = v1->u.reg.len + 2 + len;
     v->u.str.chars = v->u.reg.chars + 2 + len;
-    s = (uint8_t *)malloc(v->u.reg.len);
-    if (!s || v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
+    if (v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
+    s = str_create_elements(v, v->u.reg.len);
     memcpy(s, prefix, len);
     memcpy(s + len, v1->u.reg.data, v1->u.reg.len);
     s[v->u.str.len - 2] = '\'';
@@ -522,71 +518,6 @@ static struct value_s *MUST_CHECK invalid_next(struct value_s *v1, struct value_
         return val_reference(v1->u.iter.data);
     }
     return NULL;
-}
-
-static void pair_destroy(struct value_s *v1) {
-    val_destroy(v1->u.pair.key);
-    val_destroy(v1->u.pair.data);
-}
-
-static void pair_copy(const struct value_s *v1, struct value_s *v) {
-    v->obj = PAIR_OBJ;
-    v->refcount = 1;
-    v->u.pair.key = val_reference(v1->u.pair.key);
-    v->u.pair.data = val_reference(v1->u.pair.data);
-}
-
-static void pair_copy_temp(const struct value_s *v1, struct value_s *v) {
-    v->obj = PAIR_OBJ;
-    v->refcount = 1;
-    v->u.pair.key = v1->u.pair.key;
-    v->u.pair.data = v1->u.pair.data;
-}
-
-static int pair_same(const struct value_s *v1, const struct value_s *v2) {
-    if (v2->obj != PAIR_OBJ)  return 0;
-    if (!obj_same(v1->u.pair.key, v2->u.pair.key)) return 0;
-    if (!obj_same(v1->u.pair.data, v2->u.pair.data)) return 0;
-    return 1;
-}
-
-static void pair_repr(const struct value_s *v1, struct value_s *v) {
-    size_t len = 1, chars;
-    struct value_s tmp[2];
-    uint8_t *s;
-
-    v1->u.pair.key->obj->repr(v1->u.pair.key, &tmp[0]);
-    if (tmp[0].obj != STR_OBJ) {
-        if (v1 == v) v->obj->destroy(v);
-        tmp[0].obj->copy_temp(&tmp[0], v);
-        return;
-    }
-    len += tmp[0].u.str.len;
-    if (len < tmp[0].u.str.len) err_msg_out_of_memory(); /* overflow */
-    v1->u.pair.data->obj->repr(v1->u.pair.data, &tmp[1]);
-    if (tmp[1].obj != STR_OBJ) {
-        if (v1 == v) v->obj->destroy(v);
-        tmp[1].obj->copy_temp(&tmp[1], v);
-        tmp[0].obj->destroy(&tmp[0]);
-        return;
-    }
-    len += tmp[1].u.str.len;
-    s = (uint8_t *)malloc(len);
-    if (!s || len < tmp[1].u.str.len) err_msg_out_of_memory(); /* overflow */
-    memcpy(s, tmp[0].u.str.data, tmp[0].u.str.len);
-    len = tmp[0].u.str.len;
-    chars = tmp[0].u.str.len - tmp[0].u.str.chars;
-    tmp[0].obj->destroy(&tmp[0]);
-    s[len++] = ':';
-    memcpy(s + len, tmp[1].u.str.data, tmp[1].u.str.len);
-    len += tmp[1].u.str.len;
-    chars += tmp[1].u.str.len - tmp[1].u.str.chars;
-    tmp[1].obj->destroy(&tmp[1]);
-    if (v1 == v) v->obj->destroy(v);
-    v->obj = STR_OBJ;
-    v->u.str.data = s;
-    v->u.str.len = len;
-    v->u.str.chars = len - chars;
 }
 
 static void iter_destroy(struct value_s *v1) {
@@ -801,8 +732,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v) {
             if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
         }
     }
-    s = (uint8_t *)malloc(len);
-    if (!s) err_msg_out_of_memory();
+    s = str_create_elements(v, len);
     len = 0;
     s[len++] = '{';
     for (i = 0;i < v1->u.dict.len * 2;) {
@@ -1361,12 +1291,6 @@ void objects_init(void) {
     dict_obj.len = dict_len;
     dict_obj.repr = dict_repr;
     dict_obj.rcalc2 = dict_rcalc2;
-    obj_init(&pair_obj, T_PAIR, "<pair>");
-    pair_obj.destroy = pair_destroy;
-    pair_obj.copy = pair_copy;
-    pair_obj.copy_temp = pair_copy_temp;
-    pair_obj.same = pair_same;
-    pair_obj.repr = pair_repr;
     obj_init(&iter_obj, T_ITER, "<iter>");
     iter_obj.destroy = iter_destroy;
     iter_obj.next = iter_next;

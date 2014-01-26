@@ -44,8 +44,7 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {
-    uint8_t *s = (uint8_t *)malloc(4 + !v1->u.boolean);
-    if (!s) err_msg_out_of_memory();
+    uint8_t *s = str_create_elements(v, 4 + !v1->u.boolean);
     v->obj = STR_OBJ;
     v->u.str.data = s;
     v->u.str.len = 4 + !v1->u.boolean;

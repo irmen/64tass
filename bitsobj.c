@@ -122,13 +122,13 @@ static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *re
 static void repr(const struct value_s *v1, struct value_s *v) {
     size_t len, i, len2;
     uint8_t *s;
+    struct value_s tmp;
 
     len2 = v1->u.bits.bits;
     if (len2 & 3) {
         len = 1 + v1->u.bits.inv;
         len += len2;
-        s = (uint8_t *)malloc(len);
-        if (!s || len < len2) err_msg_out_of_memory(); /* overflow */
+        s = str_create_elements(&tmp, len);
 
         len = 0;
         if (v1->u.bits.inv) s[len++] = '~';
@@ -142,8 +142,7 @@ static void repr(const struct value_s *v1, struct value_s *v) {
         len2 /= 4;
         len = 1 + v1->u.bits.inv;
         len += len2;
-        s = (uint8_t *)malloc(len);
-        if (!s || len < len2) err_msg_out_of_memory(); /* overflow */
+        s = str_create_elements(&tmp, len);
 
         len = 0;
         if (v1->u.bits.inv) s[len++] = '~';
@@ -155,6 +154,10 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     }
     if (v == v1) v->obj->destroy(v);
     v->obj = STR_OBJ;
+    if (s == tmp.u.str.val) {
+        memcpy(v->u.str.val, s, len);
+        s = v->u.str.val;
+    }
     v->u.str.len = len;
     v->u.str.chars = len;
     v->u.str.data = s;

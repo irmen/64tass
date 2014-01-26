@@ -127,7 +127,6 @@ struct value_s {
         bits_t bits;
         code_t code;
         list_t list;
-        pair_t pair;
         dict_t dict;
         mfunc_t mfunc;
         macro_t macro;
