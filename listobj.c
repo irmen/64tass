@@ -26,12 +26,12 @@
 static struct obj_s list_obj;
 static struct obj_s tuple_obj;
 static struct obj_s addrlist_obj;
-static struct obj_s pair_obj;
+static struct obj_s colonlist_obj;
 
 obj_t LIST_OBJ = &list_obj;
 obj_t TUPLE_OBJ = &tuple_obj;
 obj_t ADDRLIST_OBJ = &addrlist_obj;
-obj_t PAIR_OBJ = &pair_obj;
+obj_t COLONLIST_OBJ = &colonlist_obj;
 
 static void destroy(struct value_s *v1) {
     size_t i;
@@ -119,7 +119,7 @@ static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *re
 }
 
 static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
-    size_t i, len = (v1->obj == ADDRLIST_OBJ || v1->obj == PAIR_OBJ) ? 0 : 2, chars = 0;
+    size_t i, len = (v1->obj == ADDRLIST_OBJ || v1->obj == COLONLIST_OBJ) ? 0 : 2, chars = 0;
     struct value_s *tmp = NULL;
     uint8_t *s;
     if (v1->u.list.len) {
@@ -145,9 +145,9 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
     }
     s = str_create_elements(v, len);
     len = 0;
-    if (v1->obj != ADDRLIST_OBJ && v1->obj != PAIR_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? '[' : '(';
+    if (v1->obj != ADDRLIST_OBJ && v1->obj != COLONLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? '[' : '(';
     for (i = 0;i < v1->u.list.len; i++) {
-        if (i) s[len++] = (v1->obj == PAIR_OBJ) ? ':' : ',';
+        if (i) s[len++] = (v1->obj == COLONLIST_OBJ) ? ':' : ',';
         if (tmp[i].u.str.len) {
             memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
             len += tmp[i].u.str.len;
@@ -156,7 +156,7 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
         STR_OBJ->destroy(&tmp[i]);
     }
     if (i == 1 && (v1->obj == TUPLE_OBJ)) s[len++] = ',';
-    if (v1->obj != ADDRLIST_OBJ && v1->obj != PAIR_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? ']' : ')';
+    if (v1->obj != ADDRLIST_OBJ && v1->obj != COLONLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? ']' : ')';
     free(tmp);
     if (v1 == v) v->obj->destroy(v);
     v->obj = STR_OBJ;
@@ -555,57 +555,7 @@ static void repeat(oper_t op, uval_t rep) {
     v->u.list.len = 0;
 }
 
-static void iindex(oper_t op) {
-    struct value_s **vals;
-    size_t i, ln;
-    ival_t offs;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-
-    ln = v1->u.list.len;
-
-    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
-        if (!v2->u.list.len) {
-            if (v1 == v) destroy(v);
-            copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
-            return;
-        }
-        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
-        if (!vals) err_msg_out_of_memory();
-        for (i = 0; i < v2->u.list.len; i++) {
-            offs = indexoffs(v2->u.list.data[i], ln);
-            if (offs < 0) {
-                if (v1 == v) destroy(v);
-                v->u.list.len = i;
-                v->u.list.data = vals;
-                destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR___INDEX_RANGE;
-                v->u.error.epoint = op->epoint2;
-                return;
-            }
-            vals[i] = val_reference(v1->u.list.data[offs]);
-        }
-        if (v1 == v) destroy(v);
-        v->obj = v1->obj;
-        v->u.list.len = i;
-        v->u.list.data = vals;
-        return;
-    }
-    offs = indexoffs(v2, ln);
-    if (offs < 0) {
-        if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR___INDEX_RANGE;
-        v->u.error.epoint = op->epoint2;
-        return;
-    }
-    v2 = val_reference(v1->u.list.data[offs]);
-    if (v1 == v) destroy(v);
-    v2->obj->copy(v2, v);
-    val_destroy(v2);
-}
-
-static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t UNUSED(epoint)) {
+static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
     struct value_s **vals;
     size_t i;
     size_t ln;
@@ -641,6 +591,58 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
     v->u.list.data = vals;
 }
 
+static void iindex(oper_t op) {
+    struct value_s **vals;
+    size_t i, ln;
+    ival_t offs;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, err;
+
+    ln = v1->u.list.len;
+
+    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+        if (!v2->u.list.len) {
+            if (v1 == v) destroy(v);
+            copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
+            return;
+        }
+        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
+        if (!vals) err_msg_out_of_memory();
+        for (i = 0; i < v2->u.list.len; i++) {
+            offs = indexoffs(v2->u.list.data[i], &err, ln, &op->epoint2);
+            if (offs < 0) {
+                if (v1 == v) destroy(v);
+                v->u.list.len = i;
+                v->u.list.data = vals;
+                destroy(v);
+                err.obj->copy_temp(&err, v);
+                return;
+            }
+            vals[i] = val_reference(v1->u.list.data[offs]);
+        }
+        if (v1 == v) destroy(v);
+        v->obj = v1->obj;
+        v->u.list.len = i;
+        v->u.list.data = vals;
+        return;
+    }
+    if (v2->obj == COLONLIST_OBJ) {
+        ival_t len, end, step;
+        len = sliceparams(op, ln, &offs, &end, &step);
+        if (len < 0) return;
+        return slice(v1, offs, end, step, v);
+    }
+    offs = indexoffs(v2, &err, ln, &op->epoint2);
+    if (offs < 0) {
+        if (v1 == v) destroy(v);
+        err.obj->copy_temp(&err, v);
+        return;
+    }
+    v2 = val_reference(v1->u.list.data[offs]);
+    if (v1 == v) destroy(v);
+    v2->obj->copy(v2, v);
+    val_destroy(v2);
+}
+
 static void init(struct obj_s *obj) {
     obj->destroy = destroy;
     obj->copy = copy;
@@ -655,7 +657,6 @@ static void init(struct obj_s *obj) {
     obj->rcalc2 = rcalc2;
     obj->repeat = repeat;
     obj->iindex = iindex;
-    obj->slice = slice;
     obj->repr = repr_listtuple;
 }
 
@@ -670,10 +671,10 @@ void listobj_init(void) {
     addrlist_obj.copy_temp = copy_temp;
     addrlist_obj.same = same;
     addrlist_obj.repr = repr_listtuple;
-    obj_init(&pair_obj, T_PAIR, "<pair>");
-    pair_obj.destroy = destroy;
-    pair_obj.copy = copy;
-    pair_obj.copy_temp = copy_temp;
-    pair_obj.same = same;
-    pair_obj.repr = repr_listtuple;
+    obj_init(&colonlist_obj, T_COLONLIST, "<colon list>");
+    colonlist_obj.destroy = destroy;
+    colonlist_obj.copy = copy;
+    colonlist_obj.copy_temp = copy_temp;
+    colonlist_obj.same = same;
+    colonlist_obj.repr = repr_listtuple;
 }

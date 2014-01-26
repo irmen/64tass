@@ -1074,100 +1074,14 @@ static void rcalc2(oper_t op) {
     obj_oper_error(op); return;
 }
 
-static void iindex(oper_t op) {
-    size_t ln, sz;
-    ival_t offs;
-    size_t i, o;
-    struct value_s *vv1 = op->v1, *vv2 = op->v2, *vv = op->v;
-    bdigit_t *v;
-    bdigit_t uv;
-    bdigit_t inv = -vv1->u.bits.inv;
-    int bits;
-    struct value_s tmp;
-
-    ln = vv1->u.bits.bits;
-
-    if (vv2->obj == TUPLE_OBJ || vv2->obj == LIST_OBJ) {
-        if (!vv2->u.list.len) {
-            if (vv1 == vv) destroy(vv);
-            copy(&null_bits, vv);return;
-        }
-        sz = (vv2->u.list.len + 8 * sizeof(bdigit_t) - 1) / (8 * sizeof(bdigit_t));
-
-        v = bnew(&tmp, sz);
-
-        uv = inv;
-        bits = sz = 0;
-        for (i = 0; i < vv2->u.list.len; i++) {
-            offs = indexoffs(vv2->u.list.data[i], ln);
-            if (offs < 0) {
-                if (tmp.u.bits.val != v) free(v);
-                if (vv1 == vv) destroy(vv);
-                vv->obj = ERROR_OBJ;
-                vv->u.error.num = ERROR___INDEX_RANGE;
-                vv->u.error.epoint = op->epoint2;
-                return;
-            }
-            o = offs / 8 / sizeof(bdigit_t);
-            if (o < vv1->u.bits.len && ((vv1->u.bits.data[o] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
-                uv ^= 1 << bits;
-            }
-            bits++;
-            if (bits == 8 * sizeof(bdigit_t)) {
-                v[sz++] = uv;
-                uv = inv;
-                bits = 0;
-            }
-        }
-        if (bits) v[sz++] = uv & ((1 << bits) - 1);
-
-        while (sz && !v[sz - 1]) sz--;
-        if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
-        if (sz <= 2) {
-            memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-            if (tmp.u.bits.val != v) free(v);
-            v = vv->u.bits.val;
-        }
-        vv->obj = BITS_OBJ;
-        vv->u.bits.bits = vv2->u.list.len;
-        vv->u.bits.len = sz;
-        vv->u.bits.inv = 0;
-        vv->u.bits.data = v;
-        return;
-    }
-    offs = indexoffs(vv2, ln);
-    if (offs < 0) {
-        if (vv1 == vv) destroy(vv);
-        vv->obj = ERROR_OBJ;
-        vv->u.error.num = ERROR___INDEX_RANGE;
-        vv->u.error.epoint = op->epoint2;
-        return;
-    }
-
-    uv = inv;
-    o = offs / 8 / sizeof(bdigit_t);
-    if (o < vv1->u.bits.len && ((vv1->u.bits.data[o] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
-        uv ^= 1;
-    }
-    if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
-    bits_from_bool(vv, uv & 1);
-}
-
-static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, struct value_s *vv, linepos_t UNUSED(epoint)) {
-    size_t ln, bo, wo, bl, wl, sz;
+static inline void slice(struct value_s *vv1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *vv) {
+    size_t bo, wo, bl, wl, sz;
     bdigit_t uv;
     bdigit_t *v, *v1;
     bdigit_t inv = -vv1->u.bits.inv;
     int bits;
     struct value_s tmp;
 
-    if (step > 0) {
-        if (offs > end) offs = end;
-        ln = (end - offs + step - 1) / step;
-    } else {
-        if (end > offs) end = offs;
-        ln = (offs - end - step - 1) / -step;
-    }
     if (!ln) {
         if (vv1 == vv) destroy(vv);
         copy(&null_bits, vv);return;
@@ -1237,6 +1151,87 @@ static void slice(struct value_s *vv1, ival_t offs, ival_t end, ival_t step, str
     vv->u.bits.data = v;
 }
 
+static void iindex(oper_t op) {
+    size_t ln, sz;
+    ival_t offs;
+    size_t i, o;
+    struct value_s *vv1 = op->v1, *vv2 = op->v2, *vv = op->v;
+    bdigit_t *v;
+    bdigit_t uv;
+    bdigit_t inv = -vv1->u.bits.inv;
+    int bits;
+    struct value_s tmp, err;
+
+    ln = vv1->u.bits.bits;
+
+    if (vv2->obj == TUPLE_OBJ || vv2->obj == LIST_OBJ) {
+        if (!vv2->u.list.len) {
+            if (vv1 == vv) destroy(vv);
+            copy(&null_bits, vv);return;
+        }
+        sz = (vv2->u.list.len + 8 * sizeof(bdigit_t) - 1) / (8 * sizeof(bdigit_t));
+
+        v = bnew(&tmp, sz);
+
+        uv = inv;
+        bits = sz = 0;
+        for (i = 0; i < vv2->u.list.len; i++) {
+            offs = indexoffs(vv2->u.list.data[i], &err, ln, &op->epoint2);
+            if (offs < 0) {
+                if (tmp.u.bits.val != v) free(v);
+                if (vv1 == vv) destroy(vv);
+                err.obj->copy_temp(&err, vv);
+                return;
+            }
+            o = offs / 8 / sizeof(bdigit_t);
+            if (o < vv1->u.bits.len && ((vv1->u.bits.data[o] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
+                uv ^= 1 << bits;
+            }
+            bits++;
+            if (bits == 8 * sizeof(bdigit_t)) {
+                v[sz++] = uv;
+                uv = inv;
+                bits = 0;
+            }
+        }
+        if (bits) v[sz++] = uv & ((1 << bits) - 1);
+
+        while (sz && !v[sz - 1]) sz--;
+        if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
+        if (sz <= 2) {
+            memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
+            if (tmp.u.bits.val != v) free(v);
+            v = vv->u.bits.val;
+        }
+        vv->obj = BITS_OBJ;
+        vv->u.bits.bits = vv2->u.list.len;
+        vv->u.bits.len = sz;
+        vv->u.bits.inv = 0;
+        vv->u.bits.data = v;
+        return;
+    }
+    if (vv2->obj == COLONLIST_OBJ) {
+        ival_t len, end, step;
+        len = sliceparams(op, ln, &offs, &end, &step);
+        if (len < 0) return;
+        return slice(vv1, len, offs, end, step, vv);
+    }
+    offs = indexoffs(vv2, &err, ln, &op->epoint2);
+    if (offs < 0) {
+        if (vv1 == vv) destroy(vv);
+        err.obj->copy_temp(&err, vv);
+        return;
+    }
+
+    uv = inv;
+    o = offs / 8 / sizeof(bdigit_t);
+    if (o < vv1->u.bits.len && ((vv1->u.bits.data[o] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
+        uv ^= 1;
+    }
+    if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
+    bits_from_bool(vv, uv & 1);
+}
+
 void bitsobj_init(void) {
     obj_init(&obj, T_BITS, "<bits>");
     obj.destroy = destroy;
@@ -1258,5 +1253,4 @@ void bitsobj_init(void) {
     obj.rcalc2 = rcalc2;
     obj.repeat = repeat;
     obj.iindex = iindex;
-    obj.slice = slice;
 }

@@ -282,16 +282,6 @@ static void invalid_iindex(oper_t op) {
     obj_oper_error(op);
 }
 
-static void invalid_slice(struct value_s *v1, ival_t UNUSED(offs), ival_t UNUSED(end), ival_t UNUSED(step), struct value_s *v, linepos_t epoint) {
-    struct oper_s oper;
-    oper.op = &o_SLICE;
-    oper.v1 = v1;
-    oper.v2 = NULL;
-    oper.v = v;
-    oper.epoint3 = *epoint;
-    obj_oper_error(&oper);
-}
-
 static int MUST_CHECK invalid_ival(const struct value_s *v1, struct value_s *v, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
     generic_invalid(v1, v, epoint, ERROR______CANT_INT);
     return 1;
@@ -609,6 +599,37 @@ static void dict_rcalc2(oper_t op) {
         op->v1->obj->calc2(op); return;
     }
     obj_oper_error(op);
+}
+
+static void dict_iindex(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct pair_s pair;
+    const struct avltree_node *b;
+    pair.key = v2;
+    pair.hash = obj_hash(pair.key, v, &op->epoint2);
+    if (pair.hash >= 0) {
+        b = avltree_lookup(&pair.node, &v1->u.dict.members, pair_compare);
+        if (b) {
+            const struct pair_s *p;
+            p = cavltree_container_of(b, struct pair_s, node);
+            v2 = val_reference(p->data);
+            if (v1 == v) dict_destroy(v);
+            v2->obj->copy(v2, v);
+            val_destroy(v2);
+            return;
+        }
+        if (v1->u.dict.def) {
+            v2 = val_reference(v1->u.dict.def);
+            if (v1 == v) dict_destroy(v);
+            v2->obj->copy(v2, v);
+            val_destroy(v2);
+            return;
+        }
+        if (v1 == v) dict_destroy(v);
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____KEY_ERROR;
+        v->u.error.epoint = op->epoint2;
+    }
 }
 
 static void error_destroy(struct value_s *v1) {
@@ -987,7 +1008,6 @@ void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->rcalc2 = invalid_rcalc2;
     obj->repeat = invalid_repeat;
     obj->iindex = invalid_iindex;
-    obj->slice = invalid_slice;
     obj->ival = invalid_ival;
     obj->uval = invalid_uval;
     obj->real = invalid_real;
@@ -1116,6 +1136,7 @@ void objects_init(void) {
     dict_obj.len = dict_len;
     dict_obj.repr = dict_repr;
     dict_obj.rcalc2 = dict_rcalc2;
+    dict_obj.iindex = dict_iindex;
     obj_init(&iter_obj, T_ITER, "<iter>");
     iter_obj.destroy = iter_destroy;
     iter_obj.next = iter_next;
