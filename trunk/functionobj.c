@@ -148,14 +148,8 @@ static void function_register(struct values_s *vals, unsigned int args) {
     else if (v[0].val->obj != NONE_OBJ) {
         if (v[0].val->obj != STR_OBJ) err_msg_wrong_type(v[0].val, &v[0].epoint);
         else {
-            uint8_t *s;
+            STR_OBJ->copy(v[0].val, &new_value);
             new_value.obj = REGISTER_OBJ;
-            new_value.u.reg.len = v[0].val->u.str.len;
-            new_value.u.reg.chars = v[0].val->u.str.chars;
-            s = (uint8_t *)malloc(new_value.u.reg.len);
-            if (!s) err_msg_out_of_memory();
-            memcpy(s, v[0].val->u.str.data, new_value.u.reg.len);
-            new_value.u.reg.data = s;
             val_replace_template(&vals->val, &new_value);
             return;
         }

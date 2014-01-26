@@ -26,9 +26,11 @@
 #include "boolobj.h"
 
 struct encoding_s;
-static struct obj_s obj;
+static struct obj_s str_obj;
+static struct obj_s register_obj;
 
-obj_t STR_OBJ = &obj;
+obj_t STR_OBJ = &str_obj;
+obj_t REGISTER_OBJ = &register_obj;
 
 static inline int utf8len(uint8_t ch) {
     if (ch < 0x80) return 1;
@@ -55,7 +57,7 @@ static uint8_t *snew(struct value_s *v, size_t len) {
 
 static void copy(const struct value_s *v1, struct value_s *v) {
     uint8_t *s;
-    v->obj = STR_OBJ;
+    v->obj = v1->obj;
     v->refcount = 1;
     v->u.str.chars = v1->u.str.chars;
     v->u.str.len = v1->u.str.len;
@@ -67,7 +69,7 @@ static void copy(const struct value_s *v1, struct value_s *v) {
 }
 
 static void copy_temp(const struct value_s *v1, struct value_s *v) {
-    v->obj = STR_OBJ;
+    v->obj = v1->obj;
     v->refcount = 1;
     v->u.str.chars = v1->u.str.chars;
     v->u.str.len = v1->u.str.len;
@@ -78,7 +80,7 @@ static void copy_temp(const struct value_s *v1, struct value_s *v) {
 }
 
 static int same(const struct value_s *v1, const struct value_s *v2) {
-    return v2->obj == STR_OBJ && v1->u.str.len == v2->u.str.len && (
+    return v1->obj == v2->obj && v1->u.str.len == v2->u.str.len && (
             v1->u.str.data == v2->u.str.data ||
             !memcmp(v1->u.str.data, v2->u.str.data, v2->u.str.len));
 }
@@ -882,29 +884,136 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
     v->u.str.data = p;
 }
 
+static void register_repr(const struct value_s *v1, struct value_s *v) {
+    uint8_t *s;
+    const char *prefix = "<register '";
+    size_t len = strlen(prefix);
+    v->obj = STR_OBJ;
+    v->u.str.len = v1->u.str.len + 2 + len;
+    v->u.str.chars = v->u.str.chars + 2 + len;
+    if (v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
+    s = str_create_elements(v, v->u.str.len);
+    memcpy(s, prefix, len);
+    memcpy(s + len, v1->u.str.data, v1->u.str.len);
+    s[v->u.str.len - 2] = '\'';
+    s[v->u.str.len - 1] = '>';
+    v->u.str.data = s;
+}
+
+static void register_calc2(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    switch (v2->obj->type) {
+    case T_REGISTER:
+        switch (op->op->u.oper.op) {
+        case O_CMP:
+        case O_EQ:
+        case O_NE:
+        case O_LT:
+        case O_GT:
+        case O_LE:
+        case O_GE:
+            if (calc2_str(op)) break; return;
+        default: break;
+        }
+        break;
+    case T_STR:
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_CODE:
+    case T_ADDRESS:
+    case T_BYTES:
+    case T_GAP:
+        switch (op->op->u.oper.op) {
+        case O_EQ: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, 0); return;
+        case O_NE: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, 1); return;
+        default: break;
+        }
+        break;
+    case T_TUPLE:
+    case T_LIST:
+    case T_IDENT:
+    case T_ANONIDENT:
+        if (op->op != &o_MEMBER) {
+            v2->obj->rcalc2(op); return;
+        }
+    default: break;
+    }
+    obj_oper_error(op);
+}
+
+static void register_rcalc2(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    switch (v1->obj->type) {
+    case T_STR:
+    case T_BOOL:
+    case T_INT:
+    case T_BITS:
+    case T_FLOAT:
+    case T_CODE:
+    case T_ADDRESS:
+    case T_BYTES:
+    case T_GAP:
+        switch (op->op->u.oper.op) {
+        case O_EQ: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, 0); return;
+        case O_NE: 
+            if (v1 == v || v2 == v) v->obj->destroy(v);
+            bool_from_int(v, 1); return;
+        default: break;
+        }
+        break;
+    case T_TUPLE:
+    case T_LIST:
+        v2->obj->calc2(op); return;
+    default:
+    case T_REGISTER:
+        if (op->op != &o_IN) {
+            return v1->obj->calc2(op);
+        }
+    }
+    obj_oper_error(op);
+}
+
+
 void strobj_init(void) {
-    obj_init(&obj, T_STR, "<str>");
-    obj.destroy = destroy;
-    obj.copy = copy;
-    obj.copy_temp = copy_temp;
-    obj.same = same;
-    obj.truth = truth;
-    obj.hash = hash;
-    obj.repr = repr;
-    obj.str = str;
-    obj.ival = ival;
-    obj.uval = uval;
-    obj.real = real;
-    obj.sign = sign;
-    obj.abs = absolute;
-    obj.integer = integer;
-    obj.len = len;
-    obj.getiter = getiter;
-    obj.next = next;
-    obj.calc1 = calc1;
-    obj.calc2 = calc2;
-    obj.rcalc2 = rcalc2;
-    obj.repeat = repeat;
-    obj.iindex = iindex;
-    obj.slice = slice;
+    obj_init(&str_obj, T_STR, "<str>");
+    str_obj.destroy = destroy;
+    str_obj.copy = copy;
+    str_obj.copy_temp = copy_temp;
+    str_obj.same = same;
+    str_obj.truth = truth;
+    str_obj.hash = hash;
+    str_obj.repr = repr;
+    str_obj.str = str;
+    str_obj.ival = ival;
+    str_obj.uval = uval;
+    str_obj.real = real;
+    str_obj.sign = sign;
+    str_obj.abs = absolute;
+    str_obj.integer = integer;
+    str_obj.len = len;
+    str_obj.getiter = getiter;
+    str_obj.next = next;
+    str_obj.calc1 = calc1;
+    str_obj.calc2 = calc2;
+    str_obj.rcalc2 = rcalc2;
+    str_obj.repeat = repeat;
+    str_obj.iindex = iindex;
+    str_obj.slice = slice;
+    obj_init(&register_obj, T_REGISTER, "<register>");
+    register_obj.destroy = destroy;
+    register_obj.copy = copy;
+    register_obj.copy_temp = copy_temp;
+    register_obj.same = same;
+    register_obj.hash = hash;
+    register_obj.repr = register_repr;
+    register_obj.calc2 = register_calc2;
+    register_obj.rcalc2 = register_rcalc2;
 }

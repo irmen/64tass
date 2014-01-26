@@ -20,6 +20,7 @@
 #define _STROBJ_H
 
 extern obj_t STR_OBJ;
+extern obj_t REGISTER_OBJ;
 
 typedef struct {
     size_t len;
