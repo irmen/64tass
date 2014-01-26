@@ -73,6 +73,7 @@ enum errors_e {
     ERROR___INDEX_RANGE,
     ERROR_____KEY_ERROR,
     ERROR__NOT_HASHABLE,
+    ERROR__NOT_KEYVALUE,
     ERROR_____CANT_IVAL,
     ERROR_____CANT_UVAL,
     ERROR_____CANT_REAL,
@@ -126,7 +127,8 @@ extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_requires(const str_t *name, linepos_t);
 extern void err_msg_conflicts(const str_t *name, linepos_t);
 extern void err_msg_variable(struct error_s *, struct value_s *);
-extern void err_msg_file(enum errors_e, const char*);
+extern void err_msg_file(enum errors_e, const char *);
+extern void err_msg_output_and_destroy(struct value_s *);
 extern void freeerrorlist(int);
 extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
