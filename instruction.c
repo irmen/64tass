@@ -240,7 +240,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
             default: return 2; /* non-existing */
             }
             if (vals->obj == ADDRLIST_OBJ && vals->u.list.len != 1) return 2;
-        } else if (val->obj == REGISTER_OBJ && val->u.reg.len == 1 && val->u.reg.data[0] == 'a') {
+        } else if (val->obj == REGISTER_OBJ && val->u.str.len == 1 && val->u.str.data[0] == 'a') {
             if (vals->obj == ADDRLIST_OBJ && vals->u.list.len != 1) return 2;
             opr = ADR_ACCU;
             w = ln = 0; 

@@ -23,6 +23,7 @@
 #include "64tass.h"
 #include "file.h"
 #include "boolobj.h"
+#include "strobj.h"
 #include "obj.h"
 
 struct label_s *root_label;
@@ -407,10 +408,10 @@ void init_defaultlabels(void) {
     label = new_builtin("a");
     v = label->value;
     v->obj = REGISTER_OBJ;
-    v->u.reg.val[0] = 'a';
-    v->u.reg.data = v->u.reg.val;
-    v->u.reg.len = 1;
-    v->u.reg.chars = 1;
+    v->u.str.val[0] = 'a';
+    v->u.str.data = v->u.str.val;
+    v->u.str.len = 1;
+    v->u.str.chars = 1;
 
     for (i = 0; builtin_functions[i].name; i++) {
         label = new_builtin(builtin_functions[i].name);
