@@ -213,7 +213,9 @@ int val_print(const struct value_s *v1, FILE *f) {
     struct value_s tmp;
     int len;
     v1->obj->repr(v1, &tmp);
-    len = fwrite(tmp.u.str.data, 1, tmp.u.str.len, f);
+    if (tmp.obj == STR_OBJ) {
+        len = fwrite(tmp.u.str.data, 1, tmp.u.str.len, f);
+    } else len = 0;
     tmp.obj->destroy(&tmp);
     return len;
 }
