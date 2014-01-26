@@ -37,11 +37,6 @@ struct pair_s {
 };
 
 typedef struct {
-    struct value_s *key;
-    struct value_s *data;
-} pair_t;
-
-typedef struct {
     size_t len;
     struct avltree members;
     struct value_s *def;
@@ -136,7 +131,6 @@ extern obj_t ANONIDENT_OBJ;
 extern obj_t OPER_OBJ;
 extern obj_t DEFAULT_OBJ;
 extern obj_t DICT_OBJ;
-extern obj_t PAIR_OBJ;
 extern obj_t ITER_OBJ;
 extern obj_t REGISTER_OBJ;
 

@@ -1135,15 +1135,14 @@ static int get_val2(struct eval_context_s *ev) {
                 val = val_realloc(&v1->val);
                 val->obj = (op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ;
                 val->u.list.len = args;
+                val->u.list.data = list_create_elements(val, args);
                 if (args) {
-                    val->u.list.data = (struct value_s **)malloc(args * sizeof(val->u.list.data[0]));
-                    if (!val->u.list.data || args > ((size_t)~0) / sizeof(val->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
                     while (args--) {
                         val->u.list.data[args] = values[vsp-1].val;
                         values[vsp-1].val = &none_value;
                         vsp--;
                     }
-                } else val->u.list.data = NULL;
+                }
                 continue;
             }
         case O_RBRACE:
@@ -1169,23 +1168,23 @@ static int get_val2(struct eval_context_s *ev) {
                         if (t1 == T_PAIR) {
                             struct pair_s *p, *p2;
                             struct avltree_node *b;
-                            if (v1->val->u.pair.key->obj == DEFAULT_OBJ) {
+                            if (v1->val->u.list.data[0]->obj == DEFAULT_OBJ) {
                                 if (val->u.dict.def) val_destroy(val->u.dict.def);
-                                val->u.dict.def = val_reference(v1->val->u.pair.data);
+                                val->u.dict.def = val_reference(v1->val->u.list.data[1]);
                             } else {
                                 p = (struct pair_s *)malloc(sizeof(struct pair_s));
                                 if (!p) err_msg_out_of_memory();
-                                p->hash = obj_hash(v1->val->u.pair.key, &new_value, &v1->epoint);
+                                p->hash = obj_hash(v1->val->u.list.data[0], &new_value, &v1->epoint);
                                 if (p->hash >= 0) {
-                                    p->key = v1->val->u.pair.key;
+                                    p->key = v1->val->u.list.data[0];
                                     b = avltree_insert(&p->node, &val->u.dict.members, pair_compare);
                                     if (b) {
                                         p2 = avltree_container_of(b, struct pair_s, node);
-                                        val_replace(&p2->data, v1->val->u.pair.data);
+                                        val_replace(&p2->data, v1->val->u.list.data[1]);
                                         free(p);
                                     } else {
                                         p->key = val_reference(p->key);
-                                        p->data = val_reference(v1->val->u.pair.data);
+                                        p->data = val_reference(v1->val->u.list.data[1]);
                                         val->u.dict.len++;
                                     }
                                 } else {
@@ -1247,8 +1246,10 @@ static int get_val2(struct eval_context_s *ev) {
                 t2 = try_resolv(v2);
                 switch (t2) {
                 default: 
-                    new_value.u.pair.key = v1->val;
-                    new_value.u.pair.data = v2->val;
+                    new_value.u.list.data = list_create_elements(&new_value, 2);
+                    new_value.u.list.len = 2;
+                    new_value.u.list.data[0] = v1->val;
+                    new_value.u.list.data[1] = v2->val;
                     val_set_template(&v1->val, &new_value);
                     v2->val = &none_value;
                     continue;

@@ -30,4 +30,5 @@ typedef struct {
 
 extern void strobj_init(void);
 extern size_t str_from_str(struct value_s *, linecpos_t *, const uint8_t *);
+extern uint8_t *str_create_elements(struct value_s *, size_t);
 #endif

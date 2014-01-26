@@ -43,9 +43,9 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     size_t len = strlen(prefix);
     v->obj = STR_OBJ;
     v->u.str.len = v1->u.function.name.len + 2 + len;
+    if (v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
     v->u.str.chars = v->u.str.len;
-    s = (uint8_t *)malloc(v->u.str.len);
-    if (!s || v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
+    s = str_create_elements(v, v->u.str.len);
     memcpy(s, prefix, len);
     memcpy(s + len, v1->u.function.name.data, v1->u.function.name.len);
     s[v->u.str.len - 2] = '\'';
@@ -95,16 +95,15 @@ static void function_range(struct values_s *vals, unsigned int args) {
             if (end > start) end = start;
             len2 = (start - end - step - 1) / -step;
         }
+        val = list_create_elements(&new_value, len2);
         if (len2) {
-            val = (struct value_s **)malloc(len2 * sizeof(new_value.u.list.data[0]));
-            if (!val || len2 > ((size_t)~0) / sizeof(new_value.u.list.data[0])) err_msg_out_of_memory(); /* overflow */
             i = 0;
             while ((end > start && step > 0) || (end < start && step < 0)) {
                 val[i] = val_alloc();
                 int_from_ival(val[i], start);
                 i++; start += step;
             }
-        } else val = NULL;
+        }
         new_value.obj = LIST_OBJ;
         new_value.u.list.len = len2;
         new_value.u.list.data = val;
@@ -248,14 +247,13 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
                 size_t i = 0;
                 struct value_s **vals;
                 const struct value_s *val;
+                vals = list_create_elements(&new_value, v1->u.list.len);
                 if (v1->u.list.len) {
-                    vals = (struct value_s **)malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
-                    if (!vals) err_msg_out_of_memory();
                     for (;i < v1->u.list.len; i++) {
                         val = apply_func(func, v1->u.list.data[i], epoint);
                         val_set_template(vals + i, val);
                     }
-                } else vals = NULL;
+                }
                 new_value.obj = v1->obj;
                 new_value.u.list.len = i;
                 new_value.u.list.data = vals;

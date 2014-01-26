@@ -69,8 +69,7 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     v->obj = STR_OBJ;
     v->u.str.len = i + strlen(line + i);
     v->u.str.chars = v->u.str.len;
-    s = (uint8_t *)malloc(v->u.str.len);
-    if (!s) err_msg_out_of_memory();
+    s = str_create_elements(v, v->u.str.len);
     memcpy(s, line, v->u.str.len);
     v->u.str.data = s;
     return;

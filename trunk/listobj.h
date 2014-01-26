@@ -22,11 +22,15 @@
 extern obj_t LIST_OBJ;
 extern obj_t TUPLE_OBJ;
 extern obj_t ADDRLIST_OBJ;
+extern obj_t PAIR_OBJ;
 
 typedef struct {
     size_t len;
     struct value_s **data;
+    struct value_s *val[3];
 } list_t;
 
 extern void listobj_init(void);
+
+extern struct value_s **list_create_elements(struct value_s *, size_t);
 #endif

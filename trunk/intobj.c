@@ -126,14 +126,13 @@ static void repr(const struct value_s *v1, struct value_s *v) {
         char tmp[sizeof(digit_t) * 3];
         if (len) len = sprintf(tmp, neg ? "-%d" : "%d", v1->u.integer.val[0]);
         else {tmp[0]='0';len = 1;}
-        s = (uint8_t *)malloc(len);
-        if (!s) err_msg_out_of_memory();
-        memcpy(s, tmp, len);
+        s = str_create_elements(v, len);
         if (v == v1) destroy(v);
+        memcpy(s, tmp, len);
         v->obj = STR_OBJ;
         v->u.str.data = s;
         v->u.str.len = len;
-        v->u.str.chars = v->u.str.len;
+        v->u.str.chars = len;
         return;
     }
 
@@ -167,8 +166,8 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     }
     len2 = sz * DSHIFT;
     slen += len2;
-    s = (uint8_t *)malloc(slen);
-    if (!s || slen < len2 || sz > SIZE_MAX / DSHIFT) err_msg_out_of_memory(); /* overflow */
+    if (slen < len2 || sz > SIZE_MAX / DSHIFT) err_msg_out_of_memory(); /* overflow */
+    s = str_create_elements(v, slen);
     s += slen;
     for (i = 0; i < sz; i++) {
         r = out[i];
