@@ -689,33 +689,6 @@ struct value_s *get_val(struct linepos_s *epoint) {/* length in bytes, defined *
         return &none_value;
     }
     return value->val;
-    switch (value->val->obj->type) {
-    case T_STR:
-    case T_BYTES:
-    case T_INT:
-    case T_BITS:
-    case T_CODE:
-    case T_BOOL:
-    case T_FLOAT:
-    case T_GAP:
-    case T_LIST:
-    case T_TUPLE:
-    case T_DICT:
-    case T_MACRO:
-    case T_SEGMENT:
-    case T_UNION:
-    case T_STRUCT:
-    case T_MFUNC:
-    case T_ADDRESS:
-    case T_LBL:
-    case T_REGISTER:
-        return value->val;
-    default:
-        err_msg_wrong_type(value->val, &value->epoint);
-        return &none_value;
-    case T_NONE: break;
-    }
-    return &none_value;
 }
 
 static void functions(struct values_s *vals, unsigned int args) {
