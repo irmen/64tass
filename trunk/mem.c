@@ -51,7 +51,7 @@ static void memcomp(struct memblocks_s *memblocks) {
             if (memblocks->p >= memblocks->len) {
                 memblocks->len = memblocks->p + 64;
                 memblocks->data = (struct memblock_s *)realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
-                if (!memblocks->data || memblocks->len < 64 || memblocks->len > ((size_t)~0) / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
+                if (!memblocks->data || memblocks->len < 64 || memblocks->len > SIZE_MAX / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
             }
             memmove(&memblocks->data[j + b->p], &memblocks->data[j + 1], rest * sizeof(*memblocks->data));
             for (k = 0; k < b->p; k++) {
@@ -115,7 +115,7 @@ void memjmp(struct memblocks_s *memblocks, address_t adr) {
     if (memblocks->p>=memblocks->len) {
         memblocks->len += 64;
         memblocks->data = (struct memblock_s *)realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
-        if (!memblocks->data || memblocks->len < 64 || memblocks->len > ((size_t)~0) / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
+        if (!memblocks->data || memblocks->len < 64 || memblocks->len > SIZE_MAX / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
     }
     memblocks->data[memblocks->p].len = memblocks->mem.p - memblocks->lastp;
     memblocks->data[memblocks->p].p = memblocks->lastp;
@@ -129,7 +129,7 @@ void memref(struct memblocks_s *memblocks, struct memblocks_s *ref) {
     if (memblocks->p >= memblocks->len) {
         memblocks->len += 64;
         memblocks->data = (struct memblock_s *)realloc(memblocks->data, memblocks->len*sizeof(*memblocks->data));
-        if (!memblocks->data || memblocks->len < 64 || memblocks->len > ((size_t)~0) / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
+        if (!memblocks->data || memblocks->len < 64 || memblocks->len > SIZE_MAX / sizeof(*memblocks->data)) err_msg_out_of_memory(); /* overflow */
     }
     memblocks->data[memblocks->p].len = 0;
     memblocks->data[memblocks->p].p = memblocks->lastp;

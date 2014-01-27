@@ -337,7 +337,7 @@ void new_waitfor(enum wait_e what, linepos_t epoint) {
     if (waitfor_p >= waitfor_len) {
         waitfor_len += 8;
         waitfors = (struct waitfor_s *)realloc(waitfors, waitfor_len * sizeof(struct waitfor_s));
-        if (!waitfors || waitfor_len < 8 || waitfor_len > ((size_t)~0) / sizeof(struct waitfor_s)) err_msg_out_of_memory(); /* overflow */
+        if (!waitfors || waitfor_len < 8 || waitfor_len > SIZE_MAX / sizeof(struct waitfor_s)) err_msg_out_of_memory(); /* overflow */
     }
     waitfor = &waitfors[waitfor_p];
     prevwaitfor = waitfor_p ? &waitfors[waitfor_p - 1] : waitfor;

@@ -371,7 +371,7 @@ static void repeat(oper_t op, uval_t rep) {
     if (v1->u.bytes.len && rep) {
         uint8_t *s, *s2;
         size_t ln = v1->u.bytes.len;
-        if (ln > ((size_t)~0) / rep) err_msg_out_of_memory(); /* overflow */
+        if (ln > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
         s2 = s = bnew(&tmp, ln * rep);
         v->u.bytes.len = 0;
         while (rep--) {
