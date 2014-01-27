@@ -674,59 +674,12 @@ static void error_rcalc2(oper_t op) {
     error_copy(op->v2, v);
 }
 
-static int MUST_CHECK error_ival(const struct value_s *v1, struct value_s *v, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
-    if (v == v1) return 1;
-    error_copy(v1, v);
-    return 1;
-}
-
-static int MUST_CHECK error_uval(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(uv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
-    if (v == v1) return 1;
-    error_copy(v1, v);
-    return 1;
-}
-
-static int MUST_CHECK error_real(const struct value_s *v1, struct value_s *v, double *UNUSED(r), linepos_t UNUSED(epoint)) {
-    if (v == v1) return 1;
-    error_copy(v1, v);
-    return 1;
-}
-
-static int MUST_CHECK error_sign(const struct value_s *v1, struct value_s *v, int *UNUSED(s), linepos_t UNUSED(epoint)) {
-    if (v == v1) return 1;
-    error_copy(v1, v);
-    return 1;
-}
-
-static void error_abs(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    if (v == v1) return;
-    error_copy(v1, v);
-}
-
-static void error_integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    if (v == v1) return;
-    error_copy(v1, v);
-}
-
-static int MUST_CHECK error_len(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(len), linepos_t UNUSED(epoint)) {
-    if (v == v1) return 1;
-    error_copy(v1, v);
-    return 1;
-}
-
-static int MUST_CHECK error_size(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(len), linepos_t UNUSED(epoint)) {
-    if (v == v1) return 1;
-    error_copy(v1, v);
-    return 1;
-}
-
 static void error_repeat(oper_t op, uval_t UNUSED(rep)) {
     struct value_s *v = op->v;
     if (v == op->v1) return;
     if (v == op->v2) v->obj->destroy(v);
     error_copy(op->v1, v);
 }
-
 
 static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v) {
     if (v1->obj == ANONIDENT_OBJ) {
@@ -763,13 +716,12 @@ static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v)
     v->u.error.u.notdef.label = v->u.error.u.notdef.down ? current_context : cheap_context;
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR___NOT_DEFINED;
-    return NULL;
+    return v;
 }
 
 static void ident_calc1(oper_t op) {
     struct value_s *v, *v1 = op->v1;
     v = ident_resolv(v1, op->v);
-    if (!v) return;
     op->v1 = v;
     v->obj->calc1(op);
     op->v1 = v1;
@@ -778,7 +730,7 @@ static void ident_calc1(oper_t op) {
 static void ident_calc2(oper_t op) {
     struct value_s *v, *v1 = op->v1, tmp;
     v = ident_resolv(v1, &tmp);
-    if (!v) {
+    if (v == &tmp) {
         v = op->v;
         if (v == v1 || v == op->v2) v->obj->destroy(v);
         tmp.obj->copy_temp(&tmp, v);
@@ -796,7 +748,7 @@ static void ident_rcalc2(oper_t op) {
     }
     v2 = op->v2;
     v = ident_resolv(v2, &tmp);
-    if (!v) {
+    if (v == &tmp) {
         v = op->v;
         if (v == op->v1 || v == v2) v->obj->destroy(v);
         tmp.obj->copy_temp(&tmp, v);
@@ -809,56 +761,52 @@ static void ident_rcalc2(oper_t op) {
 
 static int ident_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1 ? v1->obj->hash(v1, v, epoint) : -1;
+    return v1->obj->hash(v1, v, epoint);
 }
 
 static void ident_repr(const struct value_s *v1, struct value_s *v) {
     v1 = ident_resolv(v1, v);
-    if (!v1) return;
     return v1->obj->repr(v1, v);
 }
 
 static int MUST_CHECK ident_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1 ? v1->obj->ival(v1, v, iv, bits, epoint) : 1;
+    return v1->obj->ival(v1, v, iv, bits, epoint);
 }
 
 static int MUST_CHECK ident_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1 ? v1->obj->uval(v1, v, uv, bits, epoint) : 1;
+    return v1->obj->uval(v1, v, uv, bits, epoint);
 }
 
 static void ident_str(const struct value_s *v1, struct value_s *v) {
     v1 = ident_resolv(v1, v);
-    if (!v1) return;
     return v1->obj->str(v1, v);
 }
 
 static int MUST_CHECK ident_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1 ? v1->obj->real(v1, v, r, epoint) : 1;
+    return v1->obj->real(v1, v, r, epoint);
 }
 
 static void ident_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    if (!v1) return;
     return v1->obj->integer(v1, v, epoint);
 }
 
 static int MUST_CHECK ident_len(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1 ? v1->obj->len(v1, v, uv, epoint) : 1;
+    return v1->obj->len(v1, v, uv, epoint);
 }
 
 static int MUST_CHECK ident_size(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1 ? v1->obj->size(v1, v, uv, epoint) : 1;
+    return v1->obj->size(v1, v, uv, epoint);
 }
 
 static void ident_repeat(oper_t op, uval_t rep) {
     struct value_s *v, *v1 = op->v1;
     v = ident_resolv(v1, op->v);
-    if (!v) return;
     op->v1 = v;
     v->obj->repeat(op, rep);
     op->v1 = v1;
@@ -1089,14 +1037,6 @@ void objects_init(void) {
     error_obj.calc2 = error_calc2;
     error_obj.rcalc2 = error_rcalc2;
     error_obj.repeat = error_repeat;
-    error_obj.ival = error_ival;
-    error_obj.uval = error_uval;
-    error_obj.real = error_real;
-    error_obj.sign = error_sign;
-    error_obj.abs = error_abs;
-    error_obj.integer = error_integer;
-    error_obj.len = error_len;
-    error_obj.size = error_size;
     obj_init(&gap_obj, T_GAP, "<gap>");
     gap_obj.hash = gap_hash;
     gap_obj.repr = gap_repr;
