@@ -124,7 +124,7 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
     uint8_t *s;
     if (v1->u.list.len) {
         tmp = (struct value_s *)malloc(v1->u.list.len * sizeof(struct value_s));
-        if (!tmp || v1->u.list.len > ((size_t)~0) / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
+        if (!tmp || v1->u.list.len > SIZE_MAX / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
         for (i = 0;i < v1->u.list.len; i++) {
             v1->u.list.data[i]->obj->repr(v1->u.list.data[i], &tmp[i]);
             if (tmp[i].obj != STR_OBJ) {

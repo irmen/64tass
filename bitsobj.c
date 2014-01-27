@@ -36,7 +36,7 @@ static void destroy(struct value_s *v1) {
 static bdigit_t *bnew(struct value_s *v, size_t len) {
     if (len > 2) {
         bdigit_t *s = (bdigit_t *)malloc(len * sizeof(bdigit_t));
-        if (!s || len > ((size_t)~0) / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
+        if (!s || len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
         return s; 
     }
     return v->u.bits.val;
@@ -920,7 +920,7 @@ static void repeat(oper_t op, uval_t rep) {
         return;
     }
 
-    if ((size_t)~0 / rep < blen) err_msg_out_of_memory(); /* overflow */
+    if (blen > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
     blen *= rep;
     sz = blen / 8 / sizeof(bdigit_t);
     if (blen % (8 * sizeof(bdigit_t))) sz++;

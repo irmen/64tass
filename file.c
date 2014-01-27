@@ -104,7 +104,7 @@ FILE *file_open(const char *name, const char *mode)
     uint32_t ch;
     size_t len = strlen(name) + 1;
     wname = (wchar_t *)malloc(len * sizeof(wchar_t));
-    if (!wname || len > ((size_t)~0) / sizeof(wchar_t)) err_msg_out_of_memory();
+    if (!wname || len > SIZE_MAX / sizeof(wchar_t)) err_msg_out_of_memory();
     c2 = wname; c = (uint8_t *)name;
     while (*c) {
         ch = *c;

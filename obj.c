@@ -512,7 +512,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v) {
         if (len < v1->u.dict.len) err_msg_out_of_memory(); /* overflow */
         len += def;
         tmp = (struct value_s *)malloc(len * sizeof(struct value_s));
-        if (!tmp || len < def || len > ((size_t)~0) / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
+        if (!tmp || len < def || len > SIZE_MAX / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
         len += 1 + def;
         if (len < 1 + def) err_msg_out_of_memory(); /* overflow */
         i = 0;
