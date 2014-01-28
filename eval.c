@@ -1202,9 +1202,9 @@ static int get_val2(struct eval_context_s *ev) {
             oper.epoint = v1->epoint;
             oper.epoint3 = o_out->epoint;
             if (oper.v1->refcount != 1) {
-                oper.v = &new_value;
+                oper.v = val_alloc();
                 oper.v1->obj->calc1(&oper);
-                val_replace_template(&v1->val, &new_value);
+                val_destroy(v1->val); v1->val = oper.v;
             } else {
                 oper.v = oper.v1;
                 oper.v1->obj->calc1(&oper);

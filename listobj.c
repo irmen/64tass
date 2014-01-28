@@ -190,19 +190,14 @@ struct value_s **list_create_elements(struct value_s *v, size_t n) {
 static void calc1(oper_t op) {
     struct value_s *v1 = op->v1, *v = op->v;
     size_t i = 0;
-    struct value_s **vals, new_value;
-    if (op->op == &o_LNOT) {
-        if (v1 == v) destroy(v);
-        bool_from_int(v, !v1->u.list.len);
-        return;
-    }
+    struct value_s **vals;
     if (v == v1) {
         for (;i < v1->u.list.len; i++) {
             op->v1 = v1->u.list.data[i];
             if (op->v1->refcount != 1) {
-                op->v = &new_value;
+                op->v = val_alloc();
                 op->v1->obj->calc1(op);
-                val_replace_template(v->u.list.data + i, &new_value);
+                val_destroy(v1->u.list.data[i]); v1->u.list.data[i] = op->v;
             } else {
                 op->v = op->v1;
                 op->v1->obj->calc1(op);
@@ -213,8 +208,7 @@ static void calc1(oper_t op) {
         return;
     }
     if (v1->u.list.len) {
-        vals = (struct value_s **)malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
-        if (!vals) err_msg_out_of_memory();
+        vals = lnew(v, v1->u.list.len);
         for (;i < v1->u.list.len; i++) {
             op->v1 = v1->u.list.data[i];
             op->v = vals[i] = val_alloc();
