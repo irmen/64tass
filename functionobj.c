@@ -168,64 +168,9 @@ enum func_e {
 static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
     static struct value_s new_value;
     double real;
-    int truth;
+    int truth, s;
+    uval_t uv;
     switch (func) {
-    case F_SIZE:
-        switch (v1->obj->type) {
-        case T_LIST:
-        case T_TUPLE: break;
-        default:
-            {
-                uval_t uv;
-                if (!v1->obj->size(v1, &new_value, &uv, epoint)) int_from_uval(&new_value, uv);
-                return &new_value;
-            }
-        case T_NONE: return &none_value;
-        }
-        break;
-    case F_SIGN:
-        switch (v1->obj->type) {
-        case T_LIST:
-        case T_TUPLE: break;
-        default:
-            {
-                int s;
-                if (!v1->obj->sign(v1, &new_value, &s, epoint)) int_from_int(&new_value, s);
-                return &new_value;
-            }
-        case T_NONE: return &none_value;
-        }
-        break;
-    case F_ABS:
-        switch (v1->obj->type) {
-        case T_LIST:
-        case T_TUPLE: break;
-        default: 
-            v1->obj->abs(v1, &new_value, epoint);
-            return &new_value;
-        case T_NONE: return &none_value;
-        }
-        break;
-    case F_INT:
-        switch (v1->obj->type) { 
-        case T_LIST:
-        case T_TUPLE: break;
-        default:
-            v1->obj->integer(v1, &new_value, epoint);
-            return &new_value;
-        case T_NONE: return &none_value;
-        }
-        break;
-    case F_BOOL:
-        switch (v1->obj->type) { 
-        case T_LIST:
-        case T_TUPLE: break;
-        default:
-            if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_BOOL, epoint)) bool_from_int(&new_value, truth);
-            return &new_value;
-        case T_NONE: return &none_value;
-        }
-        break;
     case F_ANY:
         if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_ANY, epoint)) bool_from_int(&new_value, truth);
         return &new_value;
@@ -237,23 +182,41 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
     switch (v1->obj->type) {
     case T_LIST:
     case T_TUPLE:
-            {
-                size_t i = 0;
-                struct value_s **vals;
-                const struct value_s *val;
-                vals = list_create_elements(&new_value, v1->u.list.len);
-                if (v1->u.list.len) {
-                    for (;i < v1->u.list.len; i++) {
-                        val = apply_func(func, v1->u.list.data[i], epoint);
-                        val_set_template(vals + i, val);
-                    }
+        {
+            size_t i = 0;
+            struct value_s **vals;
+            const struct value_s *val;
+            vals = list_create_elements(&new_value, v1->u.list.len);
+            if (v1->u.list.len) {
+                for (;i < v1->u.list.len; i++) {
+                    val = apply_func(func, v1->u.list.data[i], epoint);
+                    val_set_template(vals + i, val);
                 }
-                new_value.obj = v1->obj;
-                new_value.u.list.len = i;
-                new_value.u.list.data = vals;
-                break;
             }
+            new_value.obj = v1->obj;
+            new_value.u.list.len = i;
+            new_value.u.list.data = vals;
+            break;
+        }
     default:
+        switch (func) {
+        case F_SIZE:
+            if (!v1->obj->size(v1, &new_value, &uv, epoint)) int_from_uval(&new_value, uv);
+            return &new_value;
+        case F_SIGN:
+            if (!v1->obj->sign(v1, &new_value, &s, epoint)) int_from_int(&new_value, s);
+            return &new_value;
+        case F_ABS:
+            v1->obj->abs(v1, &new_value, epoint);
+            return &new_value;
+        case F_INT:
+            v1->obj->integer(v1, &new_value, epoint);
+            return &new_value;
+        case F_BOOL:
+            if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_BOOL, epoint)) bool_from_int(&new_value, truth);
+            return &new_value;
+        default: break;
+        }
         new_value.obj = FLOAT_OBJ;
         if (!v1->obj->real(v1, &new_value, &real, epoint)) {
             switch (func) {
@@ -283,8 +246,8 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
             case F_COSH: real = cosh(real);break;
             case F_SINH: real = sinh(real);break;
             case F_TANH: real = tanh(real);break;
-            case F_FLOAT: real = HUGE_VAL; break; /* nothing to do */
-            default:break;
+            case F_FLOAT: break; /* nothing to do */
+            default: real = HUGE_VAL; break;
             }
             float_from_double(&new_value, real);
         }
