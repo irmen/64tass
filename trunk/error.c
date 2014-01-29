@@ -557,6 +557,31 @@ void err_msg_invalid_oper(const struct value_s *op, const struct value_s *v1, co
     if (err_oper("error: invalid", op, v1, v2, epoint)) errors++;
 }
 
+void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepos_t epoint) {
+    unsigned int n;
+    char line[1024];
+    if (pass == 1) return;
+    if (errors + conderrors == MAX_ERRORS) {
+        err_msg(ERROR__TOO_MANY_ERR, NULL);
+        return;
+    }
+    inc_errors();
+    addorigin(current_file_list, epoint);
+    adderror("error: expected ");
+    n = min;
+    if (min == max) adderror("exactly ");
+    else if (num < min) adderror("at least ");
+    else {n = max; adderror("at most "); }
+    switch (n) {
+    case 0: adderror("no arguments"); break;
+    case 1: adderror("one argument"); break;
+    default: sprintf(line, "%d arguments", n); adderror(line); break;
+    }
+    sprintf(line, ", got %d\n", num);
+    adderror(line);
+    return;
+}
+
 void freeerrorlist(int print) {
     if (print) {
         fwrite(error_list.data, error_list.len, 1, stderr);
