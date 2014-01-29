@@ -59,7 +59,8 @@ static void function_len(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
 
-    if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else {
+    if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
+    else {
         uval_t uv;
         if (!v[0].val->obj->len(v[0].val, &new_value, &uv, &vals->epoint)) int_from_uval(&new_value, uv);
         val_replace_template(&vals->val, &new_value);
@@ -75,7 +76,8 @@ static void function_range(struct values_s *vals, unsigned int args) {
     ival_t start = 0, end, step = 1;
     size_t i = 0, len2;
     struct value_s **val;
-    if (args < 1 || args > 3) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint); else {
+    if (args < 1 || args > 3) err_msg_argnum(args, 1, 3, &vals->epoint);
+    else {
         switch (args) {
         case 1: if (v[0].val->obj->ival(v[0].val, &new_value, &end, 8*sizeof(ival_t), &v[0].epoint)) { val_replace_template(&vals->val, &new_value);return;} break;
         case 3: if (v[2].val->obj->ival(v[2].val, &new_value, &step, 8*sizeof(ival_t), &v[2].epoint)) { val_replace_template(&vals->val, &new_value);return;}
@@ -117,7 +119,7 @@ static void function_range(struct values_s *vals, unsigned int args) {
 static void function_repr(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
-    if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
+    if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
     else if (v[0].val->obj != NONE_OBJ) {
         v[0].val->obj->repr(v[0].val, &new_value);
         val_replace_template(&vals->val, &new_value);
@@ -130,7 +132,7 @@ static void function_repr(struct values_s *vals, unsigned int args) {
 static void function_str(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
-    if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
+    if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
     else  if (v[0].val->obj != NONE_OBJ) {
         v[0].val->obj->str(v[0].val, &new_value);
         val_replace_template(&vals->val, &new_value);
@@ -144,7 +146,7 @@ static void function_register(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
 
-    if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
+    if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
     else if (v[0].val->obj != NONE_OBJ) {
         if (v[0].val->obj != STR_OBJ) err_msg_wrong_type(v[0].val, &v[0].epoint);
         else {
@@ -260,7 +262,7 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
 static inline void apply_func2(struct values_s *vals, unsigned int args, enum func_e func) {
     struct values_s *v = &vals[2];
     struct value_s *val;
-    if (args != 1) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
+    if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
     else {
         val = apply_func(func, v[0].val, &v[0].epoint);
         if (val->obj == FLOAT_OBJ && val->u.real == HUGE_VAL) {
@@ -396,7 +398,7 @@ static void apply_func3(struct values_s *vals, unsigned int args, enum func_e fu
     struct value_s new_value;
     double val1, val2;
     struct values_s *v = &vals[2];
-    if (args != 2) err_msg2(ERROR_ILLEGAL_OPERA,NULL, &vals->epoint);
+    if (args != 2) err_msg_argnum(args, 2, 2, &vals->epoint);
     else {
         if (v[0].val->obj->real(v[0].val, &new_value, &val1, &v[0].epoint)) {
             val_replace_template(&vals->val, &new_value);

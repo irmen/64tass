@@ -129,6 +129,7 @@ extern void err_msg_conflicts(const str_t *name, linepos_t);
 extern void err_msg_variable(struct error_s *, struct value_s *);
 extern void err_msg_file(enum errors_e, const char *);
 extern void err_msg_output_and_destroy(struct value_s *);
+extern void err_msg_argnum(unsigned int, unsigned int, unsigned int, linepos_t);
 extern void freeerrorlist(int);
 extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
