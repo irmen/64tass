@@ -450,8 +450,6 @@ any(a)       at least one true element             any([1, 1, 0]) is true
 range(s,e,t) create a list with values from a      range(3) is [0,1,2]
              range
 
-A list or tuple has a truth value of true if it contains at least one element.
-
 Arithmetic operations are applied on the all elements recursively, therefore
 [1, 2] + 1 is [2, 3], and abs([1, -1]) is [1, 1].
 

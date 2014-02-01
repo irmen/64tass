@@ -83,37 +83,43 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return 1;
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
+static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
     size_t i;
+    struct value_s err;
     switch (type) {
     case TRUTH_ALL:
-        *result = 1;
+        err.u.boolean = 1;
         for (i = 0; i < v1->u.list.len; i++) {
-            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], v, result, type, epoint)) return 1;
-            if (!*result) break;
-        }
-        return 0;
-    case TRUTH_ANY:
-        *result = 0;
-        for (i = 0; i < v1->u.list.len; i++) {
-            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], v, result, type, epoint)) return 1;
-            if (*result) break;
-        }
-        return 0;
-    case TRUTH_BOOL:
-        switch (v1->u.list.len) {
-        case 0: *result = 0; return 0;
-        case 1: return v1->u.list.data[0]->obj->truth(v1->u.list.data[0], v, result, type, epoint);
-        default: break;
+            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], &err, type, epoint)) {
+                if (v1 == v) destroy(v);
+                err.obj->copy_temp(&err, v);
+                return 1;
+            }
+            if (!err.u.boolean) break;
         }
         break;
-    default: break;
+    case TRUTH_ANY:
+        err.u.boolean = 0;
+        for (i = 0; i < v1->u.list.len; i++) {
+            if (v1->u.list.data[i]->obj->truth(v1->u.list.data[i], &err, type, epoint)) {
+                if (v1 == v) destroy(v);
+                err.obj->copy_temp(&err, v);
+                return 1;
+            }
+            if (err.u.boolean) break;
+        }
+        break;
+    default: 
+        if (v1 == v) destroy(v);
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_BOOL;
+        v->u.error.epoint = *epoint;
+        v->u.error.u.objname = v1->obj->name;
+        return 1;
     }
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR_____CANT_BOOL;
-    v->u.error.epoint = *epoint;
-    v->u.error.u.objname = v1->obj->name;
-    return 1;
+    if (v1 == v) destroy(v);
+    bool_from_int(v, err.u.boolean);
+    return 0;
 }
 
 static void repr_listtuple(const struct value_s *v1, struct value_s *v) {

@@ -87,8 +87,10 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return !memcmp(v1->u.integer.data, v2->u.integer.data, abs(v1->u.integer.len) * sizeof(digit_t));
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *UNUSED(v), int *result, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
-    *result = !!v1->u.integer.len;
+static int truth(const struct value_s *v1, struct value_s *v, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    int result = !!v1->u.integer.len;
+    if (v1 == v) destroy(v);
+    bool_from_int(v, result);
     return 0;
 }
 

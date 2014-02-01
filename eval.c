@@ -942,7 +942,6 @@ static int get_val2(struct eval_context_s *ev) {
     struct value_s new_value;
     struct values_s *values;
     struct oper_s oper;
-    int truth;
     atype_t am;
 
     if (ev->outp2 >= ev->outp) return 1;
@@ -1116,33 +1115,22 @@ static int get_val2(struct eval_context_s *ev) {
             if (vsp == 0) goto syntaxe;
             v1 = &values[vsp-1]; vsp--;
             if (vsp == 0) goto syntaxe;
-            switch (try_resolv(&values[vsp-1])) {
-            case T_CODE:
-            case T_STR:
-            case T_BYTES:
-            case T_INT: 
-            case T_BITS: 
-            case T_BOOL:
-            case T_LIST:
-            case T_TUPLE:
-                if (values[vsp-1].val->obj->truth(values[vsp-1].val, &new_value, &truth, TRUTH_BOOL, &values[vsp-1].epoint)) {
-                    val_replace_template(&values[vsp-1].val, &new_value);
-                    continue;
-                }
-                if (truth) {
-                    val_replace(&values[vsp-1].val, v1->val);
-                    values[vsp-1].epoint = v1->epoint;
-                } else {
-                    val_replace(&values[vsp-1].val, v2->val);
-                    values[vsp-1].epoint = v2->epoint;
-                }
+            if (values[vsp-1].val->obj->truth(values[vsp-1].val, &new_value, TRUTH_BOOL, &values[vsp-1].epoint)) {
+                val_replace_template(&values[vsp-1].val, &new_value);
                 continue;
-            default: err_msg_invalid_oper(&o_COND, values[vsp-1].val, NULL, &values[vsp-1].epoint); 
-                     val_replace(&values[vsp-1].val, &none_value);
-                     continue;
-            case T_ERROR:
-            case T_NONE: continue;
             }
+            if (new_value.u.boolean) {
+                struct value_s *tmp = values[vsp-1].val;
+                values[vsp-1].val = v1->val;
+                v1->val = tmp;
+                values[vsp-1].epoint = v1->epoint;
+            } else {
+                struct value_s *tmp = values[vsp-1].val;
+                values[vsp-1].val = v2->val;
+                v2->val = tmp;
+                values[vsp-1].epoint = v2->epoint;
+            }
+            continue;
         case O_QUEST:
             vsp--;
             if (vsp == 0) goto syntaxe;
@@ -1229,63 +1217,41 @@ static int get_val2(struct eval_context_s *ev) {
             if (op == O_HASH) v1->epoint = o_out->epoint;
             continue;
         case O_LNOT: /* ! */
-            t1 = try_resolv(v1);
-            switch (t1) {
-            default:
-                if (!v1->val->obj->truth(v1->val, &new_value, &truth, TRUTH_BOOL, &v1->epoint)) bool_from_int(&new_value, !truth); 
-                val_replace_template(&v1->val, &new_value);
-                continue;
-            case T_ERROR:
-            case T_NONE: continue;
-            }
+            if (v1->val->refcount != 1) {
+                oper.v = val_alloc();
+                if (!v1->val->obj->truth(v1->val, oper.v, TRUTH_BOOL, &v1->epoint)) oper.v->u.boolean = !oper.v->u.boolean;
+                val_destroy(v1->val); v1->val = oper.v;
+            } else if (!v1->val->obj->truth(v1->val, v1->val, TRUTH_BOOL, &v1->epoint)) v1->val->u.boolean = !v1->val->u.boolean;
+            continue;
         case O_LAND: /* && */
         case O_LOR:  /* || */
         case O_LXOR: /* ^^ */
             v2 = v1; v1 = &values[--vsp-1];
             if (vsp == 0) goto syntaxe;
-            t1 = try_resolv(v1);
-            switch (t1) {
-            default:
-                if (op != O_LXOR) { 
-                    if (v1->val->obj->truth(v1->val, &new_value, &truth, TRUTH_BOOL, &v1->epoint)) {
-                        val_replace_template(&v1->val, &new_value);
-                        continue;
-                    }
-                    if (truth != (op == O_LOR)) {
-                        val_replace(&v1->val, v2->val);
-                        v1->epoint = v2->epoint;
-                    }
-                    continue;
-                }
-                t2 = try_resolv(v2);
-                switch (t2) {
-                default: 
-                    if (v1->val->obj->truth(v1->val, &new_value, &truth, TRUTH_BOOL, &v1->epoint)) {
-                        val_replace_template(&v1->val, &new_value);
-                        continue;
-                    }
-                    if (truth) {
-                        if (v2->val->obj->truth(v2->val, &new_value, &truth, TRUTH_BOOL, &v2->epoint)) {
-                            val_replace_template(&v1->val, &new_value);
-                            continue;
-                        }
-                        if (truth) val_replace(&v1->val, &false_value);
-                    } else {
-                        if (v2->val->obj->truth(v2->val, &new_value, &truth, TRUTH_BOOL, &v2->epoint)) {
-                            val_replace_template(&v1->val, &new_value);
-                            continue;
-                        }
-                        val_replace(&v1->val, truth ? v2->val : &false_value);
-                    }
-                    continue;
-                case T_ERROR:
-                case T_NONE:
-                    val_replace(&v1->val, v2->val);
-                    continue;
-                }
-            case T_ERROR:
-            case T_NONE: continue;
+            if (v1->val->obj->truth(v1->val, &new_value, TRUTH_BOOL, &v1->epoint)) {
+                val_replace_template(&v1->val, &new_value);
+                continue;
             }
+            if (op != O_LXOR) { 
+                if (new_value.u.boolean != (op == O_LOR)) {
+                    struct value_s *tmp = v1->val;
+                    v1->val = v2->val;
+                    v2->val = tmp;
+                    v1->epoint = v2->epoint;
+                }
+            } else {
+                struct value_s err;
+                if (v2->val->obj->truth(v2->val, &err, TRUTH_BOOL, &v2->epoint)) {
+                    val_replace_template(&v1->val, &err);
+                    continue;
+                }
+                if (new_value.u.boolean) {
+                    if (err.u.boolean) val_replace(&v1->val, &false_value);
+                } else {
+                    val_replace(&v1->val, err.u.boolean ? v2->val : &false_value);
+                }
+            }
+            continue;
         default: break;
         }
         v2 = v1; v1 = &values[--vsp-1];

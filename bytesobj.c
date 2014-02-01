@@ -71,29 +71,34 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
             !memcmp(v1->u.bytes.data, v2->u.bytes.data, v2->u.bytes.len));
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
+static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
     size_t i;
+    int result;
     switch (type) {
     case TRUTH_ALL:
-        *result = 1;
+        result = 1;
         for (i = 0; i < v1->u.bytes.len; i++) {
-            if (!v1->u.bytes.data[i]) {*result = 0; break;}
+            if (!v1->u.bytes.data[i]) {result = 0; break;}
         }
-        return 0;
+        break;
     case TRUTH_ANY:
     case TRUTH_BOOL:
-        *result = 0;
+        result = 0;
         for (i = 0; i < v1->u.bytes.len; i++) {
-            if (v1->u.bytes.data[i]) {*result = 1; break;}
+            if (v1->u.bytes.data[i]) {result = 1; break;}
         }
-        return 0;
-    default: break;
+        break;
+    default: 
+        if (v1 == v) destroy(v);
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_____CANT_BOOL;
+        v->u.error.epoint = *epoint;
+        v->u.error.u.objname = v1->obj->name;
+        return 1;
     }
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR_____CANT_BOOL;
-    v->u.error.epoint = *epoint;
-    v->u.error.u.objname = v1->obj->name;
-    return 1;
+    if (v1 == v) destroy(v);
+    bool_from_int(v, result);
+    return 0;
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {

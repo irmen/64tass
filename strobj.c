@@ -85,7 +85,7 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
             !memcmp(v1->u.str.data, v2->u.str.data, v2->u.str.len));
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
+static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
     int ret;
     struct value_s tmp;
     if (bytes_from_str(&tmp, v1)) {
@@ -95,7 +95,8 @@ static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *re
         v->u.error.epoint = *epoint;
         return 1;
     }
-    ret = tmp.obj->truth(&tmp, v, result, type, epoint);
+    if (v == v1) destroy(v);
+    ret = tmp.obj->truth(&tmp, v, type, epoint);
     tmp.obj->destroy(&tmp);
     return ret;
 }

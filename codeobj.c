@@ -31,28 +31,33 @@ static struct obj_s obj;
 
 obj_t CODE_OBJ = &obj;
 
+static void destroy(struct value_s *v1) {
+    val_destroy(v1->u.code.addr);
+}
+
 static int access_check(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    str_t name;
     if (pass != 1) {
         if (v1->u.code.parent->requires & ~current_section->provides) {
-            v->u.error.u.ident = v1->u.code.parent->name;
+            name = v1->u.code.parent->name;
+            if (v1 == v) destroy(v);
             v->obj = ERROR_OBJ;
+            v->u.error.u.ident = name;
             v->u.error.epoint = *epoint;
             v->u.error.num = ERROR_REQUIREMENTS_;
             return 1;
         }
         if (v1->u.code.parent->conflicts & current_section->provides) {
-            v->u.error.u.ident = v1->u.code.parent->name;
+            name = v1->u.code.parent->name;
+            if (v1 == v) destroy(v);
             v->obj = ERROR_OBJ;
+            v->u.error.u.ident = name;
             v->u.error.epoint = *epoint;
             v->u.error.num = ERROR______CONFLICT;
             return 1;
         }
     }
     return 0;
-}
-
-static void destroy(struct value_s *v1) {
-    val_destroy(v1->u.code.addr);
 }
 
 static void copy(const struct value_s *v1, struct value_s *v) {
@@ -66,9 +71,18 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || v1->u.code.addr->obj->same(v1->u.code.addr, v2->u.code.addr)) && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.parent == v2->u.code.parent;
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
+static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return 1;
-    return v1->u.code.addr->obj->truth(v1->u.code.addr, v, result, type, epoint);
+    if (v1 == v) {
+        int res;
+        struct value_s *tmp = val_reference(v1->u.code.addr);
+        destroy(v);
+        res = tmp->obj->truth(tmp, v, type, epoint);
+        val_destroy(tmp);
+        return res;
+    }
+    v1 = v1->u.code.addr;
+    return v1->obj->truth(v1, v, type, epoint);
 }
 
 static void repr(const struct value_s *v1, struct value_s *v) {

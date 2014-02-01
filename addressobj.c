@@ -48,15 +48,25 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == ADDRESS_OBJ && v1->u.addr.type == v2->u.addr.type && obj_same(v1->u.addr.val, v2->u.addr.val);
 }
 
-static int MUST_CHECK truth(const struct value_s *v1, struct value_s *v, int *result, enum truth_e type, linepos_t epoint) {
+static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
+        if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_____CANT_BOOL;
         v->u.error.epoint = *epoint;
         v->u.error.u.objname = v1->obj->name;
         return 1;
     }
-    return v1->u.addr.val->obj->truth(v1->u.addr.val, v, result, type, epoint);
+    if (v1 == v) {
+        int res;
+        struct value_s *tmp = val_reference(v1->u.addr.val);
+        destroy(v);
+        res = tmp->obj->truth(tmp, v, type, epoint);
+        val_destroy(tmp);
+        return res;
+    } 
+    v1 = v1->u.addr.val;
+    return v1->obj->truth(v1, v, type, epoint);
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {

@@ -115,7 +115,7 @@ static void generic_invalid(const struct value_s *v1, struct value_s *v, linepos
     v->u.error.u.objname = v1->obj->name;
 }
 
-static int invalid_truth(const struct value_s *v1, struct value_s *v, int *UNUSED(truth), enum truth_e UNUSED(type), linepos_t epoint) {
+static int invalid_truth(const struct value_s *v1, struct value_s *v, enum truth_e UNUSED(type), linepos_t epoint) {
     generic_invalid(v1, v, epoint, ERROR_____CANT_BOOL);
     return 1;
 }
@@ -759,6 +759,11 @@ static void ident_rcalc2(oper_t op) {
     op->v2 = v2;
 }
 
+static int ident_truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
+    v1 = ident_resolv(v1, v);
+    return v1->obj->truth(v1, v, type, epoint);
+}
+
 static int ident_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
     return v1->obj->hash(v1, v, epoint);
@@ -810,6 +815,11 @@ static void ident_repeat(oper_t op, uval_t rep) {
     op->v1 = v;
     v->obj->repeat(op, rep);
     op->v1 = v1;
+}
+
+static int none_truth(const struct value_s *UNUSED(v1), struct value_s *v, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    v->obj = NONE_OBJ;
+    return 1;
 }
 
 static int none_hash(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -1017,6 +1027,7 @@ void objects_init(void) {
     union_obj.size = struct_size;
     union_obj.calc2 = struct_calc2;
     obj_init(&none_obj, T_NONE, "<none>");
+    none_obj.truth = none_truth;
     none_obj.hash = none_hash;
     none_obj.calc1 = none_calc1;
     none_obj.calc2 = none_calc2;
@@ -1044,6 +1055,7 @@ void objects_init(void) {
     gap_obj.calc2 = gap_calc2;
     gap_obj.rcalc2 = gap_rcalc2;
     obj_init(&ident_obj, T_IDENT, "<ident>");
+    ident_obj.truth = ident_truth;
     ident_obj.hash = ident_hash;
     ident_obj.repr = ident_repr;
     ident_obj.str = ident_str;
@@ -1058,6 +1070,7 @@ void objects_init(void) {
     ident_obj.rcalc2 = ident_rcalc2;
     ident_obj.repeat = ident_repeat;
     obj_init(&anonident_obj, T_ANONIDENT, "<anonident>");
+    anonident_obj.truth = ident_truth;
     anonident_obj.hash = ident_hash;
     anonident_obj.repr = ident_repr;
     anonident_obj.str = ident_str;
