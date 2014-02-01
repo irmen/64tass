@@ -83,7 +83,7 @@ struct obj_s {
     void (*copy)(const struct value_s *, struct value_s *);
     void (*copy_temp)(const struct value_s *, struct value_s *);
     int (*same)(const struct value_s *, const struct value_s *);
-    int (*truth)(const struct value_s *, struct value_s *, int *, enum truth_e, linepos_t) MUST_CHECK;
+    int (*truth)(const struct value_s *, struct value_s *, enum truth_e, linepos_t);
     int (*hash)(const struct value_s *, struct value_s *, linepos_t);
     void (*repr)(const struct value_s *, struct value_s *);
     void (*str)(const struct value_s *, struct value_s *);

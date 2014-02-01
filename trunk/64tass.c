@@ -1296,14 +1296,14 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else val = &none_value;
                     switch (prm) {
                     case CMD_ELSIF:
-                        if (val->obj == NONE_OBJ) truth = 0;
-                        else if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); truth = 0; }
-                        waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
+                        if (val->obj == NONE_OBJ) err.u.boolean = 0;
+                        else if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); err.u.boolean = 0; }
+                        waitfor->skip = err.u.boolean ? (waitfor->skip >> 1) : (waitfor->skip & 2);
                         break;
                     case CMD_IF:
-                        if (val->obj == NONE_OBJ) truth = 0;
-                        else if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); truth = 0; }
-                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                        if (val->obj == NONE_OBJ) err.u.boolean = 0;
+                        else if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); err.u.boolean = 0; }
+                        waitfor->skip = err.u.boolean ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     case CMD_IFNE:
                     case CMD_IFEQ:
@@ -2024,7 +2024,8 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
                                 struct value_s err;
                                 if (val->obj == NONE_OBJ) writeit = 0;
-                                else if (val->obj->truth(val, &err, &writeit, TRUTH_BOOL, &epoint2)) {err_msg_output_and_destroy(&err); writeit = 0; }
+                                else if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint2)) {err_msg_output_and_destroy(&err); writeit = 0; }
+                                else writeit = err.u.boolean;
                                 continue;
                             }
                             writeit = 1;
@@ -2355,7 +2356,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct avltree *stree_old;
                     struct value_s err;
                     line_t ovline;
-                    int starexists, truth;
+                    int starexists;
 
                     new_waitfor(W_NEXT, &epoint);waitfor->skip=0;
                     { /* label */
@@ -2414,8 +2415,8 @@ struct value_s *compile(struct file_list_s *cflist)
                             fixeddig = 0;
                             break;
                         }
-                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
-                        if (!truth) break;
+                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
+                        if (!err.u.boolean) break;
                         if (nopos < 0) {
                             str_t varname;
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
@@ -2477,7 +2478,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_OPTION) { /* .option */
                     static const str_t branch_across = {24, (const uint8_t *)"allow_branch_across_page"};
                     static const str_t longjmp = {22, (const uint8_t *)"auto_longbranch_as_jmp"};
-                    int truth;
                     struct value_s err;
                     str_t optname;
                     optname.data = pline + lpoint.pos; optname.len = get_label();
@@ -2491,12 +2491,12 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                         fixeddig = 0;
                     } else if ((!arguments.casesensitive && !str_casecmp(&optname, &branch_across)) || (arguments.casesensitive && !str_cmp(&optname, &branch_across))) {
-                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
-                        else allowslowbranch = truth;
+                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
+                        else allowslowbranch = err.u.boolean;
                     }
                     else if ((!arguments.casesensitive && !str_casecmp(&optname, &longjmp)) || (arguments.casesensitive && !str_cmp(&optname, &longjmp))) {
-                        if (val->obj->truth(val, &err, &truth, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
-                        else longbranchasjmp = truth;
+                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
+                        else longbranchasjmp = err.u.boolean;
                     }
                     else {
                         char *s = (char *)malloc(optname.len + 1);

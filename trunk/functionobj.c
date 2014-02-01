@@ -163,14 +163,14 @@ static inline void function_register(struct values_s *vals, unsigned int args) {
 static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
     static struct value_s new_value;
     double real;
-    int truth, s;
+    int s;
     uval_t uv;
     switch (func) {
     case F_ANY:
-        if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_ANY, epoint)) bool_from_int(&new_value, truth);
+        v1->obj->truth(v1, &new_value, TRUTH_ANY, epoint);
         return &new_value;
     case F_ALL:
-        if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_ALL, epoint)) bool_from_int(&new_value, truth);
+        v1->obj->truth(v1, &new_value, TRUTH_ALL, epoint);
         return &new_value;
     default: break;
     }
@@ -208,7 +208,7 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
             v1->obj->integer(v1, &new_value, epoint);
             return &new_value;
         case F_BOOL:
-            if (!v1->obj->truth(v1, &new_value, &truth, TRUTH_BOOL, epoint)) bool_from_int(&new_value, truth);
+            v1->obj->truth(v1, &new_value, TRUTH_BOOL, epoint);
             return &new_value;
         default: break;
         }
