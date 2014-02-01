@@ -876,9 +876,9 @@ static inline void apply_op2(oper_t op) {
     else op->v1->obj->calc2(op);
 }
 
-static void apply_addressing(struct value_s *v1, struct value_s *v, enum atype_e am) {
+static struct value_s *apply_addressing(struct value_s *v1, struct value_s *v, enum atype_e am) {
     size_t i;
-    struct value_s **vals;
+    struct value_s **vals, *tmp;
 
     switch (v1->obj->type) {
     case T_IDENT:
@@ -889,18 +889,21 @@ static void apply_addressing(struct value_s *v1, struct value_s *v, enum atype_e
         v->obj = ADDRESS_OBJ;
         if (v1 != v) v->u.addr.val = val_reference(v1->u.addr.val);
         v->u.addr.type = am | (v1->u.addr.type << 4);
-        return;
+        return NULL;
     case T_LIST:
     case T_TUPLE:
         if (v1 == v) {
             for (i = 0; i < v1->u.list.len; i++) {
                 if (v1->u.list.data[i]->refcount != 1) {
-                    struct value_s *tmp = val_alloc();
+                    tmp = val_alloc();
                     apply_addressing(v1->u.list.data[i], tmp, am);
                     val_destroy(v1->u.list.data[i]); v1->u.list.data[i] = tmp;
-                } else apply_addressing(v1->u.list.data[i], v1->u.list.data[i], am);
+                } else {
+                    tmp = apply_addressing(v1->u.list.data[i], v1->u.list.data[i], am);
+                    if (tmp) v1->u.list.data[i] = tmp;
+                }
             }
-            return;
+            return NULL;
         } 
         vals = list_create_elements(v, v1->u.list.len);
         for (i = 0; i < v1->u.list.len; i++) {
@@ -910,19 +913,19 @@ static void apply_addressing(struct value_s *v1, struct value_s *v, enum atype_e
         v->obj = v1->obj;
         v->u.list.len = v1->u.list.len;
         v->u.list.data = vals;
-        return;
+        return NULL;
     default:
         if (v1 == v) {
-            struct value_s *tmp = val_alloc();
-            v1->obj->copy_temp(v1, tmp);
-            v->obj = ADDRESS_OBJ;
-            v->u.addr.val = tmp;
-            v->u.addr.type = am;
-            return;
+            tmp = val_alloc();
+            tmp->obj = ADDRESS_OBJ;
+            tmp->u.addr.val = v1;
+            tmp->u.addr.type = am;
+            return tmp;
         }
         v->obj = ADDRESS_OBJ;
         v->u.addr.val = val_reference(v1);
         v->u.addr.type = am;
+        return NULL;
     }
 }
 
@@ -1020,7 +1023,10 @@ static int get_val2(struct eval_context_s *ev) {
                             oper.v = val_alloc();
                             apply_addressing(values[vsp-1].val, oper.v, am);
                             val_destroy(v1->val); v1->val = oper.v;
-                        } else apply_addressing(values[vsp-1].val, v1->val, am);
+                        } else {
+                            oper.v = apply_addressing(values[vsp-1].val, v1->val, am);
+                            if (oper.v) values[vsp-1].val = oper.v;
+                        }
                         vsp--; continue;
                     } else if (tup) {
                         val_replace(&v1->val, values[vsp-1].val); vsp--;continue;
@@ -1216,7 +1222,10 @@ static int get_val2(struct eval_context_s *ev) {
                 oper.v = val_alloc();
                 apply_addressing(v1->val, oper.v, am);
                 val_destroy(v1->val); v1->val = oper.v;
-            } else apply_addressing(v1->val, v1->val, am);
+            } else {
+                oper.v = apply_addressing(v1->val, v1->val, am);
+                if (oper.v) v1->val = oper.v;
+            }
             if (op == O_HASH) v1->epoint = o_out->epoint;
             continue;
         case O_LNOT: /* ! */
