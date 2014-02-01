@@ -22,18 +22,26 @@ struct values_s;
 
 extern obj_t FUNCTION_OBJ;
 
-typedef void (*function_fn_t)(struct values_s *, unsigned int);
+enum func_e {
+    F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT, F_LOG,
+    F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG,
+    F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW, F_SIGN, F_ABS, F_FLOAT,
+    F_INT, F_ALL, F_ANY, F_BOOL, F_SIZE, F_LEN, F_RANGE, F_REGISTER, F_REPR,
+    F_STR
+};
 
 typedef struct {
     str_t name;
     int name_hash;
-    function_fn_t call;
+    enum func_e func;
 } function_t;
 
 struct builtin_functions_s {
     const char *name;
-    function_fn_t call;
+    enum func_e func;
 };
+
+extern void builtin_function(struct values_s *, unsigned int, enum func_e);
 
 extern struct builtin_functions_s builtin_functions[];
 

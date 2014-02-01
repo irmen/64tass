@@ -703,7 +703,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             for (i = 0; i < args; i++) {
                 try_resolv_rec(&v[i].val);
             }
-            return vals->val->u.function.call(vals, args);
+            return builtin_function(vals, args, vals->val->u.function.func);
         }
     case T_MFUNC:
         {

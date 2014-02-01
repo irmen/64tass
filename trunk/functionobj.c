@@ -30,7 +30,7 @@ static struct obj_s obj;
 obj_t FUNCTION_OBJ = &obj;
 
 static int same(const struct value_s *v1, const struct value_s *v2) {
-    return v2->obj == FUNCTION_OBJ && v1->u.function.call == v2->u.function.call;
+    return v2->obj == FUNCTION_OBJ && v1->u.function.func == v2->u.function.func;
 }
 
 static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
@@ -55,7 +55,7 @@ static void repr(const struct value_s *v1, struct value_s *v) {
 }
 
 /* len(a) - length of string in characters */
-static void function_len(struct values_s *vals, unsigned int args) {
+static inline void function_len(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
 
@@ -70,7 +70,7 @@ static void function_len(struct values_s *vals, unsigned int args) {
 }
 
 /* range([start],end,[step]) */
-static void function_range(struct values_s *vals, unsigned int args) {
+static inline void function_range(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
     ival_t start = 0, end, step = 1;
@@ -116,7 +116,7 @@ static void function_range(struct values_s *vals, unsigned int args) {
 }
 
 /* repr(a) - representation */
-static void function_repr(struct values_s *vals, unsigned int args) {
+static inline void function_repr(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
     if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
@@ -129,7 +129,7 @@ static void function_repr(struct values_s *vals, unsigned int args) {
 }
 
 /* str(a) - string */
-static void function_str(struct values_s *vals, unsigned int args) {
+static inline void function_str(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
     if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
@@ -142,7 +142,7 @@ static void function_str(struct values_s *vals, unsigned int args) {
 } 
 
 /* register(a) - create register object */
-static void function_register(struct values_s *vals, unsigned int args) {
+static inline void function_register(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s new_value;
 
@@ -158,13 +158,6 @@ static void function_register(struct values_s *vals, unsigned int args) {
     }
     val_replace(&vals->val, &none_value);
 } 
-
-enum func_e {
-    F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT, F_LOG,
-    F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG,
-    F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW, F_SIGN, F_ABS, F_FLOAT,
-    F_INT, F_ALL, F_ANY, F_BOOL, F_SIZE
-};
 
 /* return templates only! */
 static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
@@ -276,125 +269,7 @@ static inline void apply_func2(struct values_s *vals, unsigned int args, enum fu
     val_replace(&vals->val, &none_value);
 }
 
-/* log(a) */
-static void function_log(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_LOG);
-} 
-
-static void function_exp(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_EXP);
-};
-
-static void function_sin(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_SIN);
-};
-
-static void function_cos(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_COS);
-};
-
-static void function_tan(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_TAN);
-};
-
-static void function_rad(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_RAD);
-};
-
-static void function_deg(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_DEG);
-};
-
-static void function_abs(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_ABS);
-};
-
-static void function_int(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_INT);
-};
-
-static void function_all(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_ALL);
-};
-
-static void function_any(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_ANY);
-};
-
-static void function_ceil(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_CEIL);
-}
-
-static void function_frac(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_FRAC);
-}
-
-static void function_sqrt(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_SQRT);
-}
-
-static void function_acos(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_ACOS);
-}
-
-static void function_asin(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_ASIN);
-}
-
-static void function_atan(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_ATAN);
-}
-
-static void function_cbrt(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_CBRT);
-}
-
-static void function_cosh(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_COSH);
-}
-
-static void function_sinh(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_SINH);
-}
-
-static void function_tanh(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_TANH);
-}
-
-static void function_sign(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_SIGN);
-}
-
-static void function_bool(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_BOOL);
-}
-
-static void function_floor(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_FLOOR);
-}
-
-static void function_round(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_ROUND);
-}
-
-static void function_trunc(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_TRUNC);
-}
-
-static void function_log10(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_LOG10);
-}
-
-static void function_float(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_FLOAT);
-}
-
-/* size(a) - size of data structure at location */
-static void function_size(struct values_s *vals, unsigned int args) {
-    return apply_func2(vals, args, F_SIZE);
-}
-
-static void apply_func3(struct values_s *vals, unsigned int args, enum func_e func) {
+static inline void apply_func3(struct values_s *vals, unsigned int args, enum func_e func) {
     struct value_s new_value;
     double val1, val2;
     struct values_s *v = &vals[2];
@@ -438,57 +313,88 @@ static void apply_func3(struct values_s *vals, unsigned int args, enum func_e fu
     val_replace(&vals->val, &none_value);
 }
 
-static void function_hypot(struct values_s *vals, unsigned int args) {
-    return apply_func3(vals, args, F_HYPOT);
-}
-
-static void function_atan2(struct values_s *vals, unsigned int args) {
-    return apply_func3(vals, args, F_ATAN2);
-}
-
-static void function_pow(struct values_s *vals, unsigned int args) {
-    return apply_func3(vals, args, F_POW);
+extern void builtin_function(struct values_s *vals, unsigned int args, enum func_e func) {
+    switch (func) {
+    case F_HYPOT:
+    case F_ATAN2:
+    case F_POW: return apply_func3(vals, args, func);
+    case F_LOG:
+    case F_EXP:
+    case F_SIN:
+    case F_COS:
+    case F_TAN:
+    case F_RAD:
+    case F_DEG:
+    case F_ABS:
+    case F_INT:
+    case F_ALL:
+    case F_ANY:
+    case F_CEIL:
+    case F_FRAC:
+    case F_SQRT:
+    case F_ACOS:
+    case F_ASIN:
+    case F_ATAN:
+    case F_CBRT:
+    case F_COSH:
+    case F_SINH:
+    case F_TANH:
+    case F_SIGN:
+    case F_BOOL:
+    case F_FLOOR:
+    case F_ROUND:
+    case F_TRUNC:
+    case F_LOG10:
+    case F_FLOAT:
+    case F_SIZE: return apply_func2(vals, args, func);
+    case F_REGISTER: return function_register(vals, args);
+    case F_STR: return function_str(vals, args);
+    case F_REPR: return function_repr(vals, args);
+    case F_RANGE: return function_range(vals, args);
+    case F_LEN: return function_len(vals, args);
+    case F_NONE: return;
+    }
 }
 
 struct builtin_functions_s builtin_functions[] = {
-    {"abs", function_abs}, 
-    {"acos", function_acos}, 
-    {"all", function_all},
-    {"any", function_any},
-    {"asin", function_asin}, 
-    {"atan", function_atan}, 
-    {"atan2", function_atan2}, 
-    {"bool", function_bool}, 
-    {"cbrt", function_cbrt}, 
-    {"ceil", function_ceil},
-    {"cos", function_cos}, 
-    {"cosh", function_cosh}, 
-    {"deg", function_deg}, 
-    {"exp", function_exp}, 
-    {"float", function_float}, 
-    {"floor", function_floor},
-    {"frac", function_frac}, 
-    {"hypot", function_hypot}, 
-    {"int", function_int},
-    {"len", function_len},
-    {"log", function_log},
-    {"log10", function_log10}, 
-    {"pow", function_pow}, 
-    {"rad", function_rad}, 
-    {"range", function_range},
-    {"register", function_register},
-    {"repr", function_repr},
-    {"round", function_round},
-    {"sign", function_sign}, 
-    {"sin", function_sin}, 
-    {"sinh", function_sinh}, 
-    {"size", function_size},
-    {"sqrt", function_sqrt}, 
-    {"str", function_str},
-    {"tan", function_tan}, 
-    {"tanh", function_tanh}, 
-    {"trunc", function_trunc}, 
-    {NULL, NULL}
+    {"abs", F_ABS}, 
+    {"acos", F_ACOS}, 
+    {"all", F_ALL},
+    {"any", F_ANY},
+    {"asin", F_ASIN}, 
+    {"atan", F_ATAN}, 
+    {"atan2", F_ATAN2}, 
+    {"bool", F_BOOL}, 
+    {"cbrt", F_CBRT}, 
+    {"ceil", F_CEIL},
+    {"cos", F_COS}, 
+    {"cosh", F_COSH}, 
+    {"deg", F_DEG}, 
+    {"exp", F_EXP}, 
+    {"float", F_FLOAT}, 
+    {"floor", F_FLOOR},
+    {"frac", F_FRAC}, 
+    {"hypot", F_HYPOT}, 
+    {"int", F_INT},
+    {"len", F_LEN},
+    {"log", F_LOG},
+    {"log10", F_LOG10}, 
+    {"pow", F_POW}, 
+    {"rad", F_RAD}, 
+    {"range", F_RANGE},
+    {"register", F_REGISTER},
+    {"repr", F_REPR},
+    {"round", F_ROUND},
+    {"sign", F_SIGN}, 
+    {"sin", F_SIN}, 
+    {"sinh", F_SINH}, 
+    {"size", F_SIZE},
+    {"sqrt", F_SQRT}, 
+    {"str", F_STR},
+    {"tan", F_TAN}, 
+    {"tanh", F_TANH}, 
+    {"trunc", F_TRUNC}, 
+    {NULL, F_NONE}
 };
 
 void functionobj_init(void) {
