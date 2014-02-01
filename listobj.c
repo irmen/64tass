@@ -42,7 +42,7 @@ static void destroy(struct value_s *v1) {
 }
 
 static struct value_s **lnew(struct value_s *v, size_t len) {
-    if (len > 3) {
+    if (len > sizeof(v->u.list.val) / sizeof(struct value_s *)) {
         struct value_s **s = (struct value_s **)malloc(len * sizeof(struct value_s *));
         if (!s || len > SIZE_MAX / sizeof(struct value_s *)) err_msg_out_of_memory(); /* overflow */
         return s; 
