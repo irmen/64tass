@@ -25,7 +25,7 @@ extern obj_t REGISTER_OBJ;
 typedef struct {
     size_t len;
     size_t chars;
-    uint8_t val[4];
+    uint8_t val[20];
     uint8_t *data;
 } ustr_t;
 
