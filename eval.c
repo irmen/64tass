@@ -225,9 +225,11 @@ static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
     str_t ident;
     struct label_s *l;
     struct linepos_s epoint;
+    int down;
 
     switch (v1->obj->type) {
     case T_ANONIDENT: 
+        down = 1;
         sprintf(idents, (v1->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v1->u.anonident.count >= 0) ? forwr : backr) + v1->u.anonident.count);
         ident.data = (const uint8_t *)idents;
         ident.len = strlen(idents);
@@ -236,38 +238,37 @@ static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
             touch_label(l);
             return l->value;
         }
-        v->u.error.epoint = v1->u.anonident.epoint;
-        v->u.error.u.notdef.label = current_context;
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR___NOT_DEFINED;
-        v->u.error.u.notdef.ident.len = 1;
-        v->u.error.u.notdef.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
-        v->u.error.u.notdef.down = 1;
-        return NULL;
+        epoint = v1->u.anonident.epoint;
+        ident.len = 1;
+        break;
     case T_IDENT: 
-        l = (v1->u.ident.name.data[0] == '_') ? find_label2(&v1->u.ident.name, cheap_context) : find_label(&v1->u.ident.name);
+        down = (v1->u.ident.name.data[0] != '_');
+        l = down ? find_label(&v1->u.ident.name) : find_label2(&v1->u.ident.name, cheap_context);
         if (l) {
             touch_label(l);
             l->shadowcheck = 1;
             return l->value;
         }
         epoint = v1->u.ident.epoint;
-        v->u.error.u.notdef.ident = v1->u.ident.name;
-        v->u.error.u.notdef.down = (v1->u.ident.name.data[0] != '_');
-        v->u.error.u.notdef.label = v->u.error.u.notdef.down ? current_context : cheap_context;
-        v->obj = ERROR_OBJ;
-        v->u.error.epoint = epoint;
-        v->u.error.num = ERROR___NOT_DEFINED;
-        return NULL;
+        ident = v1->u.ident.name;
+        break;
     default: return v1;
     }
+    if (v1 == v) v->obj->destroy(v);
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR___NOT_DEFINED;
+    v->u.error.epoint = epoint;
+    v->u.error.u.notdef.ident = ident;
+    v->u.error.u.notdef.label = down ? current_context : cheap_context;
+    v->u.error.u.notdef.down = down;
+    return v;
 }
 
 static enum type_e try_resolv(struct values_s *value) {
     struct value_s *v1 = value->val, *v2;
     struct value_s tmp;
     v2 = try_resolv_ident(v1, &tmp);
-    if (!v2) {
+    if (v2 == &tmp) {
         val_replace_template(&value->val, &tmp);
         return tmp.obj->type;
     }
@@ -287,7 +288,7 @@ static int try_resolv_rec(struct value_s **value) {
     }
     v1 = value[0];
     v2 = try_resolv_ident(v1, &tmp);
-    if (!v2) {
+    if (v2 == &tmp) {
         err_msg_output_and_destroy(&tmp);
         val_replace_template(value, &none_value);
         return err;
@@ -875,50 +876,53 @@ static inline void apply_op2(oper_t op) {
     else op->v1->obj->calc2(op);
 }
 
-static inline void apply_addressing(enum atype_e am, struct value_s **val) {
-    struct value_s new_value;
+static void apply_addressing(struct value_s *v1, struct value_s *v, enum atype_e am) {
     size_t i;
-    switch ((*val)->obj->type) {
+    struct value_s **vals;
+
+    switch (v1->obj->type) {
+    case T_IDENT:
+    case T_ANONIDENT:
+        v1 = try_resolv_ident(v1, v);
+        return apply_addressing(v1, v, am);
     case T_ADDRESS:
-        if ((*val)->refcount == 1) {
-            (*val)->u.addr.type = am | ((*val)->u.addr.type << 4);
-            return;
-        }
-        new_value.obj = ADDRESS_OBJ;
-        new_value.u.addr.val = val_reference((*val)->u.addr.val);
-        new_value.u.addr.type = am | ((*val)->u.addr.type << 4);
-        if ((*val)->refcount) (*val)->refcount--;
-        val_set_template(val, &new_value);
+        v->obj = ADDRESS_OBJ;
+        if (v1 != v) v->u.addr.val = val_reference(v1->u.addr.val);
+        v->u.addr.type = am | (v1->u.addr.type << 4);
         return;
     case T_LIST:
     case T_TUPLE:
-        if ((*val)->refcount == 1) {
-            for (i = 0; i < (*val)->u.list.len; i++) {
-                apply_addressing(am, &(*val)->u.list.data[i]);
+        if (v1 == v) {
+            for (i = 0; i < v1->u.list.len; i++) {
+                if (v1->u.list.data[i]->refcount != 1) {
+                    struct value_s *tmp = val_alloc();
+                    apply_addressing(v1->u.list.data[i], tmp, am);
+                    val_destroy(v1->u.list.data[i]); v1->u.list.data[i] = tmp;
+                } else apply_addressing(v1->u.list.data[i], v1->u.list.data[i], am);
             }
             return;
         } 
-        new_value.obj = (*val)->obj;
-        new_value.u.list.len = (*val)->u.list.len;
-        if (new_value.u.list.len) {
-            new_value.u.list.data = (struct value_s **)malloc(new_value.u.list.len * sizeof(new_value.u.list.data[0]));
-            if (!new_value.u.list.data) err_msg_out_of_memory();
-        } else new_value.u.list.data = NULL;
-        for (i = 0; i < (*val)->u.list.len; i++) {
-            new_value.u.list.data[i] = val_reference((*val)->u.list.data[i]);
-            apply_addressing(am, &new_value.u.list.data[i]);
+        vals = list_create_elements(v, v1->u.list.len);
+        for (i = 0; i < v1->u.list.len; i++) {
+            vals[i] = val_alloc();
+            apply_addressing(v1->u.list.data[i], vals[i], am);
         }
-        if ((*val)->refcount) (*val)->refcount--;
-        val_set_template(val, &new_value);
+        v->obj = v1->obj;
+        v->u.list.len = v1->u.list.len;
+        v->u.list.data = vals;
         return;
     default:
-        {
-            struct value_s *tmp = *val;
-            *val = val_alloc();
-            (*val)->obj = ADDRESS_OBJ;
-            (*val)->u.addr.val = tmp;
-            (*val)->u.addr.type = am;
+        if (v1 == v) {
+            struct value_s *tmp = val_alloc();
+            v1->obj->copy_temp(v1, tmp);
+            v->obj = ADDRESS_OBJ;
+            v->u.addr.val = tmp;
+            v->u.addr.type = am;
+            return;
         }
+        v->obj = ADDRESS_OBJ;
+        v->u.addr.val = val_reference(v1);
+        v->u.addr.type = am;
     }
 }
 
@@ -1011,26 +1015,13 @@ static int get_val2(struct eval_context_s *ev) {
                                         ))) {
                             val_replace(&v1->val, values[vsp-1].val); vsp--;continue;
                         }
-                        try_resolv(&values[vsp-1]);
-                        switch (values[vsp-1].val->obj->type) {
-                        case T_LIST:
-                        case T_TUPLE:
-                            val_replace(&v1->val, values[vsp-1].val);
-                            apply_addressing((op == O_BRACKET) ? A_LI : A_I, &v1->val);
-                            vsp--; continue;
-                        case T_ADDRESS:
-                            val = val_realloc(&v1->val);
-                            val->obj = ADDRESS_OBJ;
-                            val->u.addr.val = val_reference(values[vsp-1].val->u.addr.val);
-                            val->u.addr.type = (values[vsp-1].val->u.addr.type << 4) | ((op == O_BRACKET) ? A_LI : A_I);
-                            vsp--; continue;
-                        default: 
-                            val = val_realloc(&v1->val);
-                            val->obj = ADDRESS_OBJ;
-                            val->u.addr.val = val_reference(values[vsp-1].val);
-                            val->u.addr.type = (op == O_BRACKET) ? A_LI : A_I;
-                            vsp--; continue;
-                        }
+                        am = (op == O_BRACKET) ? A_LI : A_I;
+                        if (v1->val->refcount != 1) {
+                            oper.v = val_alloc();
+                            apply_addressing(values[vsp-1].val, oper.v, am);
+                            val_destroy(v1->val); v1->val = oper.v;
+                        } else apply_addressing(values[vsp-1].val, v1->val, am);
+                        vsp--; continue;
                     } else if (tup) {
                         val_replace(&v1->val, values[vsp-1].val); vsp--;continue;
                     }
@@ -1221,8 +1212,11 @@ static int get_val2(struct eval_context_s *ev) {
         case O_COMMAK: am = A_KR; goto addr;  /* ,k */
         case O_HASH: am = A_IMMEDIATE;        /* #  */
         addr:
-            try_resolv(v1);
-            apply_addressing(am, &v1->val);
+            if (v1->val->refcount != 1) {
+                oper.v = val_alloc();
+                apply_addressing(v1->val, oper.v, am);
+                val_destroy(v1->val); v1->val = oper.v;
+            } else apply_addressing(v1->val, v1->val, am);
             if (op == O_HASH) v1->epoint = o_out->epoint;
             continue;
         case O_LNOT: /* ! */

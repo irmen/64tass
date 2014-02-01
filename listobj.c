@@ -53,13 +53,11 @@ static struct value_s **lnew(struct value_s *v, size_t len) {
 static void copy(const struct value_s *v1, struct value_s *v) {
     struct value_s **vals;
     size_t len = v1->u.list.len;
-    if (len) {
-        size_t i;
-        vals = lnew(v, len);
-        for (i = 0; i < len; i++) {
-            vals[i] = val_reference(v1->u.list.data[i]);
-        }
-    } else vals = v->u.list.val;
+    size_t i;
+    vals = lnew(v, len);
+    for (i = 0; i < len; i++) {
+        vals[i] = val_reference(v1->u.list.data[i]);
+    }
     v->obj = v1->obj;
     v->refcount = 1;
     v->u.list.data = vals;
@@ -216,7 +214,7 @@ static void calc1(oper_t op) {
         }
         op->v = v;
         op->v1 = v1;
-    } else vals = NULL;
+    } else vals = v->u.list.val;
     v->obj = v1->obj;
     v->u.list.len = i;
     v->u.list.data = vals;
