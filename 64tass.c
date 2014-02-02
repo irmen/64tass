@@ -546,7 +546,18 @@ struct value_s *compile(struct file_list_s *cflist)
     unsigned wasref;
     int nobreak = 1;
     str_t labelname;
-    char reflabel[100];
+    struct {
+        uint8_t dir;
+        uint8_t padding;
+        uint16_t reffile;
+        int32_t count;
+    } anonident;
+    struct {
+        uint8_t type;
+        uint8_t padding[3];
+        line_t vline;
+        struct avltree *star_tree;
+    } anonident2;
     struct linepos_s epoint;
     struct file_s *cfile = cflist->file;
 
@@ -570,12 +581,14 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (here()=='-' || here()=='+') {
                     char c = here();
                     lpoint.pos++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) goto baj;
-                    if (c == '-') {
-                        sprintf(reflabel,"-%x-%x", reffile, backr++);
-                    } else {
-                        sprintf(reflabel,"+%x+%x", reffile, forwr++);
-                    }
-                    labelname.data = (const uint8_t *)reflabel;labelname.len = strlen(reflabel);
+
+                    if (sizeof(anonident) != sizeof(anonident.dir) + sizeof(anonident.padding) + sizeof(anonident.reffile) + sizeof(anonident.count)) memset(&anonident, 0, sizeof(anonident));
+                    else anonident.padding = 0;
+                    anonident.dir = c;
+                    anonident.reffile = reffile;
+                    anonident.count = (c == '-') ? backr++ : forwr++;
+
+                    labelname.data = (const uint8_t *)&anonident;labelname.len = sizeof(anonident);
                     islabel = 1;goto hh;
                 }
             baj:
@@ -1804,8 +1817,12 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else {
                         int labelexists;
                         str_t tmpname;
-                        sprintf(reflabel, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
-                        tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
+                        if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
+                        else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
+                        anonident2.type = '.';
+                        anonident2.star_tree = star_tree;
+                        anonident2.vline = vline;
+                        tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof(anonident2);
                         current_context=new_label(&tmpname, mycontext, strength, &labelexists);
                         waitfor->cheap_label = cheap_context;
                         cheap_context = current_context;
@@ -2313,8 +2330,12 @@ struct value_s *compile(struct file_list_s *cflist)
                                 } else {
                                     int labelexists;
                                     str_t tmpname;
-                                    sprintf(reflabel, ".%" PRIxPTR ".%" PRIxline, (uintptr_t)star_tree, vline);
-                                    tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
+                                    if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
+                                    else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
+                                    anonident2.type = '.';
+                                    anonident2.star_tree = star_tree;
+                                    anonident2.vline = vline;
+                                    tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof(anonident2);
                                     current_context=new_label(&tmpname, mycontext, strength, &labelexists);
                                     if (!labelexists) {
                                         current_context->constant = 1;
@@ -2793,8 +2814,12 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else {
                         int labelexists;
                         str_t tmpname;
-                        sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
-                        tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
+                        if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
+                        else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
+                        anonident2.type = '#';
+                        anonident2.star_tree = star_tree;
+                        anonident2.vline = vline;
+                        tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof(anonident2);
                         context=new_label(&tmpname, mycontext, strength, &labelexists);
                         if (!labelexists) {
                             context->constant = 1;
@@ -2814,8 +2839,12 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct value_s *mfunc;
                     int labelexists;
                     str_t tmpname;
-                    sprintf(reflabel, "#%" PRIxPTR "#%" PRIxline, (uintptr_t)star_tree, vline);
-                    tmpname.data = (const uint8_t *)reflabel; tmpname.len = strlen(reflabel);
+                    if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
+                    else anonident2.padding[0] = anonident2.padding[1] = anonident2.padding[2] = 0;
+                    anonident2.type = '#';
+                    anonident2.star_tree = star_tree;
+                    anonident2.vline = vline;
+                    tmpname.data = (const uint8_t *)&anonident2; tmpname.len = sizeof(anonident2);
                     context=new_label(&tmpname, val->u.mfunc.label->parent, strength, &labelexists);
                     if (!labelexists) {
                         context->constant = 1;

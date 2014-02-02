@@ -279,13 +279,8 @@ static void calc2(oper_t op) {
             return;
         case T_ANONIDENT:
             {
-                char idents[100];
-                str_t ident;
-                sprintf(idents, (v2->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v2->u.anonident.count >= 0) ? forwr : backr) + v2->u.anonident.count);
-                ident.data = (const uint8_t *)idents;
-                ident.len = strlen(idents);
                 l2 = v1->u.code.parent;
-                l = find_label2(&ident, l2);
+                l = find_anonlabel2(v2->u.anonident.count, l2);
                 if (l) {
                     touch_label(l);
                     if (v == v1) v->obj->destroy(v);

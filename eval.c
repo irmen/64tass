@@ -221,7 +221,6 @@ void touch_label(struct label_s *tmp) {
 }
 
 static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
-    char idents[100];
     str_t ident;
     struct label_s *l;
     struct linepos_s epoint;
@@ -230,10 +229,7 @@ static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
     switch (v1->obj->type) {
     case T_ANONIDENT: 
         down = 1;
-        sprintf(idents, (v1->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v1->u.anonident.count >= 0) ? forwr : backr) + v1->u.anonident.count);
-        ident.data = (const uint8_t *)idents;
-        ident.len = strlen(idents);
-        l = find_label(&ident);
+        l = find_anonlabel(v1->u.anonident.count);
         if (l) {
             touch_label(l);
             return l->value;
