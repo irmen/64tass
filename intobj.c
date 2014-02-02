@@ -219,6 +219,7 @@ static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *
     default: break;
     }
     *iv = 0;
+    if (v1 == v) destroy(v);
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR_____CANT_IVAL;
     v->u.error.u.bits = bits;
@@ -241,6 +242,7 @@ static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *
     default: break;
     }
     *uv = 0;
+    if (v1 == v) destroy(v);
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR_____CANT_UVAL;
     v->u.error.u.bits = bits;
@@ -255,6 +257,7 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
         if (v1->u.integer.len < 0) d -= ldexp((double)v1->u.integer.data[i], i * SHIFT);
         else d += ldexp((double)v1->u.integer.data[i], i * SHIFT);
         if (d == HUGE_VAL) {
+            if (v1 == v) destroy(v);
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;
