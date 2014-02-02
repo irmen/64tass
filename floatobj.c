@@ -247,18 +247,13 @@ void float_from_double(struct value_s *v, double d) {
 
 static void calc2(oper_t op) {
     double d;
-    struct value_s tmp;
     switch (op->v2->obj->type) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
     case T_FLOAT:
     case T_CODE: 
-        if (op->v2->obj->real(op->v2, &tmp, &d, &op->epoint2)) {
-            if (op->v1 == op->v || op->v2 == op->v) op->v->obj->destroy(op->v);
-            tmp.obj->copy_temp(&tmp, op->v);
-            return;
-        }
+        if (op->v2->obj->real(op->v2, op->v, &d, &op->epoint2)) return;
         if (calc2_double(op, op->v1->u.real, d)) break; return;
     default:
         if (op->op != &o_MEMBER) {
@@ -270,18 +265,13 @@ static void calc2(oper_t op) {
 
 static void rcalc2(oper_t op) {
     double d;
-    struct value_s tmp;
     switch (op->v1->obj->type) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
     case T_FLOAT:
     case T_CODE:
-        if (op->v1->obj->real(op->v1, &tmp, &d, &op->epoint)) {
-            if (op->v1 == op->v || op->v2 == op->v) op->v->obj->destroy(op->v);
-            tmp.obj->copy_temp(&tmp, op->v);
-            return;
-        }
+        if (op->v1->obj->real(op->v1, op->v, &d, &op->epoint)) return;
         if (calc2_double(op, d, op->v2->u.real)) break; return;
     default:
         if (op->op != &o_IN) {

@@ -382,7 +382,7 @@ static int calc2_list(oper_t op) {
 static void calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     size_t i = 0;
-    struct value_s **vals, new_value;
+    struct value_s **vals, tmp;
 
     switch (v2->obj->type) {
     case T_TUPLE:
@@ -398,9 +398,9 @@ static void calc2(oper_t op) {
             for (;i < v1->u.list.len; i++) {
                 op->v1 = v1->u.list.data[i];
                 if (op->v1->refcount != 1) {
-                    op->v = &new_value;
+                    op->v = val_alloc();
                     op->v1->obj->calc2(op);
-                    val_replace_template(v->u.list.data + i, &new_value);
+                    val_destroy(v1->u.list.data[i]); v1->u.list.data[i] = op->v;
                 } else {
                     op->v = op->v1;
                     op->v1->obj->calc2(op);
@@ -410,9 +410,8 @@ static void calc2(oper_t op) {
             op->v1 = v1;
             return;
         }
+        vals = lnew(&tmp, v1->u.list.len);
         if (v1->u.list.len) {
-            vals = (struct value_s **)malloc(v1->u.list.len * sizeof(new_value.u.list.data[0]));
-            if (!vals) err_msg_out_of_memory();
             for (;i < v1->u.list.len; i++) {
                 op->v1 = v1->u.list.data[i];
                 op->v = vals[i] = val_alloc();
@@ -420,8 +419,13 @@ static void calc2(oper_t op) {
             }
             op->v = v;
             op->v1 = v1;
-        } else vals = NULL;
+        }
+        if (v == v2) v->obj->destroy(v);
         v->obj = v1->obj;
+        if (vals == tmp.u.list.val) {
+            memcpy(v->u.list.val, vals, i * sizeof(v->u.list.data[0]));
+            vals = v->u.list.val;
+        }
         v->u.list.len = i;
         v->u.list.data = vals;
         return;
@@ -439,15 +443,17 @@ static void rcalc2(oper_t op) {
         for (;i < v2->u.list.len; i++) {
             op->v2 = v2->u.list.data[i];
             v1->obj->calc2(op);
-            if (tmp.obj == BOOL_OBJ && tmp.u.boolean) {
-                if (v == v1) obj_destroy(v);
-                bool_from_int(v, 1);
-                return;
-            }
+            if (tmp.obj == BOOL_OBJ) {
+                if (tmp.u.boolean) {
+                    if (v == v1 || v == v2) v->obj->destroy(v);
+                    bool_from_int(v, 1);
+                    return;
+                }
+            } else tmp.obj->destroy(&tmp);
         }
         op->v = v;
         op->v2 = v2;
-        if (v == v1) obj_destroy(v);
+        if (v == v1 || v == v2) v->obj->destroy(v);
         bool_from_int(v, 0);
         return;
     }
@@ -486,9 +492,9 @@ static void rcalc2(oper_t op) {
                 for (;i < v2->u.list.len; i++) {
                     op->v2 = v2->u.list.data[i];
                     if (op->v2->refcount != 1) {
-                        op->v = &tmp;
+                        op->v = val_alloc();
                         op->v2->obj->rcalc2(op);
-                        val_replace_template(v2->u.list.data + i, &tmp);
+                        val_destroy(v2->u.list.data[i]); v2->u.list.data[i] = op->v;
                     } else {
                         op->v = op->v2;
                         op->v2->obj->rcalc2(op);

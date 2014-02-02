@@ -251,27 +251,31 @@ static void calc2(oper_t op) {
     if (op->op == &o_MEMBER) {
         struct label_s *l, *l2;
         struct linepos_s epoint;
+        str_t name;
         switch (v2->obj->type) {
         case T_IDENT:
             l2 = v1->u.code.parent;
             l = find_label2(&v2->u.ident.name, l2);
-            if (v == v1 || v == v2) v->obj->destroy(v);
             if (l) {
                 touch_label(l);
+                if (v == v1) v->obj->destroy(v);
                 l->value->obj->copy(l->value, v);
                 return;
             } 
             if (!referenceit) {
+                if (v == v1) v->obj->destroy(v);
                 v->obj = NONE_OBJ;
                 return;
             }
             epoint = v2->u.ident.epoint;
-            v->u.error.u.notdef.ident = v2->u.ident.name;
-            v->u.error.u.notdef.label = l2;
-            v->u.error.u.notdef.down = 0;
+            name = v2->u.ident.name;
+            if (v == v1) v->obj->destroy(v);
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = epoint;
+            v->u.error.u.notdef.label = l2;
+            v->u.error.u.notdef.ident = name;
+            v->u.error.u.notdef.down = 0;
             return;
         case T_ANONIDENT:
             {
@@ -282,20 +286,23 @@ static void calc2(oper_t op) {
                 ident.len = strlen(idents);
                 l2 = v1->u.code.parent;
                 l = find_label2(&ident, l2);
-                if (v == v1 || v == v2) v->obj->destroy(v);
                 if (l) {
                     touch_label(l);
+                    if (v == v1) v->obj->destroy(v);
                     l->value->obj->copy(l->value, op->v);
                     return;
                 }
                 if (!referenceit) {
+                    if (v == v1) v->obj->destroy(v);
                     v->obj = NONE_OBJ;
                     return;
                 }
-                v->u.error.epoint = v2->u.anonident.epoint;
-                v->u.error.u.notdef.label = l2;
+                epoint = v2->u.anonident.epoint;
+                if (v == v1) v->obj->destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR___NOT_DEFINED;
+                v->u.error.epoint = epoint;
+                v->u.error.u.notdef.label = l2;
                 v->u.error.u.notdef.ident.len = 1;
                 v->u.error.u.notdef.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
                 v->u.error.u.notdef.down = 0;
@@ -392,13 +399,15 @@ static void rcalc2(oper_t op) {
             else if (v2->u.code.dtype < 0) int_from_ival(&new_value, (ival_t)uv);
             else int_from_uval(&new_value, uv);
             new_value.obj->calc2(&oper);
-            if (new_value.obj == BOOL_OBJ && new_value.u.boolean) {
-                if (v == v1) obj_destroy(v);
-                bool_from_int(v, 1);
-                return;
-            }
+            if (new_value.obj == BOOL_OBJ) {
+                if (new_value.u.boolean) {
+                    if (v == v1) obj_destroy(v);
+                    bool_from_int(v, 1);
+                    return;
+                }
+            } else new_value.obj->destroy(&new_value);
         }
-        if (v == v1) obj_destroy(v);
+        if (v == v1 || v == v2) v->obj->destroy(v);
         bool_from_int(v, 0);
         return;
     }

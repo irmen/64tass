@@ -1268,13 +1268,18 @@ static int get_val2(struct eval_context_s *ev) {
         oper.epoint = v1->epoint;
         oper.epoint2 = v2->epoint;
         oper.epoint3 = o_out->epoint;
-        if (oper.v1->refcount != 1) {
-            oper.v = &new_value;
-            apply_op2(&oper);
-            val_replace_template(&v1->val, &new_value);
-        } else {
+        if (oper.v1->refcount == 1 && (oper.v2->refcount != 1 || (oper.v2->obj != LIST_OBJ && oper.v2->obj != TUPLE_OBJ))) {
             oper.v = oper.v1;
             apply_op2(&oper);
+        } else if (oper.v2->refcount == 1) {
+            v1->val = oper.v2;
+            v2->val = oper.v1;
+            oper.v = oper.v2;
+            apply_op2(&oper);
+        } else {
+            oper.v = val_alloc();
+            apply_op2(&oper);
+            val_destroy(v1->val); v1->val = oper.v;
         }
     }
     ev->outp2 = i;
