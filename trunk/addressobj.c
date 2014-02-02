@@ -48,15 +48,21 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == ADDRESS_OBJ && v1->u.addr.type == v2->u.addr.type && obj_same(v1->u.addr.val, v2->u.addr.val);
 }
 
-static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
+static inline int type_check(const struct value_s *v1, struct value_s *v, enum errors_e num, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
+        const char *name = v1->obj->name;
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_____CANT_BOOL;
+        v->u.error.num = num;
         v->u.error.epoint = *epoint;
-        v->u.error.u.objname = v1->obj->name;
+        v->u.error.u.objname = name;
         return 1;
     }
+    return 0;
+}
+
+static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
+    if (type_check(v1, v, ERROR_____CANT_BOOL, epoint)) return 1;
     if (v1 == v) {
         int res;
         struct value_s *tmp = val_reference(v1->u.addr.val);
@@ -70,74 +76,87 @@ static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type,
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    if (v1->u.addr.type != A_NONE) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR______CANT_INT;
-        v->u.error.epoint = *epoint;
-        v->u.error.u.objname = v1->obj->name;
-        return 1;
-    }
-    return v1->u.addr.val->obj->ival(v1->u.addr.val, v, iv, bits, epoint);
+    if (type_check(v1, v, ERROR______CANT_INT, epoint)) return 1;
+    if (v1 == v) {
+        int res;
+        struct value_s *tmp = val_reference(v1->u.addr.val);
+        destroy(v);
+        res = tmp->obj->ival(tmp, v, iv, bits, epoint);
+        val_destroy(tmp);
+        return res;
+    } 
+    v1 = v1->u.addr.val;
+    return v1->obj->ival(v1, v, iv, bits, epoint);
 }
 
 static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    if (v1->u.addr.type != A_NONE) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR______CANT_INT;
-        v->u.error.epoint = *epoint;
-        v->u.error.u.objname = v1->obj->name;
-        return 1;
-    }
-    return v1->u.addr.val->obj->uval(v1->u.addr.val, v, uv, bits, epoint);
+    if (type_check(v1, v, ERROR______CANT_INT, epoint)) return 1;
+    if (v1 == v) {
+        int res;
+        struct value_s *tmp = val_reference(v1->u.addr.val);
+        destroy(v);
+        res = tmp->obj->uval(tmp, v, uv, bits, epoint);
+        val_destroy(tmp);
+        return res;
+    } 
+    v1 = v1->u.addr.val;
+    return v1->obj->uval(v1, v, uv, bits, epoint);
 }
 
 static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    if (v1->u.addr.type != A_NONE) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_____CANT_REAL;
-        v->u.error.epoint = *epoint;
-        v->u.error.u.objname = v1->obj->name;
-        return 1;
-    }
-    return v1->u.addr.val->obj->real(v1->u.addr.val, v, r, epoint);
+    if (type_check(v1, v, ERROR_____CANT_REAL, epoint)) return 1;
+    if (v1 == v) {
+        int res;
+        struct value_s *tmp = val_reference(v1->u.addr.val);
+        destroy(v);
+        res = tmp->obj->real(tmp, v, r, epoint);
+        val_destroy(tmp);
+        return res;
+    } 
+    v1 = v1->u.addr.val;
+    return v1->obj->real(v1, v, r, epoint);
 }
 
-static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, linepos_t epoint) {
-    if (v1->u.addr.type != A_NONE) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_____CANT_SIGN;
-        v->u.error.epoint = *epoint;
-        v->u.error.u.objname = v1->obj->name;
-        return 1;
-    }
-    return v1->u.addr.val->obj->sign(v1->u.addr.val, v, s, epoint);
+static void sign(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (type_check(v1, v, ERROR_____CANT_SIGN, epoint)) return;
+    if (v1 == v) {
+        struct value_s *tmp = val_reference(v1->u.addr.val);
+        destroy(v);
+        tmp->obj->sign(tmp, v, epoint);
+        val_destroy(tmp);
+        return;
+    } 
+    v1 = v1->u.addr.val;
+    return v1->obj->sign(v1, v, epoint);
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1->u.addr.type != A_NONE) {
-        if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR______CANT_ABS;
-        v->u.error.epoint = *epoint;
-        v->u.error.u.objname = v1->obj->name;
+    if (type_check(v1, v, ERROR______CANT_ABS, epoint)) return;
+    if (v1 == v) {
+        struct value_s *tmp = val_reference(v1->u.addr.val);
+        destroy(v);
+        tmp->obj->abs(tmp, v, epoint);
+        val_destroy(tmp);
         return;
-    }
-    return v1->u.addr.val->obj->abs(v1->u.addr.val, v, epoint);
+    } 
+    v1 = v1->u.addr.val;
+    return v1->obj->abs(v1, v, epoint);
 }
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1->u.addr.type != A_NONE) {
-        if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR______CANT_INT;
-        v->u.error.epoint = *epoint;
-        v->u.error.u.objname = v1->obj->name;
+    if (type_check(v1, v, ERROR______CANT_INT, epoint)) return;
+    if (v1 == v) {
+        struct value_s *tmp = val_reference(v1->u.addr.val);
+        destroy(v);
+        tmp->obj->integer(tmp, v, epoint);
+        val_destroy(tmp);
         return;
-    }
-    return v1->u.addr.val->obj->integer(v1->u.addr.val, v, epoint);
+    } 
+    v1 = v1->u.addr.val;
+    return v1->obj->integer(v1, v, epoint);
 }
 
-static void repr(const struct value_s *v1, struct value_s *v) {
+static void repr(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     uint8_t *s;
     size_t len;
     char buffer[100], buffer2[100];
@@ -145,7 +164,7 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     int ind, ind2;
     struct value_s tmp;
 
-    v1->u.addr.val->obj->repr(v1->u.addr.val, &tmp);
+    v1->u.addr.val->obj->repr(v1->u.addr.val, &tmp, epoint);
     if (tmp.obj != STR_OBJ) {
         if (v == v1) destroy(v);
         tmp.obj->copy_temp(&tmp, v);

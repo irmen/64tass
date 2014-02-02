@@ -126,7 +126,7 @@ end:
     return 0;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v) {
+static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     size_t len, i, len2;
     uint8_t *s;
     struct value_s tmp;
@@ -233,11 +233,13 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
     return 0;
 }
 
-static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
-    if (!v1->u.bits.len) *s = 0;
-    else if (v1->u.bits.inv) *s = -1;
-    else *s = 1;
-    return 0;
+static void sign(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    int s;
+    if (!v1->u.bits.len) s = 0;
+    else if (v1->u.bits.inv) s = -1;
+    else s = 1;
+    if (v1 == v) destroy(v);
+    int_from_int(v, s);
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
@@ -254,9 +256,10 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSE
     tmp.obj->copy_temp(&tmp, v);
 }
 
-static int MUST_CHECK len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
-    *uv = v1->u.bits.bits;
-    return 0;
+static void len(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    size_t uv = v1->u.bits.bits;
+    if (v == v1) destroy(v);
+    int_from_uval(v, uv);
 }
 
 static void bits_from_bool(struct value_s *v, int i) {

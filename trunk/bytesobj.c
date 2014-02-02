@@ -101,7 +101,7 @@ static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type,
     return 0;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v) {
+static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     size_t i, len, len2;
     uint8_t *s;
     struct value_s tmp;
@@ -218,13 +218,14 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
     return ret;
 }
 
-static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
+static void sign(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     size_t i;
+    int s = 0;
     for (i = 0; i < v1->u.bytes.len; i++) {
-        if (v1->u.bytes.data[i]) {*s = 1; return 0;}
+        if (v1->u.bytes.data[i]) {s = 1; break;}
     }
-    *s = 0;
-    return 0;
+    if (v1 == v) destroy(v);
+    int_from_int(v, s);
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -241,9 +242,10 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSE
     tmp.obj->copy_temp(&tmp, v);
 }
 
-static int MUST_CHECK len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
-    *uv = v1->u.bytes.len;
-    return 0;
+static void len(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    size_t uv = v1->u.bytes.len;
+    if (v1 == v) destroy(v);
+    int_from_uval(v, uv);
 }
 
 static void getiter(struct value_s *v1, struct value_s *v) {

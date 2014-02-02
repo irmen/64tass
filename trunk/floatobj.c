@@ -59,7 +59,7 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
     return h & ((~(unsigned int)0) >> 1);
 }
 
-static void repr(const struct value_s *v1, struct value_s *v) {
+static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     char line[100]; 
     int i = 0;
     uint8_t *s;
@@ -120,9 +120,8 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *UNUSED(v), 
     return 0;
 }
 
-static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
-    *s = (v1->u.real > 0.0) - (v1->u.real < 0.0);
-    return 0;
+static void sign(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    int_from_int(v, (v1->u.real > 0.0) - (v1->u.real < 0.0));
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -154,7 +153,7 @@ static void calc1(oper_t op) {
     case O_INV: float_from_double(v, -0.5/((double)((uval_t)1 << (8 * sizeof(uval_t) - 1)))-v1); return;
     case O_NEG: float_from_double(v, -v1); return;
     case O_POS: float_from_double(v, v1); return;
-    case O_STRING: repr(op->v1, v); return;
+    case O_STRING: repr(op->v1, v, &op->epoint); return;
     default: break;
     }
     obj_oper_error(op);

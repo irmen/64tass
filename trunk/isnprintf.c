@@ -174,7 +174,12 @@ static inline int MUST_CHECK decimal(struct DATA *p, const struct value_s *v)
     }
 
     minus = (tmp2.u.integer.len < 0);
-    tmp2.obj->str(&tmp2, &tmp);
+    tmp2.obj->str(&tmp2, &tmp, epoint);
+    if (tmp.obj != STR_OBJ) {
+        tmp2.obj->destroy(&tmp2);
+        tmp.obj->copy_temp(&tmp, &error_value);
+        return 1;
+    }
 
     p->width -= tmp.u.str.len - minus;
     PAD_RIGHT2(p, 0, minus);
@@ -306,9 +311,8 @@ static int MUST_CHECK strings(struct DATA *p, const struct value_s *v)
     uint32_t ch;
     struct value_s err;
 
-    if (v->obj == NONE_OBJ) {error_value.obj = NONE_OBJ; return 1; }
-    if (*p->pf == 'r') v->obj->repr(v, &err);
-    else v->obj->str(v, &err);
+    if (*p->pf == 'r') v->obj->repr(v, &err, epoint);
+    else v->obj->str(v, &err, epoint);
     if (err.obj != STR_OBJ) {
         err.obj->copy_temp(&err, &error_value);
         return 1;

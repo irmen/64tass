@@ -37,7 +37,7 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
     return v1->u.function.name_hash;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v) {
+static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *prefix = "<native_function '";
     size_t len = strlen(prefix);
@@ -52,21 +52,6 @@ static void repr(const struct value_s *v1, struct value_s *v) {
     s[v->u.str.len - 1] = '>';
     v->u.str.data = s;
     return;
-}
-
-/* len(a) - length of string in characters */
-static inline void function_len(struct values_s *vals, unsigned int args) {
-    struct values_s *v = &vals[2];
-    struct value_s new_value;
-
-    if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
-    else {
-        uval_t uv;
-        if (!v[0].val->obj->len(v[0].val, &new_value, &uv, &vals->epoint)) int_from_uval(&new_value, uv);
-        val_replace_template(&vals->val, &new_value);
-        return;
-    }
-    val_replace(&vals->val, &none_value);
 }
 
 /* range([start],end,[step]) */
@@ -115,62 +100,39 @@ static inline void function_range(struct values_s *vals, unsigned int args) {
     val_replace(&vals->val, &none_value);
 }
 
-/* repr(a) - representation */
-static inline void function_repr(struct values_s *vals, unsigned int args) {
-    struct values_s *v = &vals[2];
-    struct value_s new_value;
-    if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
-    else if (v[0].val->obj != NONE_OBJ) {
-        v[0].val->obj->repr(v[0].val, &new_value);
-        val_replace_template(&vals->val, &new_value);
-        return;
-    }
-    val_replace(&vals->val, &none_value);
-}
-
-/* str(a) - string */
-static inline void function_str(struct values_s *vals, unsigned int args) {
-    struct values_s *v = &vals[2];
-    struct value_s new_value;
-    if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
-    else  if (v[0].val->obj != NONE_OBJ) {
-        v[0].val->obj->str(v[0].val, &new_value);
-        val_replace_template(&vals->val, &new_value);
-        return;
-    }
-    val_replace(&vals->val, &none_value);
-} 
-
 /* register(a) - create register object */
-static inline void function_register(struct values_s *vals, unsigned int args) {
-    struct values_s *v = &vals[2];
-    struct value_s new_value;
-
-    if (args != 1) err_msg_argnum(args, 1, 1, &vals->epoint);
-    else if (v[0].val->obj != NONE_OBJ) {
-        if (v[0].val->obj != STR_OBJ) err_msg_wrong_type(v[0].val, &v[0].epoint);
+static inline void function_register(struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (v1->obj != NONE_OBJ) {
+        if (v1->obj != STR_OBJ) err_msg_wrong_type(v1, epoint);
         else {
-            STR_OBJ->copy(v[0].val, &new_value);
-            new_value.obj = REGISTER_OBJ;
-            val_replace_template(&vals->val, &new_value);
+            if (v1 != v) STR_OBJ->copy(v1, v);
+            v->obj = REGISTER_OBJ;
             return;
         }
+        if (v1 == v) v->obj->destroy(v);
     }
-    val_replace(&vals->val, &none_value);
+    v->obj = NONE_OBJ;
 } 
 
 /* return templates only! */
 static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_t epoint) {
     static struct value_s new_value;
     double real;
-    int s;
-    uval_t uv;
     switch (func) {
     case F_ANY:
         v1->obj->truth(v1, &new_value, TRUTH_ANY, epoint);
         return &new_value;
     case F_ALL:
         v1->obj->truth(v1, &new_value, TRUTH_ALL, epoint);
+        return &new_value;
+    case F_LEN:
+        v1->obj->len(v1, &new_value, epoint);
+        return &new_value;
+    case F_REPR:
+        v1->obj->repr(v1, &new_value, epoint);
+        return &new_value;
+    case F_STR:
+        v1->obj->str(v1, &new_value, epoint);
         return &new_value;
     default: break;
     }
@@ -196,10 +158,10 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
     default:
         switch (func) {
         case F_SIZE:
-            if (!v1->obj->size(v1, &new_value, &uv, epoint)) int_from_uval(&new_value, uv);
+            v1->obj->size(v1, &new_value, epoint);
             return &new_value;
         case F_SIGN:
-            if (!v1->obj->sign(v1, &new_value, &s, epoint)) int_from_int(&new_value, s);
+            v1->obj->sign(v1, &new_value, epoint);
             return &new_value;
         case F_ABS:
             v1->obj->abs(v1, &new_value, epoint);
@@ -209,6 +171,9 @@ static struct value_s *apply_func(enum func_e func, struct value_s *v1, linepos_
             return &new_value;
         case F_BOOL:
             v1->obj->truth(v1, &new_value, TRUTH_BOOL, epoint);
+            return &new_value;
+        case F_REGISTER:
+            function_register(v1, &new_value, epoint);
             return &new_value;
         default: break;
         }
@@ -346,12 +311,12 @@ extern void builtin_function(struct values_s *vals, unsigned int args, enum func
     case F_TRUNC:
     case F_LOG10:
     case F_FLOAT:
+    case F_STR:
+    case F_REPR:
+    case F_LEN:
+    case F_REGISTER:
     case F_SIZE: return apply_func2(vals, args, func);
-    case F_REGISTER: return function_register(vals, args);
-    case F_STR: return function_str(vals, args);
-    case F_REPR: return function_repr(vals, args);
     case F_RANGE: return function_range(vals, args);
-    case F_LEN: return function_len(vals, args);
     case F_NONE: return;
     }
 }

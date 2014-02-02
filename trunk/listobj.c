@@ -122,7 +122,7 @@ static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type,
     return 0;
 }
 
-static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
+static void repr_listtuple(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     size_t i, len = (v1->obj == ADDRLIST_OBJ || v1->obj == COLONLIST_OBJ) ? 0 : 2, chars = 0;
     struct value_s *tmp = NULL;
     uint8_t *s;
@@ -130,7 +130,7 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
         tmp = (struct value_s *)malloc(v1->u.list.len * sizeof(struct value_s));
         if (!tmp || v1->u.list.len > SIZE_MAX / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
         for (i = 0;i < v1->u.list.len; i++) {
-            v1->u.list.data[i]->obj->repr(v1->u.list.data[i], &tmp[i]);
+            v1->u.list.data[i]->obj->repr(v1->u.list.data[i], &tmp[i], epoint);
             if (tmp[i].obj != STR_OBJ) {
                 if (v1 == v) v->obj->destroy(v);
                 tmp[i].obj->copy_temp(&tmp[i], v);
@@ -169,9 +169,10 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v) {
     v->u.str.chars = len - chars;
 }
 
-static int MUST_CHECK len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
-    *uv = v1->u.list.len;
-    return 0;
+static void len(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    size_t uv = v1->u.list.len;
+    if (v1 == v) destroy(v);
+    int_from_uval(v, uv);
 }
 
 static void getiter(struct value_s *v1, struct value_s *v) {

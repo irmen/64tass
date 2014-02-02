@@ -85,62 +85,130 @@ static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type,
     return v1->obj->truth(v1, v, type, epoint);
 }
 
-static void repr(const struct value_s *v1, struct value_s *v) {
-    return v1->u.code.addr->obj->repr(v1->u.code.addr, v);
+static void repr(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (epoint && access_check(v1, v, epoint)) return;
+    if (v1 == v) {
+        struct value_s *tmp = val_reference(v1->u.code.addr);
+        destroy(v);
+        tmp->obj->repr(tmp, v, epoint);
+        val_destroy(tmp);
+        return;
+    }
+    v1 = v1->u.code.addr;
+    return v1->obj->repr(v1, v, epoint);
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return 1;
-    return v1->u.code.addr->obj->ival(v1->u.code.addr, v, iv, bits, epoint);
+    if (v1 == v) {
+        int res;
+        struct value_s *tmp = val_reference(v1->u.code.addr);
+        destroy(v);
+        res = tmp->obj->ival(tmp, v, iv, bits, epoint);
+        val_destroy(tmp);
+        return res;
+    }
+    v1 = v1->u.code.addr;
+    return v1->obj->ival(v1, v, iv, bits, epoint);
 }
 
 static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return 1;
-    return v1->u.code.addr->obj->uval(v1->u.code.addr, v, uv, bits, epoint);
+    if (v1 == v) {
+        int res;
+        struct value_s *tmp = val_reference(v1->u.code.addr);
+        destroy(v);
+        res = tmp->obj->uval(tmp, v, uv, bits, epoint);
+        val_destroy(tmp);
+        return res;
+    }
+    v1 = v1->u.code.addr;
+    return v1->obj->uval(v1, v, uv, bits, epoint);
 }
 
 static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return 1;
-    return v1->u.code.addr->obj->real(v1->u.code.addr, v, r, epoint);
+    if (v1 == v) {
+        int res;
+        struct value_s *tmp = val_reference(v1->u.code.addr);
+        destroy(v);
+        res = tmp->obj->real(tmp, v, r, epoint);
+        val_destroy(tmp);
+        return res;
+    }
+    v1 = v1->u.code.addr;
+    return v1->obj->real(v1, v, r, epoint);
 }
 
-static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, linepos_t epoint) {
-    if (access_check(v1, v, epoint)) return 1;
-    return v1->u.code.addr->obj->sign(v1->u.code.addr, v, s, epoint);
+static void sign(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    if (access_check(v1, v, epoint)) return;
+    if (v1 == v) {
+        struct value_s *tmp = val_reference(v1->u.code.addr);
+        destroy(v);
+        tmp->obj->sign(tmp, v, epoint);
+        val_destroy(tmp);
+        return;
+    }
+    v1 = v1->u.code.addr;
+    return v1->obj->sign(v1, v, epoint);
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return;
-    return v1->u.code.addr->obj->abs(v1->u.code.addr, v, epoint);
+    if (v1 == v) {
+        struct value_s *tmp = val_reference(v1->u.code.addr);
+        destroy(v);
+        tmp->obj->abs(tmp, v, epoint);
+        val_destroy(tmp);
+        return;
+    }
+    v1 = v1->u.code.addr;
+    return v1->obj->abs(v1, v, epoint);
 }
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     if (access_check(v1, v, epoint)) return;
-    return v1->u.code.addr->obj->integer(v1->u.code.addr, v, epoint);
+    if (v1 == v) {
+        struct value_s *tmp = val_reference(v1->u.code.addr);
+        destroy(v);
+        tmp->obj->integer(tmp, v, epoint);
+        val_destroy(tmp);
+        return;
+    }
+    v1 = v1->u.code.addr;
+    return v1->obj->integer(v1, v, epoint);
 }
 
-static int MUST_CHECK len(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
+static void len(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    size_t uv;
     if (!v1->u.code.pass) {
+        str_t name = v1->u.code.parent->name;
+        if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = *epoint;
-        v->u.error.u.ident = v1->u.code.parent->name;
-        return 1;
+        v->u.error.u.ident = name;
+        return;
     }
-    *uv = v1->u.code.size / (abs(v1->u.code.dtype) + !v1->u.code.dtype);
-    return 0;
+    uv = v1->u.code.size / (abs(v1->u.code.dtype) + !v1->u.code.dtype);
+    if (v1 == v) destroy(v);
+    int_from_uval(v, uv);
 }
 
-static int MUST_CHECK size(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
+static void size(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    size_t s;
     if (!v1->u.code.pass) {
+        str_t name = v1->u.code.parent->name;
+        if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = *epoint;
-        v->u.error.u.ident = v1->u.code.parent->name;
-        return 1;
+        v->u.error.u.ident = name;
+        return;
     }
-    *uv = v1->u.code.size;
-    return 0;
+    s = v1->u.code.size;
+    if (v1 == v) destroy(v);
+    int_from_uval(v, s);
 }
 
 static void calc1(oper_t op) {
