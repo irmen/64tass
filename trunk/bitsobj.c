@@ -186,11 +186,15 @@ static int hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s tmp;
+    struct value_s tmp, tmp2;
     int ret;
     int_from_bits(&tmp, v1);
-    ret = tmp.obj->ival(&tmp, v, iv, bits, epoint);
+    ret = tmp.obj->ival(&tmp, &tmp2, iv, bits, epoint);
     tmp.obj->destroy(&tmp);
+    if (ret) {
+        if (v1 == v) destroy(v);
+        tmp2.obj->copy_temp(&tmp2, v);
+    }
     return ret;
 }
 
@@ -208,6 +212,7 @@ static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *
     default: break;
     }
     *uv = 0;
+    if (v1 == v) destroy(v);
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR_____CANT_UVAL;
     v->u.error.u.bits = bits;
@@ -222,6 +227,7 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
         if (v1->u.bits.inv) d -= ldexp((double)v1->u.bits.data[i], i * 8 * sizeof(bdigit_t));
         else d += ldexp((double)v1->u.bits.data[i], i * 8 * sizeof(bdigit_t));
         if (d == HUGE_VAL) {
+            if (v1 == v) destroy(v);
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;

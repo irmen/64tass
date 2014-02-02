@@ -192,29 +192,41 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s tmp;
+    struct value_s tmp, tmp2;
     int ret;
     int_from_bytes(&tmp, v1);
-    ret = tmp.obj->ival(&tmp, v, iv, bits, epoint);
+    ret = tmp.obj->ival(&tmp, &tmp2, iv, bits, epoint);
     tmp.obj->destroy(&tmp);
+    if (ret) {
+        if (v1 == v) destroy(v);
+        tmp2.obj->copy_temp(&tmp2, v);
+    }
     return ret;
 }
 
 static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s tmp;
+    struct value_s tmp, tmp2;
     int ret;
     int_from_bytes(&tmp, v1);
-    ret = tmp.obj->uval(&tmp, v, uv, bits, epoint);
+    ret = tmp.obj->uval(&tmp, &tmp2, uv, bits, epoint);
     tmp.obj->destroy(&tmp);
+    if (ret) {
+        if (v1 == v) destroy(v);
+        tmp2.obj->copy_temp(&tmp2, v);
+    }
     return ret;
 }
 
 static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    struct value_s tmp;
+    struct value_s tmp, tmp2;
     int ret;
     int_from_bytes(&tmp, v1);
-    ret = tmp.obj->real(&tmp, v, r, epoint);
+    ret = tmp.obj->real(&tmp, &tmp2, r, epoint);
     tmp.obj->destroy(&tmp);
+    if (ret) {
+        if (v1 == v) destroy(v);
+        tmp2.obj->copy_temp(&tmp2, v);
+    }
     return ret;
 }
 
