@@ -1309,9 +1309,9 @@ struct value_s *compile(struct file_list_s *cflist)
                     case CMD_IFEQ:
                         if (val->obj == NONE_OBJ) truth = 0;
                         else {
-                            int sign;
-                            if (val->obj->sign(val, &err, &sign, &epoint)) { err_msg_output_and_destroy(&err); truth = 0; } 
-                            else truth = (sign == 0) ^ (prm == CMD_IFNE);
+                            val->obj->sign(val, &err, &epoint);
+                            if (err.obj != INT_OBJ) {err_msg_output_and_destroy(&err); truth = 0; }
+                            else truth = (err.u.integer.len == 0) ^ (prm == CMD_IFNE);
                         }
                         waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         break;
@@ -1322,9 +1322,9 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (val->obj->ival(val, &err, &ival, 8*sizeof(uval_t), &epoint)) { err_msg_output_and_destroy(&err); truth = 0; } 
                             else truth = !(ival & 0x8000) ^ (prm == CMD_IFMI);
                         } else {
-                            int sign;
-                            if (val->obj->sign(val, &err, &sign, &epoint)) { err_msg_output_and_destroy(&err); truth = 0; }
-                            else truth = (sign >= 0) ^ (prm == CMD_IFMI);
+                            val->obj->sign(val, &err, &epoint);
+                            if (err.obj != INT_OBJ) { err_msg_output_and_destroy(&err); truth = 0; }
+                            else truth = (err.u.integer.len >= 0) ^ (prm == CMD_IFMI);
                         }
                         waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         break;

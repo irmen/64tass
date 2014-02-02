@@ -101,7 +101,7 @@ static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type,
     return ret;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v) {
+static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     size_t i2, i, sq = 0, dq = 0;
     uint8_t *s, *s2;
     char q;
@@ -156,7 +156,7 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
     return h & ((~(unsigned int)0) >> 1);
 }
 
-static void str(const struct value_s *v1, struct value_s *v) {
+static void str(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     if (v != v1) copy(v1, v);
 }
 
@@ -202,18 +202,18 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
     return ret;
 }
 
-static int MUST_CHECK sign(const struct value_s *v1, struct value_s *v, int *s, linepos_t epoint) {
+static void sign(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     struct value_s tmp;
-    int ret;
     if (bytes_from_str(&tmp, v1)) {
+        if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_BIG_STRING_CO;
         v->u.error.epoint = *epoint;
-        return 1;
+        return;
     }
-    ret = tmp.obj->sign(&tmp, v, s, epoint);
+    if (v1 == v) destroy(v);
+    tmp.obj->sign(&tmp, v, epoint);
     tmp.obj->destroy(&tmp);
-    return ret;
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
@@ -243,9 +243,10 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoin
     tmp.obj->copy_temp(&tmp, v);
 }
 
-static int MUST_CHECK len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
-    *uv = v1->u.str.chars;
-    return 0;
+static void len(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    size_t uv = v1->u.str.chars;
+    if (v1 == v) destroy(v);
+    int_from_uval(v, uv);
 }
 
 static void getiter(struct value_s *v1, struct value_s *v) {
@@ -879,7 +880,7 @@ static void iindex(oper_t op) {
     v->u.str.len = len1;
 }
 
-static void register_repr(const struct value_s *v1, struct value_s *v) {
+static void register_repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *prefix = "<register '";
     size_t len = strlen(prefix);

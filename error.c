@@ -480,7 +480,7 @@ static void add_user_error2(struct error_s *user_error, const uint8_t *s, size_t
 void err_msg_variable(struct error_s *user_error, struct value_s *val) {
     struct value_s tmp;
     if (!val) {user_error->chars = user_error->len = 0;return;}
-    val->obj->str(val, &tmp);
+    val->obj->str(val, &tmp, NULL);
     if (tmp.obj == STR_OBJ) {
         add_user_error2(user_error, tmp.u.str.data, tmp.u.str.len);
         user_error->chars -= tmp.u.str.len - tmp.u.str.chars;

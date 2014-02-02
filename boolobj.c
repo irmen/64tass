@@ -43,7 +43,7 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
     return v1->u.boolean;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v) {
+static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     uint8_t *s = str_create_elements(v, 4 + !v1->u.boolean);
     v->obj = STR_OBJ;
     v->u.str.data = s;
@@ -68,9 +68,8 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *UNUSED(v), 
     return 0;
 }
 
-static int MUST_CHECK sign(const struct value_s *v1, struct value_s *UNUSED(v), int *s, linepos_t UNUSED(epoint)) {
-    *s = v1->u.boolean;
-    return 0;
+static void sign(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    int_from_int(v, v1->u.boolean);
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -109,7 +108,7 @@ static void calc1(oper_t op) {
     case O_POS:
         int_from_int(v, v1->u.boolean);
         return;
-    case O_STRING: repr(v1, v);break;
+    case O_STRING: repr(v1, v, &op->epoint);break;
     default: break;
     }
     obj_oper_error(op);

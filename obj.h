@@ -85,8 +85,8 @@ struct obj_s {
     int (*same)(const struct value_s *, const struct value_s *);
     int (*truth)(const struct value_s *, struct value_s *, enum truth_e, linepos_t);
     int (*hash)(const struct value_s *, struct value_s *, linepos_t);
-    void (*repr)(const struct value_s *, struct value_s *);
-    void (*str)(const struct value_s *, struct value_s *);
+    void (*repr)(const struct value_s *, struct value_s *, linepos_t);
+    void (*str)(const struct value_s *, struct value_s *, linepos_t);
     void (*calc1)(struct oper_s *);
     void (*calc2)(struct oper_s *);
     void (*rcalc2)(struct oper_s *);
@@ -95,11 +95,11 @@ struct obj_s {
     int (*ival)(const struct value_s *, struct value_s *, ival_t *, int, linepos_t) MUST_CHECK;
     int (*uval)(const struct value_s *, struct value_s *, uval_t *, int, linepos_t) MUST_CHECK;
     int (*real)(const struct value_s *, struct value_s *, double *, linepos_t) MUST_CHECK;
-    int (*sign)(const struct value_s *, struct value_s *, int *, linepos_t) MUST_CHECK;
+    void (*sign)(const struct value_s *, struct value_s *, linepos_t);
     void (*abs)(const struct value_s *, struct value_s *, linepos_t);
     void (*integer)(const struct value_s *, struct value_s *, linepos_t);
-    int (*len)(const struct value_s *, struct value_s *, uval_t *, linepos_t) MUST_CHECK;
-    int (*size)(const struct value_s *, struct value_s *, uval_t *, linepos_t) MUST_CHECK;
+    void (*len)(const struct value_s *, struct value_s *, linepos_t);
+    void (*size)(const struct value_s *, struct value_s *, linepos_t);
     void (*getiter)(struct value_s *, struct value_s *);
     struct value_s *(*next)(struct value_s *, struct value_s *) MUST_CHECK;
 };

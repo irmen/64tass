@@ -125,7 +125,7 @@ static int invalid_hash(const struct value_s *v1, struct value_s *v, linepos_t e
     return -1;
 }
 
-static void invalid_repr(const struct value_s *v1, struct value_s *v) {
+static void invalid_repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *name;
     if (v1->obj == ERROR_OBJ) {
@@ -142,19 +142,15 @@ static void invalid_repr(const struct value_s *v1, struct value_s *v) {
     v->u.str.data = s;
 }
 
-static void invalid_str(const struct value_s *v1, struct value_s *v) {
-    if (v1->obj == ERROR_OBJ) {
-        if (v != v1) error_copy(v1, v);
-        return;
-    }
-    return v1->obj->repr(v1, v);
+static void invalid_str(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    return v1->obj->repr(v1, v, epoint);
 }
 
 static int gap_hash(const struct value_s *UNUSED(v1), struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
     return 0; /* whatever, there's only one */
 }
 
-static void gap_repr(const struct value_s *UNUSED(v1), struct value_s *v) {
+static void gap_repr(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     v->obj = STR_OBJ;
     v->u.str.len = 1;
@@ -178,7 +174,7 @@ static void gap_calc1(oper_t op) {
     case O_POS:
         if (v != v1) v->obj = GAP_OBJ;
         return;
-    case O_STRING: gap_repr(v1, v); return;
+    case O_STRING: gap_repr(v1, v, &op->epoint); return;
     default: break;
     }
     obj_oper_error(op);
@@ -297,9 +293,8 @@ static int MUST_CHECK invalid_real(const struct value_s *v1, struct value_s *v, 
     return 1;
 }
 
-static int MUST_CHECK invalid_sign(const struct value_s *v1, struct value_s *v, int *UNUSED(s), linepos_t epoint) {
+static void invalid_sign(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     generic_invalid(v1, v, epoint, ERROR_____CANT_SIGN);
-    return 1;
 }
 
 static void invalid_abs(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
@@ -310,14 +305,12 @@ static void invalid_integer(const struct value_s *v1, struct value_s *v, linepos
     generic_invalid(v1, v, epoint, ERROR______CANT_INT);
 }
 
-static int MUST_CHECK invalid_len(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(uv), linepos_t epoint) {
+static void invalid_len(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     generic_invalid(v1, v, epoint, ERROR______CANT_LEN);
-    return 1;
 }
 
-static int MUST_CHECK invalid_size(const struct value_s *v1, struct value_s *v, uval_t *UNUSED(uv), linepos_t epoint) {
+static void invalid_size(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     generic_invalid(v1, v, epoint, ERROR_____CANT_SIZE);
-    return 1;
 }
 
 void invalid_getiter(struct value_s *v1, struct value_s *v) {
@@ -496,12 +489,13 @@ static int dict_same(const struct value_s *v1, const struct value_s *v2) {
     return n == n2;
 }
 
-static int MUST_CHECK dict_len(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
-    *uv = v1->u.dict.len;
-    return 0;
+static void dict_len(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    size_t uv = v1->u.dict.len;
+    if (v1 == v) dict_destroy(v);
+    int_from_uval(v, uv);
 }
 
-static void dict_repr(const struct value_s *v1, struct value_s *v) {
+static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     const struct pair_s *p;
     size_t i, len = 2, chars = 0;
     struct value_s *tmp = NULL;
@@ -520,12 +514,12 @@ static void dict_repr(const struct value_s *v1, struct value_s *v) {
             const struct avltree_node *n = avltree_first(&v1->u.dict.members);
             while (n) {
                 p = cavltree_container_of(n, struct pair_s, node);
-                p->key->obj->repr(p->key, &tmp[i]);
+                p->key->obj->repr(p->key, &tmp[i], epoint);
                 if (tmp[i].obj != STR_OBJ) goto error;
                 len += tmp[i].u.str.len;
                 if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
                 i++;
-                p->data->obj->repr(p->data, &tmp[i]);
+                p->data->obj->repr(p->data, &tmp[i], epoint);
                 if (tmp[i].obj != STR_OBJ) goto error;
                 len += tmp[i].u.str.len;
                 if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
@@ -534,7 +528,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v) {
             }
         }
         if (v1->u.dict.def) {
-            v1->u.dict.def->obj->repr(v1->u.dict.def, &tmp[i]);
+            v1->u.dict.def->obj->repr(v1->u.dict.def, &tmp[i], epoint);
             if (tmp[i].obj != STR_OBJ) {
             error:
                 if (v1 == v) v->obj->destroy(v);
@@ -769,9 +763,9 @@ static int ident_hash(const struct value_s *v1, struct value_s *v, linepos_t epo
     return v1->obj->hash(v1, v, epoint);
 }
 
-static void ident_repr(const struct value_s *v1, struct value_s *v) {
+static void ident_repr(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1->obj->repr(v1, v);
+    return v1->obj->repr(v1, v, epoint);
 }
 
 static int MUST_CHECK ident_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
@@ -784,9 +778,9 @@ static int MUST_CHECK ident_uval(const struct value_s *v1, struct value_s *v, uv
     return v1->obj->uval(v1, v, uv, bits, epoint);
 }
 
-static void ident_str(const struct value_s *v1, struct value_s *v) {
+static void ident_str(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1->obj->str(v1, v);
+    return v1->obj->str(v1, v, epoint);
 }
 
 static int MUST_CHECK ident_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
@@ -799,14 +793,14 @@ static void ident_integer(const struct value_s *v1, struct value_s *v, linepos_t
     return v1->obj->integer(v1, v, epoint);
 }
 
-static int MUST_CHECK ident_len(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
+static void ident_len(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1->obj->len(v1, v, uv, epoint);
+    return v1->obj->len(v1, v, epoint);
 }
 
-static int MUST_CHECK ident_size(const struct value_s *v1, struct value_s *v, uval_t *uv, linepos_t epoint) {
+static void ident_size(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     v1 = ident_resolv(v1, v);
-    return v1->obj->size(v1, v, uv, epoint);
+    return v1->obj->size(v1, v, epoint);
 }
 
 static void ident_repeat(oper_t op, uval_t rep) {
@@ -825,6 +819,10 @@ static int none_truth(const struct value_s *UNUSED(v1), struct value_s *v, enum 
 static int none_hash(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
     return -1;
+}
+
+static void none_repr(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
+    v->obj = NONE_OBJ;
 }
 
 static void none_calc1(oper_t op) {
@@ -867,10 +865,8 @@ static int MUST_CHECK none_real(const struct value_s *UNUSED(v1), struct value_s
     return 1;
 }
 
-static int MUST_CHECK none_sign(const struct value_s *UNUSED(v1), struct value_s *v, int *s, linepos_t UNUSED(epoint)) {
+static void none_sign(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
-    *s = 0;
-    return 1;
 }
 
 static void none_abs(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
@@ -881,25 +877,22 @@ static void none_integer(const struct value_s *UNUSED(v1), struct value_s *v, li
     v->obj = NONE_OBJ;
 }
 
-static int MUST_CHECK none_len(const struct value_s *UNUSED(v1), struct value_s *v, uval_t *len, linepos_t UNUSED(epoint)) {
+static void none_len(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
-    *len = 0;
-    return 1;
 }
 
-static int MUST_CHECK none_size(const struct value_s *UNUSED(v1), struct value_s *v, uval_t *len, linepos_t UNUSED(epoint)) {
+static void none_size(const struct value_s *UNUSED(v1), struct value_s *v, linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
-    *len = 0;
-    return 1;
 }
 
 static int lbl_same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == LBL_OBJ && v1->u.lbl.p == v2->u.lbl.p && v1->u.lbl.sline == v2->u.lbl.sline && v1->u.lbl.waitforp == v2->u.lbl.waitforp && v1->u.lbl.file_list == v2->u.lbl.file_list && v1->u.lbl.parent == v2->u.lbl.parent;
 }
 
-static int MUST_CHECK struct_size(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, linepos_t UNUSED(epoint)) {
-    *uv = v1->u.macro.size;
-    return 0;
+static void struct_size(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    size_t s = v1->u.macro.size;
+    if (v == v1) macro_destroy(v);
+    int_from_uval(v, s);
 }
 
 static void struct_calc2(oper_t op) {
@@ -1028,6 +1021,7 @@ void objects_init(void) {
     union_obj.calc2 = struct_calc2;
     obj_init(&none_obj, T_NONE, "<none>");
     none_obj.truth = none_truth;
+    none_obj.repr = none_repr;
     none_obj.hash = none_hash;
     none_obj.calc1 = none_calc1;
     none_obj.calc2 = none_calc2;

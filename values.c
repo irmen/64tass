@@ -16,6 +16,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include <string.h>
 #include "values.h"
 
 #include "boolobj.h"
@@ -212,10 +213,10 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 int val_print(const struct value_s *v1, FILE *f) {
     struct value_s tmp;
     int len;
-    v1->obj->repr(v1, &tmp);
+    v1->obj->repr(v1, &tmp, NULL);
     if (tmp.obj == STR_OBJ) {
         len = fwrite(tmp.u.str.data, 1, tmp.u.str.len, f);
-    } else len = 0;
+    } else len = fwrite(tmp.obj->name, 1, strlen(tmp.obj->name), f);
     tmp.obj->destroy(&tmp);
     return len;
 }
