@@ -677,14 +677,7 @@ static void error_repeat(oper_t op, uval_t UNUSED(rep)) {
 
 static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v) {
     if (v1->obj == ANONIDENT_OBJ) {
-        char idents[100];
-        str_t ident;
-        struct label_s *l;
-
-        sprintf(idents, (v1->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v1->u.anonident.count >= 0) ? forwr : backr) + v1->u.anonident.count);
-        ident.data = (const uint8_t *)idents;
-        ident.len = strlen(idents);
-        l = find_label(&ident);
+        struct label_s *l = find_anonlabel(v1->u.anonident.count);
         if (l) {
             touch_label(l);
             return l->value;
@@ -928,13 +921,8 @@ static void struct_calc2(oper_t op) {
             return;
         case T_ANONIDENT:
             {
-                char idents[100];
-                str_t ident;
-                sprintf(idents, (v2->u.anonident.count >= 0) ? "+%x+%x" : "-%x-%x" , reffile, ((v2->u.anonident.count >= 0) ? forwr : backr) + v2->u.anonident.count);
-                ident.data = (const uint8_t *)idents;
-                ident.len = strlen(idents);
                 l2 = v1->u.macro.parent;
-                l = find_label2(&ident, l2);
+                l = find_anonlabel2(v2->u.anonident.count, l2);
                 if (l) {
                     touch_label(l);
                     if (v == v1) v->obj->destroy(v);
