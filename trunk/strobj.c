@@ -345,27 +345,19 @@ uint8_t *str_create_elements(struct value_s *v, size_t len) {
 static void calc1(oper_t op) {
     struct value_s *v1 = op->v1, *v = op->v;
     struct value_s tmp;
+    int ret;
     switch (op->op->u.oper.op) {
     case O_NEG:
     case O_POS:
-    case O_STRING:
-        if (int_from_str(&tmp, v1)) {
-            if (v == v1) destroy(v);
-            v->obj = ERROR_OBJ;
-            v->u.error.num = ERROR_BIG_STRING_CO;
-            v->u.error.epoint = op->epoint;
-            return;
-        }
-        break;
-    default:
-        if (bits_from_str(&tmp, v1)) {
-            if (v == v1) destroy(v);
-            v->obj = ERROR_OBJ;
-            v->u.error.num = ERROR_BIG_STRING_CO;
-            v->u.error.epoint = op->epoint;
-            return;
-        }
-        break;
+    case O_STRING: ret = int_from_str(&tmp, v1); break;
+    default: ret = bits_from_str(&tmp, v1); break;
+    }
+    if (ret) {
+        if (v == v1) destroy(v);
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_BIG_STRING_CO;
+        v->u.error.epoint = op->epoint;
+        return;
     }
     if (v == v1) destroy(v);
     op->v1 = &tmp;
@@ -388,17 +380,17 @@ static int calc2_str(oper_t op) {
         {
             struct value_s tmp, tmp2;
             if (int_from_str(&tmp, v1)) {
-                if (v == v1) destroy(v1);
+                if (v == v1 || v == v2) destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint;
                 return 0;
             }
             if (int_from_str(&tmp2, v2)) {
-                if (v == v1) destroy(v1);
+                if (v == v1 || v == v2) destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint;
+                v->u.error.epoint = op->epoint2;
                 return 0;
             }
             if (v1 == v || v2 == v) destroy(v);
@@ -421,17 +413,17 @@ static int calc2_str(oper_t op) {
         {
             struct value_s tmp, tmp2;
             if (bits_from_str(&tmp, v1)) {
-                if (v == v1) destroy(v1);
+                if (v == v1 || v == v2) destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint;
                 return 0;
             }
             if (bits_from_str(&tmp2, v2)) {
-                if (v == v1) destroy(v1);
+                if (v == v1 || v == v2) destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint;
+                v->u.error.epoint = op->epoint2;
                 return 0;
             }
             if (v1 == v || v2 == v) destroy(v);
@@ -478,37 +470,35 @@ static int calc2_str(oper_t op) {
         if (!val) val = v1->u.str.len >= v2->u.str.len; else val = val >= 0;
         break;
     case O_CONCAT:
-        if (v == v1) {
+        {
             uint8_t *s;
-            size_t ln;
-            if (!v2->u.str.len) return 0;
-            ln = v1->u.str.len;
-            v->u.str.len += v2->u.str.len;
-            v->u.str.chars += v2->u.str.chars;
-            if (v->u.str.len < v2->u.str.len) err_msg_out_of_memory(); /* overflow */
-            s = (uint8_t *)v1->u.str.data;
-            if (s != v1->u.str.val) {
-                s = (uint8_t *)realloc(s, v->u.str.len);
-                if (!s) err_msg_out_of_memory();
+            size_t ln = v1->u.str.len + v2->u.str.len;
+            size_t ch = v1->u.str.chars + v2->u.str.chars;
+            if (ln < v2->u.str.len) err_msg_out_of_memory(); /* overflow */
+
+            if (v == v1) {
+                if (!v2->u.str.len) return 0;
+                s = (uint8_t *)v1->u.str.data;
+                if (s != v1->u.str.val) {
+                    s = (uint8_t *)realloc(s, v->u.str.len);
+                    if (!s) err_msg_out_of_memory();
+                } else {
+                    s = snew(v, v->u.str.len);
+                    if (s != v1->u.str.val) memcpy(s, v1->u.str.val, v1->u.str.len);
+                }
+                memcpy(s + v1->u.str.len, v2->u.str.data, v2->u.str.len);
             } else {
                 s = snew(v, v->u.str.len);
-                if (s != v1->u.str.val) memcpy(s, v1->u.str.val, v1->u.str.len);
+                memcpy(s, v1->u.str.data, v1->u.str.len);
+                memcpy(s + v1->u.str.len, v2->u.str.data, v2->u.str.len);
+                if (v == v2) destroy(v);
+                v->obj = STR_OBJ;
             }
-            memcpy(s + ln, v2->u.str.data, v2->u.str.len);
+            v->u.str.len = ln;
+            v->u.str.chars = ch;
             v->u.str.data = s;
             return 0;
         }
-        v->obj = STR_OBJ;
-        v->u.str.len = v1->u.str.len + v2->u.str.len;
-        if (v->u.str.len < v2->u.str.len) err_msg_out_of_memory(); /* overflow */
-        v->u.str.chars = v1->u.str.chars + v2->u.str.chars;
-        if (v->u.str.len) {
-            uint8_t *s = snew(v, v->u.str.len);
-            memcpy(s, v1->u.str.data, v1->u.str.len);
-            memcpy(s + v1->u.str.len, v2->u.str.data, v2->u.str.len);
-            v->u.str.data = s;
-        } else v->u.str.data = NULL;
-        return 0;
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
@@ -656,7 +646,7 @@ static void rcalc2(oper_t op) {
                 if (v == v1 || v == v2) v->obj->destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint;
+                v->u.error.epoint = op->epoint2;
                 return;
             }
             if (v2 == v) v->obj->destroy(v);
@@ -673,7 +663,7 @@ static void rcalc2(oper_t op) {
                 if (v == v1 || v == v2) v->obj->destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint;
+                v->u.error.epoint = op->epoint2;
                 return;
             }
             if (v2 == v) v->obj->destroy(v);

@@ -871,6 +871,7 @@ static void lshift(const struct value_s *vv1, const struct value_s *vv2, size_t 
         v = vv->u.bits.val;
     }
     if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
+    vv->obj = BITS_OBJ;
     vv->u.bits.data = v;
     vv->u.bits.len = sz;
     vv->u.bits.bits = bits;
@@ -888,6 +889,7 @@ static void rshift(const struct value_s *vv1, const struct value_s *vv2, uval_t 
     sz = vv1->u.bits.len - word;
     if (sz <= 0 || bits <= s) {
         if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
+        vv->obj = BITS_OBJ;
         vv->u.bits.data = vv->u.bits.val;
         vv->u.bits.val[0] = 0;
         vv->u.bits.len = 0;
@@ -914,6 +916,7 @@ static void rshift(const struct value_s *vv1, const struct value_s *vv2, uval_t 
     }
     inv = vv1->u.bits.inv;
     if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
+    vv->obj = BITS_OBJ;
     vv->u.bits.data = v;
     vv->u.bits.len = sz;
     vv->u.bits.bits = bits;
@@ -994,6 +997,7 @@ static void calc2(oper_t op) {
     switch (v2->obj->type) {
     case T_BOOL:
         bits_from_bool(&tmp, op->v2->u.boolean);
+        //if (v2 == v) v->obj->destroy(v);
         op->v2 = &tmp;
         tmp.refcount = 0;
         calc2(op);
@@ -1016,20 +1020,14 @@ static void calc2(oper_t op) {
                 tmp.obj->copy_temp(&tmp, v);
                 return;
             }
-            v->obj = BITS_OBJ;
-            if (shift < 0) rshift(v1, v2, -shift, v);
-            else lshift(v1, v2, shift, v);
-            return;
+            return (shift < 0) ? rshift(v1, v2, -shift, v) : lshift(v1, v2, shift, v);
         case O_RSHIFT:
             if (v2->obj->ival(v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
                 return;
             }
-            v->obj = BITS_OBJ;
-            if (shift < 0) lshift(v1, v2, -shift, v);
-            else rshift(v1, v2, shift, v);
-            return;
+            return (shift < 0) ? lshift(v1, v2, -shift, v) : rshift(v1, v2, shift, v);
         default: break;
         }
         int_from_bits(&tmp, v1);
@@ -1059,6 +1057,7 @@ static void rcalc2(oper_t op) {
     switch (v1->obj->type) {
     case T_BOOL:
         bits_from_bool(&tmp, op->v1->u.boolean);
+        //if (v1 == v) v->obj->destroy(v);
         op->v1 = &tmp;
         tmp.refcount = 0;
         rcalc2(op);

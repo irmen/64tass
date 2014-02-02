@@ -333,35 +333,33 @@ static int calc2_bytes(oper_t op) {
         if (!val) val = v1->u.bytes.len >= v2->u.bytes.len; else val = val >= 0;
         break;
     case O_CONCAT:
-        if (v == v1) {
+        {
             uint8_t *s;
-            size_t ln;
-            if (!v2->u.bytes.len) return 0;
-            ln = v1->u.bytes.len;
-            v->u.bytes.len += v2->u.bytes.len;
-            if (v->u.bytes.len < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
-            s = (uint8_t *)v1->u.bytes.data;
-            if (s != v1->u.bytes.val) {
-                s = (uint8_t *)realloc(s, v->u.bytes.len);
-                if (!s) err_msg_out_of_memory();
+            size_t ln = v1->u.bytes.len + v2->u.bytes.len;
+            if (ln < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
+
+            if (v == v1) {
+                if (!v2->u.bytes.len) return 0;
+                s = (uint8_t *)v1->u.bytes.data;
+                if (s != v1->u.bytes.val) {
+                    s = (uint8_t *)realloc(s, v->u.bytes.len);
+                    if (!s) err_msg_out_of_memory();
+                } else {
+                    s = bnew(v, v->u.bytes.len);
+                    if (s != v1->u.bytes.val) memcpy(s, v1->u.bytes.val, v1->u.bytes.len);
+                }
+                memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
             } else {
-                s = bnew(v, v->u.bytes.len);
-                if (s != v1->u.bytes.val) memcpy(s, v1->u.bytes.val, v1->u.bytes.len);
+                s = bnew(v, ln);
+                memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
+                memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
+                if (v == v2) destroy(v);
+                v->obj = BYTES_OBJ;
             }
-            memcpy(s + ln, v2->u.bytes.data, v2->u.bytes.len);
+            v->u.bytes.len = ln;
             v->u.bytes.data = s;
             return 0;
         }
-        v->obj = BYTES_OBJ;
-        v->u.bytes.len = v1->u.bytes.len + v2->u.bytes.len;
-        if (v->u.bytes.len < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
-        if (v->u.bytes.len) {
-            uint8_t *s = bnew(v, v->u.bytes.len);
-            memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
-            memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
-            v->u.bytes.data = s;
-        } else v->u.bytes.data = NULL;
-        return 0;
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
