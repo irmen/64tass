@@ -97,7 +97,7 @@ variables.o: variables.c variables.h libtree.h inttypes.h misc.h values.h \
  addressobj.h functionobj.h 64tass.h opcodes.h file.h boolobj.h
 
 README: README.html
-	-w3m -dump -no-graph README.html | sed -e 's/\s\+$$//' >README
+	-sed -e 's/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph | sed -e 's/\s\+$$//' >README
 
 .PHONY: clean
 
