@@ -33,14 +33,13 @@ struct file_list_s {
     struct avltree members;
 };
 
-struct error_s {
+struct errorbuffer_s {
     size_t max;
     size_t len;
     size_t chars;
+    size_t header_pos;
     uint8_t *data;
 };
-
-extern unsigned int errors, conderrors, warnings;
 
 /* ---------------------------------------------------------------------------
    $00-$3f warning
@@ -126,8 +125,8 @@ extern void err_msg_shadow_defined(const struct label_s *, const struct label_s 
 extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_requires(const str_t *name, linepos_t);
 extern void err_msg_conflicts(const str_t *name, linepos_t);
-extern void err_msg_variable(struct error_s *, struct value_s *);
-extern void err_msg_file(enum errors_e, const char *);
+extern void err_msg_variable(struct errorbuffer_s *, struct value_s *);
+extern void err_msg_file(enum errors_e, const char *, linepos_t);
 extern void err_msg_output_and_destroy(struct value_s *);
 extern void err_msg_argnum(unsigned int, unsigned int, unsigned int, linepos_t);
 extern void freeerrorlist(int);
@@ -136,7 +135,10 @@ extern void exitfile(void);
 extern void err_init(void);
 extern void err_destroy(void);
 extern void NO_RETURN err_msg_out_of_memory(void);
-extern void errors_destroy(struct error_s *);
-extern void error_init(struct error_s *);
+extern void errors_destroy(struct errorbuffer_s *);
+extern void error_init(struct errorbuffer_s *);
+extern void error_status(void);
+extern int error_serious(void);
+extern int error_any(void);
 
 #endif

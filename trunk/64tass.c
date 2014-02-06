@@ -202,12 +202,8 @@ enum command_e {
 
 void status(void) {
     freeerrorlist(1);
-    errors+=conderrors;
     if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
-        printf("Error messages:    ");
-        if (errors) printf("%u\n", errors); else puts("None");
-        printf("Warning messages:  ");
-        if (warnings) printf("%u\n", warnings); else puts("None");
+        error_status();
         printf("Passes:            %u\n",pass);
         sectionprint();
     }
@@ -349,7 +345,7 @@ void new_waitfor(enum wait_e what, linepos_t epoint) {
 }
 
 static void reset_waitfor(void) {
-    struct linepos_s lpos = {0,0,0};
+    struct linepos_s lpos = {0, 0, 0};
     waitfor_p = (size_t)-1;
     new_waitfor(W_NONE, &lpos);
     waitfor->skip=1;
@@ -1542,7 +1538,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shift2 .null */
                         int16_t ch2=-1;
                         struct value_s err;
-                        struct linepos_s large = {0,0,0};
+                        struct linepos_s large = {0, 0, 0};
                         int bits = 8 - (prm==CMD_SHIFT || prm==CMD_SHIFTL);
                         if (newlabel) {
                             newlabel->value->u.code.dtype = D_BYTE;
@@ -1679,34 +1675,35 @@ struct value_s *compile(struct file_list_s *cflist)
                         address_t fsize = all_mem+1;
                         uval_t uval;
                         struct value_s err;
+                        struct linepos_s epoint2;
                         if (newlabel) {
                             newlabel->value->u.code.dtype = D_BYTE;
                         }
                         if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                        if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!(val = get_val(&epoint2))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
-                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                             fixeddig = 0;
                         } else {
-                            if (val->obj != STR_OBJ) {err_msg_wrong_type(val, &epoint);goto breakerr;}
+                            if (val->obj != STR_OBJ) {err_msg_wrong_type(val, &epoint2);goto breakerr;}
                             path = get_path(val, cfile->realname);
                             val2 = val;
                         }
-                        if ((val = get_val(&epoint))) {
+                        if ((val = get_val(&epoint2))) {
                             if (val->obj == NONE_OBJ) {
-                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                                 fixeddig = 0;
                             } else {
-                                if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err);
+                                if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint2)) err_msg_output_and_destroy(&err);
                                 else foffset = uval;
                             }
-                            if ((val = get_val(&epoint))) {
+                            if ((val = get_val(&epoint2))) {
                                 if (val->obj == NONE_OBJ) {
-                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                                     fixeddig = 0;
                                 } else {
-                                    if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err);
-                                    else if ((address_t)uval > fsize) err_msg2(ERROR_CONSTNT_LARGE,NULL, &epoint);
+                                    if (val->obj->uval(val, &err, &uval, 8*sizeof(uval_t), &epoint2)) err_msg_output_and_destroy(&err);
+                                    else if ((address_t)uval > fsize) err_msg2(ERROR_CONSTNT_LARGE,NULL, &epoint2);
                                     else fsize = uval;
                                 }
                             }
@@ -1714,7 +1711,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         eval_finish();
 
                         if (val2) {
-                            struct file_s *cfile2 = openfile(path, cfile->realname, 1, val2);
+                            struct file_s *cfile2 = openfile(path, cfile->realname, 1, val2, &epoint);
                             if (cfile2) {
                                 for (;fsize && foffset < cfile2->len;fsize--) {
                                     pokeb(cfile2->data[foffset]);foffset++;
@@ -2027,7 +2024,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     int rc;
                     int first = 1;
                     int writeit = 1;
-                    struct error_s user_error;
+                    struct errorbuffer_s user_error;
                     struct linepos_s epoint2;
                     error_init(&user_error);
                     rc = get_exp(&w,0,cfile);
@@ -2296,7 +2293,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj != STR_OBJ) {err_msg_wrong_type(val, &epoint2);goto breakerr;}
                         path = get_path(val, cfile->realname);
 
-                        f = openfile(path, cfile->realname, 0, val);
+                        f = openfile(path, cfile->realname, 0, val, &epoint);
                         free((char *)path);
                         if (f->open>1) {
                             err_msg(ERROR_FILERECURSION,NULL);
@@ -2369,7 +2366,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (prm==CMD_FOR) { /* .for */
                     size_t pos, xpos;
                     line_t lin, xlin;
-                    struct linepos_s apoint, bpoint = {0,0,0};
+                    struct linepos_s apoint, bpoint = {0, 0, 0};
                     int nopos = -1;
                     uint8_t *expr;
                     struct label_s *var;
@@ -2417,7 +2414,7 @@ struct value_s *compile(struct file_list_s *cflist)
 
                     s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
                     if (starexists && s->addr != star) {
-                        struct linepos_s nopoint = {0,0,0};
+                        struct linepos_s nopoint = {0, 0, 0};
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &nopoint);
                         fixeddig=0;
                     }
@@ -3036,10 +3033,11 @@ int main(int argc, char *argv[]) {
     struct file_s *fin, *cfile;
     struct file_list_s *cflist;
     static const str_t none_enc = {4, (const uint8_t *)"none"};
+    struct linepos_s nopoint = {0, 0, 0};
 
     tinit();
 
-    fin = openfile("", "", 0, NULL);
+    fin = openfile("", "", 0, NULL, &nopoint);
     opts = testarg(argc,argv, fin);
     init_encoding(arguments.toascii);
     init_defaultlabels();
@@ -3051,9 +3049,8 @@ int main(int argc, char *argv[]) {
 
     /* assemble the input file(s) */
     do {
-        struct linepos_s nopoint = {0,0,0};
         if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
-        fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
+        fixeddig=1;freeerrorlist(0);
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
@@ -3076,7 +3073,7 @@ int main(int argc, char *argv[]) {
                 restart_memblocks(&root_section.mem, 0);
                 continue;
             }
-            cfile = openfile(argv[i], "", 0, NULL);
+            cfile = openfile(argv[i], "", 0, NULL, &nopoint);
             cflist = enterfile(cfile, &nopoint);
             if (cfile) {
                 cfile->p = 0;
@@ -3088,19 +3085,18 @@ int main(int argc, char *argv[]) {
             exitfile();
         }
         if (fixeddig && pass != 1) shadow_check(&root_label->members);
-        if (errors) {status();return 1;}
+        if (error_serious()) {status();return 1;}
     } while (!fixeddig || pass==1);
 
     /* assemble again to create listing */
     if (arguments.list) {
-        struct linepos_s nopoint = {0,0,0};
         char **argv2 = argv;
         int argc2 = argc;
         listing=1;
         if (arguments.list[0] == '-' && !arguments.list[1]) {
             flist = stdout;
         } else {
-            if (!(flist=file_open(arguments.list,"wt"))) err_msg_file(ERROR_CANT_DUMP_LST, arguments.list);
+            if (!(flist=file_open(arguments.list,"wt"))) err_msg_file(ERROR_CANT_DUMP_LST, arguments.list, &nopoint);
         }
 	fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
         if (*argv2) {
@@ -3115,7 +3111,7 @@ int main(int argc, char *argv[]) {
 	time(&t); fprintf(flist,"\n; %s",ctime(&t));
 
         max_pass = pass; pass++;
-        fixeddig=1;conderrors=warnings=0;freeerrorlist(0);
+        fixeddig=1;freeerrorlist(0);
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             if (i >= opts) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
@@ -3141,7 +3137,7 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
-            cfile = openfile(argv[i], "", 0, NULL);
+            cfile = openfile(argv[i], "", 0, NULL, &nopoint);
             cflist = enterfile(cfile, &nopoint);
             if (cfile) {
                 cfile->p = 0;
@@ -3160,7 +3156,7 @@ int main(int argc, char *argv[]) {
 
     if (arguments.label) labelprint();
 
-    if (errors || conderrors) {status();return 1;}
+    if (error_any()) {status();return 1;}
 
     output_mem(&root_section.mem);
     status();

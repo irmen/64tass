@@ -273,6 +273,7 @@ static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks
 
 void output_mem(struct memblocks_s *memblocks) {
     FILE* fout;
+    struct linepos_s nopoint = {0,0,0};
 
     memcomp(memblocks);
 
@@ -280,7 +281,7 @@ void output_mem(struct memblocks_s *memblocks) {
         if (arguments.output[0] == '-' && !arguments.output[1]) {
             fout = stdout;
         } else {
-            if ((fout=file_open(arguments.output,"wb"))==NULL) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output);
+            if ((fout=file_open(arguments.output,"wb"))==NULL) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
         }
         clearerr(fout);
         switch (arguments.output_mode) {
@@ -290,7 +291,7 @@ void output_mem(struct memblocks_s *memblocks) {
         case OUTPUT_RAW: 
         case OUTPUT_CBM: output_mem_c64(fout, memblocks); break;
         }
-        if (ferror(fout)) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output);
+        if (ferror(fout)) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
         if (fout != stdout) fclose(fout);
     }
 }
