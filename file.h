@@ -50,7 +50,7 @@ struct star_s {
     struct avltree_node node;
 };
 
-extern struct file_s *openfile(const char *, const char *, int, const struct value_s *);
+extern struct file_s *openfile(const char *, const char *, int, const struct value_s *, linepos_t);
 extern void closefile(struct file_s*);
 extern struct star_s *new_star(line_t, int *);
 extern void destroy_file(void);

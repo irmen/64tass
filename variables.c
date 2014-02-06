@@ -428,15 +428,16 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
 
 void labelprint(void) {
     FILE *flab;
+    struct linepos_s nopoint = {0, 0, 0};
 
     if (arguments.label[0] == '-' && !arguments.label[1]) {
         flab = stdout;
     } else {
-        if (!(flab = file_open(arguments.label, "wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
+        if (!(flab = file_open(arguments.label, "wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
     }
     clearerr(flab);
     labelprint2(&root_label->members, flab);
-    if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label);
+    if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
     if (flab != stdout) fclose(flab);
 }
 
