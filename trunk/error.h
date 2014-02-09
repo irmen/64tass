@@ -62,9 +62,11 @@ enum errors_e {
     ERROR_CONSTNT_LARGE,
     ERROR_GENERL_SYNTAX,
     ERROR_EXPRES_SYNTAX,
+    ERROR_LABEL_REQUIRE,
     ERROR_MISSING_ARGUM,
     ERROR_ILLEGAL_OPERA,
     ERROR_DIVISION_BY_Z,
+    ERROR_NO_ZERO_VALUE,
     ERROR_CANT_CROSS_BA,
     ERROR_OUTOF_SECTION,
     ERROR_NEGFRAC_POWER,
@@ -89,6 +91,7 @@ enum errors_e {
     ERROR____PAGE_ERROR,
     ERROR__BRANCH_CROSS,
     ERROR_BRANCH_TOOFAR,
+    ERROR____PTEXT_LONG,
     ERROR___UNKNOWN_CHR,
     ERROR______EXPECTED,
     ERROR____WRONG_TYPE,
@@ -110,7 +113,6 @@ enum errors_e {
     ERROR__MACRECURSION,
     ERROR__REFRECURSION,
     ERROR_TOO_MANY_PASS,
-    ERROR__TOO_MANY_ERR,
     ERROR___UNKNOWN_CPU,
     ERROR_UNKNOWN_OPTIO
 };
@@ -123,13 +125,15 @@ extern void err_msg_invalid_oper(const struct value_s *, const struct value_s *,
 extern void err_msg_double_defined(const struct label_s *, const str_t *, linepos_t);
 extern void err_msg_shadow_defined(const struct label_s *, const struct label_s *);
 extern void err_msg_not_defined(const str_t *, linepos_t);
+extern void err_msg_not_definedx(const str_t *, linepos_t);
 extern void err_msg_requires(const str_t *name, linepos_t);
 extern void err_msg_conflicts(const str_t *name, linepos_t);
 extern void err_msg_variable(struct errorbuffer_s *, struct value_s *);
 extern void err_msg_file(enum errors_e, const char *, linepos_t);
 extern void err_msg_output_and_destroy(struct value_s *);
 extern void err_msg_argnum(unsigned int, unsigned int, unsigned int, linepos_t);
-extern void freeerrorlist(int);
+extern void error_reset(void);
+extern int error_print(int, int, int);
 extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(void);
@@ -138,7 +142,6 @@ extern void NO_RETURN err_msg_out_of_memory(void);
 extern void errors_destroy(struct errorbuffer_s *);
 extern void error_init(struct errorbuffer_s *);
 extern void error_status(void);
-extern int error_serious(void);
-extern int error_any(void);
+extern int error_serious(int, int);
 
 #endif

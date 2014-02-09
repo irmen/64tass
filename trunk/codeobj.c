@@ -37,25 +37,23 @@ static void destroy(struct value_s *v1) {
 
 static int access_check(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     str_t name;
-    if (pass != 1) {
-        if (v1->u.code.parent->requires & ~current_section->provides) {
-            name = v1->u.code.parent->name;
-            if (v1 == v) destroy(v);
-            v->obj = ERROR_OBJ;
-            v->u.error.u.ident = name;
-            v->u.error.epoint = *epoint;
-            v->u.error.num = ERROR_REQUIREMENTS_;
-            return 1;
-        }
-        if (v1->u.code.parent->conflicts & current_section->provides) {
-            name = v1->u.code.parent->name;
-            if (v1 == v) destroy(v);
-            v->obj = ERROR_OBJ;
-            v->u.error.u.ident = name;
-            v->u.error.epoint = *epoint;
-            v->u.error.num = ERROR______CONFLICT;
-            return 1;
-        }
+    if (v1->u.code.parent->requires & ~current_section->provides) {
+        name = v1->u.code.parent->name;
+        if (v1 == v) destroy(v);
+        v->obj = ERROR_OBJ;
+        v->u.error.u.ident = name;
+        v->u.error.epoint = *epoint;
+        v->u.error.num = ERROR_REQUIREMENTS_;
+        return 1;
+    }
+    if (v1->u.code.parent->conflicts & current_section->provides) {
+        name = v1->u.code.parent->name;
+        if (v1 == v) destroy(v);
+        v->obj = ERROR_OBJ;
+        v->u.error.u.ident = name;
+        v->u.error.epoint = *epoint;
+        v->u.error.num = ERROR______CONFLICT;
+        return 1;
     }
     return 0;
 }

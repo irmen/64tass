@@ -26,9 +26,7 @@
 #include "64tass.h"
 #include "strobj.h"
 
-#define MAX_ERRORS 99
-
-static unsigned int errors = 0, conderrors = 0, warnings = 0;
+static unsigned int errors = 0, warnings = 0;
 
 static struct file_list_s file_list;
 static const struct file_list_s *included_from;
@@ -36,10 +34,9 @@ static struct file_list_s *current_file_list;
 
 static struct errorbuffer_s error_list = {0, 0, 0, 0, NULL};
 static struct avltree notdefines;
-static int notdefinespass;
 
 enum severity_e {
-    SV_NOTE, SV_WARNING, SV_ERROR, SV_FATAL
+    SV_DOUBLENOTE, SV_NOTDEFNOTE, SV_WARNING, SV_CONDERROR, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_ERROR, SV_FATAL
 };
 
 struct error_s {
@@ -152,9 +149,11 @@ static const char *terr_error[]={
     "constant too large",
     "general syntax",
     "expression syntax",
+    "label required",
     "missing argument",
     "illegal operand",
     "division by zero",
+    "zero value not allowed",
     "instruction can't cross banks",
     "address out of section",
     "negative number raised on fractional power",
@@ -186,48 +185,34 @@ static const char *terr_fatal[]={
     "file recursion",
     "macro recursion too deep",
     "reference recursion too deep",
-    "too many passes",
-    "too many errors"
+    "too many passes"
 };
 
-static void inc_errors(void) {
-    if (!errors) conderrors = warnings = error_list.len = error_list.header_pos = 0;
-    errors++;
-}
-
 void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
-    if (pass == 1 && no < 0x80) return;
-    if (errors + conderrors == MAX_ERRORS && no >= 0x40) no = ERROR__TOO_MANY_ERR;
 
-    if (!arguments.warning && no<0x40) {
-        if (errors) return;
-        warnings++;
+    if (no < 0x40) {
+        new_error(SV_WARNING, current_file_list, epoint);
+        if (no == ERROR_WUSER_DEFINED) adderror2(((struct errorbuffer_s *)prm)->data, ((struct errorbuffer_s *)prm)->len);
+        else adderror(terr_warning[no]);
         return;
     }
 
-    if (no < 0x40) {
-        if (errors) return;
-        new_error(SV_WARNING, current_file_list, epoint);
-        warnings++;
-        if (no == ERROR_WUSER_DEFINED) adderror2(((struct errorbuffer_s *)prm)->data, ((struct errorbuffer_s *)prm)->len);
-        else adderror(terr_warning[no]);
-    }
-    else if (no < 0x80) {
+    if (no < 0x80) {
         char line[1024];
         switch (no) {
         case ERROR____PAGE_ERROR:
         case ERROR_BRANCH_TOOFAR:
+        case ERROR____PTEXT_LONG:
         case ERROR__BRANCH_CROSS:
         case ERROR__USER_DEFINED:
         case ERROR___UNKNOWN_CHR:
         case ERROR_CANT_CROSS_BA:
         case ERROR_OUTOF_SECTION:
-        case ERROR_CONSTNT_LARGE:
-            if (errors) return; 
-            conderrors++;break;
-        default: inc_errors();
+        case ERROR_DIVISION_BY_Z:
+        case ERROR_NO_ZERO_VALUE:
+        case ERROR_CONSTNT_LARGE: new_error(SV_CONDERROR, current_file_list, epoint); break;
+        default: new_error(SV_ERROR, current_file_list, epoint);
         }
-        new_error(SV_ERROR, current_file_list, epoint);
         switch (no) {
         case ERROR____PAGE_ERROR:
             adderror("page error at $");
@@ -235,6 +220,9 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
             break;
         case ERROR_BRANCH_TOOFAR:
             sprintf(line,"branch too far by %+d bytes", *(const int *)prm); adderror(line);
+            break;
+        case ERROR____PTEXT_LONG:
+            sprintf(line,"ptext too long by %lu bytes", (unsigned long)*(const size_t *)prm - 0x100); adderror(line);
             break;
         case ERROR__BRANCH_CROSS:
             adderror("branch crosses page");
@@ -265,24 +253,23 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         default:
             adderror(terr_error[no & 63]);
         }
+        return;
     }
-    else {
-        if (no == ERROR__TOO_MANY_ERR) errors++; else inc_errors();
-        new_error(SV_FATAL, current_file_list, epoint);
-        switch (no) {
-        case ERROR___UNKNOWN_CPU:
-            adderror("unknown cpu: ");
-            adderror((char *)prm);
-            break;
-        case ERROR_UNKNOWN_OPTIO:
-            adderror("unknown option: ");
-            adderror((char *)prm);
-            break;
-        default:
-            adderror(terr_fatal[no & 63]);
-        }
-        status();exit(1);
+    
+    new_error(SV_FATAL, current_file_list, epoint);
+    switch (no) {
+    case ERROR___UNKNOWN_CPU:
+        adderror("unknown cpu: ");
+        adderror((char *)prm);
+        break;
+    case ERROR_UNKNOWN_OPTIO:
+        adderror("unknown option: ");
+        adderror((char *)prm);
+        break;
+    default:
+        adderror(terr_fatal[no & 63]);
     }
+    status(1);exit(1);
 }
 
 void err_msg(enum errors_e no, const void* prm) {
@@ -304,46 +291,26 @@ static void str_name(const uint8_t *data, size_t len) {
 }
 
 static void err_msg_str_name(const char *msg, const str_t *name, linepos_t epoint) {
-    if (pass == 1) return;
-    if (errors + conderrors == MAX_ERRORS) {
-        err_msg(ERROR__TOO_MANY_ERR, NULL);
-        return;
-    }
-    inc_errors();
     new_error(SV_ERROR, current_file_list, epoint);
     adderror(msg);
     if (name) str_name(name->data, name->len);
-    return;
 }
 
 static void err_msg_char_name(const char *msg, const char *name, linepos_t epoint) {
-    str_t tmp;
-    tmp.data = (const unsigned char *)name;
-    tmp.len = strlen(name);
-    err_msg_str_name(msg, &tmp, epoint);
+    new_error(SV_CONDERROR, current_file_list, epoint);
+    adderror(msg);
+    str_name((const uint8_t *)name, strlen(name));
 }
 
 static void err_msg_big_integer(const char *msg, int bits, linepos_t epoint) {
     char msg2[256];
-    if (pass == 1) return;
-    if (errors + conderrors == MAX_ERRORS) {
-        err_msg(ERROR__TOO_MANY_ERR, NULL);
-        return;
-    }
-    if (fixeddig) inc_errors(); else {
-        if (errors) return; 
-        conderrors++;
-    }
-    new_error(SV_ERROR, current_file_list, epoint);
+    new_error(SV_CONDERROR, current_file_list, epoint);
     sprintf(msg2, msg, bits);
     adderror(msg2);
-    return;
 }
 
 static void err_msg_no_forward(const str_t *name, linepos_t epoint) {
-    if (pass == 1) return;
     err_msg_str_name("too early to reference", name, epoint);
-    return;
 }
 
 static int notdefines_compare(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -365,7 +332,6 @@ static struct notdefines_s *lastnd = NULL;
 static inline void err_msg_not_defined2(const str_t *name, const struct label_s *l, int down, linepos_t epoint) {
     struct notdefines_s *tmp2;
     struct avltree_node *b;
-    if (pass == 1) return;
     if (!lastnd) {
         lastnd = (struct notdefines_s *)malloc(sizeof(struct notdefines_s));
         if (!lastnd) err_msg_out_of_memory();
@@ -384,25 +350,24 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
         str_cpy(&lastnd->name, name);
         lastnd = NULL;
     }
-    err_msg_str_name("not defined", name, epoint);
+
+    new_error(SV_NOTDEFERROR, current_file_list, epoint);
+    adderror("not defined");
+    if (name) str_name(name->data, name->len);
+
     if (!l->file_list) {
-        new_error(SV_NOTE, current_file_list, epoint);
+        new_error(SV_NOTDEFNOTE, current_file_list, epoint);
         adderror("searched in the global scope");
     } else {
-        new_error(SV_NOTE, l->file_list, &l->epoint);
+        new_error(SV_NOTDEFNOTE, l->file_list, &l->epoint);
         adderror("searched in");
         str_name(l->name.data, l->name.len);
         adderror(down ? " defined here, and in all it's parents" : " defined here");
     }
-    if (notdefinespass != pass) {
-        notdefinespass = pass;
-        new_error(SV_NOTE, l->file_list ? l->file_list : current_file_list, epoint);
-        adderror("each undefined identifier is reported only once for each scope");
-    }
 }
 
 static void err_msg_output(const struct value_s *val) {
-    if (pass != 1 && val->obj == ERROR_OBJ) {
+    if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
         case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.label, val->u.error.u.notdef.down, &val->u.error.epoint);break;
         case ERROR____NO_FORWARD: err_msg_no_forward(&val->u.error.u.ident, &val->u.error.epoint);break;
@@ -437,32 +402,36 @@ void err_msg_output_and_destroy(struct value_s *val) {
 }
 
 void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
-    if (pass == 1) return;
     err_msg2(ERROR____WRONG_TYPE, val->obj->name, epoint);
 }
 
 void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {
-    if (pass == 1) return;
     err_msg_str_name("can't calculate stable value", name, epoint);
     return;
 }
 
 void err_msg_not_defined(const str_t *name, linepos_t epoint) {
-    if (pass == 1) return;
     err_msg_str_name("not defined", name, epoint);
     return;
 }
 
-void err_msg_requires(const str_t *name, linepos_t epoint) {
-    if (pass == 1) return;
-    err_msg_str_name("requirements not met", name, epoint);
+void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
+    new_error(SV_NOTDEFERROR, current_file_list, epoint);
+    adderror("not defined");
+    if (name) str_name(name->data, name->len);
     return;
 }
 
+void err_msg_requires(const str_t *name, linepos_t epoint) {
+    new_error(SV_CONDERROR, current_file_list, epoint);
+    adderror("requirements not met");
+    if (name) str_name(name->data, name->len);
+}
+
 void err_msg_conflicts(const str_t *name, linepos_t epoint) {
-    if (pass == 1) return;
-    err_msg_str_name("conflict", name, epoint);
-    return;
+    new_error(SV_CONDERROR, current_file_list, epoint);
+    adderror("conflict");
+    if (name) str_name(name->data, name->len);
 }
 
 static void add_user_error2(struct errorbuffer_s *user_error, const uint8_t *s, size_t len) {
@@ -488,17 +457,10 @@ void err_msg_variable(struct errorbuffer_s *user_error, struct value_s *val) {
 }
 
 static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
-
-    if (errors + conderrors == MAX_ERRORS) {
-        err_msg(ERROR__TOO_MANY_ERR, NULL);
-        return;
-    }
-
-    inc_errors();
-    new_error(SV_ERROR, cflist, epoint2);
+    new_error(SV_DOUBLEERROR, cflist, epoint2);
     adderror(msg);
     str_name(labelname2->data, labelname2->len);
-    new_error(SV_NOTE, l->file_list, &l->epoint);
+    new_error(SV_DOUBLENOTE, l->file_list, &l->epoint);
     adderror("previous definition of");
     str_name(l->name.data, l->name.len);
     adderror(" was here");
@@ -512,20 +474,14 @@ void err_msg_shadow_defined(const struct label_s *l, const struct label_s *l2) {
     err_msg_double_defined2("shadow definition", l, l2->file_list, &l2->name, &l2->epoint);
 }
 
-static int err_oper(const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
-    if (pass == 1) return 0;
+void err_msg_invalid_oper(const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
     if (v1->obj == ERROR_OBJ) {
         err_msg_output(v1);
-        return 0;
+        return;
     }
     if (v2 && v2->obj == ERROR_OBJ) {
         err_msg_output(v2);
-        return 0;
-    }
-
-    if (errors + conderrors == MAX_ERRORS) {
-        err_msg(ERROR__TOO_MANY_ERR, NULL);
-        return 0;
+        return;
     }
 
     new_error(SV_ERROR, current_file_list, epoint);
@@ -543,22 +499,12 @@ static int err_oper(const struct value_s *op, const struct value_s *v1, const st
         adderror(v1->obj->name);
     }
     adderror("'");
-    return 1;
-}
-
-void err_msg_invalid_oper(const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
-    if (err_oper(op, v1, v2, epoint)) errors++;
 }
 
 void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepos_t epoint) {
     unsigned int n;
     char line[1024];
-    if (pass == 1) return;
-    if (errors + conderrors == MAX_ERRORS) {
-        err_msg(ERROR__TOO_MANY_ERR, NULL);
-        return;
-    }
-    inc_errors();
+
     new_error(SV_ERROR, current_file_list, epoint);
     adderror("expected ");
     n = min;
@@ -601,8 +547,12 @@ static inline void print_error(FILE *f, const struct error_s *err) {
     }
     fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, epoint->pos - epoint->upos + 1); 
     switch (err->severity) {
-    case SV_NOTE: fputs("note: ", f);break;
+    case SV_NOTDEFNOTE:
+    case SV_DOUBLENOTE: fputs("note: ", f);break;
     case SV_WARNING: fputs("warning: ", f);break;
+    case SV_CONDERROR:
+    case SV_DOUBLEERROR:
+    case SV_NOTDEFERROR:
     case SV_ERROR: fputs("error: ", f);break;
     case SV_FATAL: fputs("fatal error: ", f);break;
     }
@@ -610,16 +560,50 @@ static inline void print_error(FILE *f, const struct error_s *err) {
     putc('\n', f);
 }
 
-void freeerrorlist(int print) {
-    if (print) {
-        size_t pos = 0;
-        close_error(&error_list);
-        while (pos < error_list.len) {
-            const struct error_s *err = (const struct error_s *)&error_list.data[pos];
-            print_error(stderr, err);
-            pos += sizeof(struct error_s) + err->len;
+int error_print(int fix, int newvar, int anyerr) {
+    const struct error_s *err, *err2;
+    size_t pos, pos2;
+    warnings = errors = 0;
+    close_error(&error_list);
+
+    for (pos = 0; pos < error_list.len; pos += sizeof(struct error_s) + err->len) {
+        err = (const struct error_s *)&error_list.data[pos];
+        switch (err->severity) {
+        case SV_NOTDEFNOTE: 
+            if (newvar) continue; 
+            pos2 = pos + sizeof(struct error_s) + err->len;
+            err2 = (const struct error_s *)&error_list.data[pos2];
+            if (pos2 >= error_list.len || err2->severity != SV_NOTDEFERROR) break;
+            pos2 += sizeof(struct error_s) + err2->len;
+            err2 = (const struct error_s *)&error_list.data[pos2];
+            if (pos2 >= error_list.len || err2->severity != SV_NOTDEFNOTE) break;
+            if (err->len == err2->len) {
+                if (err->len == strlen("searched in the global scope") && !memcmp((uint8_t*)err + sizeof(struct error_s), "searched in the global scope", err->len)) continue;
+                if (err->file_list == err2->file_list && err->epoint.line == err2->epoint.line && 
+                    err->epoint.pos == err2->epoint.pos && err->epoint.upos == err2->epoint.upos) continue;
+            }
+            break;
+        case SV_DOUBLENOTE:
+            pos2 = pos + sizeof(struct error_s) + err->len;
+            err2 = (const struct error_s *)&error_list.data[pos2];
+            if (pos2 >= error_list.len || err2->severity != SV_DOUBLEERROR) break;
+            pos2 += sizeof(struct error_s) + err2->len;
+            err2 = (const struct error_s *)&error_list.data[pos2];
+            if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
+            if (err->file_list == err2->file_list && err->len == err2->len && err->epoint.line == err2->epoint.line && 
+                err->epoint.pos == err2->epoint.pos && err->epoint.upos == err2->epoint.upos) continue;
+            break;
+        case SV_WARNING: warnings++; if (!arguments.warning || anyerr) continue; break;
+        case SV_CONDERROR: if (!fix) continue; errors++; break;
+        case SV_NOTDEFERROR: if (newvar) continue; errors++; break;
+        default: errors++; break;
         }
-    } else warnings = errors = conderrors = 0;
+        print_error(stderr, err);
+    }
+    return errors;
+}
+
+void error_reset(void) {
     error_list.len = error_list.header_pos = 0;
     current_file_list = &file_list;
     included_from = &file_list;
@@ -643,21 +627,18 @@ void err_destroy(void) {
 
 void err_msg_out_of_memory(void)
 {
-    freeerrorlist(1);
+    error_print(0, 1, 1);
     fputs("Out of memory error\n", stderr);
     exit(1);
 }
 
 void err_msg_file(enum errors_e no, const char* prm, linepos_t epoint) {
-    char *error;
-    inc_errors();
     new_error(SV_FATAL, current_file_list, epoint);
     adderror(terr_fatal[no & 63]);
     adderror(prm);
     adderror(": ");
-    error = strerror(errno);
-    adderror(error);
-    status();exit(1);
+    adderror(strerror(errno));
+    status(1);exit(1);
 }
 
 void error_init(struct errorbuffer_s *error) {
@@ -671,15 +652,26 @@ void errors_destroy(struct errorbuffer_s *error) {
 
 void error_status(void) {
     printf("Error messages:    ");
-    if (errors + conderrors) printf("%u\n", errors + conderrors); else puts("None");
+    if (errors) printf("%u\n", errors); else puts("None");
     printf("Warning messages:  ");
     if (warnings) printf("%u\n", warnings); else puts("None");
 }
 
-int error_serious(void) {
-    return !!errors;
+int error_serious(int fix, int newvar) {
+    const struct error_s *err;
+    size_t pos;
+    close_error(&error_list);
+    for (pos = 0; pos < error_list.len; pos += sizeof(struct error_s) + err->len) {
+        err = (const struct error_s *)&error_list.data[pos];
+        switch (err->severity) {
+        case SV_NOTDEFNOTE:
+        case SV_DOUBLENOTE:
+        case SV_WARNING: break;
+        case SV_CONDERROR: if (fix && !newvar) return 1; break;
+        case SV_NOTDEFERROR: if (!newvar) return 1; break;
+        default: return 1;
+        }
+    }
+    return 0;
 }
 
-int error_any(void) {
-    return !!(errors + conderrors);
-}

@@ -54,7 +54,7 @@ extern struct avltree *star_tree;
 extern int fixeddig;
 extern address_t star;
 extern const uint8_t *pline, *llist;
-extern void status(void);
+extern void status(int);
 extern uint16_t reffile;
 extern uint32_t backr, forwr;
 extern uint8_t pass, max_pass;

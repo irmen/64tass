@@ -72,7 +72,7 @@ struct linepos_s lpoint;        /* position in current line */
 static FILE* flist = NULL;      /* listfile */
 static enum lastl_e lastl;
 static int8_t strength=0;
-int fixeddig;
+int fixeddig, constcreated;
 static uint8_t outputeor = 0; /* EOR value for final output (usually 0, except changed by .eor) */
 
 static size_t waitfor_p, waitfor_len;
@@ -200,12 +200,12 @@ enum command_e {
 
 /* --------------------------------------------------------------------------- */
 
-void status(void) {
-    freeerrorlist(1);
+void status(int anyerr) {
+    int errors = error_print(fixeddig, constcreated, anyerr);
     if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
         error_status();
         printf("Passes:            %u\n",pass);
-        sectionprint();
+        if (!errors) sectionprint();
     }
     destroy_eval();
     tfree();
@@ -601,9 +601,9 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (tmp2) tmp2->shadowcheck = (labelname.data[0] != '_');
                 }
                 else tmp2 = find_label2(&labelname, mycontext);
-                if (!tmp2) {err_msg_not_defined(&labelname, &epoint); goto breakerr;}
+                if (!tmp2) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
                 if (tmp2->value->obj != CODE_OBJ) {
-                    err_msg_not_defined(&labelname, &epoint); goto breakerr;
+                    err_msg_wrong_type(tmp2->value, &epoint); goto breakerr;
                 }
                 mycontext = tmp2;
                 lpoint.pos++; islabel = 1; epoint = lpoint;
@@ -648,6 +648,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (labelexists) {
                     if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                     else {
+                        if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                         label->constant = 1;
                         label->requires = current_section->requires;
                         label->conflicts = current_section->conflicts;
@@ -655,6 +656,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     val_destroy(val);
                 } else {
+                    constcreated |= !temporary_label_branch;
                     label->constant = 1;
                     label->requires = current_section->requires;
                     label->conflicts = current_section->conflicts;
@@ -721,6 +723,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             else {
+                                if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
@@ -733,6 +736,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 var_assign(label, &new_value, 0);
                             }
                         } else {
+                            constcreated |= !temporary_label_branch;
                             val = val_alloc();
                             label->constant = 1;
                             label->requires = 0;
@@ -762,6 +766,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             else {
+                                if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
@@ -774,6 +779,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val_destroy(&new_value);
                             }
                         } else {
+                            constcreated |= !temporary_label_branch;
                             val = val_alloc();
                             label->constant = 1;
                             label->requires = 0;
@@ -801,6 +807,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             else {
+                                if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
@@ -812,6 +819,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val_destroy(&new_value);
                             }
                         } else {
+                            constcreated |= !temporary_label_branch;
                             val = val_alloc();
                             label->constant = 1;
                             label->requires = 0;
@@ -848,6 +856,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (labelexists) {
                                 if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                                 else {
+                                    if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                                     label->constant = 1;
                                     label->requires = 0;
                                     label->conflicts = 0;
@@ -860,6 +869,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     val_destroy(&new_value);
                                 }
                             } else {
+                                constcreated |= !temporary_label_branch;
                                 val = val_alloc();
                                 label->constant = 1;
                                 label->requires = 0;
@@ -1016,6 +1026,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         err_msg_double_defined(newlabel, &labelname, &epoint);
                         newlabel = NULL; goto jn;
                     }
+                    if (newlabel->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                     newlabel->constant = 1;
                     newlabel->requires = current_section->requires;
                     newlabel->conflicts = current_section->conflicts;
@@ -1041,6 +1052,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         newlabel->defpass = pass;
                     }
                 } else {
+                    constcreated |= !temporary_label_branch;
                     val = val_alloc();
                     newlabel->constant = 1;
                     newlabel->requires=current_section->requires;
@@ -1064,8 +1076,8 @@ struct value_s *compile(struct file_list_s *cflist)
                 switch (prm) {
                 case CMD_PROC:
                     new_waitfor(W_PEND, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;waitfor->cheap_label = oldcheap;
-                    if (!newlabel->ref && newlabel->value->u.code.pass) waitfor->skip=0;
-                    else {
+                    if (!newlabel->ref && newlabel->value->u.code.pass) {waitfor->skip=0; set_size(newlabel, 0, &current_section->mem, newmemp, newmembp);}
+                    else {         /* TODO: first time it should not compile */ 
                         current_context=newlabel;
                         if (listing && flist && arguments.source) {
                             int l;
@@ -1289,53 +1301,46 @@ struct value_s *compile(struct file_list_s *cflist)
                     uint8_t skwait = waitfor->skip;
                     ival_t ival;
                     struct value_s err;
-                    int truth;
                     if (prm==CMD_ELSIF) {
-                        if (waitfor->what!=W_FI2) {err_msg2(ERROR______EXPECTED,".IF", &epoint); break;}
+                        if (waitfor->what != W_FI2) {err_msg2(ERROR______EXPECTED, ".IF", &epoint); break;}
                         waitfor->epoint = epoint;
                     } else new_waitfor(W_FI2, &epoint);
-                    if (((skwait==1) && prm!=CMD_ELSIF) || ((skwait==2) && prm==CMD_ELSIF)) {
-                        if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
+                    if (((skwait == 1) && prm != CMD_ELSIF) || ((skwait == 2) && prm == CMD_ELSIF)) {
+                        if (!get_exp(&w,0,cfile)) { waitfor->skip = 0; goto breakerr;} /* ellenorizve. */
                         if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
+                            waitfor->skip = 0;
+                            break;
                         }
-                    } else val = &none_value;
+                    } else { waitfor->skip = 0; break; }
                     switch (prm) {
                     case CMD_ELSIF:
-                        if (val->obj == NONE_OBJ) err.u.boolean = 0;
-                        else if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); err.u.boolean = 0; }
+                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
                         waitfor->skip = err.u.boolean ? (waitfor->skip >> 1) : (waitfor->skip & 2);
                         break;
                     case CMD_IF:
-                        if (val->obj == NONE_OBJ) err.u.boolean = 0;
-                        else if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); err.u.boolean = 0; }
+                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
                         waitfor->skip = err.u.boolean ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     case CMD_IFNE:
                     case CMD_IFEQ:
-                        if (val->obj == NONE_OBJ) truth = 0;
-                        else {
-                            val->obj->sign(val, &err, &epoint);
-                            if (err.obj != INT_OBJ) {err_msg_output_and_destroy(&err); truth = 0; }
-                            else truth = (err.u.integer.len == 0) ^ (prm == CMD_IFNE);
-                        }
-                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
+                        val->obj->sign(val, &err, &epoint);
+                        if (err.obj != INT_OBJ) {err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
+                        waitfor->skip = ((err.u.integer.len == 0) ^ (prm == CMD_IFNE)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     case CMD_IFPL:
                     case CMD_IFMI:
-                        if (val->obj == NONE_OBJ) truth = 0;
-                        else if (arguments.tasmcomp) {
-                            if (val->obj->ival(val, &err, &ival, 8*sizeof(uval_t), &epoint)) { err_msg_output_and_destroy(&err); truth = 0; } 
-                            else truth = !(ival & 0x8000) ^ (prm == CMD_IFMI);
+                        if (arguments.tasmcomp) {
+                            if (val->obj->ival(val, &err, &ival, 8*sizeof(uval_t), &epoint)) { err_msg_output_and_destroy(&err); waitfor->skip = 0; break; } 
+                            waitfor->skip = ((ival & 0x8000) ^ (prm == CMD_IFMI)) ? ((prevwaitfor->skip & 1) << 1) : (prevwaitfor->skip & 1);
                         } else {
                             val->obj->sign(val, &err, &epoint);
-                            if (err.obj != INT_OBJ) { err_msg_output_and_destroy(&err); truth = 0; }
-                            else truth = (err.u.integer.len >= 0) ^ (prm == CMD_IFMI);
+                            if (err.obj != INT_OBJ) { err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
+                            waitfor->skip = ((err.u.integer.len >= 0) ^ (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         }
-                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);break;
                         break;
                     }
                     break;
@@ -1344,7 +1349,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uint8_t skwait = waitfor->skip;
                     new_waitfor(W_SWITCH2, &epoint);
                     if (skwait==1) {
-                        if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
+                        if (!get_exp(&w,0,cfile)) {waitfor->skip = 0; goto breakerr;} /* ellenorizve. */
                         if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         eval_finish();
                         if (val->obj == NONE_OBJ) {
@@ -1353,7 +1358,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                     } else val = &none_value;
                     waitfor->val = val_reference(val);
-                    waitfor->skip = (prevwaitfor->skip & 1) << 1;
+                    waitfor->skip = (val->obj == NONE_OBJ) ? 0 : ((prevwaitfor->skip & 1) << 1);
                     break;
                 }
                 if (prm==CMD_CASE) { /* .case */
@@ -1365,11 +1370,14 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (skwait==2) {
                         struct value_s result;
                         struct oper_s tmp;
-                        if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
+                        if (!get_exp(&w,0,cfile)) {waitfor->skip = 0; goto breakerr; } /* ellenorizve. */
                         if (!(val = get_vals_tuple())) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
                         if (val->obj == NONE_OBJ) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
+                            waitfor->skip = 0;
+                            val_destroy(val);
+                            break;
                         }
                         tmp.op = (val->obj == TUPLE_OBJ || val->obj == LIST_OBJ) ? &o_IN : &o_EQ;
                         tmp.v1 = waitfor->val;
@@ -1538,15 +1546,14 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shift2 .null */
                         int16_t ch2=-1;
                         struct value_s err;
-                        struct linepos_s large = {0, 0, 0};
                         int bits = 8 - (prm==CMD_SHIFT || prm==CMD_SHIFTL);
+                        struct linepos_s epoint2;
                         if (newlabel) {
                             newlabel->value->u.code.dtype = D_BYTE;
                         }
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0,cfile)) goto breakerr;
-                        err.obj = NONE_OBJ;
-                        while ((val = get_val(&epoint))) {
+                        while ((val = get_val(&epoint2))) {
                             struct value_s iter, item, *val2;
                             uval_t uval;
                             item.refcount = 0;
@@ -1563,38 +1570,32 @@ struct value_s *compile(struct file_list_s *cflist)
                                     pokeb(ch2); sum++;
                                 }
                                 switch (val2->obj->type) {
-                                case T_GAP:ch2 = -1; uninit++; val_destroy(val2); continue;
+                                case T_GAP:ch2 = -1; uninit++; break;
                                 default:
-                                    if (val2->obj->uval(val2, &err, &uval, bits, &epoint)) uval = 0;
+                                    if (val2->obj->uval(val2, &err, &uval, bits, &epoint2)) {err_msg_output_and_destroy(&err); uval = 0;}
                                     ch2 = (uint8_t)uval;
+                                    if (prm==CMD_SHIFTL) ch2 <<= 1;
+                                    else if (prm==CMD_NULL && !ch2) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &epoint2);
                                     break;
                                 case T_NONE:
-                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
                                     ch2 = fixeddig = 0;
                                 }
-                                if (prm==CMD_SHIFTL) ch2<<=1;
-                                else if (prm==CMD_NULL && !ch2 && val2->obj != NONE_OBJ) large=epoint;
                                 val_destroy(val2);
                             }
                             iter.obj->destroy(&iter);
                         }
                         if (uninit) {memskip(uninit);sum += uninit;}
-                        if (ch2>=0) {
+                        if (ch2 >= 0) {
                             if (prm==CMD_SHIFT) ch2|=0x80;
                             if (prm==CMD_SHIFTL) ch2|=0x01;
                             pokeb(ch2); sum++;
-                        } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) large = epoint;
+                        } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) err_msg_wrong_type(&gap_value, &epoint2);
                         if (prm==CMD_NULL) pokeb(0);
                         if (prm==CMD_PTEXT) {
-                            if (sum>0x100) large=epoint;
+                            if (sum > 0x100) err_msg2(ERROR____PTEXT_LONG, &sum, &epoint);
 
                             if (current_section->dooutput) write_mark_mem(&current_section->mem, sum-1);
-                        }
-                        if (large.pos) err_msg2(ERROR_CONSTNT_LARGE, NULL, &large);
-                        if (err.obj != NONE_OBJ) {
-                            err_msg_output_and_destroy(&err);
-                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                            fixeddig = 0;
                         }
                     } else if (prm<=CMD_DWORD) { /* .byte .word .int .rta .long */
                         int bits;
@@ -1602,7 +1603,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         uval_t uv;
                         ival_t iv;
                         struct value_s err;
-                        err.obj = NONE_OBJ;
                         if (newlabel) {
                             signed char dtype;
                             switch (prm) {
@@ -1640,10 +1640,10 @@ struct value_s *compile(struct file_list_s *cflist)
                                 case T_GAP: uninit += abs(bits) / 8; val_destroy(val2); continue;
                                 default:
                                     if (bits >= 0) {
-                                        if (val2->obj->uval(val2, &err, &uv, bits, &epoint)) uv = 0;
+                                        if (val2->obj->uval(val2, &err, &uv, bits, &epoint)) {err_msg_output_and_destroy(&err); uv = 0;}
                                         ch2 = uv;
                                     } else {
-                                        if (val2->obj->ival(val2, &err, &iv, -bits, &epoint)) iv = 0;
+                                        if (val2->obj->ival(val2, &err, &iv, -bits, &epoint)) {err_msg_output_and_destroy(&err); iv = 0;}
                                         ch2 = iv;
                                     }
                                     break;
@@ -1663,11 +1663,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             iter.obj->destroy(&iter);
                         }
                         if (uninit) memskip(uninit);
-                        if (err.obj != NONE_OBJ) {
-                            err_msg_output_and_destroy(&err);
-                            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                            fixeddig = 0;
-                        }
                     } else if (prm==CMD_BINARY) { /* .binary */
                         const char *path = NULL;
                         size_t foffset = 0;
@@ -2583,21 +2578,21 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 if (prm==CMD_MACRO || prm==CMD_SEGMENT) {
                     new_waitfor(W_ENDM, &epoint);waitfor->skip=0;
-                    err_msg_not_defined(NULL, &epoint);
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
                     break;
                 }
                 if (prm==CMD_FUNCTION) {
                     new_waitfor(W_ENDF, &epoint);waitfor->skip=0;
-                    err_msg_not_defined(NULL, &epoint);
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
                     break;
                 }
                 if (prm==CMD_LBL) {
-                    err_msg_not_defined(NULL, &epoint);
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
                     break;
                 }
                 if (prm==CMD_PROC) {
                     new_waitfor(W_PEND, &epoint);waitfor->skip=0;waitfor->label = NULL;waitfor->cheap_label = NULL;
-                    err_msg_not_defined(NULL, &epoint);
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
                     break;
                 }
                 if (prm==CMD_STRUCT) {
@@ -3050,7 +3045,7 @@ int main(int argc, char *argv[]) {
     /* assemble the input file(s) */
     do {
         if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
-        fixeddig=1;freeerrorlist(0);
+        fixeddig=1;constcreated=0;error_reset();
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
@@ -3084,9 +3079,9 @@ int main(int argc, char *argv[]) {
             }
             exitfile();
         }
-        if (fixeddig && pass != 1) shadow_check(&root_label->members);
-        if (error_serious()) {status();return 1;}
-    } while (!fixeddig || pass==1);
+        if (fixeddig && !constcreated) shadow_check(&root_label->members);
+        if (error_serious(fixeddig, constcreated)) {status(1);return 1;}
+    } while (!fixeddig || constcreated);
 
     /* assemble again to create listing */
     if (arguments.list) {
@@ -3111,7 +3106,7 @@ int main(int argc, char *argv[]) {
 	time(&t); fprintf(flist,"\n; %s",ctime(&t));
 
         max_pass = pass; pass++;
-        fixeddig=1;freeerrorlist(0);
+        fixeddig=1;constcreated=0;error_reset();
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             if (i >= opts) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
@@ -3156,10 +3151,11 @@ int main(int argc, char *argv[]) {
 
     if (arguments.label) labelprint();
 
-    if (error_any()) {status();return 1;}
+    fixeddig = 1; constcreated = 0;
+    if (error_serious(fixeddig, constcreated)) {status(1);return 1;}
 
     output_mem(&root_section.mem);
-    status();
+    status(0);
     return 0;
 }
 
