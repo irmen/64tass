@@ -1851,7 +1851,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             break;
                         case CMD_STRENGTH:
                             if (val->obj->ival(val, &err, &ival, 8, &epoint)) err_msg_output_and_destroy(&err); 
-                            else strength = ival;
+                            else {ival += strength; if (ival < -128) strength = -128; else if (ival > 127) strength = 127; else strength = ival;}
                             break;
                         case CMD_EOR:
                             if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_output_and_destroy(&err);
