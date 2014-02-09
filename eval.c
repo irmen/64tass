@@ -236,6 +236,7 @@ static struct value_s *try_resolv_ident(struct value_s *v1, struct value_s *v) {
         }
         epoint = v1->u.anonident.epoint;
         ident.len = 1;
+        ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
         break;
     case T_IDENT: 
         down = (v1->u.ident.name.data[0] != '_');
