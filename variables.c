@@ -103,7 +103,7 @@ static int label_compare2(const struct avltree_node *aa, const struct avltree_no
     if (h) return h; 
     h = str_cmp(&a->name, &b->name);
     if (h) return h;
-    return a->strength - b->strength;
+    return b->strength - a->strength;
 }
 
 static int label_casecompare2(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -114,7 +114,7 @@ static int label_casecompare2(const struct avltree_node *aa, const struct avltre
     if (h) return h; 
     h = str_casecmp(&a->name, &b->name);
     if (h) return h;
-    return a->strength - b->strength;
+    return b->strength - a->strength;
 }
 
 static struct label_s *strongest_label(struct avltree_node *b, avltree_cmp_fn_t cmp) {
@@ -190,7 +190,7 @@ static struct {
     int32_t count;
 } anon_idents;
 
-struct label_s *find_label3(const str_t *name, const struct label_s *context, int8_t strength) {
+struct label_s *find_label3(const str_t *name, const struct label_s *context, uint8_t strength) {
     struct avltree_node *b;
     struct label_s tmp;
     avltree_cmp_fn_t cmp;
@@ -254,7 +254,7 @@ struct label_s *find_anonlabel2(int32_t count, const struct label_s *context) {
 
 // ---------------------------------------------------------------------------
 static struct label_s *lastlb = NULL;
-struct label_s *new_label(const str_t *name, struct label_s *context, int8_t strength, int *exists) {
+struct label_s *new_label(const str_t *name, struct label_s *context, uint8_t strength, int *exists) {
     struct avltree_node *b;
     struct label_s *tmp;
     avltree_cmp_fn_t cmp;

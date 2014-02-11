@@ -288,7 +288,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
     return val;
 }
 
-struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint, struct file_s *cfile, int8_t strength) {
+struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint, struct file_s *cfile, uint8_t strength) {
     size_t i;
     int w;
     struct label_s *label;

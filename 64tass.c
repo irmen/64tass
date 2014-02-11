@@ -71,7 +71,7 @@ const uint8_t *pline, *llist;   /* current line data */
 struct linepos_s lpoint;        /* position in current line */
 static FILE* flist = NULL;      /* listfile */
 static enum lastl_e lastl;
-static int8_t strength=0;
+static uint8_t strength=0;
 int fixeddig, constcreated;
 static uint8_t outputeor = 0; /* EOR value for final output (usually 0, except changed by .eor) */
 
@@ -131,6 +131,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x45" "ends",
     "\x55" "endswitch",
     "\x48" "endu",
+    "\x57" "endweak",
     "\x3f" "eor",
     "\x24" "error",
     "\x15" "fi",
@@ -170,13 +171,13 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x02" "shift",
     "\x03" "shiftl",
     "\x3c" "showmac",
-    "\x56" "strength",
     "\x44" "struct",
     "\x52" "switch",
     "\x00" "text",
     "\x47" "union",
     "\x41" "var",
     "\x2a" "warn",
+    "\x56" "weak",
     "\x09" "word",
     "\x23" "xl",
     "\x22" "xs",
@@ -195,7 +196,8 @@ enum command_e {
     CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT,
     CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU, CMD_DUNION, CMD_SECTION,
     CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF, CMD_BINCLUDE, CMD_FUNCTION,
-    CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT, CMD_ENDSWITCH, CMD_STRENGTH
+    CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT, CMD_ENDSWITCH, CMD_WEAK,
+    CMD_ENDWEAK
 };
 
 /* --------------------------------------------------------------------------- */
@@ -1513,6 +1515,16 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else err_msg2(ERROR______EXPECTED,".BLOCK", &epoint); break;
                     break;
                 }
+                if (prm==CMD_ENDWEAK) { /* .endweak */
+                    if (close_waitfor(W_WEAK)) {
+                        strength--;
+                    } else if (waitfor->what==W_WEAK2) {
+			if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
+                        close_waitfor(W_WEAK2);
+                        strength--;
+                    } else err_msg2(ERROR______EXPECTED,".WEAK", &epoint); break;
+                    break;
+                }
                 if (prm==CMD_END) {
                     nobreak=0;
                     break;
@@ -1521,6 +1533,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     enum wait_e what2;
                     switch (prm) {
                     case CMD_BLOCK: what2 = W_BEND; break;
+                    case CMD_WEAK: what2 = W_WEAK; break;
                     case CMD_LOGICAL: what2 = W_HERE; break;
                     case CMD_PAGE: what2 = W_ENDP; break;
                     case CMD_UNION: what2 = W_ENDU; break;
@@ -1829,7 +1842,13 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     break;
                 }
-                if (prm==CMD_DATABANK || prm==CMD_DPAGE || prm==CMD_STRENGTH || prm==CMD_EOR) { /* .databank, .dpage, .strength, .eor */
+                if (prm==CMD_WEAK) { /* .weak */
+                    new_waitfor(W_WEAK2, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
+                    strength++;
+                    newlabel = NULL;
+                    break;
+                }
+                if (prm==CMD_DATABANK || prm==CMD_DPAGE || prm==CMD_EOR) { /* .databank, .dpage, .strength, .eor */
                     struct value_s err;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
                     if (!(val = get_val(&epoint))) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
@@ -1839,7 +1858,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         fixeddig = 0;
                     } else {
                         uval_t uval;
-                        ival_t ival;
                         switch (prm) {
                         case CMD_DATABANK:
                             if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_output_and_destroy(&err); 
@@ -1848,10 +1866,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         case CMD_DPAGE:
                             if (val->obj->uval(val, &err, &uval, 16, &epoint)) err_msg_output_and_destroy(&err); 
                             else dpage = uval;
-                            break;
-                        case CMD_STRENGTH:
-                            if (val->obj->ival(val, &err, &ival, 8, &epoint)) err_msg_output_and_destroy(&err); 
-                            else {ival += strength; if (ival < -128) strength = -128; else if (ival > 127) strength = 127; else strength = ival;}
                             break;
                         case CMD_EOR:
                             if (val->obj->uval(val, &err, &uval, 8, &epoint)) err_msg_output_and_destroy(&err);
@@ -2539,6 +2553,8 @@ struct value_s *compile(struct file_list_s *cflist)
                             switch (waitfor->what) {
                             case W_SWITCH2:
                             case W_SWITCH: msg = ".ENDSWITCH"; break;
+                            case W_WEAK2:
+                            case W_WEAK: msg = ".ENDWEAK"; break;
                             case W_ENDM2:
                             case W_ENDM: msg = ".ENDM"; break;
                             case W_ENDF2:
@@ -2937,6 +2953,8 @@ struct value_s *compile(struct file_list_s *cflist)
         case W_FI: msg = ".FI"; break;
         case W_SWITCH2:
         case W_SWITCH: msg = ".ENDSWITCH"; break;
+        case W_WEAK2:
+        case W_WEAK: msg = ".ENDWEAK"; break;
         case W_ENDP2:
         case W_ENDP: msg = ".ENDP"; break;
         case W_ENDM2:
