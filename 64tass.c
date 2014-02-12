@@ -528,6 +528,98 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     fixeddig = fix;
 }
 
+static void textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit, size_t *sum, int bits, linepos_t epoint2) {
+    struct value_s iter, item, *val2, err;
+    uval_t uval;
+    item.refcount = 0;
+    if (val->obj == STR_OBJ) {
+        struct value_s *tmp = val_alloc();
+        bytes_from_str(tmp, val);
+        tmp->obj->getiter(tmp, &iter);
+        val_destroy(tmp);
+    } else val->obj->getiter(val, &iter);
+
+    while ((val2 = iter.obj->next(&iter, &item))) {
+        switch (val2->obj->type) {
+        case T_LIST:
+        case T_TUPLE: 
+        case T_STR: textrecursion(val2, prm, ch2, uninit, sum, bits, epoint2); break;
+        case T_GAP: 
+            if (*ch2 >= 0) {
+                if (*uninit) { memskip(*uninit); sum += *uninit; *uninit = 0; }
+                pokeb(*ch2); sum++;
+            }
+            *ch2 = -1; (*uninit)++; break;
+        default:
+            if (*ch2 >= 0) {
+                if (*uninit) { memskip(*uninit); sum += *uninit; *uninit = 0; }
+                pokeb(*ch2); sum++;
+            }
+            if (val2->obj->uval(val2, &err, &uval, bits, epoint2)) {err_msg_output_and_destroy(&err); uval = 256;}
+            *ch2 = (uint8_t)uval;
+            if (prm==CMD_SHIFTL) *ch2 <<= 1;
+            else if (prm==CMD_NULL && !uval) err_msg2(ERROR_NO_ZERO_VALUE, NULL, epoint2);
+            break;
+        case T_NONE:
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+            fixeddig = 0;
+        }
+        val_destroy(val2);
+    }
+    iter.obj->destroy(&iter);
+}
+
+static void byterecursion(struct value_s *val, int prm, size_t *uninit, int bits, linepos_t epoint) {
+    struct value_s iter, item, *val2, err;
+    uint32_t ch2;
+    uval_t uv;
+    ival_t iv;
+    item.refcount = 0;
+    if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) val->obj->getiter(val, &iter);
+    else invalid_getiter(val, &iter);
+    while ((val2 = iter.obj->next(&iter, &item))) {
+        switch (val2->obj->type) {
+        case T_LIST:
+        case T_TUPLE: byterecursion(val2, prm, uninit, bits, epoint); continue;
+        case T_GAP: *uninit += abs(bits) / 8; val_destroy(val2); continue;
+        default:
+            if (bits >= 0) {
+                if (val2->obj->uval(val2, &err, &uv, bits, epoint)) {err_msg_output_and_destroy(&err); uv = 0;}
+                ch2 = uv;
+            } else {
+                if (val2->obj->ival(val2, &err, &iv, -bits, epoint)) {err_msg_output_and_destroy(&err); iv = 0;}
+                ch2 = iv;
+            }
+            break;
+        case T_NONE:
+            if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+            ch2 = fixeddig = 0;
+        }
+        if (prm==CMD_RTA) ch2--;
+
+        if (*uninit) {memskip(*uninit);*uninit = 0;}
+        pokeb((uint8_t)ch2);
+        if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
+        if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
+        if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
+        val_destroy(val2);
+    }
+    iter.obj->destroy(&iter);
+}
+
+static int instrecursion(struct value_s *val, int prm, int w, linepos_t epoint, struct linepos_s *epoints) {
+    size_t i;
+    int ret;
+    for (i = 0; i < val->u.list.len; i++) {
+        if (val->u.list.data[i]->obj == TUPLE_OBJ || val->u.list.data[i]->obj == LIST_OBJ) {
+            ret = instrecursion(val->u.list.data[i], prm, w, epoint, epoints);
+        } else ret = instruction(prm, w, all_mem, val->u.list.data[i], epoint, epoints);
+        if (ret == 0) continue;
+        return ret;
+    }
+    return 0;
+}
+
 struct value_s *compile(struct file_list_s *cflist)
 {
     int wht,w;
@@ -1557,8 +1649,7 @@ struct value_s *compile(struct file_list_s *cflist)
 
                     mark_mem(&current_section->mem, current_section->address);
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shift2 .null */
-                        int16_t ch2=-1;
-                        struct value_s err;
+                        int ch2=-1;
                         int bits = 8 - (prm==CMD_SHIFT || prm==CMD_SHIFTL);
                         struct linepos_s epoint2;
                         if (newlabel) {
@@ -1566,38 +1657,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w,0,cfile)) goto breakerr;
-                        while ((val = get_val(&epoint2))) {
-                            struct value_s iter, item, *val2;
-                            uval_t uval;
-                            item.refcount = 0;
-                            if (val->obj == STR_OBJ) {
-                                struct value_s *tmp = val_alloc();
-                                bytes_from_str(tmp, val);
-                                tmp->obj->getiter(tmp, &iter);
-                                val_destroy(tmp);
-                            } else val->obj->getiter(val, &iter);
-
-                            while ((val2 = iter.obj->next(&iter, &item))) {
-                                if (ch2 >= 0) {
-                                    if (uninit) { memskip(uninit); sum += uninit; uninit = 0; }
-                                    pokeb(ch2); sum++;
-                                }
-                                switch (val2->obj->type) {
-                                case T_GAP:ch2 = -1; uninit++; break;
-                                default:
-                                    if (val2->obj->uval(val2, &err, &uval, bits, &epoint2)) {err_msg_output_and_destroy(&err); uval = 0;}
-                                    ch2 = (uint8_t)uval;
-                                    if (prm==CMD_SHIFTL) ch2 <<= 1;
-                                    else if (prm==CMD_NULL && !ch2) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &epoint2);
-                                    break;
-                                case T_NONE:
-                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint2);
-                                    ch2 = fixeddig = 0;
-                                }
-                                val_destroy(val2);
-                            }
-                            iter.obj->destroy(&iter);
-                        }
+                        while ((val = get_val(&epoint2))) textrecursion(val, prm, &ch2, &uninit, &sum, bits, &epoint2);
                         if (uninit) {memskip(uninit);sum += uninit;}
                         if (ch2 >= 0) {
                             if (prm==CMD_SHIFT) ch2|=0x80;
@@ -1612,10 +1672,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                     } else if (prm<=CMD_DWORD) { /* .byte .word .int .rta .long */
                         int bits;
-                        uint32_t ch2;
-                        uval_t uv;
-                        ival_t iv;
-                        struct value_s err;
                         if (newlabel) {
                             signed char dtype;
                             switch (prm) {
@@ -1643,38 +1699,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         case CMD_DWORD: bits = 32; break;
                         }
                         if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
-                        while ((val = get_val(&epoint))) {
-                            struct value_s iter, item, *val2;
-                            item.refcount = 0;
-                            if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) val->obj->getiter(val, &iter);
-                            else invalid_getiter(val, &iter);
-                            while ((val2 = iter.obj->next(&iter, &item))) {
-                                switch (val2->obj->type) {
-                                case T_GAP: uninit += abs(bits) / 8; val_destroy(val2); continue;
-                                default:
-                                    if (bits >= 0) {
-                                        if (val2->obj->uval(val2, &err, &uv, bits, &epoint)) {err_msg_output_and_destroy(&err); uv = 0;}
-                                        ch2 = uv;
-                                    } else {
-                                        if (val2->obj->ival(val2, &err, &iv, -bits, &epoint)) {err_msg_output_and_destroy(&err); iv = 0;}
-                                        ch2 = iv;
-                                    }
-                                    break;
-                                case T_NONE:
-                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
-                                    ch2 = fixeddig = 0;
-                                }
-                                if (prm==CMD_RTA) ch2--;
-
-                                if (uninit) {memskip(uninit);uninit = 0;}
-                                pokeb((uint8_t)ch2);
-                                if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
-                                if (prm>=CMD_LINT) pokeb((uint8_t)(ch2>>16));
-                                if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
-                                val_destroy(val2);
-                            }
-                            iter.obj->destroy(&iter);
-                        }
+                        while ((val = get_val(&epoint))) byterecursion(val, prm, &uninit, bits, &epoint);
                         if (uninit) memskip(uninit);
                     } else if (prm==CMD_BINARY) { /* .binary */
                         const char *path = NULL;
@@ -2897,20 +2922,15 @@ struct value_s *compile(struct file_list_s *cflist)
                         val = get_vals_addrlist(epoints);
                     }
                     if (val->obj == TUPLE_OBJ || val->obj == LIST_OBJ) {
-                        size_t i;
                         epoints[1] = epoints[0];
                         epoints[2] = epoints[0];
-                        for (i = 0; i < val->u.list.len; i++) {
-                            ret = instruction(prm, w, all_mem, val->u.list.data[i], &epoint, epoints);
-                            if (ret == 0) continue;
-                            if (ret == 2) {
-                                err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint);
-                            }
-                            val_destroy(val);
-                            goto breakerr; /* ellenorizve. */
+                        ret = instrecursion(val, prm, w, &epoint, epoints);
+                        if (ret == 2) {
+                            err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint);
                         }
                         val_destroy(val);
-                        break;
+                        if (ret == 0) break;
+                        goto breakerr; /* ellenorizve. */
                     }
                     ret = instruction(prm, w, all_mem, val, &epoint, epoints);
                     val_destroy(val);
