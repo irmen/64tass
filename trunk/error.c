@@ -415,6 +415,7 @@ void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {
 }
 
 void err_msg_still_none(const str_t *name, linepos_t epoint) {
+    if ((constcreated || !fixeddig) && pass < max_pass) return;
     new_error(SV_NONEERROR, current_file_list, epoint);
     adderror("can't calculate this");
     if (name) str_name(name->data, name->len);
