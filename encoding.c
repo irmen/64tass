@@ -623,7 +623,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
             if (val2->obj->uval(val2, &err, &uval, 8, epoint)) uval = 0;
             break;
         case T_NONE:
-            if (pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+            err_msg_still_none(NULL, epoint);
             uval = 0;
         }
         if (i >= len) {

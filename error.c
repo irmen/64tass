@@ -36,7 +36,7 @@ static struct errorbuffer_s error_list = {0, 0, 0, 0, NULL};
 static struct avltree notdefines;
 
 enum severity_e {
-    SV_DOUBLENOTE, SV_NOTDEFNOTE, SV_WARNING, SV_CONDERROR, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_ERROR, SV_FATAL
+    SV_DOUBLENOTE, SV_NOTDEFNOTE, SV_WARNING, SV_CONDERROR, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
 };
 
 struct error_s {
@@ -414,6 +414,13 @@ void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {
     return;
 }
 
+void err_msg_still_none(const str_t *name, linepos_t epoint) {
+    new_error(SV_NONEERROR, current_file_list, epoint);
+    adderror("can't calculate this");
+    if (name) str_name(name->data, name->len);
+    return;
+}
+
 void err_msg_not_defined(const str_t *name, linepos_t epoint) {
     err_msg_str_name("not defined", name, epoint);
     return;
@@ -557,6 +564,7 @@ static inline void print_error(FILE *f, const struct error_s *err) {
     case SV_CONDERROR:
     case SV_DOUBLEERROR:
     case SV_NOTDEFERROR:
+    case SV_NONEERROR:
     case SV_ERROR: fputs("error: ", f);break;
     case SV_FATAL: fputs("fatal error: ", f);break;
     }
@@ -567,8 +575,23 @@ static inline void print_error(FILE *f, const struct error_s *err) {
 int error_print(int fix, int newvar, int anyerr) {
     const struct error_s *err, *err2;
     size_t pos, pos2;
+    int noneerr = 0;
     warnings = errors = 0;
     close_error(&error_list);
+
+    for (pos = 0; !noneerr && pos < error_list.len; pos += sizeof(struct error_s) + err->len) {
+        err = (const struct error_s *)&error_list.data[pos];
+        switch (err->severity) {
+        case SV_NOTDEFNOTE: 
+        case SV_DOUBLENOTE:
+        case SV_WARNING: 
+        case SV_NONEERROR: 
+            break;
+        case SV_CONDERROR: if (!fix) continue; noneerr = 1; break;
+        case SV_NOTDEFERROR: if (newvar) continue; noneerr = 1; break;
+        default: noneerr = 1; break;
+        }
+    }
 
     for (pos = 0; pos < error_list.len; pos += sizeof(struct error_s) + err->len) {
         err = (const struct error_s *)&error_list.data[pos];
@@ -600,6 +623,7 @@ int error_print(int fix, int newvar, int anyerr) {
         case SV_WARNING: warnings++; if (!arguments.warning || anyerr) continue; break;
         case SV_CONDERROR: if (!fix) continue; errors++; break;
         case SV_NOTDEFERROR: if (newvar) continue; errors++; break;
+        case SV_NONEERROR: if (noneerr) continue; errors++; break;
         default: errors++; break;
         }
         print_error(stderr, err);
@@ -671,6 +695,7 @@ int error_serious(int fix, int newvar) {
         case SV_NOTDEFNOTE:
         case SV_DOUBLENOTE:
         case SV_WARNING: break;
+        case SV_NONEERROR:
         case SV_CONDERROR: if (fix && !newvar) return 1; break;
         case SV_NOTDEFERROR: if (!newvar) return 1; break;
         default: return 1;
