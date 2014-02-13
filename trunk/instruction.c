@@ -93,7 +93,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
     else {
         val = (vals->obj == ADDRLIST_OBJ) ? vals->u.list.data[0] : vals;
         if (val->obj == NONE_OBJ) {
-            if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+            err_msg_still_none(NULL, epoint2);
             d = 0;
         } else d = 1;
 
@@ -101,7 +101,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
             atype_t am = val->u.addr.type;
             val = val->u.addr.val;
             if (val->obj == NONE_OBJ) {
-                if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                err_msg_still_none(NULL, epoint2);
                 d = 0;
             }
             switch (am) {
@@ -257,7 +257,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 epoint2 = &epoints[1];
                 if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_IMMEDIATE) val = val->u.addr.val;
                 if (val->obj == NONE_OBJ) {
-                    if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                    err_msg_still_none(NULL, epoint2);
                     d = 0;
                 } else {
                     if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
@@ -274,12 +274,12 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 val = vals->u.list.data[1];
                 epoint2 = &epoints[1];
                 if (val->obj == NONE_OBJ) {
-                    if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                    err_msg_still_none(NULL, epoint2);
                     d = 0;
                 } else if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_DR) {
                     val = val->u.addr.val;
                     if (val->obj == NONE_OBJ) {
-                        if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                        err_msg_still_none(NULL, epoint2);
                         d = 0;
                     } else d = 1;
                     adrgen = AG_BYTE;
@@ -298,12 +298,12 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 val = vals->u.list.data[1];
                 epoint2 = &epoints[1];
                 if (val->obj == NONE_OBJ) {
-                    if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                    err_msg_still_none(NULL, epoint2);
                     d = 0;
                 } else if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_DR) {
                     val = val->u.addr.val;
                     if (val->obj == NONE_OBJ) {
-                        if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                        err_msg_still_none(NULL, epoint2);
                         d = 0;
                     } else {
                         if (val->obj->uval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
@@ -317,13 +317,13 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 val = vals->u.list.data[2];
                 epoint2 = &epoints[2];
                 if (val->obj == NONE_OBJ) {
-                    if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                    err_msg_still_none(NULL, epoint2);
                     d = 0;
                 } else {
                     if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_KR) {
                         val = val->u.addr.val;
                         if (val->obj == NONE_OBJ) {
-                            if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                            err_msg_still_none(NULL, epoint2);
                             d = 0;
                         } else {
                             if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 3;}
@@ -356,7 +356,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                     if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_KR) {
                         val = val->u.addr.val;
                         if (val->obj == NONE_OBJ) {
-                            if (pass > max_pass) err_msg_cant_calculate(NULL, epoint2);
+                            err_msg_still_none(NULL, epoint2);
                             d = 0;
                         } else {
                             if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 2;}
