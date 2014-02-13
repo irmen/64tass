@@ -210,6 +210,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         case ERROR_OUTOF_SECTION:
         case ERROR_DIVISION_BY_Z:
         case ERROR_NO_ZERO_VALUE:
+        case ERROR____WRONG_TYPE:
         case ERROR_CONSTNT_LARGE: new_error(SV_CONDERROR, current_file_list, epoint); break;
         default: new_error(SV_ERROR, current_file_list, epoint);
         }
@@ -332,6 +333,9 @@ static struct notdefines_s *lastnd = NULL;
 static inline void err_msg_not_defined2(const str_t *name, const struct label_s *l, int down, linepos_t epoint) {
     struct notdefines_s *tmp2;
     struct avltree_node *b;
+
+    if (constcreated && pass < max_pass) return;
+
     if (!lastnd) {
         lastnd = (struct notdefines_s *)malloc(sizeof(struct notdefines_s));
         if (!lastnd) err_msg_out_of_memory();
@@ -484,7 +488,7 @@ void err_msg_invalid_oper(const struct value_s *op, const struct value_s *v1, co
         return;
     }
 
-    new_error(SV_ERROR, current_file_list, epoint);
+    new_error(SV_CONDERROR, current_file_list, epoint);
 
     adderror(v2 ? "invalid operands to " : "invalid type argument to ");
     adderror(op->u.oper.name);

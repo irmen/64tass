@@ -264,7 +264,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
-            fixeddig=0;
+            fixeddig = 0;
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
@@ -377,7 +377,7 @@ struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
-            fixeddig=0;
+            fixeddig = 0;
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
