@@ -51,7 +51,7 @@ extern int temporary_label_branch;
 extern line_t vline;
 extern struct linepos_s lpoint; 
 extern struct avltree *star_tree;
-extern int fixeddig;
+extern int fixeddig, constcreated;
 extern address_t star;
 extern const uint8_t *pline, *llist;
 extern void status(int);
