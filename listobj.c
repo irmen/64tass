@@ -254,7 +254,7 @@ static int calc2_list(oper_t op) {
     case O_EXP:
     case O_MEMBER:
         {
-            struct value_s **vals;
+            struct value_s **vals, tmp;
             const struct value_s *vx;
             int d1 = 0, d2 = 0;
             i = 0;
@@ -274,8 +274,7 @@ static int calc2_list(oper_t op) {
                 if (v1->u.list.len == 1) {
                     if (v2->u.list.len) {
                         op->v1 = v1->u.list.data[0];
-                        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
-                        if (!vals) err_msg_out_of_memory();
+                        vals = lnew(&tmp, v2->u.list.len);
                         for (; i < v2->u.list.len; i++) {
                             op->v = vals[i] = val_alloc();
                             op->v2 = v2->u.list.data[i];
@@ -288,8 +287,7 @@ static int calc2_list(oper_t op) {
                 } else if (v2->u.list.len == 1) {
                     if (v1->u.list.len) {
                         op->v2 = v2->u.list.data[0];
-                        vals = (struct value_s **)malloc(v1->u.list.len * sizeof(v->u.list.data[0]));
-                        if (!vals) err_msg_out_of_memory();
+                        vals = lnew(&tmp, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
                             op->v = vals[i] = val_alloc();
                             op->v1 = v1->u.list.data[i];
@@ -301,8 +299,7 @@ static int calc2_list(oper_t op) {
                     } else vals = NULL;
                 } else if (v1->u.list.len == v2->u.list.len) {
                     if (v1->u.list.len) {
-                        vals = (struct value_s **)malloc(v1->u.list.len * sizeof(v->u.list.data[0]));
-                        if (!vals) err_msg_out_of_memory();
+                        vals = lnew(&tmp, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
                             op->v = vals[i] = val_alloc();
                             op->v1 = v1->u.list.data[i];
@@ -319,8 +316,7 @@ static int calc2_list(oper_t op) {
                 }
             } else if (d1 > d2) {
                 if (v1->u.list.len) {
-                    vals = (struct value_s **)malloc(v1->u.list.len * sizeof(v->u.list.data[0]));
-                    if (!vals) err_msg_out_of_memory();
+                    vals = lnew(&tmp, v1->u.list.len);
                     for (; i < v1->u.list.len; i++) {
                         op->v = vals[i] = val_alloc();
                         op->v1 = v1->u.list.data[i];
@@ -330,8 +326,7 @@ static int calc2_list(oper_t op) {
                     op->v1 = v1;
                 } else vals = NULL;
             } else if (v2->u.list.len) {
-                vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
-                if (!vals) err_msg_out_of_memory();
+                vals = lnew(&tmp, v2->u.list.len);
                 for (; i < v2->u.list.len; i++) {
                     op->v = vals[i] = val_alloc();
                     op->v2 = v2->u.list.data[i];
@@ -341,6 +336,10 @@ static int calc2_list(oper_t op) {
                 op->v2 = v2;
             } else vals = NULL;
             if (v == v1 || v == v2) destroy(v);
+            if (vals == tmp.u.list.val) {
+                if (i) memcpy(v->u.list.val, vals, i * sizeof(v->u.list.data[0]));
+                vals = v->u.list.val;
+            }
             v->obj = v1->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
@@ -567,7 +566,7 @@ static void repeat(oper_t op, uval_t rep) {
 }
 
 static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
-    struct value_s **vals;
+    struct value_s **vals, tmp;
     size_t i;
     size_t ln;
 
@@ -589,21 +588,24 @@ static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, stru
         if (v1 != v) copy(v1, v);
         return; /* original tuple */
     }
-    vals = (struct value_s **)malloc(ln * sizeof(v->u.list.data[0]));
-    if (!vals) err_msg_out_of_memory();
+    vals = lnew(&tmp, ln);
     i = 0;
     while ((end > offs && step > 0) || (end < offs && step < 0)) {
         vals[i++] = val_reference(v1->u.list.data[offs]);
         offs += step;
     }
     if (v == v1) destroy(v);
+    if (vals == tmp.u.list.val) {
+        if (i) memcpy(v->u.list.val, vals, i * sizeof(v->u.list.data[0]));
+        vals = v->u.list.val;
+    }
     v->obj = v1->obj;
     v->u.list.len = i;
     v->u.list.data = vals;
 }
 
 static void iindex(oper_t op) {
-    struct value_s **vals;
+    struct value_s **vals, tmp;
     size_t i, ln;
     ival_t offs;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, err;
@@ -616,8 +618,7 @@ static void iindex(oper_t op) {
             copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
             return;
         }
-        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v->u.list.data[0]));
-        if (!vals) err_msg_out_of_memory();
+        vals = lnew(&tmp, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {
             offs = indexoffs(v2->u.list.data[i], &err, ln, &op->epoint2);
             if (offs < 0) {
@@ -631,6 +632,10 @@ static void iindex(oper_t op) {
             vals[i] = val_reference(v1->u.list.data[offs]);
         }
         if (v1 == v) destroy(v);
+        if (vals == tmp.u.list.val) {
+            if (i) memcpy(v->u.list.val, vals, i * sizeof(v->u.list.data[0]));
+            vals = v->u.list.val;
+        }
         v->obj = v1->obj;
         v->u.list.len = i;
         v->u.list.data = vals;

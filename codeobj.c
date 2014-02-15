@@ -448,7 +448,7 @@ static void rcalc2(oper_t op) {
 }
 
 static inline void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t epoint) {
-    struct value_s **vals;
+    struct value_s **vals, tmp;
     size_t i, i2;
     size_t ln2;
     size_t offs2;
@@ -465,8 +465,7 @@ static inline void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end,
         v->u.error.u.ident = v1->u.code.parent->name;
         return;
     }
-    vals = (struct value_s **)malloc(ln * sizeof(v1->u.list.data[0]));
-    if (!vals) err_msg_out_of_memory();
+    vals = list_create_elements(&tmp, ln);
     i = 0;
     ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
     ln2 = ln2 + !ln2;
@@ -490,13 +489,17 @@ static inline void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end,
         else int_from_uval(vals[i], val);
         i++; offs += step;
     }
+    if (vals == tmp.u.list.val) {
+        if (ln) memcpy(v->u.list.val, vals, ln * sizeof(v->u.list.data[0]));
+        vals = v->u.list.val;
+    }
     v->obj = TUPLE_OBJ;
     v->u.list.len = ln;
     v->u.list.data = vals;
 }
 
 static void iindex(oper_t op) {
-    struct value_s **vals;
+    struct value_s **vals, tmp;
     size_t i, i2;
     size_t ln, ln2;
     size_t offs2;
@@ -521,8 +524,7 @@ static void iindex(oper_t op) {
         if (!v2->u.list.len) {
             TUPLE_OBJ->copy(&null_tuple, v); return;
         }
-        vals = (struct value_s **)malloc(v2->u.list.len * sizeof(v2->u.list.data[0]));
-        if (!vals) err_msg_out_of_memory();
+        vals = list_create_elements(&tmp, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {
             offs = indexoffs(v2->u.list.data[i], &err, ln, &op->epoint2);
             if (offs < 0) {
@@ -549,6 +551,10 @@ static void iindex(oper_t op) {
             if (r < 0) vals[i]->obj = GAP_OBJ;
             else if (v1->u.code.dtype < 0) int_from_ival(vals[i],  (ival_t)val);
             else int_from_uval(vals[i], val);
+        }
+        if (vals == tmp.u.list.val) {
+            if (i) memcpy(v->u.list.val, vals, i * sizeof(v->u.list.data[0]));
+            vals = v->u.list.val;
         }
         v->obj = TUPLE_OBJ;
         v->u.list.data = vals;

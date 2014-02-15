@@ -577,8 +577,7 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
             if (i < args) {
                 size_t j = i;
                 tuple->u.list.len = args - i;
-                tuple->u.list.data = (struct value_s **)malloc(tuple->u.list.len * sizeof(tuple->u.list.data[0]));
-                if (!tuple->u.list.data) err_msg_out_of_memory();
+                tuple->u.list.data = list_create_elements(tuple, tuple->u.list.len);
                 while (j < args) {
                     tuple->u.list.data[j - i] = val_reference(vals[j].val);
                     j++;
