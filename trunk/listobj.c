@@ -610,7 +610,7 @@ static void iindex(oper_t op) {
 
     ln = v1->u.list.len;
 
-    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+    if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
             if (v1 == v) destroy(v);
             copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);

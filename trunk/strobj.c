@@ -777,7 +777,7 @@ static void iindex(oper_t op) {
 
     len1 = v1->u.str.chars;
 
-    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+    if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
             if (v1 == v) destroy(v);
             copy(&null_str, v);return;

@@ -532,7 +532,7 @@ static void iindex(oper_t op) {
 
     len1 = v1->u.bytes.len;
 
-    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+    if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
             if (v1 == v) destroy(v);
             copy(&null_bytes, v);return;
