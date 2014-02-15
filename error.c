@@ -457,10 +457,10 @@ static void add_user_error2(struct errorbuffer_s *user_error, const uint8_t *s, 
     user_error->chars += len;
 }
 
-void err_msg_variable(struct errorbuffer_s *user_error, struct value_s *val) {
+void err_msg_variable(struct errorbuffer_s *user_error, struct value_s *val, linepos_t epoint) {
     struct value_s tmp;
     if (!val) {user_error->chars = user_error->len = 0;return;}
-    val->obj->str(val, &tmp, NULL);
+    val->obj->str(val, &tmp, epoint);
     if (tmp.obj == STR_OBJ) {
         add_user_error2(user_error, tmp.u.str.data, tmp.u.str.len);
         user_error->chars -= tmp.u.str.len - tmp.u.str.chars;

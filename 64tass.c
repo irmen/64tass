@@ -2036,7 +2036,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     error_init(&user_error);
                     rc = get_exp(&w,0,cfile);
                     if (!rc) goto breakerr; /* ellenorizve. */
-                    err_msg_variable(&user_error, NULL);
+                    err_msg_variable(&user_error, NULL, &epoint);
                     for (;;) {
                         val = get_val(&epoint2);
                         if (!val) break;
@@ -2052,7 +2052,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             writeit = 1;
                         }
                         if (writeit) {
-                            if (val->obj != NONE_OBJ) err_msg_variable(&user_error, val);
+                            if (val->obj != NONE_OBJ) err_msg_variable(&user_error, val, &epoint2);
                         }
                     }
                     if (writeit) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED, &user_error, &epoint);
