@@ -517,7 +517,7 @@ static void iindex(oper_t op) {
     ln2 = ln2 + !ln2;
     ln = v1->u.code.size / ln2;
 
-    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+    if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
             TUPLE_OBJ->copy(&null_tuple, v); return;
         }
