@@ -198,8 +198,8 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t epoint) 
     v->obj = STR_OBJ;
     v->u.str.len = len + tmp.u.str.len;
     v->u.str.chars = len + tmp.u.str.chars;
-    s = (uint8_t *)malloc(v->u.str.len);
-    if (!s || v->u.str.len < len) err_msg_out_of_memory(); /* overflow */
+    if (v->u.str.len < len) err_msg_out_of_memory(); /* overflow */
+    s = str_create_elements(v, v->u.str.len);
     memcpy(s, buffer2 + ind, 99 - ind);
     memcpy(s + 99 - ind, tmp.u.str.data, tmp.u.str.len);
     memcpy(s + 99 - ind + tmp.u.str.len, buffer, ind2);
