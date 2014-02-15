@@ -128,8 +128,8 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
         char tmp[sizeof(digit_t) * 3];
         if (len) len = sprintf(tmp, neg ? "-%d" : "%d", v1->u.integer.val[0]);
         else {tmp[0]='0';len = 1;}
-        s = str_create_elements(v, len);
         if (v == v1) destroy(v);
+        s = str_create_elements(v, len);
         memcpy(s, tmp, len);
         v->obj = STR_OBJ;
         v->u.str.data = s;
@@ -169,6 +169,7 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
     len2 = sz * DSHIFT;
     slen += len2;
     if (slen < len2 || sz > SIZE_MAX / DSHIFT) err_msg_out_of_memory(); /* overflow */
+    if (v == v1) destroy(v);
     s = str_create_elements(v, slen);
     s += slen;
     for (i = 0; i < sz; i++) {
@@ -187,7 +188,6 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
 
     if (out != tdigits) free(out);
 
-    if (v == v1) destroy(v);
     v->obj = STR_OBJ;
     v->u.str.data = s;
     v->u.str.len = slen;

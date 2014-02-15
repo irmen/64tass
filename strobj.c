@@ -888,14 +888,14 @@ static void iindex(oper_t op) {
 static void register_repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *prefix = "<register '";
-    size_t len = strlen(prefix);
+    size_t len = strlen(prefix), len2 = v1->u.str.len;
     v->obj = STR_OBJ;
     v->u.str.len = v1->u.str.len + 2 + len;
     v->u.str.chars = v->u.str.chars + 2 + len;
     if (v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
     s = str_create_elements(v, v->u.str.len);
+    memmove(s + len, v1->u.str.data, len2);
     memcpy(s, prefix, len);
-    memcpy(s + len, v1->u.str.data, v1->u.str.len);
     s[v->u.str.len - 2] = '\'';
     s[v->u.str.len - 1] = '>';
     v->u.str.data = s;

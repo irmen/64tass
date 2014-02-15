@@ -155,7 +155,7 @@ static void gap_repr(const struct value_s *UNUSED(v1), struct value_s *v, linepo
     v->obj = STR_OBJ;
     v->u.str.len = 1;
     v->u.str.chars = 1;
-    s = str_create_elements(v, v->u.str.len);
+    s = str_create_elements(v, 1);
     *s = '?';
     v->u.str.data = s;
 }
@@ -541,6 +541,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
             if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
         }
     }
+    if (v1 == v) v->obj->destroy(v);
     s = str_create_elements(v, len);
     len = 0;
     s[len++] = '{';
@@ -569,7 +570,6 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
     }
     s[len++] = '}';
     free(tmp);
-    if (v1 == v) v->obj->destroy(v);
     v->obj = STR_OBJ;
     v->u.str.data = s;
     v->u.str.len = len;
@@ -631,6 +631,23 @@ static void error_destroy(struct value_s *v1) {
         if (v1->u.error.u.invoper.v1) val_destroy(v1->u.error.u.invoper.v1);
         if (v1->u.error.u.invoper.v2) val_destroy(v1->u.error.u.invoper.v2);
     }
+}
+
+static void oper_repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+    const char *txt = v1->u.oper.name;
+    size_t len = strlen(txt);
+    uint8_t *s;
+    if (v1 == v) v->obj->destroy(v);
+    s = str_create_elements(v, len + 8);
+    memcpy(s, "<oper ", 6);
+    memcpy(s + 6, txt, len);
+    len += 6;
+    s[len++] = '\'';
+    s[len++] = '>';
+    v->obj = STR_OBJ;
+    v->u.str.data = s;
+    v->u.str.len = len;
+    v->u.str.chars = len;
 }
 
 static void error_copy(const struct value_s *v1, struct value_s *v) {
@@ -1084,6 +1101,7 @@ void objects_init(void) {
     anonident_obj.rcalc2 = ident_rcalc2;
     anonident_obj.repeat = ident_repeat;
     obj_init(&oper_obj, T_OPER, "<oper>");
+    oper_obj.repr = oper_repr;
     obj_init(&default_obj, T_DEFAULT, "<default>");
     obj_init(&dict_obj, T_DICT, "<dict>");
     dict_obj.destroy = dict_destroy;

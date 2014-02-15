@@ -147,6 +147,7 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v, linepos_
             if (len < i) err_msg_out_of_memory(); /* overflow */
         }
     }
+    if (v1 == v) v->obj->destroy(v);
     s = str_create_elements(v, len);
     len = 0;
     if (v1->obj != ADDRLIST_OBJ && v1->obj != COLONLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? '[' : '(';
@@ -162,7 +163,6 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v, linepos_
     if (i == 1 && (v1->obj == TUPLE_OBJ)) s[len++] = ',';
     if (v1->obj != ADDRLIST_OBJ && v1->obj != COLONLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? ']' : ')';
     free(tmp);
-    if (v1 == v) v->obj->destroy(v);
     v->obj = STR_OBJ;
     v->u.str.data = s;
     v->u.str.len = len;
