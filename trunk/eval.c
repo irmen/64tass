@@ -273,25 +273,27 @@ static enum type_e try_resolv(struct values_s *value) {
     return v2->obj->type;
 }
 
-static int try_resolv_rec(struct value_s **value) {
-    int err = 0;
-    struct value_s tmp, *v2, *v1;
-    if (value[0]->obj == TUPLE_OBJ || value[0]->obj == LIST_OBJ) {
+static void try_resolv_rec(struct value_s **value) {
+    struct value_s tmp, *v2, *v1 = value[0];
+    if (v1->obj == TUPLE_OBJ || v1->obj == LIST_OBJ) {
         size_t i;
-        for (i = 0; i < value[0]->u.list.len; i++) {
-            if (try_resolv_rec(&value[0]->u.list.data[i])) err = 1;
+        for (i = 0; i < v1->u.list.len; i++) {
+            try_resolv_rec(&v1->u.list.data[i]);
         }
-        return err;
+        return;
     }
-    v1 = value[0];
+    if (v1->obj == ERROR_OBJ) {
+        err_msg_output(v1);
+        val_replace_template(value, &none_value);
+        return;
+    }
     v2 = try_resolv_ident(v1, &tmp);
     if (v2 == &tmp) {
         err_msg_output_and_destroy(&tmp);
         val_replace_template(value, &none_value);
-        return err;
+        return;
     }
     if (v1 != v2) val_replace(value, v2);
-    return err;
 }
 
 static void get_star(struct value_s *v) {
@@ -911,6 +913,13 @@ static struct value_s *apply_addressing(struct value_s *v1, struct value_s *v, e
         v->u.list.len = v1->u.list.len;
         v->u.list.data = vals;
         return NULL;
+    case T_ERROR:
+        err_msg_output(v1);
+        if (v1 == v) {
+            v->obj->destroy(v);
+            v->obj = NONE_OBJ;
+        } else v1 = &none_value;
+        /* fall through */
     default:
         if (v1 == v) {
             tmp = val_alloc();

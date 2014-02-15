@@ -370,7 +370,7 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
     }
 }
 
-static void err_msg_output(const struct value_s *val) {
+void err_msg_output(const struct value_s *val) {
     if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
         case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.label, val->u.error.u.notdef.down, &val->u.error.epoint);break;
