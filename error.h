@@ -131,6 +131,7 @@ extern void err_msg_requires(const str_t *name, linepos_t);
 extern void err_msg_conflicts(const str_t *name, linepos_t);
 extern void err_msg_variable(struct errorbuffer_s *, struct value_s *);
 extern void err_msg_file(enum errors_e, const char *, linepos_t);
+extern void err_msg_output(const struct value_s *);
 extern void err_msg_output_and_destroy(struct value_s *);
 extern void err_msg_argnum(unsigned int, unsigned int, unsigned int, linepos_t);
 extern void error_reset(void);
