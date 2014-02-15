@@ -275,6 +275,10 @@ static void invalid_repeat(oper_t op, uval_t UNUSED(rep)) {
 }
 
 static void invalid_iindex(oper_t op) {
+    if (op->v1->obj == ERROR_OBJ) {
+        ERROR_OBJ->calc2(op);
+        return;
+    }
     obj_oper_error(op);
 }
 
