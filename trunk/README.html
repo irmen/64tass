@@ -263,7 +263,7 @@ The following operations are accepted:</p>
 <table border="0" class="oper">
 <caption>Bit string operators and functions</caption>
 <tr><td>~x<td>invert bits<td><code>~<span>%101</span></code> is <code><span>~%101</span></code>
-<tr><td>y..x<td>concatenate bits<td><code><span>$a</span>..<span>$b</span></code> is <code><span>$ab</span></code>
+<tr><td>y .. x<td>concatenate bits<td><code><span>$a</span> .. <span>$b</span></code> is <code><span>$ab</span></code>
 <tr><td>y <b>x</b> n<td>repeat<td><code><span>%101</span> <span class="k">x</span> <span>3</span></code> is <code><span>%101101101</span></code>
 <tr><td>x[n]<td>extract bit(s)<td><code><span>$a</span>[<span>1</span>]</code> is <code><span>0</span></code>
 <tr><td>x[s]<td>slice bits<td><code><span>$1234</span>[<span>4</span>:<span>8</span>]</code> is <code><span>$3</span></code>
@@ -389,7 +389,7 @@ Doubling the quotes inside the strings escapes them.</p>
 
 <table border="0" class="oper">
 <caption>String operators and functions</caption>
-<tr><td>y..x<td>concatenate strings<td><code><span class="s">"a"</span>..<span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
+<tr><td>y .. x<td>concatenate strings<td><code><span class="s">"a"</span> .. <span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
 <tr><td>y <b>in</b> x<td>is substring of<td><code><span class="s">"b"</span> <span class="k">in</span> <span class="s">"abc"</span></code> is <code><span>true</span></code>
 <tr><td>%<td>string formatting<td><code><span class="s">"<span>%02x</span>"</span> % (<span>12</span>,)</code> is <code><span class="s">"0c"</span></code>
 <tr><td>a <b>x</b> n<td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
@@ -482,7 +482,7 @@ string using the current encoding to bytes.</p>
 
 <table border="0" class="oper">
 <caption>Byte string operators and functions</caption>
-<tr><td>y..x<td>concatenate strings<td><code><span class="s">b"a"</span>..<span class="s">b"b"</span></code> is <code><span class="s">b"ab"</span></code>
+<tr><td>y .. x<td>concatenate strings<td><code><span class="s">b"a"</span> .. <span class="s">b"b"</span></code> is <code><span class="s">b"ab"</span></code>
 <tr><td>y <b>in</b> x<td>is substring of<td><code><span class="s">b"b"</span> <span class="k">in</span> <span class="s">b"abc"</span></code> is <code><span>true</span></code>
 <tr><td>a <b>x</b> n<td>repeat<td><code><span class="s">b"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">b"ababab"</span></code>
 <tr><td>a[i]<td>byte from start<td><code><span class="s">b"abc"</span>[<span>1</span>]</code> is <code><span class="s">b"b"</span></code>
@@ -521,7 +521,7 @@ types are immutable.</p>
 
 <table border="0" class="oper">
 <caption>List and tuple operators and functions</caption>
-<tr><td>y..x<td>concatenate lists<td><code>[<span>1</span>]..[<span>2</span>]</code> is <code>[<span>1</span>, <span>2</span>]</code>
+<tr><td>y .. x<td>concatenate lists<td><code>[<span>1</span>] .. [<span>2</span>]</code> is <code>[<span>1</span>, <span>2</span>]</code>
 <tr><td>y <b>in</b> x<td>is member of list<td><code><span>2</span> <span class="k">in</span> [<span>1</span>, <span>2</span>, <span>3</span>]</code> is <code><span>true</span></code>
 <tr><td>a <b>x</b> n<td>repeat<td><code>[<span>1</span>, <span>2</span>] <span class="k">x</span> <span>2</span></code> is <code>[<span>1</span>, <span>2</span>, <span>1</span>, <span>2</span>]</code>
 <tr><td>a[i]<td>element from start<td><code>(<span class="s">"1"</span>, <span>2</span>)[<span>1</span>]</code> is <code><span>2</span></code>
@@ -1416,8 +1416,8 @@ var     <b class="k">.lohi</b> <span>1234</span>, <span>5678</span>
 </pre>
 
 <h4>Parameter references</h4>
-<p>The first 9 parameters can be referenced by <code>\1</code>&ndash;<code>\9</code>.
-The entire parameter list including separators is <code>\@</code>.</p>
+<p>The first 9 parameters can be referenced by <q><code>\1</code></q>&ndash;<q><code>\9</code></q>.
+The entire parameter list including separators is <q><code>\@</code></q>.</p>
 <pre width=80>
 name	<b class="k">.macro</b>
         <b>lda</b> #<span class="k">\1</span> 	<i>;first parameter 23+1</i>
@@ -2063,8 +2063,8 @@ instruction.</p>
 sourcefile directly, or do the following:</p>
 <ul>
 <li>load turbo assembler, start (by <code>SYS9&lowast;4096</code> or <code>SYS8&lowast;4096</code> depending on version)
-<li>&lt;- (arrow left) then l to load a source file
-<li>&lt;- (arrow left) then w to write a source file in PETSCII format
+<li>&larr; then l to load a source file
+<li>&larr; then w to write a source file in PETSCII format
 <li>convert the result to ASCII using petcat (from the vice package)
 </ul>
 <p>The resulting file should then (with the restrictions below) assemble using the
@@ -2102,7 +2102,7 @@ means that you will have to fix expressions using braces accordingly, for exampl
 <p>The default expression evaluation is not limited to 16&nbsp;bit unsigned numbers anymore.</p>
 
 <h3>Macros</h3>
-<p>Macro parameters are referenced by <code>\1</code>...<code>\9</code> instead of using the pound sign.</p>
+<p>Macro parameters are referenced by <q><code>\1</code></q>&ndash;<q><code>\9</code></q> instead of using the pound sign.</p>
 <p>Parameters are always copied as text into the macro and not passed by value as the
 original turbo assembler does, which sometimes may lead to unexpected behaviour. You may
 need to make use of braces around arguments and/or references to fix this.</p>

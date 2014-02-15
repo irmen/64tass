@@ -197,7 +197,7 @@ binary with a leading percent sign. The following operations are accepted:
 
              Bit string operators and functions
 ~x      invert bits                    ~%101 is ~%101
-y..x    concatenate bits               $a..$b is $ab
+y .. x  concatenate bits               $a .. $b is $ab
 y x n   repeat                         %101 x 3 is %101101101
 x[n]    extract bit(s)                 $a[1] is 0
 x[s]    slice bits                     $1234[4:8] is $3
@@ -317,7 +317,7 @@ expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside the strings escapes them.
 
                     String operators and functions
-y..x    concatenate strings                     "a".."b" is "ab"
+y .. x  concatenate strings                     "a" .. "b" is "ab"
 y in x  is substring of                         "b" in "abc" is true
 %       string formatting                       "%02x" % (12,) is "0c"
 a x n   repeat                                  "ab" x 3 is "ababab"
@@ -400,7 +400,7 @@ be created by prefixing quoted strings with a `b', this converts the string
 using the current encoding to bytes.
 
              Byte string operators and functions
-y..x    concatenate strings            b"a"..b"b" is b"ab"
+y .. x  concatenate strings            b"a" .. b"b" is b"ab"
 y in x  is substring of                b"b" in b"abc" is true
 a x n   repeat                         b"ab" x 3 is b"ababab"
 a[i]    byte from start                b"abc"[1] is b"b"
@@ -435,7 +435,7 @@ expression parentheses. When nested they function similar to an array.
 Currently both types are immutable.
 
                     List and tuple operators and functions
-y..x         concatenate lists                     [1]..[2] is [1, 2]
+y .. x       concatenate lists                     [1] .. [2] is [1, 2]
 y in x       is member of list                     2 in [1, 2, 3] is true
 a x n        repeat                                [1, 2] x 2 is [1, 2, 1, 2]
 a[i]         element from start                    ("1", 2)[1] is 2
@@ -1274,8 +1274,8 @@ var     .lohi 1234, 5678
 
 Parameter references
 
-The first 9 parameters can be referenced by \1-\9. The entire parameter list
-including separators is \@.
+The first 9 parameters can be referenced by `\1'-`\9'. The entire parameter
+list including separators is `\@'.
 
 name    .macro
         lda #\1         ;first parameter 23+1
@@ -1864,8 +1864,8 @@ sourcefile directly, or do the following:
 
   * load turbo assembler, start (by SYS9*4096 or SYS8*4096 depending on
     version)
-  * <- (arrow left) then l to load a source file
-  * <- (arrow left) then w to write a source file in PETSCII format
+  * <- then l to load a source file
+  * <- then w to write a source file in PETSCII format
   * convert the result to ASCII using petcat (from the vice package)
 
 The resulting file should then (with the restrictions below) assemble using the
@@ -1905,7 +1905,7 @@ anymore.
 
 Macros
 
-Macro parameters are referenced by \1...\9 instead of using the pound sign.
+Macro parameters are referenced by `\1'-`\9' instead of using the pound sign.
 
 Parameters are always copied as text into the macro and not passed by value as
 the original turbo assembler does, which sometimes may lead to unexpected
