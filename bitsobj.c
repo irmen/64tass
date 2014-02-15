@@ -1179,7 +1179,7 @@ static void iindex(oper_t op) {
 
     ln = vv1->u.bits.bits;
 
-    if (vv2->obj == TUPLE_OBJ || vv2->obj == LIST_OBJ) {
+    if (vv2->obj == LIST_OBJ) {
         if (!vv2->u.list.len) {
             if (vv1 == vv) destroy(vv);
             copy(&null_bits, vv);return;

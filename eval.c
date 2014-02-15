@@ -988,6 +988,7 @@ static int get_val2(struct eval_context_s *ev) {
                 op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
                 while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != op) {
                     args++;
+                    if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
                 }
                 if (op == O_PARENT) functions(&values[vsp-2-args], args);
@@ -1482,7 +1483,7 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
         o_oper[operp++].val = op;
         continue;
     other:
-        if (stop != 2 || (operp && (o_oper[operp-1].val == &o_PARENT || o_oper[operp-1].val == &o_FUNC))) ignore();
+        if (stop != 2 || openclose) ignore();
         ch = here();epoint = lpoint;
         switch (ch) {
         case ',':
