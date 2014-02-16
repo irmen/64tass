@@ -46,7 +46,6 @@ static uint8_t *bnew(struct value_s *v, size_t len) {
 static void copy(const struct value_s *v1, struct value_s *v) {
     uint8_t *s;
     v->obj = BYTES_OBJ;
-    v->refcount = 1;
     v->u.bytes.len = v1->u.bytes.len;
     if (v1->u.bytes.len) {
         s = bnew(v, v->u.bytes.len);
@@ -57,7 +56,6 @@ static void copy(const struct value_s *v1, struct value_s *v) {
 
 static void copy_temp(const struct value_s *v1, struct value_s *v) {
     v->obj = BYTES_OBJ;
-    v->refcount = 1;
     v->u.bytes.len = v1->u.bytes.len;
     if (v1->u.bytes.data == v1->u.bytes.val) {
         v->u.bytes.data = v->u.bytes.val;

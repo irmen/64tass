@@ -26,7 +26,6 @@ obj_t BOOL_OBJ = &obj;
 
 static void copy(const struct value_s *v1, struct value_s *v) {
     v->obj = BOOL_OBJ;
-    v->refcount = 1;
     v->u.boolean = v1->u.boolean;
 }
 

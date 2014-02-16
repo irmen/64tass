@@ -59,14 +59,12 @@ static void copy(const struct value_s *v1, struct value_s *v) {
         vals[i] = val_reference(v1->u.list.data[i]);
     }
     v->obj = v1->obj;
-    v->refcount = 1;
     v->u.list.data = vals;
     v->u.list.len = len;
 }
 
 static void copy_temp(const struct value_s *v1, struct value_s *v) {
     v->obj = v1->obj;
-    v->refcount = 1;
     v->u.list.len = v1->u.list.len;
     if (v1->u.list.data == v1->u.list.val) {
         v->u.list.data = v->u.list.val;

@@ -95,8 +95,8 @@ static void invalid_destroy(struct value_s *UNUSED(v1)) {
 }
 
 static void invalid_copy(const struct value_s *v1, struct value_s *v) {
-    *v = *v1;
-    v->refcount = 1;
+    v->obj = v1->obj;
+    memcpy(&v->u, &v1->u, sizeof(v->u));
 }
 
 static int invalid_same(const struct value_s *v1, const struct value_s *v2) {
@@ -353,7 +353,6 @@ static void macro_destroy(struct value_s *v1) {
 
 static void macro_copy(const struct value_s *v1, struct value_s *v) {
     v->obj = v1->obj;
-    v->refcount = 1;
     memcpy(&v->u.macro, &v1->u.macro, sizeof(v->u.macro));
     if (v1->u.macro.argc) {
         size_t i;
@@ -369,7 +368,6 @@ static void macro_copy(const struct value_s *v1, struct value_s *v) {
 
 static void macro_copy_temp(const struct value_s *v1, struct value_s *v) {
     v->obj = v1->obj;
-    v->refcount = 1;
     memcpy(&v->u.macro, &v1->u.macro, sizeof(v->u.macro));
 }
 
@@ -394,7 +392,6 @@ static void mfunc_destroy(struct value_s *v1) {
 
 static void mfunc_copy(const struct value_s *v1, struct value_s *v) {
     v->obj = MFUNC_OBJ;
-    v->refcount = 1;
     memcpy(&v->u.mfunc, &v1->u.mfunc, sizeof(v->u.mfunc));
     if (v1->u.mfunc.argc) {
         size_t i;
@@ -413,7 +410,6 @@ static void mfunc_copy(const struct value_s *v1, struct value_s *v) {
 
 static void mfunc_copy_temp(const struct value_s *v1, struct value_s *v) {
     v->obj = MFUNC_OBJ;
-    v->refcount = 1;
     memcpy(&v->u.mfunc, &v1->u.mfunc, sizeof(v->u.mfunc));
 }
 
@@ -444,7 +440,6 @@ static void dict_destroy(struct value_s *v1) {
 
 static void dict_copy(const struct value_s *v1, struct value_s *v) {
     v->obj = DICT_OBJ;
-    v->refcount = 1;
     v->u.dict.len = v1->u.dict.len;
     v->u.dict.def = v1->u.dict.def ? val_reference(v1->u.dict.def) : NULL;
     avltree_init(&v->u.dict.members);
@@ -467,7 +462,6 @@ static void dict_copy(const struct value_s *v1, struct value_s *v) {
 
 static void dict_copy_temp(const struct value_s *v1, struct value_s *v) {
     v->obj = DICT_OBJ;
-    v->refcount = 1;
     v->u.dict.len = v1->u.dict.len;
     v->u.dict.members = v1->u.dict.members;
     v->u.dict.def = v1->u.dict.def;
@@ -656,7 +650,6 @@ static void oper_repr(const struct value_s *v1, struct value_s *v, linepos_t UNU
 
 static void error_copy(const struct value_s *v1, struct value_s *v) {
     v->obj = ERROR_OBJ;
-    v->refcount = 1;
     memcpy(&v->u.error, &v1->u.error, sizeof(v->u.error));
     if (v1->u.error.num == ERROR__INVALID_OPER) {
         if (v1->u.error.u.invoper.v1) v->u.error.u.invoper.v1 = val_reference(v1->u.error.u.invoper.v1);
@@ -666,7 +659,6 @@ static void error_copy(const struct value_s *v1, struct value_s *v) {
 
 static void error_copy_temp(const struct value_s *v1, struct value_s *v) {
     v->obj = ERROR_OBJ;
-    v->refcount = 1;
     memcpy(&v->u.error, &v1->u.error, sizeof(v->u.error));
 }
 

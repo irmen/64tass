@@ -45,7 +45,6 @@ static bdigit_t *bnew(struct value_s *v, size_t len) {
 
 static void copy(const struct value_s *v1, struct value_s *v) {
     v->obj = v1->obj;
-    v->refcount = 1;
     v->u.bits.bits = v1->u.bits.bits;
     v->u.bits.inv = v1->u.bits.inv;
     v->u.bits.len = v1->u.bits.len;
@@ -60,7 +59,6 @@ static void copy(const struct value_s *v1, struct value_s *v) {
 
 static void copy_temp(const struct value_s *v1, struct value_s *v) {
     v->obj = BITS_OBJ;
-    v->refcount = 1;
     v->u.bits.bits = v1->u.bits.bits;
     v->u.bits.inv = v1->u.bits.inv;
     v->u.bits.len = v1->u.bits.len;

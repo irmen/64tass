@@ -825,7 +825,6 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
 
 static void indexes(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
-    struct value_s new_value;
 
     switch (try_resolv(vals)) {
     case T_ERROR:
@@ -844,9 +843,9 @@ static void indexes(struct values_s *vals, unsigned int args) {
                 oper.epoint2 = v[0].epoint;
                 oper.epoint3 = v[0].epoint;
                 if (vals->val->refcount != 1) {
-                    oper.v = &new_value;
+                    oper.v = val_alloc();
                     oper.v1->obj->iindex(&oper);
-                    val_replace_template(&vals->val, &new_value);
+                    val_destroy(vals->val); vals->val = oper.v;
                 } else {
                     oper.v = oper.v1;
                     oper.v1->obj->iindex(&oper);
