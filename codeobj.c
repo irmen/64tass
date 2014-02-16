@@ -60,7 +60,6 @@ static int access_check(const struct value_s *v1, struct value_s *v, linepos_t e
 
 static void copy(const struct value_s *v1, struct value_s *v) {
     v->obj = CODE_OBJ;
-    v->refcount = 1;
     memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
     v->u.code.addr = val_reference(v1->u.code.addr);
 }

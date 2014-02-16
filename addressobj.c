@@ -32,14 +32,12 @@ static void destroy(struct value_s *v1) {
 
 static void copy(const struct value_s *v1, struct value_s *v) {
     v->obj = ADDRESS_OBJ;
-    v->refcount = 1;
     v->u.addr.type = v1->u.addr.type;
     v->u.addr.val = val_reference(v1->u.addr.val);
 }
 
 static void copy_temp(const struct value_s *v1, struct value_s *v) {
     v->obj = ADDRESS_OBJ;
-    v->refcount = 1;
     v->u.addr.type = v1->u.addr.type;
     v->u.addr.val = v1->u.addr.val;
 }

@@ -29,7 +29,6 @@ obj_t FLOAT_OBJ = &obj;
 
 static void copy(const struct value_s *v1, struct value_s *v) {
     v->obj = FLOAT_OBJ;
-    v->refcount = 1;
     v->u.real = v1->u.real;
 }
 
