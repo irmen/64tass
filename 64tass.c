@@ -1426,12 +1426,12 @@ struct value_s *compile(struct file_list_s *cflist)
                     case CMD_IFMI:
                         if (arguments.tasmcomp) {
                             if (val->obj->ival(val, &err, &ival, 8*sizeof(uval_t), &epoint)) { err_msg_output_and_destroy(&err); waitfor->skip = 0; break; } 
-                            waitfor->skip = ((ival & 0x8000) ^ (prm == CMD_IFMI)) ? ((prevwaitfor->skip & 1) << 1) : (prevwaitfor->skip & 1);
+                            err.u.integer.len = -(ival & 0x8000);
                         } else {
                             val->obj->sign(val, &err, &epoint);
                             if (err.obj != INT_OBJ) { err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
-                            waitfor->skip = ((err.u.integer.len >= 0) ^ (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         }
+                        waitfor->skip = ((err.u.integer.len >= 0) ^ (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     }
                     break;
