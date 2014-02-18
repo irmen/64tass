@@ -1442,6 +1442,10 @@ Repetitions
             nop
             .next
 
+.break
+    Exit current loop immediately
+.continue
+    Continue current loop's next iteration
 .lbl
     Creates a special jump label that can be referenced by .goto
 .goto <labelname>
@@ -2811,14 +2815,14 @@ Appendix
 
 Assembler directives
 
-.al .align .as .assert .bend .binary .binclude .block .byte .case .cdef .cerror
-.char .check .comment .cpu .cwarn .databank .default .dint .dpage .dsection
-.dstruct .dunion .dword .edef .else .elsif .enc .end .endc .endf .endif .endm
-.endp .ends .endswitch .endu .eor .error .fi .fill .for .function .goto .here
-.hidemac .if .ifeq .ifmi .ifne .ifpl .include .int .lbl .lint .logical .long
-.macro .next .null .offs .option .page .pend .proc .proff .pron .ptext .rept
-.rta .section .segment .send .shift .shiftl .showmac .struct .switch .text
-.union .var .warn .word .xl .xs
+.al .align .as .assert .bend .binary .binclude .block .break .byte .case .cdef
+.cerror .char .check .comment .continue .cpu .cwarn .databank .default .dint
+.dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc .end .endc
+.endf .endif .endm .endp .ends .endswitch .endu .eor .error .fi .fill .for
+.function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include .int .lbl
+.lint .logical .long .macro .next .null .offs .option .page .pend .proc .proff
+.pron .ptext .rept .rta .section .segment .send .shift .shiftl .showmac .struct
+.switch .text .union .var .warn .word .xl .xs
 -------------------------------------------------------------------------------
 
 Built-in functions

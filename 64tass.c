@@ -86,6 +86,7 @@ static struct waitfor_s {
     struct section_s *section;
     struct value_s *val;
     uint8_t skip;
+    uint8_t breakout;
 } *waitfors, *waitfor, *prevwaitfor;
 
 uint16_t reffile;
@@ -101,6 +102,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x19" "binary",
     "\x4f" "binclude",
     "\x38" "block",
+    "\x59" "break",
     "\x05" "byte",
     "\x53" "case",
     "\x4d" "cdef",
@@ -108,6 +110,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x06" "char",
     "\x35" "check",
     "\x1a" "comment",
+    "\x58" "continue",
     "\x36" "cpu",
     "\x32" "cwarn",
     "\x27" "databank",
@@ -197,7 +200,7 @@ enum command_e {
     CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU, CMD_DUNION, CMD_SECTION,
     CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF, CMD_BINCLUDE, CMD_FUNCTION,
     CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT, CMD_ENDSWITCH, CMD_WEAK,
-    CMD_ENDWEAK
+    CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK
 };
 
 /* --------------------------------------------------------------------------- */
@@ -2256,10 +2259,12 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                             s->addr = star;
                             star_tree = &s->tree;vline=0;
+                            waitfor->breakout = 0;
                             while (cnt--) {
                                 lpoint.line=lin;cfile->p=pos;
-                                new_waitfor(W_NEXT2, &epoint);waitfor->skip=1;
+                                new_waitfor(W_NEXT2, &epoint);waitfor->skip = 1;
                                 compile(cflist);
+                                if (waitfor->breakout) break;
                             }
                             star_tree = stree_old; vline = ovline;
                         }
@@ -2425,6 +2430,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     expr = (uint8_t *)malloc(strlen((char *)pline) + 1);
                     if (!expr) err_msg_out_of_memory();
                     strcpy((char *)expr, (char *)pline); var = NULL;
+                    waitfor->breakout = 0;
                     for (;;) {
                         lpoint=apoint;
                         if (!get_exp(&w,1,cfile)) break; /* ellenorizve. */
@@ -2473,6 +2479,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         xpos = cfile->p; xlin= lpoint.line;
                         pline = expr;
                         lpoint.line=lin;cfile->p=pos;
+                        if (waitfor->breakout) break;
                         if (nopos > 0) {
                             lpoint = bpoint;
                             if (!get_exp(&w,1,cfile)) break; /* ellenorizve. */
@@ -2487,6 +2494,20 @@ struct value_s *compile(struct file_list_s *cflist)
                     lpoint.line=xlin;cfile->p=xpos;
                     star_tree = stree_old; vline = ovline;
                     goto breakerr;
+                }
+                if (prm==CMD_CONTINUE || prm == CMD_BREAK) { /* .continue */
+                    size_t wp = waitfor_p + 1;
+                    int nok = 1;
+                    while (wp--) {
+                        if (waitfors[wp].what == W_NEXT2) {
+                            if (wp && prm == CMD_BREAK) waitfors[wp - 1].breakout = 1;
+                            for (;wp <= waitfor_p; wp++) waitfors[wp].skip = 0;
+                            nok = 0;
+                            break;
+                        }
+                    }
+                    if (nok) err_msg2(ERROR______EXPECTED,".FOR or .REPT", &epoint);
+                    break;
                 }
                 if (prm==CMD_PAGE) { /* .page */
                     new_waitfor(W_ENDP2, &epoint);waitfor->addr = current_section->address;waitfor->laddr = current_section->l_address;waitfor->label=newlabel;waitfor->memp = newmemp;waitfor->membp = newmembp;
