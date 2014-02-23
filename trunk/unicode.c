@@ -248,7 +248,7 @@ void unfc(struct ubuff_s *b) {
     size_t i;
     static struct ubuff_s dbuf;
     if (!b) return free(dbuf.data);
-    for (i = 0; i < b->p; i++) {
+    for (dbuf.p = i = 0; i < b->p; i++) {
         udecompose(b->data[i], &dbuf, 0);
     }
     unormalize(&dbuf);
