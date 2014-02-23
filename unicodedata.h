@@ -51,8 +51,7 @@ extern const int32_t usequences2[];
 extern const uint8_t upropshash1[3600];
 extern const uint16_t upropshash2[][256];
 extern const struct properties_s uproperties[];
-extern const uint16_t ucomposed[];
-extern const uint32_t ucomposed2[];
+extern const uint32_t ucomposed[];
 extern const int16_t ucomposing[];
 
 static inline const struct properties_s *uget_property(uint32_t c) {
