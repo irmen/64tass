@@ -224,7 +224,7 @@ static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
             if (sprop->base >= 0 && prop->diar >= 0) {
                 int16_t comp = ucomposing[sprop->base + prop->diar];
                 if (comp) {
-                    d->data[sp] = (comp > 0) ? ucomposed[comp] : ucomposed2[-comp];
+                    d->data[sp] = (comp > 0) ? (uint16_t)comp : ucomposed[-comp];
                     sprop = NULL;
                     continue;
                 }
