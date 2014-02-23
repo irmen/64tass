@@ -356,9 +356,20 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                     if (type == E_UNKNOWN) {
                                         type = E_ISO1;
                                         i = (j - i) * 6;
-                                        p = utf8out(((~0x7f >> j) & 0xff) | (c >> i), p);
+                                        qc = 0;
+                                        if (ubuff.p >= ubuff.len) {
+                                            ubuff.len += 16;
+                                            ubuff.data = (uint32_t *)realloc(ubuff.data, ubuff.len * sizeof(uint32_t));
+                                            if (!ubuff.data) err_msg_out_of_memory();
+                                        }
+                                        ubuff.data[ubuff.p++] = ((~0x7f >> j) & 0xff) | (c >> i);
                                         for (;i; i-= 6) {
-                                            p = utf8out(((c >> (i-6)) & 0x3f) | 0x80, p);
+                                            if (ubuff.p >= ubuff.len) {
+                                                ubuff.len += 16;
+                                                ubuff.data = (uint32_t *)realloc(ubuff.data, ubuff.len * sizeof(uint32_t));
+                                                if (!ubuff.data) err_msg_out_of_memory();
+                                            }
+                                            ubuff.data[ubuff.p++] = ((c >> (i-6)) & 0x3f) | 0x80;
                                         }
                                         c = ch2; j = 0;
                                         break;
