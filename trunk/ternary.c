@@ -21,7 +21,7 @@
 
 */
 #include "ternary.h"
-#include "misc.h"
+#include "unicode.h"
 #include "error.h"
 
 static union tern_u {

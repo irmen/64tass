@@ -54,8 +54,6 @@ extern void tfree(void);
 extern void tinit(void);
 extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
-extern unsigned int utf8in(const uint8_t *, uint32_t *);
-extern uint8_t *utf8out(uint32_t, uint8_t *);
 extern int str_hash(const str_t *);
 extern int str_casehash(const str_t *);
 extern int str_cmp(const str_t *, const str_t *);

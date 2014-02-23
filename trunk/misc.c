@@ -32,6 +32,7 @@
 #include "eval.h"
 #include "variables.h"
 #include "ternary.h"
+#include "unicode.h"
 
 #include "codeobj.h"
 
@@ -57,30 +58,6 @@ const uint8_t whatis[256]={
 };
 
 /* --------------------------------------------------------------------------- */
-unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
-    uint32_t ch;
-    int i, j;
-    ch = c[0];
-
-    if (ch < 0xe0) {
-        ch ^= 0xc0;i = 2;
-    } else if (ch < 0xf0) {
-        ch ^= 0xe0;i = 3;
-    } else if (ch < 0xf8) {
-        ch ^= 0xf0;i = 4;
-    } else if (ch < 0xfc) {
-        ch ^= 0xf8;i = 5;
-    } else {
-        ch ^= 0xfc;i = 6;
-    }
-
-    for (j = 1;j < i; j++) {
-        ch = (ch << 6) ^ c[j] ^ 0x80;
-    }
-    *out = ch;
-    return i;
-}
-
 int str_hash(const str_t *s) {
     size_t l = s->len;
     const uint8_t *s2 = s->data;
@@ -136,43 +113,6 @@ void str_cpy(str_t *s1, const str_t *s2) {
     } else s1->data = NULL;
 }
 
-uint8_t *utf8out(uint32_t i, uint8_t *c) {
-    if (i < 0x800) {
-        *c++=0xc0 | (i >> 6);
-        *c++=0x80 | (i & 0x3f);
-	return c;
-    }
-    if (i < 0x10000) {
-        *c++=0xe0 | (i >> 12);
-        *c++=0x80 | ((i >> 6) & 0x3f);
-        *c++=0x80 | (i & 0x3f);
-	return c;
-    }
-    if (i < 0x200000) {
-        *c++=0xf0 | (i >> 18);
-        *c++=0x80 | ((i >> 12) & 0x3f);
-        *c++=0x80 | ((i >> 6) & 0x3f);
-        *c++=0x80 | (i & 0x3f);
-	return c;
-    }
-    if (i < 0x4000000) {
-        *c++=0xf8 | (i >> 24);
-        *c++=0x80 | ((i >> 18) & 0x3f);
-        *c++=0x80 | ((i >> 12) & 0x3f);
-        *c++=0x80 | ((i >> 6) & 0x3f);
-        *c++=0x80 | (i & 0x3f);
-	return c;
-    }
-    if (i & ~0x7fffffff) return c;
-    *c++=0xfc | (i >> 30);
-    *c++=0x80 | ((i >> 24) & 0x3f);
-    *c++=0x80 | ((i >> 18) & 0x3f);
-    *c++=0x80 | ((i >> 12) & 0x3f);
-    *c++=0x80 | ((i >> 6) & 0x3f);
-    *c++=0x80 | (i & 0x3f);
-    return c;
-}
-
 void tfree(void) {
     destroy_variables();
     destroy_section();
@@ -181,6 +121,7 @@ void tfree(void) {
     destroy_encoding();
     destroy_values();
     destroy_ternary();
+    unfc(NULL);
 }
 
 void tinit(void) {

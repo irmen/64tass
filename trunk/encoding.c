@@ -23,6 +23,7 @@
 #include "misc.h"
 #include "values.h"
 #include "64tass.h"
+#include "unicode.h"
 
 struct encoding_s *actual_encoding;
 
