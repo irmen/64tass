@@ -22,6 +22,7 @@
 #include "eval.h"
 #include "misc.h"
 #include "isnprintf.h"
+#include "unicode.h"
 
 #include "boolobj.h"
 

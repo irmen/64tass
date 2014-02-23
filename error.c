@@ -536,6 +536,7 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
 static inline void print_error(FILE *f, const struct error_s *err) {
     const struct file_list_s *cflist = err->file_list;
     linepos_t epoint = &err->epoint;
+    int utf = 0;
 
     if (cflist && cflist->parent) {
         if (cflist != included_from) {
@@ -543,13 +544,14 @@ static inline void print_error(FILE *f, const struct error_s *err) {
             while (included_from->parent->parent) {
                 fputs((included_from == cflist) ? "In file included from " : "                      ", f);
                 fputs(included_from->parent->file->realname, f);
-                fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, included_from->epoint.pos - included_from->epoint.upos + 1);
+                fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, included_from->epoint.pos - (included_from->file->coding == E_UTF8 ? 0 : included_from->epoint.upos) + 1);
                 included_from = included_from->parent;
                 fputs(included_from->parent->parent ? ",\n" : ":\n", f);
             }
             included_from = cflist;
         }
         if (cflist->file->realname[0]) {
+            utf = (cflist->file->coding == E_UTF8);
             fputs(cflist->file->realname, f);
         } else {
             fputs("<command line>", f);
@@ -557,7 +559,7 @@ static inline void print_error(FILE *f, const struct error_s *err) {
     } else {
         fputs("<command line>", f);
     }
-    fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, epoint->pos - epoint->upos + 1); 
+    fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, epoint->pos - (utf ? 0 : epoint->upos) + 1); 
     switch (err->severity) {
     case SV_NOTDEFNOTE:
     case SV_DOUBLENOTE: fputs("note: ", f);break;

@@ -48,7 +48,7 @@
 
 #include <string.h>
 #include "isnprintf.h"
-#include "misc.h"
+#include "unicode.h"
 #include "eval.h"
 
 #include "strobj.h"

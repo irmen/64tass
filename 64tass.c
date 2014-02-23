@@ -49,6 +49,7 @@
 #include "variables.h"
 #include "macro.h"
 #include "instruction.h"
+#include "unicode.h"
 
 #include "listobj.h"
 #include "codeobj.h"

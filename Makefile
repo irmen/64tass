@@ -1,5 +1,5 @@
 CC = gcc
-OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o
+OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o
 LIBS = -lm
 LANG = C
 REVISION := $(shell svnversion | grep "^[1-9]" || echo "584?")
@@ -17,27 +17,31 @@ all: 64tass README
 64tass.o: 64tass.c 64tass.h inttypes.h opcodes.h misc.h eval.h values.h \
  error.h libtree.h obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h \
  codeobj.h addressobj.h functionobj.h section.h mem.h encoding.h file.h \
- variables.h macro.h instruction.h floatobj.h boolobj.h
+ variables.h macro.h instruction.h unicode.h unicodedata.h floatobj.h \
+ boolobj.h
 addressobj.o: addressobj.c values.h inttypes.h error.h libtree.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h boolobj.h
 avl.o: avl.c libtree.h
 bitsobj.o: bitsobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
- functionobj.h eval.h isnprintf.h misc.h encoding.h
+ functionobj.h eval.h isnprintf.h unicode.h unicodedata.h encoding.h \
+ boolobj.h
 boolobj.o: boolobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h boolobj.h
 bytesobj.o: bytesobj.c values.h inttypes.h error.h libtree.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
- functionobj.h eval.h isnprintf.h misc.h encoding.h boolobj.h
+ functionobj.h eval.h isnprintf.h unicode.h unicodedata.h encoding.h \
+ boolobj.h
 codeobj.o: codeobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h eval.h mem.h 64tass.h opcodes.h section.h variables.h \
  boolobj.h
 encoding.o: encoding.c encoding.h libtree.h inttypes.h error.h ternary.h \
  misc.h values.h obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h \
- codeobj.h addressobj.h functionobj.h 64tass.h opcodes.h
+ codeobj.h addressobj.h functionobj.h 64tass.h opcodes.h unicode.h \
+ unicodedata.h
 error.o: error.c error.h inttypes.h libtree.h misc.h values.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h file.h variables.h 64tass.h opcodes.h
@@ -47,7 +51,7 @@ eval.o: eval.c eval.h values.h inttypes.h error.h libtree.h obj.h \
  64tass.h opcodes.h misc.h floatobj.h boolobj.h
 file.o: file.c file.h inttypes.h libtree.h values.h error.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
- functionobj.h misc.h 64tass.h opcodes.h
+ functionobj.h misc.h 64tass.h opcodes.h unicode.h unicodedata.h
 floatobj.o: floatobj.c values.h inttypes.h error.h libtree.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h floatobj.h boolobj.h
@@ -56,14 +60,15 @@ functionobj.o: functionobj.c values.h inttypes.h error.h libtree.h obj.h \
  functionobj.h eval.h variables.h floatobj.h boolobj.h
 instruction.o: instruction.c instruction.h inttypes.h opcodes.h values.h \
  error.h libtree.h obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h \
- codeobj.h addressobj.h functionobj.h 64tass.h misc.h eval.h section.h \
- mem.h file.h
+ codeobj.h addressobj.h functionobj.h 64tass.h misc.h section.h mem.h \
+ file.h
 intobj.o: intobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
- functionobj.h eval.h misc.h encoding.h boolobj.h floatobj.h
-isnprintf.o: isnprintf.c isnprintf.h inttypes.h misc.h eval.h values.h \
- error.h libtree.h obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h \
- codeobj.h addressobj.h functionobj.h
+ functionobj.h eval.h unicode.h unicodedata.h encoding.h boolobj.h \
+ floatobj.h
+isnprintf.o: isnprintf.c isnprintf.h inttypes.h unicode.h unicodedata.h \
+ eval.h values.h error.h libtree.h obj.h intobj.h bitsobj.h bytesobj.h \
+ strobj.h listobj.h codeobj.h addressobj.h functionobj.h
 listobj.o: listobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h eval.h isnprintf.h boolobj.h
@@ -76,7 +81,7 @@ mem.o: mem.c mem.h inttypes.h error.h libtree.h file.h misc.h 64tass.h \
 misc.o: misc.c misc.h inttypes.h 64tass.h opcodes.h getopt.h my_getopt.h \
  section.h libtree.h mem.h encoding.h file.h eval.h values.h error.h \
  obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h \
- addressobj.h functionobj.h variables.h ternary.h
+ addressobj.h functionobj.h variables.h ternary.h unicode.h unicodedata.h
 my_getopt.o: my_getopt.c my_getopt.h
 obj.o: obj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
@@ -87,8 +92,12 @@ section.o: section.c section.h libtree.h inttypes.h mem.h error.h misc.h \
  64tass.h opcodes.h
 strobj.o: strobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
- functionobj.h eval.h misc.h isnprintf.h boolobj.h
-ternary.o: ternary.c ternary.h misc.h inttypes.h error.h libtree.h
+ functionobj.h eval.h misc.h isnprintf.h unicode.h unicodedata.h \
+ boolobj.h
+ternary.o: ternary.c ternary.h unicode.h inttypes.h unicodedata.h error.h \
+ libtree.h
+unicodedata.o: unicodedata.c unicodedata.h
+unicode.o: unicode.c unicode.h inttypes.h unicodedata.h error.h libtree.h
 values.o: values.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h boolobj.h

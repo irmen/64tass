@@ -21,7 +21,7 @@
 #include "values.h"
 #include "intobj.h"
 #include "eval.h"
-#include "misc.h"
+#include "unicode.h"
 #include "encoding.h"
 
 #include "strobj.h"

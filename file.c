@@ -21,6 +21,7 @@
 #include "values.h"
 #include "misc.h"
 #include "64tass.h"
+#include "unicode.h"
 
 struct include_list_s {
     struct include_list_s *next;
@@ -163,6 +164,30 @@ static void file_free(struct avltree_node *aa)
     free(a);
 }
 
+static inline void flushubuff(struct ubuff_s *ubuff, uint8_t **pp, struct file_s *tmp) {
+    if (ubuff->p) {
+        uint8_t *p = *pp;
+        size_t i;
+        for (i = 0; i < ubuff->p; i++) {
+            size_t o = p - tmp->data;
+            if (o + 6*6 + 1 > tmp->len) {
+                tmp->len += 4096;
+                tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
+                if (!tmp->data || tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
+                p = tmp->data + o;
+            }
+            if (ubuff->data[i] && ubuff->data[i] < 0x80) *p++ = ubuff->data[i]; else p = utf8out(ubuff->data[i], p);
+        }
+        *pp = p;
+    } else {
+        if (ubuff->p >= ubuff->len) {
+            ubuff->len += 16;
+            ubuff->data = (uint32_t *)realloc(ubuff->data, ubuff->len * sizeof(uint32_t));
+            if (!ubuff->data) err_msg_out_of_memory();
+        }
+    }
+}
+
 static struct file_s *lastfi=NULL;
 static uint16_t curfnum=1;
 struct file_s *openfile(const char* name, const char *base, int ftype, const struct value_s *val, linepos_t epoint) {
@@ -243,6 +268,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     tmp->p += fread(tmp->data + tmp->p, 1, tmp->len - tmp->p, f);
                 } while (!feof(f));
             } else {
+                struct ubuff_s ubuff = {NULL, 0, 0};
                 if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",tmp->realname);
                 ch=getc(f);
                 ungetc(ch, f); 
@@ -261,117 +287,129 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     int i, j, ch2;
                     uint8_t *p;
                     uint32_t lastchar;
+                    int qc = 1;
+                    uint8_t cclass = 0;
 
+                    ubuff.p = 0;
                     p = tmp->data + tmp->p;
                     for (;;) {
-                        if (p + 6*6 + 1 > tmp->data + tmp->len) {
-                            size_t o = p - tmp->data;
+                        size_t o = p - tmp->data;
+                        if (o + 6*6 + 1 > tmp->len) {
                             tmp->len += 4096;
                             tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
                             if (!tmp->data || tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
                             p = tmp->data + o;
                         }
                         lastchar = c;
-                        if (arguments.toascii) {
-                            switch (type) {
-                            case E_UNKNOWN:
-                            case E_UTF8:
-                                c = ch = getc(f);
-                                if (ch == EOF) break;
-
-                                if (ch < 0x80) goto done;
-                                if (ch < 0xc0) {
-                                    if (type == E_UNKNOWN) {
-                                        type = E_ISO1; break;
-                                    }
-                                    c = 0xfffd; break;
-                                } else if (ch < 0xe0) {
-                                    c ^= 0xc0;i = 1;
-                                } else if (ch < 0xf0) {
-                                    c ^= 0xe0;i = 2;
-                                } else if (ch < 0xf8) {
-                                    c ^= 0xf0;i = 3;
-                                } else if (ch < 0xfc) {
-                                    c ^= 0xf8;i = 4;
-                                } else if (ch < 0xfe) {
-                                    c ^= 0xfc;i = 5;
-                                } else {
-                                    if (type == E_UNKNOWN) {
-                                        ch2=getc(f);
-                                        if (ch == 0xff && ch2 == 0xfe) {
-                                            type = E_UTF16LE;continue;
-                                        }
-                                        if (ch == 0xfe && ch2 == 0xff) {
-                                            type = E_UTF16BE;continue;
-                                        }
-                                        ungetc(ch2, f); 
-                                        type = E_ISO1; break;
-                                    }
-                                    c = 0xfffd; break;
-                                }
-
-                                for (j = i; i; i--) {
-                                    ch2 = getc(f);
-                                    if (ch2 < 0x80 || ch2 >= 0xc0) {
-                                        if (type == E_UNKNOWN) {
-                                            type = E_ISO1;
-                                            i = (j - i) * 6;
-                                            p = utf8out(((~0x7f >> j) & 0xff) | (c >> i), p);
-                                            for (;i; i-= 6) {
-                                                p = utf8out(((c >> (i-6)) & 0x3f) | 0x80, p);
-                                            }
-                                            c = ch2; j = 0;
-                                            break;
-                                        }
-                                        ungetc(ch2, f);
-                                        c = 0xfffd;break;
-                                    }
-                                    c = (c << 6) ^ ch2 ^ 0x80;
-                                }
-                                if (j) type = E_UTF8;
+                        if (!arguments.toascii) {
+                            c = ch = getc(f);
+                            if (ch == EOF) break;
+                            if (c == 10) {
+                                if (lastchar == 13) continue;
                                 break;
-                            case E_UTF16LE:
-                                c = getc(f);
-                                ch = getc(f);
-                                if (ch == EOF) break;
-                                c |= ch << 8;
-                                if (c == 0xfffe) {
-                                    type = E_UTF16BE;
-                                    continue;
-                                }
+                            } else if (c == 13) {
                                 break;
-                            case E_UTF16BE:
-                                c = getc(f) << 8;
-                                ch = getc(f);
-                                if (ch == EOF) break;
-                                c |= ch;
-                                if (c == 0xfffe) {
-                                    type = E_UTF16LE;
-                                    continue;
-                                }
-                                break;
-                            case E_ISO1:
-                                c = ch = getc(f);
-                                if (ch == EOF) break;
-                                goto done;
                             }
-                            if (c == 0xfeff) continue;
-                            if (type != E_UTF8) {
-                                if (c >= 0xd800 && c < 0xdc00) {
-                                    if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
-                                    c = 0xfffd;
-                                } else if (c >= 0xdc00 && c < 0xe000) {
-                                    if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                        c ^= 0x360dc00 ^ (lastchar << 10);
-                                        c += 0x10000;
-                                    } else
-                                        c = 0xfffd;
-                                } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-                                    c = 0xfffd;
-                                }
-                            }
-                        } else c = ch = getc(f);
+                            if (c && c < 0x80) *p++ = c; else p = utf8out(c, p);
+                            continue;
+                        }
+                        switch (type) {
+                        case E_UNKNOWN:
+                        case E_UTF8:
+                            c = ch = getc(f);
+                            if (ch == EOF) break;
 
+                            if (ch < 0x80) goto done;
+                            if (ch < 0xc0) {
+                                if (type == E_UNKNOWN) {
+                                    type = E_ISO1; break;
+                                }
+                                c = 0xfffd; break;
+                            } else if (ch < 0xe0) {
+                                c ^= 0xc0;i = 1;
+                            } else if (ch < 0xf0) {
+                                c ^= 0xe0;i = 2;
+                            } else if (ch < 0xf8) {
+                                c ^= 0xf0;i = 3;
+                            } else if (ch < 0xfc) {
+                                c ^= 0xf8;i = 4;
+                            } else if (ch < 0xfe) {
+                                c ^= 0xfc;i = 5;
+                            } else {
+                                if (type == E_UNKNOWN) {
+                                    ch2=getc(f);
+                                    if (ch == 0xff && ch2 == 0xfe) {
+                                        type = E_UTF16LE;continue;
+                                    }
+                                    if (ch == 0xfe && ch2 == 0xff) {
+                                        type = E_UTF16BE;continue;
+                                    }
+                                    ungetc(ch2, f); 
+                                    type = E_ISO1; break;
+                                }
+                                c = 0xfffd; break;
+                            }
+
+                            for (j = i; i; i--) {
+                                ch2 = getc(f);
+                                if (ch2 < 0x80 || ch2 >= 0xc0) {
+                                    if (type == E_UNKNOWN) {
+                                        type = E_ISO1;
+                                        i = (j - i) * 6;
+                                        p = utf8out(((~0x7f >> j) & 0xff) | (c >> i), p);
+                                        for (;i; i-= 6) {
+                                            p = utf8out(((c >> (i-6)) & 0x3f) | 0x80, p);
+                                        }
+                                        c = ch2; j = 0;
+                                        break;
+                                    }
+                                    ungetc(ch2, f);
+                                    c = 0xfffd;break;
+                                }
+                                c = (c << 6) ^ ch2 ^ 0x80;
+                            }
+                            if (j) type = E_UTF8;
+                            break;
+                        case E_UTF16LE:
+                            c = getc(f);
+                            ch = getc(f);
+                            if (ch == EOF) break;
+                            c |= ch << 8;
+                            if (c == 0xfffe) {
+                                type = E_UTF16BE;
+                                continue;
+                            }
+                            break;
+                        case E_UTF16BE:
+                            c = getc(f) << 8;
+                            ch = getc(f);
+                            if (ch == EOF) break;
+                            c |= ch;
+                            if (c == 0xfffe) {
+                                type = E_UTF16LE;
+                                continue;
+                            }
+                            break;
+                        case E_ISO1:
+                            c = ch = getc(f);
+                            if (ch == EOF) break;
+                            goto done;
+                        }
+                        if (c == 0xfeff) continue;
+                        if (type != E_UTF8) {
+                            if (c >= 0xd800 && c < 0xdc00) {
+                                if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
+                                c = 0xfffd;
+                            } else if (c >= 0xdc00 && c < 0xe000) {
+                                if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                                    c ^= 0x360dc00 ^ (lastchar << 10);
+                                    c += 0x10000;
+                                } else
+                                    c = 0xfffd;
+                            } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+                                c = 0xfffd;
+                            }
+                        }
                         if (ch == EOF) break;
                     done:
                         if (c == 10) {
@@ -380,8 +418,51 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                         } else if (c == 13) {
                             break;
                         }
-                        if (c && c < 0x80) *p++ = c; else p = utf8out(c, p);
+                        if (c < 0xc0) {
+                            cclass = 0;
+                            if (!qc) {
+                                unfc(&ubuff);
+                                qc = 1;
+                            }
+                            if (ubuff.p == 1) {
+                                if (ubuff.data[0] && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
+                            } else {
+                                flushubuff(&ubuff, &p, tmp);
+                                ubuff.p = 1;
+                            }
+                            ubuff.data[0] = c;
+                        } else {
+                            const struct properties_s *prop = uget_property(c);
+                            uint8_t ncclass = prop->combclass;
+                            if (ncclass && cclass > ncclass) qc = 0;
+                            else {
+                                if (prop->property & (qc_N | qc_M)) {
+                                    qc = 0;
+                                    if (ubuff.p >= ubuff.len) {
+                                        ubuff.len += 16;
+                                        ubuff.data = (uint32_t *)realloc(ubuff.data, ubuff.len * sizeof(uint32_t));
+                                        if (!ubuff.data) err_msg_out_of_memory();
+                                    }
+                                    ubuff.data[ubuff.p++] = c;
+                                } else {
+                                    if (!qc) {
+                                        unfc(&ubuff);
+                                        qc = 1; 
+                                    }
+                                    if (ubuff.p == 1) {
+                                        if (ubuff.data[0] && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
+                                    } else {
+                                        flushubuff(&ubuff, &p, tmp);
+                                        ubuff.p = 1;
+                                    }
+                                    ubuff.data[0] = c;
+                                }
+                            }
+                            cclass = ncclass;
+                        }
                     }
+                    if (!qc) unfc(&ubuff);
+                    if (ubuff.p) flushubuff(&ubuff, &p, tmp);
                     i = (p - tmp->data) - tmp->p;
                     p = tmp->data + tmp->p;
                     while (i && p[i-1]==' ') i--;
@@ -390,6 +471,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
 
                     if (ch == EOF) break;
                 } while (1);
+                free(ubuff.data);
             }
             if (ferror(f)) err_msg_file(ERROR__READING_FILE, name, epoint);
             if (f!=stdin) fclose(f);

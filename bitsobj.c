@@ -22,7 +22,7 @@
 #include "bitsobj.h"
 #include "eval.h"
 #include "isnprintf.h"
-#include "misc.h"
+#include "unicode.h"
 #include "encoding.h"
 #include "boolobj.h"
 
