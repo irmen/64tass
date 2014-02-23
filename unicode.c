@@ -149,7 +149,7 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
     }
     if (prop->decompose) {
         if (!(prop->property & pr_compat) || (options & U_COMPAT)) {
-            if (prop->casefold > 0) {
+            if (prop->decompose > 0) {
                 const int16_t *p = &usequences[prop->decompose];
                 for (;;) {
                     udecompose(abs(*p), d, options);
@@ -157,7 +157,7 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
                     p++;
                 }
             } else {
-                const int32_t *p = &usequences2[prop->decompose];
+                const int32_t *p = &usequences2[-prop->decompose];
                 for (;;) {
                     udecompose(abs(*p), d, options);
                     if (*p < 0) return;
@@ -171,9 +171,10 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
 }
 
 static void unormalize(struct ubuff_s *d) {
-    size_t pos = 0, max;
-    if (!d->p) return;
-    max = d->p -1;
+    size_t pos, max;
+    if (d->p < 2) return;
+    pos = 0;
+    max = d->p - 1;
     while (pos < max) {
         uint32_t ch1, ch2;
         uint8_t cc1, cc2;
@@ -198,13 +199,13 @@ static void unormalize(struct ubuff_s *d) {
 static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
     const struct properties_s *prop, *sprop = NULL;
     uint32_t ch;
-    uint8_t max_combining_class = 0;
+    int mclass = -1;
     size_t i, sp = (size_t)-1;
     d->p = 0;
     for (i = 0; i < buff->p; i++) {
         ch = buff->data[i];
         prop = uget_property(ch);
-        if (sp != (size_t)-1 && prop->combclass > max_combining_class) {
+        if (sp != (size_t)-1 && prop->combclass > mclass) {
             uint32_t sc = d->data[sp];
             if (sc >= 0xac00) {
                 uint32_t hs = sc - 0xac00;
@@ -231,13 +232,13 @@ static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
             }
         }
         if (prop->combclass) {
-            if (prop->combclass > max_combining_class) {
-                max_combining_class = prop->combclass;
+            if (prop->combclass > mclass) {
+                mclass = prop->combclass;
             }
         } else {
             sp = d->p;
             sprop = prop;
-            max_combining_class = 0;
+            mclass = -1;
         }
         if (d->p >= d->len) extbuff(d);
         d->data[d->p++] = ch;

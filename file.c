@@ -434,29 +434,26 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                         } else {
                             const struct properties_s *prop = uget_property(c);
                             uint8_t ncclass = prop->combclass;
-                            if (ncclass && cclass > ncclass) qc = 0;
-                            else {
-                                if (prop->property & (qc_N | qc_M)) {
-                                    qc = 0;
-                                    if (ubuff.p >= ubuff.len) {
-                                        ubuff.len += 16;
-                                        ubuff.data = (uint32_t *)realloc(ubuff.data, ubuff.len * sizeof(uint32_t));
-                                        if (!ubuff.data) err_msg_out_of_memory();
-                                    }
-                                    ubuff.data[ubuff.p++] = c;
-                                } else {
-                                    if (!qc) {
-                                        unfc(&ubuff);
-                                        qc = 1; 
-                                    }
-                                    if (ubuff.p == 1) {
-                                        if (ubuff.data[0] && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
-                                    } else {
-                                        flushubuff(&ubuff, &p, tmp);
-                                        ubuff.p = 1;
-                                    }
-                                    ubuff.data[0] = c;
+                            if ((ncclass && cclass > ncclass) || prop->property & (qc_N | qc_M)) {
+                                qc = 0;
+                                if (ubuff.p >= ubuff.len) {
+                                    ubuff.len += 16;
+                                    ubuff.data = (uint32_t *)realloc(ubuff.data, ubuff.len * sizeof(uint32_t));
+                                    if (!ubuff.data) err_msg_out_of_memory();
                                 }
+                                ubuff.data[ubuff.p++] = c;
+                            } else {
+                                if (!qc) {
+                                    unfc(&ubuff);
+                                    qc = 1; 
+                                }
+                                if (ubuff.p == 1) {
+                                    if (ubuff.data[0] && ubuff.data[0] < 0x80) *p++ = ubuff.data[0]; else p = utf8out(ubuff.data[0], p);
+                                } else {
+                                    flushubuff(&ubuff, &p, tmp);
+                                    ubuff.p = 1;
+                                }
+                                ubuff.data[0] = c;
                             }
                             cclass = ncclass;
                         }
