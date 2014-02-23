@@ -132,16 +132,22 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
     prop = uget_property(ch);
     if ((options & U_CASEFOLD) && prop->casefold) {
         if (prop->casefold > 0) {
-            const int16_t *p = &usequences[prop->casefold];
+            if (d->p >= d->len) extbuff(d);
+            d->data[d->p++] = prop->casefold;
+            return;
+        } else if (prop->casefold > -16384) {
+            const int16_t *p = &usequences[-prop->casefold];
             for (;;) {
-                udecompose(abs(*p), d, options);
+                if (d->p >= d->len) extbuff(d);
+                d->data[d->p++] = abs(*p);
                 if (*p < 0) return;
                 p++;
             }
         } else {
-            const int32_t *p = &usequences2[-prop->casefold];
+            const int32_t *p = &usequences2[-prop->casefold - 16384];
             for (;;) {
-                udecompose(abs(*p), d, options);
+                if (d->p >= d->len) extbuff(d);
+                d->data[d->p++] = abs(*p);
                 if (*p < 0) return;
                 p++;
             }
@@ -150,14 +156,16 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
     if (prop->decompose) {
         if (!(prop->property & pr_compat) || (options & U_COMPAT)) {
             if (prop->decompose > 0) {
-                const int16_t *p = &usequences[prop->decompose];
+                return udecompose(prop->decompose, d, options);
+            } else if (prop->decompose > -16384) {
+                const int16_t *p = &usequences[-prop->decompose];
                 for (;;) {
                     udecompose(abs(*p), d, options);
                     if (*p < 0) return;
                     p++;
                 }
             } else {
-                const int32_t *p = &usequences2[-prop->decompose];
+                const int32_t *p = &usequences2[-prop->decompose - 16384];
                 for (;;) {
                     udecompose(abs(*p), d, options);
                     if (*p < 0) return;
