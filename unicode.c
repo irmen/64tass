@@ -139,7 +139,7 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
                 p++;
             }
         } else {
-            const int32_t *p = &usequences2[prop->casefold];
+            const int32_t *p = &usequences2[-prop->casefold];
             for (;;) {
                 udecompose(abs(*p), d, options);
                 if (*p < 0) return;
