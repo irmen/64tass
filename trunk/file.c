@@ -25,7 +25,7 @@
 
 struct include_list_s {
     struct include_list_s *next;
-    char path[1];
+    char path[];
 };
 
 static struct include_list_s include_list;
@@ -43,7 +43,7 @@ void include_list_add(const char *path)
 #else
     if (path[i-1] != '/') j++;
 #endif
-    len = j + sizeof(struct include_list_s);
+    len = j + 1 + sizeof(struct include_list_s);
     include_list_last->next = (struct include_list_s *)malloc(len);
     if (!include_list_last->next || len < sizeof(struct include_list_s)) err_msg_out_of_memory();
     include_list_last = include_list_last->next;
