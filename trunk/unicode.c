@@ -49,7 +49,6 @@ unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use 
 unsigned int utf8rin(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
     uint32_t ch;
     int i, j;
-    ch = c[0];
 
     if (c[-2] < 0xe0) {
         ch = c[-2] ^ 0xc0;i = 2;
