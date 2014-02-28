@@ -495,7 +495,7 @@ static void dict_len(const struct value_s *v1, struct value_s *v, linepos_t UNUS
 
 static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     const struct pair_s *p;
-    size_t i, len = 2, chars = 0;
+    size_t i = 0, j, len = 2, chars = 0;
     struct value_s *tmp = NULL;
     uint8_t *s;
     unsigned int def = (v1->u.dict.def != NULL);
@@ -507,7 +507,6 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
         if (!tmp || len < def || len > SIZE_MAX / sizeof(struct value_s)) err_msg_out_of_memory(); /* overflow */
         len += 1 + def;
         if (len < 1 + def) err_msg_out_of_memory(); /* overflow */
-        i = 0;
         if (v1->u.dict.len) {
             const struct avltree_node *n = avltree_first(&v1->u.dict.members);
             while (n) {
@@ -525,7 +524,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
                 n = avltree_next(n);
             }
         }
-        if (v1->u.dict.def) {
+        if (def) {
             v1->u.dict.def->obj->repr(v1->u.dict.def, &tmp[i], epoint);
             if (tmp[i].obj != STR_OBJ) {
             error:
@@ -543,28 +542,21 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
     s = str_create_elements(v, len);
     len = 0;
     s[len++] = '{';
-    for (i = 0;i < v1->u.dict.len * 2;) {
-        if (i) s[len++] = ',';
-        memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
-        len += tmp[i].u.str.len;
-        chars += tmp[i].u.str.len - tmp[i].u.str.chars;
-        tmp[i].obj->destroy(&tmp[i]);
-        i++;
-        s[len++] = ':';
-        memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
-        len += tmp[i].u.str.len;
-        chars += tmp[i].u.str.len - tmp[i].u.str.chars;
-        tmp[i].obj->destroy(&tmp[i]);
-        i++;
+    for (j = 0; j < i; j++) {
+        if (j) s[len++] = (j & 1) ? ':' : ',';
+        memcpy(s + len, tmp[j].u.str.data, tmp[j].u.str.len);
+        len += tmp[j].u.str.len;
+        chars += tmp[j].u.str.len - tmp[j].u.str.chars;
+        tmp[j].obj->destroy(&tmp[j]);
     }
     if (def) {
-        if (i) s[len++] = ',';
+        if (j) s[len++] = ',';
         s[len++] = ':';
-        memcpy(s + len, tmp[i].u.str.data, tmp[i].u.str.len);
-        len += tmp[i].u.str.len;
-        chars += tmp[i].u.str.len - tmp[i].u.str.chars;
-        tmp[i].obj->destroy(&tmp[i]);
-        i++;
+        memcpy(s + len, tmp[j].u.str.data, tmp[j].u.str.len);
+        len += tmp[j].u.str.len;
+        chars += tmp[j].u.str.len - tmp[j].u.str.chars;
+        tmp[j].obj->destroy(&tmp[j]);
+        j++;
     }
     s[len++] = '}';
     free(tmp);
