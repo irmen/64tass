@@ -592,7 +592,8 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
     struct value_s iter, item, *val2, err;
     uval_t uval;
     size_t i, len;
-    uint8_t *odata = NULL, *d;
+    uint8_t *odata, *d;
+    int foundold;
 
     if (!lastes) {
         lastes = (struct escape_s *)malloc(sizeof(struct escape_s));
@@ -600,7 +601,8 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
     }
     b = (struct escape_s *)ternary_insert(&enc->escape, v->u.str.data, v->u.str.data + v->u.str.len, lastes, 0);
     if (!b) err_msg_out_of_memory();
-    if (b != lastes) {
+    foundold = (b != lastes);
+    if (foundold) {
         odata = b->data;
         b->data = NULL; /* lock old one */
     }
@@ -644,7 +646,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
     }
     iter.obj->destroy(&iter);
 
-    if (b == lastes) { //new escape
+    if (!foundold) { //new escape
         if (d == tmp.val) {
             memcpy(lastes->val, tmp.val, i);
             d = lastes->val;
