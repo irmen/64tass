@@ -1499,6 +1499,7 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
             goto syntaxe;
         }
         lpoint.pos++;
+    rtl:
         prec = op->u.oper.prio;
         while (operp && prec < o_oper[operp-1].val->u.oper.prio) {
             operp--;
@@ -1579,7 +1580,7 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
         case '&': if (pline[lpoint.pos+1] == '&') {lpoint.pos+=2;op = &o_LAND;} else {lpoint.pos++;op = &o_AND;} goto push2;
         case '|': if (pline[lpoint.pos+1] == '|') {lpoint.pos+=2;op = &o_LOR;} else {lpoint.pos++;op = &o_OR;} goto push2;
         case '^': if (pline[lpoint.pos+1] == '^') {lpoint.pos+=2;op = &o_LXOR;} else {lpoint.pos++;op = &o_XOR;} goto push2;
-        case '*': if (pline[lpoint.pos+1] == '*') {lpoint.pos+=2;op = &o_EXP;} else {lpoint.pos++;op = &o_MUL;} goto push2;
+        case '*': if (pline[lpoint.pos+1] == '*') {lpoint.pos+=2;op = &o_EXP; goto rtl;} lpoint.pos++;op = &o_MUL; goto push2;
         case '%': lpoint.pos++;op = &o_MOD; goto push2;
         case '/': if (pline[lpoint.pos+1] == '/') {lpoint.pos+=2;op = &o_MOD;} else {lpoint.pos++;op = &o_DIV;} goto push2;
         case '+': lpoint.pos++;op = &o_ADD; goto push2;

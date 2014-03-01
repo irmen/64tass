@@ -1,4 +1,5 @@
 
+    .cerror 2 ** 2 ** 3 != 256
     .cerror 10 / 3 != 3
     .cerror 10 % 3 != 1
     .cerror (-10) / 3 != -4
