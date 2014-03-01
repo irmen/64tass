@@ -205,8 +205,6 @@ static void gap_calc2(oper_t op) {
         break;
     case T_TUPLE:
     case T_LIST:
-    case T_IDENT:
-    case T_ANONIDENT:
         if (op->op != &o_MEMBER) {
             v2->obj->rcalc2(op); return;
         }
@@ -680,135 +678,12 @@ static void error_repeat(oper_t op, uval_t UNUSED(rep)) {
     error_copy(op->v1, v);
 }
 
-static struct value_s *ident_resolv(const struct value_s *v1, struct value_s *v) {
-    if (v1->obj == ANONIDENT_OBJ) {
-        struct label_s *l = find_anonlabel(v1->u.anonident.count);
-        if (l) {
-            touch_label(l);
-            return l->value;
-        }
-        v->u.error.epoint = v1->u.anonident.epoint;
-        v->u.error.u.notdef.ident.len = 1;
-        v->u.error.u.notdef.ident.data = (const uint8_t *)((v1->u.anonident.count >= 0) ? "+" : "-");
-        v->u.error.u.notdef.down = 1;
-    } else {
-        int down = (v1->u.ident.name.data[0] != '_');
-        struct label_s *l = down ? find_label(&v1->u.ident.name) : find_label2(&v1->u.ident.name, cheap_context);
-        struct linepos_s epoint;
-        if (l) {
-            touch_label(l);
-            l->shadowcheck = 1;
-            return l->value;
-        }
-        epoint = v1->u.ident.epoint;
-        v->u.error.u.notdef.ident = v1->u.ident.name;
-        v->u.error.u.notdef.down = down;
-        v->u.error.epoint = epoint;
-    }
-    v->u.error.u.notdef.label = v->u.error.u.notdef.down ? current_context : cheap_context;
-    v->obj = ERROR_OBJ;
-    v->u.error.num = ERROR___NOT_DEFINED;
-    return v;
-}
-
-static void ident_calc1(oper_t op) {
-    struct value_s *v, *v1 = op->v1;
-    v = ident_resolv(v1, op->v);
-    op->v1 = v;
-    v->obj->calc1(op);
-    op->v1 = v1;
-}
-
-static void ident_calc2(oper_t op) {
-    struct value_s *v, *v1 = op->v1, tmp;
-    v = ident_resolv(v1, &tmp);
-    if (v == &tmp) {
-        v = op->v;
-        if (v == op->v2) v->obj->destroy(v);
-        tmp.obj->copy_temp(&tmp, v);
-        return;
-    }
-    op->v1 = v;
-    v->obj->calc2(op);
-    op->v1 = v1;
-}
-
 static void ident_rcalc2(oper_t op) {
-    struct value_s *v, *v2, tmp;
     if (op->op == &o_MEMBER) {
         return op->v1->obj->calc2(op);
     }
-    v2 = op->v2;
-    v = ident_resolv(v2, &tmp);
-    if (v == &tmp) {
-        v = op->v;
-        if (v == op->v1) v->obj->destroy(v);
-        tmp.obj->copy_temp(&tmp, v);
-        return;
-    }
-    op->v2 = v;
-    v->obj->rcalc2(op);
-    op->v2 = v2;
+    obj_oper_error(op);
 }
-
-static int ident_truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->truth(v1, v, type, epoint);
-}
-
-static int ident_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->hash(v1, v, epoint);
-}
-
-static void ident_repr(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->repr(v1, v, epoint);
-}
-
-static int MUST_CHECK ident_ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->ival(v1, v, iv, bits, epoint);
-}
-
-static int MUST_CHECK ident_uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->uval(v1, v, uv, bits, epoint);
-}
-
-static void ident_str(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->str(v1, v, epoint);
-}
-
-static int MUST_CHECK ident_real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->real(v1, v, r, epoint);
-}
-
-static void ident_integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->integer(v1, v, epoint);
-}
-
-static void ident_len(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->len(v1, v, epoint);
-}
-
-static void ident_size(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    v1 = ident_resolv(v1, v);
-    return v1->obj->size(v1, v, epoint);
-}
-
-static void ident_repeat(oper_t op, uval_t rep) {
-    struct value_s *v, *v1 = op->v1;
-    v = ident_resolv(v1, op->v);
-    op->v1 = v;
-    v->obj->repeat(op, rep);
-    op->v1 = v1;
-}
-
 static int none_truth(const struct value_s *UNUSED(v1), struct value_s *v, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
     return 1;
@@ -1059,35 +934,9 @@ void objects_init(void) {
     gap_obj.calc2 = gap_calc2;
     gap_obj.rcalc2 = gap_rcalc2;
     obj_init(&ident_obj, T_IDENT, "<ident>");
-    ident_obj.truth = ident_truth;
-    ident_obj.hash = ident_hash;
-    ident_obj.repr = ident_repr;
-    ident_obj.str = ident_str;
-    ident_obj.ival = ident_ival;
-    ident_obj.uval = ident_uval;
-    ident_obj.real = ident_real;
-    ident_obj.integer = ident_integer;
-    ident_obj.len = ident_len;
-    ident_obj.size = ident_size;
-    ident_obj.calc1 = ident_calc1;
-    ident_obj.calc2 = ident_calc2;
     ident_obj.rcalc2 = ident_rcalc2;
-    ident_obj.repeat = ident_repeat;
     obj_init(&anonident_obj, T_ANONIDENT, "<anonident>");
-    anonident_obj.truth = ident_truth;
-    anonident_obj.hash = ident_hash;
-    anonident_obj.repr = ident_repr;
-    anonident_obj.str = ident_str;
-    anonident_obj.ival = ident_ival;
-    anonident_obj.uval = ident_uval;
-    anonident_obj.real = ident_real;
-    anonident_obj.integer = ident_integer;
-    anonident_obj.len = ident_len;
-    anonident_obj.size = ident_size;
-    anonident_obj.calc1 = ident_calc1;
-    anonident_obj.calc2 = ident_calc2;
     anonident_obj.rcalc2 = ident_rcalc2;
-    anonident_obj.repeat = ident_repeat;
     obj_init(&oper_obj, T_OPER, "<oper>");
     oper_obj.repr = oper_repr;
     obj_init(&default_obj, T_DEFAULT, "<default>");

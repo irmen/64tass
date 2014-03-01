@@ -611,7 +611,7 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
         }
     }
     if (tuple) val_destroy(tuple);
-    else if (i < args) err_msg2(ERROR_ILLEGAL_OPERA, NULL, &vals[i].epoint);
+    else if (i < args) err_msg_argnum(args, i, i, &vals[i].epoint);
     {
         size_t oldpos;
         line_t lin = lpoint.line;

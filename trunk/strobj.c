@@ -609,8 +609,6 @@ static void calc2(oper_t op) {
             isnprintf(v1, v2, v, &op->epoint, &op->epoint2); return;
         }
         /* fall through */
-    case T_IDENT:
-    case T_ANONIDENT:
     case T_GAP:
     case T_REGISTER:
         if (op->op != &o_MEMBER) {
@@ -937,8 +935,6 @@ static void register_calc2(oper_t op) {
         break;
     case T_TUPLE:
     case T_LIST:
-    case T_IDENT:
-    case T_ANONIDENT:
         if (op->op != &o_MEMBER) {
             v2->obj->rcalc2(op); return;
         }

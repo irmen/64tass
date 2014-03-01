@@ -151,7 +151,6 @@ static const char *terr_error[]={
     "expression syntax",
     "label required",
     "missing argument",
-    "illegal operand",
     "division by zero",
     "zero value not allowed",
     "instruction can't cross banks",
