@@ -45,7 +45,7 @@ static void destroy(struct value_s *v1) {
 }
 
 static digit_t *inew(struct value_s *v, ssize_t len) {
-    if (len > 2) {
+    if (len > (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
         digit_t *s = (digit_t *)malloc(len * sizeof(digit_t));
         if (!s || len > SSIZE_MAX / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
         return s; 
@@ -120,15 +120,17 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
     ssize_t len = abs(v1->u.integer.len);
     int neg = v1->u.integer.len < 0;
     uint8_t *s;
-    digit_t ten, r, tdigits[16], *out;
+    digit_t ten, r, *out;
     size_t slen, i, j, sz, len2;
+    struct value_s tmp;
+
     if (len <= 1) {
-        char tmp[sizeof(digit_t) * 3];
-        if (len) len = sprintf(tmp, neg ? "-%d" : "%d", v1->u.integer.val[0]);
-        else {tmp[0]='0';len = 1;}
+        char tmp2[sizeof(digit_t) * 3];
+        if (len) len = sprintf(tmp2, neg ? "-%d" : "%d", v1->u.integer.val[0]);
+        else {tmp2[0]='0';len = 1;}
         if (v == v1) destroy(v);
         s = str_create_elements(v, len);
-        memcpy(s, tmp, len);
+        memcpy(s, tmp2, len);
         v->obj = STR_OBJ;
         v->u.str.data = s;
         v->u.str.len = len;
@@ -138,10 +140,7 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
 
     sz = 1 + (len * SHIFT / (3 * DSHIFT));
     if (len > SSIZE_MAX / SHIFT) err_msg_out_of_memory(); /* overflow */
-    if (sz > 2) {
-        out = (digit_t *)malloc(sz * sizeof(digit_t));
-        if (!out || sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
-    } else out = tdigits;
+    out = inew(&tmp, sz);
 
     for (sz = 0, i = len; i--;) {
         digit_t h = v1->u.integer.data[i];
@@ -184,7 +183,7 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
     } while (r);
     if (neg) *--s = '-';
 
-    if (out != tdigits) free(out);
+    if (tmp.u.integer.val != out) free(out);
 
     v->obj = STR_OBJ;
     v->u.str.data = s;
@@ -386,7 +385,7 @@ static void iadd(const struct value_s *vv1, const struct value_s *vv2, struct va
     for (;i < len1; i++) v[i] = v1[i];
     if (c) v[i++] = c;
     while (i && !v[i - 1]) i--;
-    if (i <= 2) {
+    if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
         memcpy(vv->u.integer.val, v, i * sizeof(digit_t));
         free(v);
         v = vv->u.integer.val;
@@ -454,7 +453,7 @@ static void isub(const struct value_s *vv1, const struct value_s *vv2, struct va
     }
     for (;i < len1; i++) v[i] = v1[i];
     while (i && !v[i - 1]) i--;
-    if (i <= 2 && v != vv->u.integer.val) {
+    if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
         memcpy(vv->u.integer.val, v, i * sizeof(digit_t));
         free(v);
         v = vv->u.integer.val;
@@ -467,14 +466,12 @@ static void isub(const struct value_s *vv1, const struct value_s *vv2, struct va
 static void imul(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
     ssize_t i, j, len1, len2, sz;
     digit_t *v1, *v2, *v;
+    struct value_s tmp;
     len1 = abs(vv1->u.integer.len);
     len2 = abs(vv2->u.integer.len);
     sz = len1 + len2;
     if (sz < len2) err_msg_out_of_memory(); /* overflow */
-    if (sz > 2) {
-        v = (digit_t *)calloc(sz, sizeof(digit_t));
-        if (!v || sz > SSIZE_MAX / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory();
-    } else {
+    if (sz <= 2) {
         twodigits_t c = (twodigits_t)vv1->u.integer.val[0] * vv2->u.integer.val[0];
         v = vv->u.integer.val;
         vv->u.integer.data = v;
@@ -488,6 +485,8 @@ static void imul(const struct value_s *vv1, const struct value_s *vv2, struct va
         vv->u.integer.len = (v[0] != 0);
         return;
     }
+    v = inew(&tmp, sz);
+    memset(v, 0, sz * sizeof(digit_t));
     v1 = vv1->u.integer.data; v2 = vv2->u.integer.data;
     for (i = 0; i < len1; i++) {
         twodigits_t c = 0, t = v1[i];
@@ -501,12 +500,12 @@ static void imul(const struct value_s *vv1, const struct value_s *vv2, struct va
     }
     i = sz;
     while (i && !v[i - 1]) i--;
-    if (i <= 2) {
+    if (vv == vv1 || vv == vv2) destroy(vv);
+    if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0])) {
         memcpy(vv->u.integer.val, v, i * sizeof(digit_t));
-        free(v);
+        if (tmp.u.integer.val != v) free(v);
         v = vv->u.integer.val;
     }
-    if (vv == vv1 || vv == vv2) destroy(vv);
     vv->u.integer.data = v;
     vv->u.integer.len = i;
 }
@@ -550,7 +549,7 @@ static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct
         if (vv1 == rem) destroy(rem);
         i = len1;
         while (i && !v[i - 1]) i--;
-        if (i <= 2 && v != vv->u.integer.val) {
+        if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
             memcpy(vv->u.integer.val, v, i * sizeof(digit_t));
             free(v);
             v = vv->u.integer.val;
@@ -630,7 +629,7 @@ static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct
 
         if (vv1 == vv) destroy(vv);
         while (k && !a[k - 1]) k--;
-        if (k <= 2) {
+        if (k <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0])) {
             memcpy(vv->u.integer.val, a, k * sizeof(digit_t));
             if (a != tmp3.u.integer.val) free(a);
             a = vv->u.integer.val;
@@ -640,7 +639,7 @@ static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct
 
         if (vv1 == rem) destroy(rem);
         while (len2 && !v0[len2 - 1]) len2--;
-        if (len2 <= 2) {
+        if (len2 <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0])) {
             memcpy(rem->u.integer.val, v0, len2 * sizeof(digit_t));
             if (v0 != tmp1.u.integer.val) free(v0);
             v0 = rem->u.integer.val;
@@ -674,7 +673,7 @@ static void power(const struct value_s *vv1, const struct value_s *vv2, struct v
 static void ilshift(const struct value_s *vv1, const struct value_s *vv2, uval_t s, struct value_s *vv) {
     ssize_t i, len1, sz;
     int word, bit, neg;
-    digit_t *v1, *v;
+    digit_t *v1, *v, *v2;
 
     word = s / SHIFT;
     bit = s % SHIFT;
@@ -683,21 +682,18 @@ static void ilshift(const struct value_s *vv1, const struct value_s *vv2, uval_t
     neg = (vv1->u.integer.len < 0);
     sz = len1 + word + (bit > 0);
     v = inew(vv, sz);
-    v += word;
+    v2 = v + word;
     if (bit) {
-        v[len1] = 0;
+        v2[len1] = 0;
         for (i = len1; i--;) {
-            v[i + 1] |= v1[i] >> (SHIFT - bit);
-            v[i] = (v1[i] << bit) & MASK;
+            v2[i + 1] |= v1[i] >> (SHIFT - bit);
+            v2[i] = (v1[i] << bit) & MASK;
         }
-    } else if (len1) memmove(v, v1, len1 * sizeof(digit_t));
-    if (word) {
-        v -= word;
-        memset(v, 0, word * sizeof(digit_t));
-    }
+    } else if (len1) memmove(v2, v1, len1 * sizeof(digit_t));
+    if (word) memset(v, 0, word * sizeof(digit_t));
     i = sz;
     while (i && !v[i - 1]) i--;
-    if (i <= 2 && v != vv->u.integer.val) {
+    if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
         memcpy(vv->u.integer.val, v, i * sizeof(digit_t));
         free(v);
         v = vv->u.integer.val;
@@ -753,7 +749,7 @@ static void irshift(const struct value_s *vv1, const struct value_s *vv2, uval_t
         return;
     }
     while (i && !v[i - 1]) i--;
-    if (i <= 2 && v != vv->u.integer.val) {
+    if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
         memcpy(vv->u.integer.val, v, i * sizeof(digit_t));
         free(v);
         v = vv->u.integer.val;
@@ -827,7 +823,7 @@ static void iand(const struct value_s *vv1, const struct value_s *vv2, struct va
         }
     }
     while (sz && !v[sz - 1]) sz--;
-    if (sz <= 2 && v != vv->u.integer.val) {
+    if (sz <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
         memcpy(vv->u.integer.val, v, sz * sizeof(digit_t));
         free(v);
         v = vv->u.integer.val;
@@ -907,7 +903,7 @@ static void ior(const struct value_s *vv1, const struct value_s *vv2, struct val
         }
     }
     while (sz && !v[sz - 1]) sz--;
-    if (sz <= 2 && vv->u.integer.val != v) {
+    if (sz <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && vv->u.integer.val != v) {
         memcpy(vv->u.integer.val, v, sz * sizeof(digit_t));
         free(v);
         v = vv->u.integer.val;
@@ -985,7 +981,7 @@ static void ixor(const struct value_s *vv1, const struct value_s *vv2, struct va
         }
     }
     while (sz && !v[sz - 1]) sz--;
-    if (sz <= 2 && vv->u.integer.val != v) {
+    if (sz <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && vv->u.integer.val != v) {
         memcpy(vv->u.integer.val, v, sz * sizeof(digit_t));
         free(v);
         v = vv->u.integer.val;
@@ -1128,7 +1124,7 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
 
     while (sz && !d[sz - 1]) sz--;
     if (v == v1) v->obj->destroy(v);
-    if (sz <= 2) {
+    if (sz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
         memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
         if (tmp.u.integer.val != d) free(d);
         d = v->u.integer.val;
@@ -1207,7 +1203,7 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
 
     while (sz && !d[sz - 1]) sz--;
     if (v == v1) v->obj->destroy(v);
-    if (sz <= 2) {
+    if (sz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
         memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
         if (tmp.u.integer.val != d) free(d);
         d = v->u.integer.val;
@@ -1235,11 +1231,8 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
             return 0;
         }
 
-        if (v1->u.str.len <= 2 * SHIFT / 8) sz = 2;
-        else {
-            sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
-            if (v1->u.str.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
-        }
+        sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
+        if (v1->u.str.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
         d = inew(&tmp, sz);
 
         encode_string(v1);
@@ -1280,7 +1273,7 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
 
         while (osz && !d[osz - 1]) osz--;
         if (v == v1) v->obj->destroy(v);
-        if (osz <= 2) {
+        if (osz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
             memcpy(v->u.integer.val, d, osz * sizeof(digit_t));
             if (tmp.u.integer.val != d) free(d);
             d = v->u.integer.val;
@@ -1346,13 +1339,15 @@ size_t int_from_decstr(struct value_s *v, const uint8_t *s) {
         if (a) {
             if (end2 >= &d[sz]) {
                 sz++;
-                if (sz == 2) { 
-                    d = (digit_t *)malloc(2 * sizeof(digit_t));
-                    if (!d) err_msg_out_of_memory();
-                    memcpy(d, v->u.integer.val, 2 * sizeof(digit_t));
-                } else if (sz > 2) {
-                    d = (digit_t *)realloc(d, sz * sizeof(digit_t));
-                    if (!d || sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+                if (sz > (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
+                    if (d == v->u.integer.val) { 
+                        d = (digit_t *)malloc(sz * sizeof(digit_t));
+                        if (!d) err_msg_out_of_memory();
+                        memcpy(d, v->u.integer.val, sizeof(v->u.integer.val));
+                    } else {
+                        d = (digit_t *)realloc(d, sz * sizeof(digit_t));
+                        if (!d || sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+                    }
                 }
                 end2 = d + sz - 1;
             }
@@ -1362,7 +1357,7 @@ size_t int_from_decstr(struct value_s *v, const uint8_t *s) {
 
     sz = end2 - d;
     while (sz && !d[sz - 1]) sz--;
-    if (sz <= 2 && v->u.integer.val != d) {
+    if (sz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0]) && v->u.integer.val != d) {
         memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
         free(d);
         d = v->u.integer.val;
