@@ -133,7 +133,7 @@ static struct label_s *strongest_label(struct avltree_node *b, avltree_cmp_fn_t 
         if (c->defpass == pass || (c->constant && (!fixeddig || c->defpass == pass - 1))) a = c;
         n = avltree_prev(n);
     }
-    return NULL;
+    return a;
 }
 
 struct label_s *find_label(const str_t *name) {
