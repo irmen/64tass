@@ -386,14 +386,7 @@ static void calc2(oper_t op) {
         if (v1->obj == v2->obj) {
             if (calc2_list(op)) break; return;
         }
-        goto def;
-    case T_IDENT:
-    case T_ANONIDENT:
-        if (op->op != &o_MEMBER) {
-            v2->obj->rcalc2(op);return;
-        }
     default:
-    def:
         if (v == v1) {
             for (;i < v1->u.list.len; i++) {
                 op->v1 = v1->u.list.data[i];
@@ -462,12 +455,6 @@ static void rcalc2(oper_t op) {
     case T_LIST:
         if (v1->obj == v2->obj) {
             if (calc2_list(op)) break; return;
-        }
-        goto def;
-    case T_IDENT:
-    case T_ANONIDENT:
-        if (op->op != &o_MEMBER) {
-            v1->obj->calc2(op);return;
         }
         goto def;
     case T_STR: 

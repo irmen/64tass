@@ -437,8 +437,6 @@ static void calc2(oper_t op) {
     case T_TUPLE:
     case T_LIST:
     case T_STR:
-    case T_IDENT:
-    case T_ANONIDENT:
     case T_GAP:
     case T_REGISTER:
         if (op->op != &o_MEMBER) {
