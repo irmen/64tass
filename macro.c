@@ -288,60 +288,29 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
     return val;
 }
 
-struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint, struct file_s *cfile, uint8_t strength) {
+struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint, uint8_t strength) {
     size_t i;
-    int w;
     struct label_s *label;
     struct value_s *val, *tuple = NULL;
-    int fin = 0;
     struct linepos_s epoint2;
+    size_t max = 0, args = get_val_remaining();
 
     for (i = 0; i < tmp2->u.mfunc.argc; i++) {
         int labelexists;
-        label=find_label3(&tmp2->u.mfunc.param[i].name, context, strength);
-        ignore();if (!here() || here()==';') fin++;
-        if (tmp2->u.mfunc.param[i].init) {
-            if (tmp2->u.mfunc.param[i].init->obj == DEFAULT_OBJ) {
-                tuple = val_alloc();
-                tuple->obj = TUPLE_OBJ;
-                tuple->u.list.len = 0;
-                tuple->u.list.data = NULL;
-                while (here()!=',' && here() && here()!=';') {
-                    struct value_s *val2;
-                    if (!get_exp(&w,4,cfile)) break;
-                    if (!(val2 = get_val(&epoint2))) {
-                        err_msg(ERROR_GENERL_SYNTAX,NULL);
-                        break;
-                    }
-                    tuple->u.list.len++;
-                    tuple->u.list.data = (struct value_s **)realloc(tuple->u.list.data, tuple->u.list.len * sizeof(tuple->u.list.data[0]));
-                    if (!tuple->u.list.data) err_msg_out_of_memory();
-                    tuple->u.list.data[tuple->u.list.len-1] = val_reference(val2);
-                    ignore();if (here()==',') lpoint.pos++;
-                }
-                val = tuple;
-            } else {
-                if (here()==',' || !here() || here()==';') {
-                    val = tmp2->u.mfunc.param[i].init;
-                } else if (get_exp(&w,4,cfile)) {
-                    if (!(val = get_val(&epoint2))) {
-                        err_msg(ERROR_GENERL_SYNTAX,NULL);
-                        val = tmp2->u.mfunc.param[i].init;
-                    }
-                } else val = tmp2->u.mfunc.param[i].init;
-            }
+        if (tmp2->u.mfunc.param[i].init && tmp2->u.mfunc.param[i].init->obj == DEFAULT_OBJ) {
+            size_t j = 0;
+            tuple = val_alloc();
+            tuple->obj = TUPLE_OBJ;
+            tuple->u.list.len = get_val_remaining();
+            tuple->u.list.data = list_create_elements(tuple, tuple->u.list.len);
+            for (j = 0; (val = pull_val(&epoint2)); j++) tuple->u.list.data[j] = val;
+            val = tuple;
         } else {
-            if (fin > 1) {err_msg(ERROR______EXPECTED,","); val = &none_value;}
-            else if (get_exp(&w,4,cfile)) {
-                if (!(val = get_val(&epoint2))) {
-                    err_msg(ERROR_GENERL_SYNTAX,NULL);
-                    val = &none_value;
-                }
-            } else val = &none_value;
+            val = get_val(&epoint2);
+            if (!val) val = tmp2->u.mfunc.param[i].init;
+            if (!val) { max = i + 1; val = &none_value; }
         }
-        ignore();if (here()==',') lpoint.pos++;
-        if (label) labelexists = 1;
-        else label = new_label(&tmp2->u.mfunc.param[i].name, context, strength, &labelexists);
+        label = new_label(&tmp2->u.mfunc.param[i].name, context, strength, &labelexists);
         label->ref=0;
         if (labelexists) {
             if (label->defpass == pass) err_msg_double_defined(label, &tmp2->u.mfunc.param[i].name, &epoint2);
@@ -361,7 +330,8 @@ struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         }
     }
     if (tuple) val_destroy(tuple);
-    if (i == tmp2->u.mfunc.argc && here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
+    else if (i < args) err_msg_argnum(args, i, i, epoint);
+    if (max) err_msg_argnum(args, max, tmp2->u.mfunc.argc, epoint);
     {
         size_t oldpos;
         line_t lin = lpoint.line;
@@ -399,7 +369,7 @@ struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_
 }
 
 void get_func_params(struct value_s *v, struct file_s *cfile) {
-    struct value_s *val, new_value;
+    struct value_s new_value;
     size_t len = 0, i, j;
     str_t label;
     int w, stard = 0;
@@ -445,16 +415,11 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
             new_value.u.mfunc.param[i].init = NULL;
             if (here() == '=') {
                 lpoint.pos++;
-                if (!get_exp(&w,1,cfile)) {
+                if (!get_exp(&w, 1, cfile, 1, 1, &lpoint)) {
                     i++;
                     break;
                 }
-                if (!(val = get_val(NULL))) {
-                    err_msg(ERROR_GENERL_SYNTAX, NULL); 
-                    i++;
-                    break;
-                }
-                new_value.u.mfunc.param[i].init = val_reference(val);
+                new_value.u.mfunc.param[i].init = pull_val(NULL);
             }
         }
         if (!here() || here() == ';') {
@@ -579,7 +544,8 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
                 tuple->u.list.len = args - i;
                 tuple->u.list.data = list_create_elements(tuple, tuple->u.list.len);
                 while (j < args) {
-                    tuple->u.list.data[j - i] = val_reference(vals[j].val);
+                    tuple->u.list.data[j - i] = vals[j].val;
+                    vals[j].val = &none_value;
                     j++;
                 }
             } else {
@@ -593,9 +559,8 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
         label = new_label(&tmp2->u.mfunc.param[i].name, tmp2->u.mfunc.label, 0, &labelexists);
         label->ref=0;
         if (labelexists) {
-            if (label->defpass == pass) {
-                err_msg_double_defined(label, &tmp2->u.mfunc.param[i].name, &tmp2->u.mfunc.param[i].epoint);
-            } else {
+            if (label->defpass == pass) err_msg_double_defined(label, &tmp2->u.mfunc.param[i].name, &tmp2->u.mfunc.param[i].epoint);
+            else {
                 label->constant = 1;
                 label->requires = current_section->requires;
                 label->conflicts = current_section->conflicts;

@@ -48,7 +48,6 @@ struct value_s o_INDEX;
 struct value_s o_BRACE;
 struct value_s o_BRACKET;
 struct value_s o_PARENT;
-struct value_s o_SEPARATOR;
 struct value_s o_COMMA;
 struct value_s o_QUEST;
 struct value_s o_COLON;
@@ -92,6 +91,7 @@ struct value_s o_MUL;
 struct value_s o_DIV;
 struct value_s o_MOD;
 struct value_s o_EXP;
+struct value_s o_SPLAT;
 struct value_s o_NEG;
 struct value_s o_POS;
 struct value_s o_INV;
@@ -329,11 +329,6 @@ void init_values(void)
     o_PARENT.u.oper.name = "'(";
     o_PARENT.u.oper.op = O_PARENT;
     o_PARENT.u.oper.prio = 0;
-    o_SEPARATOR.obj = OPER_OBJ;
-    o_SEPARATOR.refcount = 0;
-    o_SEPARATOR.u.oper.name = "',";
-    o_SEPARATOR.u.oper.op = O_SEPARATOR;
-    o_SEPARATOR.u.oper.prio = 1;
     o_COMMA.obj = OPER_OBJ;
     o_COMMA.refcount = 0;
     o_COMMA.u.oper.name = "',";
@@ -569,21 +564,26 @@ void init_values(void)
     o_LNOT.u.oper.name = "logical not '!";
     o_LNOT.u.oper.op = O_LNOT;
     o_LNOT.u.oper.prio = 16;
+    o_SPLAT.obj = OPER_OBJ;
+    o_SPLAT.refcount = 0;
+    o_SPLAT.u.oper.name = "unary splat '*";
+    o_SPLAT.u.oper.op = O_SPLAT;
+    o_SPLAT.u.oper.prio = 17;
     o_CONCAT.obj = OPER_OBJ;
     o_CONCAT.refcount = 0;
     o_CONCAT.u.oper.name = "concatenate '..";
     o_CONCAT.u.oper.op = O_CONCAT;
-    o_CONCAT.u.oper.prio = 17;
+    o_CONCAT.u.oper.prio = 18;
     o_X.obj = OPER_OBJ;
     o_X.refcount = 0;
     o_X.u.oper.name = "repeat 'x";
     o_X.u.oper.op = O_X;
-    o_X.u.oper.prio = 18;
+    o_X.u.oper.prio = 19;
     o_MEMBER.obj = OPER_OBJ;
     o_MEMBER.refcount = 0;
     o_MEMBER.u.oper.name = "member '.";
     o_MEMBER.u.oper.op = O_MEMBER;
-    o_MEMBER.u.oper.prio = 19;
+    o_MEMBER.u.oper.prio = 20;
 }
 
 void destroy_values(void)

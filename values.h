@@ -34,7 +34,6 @@
 struct memblocks_s;
 
 enum oper_e {
-    O_SEPARATOR,     /* ,     */
     O_FUNC,          /* a(    */
     O_INDEX,         /* a[    */
     O_BRACE,         /* {a}   */
@@ -63,6 +62,7 @@ enum oper_e {
     O_HIGHER,        /* >     */
     O_BANK,          /* `     */
     O_STRING,        /* ^     */
+    O_SPLAT,         /* *     */
     O_NEG,           /* -     */
     O_POS,           /* +     */
     O_INV,           /* ~     */
@@ -209,7 +209,6 @@ extern struct value_s o_INDEX;
 extern struct value_s o_BRACE;
 extern struct value_s o_BRACKET;
 extern struct value_s o_PARENT;
-extern struct value_s o_SEPARATOR;
 extern struct value_s o_COMMA;
 extern struct value_s o_QUEST;
 extern struct value_s o_COLON;
@@ -253,6 +252,7 @@ extern struct value_s o_MUL;
 extern struct value_s o_DIV;
 extern struct value_s o_MOD;
 extern struct value_s o_EXP;
+extern struct value_s o_SPLAT;
 extern struct value_s o_NEG;
 extern struct value_s o_POS;
 extern struct value_s o_INV;

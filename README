@@ -444,6 +444,7 @@ a[s]         no change                             (1, 2, 3)[:] is (1, 2, 3)
 a[s]         cut off start                         (1, 2, 3)[1:] is (2, 3)
 a[s]         cut off end                           (1, 2.0, 3)[:-1] is (1, 2.0)
 a[s]         reverse                               (1, 2, 3)[::-1] is (3, 2, 1)
+*a[s]        to arguments                          hypot(*[1, 2])
 len(a)       number of elements                    len([1, 2, 3]) is 3
 all(a)       all elements true or empty list       all([1, 1, 0]) is false
 any(a)       at least one true element             any([1, 1, 0]) is true

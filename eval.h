@@ -21,16 +21,17 @@
 #include "values.h"
 #include "obj.h"
 
-extern int get_exp(int *, int, struct file_s *);
-extern int get_exp_var(struct file_s *);
+extern int get_exp(int *, int, struct file_s *, unsigned int, unsigned int, linepos_t);
+extern int get_exp_var(struct file_s *, linepos_t);
 extern struct value_s *get_val(struct linepos_s *);
+extern struct value_s *pull_val(struct linepos_s *);
+extern size_t get_val_remaining(void);
 extern void destroy_eval(void);
 extern void init_eval(void);
 extern void eval_enter(void);
 extern void eval_leave(void);
-extern int eval_finish(void);
 extern size_t get_label(void);
-extern struct value_s *get_vals_tuple(void);
+extern struct value_s *get_vals_tuple(int);
 extern struct value_s *get_vals_addrlist(struct linepos_s *);
 extern ival_t indexoffs(const struct value_s *, struct value_s *, size_t, linepos_t);
 extern ival_t sliceparams(oper_t, size_t, ival_t *, ival_t *, ival_t *);
