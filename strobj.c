@@ -875,7 +875,7 @@ static void iindex(oper_t op) {
         while (offs--) p += utf8len(*p);
         len1 = utf8len(*p);
         p2 = snew(v, len1);
-        memcpy(p2, p, len1);
+        memmove(p2, p, len1);
     }
     if (v1 == v) destroy(v);
     v->obj = STR_OBJ;

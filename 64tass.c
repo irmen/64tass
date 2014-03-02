@@ -726,8 +726,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     referenceit &= label ? label->ref : 1;
                     if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                     val = get_vals_addrlist(epoints);
+                    if (referenceit && val->obj == NONE_OBJ) err_msg_still_none(NULL, &epoints[0]);
                     referenceit = oldreferenceit;
-                    if (val->obj == NONE_OBJ) err_msg_still_none(NULL, &epoints[0]);
                 }
                 if (label) labelexists = 1;
                 else label = new_label(&labelname, mycontext, strength, &labelexists);

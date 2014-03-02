@@ -1475,7 +1475,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 struct label_s *l;
                 str_t ident;
             as_ident:
-                if ((pline[epoint.pos] | (arguments.casesensitive ? 0 : 0x20)) == 'b' && (pline[epoint.pos + 1] == '"' || pline[lpoint.pos + 1] == '\'')) {
+                if ((pline[epoint.pos] | (arguments.casesensitive ? 0 : 0x20)) == 'b' && (pline[epoint.pos + 1] == '"' || pline[epoint.pos + 1] == '\'')) {
                     val = push(&epoint); get_string(val);
                     if (bytes_from_str(val, val)) {
                         val->obj->destroy(val);

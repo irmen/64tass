@@ -81,6 +81,7 @@ static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type,
     int result;
     size_t i;
     bdigit_t b;
+    const char *name;
     switch (type) {
     case TRUTH_ALL:
         result = 1;
@@ -110,11 +111,12 @@ static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type,
         result = !!v1->u.bits.len || v1->u.bits.inv;
         break;
     default:
+        name = v1->obj->name;
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_____CANT_BOOL;
         v->u.error.epoint = *epoint;
-        v->u.error.u.objname = v1->obj->name;
+        v->u.error.u.objname = name;
         return 1;
     }
 end:
@@ -224,11 +226,12 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
         if (v1->u.bits.inv) d -= ldexp((double)v1->u.bits.data[i], i * 8 * sizeof(bdigit_t));
         else d += ldexp((double)v1->u.bits.data[i], i * 8 * sizeof(bdigit_t));
         if (d == HUGE_VAL) {
+            const char *name = v1->obj->name;
             if (v1 == v) destroy(v);
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;
-            v->u.error.u.objname = v1->obj->name;
+            v->u.error.u.objname = name;
             return 1;
         }
     }

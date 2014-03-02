@@ -254,11 +254,12 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
         if (v1->u.integer.len < 0) d -= ldexp((double)v1->u.integer.data[i], i * SHIFT);
         else d += ldexp((double)v1->u.integer.data[i], i * SHIFT);
         if (d == HUGE_VAL) {
+            const char *name = v1->obj->name;
             if (v1 == v) destroy(v);
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;
-            v->u.error.u.objname = v1->obj->name;
+            v->u.error.u.objname = name;
             return 1;
         }
     }
