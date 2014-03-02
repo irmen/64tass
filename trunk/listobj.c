@@ -465,6 +465,13 @@ static void rcalc2(oper_t op) {
     default:
     def:
         switch (op->op->u.oper.op) {
+        case O_CMP:
+        case O_EQ:
+        case O_NE:
+        case O_LT:
+        case O_LE:
+        case O_GT:
+        case O_GE: 
         case O_MUL:
         case O_DIV:
         case O_MOD:
