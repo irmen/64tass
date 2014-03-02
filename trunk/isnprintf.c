@@ -495,12 +495,12 @@ void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_
             PUT_CHAR(*data.pf);  /* add the char the string */
         }
     }
-    if (v == v1) STR_OBJ->destroy(v);
+    if (v == v1 || v == v2) v->obj->destroy(v);
     return_value.obj->copy_temp(&return_value, v);
     return;
 err:
     return_value.obj->destroy(&return_value);
-    if (v == v1) STR_OBJ->destroy(v);
+    if (v == v1 || v == v2) v->obj->destroy(v);
     error_value.obj->copy_temp(&error_value, v);
     return;
 }
