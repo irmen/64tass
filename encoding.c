@@ -592,7 +592,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
     struct value_s iter, item, *val2, err;
     uval_t uval;
     size_t i, len;
-    uint8_t *odata, *d;
+    uint8_t *odata = NULL, *d;
     int foundold;
 
     if (!lastes) {

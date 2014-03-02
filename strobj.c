@@ -336,8 +336,8 @@ size_t str_from_str(struct value_s *v, linecpos_t *upos, const uint8_t *s) {
     return i;
 }
 
-uint8_t *str_create_elements(struct value_s *v, size_t len) {
-    return snew(v, len);
+uint8_t *str_create_elements(struct value_s *v, size_t ln) {
+    return snew(v, ln);
 }
 
 static void calc1(oper_t op) {
@@ -853,10 +853,10 @@ static void iindex(oper_t op) {
         return;
     }
     if (v2->obj == COLONLIST_OBJ) {
-        ival_t len, end, step;
-        len = sliceparams(op, len1, &offs, &end, &step);
-        if (len < 0) return;
-        return slice(v1, len, offs, end, step, v);
+        ival_t length, end, step;
+        length = sliceparams(op, len1, &offs, &end, &step);
+        if (length < 0) return;
+        return slice(v1, length, offs, end, step, v);
     }
     offs = indexoffs(v2, &err, len1, &op->epoint2);
     if (offs < 0) {
@@ -887,14 +887,14 @@ static void iindex(oper_t op) {
 static void register_repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *prefix = "<register '";
-    size_t len = strlen(prefix), len2 = v1->u.str.len;
+    size_t ln = strlen(prefix), len2 = v1->u.str.len;
     v->obj = STR_OBJ;
-    v->u.str.len = v1->u.str.len + 2 + len;
-    v->u.str.chars = v->u.str.chars + 2 + len;
-    if (v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
+    v->u.str.len = v1->u.str.len + 2 + ln;
+    v->u.str.chars = v->u.str.chars + 2 + ln;
+    if (v->u.str.len < (2 + ln)) err_msg_out_of_memory(); /* overflow */
     s = str_create_elements(v, v->u.str.len);
-    memmove(s + len, v1->u.str.data, len2);
-    memcpy(s, prefix, len);
+    memmove(s + ln, v1->u.str.data, len2);
+    memcpy(s, prefix, ln);
     s[v->u.str.len - 2] = '\'';
     s[v->u.str.len - 1] = '>';
     v->u.str.data = s;

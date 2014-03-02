@@ -561,10 +561,10 @@ static void iindex(oper_t op) {
         return;
     }
     if (v2->obj == COLONLIST_OBJ) {
-        ival_t len, end, step;
-        len = sliceparams(op, ln, &offs, &end, &step);
-        if (len < 0) return;
-        return slice(v1, len, offs, end, step, v, &op->epoint);
+        ival_t length, end, step;
+        length = sliceparams(op, ln, &offs, &end, &step);
+        if (length < 0) return;
+        return slice(v1, length, offs, end, step, v, &op->epoint);
     }
     offs = indexoffs(v2, &err, ln, &op->epoint2);
     if (offs < 0) {

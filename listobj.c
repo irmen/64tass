@@ -549,18 +549,9 @@ static void repeat(oper_t op, uval_t rep) {
     v->u.list.len = 0;
 }
 
-static void slice(struct value_s *v1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
+static void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
     struct value_s **vals, tmp;
     size_t i;
-    size_t ln;
-
-    if (step > 0) {
-        if (end < offs) end = offs;
-        ln = (end - offs + step - 1) / step;
-    } else {
-        if (end > offs) end = offs;
-        ln = (offs - end - step - 1) / -step;
-    }
 
     if (!ln) {
         if (v1 == v) destroy(v);
@@ -626,10 +617,10 @@ static void iindex(oper_t op) {
         return;
     }
     if (v2->obj == COLONLIST_OBJ) {
-        ival_t len, end, step;
-        len = sliceparams(op, ln, &offs, &end, &step);
-        if (len < 0) return;
-        return slice(v1, offs, end, step, v);
+        ival_t length, end, step;
+        length = sliceparams(op, ln, &offs, &end, &step);
+        if (length < 0) return;
+        return slice(v1, length, offs, end, step, v);
     }
     offs = indexoffs(v2, &err, ln, &op->epoint2);
     if (offs < 0) {
