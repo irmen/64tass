@@ -83,6 +83,7 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
 static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
     size_t i;
     struct value_s err;
+    const char *name;
     switch (type) {
     case TRUTH_ALL:
         err.u.boolean = 1;
@@ -107,11 +108,12 @@ static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type,
         }
         break;
     default: 
+        name = v1->obj->name;
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_____CANT_BOOL;
         v->u.error.epoint = *epoint;
-        v->u.error.u.objname = v1->obj->name;
+        v->u.error.u.objname = name;
         return 1;
     }
     if (v1 == v) destroy(v);

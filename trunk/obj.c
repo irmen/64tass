@@ -104,15 +104,17 @@ static int invalid_same(const struct value_s *v1, const struct value_s *v2) {
 }
 
 static void generic_invalid(const struct value_s *v1, struct value_s *v, linepos_t epoint, enum errors_e num) {
+    const char *name;
     if (v1->obj == ERROR_OBJ) {
         if (v != v1) error_copy(v1, v);
         return;
     }
+    name = v1->obj->name;
     if (v1 == v) v->obj->destroy(v);
     v->obj = ERROR_OBJ;
     v->u.error.num = num;
     v->u.error.epoint = *epoint;
-    v->u.error.u.objname = v1->obj->name;
+    v->u.error.u.objname = name;
 }
 
 static int invalid_truth(const struct value_s *v1, struct value_s *v, enum truth_e UNUSED(type), linepos_t epoint) {
