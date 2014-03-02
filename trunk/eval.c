@@ -234,6 +234,8 @@ static void get_star(struct value_s *v) {
 static size_t evxnum, evx_p;
 static struct eval_context_s {
     struct values_s *values;
+    size_t values_len;
+    size_t values_p;
     size_t values_size;
     size_t outp, outp2;
     int gstop;
@@ -286,7 +288,7 @@ static int get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
     *wd=3;    /* 0=byte 1=word 2=long 3=negative/too big */
 
     eval->outp = 0;
-    o_oper[0].val = &o_SEPARATOR;
+    o_oper[0].val = &o_COMMA;
 rest:
     ignore();
     conv = conv2 = NULL;
@@ -296,7 +298,7 @@ rest:
     }
     switch (here()) {
     case 0:
-    case ';': err_msg(ERROR_MISSING_ARGUM,NULL); return 0;
+    case ';': return 1;
     case '!':*wd=1;lpoint.pos++;break;
     case '<': conv = &o_LOWER; cpoint = lpoint; lpoint.pos++;break; 
     case '>': conv = &o_HIGHER;cpoint = lpoint; lpoint.pos++;break; 
@@ -310,9 +312,10 @@ rest:
         case '%': lpoint.pos++;val = push(&epoint);get_bin(val);goto other;
         case '"': val = push(&epoint);get_string(val);goto other;
         case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
+        case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+            val = push(&epoint); get_dec(val);goto other;
+        default: if (!get_label()) goto syntaxe; break;
         }
-        if (ch>='0' && ch<='9') {val = push(&epoint); get_dec(val);goto other;} 
-        if (!get_label()) goto syntaxe;
     as_ident:
         ident.data = pline + epoint.pos;
         ident.len = lpoint.pos - epoint.pos;
@@ -353,8 +356,7 @@ rest:
             }
             if (conv) push_oper(conv, &cpoint);
             if (conv2) push_oper(conv2, &cpoint);
-            if (stop == 1 || stop == 4) {lpoint = epoint;break;}
-            push_oper(&o_SEPARATOR, &epoint);
+            if (stop == 1) {lpoint = epoint;break;}
             if (llen) {
                 epoint.pos++;
                 goto as_ident;
@@ -390,7 +392,7 @@ rest:
     syntaxe:
         err_msg(ERROR_EXPRES_SYNTAX,NULL);
     error:
-        return 0;
+        break;
     }
     return 0;
 }
@@ -405,7 +407,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
     struct values_s *o_out;
     struct values_s *values;
 
-    if (ev->outp2 >= ev->outp) return 1;
+    ev->values_p = 0;
     values = ev->values;
 
     for (i = ev->outp2; i < ev->outp; i++) {
@@ -428,10 +430,6 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         op2 = val;
         op = op2->u.oper.op;
 
-        if (op == O_SEPARATOR) {
-            ev->outp2 = i + 1;
-            return 0;
-        }
         if (vsp < 1) goto syntaxe;
         v1 = &values[vsp-1];
         switch (op) {
@@ -512,7 +510,8 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         syntaxe:
             err_msg(ERROR_EXPRES_SYNTAX,NULL);
             ev->outp2 = ev->outp;
-            return -1;
+            ev->values_len = 0;
+            return 0;
         }
         v2 = &values[vsp-2];
         switch (v1->val->obj->type) {
@@ -579,41 +578,8 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         vsp--; val_replace(&v2->val, &none_value); continue;
     }
     ev->outp2 = i;
-    return 0;
-}
-
-int eval_finish(void) {
-    if (eval->outp2 < eval->outp) {
-        lpoint = eval->o_out[eval->outp2].epoint;
-        eval->outp2 = eval->outp;
-        return 1;
-    }
-    return 0;
-}
-
-static int get_val2(struct eval_context_s *);
-
-struct value_s *get_val(struct linepos_s *epoint) {/* length in bytes, defined */
-    int res;
-    struct values_s *value;
-
-    if (arguments.tasmcomp) {
-        res = get_val2_compat(eval);
-    } else {
-        res = get_val2(eval);
-    }
-    if (res) return (res > 0) ? NULL : &none_value;
-
-    value = eval->values;
-
-    if (epoint) *epoint = value->epoint;
-
-    if (value->val->obj == ERROR_OBJ) {
-        err_msg_output_and_destroy(value->val);
-        value->val->obj = NONE_OBJ;
-        return &none_value;
-    }
-    return value->val;
+    ev->values_len = vsp;
+    return 1;
 }
 
 static void functions(struct values_s *vals, unsigned int args) {
@@ -855,7 +821,7 @@ static int get_val2(struct eval_context_s *ev) {
     struct oper_s oper;
     atype_t am;
 
-    if (ev->outp2 >= ev->outp) return 1;
+    ev->values_p = 0;
     values = ev->values;
 
     for (i = ev->outp2; i < ev->outp; i++) {
@@ -876,10 +842,6 @@ static int get_val2(struct eval_context_s *ev) {
             continue;
         }
 
-        if (val == &o_SEPARATOR) {
-            ev->outp2 = i + 1;
-            return 0;
-        }
         if (val == &o_COMMA || val == &o_COLON2) continue;
         op2 = val;
         op = op2->u.oper.op;
@@ -919,7 +881,6 @@ static int get_val2(struct eval_context_s *ev) {
                         vsp--;
                         size_t j = i + 1;
                         if (tup && j < ev->outp && (ev->o_out[j].val->obj != OPER_OBJ || (
-                                        ev->o_out[j].val != &o_SEPARATOR && /* (3),2 */
                                         ev->o_out[j].val != &o_RPARENT &&   /* ((3)) */
                                         ev->o_out[j].val != &o_RBRACKET &&  /* [(3)] */
                                         ev->o_out[j].val != &o_FUNC &&      /* f((3)) */
@@ -1180,6 +1141,79 @@ static int get_val2(struct eval_context_s *ev) {
             }
             if (op == O_HASH) v1->epoint = o_out->epoint;
             continue;
+        case O_SPLAT:   /* *  */
+            if (v1->val->obj == TUPLE_OBJ || v1->val->obj == LIST_OBJ) {
+                struct value_s *tmp = v1->val;
+                size_t k, len = tmp->u.list.len;
+                v1->val = &none_value;
+                vsp--;
+                if (vsp + len >= ev->values_size) {
+                    size_t j = ev->values_size;
+                    ev->values_size = vsp + len;
+                    ev->values = values = (struct values_s *)realloc(values, ev->values_size * sizeof(struct values_s));
+                    if (!values || ev->values_size < len || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
+                    for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
+                }
+                for (k = 0; k < len; k++) {
+                    val_destroy(values[vsp].val);
+                    values[vsp].val = (tmp->refcount == 1) ? tmp->u.list.data[k] : val_reference(tmp->u.list.data[k]);
+                    values[vsp++].epoint = o_out->epoint;
+                }
+                if (tmp->refcount == 1) tmp->u.list.len = 0;
+                val_destroy(tmp);
+                continue;
+            }
+            if (v1->val->obj == DICT_OBJ) {
+                struct value_s *tmp = v1->val;
+                const struct avltree_node *n = avltree_first(&tmp->u.dict.members);
+                v1->val = &none_value;
+                vsp--;
+                if (vsp + tmp->u.dict.len >= ev->values_size) {
+                    size_t j = ev->values_size;
+                    ev->values_size = vsp + tmp->u.dict.len;
+                    ev->values = values = (struct values_s *)realloc(values, ev->values_size * sizeof(struct values_s));
+                    if (!values || ev->values_size < vsp || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
+                    for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
+                }
+                while (n) {
+                    const struct pair_s *p = cavltree_container_of(n, struct pair_s, node);
+                    val = val_alloc();
+                    val->obj = COLONLIST_OBJ;
+                    val->u.list.len = 2;
+                    val->u.list.data = list_create_elements(val, 2);
+                    val->u.list.data[0] = val_reference(p->key);
+                    val->u.list.data[1] = val_reference(p->data);
+
+                    val_destroy(values[vsp].val);
+                    values[vsp].val = val;
+                    values[vsp++].epoint = o_out->epoint;
+                    n = avltree_next(n);
+                }
+                if (tmp->u.dict.def) {
+                    if (vsp >= ev->values_size) {
+                        size_t j = ev->values_size;
+                        ev->values_size += 16;
+                        ev->values = values = (struct values_s *)realloc(values, ev->values_size * sizeof(struct values_s));
+                        if (!values || ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
+                        for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
+                    }
+                    val = val_alloc();
+                    val->obj = COLONLIST_OBJ;
+                    val->u.list.len = 2;
+                    val->u.list.data = list_create_elements(val, 2);
+                    val->u.list.data[0] = val_alloc();
+                    val->u.list.data[0]->obj = DEFAULT_OBJ;
+                    val->u.list.data[1] = val_reference(tmp->u.dict.def);
+
+                    val_destroy(values[vsp].val);
+                    values[vsp].val = val;
+                    values[vsp++].epoint = o_out->epoint;
+                }
+                val_destroy(tmp);
+                continue;
+            }
+            v1->epoint = o_out->epoint;
+            continue;
         case O_LNOT: /* ! */
             if (v1->val->refcount != 1) {
                 oper.v = val_alloc();
@@ -1223,7 +1257,8 @@ static int get_val2(struct eval_context_s *ev) {
         syntaxe:
             err_msg(ERROR_EXPRES_SYNTAX,NULL);
             ev->outp2 = ev->outp;
-            return -1;
+            ev->values_len = 0;
+            return 0;
         }
 
         oper.op = op2;
@@ -1247,8 +1282,49 @@ static int get_val2(struct eval_context_s *ev) {
         }
     }
     ev->outp2 = i;
-    return 0;
+    ev->values_len = vsp;
+    return 1;
 }
+
+struct value_s *get_val(struct linepos_s *epoint) {
+    struct values_s *value;
+    struct value_s *val;
+
+    if (eval->values_p >= eval->values_len) return NULL;
+
+    value = &eval->values[eval->values_p++];
+    if (epoint) *epoint = value->epoint;
+    val = value->val;
+
+    if (val->obj == ERROR_OBJ) {
+        err_msg_output_and_destroy(val);
+        val->obj = NONE_OBJ;
+    }
+    return val;
+}
+
+struct value_s *pull_val(struct linepos_s *epoint) {
+    struct values_s *value;
+    struct value_s *val;
+
+    if (eval->values_p >= eval->values_len) return NULL;
+
+    value = &eval->values[eval->values_p];
+    if (epoint) *epoint = value->epoint;
+    val = value->val;
+    eval->values[eval->values_p++].val = &none_value;
+
+    if (val->obj == ERROR_OBJ) {
+        err_msg_output_and_destroy(val);
+        val->obj = NONE_OBJ;
+    }
+    return val;
+}
+
+size_t get_val_remaining(void) {
+    return eval->values_len - eval->values_p;
+}
+
 
 /* 0 - normal */
 /* 1 - 1 only, till comma */
@@ -1256,7 +1332,7 @@ static int get_val2(struct eval_context_s *ev) {
 /* 3 - opcode */
 /* 4 - opcode, with defaults */
 
-int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, defined */
+static int get_exp2(int *wd, int stop, struct file_s *cfile) {
     char ch;
 
     struct value_s *op;
@@ -1269,12 +1345,14 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
 
     eval->gstop = stop;
     eval->outp2 = 0;
+    eval->values_p = eval->values_len = 0;
 
     if (arguments.tasmcomp) {
-        return get_exp_compat(wd, stop);
+        if (get_exp_compat(wd, stop)) return get_val2_compat(eval);
+        return 0;
     }
     eval->outp = 0;
-    o_oper[0].val = &o_SEPARATOR;
+    o_oper[0].val = &o_COMMA;
 
     *wd=3;    /* 0=byte 1=word 2=long 3=negative/too big */
     openclose=identlist=0;
@@ -1282,7 +1360,7 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
     ignore();
     switch (here()) {
     case 0:
-    case ';': err_msg(ERROR_MISSING_ARGUM,NULL); return 0;
+    case ';': return 1;
     case '@':
         ch = pline[++lpoint.pos];
         if (!arguments.casesensitive) ch |= 0x20;
@@ -1353,6 +1431,7 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
             continue;
         case '+': op = &o_POS; break;
         case '-': op = &o_NEG; break;
+        case '*': op = &o_SPLAT; break;
         case '!': op = &o_LNOT;break;
         case '~': op = &o_INV; break;
         case '<': if (pline[lpoint.pos+1] == '>') {lpoint.pos++;op = &o_WORD;} else op = &o_LOWER; break;
@@ -1365,9 +1444,21 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
                   goto tryanon;
         case '"':
         case '\'': val = push(&epoint);get_string(val);goto other;
-        case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
-        case '?': lpoint.pos++;gap_value.refcount++;push_oper(&gap_value, &epoint);goto other;
-        case '.': if ((uint8_t)(pline[lpoint.pos+1] ^ 0x30) < 10) goto pushfloat; goto tryanon;
+        case '?': 
+            if (operp) { 
+                if (o_oper[operp - 1].val == &o_SPLAT || o_oper[operp - 1].val == &o_POS || o_oper[operp - 1].val == &o_NEG) goto tryanon;
+            }
+            lpoint.pos++;gap_value.refcount++;push_oper(&gap_value, &epoint);goto other;
+        case '.': if ((pline[lpoint.pos+1] ^ 0x30) >= 10) goto tryanon; /* fall through */;
+        case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+            val = push(&epoint);
+            get_float(val);
+            if (val->obj == FLOAT_OBJ && val->u.real == HUGE_VAL) {
+                val->obj = ERROR_OBJ;
+                val->u.error.num = ERROR_CONSTNT_LARGE;
+                val->u.error.epoint = epoint;
+            }
+            goto other;
         case 0:
         case ';': 
             if (openclose) {
@@ -1377,34 +1468,23 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
                     continue;
                 }
             }
-            /* fall through */
+            goto tryanon;
         default: 
-            if (ch>='0' && ch<='9') {
-            pushfloat:
-                val = push(&epoint);
-                get_float(val);
-                if (val->obj == FLOAT_OBJ && val->u.real == HUGE_VAL) {
-                    val->obj = ERROR_OBJ;
-                    val->u.error.num = ERROR_CONSTNT_LARGE;
-                    val->u.error.epoint = epoint;
-                }
-                goto other;
-            }
-            if ((ch | (arguments.casesensitive ? 0 : 0x20)) == 'b' && (pline[lpoint.pos + 1] == '"' || pline[lpoint.pos + 1] == '\'')) {
-                lpoint.pos++; val = push(&epoint); get_string(val);
-                if (bytes_from_str(val, val)) {
-                    val->obj->destroy(val);
-                    val->obj = ERROR_OBJ;
-                    val->u.error.num = ERROR_BIG_STRING_CO;
-                    val->u.error.epoint = epoint;
-                }
-                goto other;
-            }
             if (get_label()) {
                 int down;
                 struct label_s *l;
                 str_t ident;
             as_ident:
+                if ((pline[epoint.pos] | (arguments.casesensitive ? 0 : 0x20)) == 'b' && (pline[epoint.pos + 1] == '"' || pline[lpoint.pos + 1] == '\'')) {
+                    val = push(&epoint); get_string(val);
+                    if (bytes_from_str(val, val)) {
+                        val->obj->destroy(val);
+                        val->obj = ERROR_OBJ;
+                        val->u.error.num = ERROR_BIG_STRING_CO;
+                        val->u.error.epoint = epoint;
+                    }
+                    goto other;
+                }
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
                     val = push(&epoint);
                     val->obj = IDENT_OBJ;
@@ -1486,12 +1566,27 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
                 val->u.error.u.notdef.down = 1;
                 goto other;
             }
-            if (operp && o_oper[operp-1].val == &o_COLON) {
-                val = push(&epoint);
-                val->obj = DEFAULT_OBJ;
-                goto other;
+            if (operp) {
+                if (o_oper[operp-1].val == &o_COLON) {
+                    val = push(&epoint);
+                    val->obj = DEFAULT_OBJ;
+                    goto other;
+                }
+                if (o_oper[operp-1].val == &o_SPLAT) {
+                    operp--;
+                    val = push(&epoint);
+                    get_star(val);
+                    goto other;
+                }
             }
             goto syntaxe;
+        }
+        if (operp && o_oper[operp - 1].val == &o_SPLAT) {
+            operp--;
+            lpoint.pos = epoint.pos;
+            val = push(&epoint);
+            get_star(val);
+            goto other;
         }
         lpoint.pos++;
     rtl:
@@ -1536,13 +1631,11 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
                 goto other;
             }
             if (!operp) {
-                push_oper(&o_SEPARATOR, &epoint);
-                if (stop == 1 || stop == 4) {lpoint = epoint;break;}
-            } else {
-                push_oper(&o_COMMA, &epoint);
-                o_oper[operp].epoint = epoint;
-                o_oper[operp++].val = op;
+                if (stop == 1) {lpoint = epoint;break;}
             }
+            push_oper(&o_COMMA, &epoint);
+            o_oper[operp].epoint = epoint;
+            o_oper[operp++].val = op;
             if (llen) {
                 epoint.pos++;
                 goto as_ident;
@@ -1700,80 +1793,58 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
             operp--;
             push_oper(o_oper[operp].val, &o_oper[operp].epoint);
         }
-        if (!operp) return 1;
+        if (!operp) return get_val2(eval);
     syntaxe:
         err_msg(ERROR_EXPRES_SYNTAX,NULL);
     error:
-        return 0;
+        break;
     }
     return 0;
 }
 
-int get_exp_var(struct file_s *cfile) {
-    int w;
-    return get_exp(&w, 2, cfile);
+int get_exp(int *wd, int stop, struct file_s *cfile, unsigned int min, unsigned int max, linepos_t epoint) {/* length in bytes, defined */
+    if (!get_exp2(wd, stop, cfile)) {
+        return 0;
+    }
+    if (eval->values_len < min || (max && eval->values_len > max)) {
+        err_msg_argnum(eval->values_len, min, max, epoint);
+        return 0;
+    }
+    return 1;
 }
 
-struct value_s *get_vals_tuple(void) {
-    size_t ln = 0, i = 0;
-    struct value_s **vals = NULL, *retval = NULL, *val;
+
+int get_exp_var(struct file_s *cfile, linepos_t epoint) {
+    int w;
+    return get_exp(&w, 2, cfile, 1, 1, epoint);
+}
+
+struct value_s *get_vals_tuple(int all) {
+    size_t i, len = get_val_remaining();
+    struct value_s *val;
     struct linepos_s epoint;
-    while ((val = get_val(&epoint))) {
-        if (i) {
-            if (i >= ln) {
-                ln += 16;
-                vals = (struct value_s **)realloc(vals, ln * sizeof(retval->u.list.data[0]));
-                if (!vals || ln < 16 || ln > SIZE_MAX / sizeof(retval->u.list.data[0])) err_msg_out_of_memory();
-            }
-            if (i == 1) vals[0] = retval;
-            vals[i] = val;
-        } else retval = val;
-        if (val == eval->values->val) eval->values->val = &none_value;
-        i++;
-    }
-    eval_finish();
-    if (i > 1) {
-        retval = val_alloc();
-        retval->obj = TUPLE_OBJ;
-        retval->u.list.len = i;
-        if (i != ln) {
-            vals = (struct value_s **)realloc(vals, i * sizeof(val->u.list.data[0]));
-            if (!vals || i > SIZE_MAX / sizeof(val->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
-        }
-        retval->u.list.data = vals;
-    }
-    return retval;
+
+    if (!all && len == 1) return pull_val(&epoint);
+    val = val_alloc();
+    val->obj = TUPLE_OBJ;
+    val->u.list.len = len;
+    val->u.list.data = list_create_elements(val, len);
+    for (i = 0; i < len; i++) val->u.list.data[i] = pull_val(&epoint);
+    return val;
 }
 
 struct value_s *get_vals_addrlist(struct linepos_s *epoints) {
-    size_t ln = 0, i = 0;
-    struct value_s **vals = NULL, *retval = NULL, *val;
+    size_t i, len = get_val_remaining();
+    struct value_s *val;
     struct linepos_s epoint;
-    while ((val = get_val((i < 3) ? &epoints[i] : &epoint))) {
-        if (i) {
-            if (i >= ln) {
-                ln += 16;
-                vals = (struct value_s **)realloc(vals, ln * sizeof(retval->u.list.data[0]));
-                if (!vals || ln < 16 || ln > SIZE_MAX / sizeof(retval->u.list.data[0])) err_msg_out_of_memory();
-            }
-            if (i == 1) vals[0] = retval;
-            vals[i] = val;
-        } else retval = val;
-        if (val == eval->values->val) eval->values->val = &none_value;
-        i++;
-    }
-    eval_finish();
-    if (i > 1) {
-        retval = val_alloc();
-        retval->obj = ADDRLIST_OBJ;
-        retval->u.list.len = i;
-        if (i != ln) {
-            vals = (struct value_s **)realloc(vals, i * sizeof(val->u.list.data[0]));
-            if (!vals || i > SIZE_MAX / sizeof(val->u.list.data[0])) err_msg_out_of_memory(); /* overflow */
-        }
-        retval->u.list.data = vals;
-    }
-    return retval ? retval : &null_addrlist;
+
+    if (len == 1) return pull_val(&epoints[0]);
+    val = val_alloc();
+    val->obj = ADDRLIST_OBJ;
+    val->u.list.len = len;
+    val->u.list.data = list_create_elements(val, len);
+    for (i = 0; i < len; i++) val->u.list.data[i] = pull_val((i < 3) ? &epoints[i] : &epoint);
+    return val;
 }
 
 void eval_enter(void) {
