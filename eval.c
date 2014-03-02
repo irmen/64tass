@@ -73,7 +73,6 @@ size_t get_label(void) {
 }
 
 static void get_dec(struct value_s *v) {
-    ignore();
     while (here() == 0x30) lpoint.pos++;
     lpoint.pos += int_from_decstr(v, pline + lpoint.pos);
 }
@@ -140,9 +139,7 @@ static void get_exponent2(struct value_s *v) {
 
 static void get_hex(struct value_s *v) {
     struct value_s tmp, err;
-    size_t len;
-    ignore();
-    len = bits_from_hexstr(v, pline + lpoint.pos);
+    size_t len = bits_from_hexstr(v, pline + lpoint.pos);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
@@ -164,9 +161,7 @@ static void get_hex(struct value_s *v) {
 
 static void get_bin(struct value_s *v) {
     struct value_s tmp, err;
-    size_t len;
-    ignore();
-    len = bits_from_binstr(v, pline + lpoint.pos);
+    size_t len = bits_from_binstr(v, pline + lpoint.pos);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
@@ -189,7 +184,7 @@ static void get_bin(struct value_s *v) {
 static void get_float(struct value_s *v) {
     size_t len;
     struct value_s tmp, err;
-    ignore();
+
     while (here() == 0x30) lpoint.pos++;
     len = int_from_decstr(v, pline + lpoint.pos);
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
@@ -1366,7 +1361,8 @@ int get_exp(int *wd, int stop, struct file_s *cfile) {/* length in bytes, define
         case '`': op = &o_BANK; break;
         case '^': op = &o_STRING; break;
         case '$': lpoint.pos++;val = push(&epoint);get_hex(val);goto other;
-        case '%': lpoint.pos++;val = push(&epoint);get_bin(val);goto other;
+        case '%': if ((pline[lpoint.pos+1] & 0xfe) == 0x30 || (pline[lpoint.pos+1] == '.' && (pline[lpoint.pos+2] & 0xfe) == 0x30)) { lpoint.pos++;val = push(&epoint);get_bin(val);goto other; }
+                  goto tryanon;
         case '"':
         case '\'': val = push(&epoint);get_string(val);goto other;
         case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
