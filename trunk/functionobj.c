@@ -19,6 +19,7 @@
 #include <string.h>
 #include <math.h>
 #include "values.h"
+#include "isnprintf.h"
 #include "functionobj.h"
 #include "eval.h"
 #include "variables.h"
@@ -198,9 +199,10 @@ static void apply_func(struct value_s *v1, struct value_s *v, enum func_e func, 
     }
 }
 
-static inline void apply_func_single(struct values_s *vals, unsigned int args, enum func_e func) {
+static inline void apply_func_single(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s *val;
+    enum func_e func = vals->val->u.function.func;
 
     if (args != 1) {
         err_msg_argnum(args, 1, 1, &vals->epoint);
@@ -318,9 +320,10 @@ static void apply_func2(struct value_s *v1, struct value_s *v2, struct value_s *
     }
 }
 
-static inline void apply_func_double(struct values_s *vals, unsigned int args, enum func_e func) {
+static inline void apply_func_double(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     struct value_s *val;
+    enum func_e func = vals->val->u.function.func;
 
     if (args != 2) {
         err_msg_argnum(args, 2, 2, &vals->epoint);
@@ -356,11 +359,11 @@ static inline void apply_func_double(struct values_s *vals, unsigned int args, e
     }
 }
 
-extern void builtin_function(struct values_s *vals, unsigned int args, enum func_e func) {
-    switch (func) {
+extern void builtin_function(struct values_s *vals, unsigned int args) {
+    switch (vals->val->u.function.func) {
     case F_HYPOT:
     case F_ATAN2:
-    case F_POW: return apply_func_double(vals, args, func);
+    case F_POW: return apply_func_double(vals, args);
     case F_LOG:
     case F_EXP:
     case F_SIN:
@@ -393,8 +396,9 @@ extern void builtin_function(struct values_s *vals, unsigned int args, enum func
     case F_REPR:
     case F_LEN:
     case F_REGISTER:
-    case F_SIZE: return apply_func_single(vals, args, func);
+    case F_SIZE: return apply_func_single(vals, args);
     case F_RANGE: return function_range(vals, args);
+    case F_FORMAT: return isnprintf(vals, args);
     case F_NONE: return;
     }
 }
@@ -437,6 +441,7 @@ struct builtin_functions_s builtin_functions[] = {
     {"tan", F_TAN}, 
     {"tanh", F_TANH}, 
     {"trunc", F_TRUNC}, 
+    {"format", F_FORMAT}, 
     {NULL, F_NONE}
 };
 

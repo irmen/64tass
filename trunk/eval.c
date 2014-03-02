@@ -586,7 +586,7 @@ static void functions(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
 
     switch (vals->val->obj->type) {
-    case T_FUNCTION: return builtin_function(vals, args, vals->val->u.function.func);
+    case T_FUNCTION: return builtin_function(vals, args);
     case T_MFUNC:
         {
             struct value_s *val;

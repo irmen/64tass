@@ -20,7 +20,6 @@
 #include "values.h"
 #include "listobj.h"
 #include "eval.h"
-#include "isnprintf.h"
 #include "boolobj.h"
 
 static struct obj_s list_obj;
@@ -436,14 +435,7 @@ static void rcalc2(oper_t op) {
         if (v1->obj == v2->obj) {
             if (calc2_list(op)) break; return;
         }
-        goto def;
-    case T_STR: 
-        if (op->op == &o_MOD) {
-            isnprintf(v1, v2, v, &op->epoint, &op->epoint2); return;
-        }
-        /* fall through */
     default:
-    def:
         switch (op->op->u.oper.op) {
         case O_CMP:
         case O_EQ:

@@ -21,7 +21,6 @@
 #include "values.h"
 #include "bitsobj.h"
 #include "eval.h"
-#include "isnprintf.h"
 #include "unicode.h"
 #include "encoding.h"
 #include "boolobj.h"
@@ -1036,11 +1035,6 @@ static void calc2(oper_t op) {
         op->v1 = v1;
         tmp.obj->destroy(&tmp);
         return;
-    case T_TUPLE:
-    case T_LIST: 
-        if (op->op == &o_MOD) {
-            isnprintf(v1, v2, v, &op->epoint, &op->epoint2); return;
-        }
     default: 
         if (op->op != &o_MEMBER) {
             op->v2->obj->rcalc2(op); return;

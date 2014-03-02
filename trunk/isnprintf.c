@@ -60,7 +60,7 @@
 
 static struct value_s return_value, error_value;
 static size_t returnsize = 0;
-static linepos_t epoint;
+static int none;
 
 /* this struct holds everything we need */
 struct DATA {
@@ -88,11 +88,14 @@ struct DATA {
                    ((c) >= '0' && (c) <= '9'))
 
 static size_t listp;
-static const struct value_s *list;
-static inline struct value_s *next_arg(void) {
-    if (list->u.list.len > listp) return list->u.list.data[listp++];
-    err_msg2(ERROR_MISSING_ARGUM, NULL, epoint);
-    return &none_value;
+static const struct values_s *list;
+static size_t largs;
+static struct values_s dummy = {&none_value, {0, 0, 0}};
+
+static inline const struct values_s *next_arg(void) {
+    if (!none && largs > listp) return &list[listp++];
+    listp++;
+    return &dummy;
 }
 
 static inline void PUT_CHAR(uint32_t c) {
@@ -143,16 +146,22 @@ static int MUST_CHECK STAR_ARGS(struct DATA *p)
 {
     uval_t uval;
     if (p->star_w == FOUND) {
-        const struct value_s *v = next_arg();
-        if (v->obj == NONE_OBJ) { error_value.obj = NONE_OBJ; return 1; }
-        if (v->obj->uval(v, &error_value, &uval, 8*sizeof(uval_t)-1, epoint)) return 1;
-        p->width = uval;
+        const struct values_s *v = next_arg();
+        const struct value_s *val = v->val;
+        if (val->obj == NONE_OBJ) none = 1;
+        else {
+            if (val->obj->uval(val, &error_value, &uval, 8*sizeof(uval_t)-1, &v->epoint)) return 1;
+            p->width = uval;
+        }
     }
     if (p->star_p == FOUND) {
-        const struct value_s *v = next_arg();
-        if (v->obj == NONE_OBJ) { error_value.obj = NONE_OBJ; return 1; }
-        if (v->obj->uval(v, &error_value, &uval, 8*sizeof(uval_t)-1, epoint)) return 1;
-        p->precision = uval;
+        const struct values_s *v = next_arg();
+        const struct value_s *val = v->val;
+        if (val->obj == NONE_OBJ) none = 1;
+        else {
+            if (val->obj->uval(val, &error_value, &uval, 8*sizeof(uval_t)-1, &v->epoint)) return 1;
+            p->precision = uval;
+        }
     }
     return 0;
 }
@@ -160,21 +169,21 @@ static int MUST_CHECK STAR_ARGS(struct DATA *p)
 /* for %d and friends, it puts in holder
  * the representation with the right padding
  */
-static inline int MUST_CHECK decimal(struct DATA *p, const struct value_s *v)
+static inline int MUST_CHECK decimal(struct DATA *p, const struct values_s *v)
 {
     int minus;
-    struct value_s tmp2, tmp;
+    struct value_s tmp2, tmp, *val = v->val;
     size_t i;
 
-    if (v->obj == NONE_OBJ) {error_value.obj = NONE_OBJ; return 1; }
-    v->obj->integer(v, &tmp2, epoint);
+    if (val->obj == NONE_OBJ) {none = 1; return 0;}
+    val->obj->integer(val, &tmp2, &v->epoint);
     if (tmp2.obj != INT_OBJ) {
         tmp2.obj->copy_temp(&tmp2, &error_value);
         return 1;
     }
 
     minus = (tmp2.u.integer.len < 0);
-    tmp2.obj->str(&tmp2, &tmp, epoint);
+    tmp2.obj->str(&tmp2, &tmp, &v->epoint);
     if (tmp.obj != STR_OBJ) {
         tmp2.obj->destroy(&tmp2);
         tmp.obj->copy_temp(&tmp, &error_value);
@@ -191,16 +200,16 @@ static inline int MUST_CHECK decimal(struct DATA *p, const struct value_s *v)
 }
 
 /* for %x %X hexadecimal representation */
-static inline int MUST_CHECK hexa(struct DATA *p, const struct value_s *v)
+static inline int MUST_CHECK hexa(struct DATA *p, const struct values_s *v)
 {
     int minus;
-    struct value_s tmp;
+    struct value_s tmp, *val = v->val;
     const char *hex = (*p->pf == 'x') ? "0123456789abcdef" : "0123456789ABCDEF";
     size_t bits;
     int bp, bp2, b;
 
-    if (v->obj == NONE_OBJ) {error_value.obj = NONE_OBJ; return 1; }
-    v->obj->integer(v, &tmp, epoint);
+    if (val->obj == NONE_OBJ) {none = 1; return 0;}
+    val->obj->integer(val, &tmp, &v->epoint);
     if (tmp.obj != INT_OBJ) {
         tmp.obj->copy_temp(&tmp, &error_value);
         return 1;
@@ -249,13 +258,13 @@ static inline int MUST_CHECK hexa(struct DATA *p, const struct value_s *v)
 }
 
 /* for %b binary representation */
-static inline int MUST_CHECK bin(struct DATA *p, const struct value_s *v)
+static inline int MUST_CHECK bin(struct DATA *p, const struct values_s *v)
 {
     int i;
-    struct value_s err;
+    struct value_s err, *val = v->val;
 
-    if (v->obj == NONE_OBJ) {error_value.obj = NONE_OBJ; return 1; }
-    v->obj->integer(v, &err, epoint);
+    if (val->obj == NONE_OBJ) {none = 1; return 0;}
+    val->obj->integer(val, &err, &v->epoint);
     if (err.obj != INT_OBJ) {
         err.obj->copy_temp(&err, &error_value);
         return 1;
@@ -264,11 +273,11 @@ static inline int MUST_CHECK bin(struct DATA *p, const struct value_s *v)
     if (i) {
         int minus;
         int span, bits;
-        uval_t val = err.u.integer.data[i - 1];
+        uval_t uval = err.u.integer.data[i - 1];
         minus = (err.u.integer.len < 0);
         span = 4 * sizeof(digit_t); bits = 0;
         while (span) {
-            if (val >> (bits + span)) {
+            if (uval >> (bits + span)) {
                 bits |= span;
             }
             span >>= 1;
@@ -292,28 +301,31 @@ static inline int MUST_CHECK bin(struct DATA *p, const struct value_s *v)
 }
 
 /* %c chars */
-static inline int MUST_CHECK chars(const struct value_s *v)
+static inline int MUST_CHECK chars(const struct values_s *v)
 {
     uval_t uval;
+    struct value_s *val = v->val;
 
-    if (v->obj == NONE_OBJ) {error_value.obj = NONE_OBJ; return 1; }
-    if (v->obj->uval(v, &error_value, &uval, 24, epoint)) return 1;
+    if (val->obj == NONE_OBJ) {none = 1; return 0; }
+    if (val->obj->uval(val, &error_value, &uval, 24, &v->epoint)) return 1;
 
     PUT_CHAR(uval);
     return 0;
 }
 
 /* %s strings */
-static int MUST_CHECK strings(struct DATA *p, const struct value_s *v)
+static int MUST_CHECK strings(struct DATA *p, const struct values_s *v)
 {
     int i;
     const uint8_t *tmp;
     uint32_t ch;
-    struct value_s err;
+    struct value_s err, *val = v->val;
 
-    if (*p->pf == 'r') v->obj->repr(v, &err, epoint);
-    else v->obj->str(v, &err, epoint);
+    if (val->obj == NONE_OBJ) {none = 1; return 0; }
+    if (*p->pf == 'r') val->obj->repr(val, &err, &v->epoint);
+    else val->obj->str(val, &err, &v->epoint);
     if (err.obj != STR_OBJ) {
+        if (err.obj == NONE_OBJ) {none = 1; return 0; }
         err.obj->copy_temp(&err, &error_value);
         return 1;
     }
@@ -323,7 +335,7 @@ static int MUST_CHECK strings(struct DATA *p, const struct value_s *v)
         i = (i < p->precision ? i : p->precision);
     p->width -= i;
     PAD_RIGHT(p);
-    while (i-- > 0) { /* put the sting */
+    while (i-- > 0) { /* put the string */
         if (*tmp & 0x80) tmp += utf8in(tmp, &ch); else ch = *tmp++;
         PUT_CHAR(ch);
     }
@@ -333,14 +345,15 @@ static int MUST_CHECK strings(struct DATA *p, const struct value_s *v)
 }
 
 /* %f or %g  floating point representation */
-static int MUST_CHECK floating(struct DATA *p, const struct value_s *v)
+static int MUST_CHECK floating(struct DATA *p, const struct values_s *v)
 {
     char tmp[400], *t, form[10];
     int minus;
     double d;
+    struct value_s *val = v->val;
 
-    if (v->obj == NONE_OBJ) {error_value.obj = NONE_OBJ; return 1; }
-    if (v->obj->real(v, &error_value, &d, epoint)) return 1;
+    if (val->obj == NONE_OBJ) {none = 1; return 0;}
+    if (val->obj->real(val, &error_value, &d, &v->epoint)) return 1;
     if (d < 0.0) { d = -d; minus = 1;} else minus = 0;
     if (p->precision == NOT_FOUND) p->precision = 6;
     t = form;
@@ -405,25 +418,39 @@ static void conv_flag(char * s, struct DATA * p)
 }
 
 /* return templates only! */
-void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_s *v, linepos_t se, linepos_t me)
+void isnprintf(struct values_s *vals, unsigned int args)
 {
+    struct values_s *v = &vals[2];
     struct DATA data;
     char conv_field[MAX_FIELD];
     int state;
     int i;
 
-    data.pf = (char *)v1->u.str.data;
-    data.pfend = data.pf + v1->u.str.len;
+    if (args < 1) {
+        err_msg_argnum(args, 1, 0, &vals->epoint);
+        val_destroy(vals->val);
+        vals->val = &none_value;
+        return;
+    }
+    if (v[0].val->obj != STR_OBJ) {
+        err_msg_wrong_type(v[0].val, &v[0].epoint);
+        val_destroy(vals->val);
+        vals->val = &none_value;
+        return;
+    }
+    data.pf = (char *)v[0].val->u.str.data;
+    data.pfend = data.pf + v[0].val->u.str.len;
 
     listp = 0;
-    list = v2;
+    list = &vals[3];
+    largs = args - 1;
 
-    epoint = me;
+    error_value.obj = NONE_OBJ;
     return_value.obj = STR_OBJ;
     return_value.u.str.data = NULL;
     return_value.u.str.len = 0;
     return_value.u.str.chars = 0;
-    returnsize = 0;
+    none = returnsize = 0;
 
     for (; data.pf < data.pfend; data.pf++) {
         if ( *data.pf == '%' ) { /* we got a magic % cookie */
@@ -483,8 +510,8 @@ void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_
                     {
                         uint8_t str[2] = {'%', (uint8_t)*data.pf};
                         str_t msg = {2, str};
-                        err_msg_not_defined(&msg, se);
-                        error_value.obj = NONE_OBJ;goto err;
+                        err_msg_not_defined(&msg, &v[0].epoint);
+                        goto err;
                     }
                     /* is this an error ? maybe bail out */
                     state = 0;
@@ -495,13 +522,16 @@ void isnprintf(const struct value_s *v1, const struct value_s *v2, struct value_
             PUT_CHAR(*data.pf);  /* add the char the string */
         }
     }
-    if (v == v1 || v == v2) v->obj->destroy(v);
-    return_value.obj->copy_temp(&return_value, v);
+    if (listp != largs) {
+        err_msg_argnum(args, listp + 1, listp + 1, &vals->epoint);
+        goto err;
+    }
+    if (none) goto err;
+    val_replace_template(&vals->val, &return_value);
     return;
 err:
     return_value.obj->destroy(&return_value);
-    if (v == v1 || v == v2) v->obj->destroy(v);
-    error_value.obj->copy_temp(&error_value, v);
+    val_replace_template(&vals->val, &error_value);
     return;
 }
 

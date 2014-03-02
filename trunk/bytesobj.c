@@ -20,7 +20,6 @@
 #include "values.h"
 #include "bytesobj.h"
 #include "eval.h"
-#include "isnprintf.h"
 #include "unicode.h"
 #include "encoding.h"
 

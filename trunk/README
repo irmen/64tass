@@ -316,23 +316,23 @@ representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside the strings escapes them.
 
-                    String operators and functions
-y .. x  concatenate strings                     "a" .. "b" is "ab"
-y in x  is substring of                         "b" in "abc" is true
-%       string formatting                       "%02x" % (12,) is "0c"
-a x n   repeat                                  "ab" x 3 is "ababab"
-a[i]    character from start                    "abc"[1] is "b"
-a[i]    character from end                      "abc"[-1] is "c"
-a[s]    no change                               "abc"[:] is "abc"
-a[s]    cut off start                           "abc"[1:] is "bc"
-a[s]    cut off end                             "abc"[:-1] is "ab"
-a[s]    reverse                                 "abc"[::-1] is "cba"
-bool(a) convert to boolean                      bool("a") is true
-len(a)  number of characters                    len("abc") is 3
-all(a)  all characters non-zero or empty string all("c") is true
-any(a)  at least one non-zero character         any("c") is true
-str(a)  convert to string                       str($1) is "$1"
-repr(a) representation to string                str("a") is '"a"'
+                        String operators and functions
+y .. x       concatenate strings                     "a" .. "b" is "ab"
+y in x       is substring of                         "b" in "abc" is true
+a x n        repeat                                  "ab" x 3 is "ababab"
+a[i]         character from start                    "abc"[1] is "b"
+a[i]         character from end                      "abc"[-1] is "c"
+a[s]         no change                               "abc"[:] is "abc"
+a[s]         cut off start                           "abc"[1:] is "bc"
+a[s]         cut off end                             "abc"[:-1] is "ab"
+a[s]         reverse                                 "abc"[::-1] is "cba"
+bool(a)      convert to boolean                      bool("a") is true
+len(a)       number of characters                    len("abc") is 3
+all(a)       all characters non-zero or empty string all("c") is true
+any(a)       at least one non-zero character         any("c") is true
+str(a)       convert to string                       str($1) is "$1"
+repr(a)      representation to string                str("a") is '"a"'
+format(s, *) string formatting                       format("%02x", 12) is "0c"
 
 A string has a truth value of true if it contains at least one character which
 is not translated to zero.
@@ -391,7 +391,7 @@ r     representation
 x X   hexadecimal (uppercase)
 %     percent sign
 
-        .text "%#04x bytes left" % (1000,)   ; $03e8 bytes left
+        .text format("%#04x bytes left", 1000); $03e8 bytes left
 
 Byte string constants
 
@@ -444,7 +444,7 @@ a[s]         no change                             (1, 2, 3)[:] is (1, 2, 3)
 a[s]         cut off start                         (1, 2, 3)[1:] is (2, 3)
 a[s]         cut off end                           (1, 2.0, 3)[:-1] is (1, 2.0)
 a[s]         reverse                               (1, 2, 3)[::-1] is (3, 2, 1)
-*a[s]        to arguments                          hypot(*[1, 2])
+*a[s]        convert to arguments                  format("%d: %s", *mylist)
 len(a)       number of elements                    len([1, 2, 3]) is 3
 all(a)       all elements true or empty list       all([1, 1, 0]) is false
 any(a)       at least one true element             any([1, 1, 0]) is true
@@ -833,9 +833,10 @@ all(a)                all elements true or no elements
 any(a)                any elements true
 bool(a)               truth value
 float(a)              convert to floating point
+format(s, *)          convert to string with formatting
 int(a)                convert to integer
 len(a)                number of elements
-range(s,e,t)          create a list with values from a range
+range(s, e, t)        create a list with values from a range
 repr(a)               representation to string
 sign(a)               sign value (-1, 0, 1)
 size(a)               size in bytes
@@ -2829,5 +2830,5 @@ Assembler directives
 Built-in functions
 
 abs acos all any asin atan atan2 bool cbrt ceil cos cosh deg exp float floor
-frac hypot int len log log10 pow rad range repr round sign sin sinh size sqrt
-str tan tanh trunc
+format frac hypot int len log log10 pow rad range repr round sign sin sinh size
+sqrt str tan tanh trunc

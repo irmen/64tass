@@ -391,7 +391,6 @@ Doubling the quotes inside the strings escapes them.</p>
 <caption>String operators and functions</caption>
 <tr><td>y .. x<td>concatenate strings<td><code><span class="s">"a"</span> .. <span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
 <tr><td>y <b>in</b> x<td>is substring of<td><code><span class="s">"b"</span> <span class="k">in</span> <span class="s">"abc"</span></code> is <code><span>true</span></code>
-<tr><td>%<td>string formatting<td><code><span class="s">"<span>%02x</span>"</span> % (<span>12</span>,)</code> is <code><span class="s">"0c"</span></code>
 <tr><td>a <b>x</b> n<td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
 <tr><td>a[i]<td>character from start<td><code><span class="s">"abc"</span>[<span>1</span>]</code> is <code><span class="s">"b"</span></code>
 <tr><td>a[i]<td>character from end<td><code><span class="s">"abc"</span>[<span>&minus;1</span>]</code> is <code><span class="s">"c"</span></code>
@@ -405,6 +404,7 @@ Doubling the quotes inside the strings escapes them.</p>
 <tr><td><a name="">any</a>(a)<td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
 <tr><td><a name="">str</a>(a)<td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
 <tr><td><a name="">repr</a>(a)<td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
+<tr><td><a name="">format</a>(s, *)<td>string formatting<td><code><span class="k">format</span>(<span class="s">"<span>%02x</span>"</span>, <span>12</span>)</code> is <code><span class="s">"0c"</span></code>
 </table>
 
 <p>A string has a truth value of true if it contains at least one character which is not translated to zero.</p>
@@ -471,7 +471,7 @@ can be used:</p>
 </table>
 
 <pre width=80>
-        <b class="d">.text</b> <span class="s">"<span>%#04x</span> bytes left"</span> % (<span>1000</span>,)   <i>; $03e8 bytes left</i>
+        <b class="d">.text</b> <span class="k">format</span>(<span class="s">"<span>%#04x</span> bytes left"</span>, <span>1000</span>)<i>; $03e8 bytes left</i>
 </pre>
 
 <h3>Byte string constants</h3>
@@ -530,11 +530,11 @@ types are immutable.</p>
 <tr><td>a[s]<td>cut off start<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[<span>1</span>:]</code> is <code>(<span>2</span>, <span>3</span>)</code>
 <tr><td>a[s]<td>cut off end<td><code>(<span>1</span>, <span>2.0</span>, <span>3</span>)[:<span>&minus;1</span>]</code> is <code>(<span>1</span>, <span>2.0</span>)</code>
 <tr><td>a[s]<td>reverse<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[::<span>&minus;1</span>]</code> is <code>(<span>3</span>, <span>2</span>, <span>1</span>)</code>
-<tr><td>&lowast;a[s]<td>to arguments<td><code><span class="k">hypot</span>(&lowast;[<span>1</span>, <span>2</span>])</code>
+<tr><td>&lowast;a[s]<td>convert to arguments<td><code><span class="k">format</span>(<span class="s">"%d: %s"</span>, &lowast;<u>mylist</u>)</code>
 <tr><td><a name="">len</a>(a)<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
 <tr><td><a name="">all</a>(a)<td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
 <tr><td><a name="">any</a>(a)<td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
-<tr><td><a name="">range</a>(s,e,t)<td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
+<tr><td><a name="f_format">range</a>(s,e,t)<td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
 </table>
 
 <p>Arithmetic operations are applied on the all elements recursively,
@@ -953,9 +953,10 @@ floating point constants section.</p>
 <tr><td><a name="f_any">any</a>(a)<td>any elements true
 <tr><td><a name="f_bool">bool</a>(a)<td>truth value
 <tr><td><a name="f_float">float</a>(a)<td>convert to floating point
+<tr><td><a name="f_format">format</a>(s, *)<td>convert to string with formatting
 <tr><td><a name="f_int">int</a>(a)<td>convert to integer
 <tr><td><a name="f_len">len</a>(a)<td>number of elements
-<tr><td><a name="f_range">range</a>(s,e,t)<td>create a list with values from a range
+<tr><td><a name="f_range">range</a>(s, e, t)<td>create a list with values from a range
 <tr><td><a name="f_repr">repr</a>(a)<td>representation to string
 <tr><td><a name="f_sign">sign</a>(a)<td>sign value (&minus;1, 0, 1)
 <tr><td><a name="f_size">size</a>(a)<td>size in bytes
@@ -3565,6 +3566,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#f_exp">exp</a>
 <a href="#f_float">float</a>
 <a href="#f_floor">floor</a>
+<a href="#f_format">format</a>
 <a href="#f_frac">frac</a>
 <a href="#f_hypot">hypot</a>
 <a href="#f_int">int</a>
