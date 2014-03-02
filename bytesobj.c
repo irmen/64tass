@@ -282,10 +282,15 @@ static void calc1(oper_t op) {
     switch (op->op->u.oper.op) {
     case O_NEG:
     case O_POS:
-    case O_STRING: int_from_bytes(&tmp, v1);
-        break;
-    default: bits_from_bytes(&tmp, v1);
-        break;
+    case O_STRING: int_from_bytes(&tmp, v1); break;
+    case O_INV:
+    case O_BANK:
+    case O_HIGHER:
+    case O_LOWER:
+    case O_HWORD:
+    case O_WORD:
+    case O_BSWORD: bits_from_bytes(&tmp, v1); break;
+    default: obj_oper_error(op); return;
     }
     if (v == v1) destroy(v);
     op->v1 = &tmp;

@@ -349,7 +349,14 @@ static void calc1(oper_t op) {
     case O_NEG:
     case O_POS:
     case O_STRING: ret = int_from_str(&tmp, v1); break;
-    default: ret = bits_from_str(&tmp, v1); break;
+    case O_INV:
+    case O_BANK:
+    case O_HIGHER:
+    case O_LOWER:
+    case O_HWORD:
+    case O_WORD:
+    case O_BSWORD: ret = bits_from_str(&tmp, v1); break;
+    default: obj_oper_error(op); return;
     }
     if (ret) {
         if (v == v1) destroy(v);
