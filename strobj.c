@@ -21,7 +21,6 @@
 #include "strobj.h"
 #include "eval.h"
 #include "misc.h"
-#include "isnprintf.h"
 #include "unicode.h"
 
 #include "boolobj.h"
@@ -612,10 +611,6 @@ static void calc2(oper_t op) {
         return;
     case T_TUPLE:
     case T_LIST:
-        if (op->op == &o_MOD) {
-            isnprintf(v1, v2, v, &op->epoint, &op->epoint2); return;
-        }
-        /* fall through */
     case T_GAP:
     case T_REGISTER:
         if (op->op != &o_MEMBER) {

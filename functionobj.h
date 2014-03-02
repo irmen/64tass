@@ -27,7 +27,7 @@ enum func_e {
     F_LOG10, F_EXP, F_SIN, F_COS, F_TAN, F_ACOS, F_ASIN, F_ATAN, F_RAD, F_DEG,
     F_COSH, F_SINH, F_TANH, F_HYPOT, F_ATAN2, F_POW, F_SIGN, F_ABS, F_FLOAT,
     F_INT, F_ALL, F_ANY, F_BOOL, F_SIZE, F_LEN, F_RANGE, F_REGISTER, F_REPR,
-    F_STR
+    F_STR, F_FORMAT
 };
 
 typedef struct {
@@ -41,7 +41,7 @@ struct builtin_functions_s {
     enum func_e func;
 };
 
-extern void builtin_function(struct values_s *, unsigned int, enum func_e);
+extern void builtin_function(struct values_s *, unsigned int);
 
 extern struct builtin_functions_s builtin_functions[];
 
