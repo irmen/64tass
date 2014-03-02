@@ -430,26 +430,6 @@ static void rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     size_t i = 0;
     struct value_s **vals, tmp;
-    if (op->op == &o_IN) {
-        op->op = &o_EQ;
-        op->v = &tmp;
-        for (;i < v2->u.list.len; i++) {
-            op->v2 = v2->u.list.data[i];
-            v1->obj->calc2(op);
-            if (tmp.obj == BOOL_OBJ) {
-                if (tmp.u.boolean) {
-                    if (v == v1 || v == v2) v->obj->destroy(v);
-                    bool_from_int(v, 1);
-                    return;
-                }
-            } else tmp.obj->destroy(&tmp);
-        }
-        op->v = v;
-        op->v2 = v2;
-        if (v == v1 || v == v2) v->obj->destroy(v);
-        bool_from_int(v, 0);
-        return;
-    }
     switch (v1->obj->type) {
     case T_TUPLE:
     case T_LIST:
@@ -519,6 +499,26 @@ static void rcalc2(oper_t op) {
             }
             v->u.list.len = i;
             v->u.list.data = vals;
+            return;
+        case O_IN:
+            op->op = &o_EQ;
+            op->v = &tmp;
+            for (;i < v2->u.list.len; i++) {
+                op->v2 = v2->u.list.data[i];
+                v1->obj->calc2(op);
+                if (tmp.obj == BOOL_OBJ) {
+                    if (tmp.u.boolean) {
+                        if (v == v1 || v == v2) v->obj->destroy(v);
+                        bool_from_int(v, 1);
+                        return;
+                    }
+                } else tmp.obj->destroy(&tmp);
+            }
+            op->op = &o_IN;
+            op->v = v;
+            op->v2 = v2;
+            if (v == v1 || v == v2) v->obj->destroy(v);
+            bool_from_int(v, 0);
             return;
         default: 
             v1->obj->calc2(op);return;

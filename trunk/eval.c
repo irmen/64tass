@@ -777,8 +777,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
 }
 
 static inline void apply_op2(oper_t op) {
-    if (op->op == &o_IN) op->v2->obj->rcalc2(op);
-    else if (op->op == &o_X) {
+    if (op->op == &o_X) {
         ival_t shift;
         struct value_s tmp;
         if (op->v2->obj->ival(op->v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {

@@ -1476,7 +1476,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         tmp.v2 = val;
                         tmp.v = &result;
                         tmp.epoint = tmp.epoint2 = tmp.epoint3 = epoint;
-                        val->obj->rcalc2(&tmp);
+                        tmp.v1->obj->calc2(&tmp);
                         truth = result.obj == BOOL_OBJ && result.u.boolean;
                         val_destroy(val);
                     }
