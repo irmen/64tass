@@ -1218,10 +1218,10 @@ static void iindex(oper_t op) {
         return;
     }
     if (vv2->obj == COLONLIST_OBJ) {
-        ival_t len, end, step;
-        len = sliceparams(op, ln, &offs, &end, &step);
-        if (len < 0) return;
-        return slice(vv1, len, offs, end, step, vv);
+        ival_t length, end, step;
+        length = sliceparams(op, ln, &offs, &end, &step);
+        if (length < 0) return;
+        return slice(vv1, length, offs, end, step, vv);
     }
     offs = indexoffs(vv2, &err, ln, &op->epoint2);
     if (offs < 0) {
