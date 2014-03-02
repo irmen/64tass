@@ -780,7 +780,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             val = get_vals_addrlist(epoints);
                             referenceit = oldreferenceit;
                         }
-                        if (!val) {err_msg(ERROR_GENERL_SYNTAX, NULL); goto breakerr;}
                         if (label) labelexists = 1;
                         else label = new_label(&labelname, mycontext, strength, &labelexists);
                         oaddr=current_section->address;
@@ -1076,7 +1075,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         new_waitfor(W_SEND, &lpoint);waitfor->section=current_section;
                         ignore();opoint=lpoint;
                         sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
-                        if (!sectionname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                        if (!sectionname.len) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); goto breakerr;}
                         tmp=find_new_section(&sectionname);
                         if (!tmp->usepass || tmp->defpass < pass - 1) {
                             if (tmp->usepass && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, &opoint); goto breakerr;}
@@ -2062,7 +2061,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     str_t encname;
                     ignore();epoint=lpoint;
                     encname.data = pline + lpoint.pos; encname.len = get_label();
-                    if (!encname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!encname.len) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
                     actual_encoding = new_encoding(&encname);
                 }
                 break;
@@ -2447,7 +2446,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             lpoint.pos++;ignore();
                             epoint = lpoint;
                             varname.data = pline + lpoint.pos; varname.len = get_label();
-                            if (!varname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL);break;}
+                            if (!varname.len) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);break;}
                             if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
                             lpoint.pos++;ignore();
@@ -2523,9 +2522,10 @@ struct value_s *compile(struct file_list_s *cflist)
                     static const str_t branch_across = {24, (const uint8_t *)"allow_branch_across_page"};
                     static const str_t longjmp = {22, (const uint8_t *)"auto_longbranch_as_jmp"};
                     struct value_s err;
+                    struct linepos_s opoint = lpoint;
                     str_t optname;
                     optname.data = pline + lpoint.pos; optname.len = get_label();
-                    if (!optname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!optname.len) { err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); goto breakerr;}
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
                     lpoint.pos++;
                     if (!get_exp(&w,0,cfile)) goto breakerr; /* ellenorizve. */
@@ -2715,7 +2715,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (current_section->structrecursion && !current_section->dooutput) err_msg(ERROR___NOT_ALLOWED, ".DSECTION");
                     ignore();epoint=lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
-                    if (!sectionname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!sectionname.len) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
                     tmp3=new_section(&sectionname);
                     if (tmp3->defpass == pass) {
                         struct label_s tmp;
@@ -2784,7 +2784,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     new_waitfor(W_SEND, &epoint);waitfor->section=current_section;
                     ignore();epoint=lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
-                    if (!sectionname.len) {err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr;}
+                    if (!sectionname.len) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
                     tmp=find_new_section(&sectionname);
                     if (!tmp->usepass || tmp->defpass < pass - 1) {
                         if (tmp->usepass && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, &epoint); goto breakerr;}
