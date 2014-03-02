@@ -527,8 +527,10 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
     case 1: adderror("one argument"); break;
     default: sprintf(line, "%d arguments", n); adderror(line); break;
     }
-    sprintf(line, ", got %d", num);
-    adderror(line);
+    if (num) {
+        sprintf(line, ", got %d", num);
+        adderror(line);
+    }
     return;
 }
 
