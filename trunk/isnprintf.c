@@ -60,7 +60,7 @@
 
 static struct value_s return_value, error_value;
 static size_t returnsize = 0;
-static size_t none;
+static int none;
 
 /* this struct holds everything we need */
 struct DATA {
@@ -93,7 +93,7 @@ static size_t largs;
 static struct values_s dummy = {&none_value, {0, 0, 0}};
 
 static inline const struct values_s *next_arg(void) {
-    if (largs > listp) return &list[listp++];
+    if (!none && largs > listp) return &list[listp++];
     listp++;
     return &dummy;
 }
@@ -148,7 +148,7 @@ static int MUST_CHECK STAR_ARGS(struct DATA *p)
     if (p->star_w == FOUND) {
         const struct values_s *v = next_arg();
         const struct value_s *val = v->val;
-        if (val->obj == NONE_OBJ) none = listp;
+        if (val->obj == NONE_OBJ) none = 1;
         else {
             if (val->obj->uval(val, &error_value, &uval, 8*sizeof(uval_t)-1, &v->epoint)) return 1;
             p->width = uval;
@@ -157,7 +157,7 @@ static int MUST_CHECK STAR_ARGS(struct DATA *p)
     if (p->star_p == FOUND) {
         const struct values_s *v = next_arg();
         const struct value_s *val = v->val;
-        if (val->obj == NONE_OBJ) none = listp;
+        if (val->obj == NONE_OBJ) none = 1;
         else {
             if (val->obj->uval(val, &error_value, &uval, 8*sizeof(uval_t)-1, &v->epoint)) return 1;
             p->precision = uval;
@@ -175,7 +175,7 @@ static inline int MUST_CHECK decimal(struct DATA *p, const struct values_s *v)
     struct value_s tmp2, tmp, *val = v->val;
     size_t i;
 
-    if (val->obj == NONE_OBJ) {none = listp; return 0;}
+    if (val->obj == NONE_OBJ) {none = 1; return 0;}
     val->obj->integer(val, &tmp2, &v->epoint);
     if (tmp2.obj != INT_OBJ) {
         tmp2.obj->copy_temp(&tmp2, &error_value);
@@ -208,7 +208,7 @@ static inline int MUST_CHECK hexa(struct DATA *p, const struct values_s *v)
     size_t bits;
     int bp, bp2, b;
 
-    if (val->obj == NONE_OBJ) {none = listp; return 0;}
+    if (val->obj == NONE_OBJ) {none = 1; return 0;}
     val->obj->integer(val, &tmp, &v->epoint);
     if (tmp.obj != INT_OBJ) {
         tmp.obj->copy_temp(&tmp, &error_value);
@@ -263,7 +263,7 @@ static inline int MUST_CHECK bin(struct DATA *p, const struct values_s *v)
     int i;
     struct value_s err, *val = v->val;
 
-    if (val->obj == NONE_OBJ) {none = listp; return 0;}
+    if (val->obj == NONE_OBJ) {none = 1; return 0;}
     val->obj->integer(val, &err, &v->epoint);
     if (err.obj != INT_OBJ) {
         err.obj->copy_temp(&err, &error_value);
@@ -306,7 +306,7 @@ static inline int MUST_CHECK chars(const struct values_s *v)
     uval_t uval;
     struct value_s *val = v->val;
 
-    if (val->obj == NONE_OBJ) {none = listp; return 0; }
+    if (val->obj == NONE_OBJ) {none = 1; return 0; }
     if (val->obj->uval(val, &error_value, &uval, 24, &v->epoint)) return 1;
 
     PUT_CHAR(uval);
@@ -321,11 +321,11 @@ static int MUST_CHECK strings(struct DATA *p, const struct values_s *v)
     uint32_t ch;
     struct value_s err, *val = v->val;
 
-    if (val->obj == NONE_OBJ) {none = listp; return 0; }
+    if (val->obj == NONE_OBJ) {none = 1; return 0; }
     if (*p->pf == 'r') val->obj->repr(val, &err, &v->epoint);
     else val->obj->str(val, &err, &v->epoint);
     if (err.obj != STR_OBJ) {
-        if (err.obj == NONE_OBJ) {none = listp; return 0; }
+        if (err.obj == NONE_OBJ) {none = 1; return 0; }
         err.obj->copy_temp(&err, &error_value);
         return 1;
     }
@@ -352,7 +352,7 @@ static int MUST_CHECK floating(struct DATA *p, const struct values_s *v)
     double d;
     struct value_s *val = v->val;
 
-    if (val->obj == NONE_OBJ) {none = listp; return 0;}
+    if (val->obj == NONE_OBJ) {none = 1; return 0;}
     if (val->obj->real(val, &error_value, &d, &v->epoint)) return 1;
     if (d < 0.0) { d = -d; minus = 1;} else minus = 0;
     if (p->precision == NOT_FOUND) p->precision = 6;
@@ -432,11 +432,15 @@ void isnprintf(struct values_s *vals, unsigned int args)
         vals->val = &none_value;
         return;
     }
-    if (v[0].val->obj != STR_OBJ) {
-        if (v[0].val->obj == NONE_OBJ) err_msg_still_none(NULL, &v[0].epoint);
-        else err_msg_wrong_type(v[0].val, &v[0].epoint);
-        val_destroy(vals->val);
-        vals->val = &none_value;
+    switch (v[0].val->obj->type) {
+    case T_ERROR:
+    case T_NONE:
+        val_replace(&vals->val, v[0].val);
+        return;
+    case T_STR: break;
+    default:
+        err_msg_wrong_type(v[0].val, &v[0].epoint);
+        val_replace(&vals->val, &none_value);
         return;
     }
     data.pf = (char *)v[0].val->u.str.data;
@@ -527,10 +531,7 @@ void isnprintf(struct values_s *vals, unsigned int args)
         err_msg_argnum(args, listp + 1, listp + 1, &vals->epoint);
         goto err;
     }
-    if (none) {
-        err_msg_still_none(NULL, &v[none].epoint);
-        goto err;
-    }
+    if (none) goto err;
     val_replace_template(&vals->val, &return_value);
     return;
 err:

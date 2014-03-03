@@ -104,16 +104,20 @@ static inline void function_range(struct values_s *vals, unsigned int args) {
 
 /* register(a) - create register object */
 static inline void function_register(struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    if (v1->obj != NONE_OBJ) {
-        if (v1->obj != STR_OBJ) err_msg_wrong_type(v1, epoint);
-        else {
-            if (v1 != v) STR_OBJ->copy(v1, v);
-            v->obj = REGISTER_OBJ;
-            return;
-        }
+    switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+        if (v1 != v) v1->obj->copy(v1, v);
+        return;
+    case T_STR:
+        if (v1 != v) STR_OBJ->copy(v1, v);
+        v->obj = REGISTER_OBJ;
+        return;
+    default:
+        err_msg_wrong_type(v1, epoint);
         if (v1 == v) v->obj->destroy(v);
+        v->obj = NONE_OBJ;
     }
-    v->obj = NONE_OBJ;
 } 
 
 static void apply_func(struct value_s *v1, struct value_s *v, enum func_e func, linepos_t epoint) {
