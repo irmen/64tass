@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.51 r674 manual</title>
+<title>64tass v1.51 r675 manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -58,7 +58,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.51 r674 manual</h1>
+<h1>64tass v1.51 r675 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -404,7 +404,7 @@ Doubling the quotes inside the strings escapes them.</p>
 <tr><td><a name="">any</a>(a)<td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
 <tr><td><a name="">str</a>(a)<td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
 <tr><td><a name="">repr</a>(a)<td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
-<tr><td><a name="">format</a>(s, *)<td>string formatting<td><code><span class="k">format</span>(<span class="s">"<span>%02x</span>"</span>, <span>12</span>)</code> is <code><span class="s">"0c"</span></code>
+<tr><td><a name="">format</a>(s, &lowast;)<td>string formatting<td><code><span class="k">format</span>(<span class="s">"<span>%02x</span>"</span>, <span>12</span>)</code> is <code><span class="s">"0c"</span></code>
 </table>
 
 <p>A string has a truth value of true if it contains at least one character which is not translated to zero.</p>
@@ -953,7 +953,7 @@ floating point constants section.</p>
 <tr><td><a name="f_any">any</a>(a)<td>any elements true
 <tr><td><a name="f_bool">bool</a>(a)<td>truth value
 <tr><td><a name="f_float">float</a>(a)<td>convert to floating point
-<tr><td><a name="f_format">format</a>(s, *)<td>convert to string with formatting
+<tr><td><a name="f_format">format</a>(s, &lowast;)<td>convert to string with formatting
 <tr><td><a name="f_int">int</a>(a)<td>convert to integer
 <tr><td><a name="f_len">len</a>(a)<td>number of elements
 <tr><td><a name="f_range">range</a>(s, e, t)<td>create a list with values from a range
@@ -1703,6 +1703,38 @@ count	<b>ldx</b> #<span>0</span>
 	<b class="k">.bend</b>
 </pre>
 </dl>
+
+<dt><a name="d_weak">.weak</a>
+<dt><a name="d_endweak">.endweak</a>
+<dd>Weak symbol area
+<p>Any symbols defined inside can be overriden by <q>stronger</q> symbols in
+the same scope from outside. Can be nested as necessary.</p>
+<p>This gives the possibility of giving default values for symbols which might
+not always exist without resorting to <code>.ifdef</code>/<code>.ifndef</code> or
+similar directives in other assemblers.</p>
+
+<pre width=80>
+symbol	<b>=</b> <span>1</span>            <i>;stronger symbol than the one below</i>
+	<b class="k">.weak</b>
+symbol	<b>=</b> <span>0</span>            <i>;default value if the one above does not exists</i>
+	<b class="k">.endweak</b>
+        <b class="k">.if</b> <u>symbol</u>     <i>;almost like an .ifdef ;)</i>
+</pre>
+</dl>
+
+<p>Other use of weak symbols might be in included libraries to change default values or
+replace stub functions and data structures.</p>
+
+<p>If these stubs are defined using
+<code>.proc</code>/<code>.pend</code> then their default implementations will
+not even exists in the output at all when a stronger symbol overrides them.</p>
+
+<p>Multiple definition of a symbol with the same <q>strength</q> in the same
+scope is of course not allowed and it results in double definition error.</p>
+
+<p>Please note that <code>.ifdef</code>/<code>.ifndef</code> directives are
+left out from 64tass for of technical reasons, so don't wait for them to appear
+anytime soon.</p>
 
 <h3>Sections</h3>
 
@@ -3499,6 +3531,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_ends">.ends</a>
 <a href="#d_endswitch">.endswitch</a>
 <a href="#d_endu">.endu</a>
+<a href="#d_endweak">.endweak</a>
 <a href="#d_eor">.eor</a>
 <a href="#d_error">.error</a>
 <a href="#d_fi">.fi</a>
@@ -3544,6 +3577,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_union">.union</a>
 <a href="#d_var">.var</a>
 <a href="#d_warn">.warn</a>
+<a href="#d_weak">.weak</a>
 <a href="#d_word">.word</a>
 <a href="#d_xl">.xl</a>
 <a href="#d_xs">.xs</a>

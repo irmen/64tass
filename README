@@ -1,4 +1,4 @@
-64tass v1.51 r674 manual
+64tass v1.51 r675 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -1542,6 +1542,36 @@ global one with the same name.
     count   ldx #0
             .bend
 
+.weak
+.endweak
+    Weak symbol area
+
+    Any symbols defined inside can be overriden by `stronger' symbols in the
+    same scope from outside. Can be nested as necessary.
+
+    This gives the possibility of giving default values for symbols which might
+    not always exist without resorting to .ifdef/.ifndef or similar directives
+    in other assemblers.
+
+    symbol  = 1            ;stronger symbol than the one below
+            .weak
+    symbol  = 0            ;default value if the one above does not exists
+            .endweak
+            .if symbol     ;almost like an .ifdef ;)
+
+Other use of weak symbols might be in included libraries to change default
+values or replace stub functions and data structures.
+
+If these stubs are defined using .proc/.pend then their default implementations
+will not even exists in the output at all when a stronger symbol overrides
+them.
+
+Multiple definition of a symbol with the same `strength' in the same scope is
+of course not allowed and it results in double definition error.
+
+Please note that .ifdef/.ifndef directives are left out from 64tass for of
+technical reasons, so don't wait for them to appear anytime soon.
+
 Sections
 
 Sections can be used to collect data or code into separate memory areas without
@@ -2820,11 +2850,11 @@ Assembler directives
 .al .align .as .assert .bend .binary .binclude .block .break .byte .case .cdef
 .cerror .char .check .comment .continue .cpu .cwarn .databank .default .dint
 .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc .end .endc
-.endf .endif .endm .endp .ends .endswitch .endu .eor .error .fi .fill .for
-.function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include .int .lbl
-.lint .logical .long .macro .next .null .offs .option .page .pend .proc .proff
-.pron .ptext .rept .rta .section .segment .send .shift .shiftl .showmac .struct
-.switch .text .union .var .warn .word .xl .xs
+.endf .endif .endm .endp .ends .endswitch .endu .endweak .eor .error .fi .fill
+.for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include .int
+.lbl .lint .logical .long .macro .next .null .offs .option .page .pend .proc
+.proff .pron .ptext .rept .rta .section .segment .send .shift .shiftl .showmac
+.struct .switch .text .union .var .warn .weak .word .xl .xs
 -------------------------------------------------------------------------------
 
 Built-in functions
