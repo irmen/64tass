@@ -518,9 +518,6 @@ void isnprintf(struct values_s *vals, unsigned int args)
                         err_msg_not_defined(&msg, &v[0].epoint);
                         goto err;
                     }
-                    /* is this an error ? maybe bail out */
-                    state = 0;
-                    break;
                 } /* end switch */
             } /* end of for state */
         } else { /* not % */

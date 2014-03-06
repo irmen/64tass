@@ -819,7 +819,7 @@ static int get_val2(struct eval_context_s *ev) {
     struct value_s new_value;
     struct values_s *values;
     struct oper_s oper;
-    atype_t am;
+    enum atype_e am;
 
     ev->values_p = 0;
     values = ev->values;
