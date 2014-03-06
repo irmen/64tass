@@ -358,6 +358,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                         if (val->obj == NONE_OBJ) {
                             err_msg_still_none(NULL, epoint2);
                             d = 0;
+                            uval = current_section->l_address + 2;
                         } else {
                             if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 2;}
                         }
