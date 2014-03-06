@@ -121,6 +121,8 @@
         <RegExpr endRegion="for" String="\.next\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="logical" String="\.logical\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="here" String="\.here\b" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr beginRegion="weak" String="\.weak\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
+        <RegExpr endRegion="endweak" String="\.endweak\b" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr beginRegion="if" String="\.(if|ifeq|ifne|ifpl|ifmi)\b" context="Miscparam" attribute="Preprocessor" insensitive="TRUE"/>
         <RegExpr endRegion="if" endRegion="elsif" String="\s?(?=\.elsif\b)" context="elsif" insensitive="TRUE"/>
         <RegExpr endRegion="if" endRegion="elsif" String="\s?(?=\.else\b)" context="else" insensitive="TRUE"/>

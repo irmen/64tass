@@ -12,7 +12,7 @@
             <Keywords name="Operators">- ! # &amp; ( ) * , / : ? [ ] { } ^ ` | ~ + &lt; = &gt;</Keywords>
             <Keywords name="Comment"> 1 1.comment 2.endc 0;</Keywords>
             <Keywords name="Words1">adc and asl bcc bcs beq bge bit blt bmi bne bpl brk bvc bvs clc cld cli clv cmp cpx cpy dec dex dey eor gcc gcs geq gge glt gmi gne gpl gvc gvs inc inx iny jmp jsr lda ldx ldy lsr nop ora pha php pla plp rol ror rti rts sbc sec sed sei shl shr sta stx sty tax tay tsx txa txs tya ahx alr anc ane arr asr axs dcm dcp ins isb isc jam lae las lax lds lxa rla rra sax sbx sha shs shx shy slo sre tas xaa</Keywords>
-            <Keywords name="Words2">.al .align .as .assert .bend .binclude .block .break .case .cdef .cerror .check .continue .cpu .cwarn .databank .default .dpage .dsection .dstruct .dunion .edef .else .elsif .enc .end .endp .ends .endswitch .endu .eor .error .for .goto .here .hidemac .include .lbl .logical .next .offs .option .page .proff .pron .rept .showmac .switch .var .warn .xl .xs</Keywords>
+            <Keywords name="Words2">.al .align .as .assert .bend .binclude .block .break .case .cdef .cerror .check .continue .cpu .cwarn .databank .default .dpage .dsection .dstruct .dunion .edef .else .elsif .enc .end .endp .ends .endswitch .endu .endweak .eor .error .for .goto .here .hidemac .include .lbl .logical .next .offs .option .page .proff .pron .rept .showmac .switch .var .warn .weak .xl .xs</Keywords>
             <Keywords name="Words3">.byte .binary .char .ptext .lint .long .null .dword .int .fill .rta .shift .shiftl .dint .word .text</Keywords>
             <Keywords name="Words4">$ %</Keywords>
         </KeywordLists>
