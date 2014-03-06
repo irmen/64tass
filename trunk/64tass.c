@@ -1526,7 +1526,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (here() && here() != ';' && get_exp(&w, 0, cfile, 0, 0, NULL)) {
                         retval = get_vals_tuple(0);
                     } 
-                } else err_msg2(ERROR______EXPECTED,".STRUCT", &epoint); break;
+                } else err_msg2(ERROR______EXPECTED,".STRUCT", &epoint);
                 break;
             case CMD_SEND: /* .send */
                 if (close_waitfor(W_SEND)) {
@@ -1559,7 +1559,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         current_section->address = current_section->unionend;
                         memjmp(&current_section->mem, current_section->address);
                     }
-                } else err_msg2(ERROR______EXPECTED,".UNION", &epoint); break;
+                } else err_msg2(ERROR______EXPECTED,".UNION", &epoint);
                 break;
             case CMD_ENDP: /* .endp */
                 if (close_waitfor(W_ENDP)) {
@@ -1569,7 +1569,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_ENDP2);
-                } else err_msg2(ERROR______EXPECTED,".PAGE", &epoint); break;
+                } else err_msg2(ERROR______EXPECTED,".PAGE", &epoint);
                 break;
             case CMD_HERE: /* .here */
                 if (close_waitfor(W_HERE)) {
@@ -1579,7 +1579,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_HERE2);
                     current_section->logicalrecursion--;
-                } else err_msg2(ERROR______EXPECTED,".LOGICAL", &epoint); break;
+                } else err_msg2(ERROR______EXPECTED,".LOGICAL", &epoint);
                 break;
             case CMD_BEND: /* .bend */
                 if (close_waitfor(W_BEND)) {
@@ -1589,7 +1589,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (current_context->parent) current_context = current_context->parent;
                     else err_msg2(ERROR______EXPECTED,".block", &epoint);
                     close_waitfor(W_BEND2);
-                } else err_msg2(ERROR______EXPECTED,".BLOCK", &epoint); break;
+                } else err_msg2(ERROR______EXPECTED,".BLOCK", &epoint);
                 break;
             case CMD_ENDWEAK: /* .endweak */
                 if (close_waitfor(W_WEAK)) {
@@ -1598,7 +1598,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_WEAK2);
                     strength--;
-                } else err_msg2(ERROR______EXPECTED,".WEAK", &epoint); break;
+                } else err_msg2(ERROR______EXPECTED,".WEAK", &epoint);
                 break;
             case CMD_END: /* .end */
                 nobreak=0;
