@@ -126,12 +126,12 @@ using an intermediate temporary file:</p>
 so that the resulting file is directly runnable without additional
 compression:</p>
 <pre width=80>
-        <b>&lowast;=</b> <span>$0801</span>
+        <b>*=</b> <span>$0801</span>
         <b class="d">.word</b> (<u>+</u>), <span>2005</span>  <i>;pointer, line number</i>
         <b class="d">.null</b> <span>$9e</span>, ^<u>start</u><i>;will be sys 4096</i>
 +	<b class="d">.word</b> <span>0</span>          <i>;basic line end</i>
 
-        <b>&lowast;=</b> <span>$1000</span>
+        <b>*=</b> <span>$1000</span>
 
 start	<b>rts</b>
 </pre>
@@ -143,7 +143,7 @@ but what about zero page, or RAM outside of program area? The solution
 is to not use an initial value by using <q><code>?</code></q> or not
 giving a fill byte value to <code>.fill</code>.</p>
 <pre width=80>
-        <b>&lowast;=</b> <span>$02</span>
+        <b>*=</b> <span>$02</span>
 p1	<b class="d">.word</b> <span>?</span>         <i>;a zero page pointer</i>
 temp	<b class="d">.fill</b> <span>10</span>        <i>;a 10 byte temporary area</i>
 </pre>
@@ -154,11 +154,11 @@ addresses.</p>
 relocated, and the length must be known to copy it there. Here's
 an example:</p>
 <pre width=80>
-        <b>ldx</b> #<span class="k">size</span>(<u>zpcode</u>)&minus;<span>1</span><i>;calculate length</i>
-&minus;       <b>lda</b> <u>zpcode</u>,x
+        <b>ldx</b> #<span class="k">size</span>(<u>zpcode</u>)-<span>1</span><i>;calculate length</i>
+-       <b>lda</b> <u>zpcode</u>,x
         <b>sta</b> <u>wrbyte</u>,x
         <b>dex</b>             <i>;install to zeropage</i>
-        <b>bpl</b> <u>&minus;</u>
+        <b>bpl</b> <u>-</u>
         <b>jsr</b> <u>wrbyte</u>
         <b>rts</b>
 <i>;code continues here but is compiled to run from $02</i>
@@ -184,9 +184,9 @@ jumpcmd <b>lda</b> <u>hibytes</u>,x   <i>; selected routine in X register</i>
         <b>pha</b>
         <b>rts</b>             <i>; jump, rts will increase pc by one!</i>
 <i>; Build an anonymous list of jump addresses minus 1</i>
-&minus;	<b>=</b> (<u>cmd_p</u>, <u>cmd_c</u>, <u>cmd_m</u>, <u>cmd_s</u>, <u>cmd_r</u>, <u>cmd_l</u>, <u>cmd_e</u>)&minus;<span>1</span>
-lobytes <b class="d">.byte</b> &lt;(<u>&minus;</u>)      <i>; low bytes of jump addresses</i>
-hibytes <b class="d">.byte</b> &gt;(<u>&minus;</u>)      <i>; high bytes</i>
+-	<b>=</b> (<u>cmd_p</u>, <u>cmd_c</u>, <u>cmd_m</u>, <u>cmd_s</u>, <u>cmd_r</u>, <u>cmd_l</u>, <u>cmd_e</u>)-<span>1</span>
+lobytes <b class="d">.byte</b> &lt;(<u>-</u>)      <i>; low bytes of jump addresses</i>
+hibytes <b class="d">.byte</b> &gt;(<u>-</u>)      <i>; high bytes</i>
 </pre>
 
 <p>There are some other tips below in the descriptions.</p>
@@ -248,7 +248,7 @@ true value is the same as 1.</p>
 
         <b>ldx</b> #&lt;&gt;<u>source</u>   <i>; word extraction</i>
         <b>ldy</b> #&lt;&gt;<u>dest</u>
-        <b>lda</b> #<span class="k">size</span>(<u>source</u>)&minus;<span>1</span>
+        <b>lda</b> #<span class="k">size</span>(<u>source</u>)-<span>1</span>
         <b>mvn</b> #`<u>source</u>, #`<u>dest</u><i>; bank extraction</i>
 
         <b>lda</b> #((<u>bitmap</u> &amp; <span>$2000</span>) &gt;&gt; <span>10</span>) | ((<u>screen</u> &amp; <span>$3c00</span>) &gt;&gt; <span>6</span>)
@@ -433,8 +433,8 @@ mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
 
         <b class="d">.text</b> <span class="s">"text"</span>[:<span>2</span>]     <i>; "te"</i>
         <b class="d">.text</b> <span class="s">"text"</span>[<span>2</span>:]     <i>; "xt"</i>
-        <b class="d">.text</b> <span class="s">"text"</span>[:<span>&minus;1</span>]    <i>; "tex"</i>
-        <b class="d">.text</b> <span class="s">"reverse"</span>[::<span>&minus;1</span>]<i>; "esrever"</i>
+        <b class="d">.text</b> <span class="s">"text"</span>[:<span>-1</span>]    <i>; "tex"</i>
+        <b class="d">.text</b> <span class="s">"reverse"</span>[::<span>-1</span>]<i>; "esrever"</i>
 </pre>
 
 <p>String formatting can interpret a list of values and convert them to a string.
@@ -530,7 +530,7 @@ types are immutable.</p>
 <tr><td>a[s]<td>cut off start<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[<span>1</span>:]</code> is <code>(<span>2</span>, <span>3</span>)</code>
 <tr><td>a[s]<td>cut off end<td><code>(<span>1</span>, <span>2.0</span>, <span>3</span>)[:<span>&minus;1</span>]</code> is <code>(<span>1</span>, <span>2.0</span>)</code>
 <tr><td>a[s]<td>reverse<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[::<span>&minus;1</span>]</code> is <code>(<span>3</span>, <span>2</span>, <span>1</span>)</code>
-<tr><td>&lowast;a[s]<td>convert to arguments<td><code><span class="k">format</span>(<span class="s">"%d: %s"</span>, &lowast;<u>mylist</u>)</code>
+<tr><td>&lowast;a<td>convert to arguments<td><code><span class="k">format</span>(<span class="s">"%d: %s"</span>, &lowast;<u>mylist</u>)</code>
 <tr><td><a name="">len</a>(a)<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
 <tr><td><a name="">all</a>(a)<td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
 <tr><td><a name="">any</a>(a)<td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
@@ -567,8 +567,8 @@ mytuple <b>=</b> (<u>cmd_e</u>, <u>cmd_g</u>)
 
 mylist  <b>=</b> (<span class="s">"e"</span>, <u>cmd_e</u>, <span class="s">"g"</span>, <u>cmd_g</u>, <span class="s">"i"</span>, <u>cmd_i</u>)
 keys    <b class="d">.text</b> <u>mylist</u>[::<span>2</span>]    <i>; keys ("e", "g", "i")</i>
-call_l  <b class="d">.byte</b> &lt;<u>mylist</u>[<span>1</span>::<span>2</span>]&minus;<span>1</span><i>; routines (&lt;cmd_e&minus;1, &lt;cmd_g&minus;1, &lt;cmd_i&minus;1)</i>
-call_h  <b class="d">.byte</b> &gt;<u>mylist</u>[<span>1</span>::<span>2</span>]&minus;<span>1</span><i>; routines (&gt;cmd_e&minus;1, &gt;cmd_g&minus;1, &gt;cmd_i&minus;1)</i>
+call_l  <b class="d">.byte</b> &lt;<u>mylist</u>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&lt;cmd_e&minus;1, &lt;cmd_g&minus;1, &lt;cmd_i&minus;1)</i>
+call_h  <b class="d">.byte</b> &gt;<u>mylist</u>[<span>1</span>::<span>2</span>]-<span>1</span><i>; routines (&gt;cmd_e&minus;1, &gt;cmd_g&minus;1, &gt;cmd_i&minus;1)</i>
 </pre>
 
 <p>The <code>range(start, end, step)</code> built-in function can be used to
@@ -580,11 +580,11 @@ useful, so here are a few examples:</p>
 <i>;Bitmask table, 8 bits from left to right</i>
         <b class="d">.byte</b> <span>%10000000</span> &gt;&gt; <span class="k">range</span>(<span>8</span>)
 <i>;Classic 256 byte single period sinus table with values of 0&minus;255.</i>
-        <b class="d">.byte</b> <span>128.5</span> + <span>127</span> &lowast; <span class="k">sin</span>(<span class="k">range</span>(<span>256</span>) &lowast; <span class="k">rad</span>(<span>360.0</span>/<span>256</span>))
+        <b class="d">.byte</b> <span>128.5</span> + <span>127</span> * <span class="k">sin</span>(<span class="k">range</span>(<span>256</span>) * <span class="k">rad</span>(<span>360.0</span>/<span>256</span>))
 <i>;Screen row address tables</i>
-&minus;       <b>=</b> <span>$400</span> + <span class="k">range</span>(<span>0</span>, <span>1000</span>, <span>40</span>)
-scrlo   <b class="d">.byte</b> &lt;(<u>&minus;</u>)
-scrhi   <b class="d">.byte</b> &gt;(<u>&minus;</u>)
+-       <b>=</b> <span>$400</span> + <span class="k">range</span>(<span>0</span>, <span>1000</span>, <span>40</span>)
+scrlo   <b class="d">.byte</b> &lt;(<u>-</u>)
+scrhi   <b class="d">.byte</b> &gt;(<u>-</u>)
 </pre>
 
 <h3>Dictionaries</h3>
@@ -832,16 +832,16 @@ and backward (<tt>&minus;</tt>) references.<p>
 
 <pre width=80>
         <b>ldy</b> #<span>4</span>
-&minus;       <b>ldx</b> #<span>0</span>
-&minus;       <b>txa</b>
+-       <b>ldx</b> #<span>0</span>
+-       <b>txa</b>
         <b>cmp</b> #<span>3</span>
 	<b>bcc</b> +
         <b>adc</b> #<span>44</span>
 +       <b>sta</b> <span>$400</span>,x
 	<b>inx</b>
-	<b>bne</b> &minus;
+	<b>bne</b> -
 	<b>dey</b>
-	<b>bne</b> &minus;&minus;
+	<b>bne</b> --
 </pre>
 
 <p>Excessive nesting or long distance references create poorly readable code.
@@ -899,7 +899,7 @@ create uninitialized memory, but filling, alignment or address manipulation as
 well.</p>
 
 <pre width=80>
-        <b>&lowast;=</b> <span>$200</span>         <i>;bytes as necessary</i>
+        <b>*=</b> <span>$200</span>         <i>;bytes as necessary</i>
 	<b class="d">.word</b> <span>?</span>         <i>;2 bytes</i>
 	<b class="d">.fill</b> <span>10</span>        <i>;10 bytes</i>
 	<b class="k">.align</b> <span>64</span>       <i>;bytes as necessary</i>
@@ -939,7 +939,7 @@ Don't forget that they also denote indirect addressing mode for certain
 opcodes.</p>
 
 <pre width=80>
-        <b>lda</b> #(<span>4</span>+<span>2</span>)&lowast;<span>3</span>
+        <b>lda</b> #(<span>4</span>+<span>2</span>)*<span>3</span>
 </pre>
 
 <p>Built-in functions are identifiers followed by parentheses. They accept
@@ -1000,7 +1000,7 @@ stays the same as before.
 <dd>Align code to a dividable program counter address by inserting uninitialized memory or repeated bytes.
 </dl>
 <pre width=80>
-        <b>&lowast;=</b> <span>$1000</span>        <i>;set program counter (and offset)</i>
+        <b>*=</b> <span>$1000</span>        <i>;set program counter (and offset)</i>
 
         <b class="k">.offs</b> <span>100</span>       <i>;gap of 100, PC still the same</i>
 
@@ -1018,9 +1018,9 @@ loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst
 </pre>
 <p>Here's an example how <code>.logical</code> and <code>&lowast;=</code> works together:</p>
 <pre width=80>
-        <b>&lowast;=</b> <span>$0800</span>       <i>;Compile: $0800, PC: $0800</i>
+        <b>*=</b> <span>$0800</span>       <i>;Compile: $0800, PC: $0800</i>
         <b class="k">.logical</b> <span>$1000</span> <i>;Compile: $0800, PC: $1000</i>
-        <b>&lowast;=</b> <span>$1200</span>       <i>;Compile: $0a00, PC: $1200</i>
+        <b>*=</b> <span>$1200</span>       <i>;Compile: $0a00, PC: $1200</i>
 	<b class="k">.here</b>          <i>;Compile: $0a00, PC: $0a00</i>
 </pre>
 
@@ -1044,9 +1044,9 @@ converted using the current encoding.</p>
 <i>;Compact computed jumps using self modifying code</i>
         <b>lda</b> <u>jumps</u>,x
         <b>sta</b> <u>smod</u>+<span>1</span>
-smod    <b>bne</b> <u>&lowast;</u>
+smod    <b>bne</b> <u>*</u>
 
-jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)&minus;<u>smod</u>&minus;<span>2</span> <i>;Routines nearby (&minus;128&ndash;127 bytes)</i>
+jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)-<u>smod</u>-<span>2</span> <i>;Routines nearby (&minus;128&ndash;127 bytes)</i>
 </pre>
 
 <dt><a name="d_word">.word</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1056,7 +1056,7 @@ jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)&minus;<u>smod<
 <pre width=80>
         <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
         <b class="d">.word</b> <span>?</span>	        <i>; reserve 2 bytes of space</i>
-        <b class="d">.int</b> <span>&minus;533</span>, <span>4433</span>
+        <b class="d">.int</b> <span>-533</span>, <span>4433</span>
 
 <i>;Computed jumps with jump table</i>
         <b>lda</b> <u>jumps</u>,x
@@ -1070,7 +1070,7 @@ jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)&minus;<u>smod<
 
 jumps   <b class="d">.word</b> <u>routine1</u>, <u>routine2</u>
 <i>;On 65816 subtract the current program bank</i>
-jumps2  <b class="d">.word</b> (<u>routine1</u>, <u>routine2</u>) &minus; (<u>&lowast;</u> &amp; ~<span>$ffff</span>)
+jumps2  <b class="d">.word</b> (<u>routine1</u>, <u>routine2</u>) - (<u>*</u> &amp; ~<span>$ffff</span>)
 </pre>
 
 <dt><a name="d_rta">.rta</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1087,7 +1087,7 @@ constants (usually addresses) but with one subtracted.
 	<b>rts</b>
 rets	<b class="d">.rta</b> <span>$fce2</span>, <u>routine1</u>, <u>routine2</u>
 <i>;On 65816 subtract the current program bank</i>
-rets2	<b class="d">.rta</b> (<span>$fce2</span>, <u>routine1</u>, <u>routine2</u>) &minus; (<u>&lowast;</u> &amp; ~<span>$ffff</span>)
+rets2	<b class="d">.rta</b> (<span>$fce2</span>, <u>routine1</u>, <u>routine2</u>) - (<u>*</u> &amp; ~<span>$ffff</span>)
 </pre>
 
 <dt><a name="d_long">.long</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1097,7 +1097,7 @@ rets2	<b class="d">.rta</b> (<span>$fce2</span>, <u>routine1</u>, <u>routine2</u
 <pre width=80>
         <b class="d">.long</b> <span>$123456</span>
         <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes of space</i>
-        <b class="d">.lint</b> <span>&minus;533</span>, <span>4433</span>
+        <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
 
 <i>;Computed long jumps with jump table (65816)</i>
         <b>lda</b> <u>jumps</u>,x
@@ -1109,7 +1109,7 @@ rets2	<b class="d">.rta</b> (<span>$fce2</span>, <u>routine1</u>, <u>routine2</u
         <b>jmp</b> [<u>ind</u>]
 jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 <i>;Store 8.16 signed fixed point constants</i>
-        <b class="d">.lint</b> (<span>&minus;3.44</span>, <span>3.4</span>, <span>3.52</span>) &lowast; (<span>1</span> &lt;&lt; <span>16</span>)
+        <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * (<span>1</span> &lt;&lt; <span>16</span>)
 </pre>
 
 <dt><a name="d_dword">.dword</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1120,7 +1120,7 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
         <b class="d">.dword</b> <span>$12345678</span>
         <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes of space</i>
 <i>;Store 8.24 signed fixed point constants</i>
-        <b class="d">.dint</b> (<span>&minus;3.44</span>, <span>3.4</span>, <span>3.52</span>) &lowast; (<span>1</span> &lt;&lt; <span>24</span>)
+        <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * (<span>1</span> &lt;&lt; <span>24</span>)
 </pre>
 </dl>
 
@@ -1204,11 +1204,11 @@ print	<b>sta</b> <span>$fb</span>
         <b>lda</b> (<span>$fb</span>),y
         <b>beq</b> <u>null</u>
 	<b>tax</b>
-&minus;	<b>iny</b>
+-	<b>iny</b>
         <b>lda</b> (<span>$fb</span>),y
         <b>jsr</b> <span>$ffd2</span>
 	<b>dex</b>
-	<b>bne</b> <u>&minus;</u>
+	<b>bne</b> <u>-</u>
 null	<b>rts</b>
 
 txt	<b class="d">.ptext</b> <span class="s">"note"</span>
@@ -1359,7 +1359,7 @@ for two separate parts of a bigger program. The common subroutine variables
 are assigned after in the <q>zp</q> section.</p>
 
 <pre width=80>
-        <b>&lowast;=</b> <span>$02</span>
+        <b>*=</b> <span>$02</span>
         <b class="k">.union</b>          <i>;spare some memory</i>
          <b class="k">.struct</b>
           <b class="d">.dsection</b> <u>zp1</u> <i>;declare zp1 section</i>
@@ -1486,7 +1486,7 @@ accessible at the place of definition, but not those at the place of
 invocation.</p>
 <pre width=80>
 wpack   <b class="k">.function</b> <u>a</u>, <u>b</u>=<span>0</span>
-        <b class="k">.endf</b> <u>a</u>+<u>b</u>&lowast;<span>256</span>
+        <b class="k">.endf</b> <u>a</u>+<u>b</u>*<span>256</span>
 
         <b class="d">.word</b> <span class="k">wpack</span>(<span>1</span>), <span class="k">wpack</span>(<span>2</span>, <span>3</span>)
 </pre>
@@ -1616,7 +1616,7 @@ classic TASM sources for creating loops.
 i	<b class="k">.var</b> <span>100</span>
 loop	<b class="k">.lbl</b>
         <b>nop</b>
-i       <b class="k">.var</b> <u>i</u> &minus; <span>1</span>
+i       <b class="k">.var</b> <u>i</u> - <span>1</span>
         <b class="k">.ifne</b> <u>i</u>
         <b class="k">.goto</b> <u>loop</u>       <i>;generates 100 nops</i>
         <b class="k">.fi</b>
@@ -1659,7 +1659,7 @@ file separately, like bitmap and colors for example.
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>, <span>2</span>     <i>;skip start address</i>
         <b class="d">.binary</b> <span class="s">"stuffz.bin"</span>, <span>2</span>, <span>1000</span><i>;skip start address, 1000 bytes max</i>
 
-        <b>&lowast;=</b> <span>$1000</span>	            <i>;load music to $1000 and</i>
+        <b>*=</b> <span>$1000</span>	            <i>;load music to $1000 and</i>
         <b class="d">.binary</b> <span class="s">"music.sid"</span>, <span>$7e</span>    <i>;strip SID header</i>
 </pre>
 
@@ -1762,21 +1762,21 @@ to manipulate the compile offset in fragments, but putting code before the
 start of <code>.dsection</code> is not allowed.</p>
 
 <pre width=80>
-        <b>&lowast;=</b> <span>$02</span>
+        <b>*=</b> <span>$02</span>
         <b class="d">.dsection</b> <u>zp</u>   <i>;declare zeropage section</i>
-        <b class="k">.cerror</b> <u>&lowast;</u> &gt; <span>$30</span>, <span class="s">"Too many zeropage variables"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$30</span>, <span class="s">"Too many zeropage variables"</span>
 
-        <b>&lowast;=</b> <span>$334</span>
+        <b>*=</b> <span>$334</span>
         <b class="d">.dsection</b> <u>bss</u>   <i>;declare uninitialized variable section</i>
-        <b class="k">.cerror</b> <u>&lowast;</u> &gt; <span>$400</span>, <span class="s">"Too many variables"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$400</span>, <span class="s">"Too many variables"</span>
 
-        <b>&lowast;=</b> <span>$0801</span>
+        <b>*=</b> <span>$0801</span>
         <b class="d">.dsection</b> <u>code</u>   <i>;declare code section</i>
-        <b class="k">.cerror</b> <u>&lowast;</u> &gt; <span>$1000</span>, <span class="s">"Program too long!"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$1000</span>, <span class="s">"Program too long!"</span>
 
-        <b>&lowast;=</b> <span>$1000</span>
+        <b>*=</b> <span>$1000</span>
         <b class="d">.dsection</b> <u>data</u>   <i>;declare data section</i>
-        <b class="k">.cerror</b> <u>&lowast;</u> &gt; <span>$2000</span>, <span class="s">"Data too long!"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$2000</span>, <span class="s">"Data too long!"</span>
 <i>;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;</i>
         <b class="k">.section</b> <u>code</u>
         <b class="d">.word</b> <u>ss</u>, <span>2005</span>
@@ -1840,10 +1840,10 @@ shared for all banks.</p>
 
 <pre width=80>
 <i>;First 8K bank at the beginning, PC at $8000</i>
-        <b>&lowast;=</b> <span>$0000</span>
+        <b>*=</b> <span>$0000</span>
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank1</u>
-        <b class="k">.cerror</b> <u>&lowast;</u> &gt; <span>$a000</span>, <span class="s">"Bank1 too long"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank1 too long"</span>
 	<b class="k">.here</b>
 
 bank1	<b class="k">.block</b>          <i>;Make all symbols local</i>
@@ -1858,10 +1858,10 @@ bank1	<b class="k">.block</b>          <i>;Make all symbols local</i>
 	<b class="k">.bend</b>
 
 <i>;Second 8K bank at $2000, PC at $8000</i>
-        <b>&lowast;=</b> <span>$2000</span>
+        <b>*=</b> <span>$2000</span>
         <b class="k">.logical</b> <span>$8000</span>
         <b class="d">.dsection</b> <u>bank2</u>
-        <b class="k">.cerror</b> <u>&lowast;</u> &gt; <span>$a000</span>, <span class="s">"Bank2 too long"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$a000</span>, <span class="s">"Bank2 too long"</span>
 	<b class="k">.here</b>
 
 bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
@@ -1875,9 +1875,9 @@ bank2	<b class="k">.block</b>          <i>;Make all symbols local</i>
 	<b class="k">.bend</b>
 
 <i>;Common data, avoid initialized variables here!</i>
-        <b>&lowast;=</b> <span>$c000</span>
+        <b>*=</b> <span>$c000</span>
         <b class="d">.dsection</b> <u>bss</u>
-        <b class="k">.cerror</b> <u>&lowast;</u> &gt; <span>$d000</span>, <span class="s">"Too much common data"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$d000</span>, <span class="s">"Too much common data"</span>
 <i>;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus;&minus; The following is in "code.asm"</i>
 code    <b>sei</b>
 
@@ -1945,8 +1945,8 @@ can ruin the timing of a carefully cycle counted code.
 <pre width=80>
         <b class="k">.option</b> allow_branch_across_page = <span>0</span>
         <b>ldx</b> #<span>3</span>          <i>;now this will execute in</i>
-&minus;       <b>dex</b>             <i>;16 cycles for sure</i>
-	<b>bne</b> <u>&minus;</u>
+-       <b>dex</b>             <i>;16 cycles for sure</i>
+	<b>bne</b> <u>-</u>
         <b class="k">.option</b> allow_branch_across_page = <span>1</span>
 </pre>
 
@@ -1955,7 +1955,7 @@ can ruin the timing of a carefully cycle counted code.
 <dd>Exit with error or conditionally exit with error
 <pre width=80>
         <b class="k">.error</b> <span class="s">"Unfinished here..."</span>
-        <b class="k">.cerror</b> <u>&lowast;</u> &gt; <span>$1200</span>, <span class="s">"Program too long by "</span>, <u>&lowast;</u> &minus; <span>$1200</span>, <span class="s">" bytes"</span>
+        <b class="k">.cerror</b> <u>*</u> &gt; <span>$1200</span>, <span class="s">"Program too long by "</span>, <u>*</u> - <span>$1200</span>, <span class="s">" bytes"</span>
 </pre>
 
 <dt><a name="d_warn">.warn</a> &lt;message&gt; [, &lt;message&gt;, &hellip;]
@@ -1963,7 +1963,7 @@ can ruin the timing of a carefully cycle counted code.
 <dd>Display a warning message always or depending on a condition
 <pre width=80>
         <b class="k">.warn</b> <span class="s">"FIXME: handle negative values too!"</span>
-        <b class="k">.cwarn</b> <u>&lowast;</u> &gt; <span>$1200</span>, <span class="s">"This may not work!"</span>
+        <b class="k">.cwarn</b> <u>*</u> &gt; <span>$1200</span>, <span class="s">"This may not work!"</span>
 </pre>
 
 </dl>
@@ -2024,10 +2024,10 @@ is set to the value of expression or reference of variable.
 
 <pre width=80>
         <b class="k">.proff</b>           <i>;Don't put filler bytes into listing</i>
-        <b>&lowast;=</b> <span>$8000</span>
+        <b>*=</b> <span>$8000</span>
         <b class="d">.fill</b> <span>$2000</span>, <span>$ff</span> <i>;Pre-fill ROM area</i>
 	<b class="k">.pron</b>
-        <b>&lowast;=</b> <span>$8000</span>
+        <b>*=</b> <span>$8000</span>
         <b class="d">.word</b> <u>reset</u>, <u>restore</u>
         <b class="d">.text</b> <span class="s">"CBM80"</span>
 reset   <b>cld</b>
@@ -2190,9 +2190,9 @@ zeros. Uninitialized memory after the last valid byte is not saved.</p>
 <p>Used for linkers.</p>
 <pre width=80>
 64tass --nonlinear a.asm
-        <b>&lowast;=</b> <span>$1000</span>
+        <b>*=</b> <span>$1000</span>
         <b>lda</b> #<span>2</span>
-        <b>&lowast;=</b> <span>$2000</span>
+        <b>*=</b> <span>$2000</span>
 	<b>nop</b>
 </pre>
 <table border="0">
@@ -2219,9 +2219,9 @@ happens in the definition order without sorting, and uninitialized memory is
 skipped in the output.</p>
 <pre width=80>
 64tass --atari-xex a.asm
-        <b>&lowast;=</b> <span>$02e0</span>
+        <b>*=</b> <span>$02e0</span>
         <b class="d">.word</b> <u>start</u>      <i>;run address</i>
-        <b>&lowast;=</b> <span>$2000</span>
+        <b>*=</b> <span>$2000</span>
 start	<b>rts</b>
 </pre>
 <table border="0">
@@ -2276,16 +2276,16 @@ sometimes, usually they'll need to be rewritten to <code>BXX &lowast;+5 JMP xxx<
 is not converted.
 <pre width=80>
 64tass a.asm
-        <b>&lowast;=</b> <span>$1000</span>
+        <b>*=</b> <span>$1000</span>
         <b>bcc</b> <span>$1233</span>	<i>;error...</i>
 
 64tass a.asm
-        <b>&lowast;=</b> <span>$1000</span>
-        <b>bcs</b> &lowast;+<span>5</span>		<i>;opposite condition</i>
+        <b>*=</b> <span>$1000</span>
+        <b>bcs</b> *+<span>5</span>		<i>;opposite condition</i>
         <b>jmp</b> <span>$1233</span>	<i>;as simple workaround</i>
 
 64tass --long-branch a.asm
-        <b>&lowast;=</b> <span>$1000</span>
+        <b>*=</b> <span>$1000</span>
         <b>bcc</b> <span>$1233</span>	<i>;no error, automatically converted to the above one.</i>
 </pre>
 
@@ -2418,7 +2418,7 @@ for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones
 <dd>List labels into &lt;file&gt;. List global used labels to a file.
 <pre width=80>
 64tass -l labels.txt a.asm
-        <b>&lowast;=</b> <span>$1000</span>
+        <b>*=</b> <span>$1000</span>
 label   <b>jmp</b> <u>label</u>
 
 result (labels.txt):
@@ -2431,7 +2431,7 @@ Useful for debugging, it's much easier to identify the code in memory within
 the source files.
 <pre width=80>
 64tass -L list.txt a.asm
-        <b>&lowast;=</b> <span>$1000</span>
+        <b>*=</b> <span>$1000</span>
         <b>ldx</b> #<span>0</span>
 loop	<b>dex</b>
         <b>bne</b> <u>loop</u>
