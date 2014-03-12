@@ -63,18 +63,18 @@ static void close_error(struct errorbuffer_s *elist) {
 static void new_error(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
     struct error_s *err;
     close_error(&error_list);
-    if (sizeof(struct error_s) + error_list.len > error_list.max) {
+    if (sizeof(struct error_s) + ((error_list.len + 7) & ~7) > error_list.max) {
         error_list.max += (sizeof(struct error_s) > 0x200) ? sizeof(struct error_s) : 0x200;
         error_list.data = (uint8_t *)realloc(error_list.data, error_list.max);
         if (!error_list.data) {fputs("Out of memory error\n", stderr);exit(1);}
     }
-    err = (struct error_s *)&error_list.data[error_list.len];
+    error_list.header_pos = (error_list.len + 7) & ~7;
+    error_list.len = error_list.header_pos + sizeof(struct error_s);
+    err = (struct error_s *)&error_list.data[error_list.header_pos];
     err->severity = severity;
     err->len = 0;
     err->file_list = flist;
     err->epoint = *epoint;
-    error_list.header_pos = error_list.len;
-    error_list.len += sizeof(struct error_s);
 }
 
 static int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -597,15 +597,15 @@ int error_print(int fix, int newvar, int anyerr) {
         }
     }
 
-    for (pos = 0; pos < error_list.len; pos += sizeof(struct error_s) + err->len) {
+    for (pos = 0; pos < error_list.len; pos += sizeof(struct error_s) + ((err->len + 7) & ~7)) {
         err = (const struct error_s *)&error_list.data[pos];
         switch (err->severity) {
         case SV_NOTDEFNOTE: 
             if (newvar) continue; 
-            pos2 = pos + sizeof(struct error_s) + err->len;
+            pos2 = pos + sizeof(struct error_s) + ((err->len + 7) & ~7);
             err2 = (const struct error_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_NOTDEFERROR) break;
-            pos2 += sizeof(struct error_s) + err2->len;
+            pos2 += sizeof(struct error_s) + ((err2->len + 7) & ~7);
             err2 = (const struct error_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_NOTDEFNOTE) break;
             if (err->len == err2->len) {
@@ -615,10 +615,10 @@ int error_print(int fix, int newvar, int anyerr) {
             }
             break;
         case SV_DOUBLENOTE:
-            pos2 = pos + sizeof(struct error_s) + err->len;
+            pos2 = pos + sizeof(struct error_s) + ((err->len + 7) & ~7);
             err2 = (const struct error_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLEERROR) break;
-            pos2 += sizeof(struct error_s) + err2->len;
+            pos2 += sizeof(struct error_s) + ((err2->len + 7) & ~7);
             err2 = (const struct error_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
             if (err->file_list == err2->file_list && err->len == err2->len && err->epoint.line == err2->epoint.line && 
@@ -693,7 +693,7 @@ int error_serious(int fix, int newvar) {
     const struct error_s *err;
     size_t pos;
     close_error(&error_list);
-    for (pos = 0; pos < error_list.len; pos += sizeof(struct error_s) + err->len) {
+    for (pos = 0; pos < error_list.len; pos += sizeof(struct error_s) + ((err->len + 7) & ~7)) {
         err = (const struct error_s *)&error_list.data[pos];
         switch (err->severity) {
         case SV_NOTDEFNOTE:
