@@ -373,8 +373,8 @@ rest:
             if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
             lpoint.pos++;
             operp--;
-            if (first) {
-                o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_TUPLE;
+            if (!operp && first) {
+                o_oper[operp].epoint = o_oper[operp].epoint; o_oper[operp++].val = &o_TUPLE;
                 first = 0;
             }
             goto other;
