@@ -513,7 +513,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
             ev->values_len = 0;
             return 0;
         }
-        v2 = &values[vsp-2];
+        v2 = v1; v1 = &values[--vsp-1];
         switch (v1->val->obj->type) {
         case T_INT:
         case T_BITS:
@@ -532,50 +532,49 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     uint16_t val1, val2;
                     uval_t uval;
                     if (v1->val->obj->uval(v1->val, &new_value, &uval, 8*sizeof(uval_t), &v1->epoint)) {
-                        vsp--;
-                        val_replace_template(&v2->val, &new_value);
+                        val_replace_template(&v1->val, &new_value);
                         continue;
                     }
                     val1 = uval;
                     if (v2->val->obj->uval(v2->val, &new_value, &uval, 8*sizeof(uval_t), &v2->epoint)) {
-                        vsp--;
-                        val_replace_template(&v2->val, &new_value);
+                        val_replace_template(&v1->val, &new_value);
                         continue;
                     }
                     val2 = uval;
 
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
-                    case O_DIV: if (!val1) {
+                    case O_DIV: if (!val2) {
                         new_value.obj = ERROR_OBJ;
                         new_value.u.error.num = ERROR_DIVISION_BY_Z;
-                        new_value.u.error.epoint = v1->epoint;
-                        val_replace_template(&v2->val, &new_value);
+                        new_value.u.error.epoint = v2->epoint;
+                        val_replace_template(&v1->val, &new_value);
                         continue;
-                    } else val1=val2 / val1; break;
+                    } else val1 /= val2; break;
                     case O_ADD: val1 += val2; break;
-                    case O_SUB: val1 = val2 - val1; break;
+                    case O_SUB: val1 -= val2; break;
                     case O_AND: val1 &= val2; break;
                     case O_OR:  val1 |= val2; break;
                     case O_XOR: val1 ^= val2; break;
                     default: break;
                     }
-                    vsp--;
                     int_from_uval(&new_value, val1);
-                    val_replace_template(&v2->val, &new_value);
+                    val_replace_template(&v1->val, &new_value);
                     continue;
                 }
-            default: err_msg_invalid_oper(op2, v2->val, v1->val, &o_out->epoint);
+            default: err_msg_invalid_oper(op2, v1->val, v2->val, &o_out->epoint); break;
             case T_ERROR:
-            case T_NONE:break;
+            case T_NONE:
+                val_replace(&v1->val, v2->val);
+                continue;
             }
             break;
         default:
-            err_msg_invalid_oper(op2, v2->val, v1->val, &o_out->epoint);
+            err_msg_invalid_oper(op2, v1->val, v2->val, &o_out->epoint); break;
         case T_ERROR:
-        case T_NONE:break;
+        case T_NONE: continue;
         }
-        vsp--; val_replace(&v2->val, &none_value); continue;
+        val_replace(&v1->val, &none_value); continue;
     }
     ev->outp2 = i;
     ev->values_len = vsp;
