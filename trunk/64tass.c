@@ -66,7 +66,7 @@ int temporary_label_branch; /* function declaration in function context, not goo
 line_t vline;      /* current line */
 static address_t all_mem, all_mem2;
 uint8_t pass=0, max_pass=MAX_PASS;         /* pass */
-static int listing=0;   /* listing */
+static unsigned int nolisting;   /* listing */
 address_t star=0;
 const uint8_t *pline, *llist;   /* current line data */
 struct linepos_s lpoint;        /* position in current line */
@@ -225,7 +225,7 @@ int printaddr(char c, address_t addr, enum lastl_e mode) {
 }
 
 void printllist(int l) {
-    if (listing && flist && arguments.source) {
+    if (!nolisting && flist && arguments.source) {
         const uint8_t *c = llist, *last, *n;
         uint32_t ch;
 
@@ -251,7 +251,7 @@ void printllist(int l) {
 }
 
 void list_instr(uint8_t cod, uint32_t adr, int ln, enum opr_e opr, uint32_t mnem) {
-    if (listing && flist) {
+    if (!nolisting && flist) {
         unsigned int i;
 
         if (lastl != LIST_CODE) {putc('\n', flist); lastl = LIST_CODE;}
@@ -732,7 +732,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (label) labelexists = 1;
                 else label = new_label(&labelname, mycontext, strength, &labelexists);
                 oaddr=current_section->address;
-                if (listing && flist && arguments.source && label->ref) {
+                if (!nolisting && flist && arguments.source && label->ref) {
                     int l;
                     if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                     putc('=', flist);
@@ -783,7 +783,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (label) labelexists = 1;
                         else label = new_label(&labelname, mycontext, strength, &labelexists);
                         oaddr=current_section->address;
-                        if (listing && flist && arguments.source) {
+                        if (!nolisting && flist && arguments.source) {
                             int l;
                             if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
                             putc('=', flist);
@@ -1004,6 +1004,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                             fixeddig = 0;
                                         }
                                     } else tmp.obj->destroy(&tmp);
+                                    label->value->u.code.apass = pass;
                                     label->defpass = pass;
                                     get_mem(&current_section->mem, &memp, &membp);
                                 }
@@ -1020,6 +1021,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val->u.code.size = 0;
                                 val->u.code.dtype = D_NONE;
                                 val->u.code.pass = 0;
+                                val->u.code.apass = pass;
                                 val->u.code.parent = label;
                                 get_mem(&current_section->mem, &memp, &membp);
                             }
@@ -1027,7 +1029,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (label) {
                             label->ref = 0;
                         }
-                        if (listing && flist && arguments.source) {
+                        if (!nolisting && flist && arguments.source) {
                             int l;
                             l = printaddr('.', current_section->address, LIST_DATA);
                             printllist(l);
@@ -1145,6 +1147,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                         } else tmp.obj->destroy(&tmp);
                         get_mem(&current_section->mem, &newmemp, &newmembp);
+                        newlabel->value->u.code.apass = pass;
                         newlabel->defpass = pass;
                     }
                 } else {
@@ -1162,6 +1165,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     val->u.code.size = 0;
                     val->u.code.dtype = D_NONE;
                     val->u.code.pass = 0;
+                    val->u.code.apass = pass;
                     val->u.code.parent = newlabel;
                     get_mem(&current_section->mem, &newmemp, &newmembp);
                 }
@@ -1175,7 +1179,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (!newlabel->ref && newlabel->value->u.code.pass) {waitfor->skip=0; set_size(newlabel, 0, &current_section->mem, newmemp, newmembp);}
                     else {         /* TODO: first time it should not compile */ 
                         current_context=newlabel;
-                        if (listing && flist && arguments.source) {
+                        if (!nolisting && flist && arguments.source) {
                             int l;
                             l = printaddr('.', current_section->address, LIST_CODE);
                             if (labelname.len) {
@@ -1196,7 +1200,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct linepos_s epoint2;
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
-                        if (listing && flist && arguments.source) {
+                        if (!nolisting && flist && arguments.source) {
                             int l;
                             l = printaddr('.', current_section->address, LIST_DATA);
                             printllist(l);
@@ -1230,7 +1234,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                 case CMD_SECTION:
                     waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
-                    if (newlabel->ref && listing && flist && arguments.source) {
+                    if (newlabel->ref && !nolisting && flist && arguments.source) {
                         int l;
                         l = printaddr('.', current_section->address, LIST_CODE);
                         if (labelname.len) {
@@ -1260,7 +1264,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                 val = get_val(&epoint);
-                if (listing && flist && arguments.source) {
+                if (!nolisting && flist && arguments.source) {
                     int l;
                     if (wasref) l = printaddr('.', current_section->address, LIST_NONE);
                     else l = 0;
@@ -1307,7 +1311,7 @@ struct value_s *compile(struct file_list_s *cflist)
             break;
         case WHAT_COMMENT:
         case WHAT_EOL:
-            if (listing && flist && arguments.source && (waitfor->skip & 1) && wasref) {
+            if (!nolisting && flist && arguments.source && (waitfor->skip & 1) && wasref) {
                 int l;
                 l = printaddr('.', current_section->address, LIST_CODE);
                 printllist(l);
@@ -1315,7 +1319,7 @@ struct value_s *compile(struct file_list_s *cflist)
             break;
         case WHAT_COMMAND:
             ignore();
-            if (listing && flist && arguments.source && (waitfor->skip & 1) && prm>CMD_DWORD) {
+            if (!nolisting && flist && arguments.source && (waitfor->skip & 1) && prm>CMD_DWORD) {
                 int l;
                 switch (prm) {
                     case CMD_OFFS:
@@ -1722,7 +1726,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         free((char *)path);
                     }
 
-                    if (listing && flist) {
+                    if (!nolisting && flist) {
                         list_mem(&current_section->mem, flist, all_mem, current_section->dooutput);
                     }
                 }
@@ -1793,7 +1797,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (newlabel) {
                         current_context=newlabel;
                         waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;waitfor->cheap_label = oldcheap;
-                        if (newlabel->ref && listing && flist && arguments.source) {
+                        if (newlabel->ref && !nolisting && flist && arguments.source) {
                             int l;
                             l = printaddr('.', current_section->address, LIST_CODE);
                             if (labelname.len) {
@@ -1952,7 +1956,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                         }
                     } else memskip(db);
-                    if (listing && flist) {
+                    if (!nolisting && flist) {
                         list_mem(&current_section->mem, flist, all_mem, current_section->dooutput);
                     }
                 }
@@ -2243,10 +2247,10 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else new_waitfor(W_NEXT, &epoint);
                 break;
             case CMD_PRON: /* .pron */
-                if (waitfor->skip & 1) listing = (flist != NULL);
+                if ((waitfor->skip & 1) && nolisting) nolisting--;
                 break;
             case CMD_PROFF: /* .proff */
-                if (waitfor->skip & 1) listing = 0;
+                if (waitfor->skip & 1) nolisting++;
                 break;
             case CMD_SHOWMAC: /* .showmac */
             case CMD_HIDEMAC: /* .hidemac */
@@ -2282,7 +2286,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             line_t vlin = vline;
                             struct file_list_s *cflist2;
 
-                            if (listing && flist) {
+                            if (!nolisting && flist) {
                                 fprintf(flist,"\n;******  Processing file \"%s\"\n",f->realname);
                                 lastl=LIST_NONE;
                             }
@@ -2332,7 +2336,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         closefile(f);
                         reffile=cfile->uid;
-                        if (listing && flist) {
+                        if (!nolisting && flist) {
                             fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->realname);
                             lastl=LIST_NONE;
                         }
@@ -2799,7 +2803,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 if (val->obj != MACRO_OBJ && val->obj != SEGMENT_OBJ && val->obj != MFUNC_OBJ) {err_msg_wrong_type(val, &epoint2); goto breakerr;}
             as_macro:
-                if (listing && flist && arguments.source && wasref) {
+                if (!nolisting && flist && arguments.source && wasref) {
                     int l;
                     l = printaddr('.', current_section->address, LIST_CODE);
                     if (labelname.len) {
@@ -3069,7 +3073,7 @@ int main(int argc, char *argv[]) {
             current_section=&root_section;
             reset_section(current_section);
             init_macro();
-            /*	listing=1;flist=stderr;*/
+            /*	nolisting=0;flist=stderr;*/
             if (i == opts - 1) {
                 cflist = enterfile(fin, &nopoint);
                 fin->p = 0;
@@ -3099,7 +3103,7 @@ int main(int argc, char *argv[]) {
     if (arguments.list) {
         char **argv2 = argv;
         int argc2 = argc;
-        listing=1;
+        nolisting = 0;
         if (arguments.list[0] == '-' && !arguments.list[1]) {
             flist = stdout;
         } else {

@@ -36,6 +36,7 @@ extern obj_t CODE_OBJ;
 typedef struct {
     size_t size;
     uint8_t pass;
+    uint8_t apass;
     signed char dtype;
     struct value_s *addr;
     const struct memblocks_s *mem;
