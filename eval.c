@@ -917,7 +917,7 @@ static int get_val2(struct eval_context_s *ev) {
                 if (args) {
                     while (args--) {
                         v2 = &values[vsp-1];
-                        if (v2->val->obj == NONE_OBJ || v2->val->obj == ERROR_OBJ) {
+                        if (v2->val->obj == ERROR_OBJ) {
                             val->u.list.data[args] = &none_value;
                             vsp--;
                             while (args--) {
@@ -1088,12 +1088,10 @@ static int get_val2(struct eval_context_s *ev) {
                     v2->val = &none_value;
                     continue;
                 case T_ERROR:
-                case T_NONE:
                     val_replace(&v1->val, v2->val);
                     continue;
                 }
-            case T_ERROR:
-            case T_NONE: continue;
+            case T_ERROR:continue;
             }
         case O_WORD:    /* <> */
         case O_HWORD:   /* >` */

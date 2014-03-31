@@ -368,7 +368,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                     }
                     oadr = uval;
                     if (val->obj == CODE_OBJ) {
-                        if (labelexists2 && pass != val->u.code.pass) {
+                        if (labelexists2 && pass != val->u.code.apass) {
                             adr = (uint16_t)(uval - s->addr);
                         } else {
                             adr = (uint16_t)(uval - current_section->l_address - 2); labelexists2 = 0;
