@@ -104,7 +104,7 @@ struct section_s *new_section(const str_t *name) {
 
 void reset_section(struct section_s *section) {
     section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
-    section->end = section->start = section->l_start = section->address = section->l_address = 0;
+    section->end = section->start = section->restart = section->l_restart = section->address = section->l_address = 0;
     section->dooutput = 1;
     section->structrecursion = 0;
     section->logicalrecursion = 0;
