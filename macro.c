@@ -608,7 +608,7 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
         current_section->provides = oldsection->provides; 
         current_section->requires = oldsection->requires;
         current_section->conflicts = oldsection->conflicts;
-        current_section->l_start = current_section->l_address = star;
+        current_section->l_address = star;
         current_section->dooutput = 0;
         retval = compile(cflist);
         current_section = oldsection;

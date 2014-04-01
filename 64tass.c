@@ -946,7 +946,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (declaration) {
                             obj_t obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
                             current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
-                            current_section->end=current_section->start=current_section->l_start=current_section->address=current_section->l_address=0;
+                            current_section->end=current_section->start=current_section->restart=current_section->l_restart=current_section->address=current_section->l_address=0;
                             current_section->dooutput=0;memjmp(&current_section->mem, 0); oaddr = 0;
 
                             if (labelexists) {
@@ -1062,7 +1062,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 }
                             }
                             current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
-                            current_section->end=olds.end;current_section->start=olds.start;current_section->l_start=olds.l_start;current_section->address=olds.address;current_section->l_address=olds.l_address;
+                            current_section->end=olds.end;current_section->start=olds.start;current_section->restart=olds.restart;current_section->l_restart=olds.l_restart;current_section->address=olds.address;current_section->l_address=olds.l_address;
                             current_section->dooutput=olds.dooutput;memjmp(&current_section->mem, current_section->address);
                         } else {
                             set_size(label, current_section->address - oaddr, &current_section->mem, memp, membp);
@@ -1081,8 +1081,8 @@ struct value_s *compile(struct file_list_s *cflist)
                         tmp=find_new_section(&sectionname);
                         if (!tmp->usepass || tmp->defpass < pass - 1) {
                             if (tmp->usepass && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, &opoint); goto breakerr;}
-                            tmp->end = tmp->start = tmp->address = 0;
-                            tmp->l_start = tmp->l_address = 0;
+                            tmp->end = tmp->start = tmp->restart = tmp->address = 0;
+                            tmp->size = tmp->l_restart = tmp->l_address = 0;
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &opoint);
                             fixeddig=0;
                             tmp->defpass = pass - 1;
@@ -1092,9 +1092,11 @@ struct value_s *compile(struct file_list_s *cflist)
                                 if (tmp->end < tmp->address) tmp->end = tmp->address;
                                 tmp->moved = 1;
                             }
+                            tmp->size = tmp->end - tmp->start;
+                            tmp->end = tmp->start = tmp->restart;
                             tmp->wrapwarn = tmp->wrapwarn2 = 0;
-                            tmp->address = tmp->start;
-                            tmp->l_address = tmp->l_start;
+                            tmp->address = tmp->restart;
+                            tmp->l_address = tmp->l_restart;
                             restart_memblocks(&tmp->mem, tmp->address);
                         }
                         tmp->usepass = pass;
@@ -2699,20 +2701,11 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else {
                         address_t t;
                         if (!tmp3->usepass || tmp3->defpass < pass - 1) {
-                            if (tmp3->usepass == pass) {
-                                tmp3->address += current_section->address;
-                                tmp3->start += current_section->address;
-                                tmp3->end += current_section->address;
-                                tmp3->l_address += current_section->l_address;
-                                tmp3->l_start += current_section->l_address;
-                                memjmp(&tmp3->mem, tmp3->address);
-                            } else {
-                                tmp3->wrapwarn = tmp3->wrapwarn2 = tmp3->moved = 0;
-                                tmp3->end = tmp3->start = tmp3->address = current_section->address;
-                                tmp3->l_start = tmp3->l_address = current_section->l_address;
-                                tmp3->usepass = pass;
-                                restart_memblocks(&tmp3->mem, tmp3->address);
-                            }  
+                            tmp3->wrapwarn = tmp3->wrapwarn2 = tmp3->moved = 0;
+                            tmp3->end = tmp3->start = tmp3->restart = tmp3->address = current_section->address;
+                            tmp3->l_restart = tmp3->l_address = current_section->l_address;
+                            tmp3->usepass = pass;
+                            restart_memblocks(&tmp3->mem, tmp3->address);
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                             fixeddig = 0;
                         }
@@ -2728,9 +2721,13 @@ struct value_s *compile(struct file_list_s *cflist)
                         tmp3->file_list = cflist;
                         tmp3->epoint = epoint;
                         if (tmp3->usepass == pass) {
-                            t = tmp3->end - tmp3->start;
-                            tmp3->end = tmp3->start = current_section->address;
-                            tmp3->l_start = current_section->l_address;
+                            t = tmp3->size;
+                            if (t < tmp3->end - tmp3->start) t = tmp3->end - tmp3->start;
+                            if (!tmp3->moved) {
+                                if (t < tmp3->address - tmp3->start) t = tmp3->address - tmp3->start;
+                            }
+                            tmp3->restart = current_section->address;
+                            tmp3->l_restart = current_section->l_address;
                         } else {
                             if (!tmp3->moved) {
                                 if (tmp3->end < tmp3->address) tmp3->end = tmp3->address;
@@ -2738,11 +2735,11 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                             tmp3->wrapwarn = tmp3->wrapwarn2 = 0;
                             t = tmp3->end - tmp3->start;
-                            tmp3->end = tmp3->start = tmp3->address = current_section->address;
-                            tmp3->l_start = tmp3->l_address = current_section->l_address;
+                            tmp3->end = tmp3->start = tmp3->restart = tmp3->address = current_section->address;
+                            tmp3->l_restart = tmp3->l_address = current_section->l_address;
+                            tmp3->size = t;
                             restart_memblocks(&tmp3->mem, tmp3->address);
                         }
-                        tmp3->size = t;
                         tmp3->usepass = pass;
                         tmp3->defpass = pass;
                         memskip(t);
@@ -2761,8 +2758,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     tmp=find_new_section(&sectionname);
                     if (!tmp->usepass || tmp->defpass < pass - 1) {
                         if (tmp->usepass && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, &epoint); goto breakerr;}
-                        tmp->end = tmp->start = tmp->address = 0;
-                        tmp->l_start = tmp->l_address = 0;
+                        tmp->end = tmp->start = tmp->restart = tmp->address = 0;
+                        tmp->size = tmp->l_restart = tmp->l_address = 0;
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &epoint);
                         fixeddig = 0;
                         tmp->defpass = pass - 1;
@@ -2772,9 +2769,11 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (tmp->end < tmp->address) tmp->end = tmp->address;
                             tmp->moved=1;
                         }
+                        tmp->size = tmp->end - tmp->start;
+                        tmp->end = tmp->start = tmp->restart;
                         tmp->wrapwarn = tmp->wrapwarn2 = 0;
-                        tmp->address = tmp->start;
-                        tmp->l_address = tmp->l_start;
+                        tmp->address = tmp->restart;
+                        tmp->l_address = tmp->l_restart;
                         restart_memblocks(&tmp->mem, tmp->address);
                     }
                     tmp->usepass = pass;

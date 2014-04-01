@@ -30,10 +30,11 @@ struct section_s {
     uval_t requires;
     uval_t conflicts;
     uval_t provides;
-    address_t start;
-    address_t l_start;
+    address_t restart;
+    address_t l_restart;
     address_t address;
     address_t l_address;
+    address_t start;
     address_t end;
     address_t unionstart;
     address_t unionend;
