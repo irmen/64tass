@@ -2227,7 +2227,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             int labelexists;
                             struct star_s *s = new_star(vline, &labelexists);
                             struct avltree *stree_old = star_tree;
-                            line_t ovline = vline;
+                            line_t ovline = vline, lvline;
 
                             close_waitfor(W_NEXT);
                             if (labelexists && s->addr != star) {
@@ -2235,15 +2235,15 @@ struct value_s *compile(struct file_list_s *cflist)
                                 fixeddig = 0;
                             }
                             s->addr = star;
-                            star_tree = &s->tree;vline=0;
+                            star_tree = &s->tree;lvline = vline = 0;
                             waitfor->breakout = 0;
                             while (cnt--) {
                                 lpoint.line=lin;cfile->p=pos;
-                                new_waitfor(W_NEXT2, &epoint);waitfor->skip = 1;
+                                new_waitfor(W_NEXT2, &epoint);waitfor->skip = 1;lvline = vline;
                                 compile(cflist);
                                 if (waitfor->breakout) break;
                             }
-                            star_tree = stree_old; vline = ovline;
+                            star_tree = stree_old; vline = ovline + vline - lvline;
                         }
                     }
                 } else new_waitfor(W_NEXT, &epoint);
@@ -2356,7 +2356,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct star_s *s;
                     struct avltree *stree_old;
                     struct value_s err;
-                    line_t ovline;
+                    line_t ovline, lvline;
                     int starexists;
 
                     new_waitfor(W_NEXT, &epoint);waitfor->skip=0;
@@ -2401,7 +2401,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         fixeddig = 0;
                     }
                     s->addr = star;
-                    star_tree = &s->tree;vline=0;
+                    star_tree = &s->tree;lvline = vline = 0;
                     xlin=lin=lpoint.line; xpos=pos=cfile->p; apoint = lpoint;
                     expr = (uint8_t *)malloc(strlen((char *)pline) + 1);
                     if (!expr) err_msg_out_of_memory();
@@ -2450,7 +2450,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 bpoint=lpoint; nopos = 1;
                             }
                         }
-                        new_waitfor(W_NEXT2, &epoint);waitfor->skip=1;
+                        new_waitfor(W_NEXT2, &epoint);waitfor->skip=1;lvline = vline;
                         compile(cflist);
                         xpos = cfile->p; xlin= lpoint.line;
                         pline = expr;
@@ -2468,7 +2468,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     free(expr);
                     if (pos!=xpos || lin!=xlin) close_waitfor(W_NEXT);
                     lpoint.line=xlin;cfile->p=xpos;
-                    star_tree = stree_old; vline = ovline;
+                    star_tree = stree_old; vline = ovline + vline - lvline;
                     goto breakerr;
                 } else new_waitfor(W_NEXT, &epoint);
                 break;
