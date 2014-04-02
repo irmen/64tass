@@ -367,18 +367,10 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                         else if (((uval_t)current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                     }
                     oadr = uval;
-                    if (val->obj == CODE_OBJ) {
-                        if (labelexists2 && pass != val->u.code.apass) {
-                            adr = (uint16_t)(uval - s->addr);
-                        } else {
-                            adr = (uint16_t)(uval - current_section->l_address - 2); labelexists2 = 0;
-                        }
+                    if (labelexists2 && val->obj == CODE_OBJ && pass != val->u.code.apass) {
+                        adr = (uint16_t)(uval - s->addr);
                     } else {
-                        if (labelexists2 && uval >= s->addr) {
-                            adr = (uint16_t)(uval - s->addr);
-                        } else {
-                            adr = (uint16_t)(uval - current_section->l_address - 2); labelexists2 = 0;
-                        }
+                        adr = (uint16_t)(uval - current_section->l_address - 2); labelexists2 = 0;
                     }
                     longbranch = 0;
                     if (adr<0xFF80 && adr>0x007F) {
