@@ -583,7 +583,7 @@ int error_print(int fix, int newvar, int anyerr) {
     warnings = errors = 0;
     close_error(&error_list);
 
-    for (pos = 0; !noneerr && pos < error_list.len; pos += sizeof(struct error_s) + err->len) {
+    for (pos = 0; !noneerr && pos < error_list.len; pos += sizeof(struct error_s) + ((err->len + 7) & ~7)) {
         err = (const struct error_s *)&error_list.data[pos];
         switch (err->severity) {
         case SV_NOTDEFNOTE: 
