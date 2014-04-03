@@ -196,16 +196,23 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
     const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
-    struct value_s tmp;
+    struct value_s tmp, *result;
     struct oper_s oper;
     int h = a->hash - b->hash;
 
     if (h) return h;
+    tmp.refcount = 0;
     oper.op = &o_CMP;
     oper.v1 = a->key;
     oper.v2 = b->key;
     oper.v = &tmp;
-    oper.v1->obj->calc2(&oper);
+    result = oper.v1->obj->calc2(&oper);
+    if (result) {
+        if (result->obj == INT_OBJ) h = result->u.integer.len;
+        else h = oper.v1->obj->type - oper.v2->obj->type;
+        val_destroy(result);
+        return h;
+    }
     if (tmp.obj == INT_OBJ) return tmp.u.integer.len;
     return oper.v1->obj->type - oper.v2->obj->type;
 }

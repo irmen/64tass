@@ -736,18 +736,19 @@ static void indexes(struct values_s *vals, unsigned int args) {
     return val_replace(&vals->val, &none_value);
 }
 
-static inline void apply_op2(oper_t op) {
+static inline MUST_CHECK struct value_s *apply_op2(oper_t op) {
     if (op->op == &o_X) {
         ival_t shift;
         struct value_s tmp;
         if (op->v2->obj->ival(op->v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
             if (op->v1 == op->v || op->v2 == op->v) op->v->obj->destroy(op->v);
             tmp.obj->copy_temp(&tmp, op->v);
-            return;
+            return NULL;
         }
-        op->v1->obj->repeat(op, (shift > 0) ? shift : 0); return;
+        op->v1->obj->repeat(op, (shift > 0) ? shift : 0); 
+        return NULL;
     }
-    else op->v1->obj->calc2(op);
+    return op->v1->obj->calc2(op);
 }
 
 static struct value_s *apply_addressing(struct value_s *v1, struct value_s *v, enum atype_e am) {
@@ -1265,17 +1266,29 @@ static int get_val2(struct eval_context_s *ev) {
         oper.epoint2 = v2->epoint;
         oper.epoint3 = o_out->epoint;
         if (oper.v1->refcount == 1 && (oper.v2->refcount != 1 || (oper.v2->obj != LIST_OBJ && oper.v2->obj != TUPLE_OBJ))) {
+            struct value_s *result;
             oper.v = oper.v1;
-            apply_op2(&oper);
+            result = apply_op2(&oper);
+            if (result) {
+                val_destroy(v1->val); v1->val = result;
+            }
         } else if (oper.v2->refcount == 1) {
+            struct value_s *result;
             v1->val = oper.v2;
             v2->val = oper.v1;
             oper.v = oper.v2;
-            apply_op2(&oper);
+            result = apply_op2(&oper);
+            if (result) {
+                val_destroy(v1->val); v1->val = result;
+            }
         } else {
-            oper.v = val_alloc();
-            apply_op2(&oper);
+            struct value_s *result;
+            oper.v = val_alloc(); oper.v->obj = NONE_OBJ;
+            result = apply_op2(&oper);
             val_destroy(v1->val); v1->val = oper.v;
+            if (result) {
+                val_destroy(v1->val); v1->val = result;
+            }
         }
     }
     ev->outp2 = i;

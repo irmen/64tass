@@ -88,8 +88,8 @@ struct obj_s {
     void (*repr)(const struct value_s *, struct value_s *, linepos_t);
     void (*str)(const struct value_s *, struct value_s *, linepos_t);
     void (*calc1)(struct oper_s *);
-    void (*calc2)(struct oper_s *);
-    void (*rcalc2)(struct oper_s *);
+    struct value_s *(*calc2)(struct oper_s *) MUST_CHECK;
+    struct value_s *(*rcalc2)(struct oper_s *) MUST_CHECK;
     void (*repeat)(struct oper_s *, uval_t);
     void (*iindex)(struct oper_s *);
     int (*ival)(const struct value_s *, struct value_s *, ival_t *, int, linepos_t) MUST_CHECK;

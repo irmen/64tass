@@ -182,7 +182,7 @@ static void gap_calc1(oper_t op) {
     obj_oper_error(op);
 }
 
-static void gap_calc2(oper_t op) {
+static MUST_CHECK struct value_s *gap_calc2(oper_t op) {
     struct value_s *v2 = op->v2, *v = op->v;
     switch (v2->obj->type) {
     case T_STR:
@@ -198,24 +198,25 @@ static void gap_calc2(oper_t op) {
         switch (op->op->u.oper.op) {
         case O_EQ: 
             if (v2 == v) v->obj->destroy(v);
-            bool_from_int(v, v2->obj == GAP_OBJ); return;
+            bool_from_int(v, v2->obj == GAP_OBJ); return NULL;
         case O_NE: 
             if (v2 == v) v->obj->destroy(v);
-            bool_from_int(v, v2->obj != GAP_OBJ); return;
+            bool_from_int(v, v2->obj != GAP_OBJ); return NULL;
         default: break;
         }
         break;
     case T_TUPLE:
     case T_LIST:
         if (op->op != &o_MEMBER) {
-            v2->obj->rcalc2(op); return;
+            return v2->obj->rcalc2(op);
         }
     default: break;
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void gap_rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *gap_rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     switch (v1->obj->type) {
     case T_STR:
@@ -231,52 +232,52 @@ static void gap_rcalc2(oper_t op) {
         switch (op->op->u.oper.op) {
         case O_EQ: 
             if (v1 == v) v->obj->destroy(v);
-            bool_from_int(v, v1->obj == GAP_OBJ); return;
+            bool_from_int(v, v1->obj == GAP_OBJ); return NULL;
         case O_NE: 
             if (v1 == v) v->obj->destroy(v);
-            bool_from_int(v, v1->obj != GAP_OBJ); return;
+            bool_from_int(v, v1->obj != GAP_OBJ); return NULL;
         default: break;
         }
         break;
     case T_TUPLE:
     case T_LIST:
-        v2->obj->calc2(op); return;
+        return v2->obj->calc2(op);
     default: break;
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 static void invalid_calc1(oper_t op) {
     obj_oper_error(op);
 }
 
-static void invalid_calc2(oper_t op) {
+static MUST_CHECK struct value_s *invalid_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
-        ERROR_OBJ->rcalc2(op);
-        return;
+        return ERROR_OBJ->rcalc2(op);
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void invalid_rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *invalid_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        ERROR_OBJ->calc2(op);
-        return;
+        return ERROR_OBJ->calc2(op);
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void invalid_repeat(oper_t op, uval_t UNUSED(rep)) {
+static void invalid_repeat(oper_t op, uval_t rep) {
     if (op->v1->obj == ERROR_OBJ) {
-        ERROR_OBJ->calc2(op);
-        return;
+        return ERROR_OBJ->repeat(op, rep);
     }
     obj_oper_error(op);
 }
 
 static void invalid_iindex(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        ERROR_OBJ->calc2(op);
+        ERROR_OBJ->iindex(op);
         return;
     }
     obj_oper_error(op);
@@ -566,7 +567,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
     v->u.str.chars = len - chars;
 }
 
-static void dict_rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *dict_rcalc2(oper_t op) {
     if (op->op == &o_IN) {
         struct pair_s p;
         struct avltree_node *b;
@@ -576,13 +577,11 @@ static void dict_rcalc2(oper_t op) {
         if (p.hash >= 0) {
             b = avltree_lookup(&p.node, &op->v2->u.dict.members, pair_compare);
             if (op->v == op->v1 || op->v == op->v2) obj_destroy(op->v);
-            bool_from_int(op->v, b != NULL); return;
+            bool_from_int(op->v, b != NULL);
         }
-        return;
-    } else {
-        op->v1->obj->calc2(op); return;
+        return NULL;
     }
-    obj_oper_error(op);
+    return op->v1->obj->calc2(op);
 }
 
 static void dict_iindex(oper_t op) {
@@ -659,18 +658,20 @@ static void error_calc1(oper_t op) {
     error_copy(op->v1, op->v);
 }
 
-static void error_calc2(oper_t op) {
+static MUST_CHECK struct value_s *error_calc2(oper_t op) {
     struct value_s *v = op->v;
-    if (v == op->v1) return;
+    if (v == op->v1) return NULL;
     if (v == op->v2) v->obj->destroy(v);
     error_copy(op->v1, v);
+    return NULL;
 }
 
-static void error_rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *error_rcalc2(oper_t op) {
     struct value_s *v = op->v;
-    if (v == op->v2) return;
+    if (v == op->v2) return NULL;
     if (v == op->v1) v->obj->destroy(v);
     error_copy(op->v2, v);
+    return NULL;
 }
 
 static void error_repeat(oper_t op, uval_t UNUSED(rep)) {
@@ -680,12 +681,21 @@ static void error_repeat(oper_t op, uval_t UNUSED(rep)) {
     error_copy(op->v1, v);
 }
 
-static void ident_rcalc2(oper_t op) {
+static void error_iindex(oper_t op) {
+    struct value_s *v = op->v;
+    if (v == op->v1) return;
+    if (v == op->v2) v->obj->destroy(v);
+    error_copy(op->v1, v);
+}
+
+static MUST_CHECK struct value_s *ident_rcalc2(oper_t op) {
     if (op->op == &o_MEMBER) {
         return op->v1->obj->calc2(op);
     }
     obj_oper_error(op);
+    return NULL;
 }
+
 static int none_truth(const struct value_s *UNUSED(v1), struct value_s *v, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
     v->obj = NONE_OBJ;
     return 1;
@@ -704,22 +714,22 @@ static void none_calc1(oper_t op) {
     if (op->v != op->v1) op->v->obj = NONE_OBJ;
 }
 
-static void none_calc2(oper_t op) {
+static MUST_CHECK struct value_s *none_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
-        ERROR_OBJ->rcalc2(op);
-        return;
+        return ERROR_OBJ->rcalc2(op);
     }
     if (op->v == op->v2) op->v->obj->destroy(op->v);
     op->v->obj = NONE_OBJ;
+    return NULL;
 }
 
-static void none_rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *none_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        ERROR_OBJ->calc2(op);
-        return;
+        return ERROR_OBJ->calc2(op);
     }
     if (op->v == op->v1) op->v->obj->destroy(op->v);
     op->v->obj = NONE_OBJ;
+    return NULL;
 }
 
 static int MUST_CHECK none_ival(const struct value_s *UNUSED(v1), struct value_s *v, ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
@@ -770,7 +780,7 @@ static void struct_size(const struct value_s *v1, struct value_s *v, linepos_t U
     int_from_uval(v, s);
 }
 
-static void struct_calc2(oper_t op) {
+static MUST_CHECK struct value_s *struct_calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     if (op->op == &o_MEMBER) {
         struct label_s *l, *l2;
@@ -782,14 +792,12 @@ static void struct_calc2(oper_t op) {
             l = find_label2(&v2->u.ident.name, l2);
             if (l) {
                 touch_label(l);
-                if (v == v1) v->obj->destroy(v);
-                l->value->obj->copy(l->value, op->v);
-                return;
+                return val_reference(l->value);
             }
             if (!referenceit) {
                 if (v == v1) v->obj->destroy(v);
                 v->obj = NONE_OBJ;
-                return;
+                return NULL;
             }
             epoint = v2->u.ident.epoint;
             name = v2->u.ident.name;
@@ -800,21 +808,19 @@ static void struct_calc2(oper_t op) {
             v->u.error.u.notdef.label = l2;
             v->u.error.u.notdef.ident = name;
             v->u.error.u.notdef.down = 0;
-            return;
+            return NULL;
         case T_ANONIDENT:
             {
                 l2 = v1->u.macro.parent;
                 l = find_anonlabel2(v2->u.anonident.count, l2);
                 if (l) {
                     touch_label(l);
-                    if (v == v1) v->obj->destroy(v);
-                    l->value->obj->copy(l->value, op->v);
-                    return;
+                    return val_reference(l->value);
                 }
                 if (!referenceit) {
                     if (v == v1) v->obj->destroy(v);
                     v->obj = NONE_OBJ;
-                    return;
+                    return NULL;
                 }
                 epoint = v2->u.anonident.epoint;
                 v->obj = ERROR_OBJ;
@@ -825,14 +831,15 @@ static void struct_calc2(oper_t op) {
                 v->u.error.u.notdef.ident.len = 1;
                 v->u.error.u.notdef.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
                 v->u.error.u.notdef.down = 0;
-                return;
+                return NULL;
             }
         case T_TUPLE:
-        case T_LIST: v2->obj->rcalc2(op); return;
-        default: v2->obj->rcalc2(op); return;
+        case T_LIST: return v2->obj->rcalc2(op);
+        default: return v2->obj->rcalc2(op);
         }
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
@@ -929,6 +936,7 @@ void objects_init(void) {
     error_obj.calc2 = error_calc2;
     error_obj.rcalc2 = error_rcalc2;
     error_obj.repeat = error_repeat;
+    error_obj.iindex = error_iindex;
     obj_init(&gap_obj, T_GAP, "<gap>");
     gap_obj.hash = gap_hash;
     gap_obj.repr = gap_repr;

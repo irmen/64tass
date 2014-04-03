@@ -244,7 +244,7 @@ void float_from_double(struct value_s *v, double d) {
     v->u.real = d;
 }
 
-static void calc2(oper_t op) {
+static MUST_CHECK struct value_s *calc2(oper_t op) {
     double d;
     switch (op->v2->obj->type) {
     case T_BOOL:
@@ -252,17 +252,18 @@ static void calc2(oper_t op) {
     case T_BITS:
     case T_FLOAT:
     case T_CODE: 
-        if (op->v2->obj->real(op->v2, op->v, &d, &op->epoint2)) return;
-        if (calc2_double(op, op->v1->u.real, d)) break; return;
+        if (op->v2->obj->real(op->v2, op->v, &d, &op->epoint2)) return NULL;
+        if (calc2_double(op, op->v1->u.real, d)) break; return NULL;
     default:
         if (op->op != &o_MEMBER) {
-            op->v2->obj->rcalc2(op); return;
+            return op->v2->obj->rcalc2(op);
         }
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     double d;
     switch (op->v1->obj->type) {
     case T_BOOL:
@@ -270,14 +271,15 @@ static void rcalc2(oper_t op) {
     case T_BITS:
     case T_FLOAT:
     case T_CODE:
-        if (op->v1->obj->real(op->v1, op->v, &d, &op->epoint)) return;
-        if (calc2_double(op, d, op->v2->u.real)) break; return;
+        if (op->v1->obj->real(op->v1, op->v, &d, &op->epoint)) return NULL;
+        if (calc2_double(op, d, op->v2->u.real)) break; return NULL;
     default:
         if (op->op != &o_IN) {
-            op->v1->obj->calc2(op); return;
+            return op->v1->obj->calc2(op);
         }
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 void floatobj_init(void) {
