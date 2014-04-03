@@ -275,9 +275,14 @@ static int calc2_list(oper_t op) {
                         op->v1 = v1->u.list.data[0];
                         vals = lnew(&tmp, v2->u.list.len);
                         for (; i < v2->u.list.len; i++) {
-                            op->v = vals[i] = val_alloc();
+                            struct value_s *result;
+                            op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
                             op->v2 = v2->u.list.data[i];
-                            op->v1->obj->calc2(op);
+                            result = op->v1->obj->calc2(op);
+                            if (result) {
+                                val_destroy(vals[i]);
+                                vals[i] = result;
+                            }
                         }
                         op->v = v;
                         op->v1 = v1;
@@ -288,9 +293,14 @@ static int calc2_list(oper_t op) {
                         op->v2 = v2->u.list.data[0];
                         vals = lnew(&tmp, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
-                            op->v = vals[i] = val_alloc();
+                            struct value_s *result;
+                            op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
                             op->v1 = v1->u.list.data[i];
-                            op->v1->obj->calc2(op);
+                            result = op->v1->obj->calc2(op);
+                            if (result) {
+                                val_destroy(vals[i]);
+                                vals[i] = result;
+                            }
                         }
                         op->v = v;
                         op->v1 = v1;
@@ -300,10 +310,15 @@ static int calc2_list(oper_t op) {
                     if (v1->u.list.len) {
                         vals = lnew(&tmp, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
-                            op->v = vals[i] = val_alloc();
+                            struct value_s *result;
+                            op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
                             op->v1 = v1->u.list.data[i];
                             op->v2 = v2->u.list.data[i];
-                            op->v1->obj->calc2(op);
+                            result = op->v1->obj->calc2(op);
+                            if (result) {
+                                val_destroy(vals[i]);
+                                vals[i] = result;
+                            }
                         }
                         op->v = v;
                         op->v1 = v1;
@@ -317,9 +332,14 @@ static int calc2_list(oper_t op) {
                 if (v1->u.list.len) {
                     vals = lnew(&tmp, v1->u.list.len);
                     for (; i < v1->u.list.len; i++) {
-                        op->v = vals[i] = val_alloc();
+                        struct value_s *result;
+                        op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
                         op->v1 = v1->u.list.data[i];
-                        op->v1->obj->calc2(op);
+                        result = op->v1->obj->calc2(op);
+                        if (result) {
+                            val_destroy(vals[i]);
+                            vals[i] = result;
+                        }
                     }
                     op->v = v;
                     op->v1 = v1;
@@ -327,9 +347,14 @@ static int calc2_list(oper_t op) {
             } else if (v2->u.list.len) {
                 vals = lnew(&tmp, v2->u.list.len);
                 for (; i < v2->u.list.len; i++) {
-                    op->v = vals[i] = val_alloc();
+                    struct value_s *result;
+                    op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
                     op->v2 = v2->u.list.data[i];
-                    v1->obj->calc2(op);
+                    result = v1->obj->calc2(op);
+                    if (result) {
+                        val_destroy(vals[i]);
+                        vals[i] = result;
+                    }
                 }
                 op->v = v;
                 op->v2 = v2;
@@ -376,7 +401,7 @@ static int calc2_list(oper_t op) {
     return 0;
 }
 
-static void calc2(oper_t op) {
+static MUST_CHECK struct value_s *calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     size_t i = 0;
     struct value_s **vals, tmp;
@@ -385,31 +410,41 @@ static void calc2(oper_t op) {
     case T_TUPLE:
     case T_LIST:
         if (v1->obj == v2->obj) {
-            if (calc2_list(op)) break; return;
+            if (calc2_list(op)) break; return NULL;
         }
     default:
         if (v == v1) {
             for (;i < v1->u.list.len; i++) {
+                struct value_s *result;
                 op->v1 = v1->u.list.data[i];
                 if (op->v1->refcount != 1) {
-                    op->v = val_alloc();
-                    op->v1->obj->calc2(op);
+                    op->v = val_alloc(); op->v->obj = NONE_OBJ;
+                    result = op->v1->obj->calc2(op);
                     val_destroy(v1->u.list.data[i]); v1->u.list.data[i] = op->v;
                 } else {
                     op->v = op->v1;
-                    op->v1->obj->calc2(op);
+                    result = op->v1->obj->calc2(op);
+                }
+                if (result) {
+                    val_destroy(v1->u.list.data[i]);
+                    v1->u.list.data[i] = result;
                 }
             }
             op->v = v;
             op->v1 = v1;
-            return;
+            return NULL;
         }
         vals = lnew(&tmp, v1->u.list.len);
         if (v1->u.list.len) {
             for (;i < v1->u.list.len; i++) {
+                struct value_s *result;
                 op->v1 = v1->u.list.data[i];
-                op->v = vals[i] = val_alloc();
-                op->v1->obj->calc2(op);
+                op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
+                result = op->v1->obj->calc2(op);
+                if (result) {
+                    val_destroy(vals[i]);
+                    vals[i] = result;
+                }
             }
             op->v = v;
             op->v1 = v1;
@@ -422,12 +457,13 @@ static void calc2(oper_t op) {
         }
         v->u.list.len = i;
         v->u.list.data = vals;
-        return;
+        return NULL;
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     size_t i = 0;
     struct value_s **vals, tmp;
@@ -435,7 +471,7 @@ static void rcalc2(oper_t op) {
     case T_TUPLE:
     case T_LIST:
         if (v1->obj == v2->obj) {
-            if (calc2_list(op)) break; return;
+            if (calc2_list(op)) break; return NULL;
         }
     default:
         switch (op->op->u.oper.op) {
@@ -461,26 +497,36 @@ static void rcalc2(oper_t op) {
         case O_CONCAT:
             if (v == v2) {
                 for (;i < v2->u.list.len; i++) {
+                    struct value_s *result;
                     op->v2 = v2->u.list.data[i];
                     if (op->v2->refcount != 1) {
-                        op->v = val_alloc();
-                        op->v2->obj->rcalc2(op);
+                        op->v = val_alloc(); op->v->obj = NONE_OBJ;
+                        result = op->v2->obj->rcalc2(op);
                         val_destroy(v2->u.list.data[i]); v2->u.list.data[i] = op->v;
                     } else {
                         op->v = op->v2;
-                        op->v2->obj->rcalc2(op);
+                        result = op->v2->obj->rcalc2(op);
+                    }
+                    if (result) {
+                        val_destroy(v2->u.list.data[i]);
+                        v2->u.list.data[i] = result;
                     }
                 }
                 op->v = v;
                 op->v2 = v2;
-                return;
+                return NULL;
             }
             vals = lnew(&tmp, v2->u.list.len);
             if (v2->u.list.len) {
                 for (;i < v2->u.list.len; i++) {
-                    op->v = vals[i] = val_alloc();
+                    struct value_s *result;
+                    op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
                     op->v2 = v2->u.list.data[i];
-                    op->v2->obj->rcalc2(op);
+                    result = op->v2->obj->rcalc2(op);
+                    if (result) {
+                        val_destroy(vals[i]);
+                        vals[i] = result;
+                    }
                 }
                 op->v = v;
                 op->v2 = v2;
@@ -493,18 +539,23 @@ static void rcalc2(oper_t op) {
             }
             v->u.list.len = i;
             v->u.list.data = vals;
-            return;
+            return NULL;
         case O_IN:
+            tmp.refcount = 0;
             op->op = &o_EQ;
             op->v = &tmp;
             for (;i < v2->u.list.len; i++) {
+                struct value_s *result;
                 op->v2 = v2->u.list.data[i];
-                v1->obj->calc2(op);
-                if (tmp.obj == BOOL_OBJ) {
+                result = v1->obj->calc2(op);
+                if (result) {
+                    if (result->obj == BOOL_OBJ && result->u.boolean) return result;
+                    val_destroy(result);
+                } else if (tmp.obj == BOOL_OBJ) {
                     if (tmp.u.boolean) {
                         if (v == v1 || v == v2) v->obj->destroy(v);
                         bool_from_int(v, 1);
-                        return;
+                        return NULL;
                     }
                 } else tmp.obj->destroy(&tmp);
             }
@@ -513,13 +564,14 @@ static void rcalc2(oper_t op) {
             op->v2 = v2;
             if (v == v1 || v == v2) v->obj->destroy(v);
             bool_from_int(v, 0);
-            return;
+            return NULL;
         default: 
-            v1->obj->calc2(op);return;
+            return v1->obj->calc2(op);
         }
         break;
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 static void repeat(oper_t op, uval_t rep) {

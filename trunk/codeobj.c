@@ -243,8 +243,8 @@ static void calc1(oper_t op) {
     obj_oper_error(op);
 }
 
-static void calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+static MUST_CHECK struct value_s *calc2(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, *result;
     if (op->op == &o_MEMBER) {
         struct label_s *l, *l2;
         struct linepos_s epoint;
@@ -255,14 +255,12 @@ static void calc2(oper_t op) {
             l = find_label2(&v2->u.ident.name, l2);
             if (l) {
                 touch_label(l);
-                if (v == v1) v->obj->destroy(v);
-                l->value->obj->copy(l->value, v);
-                return;
+                return val_reference(l->value);
             } 
             if (!referenceit) {
                 if (v == v1) v->obj->destroy(v);
                 v->obj = NONE_OBJ;
-                return;
+                return NULL;
             }
             epoint = v2->u.ident.epoint;
             name = v2->u.ident.name;
@@ -273,21 +271,19 @@ static void calc2(oper_t op) {
             v->u.error.u.notdef.label = l2;
             v->u.error.u.notdef.ident = name;
             v->u.error.u.notdef.down = 0;
-            return;
+            return NULL;
         case T_ANONIDENT:
             {
                 l2 = v1->u.code.parent;
                 l = find_anonlabel2(v2->u.anonident.count, l2);
                 if (l) {
                     touch_label(l);
-                    if (v == v1) v->obj->destroy(v);
-                    l->value->obj->copy(l->value, op->v);
-                    return;
+                    return val_reference(l->value);
                 }
                 if (!referenceit) {
                     if (v == v1) v->obj->destroy(v);
                     v->obj = NONE_OBJ;
-                    return;
+                    return NULL;
                 }
                 epoint = v2->u.anonident.epoint;
                 if (v == v1) v->obj->destroy(v);
@@ -298,59 +294,63 @@ static void calc2(oper_t op) {
                 v->u.error.u.notdef.ident.len = 1;
                 v->u.error.u.notdef.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
                 v->u.error.u.notdef.down = 0;
-                return;
+                return NULL;
             }
         case T_TUPLE:
         case T_LIST: return v2->obj->rcalc2(op);
-        default: return obj_oper_error(op);
+        default: obj_oper_error(op); return NULL;
         }
     }
     switch (v2->obj->type) {
     case T_CODE:
-        if (access_check(op->v1, v, &op->epoint)) return;
-        if (access_check(op->v2, v, &op->epoint2)) return;
+        if (access_check(op->v1, v, &op->epoint)) return NULL;
+        if (access_check(op->v2, v, &op->epoint2)) return NULL;
         op->v1 = val_reference(v1->u.code.addr);
         op->v2 = val_reference(v2->u.code.addr);
-        if (v1 == v || v2 == v) destroy(v);
-        op->v1->obj->calc2(op);
+        if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
+        result = op->v1->obj->calc2(op);
         val_destroy(op->v1);
         val_destroy(op->v2);
         op->v1 = v1;
         op->v2 = v2;
-        return;
+        return result;
     case T_BOOL:
     case T_INT:
     case T_BITS:
-        if (access_check(op->v1, v, &op->epoint)) return;
+        if (access_check(op->v1, v, &op->epoint)) return NULL;
         op->v1 = val_reference(v1->u.code.addr);
         switch (op->op->u.oper.op) {
         case O_ADD:
         case O_SUB:
-            op->v = val_alloc();
-            op->v1->obj->calc2(op);
+            op->v = val_alloc(); op->v->obj = NONE_OBJ;
+            result = op->v1->obj->calc2(op);
             if (v == v2) v->obj->destroy(v);
             v->obj = CODE_OBJ; 
             if (v != v1) memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
             else val_destroy(v->u.code.addr);
-            v->u.code.addr = op->v;
+            if (result) {
+                v->u.code.addr = result;
+                val_destroy(op->v);
+            } else v->u.code.addr = op->v;
             val_destroy(op->v1);
             op->v = v;
             op->v1 = v1;
-            return;
+            return NULL;
         default: break;
         }
-        if (v == v1) v->obj->destroy(v);
-        op->v1->obj->calc2(op);
+        if (v == v1) {v->obj->destroy(v); v->obj = NONE_OBJ;}
+        result = op->v1->obj->calc2(op);
         val_destroy(op->v1);
         op->v1 = v1;
-        return;
-    default: v2->obj->rcalc2(op); return;
+        return result;
+    default: return v2->obj->rcalc2(op);
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+static MUST_CHECK struct value_s *rcalc2(oper_t op) {
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, *result;
     if (op->op == &o_IN) {
         struct oper_s oper;
         size_t i, ln, offs;
@@ -363,7 +363,7 @@ static void rcalc2(oper_t op) {
             v->u.error.num = ERROR____NO_FORWARD;
             v->u.error.epoint = op->epoint2;
             v->u.error.u.ident = v2->u.code.parent->name;
-            return;
+            return NULL;
         }
         ln = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
         ln = ln + !ln;
@@ -390,60 +390,67 @@ static void rcalc2(oper_t op) {
             if (r < 0) new_value.obj = GAP_OBJ;
             else if (v2->u.code.dtype < 0) int_from_ival(&new_value, (ival_t)uv);
             else int_from_uval(&new_value, uv);
-            new_value.obj->calc2(&oper);
-            if (new_value.obj == BOOL_OBJ) {
+            result = new_value.obj->calc2(&oper);
+            if (result) {
+                if (result->obj == BOOL_OBJ && result->u.boolean) return result;
+                val_destroy(result);
+            } else if (new_value.obj == BOOL_OBJ) {
                 if (new_value.u.boolean) {
                     if (v == v1) obj_destroy(v);
                     bool_from_int(v, 1);
-                    return;
+                    return NULL;
                 }
             } else new_value.obj->destroy(&new_value);
         }
         if (v == v1 || v == v2) v->obj->destroy(v);
         bool_from_int(v, 0);
-        return;
+        return NULL;
     }
     switch (v1->obj->type) {
     case T_CODE:
-        if (access_check(op->v1, v, &op->epoint)) return;
-        if (access_check(op->v2, v, &op->epoint2)) return;
+        if (access_check(op->v1, v, &op->epoint)) return NULL;
+        if (access_check(op->v2, v, &op->epoint2)) return NULL;
         op->v1 = val_reference(v1->u.code.addr);
         op->v2 = val_reference(v2->u.code.addr);
-        if (v1 == v || v2 == v) destroy(v);
-        op->v2->obj->rcalc2(op);
+        if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
+        result = op->v2->obj->rcalc2(op);
         val_destroy(op->v1);
         val_destroy(op->v2);
         op->v1 = v1;
         op->v2 = v2;
-        return;
+        return result;
     case T_BOOL:
     case T_INT:
     case T_BITS:
-        if (access_check(op->v2, v, &op->epoint2)) return;
+        if (access_check(op->v2, v, &op->epoint2)) return NULL;
         op->v2 = val_reference(v2->u.code.addr);
         switch (op->op->u.oper.op) {
         case O_ADD:
-            op->v = val_alloc();
-            op->v2->obj->rcalc2(op);
+            op->v = val_alloc(); op->v->obj = NONE_OBJ;
+            result = op->v2->obj->rcalc2(op);
             if (v == v1) v->obj->destroy(v);
             v->obj = CODE_OBJ; 
             if (v2 != v) memcpy(&v->u.code, &v2->u.code, sizeof(v->u.code));
             else val_destroy(v->u.code.addr);
-            v->u.code.addr = op->v;
+            if (result) {
+                v->u.code.addr = result;
+                val_destroy(op->v);
+            } else v->u.code.addr = op->v;
             val_destroy(op->v2);
             op->v = v;
             op->v2 = v2;
-            return;
+            return NULL;
         default: break;
         }
-        if (v == v2) v->obj->destroy(v);
-        op->v2->obj->rcalc2(op);
+        if (v == v2) {v->obj->destroy(v);v->obj = NONE_OBJ;}
+        result = op->v2->obj->rcalc2(op);
         val_destroy(op->v2);
         op->v2 = v2;
-        return;
-    default: v1->obj->calc2(op); return;
+        return result;
+    default: return v1->obj->calc2(op);
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 static inline void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t epoint) {

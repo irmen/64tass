@@ -990,9 +990,9 @@ static void repeat(oper_t op, uval_t rep) {
     vv->u.bits.bits = blen;
 }
 
-static void calc2(oper_t op) {
+static MUST_CHECK struct value_s *calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp;
+    struct value_s tmp, *result;
     ival_t shift;
     switch (v2->obj->type) {
     case T_BOOL:
@@ -1000,15 +1000,15 @@ static void calc2(oper_t op) {
         //if (v2 == v) v->obj->destroy(v);
         op->v2 = &tmp;
         tmp.refcount = 0;
-        calc2(op);
+        result = calc2(op);
         op->v2 = v2;
-        return;
+        return result;
     case T_BITS: 
         switch (op->op->u.oper.op) {
-        case O_AND: return and_(v1, v2, v);
-        case O_OR: return or_(v1, v2, v);
-        case O_XOR: return xor_(v1, v2, v);
-        case O_CONCAT: return concat(v1, v2, v);
+        case O_AND: and_(v1, v2, v); return NULL;
+        case O_OR: or_(v1, v2, v); return NULL;
+        case O_XOR: xor_(v1, v2, v); return NULL;
+        case O_CONCAT: concat(v1, v2, v); return NULL;
         default: break;
         }
         /* fall through */
@@ -1018,70 +1018,74 @@ static void calc2(oper_t op) {
             if (v2->obj->ival(v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
-                return;
+                return NULL;
             }
-            return (shift < 0) ? rshift(v1, v2, -shift, v) : lshift(v1, v2, shift, v);
+            if (shift < 0) rshift(v1, v2, -shift, v); else lshift(v1, v2, shift, v);
+            return NULL;
         case O_RSHIFT:
             if (v2->obj->ival(v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
-                return;
+                return NULL;
             }
-            return (shift < 0) ? lshift(v1, v2, -shift, v) : rshift(v1, v2, shift, v);
+            if (shift < 0) lshift(v1, v2, -shift, v); else rshift(v1, v2, shift, v);
+            return NULL;
         default: break;
         }
         int_from_bits(&tmp, v1);
-        if (v1 == v) v->obj->destroy(v);
+        if (v1 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
         op->v1 = &tmp;
         tmp.refcount = 0;
-        tmp.obj->calc2(op);
+        result = tmp.obj->calc2(op);
         op->v1 = v1;
         tmp.obj->destroy(&tmp);
-        return;
+        return result;
     default: 
         if (op->op != &o_MEMBER) {
-            op->v2->obj->rcalc2(op); return;
+            return op->v2->obj->rcalc2(op);
         }
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp;
+    struct value_s tmp, *result;
     switch (v1->obj->type) {
     case T_BOOL:
         bits_from_bool(&tmp, op->v1->u.boolean);
         //if (v1 == v) v->obj->destroy(v);
         op->v1 = &tmp;
         tmp.refcount = 0;
-        rcalc2(op);
+        result = rcalc2(op);
         op->v1 = v1;
-        return;
+        return result;
     case T_BITS: 
         switch (op->op->u.oper.op) {
-        case O_AND: return and_(v1, v2, v);
-        case O_OR: return or_(v1, v2, v);
-        case O_XOR: return xor_(v1, v2, v);
-        case O_CONCAT: return concat(v1, v2, v);
+        case O_AND: and_(v1, v2, v); return NULL;
+        case O_OR: or_(v1, v2, v); return NULL;
+        case O_XOR: xor_(v1, v2, v); return NULL;
+        case O_CONCAT: concat(v1, v2, v); return NULL;
         default: break;
         }
         /* fall through */
     case T_INT:
         int_from_bits(&tmp, v2);
-        if (v2 == v) v->obj->destroy(v);
+        if (v2 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
         op->v2 = &tmp;
         tmp.refcount = 0;
-        tmp.obj->rcalc2(op);
+        result = tmp.obj->rcalc2(op);
         op->v2 = v2;
         tmp.obj->destroy(&tmp);
-        return;
+        return result;
     default:
         if (op->op != &o_IN) {
-            v1->obj->calc2(op); return;
+            return v1->obj->calc2(op);
         }
     }
-    obj_oper_error(op); return;
+    obj_oper_error(op); 
+    return NULL;
 }
 
 static inline void slice(struct value_s *vv1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *vv) {

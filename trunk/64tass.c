@@ -990,15 +990,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     label->conflicts = current_section->conflicts;
                                     int_from_uval(&tmp, current_section->l_address);
                                     if (!tmp.obj->same(&tmp, label->value->u.code.addr)) {
-                                        size_t size = label->value->u.code.size;
-                                        signed char dtype = label->value->u.code.dtype;
-                                        val = val_realloc(&label->value);
-                                        val->obj = CODE_OBJ;
-                                        val_set_template(&val->u.code.addr, &tmp);
-                                        val->u.code.pass = pass - 1;
-                                        val->u.code.size = size;
-                                        val->u.code.dtype = dtype;
-                                        val->u.code.parent = label;
+                                        val_replace_template(&label->value->u.code.addr, &tmp);
                                         if (label->usepass >= pass) {
                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
                                             fixeddig = 0;
@@ -1134,15 +1126,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct value_s tmp;
                         int_from_uval(&tmp, current_section->l_address);
                         if (!tmp.obj->same(&tmp, newlabel->value->u.code.addr)) {
-                            size_t size = newlabel->value->u.code.size;
-                            signed char dtype = newlabel->value->u.code.dtype;
-                            val = val_realloc(&newlabel->value);
-                            val->obj = CODE_OBJ;
-                            val_set_template(&val->u.code.addr, &tmp);
-                            val->u.code.pass = pass - 1;
-                            val->u.code.size = size;
-                            val->u.code.dtype = dtype;
-                            val->u.code.parent = newlabel;
+                            val_replace_template(&newlabel->value->u.code.addr, &tmp);
                             if (newlabel->usepass >= pass) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
                                 fixeddig = 0;
@@ -1463,7 +1447,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (waitfor->what != W_SWITCH2) {err_msg2(ERROR______EXPECTED,".SWITCH", &epoint); goto breakerr;}
                     waitfor->epoint = epoint;
                     if (skwait==2) {
-                        struct value_s result;
+                        struct value_s result, *result2;
                         struct oper_s tmp;
                         if (!get_exp(&w, 0, cfile, 1, 0, &epoint)) {waitfor->skip = 0; goto breakerr; }
                         val = get_vals_tuple(1);
@@ -1478,8 +1462,12 @@ struct value_s *compile(struct file_list_s *cflist)
                         tmp.v2 = val;
                         tmp.v = &result;
                         tmp.epoint = tmp.epoint2 = tmp.epoint3 = epoint;
-                        tmp.v1->obj->calc2(&tmp);
-                        truth = result.obj == BOOL_OBJ && result.u.boolean;
+                        result.refcount = 0;
+                        result2 = tmp.v1->obj->calc2(&tmp);
+                        if (result2) {
+                            truth = result2->obj == BOOL_OBJ && result2->u.boolean;
+                            val_destroy(result2);
+                        } else truth = result.obj == BOOL_OBJ && result.u.boolean;
                         val_destroy(val);
                     }
                     waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);

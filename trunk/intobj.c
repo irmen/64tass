@@ -1523,38 +1523,40 @@ static int calc2_int(oper_t op) {
     return 1;
 }
 
-static void calc2(oper_t op) {
+static MUST_CHECK struct value_s *calc2(oper_t op) {
     static struct value_s tmp;
     switch (op->v2->obj->type) {
     case T_INT:
-        if (calc2_int(op)) break; return;
+        if (calc2_int(op)) break; return NULL;
     case T_BOOL:
         int_from_int(&tmp, op->v2->u.boolean);
         op->v2 = &tmp;
-        if (calc2_int(op)) break; return;
+        if (calc2_int(op)) break; return NULL;
     default: 
         if (op->op != &o_MEMBER) {
-            op->v2->obj->rcalc2(op); return;
+            return op->v2->obj->rcalc2(op);
         }
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     static struct value_s tmp;
     switch (op->v1->obj->type) {
     case T_INT: 
-        if (calc2_int(op)) break; return;
+        if (calc2_int(op)) break; return NULL;
     case T_BOOL:
         int_from_int(&tmp, op->v1->u.boolean);
         op->v1 = &tmp;
-        if (calc2_int(op)) break; return;
+        if (calc2_int(op)) break; return NULL;
     default:
         if (op->op != &o_IN) {
-            op->v1->obj->calc2(op); return;
+            return op->v1->obj->calc2(op);
         }
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 void intobj_init(void) {

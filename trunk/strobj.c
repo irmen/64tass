@@ -372,7 +372,7 @@ static void calc1(oper_t op) {
     tmp.obj->destroy(&tmp);
 }
 
-static int calc2_str(oper_t op) {
+static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     int val;
     switch (op->op->u.oper.op) {
@@ -383,66 +383,66 @@ static int calc2_str(oper_t op) {
     case O_MOD:
     case O_EXP:
         {
-            struct value_s tmp, tmp2;
+            struct value_s tmp, tmp2, *result;
             if (int_from_str(&tmp, v1)) {
                 if (v == v1 || v == v2) destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint;
-                return 0;
+                return NULL;
             }
             if (int_from_str(&tmp2, v2)) {
                 if (v == v1 || v == v2) destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint2;
-                return 0;
+                return NULL;
             }
-            if (v1 == v || v2 == v) destroy(v);
+            if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             op->v2 = &tmp2;
             tmp.refcount = 0;
             tmp2.refcount = 0;
-            tmp.obj->calc2(op);
+            result = tmp.obj->calc2(op);
             op->v1 = v1;
             op->v2 = v2;
             tmp2.obj->destroy(&tmp2);
             tmp.obj->destroy(&tmp);
+            return result;
         }
-        return 0;
     case O_AND:
     case O_OR:
     case O_XOR:
     case O_LSHIFT:
     case O_RSHIFT:
         {
-            struct value_s tmp, tmp2;
+            struct value_s tmp, tmp2, *result;
             if (bits_from_str(&tmp, v1)) {
                 if (v == v1 || v == v2) destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint;
-                return 0;
+                return NULL;
             }
             if (bits_from_str(&tmp2, v2)) {
                 if (v == v1 || v == v2) destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint2;
-                return 0;
+                return NULL;
             }
-            if (v1 == v || v2 == v) destroy(v);
+            if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             op->v2 = &tmp2;
             tmp.refcount = 0;
             tmp2.refcount = 0;
-            tmp.obj->calc2(op);
+            result = tmp.obj->calc2(op);
             op->v1 = v1;
             op->v2 = v2;
             tmp2.obj->destroy(&tmp2);
             tmp.obj->destroy(&tmp);
+            return result;
         }
-        return 0;
     case O_CMP:
         {
             int h = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len : v2->u.str.len);
@@ -450,7 +450,7 @@ static int calc2_str(oper_t op) {
             else h = (v1->u.str.len > v2->u.str.len) - (v1->u.str.len < v2->u.str.len);
             if (v == v1 || v == v2) destroy(v);
             int_from_int(v, h);
-            return 0;
+            return NULL;
         }
     case O_EQ:
         val = (v1->u.str.len == v2->u.str.len) && (v1->u.str.data == v2->u.str.data || !memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len));
@@ -482,7 +482,7 @@ static int calc2_str(oper_t op) {
             if (ln < v2->u.str.len) err_msg_out_of_memory(); /* overflow */
 
             if (v == v1) {
-                if (!v2->u.str.len) return 0;
+                if (!v2->u.str.len) return NULL;
                 s = (uint8_t *)v1->u.str.data;
                 if (s != v1->u.str.val) {
                     s = (uint8_t *)realloc(s, v->u.str.len);
@@ -502,7 +502,7 @@ static int calc2_str(oper_t op) {
             v->u.str.len = ln;
             v->u.str.chars = ch;
             v->u.str.data = s;
-            return 0;
+            return NULL;
         }
     case O_IN:
         {
@@ -519,11 +519,13 @@ static int calc2_str(oper_t op) {
             }
             break;
         }
-    default: return 1;
+    default: 
+        obj_oper_error(op);
+        return NULL;
     }
     if (v == v1 || v == v2) destroy(v);
     bool_from_int(v, val);
-    return 0;
+    return NULL;
 }
 
 static void repeat(oper_t op, uval_t rep) {
@@ -555,11 +557,11 @@ static void repeat(oper_t op, uval_t rep) {
     v->u.str.chars = 0;
 }
 
-static void calc2(oper_t op) {
+static MUST_CHECK struct value_s *calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct value_s tmp;
     switch (v2->obj->type) {
-    case T_STR: if (calc2_str(op)) break; return;
+    case T_STR: return calc2_str(op);
     case T_BOOL:
     case T_INT:
     case T_BITS:
@@ -567,6 +569,7 @@ static void calc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
         {
+            struct value_s *result;
             int ret;
             switch (op->op->u.oper.op) {
             case O_CONCAT:
@@ -582,50 +585,52 @@ static void calc2(oper_t op) {
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint;
-                return;
+                return NULL;
             }
-            if (v1 == v) v->obj->destroy(v);
+            if (v1 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             tmp.refcount = 0;
-            tmp.obj->calc2(op);
+            result = tmp.obj->calc2(op);
             op->v1 = v1;
             tmp.obj->destroy(&tmp);
+            return result;
         }
-        return;
     case T_BYTES:
         {
+            struct value_s *result;
             if (bytes_from_str(&tmp, v1)) {
                 if (v == v1 || v == v2) v->obj->destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint;
-                return;
+                return NULL;
             }
-            if (v1 == v) v->obj->destroy(v);
+            if (v1 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             tmp.refcount = 0;
-            tmp.obj->calc2(op);
+            result = tmp.obj->calc2(op);
             op->v1 = v1;
             tmp.obj->destroy(&tmp);
+            return result;
         }
-        return;
     case T_TUPLE:
     case T_LIST:
     case T_GAP:
     case T_REGISTER:
         if (op->op != &o_MEMBER) {
-            v2->obj->rcalc2(op); return;
+            return v2->obj->rcalc2(op);
         }
     default: break;
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct value_s tmp;
     switch (v1->obj->type) {
-    case T_STR: if (calc2_str(op)) break; return;
+    case T_STR: return calc2_str(op);
     case T_BOOL:
     case T_INT:
     case T_BITS:
@@ -633,6 +638,7 @@ static void rcalc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
         {
+            struct value_s *result;
             int ret;
             switch (op->op->u.oper.op) {
             case O_CONCAT:
@@ -646,41 +652,43 @@ static void rcalc2(oper_t op) {
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint2;
-                return;
+                return NULL;
             }
-            if (v2 == v) v->obj->destroy(v);
+            if (v2 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v2 = &tmp;
             tmp.refcount = 0;
-            tmp.obj->rcalc2(op);
+            result = tmp.obj->rcalc2(op);
             op->v2 = v2;
             tmp.obj->destroy(&tmp);
+            return result;
         }
-        return;
     case T_BYTES:
         {
+            struct value_s *result;
             if (bytes_from_str(&tmp, v2)) {
                 if (v == v1 || v == v2) v->obj->destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_BIG_STRING_CO;
                 v->u.error.epoint = op->epoint2;
-                return;
+                return NULL;
             }
-            if (v2 == v) v->obj->destroy(v);
+            if (v2 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v2 = &tmp;
             tmp.refcount = 0;
-            tmp.obj->rcalc2(op);
+            result = tmp.obj->rcalc2(op);
             op->v2 = v2;
             tmp.obj->destroy(&tmp);
+            return result;
         }
-        return;
     case T_TUPLE:
     case T_LIST:
         if (op->op != &o_IN) {
-            v1->obj->calc2(op); return;
+            return v1->obj->calc2(op);
         }
     default: break;
     }
-    obj_oper_error(op); return;
+    obj_oper_error(op);
+    return NULL;
 }
 
 static inline void slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
@@ -900,7 +908,7 @@ static void register_repr(const struct value_s *v1, struct value_s *v, linepos_t
     v->u.str.data = s;
 }
 
-static void register_calc2(oper_t op) {
+static MUST_CHECK struct value_s *register_calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     switch (v2->obj->type) {
     case T_REGISTER:
@@ -912,7 +920,7 @@ static void register_calc2(oper_t op) {
         case O_GT:
         case O_LE:
         case O_GE:
-            if (calc2_str(op)) break; return;
+            return calc2_str(op);
         default: break;
         }
         break;
@@ -928,24 +936,25 @@ static void register_calc2(oper_t op) {
         switch (op->op->u.oper.op) {
         case O_EQ: 
             if (v1 == v || v2 == v) v->obj->destroy(v);
-            bool_from_int(v, 0); return;
+            bool_from_int(v, 0); return NULL;
         case O_NE: 
             if (v1 == v || v2 == v) v->obj->destroy(v);
-            bool_from_int(v, 1); return;
+            bool_from_int(v, 1); return NULL;
         default: break;
         }
         break;
     case T_TUPLE:
     case T_LIST:
         if (op->op != &o_MEMBER) {
-            v2->obj->rcalc2(op); return;
+            return v2->obj->rcalc2(op);
         }
     default: break;
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void register_rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *register_rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     switch (v1->obj->type) {
     case T_STR:
@@ -960,16 +969,16 @@ static void register_rcalc2(oper_t op) {
         switch (op->op->u.oper.op) {
         case O_EQ: 
             if (v1 == v || v2 == v) v->obj->destroy(v);
-            bool_from_int(v, 0); return;
+            bool_from_int(v, 0); return NULL;
         case O_NE: 
             if (v1 == v || v2 == v) v->obj->destroy(v);
-            bool_from_int(v, 1); return;
+            bool_from_int(v, 1); return NULL;
         default: break;
         }
         break;
     case T_TUPLE:
     case T_LIST:
-        v2->obj->calc2(op); return;
+        return v2->obj->calc2(op);
     default:
     case T_REGISTER:
         if (op->op != &o_IN) {
@@ -977,6 +986,7 @@ static void register_rcalc2(oper_t op) {
         }
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 

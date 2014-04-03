@@ -144,26 +144,28 @@ static int calc2_bool_bool(oper_t op, int v1, int v2) {
     return 1;
 }
 
-static void calc2(oper_t op) {
+static MUST_CHECK struct value_s *calc2(oper_t op) {
     switch (op->v2->obj->type) {
-    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.boolean, op->v2->u.boolean)) break; return;
+    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.boolean, op->v2->u.boolean)) break; return NULL;
     default: 
         if (op->op != &o_MEMBER) {
-            op->v2->obj->rcalc2(op); return;
+            return op->v2->obj->rcalc2(op);
         }
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     switch (op->v1->obj->type) {
-    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.boolean, op->v2->u.boolean)) break; return;
+    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.boolean, op->v2->u.boolean)) break; return NULL;
     default:
         if (op->op != &o_IN) {
-            op->v1->obj->calc2(op); return;
+            return op->v1->obj->calc2(op);
         }
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 void boolobj_init(void) {

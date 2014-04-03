@@ -411,11 +411,11 @@ static void repeat(oper_t op, uval_t rep) {
     v->u.bytes.len = 0;
 }
 
-static void calc2(oper_t op) {
+static MUST_CHECK struct value_s *calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct value_s tmp;
     switch (v2->obj->type) {
-    case T_BYTES: if (calc2_bytes(op)) break; return;
+    case T_BYTES: if (calc2_bytes(op)) break; return NULL;
     case T_BOOL:
     case T_INT:
     case T_BITS:
@@ -423,6 +423,7 @@ static void calc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
         {
+            struct value_s *result;
             switch (op->op->u.oper.op) {
             case O_CONCAT:
             case O_AND:
@@ -432,32 +433,33 @@ static void calc2(oper_t op) {
             case O_RSHIFT: bits_from_bytes(&tmp, v1); break;
             default: int_from_bytes(&tmp, v1);
             }
-            if (v1 == v) v->obj->destroy(v);
+            if (v1 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             tmp.refcount = 0;
-            tmp.obj->calc2(op);
+            result = tmp.obj->calc2(op);
             op->v1 = v1;
             tmp.obj->destroy(&tmp);
+            return result;
         }
-        return;
     case T_TUPLE:
     case T_LIST:
     case T_STR:
     case T_GAP:
     case T_REGISTER:
         if (op->op != &o_MEMBER) {
-            v2->obj->rcalc2(op); return;
+            return v2->obj->rcalc2(op);
         }
     default: break;
     }
     obj_oper_error(op);
+    return NULL;
 }
 
-static void rcalc2(oper_t op) {
+static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct value_s tmp;
     switch (v1->obj->type) {
-    case T_BYTES: if (calc2_bytes(op)) break; return;
+    case T_BYTES: if (calc2_bytes(op)) break; return NULL;
     case T_BOOL:
     case T_INT:
     case T_BITS:
@@ -465,6 +467,7 @@ static void rcalc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
         {
+            struct value_s *result;
             switch (op->op->u.oper.op) {
             case O_CONCAT:
             case O_AND:
@@ -472,23 +475,24 @@ static void rcalc2(oper_t op) {
             case O_XOR: bits_from_bytes(&tmp, v2); break;
             default: int_from_bytes(&tmp, v2);
             }
-            if (v2 == v) v->obj->destroy(v);
+            if (v2 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v2 = &tmp;
             tmp.refcount = 0;
-            tmp.obj->rcalc2(op);
+            result = tmp.obj->rcalc2(op);
             op->v2 = v2;
             tmp.obj->destroy(&tmp);
+            return result;
         }
-        return;
     case T_TUPLE:
     case T_LIST:
     case T_STR:
         if (op->op != &o_IN) {
-            v1->obj->calc2(op); return;
+            return v1->obj->calc2(op);
         }
     default: break;
     }
-    obj_oper_error(op); return;
+    obj_oper_error(op); 
+    return NULL;
 }
 
 static inline void slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
