@@ -421,9 +421,8 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                 if (!values || ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                 for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
             }
-            val_destroy(values[vsp].val);
+            o_out->val = values[vsp].val;
             values[vsp].val = val;
-            o_out->val = &none_value;
             values[vsp++].epoint = o_out->epoint;
             continue;
         }
@@ -839,9 +838,8 @@ static int get_val2(struct eval_context_s *ev) {
                 if (!values || ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                 for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
             }
-            val_destroy(values[vsp].val);
+            o_out->val = values[vsp].val;
             values[vsp].val = val;
-            o_out->val = &none_value;
             values[vsp++].epoint = o_out->epoint;
             continue;
         }
@@ -1852,7 +1850,7 @@ struct value_s *get_vals_addrlist(struct linepos_s *epoints) {
     struct value_s *val;
     struct linepos_s epoint;
 
-    if (len == 1) return pull_val(&epoints[0]);
+    if (len == 1) return val_reference(get_val(&epoints[0]));
     val = val_alloc();
     val->obj = ADDRLIST_OBJ;
     val->u.list.len = len;
