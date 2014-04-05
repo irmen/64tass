@@ -452,28 +452,20 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
             int_from_int(v, h);
             return NULL;
         }
-    case O_EQ:
-        val = (v1->u.str.len == v2->u.str.len) && (v1->u.str.data == v2->u.str.data || !memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len));
-        break;
-    case O_NE:
-        val = (v1->u.str.len != v2->u.str.len) || (v1->u.str.data != v2->u.str.data && memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len));
-        break;
+    case O_EQ: return truth_reference(v1->u.str.len == v2->u.str.len && (v1->u.str.data == v2->u.str.data || !memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len)));
+    case O_NE: return truth_reference(v1->u.str.len != v2->u.str.len || (v1->u.str.data != v2->u.str.data && memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len)));
     case O_LT:
         val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-        if (!val) val = v1->u.str.len < v2->u.str.len; else val = val < 0;
-        break;
+        return truth_reference(val ? (val < 0) : (v1->u.str.len < v2->u.str.len));
     case O_GT:
         val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-        if (!val) val = v1->u.str.len > v2->u.str.len; else val = val > 0;
-        break;
+        return truth_reference(val ? (val > 0) : (v1->u.str.len > v2->u.str.len));
     case O_LE:
         val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-        if (!val) val = v1->u.str.len <= v2->u.str.len; else val = val <= 0;
-        break;
+        return truth_reference(val ? (val <= 0) : (v1->u.str.len <= v2->u.str.len));
     case O_GE:
         val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-        if (!val) val = v1->u.str.len >= v2->u.str.len; else val = val >= 0;
-        break;
+        return truth_reference(val ? (val >= 0) : (val = v1->u.str.len >= v2->u.str.len));
     case O_CONCAT:
         {
             uint8_t *s;
@@ -507,24 +499,20 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
-            if (!v1->u.str.len) { val = 1; break; }
-            if (v1->u.str.len > v2->u.str.len) { val = 0; break; }
+            if (!v1->u.str.len) return truth_reference(1);
+            if (v1->u.str.len > v2->u.str.len) return truth_reference(0);
             c2 = v2->u.str.data;
             e = c2 + v2->u.str.len - v1->u.str.len;
             for (;;) {
                 c = (uint8_t *)memchr(c2, v1->u.str.data[0], e - c2 + 1);
-                if (!c) { val = 0; break; }
-                if (!memcmp(c, v1->u.str.data, v1->u.str.len)) { val = 1; break; }
+                if (!c) return truth_reference(0);
+                if (!memcmp(c, v1->u.str.data, v1->u.str.len)) return truth_reference(1);
                 c2 = c + 1;
             }
-            break;
         }
-    default: 
-        obj_oper_error(op);
-        return NULL;
+    default: break;
     }
-    if (v == v1 || v == v2) destroy(v);
-    bool_from_int(v, val);
+    obj_oper_error(op);
     return NULL;
 }
 
@@ -911,7 +899,7 @@ static void register_repr(const struct value_s *v1, struct value_s *v, linepos_t
 }
 
 static MUST_CHECK struct value_s *register_calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s *v2 = op->v2;
     switch (v2->obj->type) {
     case T_REGISTER:
         switch (op->op->u.oper.op) {
@@ -936,12 +924,8 @@ static MUST_CHECK struct value_s *register_calc2(oper_t op) {
     case T_BYTES:
     case T_GAP:
         switch (op->op->u.oper.op) {
-        case O_EQ: 
-            if (v1 == v || v2 == v) v->obj->destroy(v);
-            bool_from_int(v, 0); return NULL;
-        case O_NE: 
-            if (v1 == v || v2 == v) v->obj->destroy(v);
-            bool_from_int(v, 1); return NULL;
+        case O_EQ: return truth_reference(0);
+        case O_NE: return truth_reference(1);
         default: break;
         }
         break;
@@ -957,7 +941,7 @@ static MUST_CHECK struct value_s *register_calc2(oper_t op) {
 }
 
 static MUST_CHECK struct value_s *register_rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s *v1 = op->v1, *v2 = op->v2;
     switch (v1->obj->type) {
     case T_STR:
     case T_BOOL:
@@ -969,12 +953,8 @@ static MUST_CHECK struct value_s *register_rcalc2(oper_t op) {
     case T_BYTES:
     case T_GAP:
         switch (op->op->u.oper.op) {
-        case O_EQ: 
-            if (v1 == v || v2 == v) v->obj->destroy(v);
-            bool_from_int(v, 0); return NULL;
-        case O_NE: 
-            if (v1 == v || v2 == v) v->obj->destroy(v);
-            bool_from_int(v, 1); return NULL;
+        case O_EQ: return truth_reference(0);
+        case O_NE: return truth_reference(1);
         default: break;
         }
         break;

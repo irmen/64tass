@@ -227,10 +227,9 @@ static void calc1(oper_t op) {
     return;
 }
 
-static int calc2_list(oper_t op) {
+static MUST_CHECK struct value_s *calc2_list(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     size_t i;
-    int val;
 
     switch (op->op->u.oper.op) {
     case O_CMP:
@@ -326,7 +325,7 @@ static int calc2_list(oper_t op) {
                     } else vals = NULL;
                 } else {
                     obj_oper_error(op);
-                    return 0;
+                    return NULL;
                 }
             } else if (d1 > d2) {
                 if (v1->u.list.len) {
@@ -367,7 +366,7 @@ static int calc2_list(oper_t op) {
             v->obj = v1->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
-            return 0;
+            return NULL;
         }
     case O_CONCAT:
         {
@@ -392,13 +391,12 @@ static int calc2_list(oper_t op) {
             }
             v->u.list.len = ln;
             v->u.list.data = vals;
-            return 0;
+            return NULL;
         }
-    default: return 1;
+    default: break;
     }
-    if (v == v1 || v == v2) destroy(v);
-    bool_from_int(v, val);
-    return 0;
+    obj_oper_error(op);
+    return NULL;
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
@@ -410,7 +408,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_TUPLE:
     case T_LIST:
         if (v1->obj == v2->obj) {
-            if (calc2_list(op)) break; return NULL;
+            return calc2_list(op);
         }
     default:
         if (v == v1) {
@@ -471,7 +469,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     case T_TUPLE:
     case T_LIST:
         if (v1->obj == v2->obj) {
-            if (calc2_list(op)) break; return NULL;
+            return calc2_list(op);
         }
     default:
         switch (op->op->u.oper.op) {
@@ -552,19 +550,13 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
                     if (result->obj == BOOL_OBJ && result->u.boolean) return result;
                     val_destroy(result);
                 } else if (tmp.obj == BOOL_OBJ) {
-                    if (tmp.u.boolean) {
-                        if (v == v1 || v == v2) v->obj->destroy(v);
-                        bool_from_int(v, 1);
-                        return NULL;
-                    }
+                    if (tmp.u.boolean) return truth_reference(1);
                 } else tmp.obj->destroy(&tmp);
             }
             op->op = &o_IN;
             op->v = v;
             op->v2 = v2;
-            if (v == v1 || v == v2) v->obj->destroy(v);
-            bool_from_int(v, 0);
-            return NULL;
+            return truth_reference(0);
         default: 
             return v1->obj->calc2(op);
         }

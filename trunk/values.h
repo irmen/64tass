@@ -188,9 +188,9 @@ extern int val_print(const struct value_s *, FILE *);
 extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
 
 extern struct value_s none_value;
-extern struct value_s true_value;
-extern struct value_s false_value;
-extern struct value_s gap_value;
+extern struct value_s *true_value;
+extern struct value_s *false_value;
+extern struct value_s *gap_value;
 extern struct value_s null_str;
 extern struct value_s null_bytes;
 extern struct value_s null_bits;
@@ -263,4 +263,13 @@ extern struct value_s o_MEMBER;
 
 extern void destroy_values(void);
 extern void init_values(void);
+
+static inline MUST_CHECK struct value_s *truth_reference(int i) {
+    if (i) {
+        true_value->refcount++; 
+        return true_value;
+    }
+    false_value->refcount++;
+    return false_value;
+}
 #endif

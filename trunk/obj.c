@@ -183,7 +183,7 @@ static void gap_calc1(oper_t op) {
 }
 
 static MUST_CHECK struct value_s *gap_calc2(oper_t op) {
-    struct value_s *v2 = op->v2, *v = op->v;
+    struct value_s *v2 = op->v2;
     switch (v2->obj->type) {
     case T_STR:
     case T_BOOL:
@@ -196,12 +196,8 @@ static MUST_CHECK struct value_s *gap_calc2(oper_t op) {
     case T_GAP:
     case T_REGISTER:
         switch (op->op->u.oper.op) {
-        case O_EQ: 
-            if (v2 == v) v->obj->destroy(v);
-            bool_from_int(v, v2->obj == GAP_OBJ); return NULL;
-        case O_NE: 
-            if (v2 == v) v->obj->destroy(v);
-            bool_from_int(v, v2->obj != GAP_OBJ); return NULL;
+        case O_EQ: return truth_reference(v2->obj == GAP_OBJ);
+        case O_NE: return truth_reference(v2->obj != GAP_OBJ);
         default: break;
         }
         break;
@@ -217,7 +213,7 @@ static MUST_CHECK struct value_s *gap_calc2(oper_t op) {
 }
 
 static MUST_CHECK struct value_s *gap_rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s *v1 = op->v1, *v2 = op->v2;
     switch (v1->obj->type) {
     case T_STR:
     case T_BOOL:
@@ -230,12 +226,8 @@ static MUST_CHECK struct value_s *gap_rcalc2(oper_t op) {
     case T_GAP:
     case T_REGISTER:
         switch (op->op->u.oper.op) {
-        case O_EQ: 
-            if (v1 == v) v->obj->destroy(v);
-            bool_from_int(v, v1->obj == GAP_OBJ); return NULL;
-        case O_NE: 
-            if (v1 == v) v->obj->destroy(v);
-            bool_from_int(v, v1->obj != GAP_OBJ); return NULL;
+        case O_EQ: return truth_reference(v1->obj == GAP_OBJ);
+        case O_NE: return truth_reference(v1->obj != GAP_OBJ);
         default: break;
         }
         break;
@@ -576,8 +568,7 @@ static MUST_CHECK struct value_s *dict_rcalc2(oper_t op) {
         p.hash = obj_hash(p.key, op->v, &op->epoint);
         if (p.hash >= 0) {
             b = avltree_lookup(&p.node, &op->v2->u.dict.members, pair_compare);
-            if (op->v == op->v1 || op->v == op->v2) obj_destroy(op->v);
-            bool_from_int(op->v, b != NULL);
+            return truth_reference(b != NULL);
         }
         return NULL;
     }

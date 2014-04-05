@@ -113,40 +113,41 @@ static void calc1(oper_t op) {
     obj_oper_error(op);
 }
 
-static int calc2_bool_bool(oper_t op, int v1, int v2) {
+static MUST_CHECK struct value_s *calc2_bool(oper_t op, int v1, int v2) {
     struct value_s *v = op->v;
     switch (op->op->u.oper.op) {
-    case O_CMP: int_from_int(v, v1 - v2); return 0;
-    case O_EQ: bool_from_int(v, v1 == v2); return 0;
-    case O_NE: bool_from_int(v, v1 != v2); return 0;
-    case O_LT: bool_from_int(v, v1 < v2); return 0;
-    case O_LE: bool_from_int(v, v1 <= v2); return 0;
-    case O_GT: bool_from_int(v, v1 > v2); return 0;
-    case O_GE: bool_from_int(v, v1 >= v2); return 0;
-    case O_ADD: int_from_int(v, v1 + v2); return 0;
-    case O_SUB: int_from_int(v, v1 - v2); return 0;
-    case O_MUL: int_from_int(v, v1 & v2); return 0;
+    case O_CMP: int_from_int(v, v1 - v2); return NULL;
+    case O_EQ: return truth_reference(v1 == v2);
+    case O_NE: return truth_reference(v1 != v2);
+    case O_LT: return truth_reference(v1 < v2);
+    case O_LE: return truth_reference(v1 <= v2);
+    case O_GT: return truth_reference(v1 > v2);
+    case O_GE: return truth_reference(v1 >= v2);
+    case O_ADD: int_from_int(v, v1 + v2); return NULL;
+    case O_SUB: int_from_int(v, v1 - v2); return NULL;
+    case O_MUL: int_from_int(v, v1 & v2); return NULL;
     case O_DIV:
         if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
-        int_from_int(v, v1); return 0;
+        int_from_int(v, v1); return NULL;
     case O_MOD:
         if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
-        int_from_int(v, 0); return 0;
-    case O_EXP: int_from_int(v, v1 | !v1); return 0;
-    case O_AND: bool_from_int(v, v1 & v2); return 0;
-    case O_OR: bool_from_int(v, v1 | v2); return 0;
-    case O_XOR: bool_from_int(v, v1 ^ v2); return 0;
-    case O_LSHIFT: int_from_int(v, v1 << v2); return 0;
-    case O_RSHIFT: int_from_int(v, v1 >> v2); return 0;
-    case O_CONCAT: bits_from_bools(v, v1, v2); return 0;
+        int_from_int(v, 0); return NULL;
+    case O_EXP: int_from_int(v, v1 | !v1); return NULL;
+    case O_AND: return truth_reference(v1 & v2);
+    case O_OR: return truth_reference(v1 | v2);
+    case O_XOR: return truth_reference(v1 ^ v2);
+    case O_LSHIFT: int_from_int(v, v1 << v2); return NULL;
+    case O_RSHIFT: int_from_int(v, v1 >> v2); return NULL;
+    case O_CONCAT: bits_from_bools(v, v1, v2); return NULL;
     default: break;
     }
-    return 1;
+    obj_oper_error(op);
+    return NULL;
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
     switch (op->v2->obj->type) {
-    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.boolean, op->v2->u.boolean)) break; return NULL;
+    case T_BOOL: return calc2_bool(op, op->v1->u.boolean, op->v2->u.boolean);
     default: 
         if (op->op != &o_MEMBER) {
             return op->v2->obj->rcalc2(op);
@@ -158,7 +159,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     switch (op->v1->obj->type) {
-    case T_BOOL: if (calc2_bool_bool(op, op->v1->u.boolean, op->v2->u.boolean)) break; return NULL;
+    case T_BOOL: return calc2_bool(op, op->v1->u.boolean, op->v2->u.boolean);
     default:
         if (op->op != &o_IN) {
             return op->v1->obj->calc2(op);

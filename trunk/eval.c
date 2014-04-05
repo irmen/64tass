@@ -1116,7 +1116,7 @@ static int get_val2(struct eval_context_s *ev) {
             if (oper.v1->refcount != 1) {
                 oper.v = val_alloc();
                 oper.v1->obj->calc1(&oper);
-                val_destroy(v1->val); v1->val = oper.v;
+                o_out->val = v1->val; v1->val = oper.v;
             } else {
                 oper.v = oper.v1;
                 oper.v1->obj->calc1(&oper);
@@ -1136,7 +1136,7 @@ static int get_val2(struct eval_context_s *ev) {
             if (v1->val->refcount != 1) {
                 oper.v = val_alloc();
                 apply_addressing(v1->val, oper.v, am);
-                val_destroy(v1->val); v1->val = oper.v;
+                o_out->val = v1->val; v1->val = oper.v;
             } else {
                 oper.v = apply_addressing(v1->val, v1->val, am);
                 if (oper.v) v1->val = oper.v;
@@ -1220,7 +1220,7 @@ static int get_val2(struct eval_context_s *ev) {
             if (v1->val->refcount != 1) {
                 oper.v = val_alloc();
                 if (!v1->val->obj->truth(v1->val, oper.v, TRUTH_BOOL, &v1->epoint)) oper.v->u.boolean = !oper.v->u.boolean;
-                val_destroy(v1->val); v1->val = oper.v;
+                o_out->val = v1->val; v1->val = oper.v;
             } else if (!v1->val->obj->truth(v1->val, v1->val, TRUTH_BOOL, &v1->epoint)) v1->val->u.boolean = !v1->val->u.boolean;
             continue;
         case O_LAND: /* && */
@@ -1246,9 +1246,9 @@ static int get_val2(struct eval_context_s *ev) {
                     continue;
                 }
                 if (new_value.u.boolean) {
-                    if (err.u.boolean) val_replace(&v1->val, &false_value);
+                    if (err.u.boolean) val_replace(&v1->val, false_value);
                 } else {
-                    val_replace(&v1->val, err.u.boolean ? v2->val : &false_value);
+                    val_replace(&v1->val, err.u.boolean ? v2->val : false_value);
                 }
             }
             continue;
@@ -1274,7 +1274,7 @@ static int get_val2(struct eval_context_s *ev) {
             oper.v = oper.v1;
             result = apply_op2(&oper);
             if (result) {
-                val_destroy(v1->val); v1->val = result;
+                o_out->val = v1->val; v1->val = result;
             }
         } else if (oper.v2->refcount == 1) {
             struct value_s *result;
@@ -1283,13 +1283,13 @@ static int get_val2(struct eval_context_s *ev) {
             oper.v = oper.v2;
             result = apply_op2(&oper);
             if (result) {
-                val_destroy(v1->val); v1->val = result;
+                o_out->val = v1->val; v1->val = result;
             }
         } else {
             struct value_s *result;
             oper.v = val_alloc(); oper.v->obj = NONE_OBJ;
             result = apply_op2(&oper);
-            val_destroy(v1->val); v1->val = oper.v;
+            o_out->val = v1->val; v1->val = oper.v;
             if (result) {
                 val_destroy(v1->val); v1->val = result;
             }
@@ -1462,7 +1462,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             if (operp) { 
                 if (o_oper[operp - 1].val == &o_SPLAT || o_oper[operp - 1].val == &o_POS || o_oper[operp - 1].val == &o_NEG) goto tryanon;
             }
-            lpoint.pos++;gap_value.refcount++;push_oper(&gap_value, &epoint);goto other;
+            lpoint.pos++;gap_value->refcount++;push_oper(gap_value, &epoint);goto other;
         case '.': if ((pline[lpoint.pos+1] ^ 0x30) >= 10) goto tryanon; /* fall through */;
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             val = push(&epoint);

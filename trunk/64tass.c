@@ -1632,7 +1632,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (prm==CMD_SHIFT) ch2|=0x80;
                             if (prm==CMD_SHIFTL) ch2|=0x01;
                             pokeb(ch2); sum++;
-                        } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) err_msg_wrong_type(&gap_value, &epoint2);
+                        } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) err_msg_wrong_type(gap_value, &epoint2);
                         if (prm==CMD_NULL) pokeb(0);
                         if (prm==CMD_PTEXT) {
                             if (sum > 0x100) err_msg2(ERROR____PTEXT_LONG, &sum, &epoint);
