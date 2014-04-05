@@ -302,7 +302,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                 case O_GE: r = (v1->u.addr.type >= v2->u.addr.type); break;
                 default: r = 0; break; /* can't happen */
                 }
-                bool_from_int(&tmp, r);
+                return truth_reference(r);
             }
             if (v == v1 || v == v2) destroy(v);
             tmp.obj->copy_temp(&tmp, v);

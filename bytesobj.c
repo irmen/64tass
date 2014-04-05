@@ -301,7 +301,7 @@ static void calc1(oper_t op) {
     tmp.obj->destroy(&tmp);
 }
 
-static int calc2_bytes(oper_t op) {
+static MUST_CHECK struct value_s *calc2_bytes(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     int val;
     switch (op->op->u.oper.op) {
@@ -312,30 +312,22 @@ static int calc2_bytes(oper_t op) {
             else h = (v1->u.bytes.len > v2->u.bytes.len) - (v1->u.bytes.len < v2->u.bytes.len);
             if (v == v1 || v == v2) destroy(v);
             int_from_int(v, h);
-            return 0;
+            return NULL;
         }
-    case O_EQ:
-        val = (v1->u.bytes.len == v2->u.bytes.len) && (v1->u.bytes.data == v2->u.bytes.data || !memcmp(v1->u.bytes.data, v2->u.bytes.data, v1->u.bytes.len));
-        break;
-    case O_NE:
-        val = (v1->u.bytes.len != v2->u.bytes.len) || (v1->u.bytes.data != v2->u.bytes.data && memcmp(v1->u.bytes.data, v2->u.bytes.data, v1->u.bytes.len));
-        break;
+    case O_EQ: return truth_reference(v1->u.bytes.len == v2->u.bytes.len && (v1->u.bytes.data == v2->u.bytes.data || !memcmp(v1->u.bytes.data, v2->u.bytes.data, v1->u.bytes.len)));
+    case O_NE: return truth_reference(v1->u.bytes.len != v2->u.bytes.len || (v1->u.bytes.data != v2->u.bytes.data && memcmp(v1->u.bytes.data, v2->u.bytes.data, v1->u.bytes.len)));
     case O_LT:
         val = memcmp(v1->u.bytes.data, v2->u.bytes.data, (v1->u.bytes.len < v2->u.bytes.len) ? v1->u.bytes.len:v2->u.bytes.len);
-        if (!val) val = v1->u.bytes.len < v2->u.bytes.len; else val = val < 0;
-        break;
+        return truth_reference(val ? (val < 0) : (v1->u.bytes.len < v2->u.bytes.len));
     case O_GT:
         val = memcmp(v1->u.bytes.data, v2->u.bytes.data, (v1->u.bytes.len < v2->u.bytes.len) ? v1->u.bytes.len:v2->u.bytes.len);
-        if (!val) val = v1->u.bytes.len > v2->u.bytes.len; else val = val > 0;
-        break;
+        return truth_reference(val ? (val > 0) : (v1->u.bytes.len > v2->u.bytes.len));
     case O_LE:
         val = memcmp(v1->u.bytes.data, v2->u.bytes.data, (v1->u.bytes.len < v2->u.bytes.len) ? v1->u.bytes.len:v2->u.bytes.len);
-        if (!val) val = v1->u.bytes.len <= v2->u.bytes.len; else val = val <= 0;
-        break;
+        return truth_reference(val ? (val <= 0) : (v1->u.bytes.len <= v2->u.bytes.len));
     case O_GE:
         val = memcmp(v1->u.bytes.data, v2->u.bytes.data, (v1->u.bytes.len < v2->u.bytes.len) ? v1->u.bytes.len:v2->u.bytes.len);
-        if (!val) val = v1->u.bytes.len >= v2->u.bytes.len; else val = val >= 0;
-        break;
+        return truth_reference(val ? (val >= 0) : (v1->u.bytes.len >= v2->u.bytes.len));
     case O_CONCAT:
         {
             uint8_t *s;
@@ -343,7 +335,7 @@ static int calc2_bytes(oper_t op) {
             if (ln < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
 
             if (v == v1) {
-                if (!v2->u.bytes.len) return 0;
+                if (!v2->u.bytes.len) return NULL;
                 s = (uint8_t *)v1->u.bytes.data;
                 if (s != v1->u.bytes.val) {
                     s = (uint8_t *)realloc(s, v->u.bytes.len);
@@ -362,28 +354,26 @@ static int calc2_bytes(oper_t op) {
             }
             v->u.bytes.len = ln;
             v->u.bytes.data = s;
-            return 0;
+            return NULL;
         }
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
-            if (!v1->u.bytes.len) { val = 1; break; }
-            if (v1->u.bytes.len > v2->u.bytes.len) { val = 0; break; }
+            if (!v1->u.bytes.len) return truth_reference(1);
+            if (v1->u.bytes.len > v2->u.bytes.len) return truth_reference(0);
             c2 = v2->u.bytes.data;
             e = c2 + v2->u.bytes.len - v1->u.bytes.len;
             for (;;) {
                 c = (uint8_t *)memchr(c2, v1->u.bytes.data[0], e - c2 + 1);
-                if (!c) { val = 0; break; }
-                if (!memcmp(c, v1->u.bytes.data, v1->u.bytes.len)) { val = 1; break; }
+                if (!c) return truth_reference(0);
+                if (!memcmp(c, v1->u.bytes.data, v1->u.bytes.len)) return truth_reference(1);
                 c2 = c + 1;
             }
-            break;
         }
-    default: return 1;
+    default: break;
     }
-    if (v == v1 || v == v2) destroy(v);
-    bool_from_int(v, val);
-    return 0;
+    obj_oper_error(op);
+    return NULL;
 }
 
 static void repeat(oper_t op, uval_t rep) {
@@ -415,7 +405,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct value_s tmp;
     switch (v2->obj->type) {
-    case T_BYTES: if (calc2_bytes(op)) break; return NULL;
+    case T_BYTES: return calc2_bytes(op);
     case T_BOOL:
     case T_INT:
     case T_BITS:
@@ -459,7 +449,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct value_s tmp;
     switch (v1->obj->type) {
-    case T_BYTES: if (calc2_bytes(op)) break; return NULL;
+    case T_BYTES: return calc2_bytes(op);
     case T_BOOL:
     case T_INT:
     case T_BITS:

@@ -1368,7 +1368,7 @@ size_t int_from_decstr(struct value_s *v, const uint8_t *s) {
     return l;
 }
 
-static int calc2_int(oper_t op) {
+static MUST_CHECK struct value_s *calc2_int(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct value_s tmp;
     ival_t shift;
@@ -1377,31 +1377,13 @@ static int calc2_int(oper_t op) {
     case O_CMP: 
         i = icmp(v1, v2);
         if (v1 == v || v2 == v) destroy(v);
-        int_from_int(v, (i > 0) - (i < 0)); return 0;
-    case O_EQ: 
-        i = icmp(v1, v2);
-        if (v1 == v || v2 == v) destroy(v);
-        bool_from_int(v, i == 0); return 0;
-    case O_NE: 
-        i = icmp(v1, v2);
-        if (v1 == v || v2 == v) destroy(v);
-        bool_from_int(v, i != 0); return 0;
-    case O_LT: 
-        i = icmp(v1, v2);
-        if (v1 == v || v2 == v) destroy(v);
-        bool_from_int(v, i < 0); return 0;
-    case O_LE: 
-        i = icmp(v1, v2);
-        if (v1 == v || v2 == v) destroy(v);
-        bool_from_int(v, i <= 0); return 0;
-    case O_GT: 
-        i = icmp(v1, v2);
-        if (v1 == v || v2 == v) destroy(v);
-        bool_from_int(v, i > 0); return 0;
-    case O_GE: 
-        i = icmp(v1, v2);
-        if (v1 == v || v2 == v) destroy(v);
-        bool_from_int(v, i >= 0); return 0;
+        int_from_int(v, (i > 0) - (i < 0)); return NULL;
+    case O_EQ: return truth_reference(icmp(v1, v2) == 0);
+    case O_NE: return truth_reference(icmp(v1, v2) != 0);
+    case O_LT: return truth_reference(icmp(v1, v2) < 0);
+    case O_LE: return truth_reference(icmp(v1, v2) <= 0);
+    case O_GT: return truth_reference(icmp(v1, v2) > 0);
+    case O_GE: return truth_reference(icmp(v1, v2) >= 0);
     case O_ADD: 
         v->obj = INT_OBJ; 
         if (v1->u.integer.len < 0) {
@@ -1413,7 +1395,7 @@ static int calc2_int(oper_t op) {
             if (v2->u.integer.len < 0) isub(v1, v2, v);
             else iadd(v1, v2, v);
         }
-        return 0;
+        return NULL;
     case O_SUB:
         v->obj = INT_OBJ; 
         if (v1->u.integer.len < 0) {
@@ -1424,21 +1406,21 @@ static int calc2_int(oper_t op) {
             if (v2->u.integer.len < 0) iadd(v1, v2, v);
             else isub(v1, v2, v);
         }
-        return 0;
+        return NULL;
     case O_MUL:
         v->obj = INT_OBJ; 
         if ((v1->u.integer.len ^ v2->u.integer.len) < 0) {
             imul(v1, v2, v);
             v->u.integer.len = -v->u.integer.len;
         } else imul(v1, v2, v);
-        return 0;
+        return NULL;
     case O_DIV:
         i = (v2->u.integer.len < 0);
         v->obj = INT_OBJ; 
         idivrem(v1, v2, v, &tmp);
         if (v->obj == ERROR_OBJ) {
             v->u.error.epoint = op->epoint2;
-            return 0;
+            return NULL;
         }
         if ((tmp.u.integer.len < 0) ^ i) {
             if (v->u.integer.len < 0) {
@@ -1447,13 +1429,13 @@ static int calc2_int(oper_t op) {
             } else isub(v, &one, v);
         }
         if (tmp.u.integer.data != tmp.u.integer.val) free(tmp.u.integer.data);
-        return 0;
+        return NULL;
     case O_MOD:
         v->obj = INT_OBJ; 
         idivrem(v1, v2, &tmp, v);
         if (v->obj == ERROR_OBJ) {
             v->u.error.epoint = op->epoint2;
-            return 0;
+            return NULL;
         }
         if ((v->u.integer.len < 0) ^ (v2->u.integer.len < 0)) {
             if (v->u.integer.len < 0) {
@@ -1467,71 +1449,71 @@ static int calc2_int(oper_t op) {
             }
         }
         if (tmp.u.integer.data != tmp.u.integer.val) free(tmp.u.integer.data);
-        return 0;
+        return NULL;
     case O_EXP:
         if (v2->u.integer.len < 0) {
             double d1, d2;
             if (real(v1, &tmp, &d1, &op->epoint)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
-                return 0;
+                return NULL;
             }
             if (real(v2, &tmp, &d2, &op->epoint)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
-                return 0;
+                return NULL;
             }
             if (v1 == v || v2 == v) v->obj->destroy(v);
             return calc2_double(op, d1, d2);
         }
         power(v1, v2, v);
-        return 0;
+        return NULL;
     case O_LSHIFT:
         if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
             if (v1 == v || v2 == v) v->obj->destroy(v);
             tmp.obj->copy_temp(&tmp, v);
-            return 0;
+            return NULL;
         }
         v->obj = INT_OBJ;
         if (shift < 0) irshift(v1, v2, -shift, v);
         else ilshift(v1, v2, shift, v);
-        return 0;
+        return NULL;
     case O_RSHIFT:
         if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
             if (v1 == v || v2 == v) v->obj->destroy(v);
             tmp.obj->copy_temp(&tmp, v);
-            return 0;
+            return NULL;
         }
         v->obj = INT_OBJ;
         if (shift < 0) ilshift(v1, v2, -shift, v);
         else irshift(v1, v2, shift, v);
-        return 0;
+        return NULL;
     case O_AND:
         v->obj = INT_OBJ; 
         iand(v1, v2, v);
-        return 0;
+        return NULL;
     case O_OR:
         v->obj = INT_OBJ; 
         ior(v1, v2, v);
-        return 0;
+        return NULL;
     case O_XOR:
         v->obj = INT_OBJ; 
         ixor(v1, v2, v);
-        return 0;
+        return NULL;
     default: break;
     }
-    return 1;
+    obj_oper_error(op);
+    return NULL;
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
     static struct value_s tmp;
     switch (op->v2->obj->type) {
-    case T_INT:
-        if (calc2_int(op)) break; return NULL;
+    case T_INT: return calc2_int(op);
     case T_BOOL:
         int_from_int(&tmp, op->v2->u.boolean);
         op->v2 = &tmp;
-        if (calc2_int(op)) break; return NULL;
+        return calc2_int(op);
     default: 
         if (op->op != &o_MEMBER) {
             return op->v2->obj->rcalc2(op);
@@ -1544,12 +1526,11 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     static struct value_s tmp;
     switch (op->v1->obj->type) {
-    case T_INT: 
-        if (calc2_int(op)) break; return NULL;
+    case T_INT: return calc2_int(op);
     case T_BOOL:
         int_from_int(&tmp, op->v1->u.boolean);
         op->v1 = &tmp;
-        if (calc2_int(op)) break; return NULL;
+        return calc2_int(op);
     default:
         if (op->op != &o_IN) {
             return op->v1->obj->calc2(op);

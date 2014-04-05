@@ -163,68 +163,68 @@ static int almost_equal(double a, double b) {
     return b - a <= b * 0.0000000005;
 }
 
-int calc2_double(oper_t op, double v1, double v2) {
+MUST_CHECK struct value_s *calc2_double(oper_t op, double v1, double v2) {
     struct value_s *v = op->v;
     switch (op->op->u.oper.op) {
-    case O_CMP: int_from_int(v, almost_equal(v1, v2) ? 0 : ((v1 > v2) - (v1 < v2))); return 0;
-    case O_EQ: bool_from_int(v, almost_equal(v1, v2)); return 0;
-    case O_NE: bool_from_int(v, !almost_equal(v1, v2)); return 0;
-    case O_LT: bool_from_int(v, (v1 < v2) && !almost_equal(v1, v2)); return 0;
-    case O_LE: bool_from_int(v, (v1 < v2) || almost_equal(v1, v2)); return 0;
-    case O_GT: bool_from_int(v, (v1 > v2) && !almost_equal(v1, v2)); return 0;
-    case O_GE: bool_from_int(v, (v1 > v2) || almost_equal(v1, v2)); return 0;
-    case O_ADD: float_from_double(v, v1 + v2); return 0;
-    case O_SUB: float_from_double(v, v1 - v2); return 0;
-    case O_MUL: float_from_double(v, v1 * v2); return 0;
+    case O_CMP: int_from_int(v, almost_equal(v1, v2) ? 0 : ((v1 > v2) - (v1 < v2))); return NULL;
+    case O_EQ: return truth_reference(almost_equal(v1, v2));
+    case O_NE: return truth_reference(!almost_equal(v1, v2));
+    case O_LT: return truth_reference(v1 < v2 && !almost_equal(v1, v2));
+    case O_LE: return truth_reference(v1 < v2 || almost_equal(v1, v2));
+    case O_GT: return truth_reference(v1 > v2 && !almost_equal(v1, v2));
+    case O_GE: return truth_reference(v1 > v2 || almost_equal(v1, v2));
+    case O_ADD: float_from_double(v, v1 + v2); return NULL;
+    case O_SUB: float_from_double(v, v1 - v2); return NULL;
+    case O_MUL: float_from_double(v, v1 * v2); return NULL;
     case O_DIV:
-        if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
-        float_from_double(v, v1 / v2); return 0;
+        if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return NULL; }
+        float_from_double(v, v1 / v2); return NULL;
     case O_MOD:
-        if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
+        if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return NULL; }
         v->obj = FLOAT_OBJ; 
         v->u.real = fmod(v1, v2); 
         if (v->u.real && ((v2 < 0.0) != (v->u.real < 0))) v->u.real += v2;
-        return 0;
+        return NULL;
     case O_AND:
         v->obj = FLOAT_OBJ; 
         v->u.real = (ival_t)floor(v1) & (ival_t)floor(v2);
         v1 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v->u.real += ((uval_t)floor(v1 * 2.0) & (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
-        return 0;
+        return NULL;
     case O_OR:
         v->obj = FLOAT_OBJ; 
         v->u.real = (ival_t)floor(v1) | (ival_t)floor(v2);
         v1 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v->u.real += ((uval_t)floor(v1 * 2.0) | (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
-        return 0;
+        return NULL;
     case O_XOR:
         v->obj = FLOAT_OBJ; 
         v->u.real = (ival_t)floor(v1) | (ival_t)floor(v2);
         v1 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v->u.real += ((uval_t)floor(v1 * 2.0) ^ (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
-        return 0;
-    case O_LSHIFT: float_from_double(v, v1 * pow(2.0, v2)); return 0;
-    case O_RSHIFT: float_from_double(v, v1 * pow(2.0, -v2)); return 0;
+        return NULL;
+    case O_LSHIFT: float_from_double(v, v1 * pow(2.0, v2)); return NULL;
+    case O_RSHIFT: float_from_double(v, v1 * pow(2.0, -v2)); return NULL;
     case O_EXP: 
         if (!v1) {
             if (v2 < 0.0) {
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_DIVISION_BY_Z;
                 v->u.error.epoint = op->epoint2;
-                return 0;
+                return NULL;
             }
             v->obj = FLOAT_OBJ; 
             v->u.real = 0.0;
-            return 0;
+            return NULL;
         } 
         if (v1 < 0.0 && floor(v2) != v2) {
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_NEGFRAC_POWER;
             v->u.error.epoint = op->epoint2;
-            return 0;
+            return NULL;
         }
         v->obj = FLOAT_OBJ; 
         v->u.real = pow(v1, v2); 
@@ -233,10 +233,11 @@ int calc2_double(oper_t op, double v1, double v2) {
             v->u.error.num = ERROR_CONSTNT_LARGE;
             v->u.error.epoint = op->epoint3;
         }
-        return 0;
+        return NULL;
     default: break;
     }
-    return 1;
+    obj_oper_error(op);
+    return NULL;
 }
 
 void float_from_double(struct value_s *v, double d) {
@@ -253,7 +254,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_FLOAT:
     case T_CODE: 
         if (op->v2->obj->real(op->v2, op->v, &d, &op->epoint2)) return NULL;
-        if (calc2_double(op, op->v1->u.real, d)) break; return NULL;
+        return calc2_double(op, op->v1->u.real, d);
     default:
         if (op->op != &o_MEMBER) {
             return op->v2->obj->rcalc2(op);
@@ -272,7 +273,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     case T_FLOAT:
     case T_CODE:
         if (op->v1->obj->real(op->v1, op->v, &d, &op->epoint)) return NULL;
-        if (calc2_double(op, d, op->v2->u.real)) break; return NULL;
+        return calc2_double(op, d, op->v2->u.real);
     default:
         if (op->op != &o_IN) {
             return op->v1->obj->calc2(op);

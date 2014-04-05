@@ -395,16 +395,10 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
                 if (result->obj == BOOL_OBJ && result->u.boolean) return result;
                 val_destroy(result);
             } else if (new_value.obj == BOOL_OBJ) {
-                if (new_value.u.boolean) {
-                    if (v == v1) obj_destroy(v);
-                    bool_from_int(v, 1);
-                    return NULL;
-                }
+                if (new_value.u.boolean) return truth_reference(1);
             } else new_value.obj->destroy(&new_value);
         }
-        if (v == v1 || v == v2) v->obj->destroy(v);
-        bool_from_int(v, 0);
-        return NULL;
+        return truth_reference(0);
     }
     switch (v1->obj->type) {
     case T_CODE:

@@ -24,7 +24,7 @@ extern obj_t FLOAT_OBJ;
 
 extern void floatobj_init(void);
 
-extern int calc2_double(oper_t, double, double);
+extern MUST_CHECK struct value_s *calc2_double(oper_t, double, double);
 extern void float_from_double(struct value_s *, double);
 
 #endif

@@ -27,9 +27,9 @@
 #include "bitsobj.h"
 
 struct value_s none_value;
-struct value_s true_value;
-struct value_s false_value;
-struct value_s gap_value;
+struct value_s *true_value;
+struct value_s *false_value;
+struct value_s *gap_value;
 struct value_s null_str;
 struct value_s null_bytes;
 struct value_s null_bits;
@@ -119,7 +119,7 @@ static inline void value_free(union values_u *val) {
 struct value_s *val_alloc(void) {
     struct value_s *val;
     size_t i;
-//    return (struct value_s *)malloc(sizeof(struct value_s));
+//    val = (struct value_s *)malloc(sizeof(struct value_s)); val->refcount = 1; return val;
     val = (struct value_s *)values_free;
     values_free = values_free->next;
     if (!values_free) {
@@ -244,14 +244,14 @@ void init_values(void)
 
     none_value.obj = NONE_OBJ;
     none_value.refcount = 0;
-    true_value.obj = BOOL_OBJ;
-    true_value.refcount = 0;
-    true_value.u.boolean = 1;
-    false_value.obj = BOOL_OBJ;
-    false_value.refcount = 0;
-    false_value.u.boolean = 0;
-    gap_value.obj = GAP_OBJ;
-    gap_value.refcount = 1;
+    true_value = val_alloc();
+    true_value->obj = BOOL_OBJ;
+    true_value->u.boolean = 1;
+    false_value = val_alloc();
+    false_value->obj = BOOL_OBJ;
+    false_value->u.boolean = 0;
+    gap_value = val_alloc();
+    gap_value->obj = GAP_OBJ;
     null_str.obj = STR_OBJ;
     null_str.refcount = 0;
     null_str.u.str.len = 0;
@@ -596,6 +596,11 @@ void init_values(void)
 void destroy_values(void)
 {
     struct values_s *old;
+
+    val_destroy(true_value);
+    val_destroy(false_value);
+    val_destroy(gap_value);
+
     while (values) {
         old = values;
         values = values->next;
