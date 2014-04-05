@@ -453,7 +453,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return NULL;
 }
 
-static inline void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t epoint) {
+static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t epoint) {
     struct value_s **vals, tmp;
     size_t i, i2;
     size_t ln2;
@@ -462,14 +462,14 @@ static inline void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end,
     uval_t val;
 
     if (!ln) {
-        TUPLE_OBJ->copy(&null_tuple, v); return;
+        TUPLE_OBJ->copy(&null_tuple, v); return NULL;
     }
     if (v1->u.code.pass != pass) {
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = *epoint;
         v->u.error.u.ident = v1->u.code.parent->name;
-        return;
+        return NULL;
     }
     vals = list_create_elements(&tmp, ln);
     i = 0;
@@ -502,9 +502,10 @@ static inline void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end,
     v->obj = TUPLE_OBJ;
     v->u.list.len = ln;
     v->u.list.data = vals;
+    return NULL;
 }
 
-static void iindex(oper_t op) {
+static MUST_CHECK struct value_s *iindex(oper_t op) {
     struct value_s **vals, tmp;
     size_t i, i2;
     size_t ln, ln2;
@@ -519,7 +520,7 @@ static void iindex(oper_t op) {
         v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = op->epoint;
         v->u.error.u.ident = v1->u.code.parent->name;
-        return;
+        return NULL;
     }
 
     ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
@@ -528,7 +529,7 @@ static void iindex(oper_t op) {
 
     if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
-            TUPLE_OBJ->copy(&null_tuple, v); return;
+            TUPLE_OBJ->copy(&null_tuple, v); return NULL;
         }
         vals = list_create_elements(&tmp, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {
@@ -538,7 +539,7 @@ static void iindex(oper_t op) {
                 v->u.list.len = i;
                 TUPLE_OBJ->destroy(v);
                 err.obj->copy_temp(&err, v);
-                return;
+                return NULL;
             }
             offs2 = offs * ln2;
             val = 0;
@@ -565,18 +566,18 @@ static void iindex(oper_t op) {
         v->obj = TUPLE_OBJ;
         v->u.list.data = vals;
         v->u.list.len = i;
-        return;
+        return NULL;
     }
     if (v2->obj == COLONLIST_OBJ) {
         ival_t length, end, step;
         length = sliceparams(op, ln, &offs, &end, &step);
-        if (length < 0) return;
+        if (length < 0) return NULL;
         return slice(v1, length, offs, end, step, v, &op->epoint);
     }
     offs = indexoffs(v2, &err, ln, &op->epoint2);
     if (offs < 0) {
         err.obj->copy_temp(&err, v);
-        return;
+        return NULL;
     }
 
     offs2 = offs * ln2;
@@ -595,6 +596,7 @@ static void iindex(oper_t op) {
     if (r < 0) v->obj = GAP_OBJ;
     else if (v1->u.code.dtype < 0) int_from_ival(v,  (ival_t)val);
     else int_from_uval(v, val);
+    return NULL;
 }
 
 void codeobj_init(void) {

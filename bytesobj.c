@@ -495,19 +495,19 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return NULL;
 }
 
-static inline void slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
+static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
     uint8_t *p;
     uint8_t *p2;
     struct value_s tmp;
 
     if (!len1) {
         if (v1 == v) destroy(v);
-        copy(&null_bytes, v);return;
+        copy(&null_bytes, v);return NULL;
     }
     if (step == 1) {
         if (len1 == v1->u.bytes.len) {
             if (v1 != v) copy(v1, v);
-            return; /* original bytes */
+            return NULL; /* original bytes */
         }
         p = p2 = bnew(&tmp, len1);
         memcpy(p2, v1->u.bytes.data + offs, len1);
@@ -526,9 +526,10 @@ static inline void slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t en
     v->obj = BYTES_OBJ;
     v->u.bytes.len = len1;
     v->u.bytes.data = p;
+    return NULL;
 }
 
-static void iindex(oper_t op) {
+static MUST_CHECK struct value_s *iindex(oper_t op) {
     uint8_t *p, b;
     uint8_t *p2;
     size_t len1, len2;
@@ -541,7 +542,7 @@ static void iindex(oper_t op) {
     if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
             if (v1 == v) destroy(v);
-            copy(&null_bytes, v);return;
+            copy(&null_bytes, v);return NULL;
         }
         len2 = v2->u.list.len;
         p = p2 = bnew(&tmp, len2);
@@ -551,7 +552,7 @@ static void iindex(oper_t op) {
                 if (p != tmp.u.bytes.val) free(p);
                 if (v1 == v) destroy(v);
                 err.obj->copy_temp(&err, v);
-                return;
+                return NULL;
             }
             *p2++ = v1->u.bytes.data[offs];
         }
@@ -563,19 +564,19 @@ static void iindex(oper_t op) {
         v->obj = BYTES_OBJ;
         v->u.bytes.len = len2;
         v->u.bytes.data = p;
-        return;
+        return NULL;
     }
     if (v2->obj == COLONLIST_OBJ) {
         ival_t length, end, step;
         length = sliceparams(op, len1, &offs, &end, &step);
-        if (length < 0) return;
+        if (length < 0) return NULL;
         return slice(v1, length, offs, end, step, v);
     }
     offs = indexoffs(v2, &err, len1, &op->epoint2);
     if (offs < 0) {
         if (v1 == v) destroy(v);
         err.obj->copy_temp(&err, v);
-        return;
+        return NULL;
     }
     b = v1->u.bytes.data[offs];
     if (v1 == v) destroy(v);
@@ -583,6 +584,7 @@ static void iindex(oper_t op) {
     v->u.bytes.len = 1;
     v->u.bytes.val[0] = b;
     v->u.bytes.data = v->u.bytes.val;
+    return NULL;
 }
 
 void bytesobj_init(void) {
