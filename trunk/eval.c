@@ -716,6 +716,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
     default: break;
     }
     if (args != 1) err_msg_argnum(args, 1, 1, &vals[1].epoint); else {
+        struct value_s *result;
         struct oper_s oper;
         oper.op = &o_INDEX;
         oper.v1 = vals->val;
@@ -724,12 +725,15 @@ static void indexes(struct values_s *vals, unsigned int args) {
         oper.epoint2 = v[0].epoint;
         oper.epoint3 = vals[1].epoint;
         if (vals->val->refcount != 1) {
-            oper.v = val_alloc();
-            oper.v1->obj->iindex(&oper);
+            oper.v = val_alloc(); oper.v->obj = NONE_OBJ;
+            result = oper.v1->obj->iindex(&oper);
             val_destroy(vals->val); vals->val = oper.v;
         } else {
             oper.v = oper.v1;
-            oper.v1->obj->iindex(&oper);
+            result = oper.v1->obj->iindex(&oper);
+        }
+        if (result) {
+            val_destroy(vals->val); vals->val = result;
         }
         return;
     }

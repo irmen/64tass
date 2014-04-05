@@ -691,7 +691,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return NULL;
 }
 
-static inline void slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
+static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
     size_t len2;
     uint8_t *p;
     uint8_t *p2;
@@ -699,12 +699,12 @@ static inline void slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t en
 
     if (!len1) {
         if (v1 == v) destroy(v);
-        copy(&null_str, v);return;
+        copy(&null_str, v);return NULL;
     }
     if (step == 1) {
         if (len1 == v1->u.str.chars) {
             if (v1 != v) copy(v1, v);
-            return; /* original string */
+            return NULL; /* original string */
         }
         if (v1->u.str.len == v1->u.str.chars) {
             len2 = len1;
@@ -772,9 +772,10 @@ static inline void slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t en
     v->u.str.chars = len1;
     v->u.str.len = len2;
     v->u.str.data = p;
+    return NULL;
 }
 
-static void iindex(oper_t op) {
+static MUST_CHECK struct value_s *iindex(oper_t op) {
     uint8_t *p;
     uint8_t *p2;
     size_t len1, len2;
@@ -787,7 +788,7 @@ static void iindex(oper_t op) {
     if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
             if (v1 == v) destroy(v);
-            copy(&null_str, v);return;
+            copy(&null_str, v);return NULL;
         }
         if (v1->u.str.len == v1->u.str.chars) {
             len2 = v2->u.list.len;
@@ -798,7 +799,7 @@ static void iindex(oper_t op) {
                     if (p != tmp.u.str.val) free(p);
                     if (v1 == v) destroy(v);
                     err.obj->copy_temp(&err, v);
-                    return;
+                    return NULL;
                 }
                 *p2++ = v1->u.str.data[offs];
             }
@@ -817,7 +818,7 @@ static void iindex(oper_t op) {
                     if (o != tmp.u.str.val) free(o);
                     if (v1 == v) destroy(v);
                     err.obj->copy_temp(&err, v);
-                    return;
+                    return NULL;
                 }
                 while (offs != j) {
                     if (offs > j) {
@@ -858,19 +859,19 @@ static void iindex(oper_t op) {
         v->u.str.chars = len1;
         v->u.str.len = len2;
         v->u.str.data = p;
-        return;
+        return NULL;
     }
     if (v2->obj == COLONLIST_OBJ) {
         ival_t length, end, step;
         length = sliceparams(op, len1, &offs, &end, &step);
-        if (length < 0) return;
+        if (length < 0) return NULL;
         return slice(v1, length, offs, end, step, v);
     }
     offs = indexoffs(v2, &err, len1, &op->epoint2);
     if (offs < 0) {
         if (v1 == v) destroy(v);
         err.obj->copy_temp(&err, v);
-        return;
+        return NULL;
     }
 
     if (v1->u.str.len == v1->u.str.chars) {
@@ -890,6 +891,7 @@ static void iindex(oper_t op) {
     v->u.str.data = p2;
     v->u.str.chars = 1;
     v->u.str.len = len1;
+    return NULL;
 }
 
 static void register_repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {

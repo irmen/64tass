@@ -603,19 +603,19 @@ static void repeat(oper_t op, uval_t rep) {
     v->u.list.len = 0;
 }
 
-static void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
+static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
     struct value_s **vals, tmp;
     size_t i;
 
     if (!ln) {
         if (v1 == v) destroy(v);
         copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
-        return;
+        return NULL;
     }
 
     if (step == 1 && ln == v1->u.list.len && v1->obj == TUPLE_OBJ) {
         if (v1 != v) copy(v1, v);
-        return; /* original tuple */
+        return NULL; /* original tuple */
     }
     vals = lnew(&tmp, ln);
     i = 0;
@@ -631,9 +631,10 @@ static void slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t
     v->obj = v1->obj;
     v->u.list.len = i;
     v->u.list.data = vals;
+    return NULL;
 }
 
-static void iindex(oper_t op) {
+static MUST_CHECK struct value_s *iindex(oper_t op) {
     struct value_s **vals, tmp;
     size_t i, ln;
     ival_t offs;
@@ -645,7 +646,7 @@ static void iindex(oper_t op) {
         if (!v2->u.list.len) {
             if (v1 == v) destroy(v);
             copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
-            return;
+            return NULL;
         }
         vals = lnew(&tmp, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {
@@ -656,7 +657,7 @@ static void iindex(oper_t op) {
                 v->u.list.data = vals;
                 destroy(v);
                 err.obj->copy_temp(&err, v);
-                return;
+                return NULL;
             }
             vals[i] = val_reference(v1->u.list.data[offs]);
         }
@@ -668,24 +669,21 @@ static void iindex(oper_t op) {
         v->obj = v1->obj;
         v->u.list.len = i;
         v->u.list.data = vals;
-        return;
+        return NULL;
     }
     if (v2->obj == COLONLIST_OBJ) {
         ival_t length, end, step;
         length = sliceparams(op, ln, &offs, &end, &step);
-        if (length < 0) return;
+        if (length < 0) return NULL;
         return slice(v1, length, offs, end, step, v);
     }
     offs = indexoffs(v2, &err, ln, &op->epoint2);
     if (offs < 0) {
         if (v1 == v) destroy(v);
         err.obj->copy_temp(&err, v);
-        return;
+        return NULL;
     }
-    v2 = val_reference(v1->u.list.data[offs]);
-    if (v1 == v) destroy(v);
-    v2->obj->copy(v2, v);
-    val_destroy(v2);
+    return val_reference(v1->u.list.data[offs]);
 }
 
 static void init(struct obj_s *obj) {

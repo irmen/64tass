@@ -275,12 +275,12 @@ static void invalid_repeat(oper_t op, uval_t rep) {
     obj_oper_error(op);
 }
 
-static void invalid_iindex(oper_t op) {
+static MUST_CHECK struct value_s *invalid_iindex(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        ERROR_OBJ->iindex(op);
-        return;
+        return ERROR_OBJ->iindex(op);
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 static int MUST_CHECK invalid_ival(const struct value_s *v1, struct value_s *v, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
@@ -584,7 +584,7 @@ static MUST_CHECK struct value_s *dict_rcalc2(oper_t op) {
     return op->v1->obj->calc2(op);
 }
 
-static void dict_iindex(oper_t op) {
+static MUST_CHECK struct value_s *dict_iindex(oper_t op) {
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     struct pair_s pair;
     const struct avltree_node *b;
@@ -593,26 +593,18 @@ static void dict_iindex(oper_t op) {
     if (pair.hash >= 0) {
         b = avltree_lookup(&pair.node, &v1->u.dict.members, pair_compare);
         if (b) {
-            const struct pair_s *p;
-            p = cavltree_container_of(b, struct pair_s, node);
-            v2 = val_reference(p->data);
-            if (v1 == v) dict_destroy(v);
-            v2->obj->copy(v2, v);
-            val_destroy(v2);
-            return;
+            const struct pair_s *p = cavltree_container_of(b, struct pair_s, node);
+            return val_reference(p->data);
         }
         if (v1->u.dict.def) {
-            v2 = val_reference(v1->u.dict.def);
-            if (v1 == v) dict_destroy(v);
-            v2->obj->copy(v2, v);
-            val_destroy(v2);
-            return;
+            return val_reference(v1->u.dict.def);
         }
         if (v1 == v) dict_destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_____KEY_ERROR;
         v->u.error.epoint = op->epoint2;
     }
+    return NULL;
 }
 
 static void error_destroy(struct value_s *v1) {
@@ -681,11 +673,12 @@ static void error_repeat(oper_t op, uval_t UNUSED(rep)) {
     error_copy(op->v1, v);
 }
 
-static void error_iindex(oper_t op) {
+static MUST_CHECK struct value_s *error_iindex(oper_t op) {
     struct value_s *v = op->v;
-    if (v == op->v1) return;
+    if (v == op->v1) return NULL;
     if (v == op->v2) v->obj->destroy(v);
     error_copy(op->v1, v);
+    return NULL;
 }
 
 static MUST_CHECK struct value_s *ident_rcalc2(oper_t op) {

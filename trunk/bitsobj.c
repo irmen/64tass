@@ -1088,7 +1088,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return NULL;
 }
 
-static inline void slice(struct value_s *vv1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *vv) {
+static inline MUST_CHECK struct value_s *slice(struct value_s *vv1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *vv) {
     size_t bo, wo, bl, wl, sz;
     bdigit_t uv;
     bdigit_t *v, *v1;
@@ -1098,12 +1098,12 @@ static inline void slice(struct value_s *vv1, uval_t ln, ival_t offs, ival_t end
 
     if (!ln) {
         if (vv1 == vv) destroy(vv);
-        copy(&null_bits, vv);return;
+        copy(&null_bits, vv);return NULL;
     }
     if (step == 1) {
         if (ln == vv1->u.bits.len) {
             if (vv1 != vv) copy(vv1, vv);
-            return; /* original bits */
+            return NULL; /* original bits */
         }
 
         bo = offs % (8 * sizeof(bdigit_t));
@@ -1163,9 +1163,10 @@ static inline void slice(struct value_s *vv1, uval_t ln, ival_t offs, ival_t end
     vv->u.bits.len = sz;
     vv->u.bits.inv = 0;
     vv->u.bits.data = v;
+    return NULL;
 }
 
-static void iindex(oper_t op) {
+static MUST_CHECK struct value_s *iindex(oper_t op) {
     size_t ln, sz;
     ival_t offs;
     size_t i, o;
@@ -1181,7 +1182,7 @@ static void iindex(oper_t op) {
     if (vv2->obj == LIST_OBJ) {
         if (!vv2->u.list.len) {
             if (vv1 == vv) destroy(vv);
-            copy(&null_bits, vv);return;
+            copy(&null_bits, vv);return NULL;
         }
         sz = (vv2->u.list.len + 8 * sizeof(bdigit_t) - 1) / (8 * sizeof(bdigit_t));
 
@@ -1195,7 +1196,7 @@ static void iindex(oper_t op) {
                 if (tmp.u.bits.val != v) free(v);
                 if (vv1 == vv) destroy(vv);
                 err.obj->copy_temp(&err, vv);
-                return;
+                return NULL;
             }
             o = offs / 8 / sizeof(bdigit_t);
             if (o < vv1->u.bits.len && ((vv1->u.bits.data[o] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
@@ -1222,19 +1223,19 @@ static void iindex(oper_t op) {
         vv->u.bits.len = sz;
         vv->u.bits.inv = 0;
         vv->u.bits.data = v;
-        return;
+        return NULL;
     }
     if (vv2->obj == COLONLIST_OBJ) {
         ival_t length, end, step;
         length = sliceparams(op, ln, &offs, &end, &step);
-        if (length < 0) return;
+        if (length < 0) return NULL;
         return slice(vv1, length, offs, end, step, vv);
     }
     offs = indexoffs(vv2, &err, ln, &op->epoint2);
     if (offs < 0) {
         if (vv1 == vv) destroy(vv);
         err.obj->copy_temp(&err, vv);
-        return;
+        return NULL;
     }
 
     uv = inv;
@@ -1244,6 +1245,7 @@ static void iindex(oper_t op) {
     }
     if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
     bits_from_bool(vv, uv & 1);
+    return NULL;
 }
 
 void bitsobj_init(void) {
