@@ -52,6 +52,9 @@ h3:before { content: counter(counth2) "." counter(counth3) " "; counter-incremen
 h3 { counter-reset: counth4; }
 h4:before { content: counter(counth2) "." counter(counth3) "." counter(counth4) " "; counter-increment: counth4; min-width: 45pt;display:inline-block;}
 caption:before { content: "Table " counter(countcaption) ": "; counter-increment: countcaption; font-weight:bold;}
+h2 a:after, h3 a:after {content: "¶"}
+h2 a, h3 a {color:blue;visibility:hidden;text-decoration:none;}
+h2:hover a, h3:hover a {visibility:visible;}
 
 q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 
@@ -81,7 +84,7 @@ Not everything is backwards compatible.</b></p>
 <p>Project page: <a href="http://sourceforge.net/projects/tass64/">http://sourceforge.net/projects/tass64/</a></p>
 
 <hr>
-<h2>Usage tips</h2>
+<h2>Usage tips<a name="usage-tips" href="#usage-tips"></a></h2>
 <p>64tass is a command line assembler, the source can be written in any text
 editor. As a minimum the source filename must be given on the command line. The
 <q><tt>-a</tt></q> parameter is highly recommended if the source is Unicode or
@@ -192,9 +195,9 @@ hibytes <b class="d">.byte</b> &gt;(<u>-</u>)      <i>; high bytes</i>
 <p>There are some other tips below in the descriptions.</p>
 
 <hr>
-<h2>Expressions and data types</h2>
+<h2>Expressions and data types<a name="expressions-datatypes" href="#expressions-datatypes"></a></h2>
 
-<h3>Integer constants</h3>
+<h3>Integer constants<a name="integers" href="#integers"></a></h3>
 
 <p>Integer constants can be entered as a string of decimal numbers of arbitary length. The
 following operations are accepted:</p>
@@ -255,7 +258,7 @@ true value is the same as 1.</p>
         <b>sta</b> <span>$d018</span>
 </pre>
 
-<h3>Bit string constants</h3>
+<h3>Bit string constants<a name="bit-string" href="#bit-string"></a></h3>
 
 <p>Bit string constants can be entered as hexadecimal by a leading dollar sign or binary with a leading percent sign.
 The following operations are accepted:</p>
@@ -301,7 +304,7 @@ expressions. The higher bits are extended with zeros or ones as needed.</p>
         <b>sta</b> <span>$d015</span>
 </pre>
 
-<h3>Floating point constants</h3>
+<h3>Floating point constants<a name="floating-point" href="#floating-point"></a></h3>
 
 <p>Floating point constants have a radix point in them and optionally
 an exponent. A decimal exponent is <q>e</q> while a binary one is <q>p</q>. The
@@ -379,7 +382,7 @@ point one. This is the reason for the strange definition of inversion.</p>
         <b class="d">.int</b> <span>12.2p8</span>        <i>; 8:8 fixed point number (12.2)</i>
 </pre>
 
-<h3>Character string constants</h3>
+<h3>Character string constants<a name="character-string" href="#character-string"></a></h3>
 
 <p>Strings are enclosed in single or double quotes and can hold any Unicode
 character. Operations like indexing or slicing are always done on the original
@@ -474,7 +477,7 @@ can be used:</p>
         <b class="d">.text</b> <span class="k">format</span>(<span class="s">"<span>%#04x</span> bytes left"</span>, <span>1000</span>)<i>; $03e8 bytes left</i>
 </pre>
 
-<h3>Byte string constants</h3>
+<h3>Byte string constants<a name="byte-string" href="#byte-string"></a></h3>
 
 <p>Byte strings are like strings, but hold bytes instead of characters. They
 can be created by prefixing quoted strings with a <q>b</q>, this converts the
@@ -509,7 +512,7 @@ mystr   <b>=</b> <span class="s">b"oeU"</span>        <i>;convert text to bytes<
         <b class="d">.text</b> <u>mystr</u>     <i>;text as originally encoded</i>
 </pre>
 
-<h3>List and tuples</h3>
+<h3>List and tuples<a name="list-tuples" href="#list-tuples"></a></h3>
 
 <p>Lists and tuples can hold a collection of values. Lists are defined from
 values separated by comma between square brackets <code>[1, 2, 3]</code>, an
@@ -587,7 +590,7 @@ scrlo   <b class="d">.byte</b> &lt;(<u>-</u>)
 scrhi   <b class="d">.byte</b> &gt;(<u>-</u>)
 </pre>
 
-<h3>Dictionaries</h3>
+<h3>Dictionaries<a name="dictionaries" href="#dictionaries"></a></h3>
 
 <p>Dictionaries are unsorted lists holding key and value pairs. Definition is
 done by collecting key:value pairs separated by comma between braces
@@ -611,7 +614,7 @@ and string keys are accepted, the value can be anything.</p>
         <b class="d">.text</b> {<span>1</span>:<span class="s">"one"</span>, <span>2</span>:<span class="s">"two"</span>}[<span>2</span>]<i>; "two"</i>
 </pre>
 
-<h3>Code</h3>
+<h3>Code<a name="code" href="#code"></a></h3>
 <p>Code holds the result of compilation in binary and other enclosed objects.
 In an arithmetic operation it's used as the numeric address of the memory where
 it starts. The compiled content remains static even if later parts of the
@@ -649,7 +652,7 @@ local   <b>lda</b> #<span>0</span>
         <b>jmp</b> <u>mycode</u>.<u>local</u>  <i>;address of local label</i>
 </pre>
 
-<h3>Addressing modes</h3>
+<h3>Addressing modes<a name="addressing" href="#addressing"></a></h3>
 
 <p>Addressing modes are used for determining addressing modes of
 instructions.</p>
@@ -743,7 +746,7 @@ const   <b>=</b> #<span>1</span>              <i>;immediate constant</i>
         <b>ldx</b> <u>const</u>         <i>;results in ldx #$01</i>
 </pre>
 
-<h3>Symbols</h3>
+<h3>Symbols<a name="symbols" href="#symbols"></a></h3>
 
 <p>Symbols are used to reference objects. Regularly named, anonymous and local
 symbols are supported. These can be constant or re-definable.</p>
@@ -884,7 +887,7 @@ variabl	<b class="k">.var</b> <u>variabl</u>+<span>1</span>  <i>;increment it</i
 	<b class="k">.next</b>
 </pre>
 
-<h3>Uninitialized memory</h3>
+<h3>Uninitialized memory<a name="uninitialized" href="#uninitialized"></a></h3>
 
 <p>There's a special value for uninitialized memory, it's represented by a
 question mark. Whenever it's used to generate data it creates a <q>hole</q>
@@ -906,7 +909,7 @@ well.</p>
 	<b class="k">.offs</b> <span>16</span>        <i>;16 bytes</i>
 </pre>
 
-<h3>Conditional expressions</h3>
+<h3>Conditional expressions<a name="conditionals" href="#conditionals"></a></h3>
 <p>Boolean conditional operators give false (0) or true (1) or one of the
 operands as the result. True is defined as a non-zero number, anything else is false.</p>
 
@@ -932,7 +935,7 @@ true or the second (y) if c is false.</p>
 <p>Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.</p>
 
-<h3>Expressions</h3>
+<h3>Expressions<a name="expressions" href="#expressions"></a></h3>
 
 <p>Parenthesis (<code>( )</code>) can be used to override operator precedence.
 Don't forget that they also denote indirect addressing mode for certain
@@ -978,9 +981,9 @@ used to make sure the expected addressing mode is used.</p>
 </pre>
 
 <hr>
-<h2>Compiler directives:</h2>
+<h2>Compiler directives<a name="compiler-directives" href="#compiler-directives"></a></h2>
 
-<h3>Controlling the compile offset and program counter</h3>
+<h3>Controlling the compile offset and program counter<a name="program-counter" href="#program-counter"></a></h3>
 
 <p>Two counters are used while assembling. The compile offset is where the data
 and code ends up in memory, while the program counter is what labels will be
@@ -1024,7 +1027,7 @@ loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst
 	<b class="k">.here</b>          <i>;Compile: $0a00, PC: $0a00</i>
 </pre>
 
-<h3>Dumping data</h3>
+<h3>Dumping data<a name="data-dumping" href="#data-dumping"></a></h3>
 <h4>Storing numeric data</h4>
 <p>Multi byte numeric data is stored in the little-endian order, which is the
 natural byte order for 65xx processors. Numeric ranges are enforced depending
@@ -1215,7 +1218,7 @@ txt	<b class="d">.ptext</b> <span class="s">"note"</span>
 </pre>
 </dl>
 
-<h3>Text encoding</h3>
+<h3>Text encoding<a name="text-encoding" href="#text-encoding"></a></h3>
 <p>64tass supports sources written in UTF-8, UTF-16 (be/le) and RAW 8&nbsp;bit encoding. To take
 advantage of this capability custom encodings can be defined to map Unicode characters
 to 8&nbsp;bit values in strings.</p>
@@ -1265,7 +1268,7 @@ non-typeable control code aliases, or as a simple tokenizer.</p>
         <b class="d">.text</b> <span class="s">"<span>{clr}</span>Text in PETSCII<span>\n</span>"</span>
 </pre>
 
-<h3>Structured data</h3>
+<h3>Structured data<a name="structures" href="#structures"></a></h3>
 
 <p>Structures and unions can be defined to create complex data types. The
 offset of fields are available by using the definition's name. The fields
@@ -1371,7 +1374,7 @@ are assigned after in the <q>zp</q> section.</p>
         <b class="d">.dsection</b> <u>zp</u>    <i>;declare zp section</i>
 </pre>
 
-<h3>Macros</h3>
+<h3>Macros<a name="macros" href="#macros"></a></h3>
 <p>Macros can be used to reduce typing of frequently used source lines.
 Each invocation is a copy of the macro's content with parameter references
 replaced by the parameter texts.</p>
@@ -1460,7 +1463,7 @@ name    <b class="k">.macro</b>
         <b class="k">#name</b> <span class="s">"wth?"</span>	<i>;call macro</i>
 </pre>
 
-<h3>Custom functions</h3>
+<h3>Custom functions<a name="user-functions" href="#user-functions"></a></h3>
 <p>Beyond the built-in functions mentioned earlier it's possible to define
 custom ones for frequently used calculations.</p>
 
@@ -1505,7 +1508,7 @@ mva     <b class="k">.function</b> <u>s</u>, <u>d</u>
         <b class="k">mva</b> #<span>1</span>, <u>label</u>
 </pre>
 
-<h3>Conditional assembly</h3>
+<h3>Conditional assembly<a name="conditional-assembly" href="#conditional-assembly"></a></h3>
 <p>To prevent parts of source from compiling conditional constructs can be
 used. This is useful when multiple slightly different versions needs to be
 compiled from the same source.</p>
@@ -1575,7 +1578,7 @@ statement.</p>
 	<b class="k">.endswitch</b>
 </pre>
 
-<h3>Repetitions</h3>
+<h3>Repetitions<a name="repetitions" href="#repetitions"></a></h3>
 <dl class="dir">
 <dt><a name="d_for">.for</a> &lt;variable&gt;=&lt;expression&gt;, &lt;expression&gt;, &lt;variable&gt;=&lt;expression&gt;
 <dt><a name="d_next">.next</a>
@@ -1623,7 +1626,7 @@ i       <b class="k">.var</b> <u>i</u> - <span>1</span>
 </pre>
 
 </dl>
-<h3>Including files</h3>
+<h3>Including files<a name="including" href="#including"></a></h3>
 
 <p>Longer sources are usually separated into multiple files for easier
 handling. Precomputed binary data can also be included directly without
@@ -1664,7 +1667,7 @@ file separately, like bitmap and colors for example.
 </pre>
 
 </dl>
-<h3>Scopes</h3>
+<h3>Scopes<a name="scopes" href="#scopes"></a></h3>
 <p>Scopes may contain symbols or other scopes nested. They are useful to avoid
 symbol clashes as the same symbol name can repeated as long as it's in a
 different scope.</p>
@@ -1736,7 +1739,7 @@ scope is of course not allowed and it results in double definition error.</p>
 left out from 64tass for of technical reasons, so don't wait for them to appear
 anytime soon.</p>
 
-<h3>Sections</h3>
+<h3>Sections<a name="sections" href="#sections"></a></h3>
 
 <p>Sections can be used to collect data or code into separate memory areas
 without moving source code lines around. This is achieved by having separate
@@ -1890,7 +1893,7 @@ routine <b class="d">.word</b> <u>print</u>
         <b class="k">.send</b> <u>bss</u>
 </pre>
 
-<h3>65816 related</h3>
+<h3>65816 related<a name="w65816" href="#w65816"></a></h3>
 <dl class="dir">
 <dt><a name="d_as">.as</a>
 <dt><a name="d_al">.al</a>
@@ -1925,7 +1928,7 @@ addressing.
 </pre>
 
 </dl>
-<h3>Controlling errors</h3>
+<h3>Controlling errors<a name="compiletime-checks" href="#compiletime-checks"></a></h3>
 <dl class="dir">
 
 <dt><a name="d_page">.page</a>
@@ -1967,7 +1970,7 @@ can ruin the timing of a carefully cycle counted code.
 </pre>
 
 </dl>
-<h3>Target</h3>
+<h3>Target<a name="target-cpu" href="#target-cpu"></a></h3>
 <dl class="dir">
 
 <dt><a name="d_cpu">.cpu</a> &lt;cpuname&gt;
@@ -1986,7 +1989,7 @@ can ruin the timing of a carefully cycle counted code.
 </pre>
 
 </dl>
-<h3>Misc</h3>
+<h3>Misc<a name="misc" href="#misc"></a></h3>
 <dl class="dir">
 
 <dt><a name="d_end">.end</a>
@@ -2015,7 +2018,7 @@ is set to the value of expression or reference of variable.
 <dd>Do not use these, the syntax will change in next version!
 
 </dl>
-<h3>Printer control</h3>
+<h3>Printer control<a name="listing-control" href="#listing-control"></a></h3>
 <dl class="dir">
 
 <dt><a name="d_pron">.pron</a>
@@ -2039,7 +2042,7 @@ reset   <b>cld</b>
 </dl>
 
 <hr>
-<h2>Pseudo instructions</h2>
+<h2>Pseudo instructions<a name="pseudo-instructions" href="#pseudo-instructions"></a></h2>
 
 <p>For writing short code there are some special pseudo instructions for always
 taken branches. These are automatically compiled as relative branches when the
@@ -2097,8 +2100,8 @@ can be used, but only with normal or anonymous labels defined after the jump
 instruction.</p>
 
 <hr>
-<h2>Original turbo assembler compatibility</h2>
-<h3>How to convert source code for use with 64tass</h3>
+<h2>Original turbo assembler compatibility<a name="tasm-compatibility" href="#tasm-compatibility"></a></h2>
+<h3>How to convert source code for use with 64tass<a name="convert" href="#convert"></a></h3>
 <p>Currently there are two options, either use <q>TMPview</q> by Style to convert the
 sourcefile directly, or do the following:</p>
 <ul>
@@ -2154,7 +2157,7 @@ by 64tass, you will have to fix the code instead.</p>
 you get a related error move the respective label out of the <code>.block</code></p>
 
 <hr>
-<h2>Command line options</h2>
+<h2>Command line options<a name="commandline-options" href="#commandline-options"></a></h2>
 
 <h3>Output options</h3>
 
@@ -2504,7 +2507,7 @@ result (list.txt):
 </dl>
 
 <hr>
-<h2>Messages</h2>
+<h2>Messages<a name="messages" href="#messages"></a></h2>
 
 <p>Faults and warnings encountered are sent to standard error for logging. To
 redirect them into a file append <q>2&gt;filename.log</q> after the command. The format of
@@ -2587,7 +2590,7 @@ messages is the following:</p>
 </dl>
 
 <hr>
-<h2>Credits</h2>
+<h2>Credits<a name="credits" href="#credits"></a></h2>
 
 <p>Original written for DOS by Marek Matula of Taboo, then ported to ANSI C by
 BigFoot/Breeze, and finally added 65816 support, DTV, illegal opcodes,
@@ -2600,7 +2603,7 @@ Berlin, snprintf Alain Magloire, Amiga OS4 support files by Janne Per&auml;aho.<
 
 <p>Main developer and maintainer: soci at c64.rulez.org</p>
 <hr>
-<h2>Default translation and escape sequences</h2>
+<h2>Default translation and escape sequences<a name="builtin-translations-escapes" href="#builtin-translations-escapes"></a></h2>
 <h3>Raw 8-bit source</h3>
 <p>By default raw 8-bit encoding is used and nothing is translated or escaped.
 This mode is for compiling sources which are already PETSCII.</p>
@@ -3091,7 +3094,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h2>Opcodes</h2>
+<h2>Opcodes<a name="opcodes" href="#opcodes"></a></h2>
 <h3>Standard 6502 opcodes</h3>
 <table width="100%" class="opcodes">
 <caption>The standard 6502 opcodes</caption>
@@ -3488,7 +3491,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h2>Appendix</h2>
+<h2>Appendix<a name="appendix" href="#appendix"></a></h2>
 
 <h3>Assembler directives</h3>
 <a href="#d_al">.al</a>
