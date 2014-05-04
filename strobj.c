@@ -41,7 +41,6 @@ static inline int utf8len(uint8_t ch) {
     return 6;
 }
 
-
 static void destroy(struct value_s *v1) {
     if (v1->u.str.val != v1->u.str.data) free(v1->u.str.data);
 }
@@ -286,20 +285,16 @@ static struct value_s *MUST_CHECK next(struct value_s *v1, struct value_s *v) {
     return v;
 }
 
-size_t str_from_str(struct value_s *v, linecpos_t *upos, const uint8_t *s) {
+size_t str_from_str(struct value_s *v, const uint8_t *s) {
     size_t i2 = 0;
     size_t i, j;
-    unsigned int u;
     size_t r = 0;
     uint8_t ch2, ch = s[0];
 
     i = 1;
     for (;;) {
         if (!(ch2 = s[i])) {err_msg(ERROR______EXPECTED,"end of string"); break;}
-        if (ch2 & 0x80) {
-            u = utf8len(ch2); 
-            i += u; *upos += u - 1;
-        } else i++;
+        if (ch2 & 0x80)  i += utf8len(ch2); else i++;
         if (ch2 == ch) {
             if (s[i] == ch && !arguments.tasmcomp) {i++;r++;} /* handle 'it''s' */
             else break; /* end of string; */

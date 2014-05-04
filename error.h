@@ -36,7 +36,6 @@ struct file_list_s {
 struct errorbuffer_s {
     size_t max;
     size_t len;
-    size_t chars;
     size_t header_pos;
     uint8_t *data;
 };

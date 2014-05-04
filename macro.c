@@ -47,7 +47,7 @@ int mtranslate(struct file_s *cfile)
     uint8_t ch;
 
     if (cfile->len <= cfile->p) return 1;
-    pline = cfile->data + cfile->p; lpoint.pos = 0; lpoint.upos = 0; lpoint.line++;vline++; cfile->p += strlen((const char *)pline) + 1;
+    pline = cfile->data + cfile->p; lpoint.pos = 0; lpoint.line++;vline++; cfile->p += strlen((const char *)pline) + 1;
     if (!macro_parameters.p) return 0;
 
     q=p=0;
@@ -166,7 +166,7 @@ int mtranslate(struct file_s *cfile)
         if (!macro_parameters.current->pline.data || macro_parameters.current->pline.len < 1024) err_msg_out_of_memory(); /* overflow */
     }
     macro_parameters.current->pline.data[p]=0;
-    pline = macro_parameters.current->pline.data; lpoint.pos = lpoint.upos = 0;
+    pline = macro_parameters.current->pline.data; lpoint.pos = 0;
     return 0;
 }
 
@@ -260,7 +260,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         struct label_s *oldcontext = current_context;
         struct label_s *oldcheap = cheap_context;
         struct file_list_s *cflist;
-        struct linepos_s nopoint = {0,0,0};
+        struct linepos_s nopoint = {0, 0};
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
@@ -343,7 +343,7 @@ struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         struct label_s *oldcontext = current_context;
         struct label_s *oldcheap = cheap_context;
         struct file_list_s *cflist;
-        struct linepos_s nopoint = {0,0,0};
+        struct linepos_s nopoint = {0, 0};
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
@@ -588,7 +588,7 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
         struct linepos_s opoint = lpoint;
         const uint8_t *opline = pline;
         const uint8_t *ollist = llist;
-        struct linepos_s nopoint = {0,0,0};
+        struct linepos_s nopoint = {0, 0};
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
