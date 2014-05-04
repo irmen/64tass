@@ -824,7 +824,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->requires = 0;
                                 label->conflicts = 0;
                                 new_value.obj = LBL_OBJ;
-                                new_value.u.lbl.p = cfile->p;
                                 new_value.u.lbl.sline = lpoint.line;
                                 new_value.u.lbl.waitforp = waitfor_p;
                                 new_value.u.lbl.file_list = cflist;
@@ -841,7 +840,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             label->file_list = cflist;
                             label->epoint = epoint;
                             val->obj = LBL_OBJ;
-                            val->u.lbl.p = cfile->p;
                             val->u.lbl.sline = lpoint.line;
                             val->u.lbl.waitforp = waitfor_p;
                             val->u.lbl.file_list = cflist;
@@ -867,7 +865,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->requires = 0;
                                 label->conflicts = 0;
                                 new_value.obj = obj;
-                                new_value.u.macro.p = cfile->p;
                                 new_value.u.macro.size = 0;
                                 new_value.u.macro.parent = label;
                                 get_macro_params(&new_value);
@@ -884,7 +881,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             label->file_list = cflist;
                             label->epoint = epoint;
                             val->obj = obj;
-                            val->u.macro.p = cfile->p;
                             val->u.macro.size = 0;
                             val->u.macro.parent = label;
                             get_macro_params(val);
@@ -908,7 +904,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->requires = 0;
                                 label->conflicts = 0;
                                 new_value.obj = MFUNC_OBJ;
-                                new_value.u.mfunc.p = cfile->p;
                                 new_value.u.mfunc.label = label;
                                 get_func_params(&new_value, cfile);
                                 var_assign(label, &new_value, 0);
@@ -924,7 +919,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             label->file_list = cflist;
                             label->epoint = epoint;
                             val->obj = MFUNC_OBJ;
-                            val->u.mfunc.p = cfile->p;
                             val->u.mfunc.label = label;
                             get_func_params(val, cfile);
                         }
@@ -958,7 +952,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                     label->conflicts = 0;
                                     new_value.obj = obj;
                                     new_value.u.macro.size = (label->value->obj == obj) ? label->value->u.macro.size : 0;
-                                    new_value.u.macro.p = cfile->p;
                                     new_value.u.macro.parent = label;
                                     get_macro_params(&new_value);
                                     var_assign(label, &new_value, 0);
@@ -975,7 +968,6 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->epoint = epoint;
                                 val->obj = obj;
                                 val->u.macro.size = 0;
-                                val->u.macro.p = cfile->p;
                                 val->u.macro.parent = label;
                                 get_macro_params(val);
                             }
@@ -2210,7 +2202,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct value_s err;
                         if (val->obj->uval(val, &err, &cnt, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err);
                         else if (cnt > 0) {
-                            size_t pos = cfile->p;
                             line_t lin = lpoint.line;
                             int labelexists;
                             struct star_s *s = new_star(vline, &labelexists);
@@ -2226,7 +2217,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             star_tree = &s->tree;lvline = vline = 0;
                             waitfor->breakout = 0;
                             while (cnt--) {
-                                lpoint.line=lin;cfile->p=pos;
+                                lpoint.line=lin;
                                 new_waitfor(W_NEXT2, &epoint);waitfor->skip = 1;lvline = vline;
                                 compile(cflist);
                                 if (waitfor->breakout) break;
@@ -2287,7 +2278,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                             s->addr = star;
                             cflist2 = enterfile(f, &epoint);
-                            lpoint.line = vline = 0; f->p=0;
+                            lpoint.line = vline = 0;
                             star_tree = &s->tree;
                             backr = forwr = 0;
                             reffile=f->uid;
@@ -2335,7 +2326,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 break;
             case CMD_FOR: if (waitfor->skip & 1) 
                 { /* .for */
-                    size_t pos, xpos;
                     line_t lin, xlin;
                     struct linepos_s apoint, bpoint = {0, 0};
                     int nopos = -1;
@@ -2390,7 +2380,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     s->addr = star;
                     star_tree = &s->tree;lvline = vline = 0;
-                    xlin=lin=lpoint.line; xpos=pos=cfile->p; apoint = lpoint;
+                    xlin=lin=lpoint.line; apoint = lpoint;
                     expr = (uint8_t *)malloc(strlen((char *)pline) + 1);
                     if (!expr) err_msg_out_of_memory();
                     strcpy((char *)expr, (char *)pline); var = NULL;
@@ -2440,9 +2430,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         new_waitfor(W_NEXT2, &epoint);waitfor->skip=1;lvline = vline;
                         compile(cflist);
-                        xpos = cfile->p; xlin= lpoint.line;
+                        xlin= lpoint.line;
                         pline = expr;
-                        lpoint.line=lin;cfile->p=pos;
+                        lpoint.line=lin;
                         if (waitfor->breakout) break;
                         if (nopos > 0) {
                             struct linepos_s epoints[3];
@@ -2454,8 +2444,8 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                     }
                     free(expr);
-                    if (pos!=xpos || lin!=xlin) close_waitfor(W_NEXT);
-                    lpoint.line=xlin;cfile->p=xpos;
+                    if (lin!=xlin) close_waitfor(W_NEXT);
+                    lpoint.line=xlin;
                     star_tree = stree_old; vline = ovline + vline - lvline;
                     goto breakerr;
                 } else new_waitfor(W_NEXT, &epoint);
@@ -2565,7 +2555,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (noerr) {
                             lpoint.line = val->u.lbl.sline;
-                            cfile->p = val->u.lbl.p;
                         }
                     } else err_msg_not_defined(NULL, &epoint);
                 }
@@ -3063,7 +3052,6 @@ int main(int argc, char *argv[]) {
             /*	nolisting=0;flist=stderr;*/
             if (i == opts - 1) {
                 cflist = enterfile(fin, &nopoint);
-                fin->p = 0;
                 star_tree = &fin->star;
                 reffile=fin->uid;
                 compile(cflist);
@@ -3074,7 +3062,6 @@ int main(int argc, char *argv[]) {
             cfile = openfile(argv[i], "", 0, NULL, &nopoint);
             cflist = enterfile(cfile, &nopoint);
             if (cfile) {
-                cfile->p = 0;
                 star_tree = &cfile->star;
                 reffile=cfile->uid;
                 compile(cflist);
@@ -3126,7 +3113,6 @@ int main(int argc, char *argv[]) {
 
             if (i == opts - 1) {
                 cflist = enterfile(fin, &nopoint);
-                fin->p = 0; 
                 star_tree = &fin->star;
                 reffile=fin->uid;
                 compile(cflist);
@@ -3138,7 +3124,6 @@ int main(int argc, char *argv[]) {
             cfile = openfile(argv[i], "", 0, NULL, &nopoint);
             cflist = enterfile(cfile, &nopoint);
             if (cfile) {
-                cfile->p = 0;
                 star_tree = &cfile->star;
                 reffile=cfile->uid;
                 compile(cflist);

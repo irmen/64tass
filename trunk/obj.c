@@ -366,7 +366,7 @@ static void macro_copy_temp(const struct value_s *v1, struct value_s *v) {
 
 static int macro_same(const struct value_s *v1, const struct value_s *v2) {
     size_t i;
-    if (v1->obj != v2->obj || v1->u.macro.p != v2->u.macro.p || v1->u.macro.size != v2->u.macro.size || v1->u.macro.parent != v2->u.macro.parent) return 0;
+    if (v1->obj != v2->obj || v1->u.macro.size != v2->u.macro.size || v1->u.macro.parent != v2->u.macro.parent) return 0;
     for (i = 0; i < v1->u.macro.argc; i++) {
         if (str_cmp(&v1->u.macro.param[i].name, &v2->u.macro.param[i].name)) return 0;
         if (str_cmp(&v1->u.macro.param[i].init, &v2->u.macro.param[i].init)) return 0;
@@ -408,7 +408,7 @@ static void mfunc_copy_temp(const struct value_s *v1, struct value_s *v) {
 
 static int mfunc_same(const struct value_s *v1, const struct value_s *v2) {
     size_t i;
-    if (v2->obj != MFUNC_OBJ || v1->u.mfunc.p != v2->u.mfunc.p || v1->u.mfunc.label != v2->u.mfunc.label) return 0;
+    if (v2->obj != MFUNC_OBJ || v1->u.mfunc.label != v2->u.mfunc.label) return 0;
     for (i = 0; i < v1->u.mfunc.argc; i++) {
         if (str_cmp(&v1->u.mfunc.param[i].name, &v2->u.mfunc.param[i].name)) return 0;
         if (v1->u.mfunc.param[i].init != v2->u.mfunc.param[i].init && (!v1->u.mfunc.param[i].init || !v2->u.mfunc.param[i].init || !obj_same(v1->u.mfunc.param[i].init, v2->u.mfunc.param[i].init))) return 0;
@@ -754,7 +754,7 @@ static void none_size(const struct value_s *UNUSED(v1), struct value_s *v, linep
 }
 
 static int lbl_same(const struct value_s *v1, const struct value_s *v2) {
-    return v2->obj == LBL_OBJ && v1->u.lbl.p == v2->u.lbl.p && v1->u.lbl.sline == v2->u.lbl.sline && v1->u.lbl.waitforp == v2->u.lbl.waitforp && v1->u.lbl.file_list == v2->u.lbl.file_list && v1->u.lbl.parent == v2->u.lbl.parent;
+    return v2->obj == LBL_OBJ && v1->u.lbl.sline == v2->u.lbl.sline && v1->u.lbl.waitforp == v2->u.lbl.waitforp && v1->u.lbl.file_list == v2->u.lbl.file_list && v1->u.lbl.parent == v2->u.lbl.parent;
 }
 
 static void struct_size(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {

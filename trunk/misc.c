@@ -173,7 +173,7 @@ static const struct option long_options[]={
 int testarg(int argc,char *argv[], struct file_s *fin) {
     int opt, longind;
     enum {UNKNOWN, UTF8, ISO1} type = UNKNOWN;
-    size_t max_lines = 0;
+    size_t max_lines = 0, fp = 0;
 
     while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1) {
         switch (opt) {
@@ -198,8 +198,8 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                         fin->line = realloc(fin->line, max_lines * sizeof(fin->line[0]));
                         if (!fin->line || max_lines < 1024) err_msg_out_of_memory(); /* overflow */
                     }
-                    fin->line[fin->lines++] = fin->p;
-                    p = fin->data + fin->p; 
+                    fin->line[fin->lines++] = fp;
+                    p = fin->data + fp; 
                     while ((ch=*c++)) {
                         int i, j;
                         if (p + 6*6 + 1 > fin->data + fin->len) {
@@ -264,7 +264,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                         p = fin->data + o;
                     }
                     *p++ = 0;
-                    fin->p = p - fin->data;
+                    fp = p - fin->data;
                 }
                 break;
             case 'B':arguments.longbranch=1;break;
@@ -363,7 +363,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
         fin->line = (size_t *)realloc(fin->line, fin->lines * sizeof(fin->line[0]));
         if (!fin->lines) err_msg_out_of_memory();
     }
-    closefile(fin); fin->len = fin->p; fin->p = 0;
+    closefile(fin); fin->len = fp;
     if (fin->data && !(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
     fin->coding = type;
     if (argc <= optind) {

@@ -43,7 +43,6 @@ typedef struct {
 } dict_t;
 
 typedef struct {
-    size_t p;
     struct label_s *label;
     size_t argc;
     struct {
@@ -55,7 +54,6 @@ typedef struct {
 
 typedef struct {
     size_t size;
-    size_t p;
     size_t argc;
     struct {
 	str_t name;
