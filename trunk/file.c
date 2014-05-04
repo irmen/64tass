@@ -258,7 +258,11 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 return NULL;
             }
             if (ftype) {
-                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Reading file:      %s\n",tmp->realname);
+                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
+                    printf("Reading file:      ");
+                    printable_print((uint8_t *)tmp->realname, stdout);
+                    putchar('\n');
+                }
                 if (!fseek(f, 0, SEEK_END)) {
                     long len = ftell(f);
                     if (len >= 0) {
@@ -279,7 +283,11 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             } else {
                 struct ubuff_s ubuff = {NULL, 0, 0};
                 size_t max_lines = 0;
-                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",tmp->realname);
+                if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
+                    printf("Assembling file:   ");
+                    printable_print((uint8_t *)tmp->realname, stdout);
+                    putchar('\n');
+                }
                 ch=getc(f);
                 ungetc(ch, f); 
                 if (!ch) type = E_UTF16BE; /* most likely */

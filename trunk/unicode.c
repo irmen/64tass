@@ -16,6 +16,10 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#ifndef _WIN32
+#include <wchar.h>
+#endif
+#include <wctype.h>
 #include "unicode.h"
 #include "error.h"
 
@@ -261,5 +265,36 @@ void unfc(struct ubuff_s *b) {
     }
     unormalize(&dbuf);
     ucompose(&dbuf, b);
+}
+
+void printable_print(const uint8_t *line, FILE *f) {
+    size_t i = 0, l = 0;
+    for (;;) {
+        uint32_t ch = line[i];
+        if (ch & 0x80) {
+#if _WIN32
+            i += utf8in(line + i, &ch);
+            if (iswprint(ch)) continue;
+            if (l != i) fwrite(line + l, i - l, 1, f);
+            fprintf(f, "{$%x}", ch);
+#else
+            if (l != i) fwrite(line + l, i - l, 1, f);
+            i += utf8in(line + i, &ch);
+            if (!iswprint(ch) || fprintf(f, "%lc", ch) < 0) fprintf(f, "{$%x}", ch);
+#endif
+            l = i;
+            continue;
+        }
+        if (ch == 0) break;
+        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
+            if (l != i) fwrite(line + l, i - l, 1, f);
+            i++;
+            fprintf(f, "{$%x}", ch);
+            l = i;
+            continue;
+        }
+        i++;
+    }
+    if (i != l) fwrite(line + l, i - l, 1, f);
 }
 

@@ -18,6 +18,7 @@
 */
 #ifndef _UNICODE_H
 #define _UNICODE_H
+#include <stdio.h>
 #include "inttypes.h"
 #include "unicodedata.h"
 
@@ -30,4 +31,5 @@ extern unsigned int utf8in(const uint8_t *, uint32_t *);
 extern unsigned int utf8rin(const uint8_t *, uint32_t *);
 extern uint8_t *utf8out(uint32_t, uint8_t *);
 extern void unfc(struct ubuff_s *);
+extern void printable_print(const uint8_t *, FILE *);
 #endif
