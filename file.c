@@ -290,6 +290,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                         tmp->data = (uint8_t *)malloc(len);
                         if (!tmp->data || len < 4096) err_msg_out_of_memory(); /* overflow */
                         tmp->len = len;
+                        max_lines = (len / 20 + 1024) & ~1023;
+                        tmp->line = (size_t *)malloc(max_lines * sizeof(tmp->line[0]));
+                        if (!tmp->line) max_lines = 0;
                     }
                     rewind(f);
                 }
