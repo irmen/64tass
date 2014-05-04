@@ -128,7 +128,6 @@ struct value_s {
         mfunc_t mfunc;
         macro_t macro;
         struct {
-            size_t p;
             line_t sline;
             size_t waitforp;
             const struct file_list_s *file_list;

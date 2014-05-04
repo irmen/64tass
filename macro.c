@@ -46,8 +46,8 @@ int mtranslate(struct file_s *cfile)
     size_t p;
     uint8_t ch;
 
-    if (cfile->len <= cfile->p) return 1;
-    pline = cfile->data + cfile->p; lpoint.pos = 0; lpoint.line++;vline++; cfile->p += strlen((const char *)pline) + 1;
+    if (lpoint.line >= cfile->lines) return 1;
+    pline = &cfile->data[cfile->line[lpoint.line]]; lpoint.pos = 0; lpoint.line++;vline++;
     if (!macro_parameters.p) return 0;
 
     q=p=0;
@@ -250,9 +250,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         val = compile(tmp2->u.macro.parent->file_list);
         current_context = oldcontext; cheap_context = oldcheap;
     } else {
-        size_t oldpos;
         line_t lin = lpoint.line;
-        struct file_s *f;
         int labelexists;
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
@@ -271,13 +269,10 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         cflist = enterfile(tmp2->u.macro.parent->file_list->file, epoint);
         lpoint.line = tmp2->u.macro.parent->epoint.line;
         new_waitfor(t, &nopoint);
-        f = cflist->file;
-        oldpos = f->p; f->p = tmp2->u.macro.p;
         current_context = context; cheap_context = context;
         val = compile(cflist);
         current_context = oldcontext;star = s->addr;
         cheap_context = oldcheap;
-        f->p = oldpos;
         exitfile();
         star_tree = stree_old; vline = ovline;
         lpoint.line = lin;
@@ -333,9 +328,7 @@ struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_
     else if (i < args) err_msg_argnum(args, i, i, epoint);
     if (max) err_msg_argnum(args, max, tmp2->u.mfunc.argc, epoint);
     {
-        size_t oldpos;
         line_t lin = lpoint.line;
-        struct file_s *f;
         int labelexists;
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
@@ -354,13 +347,10 @@ struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         cflist = enterfile(tmp2->u.mfunc.label->file_list->file, epoint);
         lpoint.line = tmp2->u.mfunc.label->epoint.line;
         new_waitfor(t, &nopoint);
-        f = cflist->file;
-        oldpos = f->p; f->p = tmp2->u.mfunc.p;
         current_context = context; cheap_context = context;
         val = compile(cflist);
         current_context = oldcontext;star = s->addr;
         cheap_context = oldcheap;
-        f->p = oldpos;
         exitfile();
         star_tree = stree_old; vline = ovline;
         lpoint.line = lin;
@@ -578,9 +568,7 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
     if (tuple) val_destroy(tuple);
     else if (i < args) err_msg_argnum(args, i, i, &vals[i].epoint);
     {
-        size_t oldpos;
         line_t lin = lpoint.line;
-        struct file_s *f;
         int labelexists;
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
@@ -598,8 +586,6 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
         star_tree = &s->tree;vline=0;
         lpoint.line = tmp2->u.mfunc.label->epoint.line;
         new_waitfor(W_ENDF2, &nopoint);
-        f = cflist->file;
-        oldpos = f->p; f->p = tmp2->u.mfunc.p;
         current_context = tmp2->u.mfunc.label;
         cheap_context = current_context;
         temporary_label_branch++;
@@ -617,7 +603,6 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
         temporary_label_branch--;
         lpoint = opoint;
         pline = opline;
-        f->p = oldpos;
         star_tree = stree_old; vline = ovline;
         lpoint.line = lin;
         llist = ollist;

@@ -36,7 +36,6 @@ struct file_s {
     size_t lines;
     uint8_t *data;    /* data */
     size_t len;       /* length */
-    size_t p;         /* current point */
     uint16_t open;    /* open/not open */
     uint16_t uid;     /* uid */
     int type;

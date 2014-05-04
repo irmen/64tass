@@ -215,12 +215,12 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         int ch;
         FILE *f;
         uint32_t c = 0;
+        size_t fp = 0;
 
 	lastfi->line=NULL;
 	lastfi->lines=0;
 	lastfi->data=NULL;
 	lastfi->len=0;
-	lastfi->p=0;
         lastfi->open=0;
         lastfi->type=ftype;
         avltree_init(&lastfi->star);
@@ -269,12 +269,12 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     rewind(f);
                 }
                 do {
-                    if (tmp->p + 4096 > tmp->len) {
+                    if (fp + 4096 > tmp->len) {
                         tmp->len += 4096;
                         tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
                         if (!tmp->data || tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
                     }
-                    tmp->p += fread(tmp->data + tmp->p, 1, tmp->len - tmp->p, f);
+                    fp += fread(tmp->data + fp, 1, tmp->len - fp, f);
                 } while (!feof(f));
             } else {
                 struct ubuff_s ubuff = {NULL, 0, 0};
@@ -305,9 +305,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                         tmp->line = realloc(tmp->line, max_lines * sizeof(tmp->line[0]));
                         if (!tmp->line || max_lines < 1024) err_msg_out_of_memory(); /* overflow */
                     }
-                    tmp->line[tmp->lines++] = tmp->p;
+                    tmp->line[tmp->lines++] = fp;
                     ubuff.p = 0;
-                    p = tmp->data + tmp->p;
+                    p = tmp->data + fp;
                     for (;;) {
                         size_t o = p - tmp->data;
                         if (o + 6*6 + 1 > tmp->len) {
@@ -487,11 +487,11 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     }
                     if (!qc) unfc(&ubuff);
                     if (ubuff.p) flushubuff(&ubuff, &p, tmp);
-                    i = (p - tmp->data) - tmp->p;
-                    p = tmp->data + tmp->p;
+                    i = (p - tmp->data) - fp;
+                    p = tmp->data + fp;
                     while (i && p[i-1]==' ') i--;
                     p[i++] = 0;
-                    tmp->p += i;
+                    fp += i;
 
                     if (ch == EOF) break;
                 } while (1);
@@ -503,7 +503,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             }
             if (ferror(f)) err_msg_file(ERROR__READING_FILE, name, epoint);
             if (f!=stdin) fclose(f);
-            tmp->len = tmp->p;
+            tmp->len = fp;
             tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
             if (!tmp->data) err_msg_out_of_memory();
             tmp->coding = type;
@@ -517,7 +517,6 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             strcpy(s, cmd_name); tmp->realname = s;
             tmp->coding = E_UNKNOWN;
         }
-	tmp->p = 0;
 
         tmp->uid=curfnum++;
     } else {
