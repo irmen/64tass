@@ -23,8 +23,8 @@ extern obj_t BYTES_OBJ;
 
 typedef struct {
     size_t len;
-    uint8_t val[24];
     uint8_t *data;
+    uint8_t val[20];
 } bytes_t;
 
 extern void bytesobj_init(void);

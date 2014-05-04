@@ -27,7 +27,7 @@ extern obj_t COLONLIST_OBJ;
 typedef struct {
     size_t len;
     struct value_s **data;
-    struct value_s *val[6];
+    struct value_s *val[5];
 } list_t;
 
 extern void listobj_init(void);
