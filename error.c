@@ -18,6 +18,10 @@
 */
 #include <string.h>
 #include <errno.h>
+#ifndef _WIN32
+#include <wchar.h>
+#endif
+#include <wctype.h>
 #include "error.h"
 #include "misc.h"
 #include "values.h"
@@ -25,6 +29,7 @@
 #include "variables.h"
 #include "64tass.h"
 #include "strobj.h"
+#include "unicode.h"
 
 static unsigned int errors = 0, warnings = 0;
 
@@ -555,18 +560,82 @@ static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
     return &file->data[file->line[line - 1]];
 }
 
+static inline void caret_print(const uint8_t *line, FILE *f, size_t max) {
+    size_t i, l = 0;
+    for (i = 0; i < max;) {
+        char temp[64];
+        uint32_t ch = line[i];
+        if (ch & 0x80) {
+            i += utf8in(line + i, &ch);
+#ifdef _WIN32
+            if (!iswprint(ch)) l += sprintf(temp, "{$%x}", ch); else l++;
+#else
+            if (!iswprint(ch) || sprintf(temp, "%lc", ch) < 0) l += sprintf(temp, "{$%x}", ch); else l++;
+#endif
+            continue;
+        }
+        if (ch == 0) break;
+        if (ch == '\t') {
+            while (l) { 
+                putc(' ', f); 
+                l--; 
+            }
+            putc('\t', f);
+            i++;
+            continue;
+        }
+        if (ch < 0x20 || ch > 0x7e) l += sprintf(temp, "{$%x}", ch); else l++;
+        i++;
+    }
+    while (l) { 
+        putc(' ', f); 
+        l--; 
+    }
+}
+
+static inline void printable_print2(const uint8_t *line, FILE *f, size_t max) {
+    size_t i, l = 0;
+    for (i = 0; i < max;) {
+        uint32_t ch = line[i];
+        if (ch & 0x80) {
+#ifdef _WIN32
+            i += utf8in(line + i, &ch);
+            if (iswprint(ch)) continue;
+            if (l != i) fwrite(line + l, i - l, 1, f);
+            fprintf(f, "{$%x}", ch);
+#else
+            if (l != i) fwrite(line + l, i - l, 1, f);
+            i += utf8in(line + i, &ch);
+            if (!iswprint(ch) || fprintf(f, "%lc", ch) < 0) fprintf(f, "{$%x}", ch);
+#endif
+            l = i;
+            continue;
+        }
+        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
+            if (l != i) fwrite(line + l, i - l, 1, f);
+            i++;
+            fprintf(f, "{$%x}", ch);
+            l = i;
+            continue;
+        }
+        i++;
+    }
+    if (i != l) fwrite(line + l, i - l, 1, f);
+}
+
 static inline void print_error(FILE *f, const struct error_s *err) {
     const struct file_list_s *cflist = err->file_list;
     linepos_t epoint = &err->epoint;
     const uint8_t *line;
+    int text = (cflist != &file_list);
 
-    if (cflist != &file_list) {
+    if (text) {
         if (cflist != included_from) {
             included_from = cflist;
             while (included_from->parent != &file_list) {
                 line = get_line(included_from->parent->file, included_from->epoint.line);
                 fputs((included_from == cflist) ? "In file included from " : "                      ", f);
-                fputs(included_from->parent->file->realname, f);
+                printable_print((uint8_t *)included_from->parent->file->realname, f);
                 fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, calcpos(line, included_from->epoint.pos, included_from->parent->file->coding == E_UTF8));
                 included_from = included_from->parent;
                 fputs((included_from->parent != &file_list) ? ",\n" : ":\n", f);
@@ -574,7 +643,8 @@ static inline void print_error(FILE *f, const struct error_s *err) {
             included_from = cflist;
         }
         line = get_line(cflist->file, epoint->line);
-        fprintf(f, "%s:%" PRIuline ":%" PRIlinepos ": ", cflist->file->realname, epoint->line, calcpos(line, epoint->pos, cflist->file->coding == E_UTF8));
+        printable_print((uint8_t *)cflist->file->realname, f);
+        fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(line, epoint->pos, cflist->file->coding == E_UTF8));
     } else {
         fputs("<command line>:0:0: ", f);
     }
@@ -589,15 +659,14 @@ static inline void print_error(FILE *f, const struct error_s *err) {
     case SV_ERROR: fputs("error: ", f);break;
     case SV_FATAL: fputs("fatal error: ", f);break;
     }
-    fwrite(((uint8_t *)err) + sizeof(struct error_s), err->len, 1, f);
+    printable_print2(((uint8_t *)err) + sizeof(struct error_s), f, err->len);
     putc('\n', f);
-    if (0 && cflist != &file_list) { /* not yet */
+    if (text) {
         if (err->len != strlen("searched in the global scope") || memcmp((uint8_t*)err + sizeof(struct error_s), "searched in the global scope", err->len)) {
-            size_t i;
             putc(' ', f);
-            fwrite(line, strlen((char *)line), 1, f);
+            printable_print(line, f);
             fputs("\n ", f);
-            for (i = 0; i < epoint->pos; i++) putc((line[i] == '\t') ? '\t' : ' ', f);
+            caret_print(line, f, epoint->pos);
             fputs("^\n", f);
         }
     }

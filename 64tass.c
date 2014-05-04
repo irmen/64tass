@@ -35,6 +35,7 @@
 #include <windows.h>
 #include <wincon.h>
 #endif
+#include <locale.h>
 #include <string.h>
 
 #include <time.h>
@@ -226,25 +227,11 @@ int printaddr(char c, address_t addr, enum lastl_e mode) {
 
 void printllist(int l) {
     if (!nolisting && flist && arguments.source) {
-        const uint8_t *c = llist, *last, *n;
-        uint32_t ch;
-
-        if (c) {
+        if (llist) {
             if (l >= 40) {putc('\n', flist); l = 0;}
             while (l < 40) { l += 8; putc('\t', flist);} 
-            last = c;
-            while ((ch = *c)) {
-                if (ch & 0x80) n=c+utf8in(c, &ch); else n=c+1;
-                if ((ch < 0x20 || ch > 0x7e) && ch!=9) {
-                    fwrite(last, c - last, 1, flist);
-                    fprintf(flist, "{$%x}", ch);
-                    last=n;
-                }
-                c = n;
-            }
-            while (c > last && (c[-1] == 0x20 || c[-1] == 0x09)) c--;
-            fwrite(last, c - last, 1, flist);
-            llist=NULL;
+            printable_print(llist, flist);
+            llist = NULL;
         }
         putc('\n', flist);
     }
@@ -3021,6 +3008,8 @@ int main(int argc, char *argv[]) {
     struct file_list_s *cflist;
     static const str_t none_enc = {4, (const uint8_t *)"none"};
     struct linepos_s nopoint = {0, 0};
+
+    setlocale(LC_ALL, "");
 
     tinit();
 
