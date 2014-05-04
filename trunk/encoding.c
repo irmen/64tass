@@ -668,7 +668,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
 
 static void add_esc(const char **s, struct encoding_s *enc) {
     struct value_s tmp, tmp2;
-    struct linepos_s nopoint = {0,0,0};
+    struct linepos_s nopoint = {0, 0};
     tmp.refcount = 0;
     tmp.obj = STR_OBJ;
     tmp2.refcount = 0;

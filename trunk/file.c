@@ -157,7 +157,8 @@ static void file_free(struct avltree_node *aa)
     struct file_s *a = avltree_container_of(aa, struct file_s, node);
 
     avltree_destroy(&a->star, star_free);
-    free((char *)a->data);
+    free(a->data);
+    free(a->line);
     free((char *)a->name);
     free((char *)a->realname);
     free((char *)a->base);
@@ -188,7 +189,8 @@ static inline void flushubuff(struct ubuff_s *ubuff, uint8_t **pp, struct file_s
     }
 }
 
-static struct file_s *lastfi=NULL;
+static struct file_s *command_line = NULL;
+static struct file_s *lastfi = NULL;
 static uint16_t curfnum=1;
 struct file_s *openfile(const char* name, const char *base, int ftype, const struct value_s *val, linepos_t epoint) {
     const char *base2;
@@ -196,22 +198,26 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
     struct file_s *tmp;
     char *s;
     if (!lastfi) {
-	lastfi = (struct file_s *)malloc(sizeof(struct file_s));
-	if (!lastfi) err_msg_out_of_memory();
+        lastfi = (struct file_s *)malloc(sizeof(struct file_s));
+        if (!lastfi) err_msg_out_of_memory();
     }
-    lastfi->name=name;
     base2 = get_path(NULL, base);
     lastfi->base = base2;
-    b=avltree_insert(&lastfi->node, &file_tree, file_compare);
+    if (name) {
+        lastfi->name=name;
+        b=avltree_insert(&lastfi->node, &file_tree, file_compare);
+    } else {
+        b = command_line ? &command_line->node : NULL;
+        if (!command_line) command_line = lastfi;
+    }
     if (!b) { //new file
 	enum filecoding_e type = E_UNKNOWN;
         int ch;
         FILE *f;
         uint32_t c = 0;
 
-	s = (char *)malloc(strlen(name) + 1);
-	if (!s) err_msg_out_of_memory();
-        strcpy(s, name);lastfi->name = s;
+	lastfi->line=NULL;
+	lastfi->lines=0;
 	lastfi->data=NULL;
 	lastfi->len=0;
 	lastfi->p=0;
@@ -220,8 +226,11 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
         avltree_init(&lastfi->star);
         tmp = lastfi;
         lastfi=NULL;
-        if (name[0]) {
+        if (name) {
             const char *path = NULL;
+            s = (char *)malloc(strlen(name) + 1);
+            if (!s) err_msg_out_of_memory();
+            strcpy(s, name); tmp->name = s;
             if (val) {
                 struct include_list_s *i = include_list.next;
                 f = file_open(name, "rb");
@@ -269,6 +278,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 } while (!feof(f));
             } else {
                 struct ubuff_s ubuff = {NULL, 0, 0};
+                size_t max_lines = 0;
                 if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) printf("Assembling file:   %s\n",tmp->realname);
                 ch=getc(f);
                 ungetc(ch, f); 
@@ -290,6 +300,12 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     int qc = 1;
                     uint8_t cclass = 0;
 
+                    if (tmp->lines >= max_lines) {
+                        max_lines += 1024;
+                        tmp->line = realloc(tmp->line, max_lines * sizeof(tmp->line[0]));
+                        if (!tmp->line || max_lines < 1024) err_msg_out_of_memory(); /* overflow */
+                    }
+                    tmp->line[tmp->lines++] = tmp->p;
                     ubuff.p = 0;
                     p = tmp->data + tmp->p;
                     for (;;) {
@@ -480,6 +496,10 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                     if (ch == EOF) break;
                 } while (1);
                 free(ubuff.data);
+                if (tmp->lines != max_lines) {
+                    tmp->line = (size_t *)realloc(tmp->line, tmp->lines * sizeof(tmp->line[0]));
+                    if (!tmp->lines) err_msg_out_of_memory();
+                }
             }
             if (ferror(f)) err_msg_file(ERROR__READING_FILE, name, epoint);
             if (f!=stdin) fclose(f);
@@ -488,9 +508,13 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             if (!tmp->data) err_msg_out_of_memory();
             tmp->coding = type;
         } else {
+            const char *cmd_name = "<command line>";
             s = (char *)malloc(1);
             if (!s) err_msg_out_of_memory();
-            s[0] = 0; tmp->realname = s;
+            s[0] = 0; tmp->name = s;
+            s = (char *)malloc(strlen(cmd_name) + 1);
+            if (!s) err_msg_out_of_memory();
+            strcpy(s, cmd_name); tmp->realname = s;
             tmp->coding = E_UNKNOWN;
         }
 	tmp->p = 0;
@@ -544,6 +568,7 @@ void destroy_file(void) {
 
     avltree_destroy(&file_tree, file_free);
     free(lastfi);
+    if (command_line) file_free(&command_line->node);
 
     include_list_last = include_list.next;
     while (include_list_last) {

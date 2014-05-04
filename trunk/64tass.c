@@ -351,7 +351,7 @@ void new_waitfor(enum wait_e what, linepos_t epoint) {
 }
 
 static void reset_waitfor(void) {
-    struct linepos_s lpos = {0, 0, 0};
+    struct linepos_s lpos = {0, 0};
     waitfor_p = (size_t)-1;
     new_waitfor(W_NONE, &lpos);
     waitfor->skip=1;
@@ -2337,7 +2337,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .for */
                     size_t pos, xpos;
                     line_t lin, xlin;
-                    struct linepos_s apoint, bpoint = {0, 0, 0};
+                    struct linepos_s apoint, bpoint = {0, 0};
                     int nopos = -1;
                     uint8_t *expr;
                     struct label_s *var;
@@ -2384,7 +2384,7 @@ struct value_s *compile(struct file_list_s *cflist)
 
                     s = new_star(vline, &starexists); stree_old = star_tree; ovline = vline;
                     if (starexists && s->addr != star) {
-                        struct linepos_s nopoint = {0, 0, 0};
+                        struct linepos_s nopoint = {0, 0};
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &nopoint);
                         fixeddig = 0;
                     }
@@ -2415,7 +2415,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             if (varname.len > 1 && varname.data[0] == '_' && varname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &varname, &epoint); goto breakerr;}
                             ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); break;}
                             lpoint.pos++;ignore();
-                            if (!here() || here()==';') {bpoint.pos = bpoint.upos = 0; nopos = 0;}
+                            if (!here() || here()==';') {bpoint.pos = 0; nopos = 0;}
                             else {
                                 int labelexists;
                                 var=new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
@@ -3031,11 +3031,11 @@ int main(int argc, char *argv[]) {
     struct file_s *fin, *cfile;
     struct file_list_s *cflist;
     static const str_t none_enc = {4, (const uint8_t *)"none"};
-    struct linepos_s nopoint = {0, 0, 0};
+    struct linepos_s nopoint = {0, 0};
 
     tinit();
 
-    fin = openfile("", "", 0, NULL, &nopoint);
+    fin = openfile(NULL, "", 0, NULL, &nopoint);
     opts = testarg(argc,argv, fin);
     init_encoding(arguments.toascii);
     init_defaultlabels();

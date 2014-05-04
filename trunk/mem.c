@@ -273,7 +273,7 @@ static void output_mem_atari_xex(FILE *fout, const struct memblocks_s *memblocks
 
 void output_mem(struct memblocks_s *memblocks) {
     FILE* fout;
-    struct linepos_s nopoint = {0,0,0};
+    struct linepos_s nopoint = {0, 0};
 
     memcomp(memblocks);
 

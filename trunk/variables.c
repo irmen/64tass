@@ -428,7 +428,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
 
 void labelprint(void) {
     FILE *flab;
-    struct linepos_s nopoint = {0, 0, 0};
+    struct linepos_s nopoint = {0, 0};
 
     if (arguments.label[0] == '-' && !arguments.label[1]) {
         flab = stdout;
@@ -447,7 +447,7 @@ void init_variables2(struct label_s *label) {
 }
 
 static struct label_s *new_builtin(const char *ident) {
-    struct linepos_s nopoint = {0, 0, 0};
+    struct linepos_s nopoint = {0, 0};
     str_t name;
     struct label_s *label;
     int label_exists;
@@ -468,7 +468,7 @@ void init_variables(void)
     size_t i;
     str_t name;
     int label_exists;
-    struct linepos_s nopoint = {0, 0, 0};
+    struct linepos_s nopoint = {0, 0};
 
     labels = (struct labels_s *)malloc(sizeof(struct labels_s));
     if (!labels) err_msg_out_of_memory();

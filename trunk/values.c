@@ -219,7 +219,7 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 
 int val_print(const struct value_s *v1, FILE *f) {
     struct value_s tmp;
-    struct linepos_s nopoint = {0, 0, 0};
+    struct linepos_s nopoint = {0, 0};
     int len;
     v1->obj->repr(v1, &tmp, &nopoint);
     if (tmp.obj == STR_OBJ) {

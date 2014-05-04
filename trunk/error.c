@@ -29,10 +29,10 @@
 static unsigned int errors = 0, warnings = 0;
 
 static struct file_list_s file_list;
-static const struct file_list_s *included_from;
-static struct file_list_s *current_file_list;
+static const struct file_list_s *included_from = &file_list;
+static struct file_list_s *current_file_list = &file_list;
 
-static struct errorbuffer_s error_list = {0, 0, 0, 0, NULL};
+static struct errorbuffer_s error_list = {0, 0, 0, NULL};
 static struct avltree notdefines;
 
 enum severity_e {
@@ -453,17 +453,14 @@ static void add_user_error2(struct errorbuffer_s *user_error, const uint8_t *s, 
     }
     memcpy(user_error->data + user_error->len, s, len);
     user_error->len += len;
-    user_error->chars += len;
 }
 
 void err_msg_variable(struct errorbuffer_s *user_error, struct value_s *val, linepos_t epoint) {
     struct value_s tmp;
-    if (!val) {user_error->chars = user_error->len = 0;return;}
+    if (!val) {user_error->len = 0;return;}
     val->obj->str(val, &tmp, epoint);
-    if (tmp.obj == STR_OBJ) {
-        add_user_error2(user_error, tmp.u.str.data, tmp.u.str.len);
-        user_error->chars -= tmp.u.str.len - tmp.u.str.chars;
-    } else err_msg_output(&tmp);
+    if (tmp.obj == STR_OBJ) add_user_error2(user_error, tmp.u.str.data, tmp.u.str.len);
+    else err_msg_output(&tmp);
     tmp.obj->destroy(&tmp);
 }
 
@@ -534,33 +531,53 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
     return;
 }
 
+static inline int utf8len(uint8_t ch) {
+    if (ch < 0x80) return 1;
+    if (ch < 0xe0) return 2;
+    if (ch < 0xf0) return 3;
+    if (ch < 0xf8) return 4;
+    if (ch < 0xfc) return 5;
+    return 6;
+}
+
+static linecpos_t calcpos(const uint8_t *line, size_t pos, int utf8) {
+    if (utf8) return pos + 1;
+    size_t s = 0, l = 0;
+    while (s < pos) {
+        if (!line[s]) break;
+        s += utf8len(line[s]);
+        l++;
+    }
+    return l + 1;
+}
+
+static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
+    return &file->data[file->line[line - 1]];
+}
+
 static inline void print_error(FILE *f, const struct error_s *err) {
     const struct file_list_s *cflist = err->file_list;
     linepos_t epoint = &err->epoint;
-    int utf = 0;
+    const uint8_t *line;
 
-    if (cflist && cflist->parent) {
+    if (cflist != &file_list) {
         if (cflist != included_from) {
             included_from = cflist;
-            while (included_from->parent->parent) {
+            while (included_from->parent != &file_list) {
+                line = get_line(included_from->parent->file, included_from->epoint.line);
                 fputs((included_from == cflist) ? "In file included from " : "                      ", f);
                 fputs(included_from->parent->file->realname, f);
-                fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, included_from->epoint.pos - (included_from->file->coding == E_UTF8 ? 0 : included_from->epoint.upos) + 1);
+                fprintf(f, ":%" PRIuline ":%" PRIlinepos, included_from->epoint.line, calcpos(line, included_from->epoint.pos, included_from->parent->file->coding == E_UTF8));
                 included_from = included_from->parent;
-                fputs(included_from->parent->parent ? ",\n" : ":\n", f);
+                fputs((included_from->parent != &file_list) ? ",\n" : ":\n", f);
             }
             included_from = cflist;
         }
-        if (cflist->file->realname[0]) {
-            utf = (cflist->file->coding == E_UTF8);
-            fputs(cflist->file->realname, f);
-        } else {
-            fputs("<command line>", f);
-        }
+        line = get_line(cflist->file, epoint->line);
+        fprintf(f, "%s:%" PRIuline ":%" PRIlinepos ": ", cflist->file->realname, epoint->line, calcpos(line, epoint->pos, cflist->file->coding == E_UTF8));
     } else {
-        fputs("<command line>", f);
+        fputs("<command line>:0:0: ", f);
     }
-    fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, epoint->pos - (utf ? 0 : epoint->upos) + 1); 
     switch (err->severity) {
     case SV_NOTDEFNOTE:
     case SV_DOUBLENOTE: fputs("note: ", f);break;
@@ -574,6 +591,16 @@ static inline void print_error(FILE *f, const struct error_s *err) {
     }
     fwrite(((uint8_t *)err) + sizeof(struct error_s), err->len, 1, f);
     putc('\n', f);
+    if (0 && cflist != &file_list) { /* not yet */
+        if (err->len != strlen("searched in the global scope") || memcmp((uint8_t*)err + sizeof(struct error_s), "searched in the global scope", err->len)) {
+            size_t i;
+            putc(' ', f);
+            fwrite(line, strlen((char *)line), 1, f);
+            fputs("\n ", f);
+            for (i = 0; i < epoint->pos; i++) putc((line[i] == '\t') ? '\t' : ' ', f);
+            fputs("^\n", f);
+        }
+    }
 }
 
 int error_print(int fix, int newvar, int anyerr) {
@@ -611,7 +638,7 @@ int error_print(int fix, int newvar, int anyerr) {
             if (err->len == err2->len) {
                 if (err->len == strlen("searched in the global scope") && !memcmp((uint8_t*)err + sizeof(struct error_s), "searched in the global scope", err->len)) continue;
                 if (err->file_list == err2->file_list && err->epoint.line == err2->epoint.line && 
-                    err->epoint.pos == err2->epoint.pos && err->epoint.upos == err2->epoint.upos) continue;
+                    err->epoint.pos == err2->epoint.pos) continue;
             }
             break;
         case SV_DOUBLENOTE:
@@ -622,7 +649,7 @@ int error_print(int fix, int newvar, int anyerr) {
             err2 = (const struct error_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
             if (err->file_list == err2->file_list && err->len == err2->len && err->epoint.line == err2->epoint.line && 
-                err->epoint.pos == err2->epoint.pos && err->epoint.upos == err2->epoint.upos) continue;
+                err->epoint.pos == err2->epoint.pos) continue;
             break;
         case SV_WARNING: warnings++; if (!arguments.warning || anyerr) continue; break;
         case SV_CONDERROR: if (!fix) continue; errors++; break;
@@ -664,7 +691,7 @@ void err_msg_out_of_memory(void)
     exit(1);
 }
 
-void err_msg_file(enum errors_e no, const char* prm, linepos_t epoint) {
+void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
     new_error(SV_FATAL, current_file_list, epoint);
     adderror(terr_fatal[no & 63]);
     adderror(prm);
@@ -674,7 +701,7 @@ void err_msg_file(enum errors_e no, const char* prm, linepos_t epoint) {
 }
 
 void error_init(struct errorbuffer_s *error) {
-    error->len = error->chars = error->max = error->header_pos = 0;
+    error->len = error->max = error->header_pos = 0;
     error->data = NULL;
 }
 

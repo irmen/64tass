@@ -170,13 +170,13 @@ static const struct option long_options[]={
     { 0, 0, 0, 0}
 };
 
-int testarg(int argc,char *argv[],struct file_s *fin) {
+int testarg(int argc,char *argv[], struct file_s *fin) {
     int opt, longind;
     enum {UNKNOWN, UTF8, ISO1} type = UNKNOWN;
+    size_t max_lines = 0;
 
-    while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1)
-        switch (opt)
-        {
+    while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1) {
+        switch (opt) {
             case 'w':arguments.warning=0;break;
             case 'q':arguments.quiet=0;break;
             case 'X':arguments.longaddr=1;break;
@@ -193,6 +193,12 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                     uint8_t *p, ch2;
                     uint32_t ch = 0;
 
+                    if (fin->lines >= max_lines) {
+                        max_lines += 1024;
+                        fin->line = realloc(fin->line, max_lines * sizeof(fin->line[0]));
+                        if (!fin->line || max_lines < 1024) err_msg_out_of_memory(); /* overflow */
+                    }
+                    fin->line[fin->lines++] = fin->p;
                     p = fin->data + fin->p; 
                     while ((ch=*c++)) {
                         int i, j;
@@ -352,8 +358,14 @@ int testarg(int argc,char *argv[],struct file_s *fin) {
                     tfree();
                     exit(1);
         }
+    }
+    if (fin->lines != max_lines) {
+        fin->line = (size_t *)realloc(fin->line, fin->lines * sizeof(fin->line[0]));
+        if (!fin->lines) err_msg_out_of_memory();
+    }
     closefile(fin); fin->len = fin->p; fin->p = 0;
     if (fin->data && !(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
+    fin->coding = type;
     if (argc <= optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
               "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);

@@ -90,7 +90,7 @@ struct DATA {
 static size_t listp;
 static const struct values_s *list;
 static size_t largs;
-static struct values_s dummy = {&none_value, {0, 0, 0}};
+static struct values_s dummy = {&none_value, {0, 0}};
 
 static inline const struct values_s *next_arg(void) {
     if (!none && largs > listp) return &list[listp++];

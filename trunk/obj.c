@@ -413,7 +413,6 @@ static int mfunc_same(const struct value_s *v1, const struct value_s *v2) {
         if (str_cmp(&v1->u.mfunc.param[i].name, &v2->u.mfunc.param[i].name)) return 0;
         if (v1->u.mfunc.param[i].init != v2->u.mfunc.param[i].init && (!v1->u.mfunc.param[i].init || !v2->u.mfunc.param[i].init || !obj_same(v1->u.mfunc.param[i].init, v2->u.mfunc.param[i].init))) return 0;
         if (v1->u.mfunc.param[i].epoint.pos != v2->u.mfunc.param[i].epoint.pos) return 0;
-        if (v1->u.mfunc.param[i].epoint.upos != v2->u.mfunc.param[i].epoint.upos) return 0;
     }
     return 1;
 }

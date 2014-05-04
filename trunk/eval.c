@@ -207,7 +207,7 @@ static void get_float(struct value_s *v) {
 }
 
 static void get_string(struct value_s *v) {
-    lpoint.pos += str_from_str(v, &lpoint.upos, pline + lpoint.pos);
+    lpoint.pos += str_from_str(v, pline + lpoint.pos);
 }
 
 void touch_label(struct label_s *tmp) {
@@ -278,7 +278,7 @@ static int get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
     struct value_s *conv, *conv2;
     struct values_s o_oper[256];
     uint8_t operp = 0;
-    struct linepos_s epoint, cpoint = {0, 0, 0};
+    struct linepos_s epoint, cpoint = {0, 0};
     struct value_s *val;
     size_t llen;
     int first;
