@@ -177,7 +177,9 @@ static const char *terr_error[]={
     "can't convert to boolean",
     "not iterable",
     "no fitting addressing mode for opcode",
-    "not a direct page address"
+    "not a direct page address",
+    "not a data bank address",
+    "not a bank 0 address"
 };
 
 static const char *terr_fatal[]={
@@ -253,6 +255,14 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         case ERROR_RESERVED_LABL:
             adderror("reserved symbol name '");
             adderror2(((str_t *)prm)->data, ((str_t *)prm)->len);
+            adderror("'");
+            break;
+        case ERROR_____NOT_BANK0:
+        case ERROR____NOT_DIRECT:
+        case ERROR__NOT_DATABANK:
+            adderror(terr_error[no & 63]);
+            adderror(" '");
+            err_msg_variable(&error_list, (struct value_s *)prm, epoint);
             adderror("'");
             break;
         default:
