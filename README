@@ -2316,7 +2316,13 @@ of messages is the following:
   * severity: Note, warning, error or fatal.
   * message: The fault message itself.
 
-a.asm:4:8: error: page error at $0007d0
+The faulty line may be displayed after the message with a caret pointing to the
+error location.
+
+a.asm:3:21: error: not defined 'label'
+                 lda label
+                     ^
+a.asm:3:21: note: searched in the global scope
 
 Warnings
 
