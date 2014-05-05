@@ -216,7 +216,6 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 break;
             case A_I:
                 if (cnmemonic[ADR_ADDR_I] == 0x6C || cnmemonic[ADR_ADDR_I] == 0x22) {/* jmp ($ffff), jsr ($ffff) */
-                    if (d && opcode != c65816 && opcode != c65c02 && opcode != cr65c02 && opcode != cw65c02 && opcode != c65ce02 && opcode != c65el02 && !(~adr & 0xff)) err_msg(ERROR______JUMP_BUG, NULL);/* jmp ($xxff) */
                     adrgen = AG_B0; opr = ADR_ADDR_I; /* jmp ($ffff) */
                 } else {
                     adrgen = AG_ZP; opr = ADR_ZP_I; /* lda ($ff) */
@@ -482,7 +481,10 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         else if (w != 1) err_msg2(ERROR_NO_ADDRESSING, NULL, epoint);
         if (d) {
             if (val->obj->uval(val, &err, &uval, 16, epoint2)) err_msg_output_and_destroy(&err);
-            else adr = uval;
+            else {
+                adr = uval;
+                if (cnmemonic[opr] == 0x6c && opcode != c65816 && opcode != c65c02 && opcode != cr65c02 && opcode != cw65c02 && opcode != c65ce02 && opcode != c65el02 && !(~adr & 0xff)) err_msg2(ERROR______JUMP_BUG, NULL, epoint);/* jmp ($xxff) */
+            }
         }
         ln = 2;
         break;
