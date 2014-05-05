@@ -56,19 +56,10 @@ int lookup_opcode(const char *s) {
     return -1;
 }
 
-void select_opcodes(int cpumode) {
-    last_mnem = cpumode;
-    switch (cpumode) {
-    case OPCODES_C65C02: mnemonic = mnemonic_c65c02; opcode = c65c02; break;
-    case OPCODES_C65CE02: mnemonic = mnemonic_c65ce02; opcode = c65ce02; break;
-    case OPCODES_C6502I: mnemonic = mnemonic_c6502i; opcode = c6502i; break;
-    case OPCODES_C65816: mnemonic = mnemonic_c65816; opcode = c65816; break;
-    case OPCODES_C65DTV02: mnemonic = mnemonic_c65dtv02; opcode = c65dtv02; break;
-    case OPCODES_C65EL02: mnemonic = mnemonic_c65el02; opcode = c65el02; break;
-    case OPCODES_CR65C02: mnemonic = mnemonic_cr65c02; opcode = cr65c02; break;
-    case OPCODES_CW65C02: mnemonic = mnemonic_cw65c02; opcode = cw65c02; break;
-    default: mnemonic = mnemonic_c6502; opcode = c6502; break;
-    }
+void select_opcodes(const struct cpu_s *cpumode) {
+    last_mnem = cpumode->opcodes;
+    mnemonic = cpumode->mnemonic; 
+    opcode = cpumode->opcode;
 }
 
 int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos_t epoint, struct linepos_s *epoints) {
@@ -391,18 +382,18 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                         } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____)) {
                             if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {/* branch */
                                 longbranch = 0x20; ln = 4;
-                                if (opcode == c65816 && !longbranchasjmp) {
+                                if (opcode == w65816.opcode && !longbranchasjmp) {
                                     if (!labelexists2) adr = (uint16_t)(adr - 3);
                                     adr = 0x8203 + (adr << 16);
                                 } else {
                                     adr = 0x4C03 + (oadr << 16);
                                 }
                             } else {/* bra */
-                                if (opcode == c65816 && !longbranchasjmp) {
+                                if (opcode == w65816.opcode && !longbranchasjmp) {
                                     longbranch = cnmemonic[ADR_REL] ^ 0x82;
                                     if (!labelexists2) adr = (uint16_t)(adr - 1);
                                     ln = 2;
-                                } else if (cnmemonic[ADR_REL] == 0x82 && opcode == c65el02) {
+                                } else if (cnmemonic[ADR_REL] == 0x82 && opcode == c65el02.opcode) {
                                     int dist = (int16_t)adr; dist += (dist < 0) ? 0x80 : -0x7f;
                                     err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint); /* rer not a branch */
                                 } else {
@@ -413,7 +404,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                             /* erro = ERROR___LONG_BRANCH; */
                         } else {
                             if (cnmemonic[ADR_ADDR] != ____) {
-                                if (opcode == c65816 && !longbranchasjmp) {
+                                if (opcode == w65816.opcode && !longbranchasjmp) {
                                     longbranch = cnmemonic[ADR_REL]^0x82;
                                     if (!labelexists2) adr = (uint16_t)(adr - 1);
                                 } else {
@@ -501,7 +492,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 if (val->obj->uval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
                 else if (uval <= 0xffff) {
                     adr = uval;
-                    if (cnmemonic[opr] == 0x6c && opcode != c65816 && opcode != c65c02 && opcode != cr65c02 && opcode != cw65c02 && opcode != c65ce02 && opcode != c65el02 && !(~adr & 0xff)) err_msg2(ERROR______JUMP_BUG, NULL, epoint);/* jmp ($xxff) */
+                    if (cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c65el02.opcode && !(~adr & 0xff)) err_msg2(ERROR______JUMP_BUG, NULL, epoint);/* jmp ($xxff) */
                 } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
             }
         }

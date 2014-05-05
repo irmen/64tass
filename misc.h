@@ -39,7 +39,7 @@ struct arguments_s {
     unsigned longaddr:1;
     unsigned tasmcomp:1;
     const char *output;
-    uint8_t cpumode;
+    const struct cpu_s *cpumode;
     const char *label;
     const char *list;
     enum output_mode_e output_mode;
