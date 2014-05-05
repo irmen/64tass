@@ -38,6 +38,8 @@ struct cpu_s {
     int brl;
 };
 
+extern const uint8_t opcode_table[][ADR_LEN];
+
 extern const struct cpu_s w65816;
 extern const struct cpu_s c6502;
 extern const struct cpu_s c65c02;
