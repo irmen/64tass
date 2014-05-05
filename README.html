@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.51 r675 manual</title>
+<title>64tass v1.51 r701 manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -61,7 +61,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.51 r675 manual</h1>
+<h1>64tass v1.51 r701 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -2057,9 +2057,9 @@ longer. The names are derived from conditional branches and are:
 
 <pre>
 .0000    a9 03          lda #$03        in1     <b>lda</b> #<span>3</span>
-.0002    d0 02          gne $0006               <b>gne</b> <u>at</u>          <i>;branch always</i>
+.0002    d0 02          bne $0006               <b>gne</b> <u>at</u>          <i>;branch always</i>
 .0004    a9 02          lda #$02        in2     <b>lda</b> #<span>2</span>
-.0006    4c 00 10       gne $1000       at      <b>gne</b> <span>$1000</span>       <i>;branch further</i>
+.0006    4c 00 10       jmp $1000       at      <b>gne</b> <span>$1000</span>       <i>;branch further</i>
 </pre>
 
 <p>If the branch would skip only one byte then the opposite condition is compiled
@@ -2069,9 +2069,9 @@ relative distance byte after the opcode is the jumped over byte.</p>
 <p>If the branch would not skip anything at all then no code is generated.</p>
 
 <pre>
-.0009                   geq $0009               <b>geq</b> <u>in3</u>         <i>;zero length "branch"</i>
+.0009                                           <b>geq</b> <u>in3</u>         <i>;zero length "branch"</i>
 .0009    18             clc             in3     <b>clc</b>
-.000a    b0             gcc $000c               <b>gcc</b> <u>at2</u>         <i>;one byte skip, as bcs</i>
+.000a    b0             bcs                     <b>gcc</b> <u>at2</u>         <i>;one byte skip, as bcs</i>
 .000b    38             sec             in4     <b>sec</b>             <i>;sec is skipped!</i>
 .000c    20 0f 00       jsr $000f       at2     <b>jsr</b> <u>func</u>
 .000f                                   func
@@ -2089,8 +2089,15 @@ line using the <q>--long-branch</q> option.</p>
 
 <pre>
 .0000    ea             nop                     <b>nop</b>
-.0001    b0 03 4c 00 10 bcc $1000               <b>bcc</b> <span>$1000</span>      <i>;long branch</i>
-.0006    ea             nop                     <b>nop</b>
+.0001    b0 03          bcs $0006               <b>bcc</b> <span>$1000</span>      <i>;long branch (6502)</i>
+.0003    4c 00 10       jmp $1000
+.0006    1f 17 03       bbr 1,$17,$000c         <b>bbs</b> <span>1</span>,<span>23</span>,<span>$1000</span> <i>;long branch (R65C02)</i>
+.0009    4c 00 10       jmp $1000
+.000c    d0 04          bne $0012               <b>beq</b> <span>$10000</span>     <i>;long branch (65816)</i>
+.000e    5c 00 00 01    jmp $010000
+.0012    30 03          bmi $0017               <b>bpl</b> <span>$1000</span>      <i>;long branch (65816)</i>
+.0014    82 e9 lf       brl $1000
+.0017    ea             nop                     <b>nop</b>
 </pre>
 
 <p>Please note that forward jump expressions like <code>Bxx &lowast;+130</code>,

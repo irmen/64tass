@@ -147,7 +147,9 @@ const struct cpu_s w65816 = {
     mnemonic_w65816,
     opcode_w65816,
     117,
-    0xffffff
+    0xffffff,
+    50,
+    14
 };
 
 static const uint8_t opcode_c6502[]=
@@ -232,7 +234,9 @@ const struct cpu_s c6502 = {
     mnemonic_c6502,
     opcode_c6502,
     70,
-    0xffff
+    0xffff,
+    39,
+    -1
 };
 
 static const uint8_t opcode_c65c02[]=
@@ -329,7 +333,9 @@ const struct cpu_s c65c02 = {
     mnemonic_c65c02,
     opcode_c65c02,
     82,
-    0xffff
+    0xffff,
+    44,
+    -1
 };
 
 static const uint8_t opcode_c6502i[]=
@@ -444,7 +450,9 @@ const struct cpu_s c6502i = {
     mnemonic_c6502i,
     opcode_c6502i,
     100,
-    0xffff
+    0xffff,
+    52,
+    -1
 };
 
 static const uint8_t opcode_c65dtv02[]=
@@ -550,7 +558,9 @@ const struct cpu_s c65dtv02 = {
     mnemonic_c65dtv02,
     opcode_c65dtv02,
     91,
-    0xffff
+    0xffff,
+    50,
+    -1
 };
 
 static const uint8_t opcode_c65el02[]=
@@ -688,7 +698,9 @@ const struct cpu_s c65el02 = {
     mnemonic_c65el02,
     opcode_c65el02,
     123,
-    0xffff
+    0xffff,
+    48,
+    -1
 };
 
 static const uint8_t opcode_r65c02[]=
@@ -789,7 +801,9 @@ const struct cpu_s r65c02 = {
     mnemonic_r65c02,
     opcode_r65c02,
     86,
-    0xffff
+    0xffff,
+    46,
+    -1
 };
 
 static const uint8_t opcode_w65c02[]=
@@ -893,7 +907,9 @@ const struct cpu_s w65c02 = {
     mnemonic_w65c02,
     opcode_w65c02,
     89,
-    0xffff
+    0xffff,
+    47,
+    -1
 };
 
 static const uint8_t opcode_c65ce02[]=
@@ -1016,5 +1032,7 @@ const struct cpu_s c65ce02 = {
     mnemonic_c65ce02,
     opcode_c65ce02,
     108,
-    0xffff
+    0xffff,
+    54,
+    -1
 };

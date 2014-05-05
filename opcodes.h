@@ -34,6 +34,8 @@ struct cpu_s {
     const uint8_t *opcode;
     unsigned int opcodes;
     unsigned int max_address;
+    int jmp;
+    int brl;
 };
 
 extern const struct cpu_s w65816;

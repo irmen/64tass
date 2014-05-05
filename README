@@ -1,4 +1,4 @@
-64tass v1.51 r675 manual
+64tass v1.51 r701 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -1853,9 +1853,9 @@ There's one more called GRA for CPUs supporting BRA, which is expanded to BRL
 (if available) or JMP.
 
 .0000    a9 03          lda #$03        in1     lda #3
-.0002    d0 02          gne $0006               gne at          ;branch always
+.0002    d0 02          bne $0006               gne at          ;branch always
 .0004    a9 02          lda #$02        in2     lda #2
-.0006    4c 00 10       gne $1000       at      gne $1000       ;branch further
+.0006    4c 00 10       jmp $1000       at      gne $1000       ;branch further
 
 If the branch would skip only one byte then the opposite condition is compiled
 and only the first byte is emitted. This is now a never executed jump, and the
@@ -1863,9 +1863,9 @@ relative distance byte after the opcode is the jumped over byte.
 
 If the branch would not skip anything at all then no code is generated.
 
-.0009                   geq $0009               geq in3         ;zero length "branch"
+.0009                                           geq in3         ;zero length "branch"
 .0009    18             clc             in3     clc
-.000a    b0             gcc $000c               gcc at2         ;one byte skip, as bcs
+.000a    b0             bcs                     gcc at2         ;one byte skip, as bcs
 .000b    38             sec             in4     sec             ;sec is skipped!
 .000c    20 0f 00       jsr $000f       at2     jsr func
 .000f                                   func
@@ -1881,8 +1881,15 @@ JMP or BRL. This can be enabled on the command line using the `--long-branch'
 option.
 
 .0000    ea             nop                     nop
-.0001    b0 03 4c 00 10 bcc $1000               bcc $1000      ;long branch
-.0006    ea             nop                     nop
+.0001    b0 03          bcs $0006               bcc $1000      ;long branch (6502)
+.0003    4c 00 10       jmp $1000
+.0006    1f 17 03       bbr 1,$17,$000c         bbs 1,23,$1000 ;long branch (R65C02)
+.0009    4c 00 10       jmp $1000
+.000c    d0 04          bne $0012               beq $10000     ;long branch (65816)
+.000e    5c 00 00 01    jmp $010000
+.0012    30 03          bmi $0017               bpl $1000      ;long branch (65816)
+.0014    82 e9 lf       brl $1000
+.0017    ea             nop                     nop
 
 Please note that forward jump expressions like Bxx *+130, Bxx *+131 and Bxx
 *+132 are not allowed as the compiler can't decide between a short/long branch.
