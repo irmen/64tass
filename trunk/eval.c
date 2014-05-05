@@ -314,7 +314,12 @@ rest:
         case '*': lpoint.pos++;val = push(&epoint);get_star(val);goto other;
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             val = push(&epoint); get_dec(val);goto other;
-        default: if (!get_label()) goto syntaxe; break;
+        default: 
+            if (!get_label()) {
+                if (operp) epoint = o_oper[operp-1].epoint;
+                goto syntaxe;
+            }
+            break;
         }
     as_ident:
         ident.data = pline + epoint.pos;
@@ -370,7 +375,7 @@ rest:
         case '+': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_ADD; lpoint.pos++;continue;
         case '-': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_SUB; lpoint.pos++;continue;
         case ')':
-            if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
+            if (!operp) {err_msg2(ERROR______EXPECTED, "(", &lpoint); goto error;}
             lpoint.pos++;
             operp--;
             if (!operp && first) {
@@ -388,9 +393,10 @@ rest:
         default: goto syntaxe;
         }
         if (!operp) return 1;
-        err_msg(ERROR______EXPECTED,")"); goto error;
+        epoint = o_oper[operp - 1].epoint;
+        err_msg2(ERROR______EXPECTED, ")", &epoint); goto error;
     syntaxe:
-        err_msg(ERROR_EXPRES_SYNTAX,NULL);
+        err_msg2(ERROR_EXPRES_SYNTAX, NULL, &epoint);
     error:
         break;
     }
@@ -1255,7 +1261,7 @@ static int get_val2(struct eval_context_s *ev) {
         v2 = v1; v1 = &values[--vsp-1];
         if (vsp == 0) {
         syntaxe:
-            err_msg(ERROR_EXPRES_SYNTAX,NULL);
+            err_msg(ERROR_EXPRES_SYNTAX, NULL);
             ev->outp2 = ev->outp;
             ev->values_len = 0;
             return 0;
@@ -1380,7 +1386,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         case 'b':*wd=0;break;
         case 'w':*wd=1;break;
         case 'l':*wd=2;break;
-        default:err_msg(ERROR______EXPECTED,"@B or @W or @L"); return 0;
+        default:err_msg2(ERROR______EXPECTED, "@B or @W or @L", &lpoint); return 0;
         }
         lpoint.pos++;
         break;
@@ -1590,6 +1596,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     get_star(val);
                     goto other;
                 }
+                epoint = o_oper[operp-1].epoint;
             }
             goto syntaxe;
         }
@@ -1736,12 +1743,12 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             while (operp) {
                 const struct value_s *o = o_oper[operp-1].val;
                 if (o == &o_PARENT || o == &o_FUNC) break;
-                if (o == &o_BRACKET || o == &o_INDEX || o == &o_BRACE) {err_msg(ERROR______EXPECTED,"("); goto error;}
+                if (o == &o_BRACKET || o == &o_INDEX || o == &o_BRACE) {operp = 0; break;}
                 operp--;
                 push_oper(o_oper[operp].val, &o_oper[operp].epoint);
             }
+            if (!operp) {err_msg2(ERROR______EXPECTED, "(", &lpoint); goto error;}
             lpoint.pos++;
-            if (!operp) {err_msg(ERROR______EXPECTED,"("); goto error;}
             operp--;
             push_oper((o_oper[operp].val == &o_PARENT)? op : o_oper[operp].val, &o_oper[operp].epoint);
             goto other;
@@ -1753,12 +1760,12 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             while (operp) {
                 const struct value_s *o = o_oper[operp-1].val;
                 if (o == &o_BRACKET || o == &o_INDEX) break;
-                if (o == &o_PARENT || o == &o_FUNC || o == &o_BRACE) {err_msg(ERROR______EXPECTED,"["); goto error;}
+                if (o == &o_PARENT || o == &o_FUNC || o == &o_BRACE) {operp = 0; break;}
                 operp--;
                 push_oper(o_oper[operp].val, &o_oper[operp].epoint);
             }
+            if (!operp) {err_msg2(ERROR______EXPECTED, "[", &lpoint); goto error;}
             lpoint.pos++;
-            if (!operp) {err_msg(ERROR______EXPECTED,"["); goto error;}
             operp--;
             push_oper((o_oper[operp].val == &o_BRACKET) ? op : o_oper[operp].val, &o_oper[operp].epoint);
             goto other;
@@ -1769,12 +1776,12 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             while (operp) {
                 const struct value_s *o = o_oper[operp-1].val;
                 if (o == &o_BRACE) break;
-                if (o == &o_BRACKET || o == &o_INDEX || o == &o_PARENT || o == &o_FUNC) {err_msg(ERROR______EXPECTED,"{"); goto error;}
+                if (o == &o_BRACKET || o == &o_INDEX || o == &o_PARENT || o == &o_FUNC) {operp = 0; break;}
                 operp--;
                 push_oper(o_oper[operp].val, &o_oper[operp].epoint);
             }
+            if (!operp) {err_msg2(ERROR______EXPECTED, "{", &lpoint); goto error;}
             lpoint.pos++;
-            if (!operp) {err_msg(ERROR______EXPECTED,"{"); goto error;}
             operp--;
             push_oper((o_oper[operp].val == &o_BRACE) ? op : o_oper[operp].val, &o_oper[operp].epoint);
             goto other;
@@ -1799,15 +1806,15 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         }
         while (operp) {
             const struct value_s *o = o_oper[operp-1].val;
-            if (o == &o_PARENT || o == &o_FUNC) {err_msg(ERROR______EXPECTED,")"); goto error;}
-            if (o == &o_BRACKET || o == &o_INDEX) {err_msg(ERROR______EXPECTED,"]"); goto error;}
-            if (o == &o_BRACE) {err_msg(ERROR______EXPECTED,"}"); goto error;}
+            if (o == &o_PARENT || o == &o_FUNC) {err_msg2(ERROR______EXPECTED, ")", &o_oper[operp - 1].epoint); goto error;}
+            if (o == &o_BRACKET || o == &o_INDEX) {err_msg2(ERROR______EXPECTED,"]", &o_oper[operp - 1].epoint); goto error;}
+            if (o == &o_BRACE) {err_msg2(ERROR______EXPECTED, "}", &o_oper[operp - 1].epoint); goto error;}
             operp--;
             push_oper(o_oper[operp].val, &o_oper[operp].epoint);
         }
         if (!operp) return get_val2(eval);
     syntaxe:
-        err_msg(ERROR_EXPRES_SYNTAX,NULL);
+        err_msg2(ERROR_EXPRES_SYNTAX, NULL, &epoint);
     error:
         break;
     }
