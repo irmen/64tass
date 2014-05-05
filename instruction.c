@@ -79,7 +79,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
     linepos_t epoint2 = &epoints[0];
 
     opr = ADR_IMPLIED;
-    cnmemonic = &opcode[prm * ADR_LEN];
+    cnmemonic = opcode_table[opcode[prm]];
     opname = mnemonic[prm];
     ln = 0; cod = 0; longbranch = 0; adr = 0; adrgen = AG_NONE;
 
@@ -391,7 +391,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                                 list_instr(cod, xadr | 0x300, 2, ADR_BIT_ZP_REL, (cnmemonic[ADR_BIT_ZP_REL] & 0x80) ? 0x626272 : 0x626273);
                                 adr = oadr; opr = ADR_ADDR; ln = 2;
                                 prm = cpu->jmp; longbranch = 0;
-                                cnmemonic = &opcode[prm * ADR_LEN];
+                                cnmemonic = opcode_table[opcode[prm]];
                                 opname = mnemonic[prm];
                             } else {/* bra */
                                 if (cpu->brl >= 0 && !longbranchasjmp) { /* bra -> brl */
@@ -399,7 +399,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                                     if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                                     else {
                                         prm = cpu->brl;
-                                        cnmemonic = &opcode[prm * ADR_LEN];
+                                        cnmemonic = opcode_table[opcode[prm]];
                                         opname = mnemonic[prm];
                                         goto asbrl;
                                     }
