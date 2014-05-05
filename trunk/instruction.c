@@ -28,6 +28,7 @@
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
 static unsigned int last_mnem;
+static const struct cpu_s *cpu;
 
 int longaccu = 0, longindex = 0; // hack
 uint16_t dpage = 0;
@@ -60,7 +61,10 @@ void select_opcodes(const struct cpu_s *cpumode) {
     last_mnem = cpumode->opcodes;
     mnemonic = cpumode->mnemonic; 
     opcode = cpumode->opcode;
+    cpu = cpumode;
 }
+
+static const uint32_t relopnames[8] = { 0x62706C, 0x626d69, 0x627663, 0x627673, 0x626363, 0x626373, 0x626E65, 0x626571 };
 
 int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos_t epoint, struct linepos_s *epoints) {
     enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_WORD, AG_NONE } adrgen;
@@ -68,7 +72,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
     const uint8_t *cnmemonic; /* current nmemonic */
     int_fast8_t ln;
     uint8_t cod, longbranch;
-    uint32_t adr;
+    uint32_t adr, opname;
     int d;
     uval_t uval;
     struct value_s err, *val;
@@ -76,6 +80,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
 
     opr = ADR_IMPLIED;
     cnmemonic = &opcode[prm * ADR_LEN];
+    opname = mnemonic[prm];
     ln = 0; cod = 0; longbranch = 0; adr = 0; adrgen = AG_NONE;
 
     if (vals->obj == ADDRLIST_OBJ && vals->u.list.len < 1) {
@@ -318,114 +323,146 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 }
                 val = vals->u.list.data[2];
                 epoint2 = &epoints[2];
+                ln = 2; opr = ADR_BIT_ZP_REL;
                 if (val->obj == NONE_OBJ) {
                     err_msg_still_none(NULL, epoint2);
                     d = 0;
-                } else {
-                    if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_KR) {
-                        val = val->u.addr.val;
-                        if (val->obj == NONE_OBJ) {
-                            err_msg_still_none(NULL, epoint2);
-                            d = 0;
-                        } else {
-                            if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 3;}
-                        }
-                    } else {
-                        if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 3;}
-                        else if (((uval_t)current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
-                    }
-                    uval = (uint16_t)(uval - current_section->l_address - 3);
-                    if (uval >= 0xFF80 || uval <= 0x007F) {
-                        adr |= ((uint8_t)uval) << 8;
-                    } else {
-                        int dist = (int16_t)uval;
-                        dist += (dist < 0) ? 0x80 : -0x7f;
-                        err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint);
-                    }
                 }
-                ln = 2; opr = ADR_BIT_ZP_REL;
+                goto justrel;
             } else if (vals->obj == ADDRLIST_OBJ && vals->u.list.len != 1) return 2;
             else if (cnmemonic[ADR_REL] != ____) {
                 struct star_s *s;
                 int labelexists;
-                uint16_t oadr;
+                uint16_t oadr, xadr;
+                ln = 1; opr = ADR_REL;
+                longbranch = 0;
+            justrel: xadr = adr;
                 s = new_star(vline + 1, &labelexists);
 
-                ln = 1; opr = ADR_REL;
                 if (d) {
                     int labelexists2 = labelexists;
+                    int crossbank = 0;
                     if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_KR) {
                         val = val->u.addr.val;
                         if (val->obj == NONE_OBJ) {
                             err_msg_still_none(NULL, epoint2);
                             d = 0;
-                            uval = current_section->l_address + 2;
+                            uval = current_section->l_address + 1 + ln;
                         } else {
                             if (val->obj->uval(val, &err, &uval, 16, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 2;}
                         }
                     } else {
                         if (val->obj->uval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 2;}
-                        else if (((uval_t)current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                        crossbank = ((uval_t)current_section->l_address ^ uval) > 0xffff;
                     }
                     oadr = uval;
                     if (labelexists2 && val->obj == CODE_OBJ && pass != val->u.code.apass) {
                         adr = (uint16_t)(uval - s->addr);
                     } else {
-                        adr = (uint16_t)(uval - current_section->l_address - 2); labelexists2 = 0;
+                        adr = (uint16_t)(uval - current_section->l_address - 1 - ln); labelexists2 = 0;
                     }
-                    longbranch = 0;
-                    if (adr<0xFF80 && adr>0x007F) {
-                        if (cnmemonic[ADR_REL_L] != ____) {
+                    if ((adr<0xFF80 && adr>0x007F) || crossbank) {
+                        if (cnmemonic[ADR_REL_L] != ____ && !crossbank) { /* 65CE02 long branches */
+                        asbrl:
                             if (!labelexists2) adr = (uint16_t)(adr - 1);
                             opr = ADR_REL_L;
                             ln = 2;
-                        } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____)) {
-                            if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {/* branch */
-                                longbranch = 0x20; ln = 4;
-                                if (opcode == w65816.opcode && !longbranchasjmp) {
-                                    if (!labelexists2) adr = (uint16_t)(adr - 3);
-                                    adr = 0x8203 + (adr << 16);
-                                } else {
-                                    adr = 0x4C03 + (oadr << 16);
+                        } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____)) { /* fake long branches */
+                            if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {/* bxx branch */
+                                int r;
+                                cod = cnmemonic[ADR_REL] ^ 0x20;
+                                ln = labelexists ? ((uint16_t)(s->addr - star - 2)) : 3;
+                                pokeb(cod);
+                                pokeb(ln);
+                                list_instr(cod, ln, 1, ADR_REL, relopnames[cod >> 5]);
+                                r = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, all_mem, vals, epoint, epoints);
+                                if (labelexists && s->addr != (current_section->l_address & all_mem)) {
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                                    fixeddig = 0;
                                 }
+                                s->addr = current_section->l_address & all_mem;
+                                return r;
+                            } else if (opr == ADR_BIT_ZP_REL) {
+                                if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                                cod = cnmemonic[ADR_BIT_ZP_REL] ^ 0x80 ^ longbranch;
+                                pokeb(cod);
+                                pokeb(xadr);
+                                pokeb(3);
+                                list_instr(cod, xadr | 0x300, 2, ADR_BIT_ZP_REL, (cnmemonic[ADR_BIT_ZP_REL] & 0x80) ? 0x626272 : 0x626273);
+                                adr = oadr; opr = ADR_ADDR; ln = 2;
+                                prm = cpu->jmp; longbranch = 0;
+                                cnmemonic = &opcode[prm * ADR_LEN];
+                                opname = mnemonic[prm];
                             } else {/* bra */
-                                if (opcode == w65816.opcode && !longbranchasjmp) {
-                                    longbranch = cnmemonic[ADR_REL] ^ 0x82;
-                                    if (!labelexists2) adr = (uint16_t)(adr - 1);
-                                    ln = 2;
-                                } else if (cnmemonic[ADR_REL] == 0x82 && opcode == c65el02.opcode) {
+                                if (cpu->brl >= 0 && !longbranchasjmp) { /* bra -> brl */
+                                asbrl2:
+                                    if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                                    else {
+                                        prm = cpu->brl;
+                                        cnmemonic = &opcode[prm * ADR_LEN];
+                                        opname = mnemonic[prm];
+                                        goto asbrl;
+                                    }
+                                } else if (cnmemonic[ADR_REL] == 0x82 && opcode == c65el02.opcode) { /* not a branch ! */
                                     int dist = (int16_t)adr; dist += (dist < 0) ? 0x80 : -0x7f;
-                                    err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint); /* rer not a branch */
-                                } else {
-                                    longbranch = cnmemonic[ADR_REL] ^ 0x4C;
-                                    adr = oadr; ln = 2;
+                                    if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                                    else err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint); /* rer not a branch */
+                                } else { /* bra -> jmp */
+                                    int r;
+                                asjmp:
+                                    r = instruction(cpu->jmp, w, all_mem, vals, epoint, epoints);
+                                    if (labelexists && s->addr != (current_section->l_address & all_mem)) {
+                                        if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                                        fixeddig = 0;
+                                    }
+                                    s->addr = current_section->l_address & all_mem;
+                                    return r;
                                 }
                             }
                             /* erro = ERROR___LONG_BRANCH; */
-                        } else {
-                            if (cnmemonic[ADR_ADDR] != ____) {
-                                if (opcode == w65816.opcode && !longbranchasjmp) {
-                                    longbranch = cnmemonic[ADR_REL]^0x82;
-                                    if (!labelexists2) adr = (uint16_t)(adr - 1);
-                                } else {
-                                    adr = oadr;
-                                    opr = ADR_ADDR;
-                                }
-                                ln = 2;
-                            } else {
+                        } else if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
+                            if (cpu->brl >= 0 && !longbranchasjmp) goto asbrl2; /* gcc -> brl */
+                            if (crossbank) goto asjmp; /* gcc -> jmp */
+                            if (cnmemonic[ADR_ADDR] == 0x4C) {
+                                opname = 0x6A6D70;
+                            }
+                            adr = oadr;
+                            opr = ADR_ADDR;
+                            ln = 2;
+                        } else { /* too long */
+                            if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                            else {
                                 int dist = (int16_t)adr; dist += (dist < 0) ? 0x80 : -0x7f;
                                 err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint);
                             }
                         }
-                    } else {
-                        if (!longbranch && ((uint16_t)(current_section->l_address + 2) & 0xff00) != (oadr & 0xff00)) {
+                    } else if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                    else { /* short */
+                        if (((uint16_t)(current_section->l_address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
                             if (!allowslowbranch) err_msg2(ERROR__BRANCH_CROSS, NULL, epoint);
                         }
-                        if (cnmemonic[ADR_ADDR] != ____) {
-                            if (adr == 0) ln = -1;
-                            else if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
-                                ln = 0; longbranch = 0x20; adr = 0x10000;
+                        if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
+                            if (adr == 0) {
+                                list_instr(0, 0, -1, ADR_IMPLIED, 0x202020);
+                                if (labelexists && s->addr != (current_section->l_address & all_mem)) {
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                                    fixeddig = 0;
+                                }
+                                s->addr = current_section->l_address & all_mem;
+                                return 0;
+                            } else if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
+                                ln = 0; adr = 0x10000;
+                                cod = cnmemonic[ADR_REL] ^ 0x20;
+                                pokeb(cod);
+                                list_instr(cod, 0, 0, ADR_IMPLIED, relopnames[cod >> 5]);
+                                if (labelexists && s->addr != (current_section->l_address & all_mem)) {
+                                    if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
+                                    fixeddig = 0;
+                                }
+                                s->addr = current_section->l_address & all_mem;
+                                return 0;
                             }
+                            if ((opname & 0xff0000) == 0x670000) opname ^= 0x670000 ^ 0x620000;
                         }
                     }
                 }
@@ -434,6 +471,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                     fixeddig = 0;
                 }
                 s->addr = (star + 1 + ln) & all_mem;
+                if (opr == ADR_BIT_ZP_REL) adr = xadr | (adr << 8);
             }
             else if (cnmemonic[ADR_REL_L] != ____) {
                 if (w != 3 && w != 1) return 2;
@@ -462,8 +500,8 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                     else return 2;
                 }
                 opr = ADR_ZP - w; ln = w + 1; /* jml */
-            } else if (cnmemonic[ADR_ADDR] == 0x20) {
-                adrgen = AG_PB; opr = ADR_ADDR; /* jsr $ffff */
+            } else if (cnmemonic[ADR_ADDR] == 0x20 || cnmemonic[ADR_ADDR] == 0x4C) {
+                adrgen = AG_PB; opr = ADR_ADDR; /* jsr $ffff, jmp */
             } else if (cnmemonic[ADR_ADDR] == 0xF4) {
                 adrgen = AG_WORD; opr = ADR_ADDR; /* pea $ffff */
             } else {
@@ -579,7 +617,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         case 1: pokeb((uint8_t)temp);
         }
     }
-    list_instr(cod ^ longbranch, adr, ln, opr, mnemonic[prm]);
+    list_instr(cod ^ longbranch, adr, ln, opr, opname);
     return 0;
 }
 

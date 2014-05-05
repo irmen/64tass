@@ -289,22 +289,7 @@ void list_instr(uint8_t cod, uint32_t adr, int ln, enum opr_e opr, uint32_t mnem
                 case ADR_ZP_LI: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " [$%02x]" : " [$%04x]", (uint16_t)(adr + dpage)); break;
                 case ADR_ADDR_I: fprintf(flist, " ($%04x)", (uint16_t)adr); break;
                 case ADR_ZP_I: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " ($%02x)" : " ($%04x)", (uint16_t)(adr + dpage)); break;
-                case ADR_REL: {
-                    if (ln == 1) fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, (uint16_t)(((int8_t)adr) + current_section->l_address) | (current_section->l_address & 0xff0000));
-                    else if (ln == 2) {
-                        if (cod == 0x4C)
-                            fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, ((uint16_t)adr) | (current_section->l_address & 0xff0000));
-                        else
-                            fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, (uint16_t)(adr + current_section->l_address) | (current_section->l_address & 0xff0000));
-                    }
-                    else {
-                        if ((uint16_t)adr == 0x4C03)
-                            fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, ((uint16_t)(adr >> 16)) | (current_section->l_address & 0xff0000));
-                        else
-                            fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, (uint16_t)((adr >> 16) + current_section->l_address) | (current_section->l_address & 0xff0000));
-                    }
-                    break;
-                }
+                case ADR_REL: fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, (uint16_t)(((int8_t)adr) + current_section->l_address) | (current_section->l_address & 0xff0000)); break;
                 case ADR_BIT_ZP_REL:
                                fprintf(flist, ((uint16_t)(((uint8_t)adr) + dpage)<0x100) ? " %x,$%02x" : " %d,$%04x", (cod >> 4) & 7, (uint16_t)((uint8_t)adr) + dpage);
                                fprintf(flist, (current_section->l_address & 0xff0000) ? ",$%06" PRIaddress : ",$%04" PRIaddress, (uint16_t)(((int8_t)(adr >> 8)) + current_section->l_address) | (current_section->l_address & 0xff0000));
