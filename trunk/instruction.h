@@ -20,9 +20,10 @@
 #define _INSTRUCTION_H_
 #include "inttypes.h"
 struct value_s;
+struct cpu_s;
 
 extern int instruction(int, int, address_t, struct value_s *, linepos_t, struct linepos_s *);
-extern void select_opcodes(int);
+extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const char *);
 
 extern int longaccu, longindex;

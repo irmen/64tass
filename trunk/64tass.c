@@ -503,8 +503,8 @@ static int get_cpu(char *cpu) {
 
 /* ------------------------------------------------------------------------------ */
 
-static void set_cpumode(uint_fast8_t cpumode) {
-    all_mem = (cpumode == OPCODES_C65816) ? 0xffffff : 0xffff;
+static void set_cpumode(const struct cpu_s *cpumode) {
+    all_mem = cpumode->max_address;
     all_mem2 = (arguments.output_mode == OUTPUT_FLAT) ? ~(address_t)0 : all_mem;
     return select_opcodes(cpumode);
 }
@@ -2161,20 +2161,20 @@ struct value_s *compile(struct file_list_s *cflist)
                 break;
             case CMD_CPU: if (waitfor->skip & 1) 
                 { /* .cpu */
-                    int def;
+                    const struct cpu_s *def;
                     char cpu[20];
                     if (get_cpu(cpu)) goto breakerr;
-                    def=arguments.cpumode;
-                    if (!strcmp(cpu,"6502")) def=OPCODES_C6502;
-                    else if (!strcasecmp(cpu,"65c02")) def=OPCODES_C65C02;
-                    else if (!strcasecmp(cpu,"65ce02")) def=OPCODES_C65CE02;
-                    else if (!strcasecmp(cpu,"6502i")) def=OPCODES_C6502I;
-                    else if (!strcmp(cpu,"65816")) def=OPCODES_C65816;
-                    else if (!strcasecmp(cpu,"65dtv02")) def=OPCODES_C65DTV02;
-                    else if (!strcasecmp(cpu,"65el02")) def=OPCODES_C65EL02;
-                    else if (!strcmp(cpu,"r65c02")) def=OPCODES_CR65C02;
-                    else if (!strcmp(cpu,"w65c02")) def=OPCODES_CW65C02;
-                    else if (strcasecmp(cpu,"default")) err_msg(ERROR___UNKNOWN_CPU,cpu);
+                    def = arguments.cpumode;
+                    if (!strcmp(cpu,"6502")) def = &c6502;
+                    else if (!strcasecmp(cpu,"65c02")) def = &c65c02;
+                    else if (!strcasecmp(cpu,"65ce02")) def = &c65ce02;
+                    else if (!strcasecmp(cpu,"6502i")) def = &c6502i;
+                    else if (!strcmp(cpu,"65816")) def = &w65816;
+                    else if (!strcasecmp(cpu,"65dtv02")) def = &c65dtv02;
+                    else if (!strcasecmp(cpu,"65el02")) def = &c65el02;
+                    else if (!strcmp(cpu,"r65c02")) def = &r65c02;
+                    else if (!strcmp(cpu,"w65c02")) def = &w65c02;
+                    else if (strcasecmp(cpu,"default")) err_msg(ERROR___UNKNOWN_CPU, cpu);
                     set_cpumode(def);
                 }
                 break;

@@ -36,7 +36,7 @@
 
 #include "codeobj.h"
 
-struct arguments_s arguments={1,1,0,1,1,0,0,0,0,"a.out",OPCODES_C6502,NULL,NULL, OUTPUT_CBM};
+struct arguments_s arguments={1,1,0,1,1,0,0,0,0,"a.out",&c6502,NULL,NULL, OUTPUT_CBM};
 
 const uint8_t whatis[256]={
     WHAT_EOL,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -268,15 +268,15 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                 }
                 break;
             case 'B':arguments.longbranch=1;break;
-            case 1:arguments.cpumode=OPCODES_C6502;break;
-            case 'i':arguments.cpumode=OPCODES_C6502I;break;
-            case 'c':arguments.cpumode=OPCODES_C65C02;break;
-            case 6:arguments.cpumode=OPCODES_C65CE02;break;
-            case 'x':arguments.cpumode=OPCODES_C65816;break;
-            case 't':arguments.cpumode=OPCODES_C65DTV02;break;
-            case 'e':arguments.cpumode=OPCODES_C65EL02;break;
-            case 4:arguments.cpumode=OPCODES_CR65C02;break;
-            case 5:arguments.cpumode=OPCODES_CW65C02;break;
+            case 1:arguments.cpumode = &c6502;break;
+            case 'i':arguments.cpumode = &c6502i;break;
+            case 'c':arguments.cpumode = &c65c02;break;
+            case 6:arguments.cpumode = &c65ce02;break;
+            case 'x':arguments.cpumode = &w65816;break;
+            case 't':arguments.cpumode = &c65dtv02;break;
+            case 'e':arguments.cpumode = &c65el02;break;
+            case 4:arguments.cpumode = &r65c02;break;
+            case 5:arguments.cpumode = &w65c02;break;
             case 'l':arguments.label=optarg;break;
             case 'L':arguments.list=optarg;break;
             case 'I':include_list_add(optarg);break;
