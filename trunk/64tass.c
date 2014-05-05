@@ -2898,7 +2898,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                 }
             }            /* fall through */
-        default: if (waitfor->skip & 1) err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr; /* skip things if needed */
+        default: if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint); goto breakerr; /* skip things if needed */
         }
     finish:
         ignore();if (here() && here()!=';' && (waitfor->skip & 1)) err_msg(ERROR_EXTRA_CHAR_OL,NULL);
