@@ -38,6 +38,10 @@ static struct {
     } *params, *current;
 } macro_parameters = {0, 0, NULL, NULL};
 
+int in_macro(void) {
+    return !!macro_parameters.p;
+}
+
 //------------------------------------------------------------------------------
 int mtranslate(struct file_s *cfile)
 {

@@ -2533,6 +2533,9 @@ messages is the following:</p>
                  lda label
                      ^
 a.asm:3:21: note: searched in the global scope</pre>
+<p>Lines containing macros are expanded whenever possible, but due to
+internal limitations referenced lines in relation to the actual fault
+will display without them.</p>
 <h3>Warnings</h3>
 <dl>
 <dt>Top of memory exceeded

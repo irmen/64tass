@@ -28,6 +28,7 @@
 #include "file.h"
 #include "variables.h"
 #include "64tass.h"
+#include "macro.h"
 #include "strobj.h"
 #include "unicode.h"
 
@@ -41,12 +42,13 @@ static struct errorbuffer_s error_list = {0, 0, 0, NULL};
 static struct avltree notdefines;
 
 enum severity_e {
-    SV_DOUBLENOTE, SV_NOTDEFNOTE, SV_WARNING, SV_CONDERROR, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
+    SV_DOUBLENOTE, SV_NOTDEFGNOTE, SV_NOTDEFLNOTE, SV_WARNING, SV_CONDERROR, SV_DOUBLEERROR, SV_NOTDEFERROR, SV_NONEERROR, SV_ERROR, SV_FATAL
 };
 
 struct error_s {
     enum severity_e severity;
-    size_t len;
+    size_t error_len;
+    size_t line_len;
     const struct file_list_s *file_list;
     struct linepos_s epoint;
 };
@@ -61,25 +63,34 @@ struct notdefines_s {
 static void close_error(struct errorbuffer_s *elist) {
     if (elist->header_pos < elist->len) {
         struct error_s *err = (struct error_s *)&elist->data[elist->header_pos];
-        err->len = elist->len - elist->header_pos - sizeof(struct error_s);
+        err->error_len = elist->len - elist->header_pos - sizeof(struct error_s) - err->line_len;
     }
 }
 
 static void new_error(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
     struct error_s *err;
+    size_t line_len;
+    switch (severity) {
+    case SV_NOTDEFGNOTE:
+    case SV_NOTDEFLNOTE:
+    case SV_DOUBLENOTE: line_len = 0;break;
+    default: line_len = in_macro() ? (strlen((char *)pline) + 1) : 0; break;
+    }
     close_error(&error_list);
     error_list.header_pos = (error_list.len + 7) & ~7;
-    if (error_list.header_pos + sizeof(struct error_s) > error_list.max) {
+    if (error_list.header_pos + sizeof(struct error_s) + line_len > error_list.max) {
         error_list.max += (sizeof(struct error_s) > 0x200) ? sizeof(struct error_s) : 0x200;
         error_list.data = (uint8_t *)realloc(error_list.data, error_list.max);
         if (!error_list.data) {fputs("Out of memory error\n", stderr);exit(1);}
     }
-    error_list.len = error_list.header_pos + sizeof(struct error_s);
+    error_list.len = error_list.header_pos + sizeof(struct error_s) + line_len;
     err = (struct error_s *)&error_list.data[error_list.header_pos];
     err->severity = severity;
-    err->len = 0;
+    err->error_len = 0;
+    err->line_len = line_len;
     err->file_list = flist;
     err->epoint = *epoint;
+    if (line_len) memcpy(&error_list.data[error_list.header_pos + sizeof(struct error_s)], pline, line_len);
 }
 
 static int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -198,6 +209,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
 
     if (no < 0x40) {
         new_error(SV_WARNING, current_file_list, epoint);
+        if (!arguments.warning) return;
         if (no == ERROR_WUSER_DEFINED) adderror2(((struct errorbuffer_s *)prm)->data, ((struct errorbuffer_s *)prm)->len);
         else adderror(terr_warning[no]);
         return;
@@ -374,10 +386,10 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
     if (name) str_name(name->data, name->len);
 
     if (!l->file_list) {
-        new_error(SV_NOTDEFNOTE, current_file_list, epoint);
+        new_error(SV_NOTDEFGNOTE, current_file_list, epoint);
         adderror("searched in the global scope");
     } else {
-        new_error(SV_NOTDEFNOTE, l->file_list, &l->epoint);
+        new_error(SV_NOTDEFLNOTE, l->file_list, &l->epoint);
         adderror("searched in");
         str_name(l->name.data, l->name.len);
         adderror(down ? " defined here, and in all it's parents" : " defined here");
@@ -652,14 +664,15 @@ static inline void print_error(FILE *f, const struct error_s *err) {
             }
             included_from = cflist;
         }
-        line = get_line(cflist->file, epoint->line);
+        line = err->line_len ? (((uint8_t *)err) + sizeof(struct error_s)) : get_line(cflist->file, epoint->line);
         printable_print((uint8_t *)cflist->file->realname, f);
         fprintf(f, ":%" PRIuline ":%" PRIlinepos ": ", epoint->line, calcpos(line, epoint->pos, cflist->file->coding == E_UTF8));
     } else {
         fputs("<command line>:0:0: ", f);
     }
     switch (err->severity) {
-    case SV_NOTDEFNOTE:
+    case SV_NOTDEFGNOTE:
+    case SV_NOTDEFLNOTE:
     case SV_DOUBLENOTE: fputs("note: ", f);break;
     case SV_WARNING: fputs("warning: ", f);break;
     case SV_CONDERROR:
@@ -669,10 +682,10 @@ static inline void print_error(FILE *f, const struct error_s *err) {
     case SV_ERROR: fputs("error: ", f);break;
     case SV_FATAL: fputs("fatal error: ", f);break;
     }
-    printable_print2(((uint8_t *)err) + sizeof(struct error_s), f, err->len);
+    printable_print2(((uint8_t *)err) + sizeof(struct error_s) + err->line_len, f, err->error_len);
     putc('\n', f);
     if (text) {
-        if (err->len != strlen("searched in the global scope") || memcmp((uint8_t*)err + sizeof(struct error_s), "searched in the global scope", err->len)) {
+        if (err->severity != SV_NOTDEFGNOTE) {
             putc(' ', f);
             printable_print(line, f);
             fputs("\n ", f);
@@ -689,10 +702,11 @@ int error_print(int fix, int newvar, int anyerr) {
     warnings = errors = 0;
     close_error(&error_list);
 
-    for (pos = 0; !noneerr && pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->len + 7) & ~7) {
+    for (pos = 0; !noneerr && pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7) {
         err = (const struct error_s *)&error_list.data[pos];
         switch (err->severity) {
-        case SV_NOTDEFNOTE: 
+        case SV_NOTDEFGNOTE: 
+        case SV_NOTDEFLNOTE:
         case SV_DOUBLENOTE:
         case SV_WARNING: 
         case SV_NONEERROR: 
@@ -703,31 +717,31 @@ int error_print(int fix, int newvar, int anyerr) {
         }
     }
 
-    for (pos = 0; pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->len + 7) & ~7) {
+    for (pos = 0; pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7) {
         err = (const struct error_s *)&error_list.data[pos];
         switch (err->severity) {
-        case SV_NOTDEFNOTE: 
+        case SV_NOTDEFGNOTE: 
+        case SV_NOTDEFLNOTE:
             if (newvar) continue; 
-            pos2 = (pos + sizeof(struct error_s) + err->len + 7) & ~7;
+            pos2 = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7;
             err2 = (const struct error_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_NOTDEFERROR) break;
-            pos2 = (pos2 + sizeof(struct error_s) + err2->len + 7) & ~7;
+            pos2 = (pos2 + sizeof(struct error_s) + err2->line_len + err2->error_len + 7) & ~7;
             err2 = (const struct error_s *)&error_list.data[pos2];
-            if (pos2 >= error_list.len || err2->severity != SV_NOTDEFNOTE) break;
-            if (err->len == err2->len) {
-                if (err->len == strlen("searched in the global scope") && !memcmp((uint8_t*)err + sizeof(struct error_s), "searched in the global scope", err->len)) continue;
-                if (err->file_list == err2->file_list && err->epoint.line == err2->epoint.line && 
-                    err->epoint.pos == err2->epoint.pos) continue;
-            }
+            if (pos2 >= error_list.len || (err2->severity != SV_NOTDEFGNOTE && err2->severity != SV_NOTDEFLNOTE)) break;
+            if (err->severity != err2->severity) break;
+            if (err->severity == SV_NOTDEFGNOTE) continue;
+            if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line && 
+                err->epoint.pos == err2->epoint.pos) continue;
             break;
         case SV_DOUBLENOTE:
-            pos2 = (pos + sizeof(struct error_s) + err->len + 7) & ~7;
+            pos2 = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7;
             err2 = (const struct error_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLEERROR) break;
-            pos2 = (pos2 + sizeof(struct error_s) + err2->len + 7) & ~7;
+            pos2 = (pos2 + sizeof(struct error_s) + err2->line_len + err2->error_len + 7) & ~7;
             err2 = (const struct error_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
-            if (err->file_list == err2->file_list && err->len == err2->len && err->epoint.line == err2->epoint.line && 
+            if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line && 
                 err->epoint.pos == err2->epoint.pos) continue;
             break;
         case SV_WARNING: warnings++; if (!arguments.warning || anyerr) continue; break;
@@ -799,10 +813,11 @@ int error_serious(int fix, int newvar) {
     const struct error_s *err;
     size_t pos;
     close_error(&error_list);
-    for (pos = 0; pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->len + 7) & ~7) {
+    for (pos = 0; pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7) {
         err = (const struct error_s *)&error_list.data[pos];
         switch (err->severity) {
-        case SV_NOTDEFNOTE:
+        case SV_NOTDEFGNOTE:
+        case SV_NOTDEFLNOTE:
         case SV_DOUBLENOTE:
         case SV_WARNING: break;
         case SV_NONEERROR:
