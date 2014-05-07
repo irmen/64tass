@@ -785,11 +785,25 @@ void err_msg_out_of_memory(void)
 }
 
 void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
+    mbstate_t ps;
+    const char *s = strerror(errno);
+    wchar_t w;
+    uint8_t s2[10];
+    size_t n = strlen(s), i = 0;
+    ssize_t l;
+
     new_error(SV_FATAL, current_file_list, epoint);
     adderror(terr_fatal[no & 63]);
     adderror(prm);
     adderror(": ");
-    adderror(strerror(errno));
+    memset(&ps, 0, sizeof(ps));
+    while (i < n) {
+        l = mbrtowc(&w, s + i, n - i,  &ps);
+        if (l <= 0) break;
+        s2[utf8out(w, s2) - s2] = 0;
+        adderror((char *)s2);
+        i += l;
+    }
     status(1);exit(1);
 }
 
