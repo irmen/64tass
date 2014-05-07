@@ -2324,6 +2324,10 @@ a.asm:3:21: error: not defined 'label'
                      ^
 a.asm:3:21: note: searched in the global scope
 
+Lines containing macros are expanded whenever possible, but due to internal
+limitations referenced lines in relation to the actual fault will display
+without them.
+
 Warnings
 
 Top of memory exceeded

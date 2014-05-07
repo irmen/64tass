@@ -33,4 +33,5 @@ extern void init_macro(void);
 extern void free_macro(void);
 extern void get_macro_params(struct value_s *);
 extern void get_func_params(struct value_s *, struct file_s *);
+extern int in_macro(void);
 #endif
