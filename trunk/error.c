@@ -74,7 +74,7 @@ static void new_error(enum severity_e severity, const struct file_list_s *flist,
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
     case SV_DOUBLENOTE: line_len = 0;break;
-    default: line_len = ((epoint.line == lpoint.line) && in_macro()) ? (strlen((char *)pline) + 1) : 0; break;
+    default: line_len = ((epoint->line == lpoint.line) && in_macro()) ? (strlen((char *)pline) + 1) : 0; break;
     }
     close_error(&error_list);
     error_list.header_pos = (error_list.len + 7) & ~7;
