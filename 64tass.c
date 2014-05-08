@@ -503,9 +503,10 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     fixeddig = fix;
 }
 
-static void textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit, size_t *sum, int bits, linepos_t epoint2) {
+static int textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit, size_t *sum, int bits, linepos_t epoint2) {
     struct value_s iter, item, *val2, err;
     uval_t uval;
+    int warn = 0;
     item.refcount = 0;
     if (val->obj == STR_OBJ) {
         struct value_s *tmp = val_alloc();
@@ -518,7 +519,7 @@ static void textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE: 
-        case T_STR: textrecursion(val2, prm, ch2, uninit, sum, bits, epoint2); break;
+        case T_STR: warn |= textrecursion(val2, prm, ch2, uninit, sum, bits, epoint2); break;
         case T_GAP: 
             if (*ch2 >= 0) {
                 if (*uninit) { memskip(*uninit); sum += *uninit; *uninit = 0; }
@@ -536,25 +537,27 @@ static void textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit
             else if (prm==CMD_NULL && !uval) err_msg2(ERROR_NO_ZERO_VALUE, NULL, epoint2);
             break;
         case T_NONE:
-            err_msg_still_none(NULL, epoint2);
+            warn = 1;
         }
         val_destroy(val2);
     }
     iter.obj->destroy(&iter);
+    return warn;
 }
 
-static void byterecursion(struct value_s *val, int prm, size_t *uninit, int bits, linepos_t epoint) {
+static int byterecursion(struct value_s *val, int prm, size_t *uninit, int bits, linepos_t epoint) {
     struct value_s iter, item, *val2, err;
     uint32_t ch2;
     uval_t uv;
     ival_t iv;
+    int warn = 0;
     item.refcount = 0;
     if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) val->obj->getiter(val, &iter);
     else invalid_getiter(val, &iter);
     while ((val2 = iter.obj->next(&iter, &item))) {
         switch (val2->obj->type) {
         case T_LIST:
-        case T_TUPLE: byterecursion(val2, prm, uninit, bits, epoint); continue;
+        case T_TUPLE: warn |= byterecursion(val2, prm, uninit, bits, epoint); continue;
         case T_GAP: *uninit += abs(bits) / 8; val_destroy(val2); continue;
         default:
             if (bits >= 0) {
@@ -566,7 +569,7 @@ static void byterecursion(struct value_s *val, int prm, size_t *uninit, int bits
             }
             break;
         case T_NONE:
-            err_msg_still_none(NULL, epoint);
+            warn = 1;
             ch2 = 0;
         }
         if (prm==CMD_RTA) ch2--;
@@ -579,6 +582,7 @@ static void byterecursion(struct value_s *val, int prm, size_t *uninit, int bits
         val_destroy(val2);
     }
     iter.obj->destroy(&iter);
+    return warn;
 }
 
 static int instrecursion(struct value_s *val, int prm, int w, linepos_t epoint, struct linepos_s *epoints) {
@@ -1590,7 +1594,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
-                        while ((val = get_val(&epoint2))) textrecursion(val, prm, &ch2, &uninit, &sum, bits, &epoint2);
+                        while ((val = get_val(&epoint2))) {
+                            if (textrecursion(val, prm, &ch2, &uninit, &sum, bits, &epoint2)) err_msg_still_none(NULL, &epoint2);
+                        }
                         if (uninit) {memskip(uninit);sum += uninit;}
                         if (ch2 >= 0) {
                             if (prm==CMD_SHIFT) ch2|=0x80;
@@ -1632,7 +1638,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         case CMD_DWORD: bits = 32; break;
                         }
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
-                        while ((val = get_val(&epoint))) byterecursion(val, prm, &uninit, bits, &epoint);
+                        while ((val = get_val(&epoint))) {
+                            if (byterecursion(val, prm, &uninit, bits, &epoint)) err_msg_still_none(NULL, &epoint);
+                        }
                         if (uninit) memskip(uninit);
                     } else if (prm==CMD_BINARY) { /* .binary */
                         const char *path = NULL;
