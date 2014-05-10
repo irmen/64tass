@@ -109,232 +109,231 @@ static struct trans2_s petscii_trans[] = {
 };
 
 /* PETSCII codes, must be sorted */
-static const char *petscii_esc[] = {
-    "\x07" "{bell}",
-    "\x90" "{black}",
-    "\x90" "{blk}",
-    "\x1f" "{blue}",
-    "\x1f" "{blu}",
-    "\x95" "{brn}",
-    "\x95" "{brown}",
-    "\xdf" "{cbm-*}",
-    "\xa6" "{cbm-+}",
-    "\xdc" "{cbm--}",
-    "\x30" "{cbm-0}",
-    "\x81" "{cbm-1}",
-    "\x95" "{cbm-2}",
-    "\x96" "{cbm-3}",
-    "\x97" "{cbm-4}",
-    "\x98" "{cbm-5}",
-    "\x99" "{cbm-6}",
-    "\x9a" "{cbm-7}",
-    "\x9b" "{cbm-8}",
-    "\x29" "{cbm-9}",
-    "\xa4" "{cbm-@}",
-    "\xde" "{cbm-^}",
-    "\xb0" "{cbm-a}",
-    "\xbf" "{cbm-b}",
-    "\xbc" "{cbm-c}",
-    "\xac" "{cbm-d}",
-    "\xb1" "{cbm-e}",
-    "\xbb" "{cbm-f}",
-    "\xa5" "{cbm-g}",
-    "\xb4" "{cbm-h}",
-    "\xa2" "{cbm-i}",
-    "\xb5" "{cbm-j}",
-    "\xa1" "{cbm-k}",
-    "\xb6" "{cbm-l}",
-    "\xa7" "{cbm-m}",
-    "\xaa" "{cbm-n}",
-    "\xb9" "{cbm-o}",
-    "\xa8" "{cbm-pound}",
-    "\xaf" "{cbm-p}",
-    "\xab" "{cbm-q}",
-    "\xb2" "{cbm-r}",
-    "\xae" "{cbm-s}",
-    "\xa3" "{cbm-t}",
-    "\xde" "{cbm-up arrow}",
-    "\xb8" "{cbm-u}",
-    "\xbe" "{cbm-v}",
-    "\xb3" "{cbm-w}",
-    "\xbd" "{cbm-x}",
-    "\xb7" "{cbm-y}",
-    "\xad" "{cbm-z}",
-    "\x93" "{clear}",
-    "\x93" "{clr}",
-    "\x92" "{control-0}",
-    "\x90" "{control-1}",
-    "\x05" "{control-2}",
-    "\x1c" "{control-3}",
-    "\x9f" "{control-4}",
-    "\x9c" "{control-5}",
-    "\x1e" "{control-6}",
-    "\x1f" "{control-7}",
-    "\x9e" "{control-8}",
-    "\x12" "{control-9}",
-    "\x1b" "{control-:}",
-    "\x1d" "{control-;}",
-    "\x1f" "{control-=}",
-    "\x00" "{control-@}",
-    "\x01" "{control-a}",
-    "\x02" "{control-b}",
-    "\x03" "{control-c}",
-    "\x04" "{control-d}",
-    "\x05" "{control-e}",
-    "\x06" "{control-f}",
-    "\x07" "{control-g}",
-    "\x08" "{control-h}",
-    "\x09" "{control-i}",
-    "\x0a" "{control-j}",
-    "\x0b" "{control-k}",
-    "\x06" "{control-left arrow}",
-    "\x0c" "{control-l}",
-    "\x0d" "{control-m}",
-    "\x0e" "{control-n}",
-    "\x0f" "{control-o}",
-    "\x1c" "{control-pound}",
-    "\x10" "{control-p}",
-    "\x11" "{control-q}",
-    "\x12" "{control-r}",
-    "\x13" "{control-s}",
-    "\x14" "{control-t}",
-    "\x1e" "{control-up arrow}",
-    "\x15" "{control-u}",
-    "\x16" "{control-v}",
-    "\x17" "{control-w}",
-    "\x18" "{control-x}",
-    "\x19" "{control-y}",
-    "\x1a" "{control-z}",
-    "\x0d" "{cr}",
-    "\x9f" "{cyan}",
-    "\x9f" "{cyn}",
-    "\x14" "{delete}",
-    "\x14" "{del}",
-    "\x08" "{dish}",
-    "\x11" "{down}",
-    "\x09" "{ensh}",
-    "\x1b" "{esc}",
-    "\x82" "{f10}",
-    "\x84" "{f11}",
-    "\x8f" "{f12}",
-    "\x85" "{f1}",
-    "\x89" "{f2}",
-    "\x86" "{f3}",
-    "\x8a" "{f4}",
-    "\x87" "{f5}",
-    "\x8b" "{f6}",
-    "\x88" "{f7}",
-    "\x8c" "{f8}",
-    "\x80" "{f9}",
-    "\x97" "{gray1}",
-    "\x98" "{gray2}",
-    "\x9b" "{gray3}",
-    "\x1e" "{green}",
-    "\x97" "{grey1}",
-    "\x98" "{grey2}",
-    "\x9b" "{grey3}",
-    "\x1e" "{grn}",
-    "\x97" "{gry1}",
-    "\x98" "{gry2}",
-    "\x9b" "{gry3}",
-    "\x84" "{help}",
-    "\x13" "{home}",
-    "\x94" "{insert}",
-    "\x94" "{inst}",
-    "\x9a" "{lblu}",
-    "\x5f" "{left arrow}",
-    "\x9d" "{left}",
-    "\x0a" "{lf}",
-    "\x99" "{lgrn}",
-    "\x0e" "{lower case}",
-    "\x96" "{lred}",
-    "\x9a" "{lt blue}",
-    "\x99" "{lt green}",
-    "\x96" "{lt red}",
-    "\x81" "{orange}",
-    "\x81" "{orng}",
-    "\xff" "{pi}",
-    "\x5c" "{pound}",
-    "\x9c" "{purple}",
-    "\x9c" "{pur}",
-    "\x1c" "{red}",
-    "\x0d" "{return}",
-    "\x92" "{reverse off}",
-    "\x12" "{reverse on}",
-    "\x1d" "{rght}",
-    "\x1d" "{right}",
-    "\x83" "{run}",
-    "\x92" "{rvof}",
-    "\x12" "{rvon}",
-    "\x92" "{rvs off}",
-    "\x12" "{rvs on}",
-    "\x8d" "{shift return}",
-    "\xc0" "{shift-*}",
-    "\xdb" "{shift-+}",
-    "\x3c" "{shift-,}",
-    "\xdd" "{shift--}",
-    "\x3e" "{shift-.}",
-    "\x3f" "{shift-/}",
-    "\x30" "{shift-0}",
-    "\x21" "{shift-1}",
-    "\x22" "{shift-2}",
-    "\x23" "{shift-3}",
-    "\x24" "{shift-4}",
-    "\x25" "{shift-5}",
-    "\x26" "{shift-6}",
-    "\x27" "{shift-7}",
-    "\x28" "{shift-8}",
-    "\x29" "{shift-9}",
-    "\x5b" "{shift-:}",
-    "\x5d" "{shift-;}",
-    "\xba" "{shift-@}",
-    "\xde" "{shift-^}",
-    "\xc1" "{shift-a}",
-    "\xc2" "{shift-b}",
-    "\xc3" "{shift-c}",
-    "\xc4" "{shift-d}",
-    "\xc5" "{shift-e}",
-    "\xc6" "{shift-f}",
-    "\xc7" "{shift-g}",
-    "\xc8" "{shift-h}",
-    "\xc9" "{shift-i}",
-    "\xca" "{shift-j}",
-    "\xcb" "{shift-k}",
-    "\xcc" "{shift-l}",
-    "\xcd" "{shift-m}",
-    "\xce" "{shift-n}",
-    "\xcf" "{shift-o}",
-    "\xa9" "{shift-pound}",
-    "\xd0" "{shift-p}",
-    "\xd1" "{shift-q}",
-    "\xd2" "{shift-r}",
-    "\xa0" "{shift-space}",
-    "\xd3" "{shift-s}",
-    "\xd4" "{shift-t}",
-    "\xde" "{shift-up arrow}",
-    "\xd5" "{shift-u}",
-    "\xd6" "{shift-v}",
-    "\xd7" "{shift-w}",
-    "\xd8" "{shift-x}",
-    "\xd9" "{shift-y}",
-    "\xda" "{shift-z}",
-    "\x20" "{space}",
-    "\x8d" "{sret}",
-    "\x03" "{stop}",
-    "\x0e" "{swlc}",
-    "\x8e" "{swuc}",
-    "\x09" "{tab}",
-    "\x5e" "{up arrow}",
-    "\x09" "{up/lo lock off}",
-    "\x08" "{up/lo lock on}",
-    "\x8e" "{upper case}",
-    "\x91" "{up}",
-    "\x05" "{white}",
-    "\x05" "{wht}",
-    "\x9e" "{yellow}",
-    "\x9e" "{yel}",
-    NULL
-};
+static const char *petscii_esc =
+    "\x07" "{bell}\0"
+    "\x90" "{black}\0"
+    "\x90" "{blk}\0"
+    "\x1f" "{blue}\0"
+    "\x1f" "{blu}\0"
+    "\x95" "{brn}\0"
+    "\x95" "{brown}\0"
+    "\xdf" "{cbm-*}\0"
+    "\xa6" "{cbm-+}\0"
+    "\xdc" "{cbm--}\0"
+    "\x30" "{cbm-0}\0"
+    "\x81" "{cbm-1}\0"
+    "\x95" "{cbm-2}\0"
+    "\x96" "{cbm-3}\0"
+    "\x97" "{cbm-4}\0"
+    "\x98" "{cbm-5}\0"
+    "\x99" "{cbm-6}\0"
+    "\x9a" "{cbm-7}\0"
+    "\x9b" "{cbm-8}\0"
+    "\x29" "{cbm-9}\0"
+    "\xa4" "{cbm-@}\0"
+    "\xde" "{cbm-^}\0"
+    "\xb0" "{cbm-a}\0"
+    "\xbf" "{cbm-b}\0"
+    "\xbc" "{cbm-c}\0"
+    "\xac" "{cbm-d}\0"
+    "\xb1" "{cbm-e}\0"
+    "\xbb" "{cbm-f}\0"
+    "\xa5" "{cbm-g}\0"
+    "\xb4" "{cbm-h}\0"
+    "\xa2" "{cbm-i}\0"
+    "\xb5" "{cbm-j}\0"
+    "\xa1" "{cbm-k}\0"
+    "\xb6" "{cbm-l}\0"
+    "\xa7" "{cbm-m}\0"
+    "\xaa" "{cbm-n}\0"
+    "\xb9" "{cbm-o}\0"
+    "\xa8" "{cbm-pound}\0"
+    "\xaf" "{cbm-p}\0"
+    "\xab" "{cbm-q}\0"
+    "\xb2" "{cbm-r}\0"
+    "\xae" "{cbm-s}\0"
+    "\xa3" "{cbm-t}\0"
+    "\xde" "{cbm-up arrow}\0"
+    "\xb8" "{cbm-u}\0"
+    "\xbe" "{cbm-v}\0"
+    "\xb3" "{cbm-w}\0"
+    "\xbd" "{cbm-x}\0"
+    "\xb7" "{cbm-y}\0"
+    "\xad" "{cbm-z}\0"
+    "\x93" "{clear}\0"
+    "\x93" "{clr}\0"
+    "\x92" "{control-0}\0"
+    "\x90" "{control-1}\0"
+    "\x05" "{control-2}\0"
+    "\x1c" "{control-3}\0"
+    "\x9f" "{control-4}\0"
+    "\x9c" "{control-5}\0"
+    "\x1e" "{control-6}\0"
+    "\x1f" "{control-7}\0"
+    "\x9e" "{control-8}\0"
+    "\x12" "{control-9}\0"
+    "\x1b" "{control-:}\0"
+    "\x1d" "{control-;}\0"
+    "\x1f" "{control-=}\0"
+    "\x00" "{control-@}\0"
+    "\x01" "{control-a}\0"
+    "\x02" "{control-b}\0"
+    "\x03" "{control-c}\0"
+    "\x04" "{control-d}\0"
+    "\x05" "{control-e}\0"
+    "\x06" "{control-f}\0"
+    "\x07" "{control-g}\0"
+    "\x08" "{control-h}\0"
+    "\x09" "{control-i}\0"
+    "\x0a" "{control-j}\0"
+    "\x0b" "{control-k}\0"
+    "\x06" "{control-left arrow}\0"
+    "\x0c" "{control-l}\0"
+    "\x0d" "{control-m}\0"
+    "\x0e" "{control-n}\0"
+    "\x0f" "{control-o}\0"
+    "\x1c" "{control-pound}\0"
+    "\x10" "{control-p}\0"
+    "\x11" "{control-q}\0"
+    "\x12" "{control-r}\0"
+    "\x13" "{control-s}\0"
+    "\x14" "{control-t}\0"
+    "\x1e" "{control-up arrow}\0"
+    "\x15" "{control-u}\0"
+    "\x16" "{control-v}\0"
+    "\x17" "{control-w}\0"
+    "\x18" "{control-x}\0"
+    "\x19" "{control-y}\0"
+    "\x1a" "{control-z}\0"
+    "\x0d" "{cr}\0"
+    "\x9f" "{cyan}\0"
+    "\x9f" "{cyn}\0"
+    "\x14" "{delete}\0"
+    "\x14" "{del}\0"
+    "\x08" "{dish}\0"
+    "\x11" "{down}\0"
+    "\x09" "{ensh}\0"
+    "\x1b" "{esc}\0"
+    "\x82" "{f10}\0"
+    "\x84" "{f11}\0"
+    "\x8f" "{f12}\0"
+    "\x85" "{f1}\0"
+    "\x89" "{f2}\0"
+    "\x86" "{f3}\0"
+    "\x8a" "{f4}\0"
+    "\x87" "{f5}\0"
+    "\x8b" "{f6}\0"
+    "\x88" "{f7}\0"
+    "\x8c" "{f8}\0"
+    "\x80" "{f9}\0"
+    "\x97" "{gray1}\0"
+    "\x98" "{gray2}\0"
+    "\x9b" "{gray3}\0"
+    "\x1e" "{green}\0"
+    "\x97" "{grey1}\0"
+    "\x98" "{grey2}\0"
+    "\x9b" "{grey3}\0"
+    "\x1e" "{grn}\0"
+    "\x97" "{gry1}\0"
+    "\x98" "{gry2}\0"
+    "\x9b" "{gry3}\0"
+    "\x84" "{help}\0"
+    "\x13" "{home}\0"
+    "\x94" "{insert}\0"
+    "\x94" "{inst}\0"
+    "\x9a" "{lblu}\0"
+    "\x5f" "{left arrow}\0"
+    "\x9d" "{left}\0"
+    "\x0a" "{lf}\0"
+    "\x99" "{lgrn}\0"
+    "\x0e" "{lower case}\0"
+    "\x96" "{lred}\0"
+    "\x9a" "{lt blue}\0"
+    "\x99" "{lt green}\0"
+    "\x96" "{lt red}\0"
+    "\x81" "{orange}\0"
+    "\x81" "{orng}\0"
+    "\xff" "{pi}\0"
+    "\x5c" "{pound}\0"
+    "\x9c" "{purple}\0"
+    "\x9c" "{pur}\0"
+    "\x1c" "{red}\0"
+    "\x0d" "{return}\0"
+    "\x92" "{reverse off}\0"
+    "\x12" "{reverse on}\0"
+    "\x1d" "{rght}\0"
+    "\x1d" "{right}\0"
+    "\x83" "{run}\0"
+    "\x92" "{rvof}\0"
+    "\x12" "{rvon}\0"
+    "\x92" "{rvs off}\0"
+    "\x12" "{rvs on}\0"
+    "\x8d" "{shift return}\0"
+    "\xc0" "{shift-*}\0"
+    "\xdb" "{shift-+}\0"
+    "\x3c" "{shift-,}\0"
+    "\xdd" "{shift--}\0"
+    "\x3e" "{shift-.}\0"
+    "\x3f" "{shift-/}\0"
+    "\x30" "{shift-0}\0"
+    "\x21" "{shift-1}\0"
+    "\x22" "{shift-2}\0"
+    "\x23" "{shift-3}\0"
+    "\x24" "{shift-4}\0"
+    "\x25" "{shift-5}\0"
+    "\x26" "{shift-6}\0"
+    "\x27" "{shift-7}\0"
+    "\x28" "{shift-8}\0"
+    "\x29" "{shift-9}\0"
+    "\x5b" "{shift-:}\0"
+    "\x5d" "{shift-;}\0"
+    "\xba" "{shift-@}\0"
+    "\xde" "{shift-^}\0"
+    "\xc1" "{shift-a}\0"
+    "\xc2" "{shift-b}\0"
+    "\xc3" "{shift-c}\0"
+    "\xc4" "{shift-d}\0"
+    "\xc5" "{shift-e}\0"
+    "\xc6" "{shift-f}\0"
+    "\xc7" "{shift-g}\0"
+    "\xc8" "{shift-h}\0"
+    "\xc9" "{shift-i}\0"
+    "\xca" "{shift-j}\0"
+    "\xcb" "{shift-k}\0"
+    "\xcc" "{shift-l}\0"
+    "\xcd" "{shift-m}\0"
+    "\xce" "{shift-n}\0"
+    "\xcf" "{shift-o}\0"
+    "\xa9" "{shift-pound}\0"
+    "\xd0" "{shift-p}\0"
+    "\xd1" "{shift-q}\0"
+    "\xd2" "{shift-r}\0"
+    "\xa0" "{shift-space}\0"
+    "\xd3" "{shift-s}\0"
+    "\xd4" "{shift-t}\0"
+    "\xde" "{shift-up arrow}\0"
+    "\xd5" "{shift-u}\0"
+    "\xd6" "{shift-v}\0"
+    "\xd7" "{shift-w}\0"
+    "\xd8" "{shift-x}\0"
+    "\xd9" "{shift-y}\0"
+    "\xda" "{shift-z}\0"
+    "\x20" "{space}\0"
+    "\x8d" "{sret}\0"
+    "\x03" "{stop}\0"
+    "\x0e" "{swlc}\0"
+    "\x8e" "{swuc}\0"
+    "\x09" "{tab}\0"
+    "\x5e" "{up arrow}\0"
+    "\x09" "{up/lo lock off}\0"
+    "\x08" "{up/lo lock on}\0"
+    "\x8e" "{upper case}\0"
+    "\x91" "{up}\0"
+    "\x05" "{white}\0"
+    "\x05" "{wht}\0"
+    "\x9e" "{yellow}\0"
+    "\x9e" "{yel}\0"
+    "\x00" "\0";
 
 static struct trans2_s petscii_screen_trans[] = {
     {0x20, 0x3f, 0x20}, // -?
@@ -393,98 +392,97 @@ static struct trans2_s petscii_screen_trans[] = {
 };
 
 /* petscii screen codes, must be sorted */
-static const char *petscii_screen_esc[] = {
-    "\x5f" "{cbm-*}",
-    "\x66" "{cbm-+}",
-    "\x5c" "{cbm--}",
-    "\x30" "{cbm-0}",
-    "\x29" "{cbm-9}",
-    "\x64" "{cbm-@}",
-    "\x5e" "{cbm-^}",
-    "\x70" "{cbm-a}",
-    "\x7f" "{cbm-b}",
-    "\x7c" "{cbm-c}",
-    "\x6c" "{cbm-d}",
-    "\x71" "{cbm-e}",
-    "\x7b" "{cbm-f}",
-    "\x65" "{cbm-g}",
-    "\x74" "{cbm-h}",
-    "\x62" "{cbm-i}",
-    "\x75" "{cbm-j}",
-    "\x61" "{cbm-k}",
-    "\x76" "{cbm-l}",
-    "\x67" "{cbm-m}",
-    "\x6a" "{cbm-n}",
-    "\x79" "{cbm-o}",
-    "\x68" "{cbm-pound}",
-    "\x6f" "{cbm-p}",
-    "\x6b" "{cbm-q}",
-    "\x72" "{cbm-r}",
-    "\x6e" "{cbm-s}",
-    "\x63" "{cbm-t}",
-    "\x5e" "{cbm-up arrow}",
-    "\x78" "{cbm-u}",
-    "\x7e" "{cbm-v}",
-    "\x73" "{cbm-w}",
-    "\x7d" "{cbm-x}",
-    "\x77" "{cbm-y}",
-    "\x6d" "{cbm-z}",
-    "\x1f" "{left arrow}",
-    "\x5e" "{pi}",
-    "\x1c" "{pound}",
-    "\x40" "{shift-*}",
-    "\x5b" "{shift-+}",
-    "\x3c" "{shift-,}",
-    "\x5d" "{shift--}",
-    "\x3e" "{shift-.}",
-    "\x3f" "{shift-/}",
-    "\x30" "{shift-0}",
-    "\x21" "{shift-1}",
-    "\x22" "{shift-2}",
-    "\x23" "{shift-3}",
-    "\x24" "{shift-4}",
-    "\x25" "{shift-5}",
-    "\x26" "{shift-6}",
-    "\x27" "{shift-7}",
-    "\x28" "{shift-8}",
-    "\x29" "{shift-9}",
-    "\x1b" "{shift-:}",
-    "\x1d" "{shift-;}",
-    "\x7a" "{shift-@}",
-    "\x5e" "{shift-^}",
-    "\x41" "{shift-a}",
-    "\x42" "{shift-b}",
-    "\x43" "{shift-c}",
-    "\x44" "{shift-d}",
-    "\x45" "{shift-e}",
-    "\x46" "{shift-f}",
-    "\x47" "{shift-g}",
-    "\x48" "{shift-h}",
-    "\x49" "{shift-i}",
-    "\x4a" "{shift-j}",
-    "\x4b" "{shift-k}",
-    "\x4c" "{shift-l}",
-    "\x4d" "{shift-m}",
-    "\x4e" "{shift-n}",
-    "\x4f" "{shift-o}",
-    "\x69" "{shift-pound}",
-    "\x50" "{shift-p}",
-    "\x51" "{shift-q}",
-    "\x52" "{shift-r}",
-    "\x60" "{shift-space}",
-    "\x53" "{shift-s}",
-    "\x54" "{shift-t}",
-    "\x5e" "{shift-up arrow}",
-    "\x55" "{shift-u}",
-    "\x56" "{shift-v}",
-    "\x57" "{shift-w}",
-    "\x58" "{shift-x}",
-    "\x59" "{shift-y}",
-    "\x5a" "{shift-z}",
-    "\x20" "{space}",
-    "\x1e" "{up arrow}",
-    NULL
-};
+static const char *petscii_screen_esc =
+    "\x5f" "{cbm-*}\0"
+    "\x66" "{cbm-+}\0"
+    "\x5c" "{cbm--}\0"
+    "\x30" "{cbm-0}\0"
+    "\x29" "{cbm-9}\0"
+    "\x64" "{cbm-@}\0"
+    "\x5e" "{cbm-^}\0"
+    "\x70" "{cbm-a}\0"
+    "\x7f" "{cbm-b}\0"
+    "\x7c" "{cbm-c}\0"
+    "\x6c" "{cbm-d}\0"
+    "\x71" "{cbm-e}\0"
+    "\x7b" "{cbm-f}\0"
+    "\x65" "{cbm-g}\0"
+    "\x74" "{cbm-h}\0"
+    "\x62" "{cbm-i}\0"
+    "\x75" "{cbm-j}\0"
+    "\x61" "{cbm-k}\0"
+    "\x76" "{cbm-l}\0"
+    "\x67" "{cbm-m}\0"
+    "\x6a" "{cbm-n}\0"
+    "\x79" "{cbm-o}\0"
+    "\x68" "{cbm-pound}\0"
+    "\x6f" "{cbm-p}\0"
+    "\x6b" "{cbm-q}\0"
+    "\x72" "{cbm-r}\0"
+    "\x6e" "{cbm-s}\0"
+    "\x63" "{cbm-t}\0"
+    "\x5e" "{cbm-up arrow}\0"
+    "\x78" "{cbm-u}\0"
+    "\x7e" "{cbm-v}\0"
+    "\x73" "{cbm-w}\0"
+    "\x7d" "{cbm-x}\0"
+    "\x77" "{cbm-y}\0"
+    "\x6d" "{cbm-z}\0"
+    "\x1f" "{left arrow}\0"
+    "\x5e" "{pi}\0"
+    "\x1c" "{pound}\0"
+    "\x40" "{shift-*}\0"
+    "\x5b" "{shift-+}\0"
+    "\x3c" "{shift-,}\0"
+    "\x5d" "{shift--}\0"
+    "\x3e" "{shift-.}\0"
+    "\x3f" "{shift-/}\0"
+    "\x30" "{shift-0}\0"
+    "\x21" "{shift-1}\0"
+    "\x22" "{shift-2}\0"
+    "\x23" "{shift-3}\0"
+    "\x24" "{shift-4}\0"
+    "\x25" "{shift-5}\0"
+    "\x26" "{shift-6}\0"
+    "\x27" "{shift-7}\0"
+    "\x28" "{shift-8}\0"
+    "\x29" "{shift-9}\0"
+    "\x1b" "{shift-:}\0"
+    "\x1d" "{shift-;}\0"
+    "\x7a" "{shift-@}\0"
+    "\x5e" "{shift-^}\0"
+    "\x41" "{shift-a}\0"
+    "\x42" "{shift-b}\0"
+    "\x43" "{shift-c}\0"
+    "\x44" "{shift-d}\0"
+    "\x45" "{shift-e}\0"
+    "\x46" "{shift-f}\0"
+    "\x47" "{shift-g}\0"
+    "\x48" "{shift-h}\0"
+    "\x49" "{shift-i}\0"
+    "\x4a" "{shift-j}\0"
+    "\x4b" "{shift-k}\0"
+    "\x4c" "{shift-l}\0"
+    "\x4d" "{shift-m}\0"
+    "\x4e" "{shift-n}\0"
+    "\x4f" "{shift-o}\0"
+    "\x69" "{shift-pound}\0"
+    "\x50" "{shift-p}\0"
+    "\x51" "{shift-q}\0"
+    "\x52" "{shift-r}\0"
+    "\x60" "{shift-space}\0"
+    "\x53" "{shift-s}\0"
+    "\x54" "{shift-t}\0"
+    "\x5e" "{shift-up arrow}\0"
+    "\x55" "{shift-u}\0"
+    "\x56" "{shift-v}\0"
+    "\x57" "{shift-w}\0"
+    "\x58" "{shift-x}\0"
+    "\x59" "{shift-y}\0"
+    "\x5a" "{shift-z}\0"
+    "\x20" "{space}\0"
+    "\x1e" "{up arrow}\0"
+    "\x00" "\0";
 
 static struct trans2_s no_screen_trans[] = {
     {0x00, 0x1F, 0x80},
@@ -666,7 +664,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
     return i;            //already exists
 }
 
-static void add_esc(const char **s, struct encoding_s *enc) {
+static void add_esc(const char *s, struct encoding_s *enc) {
     struct value_s tmp, tmp2;
     struct linepos_s nopoint = {0, 0};
     tmp.refcount = 0;
@@ -675,13 +673,13 @@ static void add_esc(const char **s, struct encoding_s *enc) {
     tmp2.obj = BYTES_OBJ;
     tmp2.u.bytes.len = 1;
     tmp2.u.bytes.data = tmp2.u.bytes.val;
-    while (*s) {
-        tmp.u.str.data = (uint8_t *)*s + 1;
-        tmp.u.str.len = strlen((char *)tmp.u.str.data);
+    while (s[1]) {
+        tmp.u.str.data = (uint8_t *)s + 1;
+        tmp.u.str.len = strlen(s + 1);
         tmp.u.str.chars = tmp.u.str.len;
-        tmp2.u.bytes.val[0] = *s[0];
+        tmp2.u.bytes.val[0] = (uint8_t)s[0];
         new_escape(&tmp, &tmp2, enc, &nopoint);
-        s++;
+        s += tmp.u.str.len + 2;
     }
 }
 
