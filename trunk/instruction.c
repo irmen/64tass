@@ -451,7 +451,6 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                                 s->addr = current_section->l_address & all_mem;
                                 return 0;
                             } else if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
-                                ln = 0; adr = 0x10000;
                                 cod = cnmemonic[ADR_REL] ^ 0x20;
                                 pokeb(cod);
                                 list_instr(cod, 0, 0, ADR_IMPLIED, relopnames[cod >> 5]);
