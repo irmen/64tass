@@ -291,7 +291,6 @@ struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_
     size_t i;
     struct label_s *label;
     struct value_s *val, *tuple = NULL;
-    struct linepos_s epoint2;
     size_t max = 0, args = get_val_remaining();
 
     for (i = 0; i < tmp2->u.mfunc.argc; i++) {
@@ -302,18 +301,24 @@ struct value_s *mfunc_recurse(enum wait_e t, struct value_s *tmp2, struct label_
             tuple->obj = TUPLE_OBJ;
             tuple->u.list.len = get_val_remaining();
             tuple->u.list.data = list_create_elements(tuple, tuple->u.list.len);
-            for (j = 0; (val = pull_val(&epoint2)); j++) tuple->u.list.data[j] = val;
+            for (j = 0; (val = pull_val(NULL)); j++) {
+                if (val->obj == ERROR_OBJ) {err_msg_output(val); val_destroy(val); val = &none_value;}
+                tuple->u.list.data[j] = val;
+            }
             val = tuple;
         } else {
-            val = get_val(&epoint2);
+            val = get_val(NULL);
+            if (val && val->obj == ERROR_OBJ) {err_msg_output(val); val = &none_value;}
             if (!val) val = tmp2->u.mfunc.param[i].init;
             if (!val) { max = i + 1; val = &none_value; }
         }
         label = new_label(&tmp2->u.mfunc.param[i].name, context, strength, &labelexists);
         label->ref=0;
         if (labelexists) {
-            if (label->defpass == pass) err_msg_double_defined(label, &tmp2->u.mfunc.param[i].name, &epoint2);
-            else {
+            if (label->defpass == pass) {
+                struct linepos_s epoint2 = {0, 0};
+                err_msg_double_defined(label, &tmp2->u.mfunc.param[i].name, &epoint2); /* not possible in theory */
+            } else {
                 label->constant = 1;
                 label->requires=current_section->requires;
                 label->conflicts=current_section->conflicts;
@@ -408,12 +413,15 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
         } else {
             new_value.u.mfunc.param[i].init = NULL;
             if (here() == '=') {
+                struct value_s *val;
                 lpoint.pos++;
                 if (!get_exp(&w, 1, cfile, 1, 1, &lpoint)) {
                     i++;
                     break;
                 }
-                new_value.u.mfunc.param[i].init = pull_val(NULL);
+                val = pull_val(NULL);
+                if (val->obj == ERROR_OBJ) {err_msg_output(val); val_destroy(val); val = &none_value;}
+                new_value.u.mfunc.param[i].init = val;
             }
         }
         if (!here() || here() == ';') {
