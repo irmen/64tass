@@ -404,6 +404,7 @@ void err_msg_output(const struct value_s *val) {
         case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, &val->u.error.epoint);break;
         case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, &val->u.error.epoint);break;
         case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, &val->u.error.epoint);break;
+        case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->u.error.epoint); break;
         case ERROR_____CANT_IVAL:
         case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->u.error.num & 63], val->u.error.u.bits, &val->u.error.epoint);break;
         case ERROR___INDEX_RANGE:

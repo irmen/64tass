@@ -1304,26 +1304,19 @@ static int get_val2(struct eval_context_s *ev) {
     return 1;
 }
 
-struct value_s *get_val(struct linepos_s *epoint) {
+inline struct value_s *get_val(struct linepos_s *epoint) {
     struct values_s *value;
-    struct value_s *val;
 
     if (eval->values_p >= eval->values_len) return NULL;
 
     value = &eval->values[eval->values_p++];
     if (epoint) *epoint = value->epoint;
-    val = value->val;
-
-    if (val->obj == ERROR_OBJ) {
-        err_msg_output_and_destroy(val);
-        val->obj = NONE_OBJ;
-    }
-    return val;
+    return value->val;
 }
 
-struct value_s *pull_val(struct linepos_s *epoint) {
-    struct values_s *value;
+inline struct value_s *pull_val(struct linepos_s *epoint) {
     struct value_s *val;
+    struct values_s *value;
 
     if (eval->values_p >= eval->values_len) return NULL;
 
@@ -1331,11 +1324,6 @@ struct value_s *pull_val(struct linepos_s *epoint) {
     if (epoint) *epoint = value->epoint;
     val = value->val;
     eval->values[eval->values_p++].val = &none_value;
-
-    if (val->obj == ERROR_OBJ) {
-        err_msg_output_and_destroy(val);
-        val->obj = NONE_OBJ;
-    }
     return val;
 }
 
@@ -1838,17 +1826,24 @@ int get_exp_var(struct file_s *cfile, linepos_t epoint) {
     return get_exp(&w, 2, cfile, 1, 1, epoint);
 }
 
-struct value_s *get_vals_tuple(int all) {
+struct value_s *get_vals_tuple(void) {
     size_t i, len = get_val_remaining();
     struct value_s *val;
-    struct linepos_s epoint;
 
-    if (!all && len == 1) return pull_val(&epoint);
+    if (len == 1) {
+        val = pull_val(NULL);
+        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+        return val;
+    }
     val = val_alloc();
     val->obj = TUPLE_OBJ;
     val->u.list.len = len;
     val->u.list.data = list_create_elements(val, len);
-    for (i = 0; i < len; i++) val->u.list.data[i] = pull_val(&epoint);
+    for (i = 0; i < len; i++) {
+        struct value_s *val2 = pull_val(NULL);
+        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = &none_value; }
+        val->u.list.data[i] = val2;
+    }
     return val;
 }
 
@@ -1857,12 +1852,16 @@ struct value_s *get_vals_addrlist(struct linepos_s *epoints) {
     struct value_s *val;
     struct linepos_s epoint;
 
-    if (len == 1) return val_reference(get_val(&epoints[0]));
+    if (len == 1) return pull_val(&epoints[0]);
     val = val_alloc();
     val->obj = ADDRLIST_OBJ;
     val->u.list.len = len;
     val->u.list.data = list_create_elements(val, len);
-    for (i = 0; i < len; i++) val->u.list.data[i] = pull_val((i < 3) ? &epoints[i] : &epoint);
+    for (i = 0; i < len; i++) {
+        struct value_s *val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
+        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2->obj = NONE_OBJ; }
+        val->u.list.data[i] = val2;
+    }
     return val;
 }
 
