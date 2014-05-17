@@ -55,7 +55,9 @@
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
+#ifndef snprintf
 #define snprintf(str, size, format, var, var2) sprintf(str, format, var, var2)
+#endif
 #endif
 
 static struct value_s return_value, error_value;
