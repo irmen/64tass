@@ -1553,11 +1553,11 @@ global one with the same name.
     not always exist without resorting to .ifdef/.ifndef or similar directives
     in other assemblers.
 
-    symbol  = 1            ;stronger symbol than the one below
-            .weak
-    symbol  = 0            ;default value if the one above does not exists
-            .endweak
-            .if symbol     ;almost like an .ifdef ;)
+symbol  = 1            ;stronger symbol than the one below
+        .weak
+symbol  = 0            ;default value if the one above does not exists
+        .endweak
+        .if symbol     ;almost like an .ifdef ;)
 
 Other use of weak symbols might be in included libraries to change default
 values or replace stub functions and data structures.
