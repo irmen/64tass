@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.51 r701 manual</title>
+<title>64tass v1.51 r715 manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -61,7 +61,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.51 r701 manual</h1>
+<h1>64tass v1.51 r715 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -1973,19 +1973,19 @@ can ruin the timing of a carefully cycle counted code.
 <h3>Target<a name="target-cpu" href="#target-cpu"></a></h3>
 <dl class="dir">
 
-<dt><a name="d_cpu">.cpu</a> &lt;cpuname&gt;
-<dd>Selects cpu
+<dt><a name="d_cpu">.cpu</a> "&lt;cpuname&gt;"
+<dd>Selects cpu. The name of the CPU must be quoted, unlike earlier versions where this was optional.
 <pre width=80>
-	<b class="k">.cpu</b> 6502	<i>;standard 65xx</i>
-	<b class="k">.cpu</b> 65c02	<i>;CMOS 65C02</i>
-	<b class="k">.cpu</b> 65ce02	<i>;CSG 65CE02</i>
-	<b class="k">.cpu</b> 6502i	<i>;NMOS 65xx</i>
-	<b class="k">.cpu</b> 65816	<i>;W65C816</i>
-	<b class="k">.cpu</b> 65dtv02	<i>;65dtv02</i>
-	<b class="k">.cpu</b> 65el02	<i>;65el02</i>
-	<b class="k">.cpu</b> r65c02	<i>;R65C02</i>
-	<b class="k">.cpu</b> w65c02	<i>;W65C02</i>
-	<b class="k">.cpu</b> default	<i>;cpu set on commandline</i>
+	<b class="k">.cpu</b> <span class="s">"6502"</span>	<i>;standard 65xx</i>
+	<b class="k">.cpu</b> <span class="s">"65c02"</span>	<i>;CMOS 65C02</i>
+	<b class="k">.cpu</b> <span class="s">"65ce02"</span>	<i>;CSG 65CE02</i>
+	<b class="k">.cpu</b> <span class="s">"6502i"</span>	<i>;NMOS 65xx</i>
+	<b class="k">.cpu</b> <span class="s">"65816"</span>	<i>;W65C816</i>
+	<b class="k">.cpu</b> <span class="s">"65dtv02"</span>	<i>;65dtv02</i>
+	<b class="k">.cpu</b> <span class="s">"65el02"</span>	<i>;65el02</i>
+	<b class="k">.cpu</b> <span class="s">"r65c02"</span>	<i>;R65C02</i>
+	<b class="k">.cpu</b> <span class="s">"w65c02"</span>	<i>;W65C02</i>
+	<b class="k">.cpu</b> <span class="s">"default"</span>	<i>;cpu set on commandline</i>
 </pre>
 
 </dl>
