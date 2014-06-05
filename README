@@ -1,4 +1,4 @@
-64tass v1.51 r701 manual
+64tass v1.51 r715 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -1783,19 +1783,20 @@ Controlling errors
 
 Target
 
-.cpu <cpuname>
-    Selects cpu
+.cpu "<cpuname>"
+    Selects cpu. The name of the CPU must be quoted, unlike earlier versions
+    where this was optional.
 
-            .cpu 6502       ;standard 65xx
-            .cpu 65c02      ;CMOS 65C02
-            .cpu 65ce02     ;CSG 65CE02
-            .cpu 6502i      ;NMOS 65xx
-            .cpu 65816      ;W65C816
-            .cpu 65dtv02    ;65dtv02
-            .cpu 65el02     ;65el02
-            .cpu r65c02     ;R65C02
-            .cpu w65c02     ;W65C02
-            .cpu default    ;cpu set on commandline
+            .cpu "6502"     ;standard 65xx
+            .cpu "65c02"    ;CMOS 65C02
+            .cpu "65ce02"   ;CSG 65CE02
+            .cpu "6502i"    ;NMOS 65xx
+            .cpu "65816"    ;W65C816
+            .cpu "65dtv02"  ;65dtv02
+            .cpu "65el02"   ;65el02
+            .cpu "r65c02"   ;R65C02
+            .cpu "w65c02"   ;W65C02
+            .cpu "default"  ;cpu set on commandline
 
 Misc
 

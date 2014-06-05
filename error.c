@@ -156,6 +156,7 @@ static const char *terr_warning[]={
     "long branch used",
     "directive ignored",
     "label not on left side",
+    "please doublequote cpu name, it'll be mandatory in next release",
 };
 
 static const char *terr_error[]={

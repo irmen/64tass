@@ -534,6 +534,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                 if (cnmemonic[opr - 2] == ____) return 2;
                 if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
                 else adr = uval;
+                break;
             default: return 2;
             }
         }

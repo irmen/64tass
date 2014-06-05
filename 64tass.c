@@ -2134,6 +2134,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .cpu */
                     const struct cpu_s *def;
                     char cpu[20];
+                    if (here() != '"') err_msg2(ERROR_CPU_DOUBLEQUO, NULL, &epoint);
                     if (get_cpu(cpu)) goto breakerr;
                     def = arguments.cpumode;
                     if (!strcmp(cpu,"6502")) def = &c6502;
