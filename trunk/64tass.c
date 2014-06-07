@@ -474,21 +474,6 @@ static int get_command(void) {
     return sizeof(command)/sizeof(command[0]);
 }
 
-static int get_cpu(char *cpu) {
-    int q=1;
-    unsigned int i=0, i2;
-    i2 = i;
-    ignore();
-    if (here()=='\"') {lpoint.pos++;q=0;}
-    while (here() && (here()!=';' || !q) && (here()!='\"' || q) && i < 20) cpu[i++]=get();
-    if (i >= 20 || (!q && here()!='\"')) {err_msg(ERROR_GENERL_SYNTAX, NULL); return 1;}
-    if (!q) lpoint.pos++; else while (i && (cpu[i-1]==0x20 || cpu[i-1]==0x09)) i--;
-    cpu[i]=0;
-    ignore();
-    if (i <= i2) {err_msg(ERROR_GENERL_SYNTAX,NULL); return 1;}
-    return 0;
-}
-
 /* ------------------------------------------------------------------------------ */
 
 static void set_cpumode(const struct cpu_s *cpumode) {
@@ -2125,22 +2110,44 @@ struct value_s *compile(struct file_list_s *cflist)
                 break;
             case CMD_CPU: if (waitfor->skip & 1) 
                 { /* .cpu */
-                    const struct cpu_s *def;
-                    char cpu[20];
-                    if (here() != '"') err_msg2(ERROR_CPU_DOUBLEQUO, NULL, &epoint);
-                    if (get_cpu(cpu)) goto breakerr;
-                    def = arguments.cpumode;
-                    if (!strcmp(cpu,"6502")) def = &c6502;
-                    else if (!strcasecmp(cpu,"65c02")) def = &c65c02;
-                    else if (!strcasecmp(cpu,"65ce02")) def = &c65ce02;
-                    else if (!strcasecmp(cpu,"6502i")) def = &c6502i;
-                    else if (!strcmp(cpu,"65816")) def = &w65816;
-                    else if (!strcasecmp(cpu,"65dtv02")) def = &c65dtv02;
-                    else if (!strcasecmp(cpu,"65el02")) def = &c65el02;
-                    else if (!strcmp(cpu,"r65c02")) def = &r65c02;
-                    else if (!strcmp(cpu,"w65c02")) def = &w65c02;
-                    else if (strcasecmp(cpu,"default")) err_msg(ERROR___UNKNOWN_CPU, cpu);
-                    set_cpumode(def);
+                    const struct cpu_list_s {
+                        const char *name;
+                        const struct cpu_s *def;
+                    } *cpui;
+                    static const struct cpu_list_s cpus[] = {
+                        {"6502", &c6502}, {"65c02", &c65c02},
+                        {"65ce02", &c65ce02}, {"6502i", &c6502i},
+                        {"65816", &w65816}, {"65dtv02", &c65dtv02},
+                        {"65el02", &c65el02}, {"r65c02", &r65c02},
+                        {"w65c02", &w65c02}, {"default", NULL},
+                        {NULL, NULL},
+                    };
+                    size_t len;
+                    if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
+                    val = get_val(&epoint);
+                    switch (val->obj->type) {
+                    case T_STR:
+                        cpui = cpus;
+                        len = val->u.str.len;
+                        while (cpui->name) {
+                            if (len == strlen(cpui->name) && !memcmp(cpui->name, val->u.str.data, len)) {
+                                set_cpumode(cpui->def ? cpui->def : arguments.cpumode);
+                                break;
+                            }
+                            cpui++;
+                        }
+                        if (!cpui->name) err_msg2(ERROR___UNKNOWN_CPU, val, &epoint);
+                        break;
+                    case T_NONE: 
+                        err_msg_still_none(NULL, &epoint);
+                        break;
+                    case T_ERROR: 
+                        err_msg_output(val);
+                        break;
+                    default:
+                        err_msg_wrong_type(val, &epoint);
+                        break;
+                    }
                 }
                 break;
             case CMD_REPT: if (waitfor->skip & 1) 
