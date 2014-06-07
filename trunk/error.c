@@ -18,9 +18,7 @@
 */
 #include <string.h>
 #include <errno.h>
-#ifndef _WIN32
 #include <wchar.h>
-#endif
 #include <wctype.h>
 #include "error.h"
 #include "misc.h"
