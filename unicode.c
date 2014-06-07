@@ -267,6 +267,61 @@ void unfc(struct ubuff_s *b) {
     ucompose(&dbuf, b);
 }
 
+void unfkc(str_t *s1, const str_t *s2, int mode) {
+    const uint8_t *d, *m;
+    uint8_t *s, *dd;
+    size_t i, l;
+    static struct ubuff_s dbuf, dbuf2;
+    if (!s2) {
+        free(dbuf.data);
+        free(dbuf2.data);
+        return;
+    }
+    mode = (mode ? U_CASEFOLD : 0) | U_COMPAT;
+    d = s2->data;
+    for (dbuf.p = i = 0; i < s2->len;) {
+        uint32_t ch;
+        ch = d[i];
+        if (ch & 0x80) {
+            i += utf8in(d + i, &ch);
+            udecompose(ch, &dbuf, mode);
+            continue;
+        }
+        if ((mode & U_CASEFOLD) && ch >= 'A' && ch <= 'Z') ch |= 0x20;
+        if (dbuf.p >= dbuf.len) extbuff(&dbuf);
+        dbuf.data[dbuf.p++] = ch;
+        i++;
+    }
+    unormalize(&dbuf);
+    ucompose(&dbuf, &dbuf2);
+    l = s2->len + 16;
+    dd = s = (uint8_t *)realloc((uint8_t *)s1->data, l);
+    if (!dd || l < 16) err_msg_out_of_memory();
+    m = dd + l - 8;
+    for (i = 0; i < dbuf2.p; i++) {
+        uint32_t ch;
+        if (s > m) {
+            size_t o = s - dd;
+            l += 16;
+            dd = (uint8_t *)realloc(dd, l);
+            if (!dd || l < 16) err_msg_out_of_memory();
+            s = dd + o;
+            m = dd + l - 8;
+        }
+        ch = dbuf2.data[i];
+        if (ch < 0x80) {
+            *s++ = ch;
+            continue;
+        }
+        s = utf8out(ch, s);
+    }
+    l = s - dd;
+    dd = (uint8_t *)realloc(dd, l);
+    if (!dd) err_msg_out_of_memory();
+    s1->len = l;
+    s1->data = dd;
+}
+
 void printable_print(const uint8_t *line, FILE *f) {
     size_t i = 0, l = 0;
     for (;;) {
@@ -298,3 +353,33 @@ void printable_print(const uint8_t *line, FILE *f) {
     if (i != l) fwrite(line + l, i - l, 1, f);
 }
 
+size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
+    size_t i, l = 0, len = 0;
+    for (i = 0; i < max;) {
+        uint32_t ch = line[i];
+        if (ch & 0x80) {
+#ifdef _WIN32
+            i += utf8in(line + i, &ch);
+            if (iswprint(ch)) continue;
+            if (l != i) len += fwrite(line + l, 1, i - l, f);
+            len += fprintf(f, "{$%x}", ch);
+#else
+            if (l != i) len += fwrite(line + l, 1, i - l, f);
+            i += utf8in(line + i, &ch);
+            if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) len += fprintf(f, "{$%x}", ch); else len++;
+#endif
+            l = i;
+            continue;
+        }
+        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
+            if (l != i) len += fwrite(line + l, 1, i - l, f);
+            i++;
+            len += fprintf(f, "{$%x}", ch);
+            l = i;
+            continue;
+        }
+        i++;
+    }
+    if (i != l) len += fwrite(line + l, 1, i - l, f);
+    return len;
+}

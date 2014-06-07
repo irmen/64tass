@@ -32,15 +32,6 @@ static struct obj_s register_obj;
 obj_t STR_OBJ = &str_obj;
 obj_t REGISTER_OBJ = &register_obj;
 
-static inline int utf8len(uint8_t ch) {
-    if (ch < 0x80) return 1;
-    if (ch < 0xe0) return 2;
-    if (ch < 0xf0) return 3;
-    if (ch < 0xf8) return 4;
-    if (ch < 0xfc) return 5;
-    return 6;
-}
-
 static void destroy(struct value_s *v1) {
     if (v1->u.str.val != v1->u.str.data) free(v1->u.str.data);
 }

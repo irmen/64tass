@@ -16,6 +16,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#include "unicode.h"
 #include "section.h"
 #include "error.h"
 #include "misc.h"
@@ -149,7 +150,7 @@ void destroy_section(void) {
 static void sectionprint2(const struct section_s *l) {
     if (l->name.data) {
         sectionprint2(l->parent);
-        fwrite(l->name.data, l->name.len, 1, stdout); /* TODO */
+        printable_print2(l->name.data, stdout, l->name.len);
         putchar('.');
     }
 }
@@ -176,7 +177,7 @@ void sectionprint(void) {
                 printf("Section:                         ");
             }
             sectionprint2(l->parent);
-            fwrite(l->name.data, l->name.len, 1, stdout); /* TODO */
+            printable_print2(l->name.data, stdout, l->name.len);
             putchar('\n');
             memprint(&l->mem);
         }

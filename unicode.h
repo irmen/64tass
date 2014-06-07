@@ -31,5 +31,16 @@ extern unsigned int utf8in(const uint8_t *, uint32_t *);
 extern unsigned int utf8rin(const uint8_t *, uint32_t *);
 extern uint8_t *utf8out(uint32_t, uint8_t *);
 extern void unfc(struct ubuff_s *);
+extern void unfkc(str_t *, const str_t *, int);
 extern void printable_print(const uint8_t *, FILE *);
+extern size_t printable_print2(const uint8_t *, FILE *, size_t);
+
+static inline int utf8len(uint8_t ch) {
+    if (ch < 0x80) return 1;
+    if (ch < 0xe0) return 2;
+    if (ch < 0xf0) return 3;
+    if (ch < 0xf8) return 4;
+    if (ch < 0xfc) return 5;
+    return 6;
+}
 #endif

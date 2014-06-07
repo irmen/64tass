@@ -17,6 +17,7 @@
 
 */
 #include <string.h>
+#include "unicode.h"
 #include "variables.h"
 #include "misc.h"
 #include "values.h"
@@ -304,9 +305,9 @@ static struct label_s *find_strongest_label(struct avltree_node **x, avltree_cmp
 }
 
 static void labelname_print(const struct label_s *l, FILE *flab) {
-    if (l->parent->parent) labelname_print(l->parent, flab);
+    if (l->parent->parent->parent) labelname_print(l->parent, flab);
     putc('.', flab);
-    fwrite(l->name.data, l->name.len, 1, flab); /* TODO!! */
+    printable_print2(l->name.data, flab, l->name.len);
 }
 
 static void labelprint2(const struct avltree *members, FILE *flab) {
@@ -372,13 +373,12 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
             }
             labelprint2(&l->members, flab);
         } else {
+            size_t len = printable_print2(l->name.data, flab, l->name.len);
             if (l->constant) {
-                fwrite(l->name.data, l->name.len, 1, flab); /* TODO */
-                if (l->name.len < 16) fputs(&"                "[l->name.len], flab);
+                if (len < 16) fputs(&"                "[len], flab);
                 fputs("= ", flab);
             } else {
-                fwrite(l->name.data, l->name.len, 1, flab); /* TODO */
-                if (l->name.len < 15) fputs(&"               "[l->name.len], flab);
+                if (len < 15) fputs(&"               "[len], flab);
                 fputs(" .var ", flab);
             }
             obj_print(l->value, flab);

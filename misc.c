@@ -62,23 +62,47 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
     size_t i, l = s2->len;
     const uint8_t *d = s2->data;
     if (arguments.casesensitive) {
+        for (i = 0; i < l; i++) {
+            if (d[i] & 0x80) {
+                s1->data = NULL;
+                unfkc(s1, s2, 0);
+                return;
+            }
+        }
         s1->len = l;
         s1->data = d;
         return;
     }
     for (i = 0; i < l; i++) {
-        if (d[i] >= 'A' && d[i] <= 'Z') {
-            uint8_t *s = (uint8_t *)malloc(s2->len);
-            if (!s) err_msg_out_of_memory();
-            if (i) memcpy(s, d, i);
-            for (; i < l; i++) {
-                if (d[i] < 'A' || d[i] > 'Z') s[i] = d[i];
-                else s[i] = d[i] | 0x20;
-            }
-            s1->len = l;
-            s1->data = s;
+        uint8_t *s, ch = d[i];
+        if (ch < 'A' || (ch > 'Z' && ch < 0x80)) continue;
+        if (ch & 0x80) {
+            s1->data = NULL;
+            unfkc(s1, s2, 1);
             return;
         }
+        s = (uint8_t *)malloc(s2->len);
+        if (!s) err_msg_out_of_memory();
+        if (i) memcpy(s, d, i);
+        s1->data = s;
+        for (; i < l; i++) {
+            ch = d[i];
+            if (ch < 'A') {
+                s[i] = ch;
+                continue;
+            }
+            if (ch <= 'Z') {
+                s[i] = ch | 0x20;
+                continue;
+            }
+            if (ch & 0x80) {
+                unfkc(s1, s2, 1);
+                return;
+            }
+            s[i] = ch;
+        }
+        s1->len = l;
+        return;
     }
     s1->len = l;
     s1->data = d;
@@ -103,6 +127,7 @@ void tfree(void) {
     destroy_values();
     destroy_ternary();
     unfc(NULL);
+    unfkc(NULL, NULL, 0);
 }
 
 void tinit(void) {

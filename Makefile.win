@@ -40,11 +40,12 @@ encoding.o: encoding.c encoding.h libtree.h inttypes.h error.h ternary.h \
  unicodedata.h
 error.o: error.c error.h inttypes.h libtree.h misc.h values.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
- functionobj.h file.h variables.h 64tass.h opcodes.h
+ functionobj.h file.h variables.h 64tass.h opcodes.h macro.h unicode.h \
+ unicodedata.h
 eval.o: eval.c eval.h values.h inttypes.h error.h libtree.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h file.h section.h mem.h encoding.h macro.h variables.h \
- 64tass.h opcodes.h misc.h floatobj.h boolobj.h
+ 64tass.h opcodes.h misc.h unicode.h unicodedata.h floatobj.h boolobj.h
 file.o: file.c file.h inttypes.h libtree.h values.h error.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h misc.h 64tass.h opcodes.h unicode.h unicodedata.h
@@ -84,8 +85,8 @@ obj.o: obj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  functionobj.h variables.h misc.h section.h mem.h 64tass.h opcodes.h \
  eval.h boolobj.h floatobj.h
 opcodes.o: opcodes.c opcodes.h
-section.o: section.c section.h libtree.h inttypes.h mem.h error.h misc.h \
- 64tass.h opcodes.h
+section.o: section.c unicode.h inttypes.h unicodedata.h section.h \
+ libtree.h mem.h error.h misc.h 64tass.h opcodes.h
 strobj.o: strobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h eval.h misc.h unicode.h unicodedata.h boolobj.h
@@ -96,9 +97,10 @@ unicode.o: unicode.c unicode.h inttypes.h unicodedata.h error.h libtree.h
 values.o: values.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h boolobj.h
-variables.o: variables.c variables.h libtree.h inttypes.h misc.h values.h \
- error.h obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h \
- addressobj.h functionobj.h 64tass.h opcodes.h file.h boolobj.h
+variables.o: variables.c unicode.h inttypes.h unicodedata.h variables.h \
+ libtree.h misc.h values.h error.h obj.h intobj.h bitsobj.h bytesobj.h \
+ strobj.h listobj.h codeobj.h addressobj.h functionobj.h 64tass.h \
+ opcodes.h file.h boolobj.h
 
 .PHONY: clean
 

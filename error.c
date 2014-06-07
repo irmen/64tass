@@ -560,15 +560,6 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
     return;
 }
 
-static inline int utf8len(uint8_t ch) {
-    if (ch < 0x80) return 1;
-    if (ch < 0xe0) return 2;
-    if (ch < 0xf0) return 3;
-    if (ch < 0xf8) return 4;
-    if (ch < 0xfc) return 5;
-    return 6;
-}
-
 static linecpos_t calcpos(const uint8_t *line, size_t pos, int utf8) {
     if (utf8) return pos + 1;
     size_t s = 0, l = 0;
@@ -615,36 +606,6 @@ static inline void caret_print(const uint8_t *line, FILE *f, size_t max) {
         putc(' ', f); 
         l--; 
     }
-}
-
-static inline void printable_print2(const uint8_t *line, FILE *f, size_t max) {
-    size_t i, l = 0;
-    for (i = 0; i < max;) {
-        uint32_t ch = line[i];
-        if (ch & 0x80) {
-#ifdef _WIN32
-            i += utf8in(line + i, &ch);
-            if (iswprint(ch)) continue;
-            if (l != i) fwrite(line + l, i - l, 1, f);
-            fprintf(f, "{$%x}", ch);
-#else
-            if (l != i) fwrite(line + l, i - l, 1, f);
-            i += utf8in(line + i, &ch);
-            if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) fprintf(f, "{$%x}", ch);
-#endif
-            l = i;
-            continue;
-        }
-        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
-            if (l != i) fwrite(line + l, i - l, 1, f);
-            i++;
-            fprintf(f, "{$%x}", ch);
-            l = i;
-            continue;
-        }
-        i++;
-    }
-    if (i != l) fwrite(line + l, i - l, 1, f);
 }
 
 static inline void print_error(FILE *f, const struct error_s *err) {

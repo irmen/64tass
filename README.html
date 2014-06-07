@@ -29,7 +29,7 @@ table {border-bottom:2px solid black;border-top:2px solid black;border-collapse:
 td, th {padding: 0px 1ex 0px 1ex;border-left:1px solid silver;border-top:1px solid silver}
 tr:nth-child(odd) {background: #fafaff;}
 td:first-child, th:first-child {border-left: 0px;}
-caption {caption-side:bottom;} 
+caption {caption-side:bottom;}
 table.opcodes th, table.opcodes td {text-align:left;table-layout:fixed;}
 table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
 dl.dir dt, table.oper td:first-child, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, table.adroper td:first-child, table.adroper td:last-child {font-family:monospace;font-size:12pt;}
@@ -73,6 +73,7 @@ the 65xx series of processors. Key features:</p>
 <li>Arbitrary-precision integers and bitstrings, double precision floating point numbers
 <li>Character and byte strings, array arithmetic
 <li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files and strings
+<li>Supports Unicode identifiers with case folding and compatibility normalization
 <li>Built-in <q>linker</q> with section support
 <li>CPU or flat address space for creating huge binaries (e.g. cartridges)
 <li>Conditional compilation, macros, struct/union structures, scopes.
@@ -725,7 +726,7 @@ modes of the supported CPUs.</b></p>
 is. It's only usable for direct/zero page instructions.</p>
 
 <p>The data bank indexed addressing mode is not affected by the
-<code>.databank</code> directive and always forces the 16&nbsp;bit address 
+<code>.databank</code> directive and always forces the 16&nbsp;bit address
 as is. It's only usable with data bank accessing instructions.</p>
 
 <p>The program bank indexed addressing mode is not affected by the
@@ -1811,9 +1812,9 @@ p3	<b class="d">.word</b> <span>?</span>         <i>;a pointer</i>
 </pre>
 <p>The compiled code will look like:</p>
 <pre width=80>
-&gt;0801	 0b 08 d5 07			        .word ss, 2005   
+&gt;0801	 0b 08 d5 07			        .word ss, 2005
 &gt;0805	 9e 32 30 36 31 00		        .null $9e, ^start
-&gt;080b	 00 00				ss      .word 0          
+&gt;080b	 00 00				ss      .word 0
 
 .080d	 78				start   sei
 
