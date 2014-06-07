@@ -592,7 +592,7 @@ static inline void caret_print(const uint8_t *line, FILE *f, size_t max) {
 #ifdef _WIN32
             if (!iswprint(ch)) l += sprintf(temp, "{$%x}", ch); else l++;
 #else
-            if (!iswprint(ch) || sprintf(temp, "%lc", ch) < 0) l += sprintf(temp, "{$%x}", ch); else l++;
+            if (!iswprint(ch) || sprintf(temp, "%lc", (wint_t)ch) < 0) l += sprintf(temp, "{$%x}", ch); else l++;
 #endif
             continue;
         }
@@ -628,7 +628,7 @@ static inline void printable_print2(const uint8_t *line, FILE *f, size_t max) {
 #else
             if (l != i) fwrite(line + l, i - l, 1, f);
             i += utf8in(line + i, &ch);
-            if (!iswprint(ch) || fprintf(f, "%lc", ch) < 0) fprintf(f, "{$%x}", ch);
+            if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) fprintf(f, "{$%x}", ch);
 #endif
             l = i;
             continue;
