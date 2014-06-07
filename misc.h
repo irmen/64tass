@@ -46,7 +46,6 @@ struct arguments_s {
 };
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
-#define get() pline[lpoint.pos++]
 #define here() pline[lpoint.pos]
 
 extern void tfree(void);

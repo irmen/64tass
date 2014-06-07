@@ -154,7 +154,6 @@ static const char *terr_warning[]={
     "long branch used",
     "directive ignored",
     "label not on left side",
-    "please doublequote cpu name, it'll be mandatory in next release",
 };
 
 static const char *terr_error[]={
@@ -276,6 +275,11 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
             err_msg_variable(&error_list, (struct value_s *)prm, epoint);
             adderror("'");
             break;
+        case ERROR___UNKNOWN_CPU:
+            adderror("unknown cpu '");
+            err_msg_variable(&error_list, (struct value_s *)prm, epoint);
+            adderror("'");
+            break;
         default:
             adderror(terr_error[no & 63]);
         }
@@ -284,10 +288,6 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
     
     new_error(SV_FATAL, current_file_list, epoint);
     switch (no) {
-    case ERROR___UNKNOWN_CPU:
-        adderror("unknown cpu: ");
-        adderror((char *)prm);
-        break;
     case ERROR_UNKNOWN_OPTIO:
         adderror("unknown option: ");
         adderror((char *)prm);
