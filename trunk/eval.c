@@ -27,6 +27,7 @@
 #include "variables.h"
 #include "64tass.h"
 #include "misc.h"
+#include "unicode.h"
 
 #include "listobj.h"
 #include "floatobj.h"
@@ -64,12 +65,64 @@ inline double hypot(double a, double b) {return sqrt(a*a+b*b);}
 #endif
 
 size_t get_label(void) {
-    uint8_t ch;
-    struct linepos_s e;
-    if (here()>='0' && here()<='9') return 0;
-    e.pos = lpoint.pos;
-    while ((((ch=here()) | 0x20) >= 'a' && (ch | 0x20) <= 'z') || (ch>='0' && ch<='9') || ch=='_') lpoint.pos++;
-    return lpoint.pos - e.pos;
+    uint32_t ch;
+    unsigned int l;
+    const struct properties_s *prop;
+    const uint8_t *s = pline + lpoint.pos;
+    const uint8_t *e;
+    static const uint8_t typ[256] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //1
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //2
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, //3
+        0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, //4
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 2, //5
+        0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, //6
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, //7
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //8
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //9
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //a
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //b
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //c
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //d
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //e
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //f
+    };
+
+    switch (typ[*s]) {
+    default:
+    case 1:
+    case 0: return 0;
+    case 2:
+        e = s;
+        s++;
+        break;
+    case 3:
+        if (!arguments.toascii) return 0;
+        l = utf8in(s, &ch);
+        prop = uget_property(ch);
+        if (!(prop->property & id_Start)) return 0;
+        e = s;
+        s += l;
+    }
+    for (;;) {
+        switch (typ[*s]) {
+        default:
+        case 0: break;
+        case 1:
+        case 2: s++; continue;
+        case 3:
+            if (!arguments.toascii) break;
+            l = utf8in(s, &ch);
+            prop = uget_property(ch);
+            if (!(prop->property & (id_Continue | id_Start))) break;
+            s += l;
+            continue;
+        }
+        break;
+    }
+    lpoint.pos = s - pline;
+    return s - e;
 }
 
 static void get_dec(struct value_s *v) {
