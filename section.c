@@ -31,13 +31,14 @@ static int section_compare(const struct avltree_node *aa, const struct avltree_n
     const struct section_s *b = cavltree_container_of(bb, struct section_s, node);
     int h = a->name_hash - b->name_hash;
     if (h) return h; 
-    return arguments.casesensitive ? str_cmp(&a->name, &b->name) : str_casecmp(&a->name, &b->name);
+    return str_cmp(&a->cfname, &b->cfname);
 }
 
 static void section_free(struct avltree_node *aa)
 {
     struct section_s *a = avltree_container_of(aa, struct section_s, node);
     free((uint8_t *)a->name.data);
+    if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
     avltree_destroy(&a->members, section_free);
     destroy_memblocks(&a->mem);
     free(a);
@@ -47,19 +48,22 @@ struct section_s *find_new_section(const str_t *name) {
     struct avltree_node *b;
     struct section_s *context = current_section;
     struct section_s tmp, *tmp2 = NULL;
-    tmp.name = *name;
-    tmp.name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
+
+    str_cfcpy(&tmp.cfname, name);
+    tmp.name_hash = str_hash(&tmp.cfname);
 
     while (context) {
         b=avltree_lookup(&tmp.node, &context->members, section_compare);
         if (b) {
             tmp2 = avltree_container_of(b, struct section_s, node);
             if (tmp2->defpass >= pass - 1) {
+                if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
                 return tmp2;
             }
         }
         context = context->parent;
     }
+    if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
     if (tmp2) return tmp2;
     return new_section(name);
 }
@@ -73,11 +77,12 @@ struct section_s *new_section(const str_t *name) {
 	lastsc = (struct section_s *)malloc(sizeof(struct section_s));
 	if (!lastsc) err_msg_out_of_memory();
     }
-    lastsc->name = *name;
-    lastsc->name_hash = arguments.casesensitive ? str_hash(name) : str_casehash(name);
+    str_cfcpy(&lastsc->cfname, name);
+    lastsc->name_hash = str_hash(&lastsc->cfname);
     b=avltree_insert(&lastsc->node, &current_section->members, section_compare);
     if (!b) { //new section
         str_cpy(&lastsc->name, name);
+        if (lastsc->cfname.data == name->data) lastsc->cfname = lastsc->name;
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->end=lastsc->address=lastsc->l_address=lastsc->size=0;
@@ -99,6 +104,7 @@ struct section_s *new_section(const str_t *name) {
 	lastsc=NULL;
 	return tmp;
     }
+    if (lastsc->cfname.data != name->data) free((uint8_t *)lastsc->cfname.data);
     return avltree_container_of(b, struct section_s, node);            //already exists
 }
 
@@ -118,6 +124,8 @@ void init_section2(struct section_s *section) {
     section->parent = NULL;
     section->name.data = NULL;
     section->name.len = 0;
+    section->cfname.data = NULL;
+    section->cfname.len = 0;
     section->next = NULL;
     init_memblocks(&section->mem);
     avltree_init(&section->members);
@@ -141,7 +149,7 @@ void destroy_section(void) {
 static void sectionprint2(const struct section_s *l) {
     if (l->name.data) {
         sectionprint2(l->parent);
-        fwrite(l->name.data, l->name.len, 1, stdout);
+        fwrite(l->name.data, l->name.len, 1, stdout); /* TODO */
         putchar('.');
     }
 }
@@ -168,7 +176,7 @@ void sectionprint(void) {
                 printf("Section:                         ");
             }
             sectionprint2(l->parent);
-            fwrite(l->name.data, l->name.len, 1, stdout);
+            fwrite(l->name.data, l->name.len, 1, stdout); /* TODO */
             putchar('\n');
             memprint(&l->mem);
         }

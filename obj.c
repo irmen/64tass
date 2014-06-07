@@ -338,7 +338,7 @@ static struct value_s *MUST_CHECK iter_next(struct value_s *v1, struct value_s *
 static void macro_destroy(struct value_s *v1) {
     while (v1->u.macro.argc) {
         --v1->u.macro.argc;
-        free((char *)v1->u.macro.param[v1->u.macro.argc].name.data);
+        free((char *)v1->u.macro.param[v1->u.macro.argc].cfname.data);
         free((char *)v1->u.macro.param[v1->u.macro.argc].init.data);
     }
     free(v1->u.macro.param);
@@ -352,7 +352,7 @@ static void macro_copy(const struct value_s *v1, struct value_s *v) {
         v->u.macro.param = malloc(v1->u.macro.argc * sizeof(v->u.macro.param[0]));
         if (!v->u.macro.param) err_msg_out_of_memory();
         for (i = 0; i < v1->u.macro.argc; i++) {
-            str_cpy(&v->u.macro.param[i].name, &v1->u.macro.param[i].name);
+            str_cpy(&v->u.macro.param[i].cfname, &v1->u.macro.param[i].cfname);
             str_cpy(&v->u.macro.param[i].init, &v1->u.macro.param[i].init);
         }
         v->u.macro.argc = i;
@@ -368,7 +368,7 @@ static int macro_same(const struct value_s *v1, const struct value_s *v2) {
     size_t i;
     if (v1->obj != v2->obj || v1->u.macro.size != v2->u.macro.size || v1->u.macro.parent != v2->u.macro.parent) return 0;
     for (i = 0; i < v1->u.macro.argc; i++) {
-        if (str_cmp(&v1->u.macro.param[i].name, &v2->u.macro.param[i].name)) return 0;
+        if (str_cmp(&v1->u.macro.param[i].cfname, &v2->u.macro.param[i].cfname)) return 0;
         if (str_cmp(&v1->u.macro.param[i].init, &v2->u.macro.param[i].init)) return 0;
     }
     return 1;
@@ -378,6 +378,7 @@ static void mfunc_destroy(struct value_s *v1) {
     size_t i = v1->u.mfunc.argc;
     while (i--) {
         free((char *)v1->u.mfunc.param[i].name.data);
+        if (v1->u.mfunc.param[i].name.data != v1->u.mfunc.param[i].cfname.data) free((char *)v1->u.mfunc.param[i].cfname.data);
         if (v1->u.mfunc.param[i].init) val_destroy(v1->u.mfunc.param[i].init);
     }
     free(v1->u.mfunc.param);
@@ -392,6 +393,8 @@ static void mfunc_copy(const struct value_s *v1, struct value_s *v) {
         if (!v->u.mfunc.param) err_msg_out_of_memory();
         for (i = 0; i < v1->u.mfunc.argc; i++) {
             str_cpy(&v->u.mfunc.param[i].name, &v1->u.mfunc.param[i].name);
+            if (v1->u.mfunc.param[i].name.data != v1->u.mfunc.param[i].cfname.data) str_cpy(&v->u.mfunc.param[i].cfname, &v1->u.mfunc.param[i].cfname);
+            else v->u.mfunc.param[i].cfname = v->u.mfunc.param[i].name;
             if (v1->u.mfunc.param[i].init) {
                 v->u.mfunc.param[i].init = val_reference(v1->u.mfunc.param[i].init);
             } else v->u.mfunc.param[i].init = NULL;
@@ -411,6 +414,7 @@ static int mfunc_same(const struct value_s *v1, const struct value_s *v2) {
     if (v2->obj != MFUNC_OBJ || v1->u.mfunc.label != v2->u.mfunc.label) return 0;
     for (i = 0; i < v1->u.mfunc.argc; i++) {
         if (str_cmp(&v1->u.mfunc.param[i].name, &v2->u.mfunc.param[i].name)) return 0;
+        if ((v1->u.mfunc.param[i].name.data != v1->u.mfunc.param[i].cfname.data || v2->u.mfunc.param[i].name.data != v2->u.mfunc.param[i].cfname.data) && str_cmp(&v1->u.mfunc.param[i].cfname, &v2->u.mfunc.param[i].cfname)) return 0;
         if (v1->u.mfunc.param[i].init != v2->u.mfunc.param[i].init && (!v1->u.mfunc.param[i].init || !v2->u.mfunc.param[i].init || !obj_same(v1->u.mfunc.param[i].init, v2->u.mfunc.param[i].init))) return 0;
         if (v1->u.mfunc.param[i].epoint.pos != v2->u.mfunc.param[i].epoint.pos) return 0;
     }

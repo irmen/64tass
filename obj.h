@@ -47,6 +47,7 @@ typedef struct {
     size_t argc;
     struct {
 	str_t name;
+	str_t cfname;
 	struct value_s *init;
 	struct linepos_s epoint;
     } *param; 
@@ -56,7 +57,7 @@ typedef struct {
     size_t size;
     size_t argc;
     struct {
-	str_t name;
+	str_t cfname;
 	str_t init;
     } *param; 
     struct label_s *parent;

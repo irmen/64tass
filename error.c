@@ -52,7 +52,7 @@ struct error_s {
 };
 
 struct notdefines_s {
-    str_t name;
+    str_t cfname;
     const struct label_s *parent;
     uint8_t pass;
     struct avltree_node node;
@@ -344,13 +344,13 @@ static int notdefines_compare(const struct avltree_node *aa, const struct avltre
     const struct notdefines_s *a = cavltree_container_of(aa, struct notdefines_s, node);
     const struct notdefines_s *b = cavltree_container_of(bb, struct notdefines_s, node);
     int h = a->parent - b->parent;
-    if (h) return h; 
-    return arguments.casesensitive ? str_cmp(&a->name, &b->name) : str_casecmp(&a->name, &b->name);
+    if (h) return h;
+    return str_cmp(&a->cfname, &b->cfname);
 }
 
 static void notdefines_free(struct avltree_node *aa) {
     struct notdefines_s *a = avltree_container_of(aa, struct notdefines_s, node);
-    free((uint8_t *)a->name.data);
+    free((uint8_t *)a->cfname.data);
     free(a);
 }
 
@@ -365,18 +365,20 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
         lastnd = (struct notdefines_s *)malloc(sizeof(struct notdefines_s));
         if (!lastnd) err_msg_out_of_memory();
     }
-    lastnd->name = *name;
+
+    str_cfcpy(&lastnd->cfname, name);
     lastnd->parent = l;
     lastnd->pass = pass;
     b=avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
     if (b) {
+        if (lastnd->cfname.data != name->data) free((uint8_t *)lastnd->cfname.data);
         tmp2 = avltree_container_of(b, struct notdefines_s, node);
         if (tmp2->pass == pass) {
             return;
         }
         tmp2->pass = pass;
     } else {
-        str_cpy(&lastnd->name, name);
+        if (lastnd->cfname.data == name->data) str_cpy(&lastnd->cfname, name);
         lastnd = NULL;
     }
 
@@ -497,7 +499,7 @@ static void err_msg_double_defined2(const char *msg, const struct label_s *l, st
     str_name(labelname2->data, labelname2->len);
     new_error(SV_DOUBLENOTE, l->file_list, &l->epoint);
     adderror("previous definition of");
-    str_name(l->name.data, l->name.len);
+    str_name(labelname2->data, labelname2->len);
     adderror(" was here");
 }
 

@@ -24,6 +24,7 @@
 struct label_s {
     int name_hash;
     str_t name;
+    str_t cfname;
     struct avltree_node node;
 
     struct value_s *value;

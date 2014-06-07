@@ -50,24 +50,6 @@ int str_hash(const str_t *s) {
     return h & ((~(unsigned int)0) >> 1);
 }
 
-int str_casehash(const str_t *s) {
-    size_t l = s->len;
-    const uint8_t *s2 = s->data;
-    uint8_t c;
-    unsigned int h;
-    if (!l) return 0;
-    c = *s2;
-    if (c >= 'a' && c <= 'z') c -= 32;
-    h = c << 7;
-    while (l--) {
-        c = *s2++;
-        if (c >= 'a' && c <= 'z') c -= 32;
-        h = (1000003 * h) ^ c;
-    }
-    h ^= s->len;
-    return h & ((~(unsigned int)0) >> 1);
-}
-
 int str_cmp(const str_t *s1, const str_t *s2) {
     if (s1->len != s2->len) return s1->len - s2->len;
     if (s1->data == s2->data) return 0;
@@ -76,12 +58,30 @@ int str_cmp(const str_t *s1, const str_t *s2) {
     return memcmp(s1->data, s2->data, s1->len);
 }
 
-int str_casecmp(const str_t *s1, const str_t *s2) {
-    if (s1->len != s2->len) return s1->len - s2->len;
-    if (s1->data == s2->data) return 0;
-    if (!s1->data && s2->data) return -1;
-    if (s1->data && !s2->data) return 1;
-    return strncasecmp((const char *)s1->data, (const char *)s2->data, s1->len);
+void str_cfcpy(str_t *s1, const str_t *s2) {
+    size_t i, l = s2->len;
+    const uint8_t *d = s2->data;
+    if (arguments.casesensitive) {
+        s1->len = l;
+        s1->data = d;
+        return;
+    }
+    for (i = 0; i < l; i++) {
+        if (d[i] >= 'A' && d[i] <= 'Z') {
+            uint8_t *s = (uint8_t *)malloc(s2->len);
+            if (!s) err_msg_out_of_memory();
+            if (i) memcpy(s, d, i);
+            for (; i < l; i++) {
+                if (d[i] < 'A' || d[i] > 'Z') s[i] = d[i];
+                else s[i] = d[i] | 0x20;
+            }
+            s1->len = l;
+            s1->data = s;
+            return;
+        }
+    }
+    s1->len = l;
+    s1->data = d;
 }
 
 void str_cpy(str_t *s1, const str_t *s2) {

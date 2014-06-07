@@ -53,9 +53,8 @@ extern void tinit(void);
 extern int testarg(int,char **,struct file_s *);
 extern struct arguments_s arguments;
 extern int str_hash(const str_t *);
-extern int str_casehash(const str_t *);
 extern int str_cmp(const str_t *, const str_t *);
-extern int str_casecmp(const str_t *, const str_t *);
+extern void str_cfcpy(str_t *, const str_t *);
 extern void str_cpy(str_t *, const str_t *);
 
 #endif
