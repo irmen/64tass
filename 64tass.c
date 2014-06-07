@@ -441,56 +441,37 @@ void pokeb(uint8_t byte)
 }
 
 /* --------------------------------------------------------------------------- */
-static int what(int *tempno) {
-    char ch;
-
-    ignore();
-    switch (ch=whatis[(int)here()]) {
-    case WHAT_COMMAND:
-	{
-            unsigned int no, also = 0, felso, elozo;
-            const uint8_t *label;
-            size_t l;
-            int s4;
-            lpoint.pos++;
-            label = pline + lpoint.pos;
-            l = get_label();
-            if (l && l < 19) {
-                char cmd[20];
-                if (!arguments.casesensitive) {
-                    size_t i;
-                    for (i = 0; i < l; i++) cmd[i] = lowcase(label[i]);
-                } else memcpy(cmd, label, l);
-                cmd[l] = 0;
-                if (l) {
-                    felso=sizeof(command)/sizeof(command[0]);
-                    no=felso/2;
-                    for (;;) {  /* do binary search */
-                        if (!(s4=strcmp(cmd, command[no] + 1))) {
-                            no = (uint8_t)command[no][0];
-                            *tempno=no;
-                            return WHAT_COMMAND;
-                        }
-
-                        elozo = no;
-                        no = ((s4>0) ? (felso+(also=no)) : (also+(felso=no)))/2;
-                        if (elozo == no) break;
-                    }
+static int get_command(void) {
+    unsigned int no, also = 0, felso, elozo;
+    const uint8_t *label;
+    size_t l;
+    int s4;
+    lpoint.pos++;
+    label = pline + lpoint.pos;
+    l = get_label();
+    if (l && l < 19) {
+        char cmd[20];
+        if (!arguments.casesensitive) {
+            size_t i;
+            for (i = 0; i < l; i++) cmd[i] = lowcase(label[i]);
+        } else memcpy(cmd, label, l);
+        cmd[l] = 0;
+        if (l) {
+            felso=sizeof(command)/sizeof(command[0]);
+            no=felso/2;
+            for (;;) {  /* do binary search */
+                if (!(s4=strcmp(cmd, command[no] + 1))) {
+                    return (uint8_t)command[no][0];
                 }
+
+                elozo = no;
+                no = ((s4>0) ? (felso+(also=no)) : (also+(felso=no)))/2;
+                if (elozo == no) break;
             }
-            lpoint.pos -= l;
-	    *tempno=sizeof(command)/sizeof(command[0]);
-	    return WHAT_COMMAND;
-	}
-    case WHAT_CHAR:
-    case WHAT_LBL:
-            *tempno=1;return WHAT_EXPRESSION;
-    case WHAT_EXPRESSION:/* tempno=1 if label, 0 if expression */
-	    *tempno=0;return WHAT_EXPRESSION;
-    case WHAT_COMMENT:
-    case WHAT_EOL:return ch;
-    default:lpoint.pos++;return ch;
+        }
     }
+    lpoint.pos -= l;
+    return sizeof(command)/sizeof(command[0]);
 }
 
 static int get_cpu(char *cpu) {
@@ -665,42 +646,43 @@ struct value_s *compile(struct file_list_s *cflist)
                 memjmp(&current_section->mem, current_section->address);
             }
         }
-        if ((wht=what(&prm))==WHAT_EXPRESSION) {
+        wht = here();
+        if (wht =='-' || wht =='+') {
+            lpoint.pos++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) {
+                lpoint.pos--;
+            } else {
+                if (sizeof(anonident) != sizeof(anonident.dir) + sizeof(anonident.padding) + sizeof(anonident.reffile) + sizeof(anonident.count)) memset(&anonident, 0, sizeof(anonident));
+                else anonident.padding = 0;
+                anonident.dir = wht;
+                anonident.reffile = reffile;
+                anonident.count = (wht == '-') ? backr++ : forwr++;
+
+                labelname.data = (const uint8_t *)&anonident;labelname.len = sizeof(anonident);
+                goto hh;
+            }
+        }
+        labelname.data = pline + lpoint.pos; labelname.len = get_label();
+        if (labelname.len) {
             int islabel = 0;
-            if (!prm) {
-                if (here()=='-' || here()=='+') {
-                    char c = here();
-                    lpoint.pos++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) goto baj;
-
-                    if (sizeof(anonident) != sizeof(anonident.dir) + sizeof(anonident.padding) + sizeof(anonident.reffile) + sizeof(anonident.count)) memset(&anonident, 0, sizeof(anonident));
-                    else anonident.padding = 0;
-                    anonident.dir = c;
-                    anonident.reffile = reffile;
-                    anonident.count = (c == '-') ? backr++ : forwr++;
-
-                    labelname.data = (const uint8_t *)&anonident;labelname.len = sizeof(anonident);
-                    islabel = 1;goto hh;
+            while (here() == '.') {
+                if (waitfor->skip & 1) {
+                    if (mycontext == current_context) {
+                        tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname);
+                        if (tmp2) tmp2->shadowcheck = (labelname.data[0] != '_');
+                    }
+                    else tmp2 = find_label2(&labelname, mycontext);
+                    if (!tmp2) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
+                    if (tmp2->value->obj != CODE_OBJ) {
+                        err_msg_wrong_type(tmp2->value, &epoint); goto breakerr;
+                    }
+                    mycontext = tmp2;
                 }
-            baj:
-                if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX, NULL, &lpoint);
-                goto breakerr;
-            } /* not label */
-            for (;;) {
-                labelname.data = pline + lpoint.pos; labelname.len = get_label();
-                if (here() != '.') {
-                    break;
-                }
-                if (mycontext == current_context) {
-                    tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname);
-                    if (tmp2) tmp2->shadowcheck = (labelname.data[0] != '_');
-                }
-                else tmp2 = find_label2(&labelname, mycontext);
-                if (!tmp2) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
-                if (tmp2->value->obj != CODE_OBJ) {
-                    err_msg_wrong_type(tmp2->value, &epoint); goto breakerr;
-                }
-                mycontext = tmp2;
                 lpoint.pos++; islabel = 1; epoint = lpoint;
+                labelname.data = pline + lpoint.pos; labelname.len = get_label();
+                if (!labelname.len) {
+                    if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX, NULL, &lpoint);
+                    goto breakerr;
+                }
             }
             if (!islabel && labelname.len && labelname.data[0] == '_') {
                 mycontext = cheap_context;
@@ -709,15 +691,18 @@ struct value_s *compile(struct file_list_s *cflist)
             if (!islabel && labelname.len == 3 && (prm=lookup_opcode((const char *)labelname.data))>=0) {
                 if (waitfor->skip & 1) goto as_opcode; else continue;
             }
-        hh:
-            if (!(waitfor->skip & 1)) {wht=what(&prm);goto jn;} /* skip things if needed */
+            if (0) {
+            hh: islabel = 1;
+            }
+            ignore();wht = here();
+            if (!(waitfor->skip & 1)) goto jn; /* skip things if needed */
             if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
-            if ((wht=what(&prm))==WHAT_EQUAL) { /* variable */
+            if (wht == '=') { /* variable */
                 struct label_s *label;
                 int labelexists;
                 int oldreferenceit = referenceit;
                 label = find_label3(&labelname, mycontext, strength);
-                ignore();
+                lpoint.pos++; ignore();
                 if (!here() || here() == ';') val = &null_addrlist;
                 else {
                     struct linepos_s epoints[3];
@@ -761,7 +746,8 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 goto finish;
             }
-            if (wht==WHAT_COMMAND) {
+            if (wht == '.') {
+                prm = get_command();
                 switch (prm) {
                 case CMD_VAR: /* variable */
                     {
@@ -1094,7 +1080,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (tmp2) {
                     if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
                         tmp2->shadowcheck = 1;
-                        if (wht == WHAT_HASHMARK) lpoint.pos--;labelname.len=0;val = tmp2->value; goto as_macro;
+                        labelname.len = 0;val = tmp2->value; goto as_macro;
                     }
                 }
             }
@@ -1107,7 +1093,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (labelexists) {
                     if (newlabel->defpass == pass) {
                         err_msg_double_defined(newlabel, &labelname, &epoint);
-                        newlabel = NULL; goto jn;
+                        newlabel = NULL; if (wht == '.') goto as_command; else goto jn;
                     }
                     if (newlabel->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                     newlabel->constant = 1;
@@ -1149,7 +1135,7 @@ struct value_s *compile(struct file_list_s *cflist)
             }
             if (epoint.pos && !islabel) err_msg2(ERROR_LABEL_NOT_LEF, NULL, &epoint);
             epoint = lpoint;
-            if (wht==WHAT_COMMAND) { /* .proc */
+            if (wht == '.') { /* .proc */
                 switch (prm) {
                 case CMD_PROC:
                     new_waitfor(W_PEND, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;waitfor->cheap_label = oldcheap;
@@ -1223,14 +1209,19 @@ struct value_s *compile(struct file_list_s *cflist)
                     newlabel = NULL;
                     goto finish;
                 }
+                wasref = newlabel->ref;newlabel->ref = 0;
+                goto as_command;
             }
             wasref = newlabel->ref;newlabel->ref = 0;
         }
         jn:
         switch (wht) {
-        case WHAT_STAR:if (waitfor->skip & 1) /* skip things if needed */
+        case '=':
+            if (waitfor->skip & 1) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
+            break;
+        case '*':if (waitfor->skip & 1) /* skip things if needed */
             {
-                ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
+                lpoint.pos++;ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                 lpoint.pos++;
                 current_section->wrapwarn = current_section->wrapwarn2 = 0;
                 if (!current_section->moved) {
@@ -1281,16 +1272,18 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
             }
             break;
-        case WHAT_COMMENT:
-        case WHAT_EOL:
+        case ';':
+        case '\0':
             if (!nolisting && flist && arguments.source && (waitfor->skip & 1) && wasref) {
                 int l;
                 l = printaddr('.', current_section->address, LIST_CODE);
                 printllist(l);
             }
             break;
-        case WHAT_COMMAND:
+        case '.':
+            prm = get_command();
             ignore();
+        as_command:
             if (!nolisting && flist && arguments.source && (waitfor->skip & 1) && prm>CMD_DWORD) {
                 int l;
                 switch (prm) {
@@ -2715,9 +2708,10 @@ struct value_s *compile(struct file_list_s *cflist)
                 break;
             }
             break;
-        case WHAT_HASHMARK:if (waitfor->skip & 1) /* skip things if needed */
+        case '#':if (waitfor->skip & 1) /* skip things if needed */
             {                   /* macro stuff */
                 struct linepos_s epoint2;
+                lpoint.pos++;
             as_macro2:
                 if (!get_exp_var(cfile, &epoint)) goto breakerr;
                 val = get_val(&epoint2);
@@ -2801,7 +2795,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 break;
             }
-        case WHAT_EXPRESSION:
+        default:
             if (waitfor->skip & 1) {
                 str_t opname;
 
@@ -2856,8 +2850,9 @@ struct value_s *compile(struct file_list_s *cflist)
                         val = tmp2->value;goto as_macro;
                     }
                 }
-            }            /* fall through */
-        default: if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint); goto breakerr; /* skip things if needed */
+                err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint);
+                goto breakerr;
+            }
         }
     finish:
         ignore();if (here() && here()!=';' && (waitfor->skip & 1)) err_msg(ERROR_EXTRA_CHAR_OL,NULL);

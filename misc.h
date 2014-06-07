@@ -49,7 +49,6 @@ struct arguments_s {
 #define get() pline[lpoint.pos++]
 #define here() pline[lpoint.pos]
 
-extern const uint8_t whatis[256];
 extern void tfree(void);
 extern void tinit(void);
 extern int testarg(int,char **,struct file_s *);

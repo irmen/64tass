@@ -32,11 +32,6 @@ struct file_list_s;
 struct label_s;
 struct value_s;
 
-enum what_e { WHAT_EXPRESSION, WHAT_HASHMARK, WHAT_COMMAND, WHAT_EQUAL,
-    WHAT_EOL, WHAT_STAR, WHAT_COMA, WHAT_COLON, WHAT_COMMENT, WHAT_CHAR,
-    WHAT_LBL 
-};
-
 enum wait_e {
     W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
     W_ENDS, W_ENDS2, W_ENDC, W_ENDP, W_ENDP2, W_NEXT, W_NEXT2, W_SEND, W_SEND2,
