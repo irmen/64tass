@@ -72,6 +72,7 @@ static void label_free(struct avltree_node *aa)
 {
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
     free((char *)a->name.data);
+    if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
     avltree_destroy(&a->members, label_free);
     val_destroy(a->value);
     var_free((union label_u *)a);
@@ -83,16 +84,7 @@ static int label_compare(const struct avltree_node *aa, const struct avltree_nod
     const struct label_s *b = cavltree_container_of(bb, struct label_s, node);
     int h = a->name_hash - b->name_hash;
     if (h) return h; 
-    return str_cmp(&a->name, &b->name);
-}
-
-static int label_casecompare(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    const struct label_s *a = cavltree_container_of(aa, struct label_s, node);
-    const struct label_s *b = cavltree_container_of(bb, struct label_s, node);
-    int h = a->name_hash - b->name_hash;
-    if (h) return h; 
-    return str_casecmp(&a->name, &b->name);
+    return str_cmp(&a->cfname, &b->cfname);
 }
 
 static int label_compare2(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -101,23 +93,12 @@ static int label_compare2(const struct avltree_node *aa, const struct avltree_no
     const struct label_s *b = cavltree_container_of(bb, struct label_s, node);
     int h = a->name_hash - b->name_hash;
     if (h) return h; 
-    h = str_cmp(&a->name, &b->name);
+    h = str_cmp(&a->cfname, &b->cfname);
     if (h) return h;
     return b->strength - a->strength;
 }
 
-static int label_casecompare2(const struct avltree_node *aa, const struct avltree_node *bb)
-{
-    const struct label_s *a = cavltree_container_of(aa, struct label_s, node);
-    const struct label_s *b = cavltree_container_of(bb, struct label_s, node);
-    int h = a->name_hash - b->name_hash;
-    if (h) return h; 
-    h = str_casecmp(&a->name, &b->name);
-    if (h) return h;
-    return b->strength - a->strength;
-}
-
-static struct label_s *strongest_label(struct avltree_node *b, avltree_cmp_fn_t cmp) {
+static struct label_s *strongest_label(struct avltree_node *b) {
     struct label_s *a = NULL, *c; 
     struct avltree_node *n = b;
 
@@ -125,10 +106,10 @@ static struct label_s *strongest_label(struct avltree_node *b, avltree_cmp_fn_t 
         c = avltree_container_of(n, struct label_s, node);
         if (c->defpass == pass || (c->constant && (!fixeddig || c->defpass == pass - 1))) a = c;
         n = avltree_next(n);
-    } while (n && !cmp(n, b));
+    } while (n && !label_compare(n, b));
     if (a) return a;
     n = avltree_prev(b);
-    while (n && !cmp(n, b)) {
+    while (n && !label_compare(n, b)) {
         c = avltree_container_of(n, struct label_s, node);
         if (c->defpass == pass || (c->constant && (!fixeddig || c->defpass == pass - 1))) a = c;
         n = avltree_prev(n);
@@ -140,26 +121,24 @@ struct label_s *find_label(const str_t *name) {
     struct avltree_node *b;
     struct label_s *context = current_context;
     struct label_s tmp, *c;
-    avltree_cmp_fn_t cmp;
-    tmp.name = *name;
 
-    if (arguments.casesensitive || (tmp.name.len > 1 && !tmp.name.data[1])) {
-        cmp = label_compare;
-        tmp.name_hash = str_hash(name);
-    } else {
-        cmp = label_casecompare;
-        tmp.name_hash = str_casehash(name);
-    }
+    if (name->len > 1 && !name->data[1]) str_cpy(&tmp.cfname, name);
+    else str_cfcpy(&tmp.cfname, name);
+    tmp.name_hash = str_hash(&tmp.cfname);
 
     while (context->parent) {
-        b = avltree_lookup(&tmp.node, &context->members, cmp);
+        b = avltree_lookup(&tmp.node, &context->members, label_compare);
         if (b) {
-            c = strongest_label(b, cmp);
-            if (c) return c;
+            c = strongest_label(b);
+            if (c) {
+                if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
+                return c;
+            }
         }
         context = context->parent;
     }
-    b = avltree_lookup(&tmp.node, &builtin_label.members, cmp);
+    b = avltree_lookup(&tmp.node, &builtin_label.members, label_compare);
+    if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
     if (b) return avltree_container_of(b, struct label_s, node);
     return NULL;
 }
@@ -167,20 +146,15 @@ struct label_s *find_label(const str_t *name) {
 struct label_s *find_label2(const str_t *name, const struct label_s *context) {
     struct avltree_node *b;
     struct label_s tmp;
-    avltree_cmp_fn_t cmp;
-    tmp.name = *name;
 
-    if (arguments.casesensitive || (tmp.name.len > 1 && !tmp.name.data[1])) {
-        cmp = label_compare;
-        tmp.name_hash = str_hash(name);
-    } else {
-        cmp = label_casecompare;
-        tmp.name_hash = str_casehash(name);
-    }
+    if (name->len > 1 && !name->data[1]) str_cpy(&tmp.cfname, name);
+    else str_cfcpy(&tmp.cfname, name);
+    tmp.name_hash = str_hash(&tmp.cfname);
 
-    b = avltree_lookup(&tmp.node, &context->members, cmp);
+    b = avltree_lookup(&tmp.node, &context->members, label_compare);
+    if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
     if (!b) return NULL;
-    return strongest_label(b, cmp);
+    return strongest_label(b);
 }
 
 static struct {
@@ -193,19 +167,14 @@ static struct {
 struct label_s *find_label3(const str_t *name, const struct label_s *context, uint8_t strength) {
     struct avltree_node *b;
     struct label_s tmp;
-    avltree_cmp_fn_t cmp;
-    tmp.name = *name;
+
+    if (name->len > 1 && !name->data[1]) str_cpy(&tmp.cfname, name);
+    else str_cfcpy(&tmp.cfname, name);
+    tmp.name_hash = str_hash(&tmp.cfname);
     tmp.strength = strength;
 
-    if (arguments.casesensitive || (tmp.name.len > 1 && !tmp.name.data[1])) {
-        cmp = label_compare2;
-        tmp.name_hash = str_hash(name);
-    } else {
-        cmp = label_casecompare2;
-        tmp.name_hash = str_casehash(name);
-    }
-
-    b = avltree_lookup(&tmp.node, &context->members, cmp);
+    b = avltree_lookup(&tmp.node, &context->members, label_compare2);
+    if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
     if (!b) return NULL;
     return avltree_container_of(b, struct label_s, node);
 }
@@ -219,14 +188,14 @@ struct label_s *find_anonlabel(int32_t count) {
     anon_idents.reffile = reffile;
     anon_idents.count = ((count >= 0) ? forwr : backr) + count;
 
-    tmp.name.data = (const uint8_t *)&anon_idents;
-    tmp.name.len = sizeof(anon_idents);
-    tmp.name_hash = str_hash(&tmp.name);
+    tmp.cfname.data = (const uint8_t *)&anon_idents;
+    tmp.cfname.len = sizeof(anon_idents);
+    tmp.name_hash = str_hash(&tmp.cfname);
 
     while (context->parent) {
         b = avltree_lookup(&tmp.node, &context->members, label_compare);
         if (b) {
-            c = strongest_label(b, label_compare);
+            c = strongest_label(b);
             if (c) return c;
         }
         context = context->parent;
@@ -243,13 +212,13 @@ struct label_s *find_anonlabel2(int32_t count, const struct label_s *context) {
     anon_idents.reffile = reffile;
     anon_idents.count = ((count >= 0) ? forwr : backr) + count;
 
-    tmp.name.data = (const uint8_t *)&anon_idents;
-    tmp.name.len = sizeof(anon_idents);
-    tmp.name_hash = str_hash(&tmp.name);
+    tmp.cfname.data = (const uint8_t *)&anon_idents;
+    tmp.cfname.len = sizeof(anon_idents);
+    tmp.name_hash = str_hash(&tmp.cfname);
 
     b = avltree_lookup(&tmp.node, &context->members, label_compare);
     if (!b) return NULL;
-    return strongest_label(b, label_compare);
+    return strongest_label(b);
 }
 
 // ---------------------------------------------------------------------------
@@ -257,22 +226,17 @@ static struct label_s *lastlb = NULL;
 struct label_s *new_label(const str_t *name, struct label_s *context, uint8_t strength, int *exists) {
     struct avltree_node *b;
     struct label_s *tmp;
-    avltree_cmp_fn_t cmp;
     if (!lastlb) lastlb = var_alloc();
-    lastlb->name = *name;
+
+    if (name->len > 1 && !name->data[1]) str_cpy(&lastlb->cfname, name);
+    else str_cfcpy(&lastlb->cfname, name);
+    lastlb->name_hash = str_hash(&lastlb->cfname);
     lastlb->strength = strength;
 
-    if (arguments.casesensitive || (lastlb->name.len > 1 && !lastlb->name.data[1])) {
-        cmp = label_compare2;
-        lastlb->name_hash = str_hash(name);
-    } else {
-        cmp = label_casecompare2;
-        lastlb->name_hash = str_casehash(name);
-    }
-
-    b = avltree_insert(&lastlb->node, &context->members, cmp);
+    b = avltree_insert(&lastlb->node, &context->members, label_compare2);
     if (!b) { //new label
         str_cpy(&lastlb->name, name);
+        if (lastlb->cfname.data == name->data) lastlb->cfname = lastlb->name;
         lastlb->parent = context;
         lastlb->ref = 0;
         lastlb->shadowcheck = 0;
@@ -286,13 +250,13 @@ struct label_s *new_label(const str_t *name, struct label_s *context, uint8_t st
 	return tmp;
     }
     *exists = 1;
+    if (lastlb->cfname.data != name->data) free((uint8_t *)lastlb->cfname.data);
     return avltree_container_of(b, struct label_s, node);            /* already exists */
 }
 
 void shadow_check(const struct avltree *members) {
     const struct avltree_node *n, *b;
     const struct label_s *l, *c;
-    avltree_cmp_fn_t cmp;
 
     return; /* this works, but needs an option to enable */
 
@@ -303,9 +267,8 @@ void shadow_check(const struct avltree *members) {
         n = avltree_next(n);
         if (l->shadowcheck) {
             c = l->parent->parent;
-            cmp = (arguments.casesensitive || (l->name.len > 1 && !l->name.data[1])) ? label_compare : label_casecompare;
             while (c) {
-                b = avltree_lookup(&l->node, &c->members, cmp);
+                b = avltree_lookup(&l->node, &c->members, label_compare);
                 if (b) {
                     const struct label_s *l2, *v1, *v2;
                     v1 = l2 = cavltree_container_of(b, struct label_s, node);
@@ -343,19 +306,17 @@ static struct label_s *find_strongest_label(struct avltree_node **x, avltree_cmp
 static void labelname_print(const struct label_s *l, FILE *flab) {
     if (l->parent->parent) labelname_print(l->parent, flab);
     putc('.', flab);
-    fwrite(l->name.data, l->name.len, 1, flab);
+    fwrite(l->name.data, l->name.len, 1, flab); /* TODO!! */
 }
 
 static void labelprint2(const struct avltree *members, FILE *flab) {
     struct avltree_node *n;
     struct label_s *l;
-    avltree_cmp_fn_t cmp;
 
     n = avltree_first(members);
     while (n) {
         l = avltree_container_of(n, struct label_s, node);
-        cmp = (arguments.casesensitive || (l->name.len > 1 && !l->name.data[1])) ? label_compare : label_casecompare;
-        l = find_strongest_label(&n, cmp);            /* already exists */
+        l = find_strongest_label(&n, label_compare);            /* already exists */
         if (!l) continue;
         if (l->name.data && l->name.len > 1 && !l->name.data[1]) continue;
         switch (l->value->obj->type) {
@@ -412,11 +373,11 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
             labelprint2(&l->members, flab);
         } else {
             if (l->constant) {
-                fwrite(l->name.data, l->name.len, 1, flab);
+                fwrite(l->name.data, l->name.len, 1, flab); /* TODO */
                 if (l->name.len < 16) fputs(&"                "[l->name.len], flab);
                 fputs("= ", flab);
             } else {
-                fwrite(l->name.data, l->name.len, 1, flab);
+                fwrite(l->name.data, l->name.len, 1, flab); /* TODO */
                 if (l->name.len < 15) fputs(&"               "[l->name.len], flab);
                 fputs(" .var ", flab);
             }
@@ -481,8 +442,8 @@ void init_variables(void)
     labels_free = &labels->vals[0];
 
     avltree_init(&builtin_label.members);
-    builtin_label.name.len = 9;
-    builtin_label.name.data = (const uint8_t *)"<builtin>";
+    builtin_label.cfname.len = builtin_label.name.len = 9;
+    builtin_label.cfname.data = builtin_label.name.data = (const uint8_t *)"<builtin>";
     builtin_label.constant = 1;
     builtin_label.defpass = 1;
     builtin_label.usepass = 1;

@@ -28,7 +28,7 @@
 struct encoding_s *actual_encoding;
 
 struct encoding_s {
-    str_t name;
+    str_t cfname;
     ternary_tree escape;
     struct avltree trans;
     struct avltree_node node;
@@ -520,7 +520,7 @@ static int encoding_compare(const struct avltree_node *aa, const struct avltree_
     const struct encoding_s *a = cavltree_container_of(aa, struct encoding_s, node);
     const struct encoding_s *b = cavltree_container_of(bb, struct encoding_s, node);
 
-    return arguments.casesensitive ? str_cmp(&a->name, &b->name) : str_casecmp(&a->name, &b->name);
+    return str_cmp(&a->cfname, &b->cfname);
 }
 
 static void escape_free(void *e) {
@@ -533,7 +533,7 @@ static void encoding_free(struct avltree_node *aa)
 {
     struct encoding_s *a = avltree_container_of(aa, struct encoding_s, node);
 
-    free((char *)a->name.data);
+    free((char *)a->cfname.data);
     ternary_cleanup(a->escape, escape_free);
     avltree_destroy(&a->trans, trans_free);
     free(a);
@@ -549,16 +549,17 @@ struct encoding_s *new_encoding(const str_t *name)
         lasten = (struct encoding_s *)malloc(sizeof(struct encoding_s));
         if (!lasten) err_msg_out_of_memory();
     }
-    lasten->name = *name;
+    str_cfcpy(&lasten->cfname, name);
     b = avltree_insert(&lasten->node, &encoding_tree, encoding_compare);
     if (!b) { //new encoding
-        str_cpy(&lasten->name, name);
+        if (lasten->cfname.data == name->data) str_cpy(&lasten->cfname, name);
         lasten->escape=NULL;
         avltree_init(&lasten->trans);
         tmp = lasten;
         lasten = NULL;
         return tmp;
     }
+    if (lasten->cfname.data != name->data) free((uint8_t *)lasten->cfname.data);
     return avltree_container_of(b, struct encoding_s, node);            //already exists
 }
 

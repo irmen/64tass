@@ -1489,8 +1489,9 @@ struct value_s *compile(struct file_list_s *cflist)
                     ignore();epoint=lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                     if (sectionname.len) {
-                        int notsame = arguments.casesensitive ? str_cmp(&sectionname, &current_section->name) : str_casecmp(&sectionname, &current_section->name);
-                        if (notsame) {
+                        str_t cf;
+                        str_cfcpy(&cf, &sectionname);
+                        if (str_cmp(&cf, &current_section->cfname)) {
                             char *s = (char *)malloc(current_section->name.len + 1);
                             if (!s) err_msg_out_of_memory();
                             memcpy(s, current_section->name.data, current_section->name.len);
@@ -1498,6 +1499,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             err_msg2(ERROR______EXPECTED, s, &epoint);
                             free(s);
                         }
+                        if (sectionname.data != cf.data) free((uint8_t *)cf.data);
                     }
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     current_section = waitfor->section;
@@ -2433,7 +2435,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     static const str_t longjmp = {22, (const uint8_t *)"auto_longbranch_as_jmp"};
                     struct value_s err;
                     struct linepos_s opoint = lpoint;
-                    str_t optname;
+                    str_t optname, cf;
                     optname.data = pline + lpoint.pos; optname.len = get_label();
                     if (!optname.len) { err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); goto breakerr;}
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
@@ -2443,10 +2445,11 @@ struct value_s *compile(struct file_list_s *cflist)
                     val = get_val(&epoint);
                     if (val->obj == ERROR_OBJ) {err_msg_output(val); break; }
                     if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint); break; }
-                    if ((!arguments.casesensitive && !str_casecmp(&optname, &branch_across)) || (arguments.casesensitive && !str_cmp(&optname, &branch_across))) {
+                    str_cfcpy(&cf, &optname);
+                    if (!str_cmp(&cf, &branch_across)) {
                         if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
                         else allowslowbranch = err.u.boolean;
-                    } else if ((!arguments.casesensitive && !str_casecmp(&optname, &longjmp)) || (arguments.casesensitive && !str_cmp(&optname, &longjmp))) {
+                    } else if (!str_cmp(&cf, &longjmp)) {
                         if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
                         else longbranchasjmp = err.u.boolean;
                     } else {
@@ -2457,6 +2460,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         err_msg(ERROR_UNKNOWN_OPTIO, s);
                         free(s);
                     }
+                    if (optname.data != cf.data) free((uint8_t *)cf.data);
                 }
                 break;
             case CMD_GOTO: if (waitfor->skip & 1)

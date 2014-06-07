@@ -103,17 +103,16 @@ int mtranslate(struct file_s *cfile)
                     else label.len = 0;
                 } else label.len = get_label();
                 if (label.len) {
+                    str_t cf;
+                    str_cfcpy(&cf, &label);
                     for (j = 0; j < macro_parameters.current->macro->u.macro.argc; j++) {
-                        if (!macro_parameters.current->macro->u.macro.param[j].name.data) continue;
-                        if (arguments.casesensitive) {
-                            if (str_cmp(&macro_parameters.current->macro->u.macro.param[j].name, &label)) continue;
-                        } else {
-                            if (str_casecmp(&macro_parameters.current->macro->u.macro.param[j].name, &label)) continue;
-                        }
+                        if (!macro_parameters.current->macro->u.macro.param[j].cfname.data) continue;
+                        if (str_cmp(&macro_parameters.current->macro->u.macro.param[j].cfname, &cf)) continue;
                         if (!macro_parameters.current->param[j].data) {
                             if (macro_parameters.current->macro->obj == STRUCT_OBJ || macro_parameters.current->macro->obj == UNION_OBJ) {
                                 lpoint.pos--;
                                 ch = '?';
+                                if (label.data != cf.data) free((uint8_t *)cf.data);
                                 goto ok;
                             }
                             err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
@@ -128,6 +127,7 @@ int mtranslate(struct file_s *cfile)
                         p += macro_parameters.current->param[j].len;
                         break;
                     }
+                    if (label.data != cf.data) free((uint8_t *)cf.data);
                     if (j < macro_parameters.current->macro->u.macro.argc) {
                         lpoint.pos--;
                         continue;
@@ -389,14 +389,13 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
         label.data = pline + lpoint.pos;
         label.len = get_label();
         if (label.len) {
+            str_t cf;
             if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &new_value.u.mfunc.param[i].epoint);break;}
             str_cpy(&new_value.u.mfunc.param[i].name, &label);
+            str_cfcpy(&cf, &new_value.u.mfunc.param[i].name);
+            new_value.u.mfunc.param[i].cfname = cf;
             for (j = 0; j < i; j++) if (new_value.u.mfunc.param[j].name.data) {
-                if (arguments.casesensitive) {
-                    if (!str_cmp(&new_value.u.mfunc.param[j].name, &label)) break;
-                } else {
-                    if (!str_casecmp(&new_value.u.mfunc.param[j].name, &label)) break;
-                }
+                if (!str_cmp(&new_value.u.mfunc.param[j].cfname, &cf)) break;
             }
             if (j != i) {
                 struct label_s tmp;
@@ -468,23 +467,22 @@ void get_macro_params(struct value_s *v) {
         label.data = pline + lpoint.pos;
         label.len = get_label();
         if (label.len) {
-            if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);new_value.u.macro.param[i].name.len = 0; new_value.u.macro.param[i].name.data = NULL;}
-            str_cpy(&new_value.u.macro.param[i].name, &label);
-            for (j = 0; j < i; j++) if (new_value.u.macro.param[j].name.data) {
-                if (arguments.casesensitive) {
-                    if (!str_cmp(&new_value.u.macro.param[j].name, &label)) break;
-                } else {
-                    if (!str_casecmp(&new_value.u.macro.param[j].name, &label)) break;
-                }
+            str_t cf;
+            if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);new_value.u.macro.param[i].cfname.len = 0; new_value.u.macro.param[i].cfname.data = NULL;}
+            str_cfcpy(&cf, &label);
+            if (cf.data == label.data) str_cpy(&new_value.u.macro.param[i].cfname, &label);
+            else new_value.u.macro.param[i].cfname = cf;
+            for (j = 0; j < i; j++) if (new_value.u.macro.param[j].cfname.data) {
+                if (!str_cmp(&new_value.u.macro.param[j].cfname, &cf)) break;
             }
             if (j != i) {
                 struct label_s tmp;
-                tmp.name = new_value.u.macro.param[j].name;
+                tmp.name = new_value.u.macro.param[j].cfname;
                 tmp.file_list = v->u.macro.parent->file_list;
                 tmp.epoint = epoints[j];
                 err_msg_double_defined(&tmp, &label, &epoints[i]);
             }
-        } else {new_value.u.macro.param[i].name.len = 0; new_value.u.macro.param[i].name.data = NULL;}
+        } else {new_value.u.macro.param[i].cfname.len = 0; new_value.u.macro.param[i].cfname.data = NULL;}
         ignore();
         if (here() == '=') {
             lpoint.pos++;

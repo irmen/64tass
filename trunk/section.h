@@ -25,6 +25,7 @@
 struct section_s {
     int name_hash;
     str_t name;
+    str_t cfname;
     struct avltree_node node;
 
     uval_t requires;
