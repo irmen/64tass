@@ -1,4 +1,4 @@
-64tass v1.51 r726 manual
+64tass v1.51 r727 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -2332,66 +2332,147 @@ without them.
 
 Warnings
 
-Top of memory exceeded
-    compile continues at the bottom ($0000)
-Memory bank exceeded
+directive ignored
+    an assembler directive was ignored for compatibility reasons.
+label not on left side
+    check if an instruction name was not mistyped and if the currect CPU has
+    it, or remove white space before label
+long branch used
+    branch too long, so long branch was used (bxx *+5 jmp)
+memory bank exceeded
     compile continues in the next 64 KiB bank, however execution may not
-Possible jmp ($xxff) bug
+possible jmp ($xxff) bug
     yet another 65xx feature...
-Long branch used
-    Branch too long, so long branch was used (bxx *+5 jmp)
-Directive ignored
-    An assembler directive was ignored for compatibility reasons.
+top of memory exceeded
+    compile continues at the bottom ($0000)
 
 Errors
 
-Double defined
-    double use of label/macro
-Not defined
-    not defined label
-Extra characters on line
-    there's some garbage on the end of line
-Constant too large
-    the number was too big
-General syntax
-    can't do anything with this
-X expected
-    X may be missing
-Expression syntax
-    syntax error
-Branch too far
-    can't relative branch that far
-Missing argument
-    no argument given
-Illegal operand
-    can't be used here
-Requirements not met:
-    Not all features are provided, at least one is missing
-Conflict:
+? expected
+    something is missing
+address not in processor address space
+    value larger than current CPU address space
+address out of section
+    moving the address around is fine, but do not place it before the section
+branch crosses page
+    page crossing detected
+branch too far by ? bytes
+    can't branch that far
+can't calculate stable value
+    somehow it's impossible to calculate this expression
+can't calculate this
+    could not get any value, is this a circular reference?
+can't convert to a ? bit signed/unsigned integer
+    value out of range
+can't convert to boolean
+    conversion error
+can't convert to float
+    conversion error
+can't convert to integer
+    conversion error
+can't encode character $xx
+    can't translate character, not part of current encoding
+can't get absolute value
+    value has no absolute value
+can't get length
+    value has no length
+can't get sign
+    value does not have a sign
+can't get size
+    value has no size
+conflict
     at least one feature is provided, which shouldn't be there
-Division by zero
-    Cannot calculate value
+constant too large
+    floating point overflow and other value out of range conditions
+division by zero
+    can't calculate this
+double defined escape
+    escape sequence already defined in another .edef
+double defined range
+    part of a character range was already defined by another .cdef
+duplicate definition
+    symbol defined more than once
+expected exactly/at least/at most ? arguments, got ?
+    wrong number of function arguments
+expression syntax
+    syntax error
+extra characters on line
+    there's some garbage on the end of line
+general syntax
+    can't do anything with this
+index out of range
+    not enough elements in list
+instruction can't cross banks
+    this instruction is only limited to the current bank
+invalid operands to ? '?' and '?'
+    can't do this calculation with these values
+key error
+    not in dictionary
+label required
+    a label is mandatory for this directive
+missing argument
+    not enough arguments supplied to function
+negative number raised on fractional power
+    can't calculate this
+no fitting addressing mode for opcode
+    couldn't find the right addressing mode for this opcode
+not a bank 0 address
+    value must be a bank zero address
+not a data bank address
+    value must be a data bank address
+not a direct page address
+    value must be a direct page address
+not a key and value pair
+    dictionaries are built from key and value pairs separated by a colon
+not allowed here: ?
+    do not use this directive here
+not defined '?'
+    can't find this label
+not hashable
+    can't be used as a key in a dictionary
+not iterable
+    value is not a list or other iterable object
+page error at $xxxx
+    page crossing detected
+ptext too long by ? bytes
+    .ptext is limited to 255 bytes maximum
+requirements not met
+    Not all features are provided, at least one is missing
+reserved symbol name '?'
+    do not use this symbol name
+string constant too long for a number
+    use a shorter string
+too early to reference
+    processing still ongoing, can't access this yet
+unknown processor '?'
+    unknown cpu name
+wrong type <?>
+    wrong object type used
+zero value not allowed
+    do not use zero
 
 Fatal errors
 
-Can't locate file
+can't open file
     cannot open file
-Out of memory
-    won't happen ;)
-Can't write object file:
-    cannot write the result
-Can't write listing file:
-    cannot write the list file
-Can't write label file:
+can't write label file
     cannot write the label file
-File recursion
+can't write listing file
+    cannot write the list file
+can't write object file
+    cannot write the result
+error reading file
+    error while reading
+file recursion
     wrong use of .include
-Macro recursion too deep
+macro recursion too deep
     wrong use of nested macros
-Unknown CPU
-    CPU type not known
-Ooops! Too many passes...
-    With a carefully crafted source file it's possible to create unresolvable
+unknown option '?'
+    option not known
+out of memory
+    won't happen ;)
+too many passes
+    with a carefully crafted source file it's possible to create unresolvable
     situations. Fix your code.
 
 -------------------------------------------------------------------------------
