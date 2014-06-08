@@ -371,7 +371,6 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
     lastnd->pass = pass;
     b=avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
     if (b) {
-        if (lastnd->cfname.data != name->data) free((uint8_t *)lastnd->cfname.data);
         tmp2 = avltree_container_of(b, struct notdefines_s, node);
         if (tmp2->pass == pass) {
             return;
@@ -379,6 +378,7 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
         tmp2->pass = pass;
     } else {
         if (lastnd->cfname.data == name->data) str_cpy(&lastnd->cfname, name);
+        else str_cfcpy(&lastnd->cfname, NULL);
         lastnd = NULL;
     }
 
@@ -761,6 +761,11 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
     adderror(": ");
     memset(&ps, 0, sizeof(ps));
     while (i < n) {
+        if (s[i] && !(s[i] & 0x80)) {
+            adderror2((uint8_t *)s + i, 1);
+            i++;
+            continue;
+        }
         l = mbrtowc(&w, s + i, n - i,  &ps);
         if (l <= 0) break;
         s2[utf8out(w, s2) - s2] = 0;

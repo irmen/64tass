@@ -111,6 +111,14 @@ uint8_t *utf8out(uint32_t i, uint8_t *c) {
     return c;
 }
 
+static inline unsigned int utf8outlen(uint32_t i) {
+    if (i < 0x800) return 2;
+    if (i < 0x10000) return 3;
+    if (i < 0x200000) return 4;
+    if (i < 0x4000000) return 5;
+    return 6;
+}
+
 static void extbuff(struct ubuff_s *d) {
     d->len += 16;
     d->data = (uint32_t *)realloc(d->data, d->len * sizeof(uint32_t));
@@ -294,31 +302,39 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
     }
     unormalize(&dbuf);
     ucompose(&dbuf, &dbuf2);
-    l = s2->len + 16;
-    dd = s = (uint8_t *)realloc((uint8_t *)s1->data, l);
-    if (!dd || l < 16) err_msg_out_of_memory();
-    m = dd + l - 8;
+    l = s2->len;
+    if (l > s1->len) {
+        s1->data = (uint8_t *)realloc((uint8_t *)s1->data, l);
+        if (!s1->data) err_msg_out_of_memory();
+    }
+    dd = s = (uint8_t *)s1->data;
+    m = dd + l;
     for (i = 0; i < dbuf2.p; i++) {
         uint32_t ch;
-        if (s > m) {
+        ch = dbuf2.data[i];
+        if (ch && ch < 0x80) {
+            if (s >= m) {
+                size_t o = s - dd;
+                l += 16;
+                dd = (uint8_t *)realloc(dd, l);
+                if (!dd || l < 16) err_msg_out_of_memory();
+                s = dd + o;
+                m = dd + l;
+            }
+            *s++ = ch;
+            continue;
+        }
+        if (s + utf8outlen(ch) > m) {
             size_t o = s - dd;
             l += 16;
             dd = (uint8_t *)realloc(dd, l);
             if (!dd || l < 16) err_msg_out_of_memory();
             s = dd + o;
-            m = dd + l - 8;
-        }
-        ch = dbuf2.data[i];
-        if (ch < 0x80) {
-            *s++ = ch;
-            continue;
+            m = dd + l;
         }
         s = utf8out(ch, s);
     }
-    l = s - dd;
-    dd = (uint8_t *)realloc(dd, l);
-    if (!dd) err_msg_out_of_memory();
-    s1->len = l;
+    s1->len = s - dd;
     s1->data = dd;
 }
 

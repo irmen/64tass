@@ -112,7 +112,6 @@ int mtranslate(struct file_s *cfile)
                             if (macro_parameters.current->macro->obj == STRUCT_OBJ || macro_parameters.current->macro->obj == UNION_OBJ) {
                                 lpoint.pos--;
                                 ch = '?';
-                                if (label.data != cf.data) free((uint8_t *)cf.data);
                                 goto ok;
                             }
                             err_msg2(ERROR_MISSING_ARGUM, NULL, &e);
@@ -127,7 +126,6 @@ int mtranslate(struct file_s *cfile)
                         p += macro_parameters.current->param[j].len;
                         break;
                     }
-                    if (label.data != cf.data) free((uint8_t *)cf.data);
                     if (j < macro_parameters.current->macro->u.macro.argc) {
                         lpoint.pos--;
                         continue;
@@ -393,6 +391,7 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
             if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &new_value.u.mfunc.param[i].epoint);break;}
             str_cpy(&new_value.u.mfunc.param[i].name, &label);
             str_cfcpy(&cf, &new_value.u.mfunc.param[i].name);
+            if (cf.data != new_value.u.mfunc.param[i].name.data) str_cfcpy(&cf, NULL);
             new_value.u.mfunc.param[i].cfname = cf;
             for (j = 0; j < i; j++) if (new_value.u.mfunc.param[j].name.data) {
                 if (!str_cmp(&new_value.u.mfunc.param[j].cfname, &cf)) break;
@@ -471,7 +470,7 @@ void get_macro_params(struct value_s *v) {
             if (label.len > 1 && label.data[0] == '_' && label.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &label, &epoints[i]);new_value.u.macro.param[i].cfname.len = 0; new_value.u.macro.param[i].cfname.data = NULL;}
             str_cfcpy(&cf, &label);
             if (cf.data == label.data) str_cpy(&new_value.u.macro.param[i].cfname, &label);
-            else new_value.u.macro.param[i].cfname = cf;
+            else {str_cfcpy(&cf, NULL); new_value.u.macro.param[i].cfname = cf;}
             for (j = 0; j < i; j++) if (new_value.u.macro.param[j].cfname.data) {
                 if (!str_cmp(&new_value.u.macro.param[j].cfname, &cf)) break;
             }
