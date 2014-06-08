@@ -58,13 +58,11 @@ struct section_s *find_new_section(const str_t *name) {
         if (b) {
             tmp2 = avltree_container_of(b, struct section_s, node);
             if (tmp2->defpass >= pass - 1) {
-                if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
                 return tmp2;
             }
         }
         context = context->parent;
     }
-    if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
     if (tmp2) return tmp2;
     return new_section(name);
 }
@@ -84,6 +82,7 @@ struct section_s *new_section(const str_t *name) {
     if (!b) { //new section
         str_cpy(&lastsc->name, name);
         if (lastsc->cfname.data == name->data) lastsc->cfname = lastsc->name;
+        else str_cfcpy(&lastsc->cfname, NULL);
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->end=lastsc->address=lastsc->l_address=lastsc->size=0;
@@ -105,7 +104,6 @@ struct section_s *new_section(const str_t *name) {
 	lastsc=NULL;
 	return tmp;
     }
-    if (lastsc->cfname.data != name->data) free((uint8_t *)lastsc->cfname.data);
     return avltree_container_of(b, struct section_s, node);            //already exists
 }
 

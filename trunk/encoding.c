@@ -553,13 +553,13 @@ struct encoding_s *new_encoding(const str_t *name)
     b = avltree_insert(&lasten->node, &encoding_tree, encoding_compare);
     if (!b) { //new encoding
         if (lasten->cfname.data == name->data) str_cpy(&lasten->cfname, name);
+        else str_cfcpy(&lasten->cfname, NULL);
         lasten->escape=NULL;
         avltree_init(&lasten->trans);
         tmp = lasten;
         lasten = NULL;
         return tmp;
     }
-    if (lasten->cfname.data != name->data) free((uint8_t *)lasten->cfname.data);
     return avltree_container_of(b, struct encoding_s, node);            //already exists
 }
 

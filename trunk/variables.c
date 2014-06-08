@@ -123,7 +123,7 @@ struct label_s *find_label(const str_t *name) {
     struct label_s *context = current_context;
     struct label_s tmp, *c;
 
-    if (name->len > 1 && !name->data[1]) str_cpy(&tmp.cfname, name);
+    if (name->len > 1 && !name->data[1]) tmp.cfname = *name;
     else str_cfcpy(&tmp.cfname, name);
     tmp.name_hash = str_hash(&tmp.cfname);
 
@@ -132,14 +132,12 @@ struct label_s *find_label(const str_t *name) {
         if (b) {
             c = strongest_label(b);
             if (c) {
-                if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
                 return c;
             }
         }
         context = context->parent;
     }
     b = avltree_lookup(&tmp.node, &builtin_label.members, label_compare);
-    if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
     if (b) return avltree_container_of(b, struct label_s, node);
     return NULL;
 }
@@ -148,12 +146,11 @@ struct label_s *find_label2(const str_t *name, const struct label_s *context) {
     struct avltree_node *b;
     struct label_s tmp;
 
-    if (name->len > 1 && !name->data[1]) str_cpy(&tmp.cfname, name);
+    if (name->len > 1 && !name->data[1]) tmp.cfname = *name;
     else str_cfcpy(&tmp.cfname, name);
     tmp.name_hash = str_hash(&tmp.cfname);
 
     b = avltree_lookup(&tmp.node, &context->members, label_compare);
-    if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
     if (!b) return NULL;
     return strongest_label(b);
 }
@@ -169,13 +166,12 @@ struct label_s *find_label3(const str_t *name, const struct label_s *context, ui
     struct avltree_node *b;
     struct label_s tmp;
 
-    if (name->len > 1 && !name->data[1]) str_cpy(&tmp.cfname, name);
+    if (name->len > 1 && !name->data[1]) tmp.cfname = *name;
     else str_cfcpy(&tmp.cfname, name);
     tmp.name_hash = str_hash(&tmp.cfname);
     tmp.strength = strength;
 
     b = avltree_lookup(&tmp.node, &context->members, label_compare2);
-    if (tmp.cfname.data != name->data) free((uint8_t *)tmp.cfname.data);
     if (!b) return NULL;
     return avltree_container_of(b, struct label_s, node);
 }
@@ -229,7 +225,7 @@ struct label_s *new_label(const str_t *name, struct label_s *context, uint8_t st
     struct label_s *tmp;
     if (!lastlb) lastlb = var_alloc();
 
-    if (name->len > 1 && !name->data[1]) str_cpy(&lastlb->cfname, name);
+    if (name->len > 1 && !name->data[1]) lastlb->cfname = *name;
     else str_cfcpy(&lastlb->cfname, name);
     lastlb->name_hash = str_hash(&lastlb->cfname);
     lastlb->strength = strength;
@@ -238,6 +234,7 @@ struct label_s *new_label(const str_t *name, struct label_s *context, uint8_t st
     if (!b) { //new label
         str_cpy(&lastlb->name, name);
         if (lastlb->cfname.data == name->data) lastlb->cfname = lastlb->name;
+        else str_cfcpy(&lastlb->cfname, NULL);
         lastlb->parent = context;
         lastlb->ref = 0;
         lastlb->shadowcheck = 0;
@@ -251,7 +248,6 @@ struct label_s *new_label(const str_t *name, struct label_s *context, uint8_t st
 	return tmp;
     }
     *exists = 1;
-    if (lastlb->cfname.data != name->data) free((uint8_t *)lastlb->cfname.data);
     return avltree_container_of(b, struct label_s, node);            /* already exists */
 }
 

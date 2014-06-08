@@ -59,13 +59,26 @@ int str_cmp(const str_t *s1, const str_t *s2) {
 }
 
 void str_cfcpy(str_t *s1, const str_t *s2) {
-    size_t i, l = s2->len;
-    const uint8_t *d = s2->data;
+    size_t i, l;
+    const uint8_t *d;
+    static str_t cache;
+    if (!s2) {
+        if (s1) {
+            if (s1->len != cache.len) {
+                s1->data = (uint8_t *)realloc((uint8_t *)s1->data, s1->len);
+                if (!s1->data) err_msg_out_of_memory();
+            }
+        } else free((uint8_t *)cache.data);
+        memset(&cache, 0, sizeof(cache));
+        return;
+    }
+    l = s2->len; d = s2->data;
     if (arguments.casesensitive) {
         for (i = 0; i < l; i++) {
             if (d[i] & 0x80) {
-                s1->data = NULL;
-                unfkc(s1, s2, 0);
+                unfkc(&cache, s2, 0);
+                s1->len = cache.len;
+                s1->data = cache.data;
                 return;
             }
         }
@@ -77,12 +90,17 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
         uint8_t *s, ch = d[i];
         if (ch < 'A' || (ch > 'Z' && ch < 0x80)) continue;
         if (ch & 0x80) {
-            s1->data = NULL;
-            unfkc(s1, s2, 1);
+            unfkc(&cache, s2, 1);
+            s1->len = cache.len;
+            s1->data = cache.data;
             return;
         }
-        s = (uint8_t *)malloc(s2->len);
-        if (!s) err_msg_out_of_memory();
+        if (l > cache.len) {
+            cache.data = (uint8_t *)realloc((uint8_t *)cache.data, l);
+            if (!cache.data) err_msg_out_of_memory();
+            cache.len = l;
+        }
+        s = (uint8_t *)cache.data;
         if (i) memcpy(s, d, i);
         s1->data = s;
         for (; i < l; i++) {
@@ -96,7 +114,9 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
                 continue;
             }
             if (ch & 0x80) {
-                unfkc(s1, s2, 1);
+                unfkc(&cache, s2, 1);
+                s1->len = cache.len;
+                s1->data = cache.data;
                 return;
             }
             s[i] = ch;
@@ -106,6 +126,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
     }
     s1->len = l;
     s1->data = d;
+    return;
 }
 
 void str_cpy(str_t *s1, const str_t *s2) {
@@ -128,6 +149,7 @@ void tfree(void) {
     destroy_ternary();
     unfc(NULL);
     unfkc(NULL, NULL, 0);
+    str_cfcpy(NULL, NULL);
 }
 
 void tinit(void) {

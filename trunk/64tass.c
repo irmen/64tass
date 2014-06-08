@@ -1499,7 +1499,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             err_msg2(ERROR______EXPECTED, s, &epoint);
                             free(s);
                         }
-                        if (sectionname.data != cf.data) free((uint8_t *)cf.data);
                     }
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     current_section = waitfor->section;
@@ -2460,7 +2459,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         err_msg(ERROR_UNKNOWN_OPTIO, s);
                         free(s);
                     }
-                    if (optname.data != cf.data) free((uint8_t *)cf.data);
                 }
                 break;
             case CMD_GOTO: if (waitfor->skip & 1)
