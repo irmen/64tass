@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.51 r726 manual</title>
+<title>64tass v1.51 r727 manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
@@ -32,7 +32,7 @@ td:first-child, th:first-child {border-left: 0px;}
 caption {caption-side:bottom;}
 table.opcodes th, table.opcodes td {text-align:left;table-layout:fixed;}
 table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
-dl.dir dt, table.oper td:first-child, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, table.adroper td:first-child, table.adroper td:last-child {font-family:monospace;font-size:12pt;}
+dl.errorlist dt, dl.dir dt, table.oper td:first-child, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, table.adroper td:first-child, table.adroper td:last-child {font-family:monospace,monospace;font-size:12pt;}
 a[name] {font-weight:bold;}
 
 thead th {background-color:#eee;border-bottom:1px solid black;}
@@ -61,7 +61,7 @@ q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.51 r726 manual</h1>
+<h1>64tass v1.51 r727 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -2536,69 +2536,149 @@ a.asm:3:21: note: searched in the global scope</pre>
 internal limitations referenced lines in relation to the actual fault
 will display without them.</p>
 <h3>Warnings<a name="messages-warnings" href="#messages-warnings"></a></h3>
-<dl>
-<dt>Top of memory exceeded
-<dd>compile continues at the bottom ($0000)
-<dt>Memory bank exceeded
-<dd>compile continues in the next 64&nbsp;KiB bank, however execution may not
-<dt>Possible jmp ($xxff) bug
-<dd>yet another 65xx feature...
-<dt>Long branch used
-<dd>Branch too long, so long branch was used (bxx &lowast;+5 jmp)
-<dt>Directive ignored
-<dd>An assembler directive was ignored for compatibility reasons.
+<dl class="errorlist">
+<!--<dt>top of memory exceeded<dd>compile continues at the bottom ($0000)
+<dt>memory bank exceeded<dd>compile continues in the next 64&nbsp;KiB bank, however execution may not
+<dt>possible jmp ($xxff) bug<dd>yet another 65xx feature...
+<dt>long branch used<dd>branch too long, so long branch was used (bxx &lowast;+5 jmp)
+<dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons.
+<dt>label not on left side<dd>check if an instruction name was not mistyped and if the currect CPU has it, or remove white space before label-->
+<dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons.
+<dt>label not on left side<dd>check if an instruction name was not mistyped and if the currect CPU has it, or remove white space before label
+<dt>long branch used<dd>branch too long, so long branch was used (bxx &lowast;+5 jmp)
+<dt>memory bank exceeded<dd>compile continues in the next 64&nbsp;KiB bank, however execution may not
+<dt>possible jmp ($xxff) bug<dd>yet another 65xx feature...
+<dt>top of memory exceeded<dd>compile continues at the bottom ($0000)
 </dl>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
-<dl>
-<dt>Double defined
-<dd>double use of label/macro
-<dt>Not defined
-<dd>not defined label
-<dt>Extra characters on line
-<dd>there's some garbage on the end of line
-<dt>Constant too large
-<dd>the number was too big
-<dt>General syntax
-<dd>can't do anything with this
-<dt>X expected
-<dd>X may be missing
-<dt>Expression syntax
-<dd>syntax error
-<dt>Branch too far
-<dd>can't relative branch that far
-<dt>Missing argument
-<dd>no argument given
-<dt>Illegal operand
-<dd>can't be used here
-<dt>Requirements not met:
-<dd>Not all features are provided, at least one is missing
-<dt>Conflict:
-<dd>at least one feature is provided, which shouldn't be there
-<dt>Division by zero
-<dd>Cannot calculate value
+<dl class="errorlist">
+<!--<dt>double defined range<dd>part of a character range was already defined by another .cdef
+<dt>double defined escape<dd>escape sequence already defined in another .edef
+<dt>extra characters on line<dd>there's some garbage on the end of line
+<dt>constant too large<dd>floating point overflow and other value out of range conditions
+<dt>address not in processor address space<dd>value larger than current CPU address space
+<dt>general syntax<dd>can't do anything with this
+<dt>expression syntax<dd>syntax error
+<dt>label required<dd>a label is mandatory for this directive
+<dt>missing argument<dd>not enough arguments supplied to function
+<dt>division by zero<dd>can't calculate this
+<dt>zero value not allowed<dd>do not use zero
+<dt>instruction can't cross banks<dd>this instruction is only limited to the current bank
+<dt>address out of section<dd>moving the address around is fine, but do not place it before the section
+<dt>negative number raised on fractional power<dd>can't calculate this
+<dt>string constant too long for a number<dd>use a shorter string
+<dt>index out of range<dd>not enough elements in list
+<dt>key error<dd>not in dictionary
+<dt>not hashable<dd>can't be used as a key in a dictionary
+<dt>not a key and value pair<dd>dictionaries are built from key and value pairs separated by a colon
+<dt>can't convert to a ? bit signed/unsigned integer<dd>value out of range
+<dt>can't convert to float<dd>conversion error
+<dt>can't get sign<dd>value does not have a sign
+<dt>can't get absolute value<dd>value has no absolute value
+<dt>can't convert to integer<dd>conversion error
+<dt>can't get length<dd>value has no length
+<dt>can't get size<dd>value has no size
+<dt>can't convert to boolean<dd>conversion error
+<dt>not iterable<dd>value is not a list or other iterable object
+<dt>no fitting addressing mode for opcode<dd>couldn't find the right addressing mode for this opcode
+<dt>not a direct page address<dd>value must be a direct page address
+<dt>not a data bank address<dd>value must be a data bank address
+<dt>not a bank 0 address<dd>value must be a bank zero address
+<dt>page error at $xxxx<dd>page crossing detected
+<dt>branch too far by ? bytes<dd>can't branch that far
+<dt>ptext too long by ? bytes<dd>.ptext is limited to 255 bytes maximum
+<dt>branch crosses page<dd>page crossing detected
+<dt>can't encode character $xx<dd>can't translate character, not part of current encoding
+<dt>? expected<dd>something is missing
+<dt>wrong type &lt;?&gt;<dd>wrong object type used
+<dt>not allowed here: ?<dd>do not use this directive here
+<dt>reserved symbol name '?'<dd>do not use this symbol name
+<dt>unknown processor '?'<dd>unknown cpu name
+<dt>too early to reference<dd>processing still ongoing, can't access this yet
+<dt>not defined '?'<dd>can't find this label
+<dt>can't calculate stable value<dd>somehow it's impossible to calculate this expression
+<dt>can't calculate this<dd>could not get any value, is this a circular reference?
+<dt>requirements not met<dd>Not all features are provided, at least one is missing
+<dt>conflict<dd>at least one feature is provided, which shouldn't be there
+<dt>duplicate definition<dd>symbol defined more than once
+<dt>invalid operands to ? '?' and '?'<dd>can't do this calculation with these values
+<dt>expected exactly/at least/at most ? arguments, got ?<dd>wrong number of function arguments-->
+<dt>? expected<dd>something is missing
+<dt>address not in processor address space<dd>value larger than current CPU address space
+<dt>address out of section<dd>moving the address around is fine, but do not place it before the section
+<dt>branch crosses page<dd>page crossing detected
+<dt>branch too far by ? bytes<dd>can't branch that far
+<dt>can't calculate stable value<dd>somehow it's impossible to calculate this expression
+<dt>can't calculate this<dd>could not get any value, is this a circular reference?
+<dt>can't convert to a ? bit signed/unsigned integer<dd>value out of range
+<dt>can't convert to boolean<dd>conversion error
+<dt>can't convert to float<dd>conversion error
+<dt>can't convert to integer<dd>conversion error
+<dt>can't encode character $xx<dd>can't translate character, not part of current encoding
+<dt>can't get absolute value<dd>value has no absolute value
+<dt>can't get length<dd>value has no length
+<dt>can't get sign<dd>value does not have a sign
+<dt>can't get size<dd>value has no size
+<dt>conflict<dd>at least one feature is provided, which shouldn't be there
+<dt>constant too large<dd>floating point overflow and other value out of range conditions
+<dt>division by zero<dd>can't calculate this
+<dt>double defined escape<dd>escape sequence already defined in another .edef
+<dt>double defined range<dd>part of a character range was already defined by another .cdef
+<dt>duplicate definition<dd>symbol defined more than once
+<dt>expected exactly/at least/at most ? arguments, got ?<dd>wrong number of function arguments
+<dt>expression syntax<dd>syntax error
+<dt>extra characters on line<dd>there's some garbage on the end of line
+<dt>general syntax<dd>can't do anything with this
+<dt>index out of range<dd>not enough elements in list
+<dt>instruction can't cross banks<dd>this instruction is only limited to the current bank
+<dt>invalid operands to ? '?' and '?'<dd>can't do this calculation with these values
+<dt>key error<dd>not in dictionary
+<dt>label required<dd>a label is mandatory for this directive
+<dt>missing argument<dd>not enough arguments supplied to function
+<dt>negative number raised on fractional power<dd>can't calculate this
+<dt>no fitting addressing mode for opcode<dd>couldn't find the right addressing mode for this opcode
+<dt>not a bank 0 address<dd>value must be a bank zero address
+<dt>not a data bank address<dd>value must be a data bank address
+<dt>not a direct page address<dd>value must be a direct page address
+<dt>not a key and value pair<dd>dictionaries are built from key and value pairs separated by a colon
+<dt>not allowed here: ?<dd>do not use this directive here
+<dt>not defined '?'<dd>can't find this label
+<dt>not hashable<dd>can't be used as a key in a dictionary
+<dt>not iterable<dd>value is not a list or other iterable object
+<dt>page error at $xxxx<dd>page crossing detected
+<dt>ptext too long by ? bytes<dd>.ptext is limited to 255 bytes maximum
+<dt>requirements not met<dd>Not all features are provided, at least one is missing
+<dt>reserved symbol name '?'<dd>do not use this symbol name
+<dt>string constant too long for a number<dd>use a shorter string
+<dt>too early to reference<dd>processing still ongoing, can't access this yet
+<dt>unknown processor '?'<dd>unknown cpu name
+<dt>wrong type &lt;?&gt;<dd>wrong object type used
+<dt>zero value not allowed<dd>do not use zero
 </dl>
 
 <h3>Fatal errors<a name="messages-fatal" href="#messages-fatal"></a></h3>
-<dl>
-<dt>Can't locate file
-<dd>cannot open file
-<dt>Out of memory
-<dd>won't happen ;)
-<dt>Can't write object file:
-<dd>cannot write the result
-<dt>Can't write listing file:
-<dd>cannot write the list file
-<dt>Can't write label file:
-<dd>cannot write the label file
-<dt>File recursion
-<dd>wrong use of .include
-<dt>Macro recursion too deep
-<dd>wrong use of nested macros
-<dt>Unknown CPU
-<dd>CPU type not known
-<dt>Ooops! Too many passes...
-<dd>With a carefully crafted source file it's possible to create unresolvable situations. Fix your code.
+<dl class="errorlist">
+<!-- <dt>can't open file<dd>cannot open file
+<dt>error reading file<dd>error while reading
+<dt>can't write object file<dd>cannot write the result
+<dt>can't write listing file<dd>cannot write the list file
+<dt>can't write label file<dd>cannot write the label file
+<dt>file recursion<dd>wrong use of .include
+<dt>macro recursion too deep<dd>wrong use of nested macros
+<dt>too many passes<dd>with a carefully crafted source file it's possible to create unresolvable situations. Fix your code.
+<dt>unknown option '?'<dd>option not known
+<dt>out of memory<dd>won't happen ;)-->
+<dt>can't open file<dd>cannot open file
+<dt>can't write label file<dd>cannot write the label file
+<dt>can't write listing file<dd>cannot write the list file
+<dt>can't write object file<dd>cannot write the result
+<dt>error reading file<dd>error while reading
+<dt>file recursion<dd>wrong use of .include
+<dt>macro recursion too deep<dd>wrong use of nested macros
+<dt>unknown option '?'<dd>option not known
+<dt>out of memory<dd>won't happen ;)
+<dt>too many passes<dd>with a carefully crafted source file it's possible to create unresolvable situations. Fix your code.
 </dl>
 
 <hr>

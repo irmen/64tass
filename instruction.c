@@ -78,7 +78,7 @@ static int touval(const struct value_s *v1, struct value_s *v, uval_t *uv, int b
 }
 
 int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos_t epoint, struct linepos_s *epoints) {
-    enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_WORD, AG_NONE } adrgen;
+    enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_DB2, AG_WORD, AG_NONE } adrgen;
     enum opr_e opr;
     const uint8_t *cnmemonic; /* current nmemonic */
     int_fast8_t ln;
@@ -158,34 +158,8 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
             case (A_DR << 4) | A_YR:
                 adrgen = AG_BYTE; opr = ADR_ZP_Y; /* ldx $ff,d,y */
                 break;
-            case A_YR: /* lda $ff,y lda $ffff,y lda $ffffff,y */
-                if (w == 3) {/* auto length */
-                    if (touval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); w = (cnmemonic[ADR_ADDR_Y] != ____);}
-                    else if (cnmemonic[ADR_ZP_Y] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
-                    else if (databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
-                    else return 2;
-                } else {
-                    switch (w) {
-                    case 0:
-                        if (cnmemonic[ADR_ZP_Y] == ____) return 2;
-                        if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
-                        else if (uval <= 0xffff) {
-                            adr = (uint16_t)(uval - dpage);
-                            if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
-                        } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
-                        break;
-                    case 1:
-                        if (cnmemonic[ADR_ADDR_Y] == ____) return 2;
-                        if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
-                        else {
-                            adr = (uint16_t)uval;
-                            if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val, epoint2);
-                        }
-                        break;
-                    default: return 2;
-                    }
-                }
-                opr = ADR_ZP_Y - w; ln = w + 1; /* ldx $ff,y lda $ffff,y */
+            case A_YR: 
+                adrgen = AG_DB2; opr = ADR_ZP_Y; /* lda $ff,y lda $ffff,y lda $ffffff,y */
                 break;
             case A_SR:
                 adrgen = AG_BYTE; opr = ADR_ZP_S; /* lda $ff,s */
@@ -519,10 +493,15 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         break;
     case AG_DB3: /* 3 choice data bank */
         if (w == 3) {/* auto length */
+            if (cnmemonic[opr] == ____ && cnmemonic[opr - 1] == ____ && cnmemonic[opr - 2] == ____) return 2;
             if (touval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); w = (cnmemonic[opr - 1] != ____);}
             else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
-            else {adr = uval; w = 2;}
+            else if (cnmemonic[opr - 2] != ____) {adr = uval; w = 2;}
+            else {
+                w = (cnmemonic[opr - 1] != ____);
+                err_msg2(w ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
+            }
         } else {
             switch (w) {
             case 0:
@@ -550,7 +529,39 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
             }
         }
         opr = opr - w; ln = w + 1;
-        if (cnmemonic[opr] == ____) return 2;
+        break;
+    case AG_DB2: /* 2 choice data bank */
+        if (w == 3) {/* auto length */
+            if (cnmemonic[opr] == ____ && cnmemonic[opr - 1] == ____) return 2;
+            if (touval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); w = (cnmemonic[opr - 1] != ____);}
+            else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
+            else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
+            else {
+                w = (cnmemonic[opr - 1] != ____);
+                err_msg2(w ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
+            }
+        } else {
+            switch (w) {
+            case 0:
+                if (cnmemonic[opr] == ____) return 2;
+                if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                else if (uval <= 0xffff) {
+                    adr = (uint16_t)(uval - dpage);
+                    if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
+                } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
+                break;
+            case 1:
+                if (cnmemonic[opr - 1] == ____) return 2;
+                if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                else {
+                    adr = (uint16_t)uval;
+                    if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val, epoint2);
+                }
+                break;
+            default: return 2;
+            }
+        }
+        opr = opr - w; ln = w + 1;
         break;
     case AG_WORD: /* word only */
         if (w != 3 && w != 1) return 2;

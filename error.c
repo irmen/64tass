@@ -161,6 +161,7 @@ static const char *terr_error[]={
     "double defined escape",
     "extra characters on line",
     "constant too large",
+    "address not in processor address space",
     "general syntax",
     "expression syntax",
     "label required",
@@ -199,7 +200,6 @@ static const char *terr_fatal[]={
     "can't write label file ",
     "file recursion",
     "macro recursion too deep",
-    "reference recursion too deep",
     "too many passes"
 };
 
@@ -276,7 +276,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
             adderror("'");
             break;
         case ERROR___UNKNOWN_CPU:
-            adderror("unknown cpu '");
+            adderror("unknown processor '");
             err_msg_variable(&error_list, (struct value_s *)prm, epoint);
             adderror("'");
             break;
@@ -289,8 +289,9 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
     new_error(SV_FATAL, current_file_list, epoint);
     switch (no) {
     case ERROR_UNKNOWN_OPTIO:
-        adderror("unknown option: ");
-        adderror((char *)prm);
+        adderror("unknown option '");
+        adderror2(((str_t *)prm)->data, ((str_t *)prm)->len);
+        adderror("'");
         break;
     default:
         adderror(terr_fatal[no & 63]);

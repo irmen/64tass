@@ -312,7 +312,6 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
 
     n = avltree_first(members);
     while (n) {
-        l = avltree_container_of(n, struct label_s, node);
         l = find_strongest_label(&n, label_compare);            /* already exists */
         if (!l) continue;
         if (l->name.data && l->name.len > 1 && !l->name.data[1]) continue;

@@ -196,7 +196,7 @@ static size_t macro_param_find(void) {
 struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_s *context, linepos_t epoint) {
     struct value_s *val;
     if (macro_parameters.p>100) {
-        err_msg(ERROR__MACRECURSION,"!!!!");
+        err_msg2(ERROR__MACRECURSION, NULL, epoint);
         return NULL;
     }
     if (macro_parameters.p >= macro_parameters.len) {
