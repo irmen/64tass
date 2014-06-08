@@ -1,12 +1,12 @@
 <!DOCTYPE HTML>
 <html lang="en">
 <head>
-<title>64tass v1.51 r716 manual</title>
+<title>64tass v1.51 r726 manual</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="Description" content="64tass, an advanced multi pass macro assembler for the 65xx family of microprocessors">
 <meta name="Keywords" content="6502 assembler, 65816, 6510, 65C02, dtv, c64 cross assembler">
 <meta name="Author" content="Kajtar Zsolt">
-<style>
+<style type="text/css">
 dt {margin-top:0.5em}
 dt + dt {margin-top:0em}
 body {width:50em;font-size:12pt;}
@@ -52,16 +52,16 @@ h3:before { content: counter(counth2) "." counter(counth3) " "; counter-incremen
 h3 { counter-reset: counth4; }
 h4:before { content: counter(counth2) "." counter(counth3) "." counter(counth4) " "; counter-increment: counth4; min-width: 45pt;display:inline-block;}
 caption:before { content: "Table " counter(countcaption) ": "; counter-increment: countcaption; font-weight:bold;}
-h2 a:after, h3 a:after {content: "¶"}
-h2 a, h3 a {color:blue;visibility:hidden;text-decoration:none;}
-h2:hover a, h3:hover a {visibility:visible;}
+h2 a:after, h3 a:after, h4 a:after {content: "¶"}
+h2 a, h3 a, h4 a {color:blue;visibility:hidden;text-decoration:none;}
+h2:hover a, h3:hover a, h4:hover a {visibility:visible;}
 
 q { quotes: "\201C" "\201D" "\2018" "\2019"; }
 
 </style>
 </head>
 <body class="body">
-<h1>64tass v1.51 r716 manual</h1>
+<h1>64tass v1.51 r726 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:</p>
@@ -72,7 +72,7 @@ the 65xx series of processors. Key features:</p>
 <li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
 <li>Arbitrary-precision integers and bitstrings, double precision floating point numbers
 <li>Character and byte strings, array arithmetic
-<li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files and strings
+<li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files, unicode strings
 <li>Supports Unicode identifiers with case folding and compatibility normalization
 <li>Built-in <q>linker</q> with section support
 <li>CPU or flat address space for creating huge binaries (e.g. cartridges)
@@ -220,7 +220,7 @@ following operations are accepted:</p>
 <tr><td>&lt;&gt;x<td>lower word<td><code>&lt;&gt;<span>65537</span></code> is <code><span>$0001</span></code>
 <tr><td>&gt;`x<td>higher word<td><code>&lt;`<span>65537</span></code> is <code><span>$1000</span></code>
 <tr><td>&gt;&lt;x<td>lower byte swapped word<td><code>&gt;&lt;<span>2049</span></code> is <code><span>$0108</span></code>
-                <tr><td>x &lt;=&gt; y<td>x compares to y<td><code><span>2</span> &lt;=&gt; <span>5</span></code> is <code><span>&minus;1<span></code>
+<tr><td>x &lt;=&gt; y<td>x compares to y<td><code><span>2</span> &lt;=&gt; <span>5</span></code> is <code><span>&minus;1</span></code>
 <tr><td>x == y<td>x equals to y<td><code><span>2</span> == <span>3</span></code> is <code><span>false</span></code>
 <tr><td>x != y<td>x does not equal to y<td><code><span>2</span> != <span>3</span></code> is <code><span>true</span></code>
 <tr><td>x &lt; y<td>x is less than y<td><code><span>2</span> &lt; <span>3</span></code> is <code><span>true</span></code>
@@ -538,7 +538,7 @@ types are immutable.</p>
 <tr><td><a name="">len</a>(a)<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
 <tr><td><a name="">all</a>(a)<td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
 <tr><td><a name="">any</a>(a)<td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
-<tr><td><a name="f_format">range</a>(s,e,t)<td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
+<tr><td><a name="">range</a>(s,e,t)<td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
 </table>
 
 <p>Arithmetic operations are applied on the all elements recursively,
@@ -764,7 +764,7 @@ too.</p>
 directives, but there are a few other ways. Symbols in a scope can be accessed
 by using the dot operator, which is applied between the name of the scope and the symbol (e.g. <code>myconsts.math.pi</code>).</p>
 
-<h4>Regular symbols</h4>
+<h4>Regular symbols<a name="symbols-regular" href="#symbols-regular"></a></h4>
 
 <p>Regular symbol names are starting with a letters and containing letters,
 numbers and underscores. There's no restriction on the length of symbol names.</p>
@@ -792,12 +792,12 @@ n        <b>nop</b>            <i>;jump here</i>
 f.x     <b>=</b> <span>3</span>             <i>;create x in scope f with value 3</i>
 </pre>
 
-<h4>Local symbols</h4>
+<h4>Local symbols<a name="symbols-local" href="#symbols-local"></a></h4>
 
 <p>Local symbols have their own scope between two regularly named code symbols
 and are assigned to the code symbol above them.</p>
 
-<p>Therefore they're easy to reuse without explicit scope declaration directives.<p>
+<p>Therefore they're easy to reuse without explicit scope declaration directives.</p>
 
 <p>Not all regularly named symbols can be scope boundaries just plain code symbol ones
 without anything or an opcode after them (no macros!). Symbols defined as procedures, blocks,
@@ -806,7 +806,7 @@ macros, functions, structs and unions are ignored. Also symbols defined by
 exceptions, so stick to using plain code labels.</p>
 
 <p>The name must start with an underscore (<tt>_</tt>), otherwise the same character
-restrictions apply as for regular symbols. There's no restriction on the length of the name.<p>
+restrictions apply as for regular symbols. There's no restriction on the length of the name.</p>
 
 <p>Care must be taken to not use the duplicate names in the same scope when the
 symbol is used as a constant.</p>
@@ -826,10 +826,10 @@ _skip	<b>dec</b> <u>ac</u>          <i>;symbol reused here</i>
         <b>jmp</b> <u>incr</u>.<u>_skip</u>  <i>;this works too, but is not advised</i>
 </pre>
 
-<h4>Anonymous symbols</h4>
+<h4>Anonymous symbols<a name="symbols-anonymous" href="#symbols-anonymous"></a></h4>
 
 <p>Anonymous symbols don't have a unique name and are always called as a single plus or minus sign. They are also called as forward (<tt>+</tt>)
-and backward (<tt>&minus;</tt>) references.<p>
+and backward (<tt>&minus;</tt>) references.</p>
 <p>When referencing them <q><tt>&minus;</tt></q> means the first backward,
 <q><tt>&minus;&minus;</tt></q> means the second backwards and so on. It's the same for forward, but with
 <q><tt>+</tt></q>. In expressions it may be necessary to put them into brackets.</p>
@@ -865,7 +865,7 @@ trap when segments are copied into the code with their internal references.</p>
 <p>A anonymous symbols are looked up first in the current scope, then in lower scopes
 until the global scope is reached.</p>
 
-<h4>Constant and re-definable symbols</h4>
+<h4>Constant and re-definable symbols<a name="symbols-constant" href="#symbols-constant"></a></h4>
 
 <p>Constant symbols can be created with the equal sign. These are not
 re-definable. Forward referencing to them is allowed as they retain the
@@ -1029,7 +1029,7 @@ loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst
 </pre>
 
 <h3>Dumping data<a name="data-dumping" href="#data-dumping"></a></h3>
-<h4>Storing numeric data</h4>
+<h4>Storing numeric data<a name="data-numeric" href="#data-numeric"></a></h4>
 <p>Multi byte numeric data is stored in the little-endian order, which is the
 natural byte order for 65xx processors. Numeric ranges are enforced depending
 on the directives used.</p>
@@ -1128,7 +1128,7 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 </pre>
 </dl>
 
-<h4>Storing text data</h4>
+<h4>Storing text data<a name="data-text" href="#data-text"></a></h4>
 <p>Texts are stored as a string of bytes. Small numeric constants can be mixed
 in to represent control characters.</p>
 <dl class="dir">
@@ -1279,7 +1279,7 @@ themselves by using the instance name.</p>
 difference is that unset parameters always return uninitialized data (<q>?</q>)
 instead of an error.</p>
 
-<h4>Structure</h4>
+<h4>Structure<a name="structure" href="#structure"></a></h4>
 <p>Structures are for organizing sequential data, so the length of a structure
 is the sum of lengths of all items.</p>
 
@@ -1310,7 +1310,7 @@ nn      <b class="d">.dstruct</b> <u>nn_s</u>, <span>1</span>, <span>2</span><i>
         <b>lda</b> <u>nn</u>,y        <i>;and use it indirectly</i>
 </pre>
 
-<h4>Union</h4>
+<h4>Union<a name="union" href="#union"></a></h4>
 <p>Unions can be used for overlapping data as the compile offset and program
 counter remains the same on each line. Therefore the length of a union is the
 length of it's longest item.</p>
@@ -1342,7 +1342,7 @@ nn      <b class="d">.dunion</b> <u>nn_u</u>, <span>1</span> <i>;union instance 
         <b>lda</b> <u>nn</u>,y        <i>;and use it indirectly</i>
 </pre>
 
-<h4>Combined use of structures and unions</h4>
+<h4>Combined use of structures and unions<a name="struct-and-union" href="#struct-and-union"></a></h4>
 <p>The example below shows how to define structure to a binary include.</p>
 
 <pre width=80>
@@ -1421,7 +1421,7 @@ var     <b class="k">.lohi</b> <span>1234</span>, <span>5678</span>
         <b>ldx</b> <u>var</u>.<u>hi</u>,y
 </pre>
 
-<h4>Parameter references</h4>
+<h4>Parameter references<a name="macro-parameters" href="#macro-parameters"></a></h4>
 <p>The first 9 parameters can be referenced by <q><code>\1</code></q>&ndash;<q><code>\9</code></q>.
 The entire parameter list including separators is <q><code>\@</code></q>.</p>
 <pre width=80>
@@ -1449,7 +1449,7 @@ name	<b class="k">.macro</b> first, b=<span>2</span>, , last
         <b class="k">#name</b> <span>1</span>, , <span>3</span>, <span>4</span>	<i>;call macro</i>
 </pre>
 
-<h4>Text references</h4>
+<h4>Text references<a name="macro-textreference" href="#macro-textreference"></a></h4>
 <p>In the original turbo assembler normal references are passed by value and
 can only appear in place of one. Text references on the other hand can appear
 everywhere and will work in place of e.g. quoted text or opcodes and labels. The
@@ -1513,7 +1513,7 @@ mva     <b class="k">.function</b> <u>s</u>, <u>d</u>
 <p>To prevent parts of source from compiling conditional constructs can be
 used. This is useful when multiple slightly different versions needs to be
 compiled from the same source.</p>
-<h4>If, else if, else</h4>
+<h4>If, else if, else<a name="conditional-if" href="#conditional-if"></a></h4>
 <dl class="dir">
 <dt><a name="d_if">.if</a> &lt;expression&gt;
 <dd>Compile, if result is true (not zero)
@@ -1550,7 +1550,7 @@ better to use comparison operators instead.</p>
 	<b class="k">.fi</b>
 </pre>
 
-<h4>Switch, case, default</h4>
+<h4>Switch, case, default<a name="conditional-switch" href="#conditional-switch"></a></h4>
 <p>Similar to the <code>.if</code>/<code>.elsif</code>/<code>.else</code>
 construct, but the compared value needs to be written only once in the switch
 statement.</p>
@@ -1715,8 +1715,6 @@ the same scope from outside. Can be nested as necessary.</p>
 <p>This gives the possibility of giving default values for symbols which might
 not always exist without resorting to <code>.ifdef</code>/<code>.ifndef</code> or
 similar directives in other assemblers.</p>
-</dl>
-
 <pre width=80>
 symbol	<b>=</b> <span>1</span>            <i>;stronger symbol than the one below</i>
 	<b class="k">.weak</b>
@@ -1724,7 +1722,6 @@ symbol	<b>=</b> <span>0</span>            <i>;default value if the one above doe
 	<b class="k">.endweak</b>
         <b class="k">.if</b> <u>symbol</u>     <i>;almost like an .ifdef ;)</i>
 </pre>
-</dl>
 
 <p>Other use of weak symbols might be in included libraries to change default values or
 replace stub functions and data structures.</p>
@@ -1739,6 +1736,7 @@ scope is of course not allowed and it results in double definition error.</p>
 <p>Please note that <code>.ifdef</code>/<code>.ifndef</code> directives are
 left out from 64tass for of technical reasons, so don't wait for them to appear
 anytime soon.</p>
+</dl>
 
 <h3>Sections<a name="sections" href="#sections"></a></h3>
 
@@ -1974,8 +1972,8 @@ can ruin the timing of a carefully cycle counted code.
 <h3>Target<a name="target-cpu" href="#target-cpu"></a></h3>
 <dl class="dir">
 
-<dt><a name="d_cpu">.cpu</a> "&lt;cpuname&gt;"
-<dd>Selects cpu. The name of the CPU must be quoted, unlike earlier versions where this was optional.
+<dt><a name="d_cpu">.cpu</a> &lt;expression&gt;
+<dd>Selects CPU according to the string argument.
 <pre width=80>
 	<b class="k">.cpu</b> <span class="s">"6502"</span>	<i>;standard 65xx</i>
 	<b class="k">.cpu</b> <span class="s">"65c02"</span>	<i>;CMOS 65C02</i>
@@ -2109,7 +2107,7 @@ instruction.</p>
 
 <hr>
 <h2>Original turbo assembler compatibility<a name="tasm-compatibility" href="#tasm-compatibility"></a></h2>
-<h3>How to convert source code for use with 64tass<a name="convert" href="#convert"></a></h3>
+<h3>How to convert source code for use with 64tass<a name="tasm-convert" href="#tasm-convert"></a></h3>
 <p>Currently there are two options, either use <q>TMPview</q> by Style to convert the
 sourcefile directly, or do the following:</p>
 <ul>
@@ -2124,15 +2122,15 @@ following command line:</p>
 64tass -C -T -a -W -i source.asm -o outfile.prg
 </pre>
 
-<h3>Differences to the original turbo ass macro on the C64</h3>
+<h3>Differences to the original turbo ass macro on the C64<a name="tasm-diff" href="#tasm-diff"></a></h3>
 <p>64tass is nearly 100% compatible with the original <q>Turbo Assembler</q>, and supports
 most of the features of the original <q>Turbo Assembler Macro</q>.
 The remaining notable differences are listed here.</p>
-<h3>Labels</h3>
+<h3>Labels<a name="tasm-labels" href="#tasm-labels"></a></h3>
 <p>The original turbo assembler uses case sensitive labels, use the <tt>-C, --case-sensitive</tt>
 option to enable this behaviour.</p>
 
-<h3>Expression evaluation</h3>
+<h3>Expression evaluation<a name="tasm-expression" href="#tasm-expression"></a></h3>
 
 <p>There are a few differences which can be worked around by the <tt>-T, --tasm-compatible</tt> option.
 These are:</p>
@@ -2152,13 +2150,13 @@ means that you will have to fix expressions using braces accordingly, for exampl
 
 <p>The default expression evaluation is not limited to 16&nbsp;bit unsigned numbers anymore.</p>
 
-<h3>Macros</h3>
+<h3>Macros<a name="tasm-macros" href="#tasm-macros"></a></h3>
 <p>Macro parameters are referenced by <q><code>\1</code></q>&ndash;<q><code>\9</code></q> instead of using the pound sign.</p>
 <p>Parameters are always copied as text into the macro and not passed by value as the
 original turbo assembler does, which sometimes may lead to unexpected behaviour. You may
 need to make use of braces around arguments and/or references to fix this.</p>
 
-<h3>Bugs</h3>
+<h3>Bugs<a name="tasm-bugs" href="#tasm-bugs"></a></h3>
 <p>Some versions of the original turbo assembler had bugs that are not reproduced
 by 64tass, you will have to fix the code instead.</p>
 <p>In some versions labels used in the first <code>.block</code> are globally available. If
@@ -2167,7 +2165,7 @@ you get a related error move the respective label out of the <code>.block</code>
 <hr>
 <h2>Command line options<a name="commandline-options" href="#commandline-options"></a></h2>
 
-<h3>Output options</h3>
+<h3>Output options<a name="commandline-output" href="#commandline-output"></a></h3>
 
 <dl class="dir">
 <dt><b>-o</b> &lt;filename&gt;
@@ -2247,7 +2245,7 @@ start	<b>rts</b>
 </table>
 </dl>
 
-<h3>Operation options</h3>
+<h3>Operation options<a name="commandline-operation" href="#commandline-operation"></a></h3>
 
 <dl class="dir">
 <dt><b>-a</b>, <b>--ascii</b>
@@ -2347,7 +2345,7 @@ source file then this path is tried. More than one directories can be specified
 by repeating this option. If multiple matches exist the first one is used.</p>
 </dl>
 
-<h3>Target selection on command line</h3>
+<h3>Target selection on command line<a name="commandline-target" href="#commandline-target"></a></h3>
 <p>These options will select the default architecture. It can be overridden by
 using the <code>.cpu</code> directive in the source.</p>
 
@@ -2422,7 +2420,7 @@ for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones
 </pre>
 </dl>
 
-<h3>Source listing options</h3>
+<h3>Source listing options<a name="commandline-listing" href="#commandline-listing"></a></h3>
 
 <dl class="dir">
 <dt><b>-l</b> &lt;file&gt;
@@ -2501,7 +2499,7 @@ result (list.txt):
 </pre>
 </dl>
 
-<h3>Other options</h3>
+<h3>Other options<a name="commandline-other" href="#commandline-other"></a></h3>
 
 <dl class="dir">
 <dt><b>-?</b>, <b>--help</b>
@@ -2537,7 +2535,7 @@ a.asm:3:21: note: searched in the global scope</pre>
 <p>Lines containing macros are expanded whenever possible, but due to
 internal limitations referenced lines in relation to the actual fault
 will display without them.</p>
-<h3>Warnings</h3>
+<h3>Warnings<a name="messages-warnings" href="#messages-warnings"></a></h3>
 <dl>
 <dt>Top of memory exceeded
 <dd>compile continues at the bottom ($0000)
@@ -2551,7 +2549,7 @@ will display without them.</p>
 <dd>An assembler directive was ignored for compatibility reasons.
 </dl>
 
-<h3>Errors</h3>
+<h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
 <dl>
 <dt>Double defined
 <dd>double use of label/macro
@@ -2581,7 +2579,7 @@ will display without them.</p>
 <dd>Cannot calculate value
 </dl>
 
-<h3>Fatal errors</h3>
+<h3>Fatal errors<a name="messages-fatal" href="#messages-fatal"></a></h3>
 <dl>
 <dt>Can't locate file
 <dd>cannot open file
@@ -2618,12 +2616,12 @@ Berlin, snprintf Alain Magloire, Amiga OS4 support files by Janne Per&auml;aho.<
 <p>Main developer and maintainer: soci at c64.rulez.org</p>
 <hr>
 <h2>Default translation and escape sequences<a name="builtin-translations-escapes" href="#builtin-translations-escapes"></a></h2>
-<h3>Raw 8-bit source</h3>
+<h3>Raw 8-bit source<a name="translate-raw8" href="#translate-raw8"></a></h3>
 <p>By default raw 8-bit encoding is used and nothing is translated or escaped.
 This mode is for compiling sources which are already PETSCII.</p>
-<h4>The <q>none</q> encoding for raw 8-bit</h4>
+<h4>The <q>none</q> encoding for raw 8-bit<a name="translate-raw8-none" href="#translate-raw8-none"></a></h4>
 <p>Does no translation at all, no translation table, no escape sequences.</p>
-<h4>The <q>screen</q> encoding for raw 8-bit</h4>
+<h4>The <q>screen</q> encoding for raw 8-bit<a name="translate-raw8-screen" href="#translate-raw8-screen"></a></h4>
 <p>The following translation table applies, no escape sequences.</p>
 <table width="100%">
 <caption>Built-in PETSCII to PETSCII screen code translation table</caption>
@@ -2642,9 +2640,9 @@ This mode is for compiling sources which are already PETSCII.</p>
 </tbody>
 </table>
 
-<h3>Unicode and ASCII source</h3>
+<h3>Unicode and ASCII source<a name="translate-unicode" href="#translate-unicode"></a></h3>
 <p>Unicode encoding is used when the <q><tt>-a</tt></q> option is given on the command line.</p>
-<h4>The <q>none</q> encoding for Unicode</h4>
+<h4>The <q>none</q> encoding for Unicode<a name="translate-unicode-none" href="#translate-unicode-none"></a></h4>
 This is a Unicode to PETSCII mapping, including escape sequences for control codes.
 <table width="100%" class="trans">
 <caption>Built-in Unicode to PETSCII translation table</caption>
@@ -2942,7 +2940,7 @@ This is a Unicode to PETSCII mapping, including escape sequences for control cod
 </tbody>
 </table>
 
-<h4>The <q>screen</q> encoding for Unicode</h4>
+<h4>The <q>screen</q> encoding for Unicode<a name="translate-unicode-screen" href="#translate-unicode-screen"></a></h4>
 This is a Unicode to PETSCII screen code mapping, including escape sequences for control code screen codes.
 <table width="100%" class="trans">
 <caption>Built-in Unicode to PETSCII screen code translation table</caption>
@@ -3109,7 +3107,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 
 <hr>
 <h2>Opcodes<a name="opcodes" href="#opcodes"></a></h2>
-<h3>Standard 6502 opcodes</h3>
+<h3>Standard 6502 opcodes<a name="opcodes-6502" href="#opcodes-6502"></a></h3>
 <table width="100%" class="opcodes">
 <caption>The standard 6502 opcodes</caption>
 <tr><th width="4%">ADC<td width="46%">61 65 69 6D 71 75 79 7D
@@ -3192,7 +3190,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h3>6502 illegal opcodes</h3>
+<h3>6502 illegal opcodes<a name="opcodes-6502i" href="#opcodes-6502i"></a></h3>
 <p>This processor is a standard 6502 with the NMOS illegal opcodes.</p>
 <table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
@@ -3234,7 +3232,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h3>65DTV02 opcodes</h3>
+<h3>65DTV02 opcodes<a name="opcodes-65dtv02" href="#opcodes-65dtv02"></a></h3>
 <p>This processor is an enhanced version of standard 6502 with some illegal opcodes.</p>
 <table width="100%" class="opcodes">
 <caption>Additionally to 6502 illegal opcodes</caption>
@@ -3272,7 +3270,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h3>Standard 65C02 opcodes</h3>
+<h3>Standard 65C02 opcodes<a name="opcodes-65c02" href="#opcodes-65c02"></a></h3>
 <p>This processor is an enhanced version of standard 6502.</p>
 <table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
@@ -3306,7 +3304,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h3>R65C02 opcodes</h3>
+<h3>R65C02 opcodes<a name="opcodes-r65c02" href="#opcodes-r65c02"></a></h3>
 <p>This processor is an enhanced version of standard 65C02.</p>
 <table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
@@ -3317,7 +3315,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h3>W65C02 opcodes</h3>
+<h3>W65C02 opcodes<a name="opcodes-w65c02" href="#opcodes-w65c02"></a></h3>
 <p>This processor is an enhanced version of R65C02.</p>
 <table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
@@ -3332,7 +3330,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h3>W65816 opcodes</h3>
+<h3>W65816 opcodes<a name="opcodes-w65816" href="#opcodes-w65816"></a></h3>
 <p>This processor is an enhanced version of W65C02.</p>
 <table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
@@ -3386,7 +3384,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h3>65EL02 opcodes</h3>
+<h3>65EL02 opcodes<a name="opcodes-65el02" href="#opcodes-65el02"></a></h3>
 <p>This processor is an enhanced version of standard 65C02.</p>
 <table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
@@ -3446,7 +3444,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </table>
 
 <hr>
-<h3>65CE02 opcodes</h3>
+<h3>65CE02 opcodes<a name="opcodes-65ce02" href="#opcodes-65ce02"></a></h3>
 <p>This processor is an enhanced version of R65C02.</p>
 <table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
@@ -3507,7 +3505,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <hr>
 <h2>Appendix<a name="appendix" href="#appendix"></a></h2>
 
-<h3>Assembler directives</h3>
+<h3>Assembler directives<a name="directives" href="#directives"></a></h3>
 <a href="#d_al">.al</a>
 <a href="#d_align">.align</a>
 <a href="#d_as">.as</a>
@@ -3600,7 +3598,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_xs">.xs</a>
 
 <hr>
-<h3>Built-in functions</h3>
+<h3>Built-in functions<a name="functions" href="#functions"></a></h3>
 <a href="#f_abs">abs</a>
 <a href="#f_acos">acos</a>
 <a href="#f_all">all</a>
