@@ -107,15 +107,26 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                     return 2;
                 }
                 if (cnmemonic[ADR_MOVE] != ____) goto noneaddr;
-                if (cod == 0xE0 || cod == 0xC0 || cod == 0xA2 || cod == 0xA0) {/* cpx cpy ldx ldy */
+                switch (cod) {
+                case 0xE0:
+                case 0xC0:
+                case 0xA2:
+                case 0xA0:  /* cpx cpy ldx ldy */
                     adrgen = longindex ? AG_WORD : AG_BYTE;
                     break;
-                }
-                if (cod != 0xC2 && cod != 0xE2 && cod != 0x00 && cod != 0x02 && cod != 0xEF) {/* not sep rep brk cop mmu=all accu */
-                    adrgen = longaccu ? AG_WORD : AG_BYTE;
+                case 0xF4: /* pea/phw #$ffff */
+                    adrgen = AG_WORD; 
                     break;
+                case 0xC2:
+                case 0xE2:
+                case 0x00:
+                case 0x02:
+                case 0xEF: /* sep rep brk cop mmu */
+                    adrgen = AG_BYTE;
+                    break;
+                default:
+                    adrgen = longaccu ? AG_WORD : AG_BYTE;
                 }
-                adrgen = (cod == 0xF4) ? AG_WORD : AG_BYTE; /* pea/phw #$ffff */
                 break;
             case A_BR:
                 if (cnmemonic[ADR_ADDR] != 0x4C && cnmemonic[ADR_ADDR] != 0x20 && cnmemonic[ADR_ADDR] != 0xF4) {/* jmp $ffff, jsr $ffff, pea */
