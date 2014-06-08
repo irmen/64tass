@@ -22,7 +22,7 @@
 #include "inttypes.h"
 #include "opcodes.h"
 #ifndef REVISION
-#define REVISION "716?"
+#define REVISION "726?"
 #endif
 #undef VERSION
 #define VERSION "1.51." REVISION

@@ -1,4 +1,4 @@
-64tass v1.51 r716 manual
+64tass v1.51 r726 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -9,7 +9,7 @@ the 65xx series of processors. Key features:
   * Arbitrary-precision integers and bitstrings, double precision floating
     point numbers
   * Character and byte strings, array arithmetic
-  * Handles UTF-8, UTF-16 and 8 bit RAW encoded source files and strings
+  * Handles UTF-8, UTF-16 and 8 bit RAW encoded source files, unicode strings
   * Supports Unicode identifiers with case folding and compatibility
     normalization
   * Built-in `linker' with section support
@@ -1555,24 +1555,24 @@ global one with the same name.
     not always exist without resorting to .ifdef/.ifndef or similar directives
     in other assemblers.
 
-symbol  = 1            ;stronger symbol than the one below
-        .weak
-symbol  = 0            ;default value if the one above does not exists
-        .endweak
-        .if symbol     ;almost like an .ifdef ;)
+    symbol  = 1            ;stronger symbol than the one below
+            .weak
+    symbol  = 0            ;default value if the one above does not exists
+            .endweak
+            .if symbol     ;almost like an .ifdef ;)
 
-Other use of weak symbols might be in included libraries to change default
-values or replace stub functions and data structures.
+    Other use of weak symbols might be in included libraries to change default
+    values or replace stub functions and data structures.
 
-If these stubs are defined using .proc/.pend then their default implementations
-will not even exists in the output at all when a stronger symbol overrides
-them.
+    If these stubs are defined using .proc/.pend then their default
+    implementations will not even exists in the output at all when a stronger
+    symbol overrides them.
 
-Multiple definition of a symbol with the same `strength' in the same scope is
-of course not allowed and it results in double definition error.
+    Multiple definition of a symbol with the same `strength' in the same scope
+    is of course not allowed and it results in double definition error.
 
-Please note that .ifdef/.ifndef directives are left out from 64tass for of
-technical reasons, so don't wait for them to appear anytime soon.
+    Please note that .ifdef/.ifndef directives are left out from 64tass for of
+    technical reasons, so don't wait for them to appear anytime soon.
 
 Sections
 
@@ -1785,9 +1785,8 @@ Controlling errors
 
 Target
 
-.cpu "<cpuname>"
-    Selects cpu. The name of the CPU must be quoted, unlike earlier versions
-    where this was optional.
+.cpu <expression>
+    Selects CPU according to the string argument.
 
             .cpu "6502"     ;standard 65xx
             .cpu "65c02"    ;CMOS 65C02
