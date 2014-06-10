@@ -34,7 +34,7 @@ static void destroy(struct value_s *v1) {
 }
 
 static bdigit_t *bnew(struct value_s *v, size_t len) {
-    if (len > 2) {
+    if (len > (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0])) {
         bdigit_t *s = (bdigit_t *)malloc(len * sizeof(bdigit_t));
         if (!s || len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
         return s; 
@@ -348,7 +348,7 @@ size_t bits_from_hexstr(struct value_s *v, const uint8_t *s) {
     if (bits) d[j] = uv;
 
     while (sz && !d[sz - 1]) sz--;
-    if (sz <= 2 && v->u.bits.val != d) {
+    if (sz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0]) && v->u.bits.val != d) {
         memcpy(v->u.bits.val, d, sz);
         free(d);
         d = v->u.bits.val;
@@ -393,7 +393,7 @@ size_t bits_from_binstr(struct value_s *v, const uint8_t *s) {
     if (bits) d[j] = uv;
 
     while (sz && !d[sz - 1]) sz--;
-    if (sz <= 2 && v->u.bits.val != d) {
+    if (sz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0]) && v->u.bits.val != d) {
         memcpy(v->u.bits.val, d, sz);
         free(d);
         d = v->u.bits.val;
@@ -425,7 +425,7 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
             return 0;
         }
 
-        if (v1->u.str.len <= 2 * sizeof(bdigit_t)) sz = 2;
+        if (v1->u.str.len <= (ssize_t)sizeof(v->u.bits.val)) sz = (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0]);
         else {
             sz = v1->u.str.len / sizeof(bdigit_t);
             if (v1->u.str.len % sizeof(bdigit_t)) sz++;
@@ -469,7 +469,7 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
 
         while (osz && !d[osz - 1]) osz--;
         if (v == v1) v->obj->destroy(v);
-        if (osz <= 2) {
+        if (osz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0])) {
             memcpy(v->u.bits.val, d, osz * sizeof(bdigit_t));
             if (tmp.u.bits.val != d) free(d);
             d = v->u.bits.val;
@@ -529,7 +529,7 @@ void bits_from_bytes(struct value_s *v, const struct value_s *v1) {
 
     while (sz && !d[sz - 1]) sz--;
     if (v == v1) v->obj->destroy(v);
-    if (sz <= 2) {
+    if (sz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0])) {
         memcpy(v->u.bits.val, d, sz * sizeof(bdigit_t));
         if (tmp.u.bits.val != d) free(d);
         d = v->u.bits.val;
@@ -657,7 +657,7 @@ static void and_(const struct value_s *vv1, const struct value_s *vv2, struct va
         }
     }
     while (sz && !v[sz - 1]) sz--;
-    if (sz <= 2 && v != vv->u.bits.val) {
+    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && v != vv->u.bits.val) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
         free(v);
         v = vv->u.bits.val;
@@ -723,7 +723,7 @@ static void or_(const struct value_s *vv1, const struct value_s *vv2, struct val
         }
     }
     while (sz && !v[sz - 1]) sz--;
-    if (sz <= 2 && vv->u.bits.val != v) {
+    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
         free(v);
         v = vv->u.bits.val;
@@ -774,7 +774,7 @@ static void xor_(const struct value_s *vv1, const struct value_s *vv2, struct va
     for (i = 0; i < len2; i++) v[i] = v1[i] ^ v2[i];
     for (; i < len1; i++) v[i] = v1[i];
     while (sz && !v[sz - 1]) sz--;
-    if (sz <= 2 && vv->u.bits.val != v) {
+    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
         free(v);
         v = vv->u.bits.val;
@@ -826,7 +826,7 @@ static void concat(const struct value_s *vv1, const struct value_s *vv2, struct 
 
     while (sz && !v[sz - 1]) sz--;
     if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
-    if (sz <= 2) {
+    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0])) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
         if (tmp.u.bits.val != v) free(v);
         v = vv->u.bits.val;
@@ -865,7 +865,7 @@ static void lshift(const struct value_s *vv1, const struct value_s *vv2, size_t 
     memset(v, 0, word * sizeof(bdigit_t));
 
     while (sz && !v[sz - 1]) sz--;
-    if (sz <= 2 && v != vv->u.bits.val) {
+    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && v != vv->u.bits.val) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
         free(v);
         v = vv->u.bits.val;
@@ -909,7 +909,7 @@ static void rshift(const struct value_s *vv1, const struct value_s *vv2, uval_t 
     } else if (sz) memmove(v, v1, sz * sizeof(bdigit_t));
 
     while (sz && !v[sz - 1]) sz--;
-    if (sz <= 2 && v != vv->u.bits.val) {
+    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && v != vv->u.bits.val) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
         free(v);
         v = vv->u.bits.val;
@@ -978,7 +978,7 @@ static void repeat(oper_t op, uval_t rep) {
     if (i < sz) v[i] = uv;
 
     while (sz && !v[sz - 1]) sz--;
-    if (sz <= 2 && vv->u.bits.val != v) {
+    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
         free(v);
         v = vv->u.bits.val;
@@ -1153,7 +1153,7 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *vv1, uval_t ln, i
     }
     while (sz && !v[sz - 1]) sz--;
     if (vv == vv1) vv->obj->destroy(vv);
-    if (sz <= 2) {
+    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0])) {
         memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
         if (tmp.u.bits.val != v) free(v);
         v = vv->u.bits.val;
@@ -1213,7 +1213,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
 
         while (sz && !v[sz - 1]) sz--;
         if (vv == vv1 || vv == vv2) vv->obj->destroy(vv);
-        if (sz <= 2) {
+        if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0])) {
             memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
             if (tmp.u.bits.val != v) free(v);
             v = vv->u.bits.val;
