@@ -26,7 +26,7 @@ typedef struct {
     size_t len;
     size_t bits;
     int inv;
-    bdigit_t val[2];
+    bdigit_t val[6];
     bdigit_t *data;
 } bits_t;
 

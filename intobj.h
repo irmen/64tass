@@ -25,7 +25,7 @@ typedef uint32_t digit_t;
 typedef uint64_t twodigits_t;
 typedef struct {
     ssize_t len;
-    digit_t val[6];
+    digit_t val[5];
     digit_t *data;
 } integer_t;
 
