@@ -107,7 +107,7 @@ static void calc1(oper_t op) {
     case O_POS:
         int_from_int(v, v1->u.boolean);
         return;
-    case O_STRING: repr(v1, v, &op->epoint);break;
+    case O_STRING: repr(v1, v, op->epoint);break;
     default: break;
     }
     obj_oper_error(op);
@@ -127,10 +127,10 @@ static MUST_CHECK struct value_s *calc2_bool(oper_t op, int v1, int v2) {
     case O_SUB: int_from_int(v, v1 - v2); return NULL;
     case O_MUL: int_from_int(v, v1 & v2); return NULL;
     case O_DIV:
-        if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
+        if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = *op->epoint2; return 0; }
         int_from_int(v, v1); return NULL;
     case O_MOD:
-        if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return 0; }
+        if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = *op->epoint2; return 0; }
         int_from_int(v, 0); return NULL;
     case O_EXP: int_from_int(v, v1 | !v1); return NULL;
     case O_AND: return truth_reference(v1 & v2);

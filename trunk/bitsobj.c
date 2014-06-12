@@ -1017,7 +1017,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_INT:
         switch (op->op->u.oper.op) {
         case O_LSHIFT:
-            if (v2->obj->ival(v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
+            if (v2->obj->ival(v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
                 return NULL;
@@ -1025,7 +1025,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             if (shift < 0) rshift(v1, v2, -shift, v); else lshift(v1, v2, shift, v);
             return NULL;
         case O_RSHIFT:
-            if (v2->obj->ival(v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
+            if (v2->obj->ival(v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
                 return NULL;
@@ -1193,7 +1193,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         uv = inv;
         bits = sz = 0;
         for (i = 0; i < vv2->u.list.len; i++) {
-            offs = indexoffs(vv2->u.list.data[i], &err, ln, &op->epoint2);
+            offs = indexoffs(vv2->u.list.data[i], &err, ln, op->epoint2);
             if (offs < 0) {
                 if (tmp.u.bits.val != v) free(v);
                 if (vv1 == vv) destroy(vv);
@@ -1233,7 +1233,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         if (length < 0) return NULL;
         return slice(vv1, length, offs, end, step, vv);
     }
-    offs = indexoffs(vv2, &err, ln, &op->epoint2);
+    offs = indexoffs(vv2, &err, ln, op->epoint2);
     if (offs < 0) {
         if (vv1 == vv) destroy(vv);
         err.obj->copy_temp(&err, vv);

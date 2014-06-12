@@ -303,8 +303,8 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     }
     switch (v2->obj->type) {
     case T_CODE:
-        if (access_check(op->v1, v, &op->epoint)) return NULL;
-        if (access_check(op->v2, v, &op->epoint2)) return NULL;
+        if (access_check(op->v1, v, op->epoint)) return NULL;
+        if (access_check(op->v2, v, op->epoint2)) return NULL;
         op->v1 = val_reference(v1->u.code.addr);
         op->v2 = val_reference(v2->u.code.addr);
         if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
@@ -317,7 +317,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
-        if (access_check(op->v1, v, &op->epoint)) return NULL;
+        if (access_check(op->v1, v, op->epoint)) return NULL;
         op->v1 = val_reference(v1->u.code.addr);
         switch (op->op->u.oper.op) {
         case O_ADD:
@@ -361,7 +361,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         if (v2->u.code.pass != pass) {
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR____NO_FORWARD;
-            v->u.error.epoint = op->epoint2;
+            v->u.error.epoint = *op->epoint2;
             v->u.error.u.ident = v2->u.code.parent->name;
             return NULL;
         }
@@ -402,8 +402,8 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     }
     switch (v1->obj->type) {
     case T_CODE:
-        if (access_check(op->v1, v, &op->epoint)) return NULL;
-        if (access_check(op->v2, v, &op->epoint2)) return NULL;
+        if (access_check(op->v1, v, op->epoint)) return NULL;
+        if (access_check(op->v2, v, op->epoint2)) return NULL;
         op->v1 = val_reference(v1->u.code.addr);
         op->v2 = val_reference(v2->u.code.addr);
         if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
@@ -416,7 +416,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
-        if (access_check(op->v2, v, &op->epoint2)) return NULL;
+        if (access_check(op->v2, v, op->epoint2)) return NULL;
         op->v2 = val_reference(v2->u.code.addr);
         switch (op->op->u.oper.op) {
         case O_ADD:
@@ -512,7 +512,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
     if (v1->u.code.pass != pass) {
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR____NO_FORWARD;
-        v->u.error.epoint = op->epoint;
+        v->u.error.epoint = *op->epoint;
         v->u.error.u.ident = v1->u.code.parent->name;
         return NULL;
     }
@@ -527,7 +527,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         }
         vals = list_create_elements(&tmp, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {
-            offs = indexoffs(v2->u.list.data[i], &err, ln, &op->epoint2);
+            offs = indexoffs(v2->u.list.data[i], &err, ln, op->epoint2);
             if (offs < 0) {
                 v->u.list.data = vals;
                 v->u.list.len = i;
@@ -566,9 +566,9 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         ival_t length, end, step;
         length = sliceparams(op, ln, &offs, &end, &step);
         if (length < 0) return NULL;
-        return slice(v1, length, offs, end, step, v, &op->epoint);
+        return slice(v1, length, offs, end, step, v, op->epoint);
     }
-    offs = indexoffs(v2, &err, ln, &op->epoint2);
+    offs = indexoffs(v2, &err, ln, op->epoint2);
     if (offs < 0) {
         err.obj->copy_temp(&err, v);
         return NULL;

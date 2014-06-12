@@ -642,7 +642,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         }
         vals = lnew(&tmp, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {
-            offs = indexoffs(v2->u.list.data[i], &err, ln, &op->epoint2);
+            offs = indexoffs(v2->u.list.data[i], &err, ln, op->epoint2);
             if (offs < 0) {
                 if (v1 == v) destroy(v);
                 v->u.list.len = i;
@@ -669,7 +669,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         if (length < 0) return NULL;
         return slice(v1, length, offs, end, step, v);
     }
-    offs = indexoffs(v2, &err, ln, &op->epoint2);
+    offs = indexoffs(v2, &err, ln, op->epoint2);
     if (offs < 0) {
         if (v1 == v) destroy(v);
         err.obj->copy_temp(&err, v);

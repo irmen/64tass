@@ -290,14 +290,14 @@ static void calc1(oper_t op) {
     switch (op->op->u.oper.op) {
     case O_NEG:
     case O_POS:
-    case O_STRING: int_from_str(&tmp, v1, &op->epoint); break;
+    case O_STRING: int_from_str(&tmp, v1, op->epoint); break;
     case O_INV:
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
-    case O_BSWORD: bits_from_str(&tmp, v1, &op->epoint); break;
+    case O_BSWORD: bits_from_str(&tmp, v1, op->epoint); break;
     default: obj_oper_error(op); return;
     }
     if (v == v1) destroy(v);
@@ -320,8 +320,8 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     case O_EXP:
         {
             struct value_s tmp, tmp2, *result;
-            int_from_str(&tmp, v1, &op->epoint);
-            int_from_str(&tmp2, v2, &op->epoint2);
+            int_from_str(&tmp, v1, op->epoint);
+            int_from_str(&tmp2, v2, op->epoint2);
             if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             op->v2 = &tmp2;
@@ -341,8 +341,8 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     case O_RSHIFT:
         {
             struct value_s tmp, tmp2, *result;
-            bits_from_str(&tmp, v1, &op->epoint);
-            bits_from_str(&tmp2, v2, &op->epoint2);
+            bits_from_str(&tmp, v1, op->epoint);
+            bits_from_str(&tmp2, v2, op->epoint2);
             if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             op->v2 = &tmp2;
@@ -476,8 +476,8 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             case O_OR:
             case O_XOR:
             case O_LSHIFT:
-            case O_RSHIFT: bits_from_str(&tmp, v1, &op->epoint); break;
-            default: int_from_str(&tmp, v1, &op->epoint);
+            case O_RSHIFT: bits_from_str(&tmp, v1, op->epoint); break;
+            default: int_from_str(&tmp, v1, op->epoint);
             }
             if (v1 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
@@ -490,7 +490,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_BYTES:
         {
             struct value_s *result;
-            bytes_from_str(&tmp, v1, &op->epoint);
+            bytes_from_str(&tmp, v1, op->epoint);
             if (v1 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             tmp.refcount = 0;
@@ -529,8 +529,8 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
-            case O_XOR: bits_from_str(&tmp, v2, &op->epoint2); break;
-            default: int_from_str(&tmp, v2, &op->epoint2);
+            case O_XOR: bits_from_str(&tmp, v2, op->epoint2); break;
+            default: int_from_str(&tmp, v2, op->epoint2);
             }
             if (v2 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v2 = &tmp;
@@ -543,7 +543,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     case T_BYTES:
         {
             struct value_s *result;
-            bytes_from_str(&tmp, v2, &op->epoint2);
+            bytes_from_str(&tmp, v2, op->epoint2);
             if (v2 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v2 = &tmp;
             tmp.refcount = 0;
@@ -666,7 +666,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
             len2 = v2->u.list.len;
             p = p2 = snew(&tmp, len2);
             for (i = 0; i < v2->u.list.len; i++) {
-                offs = indexoffs(v2->u.list.data[i], &err, len1, &op->epoint2);
+                offs = indexoffs(v2->u.list.data[i], &err, len1, op->epoint2);
                 if (offs < 0) {
                     if (p != tmp.u.str.val) free(p);
                     if (v1 == v) destroy(v);
@@ -685,7 +685,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
             j = 0;
 
             for (i = 0; i < v2->u.list.len; i++) {
-                offs = indexoffs(v2->u.list.data[i], &err, len1, &op->epoint2);
+                offs = indexoffs(v2->u.list.data[i], &err, len1, op->epoint2);
                 if (offs < 0) {
                     if (o != tmp.u.str.val) free(o);
                     if (v1 == v) destroy(v);
@@ -739,7 +739,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         if (length < 0) return NULL;
         return slice(v1, length, offs, end, step, v);
     }
-    offs = indexoffs(v2, &err, len1, &op->epoint2);
+    offs = indexoffs(v2, &err, len1, op->epoint2);
     if (offs < 0) {
         if (v1 == v) destroy(v);
         err.obj->copy_temp(&err, v);
