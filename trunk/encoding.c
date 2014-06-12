@@ -614,7 +614,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
     item.refcount = 0;
     if (val->obj == STR_OBJ) {
         struct value_s *tmp2 = val_alloc();
-        bytes_from_str(tmp2, val);
+        bytes_from_str(tmp2, val, epoint);
         tmp2->obj->getiter(tmp2, &iter);
         val_destroy(tmp2);
     } else val->obj->getiter(val, &iter);

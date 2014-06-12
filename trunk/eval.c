@@ -1536,12 +1536,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             as_ident:
                 if ((pline[epoint.pos] | (arguments.casesensitive ? 0 : 0x20)) == 'b' && (pline[epoint.pos + 1] == '"' || pline[epoint.pos + 1] == '\'')) {
                     val = push(&epoint); get_string(val);
-                    if (bytes_from_str(val, val)) {
-                        val->obj->destroy(val);
-                        val->obj = ERROR_OBJ;
-                        val->u.error.num = ERROR_BIG_STRING_CO;
-                        val->u.error.epoint = epoint;
-                    }
+                    bytes_from_str(val, val, &epoint);
                     goto other;
                 }
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {

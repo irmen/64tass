@@ -32,7 +32,7 @@ typedef struct {
 
 extern size_t bits_from_hexstr(struct value_s *, const uint8_t *);
 extern size_t bits_from_binstr(struct value_s *, const uint8_t *);
-extern int bits_from_str(struct value_s *, const struct value_s *);
+extern void bits_from_str(struct value_s *, const struct value_s *, linepos_t);
 extern void bits_from_bytes(struct value_s *, const struct value_s *);
 extern void bits_from_u8(struct value_s *, uint8_t);
 extern void bits_from_u16(struct value_s *, uint16_t);

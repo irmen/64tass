@@ -138,7 +138,7 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
     return h & ((~(unsigned int)0) >> 1);
 }
 
-int bytes_from_str(struct value_s *v, const struct value_s *v1) {
+void bytes_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint) {
     size_t len = v1->u.str.len, len2 = 0;
     uint8_t *s;
     struct value_s tmp;
@@ -172,7 +172,10 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
             s[2] = ch2 >> 16;
             len2 = 3;
         } else {
-            return 1;
+            v->obj = ERROR_OBJ;
+            v->u.error.num = ERROR_BIG_STRING_CO;
+            v->u.error.epoint = *epoint;
+            return;
         }
     } else s = NULL;
     if (v == v1) STR_OBJ->destroy(v);
@@ -187,7 +190,6 @@ int bytes_from_str(struct value_s *v, const struct value_s *v1) {
     v->obj = BYTES_OBJ;
     v->u.bytes.len = len2;
     v->u.bytes.data = s;
-    return 0;
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {

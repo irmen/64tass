@@ -76,13 +76,7 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
 static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
     int ret;
     struct value_s tmp;
-    if (bytes_from_str(&tmp, v1)) {
-        if (v == v1) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_BIG_STRING_CO;
-        v->u.error.epoint = *epoint;
-        return 1;
-    }
+    bytes_from_str(&tmp, v1, epoint);
     if (v == v1) destroy(v);
     ret = tmp.obj->truth(&tmp, v, type, epoint);
     tmp.obj->destroy(&tmp);
@@ -151,13 +145,7 @@ static void str(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(ep
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
     struct value_s tmp, tmp2;
     int ret;
-    if (bits_from_str(&tmp, v1)) {
-        if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_BIG_STRING_CO;
-        v->u.error.epoint = *epoint;
-        return 1;
-    }
+    bits_from_str(&tmp, v1, epoint);
     ret = tmp.obj->ival(&tmp, &tmp2, iv, bits, epoint);
     tmp.obj->destroy(&tmp);
     if (ret) {
@@ -170,13 +158,7 @@ static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *
 static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
     struct value_s tmp, tmp2;
     int ret;
-    if (bits_from_str(&tmp, v1)) {
-        if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_BIG_STRING_CO;
-        v->u.error.epoint = *epoint;
-        return 1;
-    }
+    bits_from_str(&tmp, v1, epoint);
     ret = tmp.obj->uval(&tmp, &tmp2, uv, bits, epoint);
     tmp.obj->destroy(&tmp);
     if (ret) {
@@ -189,13 +171,7 @@ static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *
 static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
     struct value_s tmp, tmp2;
     int ret;
-    if (bits_from_str(&tmp, v1)) {
-        if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_BIG_STRING_CO;
-        v->u.error.epoint = *epoint;
-        return 1;
-    }
+    bits_from_str(&tmp, v1, epoint);
     ret = tmp.obj->real(&tmp, &tmp2, r, epoint);
     tmp.obj->destroy(&tmp);
     if (ret) {
@@ -207,13 +183,7 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
 
 static void sign(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     struct value_s tmp;
-    if (bytes_from_str(&tmp, v1)) {
-        if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_BIG_STRING_CO;
-        v->u.error.epoint = *epoint;
-        return;
-    }
+    bytes_from_str(&tmp, v1, epoint);
     if (v1 == v) destroy(v);
     tmp.obj->sign(&tmp, v, epoint);
     tmp.obj->destroy(&tmp);
@@ -221,13 +191,7 @@ static void sign(const struct value_s *v1, struct value_s *v, linepos_t epoint) 
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     struct value_s tmp;
-    if (int_from_str(&tmp, v1)) {
-        if (v == v1) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_BIG_STRING_CO;
-        v->u.error.epoint = *epoint;
-        return;
-    }
+    int_from_str(&tmp, v1, epoint);
     if (v == v1) destroy(v);
     tmp.obj->abs(&tmp, v, epoint);
     tmp.obj->destroy(&tmp);
@@ -235,13 +199,7 @@ static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoi
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     struct value_s tmp;
-    if (int_from_str(&tmp, v1)) {
-        if (v == v1) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_BIG_STRING_CO;
-        v->u.error.epoint = *epoint;
-        return;
-    }
+    int_from_str(&tmp, v1, epoint);
     if (v == v1) destroy(v);
     tmp.obj->copy_temp(&tmp, v);
 }
@@ -329,26 +287,18 @@ uint8_t *str_create_elements(struct value_s *v, size_t ln) {
 static void calc1(oper_t op) {
     struct value_s *v1 = op->v1, *v = op->v;
     struct value_s tmp;
-    int ret;
     switch (op->op->u.oper.op) {
     case O_NEG:
     case O_POS:
-    case O_STRING: ret = int_from_str(&tmp, v1); break;
+    case O_STRING: int_from_str(&tmp, v1, &op->epoint); break;
     case O_INV:
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
-    case O_BSWORD: ret = bits_from_str(&tmp, v1); break;
+    case O_BSWORD: bits_from_str(&tmp, v1, &op->epoint); break;
     default: obj_oper_error(op); return;
-    }
-    if (ret) {
-        if (v == v1) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR_BIG_STRING_CO;
-        v->u.error.epoint = op->epoint;
-        return;
     }
     if (v == v1) destroy(v);
     op->v1 = &tmp;
@@ -370,20 +320,8 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     case O_EXP:
         {
             struct value_s tmp, tmp2, *result;
-            if (int_from_str(&tmp, v1)) {
-                if (v == v1 || v == v2) destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint;
-                return NULL;
-            }
-            if (int_from_str(&tmp2, v2)) {
-                if (v == v1 || v == v2) destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint2;
-                return NULL;
-            }
+            int_from_str(&tmp, v1, &op->epoint);
+            int_from_str(&tmp2, v2, &op->epoint2);
             if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             op->v2 = &tmp2;
@@ -403,20 +341,8 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     case O_RSHIFT:
         {
             struct value_s tmp, tmp2, *result;
-            if (bits_from_str(&tmp, v1)) {
-                if (v == v1 || v == v2) destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint;
-                return NULL;
-            }
-            if (bits_from_str(&tmp2, v2)) {
-                if (v == v1 || v == v2) destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint2;
-                return NULL;
-            }
+            bits_from_str(&tmp, v1, &op->epoint);
+            bits_from_str(&tmp2, v2, &op->epoint2);
             if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             op->v2 = &tmp2;
@@ -544,22 +470,14 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_ADDRESS:
         {
             struct value_s *result;
-            int ret;
             switch (op->op->u.oper.op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
             case O_XOR:
             case O_LSHIFT:
-            case O_RSHIFT: ret = bits_from_str(&tmp, v1); break;
-            default: ret = int_from_str(&tmp, v1);
-            }
-            if (ret) {
-                if (v == v1 || v == v2) v->obj->destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint;
-                return NULL;
+            case O_RSHIFT: bits_from_str(&tmp, v1, &op->epoint); break;
+            default: int_from_str(&tmp, v1, &op->epoint);
             }
             if (v1 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
@@ -572,13 +490,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_BYTES:
         {
             struct value_s *result;
-            if (bytes_from_str(&tmp, v1)) {
-                if (v == v1 || v == v2) v->obj->destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint;
-                return NULL;
-            }
+            bytes_from_str(&tmp, v1, &op->epoint);
             if (v1 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             tmp.refcount = 0;
@@ -613,20 +525,12 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     case T_ADDRESS:
         {
             struct value_s *result;
-            int ret;
             switch (op->op->u.oper.op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
-            case O_XOR: ret = bits_from_str(&tmp, v2); break;
-            default: ret = int_from_str(&tmp, v2);
-            }
-            if (ret) {
-                if (v == v1 || v == v2) v->obj->destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint2;
-                return NULL;
+            case O_XOR: bits_from_str(&tmp, v2, &op->epoint2); break;
+            default: int_from_str(&tmp, v2, &op->epoint2);
             }
             if (v2 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v2 = &tmp;
@@ -639,13 +543,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     case T_BYTES:
         {
             struct value_s *result;
-            if (bytes_from_str(&tmp, v2)) {
-                if (v == v1 || v == v2) v->obj->destroy(v);
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_BIG_STRING_CO;
-                v->u.error.epoint = op->epoint2;
-                return NULL;
-            }
+            bytes_from_str(&tmp, v2, &op->epoint2);
             if (v2 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
             op->v2 = &tmp;
             tmp.refcount = 0;

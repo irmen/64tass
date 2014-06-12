@@ -171,7 +171,7 @@ static const char *terr_error[]={
     "instruction can't cross banks",
     "address out of section",
     "negative number raised on fractional power",
-    "string constant too long for a number",
+    "not a one character string",
     "index out of range",
     "key error",
     "not hashable",
