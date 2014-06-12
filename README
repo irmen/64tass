@@ -2424,6 +2424,8 @@ not a direct page address
     value must be a direct page address
 not a key and value pair
     dictionaries are built from key and value pairs separated by a colon
+not a one character string
+    only a single character string is allowed
 not allowed here: ?
     do not use this directive here
 not defined '?'
@@ -2440,8 +2442,6 @@ requirements not met
     Not all features are provided, at least one is missing
 reserved symbol name '?'
     do not use this symbol name
-string constant too long for a number
-    use a shorter string
 too early to reference
     processing still ongoing, can't access this yet
 unknown processor '?'

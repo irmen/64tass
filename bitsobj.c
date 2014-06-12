@@ -405,7 +405,7 @@ size_t bits_from_binstr(struct value_s *v, const uint8_t *s) {
     return l;
 }
 
-int bits_from_str(struct value_s *v, const struct value_s *v1) {
+void bits_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint) {
     int ch;
 
     if (actual_encoding) {
@@ -422,7 +422,7 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
             v->u.bits.len = 0;
             v->u.bits.inv = 0;
             v->u.bits.bits = 0;
-            return 0;
+            return;
         }
 
         if (v1->u.str.len <= (ssize_t)sizeof(v->u.bits.val)) sz = (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0]);
@@ -482,16 +482,18 @@ int bits_from_str(struct value_s *v, const struct value_s *v1) {
         v->u.bits.len = osz;
         v->u.bits.inv = 0;
         v->u.bits.bits = j * sizeof(bdigit_t) * 8 + bits;
-        return 0;
+        return;
     } 
     if (v1->u.str.chars == 1) {
         uint32_t ch2 = v1->u.str.data[0];
         if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
         if (v == v1) v->obj->destroy(v);
         bits_from_u24(v, ch2);
-        return 0;
+        return;
     } 
-    return 1;
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR_BIG_STRING_CO;
+    v->u.error.epoint = *epoint;
 }
 
 void bits_from_bytes(struct value_s *v, const struct value_s *v1) {

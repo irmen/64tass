@@ -1214,7 +1214,7 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
     v->u.integer.len = inv ? -sz : sz;
 }
 
-int int_from_str(struct value_s *v, const struct value_s *v1) {
+void int_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint) {
     int ch;
 
     if (actual_encoding) {
@@ -1229,7 +1229,7 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
             v->u.integer.data = v->u.integer.val;
             v->u.integer.val[0] = 0;
             v->u.integer.len = 0;
-            return 0;
+            return;
         }
 
         sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
@@ -1286,16 +1286,18 @@ int int_from_str(struct value_s *v, const struct value_s *v1) {
         v->obj = INT_OBJ;
         v->u.integer.data = d;
         v->u.integer.len = osz;
-        return 0;
+        return;
     } 
     if (v1->u.str.chars == 1) {
         uint32_t ch2 = v1->u.str.data[0];
         if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
         if (v == v1) v->obj->destroy(v);
         int_from_uval(v, ch2);
-        return 0;
+        return;
     } 
-    return 1;
+    v->obj = ERROR_OBJ;
+    v->u.error.num = ERROR_BIG_STRING_CO;
+    v->u.error.epoint = *epoint;
 }
 
 size_t int_from_decstr(struct value_s *v, const uint8_t *s) {

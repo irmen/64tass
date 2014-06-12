@@ -498,7 +498,7 @@ static int textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit,
     item.refcount = 0;
     if (val->obj == STR_OBJ) {
         struct value_s *tmp = val_alloc();
-        bytes_from_str(tmp, val);
+        bytes_from_str(tmp, val, epoint2);
         tmp->obj->getiter(tmp, &iter);
         val_destroy(tmp);
     } else val->obj->getiter(val, &iter);
@@ -1851,7 +1851,7 @@ struct value_s *compile(struct file_list_s *cflist)
 
                             if (val->obj == STR_OBJ) {
                                 struct value_s *tmp = val_alloc();
-                                bytes_from_str(tmp, val);
+                                bytes_from_str(tmp, val, &epoint);
                                 tmp->obj->getiter(tmp, &iter);
                                 val_destroy(tmp);
                             } else val->obj->getiter(val, &iter);
