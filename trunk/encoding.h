@@ -36,7 +36,8 @@ extern struct encoding_s *actual_encoding;
 extern struct encoding_s *new_encoding(const str_t *);
 extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
 extern int new_escape(const struct value_s *, struct value_s *, struct encoding_s *, linepos_t);
-extern int encode_string(const struct value_s *);
+extern void encode_string_init(const struct value_s *, linepos_t);
+extern int encode_string(void);
 extern void init_encoding(int);
 extern void destroy_encoding(void);
 #endif

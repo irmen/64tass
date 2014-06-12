@@ -1236,8 +1236,8 @@ void int_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint)
         if (v1->u.str.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
         d = inew(&tmp, sz);
 
-        encode_string(v1);
-        while ((ch = encode_string(NULL)) != EOF) {
+        encode_string_init(v1, epoint);
+        while ((ch = encode_string()) != EOF) {
             uv |= (uint8_t)ch << bits;
             bits += 8;
             if (bits >= SHIFT) {

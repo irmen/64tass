@@ -147,8 +147,8 @@ void bytes_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoin
             int ch;
             if (len < sizeof(v->u.bytes.val)) len = sizeof(v->u.bytes.val);
             s = bnew(&tmp, len);
-            encode_string(v1);
-            while ((ch = encode_string(NULL)) != EOF) {
+            encode_string_init(v1, epoint);
+            while ((ch = encode_string()) != EOF) {
                 if (len2 >= len) {
                     if (tmp.u.bytes.val == s) {
                         len = 16;

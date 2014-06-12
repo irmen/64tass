@@ -432,8 +432,8 @@ void bits_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint
         }
         d = bnew(&tmp, sz);
 
-        encode_string(v1);
-        while ((ch = encode_string(NULL)) != EOF) {
+        encode_string_init(v1, epoint);
+        while ((ch = encode_string()) != EOF) {
             uv |= (uint8_t)ch << bits;
             bits += 8;
             if (bits >= 8 * sizeof(bdigit_t)) {
