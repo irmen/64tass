@@ -1413,14 +1413,14 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (!get_exp(&w, 0, cfile, 1, 0, &epoint)) {waitfor->skip = 0; goto breakerr; }
                         tmp.op = &o_EQ;
                         tmp.v1 = waitfor->val;
-                        tmp.epoint = tmp.epoint3 = epoint;
+                        tmp.epoint = tmp.epoint3 = &epoint;
                         tmp.v = &result;
                         result.refcount = 0;
                         while (!truth && (val = get_val(&epoint))) {
                             if (val->obj == ERROR_OBJ) { err_msg_output(val); continue; }
                             if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint);continue; }
                             tmp.v2 = val;
-                            tmp.epoint2 = epoint;
+                            tmp.epoint2 = &epoint;
                             result2 = tmp.v1->obj->calc2(&tmp);
                             if (result2) {
                                 truth = result2->obj == BOOL_OBJ && result2->u.boolean;

@@ -87,7 +87,7 @@ void obj_oper_error(oper_t op) {
     v->u.error.u.invoper.op = op->op;
     v->u.error.u.invoper.v1 = e1;
     v->u.error.u.invoper.v2 = e2;
-    v->u.error.epoint = op->epoint3;
+    v->u.error.epoint = *op->epoint3;
 }
 
 static void invalid_destroy(struct value_s *UNUSED(v1)) {
@@ -176,7 +176,7 @@ static void gap_calc1(oper_t op) {
     case O_POS:
         if (v != v1) v->obj = GAP_OBJ;
         return;
-    case O_STRING: gap_repr(v1, v, &op->epoint); return;
+    case O_STRING: gap_repr(v1, v, op->epoint); return;
     default: break;
     }
     obj_oper_error(op);
@@ -568,7 +568,7 @@ static MUST_CHECK struct value_s *dict_rcalc2(oper_t op) {
         struct avltree_node *b;
 
         p.key = op->v1;
-        p.hash = obj_hash(p.key, op->v, &op->epoint);
+        p.hash = obj_hash(p.key, op->v, op->epoint);
         if (p.hash >= 0) {
             b = avltree_lookup(&p.node, &op->v2->u.dict.members, pair_compare);
             return truth_reference(b != NULL);
@@ -583,7 +583,7 @@ static MUST_CHECK struct value_s *dict_iindex(oper_t op) {
     struct pair_s pair;
     const struct avltree_node *b;
     pair.key = v2;
-    pair.hash = obj_hash(pair.key, v, &op->epoint2);
+    pair.hash = obj_hash(pair.key, v, op->epoint2);
     if (pair.hash >= 0) {
         b = avltree_lookup(&pair.node, &v1->u.dict.members, pair_compare);
         if (b) {
@@ -596,7 +596,7 @@ static MUST_CHECK struct value_s *dict_iindex(oper_t op) {
         if (v1 == v) dict_destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_____KEY_ERROR;
-        v->u.error.epoint = op->epoint2;
+        v->u.error.epoint = *op->epoint2;
     }
     return NULL;
 }

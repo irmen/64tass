@@ -152,7 +152,7 @@ static void calc1(oper_t op) {
     case O_INV: float_from_double(v, -0.5/((double)((uval_t)1 << (8 * sizeof(uval_t) - 1)))-v1); return;
     case O_NEG: float_from_double(v, -v1); return;
     case O_POS: float_from_double(v, v1); return;
-    case O_STRING: repr(op->v1, v, &op->epoint); return;
+    case O_STRING: repr(op->v1, v, op->epoint); return;
     default: break;
     }
     obj_oper_error(op);
@@ -177,10 +177,10 @@ MUST_CHECK struct value_s *calc2_double(oper_t op, double v1, double v2) {
     case O_SUB: float_from_double(v, v1 - v2); return NULL;
     case O_MUL: float_from_double(v, v1 * v2); return NULL;
     case O_DIV:
-        if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return NULL; }
+        if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = *op->epoint2; return NULL; }
         float_from_double(v, v1 / v2); return NULL;
     case O_MOD:
-        if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = op->epoint2; return NULL; }
+        if (v2 == 0.0) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = *op->epoint2; return NULL; }
         v->obj = FLOAT_OBJ; 
         v->u.real = fmod(v1, v2); 
         if (v->u.real && ((v2 < 0.0) != (v->u.real < 0))) v->u.real += v2;
@@ -213,7 +213,7 @@ MUST_CHECK struct value_s *calc2_double(oper_t op, double v1, double v2) {
             if (v2 < 0.0) {
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_DIVISION_BY_Z;
-                v->u.error.epoint = op->epoint2;
+                v->u.error.epoint = *op->epoint2;
                 return NULL;
             }
             v->obj = FLOAT_OBJ; 
@@ -223,7 +223,7 @@ MUST_CHECK struct value_s *calc2_double(oper_t op, double v1, double v2) {
         if (v1 < 0.0 && floor(v2) != v2) {
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_NEGFRAC_POWER;
-            v->u.error.epoint = op->epoint2;
+            v->u.error.epoint = *op->epoint2;
             return NULL;
         }
         v->obj = FLOAT_OBJ; 
@@ -231,7 +231,7 @@ MUST_CHECK struct value_s *calc2_double(oper_t op, double v1, double v2) {
         if (v->u.real == HUGE_VAL) {
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_CONSTNT_LARGE;
-            v->u.error.epoint = op->epoint3;
+            v->u.error.epoint = *op->epoint3;
         }
         return NULL;
     default: break;
@@ -253,7 +253,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_BITS:
     case T_FLOAT:
     case T_CODE: 
-        if (op->v2->obj->real(op->v2, op->v, &d, &op->epoint2)) return NULL;
+        if (op->v2->obj->real(op->v2, op->v, &d, op->epoint2)) return NULL;
         return calc2_double(op, op->v1->u.real, d);
     default:
         if (op->op != &o_MEMBER) {
@@ -272,7 +272,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     case T_BITS:
     case T_FLOAT:
     case T_CODE:
-        if (op->v1->obj->real(op->v1, op->v, &d, &op->epoint)) return NULL;
+        if (op->v1->obj->real(op->v1, op->v, &d, op->epoint)) return NULL;
         return calc2_double(op, d, op->v2->u.real);
     default:
         if (op->op != &o_IN) {

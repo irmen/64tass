@@ -107,9 +107,9 @@ struct oper_s {
     struct value_s *v1;
     struct value_s *v2;
     struct value_s *v;
-    struct linepos_s epoint;
-    struct linepos_s epoint2;
-    struct linepos_s epoint3;
+    linepos_t epoint;
+    linepos_t epoint2;
+    linepos_t epoint3;
 };
 typedef struct oper_s *oper_t;
 

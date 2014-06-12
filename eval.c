@@ -698,7 +698,7 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp;
     ival_t ln, offs, end, step = 1;
     if (v2->u.list.len > 3 || v2->u.list.len < 1) {
-        err_msg_argnum(v2->u.list.len, 1, 3, &op->epoint2);
+        err_msg_argnum(v2->u.list.len, 1, 3, op->epoint2);
         if (v1 == v || v2 == v) v->obj->destroy(v);
         v->obj = NONE_OBJ;
         return -1;
@@ -706,7 +706,7 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
     end = (ival_t)len;
     if (v2->u.list.len > 2) {
         if (v2->u.list.data[2]->obj != DEFAULT_OBJ) {
-            if (v2->u.list.data[2]->obj->ival(v2->u.list.data[2], &tmp, &step, 8*sizeof(ival_t), &op->epoint2)) {
+            if (v2->u.list.data[2]->obj->ival(v2->u.list.data[2], &tmp, &step, 8*sizeof(ival_t), op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, op->v);
                 return -1;
@@ -715,7 +715,7 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
                 if (v1 == v) v->obj->destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_DIVISION_BY_Z;
-                v->u.error.epoint = op->epoint2;
+                v->u.error.epoint = *op->epoint2;
                 return -1;
             }
         }
@@ -723,7 +723,7 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
     if (v2->u.list.len > 1) {
         if (v2->u.list.data[1]->obj == DEFAULT_OBJ) end = (step > 0) ? (ival_t)len : -1;
         else {
-            if (v2->u.list.data[1]->obj->ival(v2->u.list.data[1], &tmp, &end, 8*sizeof(ival_t), &op->epoint2)) {
+            if (v2->u.list.data[1]->obj->ival(v2->u.list.data[1], &tmp, &end, 8*sizeof(ival_t), op->epoint2)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, op->v);
                 return -1;
@@ -738,7 +738,7 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
     } else end = len;
     if (v2->u.list.data[0]->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
     else {
-        if (v2->u.list.data[0]->obj->ival(v2->u.list.data[0], &tmp, &offs, 8*sizeof(ival_t), &op->epoint2)) {
+        if (v2->u.list.data[0]->obj->ival(v2->u.list.data[0], &tmp, &offs, 8*sizeof(ival_t), op->epoint2)) {
             if (v1 == v || v2 == v) v->obj->destroy(v);
             tmp.obj->copy_temp(&tmp, op->v);
             return -1;
@@ -779,9 +779,9 @@ static void indexes(struct values_s *vals, unsigned int args) {
         oper.op = &o_INDEX;
         oper.v1 = vals->val;
         oper.v2 = v[0].val;
-        oper.epoint = vals->epoint;
-        oper.epoint2 = v[0].epoint;
-        oper.epoint3 = vals[1].epoint;
+        oper.epoint = &vals->epoint;
+        oper.epoint2 = &v[0].epoint;
+        oper.epoint3 = &vals[1].epoint;
         if (vals->val->refcount != 1) {
             oper.v = val_alloc(); oper.v->obj = NONE_OBJ;
             result = oper.v1->obj->iindex(&oper);
@@ -802,7 +802,7 @@ static inline MUST_CHECK struct value_s *apply_op2(oper_t op) {
     if (op->op == &o_X) {
         ival_t shift;
         struct value_s tmp;
-        if (op->v2->obj->ival(op->v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
+        if (op->v2->obj->ival(op->v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
             if (op->v1 == op->v || op->v2 == op->v) op->v->obj->destroy(op->v);
             tmp.obj->copy_temp(&tmp, op->v);
             return NULL;
@@ -1168,8 +1168,8 @@ static int get_val2(struct eval_context_s *ev) {
             oper.op = op2;
             oper.v1 = v1->val;
             oper.v2 = NULL;
-            oper.epoint = v1->epoint;
-            oper.epoint3 = o_out->epoint;
+            oper.epoint = &v1->epoint;
+            oper.epoint3 = &o_out->epoint;
             if (oper.v1->refcount != 1) {
                 oper.v = val_alloc();
                 oper.v1->obj->calc1(&oper);
@@ -1323,9 +1323,9 @@ static int get_val2(struct eval_context_s *ev) {
         oper.op = op2;
         oper.v1 = v1->val;
         oper.v2 = v2->val;
-        oper.epoint = v1->epoint;
-        oper.epoint2 = v2->epoint;
-        oper.epoint3 = o_out->epoint;
+        oper.epoint = &v1->epoint;
+        oper.epoint2 = &v2->epoint;
+        oper.epoint3 = &o_out->epoint;
         if (oper.v1->refcount == 1 && (oper.v2->refcount != 1 || (oper.v2->obj != LIST_OBJ && oper.v2->obj != TUPLE_OBJ))) {
             struct value_s *result;
             oper.v = oper.v1;

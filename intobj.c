@@ -340,7 +340,7 @@ static void calc1(oper_t op) {
     case O_POS:
         if (v != v1) copy(v1, v);
         return;
-    case O_STRING: repr(v1, v, &op->epoint); return;
+    case O_STRING: repr(v1, v, op->epoint); return;
     default: break;
     }
     obj_oper_error(op);
@@ -1421,7 +1421,7 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
         v->obj = INT_OBJ; 
         idivrem(v1, v2, v, &tmp);
         if (v->obj == ERROR_OBJ) {
-            v->u.error.epoint = op->epoint2;
+            v->u.error.epoint = *op->epoint2;
             return NULL;
         }
         if ((tmp.u.integer.len < 0) ^ i) {
@@ -1436,7 +1436,7 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
         v->obj = INT_OBJ; 
         idivrem(v1, v2, &tmp, v);
         if (v->obj == ERROR_OBJ) {
-            v->u.error.epoint = op->epoint2;
+            v->u.error.epoint = *op->epoint2;
             return NULL;
         }
         if ((v->u.integer.len < 0) ^ (v2->u.integer.len < 0)) {
@@ -1455,12 +1455,12 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
     case O_EXP:
         if (v2->u.integer.len < 0) {
             double d1, d2;
-            if (real(v1, &tmp, &d1, &op->epoint)) {
+            if (real(v1, &tmp, &d1, op->epoint)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
                 return NULL;
             }
-            if (real(v2, &tmp, &d2, &op->epoint)) {
+            if (real(v2, &tmp, &d2, op->epoint)) {
                 if (v1 == v || v2 == v) v->obj->destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
                 return NULL;
@@ -1471,7 +1471,7 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
         power(v1, v2, v);
         return NULL;
     case O_LSHIFT:
-        if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
+        if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
             if (v1 == v || v2 == v) v->obj->destroy(v);
             tmp.obj->copy_temp(&tmp, v);
             return NULL;
@@ -1481,7 +1481,7 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
         else ilshift(v1, v2, shift, v);
         return NULL;
     case O_RSHIFT:
-        if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), &op->epoint2)) {
+        if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
             if (v1 == v || v2 == v) v->obj->destroy(v);
             tmp.obj->copy_temp(&tmp, v);
             return NULL;
