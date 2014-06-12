@@ -695,48 +695,80 @@ static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
     }
 }
 
-int encode_string(const struct value_s *v) {
+static struct {
+    size_t i, j, len, len2;
+    const uint8_t *data, *data2;
+    linepos_t epoint;
+} encode_state;
+
+void encode_string_init(const struct value_s *v, linepos_t epoint) {
+    encode_state.i = 0;
+    encode_state.j = 0;
+    encode_state.len2 = 0;
+    encode_state.len = v->u.str.len;
+    encode_state.data = v->u.str.data;
+    encode_state.epoint = epoint;
+}
+
+int encode_string(void) {
     uint32_t ch;
+    unsigned int ln;
     const struct escape_s *e;
     const struct avltree_node *c;
     const struct trans_s *t;
     struct trans_s tmp;
-    static size_t i, j, len, len2;
-    static const uint8_t *data, *data2;
+    struct linepos_s epoint;
 
-    if (v) {
-        i = 0;
-        len2 = 0;
-        len = v->u.str.len;
-        data = v->u.str.data;
-        return 0;
-    }
-    if (j < len2) {
-        return data2[j++];
+    if (encode_state.j < encode_state.len2) {
+        return encode_state.data2[encode_state.j++];
     }
 next:
-    if (i >= len) return EOF;
-    e = (struct escape_s *)ternary_search(actual_encoding->escape, data + i, data + len);
+    if (encode_state.i >= encode_state.len) return EOF;
+    e = (struct escape_s *)ternary_search(actual_encoding->escape, encode_state.data + encode_state.i, encode_state.data + encode_state.len);
     if (e && e->data) {
-        i += e->strlen;
-        data2 = e->data;
-        len2 = e->len;
-        if (len2 < 1) goto next;
-        j = 1;
+        encode_state.i += e->strlen;
+        encode_state.data2 = e->data;
+        encode_state.len2 = e->len;
+        if (encode_state.len2 < 1) goto next;
+        encode_state.j = 1;
         return e->data[0];
     }
-    ch = data[i];
-    if (ch & 0x80) i += utf8in(data + i, &ch); else i++;
+    ch = encode_state.data[encode_state.i];
+    if (ch & 0x80) ln = utf8in(encode_state.data + encode_state.i, &ch); else ln = 1;
     tmp.start = tmp.end = ch;
 
     c = avltree_lookup(&tmp.node, &actual_encoding->trans, trans_compare);
     if (c) {
         t = cavltree_container_of(c, struct trans_s, node);
         if (tmp.start >= t->start && tmp.end <= t->end) {
+            encode_state.i += ln;
             return (uint8_t)(ch - t->start + t->offset);
         }
     }
-    err_msg(ERROR___UNKNOWN_CHR, &ch);
+    epoint = *encode_state.epoint;
+    if (epoint.line == lpoint.line && strlen((char *)pline) > epoint.pos) {
+        uint8_t q = pline[epoint.pos];
+        if (q == '"' || q == '\'') {
+            linecpos_t pos = epoint.pos + 1;
+            size_t pp = 0;
+            uint32_t ch2;
+            while (pp < encode_state.i && pline[pos]) {
+                if (pline[pos] == q) {
+                    if (pline[pos + 1] != q) break;
+                    pos++;
+                }
+                ln = utf8len(pline[pos]);
+                if (memcmp(pline + pos, encode_state.data + pp, ln)) break;
+                pos += ln; pp += ln;
+            }
+            if (pp == encode_state.i) {
+                ch2 = pline[pos];
+                if (ch2 & 0x80) utf8in(encode_state.data + encode_state.i, &ch2);
+                if (ch2 == ch) epoint.pos = pos;
+            }
+        }
+    }
+    err_msg2(ERROR___UNKNOWN_CHR, &ch, &epoint);
     return EOF;
 }
 
