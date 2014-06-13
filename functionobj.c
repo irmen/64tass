@@ -125,7 +125,7 @@ static void apply_func(struct value_s *v1, struct value_s *v, enum func_e func, 
     switch (func) {
     case F_ANY: v1->obj->truth(v1, v, TRUTH_ANY, epoint); return;
     case F_ALL: v1->obj->truth(v1, v, TRUTH_ALL, epoint); return;
-    case F_LEN: return v1->obj->len(v1, v, epoint);
+    case F_LEN: v1->obj->len(v1, v, epoint); return;
     default: break;
     }
     switch (v1->obj->type) {
@@ -157,14 +157,14 @@ static void apply_func(struct value_s *v1, struct value_s *v, enum func_e func, 
         }
     default:
         switch (func) {
-        case F_BOOL: v1->obj->truth(v1, v, TRUTH_BOOL, epoint);return;
-        case F_SIZE: return v1->obj->size(v1, v, epoint);
-        case F_SIGN: return v1->obj->sign(v1, v, epoint);
-        case F_ABS: return v1->obj->abs(v1, v, epoint);
-        case F_INT: return v1->obj->integer(v1, v, epoint);
-        case F_REGISTER: return function_register(v1, v, epoint);
-        case F_REPR: return v1->obj->repr(v1, v, epoint);
-        case F_STR: return v1->obj->str(v1, v, epoint);
+        case F_BOOL: v1->obj->truth(v1, v, TRUTH_BOOL, epoint); return;
+        case F_SIZE: v1->obj->size(v1, v, epoint); return;
+        case F_SIGN: v1->obj->sign(v1, v, epoint); return;
+        case F_ABS: v1->obj->abs(v1, v, epoint); return;
+        case F_INT: v1->obj->integer(v1, v, epoint); return;
+        case F_REGISTER: function_register(v1, v, epoint); return;
+        case F_REPR: v1->obj->repr(v1, v, epoint); return;
+        case F_STR: v1->obj->str(v1, v, epoint); return;
         default: break;
         }
         if (!v1->obj->real(v1, v, &real, epoint)) {
@@ -219,7 +219,8 @@ static inline void apply_func_single(struct values_s *vals, unsigned int args) {
             val = v[0].val;
             v[0].val = vals->val;
             vals->val = val;
-            return apply_func(val, val, func, &v[0].epoint);
+            apply_func(val, val, func, &v[0].epoint);
+            return;
         }
         val = val_alloc();
         apply_func(v[0].val, val, func, &v[0].epoint);
@@ -346,13 +347,15 @@ static inline void apply_func_double(struct values_s *vals, unsigned int args) {
             val = v[0].val;
             v[0].val = vals->val;
             vals->val = val;
-            return apply_func2(val, v[1].val, val, func, &v[0].epoint, &v[1].epoint);
+            apply_func2(val, v[1].val, val, func, &v[0].epoint, &v[1].epoint);
+            return;
         }
         if (v[1].val->refcount == 1) {
             val = v[1].val;
             v[1].val = vals->val;
             vals->val = val;
-            return apply_func2(v[0].val, val, val, func, &v[0].epoint, &v[1].epoint);
+            apply_func2(v[0].val, val, val, func, &v[0].epoint, &v[1].epoint);
+            return;
         }
         val = val_alloc();
         apply_func2(v[0].val, v[1].val, val, func, &v[0].epoint, &v[1].epoint);
@@ -367,7 +370,7 @@ extern void builtin_function(struct values_s *vals, unsigned int args) {
     switch (vals->val->u.function.func) {
     case F_HYPOT:
     case F_ATAN2:
-    case F_POW: return apply_func_double(vals, args);
+    case F_POW: apply_func_double(vals, args); return;
     case F_LOG:
     case F_EXP:
     case F_SIN:
@@ -400,9 +403,9 @@ extern void builtin_function(struct values_s *vals, unsigned int args) {
     case F_REPR:
     case F_LEN:
     case F_REGISTER:
-    case F_SIZE: return apply_func_single(vals, args);
-    case F_RANGE: return function_range(vals, args);
-    case F_FORMAT: return isnprintf(vals, args);
+    case F_SIZE: apply_func_single(vals, args); return;
+    case F_RANGE: function_range(vals, args); return;
+    case F_FORMAT: isnprintf(vals, args); return;
     case F_NONE: return;
     }
 }

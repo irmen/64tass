@@ -167,7 +167,8 @@ static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
     if (prop->decompose) {
         if (!(prop->property & pr_compat) || (options & U_COMPAT)) {
             if (prop->decompose > 0) {
-                return udecompose(prop->decompose, d, options);
+                udecompose(prop->decompose, d, options);
+                return;
             } else if (prop->decompose > -16384) {
                 const int16_t *p = &usequences[-prop->decompose];
                 for (;;) {
@@ -267,7 +268,10 @@ static void ucompose(const struct ubuff_s *buff, struct ubuff_s *d) {
 void unfc(struct ubuff_s *b) {
     size_t i;
     static struct ubuff_s dbuf;
-    if (!b) return free(dbuf.data);
+    if (!b) {
+        free(dbuf.data);
+        return;
+    }
     for (dbuf.p = i = 0; i < b->p; i++) {
         udecompose(b->data[i], &dbuf, 0);
     }

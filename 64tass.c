@@ -479,7 +479,7 @@ static int get_command(void) {
 static void set_cpumode(const struct cpu_s *cpumode) {
     all_mem = cpumode->max_address;
     all_mem2 = (arguments.output_mode == OUTPUT_FLAT) ? ~(address_t)0 : all_mem;
-    return select_opcodes(cpumode);
+    select_opcodes(cpumode);
 }
 
 void var_assign(struct label_s *tmp, struct value_s *val, int fix) {

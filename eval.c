@@ -178,12 +178,14 @@ static void get_exponent2(struct value_s *v) {
             if ((pline[lpoint.pos + 2] ^ 0x30) < 10) {
                 err.obj = NONE_OBJ;
                 if (v->obj->real(v, &err, &real, &lpoint)) real = 0;
-                return get_exponent(v, real, &err);
+                get_exponent(v, real, &err);
+                return;
             }
         } else if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
             err.obj = NONE_OBJ;
             if (v->obj->real(v, &err, &real, &lpoint)) real = 0;
-            return get_exponent(v, real, &err);
+            get_exponent(v, real, &err);
+            return;
         }
     default: break;
     }
@@ -206,10 +208,11 @@ static void get_hex(struct value_s *v) {
         lpoint.pos += len;
 
         if (real2) real += real2 * pow(16.0, -(double)len);
-        return get_exponent(v, real, &err);
+        get_exponent(v, real, &err);
+        return;
     }
     lpoint.pos += len;
-    return get_exponent2(v);
+    get_exponent2(v);
 }
 
 static void get_bin(struct value_s *v) {
@@ -228,10 +231,11 @@ static void get_bin(struct value_s *v) {
         lpoint.pos += len;
 
         if (real2) real += real2 * pow(2.0, -(double)len);
-        return get_exponent(v, real, &err);
+        get_exponent(v, real, &err);
+        return;
     }
     lpoint.pos += len;
-    return get_exponent2(v);
+    get_exponent2(v);
 }
 
 static void get_float(struct value_s *v) {
@@ -256,7 +260,7 @@ static void get_float(struct value_s *v) {
         return;
     }
     lpoint.pos += len;
-    return get_exponent2(v);
+    get_exponent2(v);
 }
 
 static void get_string(struct value_s *v) {
@@ -643,7 +647,7 @@ static void functions(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
 
     switch (vals->val->obj->type) {
-    case T_FUNCTION: return builtin_function(vals, args);
+    case T_FUNCTION: builtin_function(vals, args); return;
     case T_MFUNC:
         {
             struct value_s *val;
@@ -795,7 +799,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
         }
         return;
     }
-    return val_replace(&vals->val, &none_value);
+    val_replace(&vals->val, &none_value);
 }
 
 static inline MUST_CHECK struct value_s *apply_op2(oper_t op) {

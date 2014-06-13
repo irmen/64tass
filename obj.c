@@ -145,7 +145,7 @@ static void invalid_repr(const struct value_s *v1, struct value_s *v, linepos_t 
 }
 
 static void invalid_str(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    return v1->obj->repr(v1, v, epoint);
+    v1->obj->repr(v1, v, epoint);
 }
 
 static int gap_hash(const struct value_s *UNUSED(v1), struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
@@ -262,7 +262,8 @@ static MUST_CHECK struct value_s *invalid_rcalc2(oper_t op) {
 
 static void invalid_repeat(oper_t op, uval_t rep) {
     if (op->v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->repeat(op, rep);
+        ERROR_OBJ->repeat(op, rep);
+        return;
     }
     obj_oper_error(op);
 }

@@ -129,7 +129,7 @@ static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUS
 }
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    return int_from_double(v, v1->u.real, epoint);
+    int_from_double(v, v1->u.real, epoint);
 }
 
 static void calc1(oper_t op) {

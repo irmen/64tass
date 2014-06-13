@@ -431,7 +431,7 @@ void err_msg_output(const struct value_s *val) {
 
 void err_msg_output_and_destroy(struct value_s *val) {
     err_msg_output(val);
-    return val->obj->destroy(val);
+    val->obj->destroy(val);
 }
 
 void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
@@ -440,7 +440,6 @@ void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
 
 void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {
     err_msg_str_name("can't calculate stable value", name, epoint);
-    return;
 }
 
 void err_msg_still_none(const str_t *name, linepos_t epoint) {
@@ -448,19 +447,16 @@ void err_msg_still_none(const str_t *name, linepos_t epoint) {
     new_error(SV_NONEERROR, current_file_list, epoint);
     adderror("can't calculate this");
     if (name) str_name(name->data, name->len);
-    return;
 }
 
 void err_msg_not_defined(const str_t *name, linepos_t epoint) {
     err_msg_str_name("not defined", name, epoint);
-    return;
 }
 
 void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
     new_error(SV_NOTDEFERROR, current_file_list, epoint);
     adderror("not defined");
     if (name) str_name(name->data, name->len);
-    return;
 }
 
 void err_msg_requires(const str_t *name, linepos_t epoint) {
