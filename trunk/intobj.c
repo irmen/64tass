@@ -1068,7 +1068,10 @@ void int_from_double(struct value_s *v, double f, linepos_t epoint) {
     if (neg) f = -f;
 
     frac = frexp(f, &expo);
-    if (expo < 0) return int_from_int(v, 0);
+    if (expo < 0) {
+        int_from_int(v, 0);
+        return;
+    }
     sz = (expo - 1) / SHIFT + 1;
 
     d = inew(v, sz);

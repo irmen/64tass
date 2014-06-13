@@ -92,7 +92,7 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t epoint) 
         return;
     }
     v1 = v1->u.code.addr;
-    return v1->obj->repr(v1, v, epoint);
+    v1->obj->repr(v1, v, epoint);
 }
 
 static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
@@ -147,7 +147,7 @@ static void sign(const struct value_s *v1, struct value_s *v, linepos_t epoint) 
         return;
     }
     v1 = v1->u.code.addr;
-    return v1->obj->sign(v1, v, epoint);
+    v1->obj->sign(v1, v, epoint);
 }
 
 static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
@@ -160,7 +160,7 @@ static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoi
         return;
     }
     v1 = v1->u.code.addr;
-    return v1->obj->abs(v1, v, epoint);
+    v1->obj->abs(v1, v, epoint);
 }
 
 static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
@@ -173,7 +173,7 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoin
         return;
     }
     v1 = v1->u.code.addr;
-    return v1->obj->integer(v1, v, epoint);
+    v1->obj->integer(v1, v, epoint);
 }
 
 static void len(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
