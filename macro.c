@@ -427,7 +427,7 @@ void get_func_params(struct value_s *v, struct file_s *cfile) {
             break;
         }
         if (here()!=',') {
-            err_msg(ERROR_GENERL_SYNTAX, NULL);
+            err_msg2(ERROR______EXPECTED, ",", &lpoint);
             i++;
             break;
         }
@@ -495,7 +495,7 @@ void get_macro_params(struct value_s *v) {
             break;
         }
         if (here()!=',') {
-            err_msg(ERROR_GENERL_SYNTAX, NULL);
+            err_msg2(ERROR______EXPECTED, ",", &lpoint);
             i++;
             break;
         }
