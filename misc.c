@@ -198,7 +198,6 @@ static const struct option long_options[]={
 
 int testarg(int argc,char *argv[], struct file_s *fin) {
     int opt, longind;
-    enum {UNKNOWN, UTF8, ISO} type = UNKNOWN;
     size_t max_lines = 0, fp = 0;
 
     while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1) {
@@ -215,86 +214,23 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'o':arguments.output=optarg;break;
             case 'D':
                 {
-                    const uint8_t *c = (uint8_t *)optarg;
-                    uint8_t *p;
+                    size_t len = strlen(optarg) + 1;
 
                     if (fin->lines >= max_lines) {
                         max_lines += 1024;
-                        fin->line = realloc(fin->line, max_lines * sizeof(fin->line[0]));
+                        fin->line = (size_t *)realloc(fin->line, max_lines * sizeof(fin->line[0]));
                         if (!fin->line || max_lines < 1024) err_msg_out_of_memory(); /* overflow */
                     }
                     fin->line[fin->lines++] = fp;
-                    p = fin->data + fp; 
-                    do {
-                        int i, j;
-                        uint32_t ch;
-                        if (p + 6*6 + 1 > fin->data + fin->len) {
-                            size_t o = p - fin->data;
-                            fin->len += 1024;
-                            fin->data=(uint8_t*)realloc(fin->data, fin->len);
-                            if (!fin->data) err_msg_out_of_memory();
-                            p = fin->data + o;
-                        }
-                        ch = *c;
-                        if (!ch) break;
-                        c++;
-                        switch (type) {
-                        case UNKNOWN:
-                        case UTF8:
-                            if (ch < 0x80) break;
-                            if (ch < 0xc0) {
-                                if (type == UNKNOWN) {
-                                    ch = fromiso(ch);
-                                    type = ISO; break;
-                                }
-                                ch = 0xfffd; i = 0;
-                            } else if (ch < 0xe0) {
-                                ch ^= 0xc0;i = 1;
-                            } else if (ch < 0xf0) {
-                                ch ^= 0xe0;i = 2;
-                            } else if (ch < 0xf8) {
-                                ch ^= 0xf0;i = 3;
-                            } else if (ch < 0xfc) {
-                                ch ^= 0xf8;i = 4;
-                            } else if (ch < 0xfe) {
-                                ch ^= 0xfc;i = 5;
-                            } else {
-                                ch = fromiso(ch);
-                                type = ISO; break;
-                            }
 
-                            for (j = i; i; i--) {
-                                uint8_t ch2 = *c;
-                                if (ch2 < 0x80 || ch2 >= 0xc0) {
-                                    if (type == UNKNOWN) {
-                                        type = ISO;
-                                        i = (j - i) * 6;
-                                        p = utf8out(fromiso(((~0x7f >> j) & 0xff) | (ch >> i)), p);
-                                        for (;i; i-= 6) {
-                                            p = utf8out(fromiso(((ch >> (i-6)) & 0x3f) | 0x80), p);
-                                        }
-                                        if (!ch2) goto eof;
-                                        ch = (ch2 >= 0x80) ? fromiso(ch2) : ch2; j = 0;
-                                        c++;
-                                        break;
-                                    }
-                                    if (!ch2) goto eof;
-                                    ch = 0xfffd;break;
-                                }
-                                ch = (ch << 6) ^ ch2 ^ 0x80;
-                                c++;
-                            }
-                            if (j) type = UTF8;
-                            if (ch == 0xfeff) continue;
-                        case ISO:
-                            if (ch >= 0x80) ch = fromiso(ch);
-                            break;
-                        }
-                        if (ch && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
-                    } while (*c);
-                eof:
-                    *p++ = 0;
-                    fp = p - fin->data;
+                    if (len < 1 || fp + len < len) err_msg_out_of_memory();
+                    if (fp + len > fin->len) {
+                        fin->len = fp + len + 1024;
+                        fin->data=(uint8_t*)realloc(fin->data, fin->len);
+                        if (!fin->data || fin->len < 1024) err_msg_out_of_memory();
+                    }
+                    memcpy(fin->data + fp, optarg, len);
+                    fp += len;
                 }
                 break;
             case 'B':arguments.longbranch=1;break;
@@ -399,7 +335,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
         fin->data = (uint8_t*)realloc(fin->data, fin->len);
         if (!fin->data) err_msg_out_of_memory();
     }
-    fin->coding = type;
+    fin->coding = E_UTF8;
     if (argc <= optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
               "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);

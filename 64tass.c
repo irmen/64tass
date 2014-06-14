@@ -36,6 +36,7 @@
 #include <wincon.h>
 #endif
 #include <locale.h>
+#include <wchar.h>
 #include <string.h>
 
 #include <time.h>
@@ -649,7 +650,8 @@ struct value_s *compile(struct file_list_s *cflist)
         labelname.data = pline + lpoint.pos; labelname.len = get_label();
         if (labelname.len) {
             struct linepos_s cmdpoint;
-            int islabel = 0;
+            int islabel;
+            islabel = 0;
             while (here() == '.') {
                 if (waitfor->skip & 1) {
                     if (mycontext == current_context) {
@@ -2915,72 +2917,12 @@ struct value_s *compile(struct file_list_s *cflist)
     return retval;
 }
 
-#ifdef _WIN32
-int main2(int argc, char *argv[]);
-
-int wmain(int argc, wchar_t *argv2[]) {
-    int i, r;
-    UINT oldcodepage = GetConsoleOutputCP();
-    UINT oldcodepage2 = GetConsoleCP();
-
-    SetConsoleCP(65001);
-    SetConsoleOutputCP(65001);
-
-    char **argv = malloc(sizeof(char *)*argc);
-    for (i = 0; i < argc; i++) {
-	uint32_t c = 0, lastchar;
-	wchar_t *p = argv2[i];
-	uint8_t *c2;
-
-	while (*p) p++;
-	c2 = malloc((p - argv2[i])*4/sizeof(wchar_t)+1);
-	if (!c2) exit(1);
-	p = argv2[i];
-	argv[i] = (char *)c2;
-
-	while (*p) {
-	    lastchar = c;
-	    c = *p++;
-	    if (c >= 0xd800 && c < 0xdc00) {
-		if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
-		c = 0xfffd;
-	    } else if (c >= 0xdc00 && c < 0xe000) {
-		if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-		    c ^= 0x360dc00 ^ (lastchar << 10);
-		    c += 0x10000;
-		} else
-		    c = 0xfffd;
-	    } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
-		c = 0xfffd;
-	    }
-	    if (c && c < 0x80) *c2++ = c; else c2 = utf8out(c, c2);
-	}
-	*c2++ = 0;
-	argv[i] = realloc(argv[i], (char *)c2 - argv[i]);
-	if (!argv[i]) exit(1);
-    }
-    r = main2(argc, argv);
-
-    for (i = 0; i < argc; i++) free(argv[i]);
-    free(argv);
-
-    SetConsoleCP(oldcodepage2);
-    SetConsoleOutputCP(oldcodepage);
-    return r;
-}
-
-int main2(int argc, char *argv[]) {
-#else
-int main(int argc, char *argv[]) {
-#endif
-    time_t t;
+static int main2(int argc, char *argv[]) {
     int opts, i;
     struct file_s *fin, *cfile;
     struct file_list_s *cflist;
     static const str_t none_enc = {4, (const uint8_t *)"none"};
     struct linepos_s nopoint = {0, 0};
-
-    setlocale(LC_ALL, "");
 
     tinit();
 
@@ -3035,7 +2977,8 @@ int main(int argc, char *argv[]) {
 
     /* assemble again to create listing */
     if (arguments.list) {
-        char **argv2 = argv;
+        time_t t;
+        char **argv2 = argv, *oldarg = NULL;
         int argc2 = argc;
         nolisting = 0;
         if (arguments.list[0] == '-' && !arguments.list[1]) {
@@ -3046,20 +2989,29 @@ int main(int argc, char *argv[]) {
 	fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
         if (*argv2) {
             char *newp = strrchr(*argv2, '/');
+            oldarg = *argv;
             if (newp) *argv2 = newp + 1;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
             newp = strrchr(*argv2, '\\');
             if (newp) *argv2 = newp + 1;
 #endif
         }
-        while (argc2--) fprintf(flist," %s", *argv2++);
+        while (argc2--) {
+            putc(' ', flist);
+            printable_print((uint8_t *)*argv2++, flist);
+        }
+        *argv = oldarg;
 	time(&t); fprintf(flist,"\n; %s",ctime(&t));
 
         max_pass = pass; pass++;
         fixeddig=1;constcreated=0;error_reset();
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
-            if (i >= opts) {fprintf(flist,"\n;******  Processing input file: %s\n", argv[i]);}
+            if (i >= opts) {
+                fputs("\n;******  Processing input file: ", flist);
+                printable_print((uint8_t *)argv[i], flist);
+                putc('\n', flist);
+            }
             lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
             star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
@@ -3106,6 +3058,106 @@ int main(int argc, char *argv[]) {
     status(0);
     return 0;
 }
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t *argv2[]) {
+    int i, r;
+    UINT oldcodepage = GetConsoleOutputCP();
+    UINT oldcodepage2 = GetConsoleCP();
+
+    SetConsoleCP(65001);
+    SetConsoleOutputCP(65001);
+
+    setlocale(LC_ALL, "");
+
+    char **argv = (char **)malloc(sizeof(char *)*argc);
+    for (i = 0; i < argc; i++) {
+	uint32_t c = 0, lastchar;
+	wchar_t *p = argv2[i];
+	uint8_t *c2;
+
+	while (*p) p++;
+	c2 = (uint8_t *)malloc((p - argv2[i])*4/sizeof(wchar_t)+1);
+	if (!c2) exit(1);
+	p = argv2[i];
+	argv[i] = (char *)c2;
+
+	while (*p) {
+	    lastchar = c;
+	    c = *p++;
+	    if (c >= 0xd800 && c < 0xdc00) {
+		if (lastchar < 0xd800 || lastchar >= 0xdc00) continue;
+		c = 0xfffd;
+	    } else if (c >= 0xdc00 && c < 0xe000) {
+		if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+		    c ^= 0x360dc00 ^ (lastchar << 10);
+		    c += 0x10000;
+		} else
+		    c = 0xfffd;
+	    } else if (lastchar >= 0xd800 && lastchar < 0xdc00) {
+		c = 0xfffd;
+	    }
+	    if (c && c < 0x80) *c2++ = c; else c2 = utf8out(c, c2);
+	}
+	*c2++ = 0;
+	argv[i] = (char *)realloc(argv[i], (char *)c2 - argv[i]);
+	if (!argv[i]) exit(1);
+    }
+    r = main2(argc, argv);
+
+    for (i = 0; i < argc; i++) free(argv[i]);
+    free(argv);
+
+    SetConsoleCP(oldcodepage2);
+    SetConsoleOutputCP(oldcodepage);
+    return r;
+}
+#else
+int main(int argc, char *argv[]) {
+    int i, r;
+
+    setlocale(LC_ALL, "");
+
+    char **uargv = (char **)malloc(sizeof(char *)*argc);
+    for (i = 0; i < argc; i++) {
+        const char *s = argv[i];
+        mbstate_t ps;
+        uint8_t *p;
+        size_t n = strlen(s), j = 0;
+        size_t len = n + 64;
+        uint8_t *data = (uint8_t *)malloc(len);
+        if (!data || len < 64) err_msg_out_of_memory();
+
+        memset(&ps, 0, sizeof(ps));
+        p = data;
+        for (;;) {
+            ssize_t l;
+            wchar_t w;
+            uint32_t ch;
+            if (p + 6*6 + 1 > data + len) {
+                size_t o = p - data;
+                len += 1024;
+                data=(uint8_t*)realloc(data, len);
+                if (!data) err_msg_out_of_memory();
+                p = data + o;
+            }
+            l = mbrtowc(&w, s + j, n - j,  &ps);
+            if (l < 1) break;
+            j += l;
+            ch = w;
+            if (ch && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
+        }
+        *p++ = 0;
+        uargv[i] = (char *)data;
+    }
+    r = main2(argc, uargv);
+
+    for (i = 0; i < argc; i++) free(uargv[i]);
+    free(uargv);
+    return r;
+}
+#endif
+
 
 #ifdef __MINGW32__
 
