@@ -53,8 +53,6 @@ int str_hash(const str_t *s) {
 int str_cmp(const str_t *s1, const str_t *s2) {
     if (s1->len != s2->len) return s1->len - s2->len;
     if (s1->data == s2->data) return 0;
-    if (!s1->data && s2->data) return -1;
-    if (s1->data && !s2->data) return 1;
     return memcmp(s1->data, s2->data, s1->len);
 }
 
@@ -200,7 +198,7 @@ static const struct option long_options[]={
 
 int testarg(int argc,char *argv[], struct file_s *fin) {
     int opt, longind;
-    enum {UNKNOWN, UTF8, ISO1} type = UNKNOWN;
+    enum {UNKNOWN, UTF8, ISO} type = UNKNOWN;
     size_t max_lines = 0, fp = 0;
 
     while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1) {
@@ -218,8 +216,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'D':
                 {
                     const uint8_t *c = (uint8_t *)optarg;
-                    uint8_t *p, ch2;
-                    uint32_t ch = 0;
+                    uint8_t *p;
 
                     if (fin->lines >= max_lines) {
                         max_lines += 1024;
@@ -228,22 +225,27 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                     }
                     fin->line[fin->lines++] = fp;
                     p = fin->data + fp; 
-                    while ((ch=*c++)) {
+                    do {
                         int i, j;
+                        uint32_t ch;
                         if (p + 6*6 + 1 > fin->data + fin->len) {
                             size_t o = p - fin->data;
                             fin->len += 1024;
-                            if (!(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
+                            fin->data=(uint8_t*)realloc(fin->data, fin->len);
+                            if (!fin->data) err_msg_out_of_memory();
                             p = fin->data + o;
                         }
+                        ch = *c;
+                        if (!ch) break;
+                        c++;
                         switch (type) {
                         case UNKNOWN:
                         case UTF8:
-                            if (ch < 0x80) {
-                                break;
-                            } else if (ch < 0xc0) {
+                            if (ch < 0x80) break;
+                            if (ch < 0xc0) {
                                 if (type == UNKNOWN) {
-                                    type = ISO1; break;
+                                    ch = fromiso(ch);
+                                    type = ISO; break;
                                 }
                                 ch = 0xfffd; i = 0;
                             } else if (ch < 0xe0) {
@@ -257,40 +259,40 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                             } else if (ch < 0xfe) {
                                 ch ^= 0xfc;i = 5;
                             } else {
-                                type = ISO1; break;
+                                ch = fromiso(ch);
+                                type = ISO; break;
                             }
 
                             for (j = i; i; i--) {
-                                ch2 = *c++;
+                                uint8_t ch2 = *c;
                                 if (ch2 < 0x80 || ch2 >= 0xc0) {
                                     if (type == UNKNOWN) {
-                                        type = ISO1;
+                                        type = ISO;
                                         i = (j - i) * 6;
-                                        p = utf8out(((~0x7f >> j) & 0xff) | (ch >> i), p);
+                                        p = utf8out(fromiso(((~0x7f >> j) & 0xff) | (ch >> i)), p);
                                         for (;i; i-= 6) {
-                                            p = utf8out(((ch >> (i-6)) & 0x3f) | 0x80, p);
+                                            p = utf8out(fromiso(((ch >> (i-6)) & 0x3f) | 0x80), p);
                                         }
-                                        ch = ch2; j = 0;
+                                        if (!ch2) goto eof;
+                                        ch = (ch2 >= 0x80) ? fromiso(ch2) : ch2; j = 0;
+                                        c++;
                                         break;
                                     }
-                                    c--;
+                                    if (!ch2) goto eof;
                                     ch = 0xfffd;break;
                                 }
                                 ch = (ch << 6) ^ ch2 ^ 0x80;
+                                c++;
                             }
                             if (j) type = UTF8;
                             if (ch == 0xfeff) continue;
-                        case ISO1:
+                        case ISO:
+                            if (ch >= 0x80) ch = fromiso(ch);
                             break;
                         }
                         if (ch && ch < 0x80) *p++ = ch; else p = utf8out(ch, p);
-                    }
-                    if (p >= fin->data + fin->len) {
-                        size_t o = p - fin->data;
-                        fin->len += 1024;
-                        if (!(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
-                        p = fin->data + o;
-                    }
+                    } while (*c);
+                eof:
                     *p++ = 0;
                     fp = p - fin->data;
                 }
@@ -391,8 +393,12 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
         fin->line = (size_t *)realloc(fin->line, fin->lines * sizeof(fin->line[0]));
         if (!fin->lines) err_msg_out_of_memory();
     }
-    closefile(fin); fin->len = fp;
-    if (fin->data && !(fin->data=(uint8_t*)realloc(fin->data, fin->len))) exit(1);
+    closefile(fin);
+    if (fp != fin->len) {
+        fin->len = fp;
+        fin->data = (uint8_t*)realloc(fin->data, fin->len);
+        if (!fin->data) err_msg_out_of_memory();
+    }
     fin->coding = type;
     if (argc <= optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
