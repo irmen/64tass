@@ -332,8 +332,10 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     closefile(fin);
     if (fp != fin->len) {
         fin->len = fp;
-        fin->data = (uint8_t*)realloc(fin->data, fin->len);
-        if (!fin->data) err_msg_out_of_memory();
+        if (fin->len) {
+            fin->data = (uint8_t*)realloc(fin->data, fin->len);
+            if (!fin->data) err_msg_out_of_memory();
+        }
     }
     fin->coding = E_UTF8;
     if (argc <= optind) {
