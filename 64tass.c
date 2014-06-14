@@ -2978,8 +2978,7 @@ static int main2(int argc, char *argv[]) {
     /* assemble again to create listing */
     if (arguments.list) {
         time_t t;
-        char **argv2 = argv, *oldarg = NULL;
-        int argc2 = argc;
+        char *prgname;
         nolisting = 0;
         if (arguments.list[0] == '-' && !arguments.list[1]) {
             flist = stdout;
@@ -2987,20 +2986,19 @@ static int main2(int argc, char *argv[]) {
             if (!(flist=file_open(arguments.list,"wt"))) err_msg_file(ERROR_CANT_DUMP_LST, arguments.list, &nopoint);
         }
 	fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
-        if (*argv2) {
-            char *newp = strrchr(*argv2, '/');
-            oldarg = *argv;
-            if (newp) *argv2 = newp + 1;
+        prgname = *argv;
+        if (prgname) {
+            char *newp = strrchr(prgname, '/');
+            if (newp) prgname = newp + 1;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-            newp = strrchr(*argv2, '\\');
-            if (newp) *argv2 = newp + 1;
+            newp = strrchr(prgname, '\\');
+            if (newp) prgname = newp + 1;
 #endif
         }
-        while (argc2--) {
+        for (i = 0; i < argc; i++) {
             putc(' ', flist);
-            printable_print((uint8_t *)*argv2++, flist);
+            argv_print(i ? (uint8_t *)argv[i] : (uint8_t *)prgname, flist);
         }
-        *argv = oldarg;
 	time(&t); fprintf(flist,"\n; %s",ctime(&t));
 
         max_pass = pass; pass++;
@@ -3009,7 +3007,7 @@ static int main2(int argc, char *argv[]) {
         for (i = opts - 1; i<argc; i++) {
             if (i >= opts) {
                 fputs("\n;******  Processing input file: ", flist);
-                printable_print((uint8_t *)argv[i], flist);
+                argv_print((uint8_t *)argv[i], flist);
                 putc('\n', flist);
             }
             lastl=LIST_NONE;
