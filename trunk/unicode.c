@@ -21,6 +21,7 @@
 #endif
 #include <wctype.h>
 #include <ctype.h>
+#include <string.h>
 #include "unicode.h"
 #include "error.h"
 
@@ -343,12 +344,137 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
     s1->data = dd;
 }
 
+void argv_print(const uint8_t *line, FILE *f) {
+#ifdef _WIN32
+    size_t i = 0, l = 0, back;
+    int quote = 0, space = 0;
+
+    for (;;i++) {
+        switch (line[i]) {
+        case '%':
+        case '"': quote = 1; if (!space) continue; break;
+        case ' ': space = 1; if (!quote) continue; break;
+        case 0: break;
+        default: continue;
+        }
+        break;
+    }
+
+    if (space) {
+        if (quote) putc('^', f);
+        putc('"', f);
+    }
+    i = 0; back = 0;
+    for (;;) {
+        uint32_t ch = line[i];
+        if (ch & 0x80) {
+            size_t o = i;
+            i += utf8in(line + i, &ch);
+            if (iswprint(ch)) continue;
+            if (l != o) fwrite(line + l, 1, o - l, f);
+            putc("?", f);
+            l = i;
+            continue;
+        }
+        if (ch == 0) break;
+
+        if (ch == '\\') {
+            back++;
+            i++;
+            continue;
+        }
+        if (!space || quote) {
+            if (strchr("()%!^<>&|\"", ch)) {
+                if (l != i) fwrite(line + l, 1, i - l, f);
+                if (ch == '"') {
+                    while (back--) putc('\\', f);
+                    putc('\\', f);
+                }
+                putc('^', f);
+                l = i;
+            }
+        } else {
+            if (ch == '%') {
+                if (l != i) fwrite(line + l, 1, i - l, f);
+                putc('^', f);
+                l = i;
+            }
+        }
+        back = 0;
+ 
+        if (!isprint(ch)) {
+            if (l != i) fwrite(line + l, 1, i - l, f);
+            i++;
+            putc("?", f);
+            l = i;
+            continue;
+        }
+        i++;
+    }
+    if (i != l) fwrite(line + l, i - l, 1, f);
+    if (space) {
+        while (back--) putc('\\', f);
+        if (quote) putc('^', f);
+        putc('"', f);
+    }
+#else
+    size_t i, l = 0;
+    int quote = 0;
+
+    for (i = 0;line[i];i++) {
+        if (line[i] == '!') break;
+        else quote = quote || strchr(" \"$&()*;<>'?[\\]`{|}", line[i]);
+    }
+    if (line[i]) quote = 0;
+    if (quote) putc('"', f);
+    else {
+        switch (line[0]) {
+        case '~':
+        case '#': putc('\\', f); break;
+        }
+    }
+    i = 0;
+    for (;;) {
+        uint32_t ch = line[i];
+        if (ch & 0x80) {
+            if (l != i) fwrite(line + l, 1, i - l, f);
+            i += utf8in(line + i, &ch);
+            if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) fprintf(f, ch < 0x10000 ? "$'\\u%x'" : "$'\\U%x'", ch);
+            l = i;
+            continue;
+        }
+        if (ch == 0) break;
+
+        if (quote) {
+            if (strchr("$`\"\\", ch)) putc('\\', f);
+        } else {
+            if (strchr(" !\"$&()*;<>'?[\\]`{|}", ch)) {
+                if (l != i) fwrite(line + l, 1, i - l, f);
+                putc('\\', f);
+                l = i;
+            }
+        }
+ 
+        if (!isprint(ch)) {
+            if (l != i) fwrite(line + l, 1, i - l, f);
+            i++;
+            fprintf(f, "$'\\x%x'", ch);
+            l = i;
+            continue;
+        }
+        i++;
+    }
+    if (i != l) fwrite(line + l, i - l, 1, f);
+    if (quote) putc('"', f);
+#endif
+}
+
 void printable_print(const uint8_t *line, FILE *f) {
     size_t i = 0, l = 0;
     for (;;) {
         uint32_t ch = line[i];
         if (ch & 0x80) {
-#if _WIN32
+#ifdef _WIN32
             size_t o = i;
             i += utf8in(line + i, &ch);
             if (iswprint(ch)) continue;
