@@ -85,7 +85,6 @@ typedef uint32_t uval_t;
 #else
 # define UNUSED(x) x
 #endif
-#endif
 
 #ifdef MUST_CHECK
 #elif defined(__GNUC__)
@@ -94,4 +93,5 @@ typedef uint32_t uval_t;
 #else
 #define MUST_CHECK
 #define NO_RETURN
+#endif
 #endif

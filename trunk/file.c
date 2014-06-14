@@ -124,7 +124,34 @@ FILE *file_open(const char *name, const char *mode)
     f=_wfopen(wname, wmode);
     free(wname);
 #else
-    f=fopen(name, mode);
+    size_t len = 0, max = strlen(name) + 1;
+    char *newname = (char *)malloc(max);
+    const uint8_t *c = (uint8_t *)name;
+    uint32_t ch;
+    if (!newname || max < 1) err_msg_out_of_memory();
+    do {
+        char temp[64];
+        int l;
+        ch = *c;
+        if (ch & 0x80) {
+            c += utf8in(c, &ch);
+            l = sprintf(temp, "%lc", (wint_t)ch);
+            if (l <= 0) l = sprintf(temp, "{$%x}", ch);
+        } else {
+            temp[0] = *c++;
+            l = 1;
+        }
+        len += l;
+        if (len < (unsigned int)l) err_msg_out_of_memory();
+        if (len > max) {
+            max = len + 64;
+            newname = (char *)realloc(newname, max);
+            if (!newname || max < 64) err_msg_out_of_memory();
+        }
+        memcpy(newname + len - l, temp, l);
+    } while (ch);
+    f=fopen(newname, mode);
+    free(newname);
 #endif
     return f;
 }
@@ -335,7 +362,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
 
                     if (tmp->lines >= max_lines) {
                         max_lines += 1024;
-                        tmp->line = realloc(tmp->line, max_lines * sizeof(tmp->line[0]));
+                        tmp->line = (size_t *)realloc(tmp->line, max_lines * sizeof(tmp->line[0]));
                         if (!tmp->line || max_lines < 1024) err_msg_out_of_memory(); /* overflow */
                     }
                     tmp->line[tmp->lines++] = fp;

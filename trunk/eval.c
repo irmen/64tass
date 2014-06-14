@@ -1361,7 +1361,7 @@ static int get_val2(struct eval_context_s *ev) {
     return 1;
 }
 
-inline struct value_s *get_val(struct linepos_s *epoint) {
+struct value_s *get_val(struct linepos_s *epoint) {
     struct values_s *value;
 
     if (eval->values_p >= eval->values_len) return NULL;
@@ -1371,7 +1371,7 @@ inline struct value_s *get_val(struct linepos_s *epoint) {
     return value->val;
 }
 
-inline struct value_s *pull_val(struct linepos_s *epoint) {
+struct value_s *pull_val(struct linepos_s *epoint) {
     struct value_s *val;
     struct values_s *value;
 
