@@ -20,6 +20,7 @@
 #include <wchar.h>
 #endif
 #include <wctype.h>
+#include <ctype.h>
 #include "unicode.h"
 #include "error.h"
 
@@ -348,12 +349,13 @@ void printable_print(const uint8_t *line, FILE *f) {
         uint32_t ch = line[i];
         if (ch & 0x80) {
 #if _WIN32
+            size_t o = i;
             i += utf8in(line + i, &ch);
             if (iswprint(ch)) continue;
-            if (l != i) fwrite(line + l, i - l, 1, f);
+            if (l != o) fwrite(line + l, 1, o - l, f);
             fprintf(f, "{$%x}", ch);
 #else
-            if (l != i) fwrite(line + l, i - l, 1, f);
+            if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
             if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) fprintf(f, "{$%x}", ch);
 #endif
@@ -361,8 +363,8 @@ void printable_print(const uint8_t *line, FILE *f) {
             continue;
         }
         if (ch == 0) break;
-        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
-            if (l != i) fwrite(line + l, i - l, 1, f);
+        if (!isprint(ch) && ch != 0x09) {
+            if (l != i) fwrite(line + l, 1, i - l, f);
             i++;
             fprintf(f, "{$%x}", ch);
             l = i;
@@ -379,9 +381,10 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
         uint32_t ch = line[i];
         if (ch & 0x80) {
 #ifdef _WIN32
+            size_t o = i;
             i += utf8in(line + i, &ch);
             if (iswprint(ch)) continue;
-            if (l != i) len += fwrite(line + l, 1, i - l, f);
+            if (l != o) len += fwrite(line + l, 1, o - l, f);
             len += fprintf(f, "{$%x}", ch);
 #else
             if (l != i) len += fwrite(line + l, 1, i - l, f);
@@ -391,7 +394,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             l = i;
             continue;
         }
-        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
+        if (!isprint(ch) && ch != 0x09) {
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i++;
             len += fprintf(f, "{$%x}", ch);
