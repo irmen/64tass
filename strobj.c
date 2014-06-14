@@ -243,7 +243,7 @@ size_t str_from_str(struct value_s *v, const uint8_t *s) {
     i = 1;
     for (;;) {
         if (!(ch2 = s[i])) {err_msg(ERROR______EXPECTED,"end of string"); break;}
-        if (ch2 & 0x80)  i += utf8len(ch2); else i++;
+        if (ch2 & 0x80) i += utf8len(ch2); else i++;
         if (ch2 == ch) {
             if (s[i] == ch && !arguments.tasmcomp) {i++;r++;} /* handle 'it''s' */
             else break; /* end of string; */
@@ -272,7 +272,7 @@ size_t str_from_str(struct value_s *v, const uint8_t *s) {
         }
     } else {
         v->obj = STR_OBJ;
-        v->u.str.len = i - 2;
+        v->u.str.len = (i > 1) ? (i - 2) : 0;
         v->u.str.chars = i2;
         v->u.str.data = snew(v, v->u.str.len);
         memcpy(v->u.str.data, s + 1, v->u.str.len);
