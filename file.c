@@ -205,7 +205,7 @@ static uint32_t fromiso2(uint8_t c) {
     return w;
 }
 
-static inline uint32_t fromiso(uint8_t c) {
+inline uint32_t fromiso(uint8_t c) {
     static uint32_t conv[128];
     if (!conv[c - 0x80]) conv[c - 0x80] = fromiso2(c);
     return conv[c - 0x80];
@@ -410,8 +410,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                 c = 0xfffd; break;
                             }
 
-                            for (j = i; i && bp != bl; i--) {
-                                uint8_t ch2 = buffer[bp];
+                            for (j = i; i; i--) {
+                                uint8_t ch2 = (bp == bl) ? 0 : buffer[bp];
                                 if (ch2 < 0x80 || ch2 >= 0xc0) {
                                     if (type == E_UNKNOWN) {
                                         type = E_ISO;
@@ -431,11 +431,13 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                                             }
                                             ubuff.data[ubuff.p++] = fromiso(((c >> (i-6)) & 0x3f) | 0x80);
                                         }
+                                        if (bp == bl) goto eof;
                                         c = (ch2 >= 0x80) ? fromiso(ch2) : ch2; 
                                         j = 0;
                                         bp = (bp + 1) % (BUFSIZ * 2);
                                         break;
                                     }
+                                    if (bp == bl) goto eof;
                                     c = 0xfffd;break;
                                 }
                                 c = (c << 6) ^ ch2 ^ 0x80;

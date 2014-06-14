@@ -49,7 +49,11 @@
 #endif
 
 #ifndef PRIxSIZE
+#ifdef _WIN32
+#define PRIxSIZE "x"
+#else
 #define PRIxSIZE "zx"
+#endif
 #endif
 
 typedef uint32_t line_t;
