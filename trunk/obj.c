@@ -350,7 +350,7 @@ static void macro_copy(const struct value_s *v1, struct value_s *v) {
     memcpy(&v->u.macro, &v1->u.macro, sizeof(v->u.macro));
     if (v1->u.macro.argc) {
         size_t i;
-        v->u.macro.param = malloc(v1->u.macro.argc * sizeof(v->u.macro.param[0]));
+        v->u.macro.param = (struct macro_param_s *)malloc(v1->u.macro.argc * sizeof(v->u.macro.param[0]));
         if (!v->u.macro.param) err_msg_out_of_memory();
         for (i = 0; i < v1->u.macro.argc; i++) {
             str_cpy(&v->u.macro.param[i].cfname, &v1->u.macro.param[i].cfname);
@@ -390,7 +390,7 @@ static void mfunc_copy(const struct value_s *v1, struct value_s *v) {
     memcpy(&v->u.mfunc, &v1->u.mfunc, sizeof(v->u.mfunc));
     if (v1->u.mfunc.argc) {
         size_t i;
-        v->u.mfunc.param = malloc(v1->u.mfunc.argc * sizeof(v->u.mfunc.param[0]));
+        v->u.mfunc.param = (struct mfunc_param_s *)malloc(v1->u.mfunc.argc * sizeof(v->u.mfunc.param[0]));
         if (!v->u.mfunc.param) err_msg_out_of_memory();
         for (i = 0; i < v1->u.mfunc.argc; i++) {
             str_cpy(&v->u.mfunc.param[i].name, &v1->u.mfunc.param[i].name);
