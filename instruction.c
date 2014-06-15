@@ -357,8 +357,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                             err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint);
                         }
                     }
-                } else if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
-                else { /* short */
+                } else { /* short */
                     if (((uint16_t)(current_section->l_address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
                         if (!allowslowbranch) err_msg2(ERROR__BRANCH_CROSS, NULL, epoint);
                     }
