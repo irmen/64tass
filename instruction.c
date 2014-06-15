@@ -238,6 +238,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
             ind = strchr(reg_names, val->u.str.data[0]);
             if (!ind) return 2;
             opr = ADR_REG; reg = ind - reg_names;
+            if (regopcode_table[cnmemonic[opr]][reg] == ____) return 2;
             ln = 0;
         } else {
         noneaddr:
