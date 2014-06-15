@@ -22,11 +22,15 @@
 
 #define ____ 0x69
 enum opr_e {
-    ADR_IMPLIED=0, ADR_ACCU, ADR_IMMEDIATE, ADR_LONG, ADR_ADDR, ADR_ZP,
+    ADR_REG=0, ADR_IMPLIED, ADR_IMMEDIATE, ADR_LONG, ADR_ADDR, ADR_ZP,
     ADR_LONG_X, ADR_ADDR_X, ADR_ZP_X, ADR_ADDR_X_I, ADR_ZP_X_I, ADR_ZP_S,
     ADR_ZP_S_I_Y, ADR_ADDR_Y, ADR_ZP_Y, ADR_ZP_LI_Y, ADR_ZP_I_Y, ADR_ZP_I_Z,
     ADR_ADDR_LI, ADR_ZP_LI, ADR_ADDR_I, ADR_ZP_I, ADR_REL_L, ADR_REL,
     ADR_MOVE, ADR_ZP_R, ADR_ZP_R_I_Y, ADR_BIT_ZP, ADR_BIT_ZP_REL, ADR_LEN
+};
+
+enum reg_e {
+    REG_A, REG_X, REG_Y, REG_S, REG_D, REG_R, REG_I, REG_Z, REG_B, REG_K, REG_P, REG_LEN
 };
 
 struct cpu_s {
@@ -38,6 +42,8 @@ struct cpu_s {
     int brl;
 };
 
+extern const char *reg_names;
+extern const uint8_t regopcode_table[][REG_LEN];
 extern const uint8_t opcode_table[][ADR_LEN];
 
 extern const struct cpu_s w65816;

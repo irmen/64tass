@@ -466,13 +466,16 @@ void init_defaultlabels(void) {
     label = new_builtin("false");
     bool_from_int(label->value, 0);
 
-    label = new_builtin("a");
-    v = label->value;
-    v->obj = REGISTER_OBJ;
-    v->u.str.val[0] = 'a';
-    v->u.str.data = v->u.str.val;
-    v->u.str.len = 1;
-    v->u.str.chars = 1;
+    for (i = 0; reg_names[i]; i++) {
+        char name[2] = {reg_names[i], 0};
+        label = new_builtin(name);
+        v = label->value;
+        v->obj = REGISTER_OBJ;
+        v->u.str.val[0] = name[0];
+        v->u.str.data = v->u.str.val;
+        v->u.str.len = 1;
+        v->u.str.chars = 1;
+    }
 
     for (i = 0; builtin_functions[i].name; i++) {
         label = new_builtin(builtin_functions[i].name);
