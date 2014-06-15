@@ -227,6 +227,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         case ERROR_DIVISION_BY_Z:
         case ERROR_NO_ZERO_VALUE:
         case ERROR____WRONG_TYPE:
+        case ERROR_NO_ADDRESSING:
         case ERROR_CONSTNT_LARGE: new_error(SV_CONDERROR, current_file_list, epoint); break;
         default: new_error(SV_ERROR, current_file_list, epoint);
         }
