@@ -64,8 +64,6 @@ void select_opcodes(const struct cpu_s *cpumode) {
     cpu = cpumode;
 }
 
-static const uint32_t relopnames[8] = { 0x62706C, 0x626d69, 0x627663, 0x627673, 0x626363, 0x626373, 0x626E65, 0x626571 };
-
 static int touval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
     if (v1->obj == NONE_OBJ) {
         if (v1 == v) v->obj->destroy(v);
@@ -331,7 +329,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                             ln = labelexists ? ((uint16_t)(s->addr - star - 2)) : 3;
                             pokeb(cod);
                             pokeb(ln);
-                            list_instr(cod, ln, 1, ADR_REL, 0, relopnames[cod >> 5]);
+                            list_instr(cod, ln, 1);
                             r = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, all_mem, vals, epoint, epoints);
                             if (labelexists && s->addr != (current_section->l_address & all_mem)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
@@ -345,7 +343,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                             pokeb(cod);
                             pokeb(xadr);
                             pokeb(3);
-                            list_instr(cod, xadr | 0x300, 2, ADR_BIT_ZP_REL, 0, (cnmemonic[ADR_BIT_ZP_REL] & 0x80) ? 0x626272 : 0x626273);
+                            list_instr(cod, xadr | 0x300, 2);
                             adr = oadr; opr = ADR_ADDR; ln = 2;
                             prm = cpu->jmp; longbranch = 0;
                             cnmemonic = opcode_table[opcode[prm]];
@@ -400,7 +398,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                     }
                     if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
                         if (adr == 0) {
-                            list_instr(0, 0, -1, ADR_IMPLIED, 0, 0x202020);
+                            list_instr(0, 0, -1);
                             if (labelexists && s->addr != (current_section->l_address & all_mem)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
@@ -410,7 +408,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                         } else if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
                             cod = cnmemonic[ADR_REL] ^ 0x20;
                             pokeb(cod);
-                            list_instr(cod, 0, 0, ADR_IMPLIED, 0, relopnames[cod >> 5]);
+                            list_instr(cod, 0, 0);
                             if (labelexists && s->addr != (current_section->l_address & all_mem)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
@@ -593,7 +591,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         case 1: pokeb((uint8_t)temp);
         }
     }
-    list_instr(cod ^ longbranch, adr, ln, opr, reg, opname);
+    list_instr(cod ^ longbranch, adr, ln);
     return 0;
 }
 

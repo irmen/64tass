@@ -238,7 +238,10 @@ void printllist(int l) {
     }
 }
 
-void list_instr(uint8_t cod, uint32_t adr, int ln, enum opr_e opr, enum reg_e reg, uint32_t mnem) {
+static const uint16_t *disasm;
+static const uint32_t *mnemonic;    /* mnemonics */
+
+void list_instr(uint8_t cod, uint32_t adr, int ln) {
     if (!nolisting && flist) {
         unsigned int i;
 
@@ -253,16 +256,19 @@ void list_instr(uint8_t cod, uint32_t adr, int ln, enum opr_e opr, enum reg_e re
             if (ln<2) putc('\t', flist);
             putc('\t', flist);
             if (arguments.monitor) {
+                uint32_t mnem = (ln >= 0) ? mnemonic[disasm[cod] & 0xff] : 0x202020;
                 for (i = 0; i < 3; i++) putc(mnem >> (16 - 8 * i), flist);
 
-                switch (opr) {
+                switch (disasm[cod] >> 8) {
                 case ADR_IMPLIED: putc('\t', flist); break;
-                case ADR_REG: fprintf(flist, " %c\t", reg_names[reg]); break;
-                case ADR_IMMEDIATE: {
-                    if (ln == 1) fprintf(flist, " #$%02x", (uint8_t)adr);
-                    else fprintf(flist, " #$%04x", (uint16_t)adr);
+                case ADR_REG: fputs(" a\t", flist); break;
+                case ADR_IMMEDIATE:
+                    switch (ln) {
+                    default: putc('\t', flist); break;
+                    case 1: fprintf(flist, " #$%02x", (uint8_t)adr); break;
+                    case 2: fprintf(flist, " #$%04x", (uint16_t)adr); break;
+                    }
                     break;
-                }
                 case ADR_LONG: fprintf(flist, " $%06x", (uint32_t)(adr & 0xffffff)); break;
                 case ADR_ADDR: {
                     if (cod == 0x20 || cod == 0x4c)
@@ -290,7 +296,7 @@ void list_instr(uint8_t cod, uint32_t adr, int ln, enum opr_e opr, enum reg_e re
                 case ADR_ZP_LI: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " [$%02x]" : " [$%04x]", (uint16_t)(adr + dpage)); break;
                 case ADR_ADDR_I: fprintf(flist, " ($%04x)", (uint16_t)adr); break;
                 case ADR_ZP_I: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " ($%02x)" : " ($%04x)", (uint16_t)(adr + dpage)); break;
-                case ADR_REL: fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, (uint16_t)(((int8_t)adr) + current_section->l_address) | (current_section->l_address & 0xff0000)); break;
+                case ADR_REL: if (ln < 1) putc('\t', flist); else fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, (uint16_t)(((int8_t)adr) + current_section->l_address) | (current_section->l_address & 0xff0000)); break;
                 case ADR_BIT_ZP_REL:
                                fprintf(flist, ((uint16_t)(((uint8_t)adr) + dpage)<0x100) ? " %x,$%02x" : " %d,$%04x", (cod >> 4) & 7, (uint16_t)((uint8_t)adr) + dpage);
                                fprintf(flist, (current_section->l_address & 0xff0000) ? ",$%06" PRIaddress : ",$%04" PRIaddress, (uint16_t)(((int8_t)(adr >> 8)) + current_section->l_address) | (current_section->l_address & 0xff0000));
@@ -480,6 +486,8 @@ static int get_command(void) {
 static void set_cpumode(const struct cpu_s *cpumode) {
     all_mem = cpumode->max_address;
     all_mem2 = (arguments.output_mode == OUTPUT_FLAT) ? ~(address_t)0 : all_mem;
+    disasm = cpumode->disasm;
+    mnemonic = cpumode->mnemonic; 
     select_opcodes(cpumode);
 }
 

@@ -36,6 +36,7 @@ enum reg_e {
 struct cpu_s {
     const uint32_t *mnemonic;
     const uint8_t *opcode;
+    const uint16_t *disasm;
     unsigned int opcodes;
     unsigned int max_address;
     int jmp;
