@@ -238,7 +238,7 @@ void printllist(int l) {
     }
 }
 
-void list_instr(uint8_t cod, uint32_t adr, int ln, enum opr_e opr, uint32_t mnem) {
+void list_instr(uint8_t cod, uint32_t adr, int ln, enum opr_e opr, enum reg_e reg, uint32_t mnem) {
     if (!nolisting && flist) {
         unsigned int i;
 
@@ -257,7 +257,7 @@ void list_instr(uint8_t cod, uint32_t adr, int ln, enum opr_e opr, uint32_t mnem
 
                 switch (opr) {
                 case ADR_IMPLIED: putc('\t', flist); break;
-                case ADR_ACCU: fputs(" a\t", flist); break;
+                case ADR_REG: fprintf(flist, " %c\t", reg_names[reg]); break;
                 case ADR_IMMEDIATE: {
                     if (ln == 1) fprintf(flist, " #$%02x", (uint8_t)adr);
                     else fprintf(flist, " #$%04x", (uint16_t)adr);
