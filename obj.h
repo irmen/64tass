@@ -42,24 +42,28 @@ typedef struct {
     struct value_s *def;
 } dict_t;
 
+struct mfunc_param_s {
+    str_t name;
+    str_t cfname;
+    struct value_s *init;
+    struct linepos_s epoint;
+};
+
 typedef struct {
     struct label_s *label;
     size_t argc;
-    struct {
-	str_t name;
-	str_t cfname;
-	struct value_s *init;
-	struct linepos_s epoint;
-    } *param; 
+    struct mfunc_param_s *param; 
 } mfunc_t;
+
+struct macro_param_s {
+    str_t cfname;
+    str_t init;
+}; 
 
 typedef struct {
     size_t size;
     size_t argc;
-    struct {
-	str_t cfname;
-	str_t init;
-    } *param; 
+    struct macro_param_s *param; 
     struct label_s *parent;
 } macro_t;
 
