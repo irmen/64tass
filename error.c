@@ -573,39 +573,6 @@ static inline const uint8_t *get_line(const struct file_s *file, size_t line) {
     return &file->data[file->line[line - 1]];
 }
 
-static inline void caret_print(const uint8_t *line, FILE *f, size_t max) {
-    size_t i, l = 0;
-    for (i = 0; i < max;) {
-        char temp[64];
-        uint32_t ch = line[i];
-        if (ch & 0x80) {
-            i += utf8in(line + i, &ch);
-#ifdef _WIN32
-            if (!iswprint(ch)) l += sprintf(temp, "{$%x}", ch); else l++;
-#else
-            if (!iswprint(ch) || sprintf(temp, "%lc", (wint_t)ch) < 0) l += sprintf(temp, "{$%x}", ch); else l++;
-#endif
-            continue;
-        }
-        if (ch == 0) break;
-        if (ch == '\t') {
-            while (l) { 
-                putc(' ', f); 
-                l--; 
-            }
-            putc('\t', f);
-            i++;
-            continue;
-        }
-        if (ch < 0x20 || ch > 0x7e) l += sprintf(temp, "{$%x}", ch); else l++;
-        i++;
-    }
-    while (l) { 
-        putc(' ', f); 
-        l--; 
-    }
-}
-
 static inline void print_error(FILE *f, const struct error_s *err) {
     const struct file_list_s *cflist = err->file_list;
     linepos_t epoint = &err->epoint;

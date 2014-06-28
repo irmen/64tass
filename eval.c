@@ -28,6 +28,7 @@
 #include "64tass.h"
 #include "misc.h"
 #include "unicode.h"
+#include "listing.h"
 
 #include "listobj.h"
 #include "floatobj.h"
@@ -1525,9 +1526,8 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         case 0:
         case ';': 
             if (openclose) {
-                printllist(0); /* TODO: conditional */
+                listing_line(0);
                 if (!mtranslate(cfile)) { /* expand macro parameters, if any */
-                    llist = pline;
                     continue;
                 }
             }
@@ -1828,9 +1828,8 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         case 0:
         case ';': 
             if (openclose) {
-                printllist(0); /* TODO: conditional */
+                listing_line(0);
                 if (!mtranslate(cfile)) { /* expand macro parameters, if any */
-                    llist = pline;
                     goto other;
                 }
             }

@@ -39,8 +39,6 @@
 #include <wchar.h>
 #include <string.h>
 
-#include <time.h>
-
 #include "64tass.h"
 #include "opcodes.h"
 #include "misc.h"
@@ -52,6 +50,7 @@
 #include "macro.h"
 #include "instruction.h"
 #include "unicode.h"
+#include "listing.h"
 
 #include "listobj.h"
 #include "codeobj.h"
@@ -66,17 +65,14 @@ static struct value_s new_value;
 
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
-static address_t all_mem, all_mem2;
+address_t all_mem, all_mem2;
 uint8_t pass=0, max_pass=MAX_PASS;         /* pass */
-static unsigned int nolisting;   /* listing */
 address_t star=0;
-const uint8_t *pline, *llist;   /* current line data */
+const uint8_t *pline;           /* current line data */
 struct linepos_s lpoint;        /* position in current line */
-static FILE* flist = NULL;      /* listfile */
-static enum lastl_e lastl;
 static uint8_t strength=0;
 int fixeddig, constcreated;
-static uint8_t outputeor = 0; /* EOR value for final output (usually 0, except changed by .eor) */
+uint8_t outputeor = 0; /* EOR value for final output (usually 0, except changed by .eor) */
 
 static size_t waitfor_p, waitfor_len;
 static struct waitfor_s {
@@ -219,98 +215,6 @@ void status(int anyerr) {
     tfree();
     free_macro();
     free(waitfors);
-}
-
-int printaddr(char c, address_t addr, enum lastl_e mode) {
-    if (lastl != mode) {putc('\n', flist);lastl = mode;}
-    return fprintf(flist, (all_mem == 0xffff) ? "%c%04" PRIaddress : "%c%06" PRIaddress, c, addr);
-}
-
-void printllist(int l) {
-    if (!nolisting && flist && arguments.source) {
-        if (llist) {
-            if (l >= 40) {putc('\n', flist); l = 0;}
-            while (l < 40) { l += 8; putc('\t', flist);} 
-            printable_print(llist, flist);
-            llist = NULL;
-        }
-        putc('\n', flist);
-    }
-}
-
-static const uint16_t *disasm;
-static const uint32_t *mnemonic;    /* mnemonics */
-
-void list_instr(uint8_t cod, uint32_t adr, int ln) {
-    if (!nolisting && flist) {
-        unsigned int i;
-
-        if (lastl != LIST_CODE) {putc('\n', flist); lastl = LIST_CODE;}
-        fprintf(flist, (all_mem == 0xffff) ? ".%04" PRIaddress "\t" : ".%06" PRIaddress " ", (current_section->address - ln - 1) & all_mem);
-        if (current_section->dooutput) {
-            if (ln >= 0) {
-                uint32_t temp = adr;
-                fprintf(flist, " %02x", cod ^ outputeor);
-                for (i = 0; i < (unsigned)ln; i++) {fprintf(flist, " %02x", (uint8_t)temp ^ outputeor); temp >>= 8;}
-            }
-            if (ln<2) putc('\t', flist);
-            putc('\t', flist);
-            if (arguments.monitor) {
-                uint32_t mnem = (ln >= 0) ? mnemonic[disasm[cod] & 0xff] : 0x202020;
-                for (i = 0; i < 3; i++) putc(mnem >> (16 - 8 * i), flist);
-
-                switch (disasm[cod] >> 8) {
-                case ADR_IMPLIED: putc('\t', flist); break;
-                case ADR_REG: fputs(" a\t", flist); break;
-                case ADR_IMMEDIATE:
-                    switch (ln) {
-                    default: putc('\t', flist); break;
-                    case 1: fprintf(flist, " #$%02x", (uint8_t)adr); break;
-                    case 2: fprintf(flist, " #$%04x", (uint16_t)adr); break;
-                    }
-                    break;
-                case ADR_LONG: fprintf(flist, " $%06x", (uint32_t)(adr & 0xffffff)); break;
-                case ADR_ADDR: {
-                    if (cod == 0x20 || cod == 0x4c)
-                        fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, ((uint16_t)adr) | (current_section->l_address & 0xff0000));
-                    else fprintf(flist, databank ? " $%06x" : " $%04x", (uint16_t)adr | (databank << 16));
-                    break;
-                }
-                case ADR_ZP: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " $%02x\t" : " $%04x", (uint16_t)(adr + dpage)); break;
-                case ADR_BIT_ZP: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " %x,$%02x" : " %d,$%04x", (cod >> 4) & 7, (uint16_t)(adr + dpage)); break;
-                case ADR_LONG_X: fprintf(flist, " $%06x,x", (uint32_t)(adr & 0xffffff)); break;
-                case ADR_ADDR_X: fprintf(flist, databank ? " $%06x,x" : " $%04x,x", (uint16_t)adr | (databank << 16)); break;
-                case ADR_ZP_X: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " $%02x,x" : " $%04x,x", (uint16_t)(adr + dpage)); break;
-                case ADR_ADDR_X_I: fprintf(flist, (current_section->l_address & 0xff0000) ? " ($%06" PRIaddress ",x)" : " ($%04" PRIaddress ",x)", ((uint16_t)adr) | (current_section->l_address & 0xff0000)); break;
-                case ADR_ZP_X_I: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " ($%02x,x)" : " ($%04x,x)", (uint16_t)(adr + dpage)); break;
-                case ADR_ZP_S: fprintf(flist, " $%02x,s", (uint8_t)adr); break;
-                case ADR_ZP_S_I_Y: fprintf(flist, " ($%02x,s),y", (uint8_t)adr); break;
-                case ADR_ZP_R: fprintf(flist, " $%02x,r", (uint8_t)adr); break;
-                case ADR_ZP_R_I_Y: fprintf(flist, " ($%02x,r),y", (uint8_t)adr); break;
-                case ADR_ADDR_Y: fprintf(flist, databank ? " $%06x,y" : " $%04x,y", (uint16_t)adr | (databank << 16)); break;
-                case ADR_ZP_Y: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " $%02x,y" : " $%04x,y", (uint16_t)(adr + dpage)); break;
-                case ADR_ZP_LI_Y: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " [$%02x],y" : " [$%04x],y", (uint16_t)(adr + dpage)); break;
-                case ADR_ZP_I_Y: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " ($%02x),y" : " ($%04x),y", (uint16_t)(adr + dpage)); break;
-                case ADR_ZP_I_Z: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " ($%02x),z" : " ($%04x),z", (uint16_t)(adr + dpage)); break;
-                case ADR_ADDR_LI: fprintf(flist, " [$%04x]", (uint16_t)adr); break;
-                case ADR_ZP_LI: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " [$%02x]" : " [$%04x]", (uint16_t)(adr + dpage)); break;
-                case ADR_ADDR_I: fprintf(flist, " ($%04x)", (uint16_t)adr); break;
-                case ADR_ZP_I: fprintf(flist, ((uint16_t)(adr + dpage)<0x100) ? " ($%02x)" : " ($%04x)", (uint16_t)(adr + dpage)); break;
-                case ADR_REL: if (ln < 1) putc('\t', flist); else fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, (uint16_t)(((int8_t)adr) + current_section->l_address) | (current_section->l_address & 0xff0000)); break;
-                case ADR_BIT_ZP_REL:
-                               fprintf(flist, ((uint16_t)(((uint8_t)adr) + dpage)<0x100) ? " %x,$%02x" : " %d,$%04x", (cod >> 4) & 7, (uint16_t)((uint8_t)adr) + dpage);
-                               fprintf(flist, (current_section->l_address & 0xff0000) ? ",$%06" PRIaddress : ",$%04" PRIaddress, (uint16_t)(((int8_t)(adr >> 8)) + current_section->l_address) | (current_section->l_address & 0xff0000));
-                               break;
-                case ADR_REL_L: fprintf(flist, (current_section->l_address & 0xff0000) ? " $%06" PRIaddress : " $%04" PRIaddress, (uint16_t)(adr + current_section->l_address) | (current_section->l_address & 0xff0000)); break;
-                case ADR_MOVE: fprintf(flist, " $%02x,$%02x", (uint8_t)(adr >> 8), (uint8_t)adr);
-                case ADR_LEN: break;/* not an addressing mode */
-                }
-            } else if (arguments.source) putc('\t', flist);
-        } else if (arguments.source) fputs("\t\t\t", flist);
-        if (arguments.source) {
-            printllist(32);
-        } else putc('\n', flist);
-    }
 }
 
 void new_waitfor(enum wait_e what, linepos_t epoint) {
@@ -486,9 +390,8 @@ static int get_command(void) {
 static void set_cpumode(const struct cpu_s *cpumode) {
     all_mem = cpumode->max_address;
     all_mem2 = (arguments.output_mode == OUTPUT_FLAT) ? ~(address_t)0 : all_mem;
-    disasm = cpumode->disasm;
-    mnemonic = cpumode->mnemonic; 
     select_opcodes(cpumode);
+    listing_set_cpumode(cpumode);
 }
 
 void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
@@ -588,7 +491,7 @@ static int instrecursion(struct value_s *val, int prm, int w, linepos_t epoint, 
     for (i = 0; i < val->u.list.len; i++) {
         if (val->u.list.data[i]->obj == TUPLE_OBJ || val->u.list.data[i]->obj == LIST_OBJ) {
             ret = instrecursion(val->u.list.data[i], prm, w, epoint, epoints);
-        } else ret = instruction(prm, w, all_mem, val->u.list.data[i], epoint, epoints);
+        } else ret = instruction(prm, w, val->u.list.data[i], epoint, epoints);
         if (ret == 0) continue;
         return ret;
     }
@@ -608,7 +511,6 @@ struct value_s *compile(struct file_list_s *cflist)
     struct value_s *retval = NULL;
 
     size_t oldwaitforp = waitfor_p;
-    unsigned wasref;
     int nobreak = 1;
     str_t labelname;
     struct {
@@ -628,9 +530,8 @@ struct value_s *compile(struct file_list_s *cflist)
 
     while (nobreak) {
         if (mtranslate(cfile)) break; /* expand macro parameters, if any */
-        llist = pline;
         star=current_section->l_address;newlabel = NULL;
-        labelname.len = wasref = 0;ignore();epoint = lpoint; mycontext = current_context;
+        labelname.len = 0;ignore();epoint = lpoint; mycontext = current_context;
         if (current_section->unionmode) {
             if (current_section->address > current_section->unionend) current_section->unionend = current_section->address;
             if (current_section->l_address > current_section->l_unionend) current_section->l_unionend = current_section->l_address;
@@ -691,7 +592,7 @@ struct value_s *compile(struct file_list_s *cflist)
             hh: islabel = 1;
             }
             ignore();wht = here();
-            if (!(waitfor->skip & 1)) goto jn; /* skip things if needed */
+            if (!(waitfor->skip & 1)) {epoint = lpoint; goto jn;} /* skip things if needed */
             if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
             if (wht == '=') { /* variable */
                 struct label_s *label;
@@ -711,15 +612,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (label) labelexists = 1;
                 else label = new_label(&labelname, mycontext, strength, &labelexists);
                 oaddr=current_section->address;
-                if (!nolisting && flist && arguments.source && label->ref) {
-                    int l;
-                    if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                    putc('=', flist);
-                    referenceit = 0;
-                    l = val_print(val, flist) + 1;
-                    referenceit = oldreferenceit;
-                    printllist(l);
-                }
+                listing_equal(val);
                 label->ref = 0;
                 if (labelexists) {
                     if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
@@ -765,15 +658,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (label) labelexists = 1;
                         else label = new_label(&labelname, mycontext, strength, &labelexists);
                         oaddr=current_section->address;
-                        if (!nolisting && flist && arguments.source) {
-                            int l;
-                            if (lastl!=LIST_EQU) {putc('\n',flist);lastl=LIST_EQU;}
-                            putc('=', flist);
-                            referenceit = 0;
-                            l = val_print(val, flist) + 1;
-                            referenceit = oldreferenceit;
-                            printllist(l);
-                        }
+                        listing_equal(val);
                         if (labelexists) {
                             if (label->constant) err_msg_double_defined(label, &labelname, &epoint);
                             else {
@@ -797,6 +682,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     { /* label */
                         struct label_s *label;
                         int labelexists;
+                        listing_line(0);
                         label=new_label(&labelname, mycontext, strength, &labelexists);
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
@@ -836,6 +722,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct label_s *label;
                         obj_t obj = (prm == CMD_MACRO) ? MACRO_OBJ : SEGMENT_OBJ;
                         int labelexists;
+                        listing_line(0);
                         new_waitfor(W_ENDM, &lpoint);waitfor->skip=0;
                         label=new_label(&labelname, mycontext, strength, &labelexists);
                         if (labelexists) {
@@ -873,6 +760,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     {
                         struct label_s *label;
                         int labelexists;
+                        listing_line(0);
                         new_waitfor(W_ENDF, &lpoint);waitfor->skip=0;
                         if (temporary_label_branch) {err_msg2(ERROR___NOT_ALLOWED, ".FUNCTION", &cmdpoint);goto breakerr;}
                         label=new_label(&labelname, mycontext, strength, &labelexists);
@@ -992,11 +880,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (label) {
                             label->ref = 0;
                         }
-                        if (!nolisting && flist && arguments.source) {
-                            int l;
-                            l = printaddr('.', current_section->address, LIST_DATA);
-                            printllist(l);
-                        }
+                        listing_line(cmdpoint.pos);
                         current_section->structrecursion++;
                         if (current_section->structrecursion<100) {
                             int old_unionmode = current_section->unionmode;
@@ -1088,7 +972,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (labelexists) {
                     if (newlabel->defpass == pass) {
                         err_msg_double_defined(newlabel, &labelname, &epoint);
-                        newlabel = NULL; if (wht == '.') goto as_command; else goto jn;
+                        newlabel = NULL; epoint = lpoint; if (wht == '.') goto as_command; else goto jn;
                     }
                     if (newlabel->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
                     newlabel->constant = 1;
@@ -1132,20 +1016,11 @@ struct value_s *compile(struct file_list_s *cflist)
                 epoint = cmdpoint;
                 switch (prm) {
                 case CMD_PROC:
+                    listing_line(epoint.pos);
                     new_waitfor(W_PEND, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;waitfor->cheap_label = oldcheap;
                     if (!newlabel->ref && newlabel->value->u.code.pass) {waitfor->skip=0; set_size(newlabel, 0, &current_section->mem, newmemp, newmembp);}
                     else {         /* TODO: first time it should not compile */ 
                         current_context=newlabel;
-                        if (!nolisting && flist && arguments.source) {
-                            int l;
-                            l = printaddr('.', current_section->address, LIST_CODE);
-                            if (labelname.len) {
-                                while (l < 40) { l += 8; putc('\t', flist); }
-                                if (labelname.data[0] == '-' || labelname.data[0] == '+') putc(labelname.data[0], flist);
-                                else fwrite(labelname.data, labelname.len, 1, flist);
-                            }
-                            putc('\n', flist);
-                        }
                         newlabel->ref = 0;
                     }
                     newlabel = NULL;
@@ -1157,11 +1032,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct linepos_s epoint2;
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
-                        if (!nolisting && flist && arguments.source) {
-                            int l;
-                            l = printaddr('.', current_section->address, LIST_DATA);
-                            printllist(l);
-                        }
+                        listing_line(epoint.pos);
                         newlabel->ref = 0;
                         if (!get_exp(&w, 1, cfile, 1, 0, &epoint)) goto breakerr;
                         val = get_val(&epoint2);
@@ -1189,25 +1060,16 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                 case CMD_SECTION:
                     waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
-                    if (newlabel->ref && !nolisting && flist && arguments.source) {
-                        int l;
-                        l = printaddr('.', current_section->address, LIST_CODE);
-                        if (labelname.len) {
-                            while (l < 40) { l += 8; putc('\t', flist); }
-                            if (labelname.data[0] == '-' || labelname.data[0] == '+') putc(labelname.data[0], flist);
-                            else fwrite(labelname.data, labelname.len, 1, flist);
-                        }
-                        putc('\n', flist);
-                    }
+                    listing_line(epoint.pos);
                     newlabel->ref = 0;
                     newlabel = NULL;
                     goto finish;
                 }
-                wasref = newlabel->ref;newlabel->ref = 0;
+                newlabel->ref = 0;
                 goto as_command;
             }
             epoint = lpoint;
-            wasref = newlabel->ref;newlabel->ref = 0;
+            newlabel->ref = 0;
         }
         jn:
         switch (wht) {
@@ -1226,12 +1088,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 }
                 if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                 val = get_val(&epoint2);
-                if (!nolisting && flist && arguments.source) {
-                    int l;
-                    if (wasref) l = printaddr('.', current_section->address, LIST_NONE);
-                    else l = 0;
-                    printllist(l);
-                }
+                listing_line(epoint.pos);
                 if (current_section->structrecursion && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, "*=", &epoint);
                 else {
                     struct value_s err;
@@ -1268,110 +1125,71 @@ struct value_s *compile(struct file_list_s *cflist)
             break;
         case ';':
         case '\0':
-            if (!nolisting && flist && arguments.source && (waitfor->skip & 1) && wasref) {
-                int l;
-                l = printaddr('.', current_section->address, LIST_CODE);
-                printllist(l);
-            }
+            if (waitfor->skip & 1) listing_line(epoint.pos);
             break;
         case '.':
             prm = get_command();
             ignore();
         as_command:
-            if (!nolisting && flist && arguments.source && (waitfor->skip & 1) && prm>CMD_DWORD) {
-                int l;
-                switch (prm) {
-                    case CMD_OFFS:
-                    case CMD_ENDS:
-                    case CMD_STRUCT:
-                    case CMD_ENDU:
-                    case CMD_UNION:
-                        l = printaddr('.', current_section->address, LIST_DATA);
-                        printllist(l);
-                    case CMD_ALIGN:
-                    case CMD_FILL:
-                    case CMD_BINARY:
-                        break;
-                    case CMD_PROC:break;
-                    case CMD_AS:
-                    case CMD_AL:
-                    case CMD_XS:
-                    case CMD_XL:
-                    case CMD_DATABANK:
-                    case CMD_DPAGE:
-                    case CMD_LOGICAL:
-                    case CMD_HERE:
-                    case CMD_ENC:
-                    case CMD_EOR:
-                    case CMD_CPU:
-                    case CMD_INCLUDE:
-                    case CMD_DUNION:
-                    case CMD_DSTRUCT:
-                    case CMD_BINCLUDE:
-                        if (wasref) l = printaddr('.', current_section->address, LIST_CODE);
-                        else l = 0;
-                        printllist(l);
-                        break;
-                    default:
-                        if (wasref) {
-                            l = printaddr('.',current_section->address, LIST_CODE);
-                            if (labelname.len) {
-                                while (l < 40) { l += 8; putc('\t', flist); }
-                                if (labelname.data[0] == '-' || labelname.data[0] == '+') putc(labelname.data[0], flist);
-                                else fwrite(labelname.data, labelname.len, 1, flist);
-                            }
-                            putc('\n', flist);
-                        }
-                }
-            }
             switch (prm) {
             case CMD_ENDC: /* .endc */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (!close_waitfor(W_ENDC)) err_msg2(ERROR______EXPECTED,".COMMENT", &epoint);
+                if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
                 break;
             case CMD_ENDIF: /* .endif */
             case CMD_FI: /* .fi */
-                if (!close_waitfor(W_FI2) && !close_waitfor(W_FI)) err_msg2(ERROR______EXPECTED,".IF", &epoint);
+                {
+                    if (waitfor->skip & 1) listing_line(epoint.pos);
+                    if (!close_waitfor(W_FI2) && !close_waitfor(W_FI)) err_msg2(ERROR______EXPECTED,".IF", &epoint);
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
+                }
                 break;
             case CMD_ENDSWITCH: /* .endswitch */
-                if (!close_waitfor(W_SWITCH2) && !close_waitfor(W_SWITCH)) err_msg2(ERROR______EXPECTED,".SWITCH", &epoint);
+                {
+                    if (waitfor->skip & 1) listing_line(epoint.pos);
+                    if (!close_waitfor(W_SWITCH2) && !close_waitfor(W_SWITCH)) err_msg2(ERROR______EXPECTED,".SWITCH", &epoint);
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
+                }
                 break;
             case CMD_DEFAULT: /* .default */
-                if (waitfor->what==W_SWITCH) {err_msg2(ERROR______EXPECTED,".ENDSWITCH", &epoint); break;}
-                if (waitfor->what!=W_SWITCH2) {err_msg2(ERROR______EXPECTED,".SWITCH", &epoint); break;}
-                waitfor->skip=waitfor->skip >> 1;
-                waitfor->what=W_SWITCH;waitfor->epoint = epoint;
+                {
+                    if (waitfor->skip & 1) listing_line_cut(epoint.pos);
+                    if (waitfor->what==W_SWITCH) {err_msg2(ERROR______EXPECTED,".ENDSWITCH", &epoint); break;}
+                    if (waitfor->what!=W_SWITCH2) {err_msg2(ERROR______EXPECTED,".SWITCH", &epoint); break;}
+                    waitfor->skip=waitfor->skip >> 1;
+                    waitfor->what=W_SWITCH;waitfor->epoint = epoint;
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
+                }
                 break;
             case CMD_ELSE: /* .else */
-                if (waitfor->what==W_FI) {err_msg2(ERROR______EXPECTED,".FI", &epoint); break;}
-                if (waitfor->what!=W_FI2) {err_msg2(ERROR______EXPECTED,".IF", &epoint); break;}
-                waitfor->skip=waitfor->skip >> 1;
-                waitfor->what=W_FI;waitfor->epoint = epoint;
+                {
+                    if (waitfor->skip & 1) listing_line_cut(epoint.pos);
+                    if (waitfor->what==W_FI) { err_msg2(ERROR______EXPECTED,".FI", &epoint); break; }
+                    if (waitfor->what!=W_FI2) { err_msg2(ERROR______EXPECTED,".IF", &epoint); break; }
+                    waitfor->skip=waitfor->skip >> 1;
+                    waitfor->what=W_FI;waitfor->epoint = epoint;
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
+                }
                 break;
             case CMD_IF: /* .if */
             case CMD_IFEQ: /* .ifeq */
             case CMD_IFNE: /* .ifne */
             case CMD_IFPL: /* .ifpl */
             case CMD_IFMI: /* .ifmi */
-            case CMD_ELSIF: /* .elsif */
                 {
                     uint8_t skwait = waitfor->skip;
                     ival_t ival;
                     struct value_s err;
-                    if (prm==CMD_ELSIF) {
-                        if (waitfor->what != W_FI2) {err_msg2(ERROR______EXPECTED, ".IF", &epoint); break;}
-                        waitfor->epoint = epoint;
-                    } else new_waitfor(W_FI2, &epoint);
-                    if (((skwait == 1) && prm != CMD_ELSIF) || ((skwait == 2) && prm == CMD_ELSIF)) {
+                    if (waitfor->skip & 1) listing_line(epoint.pos);
+                    new_waitfor(W_FI2, &epoint);
+                    if (skwait == 1) {
                         if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
                         val = get_val(&epoint);
                         if (val->obj == ERROR_OBJ) { err_msg_output(val); waitfor->skip = 0; break;}
                         if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint); waitfor->skip = 0; break;}
                     } else { waitfor->skip = 0; break; }
                     switch (prm) {
-                    case CMD_ELSIF:
-                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
-                        waitfor->skip = err.u.boolean ? (waitfor->skip >> 1) : (waitfor->skip & 2);
-                        break;
                     case CMD_IF:
                         if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
                         waitfor->skip = err.u.boolean ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
@@ -1396,9 +1214,28 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                 }
                 break;
+            case CMD_ELSIF: /* .elsif */
+                {
+                    uint8_t skwait = waitfor->skip;
+                    struct value_s err;
+                    if (waitfor->skip & 1) listing_line_cut(epoint.pos);
+                    if (waitfor->what != W_FI2) {err_msg2(ERROR______EXPECTED, ".IF", &epoint); break;}
+                    waitfor->epoint = epoint;
+                    if (skwait == 2) {
+                        if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
+                        val = get_val(&epoint);
+                        if (val->obj == ERROR_OBJ) { err_msg_output(val); waitfor->skip = 0; break;}
+                        if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint); waitfor->skip = 0; break;}
+                    } else { waitfor->skip = 0; break; }
+                    if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
+                    waitfor->skip = err.u.boolean ? (waitfor->skip >> 1) : (waitfor->skip & 2);
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
+                }
+                break;
             case CMD_SWITCH: /* .switch */
                 {
                     uint8_t skwait = waitfor->skip;
+                    if (waitfor->skip & 1) listing_line(epoint.pos);
                     new_waitfor(W_SWITCH2, &epoint);
                     if (skwait==1) {
                         if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) {waitfor->skip = 0; goto breakerr;}
@@ -1414,23 +1251,25 @@ struct value_s *compile(struct file_list_s *cflist)
                 {
                     uint8_t skwait = waitfor->skip;
                     int truth = 0;
-                    if (waitfor->what == W_SWITCH) {err_msg2(ERROR______EXPECTED,".ENDSWITCH", &epoint); goto breakerr;}
-                    if (waitfor->what != W_SWITCH2) {err_msg2(ERROR______EXPECTED,".SWITCH", &epoint); goto breakerr;}
+                    if (waitfor->skip & 1) listing_line_cut(epoint.pos);
+                    if (waitfor->what == W_SWITCH) { err_msg2(ERROR______EXPECTED,".ENDSWITCH", &epoint); goto breakerr; }
+                    if (waitfor->what != W_SWITCH2) { err_msg2(ERROR______EXPECTED,".SWITCH", &epoint); goto breakerr; }
                     waitfor->epoint = epoint;
                     if (skwait==2) {
+                        struct linepos_s epoint2;
                         struct value_s result, *result2;
                         struct oper_s tmp;
-                        if (!get_exp(&w, 0, cfile, 1, 0, &epoint)) {waitfor->skip = 0; goto breakerr; }
+                        if (!get_exp(&w, 0, cfile, 1, 0, &epoint2)) { waitfor->skip = 0; goto breakerr; }
                         tmp.op = &o_EQ;
                         tmp.v1 = waitfor->val;
-                        tmp.epoint = tmp.epoint3 = &epoint;
+                        tmp.epoint = tmp.epoint3 = &epoint2;
                         tmp.v = &result;
                         result.refcount = 0;
-                        while (!truth && (val = get_val(&epoint))) {
+                        while (!truth && (val = get_val(&epoint2))) {
                             if (val->obj == ERROR_OBJ) { err_msg_output(val); continue; }
-                            if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint);continue; }
+                            if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint2);continue; }
                             tmp.v2 = val;
-                            tmp.epoint2 = &epoint;
+                            tmp.epoint2 = &epoint2;
                             result2 = tmp.v1->obj->calc2(&tmp);
                             if (result2) {
                                 truth = result2->obj == BOOL_OBJ && result2->u.boolean;
@@ -1439,30 +1278,41 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                     }
                     waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
                 }
                 break;
             case CMD_ENDM: /* .endm */
                 if (close_waitfor(W_ENDM)) {
-                    lpoint.pos += strlen((const char *)pline + lpoint.pos);
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
+                    goto breakerr;
                 } else if (close_waitfor(W_ENDM2)) {
                     nobreak=0;
                     if (here() && here() != ';' && get_exp(&w, 0, cfile, 0, 0, NULL)) {
                         retval = get_vals_tuple();
                     } 
-                } else err_msg2(ERROR______EXPECTED,".MACRO or .SEGMENT", &epoint);
+                } else {
+                    err_msg2(ERROR______EXPECTED,".MACRO or .SEGMENT", &epoint);
+                    goto breakerr;
+                }
                 break;
             case CMD_ENDF: /* .endf */
                 if (close_waitfor(W_ENDF)) {
-                    lpoint.pos += strlen((const char *)pline + lpoint.pos);
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
+                    goto breakerr;
                 } else if (close_waitfor(W_ENDF2)) {
                     nobreak = 0;
                     if (here() && here() != ';' && get_exp(&w, 0, cfile, 0, 0, NULL)) {
                         retval = get_vals_tuple();
                     } 
-                } else {err_msg2(ERROR______EXPECTED,".FUNCTION", &epoint);goto breakerr;}
+                } else {
+                    err_msg2(ERROR______EXPECTED,".FUNCTION", &epoint);
+                    goto breakerr;
+                }
                 break;
             case CMD_NEXT: /* .next */
+                waitfor->epoint = epoint;
                 if (close_waitfor(W_NEXT)) {
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
                 } else if (close_waitfor(W_NEXT2)) {
                     nobreak=0;
                 } else err_msg2(ERROR______EXPECTED,".FOR or .REPT", &epoint);
@@ -1470,19 +1320,21 @@ struct value_s *compile(struct file_list_s *cflist)
             case CMD_PEND: /* .pend */
                 if (waitfor->what==W_PEND) {
                     if (waitfor->skip & 1) {
+                        listing_line(epoint.pos);
                         if (waitfor->cheap_label) cheap_context = waitfor->cheap_label;
                         if (current_context->parent) {
                             current_context = current_context->parent;
                         } else err_msg2(ERROR______EXPECTED,".proc", &epoint);
-                        lastl=LIST_NONE;
                         if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     }
                     close_waitfor(W_PEND);
+                    if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
                 } else err_msg2(ERROR______EXPECTED,".PROC", &epoint);
                 break;
             case CMD_ENDS: /* .ends */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_ENDS)) {
-                    lpoint.pos += strlen((const char *)pline + lpoint.pos);
+                    goto breakerr;
                 } else if (close_waitfor(W_ENDS2)) {
                     nobreak=0;
                     if (here() && here() != ';' && get_exp(&w, 0, cfile, 0, 0, NULL)) {
@@ -1491,6 +1343,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else err_msg2(ERROR______EXPECTED,".STRUCT", &epoint);
                 break;
             case CMD_SEND: /* .send */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_SEND)) {
                     get_label();
                 } else if (waitfor->what==W_SEND2) {
@@ -1515,6 +1368,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else {err_msg2(ERROR______EXPECTED,".SECTION", &epoint);goto breakerr;}
                 break;
             case CMD_ENDU: /* .endu */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_ENDU)) {
                 } else if (close_waitfor(W_ENDU2)) {
                     nobreak=0; current_section->l_address = current_section->l_unionend;
@@ -1525,6 +1379,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else err_msg2(ERROR______EXPECTED,".UNION", &epoint);
                 break;
             case CMD_ENDP: /* .endp */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_ENDP)) {
                 } else if (waitfor->what==W_ENDP2) {
                     if ((current_section->l_address ^ waitfor->laddr) > 0xff) {
@@ -1535,6 +1390,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else err_msg2(ERROR______EXPECTED,".PAGE", &epoint);
                 break;
             case CMD_HERE: /* .here */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_HERE)) {
                     current_section->logicalrecursion--;
                 } else if (waitfor->what==W_HERE2) {
@@ -1545,6 +1401,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else err_msg2(ERROR______EXPECTED,".LOGICAL", &epoint);
                 break;
             case CMD_BEND: /* .bend */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_BEND)) {
                 } else if (waitfor->what==W_BEND2) {
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
@@ -1555,6 +1412,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else err_msg2(ERROR______EXPECTED,".BLOCK", &epoint);
                 break;
             case CMD_ENDWEAK: /* .endweak */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_WEAK)) {
                     strength--;
                 } else if (waitfor->what==W_WEAK2) {
@@ -1564,6 +1422,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else err_msg2(ERROR______EXPECTED,".WEAK", &epoint);
                 break;
             case CMD_END: /* .end */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 nobreak=0;
                 break;
             case CMD_TEXT: /* .text */
@@ -1690,8 +1549,8 @@ struct value_s *compile(struct file_list_s *cflist)
                         free((char *)path);
                     }
 
-                    if (!nolisting && flist) {
-                        list_mem(&current_section->mem, flist, all_mem, current_section->dooutput);
+                    if (!nolisting) {
+                        list_mem(&current_section->mem, current_section->dooutput);
                     }
                 }
                 break;
@@ -1700,6 +1559,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct linepos_s opoint = epoint;
                     ival_t ival;
                     struct value_s err;
+                    listing_line(epoint.pos);
                     if (!current_section->moved) {
                         if (current_section->end < current_section->address) current_section->end = current_section->address;
                         current_section->moved = 1;
@@ -1727,6 +1587,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct linepos_s opoint = epoint;
                     uval_t uval;
                     struct value_s err;
+                    listing_line(epoint.pos);
                     new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address - current_section->address;waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     current_section->logicalrecursion++;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
@@ -1741,33 +1602,26 @@ struct value_s *compile(struct file_list_s *cflist)
                 } else new_waitfor(W_HERE, &epoint);
                 break;
             case CMD_AS: /* .as */
-                if (waitfor->skip & 1) longaccu=0;
-                break;
             case CMD_AL: /* .al */
-                if (waitfor->skip & 1) longaccu=1;
+                if (waitfor->skip & 1) {
+                    listing_line(epoint.pos);
+                    longaccu = (prm == CMD_AL);
+                }
                 break;
             case CMD_XS: /* .xs */
-                if (waitfor->skip & 1) longindex=0;
-                break;
             case CMD_XL: /* .xl */
-                if (waitfor->skip & 1) longindex=1;
+                if (waitfor->skip & 1) {
+                    listing_line(epoint.pos);
+                    longindex = (prm == CMD_XL);
+                }
                 break;
             case CMD_BLOCK: if (waitfor->skip & 1)
                 { /* .block */
+                    listing_line(epoint.pos);
                     new_waitfor(W_BEND2, &epoint);
                     if (newlabel) {
                         current_context=newlabel;
                         waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;waitfor->cheap_label = oldcheap;
-                        if (newlabel->ref && !nolisting && flist && arguments.source) {
-                            int l;
-                            l = printaddr('.', current_section->address, LIST_CODE);
-                            if (labelname.len) {
-                                while (l < 40) { l += 8; putc('\t', flist); }
-                                if (labelname.data[0] == '-' || labelname.data[0] == '+') putc(labelname.data[0], flist);
-                                else fwrite(labelname.data, labelname.len, 1, flist);
-                            }
-                            putc('\n', flist);
-                        }
                         newlabel = NULL;
                     } else {
                         int labelexists;
@@ -1794,6 +1648,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 break;
             case CMD_WEAK: if (waitfor->skip & 1)
                 { /* .weak */
+                    listing_line(epoint.pos);
                     new_waitfor(W_WEAK2, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     strength++;
                     newlabel = NULL;
@@ -1805,6 +1660,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .databank, .dpage, .eor */
                     struct value_s err;
                     uval_t uval;
+                    listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     val = get_val(&epoint);
                     switch (prm) {
@@ -1911,8 +1767,8 @@ struct value_s *compile(struct file_list_s *cflist)
                             }
                         }
                     } else memskip(db);
-                    if (!nolisting && flist) {
-                        list_mem(&current_section->mem, flist, all_mem, current_section->dooutput);
+                    if (!nolisting) {
+                        list_mem(&current_section->mem, current_section->dooutput);
                     }
                 }
                 break;
@@ -1920,6 +1776,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .assert */
                     uval_t uval;
                     struct value_s err;
+                    listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 3, 3, &epoint)) goto breakerr;
                     val = get_val(&epoint);
                     if (touval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) {err_msg_output_and_destroy(&err); current_section->provides=~(uval_t)0;}
@@ -1937,6 +1794,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct linepos_s opoint = epoint;
                     uval_t uval;
                     struct value_s err;
+                    listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 2, 2, &epoint)) goto breakerr;
                     val = get_val(&epoint);
                     if (touval(val, &err, &uval, 8*sizeof(uval_t), &epoint)) err_msg_output_and_destroy(&err); 
@@ -1955,6 +1813,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     int writeit = 1;
                     struct errorbuffer_s user_error;
                     struct linepos_s epoint2;
+                    listing_line(epoint.pos);
                     error_init(&user_error);
                     if (!get_exp(&w, 0, cfile, (prm == CMD_CWARN || prm == CMD_CERROR), 0, &epoint)) goto breakerr;
                     err_msg_variable(&user_error, NULL, &epoint);
@@ -1984,7 +1843,8 @@ struct value_s *compile(struct file_list_s *cflist)
             case CMD_ENC: if (waitfor->skip & 1) 
                 { /* .enc */
                     str_t encname;
-                    epoint=lpoint;
+                    listing_line(epoint.pos);
+                    epoint = lpoint;
                     encname.data = pline + lpoint.pos; encname.len = get_label();
                     if (!encname.len) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
                     actual_encoding = new_encoding(&encname);
@@ -1997,6 +1857,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uint32_t ch;
                     int rc;
                     size_t len;
+                    listing_line(epoint.pos);
                     actual_encoding = NULL;
                     rc = get_exp(&w, 0, cfile, 2, 0, &epoint);
                     actual_encoding = old;
@@ -2084,6 +1945,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct encoding_s *old = actual_encoding;
                     int rc;
                     size_t len;
+                    listing_line(epoint.pos);
                     actual_encoding = NULL;
                     rc = get_exp(&w, 0, cfile, 2, 0, &epoint);
                     actual_encoding = old;
@@ -2138,6 +2000,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         {NULL, NULL},
                     };
                     size_t len;
+                    listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     val = get_val(&epoint2);
                     switch (val->obj->type) {
@@ -2180,6 +2043,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .rept */
                     uval_t cnt;
                     struct value_s err;
+                    listing_line(epoint.pos);
                     new_waitfor(W_NEXT, &epoint);waitfor->skip=0;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     val = get_val(&epoint);
@@ -2190,6 +2054,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         struct star_s *s = new_star(vline, &labelexists);
                         struct avltree *stree_old = star_tree;
                         line_t ovline = vline, lvline;
+                        const struct waitfor_s *my_waitfor;
 
                         close_waitfor(W_NEXT);
                         if (labelexists && s->addr != star) {
@@ -2199,27 +2064,43 @@ struct value_s *compile(struct file_list_s *cflist)
                         s->addr = star;
                         star_tree = &s->tree;lvline = vline = 0;
                         waitfor->breakout = 0;
-                        while (cnt--) {
+                        for (;;) {
                             lpoint.line=lin;
                             new_waitfor(W_NEXT2, &epoint);waitfor->skip = 1;lvline = vline;
+                            my_waitfor = waitfor;
                             compile(cflist);
-                            if (waitfor->breakout) break;
+                            if (waitfor->breakout || !--cnt) {
+                                break;
+                            }
+                            if (my_waitfor->skip & 1) listing_line_cut(my_waitfor->epoint.pos);
                         }
+                        if (my_waitfor->skip & 1) listing_line(my_waitfor->epoint.pos);
+                        else listing_line_cut2(my_waitfor->epoint.pos);
                         star_tree = stree_old; vline = ovline + vline - lvline;
                     }
                 } else new_waitfor(W_NEXT, &epoint);
                 break;
             case CMD_PRON: /* .pron */
-                if ((waitfor->skip & 1) && nolisting) nolisting--;
+                if (waitfor->skip & 1) {
+                    listing_line(epoint.pos);
+                    if (nolisting) nolisting--;
+                }
                 break;
             case CMD_PROFF: /* .proff */
-                if (waitfor->skip & 1) nolisting++;
+                if (waitfor->skip & 1) {
+                    nolisting++;
+                    listing_line(epoint.pos);
+                }
                 break;
             case CMD_SHOWMAC: /* .showmac */
             case CMD_HIDEMAC: /* .hidemac */
-                if (waitfor->skip & 1) err_msg2(ERROR_DIRECTIVE_IGN, NULL, &epoint);
+                if (waitfor->skip & 1) {
+                    listing_line(epoint.pos);
+                    err_msg2(ERROR_DIRECTIVE_IGN, NULL, &epoint);
+                }
                 break;
             case CMD_COMMENT: /* .comment */
+                if (waitfor->skip & 1) listing_line(epoint.pos);
                 new_waitfor(W_ENDC, &epoint);
                 waitfor->skip = 0;
                 break;
@@ -2229,6 +2110,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct file_s *f;
                     struct linepos_s epoint2;
                     const char *path;
+                    listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     val = get_val(&epoint2);
                     if (val->obj == ERROR_OBJ) {err_msg_output(val); goto breakerr;}
@@ -2249,10 +2131,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         line_t vlin = vline;
                         struct file_list_s *cflist2;
 
-                        if (!nolisting && flist) {
-                            fprintf(flist,"\n;******  Processing file \"%s\"\n",f->realname);
-                            lastl=LIST_NONE;
-                        }
+                        listing_file("\n;******  Processing file: ", f->realname);
 
                         if (starexists && s->addr != star) {
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
@@ -2299,10 +2178,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     closefile(f);
                     reffile=cfile->uid;
-                    if (!nolisting && flist) {
-                        fprintf(flist,"\n;******  Return to file \"%s\"\n",cfile->realname);
-                        lastl=LIST_NONE;
-                    }
+
+                    listing_file("\n;******  Return to file: ", cfile->realname);
                 }
                 break;
             case CMD_FOR: if (waitfor->skip & 1) 
@@ -2317,7 +2194,9 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct value_s err;
                     line_t ovline, lvline;
                     int starexists;
+                    const struct waitfor_s *my_waitfor;
 
+                    listing_line(epoint.pos);
                     new_waitfor(W_NEXT, &epoint);waitfor->skip=0;
                     { /* label */
                         int labelexists;
@@ -2367,6 +2246,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (!expr) err_msg_out_of_memory();
                     strcpy((char *)expr, (char *)pline); var = NULL;
                     waitfor->breakout = 0;
+                    my_waitfor = NULL;
                     for (;;) {
                         lpoint=apoint;
                         if (!get_exp(&w, 1, cfile, 1, 1, &apoint)) break;
@@ -2408,7 +2288,9 @@ struct value_s *compile(struct file_list_s *cflist)
                                 bpoint=lpoint; nopos = 1;
                             }
                         }
+                        if (my_waitfor && (my_waitfor->skip & 1)) listing_line_cut(my_waitfor->epoint.pos);
                         new_waitfor(W_NEXT2, &epoint);waitfor->skip=1;lvline = vline;
+                        my_waitfor = waitfor;
                         compile(cflist);
                         xlin= lpoint.line;
                         pline = expr;
@@ -2424,6 +2306,10 @@ struct value_s *compile(struct file_list_s *cflist)
                             val_destroy(val);
                         }
                     }
+                    if (my_waitfor) {
+                        if (my_waitfor->skip & 1) listing_line(my_waitfor->epoint.pos);
+                        else listing_line_cut2(my_waitfor->epoint.pos);
+                    }
                     free(expr);
                     if (lin!=xlin) close_waitfor(W_NEXT);
                     lpoint.line=xlin;
@@ -2436,6 +2322,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .continue, .break */
                     size_t wp = waitfor_p + 1;
                     int nok = 1;
+                    listing_line(epoint.pos);
                     while (wp--) {
                         if (waitfors[wp].what == W_NEXT2) {
                             if (wp && prm == CMD_BREAK) waitfors[wp - 1].breakout = 1;
@@ -2449,6 +2336,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 break;
             case CMD_PAGE: if (waitfor->skip & 1)
                 { /* .page */
+                    listing_line(epoint.pos);
                     new_waitfor(W_ENDP2, &epoint);waitfor->addr = current_section->address;waitfor->laddr = current_section->l_address;waitfor->label=newlabel;waitfor->memp = newmemp;waitfor->membp = newmembp;
                     newlabel=NULL;
                 } else new_waitfor(W_ENDP, &epoint);
@@ -2460,6 +2348,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct value_s err;
                     struct linepos_s opoint = lpoint;
                     str_t optname, cf;
+                    listing_line(epoint.pos);
                     optname.data = pline + lpoint.pos; optname.len = get_label();
                     if (!optname.len) { err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); goto breakerr;}
                     ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"="); goto breakerr;}
@@ -2482,6 +2371,7 @@ struct value_s *compile(struct file_list_s *cflist)
             case CMD_GOTO: if (waitfor->skip & 1)
                 { /* .goto */
                     int noerr = 1;
+                    listing_line(epoint.pos);
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     val = get_val(&epoint);
                     if (val->obj == ERROR_OBJ) {err_msg_output(val); break; }
@@ -2533,29 +2423,46 @@ struct value_s *compile(struct file_list_s *cflist)
                 break;
             case CMD_MACRO:
             case CMD_SEGMENT: /* .macro, .segment */
-                if (waitfor->skip & 1) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                if (waitfor->skip & 1) {
+                    listing_line(0);
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                }
                 new_waitfor(W_ENDM, &epoint);
                 waitfor->skip = 0;
                 break;
             case CMD_FUNCTION: /* .function */
-                if (waitfor->skip & 1) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                if (waitfor->skip & 1) {
+                    listing_line(0);
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                }
                 new_waitfor(W_ENDF, &epoint);
                 waitfor->skip = 0;
                 break;
             case CMD_VAR: /* .var */
-                if (waitfor->skip & 1) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);goto breakerr;}
+                if (waitfor->skip & 1) {
+                    listing_line(0);
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                    goto breakerr;
+                }
                 break;
             case CMD_LBL: /* .lbl */
-                if (waitfor->skip & 1) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                if (waitfor->skip & 1) {
+                    listing_line(0);
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                }
                 break;
             case CMD_PROC: /* .proc */
-                if (waitfor->skip & 1) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                if (waitfor->skip & 1) {
+                    listing_line(0);
+                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                }
                 new_waitfor(W_PEND, &epoint);
                 waitfor->skip = 0;waitfor->label = NULL;waitfor->cheap_label = NULL;
                 break;
             case CMD_STRUCT: if (waitfor->skip & 1)
                 { /* .struct */
                     int old_unionmode = current_section->unionmode;
+                    listing_line(0);
                     current_section->unionmode = 0;
                     new_waitfor(W_ENDS, &epoint);waitfor->skip=0;
                     current_section->structrecursion++;
@@ -2573,6 +2480,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     int old_unionmode = current_section->unionmode;
                     address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                     address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+                    listing_line(0);
                     current_section->unionmode = 1;
                     current_section->unionstart = current_section->unionend = current_section->address;
                     current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
@@ -2593,6 +2501,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .dstruct */
                     int old_unionmode = current_section->unionmode;
                     struct linepos_s epoint2;
+                    listing_line(0);
                     current_section->unionmode = 0;
                     if (!get_exp(&w, 1, cfile, 1, 0, &epoint)) goto breakerr;
                     val = get_val(&epoint2);
@@ -2612,6 +2521,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     int old_unionmode = current_section->unionmode;
                     struct linepos_s epoint2;
                     address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
+                    listing_line(0);
                     current_section->unionmode = 1;
                     current_section->unionstart = current_section->unionend = current_section->address;
                     if (!get_exp(&w, 1, cfile, 1, 0, &epoint)) goto breakerr;
@@ -2632,6 +2542,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .dsection */
                     struct section_s *tmp3;
                     str_t sectionname;
+                    listing_line(epoint.pos);
                     if (current_section->structrecursion && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".DSECTION", &epoint);
                     epoint=lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
@@ -2696,6 +2607,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .section */
                     struct section_s *tmp;
                     str_t sectionname;
+                    listing_line(0);
                     new_waitfor(W_SEND, &epoint);waitfor->section=current_section;
                     epoint=lpoint;
                     sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
@@ -2731,7 +2643,11 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (waitfor->skip & 1) goto as_macro2;
                 break;
             default:
-                if (waitfor->skip & 1) { err_msg(ERROR_GENERL_SYNTAX,NULL); goto breakerr; }
+                if (waitfor->skip & 1) { 
+                    listing_line(epoint.pos);
+                    err_msg(ERROR_GENERL_SYNTAX,NULL);
+                    goto breakerr; 
+                }
                 break;
             }
             break;
@@ -2746,16 +2662,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint2); goto breakerr; }
                 if (val->obj != MACRO_OBJ && val->obj != SEGMENT_OBJ && val->obj != MFUNC_OBJ) {err_msg_wrong_type(val, &epoint2); goto breakerr;}
             as_macro:
-                if (!nolisting && flist && arguments.source && wasref) {
-                    int l;
-                    l = printaddr('.', current_section->address, LIST_CODE);
-                    if (labelname.len) {
-                        while (l < 40) { l += 8; putc('\t', flist); }
-                        if (labelname.data[0] == '-' || labelname.data[0] == '+') putc(labelname.data[0], flist);
-                        else fwrite(labelname.data, labelname.len, 1, flist);
-                    }
-                    putc('\n', flist);
-                }
+                listing_line_cut(epoint.pos);
                 if (val->obj == MACRO_OBJ) {
                     struct label_s *context;
                     if (newlabel) {
@@ -2853,7 +2760,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (ret == 0) break;
                         goto breakerr;
                     }
-                    ret = instruction(prm, w, all_mem, val, &epoint, epoints);
+                    ret = instruction(prm, w, val, &epoint, epoints);
                     val_destroy(val);
                     if (ret == 0) break;
                     if (ret == 2) {
@@ -2985,40 +2892,16 @@ static int main2(int argc, char *argv[]) {
 
     /* assemble again to create listing */
     if (arguments.list) {
-        time_t t;
-        char *prgname;
         nolisting = 0;
-        if (arguments.list[0] == '-' && !arguments.list[1]) {
-            flist = stdout;
-        } else {
-            if (!(flist=file_open(arguments.list,"wt"))) err_msg_file(ERROR_CANT_DUMP_LST, arguments.list, &nopoint);
-        }
-	fputs("\n; 64tass Turbo Assembler Macro V" VERSION " listing file\n;", flist);
-        prgname = *argv;
-        if (prgname) {
-            char *newp = strrchr(prgname, '/');
-            if (newp) prgname = newp + 1;
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-            newp = strrchr(prgname, '\\');
-            if (newp) prgname = newp + 1;
-#endif
-        }
-        for (i = 0; i < argc; i++) {
-            putc(' ', flist);
-            argv_print(i ? (uint8_t *)argv[i] : (uint8_t *)prgname, flist);
-        }
-	time(&t); fprintf(flist,"\n; %s",ctime(&t));
+        listing_open(arguments.list, argc, argv);
 
         max_pass = pass; pass++;
         fixeddig=1;constcreated=0;error_reset();
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             if (i >= opts) {
-                fputs("\n;******  Processing input file: ", flist);
-                argv_print((uint8_t *)argv[i], flist);
-                putc('\n', flist);
+                listing_file("\n;******  Processing input file: ", argv[i]);
             }
-            lastl=LIST_NONE;
             set_cpumode(arguments.cpumode);
             star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
@@ -3049,8 +2932,7 @@ static int main2(int argc, char *argv[]) {
             }
             exitfile();
         }
-	fputs("\n;******  End of listing\n", flist);
-	if (flist != stdout) fclose(flist);
+        listing_close();
     }
 
     set_cpumode(arguments.cpumode);

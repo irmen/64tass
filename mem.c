@@ -22,6 +22,7 @@
 #include "file.h"
 #include "misc.h"
 #include "64tass.h"
+#include "listing.h"
 
 struct memblock_s { //starts and sizes
     size_t p, len;
@@ -347,13 +348,12 @@ void write_mark_mem(struct memblocks_s *memblocks, uint8_t c) {
     memblocks->mem.data[ptextaddr] = c;
 }
 
-void list_mem(const struct memblocks_s *memblocks, FILE *flist, address_t all_mem, int dooutput) { 
+void list_mem(const struct memblocks_s *memblocks, int dooutput) { 
     address_t myaddr;
     size_t len;
-    int first = 1, l, lcol;
+    int first = 1, print = 1;
 
     for (;omemp <= memblocks->p;omemp++, first = 0) {
-        lcol = arguments.source ? 8 : 16;
         if (omemp < memblocks->p) {
             if (first && oaddr < memblocks->data[omemp].addr) {
                 len = 0; myaddr = oaddr; omemp--;
@@ -368,37 +368,15 @@ void list_mem(const struct memblocks_s *memblocks, FILE *flist, address_t all_me
                 myaddr = memblocks->lastaddr + (ptextaddr - memblocks->lastp);
                 len = memblocks->mem.p - ptextaddr;
                 if (!len) {
-                    if (!llist) continue;
+                    if (!print) continue;
                     if (omemp) myaddr = (memblocks->data[omemp-1].addr + memblocks->data[omemp-1].len) & all_mem;
                     else myaddr = oaddr;
                 }
             }
         }
-        l = printaddr('>', myaddr, LIST_DATA);
-        if (dooutput) {
-            if (len) {
-                while (l < 8) {l += 8; putc('\t', flist);}
-                l &= ~7;
-                while (len) {
-                    if (!lcol--) {
-                        if (arguments.source && llist) {
-                            printllist(l);
-                        } else putc('\n',flist);
-                        l = printaddr('>', myaddr, LIST_DATA);
-                        while (l < 8) {l += 8; putc('\t', flist);}
-                        l &= ~7;
-                        lcol=15;
-                    }
-                    l += fprintf(flist," %02x", memblocks->mem.data[ptextaddr++]);
-                    myaddr = (myaddr + 1) & all_mem;
-                    len--;
-                }
-            }
-        }
-
-        if (arguments.source && llist) {
-            printllist(l);
-        } else putc('\n',flist);
+        listing_mem(memblocks->mem.data + ptextaddr, dooutput ? len : 0, myaddr);
+        print = 0;
+        ptextaddr += len;
     }
 }
 

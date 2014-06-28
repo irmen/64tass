@@ -16,19 +16,22 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _INSTRUCTION_H_
-#define _INSTRUCTION_H_
+#ifndef _LISTING_H_
+#define _LISTING_H_
 #include "inttypes.h"
-struct value_s;
 struct cpu_s;
+struct value_s;
 
-extern int instruction(int, int, struct value_s *, linepos_t, struct linepos_s *);
-extern void select_opcodes(const struct cpu_s *);
-extern int lookup_opcode(const char *);
-
-extern int longaccu, longindex;
-extern uint16_t dpage;
-extern uint8_t databank;
-extern int longbranchasjmp;
-extern int allowslowbranch;
+extern unsigned int nolisting;
+extern const uint8_t *llist;
+extern void listing_open(const char *, int, char *[]);
+extern void listing_close(void);
+extern void listing_equal(const struct value_s *);
+extern void listing_line(linecpos_t);
+extern void listing_line_cut(linecpos_t);
+extern void listing_line_cut2(linecpos_t);
+extern void listing_set_cpumode(const struct cpu_s *);
+extern void listing_instr(uint8_t, uint32_t, int);
+extern void listing_mem(const uint8_t *, size_t, address_t);
+extern void listing_file(const char *, const char *);
 #endif
