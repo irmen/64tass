@@ -308,7 +308,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
             if (ftype) {
                 if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
                     printf("Reading file:      ");
-                    argv_print((uint8_t *)tmp->realname, stdout);
+                    argv_print(tmp->realname, stdout);
                     putchar('\n');
                 }
                 if (!fseek(f, 0, SEEK_END)) {
@@ -335,7 +335,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const str
                 size_t bp = 0, bl, qr = 1;
                 if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1])) {
                     printf("Assembling file:   ");
-                    argv_print((uint8_t *)tmp->realname, stdout);
+                    argv_print(tmp->realname, stdout);
                     putchar('\n');
                 }
                 if (!fseek(f, 0, SEEK_END)) {

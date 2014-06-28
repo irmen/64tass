@@ -38,17 +38,15 @@ enum wait_e {
     W_PEND, W_FI, W_FI2, W_ENDF, W_ENDF2, W_SWITCH, W_SWITCH2, W_WEAK, W_WEAK2,
 };
 
-enum lastl_e {
-    LIST_NONE, LIST_CODE, LIST_DATA, LIST_EQU
-};
-
+extern address_t all_mem, all_mem2;
+extern uint8_t outputeor;
 extern int temporary_label_branch;
 extern line_t vline;
 extern struct linepos_s lpoint; 
 extern struct avltree *star_tree;
 extern int fixeddig, constcreated;
 extern address_t star;
-extern const uint8_t *pline, *llist;
+extern const uint8_t *pline;
 extern void status(int);
 extern uint16_t reffile;
 extern uint32_t backr, forwr;
@@ -56,8 +54,5 @@ extern uint8_t pass, max_pass;
 extern void new_waitfor(enum wait_e, linepos_t);
 extern struct value_s *compile(struct file_list_s *);
 extern void var_assign(struct label_s *, struct value_s *, int);
-extern void printllist(int);
-extern int printaddr(char, address_t, enum lastl_e);
 extern void pokeb(uint8_t);
-extern void list_instr(uint8_t, uint32_t, int);
 #endif

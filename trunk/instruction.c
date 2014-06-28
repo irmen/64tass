@@ -24,6 +24,7 @@
 #include "misc.h"
 #include "section.h"
 #include "file.h"
+#include "listing.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */
@@ -75,7 +76,7 @@ static int touval(const struct value_s *v1, struct value_s *v, uval_t *uv, int b
     return v1->obj->uval(v1, v, uv, bits, epoint);
 }
 
-int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos_t epoint, struct linepos_s *epoints) {
+int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct linepos_s *epoints) {
     enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_DB2, AG_WORD, AG_NONE } adrgen;
     enum opr_e opr;
     enum reg_e reg;
@@ -300,8 +301,8 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                             ln = labelexists ? ((uint16_t)(s->addr - star - 2)) : 3;
                             pokeb(cod);
                             pokeb(ln);
-                            list_instr(cod, ln, 1);
-                            r = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, all_mem, vals, epoint, epoints);
+                            listing_instr(cod, ln, 1);
+                            r = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, vals, epoint, epoints);
                             if (labelexists && s->addr != (current_section->l_address & all_mem)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
@@ -314,7 +315,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                             pokeb(cod);
                             pokeb(xadr);
                             pokeb(3);
-                            list_instr(cod, xadr | 0x300, 2);
+                            listing_instr(cod, xadr | 0x300, 2);
                             adr = oadr; opr = ADR_ADDR; ln = 2;
                             prm = cpu->jmp; longbranch = 0;
                             cnmemonic = opcode_table[opcode[prm]];
@@ -334,7 +335,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                             } else { /* bra -> jmp */
                                 int r;
                             asjmp:
-                                r = instruction(cpu->jmp, w, all_mem, vals, epoint, epoints);
+                                r = instruction(cpu->jmp, w, vals, epoint, epoints);
                                 if (labelexists && s->addr != (current_section->l_address & all_mem)) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                     fixeddig = 0;
@@ -363,7 +364,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                     }
                     if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
                         if (adr == 0) {
-                            list_instr(0, 0, -1);
+                            listing_instr(0, 0, -1);
                             if (labelexists && s->addr != (current_section->l_address & all_mem)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
@@ -373,7 +374,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
                         } else if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
                             cod = cnmemonic[ADR_REL] ^ 0x20;
                             pokeb(cod);
-                            list_instr(cod, 0, 0);
+                            listing_instr(cod, 0, 0);
                             if (labelexists && s->addr != (current_section->l_address & all_mem)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
@@ -623,7 +624,7 @@ int instruction(int prm, int w, address_t all_mem, struct value_s *vals, linepos
         case 1: pokeb((uint8_t)temp);
         }
     }
-    list_instr(cod ^ longbranch, adr, ln);
+    listing_instr(cod ^ longbranch, adr, ln);
     return 0;
 }
 

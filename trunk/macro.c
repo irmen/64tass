@@ -24,6 +24,7 @@
 #include "section.h"
 #include "variables.h"
 #include "64tass.h"
+#include "listing.h"
 
 struct macro_params_s {
     size_t len, size;
@@ -53,7 +54,7 @@ int mtranslate(struct file_s *cfile)
     uint8_t ch;
 
     if (lpoint.line >= cfile->lines) return 1;
-    pline = &cfile->data[cfile->line[lpoint.line]]; lpoint.pos = 0; lpoint.line++;vline++;
+    llist = pline = &cfile->data[cfile->line[lpoint.line]]; lpoint.pos = 0; lpoint.line++;vline++;
     if (!macro_parameters.p) return 0;
 
     q=p=0;
@@ -170,7 +171,7 @@ int mtranslate(struct file_s *cfile)
         if (!macro_parameters.current->pline.data || macro_parameters.current->pline.len < 1024) err_msg_out_of_memory(); /* overflow */
     }
     macro_parameters.current->pline.data[p]=0;
-    pline = macro_parameters.current->pline.data; lpoint.pos = 0;
+    llist = pline = macro_parameters.current->pline.data; lpoint.pos = 0;
     return 0;
 }
 
@@ -615,9 +616,9 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
         temporary_label_branch--;
         lpoint = opoint;
         pline = opline;
+        llist = ollist;
         star_tree = stree_old; vline = ovline;
         lpoint.line = lin;
-        llist = ollist;
     }
     exitfile();
     destroy_variables2(tmp2->u.mfunc.label);

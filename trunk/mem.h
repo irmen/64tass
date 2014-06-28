@@ -18,7 +18,6 @@
 */
 #ifndef _MEM_H_
 #define _MEM_H_
-#include <stdio.h>
 #include "inttypes.h"
 enum lastl_e;
 struct memblock_s;
@@ -37,7 +36,7 @@ struct memblocks_s {
 
 extern void mark_mem(const struct memblocks_s *, address_t);
 extern void write_mark_mem(struct memblocks_s *, uint8_t);
-extern void list_mem(const struct memblocks_s *, FILE *, address_t, int);
+extern void list_mem(const struct memblocks_s *, int);
 extern void memjmp(struct memblocks_s *, address_t);
 extern void memref(struct memblocks_s *, struct memblocks_s *);
 extern void memprint(struct memblocks_s *);
