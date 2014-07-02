@@ -2117,6 +2117,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint2); goto breakerr;}
                     if (val->obj != STR_OBJ) {err_msg_wrong_type(val, &epoint2);goto breakerr;}
                     path = get_path(val, cfile->realname);
+                    if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
 
                     f = openfile(path, cfile->realname, 0, val, &epoint);
                     free((char *)path);
@@ -2180,6 +2181,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     reffile=cfile->uid;
 
                     listing_file("\n;******  Return to file: ", cfile->realname);
+                    goto breakerr;
                 }
                 break;
             case CMD_FOR: if (waitfor->skip & 1) 
