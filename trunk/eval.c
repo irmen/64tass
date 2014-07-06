@@ -1578,22 +1578,22 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
                     val = push(&o_oper[operp].epoint);
                     val->obj = ANONIDENT_OBJ;
-                    val->u.anonident.count = db - operp -1;
+                    val->u.anonident.count = db - operp - 1;
                     val->u.anonident.epoint = o_oper[operp].epoint;
                     goto other;
                 }
                 l = find_anonlabel(db - operp -1);
                 if (l) {
                     touch_label(l);
-                    push_oper(val_reference(l->value), &epoint);
+                    push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
                 }
                 val = push(&o_oper[operp].epoint);
                 val->obj = ERROR_OBJ;
                 val->u.error.num = ERROR___NOT_DEFINED;
-                val->u.error.epoint = epoint;
-                val->u.error.u.notdef.ident.len = 1;
-                val->u.error.u.notdef.ident.data = (const uint8_t *)"+";
+                val->u.error.epoint = o_oper[operp].epoint;
+                val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(db - operp));
+                val->u.error.u.notdef.ident.data = NULL;
                 val->u.error.u.notdef.label = current_context;
                 val->u.error.u.notdef.down = 1;
                 goto other;
@@ -1611,15 +1611,15 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 l = find_anonlabel(operp - db);
                 if (l) {
                     touch_label(l);
-                    push_oper(val_reference(l->value), &epoint);
+                    push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
                 }
                 val = push(&o_oper[operp].epoint);
                 val->obj = ERROR_OBJ;
                 val->u.error.num = ERROR___NOT_DEFINED;
-                val->u.error.epoint = epoint;
-                val->u.error.u.notdef.ident.len = 1;
-                val->u.error.u.notdef.ident.data = (const uint8_t *)"-";
+                val->u.error.epoint = o_oper[operp].epoint;
+                val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(operp - db));
+                val->u.error.u.notdef.ident.data = NULL;
                 val->u.error.u.notdef.label = current_context;
                 val->u.error.u.notdef.down = 1;
                 goto other;
