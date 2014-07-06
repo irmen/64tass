@@ -343,6 +343,7 @@ static void macro_destroy(struct value_s *v1) {
         free((char *)v1->u.macro.param[v1->u.macro.argc].init.data);
     }
     free(v1->u.macro.param);
+    if (v1->u.macro.label->parent == NULL) label_destroy(v1->u.macro.label);
 }
 
 static void macro_copy(const struct value_s *v1, struct value_s *v) {
@@ -367,7 +368,7 @@ static void macro_copy_temp(const struct value_s *v1, struct value_s *v) {
 
 static int macro_same(const struct value_s *v1, const struct value_s *v2) {
     size_t i;
-    if (v1->obj != v2->obj || v1->u.macro.size != v2->u.macro.size || v1->u.macro.parent != v2->u.macro.parent) return 0;
+    if (v1->obj != v2->obj || v1->u.macro.size != v2->u.macro.size || v1->u.macro.label != v2->u.macro.label) return 0;
     for (i = 0; i < v1->u.macro.argc; i++) {
         if (str_cmp(&v1->u.macro.param[i].cfname, &v2->u.macro.param[i].cfname)) return 0;
         if (str_cmp(&v1->u.macro.param[i].init, &v2->u.macro.param[i].init)) return 0;
@@ -776,7 +777,7 @@ static MUST_CHECK struct value_s *struct_calc2(oper_t op) {
         str_t name;
         switch (v2->obj->type) {
         case T_IDENT:
-            l2 = v1->u.macro.parent;
+            l2 = v1->u.macro.label;
             l = find_label2(&v2->u.ident.name, l2);
             if (l) {
                 touch_label(l);
@@ -799,7 +800,7 @@ static MUST_CHECK struct value_s *struct_calc2(oper_t op) {
             return NULL;
         case T_ANONIDENT:
             {
-                l2 = v1->u.macro.parent;
+                l2 = v1->u.macro.label;
                 l = find_anonlabel2(v2->u.anonident.count, l2);
                 if (l) {
                     touch_label(l);

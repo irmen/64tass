@@ -253,7 +253,7 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         struct label_s *oldcontext = current_context;
         struct label_s *oldcheap = cheap_context;
         current_context = context; cheap_context = context;
-        val = compile(tmp2->u.macro.parent->file_list);
+        val = compile(tmp2->u.macro.label->file_list);
         current_context = oldcontext; cheap_context = oldcheap;
     } else {
         line_t lin = lpoint.line;
@@ -272,8 +272,8 @@ struct value_s *macro_recurse(enum wait_e t, struct value_s *tmp2, struct label_
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        cflist = enterfile(tmp2->u.macro.parent->file_list->file, epoint);
-        lpoint.line = tmp2->u.macro.parent->epoint.line;
+        cflist = enterfile(tmp2->u.macro.label->file_list->file, epoint);
+        lpoint.line = tmp2->u.macro.label->epoint.line;
         new_waitfor(t, &nopoint);
         current_context = context; cheap_context = context;
         val = compile(cflist);
@@ -481,7 +481,7 @@ void get_macro_params(struct value_s *v) {
             if (j != i) {
                 struct label_s tmp;
                 tmp.name = new_value.u.macro.param[j].cfname;
-                tmp.file_list = v->u.macro.parent->file_list;
+                tmp.file_list = v->u.macro.label->file_list;
                 tmp.epoint = epoints[j];
                 err_msg_double_defined(&tmp, &label, &epoints[i]);
             }

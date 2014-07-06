@@ -33,12 +33,13 @@ obj_t CODE_OBJ = &obj;
 
 static void destroy(struct value_s *v1) {
     val_destroy(v1->u.code.addr);
+    if (v1->u.code.label->parent == NULL) label_destroy(v1->u.code.label);
 }
 
 static int access_check(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     str_t name;
-    if (v1->u.code.parent->requires & ~current_section->provides) {
-        name = v1->u.code.parent->name;
+    if (v1->u.code.label->requires & ~current_section->provides) {
+        name = v1->u.code.label->name;
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.u.ident = name;
@@ -46,8 +47,8 @@ static int access_check(const struct value_s *v1, struct value_s *v, linepos_t e
         v->u.error.num = ERROR_REQUIREMENTS_;
         return 1;
     }
-    if (v1->u.code.parent->conflicts & current_section->provides) {
-        name = v1->u.code.parent->name;
+    if (v1->u.code.label->conflicts & current_section->provides) {
+        name = v1->u.code.label->name;
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.u.ident = name;
@@ -65,7 +66,7 @@ static void copy(const struct value_s *v1, struct value_s *v) {
 }
 
 static int same(const struct value_s *v1, const struct value_s *v2) {
-    return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || v1->u.code.addr->obj->same(v1->u.code.addr, v2->u.code.addr)) && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.parent == v2->u.code.parent;
+    return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || v1->u.code.addr->obj->same(v1->u.code.addr, v2->u.code.addr)) && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.label == v2->u.code.label;
 }
 
 static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
@@ -179,7 +180,7 @@ static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoin
 static void len(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     size_t uv;
     if (!v1->u.code.pass) {
-        str_t name = v1->u.code.parent->name;
+        str_t name = v1->u.code.label->name;
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR____NO_FORWARD;
@@ -195,7 +196,7 @@ static void len(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
 static void size(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     size_t s;
     if (!v1->u.code.pass) {
-        str_t name = v1->u.code.parent->name;
+        str_t name = v1->u.code.label->name;
         if (v1 == v) destroy(v);
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR____NO_FORWARD;
@@ -251,7 +252,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         str_t name;
         switch (v2->obj->type) {
         case T_IDENT:
-            l2 = v1->u.code.parent;
+            l2 = v1->u.code.label;
             l = find_label2(&v2->u.ident.name, l2);
             if (l) {
                 touch_label(l);
@@ -274,7 +275,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             return NULL;
         case T_ANONIDENT:
             {
-                l2 = v1->u.code.parent;
+                l2 = v1->u.code.label;
                 l = find_anonlabel2(v2->u.anonident.count, l2);
                 if (l) {
                     touch_label(l);
@@ -362,7 +363,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR____NO_FORWARD;
             v->u.error.epoint = *op->epoint2;
-            v->u.error.u.ident = v2->u.code.parent->name;
+            v->u.error.u.ident = v2->u.code.label->name;
             return NULL;
         }
         ln = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
@@ -462,7 +463,7 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, iv
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = *epoint;
-        v->u.error.u.ident = v1->u.code.parent->name;
+        v->u.error.u.ident = v1->u.code.label->name;
         return NULL;
     }
     vals = list_create_elements(&tmp, ln);
@@ -513,7 +514,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = *op->epoint;
-        v->u.error.u.ident = v1->u.code.parent->name;
+        v->u.error.u.ident = v1->u.code.label->name;
         return NULL;
     }
 

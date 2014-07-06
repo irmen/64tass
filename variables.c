@@ -488,8 +488,48 @@ void init_defaultlabels(void) {
     }
 }
 
+static void label_free2(struct avltree_node *aa)
+{
+    struct label_s *a = avltree_container_of(aa, struct label_s, node);
+    struct value_s *val = a->value;
+    if (val->refcount > 1) {
+        switch (val->obj->type) {
+        case T_CODE:
+            if (val->u.code.label == a) {
+                val->refcount--;
+                a->parent = NULL;
+                return;
+            }
+            break;
+        case T_MACRO:
+        case T_SEGMENT:
+        case T_UNION:
+        case T_STRUCT:
+            if (val->u.macro.label == a) {
+                val->refcount--;
+                a->parent = NULL;
+                return;
+            }
+            break;
+        default: break;
+        }
+    }
+    free((char *)a->name.data);
+    if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
+    avltree_destroy(&a->members, label_free2);
+    val_destroy(a->value);
+    var_free((union label_u *)a);
+}
+
+void label_destroy(struct label_s *a) {
+    free((char *)a->name.data);
+    if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
+    avltree_destroy(&a->members, label_free2);
+    var_free((union label_u *)a);
+}
+
 void destroy_variables2(struct label_s *label) {
-    avltree_destroy(&label->members, label_free);
+    avltree_destroy(&label->members, label_free2);
 }
 
 void destroy_variables(void)
