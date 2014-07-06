@@ -275,6 +275,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             return NULL;
         case T_ANONIDENT:
             {
+                ssize_t count;
                 l2 = v1->u.code.label;
                 l = find_anonlabel2(v2->u.anonident.count, l2);
                 if (l) {
@@ -287,13 +288,14 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                     return NULL;
                 }
                 epoint = v2->u.anonident.epoint;
+                count = v2->u.anonident.count;
                 if (v == v1) v->obj->destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR___NOT_DEFINED;
                 v->u.error.epoint = epoint;
                 v->u.error.u.notdef.label = l2;
-                v->u.error.u.notdef.ident.len = 1;
-                v->u.error.u.notdef.ident.data = (const uint8_t *)((v2->u.anonident.count >= 0) ? "+" : "-");
+                v->u.error.u.notdef.ident.len = count + (count >= 0);
+                v->u.error.u.notdef.ident.data = NULL;
                 v->u.error.u.notdef.down = 0;
                 return NULL;
             }

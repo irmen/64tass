@@ -368,25 +368,37 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
         if (!lastnd) err_msg_out_of_memory();
     }
 
-    str_cfcpy(&lastnd->cfname, name);
-    lastnd->parent = l;
-    lastnd->pass = pass;
-    b=avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
-    if (b) {
-        tmp2 = avltree_container_of(b, struct notdefines_s, node);
-        if (tmp2->pass == pass) {
-            return;
+    if (name->data) {
+        str_cfcpy(&lastnd->cfname, name);
+        lastnd->parent = l;
+        lastnd->pass = pass;
+        b=avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
+        if (b) {
+            tmp2 = avltree_container_of(b, struct notdefines_s, node);
+            if (tmp2->pass == pass) {
+                return;
+            }
+            tmp2->pass = pass;
+        } else {
+            if (lastnd->cfname.data == name->data) str_cpy(&lastnd->cfname, name);
+            else str_cfcpy(&lastnd->cfname, NULL);
+            lastnd = NULL;
         }
-        tmp2->pass = pass;
-    } else {
-        if (lastnd->cfname.data == name->data) str_cpy(&lastnd->cfname, name);
-        else str_cfcpy(&lastnd->cfname, NULL);
-        lastnd = NULL;
     }
 
     new_error(SV_NOTDEFERROR, current_file_list, epoint);
     adderror("not defined");
-    if (name) str_name(name->data, name->len);
+    if (name->data) {
+        str_name(name->data, name->len);
+    } else {
+        ssize_t count = name->len;
+        adderror(" '");
+        while (count) {
+            adderror((count > 0) ? "+" : "-");
+            count += (count > 0) ? -1 : 1;
+        }
+        adderror("'");
+    }
 
     if (!l->file_list) {
         new_error(SV_NOTDEFGNOTE, current_file_list, epoint);
