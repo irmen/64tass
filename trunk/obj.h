@@ -64,7 +64,7 @@ typedef struct {
     size_t size;
     size_t argc;
     struct macro_param_s *param; 
-    struct label_s *parent;
+    struct label_s *label;
 } macro_t;
 
 enum type_e {

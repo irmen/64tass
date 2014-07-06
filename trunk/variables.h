@@ -57,4 +57,5 @@ extern void destroy_variables2(struct label_s *);
 extern void init_variables(void);
 extern void init_defaultlabels(void);
 extern void init_variables2(struct label_s *);
+extern void label_destroy(struct label_s *);
 #endif

@@ -734,7 +734,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->conflicts = 0;
                                 new_value.obj = obj;
                                 new_value.u.macro.size = 0;
-                                new_value.u.macro.parent = label;
+                                new_value.u.macro.label = label;
                                 get_macro_params(&new_value);
                                 var_assign(label, &new_value, 0);
                                 val_destroy(&new_value);
@@ -750,7 +750,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             label->epoint = epoint;
                             val->obj = obj;
                             val->u.macro.size = 0;
-                            val->u.macro.parent = label;
+                            val->u.macro.label = label;
                             get_macro_params(val);
                         }
                         label->ref = 0;
@@ -819,7 +819,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     label->conflicts = 0;
                                     new_value.obj = obj;
                                     new_value.u.macro.size = (label->value->obj == obj) ? label->value->u.macro.size : 0;
-                                    new_value.u.macro.parent = label;
+                                    new_value.u.macro.label = label;
                                     get_macro_params(&new_value);
                                     var_assign(label, &new_value, 0);
                                     val_destroy(&new_value);
@@ -835,7 +835,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->epoint = epoint;
                                 val->obj = obj;
                                 val->u.macro.size = 0;
-                                val->u.macro.parent = label;
+                                val->u.macro.label = label;
                                 get_macro_params(val);
                             }
                         } else {
@@ -873,7 +873,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val->u.code.dtype = D_NONE;
                                 val->u.code.pass = 0;
                                 val->u.code.apass = pass;
-                                val->u.code.parent = label;
+                                val->u.code.label = label;
                                 get_mem(&current_section->mem, &memp, &membp);
                             }
                         }
@@ -1008,7 +1008,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     val->u.code.dtype = D_NONE;
                     val->u.code.pass = 0;
                     val->u.code.apass = pass;
-                    val->u.code.parent = newlabel;
+                    val->u.code.label = newlabel;
                     get_mem(&current_section->mem, &newmemp, &newmembp);
                 }
             }
