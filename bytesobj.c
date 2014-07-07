@@ -151,7 +151,7 @@ void bytes_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoin
             while ((ch = encode_string()) != EOF) {
                 if (len2 >= len) {
                     if (tmp.u.bytes.val == s) {
-                        len = 16;
+                        len = 32;
                         s = (uint8_t *)malloc(len);
                         memcpy(s, tmp.u.bytes.val, len2);
                     } else {
