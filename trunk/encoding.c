@@ -697,6 +697,7 @@ static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
 
 static struct {
     size_t i, j, len, len2;
+    int err;
     const uint8_t *data, *data2;
     linepos_t epoint;
 } encode_state;
@@ -708,6 +709,7 @@ void encode_string_init(const struct value_s *v, linepos_t epoint) {
     encode_state.len = v->u.str.len;
     encode_state.data = v->u.str.data;
     encode_state.epoint = epoint;
+    encode_state.err = 0;
 }
 
 int encode_string(void) {
@@ -753,13 +755,14 @@ next:
             size_t pp = 0;
             uint32_t ch2;
             while (pp < encode_state.i && pline[pos]) {
+                unsigned int ln2;
                 if (pline[pos] == q) {
                     if (pline[pos + 1] != q) break;
                     pos++;
                 }
-                ln = utf8len(pline[pos]);
-                if (memcmp(pline + pos, encode_state.data + pp, ln)) break;
-                pos += ln; pp += ln;
+                ln2 = utf8len(pline[pos]);
+                if (memcmp(pline + pos, encode_state.data + pp, ln2)) break;
+                pos += ln2; pp += ln2;
             }
             if (pp == encode_state.i) {
                 ch2 = pline[pos];
@@ -768,8 +771,12 @@ next:
             }
         }
     }
-    err_msg2(ERROR___UNKNOWN_CHR, &ch, &epoint);
-    return EOF;
+    if (!encode_state.err) {
+        err_msg2(ERROR___UNKNOWN_CHR, &ch, &epoint);
+        encode_state.err = 1;
+    }
+    encode_state.i += ln;
+    return 256;
 }
 
 void init_encoding(int toascii)
