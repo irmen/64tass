@@ -422,14 +422,14 @@ static int textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit,
         case T_STR: warn |= textrecursion(val2, prm, ch2, uninit, sum, bits, epoint2); break;
         case T_GAP: 
             if (*ch2 >= 0) {
-                if (*uninit) { memskip(*uninit); sum += *uninit; *uninit = 0; }
-                pokeb(*ch2); sum++;
+                if (*uninit) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
+                pokeb(*ch2); (*sum)++;
             }
             *ch2 = -1; (*uninit)++; break;
         default:
             if (*ch2 >= 0) {
-                if (*uninit) { memskip(*uninit); sum += *uninit; *uninit = 0; }
-                pokeb(*ch2); sum++;
+                if (*uninit) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
+                pokeb(*ch2); (*sum)++;
             }
             if (touval(val2, &err, &uval, bits, epoint2)) {err_msg_output_and_destroy(&err); uval = 256;}
             *ch2 = (uint8_t)uval;
