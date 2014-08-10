@@ -2585,7 +2585,11 @@ struct value_s *compile(struct file_list_s *cflist)
                                 if (t < tmp3->address - tmp3->start) t = tmp3->address - tmp3->start;
                             }
                             tmp3->restart = current_section->address;
-                            tmp3->l_restart = current_section->l_address;
+                            if (tmp3->l_restart != current_section->l_address) {
+                                tmp3->l_restart = current_section->l_address;
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                fixeddig = 0;
+                            }
                         } else {
                             if (!tmp3->moved) {
                                 if (tmp3->end < tmp3->address) tmp3->end = tmp3->address;
