@@ -984,18 +984,7 @@ static int get_val2(struct eval_context_s *ev) {
                 if (args) {
                     while (args--) {
                         v2 = &values[vsp-1];
-                        if (v2->val->obj == ERROR_OBJ) {
-                            val->u.list.data[args] = &none_value;
-                            vsp--;
-                            while (args--) {
-                                val->u.list.data[args] = &none_value;
-                                vsp--;
-                            }
-                            val_destroy(val);
-                            val = v2->val;
-                            v2->val = &none_value;
-                            break;
-                        }
+                        if (v2->val->obj == ERROR_OBJ) { err_msg_output(v2->val); val_destroy(v2->val); v2->val = &none_value; }
                         val->u.list.data[args] = v2->val;
                         v2->val = &none_value;
                         vsp--;
