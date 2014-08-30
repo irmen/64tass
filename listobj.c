@@ -271,6 +271,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
             if (d1 == d2) {
                 if (v1->u.list.len == 1) {
                     if (v2->u.list.len) {
+                        int error = 1;
                         op->v1 = v1->u.list.data[0];
                         vals = lnew(&tmp, v2->u.list.len);
                         for (; i < v2->u.list.len; i++) {
@@ -282,7 +283,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                                 val_destroy(val);
                                 val = result;
                             }
-                            if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = &none_value; }
                             vals[i] = val;
                         }
                         op->v = v;
@@ -291,6 +292,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                     } else vals = NULL;
                 } else if (v2->u.list.len == 1) {
                     if (v1->u.list.len) {
+                        int error = 1;
                         op->v2 = v2->u.list.data[0];
                         vals = lnew(&tmp, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
@@ -302,7 +304,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                                 val_destroy(val);
                                 val = result;
                             }
-                            if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = &none_value; }
                             vals[i] = val;
                         }
                         op->v = v;
@@ -311,6 +313,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                     } else vals = NULL;
                 } else if (v1->u.list.len == v2->u.list.len) {
                     if (v1->u.list.len) {
+                        int error = 1;
                         vals = lnew(&tmp, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
                             struct value_s *result, *val;
@@ -322,7 +325,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                                 val_destroy(val);
                                 val = result;
                             }
-                            if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = &none_value; }
                             vals[i] = val;
                         }
                         op->v = v;
@@ -335,6 +338,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                 }
             } else if (d1 > d2) {
                 if (v1->u.list.len) {
+                    int error = 1;
                     vals = lnew(&tmp, v1->u.list.len);
                     for (; i < v1->u.list.len; i++) {
                         struct value_s *result, *val;
@@ -345,13 +349,14 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                             val_destroy(val);
                             val = result;
                         }
-                        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                        if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = &none_value; }
                         vals[i] = val;
                     }
                     op->v = v;
                     op->v1 = v1;
                 } else vals = NULL;
             } else if (v2->u.list.len) {
+                int error = 1;
                 vals = lnew(&tmp, v2->u.list.len);
                 for (; i < v2->u.list.len; i++) {
                     struct value_s *result, *val;
@@ -362,7 +367,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                         val_destroy(val);
                         val = result;
                     }
-                    if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                    if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = &none_value; }
                     vals[i] = val;
                 }
                 op->v = v;
@@ -422,6 +427,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         }
     default:
         if (v == v1) {
+            int error = 1;
             vals = v->u.list.data;
             for (;i < v1->u.list.len; i++) {
                 struct value_s *result, *val;
@@ -438,7 +444,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                     val_destroy(val);
                     val = result;
                 }
-                if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = &none_value; }
                 vals[i] = val;
             }
             op->v = v;
@@ -447,6 +453,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         }
         vals = lnew(&tmp, v1->u.list.len);
         if (v1->u.list.len) {
+            int error = 1;
             for (;i < v1->u.list.len; i++) {
                 struct value_s *result, *val;
                 op->v1 = v1->u.list.data[i];
@@ -456,7 +463,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                     val_destroy(val);
                     val = result;
                 }
-                if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = &none_value; }
                 vals[i] = val;
             }
             op->v = v;
@@ -509,6 +516,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         case O_MEMBER:
         case O_CONCAT:
             if (v == v2) {
+                int error = 1;
                 vals = v->u.list.data;
                 for (;i < v2->u.list.len; i++) {
                     struct value_s *result, *val;
@@ -525,7 +533,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
                         val_destroy(val);
                         val = result;
                     }
-                    if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                    if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = &none_value; }
                     vals[i] = val;
                 }
                 op->v = v;
@@ -534,6 +542,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             }
             vals = lnew(&tmp, v2->u.list.len);
             if (v2->u.list.len) {
+                int error = 1;
                 for (;i < v2->u.list.len; i++) {
                     struct value_s *result, *val;
                     op->v = val = val_alloc(); val->obj = NONE_OBJ;
@@ -543,7 +552,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
                         val_destroy(val);
                         val = result;
                     }
-                    if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                    if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = &none_value; }
                     vals[i] = val;
                 }
                 op->v = v;
