@@ -274,14 +274,16 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                         op->v1 = v1->u.list.data[0];
                         vals = lnew(&tmp, v2->u.list.len);
                         for (; i < v2->u.list.len; i++) {
-                            struct value_s *result;
-                            op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
+                            struct value_s *result, *val;
+                            op->v = val = val_alloc(); val->obj = NONE_OBJ;
                             op->v2 = v2->u.list.data[i];
                             result = op->v1->obj->calc2(op);
                             if (result) {
-                                val_destroy(vals[i]);
-                                vals[i] = result;
+                                val_destroy(val);
+                                val = result;
                             }
+                            if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                            vals[i] = val;
                         }
                         op->v = v;
                         op->v1 = v1;
@@ -292,14 +294,16 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                         op->v2 = v2->u.list.data[0];
                         vals = lnew(&tmp, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
-                            struct value_s *result;
-                            op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
+                            struct value_s *result, *val;
+                            op->v = val = val_alloc(); val->obj = NONE_OBJ;
                             op->v1 = v1->u.list.data[i];
                             result = op->v1->obj->calc2(op);
                             if (result) {
-                                val_destroy(vals[i]);
-                                vals[i] = result;
+                                val_destroy(val);
+                                val = result;
                             }
+                            if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                            vals[i] = val;
                         }
                         op->v = v;
                         op->v1 = v1;
@@ -309,15 +313,17 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                     if (v1->u.list.len) {
                         vals = lnew(&tmp, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
-                            struct value_s *result;
-                            op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
+                            struct value_s *result, *val;
+                            op->v = val = val_alloc(); val->obj = NONE_OBJ;
                             op->v1 = v1->u.list.data[i];
                             op->v2 = v2->u.list.data[i];
                             result = op->v1->obj->calc2(op);
                             if (result) {
-                                val_destroy(vals[i]);
-                                vals[i] = result;
+                                val_destroy(val);
+                                val = result;
                             }
+                            if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                            vals[i] = val;
                         }
                         op->v = v;
                         op->v1 = v1;
@@ -331,14 +337,16 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                 if (v1->u.list.len) {
                     vals = lnew(&tmp, v1->u.list.len);
                     for (; i < v1->u.list.len; i++) {
-                        struct value_s *result;
-                        op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
+                        struct value_s *result, *val;
+                        op->v = val = val_alloc(); val->obj = NONE_OBJ;
                         op->v1 = v1->u.list.data[i];
                         result = op->v1->obj->calc2(op);
                         if (result) {
-                            val_destroy(vals[i]);
-                            vals[i] = result;
+                            val_destroy(val);
+                            val = result;
                         }
+                        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                        vals[i] = val;
                     }
                     op->v = v;
                     op->v1 = v1;
@@ -346,14 +354,16 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
             } else if (v2->u.list.len) {
                 vals = lnew(&tmp, v2->u.list.len);
                 for (; i < v2->u.list.len; i++) {
-                    struct value_s *result;
-                    op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
+                    struct value_s *result, *val;
+                    op->v = val = val_alloc(); val->obj = NONE_OBJ;
                     op->v2 = v2->u.list.data[i];
                     result = v1->obj->calc2(op);
                     if (result) {
-                        val_destroy(vals[i]);
-                        vals[i] = result;
+                        val_destroy(val);
+                        val = result;
                     }
+                    if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                    vals[i] = val;
                 }
                 op->v = v;
                 op->v2 = v2;
@@ -383,12 +393,12 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
             for (; i < ln; i++) {
                 vals[i] = val_reference(v2->u.list.data[i - v1->u.list.len]);
             }
-            v->obj = v1->obj;
             if (v == v1 || v == v2) destroy(v);
             if (vals == tmp.u.list.val) {
                 if (ln) memcpy(v->u.list.val, vals, ln * sizeof(v->u.list.data[0]));
                 vals = v->u.list.val;
             }
+            v->obj = v1->obj;
             v->u.list.len = ln;
             v->u.list.data = vals;
             return NULL;
@@ -412,21 +422,24 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         }
     default:
         if (v == v1) {
+            vals = v->u.list.data;
             for (;i < v1->u.list.len; i++) {
-                struct value_s *result;
-                op->v1 = v1->u.list.data[i];
-                if (op->v1->refcount != 1) {
+                struct value_s *result, *val;
+                op->v1 = val = vals[i];
+                if (val->refcount != 1) {
                     op->v = val_alloc(); op->v->obj = NONE_OBJ;
-                    result = op->v1->obj->calc2(op);
-                    val_destroy(v1->u.list.data[i]); v1->u.list.data[i] = op->v;
+                    result = val->obj->calc2(op);
+                    val_destroy(val); val = op->v;
                 } else {
-                    op->v = op->v1;
-                    result = op->v1->obj->calc2(op);
+                    op->v = val;
+                    result = val->obj->calc2(op);
                 }
                 if (result) {
-                    val_destroy(v1->u.list.data[i]);
-                    v1->u.list.data[i] = result;
+                    val_destroy(val);
+                    val = result;
                 }
+                if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                vals[i] = val;
             }
             op->v = v;
             op->v1 = v1;
@@ -435,14 +448,16 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         vals = lnew(&tmp, v1->u.list.len);
         if (v1->u.list.len) {
             for (;i < v1->u.list.len; i++) {
-                struct value_s *result;
+                struct value_s *result, *val;
                 op->v1 = v1->u.list.data[i];
-                op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
+                op->v = val = val_alloc(); val->obj = NONE_OBJ;
                 result = op->v1->obj->calc2(op);
                 if (result) {
-                    val_destroy(vals[i]);
-                    vals[i] = result;
+                    val_destroy(val);
+                    val = result;
                 }
+                if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                vals[i] = val;
             }
             op->v = v;
             op->v1 = v1;
@@ -494,21 +509,24 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         case O_MEMBER:
         case O_CONCAT:
             if (v == v2) {
+                vals = v->u.list.data;
                 for (;i < v2->u.list.len; i++) {
-                    struct value_s *result;
-                    op->v2 = v2->u.list.data[i];
-                    if (op->v2->refcount != 1) {
+                    struct value_s *result, *val;
+                    op->v2 = val = vals[i];
+                    if (val->refcount != 1) {
                         op->v = val_alloc(); op->v->obj = NONE_OBJ;
-                        result = op->v2->obj->rcalc2(op);
-                        val_destroy(v2->u.list.data[i]); v2->u.list.data[i] = op->v;
+                        result = val->obj->rcalc2(op);
+                        val_destroy(val); val = op->v;
                     } else {
-                        op->v = op->v2;
-                        result = op->v2->obj->rcalc2(op);
+                        op->v = val;
+                        result = val->obj->rcalc2(op);
                     }
                     if (result) {
-                        val_destroy(v2->u.list.data[i]);
-                        v2->u.list.data[i] = result;
+                        val_destroy(val);
+                        val = result;
                     }
+                    if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                    vals[i] = val;
                 }
                 op->v = v;
                 op->v2 = v2;
@@ -517,14 +535,16 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             vals = lnew(&tmp, v2->u.list.len);
             if (v2->u.list.len) {
                 for (;i < v2->u.list.len; i++) {
-                    struct value_s *result;
-                    op->v = vals[i] = val_alloc(); op->v->obj = NONE_OBJ;
+                    struct value_s *result, *val;
+                    op->v = val = val_alloc(); val->obj = NONE_OBJ;
                     op->v2 = v2->u.list.data[i];
                     result = op->v2->obj->rcalc2(op);
                     if (result) {
-                        val_destroy(vals[i]);
-                        vals[i] = result;
+                        val_destroy(val);
+                        val = result;
                     }
+                    if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                    vals[i] = val;
                 }
                 op->v = v;
                 op->v2 = v2;

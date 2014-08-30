@@ -503,6 +503,8 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_LIST:
     case T_GAP:
     case T_REGISTER:
+    case T_NONE:
+    case T_ERROR:
         if (op->op != &o_MEMBER) {
             return v2->obj->rcalc2(op);
         }
@@ -554,6 +556,8 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         }
     case T_TUPLE:
     case T_LIST:
+    case T_NONE:
+    case T_ERROR:
         if (op->op != &o_IN) {
             return v1->obj->calc2(op);
         }
