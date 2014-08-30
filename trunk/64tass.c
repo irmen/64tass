@@ -2062,7 +2062,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             fixeddig = 0;
                         }
                         s->addr = star;
-                        star_tree = &s->tree;lvline = vline = 0;
+                        star_tree = &s->tree;vline = 0;
                         waitfor->breakout = 0;
                         for (;;) {
                             lpoint.line=lin;
