@@ -649,7 +649,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (!here() || here() == ';') val = &null_addrlist;
                         else {
                             struct linepos_s epoints[3];
-                            referenceit &= label ? label->ref : 1;
+                            referenceit &= 1; /* not good... */
                             if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                             val = get_vals_addrlist(epoints);
                             if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
