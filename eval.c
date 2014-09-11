@@ -1892,14 +1892,18 @@ struct value_s *get_vals_addrlist(struct linepos_s *epoints) {
     struct value_s *val;
     struct linepos_s epoint;
 
-    if (len == 1) return pull_val(&epoints[0]);
+    if (len == 1) {
+        val = pull_val(&epoints[0]);
+        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+        return val;
+    }
     val = val_alloc();
     val->obj = ADDRLIST_OBJ;
     val->u.list.len = len;
     val->u.list.data = list_create_elements(val, len);
     for (i = 0; i < len; i++) {
         struct value_s *val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
-        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2->obj = NONE_OBJ; }
+        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = &none_value; }
         val->u.list.data[i] = val2;
     }
     return val;

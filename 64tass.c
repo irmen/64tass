@@ -606,7 +606,6 @@ struct value_s *compile(struct file_list_s *cflist)
                     referenceit &= label ? label->ref : 1;
                     if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                     val = get_vals_addrlist(epoints);
-                    if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
                     referenceit = oldreferenceit;
                 }
                 if (label) labelexists = 1;
@@ -652,7 +651,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             referenceit &= 1; /* not good... */
                             if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                             val = get_vals_addrlist(epoints);
-                            if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
                             referenceit = oldreferenceit;
                         }
                         if (label) labelexists = 1;
@@ -2303,7 +2301,6 @@ struct value_s *compile(struct file_list_s *cflist)
                             lpoint = bpoint;
                             if (!get_exp(&w, 0, cfile, 0, 0, &bpoint)) break;
                             val = get_vals_addrlist(epoints);
-                            if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
                             var_assign(var, val, fixeddig);
                             val_destroy(val);
                         }
