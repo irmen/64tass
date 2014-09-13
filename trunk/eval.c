@@ -1888,7 +1888,7 @@ struct value_s *get_vals_tuple(void) {
 }
 
 struct value_s *get_vals_addrlist(struct linepos_s *epoints) {
-    size_t i, len = get_val_remaining();
+    size_t i, j, len = get_val_remaining();
     struct value_s *val;
     struct linepos_s epoint;
 
@@ -1899,13 +1899,47 @@ struct value_s *get_vals_addrlist(struct linepos_s *epoints) {
     }
     val = val_alloc();
     val->obj = ADDRLIST_OBJ;
-    val->u.list.len = len;
     val->u.list.data = list_create_elements(val, len);
-    for (i = 0; i < len; i++) {
+    for (i = j = 0; j < len; j++) {
         struct value_s *val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
         if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = &none_value; }
-        val->u.list.data[i] = val2;
+        else if (val2->obj == REGISTER_OBJ && val2->u.str.len == 1 && i) {
+            enum atype_e am;
+            switch (val2->u.str.data[0]) {
+            case 's': am = A_SR; break;
+            case 'r': am = A_RR; break;
+            case 'z': am = A_ZR; break;
+            case 'y': am = A_YR; break;
+            case 'x': am = A_XR; break;
+            case 'd': am = A_DR; break;
+            case 'b': am = A_BR; break;
+            case 'k': am = A_KR; break;
+            default: am = A_NONE; break;
+            }
+            if (am != A_NONE) {
+                struct value_s *v1 = val->u.list.data[i - 1], *v;
+                if (v1->refcount != 1) {
+                    v = val_alloc(); 
+                    apply_addressing(v1, v, am);
+                    val_destroy(v1);
+                    val->u.list.data[i - 1] = v;
+                } else {
+                    v = apply_addressing(v1, v1, am);
+                    if (v) val->u.list.data[i - 1] = v;
+                }
+                val_destroy(val2);
+                continue;
+            }
+        }
+        val->u.list.data[i++] = val2;
     }
+    if (i == 1) {
+        struct value_s *val2 = val->u.list.data[0];
+        val->u.list.len = 0;
+        val_destroy(val);
+        return val2;
+    }
+    val->u.list.len = i;
     return val;
 }
 
