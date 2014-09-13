@@ -2960,6 +2960,7 @@ int wmain(int argc, wchar_t *argv2[]) {
     SetConsoleOutputCP(65001);
 
     setlocale(LC_ALL, "");
+    setlocale(LC_NUMERIC, "C");
 
     char **argv = (char **)malloc(sizeof(char *)*argc);
     for (i = 0; i < argc; i++) {
@@ -3008,6 +3009,7 @@ int main(int argc, char *argv[]) {
     int i, r;
 
     setlocale(LC_ALL, "");
+    setlocale(LC_NUMERIC, "C");
 
     char **uargv = (char **)malloc(sizeof(char *)*argc);
     for (i = 0; i < argc; i++) {
