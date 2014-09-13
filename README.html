@@ -9,16 +9,18 @@
 <style type="text/css">
 dt {margin-top:0.5em}
 dt + dt {margin-top:0em}
-body {width:50em;font-size:12pt;}
+body {font-family:serif;}
+p, dd, h1, h2, h3, h4, li, caption {hyphens:auto;-moz-hyphens:auto;-webkit-hyphens:auto;-ms-hyphens:auto;}
+code {hyphens:manual;-moz-hyphens:manual;-webkit-hyphens:manual;-ms-hyphens:manual;}
 h1, h2, h3, h4 {text-align:left;font-family:sans-serif}
 hr {display:none}
 pre {border:1px dotted #eee;background-color:#ffe;padding:2px; border-radius: 4px;}
 pre.make b {color:inherit;}
 pre.make span {color:navy;}
 pre.make span.cmd {color:green;}
-pre b {color:navy;}
-pre b.d {color:#f80;}
-pre b.k, pre span.k, code span.k {color:blue;}
+pre b, code b {color:navy;}
+pre b.d, code b.d {color:#f80;}
+pre b.k, pre span.k, code b.k, code span.k {color:blue;}
 pre span, code span {color:#d00;}
 pre span.s, code span.s {color:#f80;}
 pre i {color:brown;}
@@ -32,19 +34,27 @@ td:first-child, th:first-child {border-left: 0px;}
 caption {caption-side:bottom;}
 table.opcodes th, table.opcodes td {text-align:left;table-layout:fixed;}
 table.trans td:nth-child(1), table.trans td:nth-child(4) {text-align:center;}
-dl.errorlist dt, dl.dir dt, table.oper td:first-child, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre, table.adroper td:first-child, table.adroper td:last-child {font-family:monospace,monospace;font-size:12pt;}
-a[name] {font-weight:bold;}
+dl.errorlist dt, dl.dir dt, table.trans td, table.esc td, table.opcodes th, table.opcodes td, code, pre {font-family:monospace,monospace;}
+dl.dir code b { color: inherit; }
 
 thead th {background-color:#eee;border-bottom:1px solid black;}
+
+@media screen {
+   html {background-color: gray;}
+   body > div {max-width:50em;margin-left:auto; margin-right:auto; overflow: hidden;}
+   body {font-size:12pt;max-width:60em; background-color:white; margin-left:auto; margin-right:auto; border:1px solid black; padding: 5em 0.5em;}
+   pre, div {overflow:auto;}
+}
 
 @media print {
    h1, h2, h3, h4 {page-break-after:avoid;}
    a {text-decoration:none;color:inherit;}
-   body.body {width:auto;font-size:10pt;}
+   body {font-size:10pt;}
+   pre {overflow:hidden;}
 }
 
 body { counter-reset: countcaption;}
-h1 { counter-reset: counth2; font-size: 2em; margin: 0.67em 0; }
+h1 { counter-reset: counth2; font-size: 2em; margin: 0 0 0.67em 0; }
 
 h2:before { content: counter(counth2) " "; counter-increment: counth2; min-width: 45pt;display:inline-block;}
 h2 { counter-reset: counth3; }
@@ -57,10 +67,10 @@ h2 a, h3 a, h4 a {color:blue;visibility:hidden;text-decoration:none;}
 h2:hover a, h3:hover a, h4:hover a {visibility:visible;}
 
 q { quotes: "\201C" "\201D" "\2018" "\2019"; }
-
 </style>
 </head>
-<body class="body">
+<body>
+<div>
 <h1>64tass v1.51 r727 manual</h1>
 
 <p>This is the manual for 64tass, the multi pass optimizing macro assembler for
@@ -90,27 +100,36 @@ Not everything is backwards compatible.</b></p>
 editor. As a minimum the source filename must be given on the command line. The
 <q><tt>-a</tt></q> parameter is highly recommended if the source is Unicode or
 ASCII.</p>
+
 <pre width=80>
 64tass -a src.asm
 </pre>
+
 <p>There are also some useful parameters which are described later.</p>
+
 <p>For comfortable compiling I use such <q>Makefile</q>s (for <a href="http://en.wikipedia.org/wiki/Make_%28software%29">make</a>):</p>
+
 <pre width=80 class="make">
 <span>demo.prg:</span> source.asm macros.asm pic.drp music.bin
         <span class="cmd">64tass -C -a -B -i source.asm -o demo.tmp</span>
         <span class="cmd">pucrunch -ffast -x 2048 demo.tmp &gt;demo.prg</span>
 </pre>
+
 <p>This way <q>demo.prg</q> is recreated by compiling <q>source.asm</q>
 whenever <q>source.asm</q>, <q>macros.asm</q>, <q>pic.drp</q> or <q>music.bin</q> had changed.</p>
+
 <p>Of course it's not much harder to create something similar for win32 (make.bat),
 however this will always compile and compress:</p>
+
 <pre width=80>
 64tass.exe -C -a -B -i source.asm -o demo.tmp
 pucrunch.exe -ffast -x 2048 demo.tmp &gt;demo.prg
 </pre>
+
 <p>Here's a slightly more advanced Makefile example with default action as
 testing in VICE, clean target for removal of temporary files and compressing
 using an intermediate temporary file:</p>
+
 <pre width=80 class="make">
 <span>all:</span> demo.prg
         <span class="cmd">x64 -autostartprgmode 1 -autostart-warp +truedrive +cart</span> $&lt;
@@ -126,9 +145,11 @@ using an intermediate temporary file:</p>
 <span>clean:</span>
         $(RM) <span class="cmd">demo.prg demo.tmp</span>
 </pre>
+
 <p>It's useful to add a basic header to your source files like the one below,
 so that the resulting file is directly runnable without additional
 compression:</p>
+
 <pre width=80>
         <b>*=</b> <span>$0801</span>
         <b class="d">.word</b> (<u>+</u>), <span>2005</span>  <i>;pointer, line number</i>
@@ -146,17 +167,21 @@ there's <code>.byte</code> and friends for variables with initial values
 but what about zero page, or RAM outside of program area? The solution
 is to not use an initial value by using <q><code>?</code></q> or not
 giving a fill byte value to <code>.fill</code>.</p>
+
 <pre width=80>
         <b>*=</b> <span>$02</span>
 p1	<b class="d">.word</b> <span>?</span>         <i>;a zero page pointer</i>
 temp	<b class="d">.fill</b> <span>10</span>        <i>;a 10 byte temporary area</i>
 </pre>
+
 <p>Space allocated this way
 is not saved in the output as there's no data to save at those
 addresses.</p>
+
 <p>What about some code running on zero page for speed? It needs to be
 relocated, and the length must be known to copy it there. Here's
 an example:</p>
+
 <pre width=80>
         <b>ldx</b> #<span class="k">size</span>(<u>zpcode</u>)-<span>1</span><i>;calculate length</i>
 -       <b>lda</b> <u>zpcode</u>,x
@@ -203,40 +228,42 @@ hibytes <b class="d">.byte</b> &gt;(<u>-</u>)      <i>; high bytes</i>
 <p>Integer constants can be entered as a string of decimal numbers of arbitary length. The
 following operations are accepted:</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Integer operators and functions</caption>
-<tr><td width="60">x + y<td>add x to y<td><code><span>2</span> + <span>2</span></code> is <code><span>4</span></code>
-<tr><td>x &minus; y<td>subtract y from x<td><code><span>4</span> &minus; <span>1</span></code> is <code><span>3</span></code>
-<tr><td>x &lowast; y<td>multiply x with y<td><code><span>2</span> &lowast; <span>3</span></code> is <code><span>6</span></code>
-<tr><td>x / y<td>integer divide x by y<td><code><span>7</span> / <span>2</span></code> is <code><span>3</span></code>
-<tr><td>x % y<td>integer modulo of x divided by y<td><code><span>5</span> % <span>2</span></code> is <code><span>1</span></code>
-<tr><td>x &lowast;&lowast; y<td>x raised to power of y<td><code><span>2</span> &lowast;&lowast; <span>4</span></code> is <code><span>16</span></code>
-<tr><td>&minus;x<td>negated value<td><code>&minus;<span>2</span></code> is <code><span>&minus;2</span></code>
-<tr><td>+x<td>unchanged<td><code>+<span>2</span></code> is <code><span>2</span></code>
-<tr><td>~x<td>&minus;x &minus; 1<td><code>~<span>3</span></code> is <code><span>&minus;4</span></code>
-<tr><td>&lt;x<td>lower byte<td><code>&lt;<span>2049</span></code> is <code><span>$01</span></code>
-<tr><td>&gt;x<td>higher byte<td><code>&gt;<span>2049</span></code> is <code><span>$08</span></code>
-<tr><td>`x<td>bank byte<td><code>`<span>65536</span></code> is <code><span>$01</span></code>
-<tr><td>&lt;&gt;x<td>lower word<td><code>&lt;&gt;<span>65537</span></code> is <code><span>$0001</span></code>
-<tr><td>&gt;`x<td>higher word<td><code>&lt;`<span>65537</span></code> is <code><span>$1000</span></code>
-<tr><td>&gt;&lt;x<td>lower byte swapped word<td><code>&gt;&lt;<span>2049</span></code> is <code><span>$0108</span></code>
-<tr><td>x &lt;=&gt; y<td>x compares to y<td><code><span>2</span> &lt;=&gt; <span>5</span></code> is <code><span>&minus;1</span></code>
-<tr><td>x == y<td>x equals to y<td><code><span>2</span> == <span>3</span></code> is <code><span>false</span></code>
-<tr><td>x != y<td>x does not equal to y<td><code><span>2</span> != <span>3</span></code> is <code><span>true</span></code>
-<tr><td>x &lt; y<td>x is less than y<td><code><span>2</span> &lt; <span>3</span></code> is <code><span>true</span></code>
-<tr><td>x &gt; y<td>x is more than y<td><code><span>2</span> &gt; <span>3</span></code> is <code><span>false</span></code>
-<tr><td>x &gt;= y<td>x is more than y or equals<td><code><span>2</span> &gt;= <span>3</span></code> is <code><span>false</span></code>
-<tr><td>x &lt;= y<td>x is less than y or equals<td><code><span>2</span> &lt;= <span>3</span></code> is <code><span>true</span></code>
-<tr><td>x | y<td>bitwise or<td><code><span>2</span> | <span>6</span></code> is <code><span>6</span></code>
-<tr><td>x ^ y<td>bitwise xor<td><code><span>2</span> ^ <span>6</span></code> is <code><span>4</span></code>
-<tr><td>x &amp; y<td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
-<tr><td>x &lt;&lt; y<td>logical shift left<td><code><span>1</span> &lt;&lt; <span>3</span></code> is <code><span>8</span></code>
-<tr><td>x &gt;&gt; y<td>arithmetic shift right<td><code><span>&minus;8</span> &gt;&gt; <span>3</span></code> is <code><span>&minus;1</span></code>
-<tr><td><a name="">abs</a>(a)<td>absolute value<td><code><span class="k">abs</span>(<span>&minus;1</span>)</code> is <code><span>1</span></code>
-<tr><td><a name="">sign</a>(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>&minus;4</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td><a name="">int</a>(a)<td>convert to integer<td><code><span class="k">int</span>(<span>11</span>)</code> is <code><span>11</span></code>
-<tr><td><a name="">bool</a>(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span>1</span>)</code> is <code><span>true</span></code>
-</table>
+<tbody>
+<tr><td width="60"><code><u>x</u> + <u>y</u></code><td>add x to y<td><code><span>2</span> + <span>2</span></code> is <code><span>4</span></code>
+<tr><td><code><u>x</u> &minus; <u>y</u></code><td>subtract y from x<td><code><span>4</span> &minus; <span>1</span></code> is <code><span>3</span></code>
+<tr><td><code><u>x</u> &lowast; <u>y</u></code><td>multiply x with y<td><code><span>2</span> &lowast; <span>3</span></code> is <code><span>6</span></code>
+<tr><td><code><u>x</u> / <u>y</u></code><td>integer divide x by y<td><code><span>7</span> / <span>2</span></code> is <code><span>3</span></code>
+<tr><td><code><u>x</u> % <u>y</u></code><td>integer modulo of x divided by y<td><code><span>5</span> % <span>2</span></code> is <code><span>1</span></code>
+<tr><td><code><u>x</u> &lowast;&lowast; <u>y</u></code><td>x raised to power of y<td><code><span>2</span> &lowast;&lowast; <span>4</span></code> is <code><span>16</span></code>
+<tr><td><code>&minus;<u>x</u></code><td>negated value<td><code>&minus;<span>2</span></code> is <code><span>&minus;2</span></code>
+<tr><td><code>+<u>x</u></code><td>unchanged<td><code>+<span>2</span></code> is <code><span>2</span></code>
+<tr><td><code>~<u>x</u></code><td>&minus;x &minus; 1<td><code>~<span>3</span></code> is <code><span>&minus;4</span></code>
+<tr><td><code>&lt;<u>x</u></code><td>lower byte<td><code>&lt;<span>2049</span></code> is <code><span>$01</span></code>
+<tr><td><code>&gt;<u>x</u></code><td>higher byte<td><code>&gt;<span>2049</span></code> is <code><span>$08</span></code>
+<tr><td><code>`<u>x</u></code><td>bank byte<td><code>`<span>65536</span></code> is <code><span>$01</span></code>
+<tr><td><code>&lt;&gt;<u>x</u></code><td>lower word<td><code>&lt;&gt;<span>65537</span></code> is <code><span>$0001</span></code>
+<tr><td><code>&gt;`<u>x</u></code><td>higher word<td><code>&lt;`<span>65537</span></code> is <code><span>$1000</span></code>
+<tr><td><code>&gt;&lt;<u>x</u></code><td>lower byte swapped word<td><code>&gt;&lt;<span>2049</span></code> is <code><span>$0108</span></code>
+<tr><td><code><u>x</u> &lt;=&gt; <u>y</u></code><td>x compares to y<td><code><span>2</span> &lt;=&gt; <span>5</span></code> is <code><span>&minus;1</span></code>
+<tr><td><code><u>x</u> == <u>y</u></code><td>x equals to y<td><code><span>2</span> == <span>3</span></code> is <code><span>false</span></code>
+<tr><td><code><u>x</u> != <u>y</u></code><td>x does not equal to y<td><code><span>2</span> != <span>3</span></code> is <code><span>true</span></code>
+<tr><td><code><u>x</u> &lt; <u>y</u></code><td>x is less than y<td><code><span>2</span> &lt; <span>3</span></code> is <code><span>true</span></code>
+<tr><td><code><u>x</u> &gt; <u>y</u></code><td>x is more than y<td><code><span>2</span> &gt; <span>3</span></code> is <code><span>false</span></code>
+<tr><td><code><u>x</u> &gt;= <u>y</u></code><td>x is more than y or equals<td><code><span>2</span> &gt;= <span>3</span></code> is <code><span>false</span></code>
+<tr><td><code><u>x</u> &lt;= <u>y</u></code><td>x is less than y or equals<td><code><span>2</span> &lt;= <span>3</span></code> is <code><span>true</span></code>
+<tr><td><code><u>x</u> | <u>y</u></code><td>bitwise or<td><code><span>2</span> | <span>6</span></code> is <code><span>6</span></code>
+<tr><td><code><u>x</u> ^ <u>y</u></code><td>bitwise xor<td><code><span>2</span> ^ <span>6</span></code> is <code><span>4</span></code>
+<tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
+<tr><td><code><u>x</u> &lt;&lt; <u>y</u></code><td>logical shift left<td><code><span>1</span> &lt;&lt; <span>3</span></code> is <code><span>8</span></code>
+<tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>arithmetic shift right<td><code><span>&minus;8</span> &gt;&gt; <span>3</span></code> is <code><span>&minus;1</span></code>
+<tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>&minus;1</span>)</code> is <code><span>1</span></code>
+<tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>&minus;4</span>)</code> is <code><span>&minus;1</span></code>
+<tr><td><code><span class="k">int</span>(<u>a</u>)</code><td>convert to integer<td><code><span class="k">int</span>(<span>11</span>)</code> is <code><span>11</span></code>
+<tr><td><code><span class="k">bool</span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span>1</span>)</code> is <code><span>true</span></code>
+</tbody>
+</table></div>
 
 <p>An integer has a truth value of true if it's non-zero. The
 true value is the same as 1.</p>
@@ -264,24 +291,26 @@ true value is the same as 1.</p>
 <p>Bit string constants can be entered as hexadecimal by a leading dollar sign or binary with a leading percent sign.
 The following operations are accepted:</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Bit string operators and functions</caption>
-<tr><td>~x<td>invert bits<td><code>~<span>%101</span></code> is <code><span>~%101</span></code>
-<tr><td>y .. x<td>concatenate bits<td><code><span>$a</span> .. <span>$b</span></code> is <code><span>$ab</span></code>
-<tr><td>y <b>x</b> n<td>repeat<td><code><span>%101</span> <span class="k">x</span> <span>3</span></code> is <code><span>%101101101</span></code>
-<tr><td>x[n]<td>extract bit(s)<td><code><span>$a</span>[<span>1</span>]</code> is <code><span>0</span></code>
-<tr><td>x[s]<td>slice bits<td><code><span>$1234</span>[<span>4</span>:<span>8</span>]</code> is <code><span>$3</span></code>
-<tr><td>x | y<td>bitwise or<td><code><span>~$2</span> | <span>$6</span></code> is <code><span>~$0</span></code>
-<tr><td>x ^ y<td>bitwise xor<td><code><span>~$2</span> ^ <span>$6</span></code> is <code><span>~$4</span></code>
-<tr><td>x &amp; y<td>bitwise and<td><code><span>~$2</span> &amp; <span>$6</span></code> is <code><span>$4</span></code>
-<tr><td><a name="">abs</a>(a)<td>absolute value<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
-<tr><td><a name="">sign</a>(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td><a name="">int</a>(a)<td>convert to integer<td><code><span class="k">int</span>(<span>%11</span>)</code> is <code><span>3</span></code>
-<tr><td><a name="">bool</a>(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span>%11</span>)</code> is <code><span>true</span></code>
-<tr><td><a name="">len</a>(a)<td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
-<tr><td><a name="">all</a>(a)<td>all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is <code><span>true</span></code>
-<tr><td><a name="">any</a>(a)<td>at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is <code><span>false</span></code>
-</table>
+<tbody>
+<tr><td><code>~<u>x</u></code><td>invert bits<td><code>~<span>%101</span></code> is <code><span>~%101</span></code>
+<tr><td><code><u>y</u> .. <u>x</u></code><td>concatenate bits<td><code><span>$a</span> .. <span>$b</span></code> is <code><span>$ab</span></code>
+<tr><td><code><u>y</u> <span class="k">x</span> <u>n</u></code><td>repeat<td><code><span>%101</span> <span class="k">x</span> <span>3</span></code> is <code><span>%101101101</span></code>
+<tr><td><code><u>x</u>[<u>n</u>]</code><td>extract bit(s)<td><code><span>$a</span>[<span>1</span>]</code> is <code><span>0</span></code>
+<tr><td><code><u>x</u>[<u>s</u>]</code><td>slice bits<td><code><span>$1234</span>[<span>4</span>:<span>8</span>]</code> is <code><span>$3</span></code>
+<tr><td><code><u>x</u> | <u>y</u></code><td>bitwise or<td><code><span>~$2</span> | <span>$6</span></code> is <code><span>~$0</span></code>
+<tr><td><code><u>x</u> ^ <u>y</u></code><td>bitwise xor<td><code><span>~$2</span> ^ <span>$6</span></code> is <code><span>~$4</span></code>
+<tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>~$2</span> &amp; <span>$6</span></code> is <code><span>$4</span></code>
+<tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
+<tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>&minus;1</span></code>
+<tr><td><code><span class="k">int</span>(<u>a</u>)</code><td>convert to integer<td><code><span class="k">int</span>(<span>%11</span>)</code> is <code><span>3</span></code>
+<tr><td><code><span class="k">bool</span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span>%11</span>)</code> is <code><span>true</span></code>
+<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
+<tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is <code><span>true</span></code>
+<tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is <code><span>false</span></code>
+</tbody>
+</table></div>
 
 <p>A bit string has a truth value of true if it's integer value is non-zero.</p>
 
@@ -311,57 +340,59 @@ expressions. The higher bits are extended with zeros or ones as needed.</p>
 an exponent. A decimal exponent is <q>e</q> while a binary one is <q>p</q>. The
 following operations can be used:</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Floating point operators and functions</caption>
-<tr><td width="80">x + y<td>add x to y<td><code><span>2.2</span> + <span>2.2</span></code> is <code><span>4.4</span></code>
-<tr><td>x &minus; y<td>subtract y from x<td><code><span>4.1</span> &minus; <span>1.1</span></code> is <code><span>3.0</span></code>
-<tr><td>x &lowast; y<td>multiply x with y<td><code><span>1.5</span> &lowast; <span>3</span></code> is <code><span>4.5</span></code>
-<tr><td>x / y<td>integer divide x by y<td><code><span>7.0</span> / <span>2.0</span></code> is <code><span>3.5</span></code>
-<tr><td>x % y<td>integer modulo of x divided by y<td><code><span>5.0</span> % <span>2.0</span></code> is <code><span>1.0</span></code>
-<tr><td>x &lowast;&lowast; y<td>x raised t power of y<td><code><span>2.0</span> &lowast;&lowast; <span>&minus;1</span></code> is <code><span>0.5</span></code>
-<tr><td>&minus;x<td>negated value<td><code>&minus;<span>2.0</span></code> is <code><span>&minus;2.0</span></code>
-<tr><td>+x<td>unchanged<td><code>+<span>2.0</span></code> is <code><span>2.0</span></code>
-<tr><td>x &lt;=&gt; y<td>x compares to y<td><code><span>5.0</span> &lt;=&gt; <span>3.0</span></code> is 1
-<tr><td>x == y<td>x equals to y<td><code><span>2.0</span> == <span>3.0</span></code> is <code><span>false</span></code>
-<tr><td>x != y<td>x does not equal to y<td><code><span>2.0</span> != <span>3.0</span></code> is <code><span>true</span></code>
-<tr><td>x &lt; y<td>x is less than y<td><code><span>2.0</span> &lt; <span>3.0</span></code> is <code><span>true</span></code>
-<tr><td>x &gt; y<td>x is more than y<td><code><span>2.0</span> &gt; <span>3.0</span></code> is <code><span>false</span></code>
-<tr><td>x &gt;= y<td>x is more than y or equals<td><code><span>2.0</span> &gt;= <span>3.0</span></code> is <code><span>false</span></code>
-<tr><td>x &lt;= y<td>x is less than y or equals<td><code><span>2.0</span> &lt;= <span>3.0</span></code> is <code><span>true</span></code>
-<tr><td>x | y<td>bitwise or<td><code><span>2.5</span> | <span>6.5</span></code> is <code><span>6.5</span></code>
-<tr><td>x ^ y<td>bitwise xor<td><code><span>2.5</span> ^ <span>6.5</span></code> is <code><span>4.0</span></code>
-<tr><td>x &amp; y<td>bitwise and<td><code><span>2.5</span> &amp; <span>6.5</span></code> is <code><span>2.5</span></code>
-<tr><td>x &lt;&lt; y<td>logical shift left<td><code><span>1.0</span> &lt;&lt; <span>3.0</span></code> is <code><span>8.0</span></code>
-<tr><td>x &gt;&gt; y<td>arithmetic shift right<td><code><span>&minus;8.0</span> &gt;&gt; <span>4</span></code> is <code><span>&minus;0.5</span></code>
-<tr><td>~x<td>almost &minus;x<td><code>~<span>2.1</span></code> is almost <code><span>&minus;2.1</span></code>
-<tr><td><a name="">abs</a>(a)<td>absolute value<td><code><span class="k">abs</span>(<span>&minus;1.0</span>)</code> is <code><span>1.0</span></code>
-<tr><td><a name="">sign</a>(a)<td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>&minus;4.0</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td><a name="f_floor">floor</a>(a)<td>round down<td><code><span class="k">floor</span>(<span>&minus;4.8</span>)</code> is <code><span>&minus;5.0</span></code>
-<tr><td><a name="f_round">round</a>(a)<td>round to nearest away from zero<td><code><span class="k">round</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
-<tr><td><a name="f_ceil">ceil</a>(a)<td>round up<td><code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
-<tr><td><a name="f_trunc">trunc</a>(a)<td>round down towards zero<td><code><span class="k">trunc</span>(<span>&minus;1.9</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td><a name="f_frac">frac</a>(a)<td>fractional part<td><code><span class="k">frac</span>(<span>1.1</span>)</code> is <code><span>0.1</span></code>
-<tr><td><a name="f_sqrt">sqrt</a>(a)<td>square root<td><code><span class="k">sqrt</span>(<span>16.0</span>)</code> is <code><span>4.0</span></code>
-<tr><td><a name="f_cbrt">cbrt</a>(a)<td>cube root<td><code><span class="k">cbrt</span>(<span>27.0</span>)</code> is <code><span>3.0</span></code>
-<tr><td><a name="f_log10">log10</a>(a)<td>common logarithm<td><code><span class="k">log10</span>(<span>100.0</span>)</code> is <code><span>2.0</span></code>
-<tr><td><a name="f_log">log</a>(a)<td>natural logarithm<td><code><span class="k">log</span>(<span>1</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_exp">exp</a>(a)<td>exponential<td><code><span class="k">exp</span>(<span>0</span>)</code> is <code><span>1.0</span></code>
-<tr><td><a name="f_pow">pow</a>(a,&nbsp;b)<td>a raised to power of b<td><code><span class="k">pow</span>(<span>2.0, 3.0</span>)</code> is <code><span>8.0</span></code>
-<tr><td><a name="f_sin">sin</a>(a)<td>sine<td><code><span class="k">sin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_asin">asin</a>(a)<td>arc sine<td><code><span class="k">asin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_sinh">sinh</a>(a)<td>hyperbolic sine<td><code><span class="k">sinh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_cos">cos</a>(a)<td>cosine<td><code><span class="k">cos</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
-<tr><td><a name="f_acos">acos</a>(a)<td>arc cosine<td><code><span class="k">acos</span>(<span>1.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_cosh">cosh</a>(a)<td>hyperbolic cosine<td><code><span class="k">cosh</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
-<tr><td><a name="f_tan">tan</a>(a)<td>tangent<td><code><span class="k">tan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_atan">atan</a>(a)<td>arc tangent<td><code><span class="k">atan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_tanh">tanh</a>(a)<td>hyperbolic tangent<td><code><span class="k">tanh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_rad">rad</a>(a)<td>degrees to radian<td><code><span class="k">rad</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_deg">deg</a>(a)<td>radian to degrees<td><code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="f_hypot">hypot</a>(y,&nbsp;x)<td>polar distance<td><code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
-<tr><td><a name="f_atan2">atan2</a>(y,&nbsp;x)<td>polar angle<td><code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><a name="">float</a>(a)<td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
-</table>
+<tbody>
+<tr><td width="80"><code><u>x</u> + <u>y</u></code><td>add x to y<td><code><span>2.2</span> + <span>2.2</span></code> is <code><span>4.4</span></code>
+<tr><td><code><u>x</u> &minus; <u>y</u></code><td>subtract y from x<td><code><span>4.1</span> &minus; <span>1.1</span></code> is <code><span>3.0</span></code>
+<tr><td><code><u>x</u> &lowast; <u>y</u></code><td>multiply x with y<td><code><span>1.5</span> &lowast; <span>3</span></code> is <code><span>4.5</span></code>
+<tr><td><code><u>x</u> / <u>y</u></code><td>integer divide x by y<td><code><span>7.0</span> / <span>2.0</span></code> is <code><span>3.5</span></code>
+<tr><td><code><u>x</u> % <u>y</u></code><td>integer modulo of x divided by y<td><code><span>5.0</span> % <span>2.0</span></code> is <code><span>1.0</span></code>
+<tr><td><code><u>x</u> &lowast;&lowast; <u>y</u></code><td>x raised t power of y<td><code><span>2.0</span> &lowast;&lowast; <span>&minus;1</span></code> is <code><span>0.5</span></code>
+<tr><td><code>&minus;<u>x</u></code><td>negated value<td><code>&minus;<span>2.0</span></code> is <code><span>&minus;2.0</span></code>
+<tr><td><code>+<u>x</u></code><td>unchanged<td><code>+<span>2.0</span></code> is <code><span>2.0</span></code>
+<tr><td><code><u>x</u> &lt;=&gt; <u>y</u></code><td>x compares to y<td><code><span>5.0</span> &lt;=&gt; <span>3.0</span></code> is 1
+<tr><td><code><u>x</u> == <u>y</u></code><td>x equals to y<td><code><span>2.0</span> == <span>3.0</span></code> is <code><span>false</span></code>
+<tr><td><code><u>x</u> != <u>y</u></code><td>x does not equal to y<td><code><span>2.0</span> != <span>3.0</span></code> is <code><span>true</span></code>
+<tr><td><code><u>x</u> &lt; <u>y</u></code><td>x is less than y<td><code><span>2.0</span> &lt; <span>3.0</span></code> is <code><span>true</span></code>
+<tr><td><code><u>x</u> &gt; <u>y</u></code><td>x is more than y<td><code><span>2.0</span> &gt; <span>3.0</span></code> is <code><span>false</span></code>
+<tr><td><code><u>x</u> &gt;= <u>y</u></code><td>x is more than y or equals<td><code><span>2.0</span> &gt;= <span>3.0</span></code> is <code><span>false</span></code>
+<tr><td><code><u>x</u> &lt;= <u>y</u></code><td>x is less than y or equals<td><code><span>2.0</span> &lt;= <span>3.0</span></code> is <code><span>true</span></code>
+<tr><td><code><u>x</u> | <u>y</u></code><td>bitwise or<td><code><span>2.5</span> | <span>6.5</span></code> is <code><span>6.5</span></code>
+<tr><td><code><u>x</u> ^ <u>y</u></code><td>bitwise xor<td><code><span>2.5</span> ^ <span>6.5</span></code> is <code><span>4.0</span></code>
+<tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>2.5</span> &amp; <span>6.5</span></code> is <code><span>2.5</span></code>
+<tr><td><code><u>x</u> &lt;&lt; <u>y</u></code><td>logical shift left<td><code><span>1.0</span> &lt;&lt; <span>3.0</span></code> is <code><span>8.0</span></code>
+<tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>arithmetic shift right<td><code><span>&minus;8.0</span> &gt;&gt; <span>4</span></code> is <code><span>&minus;0.5</span></code>
+<tr><td><code>~<u>x</u></code><td>almost &minus;x<td><code>~<span>2.1</span></code> is almost <code><span>&minus;2.1</span></code>
+<tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>&minus;1.0</span>)</code> is <code><span>1.0</span></code>
+<tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>&minus;4.0</span>)</code> is <code><span>&minus;1</span></code>
+<tr><td><code><span class="k"><a name="f_floor">floor</a></span>(<u>a</u>)</code><td>round down<td><code><span class="k">floor</span>(<span>&minus;4.8</span>)</code> is <code><span>&minus;5.0</span></code>
+<tr><td><code><span class="k"><a name="f_round">round</a></span>(<u>a</u>)</code><td>round to nearest away from zero<td><code><span class="k">round</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
+<tr><td><code><span class="k"><a name="f_ceil">ceil</a></span>(<u>a</u>)</code><td>round up<td><code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
+<tr><td><code><span class="k"><a name="f_trunc">trunc</a></span>(<u>a</u>)</code><td>round down towards zero<td><code><span class="k">trunc</span>(<span>&minus;1.9</span>)</code> is <code><span>&minus;1</span></code>
+<tr><td><code><span class="k"><a name="f_frac">frac</a></span>(<u>a</u>)</code><td>fractional part<td><code><span class="k">frac</span>(<span>1.1</span>)</code> is <code><span>0.1</span></code>
+<tr><td><code><span class="k"><a name="f_sqrt">sqrt</a></span>(<u>a</u>)</code><td>square root<td><code><span class="k">sqrt</span>(<span>16.0</span>)</code> is <code><span>4.0</span></code>
+<tr><td><code><span class="k"><a name="f_cbrt">cbrt</a></span>(<u>a</u>)</code><td>cube root<td><code><span class="k">cbrt</span>(<span>27.0</span>)</code> is <code><span>3.0</span></code>
+<tr><td><code><span class="k"><a name="f_log10">log10</a></span>(<u>a</u>)</code><td>common logarithm<td><code><span class="k">log10</span>(<span>100.0</span>)</code> is <code><span>2.0</span></code>
+<tr><td><code><span class="k"><a name="f_log">log</a></span>(<u>a</u>)</code><td>natural logarithm<td><code><span class="k">log</span>(<span>1</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_exp">exp</a></span>(<u>a</u>)</code><td>exponential<td><code><span class="k">exp</span>(<span>0</span>)</code> is <code><span>1.0</span></code>
+<tr><td><code><span class="k"><a name="f_pow">pow</a></span>(<u>a</u>,&nbsp;<u>b</u>)</code><td>a raised to power of b<td><code><span class="k">pow</span>(<span>2.0, 3.0</span>)</code> is <code><span>8.0</span></code>
+<tr><td><code><span class="k"><a name="f_sin">sin</a></span>(<u>a</u>)</code><td>sine<td><code><span class="k">sin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_asin">asin</a></span>(<u>a</u>)</code><td>arc sine<td><code><span class="k">asin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_sinh">sinh</a></span>(<u>a</u>)</code><td>hyperbolic sine<td><code><span class="k">sinh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_cos">cos</a></span>(<u>a</u>)</code><td>cosine<td><code><span class="k">cos</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
+<tr><td><code><span class="k"><a name="f_acos">acos</a></span>(<u>a</u>)</code><td>arc cosine<td><code><span class="k">acos</span>(<span>1.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_cosh">cosh</a></span>(<u>a</u>)</code><td>hyperbolic cosine<td><code><span class="k">cosh</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
+<tr><td><code><span class="k"><a name="f_tan">tan</a></span>(<u>a</u>)</code><td>tangent<td><code><span class="k">tan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_atan">atan</a></span>(<u>a</u>)</code><td>arc tangent<td><code><span class="k">atan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_tanh">tanh</a></span>(<u>a</u>)</code><td>hyperbolic tangent<td><code><span class="k">tanh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_rad">rad</a></span>(<u>a</u>)</code><td>degrees to radian<td><code><span class="k">rad</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_deg">deg</a></span>(<u>a</u>)</code><td>radian to degrees<td><code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k"><a name="f_hypot">hypot</a></span>(<u>y</u>,&nbsp;<u>x</u>)</code><td>polar distance<td><code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
+<tr><td><code><span class="k"><a name="f_atan2">atan2</a></span>(<u>y</u>,&nbsp;<u>x</u>)</code><td>polar angle<td><code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
+<tr><td><code><span class="k">float</span>(<u>a</u>)</code><td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
+</tbody>
+</table></div>
 
 <p>A floating point number has a truth value of true if it's non-zero.</p>
 
@@ -391,25 +422,27 @@ representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside the strings escapes them.</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>String operators and functions</caption>
-<tr><td>y .. x<td>concatenate strings<td><code><span class="s">"a"</span> .. <span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
-<tr><td>y <b>in</b> x<td>is substring of<td><code><span class="s">"b"</span> <span class="k">in</span> <span class="s">"abc"</span></code> is <code><span>true</span></code>
-<tr><td>a <b>x</b> n<td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
-<tr><td>a[i]<td>character from start<td><code><span class="s">"abc"</span>[<span>1</span>]</code> is <code><span class="s">"b"</span></code>
-<tr><td>a[i]<td>character from end<td><code><span class="s">"abc"</span>[<span>&minus;1</span>]</code> is <code><span class="s">"c"</span></code>
-<tr><td>a[s]<td>no change<td><code><span class="s">"abc"</span>[:]</code> is <code><span class="s">"abc"</span></code>
-<tr><td>a[s]<td>cut off start<td><code><span class="s">"abc"</span>[<span>1</span>:]</code> is <code><span class="s">"bc"</span></code>
-<tr><td>a[s]<td>cut off end<td><code><span class="s">"abc"</span>[:<span>&minus;1</span>]</code> is <code><span class="s">"ab"</span></code>
-<tr><td>a[s]<td>reverse<td><code><span class="s">"abc"</span>[::<span>&minus;1</span>]</code> is <code><span class="s">"cba"</span></code>
-<tr><td><a name="">bool</a>(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">"a"</span>)</code> is <code><span>true</span></code>
-<tr><td><a name="">len</a>(a)<td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
-<tr><td><a name="">all</a>(a)<td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
-<tr><td><a name="">any</a>(a)<td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
-<tr><td><a name="">str</a>(a)<td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
-<tr><td><a name="">repr</a>(a)<td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
-<tr><td><a name="">format</a>(s, &lowast;)<td>string formatting<td><code><span class="k">format</span>(<span class="s">"<span>%02x</span>"</span>, <span>12</span>)</code> is <code><span class="s">"0c"</span></code>
-</table>
+<tbody>
+<tr><td><code><u>y</u> .. <u>x</u></code><td>concatenate strings<td><code><span class="s">"a"</span> .. <span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
+<tr><td><code><u>y</u> <span class="k">in</span> <u>x</u></code><td>is substring of<td><code><span class="s">"b"</span> <span class="k">in</span> <span class="s">"abc"</span></code> is <code><span>true</span></code>
+<tr><td><code><u>a</u> <span class="k">x</span> <u>n</u></code><td>repeat<td><code><span class="s">"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">"ababab"</span></code>
+<tr><td><code><u>a</u>[<u>i</u>]</code><td>character from start<td><code><span class="s">"abc"</span>[<span>1</span>]</code> is <code><span class="s">"b"</span></code>
+<tr><td><code><u>a</u>[<u>i</u>]</code><td>character from end<td><code><span class="s">"abc"</span>[<span>&minus;1</span>]</code> is <code><span class="s">"c"</span></code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>no change<td><code><span class="s">"abc"</span>[:]</code> is <code><span class="s">"abc"</span></code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start<td><code><span class="s">"abc"</span>[<span>1</span>:]</code> is <code><span class="s">"bc"</span></code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end<td><code><span class="s">"abc"</span>[:<span>&minus;1</span>]</code> is <code><span class="s">"ab"</span></code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse<td><code><span class="s">"abc"</span>[::<span>&minus;1</span>]</code> is <code><span class="s">"cba"</span></code>
+<tr><td><code><span class="k">bool</span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">"a"</span>)</code> is <code><span>true</span></code>
+<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
+<tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
+<tr><td><code><span class="k">str</span>(<u>a</u>)</code><td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
+<tr><td><code><span class="k">repr</span>(<u>a</u>)</code><td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
+<tr><td><code><span class="k">format</span>(<u>s</u>, &lowast;)</code><td>string formatting<td><code><span class="k">format</span>(<span class="s">"<span>%02x</span>"</span>, <span>12</span>)</code> is <code><span class="s">"0c"</span></code>
+</tbody>
+</table></div>
 
 <p>A string has a truth value of true if it contains at least one character which is not translated to zero.</p>
 
@@ -446,33 +479,37 @@ The converted values are inserted at the <code>%</code> sign which is followed b
 conversion flags, minimum field length, and conversion type. The these flags
 can be used:</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Formatting flags</caption>
-<tr><td width="40">#<td>alternate form ($a, %10, 10.)
-<tr><td>&lowast;<td>width/precision from list
-<tr><td>.<td>precision
-<tr><td>0<td>pad with zeros
-<tr><td>&minus;<td>left adjusted (default right)
-<tr><td>&nbsp;<td>blank when positive or minus sign
-<tr><td>+<td>sign even if positive
-</table>
+<tbody>
+<tr><td width="40"><code>#</code><td>alternate form ($a, %10, 10.)
+<tr><td><code>&lowast;</code><td>width/precision from list
+<tr><td><code>.</code><td>precision
+<tr><td><code>0</code><td>pad with zeros
+<tr><td><code>&minus;</code><td>left adjusted (default right)
+<tr><td><code>&nbsp;</code><td>blank when positive or minus sign
+<tr><td><code>+</code><td>sign even if positive
+</tbody>
+</table></div>
 
 <p>The following conversions are implemented:</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Formatting conversions</caption>
-<tr><td width="40">a&nbsp;A<td>hexadecimal floating point (uppercase)
-<tr><td>b<td>binary
-<tr><td>c<td>unicode character
-<tr><td>d<td>decimal
-<tr><td>e&nbsp;E<td>exponential float (uppercase)
-<tr><td>f&nbsp;F<td>floating point (uppercase)
-<tr><td>g&nbsp;G<td>exponential/floating point
-<tr><td>s<td>string
-<tr><td>r<td>representation
-<tr><td>x&nbsp;X<td>hexadecimal (uppercase)
-<tr><td>%<td>percent sign
-</table>
+<tbody>
+<tr><td width="40"><code>a&nbsp;A</code><td>hexadecimal floating point (uppercase)
+<tr><td><code>b</code><td>binary
+<tr><td><code>c</code><td>unicode character
+<tr><td><code>d</code><td>decimal
+<tr><td><code>e&nbsp;E</code><td>exponential float (uppercase)
+<tr><td><code>f&nbsp;F</code><td>floating point (uppercase)
+<tr><td><code>g&nbsp;G</code><td>exponential/floating point
+<tr><td><code>s</code><td>string
+<tr><td><code>r</code><td>representation
+<tr><td><code>x&nbsp;X</code><td>hexadecimal (uppercase)
+<tr><td><code>%</code><td>percent sign
+</tbody>
+</table></div>
 
 <pre width=80>
         <b class="d">.text</b> <span class="k">format</span>(<span class="s">"<span>%#04x</span> bytes left"</span>, <span>1000</span>)<i>; $03e8 bytes left</i>
@@ -484,22 +521,24 @@ can be used:</p>
 can be created by prefixing quoted strings with a <q>b</q>, this converts the
 string using the current encoding to bytes.</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Byte string operators and functions</caption>
-<tr><td>y .. x<td>concatenate strings<td><code><span class="s">b"a"</span> .. <span class="s">b"b"</span></code> is <code><span class="s">b"ab"</span></code>
-<tr><td>y <b>in</b> x<td>is substring of<td><code><span class="s">b"b"</span> <span class="k">in</span> <span class="s">b"abc"</span></code> is <code><span>true</span></code>
-<tr><td>a <b>x</b> n<td>repeat<td><code><span class="s">b"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">b"ababab"</span></code>
-<tr><td>a[i]<td>byte from start<td><code><span class="s">b"abc"</span>[<span>1</span>]</code> is <code><span class="s">b"b"</span></code>
-<tr><td>a[i]<td>byte from end<td><code><span class="s">b"abc"</span>[<span>&minus;1</span>]</code> is <code><span class="s">b"c"</span></code>
-<tr><td>a[s]<td>no change<td><code><span class="s">b"abc"</span>[:]</code> is <code><span class="s">b"abc"</span></code>
-<tr><td>a[s]<td>cut off start<td><code><span class="s">b"abc"</span>[<span>1</span>:]</code> is <code><span class="s">b"bc"</span></code>
-<tr><td>a[s]<td>cut off end<td><code><span class="s">b"abc"</span>[:<span>&minus;1</span>]</code> is <code><span class="s">b"ab"</span></code>
-<tr><td>a[s]<td>reverse<td><code><span class="s">b"abc"</span>[::<span>&minus;1</span>]</code> is <code><span class="s">b"cba"</span></code>
-<tr><td><a name="">bool</a>(a)<td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">b"a"</span>)</code> is <code><span>true</span></code>
-<tr><td><a name="">len</a>(a)<td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
-<tr><td><a name="">all</a>(a)<td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
-<tr><td><a name="">any</a>(a)<td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
-</table>
+<tbody>
+<tr><td><code><u>y</u> .. <u>x</u></code><td>concatenate strings<td><code><span class="s">b"a"</span> .. <span class="s">b"b"</span></code> is <code><span class="s">b"ab"</span></code>
+<tr><td><code><u>y</u> <span class="k">in</span> <u>x</u></code><td>is substring of<td><code><span class="s">b"b"</span> <span class="k">in</span> <span class="s">b"abc"</span></code> is <code><span>true</span></code>
+<tr><td><code><u>a</u> <span class="k">x</span> <u>n</u></code><td>repeat<td><code><span class="s">b"ab"</span> <span class="k">x</span> <span>3</span></code> is <code><span class="s">b"ababab"</span></code>
+<tr><td><code><u>a</u>[<u>i</u>]</code><td>byte from start<td><code><span class="s">b"abc"</span>[<span>1</span>]</code> is <code><span class="s">b"b"</span></code>
+<tr><td><code><u>a</u>[<u>i</u>]</code><td>byte from end<td><code><span class="s">b"abc"</span>[<span>&minus;1</span>]</code> is <code><span class="s">b"c"</span></code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>no change<td><code><span class="s">b"abc"</span>[:]</code> is <code><span class="s">b"abc"</span></code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start<td><code><span class="s">b"abc"</span>[<span>1</span>:]</code> is <code><span class="s">b"bc"</span></code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end<td><code><span class="s">b"abc"</span>[:<span>&minus;1</span>]</code> is <code><span class="s">b"ab"</span></code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse<td><code><span class="s">b"abc"</span>[::<span>&minus;1</span>]</code> is <code><span class="s">b"cba"</span></code>
+<tr><td><code><span class="k">bool</span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">b"a"</span>)</code> is <code><span>true</span></code>
+<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
+<tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
+</tbody>
+</table></div>
 
 <p>A byte string has a truth value of true if it contains at least one non-zero byte.</p>
 
@@ -523,23 +562,25 @@ is <code>(4,)</code> to differentiate from normal numeric expression
 parentheses. When nested they function similar to an array. Currently both
 types are immutable.</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>List and tuple operators and functions</caption>
-<tr><td>y .. x<td>concatenate lists<td><code>[<span>1</span>] .. [<span>2</span>]</code> is <code>[<span>1</span>, <span>2</span>]</code>
-<tr><td>y <b>in</b> x<td>is member of list<td><code><span>2</span> <span class="k">in</span> [<span>1</span>, <span>2</span>, <span>3</span>]</code> is <code><span>true</span></code>
-<tr><td>a <b>x</b> n<td>repeat<td><code>[<span>1</span>, <span>2</span>] <span class="k">x</span> <span>2</span></code> is <code>[<span>1</span>, <span>2</span>, <span>1</span>, <span>2</span>]</code>
-<tr><td>a[i]<td>element from start<td><code>(<span class="s">"1"</span>, <span>2</span>)[<span>1</span>]</code> is <code><span>2</span></code>
-<tr><td>a[i]<td>element from end<td><code>(<span class="s">"1"</span>, <span>2</span>, <span>3</span>)[<span>&minus;1</span>]</code> is <code><span>3</span></code>
-<tr><td>a[s]<td>no change<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[:]</code> is <code>(<span>1</span>, <span>2</span>, <span>3</span>)</code>
-<tr><td>a[s]<td>cut off start<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[<span>1</span>:]</code> is <code>(<span>2</span>, <span>3</span>)</code>
-<tr><td>a[s]<td>cut off end<td><code>(<span>1</span>, <span>2.0</span>, <span>3</span>)[:<span>&minus;1</span>]</code> is <code>(<span>1</span>, <span>2.0</span>)</code>
-<tr><td>a[s]<td>reverse<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[::<span>&minus;1</span>]</code> is <code>(<span>3</span>, <span>2</span>, <span>1</span>)</code>
-<tr><td>&lowast;a<td>convert to arguments<td><code><span class="k">format</span>(<span class="s">"%d: %s"</span>, &lowast;<u>mylist</u>)</code>
-<tr><td><a name="">len</a>(a)<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
-<tr><td><a name="">all</a>(a)<td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
-<tr><td><a name="">any</a>(a)<td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
-<tr><td><a name="">range</a>(s,e,t)<td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
-</table>
+<tbody>
+<tr><td><code><u>y</u> .. <u>x</u></code><td>concatenate lists<td><code>[<span>1</span>] .. [<span>2</span>]</code> is <code>[<span>1</span>, <span>2</span>]</code>
+<tr><td><code><u>y</u> <span class="k">in</span> <u>x</u></code><td>is member of list<td><code><span>2</span> <span class="k">in</span> [<span>1</span>, <span>2</span>, <span>3</span>]</code> is <code><span>true</span></code>
+<tr><td><code><u>a</u> <span class="k">x</span> <u>n</u></code><td>repeat<td><code>[<span>1</span>, <span>2</span>] <span class="k">x</span> <span>2</span></code> is <code>[<span>1</span>, <span>2</span>, <span>1</span>, <span>2</span>]</code>
+<tr><td><code><u>a</u>[<u>i</u>]</code><td>element from start<td><code>(<span class="s">"1"</span>, <span>2</span>)[<span>1</span>]</code> is <code><span>2</span></code>
+<tr><td><code><u>a</u>[<u>i</u>]</code><td>element from end<td><code>(<span class="s">"1"</span>, <span>2</span>, <span>3</span>)[<span>&minus;1</span>]</code> is <code><span>3</span></code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>no change<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[:]</code> is <code>(<span>1</span>, <span>2</span>, <span>3</span>)</code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[<span>1</span>:]</code> is <code>(<span>2</span>, <span>3</span>)</code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end<td><code>(<span>1</span>, <span>2.0</span>, <span>3</span>)[:<span>&minus;1</span>]</code> is <code>(<span>1</span>, <span>2.0</span>)</code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[::<span>&minus;1</span>]</code> is <code>(<span>3</span>, <span>2</span>, <span>1</span>)</code>
+<tr><td><code>&lowast;<u>a</u></code><td>convert to arguments<td><code><span class="k">format</span>(<span class="s">"%d: %s"</span>, &lowast;<u>mylist</u>)</code>
+<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
+<tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
+<tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
+<tr><td><code><span class="k">range</span>(<u>s</u>,<u>e</u>,<u>t</u>)</code><td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
+</tbody>
+</table></div>
 
 <p>Arithmetic operations are applied on the all elements recursively,
 therefore <code>[1, 2] + 1</code> is <code>[2, 3]</code>, and <code>abs([1,
@@ -602,12 +643,14 @@ unless a default value is given. An
 empty dictionary is <code>{}</code>. Currently this type is immutable. Numeric
 and string keys are accepted, the value can be anything.</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Dictionary operators and functions</caption>
-<tr><td>x[i]<td>value lookup<td><code>{<span class="s">"1"</span>:<span>2</span>}[<span class="s">"1"</span>]</code> is <code><span>2</span></code>
-<tr><td>y <b>in</b> x<td>is a key<td><code><span>1</span> <span class="k">in</span> {<span>1</span>:<span>2</span>}</code> is <code><span>true</span></code>
-<tr><td><a name="">len</a>(x)<td>number of elements<td><code><span class="k">len</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>])</code> is <code><span>2</span></code>
-</table>
+<tbody>
+<tr><td><code><u>x</u>[<u>i</u>]</code><td>value lookup<td><code>{<span class="s">"1"</span>:<span>2</span>}[<span class="s">"1"</span>]</code> is <code><span>2</span></code>
+<tr><td><code><u>y</u> <span class="k">in</span> <u>x</u></code><td>is a key<td><code><span>1</span> <span class="k">in</span> {<span>1</span>:<span>2</span>}</code> is <code><span>true</span></code>
+<tr><td><code><span class="k">len</span>(<u>x</u>)</code><td>number of elements<td><code><span class="k">len</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>])</code> is <code><span>2</span></code>
+</tbody>
+</table></div>
 
 <p>A dictionary has a truth value of true if it contains at least one key value pair.</p>
 
@@ -625,18 +668,20 @@ source overwrite the same memory area.</p>
 implemented differently in future releases. Use this feature at your own
 risk for now, you might need to update your code later.</b></p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Label operators and functions</caption>
-<tr><td>.<td>member<td><code><u>label</u>.<u>locallabel</u></code>
-<tr><td>a[i]<td>element from start<td><code><u>label</u>[<span>1</span>]</code>
-<tr><td>a[i]<td>element from end<td><code><u>label</u>[<span>&minus;1</span>]</code>
-<tr><td>a[s]<td>copy as tuple<td><code><u>label</u>[:]</code>
-<tr><td>a[s]<td>cut off start, as tuple<td><code><u>label</u>[<span>1</span>:]</code>
-<tr><td>a[s]<td>cut off end, as tuple<td><code><u>label</u>[:<span>&minus;1</span>]</code>
-<tr><td>a[s]<td>reverse, as tuple<td><code><u>label</u>[::<span>&minus;1</span>]</code>
-<tr><td><a name="">len</a>(a)<td>number of elements<td><code><span class="k">len</span>(<u>label</u>)</code>
-<tr><td><a name="">size</a>(a)<td>size in bytes<td><code><span class="k">size</span>(<u>label</u>)</code>
-</table>
+<tbody>
+<tr><td><code><u>a</u>.<u>b</u></code><td>member<td><code><u>label</u>.<u>locallabel</u></code>
+<tr><td><code><u>a</u>[<u>i</u>]</code><td>element from start<td><code><u>label</u>[<span>1</span>]</code>
+<tr><td><code><u>a</u>[<u>i</u>]</code><td>element from end<td><code><u>label</u>[<span>&minus;1</span>]</code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>copy as tuple<td><code><u>label</u>[:]</code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start, as tuple<td><code><u>label</u>[<span>1</span>:]</code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end, as tuple<td><code><u>label</u>[:<span>&minus;1</span>]</code>
+<tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse, as tuple<td><code><u>label</u>[::<span>&minus;1</span>]</code>
+<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of elements<td><code><span class="k">len</span>(<u>label</u>)</code>
+<tr><td><code><span class="k">size</span>(<u>a</u>)</code><td>size in bytes<td><code><span class="k">size</span>(<u>label</u>)</code>
+</tbody>
+</table></div>
 
 <p>A code object has a truth value of true when it's address is non-zero.</p>
 
@@ -663,20 +708,22 @@ otherwise the operator is not recognized. On the other hand put a space between
 the comma and a single letter symbol in a list to avoid it being recognized
 as an operator.</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Addressing mode operators</caption>
-<tr><td>#<td>immediate
-<tr><td>(<td>indirect
-<tr><td>[<td>long indirect
-<tr><td>,b<td>data bank indexed
-<tr><td>,d<td>direct page indexed
-<tr><td>,k<td>program bank indexed
-<tr><td>,r<td>data stack pointer indexed
-<tr><td>,s<td>stack pointer indexed
-<tr><td>,x<td>x register indexed
-<tr><td>,y<td>y register indexed
-<tr><td>,z<td>z register indexed
-</table>
+<tbody>
+<tr><td><code>#</code><td>immediate
+<tr><td><code>(</code><td>indirect
+<tr><td><code>[</code><td>long indirect
+<tr><td><code>,b</code><td>data bank indexed
+<tr><td><code>,d</code><td>direct page indexed
+<tr><td><code>,k</code><td>program bank indexed
+<tr><td><code>,r</code><td>data stack pointer indexed
+<tr><td><code>,s</code><td>stack pointer indexed
+<tr><td><code>,x</code><td>x register indexed
+<tr><td><code>,y</code><td>y register indexed
+<tr><td><code>,z</code><td>z register indexed
+</tbody>
+</table></div>
 
 <p>Parentheses are used for indirection and square brackets for long
 indirection. These operations are only available after instructions and
@@ -686,40 +733,42 @@ functions to not interfere with their normal use in expressions.</p>
 complexity is limited to 3 operators. This is enough to describe all addressing
 modes of the supported CPUs.</b></p>
 
-<table border="0" class="adroper">
+<div><table border="0">
 <caption>Valid addressing mode operator combinations</caption>
-<tr><td>#<td>immediate<td><code><b>lda</b> #<span>$12</span></code>
-<tr><td>#<i>addr</i>,#<i>addr</i><td>move<td><code><b>mvp</b> #<span>5</span>,#<span>6</span></code>
-<tr><td><i>addr</i><td>direct or relative<td><code><b>lda</b> <span>$12</span>, <b>lda</b> <span>$1234</span>, <b>bne</b> <span>$1234</span></code>
-<tr><td><i>addr</i>,<i>addr</i><td>direct page bit<td><code><b>rmb</b> <span>5</span>,<span>$12</span></code>
-<tr><td><i>addr</i>,<i>addr</i>,<i>addr</i><td>direct page bit relative jump<td><code><b>bbs</b> <span>5</span>,<span>$12</span>,<span>$1234</span></code>
-<tr><td>(<i>addr</i>)<td>indirect<td><code><b>lda</b> (<span>$12</span>), <b>jmp</b> (<span>$1234</span></code>)
-<tr><td>(<i>addr</i>),y<td>indirect y indexed<td><code><b>lda</b> (<span>$12</span>),y</code>
-<tr><td>(<i>addr</i>),z<td>indirect z indexed<td><code><b>lda</b> (<span>$12</span>),z</code>
-<tr><td>(<i>addr</i>,x)<td>x indexed indirect<td><code><b>lda</b> (<span>$12</span>,x), <b>jmp</b> (<span>$1234</span>,x)</code>
-<tr><td>[<i>addr</i>]<td>long indirect<td><code><b>lda</b> [<span>$12</span>], <b>jmp</b> [<span>$1234</span>]</code>
-<tr><td>[<i>addr</i>],y<td>long indirect y indexed<td><code><b>lda</b> [<span>$12</span>],y</code>
-<tr><td><i>addr</i>,b<td>data bank indexed<td><code><b>lda</b> <span>0</span>,b</code>
-<tr><td><i>addr</i>,b,x<td>data bank x indexed<td><code><b>lda</b> <span>0</span>,b,x</code>
-<tr><td><i>addr</i>,b,y<td>data bank y indexed<td><code><b>lda</b> <span>0</span>,b,y</code>
-<tr><td><i>addr</i>,d<td>direct page indexed<td><code><b>lda</b> <span>0</span>,d</code>
-<tr><td><i>addr</i>,d,x<td>direct page x indexed<td><code><b>lda</b> <span>0</span>,d,x</code>
-<tr><td><i>addr</i>,d,y<td>direct page y indexed<td><code><b>ldx</b> <span>0</span>,d,y</code>
-<tr><td>(<i>addr</i>,d)<td>direct page indirect<td><code><b>lda</b> (<span>$12</span>,d)</code>
-<tr><td>(<i>addr</i>,d,x)<td>direct page x indexed indirect<td><code><b>lda</b> (<span>$12</span>,d,x)</code>
-<tr><td>(<i>addr</i>,d),y<td>direct page indirect y indexed<td><code><b>lda</b> (<span>$12</span>,d),y</code>
-<tr><td>(<i>addr</i>,d),z<td>direct page indirect z indexed<td><code><b>lda</b> (<span>$12</span>,d),z</code>
-<tr><td>[<i>addr</i>,d]<td>direct page long indirect<td><code><b>lda</b> [<span>$12</span>,d]</code>
-<tr><td>[<i>addr</i>,d],y<td>direct page long indirect y indexed<td><code><b>lda</b> [<span>$12</span>,d],y</code>
-<tr><td><i>addr</i>,k<td>program bank indexed<td><code><b>jsr</b> <span>0</span>,k</code>
-<tr><td>(<i>addr</i>,k,x)<td>program bank x indexed indirect<td><code><b>jmp</b> (<span>$1234</span>,k,x)</code>
-<tr><td><i>addr</i>,r<td>data stack indexed<td><code><b>lda</b> <span>1</span>,r</code>
-<tr><td>(<i>addr</i>,r),y<td>data stack indexed indirect y indexed<td><code><b>lda</b> (<span>$12</span>,r),y</code>
-<tr><td><i>addr</i>,s<td>stack indexed<td><code><b>lda</b> <span>1</span>,s</code>
-<tr><td>(<i>addr</i>,s),y<td>stack indexed indirect y indexed<td><code><b>lda</b> (<span>$12</span>,s),y</code>
-<tr><td><i>addr</i>,x<td>x indexed<td><code><b>lda</b> <span>$12</span>,x</code>
-<tr><td><i>addr</i>,y<td>y indexed<td><code><b>lda</b> <span>$12</span>,y</code>
-</table>
+<tbody>
+<tr><td><code>#</code><td>immediate<td><code><b>lda</b>&nbsp;#<span>$12</span></code>
+<tr><td><code>#<u>addr</u>,#<u>addr</u></code><td>move<td><code><b>mvp</b>&nbsp;#<span>5</span>,#<span>6</span></code>
+<tr><td><code><u>addr</u></code><td>direct or relative<td><code><b>lda</b>&nbsp;<span>$12</span> <b>lda</b>&nbsp;<span>$1234</span> <b>bne</b>&nbsp;<span>$1234</span></code>
+<tr><td><code><u>addr</u>,<u>addr</u></code><td>direct page bit<td><code><b>rmb</b>&nbsp;<span>5</span>,<span>$12</span></code>
+<tr><td><code><u>addr</u>,<u>addr</u>,<u>addr</u></code><td>direct page bit relative jump<td><code><b>bbs</b>&nbsp;<span>5</span>,<span>$12</span>,<span>$1234</span></code>
+<tr><td><code>(<u>addr</u>)</code><td>indirect<td><code><b>lda</b>&nbsp;(<span>$12</span>) <b>jmp</b>&nbsp;(<span>$1234</span></code>)
+<tr><td><code>(<u>addr</u>),y</code><td>indirect y indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>),y</code>
+<tr><td><code>(<u>addr</u>),z</code><td>indirect z indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>),z</code>
+<tr><td><code>(<u>addr</u>,x)</code><td>x indexed indirect<td><code><b>lda</b>&nbsp;(<span>$12</span>,x) <b>jmp</b>&nbsp;(<span>$1234</span>,x)</code>
+<tr><td><code>[<u>addr</u>]</code><td>long indirect<td><code><b>lda</b>&nbsp;[<span>$12</span>] <b>jmp</b>&nbsp;[<span>$1234</span>]</code>
+<tr><td><code>[<u>addr</u>],y</code><td>long indirect y indexed<td><code><b>lda</b>&nbsp;[<span>$12</span>],y</code>
+<tr><td><code><u>addr</u>,b</code><td>data bank indexed<td><code><b>lda</b>&nbsp;<span>0</span>,b</code>
+<tr><td><code><u>addr</u>,b,x</code><td>data bank x indexed<td><code><b>lda</b>&nbsp;<span>0</span>,b,x</code>
+<tr><td><code><u>addr</u>,b,y</code><td>data bank y indexed<td><code><b>lda</b>&nbsp;<span>0</span>,b,y</code>
+<tr><td><code><u>addr</u>,d</code><td>direct page indexed<td><code><b>lda</b>&nbsp;<span>0</span>,d</code>
+<tr><td><code><u>addr</u>,d,x</code><td>direct page x indexed<td><code><b>lda</b>&nbsp;<span>0</span>,d,x</code>
+<tr><td><code><u>addr</u>,d,y</code><td>direct page y indexed<td><code><b>ldx</b>&nbsp;<span>0</span>,d,y</code>
+<tr><td><code>(<u>addr</u>,d)</code><td>direct page indirect<td><code><b>lda</b>&nbsp;(<span>$12</span>,d)</code>
+<tr><td><code>(<u>addr</u>,d,x)</code><td>direct page x indexed indirect<td><code><b>lda</b>&nbsp;(<span>$12</span>,d,x)</code>
+<tr><td><code>(<u>addr</u>,d),y</code><td>direct page indirect y indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>,d),y</code>
+<tr><td><code>(<u>addr</u>,d),z</code><td>direct page indirect z indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>,d),z</code>
+<tr><td><code>[<u>addr</u>,d]</code><td>direct page long indirect<td><code><b>lda</b>&nbsp;[<span>$12</span>,d]</code>
+<tr><td><code>[<u>addr</u>,d],y</code><td>direct page long indirect y indexed<td><code><b>lda</b>&nbsp;[<span>$12</span>,d],y</code>
+<tr><td><code><u>addr</u>,k</code><td>program bank indexed<td><code><b>jsr</b>&nbsp;<span>0</span>,k</code>
+<tr><td><code>(<u>addr</u>,k,x)</code><td>program bank x indexed indirect<td><code><b>jmp</b>&nbsp;(<span>$1234</span>,k,x)</code>
+<tr><td><code><u>addr</u>,r</code><td>data stack indexed<td><code><b>lda</b>&nbsp;<span>1</span>,r</code>
+<tr><td><code>(<u>addr</u>,r),y</code><td>data stack indexed indirect y indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>,r),y</code>
+<tr><td><code><u>addr</u>,s</code><td>stack indexed<td><code><b>lda</b>&nbsp;<span>1</span>,s</code>
+<tr><td><code>(<u>addr</u>,s),y</code><td>stack indexed indirect y indexed<td><code><b>lda</b>&nbsp;(<span>$12</span>,s),y</code>
+<tr><td><code><u>addr</u>,x</code><td>x indexed<td><code><b>lda</b>&nbsp;<span>$12</span>,x</code>
+<tr><td><code><u>addr</u>,y</code><td>y indexed<td><code><b>lda</b>&nbsp;<span>$12</span>,y</code>
+</tbody>
+</table></div>
 
 <p>The direct page indexed addressing mode is not affected by the
 <code>.dpage</code> directive and always forces the 8&nbsp;bit address as
@@ -917,15 +966,17 @@ operands as the result. True is defined as a non-zero number, anything else is f
 <p>The ternary operator (<code>?:</code>) gives the first (x) result if c is
 true or the second (y) if c is false.</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Logical and conditional operators</caption>
-<tr><td width="80">x || y<td>if x is true then x otherwise y
-<tr><td>x ^^ y <td>if both false or true then false otherwise x || y
-<tr><td>x &amp;&amp; y<td>if x is true then y otherwise x
-<tr><td>!x<td>if x is true then false otherwise true
-<tr><td>!!x<td>if x is true then true otherwise false
-<tr><td>c&nbsp;?&nbsp;x&nbsp;:&nbsp;y<td>if c is true then x otherwise y
-</table>
+<tbody>
+<tr><td width="80"><code><u>x</u> || <u>y</u></code><td>if x is true then x otherwise y
+<tr><td><code><u>x</u> ^^ <u>y</u></code><td>if both false or true then false otherwise x || y
+<tr><td><code><u>x</u> &amp;&amp; <u>y</u></code><td>if x is true then y otherwise x
+<tr><td><code>!<u>x</u></code><td>if x is true then false otherwise true
+<tr><td><code>!!<u>x</u></code><td>if x is true then true otherwise false
+<tr><td><code><u>c</u>&nbsp;?&nbsp;<u>x</u>&nbsp;:&nbsp;<u>y</u></code><td>if c is true then x otherwise y
+</tbody>
+</table></div>
 
 <pre width=80>
 <i>;Silly example for 1=>"simple", 2=>"advanced", else "normal"</i>
@@ -950,32 +1001,36 @@ opcodes.</p>
 variable number of parameters separated by comma. For math functions see the
 floating point constants section.</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>General built-in functions</caption>
-<tr><td width="150"><a name="f_abs">abs</a>(a)<td>absolute value
-<tr><td><a name="f_all">all</a>(a)<td>all elements true or no elements
-<tr><td><a name="f_any">any</a>(a)<td>any elements true
-<tr><td><a name="f_bool">bool</a>(a)<td>truth value
-<tr><td><a name="f_float">float</a>(a)<td>convert to floating point
-<tr><td><a name="f_format">format</a>(s, &lowast;)<td>convert to string with formatting
-<tr><td><a name="f_int">int</a>(a)<td>convert to integer
-<tr><td><a name="f_len">len</a>(a)<td>number of elements
-<tr><td><a name="f_range">range</a>(s, e, t)<td>create a list with values from a range
-<tr><td><a name="f_repr">repr</a>(a)<td>representation to string
-<tr><td><a name="f_sign">sign</a>(a)<td>sign value (&minus;1, 0, 1)
-<tr><td><a name="f_size">size</a>(a)<td>size in bytes
-<tr><td><a name="f_str">str</a>(a)<td>convert to string
-</table>
+<tbody>
+<tr><td width="150"><code><span class="k"><a name="f_abs">abs</a></span>(<u>a</u>)</code><td>absolute value
+<tr><td><code><span class="k"><a name="f_all">all</a></span>(<u>a</u>)</code><td>all elements true or no elements
+<tr><td><code><span class="k"><a name="f_any">any</a></span>(<u>a</u>)</code><td>any elements true
+<tr><td><code><span class="k"><a name="f_bool">bool</a></span>(<u>a</u>)</code><td>truth value
+<tr><td><code><span class="k"><a name="f_float">float</a></span>(<u>a</u>)</code><td>convert to floating point
+<tr><td><code><span class="k"><a name="f_format">format</a></span>(<u>s</u>, &lowast;)</code><td>convert to string with formatting
+<tr><td><code><span class="k"><a name="f_int">int</a></span>(<u>a</u>)</code><td>convert to integer
+<tr><td><code><span class="k"><a name="f_len">len</a></span>(<u>a</u>)</code><td>number of elements
+<tr><td><code><span class="k"><a name="f_range">range</a></span>(<u>s</u>, <u>e</u>, <u>t</u>)</code><td>create a list with values from a range
+<tr><td><code><span class="k"><a name="f_repr">repr</a></span>(<u>a</u>)</code><td>representation to string
+<tr><td><code><span class="k"><a name="f_sign">sign</a></span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)
+<tr><td><code><span class="k"><a name="f_size">size</a></span>(<u>a</u>)</code><td>size in bytes
+<tr><td><code><span class="k"><a name="f_str">str</a></span>(<u>a</u>)</code><td>convert to string
+</tbody>
+</table></div>
 
 <p>Special addressing mode forcing operators in front of an expression can be
 used to make sure the expected addressing mode is used.</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>Address size forcing</caption>
-<tr><td width="80">@b<td>to force 8 bit address
-<tr><td>@w<td>to force 16 bit address
-<tr><td>@l<td>to force 24 bit address (65816)
-</table>
+<tbody>
+<tr><td width="80"><code>@b</code><td>to force 8 bit address
+<tr><td><code>@w</code><td>to force 16 bit address
+<tr><td><code>@l</code><td>to force 24 bit address (65816)
+</tbody>
+</table></div>
 
 <pre width=80>
         <b>lda</b> @w<span>$0000</span>
@@ -991,16 +1046,16 @@ and code ends up in memory, while the program counter is what labels will be
 set or what the special star label gets when referenced.</p>
 
 <dl class="dir">
-<dt><b>&lowast;=</b> &lt;expression&gt;
+<dt><code><b>&lowast;=</b></code> &lt;expression&gt;
 <dd>The compile offset is moved so that the program counter will match the one
 in the expression.
-<dt><a name="d_offs">.offs</a> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_offs">.offs</a></b></code> &lt;expression&gt;
 <dd>Add an offset to the compile offset (create a gap). The program counter
 stays the same as before.
-<dt><a name="d_logical">.logical</a> &lt;expression&gt;
-<dt><a name="d_here">.here</a>
+<dt><code><b class="k"><a name="d_logical">.logical</a></b></code> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_here">.here</a></b></code>
 <dd>Changes the program counter, the compile offset is not changed. Can be nested of course.
-<dt><a name="d_align">.align</a> &lt;modulo&gt;[, &lt;fill&gt;]
+<dt><code><b class="k"><a name="d_align">.align</a></b></code> &lt;modulo&gt;[, &lt;fill&gt;]
 <dd>Align code to a dividable program counter address by inserting uninitialized memory or repeated bytes.
 </dl>
 <pre width=80>
@@ -1037,9 +1092,9 @@ on the directives used.</p>
 Uninitialized data creates holes of different sizes. Small string constants are
 converted using the current encoding.</p>
 <dl class="dir">
-<dt><a name="d_byte">.byte</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_byte">.byte</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 8&nbsp;bit unsigned constants (0&ndash;255)
-<dt><a name="d_char">.char</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_char">.char</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 8&nbsp;bit signed constants (&minus;128&ndash;127)
 <pre width=80>
         <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
@@ -1053,9 +1108,9 @@ smod    <b>bne</b> <u>*</u>
 jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)-<u>smod</u>-<span>2</span> <i>;Routines nearby (&minus;128&ndash;127 bytes)</i>
 </pre>
 
-<dt><a name="d_word">.word</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_word">.word</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 16&nbsp;bit unsigned constants (0&ndash;65535)
-<dt><a name="d_int">.int</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_int">.int</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 16&nbsp;bit signed constants (&minus;32768&ndash;32767)
 <pre width=80>
         <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
@@ -1077,7 +1132,7 @@ jumps   <b class="d">.word</b> <u>routine1</u>, <u>routine2</u>
 jumps2  <b class="d">.word</b> (<u>routine1</u>, <u>routine2</u>) - (<u>*</u> &amp; ~<span>$ffff</span>)
 </pre>
 
-<dt><a name="d_rta">.rta</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_rta">.rta</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create return address constants, which are 16&nbsp;bit unsigned
 constants (usually addresses) but with one subtracted.
 <pre width=80>
@@ -1094,9 +1149,9 @@ rets	<b class="d">.rta</b> <span>$fce2</span>, <u>routine1</u>, <u>routine2</u>
 rets2	<b class="d">.rta</b> (<span>$fce2</span>, <u>routine1</u>, <u>routine2</u>) - (<u>*</u> &amp; ~<span>$ffff</span>)
 </pre>
 
-<dt><a name="d_long">.long</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_long">.long</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 24&nbsp;bit unsigned constants (0&ndash;16777215)
-<dt><a name="d_lint">.lint</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_lint">.lint</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 24&nbsp;bit signed constants (&minus;8388608&ndash;8388607)
 <pre width=80>
         <b class="d">.long</b> <span>$123456</span>
@@ -1116,9 +1171,9 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
         <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * (<span>1</span> &lt;&lt; <span>16</span>)
 </pre>
 
-<dt><a name="d_dword">.dword</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_dword">.dword</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 32&nbsp;bit constants (0&ndash;4294967295)
-<dt><a name="d_dint">.dint</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_dint">.dint</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 32&nbsp;bit signed constants (&minus;2147483648&ndash;2147483647)
 <pre width=80>
         <b class="d">.dword</b> <span>$12345678</span>
@@ -1132,7 +1187,7 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 <p>Texts are stored as a string of bytes. Small numeric constants can be mixed
 in to represent control characters.</p>
 <dl class="dir">
-<dt><a name="d_text">.text</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_text">.text</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Assemble strings and small constants into bytes:
 <pre width=80>
         <b class="d">.text</b> <span class="s">"oeU"</span>	<i>; text, "" means $22</i>
@@ -1142,7 +1197,7 @@ in to represent control characters.</p>
         <b class="d">.text</b> ^<u>OEU</u>	<i>; the decimal value as string (^23 is $32,$33)</i>
 </pre>
 
-<dt><a name="d_fill">.fill</a> &lt;length&gt;[, &lt;fill&gt;]
+<dt><code><b class="d"><a name="d_fill">.fill</a></b></code> &lt;length&gt;[, &lt;fill&gt;]
 <dd>Skip bytes (using uninitialized data), or fill with repeated bytes. For complex multi byte patterns use <code>.rept</code>!
 <pre width=80>
         <b class="d">.fill</b> <span>$100</span>      <i>;no fill, just reserve $100 bytes</i>
@@ -1150,7 +1205,7 @@ in to represent control characters.</p>
         <b class="d">.fill</b> <span>8000</span>, [<span>$55</span>, <span>$aa</span>]<i>;8000 bytes of alternating $55, $aa</i>
 </pre>
 
-<dt><a name="d_shift">.shift</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_shift">.shift</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Same as <code>.text</code>, but the last byte will have the highest bit set.
 Any character which already has the most significant bit set will cause an error.
 <pre width=80>
@@ -1166,7 +1221,7 @@ loop	<b>lda</b> <u>txt</u>,x
 txt	<b class="d">.shift</b> <span class="s">"some text"</span>
 </pre>
 
-<dt><a name="d_shiftl">.shiftl</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_shiftl">.shiftl</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Same as <code>.text</code>, but all bytes are shifted to left, and the last
 character gets the lowest bit set. Any character which already has the most significant
 bit set will cause an error as this would be cut off.
@@ -1183,7 +1238,7 @@ txt	<b class="d">.shiftl</b> <span class="s">"some text"</span>
 	<b class="k">.enc</b> none
 </pre>
 
-<dt><a name="d_null">.null</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_null">.null</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Same as <code>.text</code>, but adds a null at the end, null in string is an error.
 <pre width=80>
 txt	<b class="d">.text</b> <span class="s">"lot of stuff"</span>
@@ -1193,7 +1248,7 @@ txt	<b class="d">.text</b> <span class="s">"lot of stuff"</span>
         <b>jsr</b> <span>$ab1e</span>
 </pre>
 
-<dt><a name="d_ptext">.ptext</a> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dt><code><b class="d"><a name="d_ptext">.ptext</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Same as <code>.text</code>, but prepend the
 number of bytes in front of the string (pascal style string). Longer than 255 bytes are not allowed.
 <pre width=80>
@@ -1224,11 +1279,10 @@ txt	<b class="d">.ptext</b> <span class="s">"note"</span>
 advantage of this capability custom encodings can be defined to map Unicode characters
 to 8&nbsp;bit values in strings.</p>
 <dl class="dir">
-<dt><a name="d_enc">.enc</a> &lt;name&gt;
+<dt><code><b class="k"><a name="d_enc">.enc</a></b></code> &lt;name&gt;
 <dd>Selects text encoding, predefined encodings are <q>none</q> and
 <q>screen</q> (screen code), anything else is user defined. All user encodings
 start without any character or escape definitions, add some as required.
-</dl>
 <pre width=80>
 	<b class="k">.enc</b> screen	<i>;screen code mode</i>
         <b class="d">.text</b> <span class="s">"text with screen codes"</span>
@@ -1236,15 +1290,14 @@ start without any character or escape definitions, add some as required.
 	<b class="k">.enc</b> none	<i>;normal mode again</i>
         <b>cmp</b> #<span class="s">"u"</span>	<i>;compare ASCII</i>
 </pre>
-<dl class="dir">
-<dt><a name="d_cdef">.cdef</a> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, &hellip;]
-<dt><b>.cdef</b> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, &hellip;]
+<dt><code><b class="k"><a name="d_cdef">.cdef</a></b></code> &lt;start&gt;, &lt;end&gt;, &lt;coded&gt; [, &lt;start&gt;, &lt;end&gt;, &lt;coded&gt;, &hellip;]
+<dt><code><b class="k">.cdef</b></code> "&lt;start&gt;&lt;end&gt;", &lt;coded&gt; [, "&lt;start&gt;&lt;end&gt;", &lt;coded&gt;, &hellip;]
 <dd>Assigns characters in a range to single bytes.
 <p>This is a simple single character to byte translation definition. It is
 applied to a range as characters and bytes are usually assigned sequentially.
 The start and end positions are Unicode character codes either by numbers or by
 typing them. Overlapping ranges are not allowed.</p>
-<dt><a name="d_edef">.edef</a> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, &hellip;]
+<dt><code><b class="k"><a name="d_edef">.edef</a></b></code> "&lt;escapetext&gt;", &lt;value&gt; [, "&lt;escapetext&gt;", &lt;value&gt;, &hellip;]
 <dd>Assigns strings to byte sequences as a translated value.
 <p>When these substrings are found in a text they are replaced by bytes defined here.
 When strings with common prefixes are used the longest match wins. Useful for defining
@@ -1284,11 +1337,11 @@ instead of an error.</p>
 is the sum of lengths of all items.</p>
 
 <dl class="dir">
-<dt><a name="d_struct">.struct</a> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]
-<dt><a name="d_ends">.ends</a> [&lt;result&gt;][, &lt;result&gt; &hellip;]
+<dt><code><b class="k"><a name="d_struct">.struct</a></b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]
+<dt><code><b class="k"><a name="d_ends">.ends</a></b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]
 <dd>Structure definition, with named parameters and default values
-<dt><a name="d_dstruct">.dstruct</a> &lt;name&gt;[, &lt;initialization values&gt;]
-<dt><b>.&lt;name&gt;</b> [&lt;initialization values&gt;]
+<dt><code><b class="d"><a name="d_dstruct">.dstruct</a></b></code> &lt;name&gt;[, &lt;initialization values&gt;]
+<dt><code><b class="d">.&lt;name&gt;</b></code> [&lt;initialization values&gt;]
 <dd>Create instance of structure with initialization values
 </dl>
 
@@ -1316,11 +1369,11 @@ counter remains the same on each line. Therefore the length of a union is the
 length of it's longest item.</p>
 
 <dl class="dir">
-<dt><a name="d_union">.union</a> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]
-<dt><a name="d_endu">.endu</a>
+<dt><code><b class="k"><a name="d_union">.union</a></b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]
+<dt><code><b class="k"><a name="d_endu">.endu</a></b></code>
 <dd>Union definition, with named parameters and default values
-<dt><a name="d_dunion">.dunion</a> &lt;name&gt;[, &lt;initialization values&gt;]
-<dt><b>.&lt;name&gt;</b> [&lt;initialization values&gt;]
+<dt><code><b class="d"><a name="d_dunion">.dunion</a></b></code> &lt;name&gt;[, &lt;initialization values&gt;]
+<dt><code><b class="d">.&lt;name&gt;</b></code> [&lt;initialization values&gt;]
 <dd>Create instance of union with initialization values
 </dl>
 
@@ -1381,18 +1434,18 @@ Each invocation is a copy of the macro's content with parameter references
 replaced by the parameter texts.</p>
 
 <dl class="dir">
-<dt><a name="d_segment">.segment</a> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]
-<dt><a name="d_endm">.endm</a> [&lt;result&gt;][, &lt;result&gt; &hellip;]
+<dt><code><b class="k"><a name="d_segment">.segment</a></b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]
+<dt><code><b class="k"><a name="d_endm">.endm</a></b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]
 <dd>Copies the code segment as it is, so symbols can be used from
 outside, but this also means multiple use will result in double defines
 unless anonymous labels are used.
-<dt><a name="d_macro">.macro</a> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]
-<dt><b>.endm</b> [&lt;result&gt;][, &lt;result&gt; &hellip;]
+<dt><code><b class="k"><a name="d_macro">.macro</a></b></code> [&lt;name&gt;][=&lt;default&gt;]][, [&lt;name&gt;][=&lt;default&gt;] &hellip;]
+<dt><code><b class="k">.endm</b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]
 <dd>The code is enclosed in it's own block so symbols inside are
 non-accessible, unless a label is prefixed at the place of use, then local
 labels can be accessed through that label.
-<dt><b>#&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
-<dt><b>.&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><code><b class="k">#&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><code><b class="k">.&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
 <dd>Invoke the macro after <q>#</q> or <q>.</q> with the parameters. Normally the name of
 the macro is used, but it can be any expression.
 </dl>
@@ -1469,12 +1522,12 @@ name    <b class="k">.macro</b>
 custom ones for frequently used calculations.</p>
 
 <dl class="dir">
-<dt><a name="d_function">.function</a> &lt;name&gt;[=&lt;default&gt;]][, &lt;name&gt;[=&lt;default&gt;] &hellip;][, &lowast;&lt;name&gt;]
-<dt><a name="d_endf">.endf</a> [&lt;result&gt;][, &lt;result&gt; &hellip;]
+<dt><code><b class="k"><a name="d_function">.function</a></b></code> &lt;name&gt;[=&lt;default&gt;]][, &lt;name&gt;[=&lt;default&gt;] &hellip;][, &lowast;&lt;name&gt;]
+<dt><code><b class="k"><a name="d_endf">.endf</a></b></code> [&lt;result&gt;][, &lt;result&gt; &hellip;]
 <dd>Defines a user function
-<dt><b>#&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
-<dt><b>.&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
-<dt><b>&lt;name&gt;</b> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><code><b class="k">#&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><code><b class="k">.&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
+<dt><code><b class="k">&lt;name&gt;</b></code> [&lt;param&gt;][[,][&lt;param&gt;] &hellip;]
 <dd>Invoke a function like a macro, directive or pseudo instruction.
 </dl>
 
@@ -1515,22 +1568,22 @@ used. This is useful when multiple slightly different versions needs to be
 compiled from the same source.</p>
 <h4>If, else if, else<a name="conditional-if" href="#conditional-if"></a></h4>
 <dl class="dir">
-<dt><a name="d_if">.if</a> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_if">.if</a></b></code> &lt;expression&gt;
 <dd>Compile, if result is true (not zero)
-<dt><a name="d_elsif">.elsif</a> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_elsif">.elsif</a></b></code> &lt;expression&gt;
 <dd>Compile if the previous conditions were all skipped and the result is true (not zero)
-<dt><a name="d_else">.else</a>
+<dt><code><b class="k"><a name="d_else">.else</a></b></code>
 <dd>Compile if the previous conditions were all skipped
-<dt><a name="d_fi">.fi</a>
-<dt><a name="d_endif">.endif</a>
+<dt><code><b class="k"><a name="d_fi">.fi</a></b></code>
+<dt><code><b class="k"><a name="d_endif">.endif</a></b></code>
 <dd>End of conditional compile
-<dt><a name="d_ifne">.ifne</a> &lt;value&gt;
+<dt><code><b class="k"><a name="d_ifne">.ifne</a></b></code> &lt;value&gt;
 <dd>Compile, if value is not zero (or true)
-<dt><a name="d_ifeq">.ifeq</a> &lt;value&gt;
+<dt><code><b class="k"><a name="d_ifeq">.ifeq</a></b></code> &lt;value&gt;
 <dd>Compile, if value is zero (or false)
-<dt><a name="d_ifpl">.ifpl</a> &lt;value&gt;
+<dt><code><b class="k"><a name="d_ifpl">.ifpl</a></b></code> &lt;value&gt;
 <dd>Compile, if value is greater or equal zero
-<dt><a name="d_ifmi">.ifmi</a> &lt;value&gt;
+<dt><code><b class="k"><a name="d_ifmi">.ifmi</a></b></code> &lt;value&gt;
 <dd>Compile, if value is less than zero
 </dl>
 
@@ -1556,13 +1609,13 @@ construct, but the compared value needs to be written only once in the switch
 statement.</p>
 
 <dl class="dir">
-<dt><a name="d_switch">.switch</a> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_switch">.switch</a></b></code> &lt;expression&gt;
 <dd>Evaluate expression and remember it
-<dt><a name="d_case">.case</a> &lt;expression&gt;[, &lt;expression&gt; &hellip;]
+<dt><code><b class="k"><a name="d_case">.case</a></b></code> &lt;expression&gt;[, &lt;expression&gt; &hellip;]
 <dd>Compile if the previous conditions were all skipped and one of the values equals
-<dt><a name="d_default">.default</a>
+<dt><code><b class="k"><a name="d_default">.default</a></b></code>
 <dd>Compile if the previous conditions were all skipped
-<dt><a name="d_endswitch">.endswitch</a>
+<dt><code><b class="k"><a name="d_endswitch">.endswitch</a></b></code>
 <dd>End of conditional compile
 </dl>
 
@@ -1581,8 +1634,8 @@ statement.</p>
 
 <h3>Repetitions<a name="repetitions" href="#repetitions"></a></h3>
 <dl class="dir">
-<dt><a name="d_for">.for</a> &lt;variable&gt;=&lt;expression&gt;, &lt;expression&gt;, &lt;variable&gt;=&lt;expression&gt;
-<dt><a name="d_next">.next</a>
+<dt><code><b class="k"><a name="d_for">.for</a></b></code> &lt;variable&gt;=&lt;expression&gt;, &lt;expression&gt;, &lt;variable&gt;=&lt;expression&gt;
+<dt><code><b class="k"><a name="d_next">.next</a></b></code>
 <dd>Compile loop, only anonymous references are allowed as labels inside
 <pre width=80>
         <b>ldx</b> #<span>0</span>
@@ -1594,8 +1647,8 @@ lp      <b class="k">.for</b> <u>ue</u> = <span>0</span>, <u>ue</u> &lt; <span>$
         <b>bne</b> <u>lp</u>
 </pre>
 
-<dt><a name="d_rept">.rept</a> &lt;expression&gt;
-<dt><b>.next</b>
+<dt><code><b class="k"><a name="d_rept">.rept</a></b></code> &lt;expression&gt;
+<dt><code><b class="k">.next</b></code>
 <dd>Repeated compile, only anonymous references are allowed as labels inside
 <pre width=80>
         <b class="k">.rept</b> <span>100</span>
@@ -1603,15 +1656,15 @@ lp      <b class="k">.for</b> <u>ue</u> = <span>0</span>, <u>ue</u> &lt; <span>$
 	<b class="k">.next</b>
 </pre>
 
-<dt><a name="d_break">.break</a>
+<dt><code><b class="k"><a name="d_break">.break</a></b></code>
 <dd>Exit current loop immediately
 
-<dt><a name="d_continue">.continue</a>
+<dt><code><b class="k"><a name="d_continue">.continue</a></b></code>
 <dd>Continue current loop's next iteration
 
-<dt><a name="d_lbl">.lbl</a>
+<dt><code><b class="k"><a name="d_lbl">.lbl</a></b></code>
 <dd>Creates a special jump label that can be referenced by <code>.goto</code>
-<dt><a name="d_goto">.goto</a> &lt;labelname&gt;
+<dt><code><b class="k"><a name="d_goto">.goto</a></b></code> &lt;labelname&gt;
 <dd>Causes assembler to continue assembling from the jump label. No
 forward references of course, handle with care. Typically used in
 classic TASM sources for creating loops.
@@ -1642,9 +1695,9 @@ locations.</p>
 in filenames!</p>
 
 <dl class="dir">
-<dt><a name="d_include">.include</a> &lt;filename&gt;
+<dt><code><b class="k"><a name="d_include">.include</a></b></code> &lt;filename&gt;
 <dd>Include source file here.
-<dt><a name="d_binclude">.binclude</a> &lt;filename&gt;
+<dt><code><b class="k"><a name="d_binclude">.binclude</a></b></code> &lt;filename&gt;
 <dd>Include source file here in it's local block. If the directive is prefixed
 with a label then all labels are local and are accessible through that label
 only, otherwise not reachable at all.
@@ -1655,7 +1708,7 @@ menu    <b class="k">.binclude</b> <span class="s">"menu.asm"</span>        <i>;
 	<b>jmp</b> <u>menu</u>.<u>start</u>
 </pre>
 
-<dt><a name="d_binary">.binary</a> &lt;filename&gt;[, &lt;offset&gt;[, &lt;length&gt;]]
+<dt><code><b class="d"><a name="d_binary">.binary</a></b></code> &lt;filename&gt;[, &lt;offset&gt;[, &lt;length&gt;]]
 <dd>Include raw binary data from file. By using offset and length it's possible to break out chunks of data from a
 file separately, like bitmap and colors for example.
 <pre width=80>
@@ -1676,8 +1729,8 @@ different scope.</p>
 the direction of the global scope. This means that local variables will
 <q>shadow</q> global one with the same name.</p>
 <dl class="dir">
-<dt><a name="d_proc">.proc</a>
-<dt><a name="d_pend">.pend</a>
+<dt><code><b class="k"><a name="d_proc">.proc</a></b></code>
+<dt><code><b class="k"><a name="d_pend">.pend</a></b></code>
 <dd>Procedure start and end of procedure.
 <p>If it's label is not used then the code won't be compiled at all. This is
 very useful to avoid a lot of <code>.if</code> blocks to exclude unused
@@ -1694,8 +1747,8 @@ cucc    <b>nop</b>
         <b>jmp</b> <u>ize</u>.<u>cucc</u>
 </pre>
 
-<dt><a name="d_block">.block</a>
-<dt><a name="d_bend">.bend</a>
+<dt><code><b class="k"><a name="d_block">.block</a></b></code>
+<dt><code><b class="k"><a name="d_bend">.bend</a></b></code>
 <dd>Block start and block end.
 <p>All labels inside a block are local enclosed in a scope. If prefixed with a
 label local variables are accessible through that label using the dot notation,
@@ -1707,8 +1760,8 @@ count	<b>ldx</b> #<span>0</span>
 	<b class="k">.bend</b>
 </pre>
 
-<dt><a name="d_weak">.weak</a>
-<dt><a name="d_endweak">.endweak</a>
+<dt><code><b class="k"><a name="d_weak">.weak</a></b></code>
+<dt><code><b class="k"><a name="d_endweak">.endweak</a></b></code>
 <dd>Weak symbol area
 <p>Any symbols defined inside can be overriden by <q>stronger</q> symbols in
 the same scope from outside. Can be nested as necessary.</p>
@@ -1745,11 +1798,11 @@ without moving source code lines around. This is achieved by having separate
 compile offset and program counters for each defined section.</p>
 
 <dl class="dir">
-<dt><a name="d_section">.section</a> &lt;name&gt;
-<dt><a name="d_send">.send</a> [&lt;name&gt;]
+<dt><code><b class="k"><a name="d_section">.section</a></b></code> &lt;name&gt;
+<dt><code><b class="k"><a name="d_send">.send</a></b></code> [&lt;name&gt;]
 <dd>Defines a section fragment. The name at <code>.send</code> must match but
 it's optional.
-<dt><a name="d_dsection">.dsection</a> &lt;name&gt;
+<dt><code><b class="d"><a name="d_dsection">.dsection</a></b></code> &lt;name&gt;
 <dd>Collect the section fragments here.
 </dl>
 
@@ -1894,8 +1947,8 @@ routine <b class="d">.word</b> <u>print</u>
 
 <h3>65816 related<a name="w65816" href="#w65816"></a></h3>
 <dl class="dir">
-<dt><a name="d_as">.as</a>
-<dt><a name="d_al">.al</a>
+<dt><code><b class="k"><a name="d_as">.as</a></b></code>
+<dt><code><b class="k"><a name="d_al">.al</a></b></code>
 <dd>Select short (8&nbsp;bit) or long (16&nbsp;bit) accumulator immediate constants.
 
 <pre width=80>
@@ -1903,22 +1956,22 @@ routine <b class="d">.word</b> <u>print</u>
         <b>lda</b> #<span>$4322</span>
 </pre>
 
-<dt><a name="d_xs">.xs</a>
-<dt><a name="d_xl">.xl</a>
+<dt><code><b class="k"><a name="d_xs">.xs</a></b></code>
+<dt><code><b class="k"><a name="d_xl">.xl</a></b></code>
 <dd>Select short (8&nbsp;bit) or long (16&nbsp;bit) index register immediate constants.
 <pre width=80>
 	<b class="k">.xl</b>
         <b>ldx</b> #<span>$1000</span>
 </pre>
 
-<dt><a name="d_databank">.databank</a> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_databank">.databank</a></b></code> &lt;expression&gt;
 <dd>Set data bank (65816). Absolute addressing is used only for symbols in this
 bank, anything else (except direct page) is using long addressing.
 <pre width=80>
         <b class="k">.databank</b> <span>$10</span>   <i>;$10xxxx</i>
 </pre>
 
-<dt><a name="d_dpage">.dpage</a> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_dpage">.dpage</a></b></code> &lt;expression&gt;
 <dd>Set direct page. Direct or zero page addressing is only used for addresses
 in the following 256 byte range, anything else is using absolute or long
 addressing.
@@ -1930,8 +1983,8 @@ addressing.
 <h3>Controlling errors<a name="compiletime-checks" href="#compiletime-checks"></a></h3>
 <dl class="dir">
 
-<dt><a name="d_page">.page</a>
-<dt><a name="d_endp">.endp</a>
+<dt><code><b class="k"><a name="d_page">.page</a></b></code>
+<dt><code><b class="k"><a name="d_endp">.endp</a></b></code>
 <dd>Gives an error on page boundary crossing, e.g. for timing sensitive code.
 
 <pre width=80>
@@ -1940,7 +1993,7 @@ table   <b class="d">.byte</b> <span>0</span>, <span>1</span>, <span>2</span>, <
 	<b class="k">.endp</b>
 </pre>
 
-<dt><a name="d_option">.option</a> allow_branch_across_page
+<dt><code><b class="k"><a name="d_option">.option</a></b></code> allow_branch_across_page
 <dd>Switches error generation on page boundary crossing during relative branch.
 Such a condition on 6502 adds 1 extra cycle to the execution time, which
 can ruin the timing of a carefully cycle counted code.
@@ -1952,16 +2005,16 @@ can ruin the timing of a carefully cycle counted code.
         <b class="k">.option</b> allow_branch_across_page = <span>1</span>
 </pre>
 
-<dt><a name="d_error">.error</a> &lt;message&gt; [, &lt;message&gt;, &hellip;]
-<dt><a name="d_cerror">.cerror</a> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, &hellip;]
+<dt><code><b class="k"><a name="d_error">.error</a></b></code> &lt;message&gt; [, &lt;message&gt;, &hellip;]
+<dt><code><b class="k"><a name="d_cerror">.cerror</a></b></code> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, &hellip;]
 <dd>Exit with error or conditionally exit with error
 <pre width=80>
         <b class="k">.error</b> <span class="s">"Unfinished here..."</span>
         <b class="k">.cerror</b> <u>*</u> &gt; <span>$1200</span>, <span class="s">"Program too long by "</span>, <u>*</u> - <span>$1200</span>, <span class="s">" bytes"</span>
 </pre>
 
-<dt><a name="d_warn">.warn</a> &lt;message&gt; [, &lt;message&gt;, &hellip;]
-<dt><a name="d_cwarn">.cwarn</a> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, &hellip;]
+<dt><code><b class="k"><a name="d_warn">.warn</a></b></code> &lt;message&gt; [, &lt;message&gt;, &hellip;]
+<dt><code><b class="k"><a name="d_cwarn">.cwarn</a></b></code> &lt;condition&gt;, &lt;message&gt; [, &lt;message&gt;, &hellip;]
 <dd>Display a warning message always or depending on a condition
 <pre width=80>
         <b class="k">.warn</b> <span class="s">"FIXME: handle negative values too!"</span>
@@ -1972,7 +2025,7 @@ can ruin the timing of a carefully cycle counted code.
 <h3>Target<a name="target-cpu" href="#target-cpu"></a></h3>
 <dl class="dir">
 
-<dt><a name="d_cpu">.cpu</a> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_cpu">.cpu</a></b></code> &lt;expression&gt;
 <dd>Selects CPU according to the string argument.
 <pre width=80>
 	<b class="k">.cpu</b> <span class="s">"6502"</span>	<i>;standard 65xx</i>
@@ -1991,19 +2044,19 @@ can ruin the timing of a carefully cycle counted code.
 <h3>Misc<a name="misc" href="#misc"></a></h3>
 <dl class="dir">
 
-<dt><a name="d_end">.end</a>
+<dt><code><b class="k"><a name="d_end">.end</a></b></code>
 <dd>Terminate assembly. Any content after this directive is ignored.
 
-<dt><a name="d_eor">.eor</a> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_eor">.eor</a></b></code> &lt;expression&gt;
 <dd>XOR output with a 8&nbsp;bit value. Useful for reverse screen code text for example,
 or for silly <q>encryption</q>.
 
-<dt><a name="d_var">.var</a> &lt;expression&gt;
+<dt><code><b class="k"><a name="d_var">.var</a></b></code> &lt;expression&gt;
 <dd>Defines a variable identified by the label preceding, which
 is set to the value of expression or reference of variable.
 
-<dt><a name="d_comment">.comment</a>
-<dt><a name="d_endc">.endc</a>
+<dt><code><b class="k"><a name="d_comment">.comment</a></b></code>
+<dt><code><b class="k"><a name="d_endc">.endc</a></b></code>
 <dd>Comment block start and comment block end.
 <pre width=80>
 	<b class="k">.comment</b>
@@ -2012,16 +2065,16 @@ is set to the value of expression or reference of variable.
 	<b class="k">.endc</b>
 </pre>
 
-<dt><a name="d_assert">.assert</a>
-<dt><a name="d_check">.check</a>
+<dt><code><b class="k"><a name="d_assert">.assert</a></b></code>
+<dt><code><b class="k"><a name="d_check">.check</a></b></code>
 <dd>Do not use these, the syntax will change in next version!
 
 </dl>
 <h3>Printer control<a name="listing-control" href="#listing-control"></a></h3>
 <dl class="dir">
 
-<dt><a name="d_pron">.pron</a>
-<dt><a name="d_proff">.proff</a>
+<dt><code><b class="k"><a name="d_pron">.pron</a></b></code>
+<dt><code><b class="k"><a name="d_proff">.proff</a></b></code>
 <dd>Turn on or off source listing on part of the file.
 
 <pre width=80>
@@ -2035,8 +2088,8 @@ is set to the value of expression or reference of variable.
 reset   <b>cld</b>
 </pre>
 
-<dt><a name="d_hidemac">.hidemac</a>
-<dt><a name="d_showmac">.showmac</a>
+<dt><code><b class="k"><a name="d_hidemac">.hidemac</a></b></code>
+<dt><code><b class="k"><a name="d_showmac">.showmac</a></b></code>
 <dd>Ignored for compatibility
 </dl>
 
@@ -2141,12 +2194,14 @@ means that you will have to fix expressions using braces accordingly, for exampl
 
 <p>The following operators used by the original Turbo Assembler are different:</p>
 
-<table border="0" class="oper">
+<div><table border="0">
 <caption>TASM Operator differences</caption>
-<tr><td width="80">.<td>bitwise or, now <code>|</code>
-<tr><td>:<td>bitwise eor, now <code>^</code>
-<tr><td>!<td>force 16&nbsp;bit address, now <code>@w</code>
-</table>
+<tbody>
+<tr><td width="80"><code>.</code><td>bitwise or, now <code>|</code>
+<tr><td><code>:</code><td>bitwise eor, now <code>^</code>
+<tr><td><code>!</code><td>force 16&nbsp;bit address, now <code>@w</code>
+</tbody>
+</table></div>
 
 <p>The default expression evaluation is not limited to 16&nbsp;bit unsigned numbers anymore.</p>
 
@@ -2204,8 +2259,9 @@ zeros. Uninitialized memory after the last valid byte is not saved.</p>
         <b>*=</b> <span>$2000</span>
 	<b>nop</b>
 </pre>
-<table border="0">
+<div><table border="0">
 <caption>Result of compilation</caption>
+<tbody>
 <tr><td><tt>$02, $00</tt><td>little endian length, 2 bytes
 <tr><td><tt>$00, $10</tt><td>little endian start $1000
 <tr><td><tt>$a9, $02</tt><td>code
@@ -2213,7 +2269,8 @@ zeros. Uninitialized memory after the last valid byte is not saved.</p>
 <tr><td><tt>$00, $20</tt><td>little endian start $2000
 <tr><td><tt>$ea</tt><td>code
 <tr><td><tt>$00, $00</tt><td>end marker (length=0)
-</table>
+</tbody>
+</table></div>
 
 <dt><b>-X</b>, <b>--long-address</b>
 <dd>Use 3 byte address/length for CBM and nonlinear output instead of 2 bytes.
@@ -2233,8 +2290,9 @@ skipped in the output.</p>
         <b>*=</b> <span>$2000</span>
 start	<b>rts</b>
 </pre>
-<table border="0">
+<div><table border="0">
 <caption>Result of compilation</caption>
+<tbody>
 <tr><td><tt>$ff, $ff</tt><td>header, 2 bytes
 <tr><td><tt>$e0, $02</tt><td>little endian start $02e0
 <tr><td><tt>$e1, $02</tt><td>little endian last byte $02e1
@@ -2242,7 +2300,8 @@ start	<b>rts</b>
 <tr><td><tt>$00, $20</tt><td>little endian start $2000
 <tr><td><tt>$00, $20</tt><td>little endian last byte $2000
 <tr><td><tt>$60</tt><td>code
-</table>
+</tbody>
+</table></div>
 </dl>
 
 <h3>Operation options<a name="commandline-operation" href="#commandline-operation"></a></h3>
@@ -2257,6 +2316,7 @@ a DOS based Turbo Assembler editor, which could create PETSCII files for
 map <code>'a'&ndash;'z'</code> and <code>'A'&ndash;'Z'</code> into the correct PETSCII range of <code>$41&ndash;$5A</code> and <code>$C1&ndash;$DA</code>,
 which is more suitable for an ASCII editor. It also adds predefined petcat style
 PETSCII literals to the default encodings.</p>
+
 <p><b>For writing sources in UTF-8/UTF-16 encodings this option is required!</b> The
 symbol names are still limited to ASCII, but custom string encodings can take
 advantage of the full Unicode set.</p>
@@ -2703,7 +2763,7 @@ This mode is for compiling sources which are already PETSCII.</p>
 <p>Does no translation at all, no translation table, no escape sequences.</p>
 <h4>The <q>screen</q> encoding for raw 8-bit<a name="translate-raw8-screen" href="#translate-raw8-screen"></a></h4>
 <p>The following translation table applies, no escape sequences.</p>
-<table width="100%">
+<div><table width="100%">
 <caption>Built-in PETSCII to PETSCII screen code translation table</caption>
 <thead>
 <tr><th>Input<th>Byte
@@ -2718,13 +2778,13 @@ This mode is for compiling sources which are already PETSCII.</p>
 <tr><td>C0&ndash;FE<td>40&ndash;7E
 <td>FF<td>5E
 </tbody>
-</table>
+</table></div>
 
 <h3>Unicode and ASCII source<a name="translate-unicode" href="#translate-unicode"></a></h3>
 <p>Unicode encoding is used when the <q><tt>-a</tt></q> option is given on the command line.</p>
 <h4>The <q>none</q> encoding for Unicode<a name="translate-unicode-none" href="#translate-unicode-none"></a></h4>
 This is a Unicode to PETSCII mapping, including escape sequences for control codes.
-<table width="100%" class="trans">
+<div><table width="100%" class="trans">
 <caption>Built-in Unicode to PETSCII translation table</caption>
 <thead>
 <tr><th>Glyph<th>Unicode<th>Byte
@@ -2783,9 +2843,9 @@ This is a Unicode to PETSCII mapping, including escape sequences for control cod
 <tr><td>&#x2666;<td>U+2666<td>DA
 <td>&#x2713;<td>U+2713<td>BA
 </tbody>
-</table>
+</table></div>
 
-<table width="100%" class="esc">
+<div><table width="100%" class="esc">
 <caption>Built-in PETSCII escape sequences</caption>
 <thead>
 <tr><th>Escape<th>Byte
@@ -3018,11 +3078,11 @@ This is a Unicode to PETSCII mapping, including escape sequences for control cod
 <td><td>
 <td><td>
 </tbody>
-</table>
+</table></div>
 
 <h4>The <q>screen</q> encoding for Unicode<a name="translate-unicode-screen" href="#translate-unicode-screen"></a></h4>
 This is a Unicode to PETSCII screen code mapping, including escape sequences for control code screen codes.
-<table width="100%" class="trans">
+<div><table width="100%" class="trans">
 <caption>Built-in Unicode to PETSCII screen code translation table</caption>
 <thead>
 <tr><th>Glyph<th>Unicode<th>Translated
@@ -3083,9 +3143,9 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <tr><td>&#x2713;<td>U+2713<td>7A
 <td><td><td>
 </tbody>
-</table>
+</table></div>
 
-<table width="100%" class="esc">
+<div><table width="100%" class="esc">
 <caption>Built-in PETSCII screen code escape sequences</caption>
 <thead>
 <tr><th>Escape<th>Byte
@@ -3183,13 +3243,14 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <td>{up&nbsp;arrow}<td>1E
 <td><td>
 </tbody>
-</table>
+</table></div>
 
 <hr>
 <h2>Opcodes<a name="opcodes" href="#opcodes"></a></h2>
 <h3>Standard 6502 opcodes<a name="opcodes-6502" href="#opcodes-6502"></a></h3>
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>The standard 6502 opcodes</caption>
+<tbody>
 <tr><th width="4%">ADC<td width="46%">61 65 69 6D 71 75 79 7D
 <th width="4%">AND<td width="46%">21 25 29 2D 31 35 39 3D
 <tr><th>ASL<td>06 0A 0E 16 1E
@@ -3246,9 +3307,12 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>TXA<td>8A
 <tr><th>TXS<td>9A
 <th>TYA<td>98
-</table>
-<table width="100%" class="opcodes">
+</tbody>
+</table></div>
+
+<div><table width="100%" class="opcodes">
 <caption>Aliases, pseudo instructions</caption>
+<tbody>
 <tr><th width="4%">ASL<td width="46%">0A
 <th width="4%">BGE<td width="46%">B0
 <tr><th>BLT<td>90
@@ -3267,13 +3331,15 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>ROR<td>6A
 <tr><th>SHL<td>06 0A 0E 16 1E
 <th>SHR<td>46 4A 4E 56 5E
-</table>
+</tbody>
+</table></div>
 
 <hr>
 <h3>6502 illegal opcodes<a name="opcodes-6502i" href="#opcodes-6502i"></a></h3>
 <p>This processor is a standard 6502 with the NMOS illegal opcodes.</p>
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
+<tbody>
 <tr><th width="4%">ANC<td width="46%">0B
 <th width="4%">ANE<td width="46%">8B
 <tr><th>ARR<td>6B
@@ -3294,9 +3360,12 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>SHY<td>9C
 <tr><th>SLO<td>03 07 0F 13 17 1B 1F
 <th>SRE<td>43 47 4F 53 57 5B 5F
-</table>
-<table width="100%" class="opcodes">
+</tbody>
+</table></div>
+
+<div><table width="100%" class="opcodes">
 <caption>Additional aliases</caption>
+<tbody>
 <tr><th width="4%">AHX<td width="46%">93 9F
 <th width="4%">ALR<td width="46%">4B
 <tr><th>AXS<td>CB
@@ -3309,25 +3378,33 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>TAS<td>9B
 <tr><th>XAA<td>8B
 <th><td>
-</table>
+</tbody>
+</table></div>
 
 <hr>
 <h3>65DTV02 opcodes<a name="opcodes-65dtv02" href="#opcodes-65dtv02"></a></h3>
 <p>This processor is an enhanced version of standard 6502 with some illegal opcodes.</p>
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additionally to 6502 illegal opcodes</caption>
+<tbody>
 <tr><th width="4%">BRA<td width="46%">12
 <th width="4%">SAC<td width="46%">32
 <tr><th>SIR<td>42
 <th><td>
-</table>
-<table width="100%" class="opcodes">
+</tbody>
+</table></div>
+
+<div><table width="100%" class="opcodes">
 <caption>Additional pseudo instruction</caption>
+<tbody>
 <tr><th width="4%">GRA<td width="46%">12 4C
 <th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">
-</table>
-<table width="100%" class="opcodes">
+</tbody>
+</table></div>
+
+<div><table width="100%" class="opcodes">
 <caption>These illegal opcodes are not valid</caption>
+<tbody>
 <tr><th width="4%">ANC<td width="46%">0B
 <th width="4%">JAM<td width="46%">02
 <tr><th>LDS<td>BB
@@ -3338,22 +3415,27 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>SHX<td>9E
 <tr><th>SHY<td>9C
 <th><td>
-</table>
-<table width="100%" class="opcodes">
+</tbody>
+</table></div>
+
+<div><table width="100%" class="opcodes">
 <caption>These aliases are not valid</caption>
+<tbody>
 <tr><th width="4%">AHX<td width="46%">93 9F
 <th width="4%">AXS<td width="46%">CB
 <tr><th>LAE<td>BB
 <th>LAS<td>BB
 <tr><th>TAS<td>9B
 <th><td>
-</table>
+</tbody>
+</table></div>
 
 <hr>
 <h3>Standard 65C02 opcodes<a name="opcodes-65c02" href="#opcodes-65c02"></a></h3>
 <p>This processor is an enhanced version of standard 6502.</p>
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
+<tbody>
 <tr><th width="4%">ADC<td width="46%">72
 <th width="4%">AND<td width="46%">32
 <tr><th>BIT<td>34 3C 89
@@ -3374,46 +3456,57 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>STZ<td>64 74 9C 9E
 <tr><th>TRB<td>14 1C
 <th>TSB<td>04 0C
-</table>
-<table width="100%" class="opcodes">
+</tbody>
+</table></div>
+
+<div><table width="100%" class="opcodes">
 <caption>Additional aliases and pseudo instructions</caption>
+<tbody>
 <tr><th width="4%">CLR<td width="46%">64 74 9C 9E
 <th width="4%">DEA<td width="46%">3A
 <tr><th>GRA<td>4C 80
 <th>INA<td>1A
-</table>
+</tbody>
+</table></div>
 
 <hr>
 <h3>R65C02 opcodes<a name="opcodes-r65c02" href="#opcodes-r65c02"></a></h3>
 <p>This processor is an enhanced version of standard 65C02.</p>
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
+<tbody>
 <tr><th width="4%">BBR<td width="46%">0F 1F 2F 3F 4F 5F 6F 7F
 <th width="4%">BBS<td width="46%">8F 9F AF BF CF DF EF FF
 <tr><th>RMB<td>07 17 27 37 47 57 67 77
 <th>SMB<td>87 97 A7 B7 C7 D7 E7 F7
-</table>
+</tbody>
+</table></div>
 
 <hr>
 <h3>W65C02 opcodes<a name="opcodes-w65c02" href="#opcodes-w65c02"></a></h3>
 <p>This processor is an enhanced version of R65C02.</p>
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
+<tbody>
 <tr><th width="4%">STP<td width="46%">DB
 <th width="4%">WAI<td width="46%">CB
-</table>
+</tbody>
+</table></div>
 
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional aliases</caption>
+<tbody>
 <tr><th width="4%">HLT<td width="46%">DB
 <th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">&nbsp;&nbsp;
-</table>
+</tbody>
+</table></div>
 
 <hr>
 <h3>W65816 opcodes<a name="opcodes-w65816" href="#opcodes-w65816"></a></h3>
 <p>This processor is an enhanced version of W65C02.</p>
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
+<tbody>
 <tr><th width="4%">ADC<td width="46%">63 67 6F 73 77 7F
 <th width="4%">AND<td width="46%">23 27 2F 33 37 3F
 <tr><th>BRL<td>82
@@ -3448,10 +3541,12 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>TYX<td>BB
 <tr><th>XBA<td>EB
 <th>XCE<td>FB
-</table>
+</tbody>
+</table></div>
 
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional aliases</caption>
+<tbody>
 <tr><th width="4%">CSP<td width="46%">02
 <th width="4%">CLP<td width="46%">C2
 <tr><th>JML<td>5C DC
@@ -3461,13 +3556,15 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <tr><th>TDA<td>7B
 <th>TSA<td>3B
 <tr><th><td>
-</table>
+</tbody>
+</table></div>
 
 <hr>
 <h3>65EL02 opcodes<a name="opcodes-65el02" href="#opcodes-65el02"></a></h3>
 <p>This processor is an enhanced version of standard 65C02.</p>
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
+<tbody>
 <tr><th width="4%">ADC<td width="46%">63 67 73 77
 <th width="4%">AND<td width="46%">23 27 33 37
 <tr><th>CMP<td>C3 C7 D3 D7
@@ -3516,18 +3613,23 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>XBA<td>EB
 <tr><th>XCE<td>FB
 <th>ZEA<td>8F
-</table>
-<table width="100%" class="opcodes">
+</tbody>
+</table></div>
+
+<div><table width="100%" class="opcodes">
 <caption>Additional aliases</caption>
+<tbody>
 <tr><th width="4%">CLP<td width="46%">C2
 <th width="4%">HLT<td width="46%">DB
-</table>
+</tbody>
+</table></div>
 
 <hr>
 <h3>65CE02 opcodes<a name="opcodes-65ce02" href="#opcodes-65ce02"></a></h3>
 <p>This processor is an enhanced version of R65C02.</p>
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional opcodes</caption>
+<tbody>
 <tr><th width="4%">ASR<td width="46%">43 44 54
 <th width="4%">ASW<td width="46%">CB
 <tr><th>BCC<td>93
@@ -3564,23 +3666,28 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <th>TSY<td>0B
 <tr><th>TYS<td>2B
 <th>TZA<td>6B
-</table>
+</tbody>
+</table></div>
 
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>Additional aliases</caption>
+<tbody>
 <tr><th width="4%">ASR<td width="46%">43
 <th width="4%">BGE<td width="46%">B3
 <tr><th>BLT<td>93
 <th>NEG<td>42
 <tr><th>RTN<td>62
 <th><td>
-</table>
+</tbody>
+</table></div>
 
-<table width="100%" class="opcodes">
+<div><table width="100%" class="opcodes">
 <caption>This alias is not valid</caption>
+<tbody>
 <tr><th width="4%">CLR<td width="46%">64 74 9C 9E
 <th width="4%">&nbsp;&nbsp;&nbsp;<td width="46%">&nbsp;&nbsp;
-</table>
+</tbody>
+</table></div>
 
 <hr>
 <h2>Appendix<a name="appendix" href="#appendix"></a></h2>
@@ -3716,5 +3823,5 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#f_tan">tan</a>
 <a href="#f_tanh">tanh</a>
 <a href="#f_trunc">trunc</a>
-
+</div>
 </body></html>

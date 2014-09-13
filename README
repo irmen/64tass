@@ -530,7 +530,7 @@ implemented differently in future releases. Use this feature at your own risk
 for now, you might need to update your code later.
 
          Label operators and functions
-.       member                  label.locallabel
+a.b     member                  label.locallabel
 a[i]    element from start      label[1]
 a[i]    element from end        label[-1]
 a[s]    copy as tuple           label[:]
@@ -584,39 +584,38 @@ complexity is limited to 3 operators. This is enough to describe all addressing
 modes of the supported CPUs.
 
                   Valid addressing mode operator combinations
-#              immediate                           lda #$12
-#addr,#addr    move                                mvp #5,#6
-addr           direct or relative                  lda $12, lda $1234, bne
-                                                   $1234
-addr,addr      direct page bit                     rmb 5,$12
-addr,addr,addr direct page bit relative jump       bbs 5,$12,$1234
-(addr)         indirect                            lda ($12), jmp ($1234)
-(addr),y       indirect y indexed                  lda ($12),y
-(addr),z       indirect z indexed                  lda ($12),z
-(addr,x)       x indexed indirect                  lda ($12,x), jmp ($1234,x)
-[addr]         long indirect                       lda [$12], jmp [$1234]
-[addr],y       long indirect y indexed             lda [$12],y
-addr,b         data bank indexed                   lda 0,b
-addr,b,x       data bank x indexed                 lda 0,b,x
-addr,b,y       data bank y indexed                 lda 0,b,y
-addr,d         direct page indexed                 lda 0,d
-addr,d,x       direct page x indexed               lda 0,d,x
-addr,d,y       direct page y indexed               ldx 0,d,y
-(addr,d)       direct page indirect                lda ($12,d)
-(addr,d,x)     direct page x indexed indirect      lda ($12,d,x)
-(addr,d),y     direct page indirect y indexed      lda ($12,d),y
-(addr,d),z     direct page indirect z indexed      lda ($12,d),z
-[addr,d]       direct page long indirect           lda [$12,d]
-[addr,d],y     direct page long indirect y indexed lda [$12,d],y
-addr,k         program bank indexed                jsr 0,k
-(addr,k,x)     program bank x indexed indirect     jmp ($1234,k,x)
-addr,r         data stack indexed                  lda 1,r
-(addr,r),y     data stack indexed indirect y       lda ($12,r),y
+#              immediate                            lda #$12
+#addr,#addr    move                                 mvp #5,#6
+addr           direct or relative                   lda $12 lda $1234 bne $1234
+addr,addr      direct page bit                      rmb 5,$12
+addr,addr,addr direct page bit relative jump        bbs 5,$12,$1234
+(addr)         indirect                             lda ($12) jmp ($1234)
+(addr),y       indirect y indexed                   lda ($12),y
+(addr),z       indirect z indexed                   lda ($12),z
+(addr,x)       x indexed indirect                   lda ($12,x) jmp ($1234,x)
+[addr]         long indirect                        lda [$12] jmp [$1234]
+[addr],y       long indirect y indexed              lda [$12],y
+addr,b         data bank indexed                    lda 0,b
+addr,b,x       data bank x indexed                  lda 0,b,x
+addr,b,y       data bank y indexed                  lda 0,b,y
+addr,d         direct page indexed                  lda 0,d
+addr,d,x       direct page x indexed                lda 0,d,x
+addr,d,y       direct page y indexed                ldx 0,d,y
+(addr,d)       direct page indirect                 lda ($12,d)
+(addr,d,x)     direct page x indexed indirect       lda ($12,d,x)
+(addr,d),y     direct page indirect y indexed       lda ($12,d),y
+(addr,d),z     direct page indirect z indexed       lda ($12,d),z
+[addr,d]       direct page long indirect            lda [$12,d]
+[addr,d],y     direct page long indirect y indexed  lda [$12,d],y
+addr,k         program bank indexed                 jsr 0,k
+(addr,k,x)     program bank x indexed indirect      jmp ($1234,k,x)
+addr,r         data stack indexed                   lda 1,r
+(addr,r),y     data stack indexed indirect y        lda ($12,r),y
                indexed
-addr,s         stack indexed                       lda 1,s
-(addr,s),y     stack indexed indirect y indexed    lda ($12,s),y
-addr,x         x indexed                           lda $12,x
-addr,y         y indexed                           lda $12,y
+addr,s         stack indexed                        lda 1,s
+(addr,s),y     stack indexed indirect y indexed     lda ($12,s),y
+addr,x         x indexed                            lda $12,x
+addr,y         y indexed                            lda $12,y
 
 The direct page indexed addressing mode is not affected by the .dpage directive
 and always forces the 8 bit address as is. It's only usable for direct/zero
@@ -1096,11 +1095,11 @@ to map Unicode characters to 8 bit values in strings.
     code), anything else is user defined. All user encodings start without any
     character or escape definitions, add some as required.
 
-        .enc screen     ;screen code mode
-        .text "text with screen codes"
-        cmp #"u"        ;compare screen code
-        .enc none       ;normal mode again
-        cmp #"u"        ;compare ASCII
+            .enc screen     ;screen code mode
+            .text "text with screen codes"
+            cmp #"u"        ;compare screen code
+            .enc none       ;normal mode again
+            cmp #"u"        ;compare ASCII
 
 .cdef <start>, <end>, <coded> [, <start>, <end>, <coded>, ...]
 .cdef "<start><end>", <coded> [, "<start><end>", <coded>, ...]
