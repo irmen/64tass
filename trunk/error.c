@@ -286,7 +286,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         }
         return;
     }
-    
+
     new_error(SV_FATAL, current_file_list, epoint);
     switch (no) {
     case ERROR_UNKNOWN_OPTIO:
@@ -645,11 +645,11 @@ int error_print(int fix, int newvar, int anyerr) {
     for (pos = 0; !noneerr && pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7) {
         err = (const struct error_s *)&error_list.data[pos];
         switch (err->severity) {
-        case SV_NOTDEFGNOTE: 
+        case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
         case SV_DOUBLENOTE:
-        case SV_WARNING: 
-        case SV_NONEERROR: 
+        case SV_WARNING:
+        case SV_NONEERROR:
             break;
         case SV_CONDERROR: if (!fix) continue; noneerr = 1; break;
         case SV_NOTDEFERROR: if (newvar) continue; noneerr = 1; break;
@@ -660,18 +660,25 @@ int error_print(int fix, int newvar, int anyerr) {
     for (pos = 0; pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7) {
         err = (const struct error_s *)&error_list.data[pos];
         switch (err->severity) {
-        case SV_NOTDEFGNOTE: 
+        case SV_NOTDEFGNOTE:
         case SV_NOTDEFLNOTE:
-            if (newvar) continue; 
-            pos2 = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7;
-            err2 = (const struct error_s *)&error_list.data[pos2];
-            if (pos2 >= error_list.len || err2->severity != SV_NOTDEFERROR) break;
-            pos2 = (pos2 + sizeof(struct error_s) + err2->line_len + err2->error_len + 7) & ~7;
-            err2 = (const struct error_s *)&error_list.data[pos2];
-            if (pos2 >= error_list.len || (err2->severity != SV_NOTDEFGNOTE && err2->severity != SV_NOTDEFLNOTE)) break;
+            if (newvar) continue;
+            pos2 = pos; err2 = err;
+            do {
+                pos2 = (pos2 + sizeof(struct error_s) + err2->line_len + err2->error_len + 7) & ~7;
+                err2 = (const struct error_s *)&error_list.data[pos2];
+                if (pos2 >= error_list.len) break;
+            } while (noneerr && err2->severity == SV_NONEERROR);
+            if (err2->severity != SV_NOTDEFERROR) break;
+            do {
+                pos2 = (pos2 + sizeof(struct error_s) + err2->line_len + err2->error_len + 7) & ~7;
+                err2 = (const struct error_s *)&error_list.data[pos2];
+                if (pos2 >= error_list.len) break;
+            } while (noneerr && err2->severity == SV_NONEERROR);
+            if (err2->severity != SV_NOTDEFGNOTE && err2->severity != SV_NOTDEFLNOTE) break;
             if (err->severity != err2->severity) break;
             if (err->severity == SV_NOTDEFGNOTE) continue;
-            if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line && 
+            if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line &&
                 err->epoint.pos == err2->epoint.pos) continue;
             break;
         case SV_DOUBLENOTE:
@@ -681,7 +688,7 @@ int error_print(int fix, int newvar, int anyerr) {
             pos2 = (pos2 + sizeof(struct error_s) + err2->line_len + err2->error_len + 7) & ~7;
             err2 = (const struct error_s *)&error_list.data[pos2];
             if (pos2 >= error_list.len || err2->severity != SV_DOUBLENOTE) break;
-            if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line && 
+            if (err->file_list == err2->file_list && err->error_len == err2->error_len && err->epoint.line == err2->epoint.line &&
                 err->epoint.pos == err2->epoint.pos) continue;
             break;
         case SV_WARNING: warnings++; if (!arguments.warning || anyerr) continue; break;
