@@ -193,15 +193,11 @@ static void len(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     int_from_uval(v, uv);
 }
 
-static void size(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+static void size(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
     size_t s;
     if (!v1->u.code.pass) {
-        str_t name = v1->u.code.label->name;
         if (v1 == v) destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR____NO_FORWARD;
-        v->u.error.epoint = *epoint;
-        v->u.error.u.ident = name;
+        v->obj = NONE_OBJ;
         return;
     }
     s = v1->u.code.size;
