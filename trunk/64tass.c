@@ -1453,8 +1453,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                         while ((val = get_val(&epoint2))) {
-                            if (val->obj == ERROR_OBJ) { err_msg_output(val); continue;}
-                            if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint2); continue;}
                             if (textrecursion(val, prm, &ch2, &uninit, &sum, bits, &epoint2)) err_msg_still_none(NULL, &epoint2);
                         }
                         if (uninit) {memskip(uninit);sum += uninit;}
@@ -1499,8 +1497,6 @@ struct value_s *compile(struct file_list_s *cflist)
                         }
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                         while ((val = get_val(&epoint))) {
-                            if (val->obj == ERROR_OBJ) { err_msg_output(val); continue;}
-                            if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint); continue;}
                             if (byterecursion(val, prm, &uninit, bits, &epoint)) err_msg_still_none(NULL, &epoint);
                         }
                         if (uninit) memskip(uninit);
