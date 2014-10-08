@@ -2949,11 +2949,6 @@ static int main2(int argc, char *argv[]) {
 #ifdef _WIN32
 int wmain(int argc, wchar_t *argv2[]) {
     int i, r;
-    UINT oldcodepage = GetConsoleOutputCP();
-    UINT oldcodepage2 = GetConsoleCP();
-
-    SetConsoleCP(65001);
-    SetConsoleOutputCP(65001);
 
     setlocale(LC_ALL, "");
     setlocale(LC_NUMERIC, "C");
@@ -2995,9 +2990,6 @@ int wmain(int argc, wchar_t *argv2[]) {
 
     for (i = 0; i < argc; i++) free(argv[i]);
     free(argv);
-
-    SetConsoleCP(oldcodepage2);
-    SetConsoleOutputCP(oldcodepage);
     return r;
 }
 #else
