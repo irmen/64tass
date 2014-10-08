@@ -368,11 +368,9 @@ void argv_print(const char *line, FILE *f) {
     for (;;) {
         uint32_t ch = (uint8_t)line[i];
         if (ch & 0x80) {
-            size_t o = i;
+            if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in((const uint8_t *)line + i, &ch);
-            if (iswprint(ch)) continue;
-            if (l != o) fwrite(line + l, 1, o - l, f);
-            putc('?', f);
+            if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) putc('?', f);
             l = i;
             continue;
         }
@@ -474,17 +472,9 @@ void printable_print(const uint8_t *line, FILE *f) {
     for (;;) {
         uint32_t ch = line[i];
         if (ch & 0x80) {
-#ifdef _WIN32
-            size_t o = i;
-            i += utf8in(line + i, &ch);
-            if (iswprint(ch)) continue;
-            if (l != o) fwrite(line + l, 1, o - l, f);
-            fprintf(f, "{$%x}", ch);
-#else
             if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
             if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) fprintf(f, "{$%x}", ch);
-#endif
             l = i;
             continue;
         }
@@ -506,17 +496,9 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     for (i = 0; i < max;) {
         uint32_t ch = line[i];
         if (ch & 0x80) {
-#ifdef _WIN32
-            size_t o = i;
-            i += utf8in(line + i, &ch);
-            if (iswprint(ch)) continue;
-            if (l != o) len += fwrite(line + l, 1, o - l, f);
-            len += fprintf(f, "{$%x}", ch);
-#else
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
             if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) len += fprintf(f, "{$%x}", ch); else len++;
-#endif
             l = i;
             continue;
         }
@@ -541,11 +523,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
         uint32_t ch = line[i];
         if (ch & 0x80) {
             i += utf8in(line + i, &ch);
-#ifdef _WIN32
-            if (!iswprint(ch)) l += sprintf(temp, "{$%x}", ch); else l++;
-#else
             if (!iswprint(ch) || sprintf(temp, "%lc", (wint_t)ch) < 0) l += sprintf(temp, "{$%x}", ch); else l++;
-#endif
             continue;
         }
         if (ch == 0) break;
