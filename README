@@ -2954,6 +2954,7 @@ Assembler directives
 .lbl .lint .logical .long .macro .next .null .offs .option .page .pend .proc
 .proff .pron .ptext .rept .rta .section .segment .send .shift .shiftl .showmac
 .struct .switch .text .union .var .warn .weak .word .xl .xs
+
 -------------------------------------------------------------------------------
 
 Built-in functions
@@ -2961,3 +2962,4 @@ Built-in functions
 abs acos all any asin atan atan2 bool cbrt ceil cos cosh deg exp float floor
 format frac hypot int len log log10 pow rad range repr round sign sin sinh size
 sqrt str tan tanh trunc
+
