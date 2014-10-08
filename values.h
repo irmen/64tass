@@ -118,7 +118,7 @@ struct value_s {
     size_t refcount;
     union {
         integer_t integer;
-        addr_t addr;
+        addrs_t addr;
         ustr_t str;
         bytes_t bytes;
         bits_t bits;
