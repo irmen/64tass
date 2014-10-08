@@ -128,19 +128,16 @@ FILE *file_open(const char *name, const char *mode)
     char *newname = (char *)malloc(max);
     const uint8_t *c = (uint8_t *)name;
     uint32_t ch;
+    mbstate_t ps;
+    memset(&ps, 0, sizeof(mbstate_t));
     if (!newname || max < 1) err_msg_out_of_memory();
     do {
         char temp[64];
         int l;
         ch = *c;
-        if (ch & 0x80) {
-            c += utf8in(c, &ch);
-            l = sprintf(temp, "%lc", (wint_t)ch);
-            if (l <= 0) l = sprintf(temp, "{$%x}", ch);
-        } else {
-            temp[0] = *c++;
-            l = 1;
-        }
+        if (ch & 0x80) c += utf8in(c, &ch); else c++;
+        l = wcrtomb(temp, (wchar_t)ch, &ps);
+        if (l <= 0) l = sprintf(temp, "{$%x}", ch);
         len += l;
         if (len < (unsigned int)l) err_msg_out_of_memory();
         if (len > max) {
