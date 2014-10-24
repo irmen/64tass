@@ -293,6 +293,24 @@ static int touval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoi
     return 0;
 }
 
+static int tobool(const struct value_s *v1, int *truth, linepos_t epoint) {
+    struct value_s err;
+    if (v1->obj == ERROR_OBJ) {
+        err_msg_output(v1); 
+        return 1;
+    }
+    if (v1->obj == NONE_OBJ) {
+        err_msg_still_none(NULL, epoint);
+        return 1;
+    }
+    if (v1->obj->truth(v1, &err, TRUTH_BOOL, epoint)) {
+        err_msg_output_and_destroy(&err);
+        return 1;
+    }
+    *truth = err.u.boolean;
+    return 0;
+}
+
 /* --------------------------------------------------------------------------- */
 /*
  * Skip memory
@@ -1181,6 +1199,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 {
                     uint8_t skwait = waitfor->skip;
                     ival_t ival;
+                    int truth;
                     struct value_s err;
                     if (waitfor->skip & 1) listing_line(epoint.pos);
                     new_waitfor(W_FI2, &epoint);
@@ -1192,8 +1211,8 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else { waitfor->skip = 0; break; }
                     switch (prm) {
                     case CMD_IF:
-                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
-                        waitfor->skip = err.u.boolean ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                        if (tobool(val, &truth, &epoint)) { waitfor->skip = 0; break; }
+                        waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     case CMD_IFNE:
                     case CMD_IFEQ:
@@ -1218,18 +1237,16 @@ struct value_s *compile(struct file_list_s *cflist)
             case CMD_ELSIF: /* .elsif */
                 {
                     uint8_t skwait = waitfor->skip;
-                    struct value_s err;
+                    int truth;
                     if (waitfor->skip & 1) listing_line_cut(epoint.pos);
                     if (waitfor->what != W_FI2) {err_msg2(ERROR______EXPECTED, ".IF", &epoint); break;}
                     waitfor->epoint = epoint;
                     if (skwait == 2) {
                         if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
                         val = get_val(&epoint);
-                        if (val->obj == ERROR_OBJ) { err_msg_output(val); waitfor->skip = 0; break;}
-                        if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint); waitfor->skip = 0; break;}
                     } else { waitfor->skip = 0; break; }
-                    if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
-                    waitfor->skip = err.u.boolean ? (waitfor->skip >> 1) : (waitfor->skip & 2);
+                    if (tobool(val, &truth, &epoint)) { waitfor->skip = 0; break; }
+                    waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
                     if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
                 }
                 break;
@@ -1805,11 +1822,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (first) {
                             first = 0;
                             if (prm == CMD_CWARN || prm == CMD_CERROR) {
-                                struct value_s err;
-                                if (val->obj == ERROR_OBJ) {err_msg_output(val); writeit = 0;}
-                                else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint2); writeit = 0;}
-                                else if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint2)) {err_msg_output_and_destroy(&err); writeit = 0; }
-                                else writeit = err.u.boolean;
+                                if (tobool(val, &writeit, &epoint2)) writeit = 0;
                                 continue;
                             }
                             writeit = 1;
@@ -2168,7 +2181,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     struct label_s *var;
                     struct star_s *s;
                     struct avltree *stree_old;
-                    struct value_s err;
+                    int truth;
                     line_t ovline, lvline;
                     int starexists;
                     const struct waitfor_s *my_waitfor;
@@ -2228,10 +2241,8 @@ struct value_s *compile(struct file_list_s *cflist)
                         lpoint=apoint;
                         if (!get_exp(&w, 1, cfile, 1, 1, &apoint)) break;
                         val = get_val(&epoint);
-                        if (val->obj == ERROR_OBJ) {err_msg_output(val); break;}
-                        if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint); break;}
-                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
-                        if (!err.u.boolean) break;
+                        if (tobool(val, &truth, &epoint)) break;
+                        if (!truth) break;
                         if (nopos < 0) {
                             str_t varname;
                             ignore();if (here()!=',') {err_msg(ERROR______EXPECTED,","); break;}
@@ -2321,7 +2332,6 @@ struct value_s *compile(struct file_list_s *cflist)
                 { /* .option */
                     static const str_t branch_across = {24, (const uint8_t *)"allow_branch_across_page"};
                     static const str_t longjmp = {22, (const uint8_t *)"auto_longbranch_as_jmp"};
-                    struct value_s err;
                     struct linepos_s opoint = lpoint;
                     str_t optname, cf;
                     listing_line(epoint.pos);
@@ -2332,15 +2342,11 @@ struct value_s *compile(struct file_list_s *cflist)
                     lpoint.pos++;
                     if (!get_exp(&w, 0, cfile, 1, 0, &epoint)) goto breakerr;
                     val = get_val(&epoint);
-                    if (val->obj == ERROR_OBJ) {err_msg_output(val); break; }
-                    if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint); break; }
                     str_cfcpy(&cf, &optname);
                     if (!str_cmp(&cf, &branch_across)) {
-                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
-                        else allowslowbranch = err.u.boolean;
+                        if (tobool(val, &allowslowbranch, &epoint)) break;
                     } else if (!str_cmp(&cf, &longjmp)) {
-                        if (val->obj->truth(val, &err, TRUTH_BOOL, &epoint)) {err_msg_output_and_destroy(&err); break; }
-                        else longbranchasjmp = err.u.boolean;
+                        if (tobool(val, &longbranchasjmp, &epoint)) break;
                     } else err_msg2(ERROR_UNKNOWN_OPTIO, &optname, &opoint);
                 }
                 break;
