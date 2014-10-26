@@ -280,19 +280,6 @@ static int toival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoi
     return 0;
 }
 
-static int touval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s err;
-    if (v1->obj == NONE_OBJ) {
-        err_msg_still_none(NULL, epoint);
-        return 1;
-    }
-    if (v1->obj->uval(v1, &err, uv, bits, epoint)) {
-        err_msg_output_and_destroy(&err);
-        return 1;
-    }
-    return 0;
-}
-
 static int tobool(const struct value_s *v1, int *truth, linepos_t epoint) {
     struct value_s err;
     if (v1->obj == ERROR_OBJ) {

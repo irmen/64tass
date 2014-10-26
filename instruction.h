@@ -25,6 +25,7 @@ struct cpu_s;
 extern int instruction(int, int, struct value_s *, linepos_t, struct linepos_s *);
 extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const char *);
+extern int touval(const struct value_s *, uval_t *, int, linepos_t);
 
 extern int longaccu, longindex;
 extern uint16_t dpage;
