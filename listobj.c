@@ -595,11 +595,10 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return NULL;
 }
 
-static void repeat(oper_t op, uval_t rep) {
+static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
     struct value_s **vals;
     struct value_s *v1 = op->v1, *v = op->v, tmp;
 
-    v->obj = v1->obj;
     if (v1->u.list.len && rep) {
         size_t i = 0, j, ln;
         ln = v1->u.list.len * rep;
@@ -610,6 +609,7 @@ static void repeat(oper_t op, uval_t rep) {
                 vals[i] = val_reference(v1->u.list.data[j]);
             }
         }
+        v->obj = v1->obj;
         if (v == v1) destroy(v);
         if (vals == tmp.u.list.val) {
             memcpy(v->u.list.val, vals, i * sizeof(v->u.list.data[0]));
@@ -617,11 +617,14 @@ static void repeat(oper_t op, uval_t rep) {
         }
         v->u.list.len = i;
         v->u.list.data = vals;
-        return;
+        return NULL;
     }
-    if (v == v1) destroy(v);
-    v->u.list.data = v->u.list.val;
-    v->u.list.len = 0;
+    if (v1->obj == TUPLE_OBJ) {
+        null_tuple->refcount++;
+        return null_tuple;
+    }
+    null_list->refcount++;
+    return null_list;
 }
 
 static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
@@ -629,9 +632,12 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, iv
     size_t i;
 
     if (!ln) {
-        if (v1 == v) destroy(v);
-        copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
-        return NULL;
+        if (v1->obj == TUPLE_OBJ) {
+            null_tuple->refcount++;
+            return null_tuple;
+        }
+        null_list->refcount++;
+        return null_list;
     }
 
     if (step == 1 && ln == v1->u.list.len && v1->obj == TUPLE_OBJ) {
@@ -665,9 +671,12 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
 
     if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
-            if (v1 == v) destroy(v);
-            copy((v1->obj == TUPLE_OBJ) ? &null_tuple : &null_list, v);
-            return NULL;
+            if (v1->obj == TUPLE_OBJ) {
+                null_tuple->refcount++;
+                return null_tuple;
+            }
+            null_list->refcount++;
+            return null_list;
         }
         vals = lnew(&tmp, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {

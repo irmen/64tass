@@ -93,7 +93,7 @@ struct obj_s {
     void (*calc1)(struct oper_s *);
     struct value_s *(*calc2)(struct oper_s *) MUST_CHECK;
     struct value_s *(*rcalc2)(struct oper_s *) MUST_CHECK;
-    void (*repeat)(struct oper_s *, uval_t);
+    struct value_s *(*repeat)(struct oper_s *, uval_t) MUST_CHECK;
     struct value_s *(*iindex)(struct oper_s *) MUST_CHECK;
     int (*ival)(const struct value_s *, struct value_s *, ival_t *, int, linepos_t) MUST_CHECK;
     int (*uval)(const struct value_s *, struct value_s *, uval_t *, int, linepos_t) MUST_CHECK;

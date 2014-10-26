@@ -669,7 +669,10 @@ static void functions(struct values_s *vals, unsigned int args) {
             eval_enter();
             val = mfunc2_recurse(vals->val, v, args, &vals->epoint);
             eval_leave();
-            if (!val) val = &null_tuple;
+            if (!val) {
+                null_tuple->refcount++;
+                val = null_tuple;
+            }
             val_destroy(vals->val);
             vals->val = val;
         }
@@ -812,8 +815,7 @@ static inline MUST_CHECK struct value_s *apply_op2(oper_t op) {
             tmp.obj->copy_temp(&tmp, op->v);
             return NULL;
         }
-        op->v1->obj->repeat(op, (shift > 0) ? shift : 0); 
-        return NULL;
+        return op->v1->obj->repeat(op, (shift > 0) ? shift : 0); 
     }
     return op->v1->obj->calc2(op);
 }

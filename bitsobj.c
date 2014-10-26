@@ -925,7 +925,7 @@ static void rshift(const struct value_s *vv1, const struct value_s *vv2, uval_t 
     vv->u.bits.inv = inv;
 }
 
-static void repeat(oper_t op, uval_t rep) {
+static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
     struct value_s *vv1 = op->v1, *vv = op->v;
     bdigit_t *v, *v1;
     bdigit_t uv;
@@ -933,12 +933,12 @@ static void repeat(oper_t op, uval_t rep) {
     size_t blen = vv1->u.bits.bits;
 
     if (!rep || !blen) {
-        if (vv1 == vv) destroy(vv);
-        copy(&null_bits, vv); return;
+        null_bits->refcount++;
+        return null_bits;
     }
     if (rep == 1) {
         if (vv1 != vv) copy(vv1, vv);
-        return;
+        return NULL;
     }
 
     if (blen > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
@@ -990,6 +990,7 @@ static void repeat(oper_t op, uval_t rep) {
     vv->u.bits.data = v;
     vv->u.bits.len = sz;
     vv->u.bits.bits = blen;
+    return NULL;
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
@@ -1099,8 +1100,8 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *vv1, uval_t ln, i
     struct value_s tmp;
 
     if (!ln) {
-        if (vv1 == vv) destroy(vv);
-        copy(&null_bits, vv);return NULL;
+        null_bits->refcount++;
+        return null_bits;
     }
     if (step == 1) {
         if (ln == vv1->u.bits.len) {
@@ -1183,8 +1184,8 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
 
     if (vv2->obj == LIST_OBJ) {
         if (!vv2->u.list.len) {
-            if (vv1 == vv) destroy(vv);
-            copy(&null_bits, vv);return NULL;
+            null_bits->refcount++;
+            return null_bits;
         }
         sz = (vv2->u.list.len + 8 * sizeof(bdigit_t) - 1) / (8 * sizeof(bdigit_t));
 

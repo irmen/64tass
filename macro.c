@@ -624,7 +624,9 @@ struct value_s *mfunc2_recurse(struct value_s *tmp2, struct values_s *vals, unsi
     destroy_variables2(tmp2->u.mfunc.label);
     memcpy(&tmp2->u.mfunc.label->members, &members, sizeof(members));
     destroy_section2(&rsection);
-    return retval ? retval : &null_tuple;
+    if (retval) return retval;
+    null_tuple->refcount++;
+    return null_tuple;
 }
 
 void init_macro(void) {
