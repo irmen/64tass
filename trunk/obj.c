@@ -260,12 +260,12 @@ static MUST_CHECK struct value_s *invalid_rcalc2(oper_t op) {
     return NULL;
 }
 
-static void invalid_repeat(oper_t op, uval_t rep) {
+static MUST_CHECK struct value_s *invalid_repeat(oper_t op, uval_t rep) {
     if (op->v1->obj == ERROR_OBJ) {
-        ERROR_OBJ->repeat(op, rep);
-        return;
+        return ERROR_OBJ->repeat(op, rep);
     }
     obj_oper_error(op);
+    return NULL;
 }
 
 static MUST_CHECK struct value_s *invalid_iindex(oper_t op) {
@@ -662,11 +662,12 @@ static MUST_CHECK struct value_s *error_rcalc2(oper_t op) {
     return NULL;
 }
 
-static void error_repeat(oper_t op, uval_t UNUSED(rep)) {
+static MUST_CHECK struct value_s *error_repeat(oper_t op, uval_t UNUSED(rep)) {
     struct value_s *v = op->v;
-    if (v == op->v1) return;
+    if (v == op->v1) return NULL;
     if (v == op->v2) v->obj->destroy(v);
     error_copy(op->v1, v);
+    return NULL;
 }
 
 static MUST_CHECK struct value_s *error_iindex(oper_t op) {

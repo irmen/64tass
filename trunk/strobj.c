@@ -428,15 +428,15 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     return NULL;
 }
 
-static void repeat(oper_t op, uval_t rep) {
+static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
     struct value_s *v1 = op->v1, *v = op->v, tmp;
-    v->obj = STR_OBJ;
     if (v1->u.str.len && rep) {
         uint8_t *s;
         size_t ln = v1->u.str.len;
         size_t chars = v1->u.str.chars;
         if (ln > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
         s = snew(&tmp, ln * rep);
+        v->obj = STR_OBJ;
         v->u.str.len = 0;
         while (rep--) {
             memcpy(s + v->u.str.len, v1->u.str.data, ln);
@@ -449,12 +449,10 @@ static void repeat(oper_t op, uval_t rep) {
         }
         v->u.str.data = s;
         v->u.str.chars = chars * rep;
-        return;
+        return NULL;
     } 
-    if (v == v1) destroy(v);
-    v->u.str.data = v->u.str.val;
-    v->u.str.len = 0;
-    v->u.str.chars = 0;
+    null_str->refcount++;
+    return null_str;
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
@@ -574,8 +572,8 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, 
     struct value_s tmp;
 
     if (!len1) {
-        if (v1 == v) destroy(v);
-        copy(&null_str, v);return NULL;
+        null_str->refcount++;
+        return null_str;
     }
     if (step == 1) {
         if (len1 == v1->u.str.chars) {
@@ -663,8 +661,8 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
 
     if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
-            if (v1 == v) destroy(v);
-            copy(&null_str, v);return NULL;
+            null_str->refcount++;
+            return null_str;
         }
         if (v1->u.str.len == v1->u.str.chars) {
             len2 = v2->u.list.len;

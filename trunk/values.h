@@ -190,11 +190,11 @@ extern struct value_s none_value;
 extern struct value_s *true_value;
 extern struct value_s *false_value;
 extern struct value_s *gap_value;
-extern struct value_s null_str;
-extern struct value_s null_bytes;
-extern struct value_s null_bits;
-extern struct value_s null_tuple;
-extern struct value_s null_list;
+extern struct value_s *null_str;
+extern struct value_s *null_bytes;
+extern struct value_s *null_bits;
+extern struct value_s *null_tuple;
+extern struct value_s *null_list;
 extern struct value_s null_addrlist;
 
 extern struct value_s o_TUPLE;
