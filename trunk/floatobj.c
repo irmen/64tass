@@ -236,8 +236,7 @@ MUST_CHECK struct value_s *calc2_double(oper_t op, double v1, double v2) {
         return NULL;
     default: break;
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 void float_from_double(struct value_s *v, double d) {
@@ -260,8 +259,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             return op->v2->obj->rcalc2(op);
         }
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
@@ -279,8 +277,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             return op->v1->obj->calc2(op);
         }
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 void floatobj_init(void) {

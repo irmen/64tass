@@ -312,8 +312,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             am = v1->u.addr.type;
             if (am != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) 
                 if (am != A_NONE || v2->u.addr.type != A_NONE) {
-                    obj_oper_error(op);
-                    return NULL;
+                    return obj_oper_error(op);
                 }
             op->v = val_alloc(); op->v->obj = NONE_OBJ;
             op->v1 = v1->u.addr.val;
@@ -358,8 +357,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             return v2->obj->rcalc2(op);
         }
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
@@ -393,8 +391,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             return v1->obj->calc2(op);
         }
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 void addressobj_init(void) {

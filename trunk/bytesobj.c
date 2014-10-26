@@ -374,8 +374,7 @@ static MUST_CHECK struct value_s *calc2_bytes(oper_t op) {
         }
     default: break;
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
@@ -445,8 +444,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         }
     default: break;
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
@@ -487,8 +485,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         }
     default: break;
     }
-    obj_oper_error(op); 
-    return NULL;
+    return obj_oper_error(op); 
 }
 
 static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {

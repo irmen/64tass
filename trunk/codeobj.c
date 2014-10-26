@@ -297,7 +297,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             }
         case T_TUPLE:
         case T_LIST: return v2->obj->rcalc2(op);
-        default: obj_oper_error(op); return NULL;
+        default: return obj_oper_error(op);
         }
     }
     switch (v2->obj->type) {
@@ -344,8 +344,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         return result;
     default: return v2->obj->rcalc2(op);
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
@@ -442,8 +441,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         return result;
     default: return v1->obj->calc2(op);
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v, linepos_t epoint) {

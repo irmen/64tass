@@ -71,7 +71,7 @@ obj_t ITER_OBJ = &iter_obj;
 
 static void error_copy(const struct value_s *, struct value_s *);
 
-void obj_oper_error(oper_t op) {
+struct value_s *obj_oper_error(oper_t op) {
     struct value_s *e1, *e2;
     struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
     if (v == v1) {
@@ -88,6 +88,7 @@ void obj_oper_error(oper_t op) {
     v->u.error.u.invoper.v1 = e1;
     v->u.error.u.invoper.v2 = e2;
     v->u.error.epoint = *op->epoint3;
+    return NULL;
 }
 
 static void invalid_destroy(struct value_s *UNUSED(v1)) {
@@ -208,8 +209,7 @@ static MUST_CHECK struct value_s *gap_calc2(oper_t op) {
         }
     default: break;
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *gap_rcalc2(oper_t op) {
@@ -236,8 +236,7 @@ static MUST_CHECK struct value_s *gap_rcalc2(oper_t op) {
         return v2->obj->calc2(op);
     default: break;
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static void invalid_calc1(oper_t op) {
@@ -248,32 +247,28 @@ static MUST_CHECK struct value_s *invalid_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
         return ERROR_OBJ->rcalc2(op);
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *invalid_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->calc2(op);
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *invalid_repeat(oper_t op, uval_t rep) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->repeat(op, rep);
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *invalid_iindex(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->iindex(op);
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static int MUST_CHECK invalid_ival(const struct value_s *v1, struct value_s *v, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
@@ -682,8 +677,7 @@ static MUST_CHECK struct value_s *ident_rcalc2(oper_t op) {
     if (op->op == &o_MEMBER) {
         return op->v1->obj->calc2(op);
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static int none_truth(const struct value_s *UNUSED(v1), struct value_s *v, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
@@ -830,8 +824,7 @@ static MUST_CHECK struct value_s *struct_calc2(oper_t op) {
         default: return v2->obj->rcalc2(op);
         }
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
