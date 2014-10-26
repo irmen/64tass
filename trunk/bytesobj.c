@@ -398,8 +398,7 @@ static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
         v->u.bytes.data = s2;
         return NULL;
     }
-    null_bytes->refcount++;
-    return null_bytes;
+    return val_reference(null_bytes);
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
@@ -494,8 +493,7 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, 
     struct value_s tmp;
 
     if (!len1) {
-        null_bytes->refcount++;
-        return null_bytes;
+        return val_reference(null_bytes);
     }
     if (step == 1) {
         if (len1 == v1->u.bytes.len) {
@@ -534,8 +532,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
 
     if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
-            null_bytes->refcount++;
-            return null_bytes;
+            return val_reference(null_bytes);
         }
         len2 = v2->u.list.len;
         p = p2 = bnew(&tmp, len2);

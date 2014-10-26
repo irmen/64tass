@@ -195,7 +195,7 @@ extern struct value_s *null_bytes;
 extern struct value_s *null_bits;
 extern struct value_s *null_tuple;
 extern struct value_s *null_list;
-extern struct value_s null_addrlist;
+extern struct value_s *null_addrlist;
 
 extern struct value_s o_TUPLE;
 extern struct value_s o_LIST;
@@ -263,15 +263,6 @@ extern struct value_s o_MEMBER;
 extern void destroy_values(void);
 extern void init_values(void);
 
-static inline MUST_CHECK struct value_s *truth_reference(int i) {
-    if (i) {
-        true_value->refcount++; 
-        return true_value;
-    }
-    false_value->refcount++;
-    return false_value;
-}
-
 static inline void obj_destroy(struct value_s *v1) {
     v1->obj->destroy(v1);
 }
@@ -282,5 +273,13 @@ static inline int obj_same(const struct value_s *v1, const struct value_s *v2) {
 
 static inline int obj_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
     return v1->obj->hash(v1, v, epoint);
+}
+
+static inline MUST_CHECK struct value_s *truth_reference(int i) {
+    return val_reference(i ? true_value : false_value);
+}
+
+static inline struct value_s *obj_next(struct value_s *v1, struct value_s *v) {
+    return v1->obj->next(v1, v);
 }
 #endif

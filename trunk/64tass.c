@@ -424,7 +424,7 @@ static int textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit,
         val_destroy(tmp);
     } else val->obj->getiter(val, &iter);
 
-    while ((val2 = iter.obj->next(&iter, &item))) {
+    while ((val2 = obj_next(&iter, &item))) {
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE: 
@@ -463,7 +463,7 @@ static int byterecursion(struct value_s *val, int prm, size_t *uninit, int bits,
     item.refcount = 0;
     if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) val->obj->getiter(val, &iter);
     else invalid_getiter(val, &iter);
-    while ((val2 = iter.obj->next(&iter, &item))) {
+    while ((val2 = obj_next(&iter, &item))) {
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE: warn |= byterecursion(val2, prm, uninit, bits, epoint); continue;
@@ -609,7 +609,7 @@ struct value_s *compile(struct file_list_s *cflist)
                 int oldreferenceit = referenceit;
                 label = find_label3(&labelname, mycontext, strength);
                 lpoint.pos++; ignore();
-                if (!here() || here() == ';') val = &null_addrlist;
+                if (!here() || here() == ';') val = val_reference(null_addrlist);
                 else {
                     struct linepos_s epoints[3];
                     referenceit &= label ? label->ref : 1;
@@ -654,7 +654,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         int labelexists;
                         int oldreferenceit = referenceit;
                         label=find_label3(&labelname, mycontext, strength);
-                        if (!here() || here() == ';') val = &null_addrlist;
+                        if (!here() || here() == ';') val = val_reference(null_addrlist);
                         else {
                             struct linepos_s epoints[3];
                             referenceit &= 1; /* not good... */
@@ -1714,7 +1714,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 val_destroy(tmp);
                             } else val->obj->getiter(val, &iter);
 
-                            while (db && ((val2 = iter.obj->next(&iter, &item)))) {
+                            while (db && ((val2 = obj_next(&iter, &item)))) {
                                 db--;
                                 switch (val2->obj->type) {
                                 case T_GAP:uninit++; break;
@@ -2717,7 +2717,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     }
                     ignore();
                     oldlpoint = lpoint;
-                    if (!here() || here() == ';') {val = &null_addrlist; w = 3;}
+                    if (!here() || here() == ';') {val = val_reference(null_addrlist); w = 3;}
                     else {
                         if (!get_exp(&w, 3, cfile, 0, 0, NULL)) goto breakerr;
                         val = get_vals_addrlist(epoints);

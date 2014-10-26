@@ -619,7 +619,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
         val_destroy(tmp2);
     } else val->obj->getiter(val, &iter);
 
-    while ((val2 = iter.obj->next(&iter, &item))) {
+    while ((val2 = obj_next(&iter, &item))) {
         switch (val2->obj->type) {
         default:
             if (val2->obj->uval(val2, &err, &uval, 8, epoint)) uval = 0;
