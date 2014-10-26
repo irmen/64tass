@@ -1507,8 +1507,7 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
         return NULL;
     default: break;
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
@@ -1524,8 +1523,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             return op->v2->obj->rcalc2(op);
         }
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
@@ -1541,8 +1539,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             return op->v1->obj->calc2(op);
         }
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 void intobj_init(void) {

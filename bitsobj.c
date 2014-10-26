@@ -1048,8 +1048,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             return op->v2->obj->rcalc2(op);
         }
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
@@ -1087,8 +1086,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             return v1->obj->calc2(op);
         }
     }
-    obj_oper_error(op); 
-    return NULL;
+    return obj_oper_error(op); 
 }
 
 static inline MUST_CHECK struct value_s *slice(struct value_s *vv1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *vv) {

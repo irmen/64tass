@@ -333,8 +333,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                         op->v2 = v2;
                     } else vals = NULL;
                 } else {
-                    obj_oper_error(op);
-                    return NULL;
+                    return obj_oper_error(op);
                 }
             } else if (d1 > d2) {
                 if (v1->u.list.len) {
@@ -410,8 +409,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
         }
     default: break;
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
@@ -479,8 +477,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         v->u.list.data = vals;
         return NULL;
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
@@ -591,8 +588,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         }
         break;
     }
-    obj_oper_error(op);
-    return NULL;
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {

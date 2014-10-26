@@ -108,7 +108,7 @@ struct obj_s {
 };
 
 extern void obj_init(struct obj_s *, enum type_e, const char *);
-extern void obj_oper_error(struct oper_s *);
+extern struct value_s *obj_oper_error(struct oper_s *);
 extern void objects_init(void);
 extern void invalid_getiter(struct value_s *, struct value_s *);
 
