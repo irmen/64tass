@@ -111,7 +111,7 @@ static void generic_invalid(const struct value_s *v1, struct value_s *v, linepos
         return;
     }
     name = v1->obj->name;
-    if (v1 == v) v->obj->destroy(v);
+    if (v1 == v) obj_destroy(v);
     v->obj = ERROR_OBJ;
     v->u.error.num = num;
     v->u.error.epoint = *epoint;
@@ -136,7 +136,7 @@ static void invalid_repr(const struct value_s *v1, struct value_s *v, linepos_t 
         return;
     }
     name = v1->obj->name;
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) obj_destroy(v);
     v->obj = STR_OBJ;
     v->u.str.len = strlen(name);
     v->u.str.chars = v->u.str.len;
@@ -521,9 +521,9 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
             v1->u.dict.def->obj->repr(v1->u.dict.def, &tmp[i], epoint);
             if (tmp[i].obj != STR_OBJ) {
             error:
-                if (v1 == v) v->obj->destroy(v);
+                if (v1 == v) obj_destroy(v);
                 tmp[i].obj->copy_temp(&tmp[i], v);
-                while (i--) tmp[i].obj->destroy(&tmp[i]);
+                while (i--) obj_destroy(&tmp[i]);
                 free(tmp);
                 return;
             }
@@ -531,7 +531,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
             if (len < tmp[i].u.str.len) err_msg_out_of_memory(); /* overflow */
         }
     }
-    if (v1 == v) v->obj->destroy(v);
+    if (v1 == v) obj_destroy(v);
     s = str_create_elements(v, len);
     len = 0;
     s[len++] = '{';
@@ -540,7 +540,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
         memcpy(s + len, tmp[j].u.str.data, tmp[j].u.str.len);
         len += tmp[j].u.str.len;
         chars += tmp[j].u.str.len - tmp[j].u.str.chars;
-        tmp[j].obj->destroy(&tmp[j]);
+        obj_destroy(&tmp[j]);
     }
     if (def) {
         if (j) s[len++] = ',';
@@ -548,7 +548,7 @@ static void dict_repr(const struct value_s *v1, struct value_s *v, linepos_t epo
         memcpy(s + len, tmp[j].u.str.data, tmp[j].u.str.len);
         len += tmp[j].u.str.len;
         chars += tmp[j].u.str.len - tmp[j].u.str.chars;
-        tmp[j].obj->destroy(&tmp[j]);
+        obj_destroy(&tmp[j]);
         j++;
     }
     s[len++] = '}';
@@ -609,7 +609,7 @@ static void oper_repr(const struct value_s *v1, struct value_s *v, linepos_t UNU
     const char *txt = v1->u.oper.name;
     size_t len = strlen(txt);
     uint8_t *s;
-    if (v1 == v) v->obj->destroy(v);
+    if (v1 == v) obj_destroy(v);
     s = str_create_elements(v, len + 8);
     memcpy(s, "<oper ", 6);
     memcpy(s + 6, txt, len);
@@ -644,7 +644,7 @@ static void error_calc1(oper_t op) {
 static MUST_CHECK struct value_s *error_calc2(oper_t op) {
     struct value_s *v = op->v;
     if (v == op->v1) return NULL;
-    if (v == op->v2) v->obj->destroy(v);
+    if (v == op->v2) obj_destroy(v);
     error_copy(op->v1, v);
     return NULL;
 }
@@ -652,7 +652,7 @@ static MUST_CHECK struct value_s *error_calc2(oper_t op) {
 static MUST_CHECK struct value_s *error_rcalc2(oper_t op) {
     struct value_s *v = op->v;
     if (v == op->v2) return NULL;
-    if (v == op->v1) v->obj->destroy(v);
+    if (v == op->v1) obj_destroy(v);
     error_copy(op->v2, v);
     return NULL;
 }
@@ -660,7 +660,7 @@ static MUST_CHECK struct value_s *error_rcalc2(oper_t op) {
 static MUST_CHECK struct value_s *error_repeat(oper_t op, uval_t UNUSED(rep)) {
     struct value_s *v = op->v;
     if (v == op->v1) return NULL;
-    if (v == op->v2) v->obj->destroy(v);
+    if (v == op->v2) obj_destroy(v);
     error_copy(op->v1, v);
     return NULL;
 }
@@ -668,7 +668,7 @@ static MUST_CHECK struct value_s *error_repeat(oper_t op, uval_t UNUSED(rep)) {
 static MUST_CHECK struct value_s *error_iindex(oper_t op) {
     struct value_s *v = op->v;
     if (v == op->v1) return NULL;
-    if (v == op->v2) v->obj->destroy(v);
+    if (v == op->v2) obj_destroy(v);
     error_copy(op->v1, v);
     return NULL;
 }
@@ -702,7 +702,7 @@ static MUST_CHECK struct value_s *none_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
         return ERROR_OBJ->rcalc2(op);
     }
-    if (op->v == op->v2) op->v->obj->destroy(op->v);
+    if (op->v == op->v2) obj_destroy(op->v);
     op->v->obj = NONE_OBJ;
     return NULL;
 }
@@ -711,7 +711,7 @@ static MUST_CHECK struct value_s *none_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->calc2(op);
     }
-    if (op->v == op->v1) op->v->obj->destroy(op->v);
+    if (op->v == op->v1) obj_destroy(op->v);
     op->v->obj = NONE_OBJ;
     return NULL;
 }
@@ -779,13 +779,13 @@ static MUST_CHECK struct value_s *struct_calc2(oper_t op) {
                 return val_reference(l->value);
             }
             if (!referenceit) {
-                if (v == v1) v->obj->destroy(v);
+                if (v == v1) obj_destroy(v);
                 v->obj = NONE_OBJ;
                 return NULL;
             }
             epoint = v2->u.ident.epoint;
             name = v2->u.ident.name;
-            if (v == v1) v->obj->destroy(v);
+            if (v == v1) obj_destroy(v);
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = epoint;
@@ -803,13 +803,13 @@ static MUST_CHECK struct value_s *struct_calc2(oper_t op) {
                     return val_reference(l->value);
                 }
                 if (!referenceit) {
-                    if (v == v1) v->obj->destroy(v);
+                    if (v == v1) obj_destroy(v);
                     v->obj = NONE_OBJ;
                     return NULL;
                 }
                 epoint = v2->u.anonident.epoint;
                 count = v2->u.anonident.count;
-                if (v == v1) v->obj->destroy(v);
+                if (v == v1) obj_destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR___NOT_DEFINED;
                 v->u.error.epoint = epoint;

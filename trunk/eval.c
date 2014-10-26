@@ -134,7 +134,7 @@ static void get_dec(struct value_s *v) {
 static void get_exponent(struct value_s *v, double real, struct value_s *err) {
     int base;
 
-    v->obj->destroy(v); 
+    obj_destroy(v); 
     switch (here() | 0x20) {
     case 'p': base = 2; break;
     case 'e': base = 10; break;
@@ -154,7 +154,7 @@ static void get_exponent(struct value_s *v, double real, struct value_s *err) {
 
             len = int_from_decstr(&tmp, pline + lpoint.pos);
             if (tmp.obj->ival(&tmp, err, &expo, 8*sizeof(uval_t), &lpoint)) expo = 0;
-            tmp.obj->destroy(&tmp);
+            obj_destroy(&tmp);
             lpoint.pos += len;
 
             if (neg) expo = -expo;
@@ -205,7 +205,7 @@ static void get_hex(struct value_s *v) {
 
         len = bits_from_hexstr(&tmp, pline + lpoint.pos);
         if (tmp.obj->real(&tmp, &err, &real2, &lpoint)) real2 = 0;
-        tmp.obj->destroy(&tmp);
+        obj_destroy(&tmp);
         lpoint.pos += len;
 
         if (real2) real += real2 * pow(16.0, -(double)len);
@@ -228,7 +228,7 @@ static void get_bin(struct value_s *v) {
 
         len = bits_from_binstr(&tmp, pline + lpoint.pos);
         if (tmp.obj->real(&tmp, &err, &real2, &lpoint)) real2 = 0;
-        tmp.obj->destroy(&tmp);
+        obj_destroy(&tmp);
         lpoint.pos += len;
 
         if (real2) real += real2 * pow(2.0, -(double)len);
@@ -253,7 +253,7 @@ static void get_float(struct value_s *v) {
 
         len = int_from_decstr(&tmp, pline + lpoint.pos);
         if (tmp.obj->real(&tmp, &err, &real2, &lpoint)) real2 = 0;
-        tmp.obj->destroy(&tmp);
+        obj_destroy(&tmp);
         lpoint.pos += len;
 
         if (real2) real += real2 * pow(10.0, -(double)len);
@@ -707,7 +707,7 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
     ival_t ln, offs, end, step = 1;
     if (v2->u.list.len > 3 || v2->u.list.len < 1) {
         err_msg_argnum(v2->u.list.len, 1, 3, op->epoint2);
-        if (v1 == v || v2 == v) v->obj->destroy(v);
+        if (v1 == v || v2 == v) obj_destroy(v);
         v->obj = NONE_OBJ;
         return -1;
     }
@@ -715,12 +715,12 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
     if (v2->u.list.len > 2) {
         if (v2->u.list.data[2]->obj != DEFAULT_OBJ) {
             if (v2->u.list.data[2]->obj->ival(v2->u.list.data[2], &tmp, &step, 8*sizeof(ival_t), op->epoint2)) {
-                if (v1 == v || v2 == v) v->obj->destroy(v);
+                if (v1 == v || v2 == v) obj_destroy(v);
                 tmp.obj->copy_temp(&tmp, op->v);
                 return -1;
             }
             if (step == 0) {
-                if (v1 == v) v->obj->destroy(v);
+                if (v1 == v) obj_destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_DIVISION_BY_Z;
                 v->u.error.epoint = *op->epoint2;
@@ -732,7 +732,7 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
         if (v2->u.list.data[1]->obj == DEFAULT_OBJ) end = (step > 0) ? (ival_t)len : -1;
         else {
             if (v2->u.list.data[1]->obj->ival(v2->u.list.data[1], &tmp, &end, 8*sizeof(ival_t), op->epoint2)) {
-                if (v1 == v || v2 == v) v->obj->destroy(v);
+                if (v1 == v || v2 == v) obj_destroy(v);
                 tmp.obj->copy_temp(&tmp, op->v);
                 return -1;
             }
@@ -747,7 +747,7 @@ ival_t sliceparams(oper_t op, size_t len, ival_t *offs2, ival_t *end2, ival_t *s
     if (v2->u.list.data[0]->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
     else {
         if (v2->u.list.data[0]->obj->ival(v2->u.list.data[0], &tmp, &offs, 8*sizeof(ival_t), op->epoint2)) {
-            if (v1 == v || v2 == v) v->obj->destroy(v);
+            if (v1 == v || v2 == v) obj_destroy(v);
             tmp.obj->copy_temp(&tmp, op->v);
             return -1;
         }
@@ -811,7 +811,7 @@ static inline MUST_CHECK struct value_s *apply_op2(oper_t op) {
         ival_t shift;
         struct value_s tmp;
         if (op->v2->obj->ival(op->v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
-            if (op->v1 == op->v || op->v2 == op->v) op->v->obj->destroy(op->v);
+            if (op->v1 == op->v || op->v2 == op->v) obj_destroy(op->v);
             tmp.obj->copy_temp(&tmp, op->v);
             return NULL;
         }
@@ -857,7 +857,7 @@ static struct value_s *apply_addressing(struct value_s *v1, struct value_s *v, e
     case T_ERROR:
         err_msg_output(v1);
         if (v1 == v) {
-            v->obj->destroy(v);
+            obj_destroy(v);
             v->obj = NONE_OBJ;
         } else v1 = &none_value;
         /* fall through */
@@ -1015,7 +1015,7 @@ static int get_val2(struct eval_context_s *ev) {
                     for (j = 0; j < args; j++) {
                         v1 = &values[vsp+j];
                         if (v1->val->obj == NONE_OBJ || v1->val->obj == ERROR_OBJ) {
-                            val->obj->destroy(val);
+                            obj_destroy(val);
                             v1->val->obj->copy_temp(v1->val, val);
                             break;
                         }
@@ -1043,14 +1043,14 @@ static int get_val2(struct eval_context_s *ev) {
                                     }
                                 } else {
                                     free(p);
-                                    val->obj->destroy(val);
+                                    obj_destroy(val);
                                     new_value.obj->copy_temp(&new_value, val);
                                     break;
                                 }
                             }
                             continue;
                         }
-                        val->obj->destroy(val);
+                        obj_destroy(val);
                         val->obj = ERROR_OBJ;
                         val->u.error.num = ERROR__NOT_KEYVALUE;
                         val->u.error.epoint = v1->epoint;

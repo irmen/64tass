@@ -187,7 +187,7 @@ static inline int MUST_CHECK decimal(struct DATA *p, const struct values_s *v)
     minus = (tmp2.u.integer.len < 0);
     tmp2.obj->str(&tmp2, &tmp, &v->epoint);
     if (tmp.obj != STR_OBJ) {
-        tmp2.obj->destroy(&tmp2);
+        obj_destroy(&tmp2);
         tmp.obj->copy_temp(&tmp, &error_value);
         return 1;
     }
@@ -196,8 +196,8 @@ static inline int MUST_CHECK decimal(struct DATA *p, const struct values_s *v)
     PAD_RIGHT2(p, 0, minus);
     for (i = minus ;i < tmp.u.str.len;i++) PUT_CHAR(tmp.u.str.data[i]);
     PAD_LEFT(p);
-    tmp.obj->destroy(&tmp);
-    tmp2.obj->destroy(&tmp2);
+    obj_destroy(&tmp);
+    obj_destroy(&tmp2);
     return 0;
 }
 
@@ -255,7 +255,7 @@ static inline int MUST_CHECK hexa(struct DATA *p, const struct values_s *v)
         PUT_CHAR(hex[b & 15]);
     }
     PAD_LEFT(p);
-    tmp.obj->destroy(&tmp);
+    obj_destroy(&tmp);
     return 0;
 }
 
@@ -298,7 +298,7 @@ static inline int MUST_CHECK bin(struct DATA *p, const struct values_s *v)
     }
 
     PAD_LEFT(p);
-    err.obj->destroy(&err);
+    obj_destroy(&err);
     return 0;
 }
 
@@ -342,7 +342,7 @@ static int MUST_CHECK strings(struct DATA *p, const struct values_s *v)
         PUT_CHAR(ch);
     }
     PAD_LEFT(p);
-    err.obj->destroy(&err);
+    obj_destroy(&err);
     return 0;
 }
 
@@ -534,7 +534,7 @@ void isnprintf(struct values_s *vals, unsigned int args)
     val_replace_template(&vals->val, &return_value);
     return;
 err:
-    return_value.obj->destroy(&return_value);
+    obj_destroy(&return_value);
     val_replace_template(&vals->val, &error_value);
     return;
 }

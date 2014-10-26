@@ -25,9 +25,6 @@ struct oper_s;
 struct values_s;
 
 #define obj_print(v, f) val_print(v, f)
-#define obj_destroy(v) do { struct value_s *_v_ = (v); _v_->obj->destroy(_v_); } while (0)
-#define obj_same(v, v2) v->obj->same(v, v2)
-#define obj_hash(v, v2, epoint) v->obj->hash(v, v2, epoint)
 
 struct pair_s {
     int hash;

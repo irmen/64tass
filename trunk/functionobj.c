@@ -115,7 +115,7 @@ static inline void function_register(struct value_s *v1, struct value_s *v, line
         return;
     default:
         err_msg_wrong_type(v1, epoint);
-        if (v1 == v) v->obj->destroy(v);
+        if (v1 == v) obj_destroy(v);
         v->obj = NONE_OBJ;
     }
 } 
@@ -193,7 +193,7 @@ static void apply_func(struct value_s *v1, struct value_s *v, enum func_e func, 
             case F_FLOAT: break; /* nothing to do */
             default: real = HUGE_VAL; break;
             }
-            if (v1 == v) v->obj->destroy(v);
+            if (v1 == v) obj_destroy(v);
             if (real == HUGE_VAL) {
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_CONSTNT_LARGE;
@@ -227,7 +227,7 @@ static inline void apply_func_single(struct values_s *vals, unsigned int args) {
         val_destroy(vals->val); vals->val = val;
         return;
     } 
-    vals->val->obj->destroy(vals->val);
+    obj_destroy(vals->val);
     apply_func(v[0].val, vals->val, func, &v[0].epoint);
 }
 
@@ -255,7 +255,7 @@ static void apply_func2(struct value_s *v1, struct value_s *v2, struct value_s *
                 vals[i] = val_alloc();
                 apply_func2(v1->u.list.data[i], v2, vals[i], func, epoint, epoint2);
             }
-            if (v2 == v) v->obj->destroy(v);
+            if (v2 == v) obj_destroy(v);
             v->obj = v1->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
@@ -285,7 +285,7 @@ static void apply_func2(struct value_s *v1, struct value_s *v2, struct value_s *
                 vals[i] = val_alloc();
                 apply_func2(v1, v2->u.list.data[i], vals[i], func, epoint, epoint2);
             }
-            if (v1 == v) v->obj->destroy(v);
+            if (v1 == v) obj_destroy(v);
             v->obj = v2->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
@@ -299,14 +299,14 @@ static void apply_func2(struct value_s *v1, struct value_s *v2, struct value_s *
         case F_ATAN2: real = atan2(real, real2);break;
         case F_POW:
                       if (real2 < 0.0 && !real) {
-                          if (v1 == v || v2 == v) v->obj->destroy(v);
+                          if (v1 == v || v2 == v) obj_destroy(v);
                           v->obj = ERROR_OBJ;
                           v->u.error.num = ERROR_DIVISION_BY_Z;
                           v->u.error.epoint = *epoint2;
                           return;
                       }
                       if (real < 0.0 && (double)((int)real2) != real2) {
-                          if (v1 == v || v2 == v) v->obj->destroy(v);
+                          if (v1 == v || v2 == v) obj_destroy(v);
                           v->obj = ERROR_OBJ;
                           v->u.error.num = ERROR_NEGFRAC_POWER;
                           v->u.error.epoint = *epoint2;
@@ -316,7 +316,7 @@ static void apply_func2(struct value_s *v1, struct value_s *v2, struct value_s *
                       break;
         default: real = HUGE_VAL; break;
         }
-        if (v1 == v || v2 == v) v->obj->destroy(v);
+        if (v1 == v || v2 == v) obj_destroy(v);
         if (real == HUGE_VAL) {
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_CONSTNT_LARGE;
@@ -361,7 +361,7 @@ static inline void apply_func_double(struct values_s *vals, unsigned int args) {
         apply_func2(v[0].val, v[1].val, val, func, &v[0].epoint, &v[1].epoint);
         val_destroy(vals->val); vals->val = val;
     } else {
-        vals->val->obj->destroy(vals->val);
+        obj_destroy(vals->val);
         apply_func2(v[0].val, v[1].val, vals->val, func, &v[0].epoint, &v[1].epoint);
     }
 }

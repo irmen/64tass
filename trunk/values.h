@@ -271,4 +271,16 @@ static inline MUST_CHECK struct value_s *truth_reference(int i) {
     false_value->refcount++;
     return false_value;
 }
+
+static inline void obj_destroy(struct value_s *v1) {
+    v1->obj->destroy(v1);
+}
+
+static inline int obj_same(const struct value_s *v1, const struct value_s *v2) {
+    return v1->obj->same(v1, v2);
+}
+
+static inline int obj_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
+    return v1->obj->hash(v1, v, epoint);
+}
 #endif

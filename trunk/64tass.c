@@ -450,7 +450,7 @@ static int textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit,
         }
         val_destroy(val2);
     }
-    iter.obj->destroy(&iter);
+    obj_destroy(&iter);
     return warn;
 }
 
@@ -490,7 +490,7 @@ static int byterecursion(struct value_s *val, int prm, size_t *uninit, int bits,
         if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
         val_destroy(val2);
     }
-    iter.obj->destroy(&iter);
+    obj_destroy(&iter);
     return warn;
 }
 
@@ -855,13 +855,13 @@ struct value_s *compile(struct file_list_s *cflist)
                                     label->requires = current_section->requires;
                                     label->conflicts = current_section->conflicts;
                                     int_from_uval(&tmp, current_section->l_address);
-                                    if (!tmp.obj->same(&tmp, label->value->u.code.addr)) {
+                                    if (!obj_same(&tmp, label->value->u.code.addr)) {
                                         val_replace_template(&label->value->u.code.addr, &tmp);
                                         if (label->usepass >= pass) {
                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
                                             fixeddig = 0;
                                         }
-                                    } else tmp.obj->destroy(&tmp);
+                                    } else obj_destroy(&tmp);
                                     label->value->u.code.apass = pass;
                                     label->defpass = pass;
                                     get_mem(&current_section->mem, &memp, &membp);
@@ -988,13 +988,13 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (!newlabel->update_after) {
                         struct value_s tmp;
                         int_from_uval(&tmp, current_section->l_address);
-                        if (!tmp.obj->same(&tmp, newlabel->value->u.code.addr)) {
+                        if (!obj_same(&tmp, newlabel->value->u.code.addr)) {
                             val_replace_template(&newlabel->value->u.code.addr, &tmp);
                             if (newlabel->usepass >= pass) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
                                 fixeddig = 0;
                             }
-                        } else tmp.obj->destroy(&tmp);
+                        } else obj_destroy(&tmp);
                         get_mem(&current_section->mem, &newmemp, &newmembp);
                         newlabel->value->u.code.apass = pass;
                         newlabel->defpass = pass;
@@ -1729,7 +1729,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 }
                                 val_destroy(val2);
                             }
-                            iter.obj->destroy(&iter);
+                            obj_destroy(&iter);
                             sum += uninit;
                             if (db) {
                                 if (sum == 1 && uninit == 0) {
