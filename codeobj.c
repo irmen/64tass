@@ -453,8 +453,7 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, iv
     uval_t val;
 
     if (!ln) {
-        null_tuple->refcount++;
-        return null_tuple;
+        return val_reference(null_tuple);
     }
     if (v1->u.code.pass != pass) {
         v->obj = ERROR_OBJ;
@@ -521,8 +520,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
 
     if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
-            null_tuple->refcount++;
-            return null_tuple;
+            return val_reference(null_tuple);
         }
         vals = list_create_elements(&tmp, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {

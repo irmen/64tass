@@ -35,7 +35,7 @@ struct value_s *null_bytes;
 struct value_s *null_bits;
 struct value_s *null_tuple;
 struct value_s *null_list;
-struct value_s null_addrlist;
+struct value_s *null_addrlist;
 
 struct value_s o_TUPLE;
 struct value_s o_LIST;
@@ -120,20 +120,21 @@ struct value_s *val_alloc(void) {
     struct value_s *val;
     size_t i;
 //    val = (struct value_s *)malloc(sizeof(struct value_s)); val->refcount = 1; return val;
-    val = (struct value_s *)values_free;
-    values_free = values_free->next;
     if (!values_free) {
         struct values_s *old = values;
         values = (struct values_s *)malloc(sizeof(struct values_s));
         if (!values) err_msg_out_of_memory();
         for (i = 0; i < 254; i++) {
             values->vals[i].next = &values->vals[i+1];
+            values->vals[i].val.refcount = 1;
         }
         values->vals[i].next = NULL;
+        values->vals[i].val.refcount = 1;
         values->next = old;
         values_free = &values->vals[0];
     }
-    val->refcount = 1;
+    val = (struct value_s *)values_free;
+    values_free = values_free->next;
     return val;
 }
 
@@ -231,17 +232,6 @@ int val_print(const struct value_s *v1, FILE *f) {
 
 void init_values(void)
 {
-    size_t i;
-    values = (struct values_s *)malloc(sizeof(struct values_s));
-    if (!values) err_msg_out_of_memory();
-    for (i = 0; i < 254; i++) {
-        values->vals[i].next = &values->vals[i+1];
-    }
-    values->vals[i].next = NULL;
-    values->next = NULL;
-
-    values_free = &values->vals[0];
-
     none_value.obj = NONE_OBJ;
     none_value.refcount = 0;
     true_value = val_alloc();
@@ -276,10 +266,10 @@ void init_values(void)
     null_list->obj = LIST_OBJ;
     null_list->u.list.len = 0;
     null_list->u.list.data = NULL;
-    null_addrlist.obj = ADDRLIST_OBJ;
-    null_addrlist.refcount = 0;
-    null_addrlist.u.list.len = 0;
-    null_addrlist.u.list.data = NULL;
+    null_addrlist = val_alloc();
+    null_addrlist->obj = ADDRLIST_OBJ;
+    null_addrlist->u.list.len = 0;
+    null_addrlist->u.list.data = NULL;
 
     o_TUPLE.obj = OPER_OBJ;
     o_TUPLE.refcount = 0;
@@ -595,8 +585,6 @@ void init_values(void)
 
 void destroy_values(void)
 {
-    struct values_s *old;
-
     val_destroy(true_value);
     val_destroy(false_value);
     val_destroy(gap_value);
@@ -605,9 +593,10 @@ void destroy_values(void)
     val_destroy(null_bits);
     val_destroy(null_tuple);
     val_destroy(null_list);
+    val_destroy(null_addrlist);
 
     while (values) {
-        old = values;
+        struct values_s *old = values;
         values = values->next;
         free(old);
     }

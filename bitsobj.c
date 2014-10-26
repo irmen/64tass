@@ -933,8 +933,7 @@ static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
     size_t blen = vv1->u.bits.bits;
 
     if (!rep || !blen) {
-        null_bits->refcount++;
-        return null_bits;
+        return val_reference(null_bits);
     }
     if (rep == 1) {
         if (vv1 != vv) copy(vv1, vv);
@@ -1098,8 +1097,7 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *vv1, uval_t ln, i
     struct value_s tmp;
 
     if (!ln) {
-        null_bits->refcount++;
-        return null_bits;
+        return val_reference(null_bits);
     }
     if (step == 1) {
         if (ln == vv1->u.bits.len) {
@@ -1182,8 +1180,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
 
     if (vv2->obj == LIST_OBJ) {
         if (!vv2->u.list.len) {
-            null_bits->refcount++;
-            return null_bits;
+            return val_reference(null_bits);
         }
         sz = (vv2->u.list.len + 8 * sizeof(bdigit_t) - 1) / (8 * sizeof(bdigit_t));
 

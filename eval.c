@@ -669,10 +669,7 @@ static void functions(struct values_s *vals, unsigned int args) {
             eval_enter();
             val = mfunc2_recurse(vals->val, v, args, &vals->epoint);
             eval_leave();
-            if (!val) {
-                null_tuple->refcount++;
-                val = null_tuple;
-            }
+            if (!val) val = val_reference(null_tuple);
             val_destroy(vals->val);
             vals->val = val;
         }
@@ -979,11 +976,11 @@ static int get_val2(struct eval_context_s *ev) {
                         continue;
                     }
                 }
-                val = val_alloc();
-                val->obj = (op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ;
-                val->u.list.len = args;
-                val->u.list.data = list_create_elements(val, args);
                 if (args) {
+                    val = val_alloc();
+                    val->obj = (op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ;
+                    val->u.list.len = args;
+                    val->u.list.data = list_create_elements(val, args);
                     while (args--) {
                         v2 = &values[vsp-1];
                         if (v2->val->obj == ERROR_OBJ) { err_msg_output(v2->val); val_destroy(v2->val); v2->val = &none_value; }
@@ -991,7 +988,7 @@ static int get_val2(struct eval_context_s *ev) {
                         v2->val = &none_value;
                         vsp--;
                     }
-                }
+                } else val = val_reference((op == O_BRACKET) ? null_list : null_tuple);
                 v1->val = val;
                 continue;
             }
@@ -1503,7 +1500,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             if (operp) { 
                 if (o_oper[operp - 1].val == &o_SPLAT || o_oper[operp - 1].val == &o_POS || o_oper[operp - 1].val == &o_NEG) goto tryanon;
             }
-            lpoint.pos++;gap_value->refcount++;push_oper(gap_value, &epoint);goto other;
+            lpoint.pos++;push_oper(val_reference(gap_value), &epoint);goto other;
         case '.': if ((pline[lpoint.pos+1] ^ 0x30) >= 10) goto tryanon; /* fall through */;
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             val = push(&epoint);

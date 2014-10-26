@@ -615,12 +615,7 @@ static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
         v->u.list.data = vals;
         return NULL;
     }
-    if (v1->obj == TUPLE_OBJ) {
-        null_tuple->refcount++;
-        return null_tuple;
-    }
-    null_list->refcount++;
-    return null_list;
+    return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
 }
 
 static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
@@ -628,12 +623,7 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, iv
     size_t i;
 
     if (!ln) {
-        if (v1->obj == TUPLE_OBJ) {
-            null_tuple->refcount++;
-            return null_tuple;
-        }
-        null_list->refcount++;
-        return null_list;
+        return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
     }
 
     if (step == 1 && ln == v1->u.list.len && v1->obj == TUPLE_OBJ) {
@@ -667,12 +657,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
 
     if (v2->obj == LIST_OBJ) {
         if (!v2->u.list.len) {
-            if (v1->obj == TUPLE_OBJ) {
-                null_tuple->refcount++;
-                return null_tuple;
-            }
-            null_list->refcount++;
-            return null_list;
+            return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
         }
         vals = lnew(&tmp, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {
