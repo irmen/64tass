@@ -1127,7 +1127,7 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
     sz = j;
 
     while (sz && !d[sz - 1]) sz--;
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) obj_destroy(v);
     if (sz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
         memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
         if (tmp.u.integer.val != d) free(d);
@@ -1206,7 +1206,7 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
     sz = j;
 
     while (sz && !d[sz - 1]) sz--;
-    if (v == v1) v->obj->destroy(v);
+    if (v == v1) obj_destroy(v);
     if (sz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
         memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
         if (tmp.u.integer.val != d) free(d);
@@ -1276,7 +1276,7 @@ void int_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint)
         osz = j;
 
         while (osz && !d[osz - 1]) osz--;
-        if (v == v1) v->obj->destroy(v);
+        if (v == v1) obj_destroy(v);
         if (osz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
             memcpy(v->u.integer.val, d, osz * sizeof(digit_t));
             if (tmp.u.integer.val != d) free(d);
@@ -1294,7 +1294,7 @@ void int_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint)
     if (v1->u.str.chars == 1) {
         uint32_t ch2 = v1->u.str.data[0];
         if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
-        if (v == v1) v->obj->destroy(v);
+        if (v == v1) obj_destroy(v);
         int_from_uval(v, ch2);
         return;
     } 
@@ -1459,23 +1459,23 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
         if (v2->u.integer.len < 0) {
             double d1, d2;
             if (real(v1, &tmp, &d1, op->epoint)) {
-                if (v1 == v || v2 == v) v->obj->destroy(v);
+                if (v1 == v || v2 == v) obj_destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
                 return NULL;
             }
             if (real(v2, &tmp, &d2, op->epoint)) {
-                if (v1 == v || v2 == v) v->obj->destroy(v);
+                if (v1 == v || v2 == v) obj_destroy(v);
                 tmp.obj->copy_temp(&tmp, v);
                 return NULL;
             }
-            if (v1 == v || v2 == v) v->obj->destroy(v);
+            if (v1 == v || v2 == v) obj_destroy(v);
             return calc2_double(op, d1, d2);
         }
         power(v1, v2, v);
         return NULL;
     case O_LSHIFT:
         if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
-            if (v1 == v || v2 == v) v->obj->destroy(v);
+            if (v1 == v || v2 == v) obj_destroy(v);
             tmp.obj->copy_temp(&tmp, v);
             return NULL;
         }
@@ -1485,7 +1485,7 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
         return NULL;
     case O_RSHIFT:
         if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
-            if (v1 == v || v2 == v) v->obj->destroy(v);
+            if (v1 == v || v2 == v) obj_destroy(v);
             tmp.obj->copy_temp(&tmp, v);
             return NULL;
         }

@@ -444,7 +444,7 @@ void err_msg_output(const struct value_s *val) {
 
 void err_msg_output_and_destroy(struct value_s *val) {
     err_msg_output(val);
-    val->obj->destroy(val);
+    obj_destroy(val);
 }
 
 void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
@@ -500,7 +500,7 @@ void err_msg_variable(struct errorbuffer_s *user_error, struct value_s *val, lin
     val->obj->str(val, &tmp, epoint);
     if (tmp.obj == STR_OBJ) add_user_error2(user_error, tmp.u.str.data, tmp.u.str.len);
     else err_msg_output(&tmp);
-    tmp.obj->destroy(&tmp);
+    obj_destroy(&tmp);
 }
 
 static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {

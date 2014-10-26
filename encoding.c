@@ -643,7 +643,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
         d[i++] = (uint8_t)uval;
         val_destroy(val2);
     }
-    iter.obj->destroy(&iter);
+    obj_destroy(&iter);
 
     if (!foundold) { //new escape
         if (d == tmp.val) {

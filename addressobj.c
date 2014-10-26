@@ -202,7 +202,7 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t epoint) 
     memcpy(s + 99 - ind, tmp.u.str.data, tmp.u.str.len);
     memcpy(s + 99 - ind + tmp.u.str.len, buffer, ind2);
     v->u.str.data = s;
-    tmp.obj->destroy(&tmp);
+    obj_destroy(&tmp);
 }
 
 static inline int check_addr(atype_t type) {
@@ -247,6 +247,7 @@ static void calc1(oper_t op) {
         op->v1->obj->calc1(op);
         v->obj = ADDRESS_OBJ; 
         v->u.addr.val = op->v;
+        if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = &none_value; }
         v->u.addr.type = am;
         val_destroy(op->v1);
         op->v1 = v1;
@@ -324,6 +325,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                 v->u.addr.val = result;
                 val_destroy(op->v);
             } else v->u.addr.val = op->v;
+            if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = &none_value; }
             v->u.addr.type = am;
             result = NULL;
         }
@@ -341,7 +343,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         op->v = val_alloc(); op->v->obj = NONE_OBJ;
         op->v1 = v1->u.addr.val;
         result = op->v1->obj->calc2(op);
-        if (v == v1 || v == v2) v->obj->destroy(v);
+        if (v == v1 || v == v2) obj_destroy(v);
         v->obj = ADDRESS_OBJ;
         if (result) {
             v->u.addr.val = result;
@@ -374,7 +376,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         op->v = val_alloc(); op->v->obj = NONE_OBJ;
         op->v2 = v2->u.addr.val;
         result = op->v2->obj->rcalc2(op);
-        if (v == v1 || v == v2) v->obj->destroy(v);
+        if (v == v1 || v == v2) obj_destroy(v);
         v->obj = ADDRESS_OBJ;
         if (result) {
             v->u.addr.val = result;

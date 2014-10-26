@@ -131,9 +131,9 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v, linepos_
         for (i = 0;i < v1->u.list.len; i++) {
             v1->u.list.data[i]->obj->repr(v1->u.list.data[i], &tmp[i], epoint);
             if (tmp[i].obj != STR_OBJ) {
-                if (v1 == v) v->obj->destroy(v);
+                if (v1 == v) obj_destroy(v);
                 tmp[i].obj->copy_temp(&tmp[i], v);
-                while (i--) tmp[i].obj->destroy(&tmp[i]);
+                while (i--) obj_destroy(&tmp[i]);
                 free(tmp);
                 return;
             }
@@ -146,7 +146,7 @@ static void repr_listtuple(const struct value_s *v1, struct value_s *v, linepos_
             if (len < i) err_msg_out_of_memory(); /* overflow */
         }
     }
-    if (v1 == v) v->obj->destroy(v);
+    if (v1 == v) obj_destroy(v);
     s = str_create_elements(v, len);
     len = 0;
     if (v1->obj != ADDRLIST_OBJ && v1->obj != COLONLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? '[' : '(';
@@ -181,7 +181,7 @@ static void getiter(struct value_s *v1, struct value_s *v) {
     v->u.iter.data = val_reference(v1);
 }
 
-static struct value_s *MUST_CHECK next(struct value_s *v1, struct value_s *UNUSED(v)) {
+static MUST_CHECK struct value_s *next(struct value_s *v1, struct value_s *UNUSED(v)) {
     const struct value_s *vv1 = v1->u.iter.data;
     if (v1->u.iter.val >= vv1->u.list.len) return NULL;
     return val_reference(vv1->u.list.data[v1->u.iter.val++]);
@@ -467,7 +467,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             op->v = v;
             op->v1 = v1;
         }
-        if (v == v2) v->obj->destroy(v);
+        if (v == v2) obj_destroy(v);
         v->obj = v1->obj;
         if (vals == tmp.u.list.val) {
             memcpy(v->u.list.val, vals, i * sizeof(v->u.list.data[0]));
@@ -555,7 +555,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
                 op->v = v;
                 op->v2 = v2;
             }
-            if (v == v1) v->obj->destroy(v);
+            if (v == v1) obj_destroy(v);
             v->obj = v2->obj;
             if (vals == tmp.u.list.val) {
                 memcpy(v->u.list.val, vals, i * sizeof(v->u.list.data[0]));
@@ -577,7 +577,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
                     val_destroy(result);
                 } else if (tmp.obj == BOOL_OBJ) {
                     if (tmp.u.boolean) return truth_reference(1);
-                } else tmp.obj->destroy(&tmp);
+                } else obj_destroy(&tmp);
             }
             op->op = &o_IN;
             op->v = v;

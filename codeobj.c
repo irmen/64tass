@@ -66,7 +66,7 @@ static void copy(const struct value_s *v1, struct value_s *v) {
 }
 
 static int same(const struct value_s *v1, const struct value_s *v2) {
-    return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || v1->u.code.addr->obj->same(v1->u.code.addr, v2->u.code.addr)) && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.label == v2->u.code.label;
+    return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || obj_same(v1->u.code.addr, v2->u.code.addr)) && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.label == v2->u.code.label;
 }
 
 static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
@@ -255,13 +255,13 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                 return val_reference(l->value);
             } 
             if (!referenceit) {
-                if (v == v1) v->obj->destroy(v);
+                if (v == v1) obj_destroy(v);
                 v->obj = NONE_OBJ;
                 return NULL;
             }
             epoint = v2->u.ident.epoint;
             name = v2->u.ident.name;
-            if (v == v1) v->obj->destroy(v);
+            if (v == v1) obj_destroy(v);
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = epoint;
@@ -279,13 +279,13 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                     return val_reference(l->value);
                 }
                 if (!referenceit) {
-                    if (v == v1) v->obj->destroy(v);
+                    if (v == v1) obj_destroy(v);
                     v->obj = NONE_OBJ;
                     return NULL;
                 }
                 epoint = v2->u.anonident.epoint;
                 count = v2->u.anonident.count;
-                if (v == v1) v->obj->destroy(v);
+                if (v == v1) obj_destroy(v);
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR___NOT_DEFINED;
                 v->u.error.epoint = epoint;
@@ -323,7 +323,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         case O_SUB:
             op->v = val_alloc(); op->v->obj = NONE_OBJ;
             result = op->v1->obj->calc2(op);
-            if (v == v2) v->obj->destroy(v);
+            if (v == v2) obj_destroy(v);
             v->obj = CODE_OBJ; 
             if (v != v1) memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
             else val_destroy(v->u.code.addr);
@@ -337,7 +337,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             return NULL;
         default: break;
         }
-        if (v == v1) {v->obj->destroy(v); v->obj = NONE_OBJ;}
+        if (v == v1) {obj_destroy(v); v->obj = NONE_OBJ;}
         result = op->v1->obj->calc2(op);
         val_destroy(op->v1);
         op->v1 = v1;
@@ -394,7 +394,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
                 val_destroy(result);
             } else if (new_value.obj == BOOL_OBJ) {
                 if (new_value.u.boolean) return truth_reference(1);
-            } else new_value.obj->destroy(&new_value);
+            } else obj_destroy(&new_value);
         }
         return truth_reference(0);
     }
@@ -420,7 +420,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         case O_ADD:
             op->v = val_alloc(); op->v->obj = NONE_OBJ;
             result = op->v2->obj->rcalc2(op);
-            if (v == v1) v->obj->destroy(v);
+            if (v == v1) obj_destroy(v);
             v->obj = CODE_OBJ; 
             if (v2 != v) memcpy(&v->u.code, &v2->u.code, sizeof(v->u.code));
             else val_destroy(v->u.code.addr);
@@ -434,7 +434,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             return NULL;
         default: break;
         }
-        if (v == v2) {v->obj->destroy(v);v->obj = NONE_OBJ;}
+        if (v == v2) {obj_destroy(v);v->obj = NONE_OBJ;}
         result = op->v2->obj->rcalc2(op);
         val_destroy(op->v2);
         op->v2 = v2;

@@ -197,7 +197,7 @@ static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *
     int ret;
     int_from_bytes(&tmp, v1);
     ret = tmp.obj->ival(&tmp, &tmp2, iv, bits, epoint);
-    tmp.obj->destroy(&tmp);
+    obj_destroy(&tmp);
     if (ret) {
         if (v1 == v) destroy(v);
         tmp2.obj->copy_temp(&tmp2, v);
@@ -210,7 +210,7 @@ static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *
     int ret;
     int_from_bytes(&tmp, v1);
     ret = tmp.obj->uval(&tmp, &tmp2, uv, bits, epoint);
-    tmp.obj->destroy(&tmp);
+    obj_destroy(&tmp);
     if (ret) {
         if (v1 == v) destroy(v);
         tmp2.obj->copy_temp(&tmp2, v);
@@ -223,7 +223,7 @@ static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *
     int ret;
     int_from_bytes(&tmp, v1);
     ret = tmp.obj->real(&tmp, &tmp2, r, epoint);
-    tmp.obj->destroy(&tmp);
+    obj_destroy(&tmp);
     if (ret) {
         if (v1 == v) destroy(v);
         tmp2.obj->copy_temp(&tmp2, v);
@@ -268,7 +268,7 @@ static void getiter(struct value_s *v1, struct value_s *v) {
     v->u.iter.data = val_reference(v1);
 }
 
-static struct value_s *MUST_CHECK next(struct value_s *v1, struct value_s *v) {
+static MUST_CHECK struct value_s *next(struct value_s *v1, struct value_s *v) {
     const struct value_s *vv1 = v1->u.iter.data;
     if (v1->u.iter.val >= vv1->u.bytes.len) return NULL;
 
@@ -300,7 +300,7 @@ static void calc1(oper_t op) {
     tmp.refcount = 0;
     tmp.obj->calc1(op);
     op->v1 = v1;
-    tmp.obj->destroy(&tmp);
+    obj_destroy(&tmp);
 }
 
 static MUST_CHECK struct value_s *calc2_bytes(oper_t op) {
@@ -424,12 +424,12 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             case O_RSHIFT: bits_from_bytes(&tmp, v1); break;
             default: int_from_bytes(&tmp, v1);
             }
-            if (v1 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
+            if (v1 == v) {obj_destroy(v); v->obj = NONE_OBJ;}
             op->v1 = &tmp;
             tmp.refcount = 0;
             result = tmp.obj->calc2(op);
             op->v1 = v1;
-            tmp.obj->destroy(&tmp);
+            obj_destroy(&tmp);
             return result;
         }
     case T_TUPLE:
@@ -467,12 +467,12 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             case O_XOR: bits_from_bytes(&tmp, v2); break;
             default: int_from_bytes(&tmp, v2);
             }
-            if (v2 == v) {v->obj->destroy(v); v->obj = NONE_OBJ;}
+            if (v2 == v) {obj_destroy(v); v->obj = NONE_OBJ;}
             op->v2 = &tmp;
             tmp.refcount = 0;
             result = tmp.obj->rcalc2(op);
             op->v2 = v2;
-            tmp.obj->destroy(&tmp);
+            obj_destroy(&tmp);
             return result;
         }
     case T_TUPLE:
