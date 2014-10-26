@@ -65,15 +65,17 @@ void select_opcodes(const struct cpu_s *cpumode) {
     cpu = cpumode;
 }
 
-static int touval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+int touval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
+    struct value_s err;
     if (v1->obj == NONE_OBJ) {
-        if (v1 == v) v->obj->destroy(v);
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR____STILL_NONE;
-        v->u.error.epoint = *epoint;
+        err_msg_still_none(NULL, epoint);
         return 1;
     }
-    return v1->obj->uval(v1, v, uv, bits, epoint);
+    if (v1->obj->uval(v1, &err, uv, bits, epoint)) {
+        err_msg_output_and_destroy(&err);
+        return 1;
+    }
+    return 0;
 }
 
 int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct linepos_s *epoints) {
@@ -85,7 +87,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
     uint8_t cod, longbranch;
     uint32_t adr;
     uval_t uval;
-    struct value_s err, *val;
+    struct value_s *val;
     linepos_t epoint2 = &epoints[0];
 
     cnmemonic = opcode_table[opcode[prm]];
@@ -147,7 +149,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
                         goto justrel2;
                     }
                     if (cnmemonic[ADR_REL_L] != ____) {
-                        if (touval(val, &err, &uval, 16, epoint2)) err_msg_output_and_destroy(&err);
+                        if (touval(val, &uval, 16, epoint2)) {}
                         else adr = (uint16_t)(uval - current_section->l_address - 3);
                         opr = ADR_REL_L; ln = 2; /* brl */
                         break;
@@ -271,11 +273,11 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
                 longbranch = 0;
                 if (0) {
             justrel2:
-                    if (touval(val, &err, &uval, 16, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 1 + ln;}
+                    if (touval(val, &uval, 16, epoint2)) uval = current_section->l_address + 1 + ln;
                     crossbank = 0;
                 } else {
             justrel: 
-                    if (touval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); uval = current_section->l_address + 1 + ln;}
+                    if (touval(val, &uval, 24, epoint2)) uval = current_section->l_address + 1 + ln;
                     crossbank = ((uval_t)current_section->l_address ^ uval) > 0xffff;
                 }
                 xadr = adr;
@@ -394,7 +396,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
             }
             if (cnmemonic[ADR_REL_L] != ____) {
                 if (w != 3 && w != 1) return 2;
-                if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(val, &uval, 24, epoint2)) {}
                 else {
                     adr = (uint16_t)(uval - current_section->l_address - 3);
                     if ((current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
@@ -404,11 +406,11 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
             }
             if (cnmemonic[ADR_LONG] == 0x5C) {
                 if (w == 3) {/* auto length */
-                    if (touval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); w = (cnmemonic[ADR_ADDR] == ____) + 1;}
+                    if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[ADR_ADDR] == ____) + 1;
                     else if (cnmemonic[ADR_ADDR] != ____ && (current_section->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
                     else {adr = uval; w = 2;}
                 } else {
-                    if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                    if (touval(val, &uval, 24, epoint2)) {}
                     else if (w == 1 && cnmemonic[ADR_ADDR] != ____) {
                         adr = uval;
                         if ((current_section->l_address ^ uval) > 0xffff) {err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint); w = 2;}
@@ -432,19 +434,19 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
             if (cnmemonic[ADR_MOVE] != ____) {
                 val = vals->u.list.data[0];
                 if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_IMMEDIATE) val = val->u.addr.val;
-                if (touval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(val, &uval, 8, epoint2)) {}
                 else adr = (uint16_t)uval << 8;
                 val = vals->u.list.data[1];
                 epoint2 = &epoints[1];
                 if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_IMMEDIATE) val = val->u.addr.val;
-                if (touval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(val, &uval, 8, epoint2)) {}
                 else adr |= (uint8_t)uval;
                 ln = 2; opr = ADR_MOVE;
                 break;
             } 
             if (cnmemonic[ADR_BIT_ZP] != ____) {
                 if (w != 3 && w != 0) return 2;
-                if (touval(vals->u.list.data[0], &err, &uval, 3, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(vals->u.list.data[0], &uval, 3, epoint2)) {}
                 else longbranch = (uval << 4) & 0x70;
                 val = vals->u.list.data[1];
                 epoint2 = &epoints[1];
@@ -461,16 +463,16 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
         case 3:
             if (cnmemonic[ADR_BIT_ZP_REL] != ____) {
                 if (w != 3 && w != 0) return 2;
-                if (touval(vals->u.list.data[0], &err, &uval, 3, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(vals->u.list.data[0], &uval, 3, epoint2)) {}
                 else longbranch = (uval << 4) & 0x70;
                 val = vals->u.list.data[1];
                 epoint2 = &epoints[1];
                 if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_DR) {
                     val = val->u.addr.val;
-                    if (touval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
+                    if (touval(val, &uval, 8, epoint2)) {}
                     else adr = (uint8_t)uval;
                 } else {
-                    if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                    if (touval(val, &uval, 24, epoint2)) {}
                     else {
                         if (uval <= 0xffff) {
                             adr = (uint16_t)(uval - dpage);
@@ -495,7 +497,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
     case AG_ZP: /* zero page address only */
         if (w != 3 && w != 0) return 2;
         if (cnmemonic[opr] == ____) return 2;
-        if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+        if (touval(val, &uval, 24, epoint2)) {}
         else if (uval <= 0xffff) {
             adr = (uint16_t)(uval - dpage);
             if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
@@ -505,7 +507,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
     case AG_B0: /* bank 0 address only */
         if (w != 3 && w != 1) return 2;
         if (cnmemonic[opr] == ____) return 2;
-        if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+        if (touval(val, &uval, 24, epoint2)) {}
         else if (uval <= 0xffff) {
             adr = uval;
             if (cnmemonic[opr] == 0x6c && opcode != w65816.opcode && opcode != c65c02.opcode && opcode != r65c02.opcode && opcode != w65c02.opcode && opcode != c65ce02.opcode && opcode != c65el02.opcode && !(~adr & 0xff)) err_msg2(ERROR______JUMP_BUG, NULL, epoint);/* jmp ($xxff) */
@@ -515,7 +517,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
     case AG_PB: /* address in program bank */
         if (w != 3 && w != 1) return 2;
         if (cnmemonic[opr] == ____) return 2;
-        if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+        if (touval(val, &uval, 24, epoint2)) {}
         else if ((current_section->l_address ^ uval) <= 0xffff) adr = (uint16_t)uval;
         else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         ln = 2;
@@ -523,14 +525,14 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
     case AG_BYTE: /* byte only */
         if (w != 3 && w != 0) return 2;
         if (cnmemonic[opr] == ____ && (prm || opr != ADR_IMMEDIATE)) return 2; /* 0x69 hack */
-        if (touval(val, &err, &uval, 8, epoint2)) err_msg_output_and_destroy(&err);
+        if (touval(val, &uval, 8, epoint2)) {}
         else adr = uval;
         ln = 1;
         break;
     case AG_DB3: /* 3 choice data bank */
         if (w == 3) {/* auto length */
             if (cnmemonic[opr] == ____ && cnmemonic[opr - 1] == ____ && cnmemonic[opr - 2] == ____) return 2;
-            if (touval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); w = (cnmemonic[opr - 1] != ____);}
+            if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[opr - 1] != ____);
             else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
             else if (cnmemonic[opr - 2] != ____) {adr = uval; w = 2;}
@@ -542,7 +544,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
             switch (w) {
             case 0:
                 if (cnmemonic[opr] == ____) return 2;
-                if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(val, &uval, 24, epoint2)) {}
                 else if (uval <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
                     if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
@@ -550,7 +552,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
                 break;
             case 1:
                 if (cnmemonic[opr - 1] == ____) return 2;
-                if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(val, &uval, 24, epoint2)) {}
                 else {
                     adr = (uint16_t)uval;
                     if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val, epoint2);
@@ -558,7 +560,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
                 break;
             case 2:
                 if (cnmemonic[opr - 2] == ____) return 2;
-                if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(val, &uval, 24, epoint2)) {}
                 else adr = uval;
                 break;
             default: return 2;
@@ -569,7 +571,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
     case AG_DB2: /* 2 choice data bank */
         if (w == 3) {/* auto length */
             if (cnmemonic[opr] == ____ && cnmemonic[opr - 1] == ____) return 2;
-            if (touval(val, &err, &uval, 24, epoint2)) {err_msg_output_and_destroy(&err); w = (cnmemonic[opr - 1] != ____);}
+            if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[opr - 1] != ____);
             else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
             else {
@@ -580,7 +582,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
             switch (w) {
             case 0:
                 if (cnmemonic[opr] == ____) return 2;
-                if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(val, &uval, 24, epoint2)) {}
                 else if (uval <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
                     if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
@@ -588,7 +590,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
                 break;
             case 1:
                 if (cnmemonic[opr - 1] == ____) return 2;
-                if (touval(val, &err, &uval, 24, epoint2)) err_msg_output_and_destroy(&err);
+                if (touval(val, &uval, 24, epoint2)) {}
                 else {
                     adr = (uint16_t)uval;
                     if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val, epoint2);
@@ -602,7 +604,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
     case AG_WORD: /* word only */
         if (w != 3 && w != 1) return 2;
         if (cnmemonic[opr] == ____ && (prm || opr != ADR_IMMEDIATE)) return 2; /* 0x69 hack */
-        if (touval(val, &err, &uval, 16, epoint2)) err_msg_output_and_destroy(&err);
+        if (touval(val, &uval, 16, epoint2)) {}
         else adr = uval;
         ln = 2;
         break;
