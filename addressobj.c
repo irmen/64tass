@@ -247,7 +247,7 @@ static void calc1(oper_t op) {
         op->v1->obj->calc1(op);
         v->obj = ADDRESS_OBJ; 
         v->u.addr.val = op->v;
-        if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = &none_value; }
+        if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = val_reference(none_value); }
         v->u.addr.type = am;
         val_destroy(op->v1);
         op->v1 = v1;
@@ -325,7 +325,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                 v->u.addr.val = result;
                 val_destroy(op->v);
             } else v->u.addr.val = op->v;
-            if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = &none_value; }
+            if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = val_reference(none_value); }
             v->u.addr.type = am;
             result = NULL;
         }
@@ -349,7 +349,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             v->u.addr.val = result;
             val_destroy(op->v);
         } else v->u.addr.val = op->v;
-        if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = &none_value; }
+        if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = val_reference(none_value); }
         v->u.addr.type = am;
         op->v = v;
         op->v1 = v1;
@@ -382,7 +382,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             v->u.addr.val = result;
             val_destroy(op->v);
         } else v->u.addr.val = op->v;
-        if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = &none_value; }
+        if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output(v->u.addr.val); val_destroy(v->u.addr.val); v->u.addr.val = val_reference(none_value); }
         v->u.addr.type = am;
         op->v = v;
         op->v2 = v2;

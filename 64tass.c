@@ -1245,9 +1245,9 @@ struct value_s *compile(struct file_list_s *cflist)
                     if (skwait==1) {
                         if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) {waitfor->skip = 0; goto breakerr;}
                         val = pull_val(&epoint);
-                        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+                        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = val_reference(none_value); }
                         else if (val->obj == NONE_OBJ) err_msg_still_none(NULL, &epoint);
-                    } else val = &none_value;
+                    } else val = val_reference(none_value);
                     waitfor->val = val;
                     waitfor->skip = (val->obj == NONE_OBJ) ? 0 : ((prevwaitfor->skip & 1) << 1);
                 }
@@ -1637,7 +1637,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             current_context->constant = 1;
                             current_context->requires = 0;
                             current_context->conflicts = 0;
-                            current_context->value = &none_value;
+                            current_context->value = val_reference(none_value);
                             current_context->file_list = cflist;
                             current_context->epoint = epoint;
                         }
@@ -2136,7 +2136,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     current_context->constant = 1;
                                     current_context->requires = 0;
                                     current_context->conflicts = 0;
-                                    current_context->value = &none_value;
+                                    current_context->value = val_reference(none_value);
                                     current_context->file_list = cflist;
                                     current_context->epoint = epoint;
                                 }
@@ -2186,7 +2186,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             lpoint.pos++;
                             if (!get_exp(&w, 1, cfile, 1, 1, &lpoint)) goto breakerr;
                             val = get_val(NULL);
-                            if (val->obj == ERROR_OBJ) {err_msg_output(val); val = &none_value;}
+                            if (val->obj == ERROR_OBJ) {err_msg_output(val); val = none_value;}
                             var = new_label(&varname, (varname.data[0] == '_') ? cheap_context : current_context, strength, &labelexists);
                             if (labelexists) {
                                 if (var->constant) err_msg_double_defined(var, &varname, &epoint);
@@ -2256,7 +2256,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     var->constant = 0;
                                     var->requires = current_section->requires;
                                     var->conflicts = current_section->conflicts;
-                                    var->value = &none_value;
+                                    var->value = val_reference(none_value);
                                     var->file_list = cflist;
                                     var->epoint = epoint;
                                 }
@@ -2654,7 +2654,7 @@ struct value_s *compile(struct file_list_s *cflist)
                             context->constant = 1;
                             context->requires = 0;
                             context->conflicts = 0;
-                            context->value = &none_value;
+                            context->value = val_reference(none_value);
                             context->file_list = cflist;
                             context->epoint = epoint;
                         }
@@ -2679,7 +2679,7 @@ struct value_s *compile(struct file_list_s *cflist)
                         context->constant = 1;
                         context->requires = 0;
                         context->conflicts = 0;
-                        context->value = &none_value;
+                        context->value = val_reference(none_value);
                         context->file_list = cflist;
                         context->epoint = epoint;
                     }

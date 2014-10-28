@@ -450,7 +450,7 @@ void init_variables(void)
     root_label->constant = 1;
     root_label->requires = 0;
     root_label->conflicts = 0;
-    root_label->value = &none_value;
+    root_label->value = val_reference(none_value);
     root_label->file_list = NULL;
     root_label->epoint = nopoint;
 }

@@ -99,7 +99,7 @@ static inline void function_range(struct values_s *vals, unsigned int args) {
         val_replace_template(&vals->val, &new_value);
         return;
     }
-    val_replace(&vals->val, &none_value);
+    val_replace(&vals->val, none_value);
 }
 
 /* register(a) - create register object */
@@ -210,8 +210,7 @@ static inline void apply_func_single(struct values_s *vals, unsigned int args) {
 
     if (args != 1) {
         err_msg_argnum(args, 1, 1, &vals->epoint);
-        val_destroy(vals->val);
-        vals->val = &none_value;
+        val_replace(&vals->val, none_value);
         return;
     }
     if (vals->val->refcount != 1) {
@@ -332,14 +331,12 @@ static inline void apply_func_double(struct values_s *vals, unsigned int args) {
 
     if (args != 2) {
         err_msg_argnum(args, 2, 2, &vals->epoint);
-        val_destroy(vals->val);
-        vals->val = &none_value;
+        val_replace(&vals->val, none_value);
         return;
     }
     if ((v[0].val->obj == TUPLE_OBJ || v[0].val->obj == LIST_OBJ) && (v[1].val->obj == TUPLE_OBJ || v[1].val->obj == LIST_OBJ)) {
         err_msg_wrong_type(v[0].val, &v[0].epoint);
-        val_destroy(vals->val);
-        vals->val = &none_value;
+        val_replace(&vals->val, none_value);
         return;
     }
     if (vals->val->refcount != 1) {

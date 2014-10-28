@@ -92,11 +92,12 @@ struct DATA {
 static size_t listp;
 static const struct values_s *list;
 static size_t largs;
-static struct values_s dummy = {&none_value, {0, 0}};
+static struct values_s dummy = {NULL, {0, 0}};
 
 static inline const struct values_s *next_arg(void) {
     if (!none && largs > listp) return &list[listp++];
     listp++;
+    dummy.val = none_value;
     return &dummy;
 }
 
@@ -430,8 +431,7 @@ void isnprintf(struct values_s *vals, unsigned int args)
 
     if (args < 1) {
         err_msg_argnum(args, 1, 0, &vals->epoint);
-        val_destroy(vals->val);
-        vals->val = &none_value;
+        val_replace(&vals->val, none_value);
         return;
     }
     switch (v[0].val->obj->type) {
@@ -442,7 +442,7 @@ void isnprintf(struct values_s *vals, unsigned int args)
     case T_STR: break;
     default:
         err_msg_wrong_type(v[0].val, &v[0].epoint);
-        val_replace(&vals->val, &none_value);
+        val_replace(&vals->val, none_value);
         return;
     }
     data.pf = (char *)v[0].val->u.str.data;

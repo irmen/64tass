@@ -186,7 +186,7 @@ extern struct value_s *val_reference(struct value_s *);
 extern int val_print(const struct value_s *, FILE *);
 extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
 
-extern struct value_s none_value;
+extern struct value_s *none_value;
 extern struct value_s *true_value;
 extern struct value_s *false_value;
 extern struct value_s *gap_value;
