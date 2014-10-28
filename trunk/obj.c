@@ -702,18 +702,14 @@ static MUST_CHECK struct value_s *none_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
         return ERROR_OBJ->rcalc2(op);
     }
-    if (op->v == op->v2) obj_destroy(op->v);
-    op->v->obj = NONE_OBJ;
-    return NULL;
+    return val_reference(none_value);
 }
 
 static MUST_CHECK struct value_s *none_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->calc2(op);
     }
-    if (op->v == op->v1) obj_destroy(op->v);
-    op->v->obj = NONE_OBJ;
-    return NULL;
+    return val_reference(none_value);
 }
 
 static int MUST_CHECK none_ival(const struct value_s *UNUSED(v1), struct value_s *v, ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
@@ -779,9 +775,7 @@ static MUST_CHECK struct value_s *struct_calc2(oper_t op) {
                 return val_reference(l->value);
             }
             if (!referenceit) {
-                if (v == v1) obj_destroy(v);
-                v->obj = NONE_OBJ;
-                return NULL;
+                return val_reference(none_value);
             }
             epoint = v2->u.ident.epoint;
             name = v2->u.ident.name;
@@ -803,9 +797,7 @@ static MUST_CHECK struct value_s *struct_calc2(oper_t op) {
                     return val_reference(l->value);
                 }
                 if (!referenceit) {
-                    if (v == v1) obj_destroy(v);
-                    v->obj = NONE_OBJ;
-                    return NULL;
+                    return val_reference(none_value);
                 }
                 epoint = v2->u.anonident.epoint;
                 count = v2->u.anonident.count;

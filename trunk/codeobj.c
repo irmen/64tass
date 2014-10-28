@@ -255,9 +255,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                 return val_reference(l->value);
             } 
             if (!referenceit) {
-                if (v == v1) obj_destroy(v);
-                v->obj = NONE_OBJ;
-                return NULL;
+                return val_reference(none_value);
             }
             epoint = v2->u.ident.epoint;
             name = v2->u.ident.name;
@@ -279,9 +277,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
                     return val_reference(l->value);
                 }
                 if (!referenceit) {
-                    if (v == v1) obj_destroy(v);
-                    v->obj = NONE_OBJ;
-                    return NULL;
+                    return val_reference(none_value);
                 }
                 epoint = v2->u.anonident.epoint;
                 count = v2->u.anonident.count;

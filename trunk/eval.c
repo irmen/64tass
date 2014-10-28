@@ -311,7 +311,8 @@ static inline struct value_s *push(linepos_t epoint) {
         eval->out_size += 64;
         eval->o_out = (struct values_s *)realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
         if (!eval->o_out || eval->out_size < 64 || eval->out_size > SIZE_MAX / sizeof(eval->o_out[0])) err_msg_out_of_memory(); /* overflow */
-        for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = &none_value;
+        none_value->refcount += 64;
+        for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = none_value;
     }
     o_out = &eval->o_out[eval->outp++];
     o_out->epoint = *epoint;
@@ -324,7 +325,8 @@ static inline void push_oper(struct value_s *val, linepos_t epoint) {
         eval->out_size += 64;
         eval->o_out = (struct values_s *)realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
         if (!eval->o_out || eval->out_size < 64 || eval->out_size > SIZE_MAX / sizeof(eval->o_out[0])) err_msg_out_of_memory(); /* overflow */
-        for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = &none_value;
+        none_value->refcount += 63;
+        for (i = eval->outp + 1; i < eval->out_size; i++) eval->o_out[i].val = none_value;
     } else val_destroy(eval->o_out[eval->outp].val);
     eval->o_out[eval->outp].val = val;
     eval->o_out[eval->outp++].epoint = *epoint;
@@ -483,7 +485,8 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                 ev->values_size += 16;
                 ev->values = values = (struct values_s *)realloc(ev->values, ev->values_size * sizeof(struct values_s));
                 if (!values || ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
-                for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
+                none_value->refcount += 16;
+                for (; j < ev->values_size; j++) ev->values[j].val = none_value;
             }
             o_out->val = values[vsp].val;
             values[vsp].val = val;
@@ -518,7 +521,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                 default:break;
                 }
                 err_msg_invalid_oper(op2, v1->val, NULL, &o_out->epoint);
-                val_replace(&v1->val, &none_value); 
+                val_replace(&v1->val, none_value); 
                 break;
             case T_CODE:
             case T_INT:
@@ -561,7 +564,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                 }
             default:
                 err_msg_invalid_oper(op2, v1->val, NULL, &o_out->epoint);
-                val_replace(&v1->val, &none_value); 
+                val_replace(&v1->val, none_value); 
             case T_ERROR:
             case T_NONE:break;
             }
@@ -637,7 +640,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         case T_ERROR:
         case T_NONE: continue;
         }
-        val_replace(&v1->val, &none_value); continue;
+        val_replace(&v1->val, none_value); continue;
     }
     ev->outp2 = i;
     ev->values_len = vsp;
@@ -676,7 +679,7 @@ static void functions(struct values_s *vals, unsigned int args) {
         break;
     default:
         err_msg_invalid_oper(&o_FUNC, vals->val, NULL, &vals->epoint);
-        val_replace(&vals->val, &none_value);
+        val_replace(&vals->val, none_value);
     case T_ERROR:
     case T_NONE: break;
     }
@@ -800,7 +803,7 @@ static void indexes(struct values_s *vals, unsigned int args) {
         }
         return;
     }
-    val_replace(&vals->val, &none_value);
+    val_replace(&vals->val, none_value);
 }
 
 static inline MUST_CHECK struct value_s *apply_op2(oper_t op) {
@@ -856,7 +859,7 @@ static struct value_s *apply_addressing(struct value_s *v1, struct value_s *v, e
         if (v1 == v) {
             obj_destroy(v);
             v->obj = NONE_OBJ;
-        } else v1 = &none_value;
+        } else v1 = none_value;
         /* fall through */
     default:
         if (v1 == v) {
@@ -899,7 +902,8 @@ static int get_val2(struct eval_context_s *ev) {
                 ev->values_size += 16;
                 ev->values = values = (struct values_s *)realloc(values, ev->values_size * sizeof(struct values_s));
                 if (!values || ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
-                for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
+                none_value->refcount += 16;
+                for (; j < ev->values_size; j++) ev->values[j].val = none_value;
             }
             o_out->val = values[vsp].val;
             values[vsp].val = val;
@@ -955,7 +959,7 @@ static int get_val2(struct eval_context_s *ev) {
                                         ev->o_out[j].val != &o_COMMAZ       /* (3),z */
                                         ))) {
                             v1->val = values[vsp].val; 
-                            values[vsp].val = &none_value;
+                            values[vsp].val = val_reference(none_value);
                             continue;
                         }
                         am = (op == O_BRACKET) ? A_LI : A_I;
@@ -964,7 +968,7 @@ static int get_val2(struct eval_context_s *ev) {
                             apply_addressing(values[vsp].val, v1->val, am);
                         } else {
                             v1->val = values[vsp].val; 
-                            values[vsp].val = &none_value;
+                            values[vsp].val = val_reference(none_value);
                             oper.v = apply_addressing(v1->val, v1->val, am);
                             if (oper.v) v1->val = oper.v;
                         }
@@ -972,7 +976,7 @@ static int get_val2(struct eval_context_s *ev) {
                     } else if (tup) {
                         vsp--;
                         v1->val = values[vsp].val; 
-                        values[vsp].val = &none_value;
+                        values[vsp].val = val_reference(none_value);
                         continue;
                     }
                 }
@@ -981,11 +985,12 @@ static int get_val2(struct eval_context_s *ev) {
                     val->obj = (op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ;
                     val->u.list.len = args;
                     val->u.list.data = list_create_elements(val, args);
+                    none_value->refcount += args;
                     while (args--) {
                         v2 = &values[vsp-1];
-                        if (v2->val->obj == ERROR_OBJ) { err_msg_output(v2->val); val_destroy(v2->val); v2->val = &none_value; }
+                        if (v2->val->obj == ERROR_OBJ) { err_msg_output(v2->val); val_destroy(v2->val); v2->val = val_reference(none_value); }
                         val->u.list.data[args] = v2->val;
-                        v2->val = &none_value;
+                        v2->val = none_value;
                         vsp--;
                     }
                 } else val = val_reference((op == O_BRACKET) ? null_list : null_tuple);
@@ -1083,7 +1088,7 @@ static int get_val2(struct eval_context_s *ev) {
             if (vsp == 0) goto syntaxe;
             v1 = &values[vsp-1];
             err_msg2(ERROR______EXPECTED,"':'", &o_out->epoint);
-            val_replace(&v1->val, &none_value);
+            val_replace(&v1->val, none_value);
             continue;
         case O_COLON:
             v2 = v1; v1 = &values[--vsp-1];
@@ -1140,7 +1145,7 @@ static int get_val2(struct eval_context_s *ev) {
                     val->u.list.data[0] = v1->val;
                     val->u.list.data[1] = v2->val;
                     v1->val = val;
-                    v2->val = &none_value;
+                    v2->val = val_reference(none_value);
                     continue;
                 case T_ERROR:
                     val_replace(&v1->val, v2->val);
@@ -1197,14 +1202,15 @@ static int get_val2(struct eval_context_s *ev) {
             if (v1->val->obj == TUPLE_OBJ || v1->val->obj == LIST_OBJ) {
                 struct value_s *tmp = v1->val;
                 size_t k, len = tmp->u.list.len;
-                v1->val = &none_value;
+                v1->val = val_reference(none_value);
                 vsp--;
                 if (vsp + len >= ev->values_size) {
                     size_t j = ev->values_size;
                     ev->values_size = vsp + len;
                     ev->values = values = (struct values_s *)realloc(values, ev->values_size * sizeof(struct values_s));
                     if (!values || ev->values_size < len || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
-                    for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
+                    if (j < ev->values_size) none_value->refcount += ev->values_size - j;
+                    for (; j < ev->values_size; j++) ev->values[j].val = none_value;
                 }
                 for (k = 0; k < len; k++) {
                     val_destroy(values[vsp].val);
@@ -1218,14 +1224,15 @@ static int get_val2(struct eval_context_s *ev) {
             if (v1->val->obj == DICT_OBJ) {
                 struct value_s *tmp = v1->val;
                 const struct avltree_node *n = avltree_first(&tmp->u.dict.members);
-                v1->val = &none_value;
+                v1->val = val_reference(none_value);
                 vsp--;
                 if (vsp + tmp->u.dict.len >= ev->values_size) {
                     size_t j = ev->values_size;
                     ev->values_size = vsp + tmp->u.dict.len;
                     ev->values = values = (struct values_s *)realloc(values, ev->values_size * sizeof(struct values_s));
                     if (!values || ev->values_size < vsp || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
-                    for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
+                    if (j < ev->values_size) none_value->refcount += ev->values_size - j;
+                    for (; j < ev->values_size; j++) ev->values[j].val = none_value;
                 }
                 while (n) {
                     const struct pair_s *p = cavltree_container_of(n, struct pair_s, node);
@@ -1247,7 +1254,8 @@ static int get_val2(struct eval_context_s *ev) {
                         ev->values_size += 16;
                         ev->values = values = (struct values_s *)realloc(values, ev->values_size * sizeof(struct values_s));
                         if (!values || ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
-                        for (; j < ev->values_size; j++) ev->values[j].val = &none_value;
+                        none_value->refcount += 16;
+                        for (; j < ev->values_size; j++) ev->values[j].val = none_value;
                     }
                     val = val_alloc();
                     val->obj = COLONLIST_OBJ;
@@ -1369,7 +1377,7 @@ struct value_s *pull_val(struct linepos_s *epoint) {
     value = &eval->values[eval->values_p];
     if (epoint) *epoint = value->epoint;
     val = value->val;
-    eval->values[eval->values_p++].val = &none_value;
+    eval->values[eval->values_p++].val = val_reference(none_value);
     return val;
 }
 
@@ -1871,7 +1879,7 @@ struct value_s *get_vals_tuple(void) {
 
     if (len == 1) {
         val = pull_val(NULL);
-        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = val_reference(none_value); }
         return val;
     }
     val = val_alloc();
@@ -1880,7 +1888,7 @@ struct value_s *get_vals_tuple(void) {
     val->u.list.data = list_create_elements(val, len);
     for (i = 0; i < len; i++) {
         struct value_s *val2 = pull_val(NULL);
-        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = &none_value; }
+        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = val_reference(none_value); }
         val->u.list.data[i] = val2;
     }
     return val;
@@ -1893,7 +1901,7 @@ struct value_s *get_vals_addrlist(struct linepos_s *epoints) {
 
     if (len == 1) {
         val = pull_val(&epoints[0]);
-        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = &none_value; }
+        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = val_reference(none_value); }
         return val;
     }
     val = val_alloc();
@@ -1901,7 +1909,7 @@ struct value_s *get_vals_addrlist(struct linepos_s *epoints) {
     val->u.list.data = list_create_elements(val, len);
     for (i = j = 0; j < len; j++) {
         struct value_s *val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
-        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = &none_value; }
+        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = val_reference(none_value); }
         else if (val2->obj == REGISTER_OBJ && val2->u.str.len == 1 && i) {
             enum atype_e am;
             switch (val2->u.str.data[0]) {

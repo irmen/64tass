@@ -26,7 +26,7 @@
 #include "bytesobj.h"
 #include "bitsobj.h"
 
-struct value_s none_value;
+struct value_s *none_value;
 struct value_s *true_value;
 struct value_s *false_value;
 struct value_s *gap_value;
@@ -111,16 +111,22 @@ static struct values_s {
 } *values = NULL;
 
 static inline void value_free(union values_u *val) {
-//    return free(val);
+#ifdef DEBUG
+    return free(val);
+#else
     val->next = values_free;
     values_free = val;
+#endif
 }
 
 struct value_s *val_alloc(void) {
     struct value_s *val;
-    size_t i;
-//    val = (struct value_s *)malloc(sizeof(struct value_s)); val->refcount = 1; return val;
+#ifdef DEBUG
+    val = (struct value_s *)malloc(sizeof(struct value_s));
+    val->refcount = 1;
+#else
     if (!values_free) {
+        size_t i;
         struct values_s *old = values;
         values = (struct values_s *)malloc(sizeof(struct values_s));
         if (!values) err_msg_out_of_memory();
@@ -135,6 +141,7 @@ struct value_s *val_alloc(void) {
     }
     val = (struct value_s *)values_free;
     values_free = values_free->next;
+#endif
     return val;
 }
 
@@ -232,8 +239,8 @@ int val_print(const struct value_s *v1, FILE *f) {
 
 void init_values(void)
 {
-    none_value.obj = NONE_OBJ;
-    none_value.refcount = 0;
+    none_value = val_alloc();
+    none_value->obj = NONE_OBJ;
     true_value = val_alloc();
     true_value->obj = BOOL_OBJ;
     true_value->u.boolean = 1;
@@ -585,6 +592,20 @@ void init_values(void)
 
 void destroy_values(void)
 {
+#ifdef DEBUG
+    if (none_value->refcount != 1) fprintf(stderr, "none %d\n", none_value->refcount - 1);
+    if (true_value->refcount != 1) fprintf(stderr, "true %d\n", true_value->refcount - 1);
+    if (false_value->refcount != 1) fprintf(stderr, "false %d\n", false_value->refcount - 1);
+    if (gap_value->refcount != 1) fprintf(stderr, "gap %d\n", gap_value->refcount - 1);
+    if (null_str->refcount != 1) fprintf(stderr, "str %d\n", null_str->refcount - 1);
+    if (null_bytes->refcount != 1) fprintf(stderr, "bytes %d\n", null_bytes->refcount - 1);
+    if (null_bits->refcount != 1) fprintf(stderr, "bits %d\n", null_bits->refcount - 1);
+    if (null_tuple->refcount != 1) fprintf(stderr, "tuple %d\n", null_tuple->refcount - 1);
+    if (null_list->refcount != 1) fprintf(stderr, "list %d\n", null_list->refcount - 1);
+    if (null_addrlist->refcount != 1) fprintf(stderr, "addrlist %d\n", null_addrlist->refcount - 1);
+#endif
+
+    val_destroy(none_value);
     val_destroy(true_value);
     val_destroy(false_value);
     val_destroy(gap_value);
