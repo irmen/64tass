@@ -180,8 +180,6 @@ extern struct value_s *val_alloc(void);
 extern void val_destroy(struct value_s *);
 extern void val_replace(struct value_s **, struct value_s *);
 extern void val_replace_template(struct value_s **, const struct value_s *);
-extern struct value_s *val_realloc(struct value_s **);
-extern void val_set_template(struct value_s **, const struct value_s *);
 extern struct value_s *val_reference(struct value_s *);
 extern int val_print(const struct value_s *, FILE *);
 extern int pair_compare(const struct avltree_node *, const struct avltree_node *);

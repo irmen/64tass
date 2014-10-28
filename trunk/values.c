@@ -164,16 +164,6 @@ struct value_s *val_reference(struct value_s *val2) {
     return val;
 }
 
-struct value_s *val_realloc(struct value_s **val) {
-    if ((*val)->refcount == 1) {
-        obj_destroy(*val);
-        return *val;
-    }
-    if ((*val)->refcount) (*val)->refcount--;
-    *val = val_alloc();
-    return *val;
-}
-
 void val_replace(struct value_s **val, struct value_s *val2) {
     if (*val == val2) return;
     if ((*val)->refcount == 1 && val2->refcount == 0) {
@@ -192,11 +182,6 @@ void val_replace_template(struct value_s **val, const struct value_s *val2) {
         val_destroy(*val);
         *val = val_alloc();
     }
-    val2->obj->copy_temp(val2, *val);
-}
-
-void val_set_template(struct value_s **val, const struct value_s *val2) {
-    *val = val_alloc();
     val2->obj->copy_temp(val2, *val);
 }
 
