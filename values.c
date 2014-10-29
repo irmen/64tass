@@ -26,6 +26,7 @@
 #include "bytesobj.h"
 #include "bitsobj.h"
 
+struct value_s *int_value[2];
 struct value_s *none_value;
 struct value_s *true_value;
 struct value_s *false_value;
@@ -156,14 +157,6 @@ void val_destroy(struct value_s *val) {
     } else val->refcount--;
 }
 
-struct value_s *val_reference(struct value_s *val2) {
-    struct value_s *val;
-    if (val2->refcount) {val2->refcount++;return val2;}
-    val = val_alloc();
-    val2->obj->copy(val2, val);
-    return val;
-}
-
 void val_replace(struct value_s **val, struct value_s *val2) {
     if (*val == val2) return;
     if ((*val)->refcount == 1 && val2->refcount == 0) {
@@ -175,55 +168,41 @@ void val_replace(struct value_s **val, struct value_s *val2) {
     *val = val_reference(val2);
 }
 
-void val_replace_template(struct value_s **val, const struct value_s *val2) {
-    if ((*val)->refcount == 1) {
-        obj_destroy(*val);
-    } else { 
-        val_destroy(*val);
-        *val = val_alloc();
-    }
-    val2->obj->copy_temp(val2, *val);
-}
-
 int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
     const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
-    struct value_s tmp, *result;
+    struct value_s *result;
     struct oper_s oper;
     int h = a->hash - b->hash;
 
     if (h) return h;
-    tmp.refcount = 0;
     oper.op = &o_CMP;
     oper.v1 = a->key;
     oper.v2 = b->key;
-    oper.v = &tmp;
     result = oper.v1->obj->calc2(&oper);
-    if (result) {
-        if (result->obj == INT_OBJ) h = result->u.integer.len;
-        else h = oper.v1->obj->type - oper.v2->obj->type;
-        val_destroy(result);
-        return h;
-    }
-    if (tmp.obj == INT_OBJ) return tmp.u.integer.len;
-    return oper.v1->obj->type - oper.v2->obj->type;
+    if (result->obj == INT_OBJ) h = result->u.integer.len;
+    else h = oper.v1->obj->type - oper.v2->obj->type;
+    val_destroy(result);
+    return h;
 }
 
 int val_print(const struct value_s *v1, FILE *f) {
-    struct value_s tmp;
+    struct value_s *err;
     struct linepos_s nopoint = {0, 0};
     int len;
-    v1->obj->repr(v1, &tmp, &nopoint);
-    if (tmp.obj == STR_OBJ) {
-        len = fwrite(tmp.u.str.data, 1, tmp.u.str.len, f);
-    } else len = fwrite(tmp.obj->name, 1, strlen(tmp.obj->name), f);
-    obj_destroy(&tmp);
+    err = v1->obj->repr(v1, &nopoint);
+    if (err->obj == STR_OBJ) {
+        len = fwrite(err->u.str.data, 1, err->u.str.len, f);
+    } else len = fwrite(err->obj->name, 1, strlen(err->obj->name), f);
+    val_destroy(err);
     return len;
 }
 
 void init_values(void)
 {
+    int_value[0] = int_from_int(0);
+    int_value[1] = int_from_int(1);
     none_value = val_alloc();
     none_value->obj = NONE_OBJ;
     true_value = val_alloc();
@@ -577,7 +556,9 @@ void init_values(void)
 
 void destroy_values(void)
 {
-#ifdef DEBUG
+#if DEBUG
+    if (int_value[0]->refcount != 1) fprintf(stderr, "int[0] %d\n", int_value[0]->refcount - 1);
+    if (int_value[1]->refcount != 1) fprintf(stderr, "int[1] %d\n", int_value[1]->refcount - 1);
     if (none_value->refcount != 1) fprintf(stderr, "none %d\n", none_value->refcount - 1);
     if (true_value->refcount != 1) fprintf(stderr, "true %d\n", true_value->refcount - 1);
     if (false_value->refcount != 1) fprintf(stderr, "false %d\n", false_value->refcount - 1);
@@ -590,6 +571,8 @@ void destroy_values(void)
     if (null_addrlist->refcount != 1) fprintf(stderr, "addrlist %d\n", null_addrlist->refcount - 1);
 #endif
 
+    val_destroy(int_value[0]);
+    val_destroy(int_value[1]);
     val_destroy(none_value);
     val_destroy(true_value);
     val_destroy(false_value);

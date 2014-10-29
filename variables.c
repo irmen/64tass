@@ -325,10 +325,12 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
         }
         if (0) { /* for future use with VICE */
             if (l->value->obj == CODE_OBJ) {
-                struct value_s tmp;
+                struct value_s *err;
                 uval_t uv;
                 struct linepos_s epoint;
-                if (!l->value->obj->uval(l->value, &tmp, &uv, 24, &epoint)) {
+                err = l->value->obj->uval(l->value, &uv, 24, &epoint);
+                if (err) val_destroy(err);
+                else {
                     fprintf(flab, "al %x ", uv);
                     labelname_print(l, flab);
                     switch ((enum dtype_e)l->value->u.code.dtype) {

@@ -38,8 +38,6 @@ static struct obj_s obj;
 
 obj_t INT_OBJ = &obj;
 
-static struct value_s one;
-
 static void destroy(struct value_s *v1) {
     if (v1->u.integer.val != v1->u.integer.data) free(v1->u.integer.data);
 }
@@ -85,21 +83,18 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return !memcmp(v1->u.integer.data, v2->u.integer.data, abs(v1->u.integer.len) * sizeof(digit_t));
 }
 
-static int truth(const struct value_s *v1, struct value_s *v, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
-    int result = !!v1->u.integer.len;
-    if (v1 == v) destroy(v);
-    bool_from_int(v, result);
-    return 0;
+static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    return truth_reference(!!v1->u.integer.len);
 }
 
-static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
     ssize_t l = v1->u.integer.len;
     unsigned int h;
     
     switch (l) {
-    case -1: return (-v1->u.integer.val[0]) & ((~(unsigned int)0) >> 1);
-    case 0: return 0;
-    case 1: return v1->u.integer.val[0];
+    case -1: *hs = (-v1->u.integer.val[0]) & ((~(unsigned int)0) >> 1); return NULL;
+    case 0: *hs = 0; return NULL;
+    case 1: *hs = v1->u.integer.val[0]; return NULL;
     }
     h = 0;
     if (l > 0) {
@@ -113,29 +108,30 @@ static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t U
             h -= v1->u.integer.val[l];
         }
     }
-    return h & ((~(unsigned int)0) >> 1);
+    *hs = h & ((~(unsigned int)0) >> 1);
+    return NULL;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
     ssize_t len = abs(v1->u.integer.len);
     int neg = v1->u.integer.len < 0;
     uint8_t *s;
     digit_t ten, r, *out;
     size_t slen, i, j, sz, len2;
     struct value_s tmp;
+    struct value_s *v = val_alloc();
 
     if (len <= 1) {
         char tmp2[sizeof(digit_t) * 3];
         if (len) len = sprintf(tmp2, neg ? "-%d" : "%d", v1->u.integer.val[0]);
         else {tmp2[0]='0';len = 1;}
-        if (v == v1) destroy(v);
         s = str_create_elements(v, len);
         memcpy(s, tmp2, len);
         v->obj = STR_OBJ;
         v->u.str.data = s;
         v->u.str.len = len;
         v->u.str.chars = len;
-        return;
+        return v;
     }
 
     sz = 1 + (len * SHIFT / (3 * DSHIFT));
@@ -166,7 +162,6 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
     len2 = sz * DSHIFT;
     slen += len2;
     if (slen < len2 || sz > SIZE_MAX / DSHIFT) err_msg_out_of_memory(); /* overflow */
-    if (v == v1) destroy(v);
     s = str_create_elements(v, slen);
     s += slen;
     for (i = 0; i < sz; i++) {
@@ -189,161 +184,154 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
     v->u.str.data = s;
     v->u.str.len = slen;
     v->u.str.chars = v->u.str.len;
-    return;
+    return v;
 }
 
-static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
+static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
+    struct value_s *v;
     switch (v1->u.integer.len) {
     case 2: 
         if (v1->u.integer.data[1] >= (~(uval_t)1 << (8*sizeof(uval_t) - SHIFT - 1))) break;
         *iv = v1->u.integer.data[0] | (v1->u.integer.data[1] << SHIFT);
         if (bits < SHIFT) break;
         if (bits < (SHIFT*2-1) && v1->u.integer.data[1] >> (bits - SHIFT - 1)) break;
-        return 0;
+        return NULL;
     case 1: *iv = v1->u.integer.data[0];
             if (bits < (SHIFT-1) && *iv >> (bits-1)) break;
-            return 0;
-    case 0: *iv = 0; return 0;
+            return NULL;
+    case 0: *iv = 0; return NULL;
     case -1: *iv = -v1->u.integer.data[0];
              if (bits < (SHIFT-1) && ~*iv >> (bits-1)) break;
-             return 0;
+             return NULL;
     case -2: 
         if (v1->u.integer.data[1] > (~(uval_t)1 << (8*sizeof(uval_t) - SHIFT - 1))) break;
         *iv = -(v1->u.integer.data[0] | (v1->u.integer.data[1] << SHIFT));
         if (bits < SHIFT) break;
         if (bits < (SHIFT*2-1) && ~*iv >> (bits-1)) break;
-        return 0;
+        return NULL;
     default: break;
     }
-    *iv = 0;
-    if (v1 == v) destroy(v);
+    v = val_alloc();
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR_____CANT_IVAL;
     v->u.error.u.bits = bits;
     v->u.error.epoint = *epoint;
-    return 1;
+    return v;
 }
 
-static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
+static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
+    struct value_s *v;
     switch (v1->u.integer.len) {
     case 2:
         if (v1->u.integer.data[1] >= (~(uval_t)1 << (8*sizeof(uval_t) - SHIFT))) break;
         *uv = v1->u.integer.data[0] | (v1->u.integer.data[1] << SHIFT);
         if (bits < SHIFT) break;
         if (bits < SHIFT*2 && v1->u.integer.data[1] >> (bits - SHIFT)) break;
-        return 0;
+        return NULL;
     case 1: *uv = v1->u.integer.data[0];
             if (bits < SHIFT && *uv >> bits) break;
-            return 0;
-    case 0: *uv = 0; return 0;
+            return NULL;
+    case 0: *uv = 0; return NULL;
     default: break;
     }
-    *uv = 0;
-    if (v1 == v) destroy(v);
+    v = val_alloc();
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR_____CANT_UVAL;
     v->u.error.u.bits = bits;
     v->u.error.epoint = *epoint;
-    return 1;
+    return v;
 }
 
-static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
+static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t epoint) {
     ssize_t i, len1 = abs(v1->u.integer.len);
     double d = 0;
     for (i = 0; i < len1; i++) {
         if (v1->u.integer.len < 0) d -= ldexp((double)v1->u.integer.data[i], i * SHIFT);
         else d += ldexp((double)v1->u.integer.data[i], i * SHIFT);
         if (d == HUGE_VAL) {
-            const char *name = v1->obj->name;
-            if (v1 == v) destroy(v);
+            struct value_s *v = val_alloc();
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;
-            v->u.error.u.objname = name;
-            return 1;
+            v->u.error.u.objname = v1->obj->name;
+            return v;
         }
     }
     *r = d;
-    return 0;
+    return NULL;
 }
 
-static void sign(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    int s = (v1->u.integer.len > 0) - (v1->u.integer.len < 0);
-    if (v1 == v) destroy(v);
-    int_from_int(v, s);
+static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    if (v1->u.integer.len < 0) return int_from_int(-1);
+    return val_reference(int_value[v1->u.integer.len > 0]);
 }
 
-static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    if (v != v1) copy(v1, v);
+static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    struct value_s *v = val_alloc();
+    copy(v1, v);
     if (v->u.integer.len < 0) v->u.integer.len = -v->u.integer.len;
+    return v;
 }
 
-static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    if (v != v1) copy(v1, v);
+static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    struct value_s *v = val_alloc();
+    copy(v1, v);
+    return v;
 }
 
 static void iadd(const struct value_s *, const struct value_s *, struct value_s *);
 static void isub(const struct value_s *, const struct value_s *, struct value_s *);
 
-static void calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v = op->v;
+static MUST_CHECK struct value_s *calc1(oper_t op) {
+    struct value_s *v1 = op->v1, *v;
     uval_t uv;
     switch (op->op->u.oper.op) {
     case O_BANK: 
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
-        if (v == v1) destroy(v);
-        bits_from_u8(v, uv >> 16);
-        return;
+        return bits_from_u8(uv >> 16);
     case O_HIGHER:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
-        if (v == v1) destroy(v);
-        bits_from_u8(v, uv >> 8);
-        return;
+        return bits_from_u8(uv >> 8);
     case O_LOWER:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
-        if (v == v1) destroy(v);
-        bits_from_u8(v, uv);
-        return;
+        return bits_from_u8(uv);
     case O_HWORD:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
-        if (v == v1) destroy(v);
-        bits_from_u16(v, uv >> 8);
-        return;
+        return bits_from_u16(uv >> 8);
     case O_WORD:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
-        if (v == v1) destroy(v);
-        bits_from_u16(v, uv);
-        return;
+        return bits_from_u16(uv);
     case O_BSWORD:
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
         if (v1->u.integer.len < 0) uv = -uv;
-        if (v == v1) destroy(v);
-        bits_from_u16(v, (uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
-        return;
+        return bits_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
     case O_INV:
+        v = val_alloc();
         v->obj = INT_OBJ;
-        if (v1->u.integer.len < 0) isub(v1, &one, v);
+        if (v1->u.integer.len < 0) isub(v1, int_value[1], v);
         else {
-            iadd(v1, &one, v);
+            iadd(v1, int_value[1], v);
             v->u.integer.len = -v->u.integer.len;
         }
-        return;
+        return v;
     case O_NEG:
-        if (v != v1) copy(v1, v);
+        v = val_alloc();
+        copy(v1, v);
         v->u.integer.len = -v->u.integer.len;
-        return;
+        return v;
     case O_POS:
-        if (v != v1) copy(v1, v);
-        return;
-    case O_STRING: repr(v1, v, op->epoint); return;
+        v = val_alloc();
+        copy(v1, v);
+        return v;
+    case O_STRING: return repr(v1, op->epoint);
     default: break;
     }
-    obj_oper_error(op);
+    return obj_oper_error(op);
 }
 
 static void iadd(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
@@ -651,24 +639,23 @@ static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct
     if (negr) rem->u.integer.len = -rem->u.integer.len;
 }
 
-static void power(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
-    struct value_s tmp;
+static MUST_CHECK struct value_s *power(const struct value_s *vv1, const struct value_s *vv2) {
     int j, neg = 0;
     size_t i;
-    int_from_int(&tmp, 1);
+    struct value_s *v = int_from_int(1);
+
     for (i = vv2->u.integer.len; i--;) {
         digit_t d = vv2->u.integer.data[i];
         for (j = 1 << (SHIFT - 1); j; j >>= 1) {
-            imul(&tmp, &tmp, &tmp);
+            imul(v, v, v);
             if (d & j) {
-                imul(&tmp, vv1, &tmp);
+                imul(v, vv1, v);
                 neg = 1;
             } else neg = 0;
         }
     }
-    if (neg && vv1->u.integer.len < 0) tmp.u.integer.len = -tmp.u.integer.len;
-    if (vv1 == vv || vv2 == vv) destroy(vv);
-    copy_temp(&tmp, vv);
+    if (neg && vv1->u.integer.len < 0) v->u.integer.len = -v->u.integer.len;
+    return v;
 }
 
 static void ilshift(const struct value_s *vv1, const struct value_s *vv2, uval_t s, struct value_s *vv) {
@@ -713,7 +700,7 @@ static void irshift(const struct value_s *vv1, const struct value_s *vv2, uval_t
     bit = s % SHIFT;
     neg = (vv1->u.integer.len < 0);
     if (neg) {
-        isub(vv1, &one, vv);
+        isub(vv1, int_value[1], vv);
         vv1 = vv;
         sz = abs(vv->u.integer.len) - word;
     } else {
@@ -745,7 +732,7 @@ static void irshift(const struct value_s *vv1, const struct value_s *vv2, uval_t
         if (vv == vv1 || vv == vv2) destroy(vv);
         vv->u.integer.data = v;
         vv->u.integer.len = i;
-        iadd(&one, vv, vv);
+        iadd(int_value[1], vv, vv);
         vv->u.integer.len = -vv->u.integer.len;
         return;
     }
@@ -1003,32 +990,37 @@ static int icmp(const struct value_s *vv1, const struct value_s *vv2) {
     return (vv1->u.integer.len < 0) ? -i : i;
 }
 
-void int_from_int(struct value_s *v, int i) {
+MUST_CHECK struct value_s *int_from_int(int i) {
+    struct value_s *v = val_alloc();
     v->obj = INT_OBJ;
     v->u.integer.data = v->u.integer.val;
     if (i < 0) {
         v->u.integer.val[0] = -i;
         v->u.integer.len = -1;
-        return;
+        return v;
     }
     v->u.integer.val[0] = i;
     v->u.integer.len = (i != 0);
+    return v;
 }
 
-void int_from_uval(struct value_s *v, uval_t i) {
+MUST_CHECK struct value_s *int_from_uval(uval_t i) {
+    struct value_s *v = val_alloc();
     v->obj = INT_OBJ;
     v->u.integer.data = v->u.integer.val;
     if (i > MASK) {
         v->u.integer.val[0] = i & MASK;
         v->u.integer.val[1] = i >> SHIFT;
         v->u.integer.len = 2;
-        return;
+        return v;
     }
     v->u.integer.val[0] = i;
     v->u.integer.len = (i != 0);
+    return v;
 }
 
-void int_from_ival(struct value_s *v, ival_t i) {
+MUST_CHECK struct value_s *int_from_ival(ival_t i) {
+    struct value_s *v = val_alloc();
     v->obj = INT_OBJ;
     v->u.integer.data = v->u.integer.val;
     if (i < 0) {
@@ -1036,44 +1028,48 @@ void int_from_ival(struct value_s *v, ival_t i) {
             v->u.integer.val[0] = (-i) & MASK;
             v->u.integer.val[1] = (-i) >> SHIFT;
             v->u.integer.len = -2;
-            return;
+            return v;
         }
         v->u.integer.val[0] = -i;
         v->u.integer.len = -1;
-        return;
+        return v;
     }
     if (i > MASK) {
         v->u.integer.val[0] = i & MASK;
         v->u.integer.val[1] = i >> SHIFT;
         v->u.integer.len = 2;
-        return;
+        return v;
     }
     v->u.integer.val[0] = i;
     v->u.integer.len = (i != 0);
+    return v;
 }
 
-void int_from_double(struct value_s *v, double f, linepos_t epoint) {
+MUST_CHECK struct value_s *int_from_double(double f, linepos_t epoint) {
     int neg, expo;
     double frac;
     ssize_t sz;
     digit_t *d;
+    struct value_s *v;
+
     if (f == HUGE_VAL) {
+        v = val_alloc();
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR______CANT_INT;
         v->u.error.epoint = *epoint;
         v->u.error.u.objname = FLOAT_OBJ->name;
-        return;
+        return v;
     }
     neg = (f < 0.0);
     if (neg) f = -f;
 
     frac = frexp(f, &expo);
     if (expo < 0) {
-        int_from_int(v, 0);
-        return;
+        return val_reference(int_value[0]);
     }
     sz = (expo - 1) / SHIFT + 1;
 
+    v = val_alloc();
     d = inew(v, sz);
     v->obj = INT_OBJ;
     v->u.integer.len = neg ? -sz : +sz;
@@ -1086,27 +1082,25 @@ void int_from_double(struct value_s *v, double f, linepos_t epoint) {
         d[sz] = dg;
         frac = ldexp(frac - (double)dg, SHIFT);
     }
+    return v;
 }
 
-void int_from_bytes(struct value_s *v, const struct value_s *v1) {
+MUST_CHECK struct value_s *int_from_bytes(const struct value_s *v1) {
     uval_t uv = 0;
     int bits = 0;
     ssize_t j = 0, sz;
     size_t i = 0;
     digit_t *d;
     const uint8_t *b;
-    struct value_s tmp;
+    struct value_s *v;
 
     if (!v1->u.bytes.len) {
-        v->obj = INT_OBJ;
-        v->u.integer.data = v->u.integer.val;
-        v->u.integer.val[0] = 0;
-        v->u.integer.len = 0;
-        return;
+        return val_reference(int_value[0]);
     }
     sz = (v1->u.bytes.len * 8 + SHIFT - 1) / SHIFT;
     if (v1->u.bytes.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
-    d = inew(&tmp, sz);
+    v = val_alloc();
+    d = inew(v, sz);
 
     b = v1->u.bytes.data;
     while (v1->u.bytes.len > i) {
@@ -1127,18 +1121,18 @@ void int_from_bytes(struct value_s *v, const struct value_s *v1) {
     sz = j;
 
     while (sz && !d[sz - 1]) sz--;
-    if (v == v1) obj_destroy(v);
-    if (sz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
+    if (sz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0]) && v->u.integer.val != d) {
         memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
-        if (tmp.u.integer.val != d) free(d);
+        free(d);
         d = v->u.integer.val;
     }
     v->obj = INT_OBJ;
     v->u.integer.data = d;
     v->u.integer.len = sz;
+    return v;
 }
 
-void int_from_bits(struct value_s *v, const struct value_s *v1) {
+MUST_CHECK struct value_s *int_from_bits(const struct value_s *v1) {
     uval_t uv = 0;
     int bits = 0;
     int inv;
@@ -1146,20 +1140,20 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
     size_t i = 0;
     digit_t *d;
     const bdigit_t *b;
-    struct value_s tmp;
+    struct value_s *v;
 
     if (!v1->u.bits.len) {
-        v->obj = INT_OBJ;
-        v->u.integer.data = v->u.integer.val;
-        v->u.integer.val[0] = v1->u.bits.inv;
-        v->u.integer.len = -v1->u.bits.inv;
-        return;
+        if (v1->u.bits.inv) {
+            return int_from_int(-1);
+        }
+        return val_reference(int_value[0]);
     }
 
     inv = v1->u.bits.inv;
     sz = (v1->u.bits.len * 8 * sizeof(bdigit_t) + SHIFT - 1 + (inv && (bdigit_t)~0 == v1->u.bits.data[v1->u.bits.len - 1])) / SHIFT;
     if (v1->u.bits.len > (SSIZE_MAX - SHIFT) / 8 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-    d = inew(&tmp, sz);
+    v = val_alloc();
+    d = inew(v, sz);
 
     b = v1->u.bits.data;
     if (inv) {
@@ -1206,38 +1200,35 @@ void int_from_bits(struct value_s *v, const struct value_s *v1) {
     sz = j;
 
     while (sz && !d[sz - 1]) sz--;
-    if (v == v1) obj_destroy(v);
-    if (sz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
+    if (sz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0]) && v->u.integer.val != d) {
         memcpy(v->u.integer.val, d, sz * sizeof(digit_t));
-        if (tmp.u.integer.val != d) free(d);
+        free(d);
         d = v->u.integer.val;
     }
     v->obj = INT_OBJ;
     v->u.integer.data = d;
     v->u.integer.len = inv ? -sz : sz;
+    return v;
 }
 
-void int_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint) {
+MUST_CHECK struct value_s *int_from_str(const struct value_s *v1, linepos_t epoint) {
     int ch;
+    struct value_s *v;
 
     if (actual_encoding) {
         uval_t uv = 0;
         int bits = 0;
         ssize_t j = 0, sz, osz;
         digit_t *d;
-        struct value_s tmp;
 
         if (!v1->u.str.len) {
-            v->obj = INT_OBJ;
-            v->u.integer.data = v->u.integer.val;
-            v->u.integer.val[0] = 0;
-            v->u.integer.len = 0;
-            return;
+            return val_reference(int_value[0]);
         }
 
         sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
         if (v1->u.str.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
-        d = inew(&tmp, sz);
+        v = val_alloc();
+        d = inew(v, sz);
 
         encode_string_init(v1, epoint);
         while ((ch = encode_string()) != EOF) {
@@ -1245,10 +1236,10 @@ void int_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint)
             bits += 8;
             if (bits >= SHIFT) {
                 if (j >= sz) {
-                    if (tmp.u.integer.val == d) {
+                    if (v->u.integer.val == d) {
                         sz = 16 / sizeof(digit_t);
                         d = (digit_t *)malloc(sz * sizeof(digit_t));
-                        memcpy(d, tmp.u.bytes.val, j * sizeof(digit_t));
+                        memcpy(d, v->u.bytes.val, j * sizeof(digit_t));
                     } else {
                         sz += 1024 / sizeof(digit_t);
                         if (sz < 1024 / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
@@ -1265,9 +1256,9 @@ void int_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint)
             if (j >= sz) {
                 sz++;
                 if (sz < 1) err_msg_out_of_memory(); /* overflow */
-                if (tmp.u.integer.val == d) {
+                if (v->u.integer.val == d) {
                     d = (digit_t *)malloc(sz * sizeof(digit_t));
-                    memcpy(d, tmp.u.bytes.val, j * sizeof(digit_t));
+                    memcpy(d, v->u.bytes.val, j * sizeof(digit_t));
                 } else d = (digit_t *)realloc(d, sz * sizeof(digit_t));
                 if (!d) err_msg_out_of_memory();
             }
@@ -1276,38 +1267,38 @@ void int_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint)
         osz = j;
 
         while (osz && !d[osz - 1]) osz--;
-        if (v == v1) obj_destroy(v);
-        if (osz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
-            memcpy(v->u.integer.val, d, osz * sizeof(digit_t));
-            if (tmp.u.integer.val != d) free(d);
-            d = v->u.integer.val;
-        } else if (osz < sz) {
-            d = (digit_t *)realloc(d, osz * sizeof(digit_t));
-            if (!d) err_msg_out_of_memory();
+        if (v->u.integer.val != d) {
+            if (osz <= (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
+                memcpy(v->u.integer.val, d, osz * sizeof(digit_t));
+                free(d);
+                d = v->u.integer.val;
+            } else if (osz < sz) {
+                d = (digit_t *)realloc(d, osz * sizeof(digit_t));
+                if (!d) err_msg_out_of_memory();
+            }
         }
-
         v->obj = INT_OBJ;
         v->u.integer.data = d;
         v->u.integer.len = osz;
-        return;
+        return v;
     } 
     if (v1->u.str.chars == 1) {
         uint32_t ch2 = v1->u.str.data[0];
         if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
-        if (v == v1) obj_destroy(v);
-        int_from_uval(v, ch2);
-        return;
+        return int_from_uval(ch2);
     } 
+    v = val_alloc();
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR_BIG_STRING_CO;
     v->u.error.epoint = *epoint;
+    return v;
 }
 
-size_t int_from_decstr(struct value_s *v, const uint8_t *s) {
+MUST_CHECK struct value_s *int_from_decstr(const uint8_t *s, size_t *ln) {
     const uint8_t *end;
     size_t i = 0, j, sz, l;
     digit_t *d, *end2;
-    v->obj = INT_OBJ;
+    struct value_s *v;
 
     while ((s[i] ^ 0x30) < 10) i++;
     if (i < 10) {
@@ -1316,14 +1307,22 @@ size_t int_from_decstr(struct value_s *v, const uint8_t *s) {
             val = s[0] & 15; 
             for (j = 1;j < i; j++) val = val * 10 + (s[j] & 15);
         }
-        v->u.integer.val[0] = val;
-        v->u.integer.data = v->u.integer.val;
-        v->u.integer.len = (val != 0);
-        return i;
+        *ln = i;
+        if (val) {
+            v = val_alloc();
+            v->obj = INT_OBJ;
+            v->u.integer.val[0] = val;
+            v->u.integer.data = v->u.integer.val;
+            v->u.integer.len = 1;
+            return v;
+        }
+        return val_reference(int_value[0]);
     }
     sz = (double)i * 0.11073093649624542178511177326072356663644313812255859375 + 1;
     l = i;
 
+    v = val_alloc();
+    v->obj = INT_OBJ;
     d = inew(v, sz);
 
     end = s + i;
@@ -1370,19 +1369,20 @@ size_t int_from_decstr(struct value_s *v, const uint8_t *s) {
     }
     v->u.integer.data = d;
     v->u.integer.len = sz;
-    return l;
+    *ln = l;
+    return v;
 }
 
 static MUST_CHECK struct value_s *calc2_int(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
+    struct value_s tmp, *err;
     ival_t shift;
     int i;
     switch (op->op->u.oper.op) {
     case O_CMP: 
         i = icmp(v1, v2);
-        if (v1 == v || v2 == v) destroy(v);
-        int_from_int(v, (i > 0) - (i < 0)); return NULL;
+        if (i < 0) return int_from_int(-1);
+        return val_reference(int_value[i > 0]);
     case O_EQ: return truth_reference(icmp(v1, v2) == 0);
     case O_NE: return truth_reference(icmp(v1, v2) != 0);
     case O_LT: return truth_reference(icmp(v1, v2) < 0);
@@ -1390,6 +1390,7 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
     case O_GT: return truth_reference(icmp(v1, v2) > 0);
     case O_GE: return truth_reference(icmp(v1, v2) >= 0);
     case O_ADD: 
+        v = val_alloc();
         v->obj = INT_OBJ; 
         if (v1->u.integer.len < 0) {
             if (v2->u.integer.len < 0) {
@@ -1400,8 +1401,9 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
             if (v2->u.integer.len < 0) isub(v1, v2, v);
             else iadd(v1, v2, v);
         }
-        return NULL;
+        return v;
     case O_SUB:
+        v = val_alloc();
         v->obj = INT_OBJ; 
         if (v1->u.integer.len < 0) {
             if (v2->u.integer.len < 0) isub(v1, v2, v);
@@ -1411,36 +1413,39 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
             if (v2->u.integer.len < 0) iadd(v1, v2, v);
             else isub(v1, v2, v);
         }
-        return NULL;
+        return v;
     case O_MUL:
+        v = val_alloc();
         v->obj = INT_OBJ; 
         if ((v1->u.integer.len ^ v2->u.integer.len) < 0) {
             imul(v1, v2, v);
             v->u.integer.len = -v->u.integer.len;
         } else imul(v1, v2, v);
-        return NULL;
+        return v;
     case O_DIV:
+        v = val_alloc();
         i = (v2->u.integer.len < 0);
         v->obj = INT_OBJ; 
         idivrem(v1, v2, v, &tmp);
         if (v->obj == ERROR_OBJ) {
             v->u.error.epoint = *op->epoint2;
-            return NULL;
+            return v;
         }
         if ((tmp.u.integer.len < 0) ^ i) {
             if (v->u.integer.len < 0) {
-                iadd(v, &one, v);
+                iadd(v, int_value[1], v);
                 v->u.integer.len = -v->u.integer.len;
-            } else isub(v, &one, v);
+            } else isub(v, int_value[1], v);
         }
         if (tmp.u.integer.data != tmp.u.integer.val) free(tmp.u.integer.data);
-        return NULL;
+        return v;
     case O_MOD:
+        v = val_alloc();
         v->obj = INT_OBJ; 
         idivrem(v1, v2, &tmp, v);
         if (v->obj == ERROR_OBJ) {
             v->u.error.epoint = *op->epoint2;
-            return NULL;
+            return v;
         }
         if ((v->u.integer.len < 0) ^ (v2->u.integer.len < 0)) {
             if (v->u.integer.len < 0) {
@@ -1454,89 +1459,86 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
             }
         }
         if (tmp.u.integer.data != tmp.u.integer.val) free(tmp.u.integer.data);
-        return NULL;
+        return v;
     case O_EXP:
         if (v2->u.integer.len < 0) {
             double d1, d2;
-            if (real(v1, &tmp, &d1, op->epoint)) {
-                if (v1 == v || v2 == v) obj_destroy(v);
-                tmp.obj->copy_temp(&tmp, v);
-                return NULL;
-            }
-            if (real(v2, &tmp, &d2, op->epoint)) {
-                if (v1 == v || v2 == v) obj_destroy(v);
-                tmp.obj->copy_temp(&tmp, v);
-                return NULL;
-            }
-            if (v1 == v || v2 == v) obj_destroy(v);
+            err = real(v1, &d1, op->epoint);
+            if (err) return err;
+            err = real(v2, &d2, op->epoint);
+            if (err) return err;
             return calc2_double(op, d1, d2);
         }
-        power(v1, v2, v);
-        return NULL;
+        return power(v1, v2);
     case O_LSHIFT:
-        if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
-            if (v1 == v || v2 == v) obj_destroy(v);
-            tmp.obj->copy_temp(&tmp, v);
-            return NULL;
-        }
+        err = ival(v2, &shift, 8*sizeof(ival_t), op->epoint2);
+        if (err) return err;
+        v = val_alloc();
         v->obj = INT_OBJ;
         if (shift < 0) irshift(v1, v2, -shift, v);
         else ilshift(v1, v2, shift, v);
-        return NULL;
+        return v;
     case O_RSHIFT:
-        if (ival(v2, &tmp, &shift, 8*sizeof(ival_t), op->epoint2)) {
-            if (v1 == v || v2 == v) obj_destroy(v);
-            tmp.obj->copy_temp(&tmp, v);
-            return NULL;
-        }
+        err = ival(v2, &shift, 8*sizeof(ival_t), op->epoint2);
+        if (err) return err;
+        v = val_alloc();
         v->obj = INT_OBJ;
         if (shift < 0) ilshift(v1, v2, -shift, v);
         else irshift(v1, v2, shift, v);
-        return NULL;
+        return v;
     case O_AND:
+        v = val_alloc();
         v->obj = INT_OBJ; 
         iand(v1, v2, v);
-        return NULL;
+        return v;
     case O_OR:
+        v = val_alloc();
         v->obj = INT_OBJ; 
         ior(v1, v2, v);
-        return NULL;
+        return v;
     case O_XOR:
+        v = val_alloc();
         v->obj = INT_OBJ; 
         ixor(v1, v2, v);
-        return NULL;
+        return v;
     default: break;
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
-    static struct value_s tmp;
-    switch (op->v2->obj->type) {
+    struct value_s *tmp, *ret, *v2 = op->v2;
+    switch (v2->obj->type) {
     case T_INT: return calc2_int(op);
     case T_BOOL:
-        int_from_int(&tmp, op->v2->u.boolean);
-        op->v2 = &tmp;
-        return calc2_int(op);
+        tmp = val_reference(int_value[v2->u.boolean]);
+        op->v2 = tmp;
+        ret = calc2_int(op);
+        val_destroy(tmp);
+        op->v2 = v2;
+        return ret;
     default: 
         if (op->op != &o_MEMBER) {
-            return op->v2->obj->rcalc2(op);
+            return v2->obj->rcalc2(op);
         }
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
-    static struct value_s tmp;
-    switch (op->v1->obj->type) {
+    struct value_s *tmp, *ret, *v1 = op->v1;
+    switch (v1->obj->type) {
     case T_INT: return calc2_int(op);
     case T_BOOL:
-        int_from_int(&tmp, op->v1->u.boolean);
-        op->v1 = &tmp;
-        return calc2_int(op);
+        tmp = val_reference(int_value[v1->u.boolean]);
+        op->v1 = tmp;
+        ret = calc2_int(op);
+        val_destroy(tmp);
+        op->v1 = v1;
+        return ret;
     default:
         if (op->op != &o_IN) {
-            return op->v1->obj->calc2(op);
+            return v1->obj->calc2(op);
         }
     }
     return obj_oper_error(op);
@@ -1560,10 +1562,4 @@ void intobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
-
-    one.obj = INT_OBJ;
-    one.refcount = 0;
-    one.u.integer.val[0] = 1;
-    one.u.integer.len = 1;
-    one.u.integer.data = one.u.integer.val;
 }

@@ -68,46 +68,39 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
             !memcmp(v1->u.bytes.data, v2->u.bytes.data, v2->u.bytes.len));
 }
 
-static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e type, linepos_t epoint) {
+    struct value_s *v;
     size_t i;
-    int result;
-    const char *name;
     switch (type) {
     case TRUTH_ALL:
-        result = 1;
         for (i = 0; i < v1->u.bytes.len; i++) {
-            if (!v1->u.bytes.data[i]) {result = 0; break;}
+            if (!v1->u.bytes.data[i]) return truth_reference(0);
         }
-        break;
+        return truth_reference(1);
     case TRUTH_ANY:
     case TRUTH_BOOL:
-        result = 0;
         for (i = 0; i < v1->u.bytes.len; i++) {
-            if (v1->u.bytes.data[i]) {result = 1; break;}
+            if (v1->u.bytes.data[i]) return truth_reference(1);
         }
-        break;
+        return truth_reference(0);
     default: 
-        name = v1->obj->name;
-        if (v1 == v) destroy(v);
+        v = val_alloc();
         v->obj = ERROR_OBJ;
         v->u.error.num = ERROR_____CANT_BOOL;
         v->u.error.epoint = *epoint;
-        v->u.error.u.objname = name;
-        return 1;
+        v->u.error.u.objname = v1->obj->name;
+        return v;
     }
-    if (v1 == v) destroy(v);
-    bool_from_int(v, result);
-    return 0;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
     size_t i, len, len2;
     uint8_t *s;
-    struct value_s tmp;
+    struct value_s *v = val_alloc();
     len2 = v1->u.bytes.len * 4;
     len = 9 - (v1->u.bytes.len > 0) + len2;
     if (len < len2 || v1->u.bytes.len > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */
-    s = str_create_elements(&tmp, len);
+    s = str_create_elements(v, len);
 
     memcpy(s, "bytes([", 7);
     len = 7;
@@ -116,44 +109,45 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
     }
     s[len++] = ']';
     s[len++] = ')';
-    if (v == v1) destroy(v);
     v->obj = STR_OBJ;
-    if (s == tmp.u.str.val) {
-        memcpy(v->u.str.val, s, len);
-        s = v->u.str.val;
-    }
     v->u.str.len = len;
     v->u.str.chars = len;
     v->u.str.data = s;
+    return v;
 }
 
-static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
     size_t l = v1->u.bytes.len;
     const uint8_t *s2 = v1->u.bytes.data;
     unsigned int h;
-    if (!l) return 0;
+    if (!l) {
+        *hs = 0;
+        return NULL;
+    }
     h = *s2 << 7;
     while (l--) h = (1000003 * h) ^ *s2++;
     h ^= v1->u.bytes.len;
-    return h & ((~(unsigned int)0) >> 1);
+    *hs = h & ((~(unsigned int)0) >> 1);
+    return NULL;
 }
 
-void bytes_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoint) {
+MUST_CHECK struct value_s *bytes_from_str(const struct value_s *v1, linepos_t epoint) {
     size_t len = v1->u.str.len, len2 = 0;
     uint8_t *s;
-    struct value_s tmp;
+    struct value_s *v;
     if (len) {
+        v = val_alloc();
         if (actual_encoding) {
             int ch;
             if (len < sizeof(v->u.bytes.val)) len = sizeof(v->u.bytes.val);
-            s = bnew(&tmp, len);
+            s = bnew(v, len);
             encode_string_init(v1, epoint);
             while ((ch = encode_string()) != EOF) {
                 if (len2 >= len) {
-                    if (tmp.u.bytes.val == s) {
+                    if (v->u.bytes.val == s) {
                         len = 32;
                         s = (uint8_t *)malloc(len);
-                        memcpy(s, tmp.u.bytes.val, len2);
+                        memcpy(s, v->u.bytes.val, len2);
                     } else {
                         len += 1024;
                         if (len < 1024) err_msg_out_of_memory(); /* overflow */
@@ -166,7 +160,7 @@ void bytes_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoin
         } else if (v1->u.str.chars == 1) {
             uint32_t ch2 = v1->u.str.data[0];
             if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
-            s = bnew(&tmp, 3);
+            s = bnew(v, 3);
             s[0] = ch2;
             s[1] = ch2 >> 8;
             s[2] = ch2 >> 16;
@@ -175,103 +169,84 @@ void bytes_from_str(struct value_s *v, const struct value_s *v1, linepos_t epoin
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_BIG_STRING_CO;
             v->u.error.epoint = *epoint;
-            return;
+            return v;
         }
-    } else s = NULL;
-    if (v == v1) STR_OBJ->destroy(v);
-    if (len2 <= sizeof(v->u.bytes.val)) {
-        if (len2) memcpy(v->u.bytes.val, s, len2);
-        if (tmp.u.bytes.val != s) free(s);
-        s = v->u.bytes.val;
-    } else if (len2 < len) {
-        s = (uint8_t *)realloc(s, len2);
-        if (!s) err_msg_out_of_memory();
+        if (v->u.bytes.val != s) {
+            if (len2 <= sizeof(v->u.bytes.val)) {
+                if (len2) memcpy(v->u.bytes.val, s, len2);
+                free(s);
+                s = v->u.bytes.val;
+            } else if (len2 < len) {
+                s = (uint8_t *)realloc(s, len2);
+                if (!s) err_msg_out_of_memory();
+            }
+        }
+        v->obj = BYTES_OBJ;
+        v->u.bytes.len = len2;
+        v->u.bytes.data = s;
+        return v;
     }
-    v->obj = BYTES_OBJ;
-    v->u.bytes.len = len2;
-    v->u.bytes.data = s;
+    return val_reference(null_bytes);
 }
 
-static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s tmp, tmp2;
-    int ret;
-    int_from_bytes(&tmp, v1);
-    ret = tmp.obj->ival(&tmp, &tmp2, iv, bits, epoint);
-    obj_destroy(&tmp);
-    if (ret) {
-        if (v1 == v) destroy(v);
-        tmp2.obj->copy_temp(&tmp2, v);
-    }
+static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
+    struct value_s *tmp, *ret;
+    tmp = int_from_bytes(v1);
+    ret = tmp->obj->ival(tmp, iv, bits, epoint);
+    val_destroy(tmp);
     return ret;
 }
 
-static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s tmp, tmp2;
-    int ret;
-    int_from_bytes(&tmp, v1);
-    ret = tmp.obj->uval(&tmp, &tmp2, uv, bits, epoint);
-    obj_destroy(&tmp);
-    if (ret) {
-        if (v1 == v) destroy(v);
-        tmp2.obj->copy_temp(&tmp2, v);
-    }
+static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
+    struct value_s *tmp, *ret;
+    tmp = int_from_bytes(v1);
+    ret = tmp->obj->uval(tmp, uv, bits, epoint);
+    val_destroy(tmp);
     return ret;
 }
 
-static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    struct value_s tmp, tmp2;
-    int ret;
-    int_from_bytes(&tmp, v1);
-    ret = tmp.obj->real(&tmp, &tmp2, r, epoint);
-    obj_destroy(&tmp);
-    if (ret) {
-        if (v1 == v) destroy(v);
-        tmp2.obj->copy_temp(&tmp2, v);
-    }
+static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t epoint) {
+    struct value_s *tmp, *ret;
+    tmp = int_from_bytes(v1);
+    ret = tmp->obj->real(tmp, r, epoint);
+    val_destroy(tmp);
     return ret;
 }
 
-static void sign(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t UNUSED(epoint)) {
     size_t i;
-    int s = 0;
     for (i = 0; i < v1->u.bytes.len; i++) {
-        if (v1->u.bytes.data[i]) {s = 1; break;}
+        if (v1->u.bytes.data[i]) return val_reference(int_value[1]);
     }
-    if (v1 == v) destroy(v);
-    int_from_int(v, s);
+    return val_reference(int_value[0]);
 }
 
-static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    struct value_s tmp;
-    int_from_bytes(&tmp, v1);
-    if (v == v1) destroy(v);
-    tmp.obj->copy_temp(&tmp, v);
+static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    return int_from_bytes(v1);
 }
 
-static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    struct value_s tmp;
-    int_from_bytes(&tmp, v1);
-    if (v == v1) destroy(v);
-    tmp.obj->copy_temp(&tmp, v);
+static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    return int_from_bytes(v1);
 }
 
-static void len(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    size_t uv = v1->u.bytes.len;
-    if (v1 == v) destroy(v);
-    int_from_uval(v, uv);
+static MUST_CHECK struct value_s *len(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    return int_from_uval(v1->u.bytes.len);
 }
 
-static void getiter(struct value_s *v1, struct value_s *v) {
+static MUST_CHECK struct value_s *getiter(struct value_s *v1) {
+    struct value_s *v = val_alloc();
     v->obj = ITER_OBJ;
     v->u.iter.val = 0;
     v->u.iter.iter = &v->u.iter.val;
     v->u.iter.data = val_reference(v1);
+    return v;
 }
 
-static MUST_CHECK struct value_s *next(struct value_s *v1, struct value_s *v) {
+static MUST_CHECK struct value_s *next(struct value_s *v1) {
     const struct value_s *vv1 = v1->u.iter.data;
+    struct value_s *v;
     if (v1->u.iter.val >= vv1->u.bytes.len) return NULL;
-
+    v = val_alloc();
     v->u.bytes.val[0] = vv1->u.bytes.data[v1->u.iter.val++];
     v->obj = BYTES_OBJ;
     v->u.bytes.len = 1;
@@ -279,32 +254,31 @@ static MUST_CHECK struct value_s *next(struct value_s *v1, struct value_s *v) {
     return v;
 }
 
-static void calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v = op->v;
-    struct value_s tmp;
+static MUST_CHECK struct value_s *calc1(oper_t op) {
+    struct value_s *v1 = op->v1, *v;
+    struct value_s *tmp;
     switch (op->op->u.oper.op) {
     case O_NEG:
     case O_POS:
-    case O_STRING: int_from_bytes(&tmp, v1); break;
+    case O_STRING: tmp = int_from_bytes(v1); break;
     case O_INV:
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
-    case O_BSWORD: bits_from_bytes(&tmp, v1); break;
-    default: obj_oper_error(op); return;
+    case O_BSWORD: tmp = bits_from_bytes(v1); break;
+    default: return obj_oper_error(op);
     }
-    if (v == v1) destroy(v);
-    op->v1 = &tmp;
-    tmp.refcount = 0;
-    tmp.obj->calc1(op);
+    op->v1 = tmp;
+    v = tmp->obj->calc1(op);
     op->v1 = v1;
-    obj_destroy(&tmp);
+    val_destroy(tmp);
+    return v;
 }
 
 static MUST_CHECK struct value_s *calc2_bytes(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
     int val;
     switch (op->op->u.oper.op) {
     case O_CMP:
@@ -312,9 +286,8 @@ static MUST_CHECK struct value_s *calc2_bytes(oper_t op) {
             int h = memcmp(v1->u.bytes.data, v2->u.bytes.data, (v1->u.bytes.len < v2->u.bytes.len) ? v1->u.bytes.len : v2->u.bytes.len);
             if (h) h = (h > 0) - (h < 0);
             else h = (v1->u.bytes.len > v2->u.bytes.len) - (v1->u.bytes.len < v2->u.bytes.len);
-            if (v == v1 || v == v2) destroy(v);
-            int_from_int(v, h);
-            return NULL;
+            if (h < 0) return int_from_int(h);
+            return val_reference(int_value[h]);
         }
     case O_EQ: return truth_reference(v1->u.bytes.len == v2->u.bytes.len && (v1->u.bytes.data == v2->u.bytes.data || !memcmp(v1->u.bytes.data, v2->u.bytes.data, v1->u.bytes.len)));
     case O_NE: return truth_reference(v1->u.bytes.len != v2->u.bytes.len || (v1->u.bytes.data != v2->u.bytes.data && memcmp(v1->u.bytes.data, v2->u.bytes.data, v1->u.bytes.len)));
@@ -333,30 +306,24 @@ static MUST_CHECK struct value_s *calc2_bytes(oper_t op) {
     case O_CONCAT:
         {
             uint8_t *s;
-            size_t ln = v1->u.bytes.len + v2->u.bytes.len;
+            size_t ln;
+            if (!v1->u.bytes.len) {
+                return val_reference(v2);
+            }
+            if (!v2->u.bytes.len) {
+                return val_reference(v1);
+            }
+            ln = v1->u.bytes.len + v2->u.bytes.len;
             if (ln < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
 
-            if (v == v1) {
-                if (!v2->u.bytes.len) return NULL;
-                s = (uint8_t *)v1->u.bytes.data;
-                if (s != v1->u.bytes.val) {
-                    s = (uint8_t *)realloc(s, v->u.bytes.len);
-                    if (!s) err_msg_out_of_memory();
-                } else {
-                    s = bnew(v, v->u.bytes.len);
-                    if (s != v1->u.bytes.val) memcpy(s, v1->u.bytes.val, v1->u.bytes.len);
-                }
-                memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
-            } else {
-                s = bnew(v, ln);
-                memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
-                memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
-                if (v == v2) destroy(v);
-                v->obj = BYTES_OBJ;
-            }
+            v = val_alloc();
+            s = bnew(v, ln);
+            memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
+            memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
+            v->obj = BYTES_OBJ;
             v->u.bytes.len = ln;
             v->u.bytes.data = s;
-            return NULL;
+            return v;
         }
     case O_IN:
         {
@@ -378,32 +345,38 @@ static MUST_CHECK struct value_s *calc2_bytes(oper_t op) {
 }
 
 static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
-    struct value_s *v1 = op->v1, *v = op->v, tmp;
+    struct value_s *v1 = op->v1, *v;
+
     if (v1->u.bytes.len && rep) {
         uint8_t *s, *s2;
-        size_t ln = v1->u.bytes.len;
+        size_t ln;
+        if (rep == 1) {
+            return val_reference(v1);
+        }
+        ln = v1->u.bytes.len;
         if (ln > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
-        s2 = s = bnew(&tmp, ln * rep);
+        v = val_alloc();
+        s2 = s = bnew(v, ln * rep);
         v->obj = BYTES_OBJ;
         v->u.bytes.len = 0;
         while (rep--) {
             memcpy(s + v->u.bytes.len, v1->u.bytes.data, ln);
             v->u.bytes.len += ln;
         }
-        if (v->u.bytes.len <= sizeof(v->u.bytes.val)) {
+        if (v->u.bytes.len <= sizeof(v->u.bytes.val) && v->u.bytes.val != s2) {
             memcpy(v->u.bytes.val, s2, v->u.bytes.len);
-            if (tmp.u.bytes.val != s2) free(s2);
+            free(s2);
             s2 = v->u.bytes.val;
         }
         v->u.bytes.data = s2;
-        return NULL;
+        return v;
     }
     return val_reference(null_bytes);
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp;
+    struct value_s *v1 = op->v1, *v2 = op->v2;
+    struct value_s *tmp;
     switch (v2->obj->type) {
     case T_BYTES: return calc2_bytes(op);
     case T_BOOL:
@@ -420,15 +393,13 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             case O_OR:
             case O_XOR:
             case O_LSHIFT:
-            case O_RSHIFT: bits_from_bytes(&tmp, v1); break;
-            default: int_from_bytes(&tmp, v1);
+            case O_RSHIFT: tmp = bits_from_bytes(v1); break;
+            default: tmp = int_from_bytes(v1);
             }
-            if (v1 == v) {obj_destroy(v); v->obj = NONE_OBJ;}
-            op->v1 = &tmp;
-            tmp.refcount = 0;
-            result = tmp.obj->calc2(op);
+            op->v1 = tmp;
+            result = tmp->obj->calc2(op);
             op->v1 = v1;
-            obj_destroy(&tmp);
+            val_destroy(tmp);
             return result;
         }
     case T_TUPLE:
@@ -447,8 +418,8 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp;
+    struct value_s *v1 = op->v1, *v2 = op->v2;
+    struct value_s *tmp;
     switch (v1->obj->type) {
     case T_BYTES: return calc2_bytes(op);
     case T_BOOL:
@@ -463,15 +434,13 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
-            case O_XOR: bits_from_bytes(&tmp, v2); break;
-            default: int_from_bytes(&tmp, v2);
+            case O_XOR: tmp = bits_from_bytes(v2); break;
+            default: tmp = int_from_bytes(v2);
             }
-            if (v2 == v) {obj_destroy(v); v->obj = NONE_OBJ;}
-            op->v2 = &tmp;
-            tmp.refcount = 0;
-            result = tmp.obj->rcalc2(op);
+            op->v2 = tmp;
+            result = tmp->obj->rcalc2(op);
             op->v2 = v2;
-            obj_destroy(&tmp);
+            val_destroy(tmp);
             return result;
         }
     case T_TUPLE:
@@ -487,46 +456,42 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return obj_oper_error(op); 
 }
 
-static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
+static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step) {
     uint8_t *p;
     uint8_t *p2;
-    struct value_s tmp;
+    struct value_s *v;
 
     if (!len1) {
         return val_reference(null_bytes);
     }
     if (step == 1) {
         if (len1 == v1->u.bytes.len) {
-            if (v1 != v) copy(v1, v);
-            return NULL; /* original bytes */
+            return val_reference(v1); /* original bytes */
         }
-        p = p2 = bnew(&tmp, len1);
+        v = val_alloc();
+        p = p2 = bnew(v, len1);
         memcpy(p2, v1->u.bytes.data + offs, len1);
     } else {
-        p = p2 = bnew(&tmp, len1);
+        v = val_alloc();
+        p = p2 = bnew(v, len1);
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
             *p2++ = v1->u.bytes.data[offs];
             offs += step;
         }
     }
-    if (v == v1) destroy(v);
-    if (len1 <= sizeof(v->u.bytes.val)) {
-        memcpy(v->u.bytes.val, p, len1);
-        p = v->u.bytes.val;
-    }
     v->obj = BYTES_OBJ;
     v->u.bytes.len = len1;
     v->u.bytes.data = p;
-    return NULL;
+    return v;
 }
 
 static MUST_CHECK struct value_s *iindex(oper_t op) {
-    uint8_t *p, b;
+    uint8_t *p;
     uint8_t *p2;
     size_t len1, len2;
     ival_t offs;
     size_t i;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp, err;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v, *err;
 
     len1 = v1->u.bytes.len;
 
@@ -535,46 +500,35 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
             return val_reference(null_bytes);
         }
         len2 = v2->u.list.len;
-        p = p2 = bnew(&tmp, len2);
+        v = val_alloc();
+        p = p2 = bnew(v, len2);
         for (i = 0; i < len2; i++) {
-            offs = indexoffs(v2->u.list.data[i], &err, len1, op->epoint2);
-            if (offs < 0) {
-                if (p != tmp.u.bytes.val) free(p);
-                if (v1 == v) destroy(v);
-                err.obj->copy_temp(&err, v);
-                return NULL;
+            err = indexoffs(v2->u.list.data[i], &offs, len1, op->epoint2);
+            if (err) {
+                if (p != v->u.bytes.val) free(p);
+                return err;
             }
             *p2++ = v1->u.bytes.data[offs];
-        }
-        if (v == v1) destroy(v);
-        if (len2 <= sizeof(v->u.bytes.val)) {
-            memcpy(v->u.bytes.val, p, len2);
-            p = v->u.bytes.val;
         }
         v->obj = BYTES_OBJ;
         v->u.bytes.len = len2;
         v->u.bytes.data = p;
-        return NULL;
+        return v;
     }
     if (v2->obj == COLONLIST_OBJ) {
         ival_t length, end, step;
-        length = sliceparams(op, len1, &offs, &end, &step);
-        if (length < 0) return NULL;
-        return slice(v1, length, offs, end, step, v);
+        err = sliceparams(op, len1, &length, &offs, &end, &step);
+        if (err) return err;
+        return slice(v1, length, offs, end, step);
     }
-    offs = indexoffs(v2, &err, len1, op->epoint2);
-    if (offs < 0) {
-        if (v1 == v) destroy(v);
-        err.obj->copy_temp(&err, v);
-        return NULL;
-    }
-    b = v1->u.bytes.data[offs];
-    if (v1 == v) destroy(v);
+    err = indexoffs(v2, &offs, len1, op->epoint2);
+    if (err) return err;
+    v = val_alloc();
     v->obj = BYTES_OBJ;
     v->u.bytes.len = 1;
-    v->u.bytes.val[0] = b;
+    v->u.bytes.val[0] = v1->u.bytes.data[offs];
     v->u.bytes.data = v->u.bytes.val;
-    return NULL;
+    return v;
 }
 
 void bytesobj_init(void) {

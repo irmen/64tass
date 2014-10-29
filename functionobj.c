@@ -35,14 +35,16 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == FUNCTION_OBJ && v1->u.function.func == v2->u.function.func;
 }
 
-static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
-    return v1->u.function.name_hash;
+static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
+    *hs = v1->u.function.name_hash;
+    return NULL;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *prefix = "<native_function '";
     size_t len = strlen(prefix);
+    struct value_s *v = val_alloc();
     v->obj = STR_OBJ;
     v->u.str.len = v1->u.function.name.len + 2 + len;
     if (v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
@@ -53,29 +55,38 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
     s[v->u.str.len - 2] = '\'';
     s[v->u.str.len - 1] = '>';
     v->u.str.data = s;
-    return;
+    return v;
 }
 
 /* range([start],end,[step]) */
-static inline void function_range(struct values_s *vals, unsigned int args) {
+static inline MUST_CHECK struct value_s *function_range(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
-    struct value_s new_value;
+    struct value_s *err, *new_value;
     ival_t start = 0, end, step = 1;
     size_t i = 0, len2;
     struct value_s **val;
     if (args < 1 || args > 3) err_msg_argnum(args, 1, 3, &vals->epoint);
     else {
         switch (args) {
-        case 1: if (v[0].val->obj->ival(v[0].val, &new_value, &end, 8*sizeof(ival_t), &v[0].epoint)) { val_replace_template(&vals->val, &new_value);return;} break;
-        case 3: if (v[2].val->obj->ival(v[2].val, &new_value, &step, 8*sizeof(ival_t), &v[2].epoint)) { val_replace_template(&vals->val, &new_value);return;}
-        case 2: if (v[0].val->obj->ival(v[0].val, &new_value, &start, 8*sizeof(ival_t), &v[0].epoint)) { val_replace_template(&vals->val, &new_value);return;}
-                    if (v[1].val->obj->ival(v[1].val, &new_value, &end, 8*sizeof(ival_t), &v[1].epoint)) { val_replace_template(&vals->val, &new_value);return;} break;
+        case 1: 
+            err = v[0].val->obj->ival(v[0].val, &end, 8*sizeof(ival_t), &v[0].epoint);
+            break;
+        case 3: 
+            err = v[2].val->obj->ival(v[2].val, &step, 8*sizeof(ival_t), &v[2].epoint);
+            if (err) return err; 
+        case 2: 
+            err = v[0].val->obj->ival(v[0].val, &start, 8*sizeof(ival_t), &v[0].epoint);
+            if (err) return err; 
+            err = v[1].val->obj->ival(v[1].val, &end, 8*sizeof(ival_t), &v[1].epoint);
+            break;
         }
+        if (err) return err;
         if (step == 0) {
-            new_value.obj = ERROR_OBJ;
-            new_value.u.error.num = ERROR_DIVISION_BY_Z;
-            new_value.u.error.epoint = v[2].epoint;
-            val_replace_template(&vals->val, &new_value); return;
+            err = val_alloc();
+            err->obj = ERROR_OBJ;
+            err->u.error.num = ERROR_DIVISION_BY_Z;
+            err->u.error.epoint = v[2].epoint;
+            return err;
         }
         if (step > 0) {
             if (end < start) end = start;
@@ -84,48 +95,48 @@ static inline void function_range(struct values_s *vals, unsigned int args) {
             if (end > start) end = start;
             len2 = (start - end - step - 1) / -step;
         }
-        val = list_create_elements(&new_value, len2);
+        new_value = val_alloc();
+        val = list_create_elements(new_value, len2);
         if (len2) {
             i = 0;
             while ((end > start && step > 0) || (end < start && step < 0)) {
-                val[i] = val_alloc();
-                int_from_ival(val[i], start);
+                val[i] = int_from_ival(start);
                 i++; start += step;
             }
         }
-        new_value.obj = LIST_OBJ;
-        new_value.u.list.len = len2;
-        new_value.u.list.data = val;
-        val_replace_template(&vals->val, &new_value);
-        return;
+        new_value->obj = LIST_OBJ;
+        new_value->u.list.len = len2;
+        new_value->u.list.data = val;
+        return new_value;
     }
-    val_replace(&vals->val, none_value);
+    return val_reference(none_value);
 }
 
 /* register(a) - create register object */
-static inline void function_register(struct value_s *v1, struct value_s *v, linepos_t epoint) {
+static inline MUST_CHECK struct value_s *function_register(struct value_s *v1, linepos_t epoint) {
+    struct value_s *v;
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
-        if (v1 != v) v1->obj->copy(v1, v);
-        return;
+        return val_reference(v1);
     case T_STR:
-        if (v1 != v) STR_OBJ->copy(v1, v);
+        v = val_alloc();
+        STR_OBJ->copy(v1, v);
         v->obj = REGISTER_OBJ;
-        return;
+        return v;
     default:
         err_msg_wrong_type(v1, epoint);
-        if (v1 == v) obj_destroy(v);
-        v->obj = NONE_OBJ;
+        return val_reference(none_value);
     }
 } 
 
-static void apply_func(struct value_s *v1, struct value_s *v, enum func_e func, linepos_t epoint) {
+static MUST_CHECK struct value_s *apply_func(struct value_s *v1, enum func_e func, linepos_t epoint) {
+    struct value_s *err, *v;
     double real;
     switch (func) {
-    case F_ANY: v1->obj->truth(v1, v, TRUTH_ANY, epoint); return;
-    case F_ALL: v1->obj->truth(v1, v, TRUTH_ALL, epoint); return;
-    case F_LEN: v1->obj->len(v1, v, epoint); return;
+    case F_ANY: return v1->obj->truth(v1, TRUTH_ANY, epoint);
+    case F_ALL: return v1->obj->truth(v1, TRUTH_ALL, epoint);
+    case F_LEN: return v1->obj->len(v1, epoint);
     default: break;
     }
     switch (v1->obj->type) {
@@ -134,103 +145,79 @@ static void apply_func(struct value_s *v1, struct value_s *v, enum func_e func, 
         {
             size_t i = 0;
             struct value_s **vals;
-            if (v == v1) {
-                for (;i < v1->u.list.len; i++) {
-                    struct value_s *val = v1->u.list.data[i];
-                    if (val->refcount != 1) {
-                        struct value_s *tmp = val_alloc();
-                        apply_func(val, tmp, func, epoint);
-                        val_destroy(val); v1->u.list.data[i] = tmp;
-                    } else apply_func(val, val, func, epoint);
-                }
-                return;
-            }
+            v = val_alloc();
             vals = list_create_elements(v, v1->u.list.len);
             for (;i < v1->u.list.len; i++) {
-                vals[i] = val_alloc();
-                apply_func(v1->u.list.data[i], vals[i], func, epoint);
+                vals[i] = apply_func(v1->u.list.data[i], func, epoint);
             }
             v->obj = v1->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
-            return;
+            return v;
         }
     default:
         switch (func) {
-        case F_BOOL: v1->obj->truth(v1, v, TRUTH_BOOL, epoint); return;
-        case F_SIZE: v1->obj->size(v1, v, epoint); return;
-        case F_SIGN: v1->obj->sign(v1, v, epoint); return;
-        case F_ABS: v1->obj->abs(v1, v, epoint); return;
-        case F_INT: v1->obj->integer(v1, v, epoint); return;
-        case F_REGISTER: function_register(v1, v, epoint); return;
-        case F_REPR: v1->obj->repr(v1, v, epoint); return;
-        case F_STR: v1->obj->str(v1, v, epoint); return;
+        case F_BOOL: return v1->obj->truth(v1, TRUTH_BOOL, epoint);
+        case F_SIZE: return v1->obj->size(v1, epoint);
+        case F_SIGN: return v1->obj->sign(v1, epoint);
+        case F_ABS: return v1->obj->abs(v1, epoint);
+        case F_INT: return v1->obj->integer(v1, epoint);
+        case F_REGISTER: return function_register(v1, epoint);
+        case F_REPR: return v1->obj->repr(v1, epoint);
+        case F_STR: return v1->obj->str(v1, epoint);
         default: break;
         }
-        if (!v1->obj->real(v1, v, &real, epoint)) {
-            switch (func) {
-            case F_FLOOR: real = floor(real);break;
-            case F_CEIL: real = ceil(real);break;
-            case F_SQRT: real = (real < 0.0) ? HUGE_VAL : sqrt(real);break;
-            case F_LOG10: real = (real <= 0.0) ? HUGE_VAL : log10(real);break;
-            case F_LOG: real = (real <= 0.0) ? HUGE_VAL : log(real);break;
-            case F_EXP: real = exp(real);break;
-            case F_SIN: real = sin(real);break;
-            case F_COS: real = cos(real);break;
-            case F_TAN: real = tan(real);break;
-            case F_ACOS: real = (real < -1.0 || real > 1.0) ? HUGE_VAL : acos(real);break;
-            case F_ASIN: real = (real < -1.0 || real > 1.0) ? HUGE_VAL : asin(real);break;
-            case F_ATAN: real = atan(real);break;
-            case F_CBRT: real = cbrt(real);break;
-            case F_ROUND: real = round(real);break;
-            case F_TRUNC: real = trunc(real);break;
-            case F_FRAC: real -= trunc(real);break;
-            case F_RAD: real = real * M_PI / 180.0;break;
-            case F_DEG: real = real * 180.0 / M_PI;break;
-            case F_COSH: real = cosh(real);break;
-            case F_SINH: real = sinh(real);break;
-            case F_TANH: real = tanh(real);break;
-            case F_FLOAT: break; /* nothing to do */
-            default: real = HUGE_VAL; break;
-            }
-            if (v1 == v) obj_destroy(v);
-            if (real == HUGE_VAL) {
-                v->obj = ERROR_OBJ;
-                v->u.error.num = ERROR_CONSTNT_LARGE;
-                v->u.error.epoint = *epoint;
-            } else float_from_double(v, real);
+        err = v1->obj->real(v1, &real, epoint);
+        if (err) return err;
+        switch (func) {
+        case F_FLOOR: real = floor(real);break;
+        case F_CEIL: real = ceil(real);break;
+        case F_SQRT: real = (real < 0.0) ? HUGE_VAL : sqrt(real);break;
+        case F_LOG10: real = (real <= 0.0) ? HUGE_VAL : log10(real);break;
+        case F_LOG: real = (real <= 0.0) ? HUGE_VAL : log(real);break;
+        case F_EXP: real = exp(real);break;
+        case F_SIN: real = sin(real);break;
+        case F_COS: real = cos(real);break;
+        case F_TAN: real = tan(real);break;
+        case F_ACOS: real = (real < -1.0 || real > 1.0) ? HUGE_VAL : acos(real);break;
+        case F_ASIN: real = (real < -1.0 || real > 1.0) ? HUGE_VAL : asin(real);break;
+        case F_ATAN: real = atan(real);break;
+        case F_CBRT: real = cbrt(real);break;
+        case F_ROUND: real = round(real);break;
+        case F_TRUNC: real = trunc(real);break;
+        case F_FRAC: real -= trunc(real);break;
+        case F_RAD: real = real * M_PI / 180.0;break;
+        case F_DEG: real = real * 180.0 / M_PI;break;
+        case F_COSH: real = cosh(real);break;
+        case F_SINH: real = sinh(real);break;
+        case F_TANH: real = tanh(real);break;
+        case F_FLOAT: break; /* nothing to do */
+        default: real = HUGE_VAL; break;
         }
+        if (real == HUGE_VAL) {
+            v = val_alloc();
+            v->obj = ERROR_OBJ;
+            v->u.error.num = ERROR_CONSTNT_LARGE;
+            v->u.error.epoint = *epoint;
+            return v;
+        } 
+        return float_from_double(real);
     }
 }
 
-static inline void apply_func_single(struct values_s *vals, unsigned int args) {
+static inline MUST_CHECK struct value_s *apply_func_single(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
-    struct value_s *val;
     enum func_e func = vals->val->u.function.func;
 
     if (args != 1) {
         err_msg_argnum(args, 1, 1, &vals->epoint);
-        val_replace(&vals->val, none_value);
-        return;
+        return val_reference(none_value);
     }
-    if (vals->val->refcount != 1) {
-        if (v[0].val->refcount == 1) {
-            val = v[0].val;
-            v[0].val = vals->val;
-            vals->val = val;
-            apply_func(val, val, func, &v[0].epoint);
-            return;
-        }
-        val = val_alloc();
-        apply_func(v[0].val, val, func, &v[0].epoint);
-        val_destroy(vals->val); vals->val = val;
-        return;
-    } 
-    obj_destroy(vals->val);
-    apply_func(v[0].val, vals->val, func, &v[0].epoint);
+    return apply_func(v[0].val, func, &v[0].epoint);
 }
 
-static void apply_func2(struct value_s *v1, struct value_s *v2, struct value_s *v, enum func_e func, linepos_t epoint, linepos_t epoint2) {
+static MUST_CHECK struct value_s *apply_func2(struct value_s *v1, struct value_s *v2, enum func_e func, linepos_t epoint, linepos_t epoint2) {
+    struct value_s *err, *v;
     double real, real2;
     switch (v1->obj->type) {
     case T_LIST:
@@ -238,27 +225,15 @@ static void apply_func2(struct value_s *v1, struct value_s *v2, struct value_s *
         {
             size_t i = 0;
             struct value_s **vals;
-            if (v == v1) {
-                for (;i < v1->u.list.len; i++) {
-                    struct value_s *val = v1->u.list.data[i];
-                    if (val->refcount != 1) {
-                        struct value_s *tmp = val_alloc();
-                        apply_func2(val, v2, tmp, func, epoint, epoint2);
-                        val_destroy(val); v1->u.list.data[i] = tmp;
-                    } else apply_func2(val, v2, val, func, epoint, epoint2);
-                }
-                return;
-            }
+            v = val_alloc();
             vals = list_create_elements(v, v1->u.list.len);
             for (;i < v1->u.list.len; i++) {
-                vals[i] = val_alloc();
-                apply_func2(v1->u.list.data[i], v2, vals[i], func, epoint, epoint2);
+                vals[i] = apply_func2(v1->u.list.data[i], v2, func, epoint, epoint2);
             }
-            if (v2 == v) obj_destroy(v);
             v->obj = v1->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
-            return;
+            return v;
         }
     default: break;
     }
@@ -268,106 +243,74 @@ static void apply_func2(struct value_s *v1, struct value_s *v2, struct value_s *
         {
             size_t i = 0;
             struct value_s **vals;
-            if (v == v2) {
-                for (;i < v2->u.list.len; i++) {
-                    struct value_s *val = v2->u.list.data[i];
-                    if (val->refcount != 1) {
-                        struct value_s *tmp = val_alloc();
-                        apply_func2(v1, val, tmp, func, epoint, epoint2);
-                        val_destroy(val); v2->u.list.data[i] = tmp;
-                    } else apply_func2(v1, val, val, func, epoint, epoint2);
-                }
-                return;
-            }
+            v = val_alloc();
             vals = list_create_elements(v, v2->u.list.len);
             for (;i < v2->u.list.len; i++) {
-                vals[i] = val_alloc();
-                apply_func2(v1, v2->u.list.data[i], vals[i], func, epoint, epoint2);
+                vals[i] = apply_func2(v1, v2->u.list.data[i], func, epoint, epoint2);
             }
-            if (v1 == v) obj_destroy(v);
             v->obj = v2->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
-            return;
+            return v;
         }
     default: break;
     }
-    if (!v1->obj->real(v1, v, &real, epoint) && !v2->obj->real(v2, v, &real2, epoint2)) {
-        switch (func) {
-        case F_HYPOT: real = hypot(real, real2); break;
-        case F_ATAN2: real = atan2(real, real2);break;
-        case F_POW:
-                      if (real2 < 0.0 && !real) {
-                          if (v1 == v || v2 == v) obj_destroy(v);
-                          v->obj = ERROR_OBJ;
-                          v->u.error.num = ERROR_DIVISION_BY_Z;
-                          v->u.error.epoint = *epoint2;
-                          return;
-                      }
-                      if (real < 0.0 && (double)((int)real2) != real2) {
-                          if (v1 == v || v2 == v) obj_destroy(v);
-                          v->obj = ERROR_OBJ;
-                          v->u.error.num = ERROR_NEGFRAC_POWER;
-                          v->u.error.epoint = *epoint2;
-                          return;
-                      }
-                      real = pow(real, real2);
-                      break;
-        default: real = HUGE_VAL; break;
-        }
-        if (v1 == v || v2 == v) obj_destroy(v);
-        if (real == HUGE_VAL) {
+    err = v1->obj->real(v1, &real, epoint);
+    if (err) return err;
+    err = v2->obj->real(v2, &real2, epoint2);
+    if (err) return err;
+    switch (func) {
+    case F_HYPOT: real = hypot(real, real2); break;
+    case F_ATAN2: real = atan2(real, real2);break;
+    case F_POW:
+        if (real2 < 0.0 && !real) {
+            v = val_alloc();
             v->obj = ERROR_OBJ;
-            v->u.error.num = ERROR_CONSTNT_LARGE;
-            v->u.error.epoint = *epoint;
-        } else float_from_double(v, real);
+            v->u.error.num = ERROR_DIVISION_BY_Z;
+            v->u.error.epoint = *epoint2;
+            return v;
+        }
+        if (real < 0.0 && (double)((int)real2) != real2) {
+            v = val_alloc();
+            v->obj = ERROR_OBJ;
+            v->u.error.num = ERROR_NEGFRAC_POWER;
+            v->u.error.epoint = *epoint2;
+            return v;
+        }
+        real = pow(real, real2);
+        break;
+    default: real = HUGE_VAL; break;
     }
+    if (real == HUGE_VAL) {
+        v = val_alloc();
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR_CONSTNT_LARGE;
+        v->u.error.epoint = *epoint;
+        return v;
+    }
+    return float_from_double(real);
 }
 
-static inline void apply_func_double(struct values_s *vals, unsigned int args) {
+static inline MUST_CHECK struct value_s *apply_func_double(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
-    struct value_s *val;
     enum func_e func = vals->val->u.function.func;
 
     if (args != 2) {
         err_msg_argnum(args, 2, 2, &vals->epoint);
-        val_replace(&vals->val, none_value);
-        return;
+        return val_reference(none_value);
     }
     if ((v[0].val->obj == TUPLE_OBJ || v[0].val->obj == LIST_OBJ) && (v[1].val->obj == TUPLE_OBJ || v[1].val->obj == LIST_OBJ)) {
         err_msg_wrong_type(v[0].val, &v[0].epoint);
-        val_replace(&vals->val, none_value);
-        return;
+        return val_reference(none_value);
     }
-    if (vals->val->refcount != 1) {
-        if (v[0].val->refcount == 1 && (v[1].val->refcount != 1 || (v[1].val->obj != LIST_OBJ && v[1].val->obj != TUPLE_OBJ))) {
-            val = v[0].val;
-            v[0].val = vals->val;
-            vals->val = val;
-            apply_func2(val, v[1].val, val, func, &v[0].epoint, &v[1].epoint);
-            return;
-        }
-        if (v[1].val->refcount == 1) {
-            val = v[1].val;
-            v[1].val = vals->val;
-            vals->val = val;
-            apply_func2(v[0].val, val, val, func, &v[0].epoint, &v[1].epoint);
-            return;
-        }
-        val = val_alloc();
-        apply_func2(v[0].val, v[1].val, val, func, &v[0].epoint, &v[1].epoint);
-        val_destroy(vals->val); vals->val = val;
-    } else {
-        obj_destroy(vals->val);
-        apply_func2(v[0].val, v[1].val, vals->val, func, &v[0].epoint, &v[1].epoint);
-    }
+    return apply_func2(v[0].val, v[1].val, func, &v[0].epoint, &v[1].epoint);
 }
 
-extern void builtin_function(struct values_s *vals, unsigned int args) {
+MUST_CHECK struct value_s *builtin_function(struct values_s *vals, unsigned int args) {
     switch (vals->val->u.function.func) {
     case F_HYPOT:
     case F_ATAN2:
-    case F_POW: apply_func_double(vals, args); return;
+    case F_POW: return apply_func_double(vals, args);
     case F_LOG:
     case F_EXP:
     case F_SIN:
@@ -400,11 +343,12 @@ extern void builtin_function(struct values_s *vals, unsigned int args) {
     case F_REPR:
     case F_LEN:
     case F_REGISTER:
-    case F_SIZE: apply_func_single(vals, args); return;
-    case F_RANGE: function_range(vals, args); return;
-    case F_FORMAT: isnprintf(vals, args); return;
-    case F_NONE: return;
+    case F_SIZE: return apply_func_single(vals, args);
+    case F_RANGE: return function_range(vals, args);
+    case F_FORMAT: return isnprintf(vals, args);
+    case F_NONE: break;
     }
+    return val_reference(none_value); /* can't happen */
 }
 
 struct builtin_functions_s builtin_functions[] = {

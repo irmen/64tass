@@ -106,7 +106,6 @@ struct oper_s {
     const struct value_s *op;
     struct value_s *v1;
     struct value_s *v2;
-    struct value_s *v;
     linepos_t epoint;
     linepos_t epoint2;
     linepos_t epoint3;
@@ -179,11 +178,10 @@ struct value_s {
 extern struct value_s *val_alloc(void);
 extern void val_destroy(struct value_s *);
 extern void val_replace(struct value_s **, struct value_s *);
-extern void val_replace_template(struct value_s **, const struct value_s *);
-extern struct value_s *val_reference(struct value_s *);
 extern int val_print(const struct value_s *, FILE *);
 extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
 
+extern struct value_s *int_value[2];
 extern struct value_s *none_value;
 extern struct value_s *true_value;
 extern struct value_s *false_value;
@@ -269,15 +267,19 @@ static inline int obj_same(const struct value_s *v1, const struct value_s *v2) {
     return v1->obj->same(v1, v2);
 }
 
-static inline int obj_hash(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    return v1->obj->hash(v1, v, epoint);
+static inline MUST_CHECK struct value_s *obj_hash(const struct value_s *v1, int *hs, linepos_t epoint) {
+    return v1->obj->hash(v1, hs, epoint);
+}
+
+static inline struct value_s *val_reference(struct value_s *v1) {
+    v1->refcount++; return v1;
 }
 
 static inline MUST_CHECK struct value_s *truth_reference(int i) {
     return val_reference(i ? true_value : false_value);
 }
 
-static inline struct value_s *obj_next(struct value_s *v1, struct value_s *v) {
-    return v1->obj->next(v1, v);
+static inline struct value_s *obj_next(struct value_s *v1) {
+    return v1->obj->next(v1);
 }
 #endif

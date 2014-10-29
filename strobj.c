@@ -73,21 +73,19 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
             !memcmp(v1->u.str.data, v2->u.str.data, v2->u.str.len));
 }
 
-static int truth(const struct value_s *v1, struct value_s *v, enum truth_e type, linepos_t epoint) {
-    int ret;
-    struct value_s tmp;
-    bytes_from_str(&tmp, v1, epoint);
-    if (v == v1) destroy(v);
-    ret = tmp.obj->truth(&tmp, v, type, epoint);
-    obj_destroy(&tmp);
+static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e type, linepos_t epoint) {
+    struct value_s *tmp, *ret;
+    tmp = bytes_from_str(v1, epoint);
+    ret = tmp->obj->truth(tmp, type, epoint);
+    val_destroy(tmp);
     return ret;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
     size_t i2, i, sq = 0, dq = 0;
     uint8_t *s, *s2;
     char q;
-    struct value_s tmp;
+    struct value_s *v = val_alloc();
     for (i = 0; i < v1->u.str.len; i++) {
         switch (v1->u.str.data[i]) {
         case '\'': sq++; continue;
@@ -106,7 +104,7 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
 
     i2 = i + 2;
     if (i2 < 2) err_msg_out_of_memory(); /* overflow */
-    s2 = s = snew(&tmp, i2);
+    s2 = s = snew(v, i2);
 
     *s++ = q;
     for (i = 0; i < v1->u.str.len; i++) {
@@ -116,113 +114,99 @@ static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(e
         }
     }
     s[i] = q;
-    if (v == v1) destroy(v);
-    if (s2 == tmp.u.str.val) {
-        memcpy(v->u.str.val, s2, i2);
-        s2 = v->u.str.val;
-    }
     v->obj = STR_OBJ;
     v->u.str.data = s2;
     v->u.str.len = i2;
     v->u.str.chars = i2;
+    return v;
 }
 
-static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
     size_t l = v1->u.str.len;
     const uint8_t *s2 = v1->u.str.data;
     unsigned int h;
-    if (!l) return 0;
+    if (!l) {
+        *hs = 0;
+        return NULL;
+    }
     h = *s2 << 7;
     while (l--) h = (1000003 * h) ^ *s2++;
     h ^= v1->u.str.len;
-    return h & ((~(unsigned int)0) >> 1);
+    *hs = h & ((~(unsigned int)0) >> 1);
+    return NULL;
 }
 
-static void str(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    if (v != v1) copy(v1, v);
+static MUST_CHECK struct value_s *str(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    struct value_s *v = val_alloc();
+    copy(v1, v);
+    return v;
 }
 
-static int MUST_CHECK ival(const struct value_s *v1, struct value_s *v, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s tmp, tmp2;
-    int ret;
-    bits_from_str(&tmp, v1, epoint);
-    ret = tmp.obj->ival(&tmp, &tmp2, iv, bits, epoint);
-    obj_destroy(&tmp);
-    if (ret) {
-        if (v1 == v) destroy(v);
-        tmp2.obj->copy_temp(&tmp2, v);
-    }
+static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
+    struct value_s *tmp, *ret;
+    tmp = bits_from_str(v1, epoint);
+    ret = tmp->obj->ival(tmp, iv, bits, epoint);
+    val_destroy(tmp);
     return ret;
 }
 
-static int MUST_CHECK uval(const struct value_s *v1, struct value_s *v, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s tmp, tmp2;
-    int ret;
-    bits_from_str(&tmp, v1, epoint);
-    ret = tmp.obj->uval(&tmp, &tmp2, uv, bits, epoint);
-    obj_destroy(&tmp);
-    if (ret) {
-        if (v1 == v) destroy(v);
-        tmp2.obj->copy_temp(&tmp2, v);
-    }
+static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
+    struct value_s *tmp, *ret;
+    tmp = bits_from_str(v1, epoint);
+    ret = tmp->obj->uval(tmp, uv, bits, epoint);
+    val_destroy(tmp);
     return ret;
 }
 
-static int MUST_CHECK real(const struct value_s *v1, struct value_s *v, double *r, linepos_t epoint) {
-    struct value_s tmp, tmp2;
-    int ret;
-    bits_from_str(&tmp, v1, epoint);
-    ret = tmp.obj->real(&tmp, &tmp2, r, epoint);
-    obj_destroy(&tmp);
-    if (ret) {
-        if (v1 == v) destroy(v);
-        tmp2.obj->copy_temp(&tmp2, v);
-    }
+static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t epoint) {
+    struct value_s *tmp, *ret;
+    tmp = bits_from_str(v1, epoint);
+    ret = tmp->obj->real(tmp, r, epoint);
+    val_destroy(tmp);
     return ret;
 }
 
-static void sign(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    struct value_s tmp;
-    bytes_from_str(&tmp, v1, epoint);
-    if (v1 == v) destroy(v);
-    tmp.obj->sign(&tmp, v, epoint);
-    obj_destroy(&tmp);
+static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t epoint) {
+    struct value_s *tmp, *ret;
+    tmp = bytes_from_str(v1, epoint);
+    ret = tmp->obj->sign(tmp, epoint);
+    val_destroy(tmp);
+    return ret;
 }
 
-static void absolute(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    struct value_s tmp;
-    int_from_str(&tmp, v1, epoint);
-    if (v == v1) destroy(v);
-    tmp.obj->abs(&tmp, v, epoint);
-    obj_destroy(&tmp);
+static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t epoint) {
+    struct value_s *tmp, *ret;
+    tmp = int_from_str(v1, epoint);
+    ret = tmp->obj->abs(tmp, epoint);
+    val_destroy(tmp);
+    return ret;
 }
 
-static void integer(const struct value_s *v1, struct value_s *v, linepos_t epoint) {
-    struct value_s tmp;
-    int_from_str(&tmp, v1, epoint);
-    if (v == v1) destroy(v);
-    tmp.obj->copy_temp(&tmp, v);
+static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t epoint) {
+    return int_from_str(v1, epoint);
 }
 
-static void len(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    size_t uv = v1->u.str.chars;
-    if (v1 == v) destroy(v);
-    int_from_uval(v, uv);
+static MUST_CHECK struct value_s *len(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    return int_from_uval(v1->u.str.chars);
 }
 
-static void getiter(struct value_s *v1, struct value_s *v) {
+static MUST_CHECK struct value_s *getiter(struct value_s *v1) {
+    struct value_s *v = val_alloc();
     v->obj = ITER_OBJ;
     v->u.iter.val = 0;
     v->u.iter.iter = &v->u.iter.val;
     v->u.iter.data = val_reference(v1);
+    return v;
 }
 
-static MUST_CHECK struct value_s *next(struct value_s *v1, struct value_s *v) {
+static MUST_CHECK struct value_s *next(struct value_s *v1) {
     const struct value_s *vv1 = v1->u.iter.data;
     int ln;
     uint8_t *s;
+    struct value_s *v;
     if (v1->u.iter.val >= vv1->u.str.len) return NULL;
     ln = utf8len(vv1->u.str.data[v1->u.iter.val]);
+    v = val_alloc();
     s = snew(v, ln);
     memcpy(s, vv1->u.str.data + v1->u.iter.val, ln);
     v1->u.iter.val += ln;
@@ -284,32 +268,31 @@ uint8_t *str_create_elements(struct value_s *v, size_t ln) {
     return snew(v, ln);
 }
 
-static void calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v = op->v;
-    struct value_s tmp;
+static MUST_CHECK struct value_s *calc1(oper_t op) {
+    struct value_s *v1 = op->v1, *v;
+    struct value_s *tmp;
     switch (op->op->u.oper.op) {
     case O_NEG:
     case O_POS:
-    case O_STRING: int_from_str(&tmp, v1, op->epoint); break;
+    case O_STRING: tmp = int_from_str(v1, op->epoint); break;
     case O_INV:
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
-    case O_BSWORD: bits_from_str(&tmp, v1, op->epoint); break;
-    default: obj_oper_error(op); return;
+    case O_BSWORD: tmp = bits_from_str(v1, op->epoint); break;
+    default: return obj_oper_error(op);
     }
-    if (v == v1) destroy(v);
-    op->v1 = &tmp;
-    tmp.refcount = 0;
-    tmp.obj->calc1(op);
+    op->v1 = tmp;
+    v = tmp->obj->calc1(op);
     op->v1 = v1;
-    obj_destroy(&tmp);
+    val_destroy(tmp);
+    return v;
 }
 
 static MUST_CHECK struct value_s *calc2_str(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
     int val;
     switch (op->op->u.oper.op) {
     case O_ADD:
@@ -319,19 +302,16 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     case O_MOD:
     case O_EXP:
         {
-            struct value_s tmp, tmp2, *result;
-            int_from_str(&tmp, v1, op->epoint);
-            int_from_str(&tmp2, v2, op->epoint2);
-            if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
-            op->v1 = &tmp;
-            op->v2 = &tmp2;
-            tmp.refcount = 0;
-            tmp2.refcount = 0;
-            result = tmp.obj->calc2(op);
+            struct value_s *tmp, *tmp2, *result;
+            tmp = int_from_str(v1, op->epoint);
+            tmp2 = int_from_str(v2, op->epoint2);
+            op->v1 = tmp;
+            op->v2 = tmp2;
+            result = tmp->obj->calc2(op);
             op->v1 = v1;
             op->v2 = v2;
-            obj_destroy(&tmp2);
-            obj_destroy(&tmp);
+            val_destroy(tmp2);
+            val_destroy(tmp);
             return result;
         }
     case O_AND:
@@ -340,19 +320,16 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     case O_LSHIFT:
     case O_RSHIFT:
         {
-            struct value_s tmp, tmp2, *result;
-            bits_from_str(&tmp, v1, op->epoint);
-            bits_from_str(&tmp2, v2, op->epoint2);
-            if (v1 == v || v2 == v) {destroy(v); v->obj = NONE_OBJ;}
-            op->v1 = &tmp;
-            op->v2 = &tmp2;
-            tmp.refcount = 0;
-            tmp2.refcount = 0;
-            result = tmp.obj->calc2(op);
+            struct value_s *tmp, *tmp2, *result;
+            tmp = bits_from_str(v1, op->epoint);
+            tmp2 = bits_from_str(v2, op->epoint2);
+            op->v1 = tmp;
+            op->v2 = tmp2;
+            result = tmp->obj->calc2(op);
             op->v1 = v1;
             op->v2 = v2;
-            obj_destroy(&tmp2);
-            obj_destroy(&tmp);
+            val_destroy(tmp2);
+            val_destroy(tmp);
             return result;
         }
     case O_CMP:
@@ -360,9 +337,8 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
             int h = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len : v2->u.str.len);
             if (h) h = (h > 0) - (h < 0);
             else h = (v1->u.str.len > v2->u.str.len) - (v1->u.str.len < v2->u.str.len);
-            if (v == v1 || v == v2) destroy(v);
-            int_from_int(v, h);
-            return NULL;
+            if (h < 0) return int_from_int(-1);
+            return val_reference(int_value[h]);
         }
     case O_EQ: return truth_reference(v1->u.str.len == v2->u.str.len && (v1->u.str.data == v2->u.str.data || !memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len)));
     case O_NE: return truth_reference(v1->u.str.len != v2->u.str.len || (v1->u.str.data != v2->u.str.data && memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len)));
@@ -379,34 +355,27 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
         val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
         return truth_reference(val ? (val >= 0) : (val = v1->u.str.len >= v2->u.str.len));
     case O_CONCAT:
+        if (!v1->u.str.len) {
+            return val_reference(v2);
+        }
+        if (!v2->u.str.len) {
+            return val_reference(v1);
+        }
         {
             uint8_t *s;
             size_t ln = v1->u.str.len + v2->u.str.len;
             size_t ch = v1->u.str.chars + v2->u.str.chars;
             if (ln < v2->u.str.len) err_msg_out_of_memory(); /* overflow */
 
-            if (v == v1) {
-                if (!v2->u.str.len) return NULL;
-                s = (uint8_t *)v1->u.str.data;
-                if (s != v1->u.str.val) {
-                    s = (uint8_t *)realloc(s, v->u.str.len);
-                    if (!s) err_msg_out_of_memory();
-                } else {
-                    s = snew(v, v->u.str.len);
-                    if (s != v1->u.str.val) memcpy(s, v1->u.str.val, v1->u.str.len);
-                }
-                memcpy(s + v1->u.str.len, v2->u.str.data, v2->u.str.len);
-            } else {
-                s = snew(v, v->u.str.len);
-                memcpy(s, v1->u.str.data, v1->u.str.len);
-                memcpy(s + v1->u.str.len, v2->u.str.data, v2->u.str.len);
-                if (v == v2) destroy(v);
-                v->obj = STR_OBJ;
-            }
+            v = val_alloc();
+            s = snew(v, v->u.str.len);
+            memcpy(s, v1->u.str.data, v1->u.str.len);
+            memcpy(s + v1->u.str.len, v2->u.str.data, v2->u.str.len);
+            v->obj = STR_OBJ;
             v->u.str.len = ln;
             v->u.str.chars = ch;
             v->u.str.data = s;
-            return NULL;
+            return v;
         }
     case O_IN:
         {
@@ -428,34 +397,36 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
 }
 
 static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
-    struct value_s *v1 = op->v1, *v = op->v, tmp;
+    struct value_s *v1 = op->v1, *v;
+
     if (v1->u.str.len && rep) {
         uint8_t *s;
-        size_t ln = v1->u.str.len;
-        size_t chars = v1->u.str.chars;
+        size_t ln;
+        size_t chars;
+        if (rep == 1) {
+            return val_reference(v1);
+        }
+        chars = v1->u.str.chars;
+        ln = v1->u.str.len;
         if (ln > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
-        s = snew(&tmp, ln * rep);
+        v = val_alloc();
         v->obj = STR_OBJ;
+        s = snew(v, ln * rep);
         v->u.str.len = 0;
         while (rep--) {
             memcpy(s + v->u.str.len, v1->u.str.data, ln);
             v->u.str.len += ln;
         }
-        if (v == v1) destroy(v);
-        if (s == tmp.u.str.val) {
-            memcpy(v->u.str.val, s, v->u.str.len);
-            s = v->u.str.val;
-        }
         v->u.str.data = s;
         v->u.str.chars = chars * rep;
-        return NULL;
+        return v;
     } 
     return val_reference(null_str);
 }
 
 static MUST_CHECK struct value_s *calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp;
+    struct value_s *v1 = op->v1, *v2 = op->v2;
+    struct value_s *tmp;
     switch (v2->obj->type) {
     case T_STR: return calc2_str(op);
     case T_BOOL:
@@ -472,27 +443,23 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             case O_OR:
             case O_XOR:
             case O_LSHIFT:
-            case O_RSHIFT: bits_from_str(&tmp, v1, op->epoint); break;
-            default: int_from_str(&tmp, v1, op->epoint);
+            case O_RSHIFT: tmp = bits_from_str(v1, op->epoint); break;
+            default: tmp = int_from_str(v1, op->epoint);
             }
-            if (v1 == v) {obj_destroy(v); v->obj = NONE_OBJ;}
-            op->v1 = &tmp;
-            tmp.refcount = 0;
-            result = tmp.obj->calc2(op);
+            op->v1 = tmp;
+            result = tmp->obj->calc2(op);
             op->v1 = v1;
-            obj_destroy(&tmp);
+            val_destroy(tmp);
             return result;
         }
     case T_BYTES:
         {
             struct value_s *result;
-            bytes_from_str(&tmp, v1, op->epoint);
-            if (v1 == v) {obj_destroy(v); v->obj = NONE_OBJ;}
-            op->v1 = &tmp;
-            tmp.refcount = 0;
-            result = tmp.obj->calc2(op);
+            tmp = bytes_from_str(v1, op->epoint);
+            op->v1 = tmp;
+            result = tmp->obj->calc2(op);
             op->v1 = v1;
-            obj_destroy(&tmp);
+            val_destroy(tmp);
             return result;
         }
     case T_TUPLE:
@@ -510,8 +477,8 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
 }
 
 static MUST_CHECK struct value_s *rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v;
-    struct value_s tmp;
+    struct value_s *v1 = op->v1, *v2 = op->v2;
+    struct value_s *tmp;
     switch (v1->obj->type) {
     case T_STR: return calc2_str(op);
     case T_BOOL:
@@ -526,27 +493,23 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
-            case O_XOR: bits_from_str(&tmp, v2, op->epoint2); break;
-            default: int_from_str(&tmp, v2, op->epoint2);
+            case O_XOR: tmp = bits_from_str(v2, op->epoint2); break;
+            default: tmp = int_from_str(v2, op->epoint2);
             }
-            if (v2 == v) {obj_destroy(v); v->obj = NONE_OBJ;}
-            op->v2 = &tmp;
-            tmp.refcount = 0;
-            result = tmp.obj->rcalc2(op);
+            op->v2 = tmp;
+            result = tmp->obj->rcalc2(op);
             op->v2 = v2;
-            obj_destroy(&tmp);
+            val_destroy(tmp);
             return result;
         }
     case T_BYTES:
         {
             struct value_s *result;
-            bytes_from_str(&tmp, v2, op->epoint2);
-            if (v2 == v) {obj_destroy(v); v->obj = NONE_OBJ;}
-            op->v2 = &tmp;
-            tmp.refcount = 0;
-            result = tmp.obj->rcalc2(op);
+            tmp = bytes_from_str(v2, op->epoint2);
+            op->v2 = tmp;
+            result = tmp->obj->rcalc2(op);
             op->v2 = v2;
-            obj_destroy(&tmp);
+            val_destroy(tmp);
             return result;
         }
     case T_TUPLE:
@@ -561,19 +524,18 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step, struct value_s *v) {
+static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step) {
     size_t len2;
     uint8_t *p;
     uint8_t *p2;
-    struct value_s tmp;
+    struct value_s *v;
 
     if (!len1) {
         return val_reference(null_str);
     }
     if (step == 1) {
         if (len1 == v1->u.str.chars) {
-            if (v1 != v) copy(v1, v);
-            return NULL; /* original string */
+            return val_reference(v1); /* original string */
         }
         if (v1->u.str.len == v1->u.str.chars) {
             len2 = len1;
@@ -589,12 +551,14 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, 
             }
             len2 = p - v1->u.str.data - offs;
         }
-        p = p2 = snew(&tmp, len2);
+        v = val_alloc();
+        p = p2 = snew(v, len2);
         memcpy(p2, v1->u.str.data + offs, len2);
     } else {
+        v = val_alloc();
         if (v1->u.str.len == v1->u.str.chars) {
             len2 = len1;
-            p = p2 = snew(&tmp, len2);
+            p = p2 = snew(v, len2);
             while ((end > offs && step > 0) || (end < offs && step < 0)) {
                 *p2++ = v1->u.str.data[offs];
                 offs += step;
@@ -603,7 +567,7 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, 
         else {
             ival_t i, j, k;
             uint8_t *o;
-            o = p2 = snew(&tmp, v1->u.str.len);
+            o = p2 = snew(v, v1->u.str.len);
             p = v1->u.str.data;
             for (i = 0; i < offs; i++) {
                 p += utf8len(*p);
@@ -625,23 +589,23 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, 
                 }
             }
             len2 = p2 - o;
-            if (len2 > sizeof(v->u.str.val) && o != tmp.u.str.val) {
-                p = (uint8_t *)realloc(o, len2);
-                if (!p) err_msg_out_of_memory();
+            if (len2 > sizeof(v->u.str.val) && o != v->u.str.val) {
+                if (len2 <= sizeof(v->u.str.val)) {
+                    memcpy(v->u.str.val, o, len2);
+                    free(o);
+                    p = v->u.str.val;
+                } else {
+                    p = (uint8_t *)realloc(o, len2);
+                    if (!p) err_msg_out_of_memory();
+                }
             } else p = o;
         }
-    }
-    if (v == v1) destroy(v);
-    if (len2 <= sizeof(v->u.str.val)) {
-        memcpy(v->u.str.val, p, len2);
-        if (tmp.u.str.val != p) free(p);
-        p = v->u.str.val;
     }
     v->obj = STR_OBJ;
     v->u.str.chars = len1;
     v->u.str.len = len2;
     v->u.str.data = p;
-    return NULL;
+    return v;
 }
 
 static MUST_CHECK struct value_s *iindex(oper_t op) {
@@ -650,7 +614,7 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
     size_t len1, len2;
     ival_t offs;
     size_t i;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = op->v, tmp, err;
+    struct value_s *v1 = op->v1, *v2 = op->v2, *v, *err;
 
     len1 = v1->u.str.chars;
 
@@ -658,16 +622,15 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         if (!v2->u.list.len) {
             return val_reference(null_str);
         }
+        v = val_alloc();
         if (v1->u.str.len == v1->u.str.chars) {
             len2 = v2->u.list.len;
-            p = p2 = snew(&tmp, len2);
+            p = p2 = snew(v, len2);
             for (i = 0; i < v2->u.list.len; i++) {
-                offs = indexoffs(v2->u.list.data[i], &err, len1, op->epoint2);
-                if (offs < 0) {
-                    if (p != tmp.u.str.val) free(p);
-                    if (v1 == v) destroy(v);
-                    err.obj->copy_temp(&err, v);
-                    return NULL;
+                err = indexoffs(v2->u.list.data[i], &offs, len1, op->epoint2);
+                if (err) {
+                    if (p != v->u.str.val) free(p);
+                    return err;
                 }
                 *p2++ = v1->u.str.data[offs];
             }
@@ -676,17 +639,15 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
             ival_t j, k;
             size_t m = v1->u.str.len;
             uint8_t *o;
-            o = p2 = snew(&tmp, m);
+            o = p2 = snew(v, m);
             p = v1->u.str.data;
             j = 0;
 
             for (i = 0; i < v2->u.list.len; i++) {
-                offs = indexoffs(v2->u.list.data[i], &err, len1, op->epoint2);
-                if (offs < 0) {
-                    if (o != tmp.u.str.val) free(o);
-                    if (v1 == v) destroy(v);
-                    err.obj->copy_temp(&err, v);
-                    return NULL;
+                err = indexoffs(v2->u.list.data[i], &offs, len1, op->epoint2);
+                if (err) {
+                    if (o != v->u.str.val) free(o);
+                    return err;
                 }
                 while (offs != j) {
                     if (offs > j) {
@@ -701,10 +662,10 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
                 if ((size_t)(p2 + k - o) > m) {
                     const uint8_t *r = o;
                     m += 4096;
-                    if (o != tmp.u.str.val) o = (uint8_t *)realloc(o, m);
+                    if (o != v->u.str.val) o = (uint8_t *)realloc(o, m);
                     else {
                         o = (uint8_t *)malloc(m);
-                        if (o) memcpy(o, tmp.u.str.val, m - 4096);
+                        if (o) memcpy(o, v->u.str.val, m - 4096);
                     }
                     if (!o || m < 4096) err_msg_out_of_memory(); /* overflow */
                     p2 += o - r;
@@ -712,36 +673,33 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
                 memcpy(p2, p, k);p2 += k;
             }
             len2 = p2 - o;
-            if (len2 > sizeof(v->u.str.val) && o != tmp.u.str.val) {
-                p = (uint8_t *)realloc(o, len2);
-                if (!p) err_msg_out_of_memory();
+            if (len2 > sizeof(v->u.str.val) && o != v->u.str.val) {
+                if (len2 <= sizeof(v->u.str.val)) {
+                    memcpy(v->u.str.val, o, len2);
+                    free(o);
+                    p = v->u.str.val;
+                } else {
+                    p = (uint8_t *)realloc(o, len2);
+                    if (!p) err_msg_out_of_memory();
+                }
             } else p = o;
-        }
-        if (v == v1) destroy(v);
-        if (len2 <= sizeof(v->u.str.val)) {
-            memcpy(v->u.str.val, p, len2);
-            if (tmp.u.str.val != p) free(p);
-            p = v->u.str.val;
         }
         v->obj = STR_OBJ;
         v->u.str.chars = len1;
         v->u.str.len = len2;
         v->u.str.data = p;
-        return NULL;
+        return v;
     }
     if (v2->obj == COLONLIST_OBJ) {
         ival_t length, end, step;
-        length = sliceparams(op, len1, &offs, &end, &step);
-        if (length < 0) return NULL;
-        return slice(v1, length, offs, end, step, v);
+        err = sliceparams(op, len1, &length, &offs, &end, &step);
+        if (err) return err;
+        return slice(v1, length, offs, end, step);
     }
-    offs = indexoffs(v2, &err, len1, op->epoint2);
-    if (offs < 0) {
-        if (v1 == v) destroy(v);
-        err.obj->copy_temp(&err, v);
-        return NULL;
-    }
+    err = indexoffs(v2, &offs, len1, op->epoint2);
+    if (err) return err;
 
+    v = val_alloc();
     if (v1->u.str.len == v1->u.str.chars) {
         len1 = 1;
         p2 = v->u.str.val;
@@ -752,30 +710,31 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
         while (offs--) p += utf8len(*p);
         len1 = utf8len(*p);
         p2 = snew(v, len1);
-        memmove(p2, p, len1);
+        memcpy(p2, p, len1);
     }
-    if (v1 == v) destroy(v);
     v->obj = STR_OBJ;
     v->u.str.data = p2;
     v->u.str.chars = 1;
     v->u.str.len = len1;
-    return NULL;
+    return v;
 }
 
-static void register_repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *register_repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *prefix = "<register '";
     size_t ln = strlen(prefix), len2 = v1->u.str.len;
+    struct value_s *v = val_alloc();
     v->obj = STR_OBJ;
     v->u.str.len = v1->u.str.len + 2 + ln;
     v->u.str.chars = v->u.str.chars + 2 + ln;
     if (v->u.str.len < (2 + ln)) err_msg_out_of_memory(); /* overflow */
     s = str_create_elements(v, v->u.str.len);
-    memmove(s + ln, v1->u.str.data, len2);
     memcpy(s, prefix, ln);
+    memcpy(s + ln, v1->u.str.data, len2);
     s[v->u.str.len - 2] = '\'';
     s[v->u.str.len - 1] = '>';
     v->u.str.data = s;
+    return v;
 }
 
 static MUST_CHECK struct value_s *register_calc2(oper_t op) {

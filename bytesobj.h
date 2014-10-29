@@ -29,5 +29,5 @@ typedef struct {
 
 extern void bytesobj_init(void);
 
-extern void bytes_from_str(struct value_s *, const struct value_s *, linepos_t);
+extern MUST_CHECK struct value_s *bytes_from_str(const struct value_s *, linepos_t);
 #endif

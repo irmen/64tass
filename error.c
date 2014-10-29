@@ -444,7 +444,7 @@ void err_msg_output(const struct value_s *val) {
 
 void err_msg_output_and_destroy(struct value_s *val) {
     err_msg_output(val);
-    obj_destroy(val);
+    val_destroy(val);
 }
 
 void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
@@ -495,12 +495,12 @@ static void add_user_error2(struct errorbuffer_s *user_error, const uint8_t *s, 
 }
 
 void err_msg_variable(struct errorbuffer_s *user_error, struct value_s *val, linepos_t epoint) {
-    struct value_s tmp;
+    struct value_s *err;
     if (!val) {user_error->len = 0;return;}
-    val->obj->str(val, &tmp, epoint);
-    if (tmp.obj == STR_OBJ) add_user_error2(user_error, tmp.u.str.data, tmp.u.str.len);
-    else err_msg_output(&tmp);
-    obj_destroy(&tmp);
+    err = val->obj->str(val, epoint);
+    if (err->obj == STR_OBJ) add_user_error2(user_error, err->u.str.data, err->u.str.len);
+    else err_msg_output(err);
+    val_destroy(err);
 }
 
 static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
