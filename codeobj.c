@@ -56,12 +56,6 @@ static MUST_CHECK value_t access_check(const value_t v1, linepos_t epoint) {
     return NULL;
 }
 
-static void copy(const value_t v1, value_t v) {
-    v->obj = CODE_OBJ;
-    memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
-    v->u.code.addr = val_reference(v1->u.code.addr);
-}
-
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || obj_same(v1->u.code.addr, v2->u.code.addr)) && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.label == v2->u.code.label;
 }
@@ -482,7 +476,6 @@ static MUST_CHECK value_t iindex(oper_t op) {
 void codeobj_init(void) {
     obj_init(&obj, T_CODE, "<code>");
     obj.destroy = destroy;
-    obj.copy = copy;
     obj.same = same;
     obj.truth = truth;
     obj.repr = repr;

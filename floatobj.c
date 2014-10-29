@@ -27,11 +27,6 @@ static struct obj_s obj;
 
 obj_t FLOAT_OBJ = &obj;
 
-static void copy(const value_t v1, value_t v) {
-    v->obj = FLOAT_OBJ;
-    v->u.real = v1->u.real;
-}
-
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == FLOAT_OBJ && v1->u.real == v2->u.real;
 }
@@ -312,7 +307,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 
 void floatobj_init(void) {
     obj_init(&obj, T_FLOAT, "<float>");
-    obj.copy = copy;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;

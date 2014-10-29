@@ -42,10 +42,11 @@ static bdigit_t *bnew(value_t v, size_t len) {
     return v->u.bits.val;
 }
 
-static void copy(const value_t v1, value_t v) {
+static MUST_CHECK value_t invert(const value_t v1) {
+    value_t v = val_alloc();
     v->obj = v1->obj;
     v->u.bits.bits = v1->u.bits.bits;
-    v->u.bits.inv = v1->u.bits.inv;
+    v->u.bits.inv = !v1->u.bits.inv;
     v->u.bits.len = v1->u.bits.len;
     if (v1->u.bits.len) {
         v->u.bits.data = bnew(v, v->u.bits.len);
@@ -54,6 +55,7 @@ static void copy(const value_t v1, value_t v) {
         v->u.bits.val[0] = 0;
         v->u.bits.data = v->u.bits.val;
     }
+    return v;
 }
 
 static int same(const value_t v1, const value_t v2) {
@@ -527,11 +529,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
         uv = v1->u.bits.len > 0 ? v1->u.bits.data[0] : 0;
         if (v1->u.bits.inv) uv = ~uv;
         return bits_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
-    case O_INV:
-        v = val_alloc();
-        copy(v1, v);
-        v->u.bits.inv = !v->u.bits.inv;
-        return v;
+    case O_INV: return invert(v1);
     case O_NEG:
     case O_POS:
     case O_STRING:
@@ -1180,7 +1178,6 @@ static MUST_CHECK value_t iindex(oper_t op) {
 void bitsobj_init(void) {
     obj_init(&obj, T_BITS, "<bits>");
     obj.destroy = destroy;
-    obj.copy = copy;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;

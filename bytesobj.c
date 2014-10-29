@@ -42,17 +42,6 @@ static uint8_t *bnew(value_t v, size_t len) {
     return v->u.bytes.val;
 }
 
-static void copy(const value_t v1, value_t v) {
-    uint8_t *s;
-    v->obj = BYTES_OBJ;
-    v->u.bytes.len = v1->u.bytes.len;
-    if (v1->u.bytes.len) {
-        s = bnew(v, v->u.bytes.len);
-        memcpy(s, v1->u.bytes.data, v->u.bytes.len);
-    } else s = NULL;
-    v->u.bytes.data = s;
-}
-
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == BYTES_OBJ && v1->u.bytes.len == v2->u.bytes.len && (
             v1->u.bytes.data == v2->u.bytes.data ||
@@ -525,7 +514,6 @@ static MUST_CHECK value_t iindex(oper_t op) {
 void bytesobj_init(void) {
     obj_init(&obj, T_BYTES, "<bytes>");
     obj.destroy = destroy;
-    obj.copy = copy;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;

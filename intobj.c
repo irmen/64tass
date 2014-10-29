@@ -259,9 +259,7 @@ static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
-    value_t v = val_alloc();
-    copy(v1, v);
-    return v;
+    return val_reference(v1);
 }
 
 static void iadd(const value_t, const value_t, value_t);
@@ -309,10 +307,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
         copy(v1, v);
         v->u.integer.len = -v->u.integer.len;
         return v;
-    case O_POS:
-        v = val_alloc();
-        copy(v1, v);
-        return v;
+    case O_POS: return val_reference(v1);
     case O_STRING: return repr(v1, op->epoint);
     default: break;
     }
@@ -1533,7 +1528,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 void intobj_init(void) {
     obj_init(&obj, T_INT, "<int>");
     obj.destroy = destroy;
-    obj.copy = copy;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;
