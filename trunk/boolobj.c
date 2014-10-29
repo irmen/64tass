@@ -24,11 +24,6 @@ static struct obj_s obj;
 
 obj_t BOOL_OBJ = &obj;
 
-static void copy(const value_t v1, value_t v) {
-    v->obj = BOOL_OBJ;
-    v->u.boolean = v1->u.boolean;
-}
-
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == BOOL_OBJ && v1->u.boolean == v2->u.boolean;
 }
@@ -170,7 +165,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 
 void boolobj_init(void) {
     obj_init(&obj, T_BOOL, "<bool>");
-    obj.copy = copy;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;

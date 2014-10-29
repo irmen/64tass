@@ -30,12 +30,6 @@ static void destroy(value_t v1) {
     val_destroy(v1->u.addr.val);
 }
 
-static void copy(const value_t v1, value_t v) {
-    v->obj = ADDRESS_OBJ;
-    v->u.addr.type = v1->u.addr.type;
-    v->u.addr.val = val_reference(v1->u.addr.val);
-}
-
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == ADDRESS_OBJ && v1->u.addr.type == v2->u.addr.type && obj_same(v1->u.addr.val, v2->u.addr.val);
 }
@@ -314,7 +308,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 void addressobj_init(void) {
     obj_init(&obj, T_ADDRESS, "<address>");
     obj.destroy = destroy;
-    obj.copy = copy;
     obj.same = same;
     obj.truth = truth;
     obj.repr = repr;

@@ -45,9 +45,10 @@ static uint8_t *snew(value_t v, size_t len) {
     return v->u.str.val;
 }
 
-static void copy(const value_t v1, value_t v) {
+MUST_CHECK value_t register_from_str(const value_t v1) {
     uint8_t *s;
-    v->obj = v1->obj;
+    value_t v = val_alloc();
+    v->obj = REGISTER_OBJ;
     v->u.str.chars = v1->u.str.chars;
     v->u.str.len = v1->u.str.len;
     if (v1->u.str.len) {
@@ -55,6 +56,7 @@ static void copy(const value_t v1, value_t v) {
         memcpy(s, v1->u.str.data, v->u.str.len);
     } else s = NULL;
     v->u.str.data = s;
+    return v;
 }
 
 static int same(const value_t v1, const value_t v2) {
@@ -127,9 +129,7 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoin
 }
 
 static MUST_CHECK value_t str(const value_t v1, linepos_t UNUSED(epoint)) {
-    value_t v = val_alloc();
-    copy(v1, v);
-    return v;
+    return val_reference(v1);
 }
 
 static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
@@ -802,7 +802,6 @@ static MUST_CHECK value_t register_rcalc2(oper_t op) {
 void strobj_init(void) {
     obj_init(&str_obj, T_STR, "<str>");
     str_obj.destroy = destroy;
-    str_obj.copy = copy;
     str_obj.same = same;
     str_obj.truth = truth;
     str_obj.hash = hash;
@@ -824,7 +823,6 @@ void strobj_init(void) {
     str_obj.iindex = iindex;
     obj_init(&register_obj, T_REGISTER, "<register>");
     register_obj.destroy = destroy;
-    register_obj.copy = copy;
     register_obj.same = same;
     register_obj.hash = hash;
     register_obj.repr = register_repr;

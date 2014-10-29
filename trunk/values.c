@@ -159,11 +159,6 @@ void val_destroy(value_t val) {
 
 void val_replace(value_t *val, value_t val2) {
     if (*val == val2) return;
-    if ((*val)->refcount == 1 && val2->refcount == 0) {
-        obj_destroy(*val);
-        val2->obj->copy(val2, *val);
-        return;
-    }
     val_destroy(*val);
     *val = val_reference(val2);
 }
