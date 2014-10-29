@@ -62,15 +62,6 @@ static void copy(const value_t v1, value_t v) {
     v->u.list.len = len;
 }
 
-static void copy_temp(const value_t v1, value_t v) {
-    v->obj = v1->obj;
-    v->u.list.len = v1->u.list.len;
-    if (v1->u.list.data == v1->u.list.val) {
-        v->u.list.data = v->u.list.val;
-        memcpy(v->u.list.data, v1->u.list.data, v->u.list.len * sizeof(value_t));
-    } else v->u.list.data = v1->u.list.data;
-}
-
 static int same(const value_t v1, const value_t v2) {
     size_t i;
     if (v1->obj != v2->obj || v1->u.list.len != v2->u.list.len) return 0;
@@ -568,7 +559,6 @@ static MUST_CHECK value_t iindex(oper_t op) {
 static void init(struct obj_s *obj) {
     obj->destroy = destroy;
     obj->copy = copy;
-    obj->copy_temp = copy_temp;
     obj->same = same;
     obj->truth = truth;
     obj->len = len;
@@ -590,13 +580,11 @@ void listobj_init(void) {
     obj_init(&addrlist_obj, T_ADDRLIST, "<address list>");
     addrlist_obj.destroy = destroy;
     addrlist_obj.copy = copy;
-    addrlist_obj.copy_temp = copy_temp;
     addrlist_obj.same = same;
     addrlist_obj.repr = repr_listtuple;
     obj_init(&colonlist_obj, T_COLONLIST, "<colon list>");
     colonlist_obj.destroy = destroy;
     colonlist_obj.copy = copy;
-    colonlist_obj.copy_temp = copy_temp;
     colonlist_obj.same = same;
     colonlist_obj.repr = repr_listtuple;
 }

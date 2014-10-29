@@ -313,7 +313,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 void floatobj_init(void) {
     obj_init(&obj, T_FLOAT, "<float>");
     obj.copy = copy;
-    obj.copy_temp = copy;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;

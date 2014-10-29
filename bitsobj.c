@@ -56,22 +56,6 @@ static void copy(const value_t v1, value_t v) {
     }
 }
 
-static void copy_temp(const value_t v1, value_t v) {
-    v->obj = BITS_OBJ;
-    v->u.bits.bits = v1->u.bits.bits;
-    v->u.bits.inv = v1->u.bits.inv;
-    v->u.bits.len = v1->u.bits.len;
-    if (v1->u.bits.len) {
-        if (v1->u.bits.data == v1->u.bits.val) {
-            v->u.bits.data = v->u.bits.val;
-            memcpy(v->u.bits.data, v1->u.bits.data, v->u.bits.len * sizeof(bdigit_t));
-        } else v->u.bits.data = v1->u.bits.data;
-    } else {
-        v->u.bits.val[0] = 0;
-        v->u.bits.data = v->u.bits.val;
-    }
-}
-
 static int same(const value_t v1, const value_t v2) {
     if (v2->obj != BITS_OBJ || v1->u.bits.len != v2->u.bits.len || v1->u.bits.bits != v2->u.bits.bits || v1->u.bits.inv != v2->u.bits.inv) return 0;
     return !memcmp(v1->u.bits.data, v2->u.bits.data, v1->u.bits.len * sizeof(bdigit_t));
@@ -1197,7 +1181,6 @@ void bitsobj_init(void) {
     obj_init(&obj, T_BITS, "<bits>");
     obj.destroy = destroy;
     obj.copy = copy;
-    obj.copy_temp = copy_temp;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;

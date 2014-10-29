@@ -171,7 +171,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 void boolobj_init(void) {
     obj_init(&obj, T_BOOL, "<bool>");
     obj.copy = copy;
-    obj.copy_temp = copy;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;
