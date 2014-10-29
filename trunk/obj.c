@@ -351,11 +351,6 @@ static void macro_copy(const value_t v1, value_t v) {
     } else v->u.macro.param = NULL;
 }
 
-static void macro_copy_temp(const value_t v1, value_t v) {
-    v->obj = v1->obj;
-    memcpy(&v->u.macro, &v1->u.macro, sizeof(v->u.macro));
-}
-
 static int macro_same(const value_t v1, const value_t v2) {
     size_t i;
     if (v1->obj != v2->obj || v1->u.macro.size != v2->u.macro.size || v1->u.macro.label != v2->u.macro.label) return 0;
@@ -394,11 +389,6 @@ static void mfunc_copy(const value_t v1, value_t v) {
         }
         v->u.mfunc.argc = i;
     } else v->u.mfunc.param = NULL;
-}
-
-static void mfunc_copy_temp(const value_t v1, value_t v) {
-    v->obj = MFUNC_OBJ;
-    memcpy(&v->u.mfunc, &v1->u.mfunc, sizeof(v->u.mfunc));
 }
 
 static int mfunc_same(const value_t v1, const value_t v2) {
@@ -446,13 +436,6 @@ static void dict_copy(const value_t v1, value_t v) {
             n = avltree_next(n);
         }
     }
-}
-
-static void dict_copy_temp(const value_t v1, value_t v) {
-    v->obj = DICT_OBJ;
-    v->u.dict.len = v1->u.dict.len;
-    v->u.dict.members = v1->u.dict.members;
-    v->u.dict.def = v1->u.dict.def;
 }
 
 static int dict_same(const value_t v1, const value_t v2) {
@@ -625,11 +608,6 @@ static void error_copy(const value_t v1, value_t v) {
     }
 }
 
-static void error_copy_temp(const value_t v1, value_t v) {
-    v->obj = ERROR_OBJ;
-    memcpy(&v->u.error, &v1->u.error, sizeof(v->u.error));
-}
-
 static MUST_CHECK value_t error_calc1(oper_t op) {
     return val_reference(op->v1);
 }
@@ -791,7 +769,6 @@ void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->name = name;
     obj->destroy = invalid_destroy;
     obj->copy = invalid_copy;
-    obj->copy_temp = invalid_copy;
     obj->same = invalid_same;
     obj->truth = invalid_truth;
     obj->hash = invalid_hash;
@@ -829,31 +806,26 @@ void objects_init(void) {
     obj_init(&macro_obj, T_MACRO, "<macro>");
     macro_obj.destroy = macro_destroy;
     macro_obj.copy = macro_copy;
-    macro_obj.copy_temp = macro_copy_temp;
     macro_obj.same = macro_same;
     obj_init(&segment_obj, T_SEGMENT, "<segment>");
     segment_obj.destroy = macro_destroy;
     segment_obj.copy = macro_copy;
-    segment_obj.copy_temp = macro_copy_temp;
     segment_obj.same = macro_same;
     obj_init(&lbl_obj, T_LBL, "<lbl>");
     lbl_obj.same = lbl_same;
     obj_init(&mfunc_obj, T_MFUNC, "<function>");
     mfunc_obj.destroy = mfunc_destroy;
     mfunc_obj.copy = mfunc_copy;
-    mfunc_obj.copy_temp = mfunc_copy_temp;
     mfunc_obj.same = mfunc_same;
     obj_init(&struct_obj, T_STRUCT, "<struct>");
     struct_obj.destroy = macro_destroy;
     struct_obj.copy = macro_copy;
-    struct_obj.copy_temp = macro_copy_temp;
     struct_obj.same = macro_same;
     struct_obj.size = struct_size;
     struct_obj.calc2 = struct_calc2;
     obj_init(&union_obj, T_UNION, "<union>");
     union_obj.destroy = macro_destroy;
     union_obj.copy = macro_copy;
-    union_obj.copy_temp = macro_copy_temp;
     union_obj.same = macro_same;
     union_obj.size = struct_size;
     union_obj.calc2 = struct_calc2;
@@ -875,7 +847,6 @@ void objects_init(void) {
     obj_init(&error_obj, T_ERROR, "<error>");
     error_obj.destroy = error_destroy;
     error_obj.copy = error_copy;
-    error_obj.copy_temp = error_copy_temp;
     error_obj.calc1 = error_calc1;
     error_obj.calc2 = error_calc2;
     error_obj.rcalc2 = error_rcalc2;
@@ -897,7 +868,6 @@ void objects_init(void) {
     obj_init(&dict_obj, T_DICT, "<dict>");
     dict_obj.destroy = dict_destroy;
     dict_obj.copy = dict_copy;
-    dict_obj.copy_temp = dict_copy_temp;
     dict_obj.same = dict_same;
     dict_obj.len = dict_len;
     dict_obj.repr = dict_repr;

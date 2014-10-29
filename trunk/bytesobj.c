@@ -53,15 +53,6 @@ static void copy(const value_t v1, value_t v) {
     v->u.bytes.data = s;
 }
 
-static void copy_temp(const value_t v1, value_t v) {
-    v->obj = BYTES_OBJ;
-    v->u.bytes.len = v1->u.bytes.len;
-    if (v1->u.bytes.data == v1->u.bytes.val) {
-        v->u.bytes.data = v->u.bytes.val;
-        if (v->u.bytes.len) memcpy(v->u.bytes.data, v1->u.bytes.data, v->u.bytes.len);
-    } else v->u.bytes.data = v1->u.bytes.data;
-}
-
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == BYTES_OBJ && v1->u.bytes.len == v2->u.bytes.len && (
             v1->u.bytes.data == v2->u.bytes.data ||
@@ -535,7 +526,6 @@ void bytesobj_init(void) {
     obj_init(&obj, T_BYTES, "<bytes>");
     obj.destroy = destroy;
     obj.copy = copy;
-    obj.copy_temp = copy_temp;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;

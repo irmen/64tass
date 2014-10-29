@@ -81,7 +81,6 @@ struct obj_s {
     const char *name;
     void (*destroy)(value_t);
     void (*copy)(const value_t, value_t);
-    void (*copy_temp)(const value_t, value_t);
     int (*same)(const value_t, const value_t);
     value_t (*truth)(const value_t, enum truth_e, linepos_t) MUST_CHECK;
     value_t (*hash)(const value_t, int *, linepos_t) MUST_CHECK;

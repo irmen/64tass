@@ -57,16 +57,6 @@ static void copy(const value_t v1, value_t v) {
     v->u.str.data = s;
 }
 
-static void copy_temp(const value_t v1, value_t v) {
-    v->obj = v1->obj;
-    v->u.str.chars = v1->u.str.chars;
-    v->u.str.len = v1->u.str.len;
-    if (v1->u.str.data == v1->u.str.val) {
-        v->u.str.data = v->u.str.val;
-        if (v->u.str.len) memcpy(v->u.str.data, v1->u.str.data, v->u.str.len);
-    } else v->u.str.data = v1->u.str.data;
-}
-
 static int same(const value_t v1, const value_t v2) {
     return v1->obj == v2->obj && v1->u.str.len == v2->u.str.len && (
             v1->u.str.data == v2->u.str.data ||
@@ -813,7 +803,6 @@ void strobj_init(void) {
     obj_init(&str_obj, T_STR, "<str>");
     str_obj.destroy = destroy;
     str_obj.copy = copy;
-    str_obj.copy_temp = copy_temp;
     str_obj.same = same;
     str_obj.truth = truth;
     str_obj.hash = hash;
@@ -836,7 +825,6 @@ void strobj_init(void) {
     obj_init(&register_obj, T_REGISTER, "<register>");
     register_obj.destroy = destroy;
     register_obj.copy = copy;
-    register_obj.copy_temp = copy_temp;
     register_obj.same = same;
     register_obj.hash = hash;
     register_obj.repr = register_repr;

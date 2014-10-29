@@ -63,21 +63,6 @@ static void copy(const value_t v1, value_t v) {
     }
 }
 
-static void copy_temp(const value_t v1, value_t v) {
-    v->obj = v1->obj;
-    if (v1->u.integer.len) {
-        v->u.integer.len = v1->u.integer.len;
-        if (v1->u.integer.data == v1->u.integer.val) {
-            v->u.integer.data = v->u.integer.val;
-            memcpy(v->u.integer.data, v1->u.integer.data, abs(v->u.integer.len) * sizeof(digit_t));
-        } else v->u.integer.data = v1->u.integer.data;
-    } else {
-        v->u.integer.data = v->u.integer.val;
-        v->u.integer.val[0] = 0;
-        v->u.integer.len = 0;
-    }
-}
-
 static int same(const value_t v1, const value_t v2) {
     if (v2->obj != INT_OBJ || v1->u.integer.len != v2->u.integer.len) return 0;
     return !memcmp(v1->u.integer.data, v2->u.integer.data, abs(v1->u.integer.len) * sizeof(digit_t));
@@ -1549,7 +1534,6 @@ void intobj_init(void) {
     obj_init(&obj, T_INT, "<int>");
     obj.destroy = destroy;
     obj.copy = copy;
-    obj.copy_temp = copy_temp;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;
