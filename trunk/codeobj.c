@@ -31,14 +31,14 @@ static struct obj_s obj;
 
 obj_t CODE_OBJ = &obj;
 
-static void destroy(struct value_s *v1) {
+static void destroy(value_t v1) {
     val_destroy(v1->u.code.addr);
     if (v1->u.code.label->parent == NULL) label_destroy(v1->u.code.label);
 }
 
-static MUST_CHECK struct value_s *access_check(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t access_check(const value_t v1, linepos_t epoint) {
     if (v1->u.code.label->requires & ~current_section->provides) {
-        struct value_s *v = val_alloc();
+        value_t v = val_alloc();
         v->obj = ERROR_OBJ;
         v->u.error.u.ident = v1->u.code.label->name;
         v->u.error.epoint = *epoint;
@@ -46,7 +46,7 @@ static MUST_CHECK struct value_s *access_check(const struct value_s *v1, linepos
         return v;
     }
     if (v1->u.code.label->conflicts & current_section->provides) {
-        struct value_s *v = val_alloc();
+        value_t v = val_alloc();
         v->obj = ERROR_OBJ;
         v->u.error.u.ident = v1->u.code.label->name;
         v->u.error.epoint = *epoint;
@@ -56,90 +56,90 @@ static MUST_CHECK struct value_s *access_check(const struct value_s *v1, linepos
     return NULL;
 }
 
-static void copy(const struct value_s *v1, struct value_s *v) {
+static void copy(const value_t v1, value_t v) {
     v->obj = CODE_OBJ;
     memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
     v->u.code.addr = val_reference(v1->u.code.addr);
 }
 
-static int same(const struct value_s *v1, const struct value_s *v2) {
+static int same(const value_t v1, const value_t v2) {
     return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || obj_same(v1->u.code.addr, v2->u.code.addr)) && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.label == v2->u.code.label;
 }
 
-static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e type, linepos_t epoint) {
-    struct value_s *err = access_check(v1, epoint);
+static MUST_CHECK value_t truth(value_t v1, enum truth_e type, linepos_t epoint) {
+    value_t err = access_check(v1, epoint);
     if (err) return err;
     v1 = v1->u.code.addr;
     return v1->obj->truth(v1, type, epoint);
 }
 
-static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t repr(value_t v1, linepos_t epoint) {
     if (epoint) {
-        struct value_s *err = access_check(v1, epoint);
+        value_t err = access_check(v1, epoint);
         if (err) return err;
     }
     v1 = v1->u.code.addr;
     return v1->obj->repr(v1, epoint);
 }
 
-static MUST_CHECK struct value_s *MUST_CHECK ival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s *err = access_check(v1, epoint);
+static MUST_CHECK value_t MUST_CHECK ival(value_t v1, ival_t *iv, int bits, linepos_t epoint) {
+    value_t err = access_check(v1, epoint);
     if (err) return err;
     v1 = v1->u.code.addr;
     return v1->obj->ival(v1, iv, bits, epoint);
 }
 
-static MUST_CHECK struct value_s *MUST_CHECK uval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s *err = access_check(v1, epoint);
+static MUST_CHECK value_t MUST_CHECK uval(value_t v1, uval_t *uv, int bits, linepos_t epoint) {
+    value_t err = access_check(v1, epoint);
     if (err) return err;
     v1 = v1->u.code.addr;
     return v1->obj->uval(v1, uv, bits, epoint);
 }
 
-static MUST_CHECK struct value_s *MUST_CHECK real(const struct value_s *v1, double *r, linepos_t epoint) {
-    struct value_s *err = access_check(v1, epoint);
+static MUST_CHECK value_t MUST_CHECK real(value_t v1, double *r, linepos_t epoint) {
+    value_t err = access_check(v1, epoint);
     if (err) return err;
     v1 = v1->u.code.addr;
     return v1->obj->real(v1, r, epoint);
 }
 
-static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t epoint) {
-    struct value_s *err = access_check(v1, epoint);
+static MUST_CHECK value_t sign(value_t v1, linepos_t epoint) {
+    value_t err = access_check(v1, epoint);
     if (err) return err;
     v1 = v1->u.code.addr;
     return v1->obj->sign(v1, epoint);
 }
 
-static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t epoint) {
-    struct value_s *err = access_check(v1, epoint);
+static MUST_CHECK value_t absolute(value_t v1, linepos_t epoint) {
+    value_t err = access_check(v1, epoint);
     if (err) return err;
     v1 = v1->u.code.addr;
     return v1->obj->abs(v1, epoint);
 }
 
-static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t epoint) {
-    struct value_s *err = access_check(v1, epoint);
+static MUST_CHECK value_t integer(value_t v1, linepos_t epoint) {
+    value_t err = access_check(v1, epoint);
     if (err) return err;
     v1 = v1->u.code.addr;
     return v1->obj->integer(v1, epoint);
 }
 
-static MUST_CHECK struct value_s *len(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
     if (!v1->u.code.pass) {
         return val_reference(none_value);
     }
     return int_from_uval(v1->u.code.size / (abs(v1->u.code.dtype) + !v1->u.code.dtype));
 }
 
-static MUST_CHECK struct value_s *size(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t size(const value_t v1, linepos_t UNUSED(epoint)) {
     if (!v1->u.code.pass) {
         return val_reference(none_value);
     }
     return int_from_uval(v1->u.code.size);
 }
 
-static MUST_CHECK struct value_s *calc1(oper_t op) {
-    struct value_s *v, *v1 = op->v1;
+static MUST_CHECK value_t calc1(oper_t op) {
+    value_t v, v1 = op->v1;
     switch (op->op->u.oper.op) {
     case O_BANK:
     case O_HIGHER:
@@ -168,8 +168,8 @@ static MUST_CHECK struct value_s *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v, *err;
+static MUST_CHECK value_t calc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v, err;
     if (op->op == &o_MEMBER) {
         struct label_s *l, *l2;
         struct linepos_s epoint;
@@ -262,8 +262,8 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v, *err;
+static MUST_CHECK value_t rcalc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v, err;
     if (op->op == &o_IN) {
         struct oper_s oper;
         size_t i, ln, offs;
@@ -286,7 +286,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         oper.epoint2 = op->epoint2;
         oper.epoint3 = op->epoint3;
         for (offs = 0; offs < v2->u.code.size;) {
-            struct value_s *tmp;
+            value_t tmp;
             uv = 0;
             r = -1;
             for (i = 0; i < ln; i++) {
@@ -347,8 +347,8 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step, linepos_t epoint) {
-    struct value_s **vals, *v;
+static inline MUST_CHECK value_t slice(value_t v1, uval_t ln, ival_t offs, ival_t end, ival_t step, linepos_t epoint) {
+    value_t *vals, v;
     size_t i, i2;
     size_t ln2;
     size_t offs2;
@@ -395,15 +395,15 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, iv
     return NULL;
 }
 
-static MUST_CHECK struct value_s *iindex(oper_t op) {
-    struct value_s **vals;
+static MUST_CHECK value_t iindex(oper_t op) {
+    value_t *vals;
     size_t i, i2;
     size_t ln, ln2;
     size_t offs2;
     int16_t r;
     ival_t offs;
     uval_t val;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v, *err;
+    value_t v1 = op->v1, v2 = op->v2, v, err;
 
     if (v1->u.code.pass != pass) {
         v = val_alloc();

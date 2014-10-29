@@ -24,26 +24,26 @@ static struct obj_s obj;
 
 obj_t BOOL_OBJ = &obj;
 
-static void copy(const struct value_s *v1, struct value_s *v) {
+static void copy(const value_t v1, value_t v) {
     v->obj = BOOL_OBJ;
     v->u.boolean = v1->u.boolean;
 }
 
-static int same(const struct value_s *v1, const struct value_s *v2) {
+static int same(const value_t v1, const value_t v2) {
     return v2->obj == BOOL_OBJ && v1->u.boolean == v2->u.boolean;
 }
 
-static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t truth(const value_t v1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
     return truth_reference(v1->u.boolean);
 }
 
-static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
     *hs = v1->u.boolean;
     return NULL;
 }
 
-static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
-    struct value_s *v = val_alloc();
+static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
+    value_t v = val_alloc();
     uint8_t *s = str_create_elements(v, 4 + !v1->u.boolean);
     v->obj = STR_OBJ;
     v->u.str.data = s;
@@ -53,39 +53,39 @@ static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSE
     return v;
 }
 
-static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
     *iv = v1->u.boolean;
     return NULL;
 }
 
-static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
     *uv = v1->u.boolean;
     return NULL;
 }
 
-static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t UNUSED(epoint)) {
     *r = v1->u.boolean;
     return NULL;
 }
 
-static inline MUST_CHECK struct value_s *int_from_bool(int i) {
+static inline MUST_CHECK value_t int_from_bool(int i) {
     return val_reference(int_value[i]);
 }
 
-static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_bool(v1->u.boolean);
 }
 
-static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_bool(v1->u.boolean);
 }
 
-static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_bool(v1->u.boolean);
 }
 
-static MUST_CHECK struct value_s *calc1(oper_t op) {
-    struct value_s *v1 = op->v1;
+static MUST_CHECK value_t calc1(oper_t op) {
+    value_t v1 = op->v1;
     switch (op->op->u.oper.op) {
     case O_BANK:
     case O_HIGHER: return bits_from_u8(0);
@@ -102,7 +102,7 @@ static MUST_CHECK struct value_s *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *calc2_bool(oper_t op, int v1, int v2) {
+static MUST_CHECK value_t calc2_bool(oper_t op, int v1, int v2) {
     switch (op->op->u.oper.op) {
     case O_CMP: 
         if (!v1 && v2) return int_from_int(-1);
@@ -118,7 +118,7 @@ static MUST_CHECK struct value_s *calc2_bool(oper_t op, int v1, int v2) {
     case O_MUL: return int_from_bool(v1 & v2);
     case O_DIV:
         if (!v2) { 
-            struct value_s *v = val_alloc();
+            value_t v = val_alloc();
             v->obj = ERROR_OBJ; 
             v->u.error.num = ERROR_DIVISION_BY_Z; 
             v->u.error.epoint = *op->epoint2; 
@@ -127,7 +127,7 @@ static MUST_CHECK struct value_s *calc2_bool(oper_t op, int v1, int v2) {
         return int_from_bool(v1);
     case O_MOD:
         if (!v2) { 
-            struct value_s *v = val_alloc();
+            value_t v = val_alloc();
             v->obj = ERROR_OBJ; 
             v->u.error.num = ERROR_DIVISION_BY_Z; 
             v->u.error.epoint = *op->epoint2; 
@@ -146,7 +146,7 @@ static MUST_CHECK struct value_s *calc2_bool(oper_t op, int v1, int v2) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *calc2(oper_t op) {
+static MUST_CHECK value_t calc2(oper_t op) {
     switch (op->v2->obj->type) {
     case T_BOOL: return calc2_bool(op, op->v1->u.boolean, op->v2->u.boolean);
     default: 
@@ -157,7 +157,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *rcalc2(oper_t op) {
+static MUST_CHECK value_t rcalc2(oper_t op) {
     switch (op->v1->obj->type) {
     case T_BOOL: return calc2_bool(op, op->v1->u.boolean, op->v2->u.boolean);
     default:

@@ -26,17 +26,17 @@
 #include "bytesobj.h"
 #include "bitsobj.h"
 
-struct value_s *int_value[2];
-struct value_s *none_value;
-struct value_s *true_value;
-struct value_s *false_value;
-struct value_s *gap_value;
-struct value_s *null_str;
-struct value_s *null_bytes;
-struct value_s *null_bits;
-struct value_s *null_tuple;
-struct value_s *null_list;
-struct value_s *null_addrlist;
+value_t int_value[2];
+value_t none_value;
+value_t true_value;
+value_t false_value;
+value_t gap_value;
+value_t null_str;
+value_t null_bytes;
+value_t null_bits;
+value_t null_tuple;
+value_t null_list;
+value_t null_addrlist;
 
 struct value_s o_TUPLE;
 struct value_s o_LIST;
@@ -120,10 +120,10 @@ static inline void value_free(union values_u *val) {
 #endif
 }
 
-struct value_s *val_alloc(void) {
-    struct value_s *val;
+value_t val_alloc(void) {
+    value_t val;
 #ifdef DEBUG
-    val = (struct value_s *)malloc(sizeof(struct value_s));
+    val = (value_t)malloc(sizeof(struct value_s));
     val->refcount = 1;
 #else
     if (!values_free) {
@@ -140,13 +140,13 @@ struct value_s *val_alloc(void) {
         values->next = old;
         values_free = &values->vals[0];
     }
-    val = (struct value_s *)values_free;
+    val = (value_t)values_free;
     values_free = values_free->next;
 #endif
     return val;
 }
 
-void val_destroy(struct value_s *val) {
+void val_destroy(value_t val) {
     if (!val->refcount) {
         obj_destroy(val);
         return;
@@ -157,7 +157,7 @@ void val_destroy(struct value_s *val) {
     } else val->refcount--;
 }
 
-void val_replace(struct value_s **val, struct value_s *val2) {
+void val_replace(value_t *val, value_t val2) {
     if (*val == val2) return;
     if ((*val)->refcount == 1 && val2->refcount == 0) {
         obj_destroy(*val);
@@ -172,7 +172,7 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
     const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
-    struct value_s *result;
+    value_t result;
     struct oper_s oper;
     int h = a->hash - b->hash;
 
@@ -187,8 +187,8 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     return h;
 }
 
-int val_print(const struct value_s *v1, FILE *f) {
-    struct value_s *err;
+int val_print(const value_t v1, FILE *f) {
+    value_t err;
     struct linepos_s nopoint = {0, 0};
     int len;
     err = v1->obj->repr(v1, &nopoint);

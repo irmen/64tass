@@ -38,7 +38,7 @@ typedef struct {
     uint8_t pass;
     uint8_t apass;
     signed char dtype;
-    struct value_s *addr;
+    value_t addr;
     const struct memblocks_s *mem;
     size_t memp;
     size_t membp;

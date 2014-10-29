@@ -133,7 +133,7 @@ static void printllist(int l) {
     }
 }
 
-void listing_equal(const struct value_s *val) {
+void listing_equal(const value_t val) {
     if (!nolisting && flist && arguments.source && !temporary_label_branch) {
         int oldreferenceit = referenceit;
         int l;

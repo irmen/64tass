@@ -103,9 +103,9 @@ enum oper_e {
 };
 
 struct oper_s {
-    const struct value_s *op;
-    struct value_s *v1;
-    struct value_s *v2;
+    value_t op;
+    value_t v1;
+    value_t v2;
     linepos_t epoint;
     linepos_t epoint2;
     linepos_t epoint3;
@@ -143,9 +143,9 @@ struct value_s {
             union {
                 str_t ident;
                 struct {
-                    const struct value_s *op;
-                    struct value_s *v1;
-                    struct value_s *v2;
+                    value_t op;
+                    value_t v1;
+                    value_t v2;
                 } invoper;
                 struct {
                     str_t ident;
@@ -167,7 +167,7 @@ struct value_s {
         struct {
             void *iter;
             size_t val;
-            struct value_s *data;
+            value_t data;
         } iter;
         double real;
         int boolean;
@@ -175,23 +175,23 @@ struct value_s {
     } u;
 };
 
-extern struct value_s *val_alloc(void);
-extern void val_destroy(struct value_s *);
-extern void val_replace(struct value_s **, struct value_s *);
-extern int val_print(const struct value_s *, FILE *);
+extern value_t val_alloc(void);
+extern void val_destroy(value_t);
+extern void val_replace(value_t *, value_t);
+extern int val_print(const value_t, FILE *);
 extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
 
-extern struct value_s *int_value[2];
-extern struct value_s *none_value;
-extern struct value_s *true_value;
-extern struct value_s *false_value;
-extern struct value_s *gap_value;
-extern struct value_s *null_str;
-extern struct value_s *null_bytes;
-extern struct value_s *null_bits;
-extern struct value_s *null_tuple;
-extern struct value_s *null_list;
-extern struct value_s *null_addrlist;
+extern value_t int_value[2];
+extern value_t none_value;
+extern value_t true_value;
+extern value_t false_value;
+extern value_t gap_value;
+extern value_t null_str;
+extern value_t null_bytes;
+extern value_t null_bits;
+extern value_t null_tuple;
+extern value_t null_list;
+extern value_t null_addrlist;
 
 extern struct value_s o_TUPLE;
 extern struct value_s o_LIST;
@@ -259,27 +259,27 @@ extern struct value_s o_MEMBER;
 extern void destroy_values(void);
 extern void init_values(void);
 
-static inline void obj_destroy(struct value_s *v1) {
+static inline void obj_destroy(value_t v1) {
     v1->obj->destroy(v1);
 }
 
-static inline int obj_same(const struct value_s *v1, const struct value_s *v2) {
+static inline int obj_same(const value_t v1, const value_t v2) {
     return v1->obj->same(v1, v2);
 }
 
-static inline MUST_CHECK struct value_s *obj_hash(const struct value_s *v1, int *hs, linepos_t epoint) {
+static inline MUST_CHECK value_t obj_hash(const value_t v1, int *hs, linepos_t epoint) {
     return v1->obj->hash(v1, hs, epoint);
 }
 
-static inline struct value_s *val_reference(struct value_s *v1) {
+static inline value_t val_reference(value_t v1) {
     v1->refcount++; return v1;
 }
 
-static inline MUST_CHECK struct value_s *truth_reference(int i) {
+static inline MUST_CHECK value_t truth_reference(int i) {
     return val_reference(i ? true_value : false_value);
 }
 
-static inline struct value_s *obj_next(struct value_s *v1) {
+static inline value_t obj_next(value_t v1) {
     return v1->obj->next(v1);
 }
 #endif

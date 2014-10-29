@@ -26,11 +26,11 @@ extern obj_t COLONLIST_OBJ;
 
 typedef struct {
     size_t len;
-    struct value_s **data;
-    struct value_s *val[5];
+    value_t *data;
+    value_t val[5];
 } list_t;
 
 extern void listobj_init(void);
 
-extern struct value_s **list_create_elements(struct value_s *, size_t);
+extern value_t *list_create_elements(value_t, size_t);
 #endif

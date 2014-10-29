@@ -38,11 +38,11 @@ static struct obj_s obj;
 
 obj_t INT_OBJ = &obj;
 
-static void destroy(struct value_s *v1) {
+static void destroy(value_t v1) {
     if (v1->u.integer.val != v1->u.integer.data) free(v1->u.integer.data);
 }
 
-static digit_t *inew(struct value_s *v, ssize_t len) {
+static digit_t *inew(value_t v, ssize_t len) {
     if (len > (ssize_t)sizeof(v->u.integer.val)/(ssize_t)sizeof(v->u.integer.val[0])) {
         digit_t *s = (digit_t *)malloc(len * sizeof(digit_t));
         if (!s || len > SSIZE_MAX / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
@@ -51,7 +51,7 @@ static digit_t *inew(struct value_s *v, ssize_t len) {
     return v->u.integer.val;
 }
 
-static void copy(const struct value_s *v1, struct value_s *v) {
+static void copy(const value_t v1, value_t v) {
     v->obj = INT_OBJ;
     v->u.integer.len = v1->u.integer.len;
     if (v1->u.integer.len) {
@@ -63,7 +63,7 @@ static void copy(const struct value_s *v1, struct value_s *v) {
     }
 }
 
-static void copy_temp(const struct value_s *v1, struct value_s *v) {
+static void copy_temp(const value_t v1, value_t v) {
     v->obj = v1->obj;
     if (v1->u.integer.len) {
         v->u.integer.len = v1->u.integer.len;
@@ -78,16 +78,16 @@ static void copy_temp(const struct value_s *v1, struct value_s *v) {
     }
 }
 
-static int same(const struct value_s *v1, const struct value_s *v2) {
+static int same(const value_t v1, const value_t v2) {
     if (v2->obj != INT_OBJ || v1->u.integer.len != v2->u.integer.len) return 0;
     return !memcmp(v1->u.integer.data, v2->u.integer.data, abs(v1->u.integer.len) * sizeof(digit_t));
 }
 
-static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t truth(const value_t v1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
     return truth_reference(!!v1->u.integer.len);
 }
 
-static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
     ssize_t l = v1->u.integer.len;
     unsigned int h;
     
@@ -112,14 +112,14 @@ static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepo
     return NULL;
 }
 
-static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     ssize_t len = abs(v1->u.integer.len);
     int neg = v1->u.integer.len < 0;
     uint8_t *s;
     digit_t ten, r, *out;
     size_t slen, i, j, sz, len2;
     struct value_s tmp;
-    struct value_s *v = val_alloc();
+    value_t v = val_alloc();
 
     if (len <= 1) {
         char tmp2[sizeof(digit_t) * 3];
@@ -187,8 +187,8 @@ static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSE
     return v;
 }
 
-static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s *v;
+static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
+    value_t v;
     switch (v1->u.integer.len) {
     case 2: 
         if (v1->u.integer.data[1] >= (~(uval_t)1 << (8*sizeof(uval_t) - SHIFT - 1))) break;
@@ -219,8 +219,8 @@ static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int
     return v;
 }
 
-static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s *v;
+static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
+    value_t v;
     switch (v1->u.integer.len) {
     case 2:
         if (v1->u.integer.data[1] >= (~(uval_t)1 << (8*sizeof(uval_t) - SHIFT))) break;
@@ -242,14 +242,14 @@ static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int
     return v;
 }
 
-static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t epoint) {
+static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
     ssize_t i, len1 = abs(v1->u.integer.len);
     double d = 0;
     for (i = 0; i < len1; i++) {
         if (v1->u.integer.len < 0) d -= ldexp((double)v1->u.integer.data[i], i * SHIFT);
         else d += ldexp((double)v1->u.integer.data[i], i * SHIFT);
         if (d == HUGE_VAL) {
-            struct value_s *v = val_alloc();
+            value_t v = val_alloc();
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;
@@ -261,29 +261,29 @@ static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, line
     return NULL;
 }
 
-static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
     if (v1->u.integer.len < 0) return int_from_int(-1);
     return val_reference(int_value[v1->u.integer.len > 0]);
 }
 
-static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t UNUSED(epoint)) {
-    struct value_s *v = val_alloc();
+static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
+    value_t v = val_alloc();
     copy(v1, v);
     if (v->u.integer.len < 0) v->u.integer.len = -v->u.integer.len;
     return v;
 }
 
-static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t UNUSED(epoint)) {
-    struct value_s *v = val_alloc();
+static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
+    value_t v = val_alloc();
     copy(v1, v);
     return v;
 }
 
-static void iadd(const struct value_s *, const struct value_s *, struct value_s *);
-static void isub(const struct value_s *, const struct value_s *, struct value_s *);
+static void iadd(const value_t, const value_t, value_t);
+static void isub(const value_t, const value_t, value_t);
 
-static MUST_CHECK struct value_s *calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v;
+static MUST_CHECK value_t calc1(oper_t op) {
+    value_t v1 = op->v1, v;
     uval_t uv;
     switch (op->op->u.oper.op) {
     case O_BANK: 
@@ -334,7 +334,7 @@ static MUST_CHECK struct value_s *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static void iadd(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
+static void iadd(value_t vv1, value_t vv2, value_t vv) {
     ssize_t i, len1, len2;
     digit_t *v1, *v2, *v;
     digit_t c;
@@ -355,7 +355,7 @@ static void iadd(const struct value_s *vv1, const struct value_s *vv2, struct va
         return;
     }
     if (len1 < len2) {
-        const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
     if (len1 + 1 < 1) err_msg_out_of_memory(); /* overflow */
@@ -384,7 +384,7 @@ static void iadd(const struct value_s *vv1, const struct value_s *vv2, struct va
     vv->u.integer.len = i;
 }
 
-static void isub(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
+static void isub(value_t vv1, value_t vv2, value_t vv) {
     ssize_t i, len1, len2;
     digit_t *v1, *v2, *v;
     digit_t c;
@@ -405,7 +405,7 @@ static void isub(const struct value_s *vv1, const struct value_s *vv2, struct va
         return;
     }
     if (len1 < len2) {
-        const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
         neg = 1;
         i = len1; len1 = len2; len2 = i;
     } else {
@@ -422,7 +422,7 @@ static void isub(const struct value_s *vv1, const struct value_s *vv2, struct va
                 return;
             }
             if (v1[i - 1] < v2[i - 1]) {
-                const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
+                const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
                 neg = 1;
             }
             len1 = len2 = i;
@@ -452,7 +452,7 @@ static void isub(const struct value_s *vv1, const struct value_s *vv2, struct va
     vv->u.integer.len = neg ? -i : i;
 }
 
-static void imul(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
+static void imul(const value_t vv1, const value_t vv2, value_t vv) {
     ssize_t i, j, len1, len2, sz;
     digit_t *v1, *v2, *v;
     struct value_s tmp;
@@ -499,7 +499,7 @@ static void imul(const struct value_s *vv1, const struct value_s *vv2, struct va
     vv->u.integer.len = i;
 }
 
-static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv, struct value_s *rem) {
+static void idivrem(const value_t vv1, const value_t vv2, value_t vv, value_t rem) {
     ssize_t len1, len2;
     int neg, negr;
     len2 = abs(vv2->u.integer.len);
@@ -639,10 +639,10 @@ static void idivrem(const struct value_s *vv1, const struct value_s *vv2, struct
     if (negr) rem->u.integer.len = -rem->u.integer.len;
 }
 
-static MUST_CHECK struct value_s *power(const struct value_s *vv1, const struct value_s *vv2) {
+static MUST_CHECK value_t power(const value_t vv1, const value_t vv2) {
     int j, neg = 0;
     size_t i;
-    struct value_s *v = int_from_int(1);
+    value_t v = int_from_int(1);
 
     for (i = vv2->u.integer.len; i--;) {
         digit_t d = vv2->u.integer.data[i];
@@ -658,7 +658,7 @@ static MUST_CHECK struct value_s *power(const struct value_s *vv1, const struct 
     return v;
 }
 
-static void ilshift(const struct value_s *vv1, const struct value_s *vv2, uval_t s, struct value_s *vv) {
+static void ilshift(const value_t vv1, const value_t vv2, uval_t s, value_t vv) {
     ssize_t i, len1, sz;
     int word, bit, neg;
     digit_t *v1, *v, *v2;
@@ -691,7 +691,7 @@ static void ilshift(const struct value_s *vv1, const struct value_s *vv2, uval_t
     vv->u.integer.len = neg ? -i : i;
 }
 
-static void irshift(const struct value_s *vv1, const struct value_s *vv2, uval_t s, struct value_s *vv) {
+static void irshift(value_t vv1, value_t vv2, uval_t s, value_t vv) {
     ssize_t i, sz;
     int word, bit, neg;
     digit_t *v1, *v;
@@ -747,7 +747,7 @@ static void irshift(const struct value_s *vv1, const struct value_s *vv2, uval_t
     vv->u.integer.len = i;
 }
 
-static void iand(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
+static void iand(value_t vv1, value_t vv2, value_t vv) {
     ssize_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
@@ -768,7 +768,7 @@ static void iand(const struct value_s *vv1, const struct value_s *vv2, struct va
         return;
     }
     if (len1 < len2) {
-        const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
     v1 = vv1->u.integer.data; v2 = vv2->u.integer.data;
@@ -821,7 +821,7 @@ static void iand(const struct value_s *vv1, const struct value_s *vv2, struct va
     vv->u.integer.len = (neg1 & neg2) ? -sz : sz;
 }
 
-static void ior(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
+static void ior(value_t vv1, value_t vv2, value_t vv) {
     ssize_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
@@ -842,7 +842,7 @@ static void ior(const struct value_s *vv1, const struct value_s *vv2, struct val
         return;
     }
     if (len1 < len2) {
-        const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
     v1 = vv1->u.integer.data; v2 = vv2->u.integer.data;
@@ -901,7 +901,7 @@ static void ior(const struct value_s *vv1, const struct value_s *vv2, struct val
     vv->u.integer.len = (neg1 | neg2) ? -sz : sz;
 }
 
-static void ixor(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
+static void ixor(value_t vv1, value_t vv2, value_t vv) {
     ssize_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
@@ -922,7 +922,7 @@ static void ixor(const struct value_s *vv1, const struct value_s *vv2, struct va
         return;
     }
     if (len1 < len2) {
-        const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
     v1 = vv1->u.integer.data; v2 = vv2->u.integer.data;
@@ -979,7 +979,7 @@ static void ixor(const struct value_s *vv1, const struct value_s *vv2, struct va
     vv->u.integer.len = (neg1 ^ neg2) ? -sz : sz;
 }
 
-static int icmp(const struct value_s *vv1, const struct value_s *vv2) {
+static int icmp(const value_t vv1, const value_t vv2) {
     ssize_t i;
     i = vv1->u.integer.len - vv2->u.integer.len;
     if (i) return i;
@@ -990,8 +990,8 @@ static int icmp(const struct value_s *vv1, const struct value_s *vv2) {
     return (vv1->u.integer.len < 0) ? -i : i;
 }
 
-MUST_CHECK struct value_s *int_from_int(int i) {
-    struct value_s *v = val_alloc();
+MUST_CHECK value_t int_from_int(int i) {
+    value_t v = val_alloc();
     v->obj = INT_OBJ;
     v->u.integer.data = v->u.integer.val;
     if (i < 0) {
@@ -1004,8 +1004,8 @@ MUST_CHECK struct value_s *int_from_int(int i) {
     return v;
 }
 
-MUST_CHECK struct value_s *int_from_uval(uval_t i) {
-    struct value_s *v = val_alloc();
+MUST_CHECK value_t int_from_uval(uval_t i) {
+    value_t v = val_alloc();
     v->obj = INT_OBJ;
     v->u.integer.data = v->u.integer.val;
     if (i > MASK) {
@@ -1019,8 +1019,8 @@ MUST_CHECK struct value_s *int_from_uval(uval_t i) {
     return v;
 }
 
-MUST_CHECK struct value_s *int_from_ival(ival_t i) {
-    struct value_s *v = val_alloc();
+MUST_CHECK value_t int_from_ival(ival_t i) {
+    value_t v = val_alloc();
     v->obj = INT_OBJ;
     v->u.integer.data = v->u.integer.val;
     if (i < 0) {
@@ -1045,12 +1045,12 @@ MUST_CHECK struct value_s *int_from_ival(ival_t i) {
     return v;
 }
 
-MUST_CHECK struct value_s *int_from_double(double f, linepos_t epoint) {
+MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
     int neg, expo;
     double frac;
     ssize_t sz;
     digit_t *d;
-    struct value_s *v;
+    value_t v;
 
     if (f == HUGE_VAL) {
         v = val_alloc();
@@ -1085,14 +1085,14 @@ MUST_CHECK struct value_s *int_from_double(double f, linepos_t epoint) {
     return v;
 }
 
-MUST_CHECK struct value_s *int_from_bytes(const struct value_s *v1) {
+MUST_CHECK value_t int_from_bytes(const value_t v1) {
     uval_t uv = 0;
     int bits = 0;
     ssize_t j = 0, sz;
     size_t i = 0;
     digit_t *d;
     const uint8_t *b;
-    struct value_s *v;
+    value_t v;
 
     if (!v1->u.bytes.len) {
         return val_reference(int_value[0]);
@@ -1132,7 +1132,7 @@ MUST_CHECK struct value_s *int_from_bytes(const struct value_s *v1) {
     return v;
 }
 
-MUST_CHECK struct value_s *int_from_bits(const struct value_s *v1) {
+MUST_CHECK value_t int_from_bits(const value_t v1) {
     uval_t uv = 0;
     int bits = 0;
     int inv;
@@ -1140,7 +1140,7 @@ MUST_CHECK struct value_s *int_from_bits(const struct value_s *v1) {
     size_t i = 0;
     digit_t *d;
     const bdigit_t *b;
-    struct value_s *v;
+    value_t v;
 
     if (!v1->u.bits.len) {
         if (v1->u.bits.inv) {
@@ -1211,9 +1211,9 @@ MUST_CHECK struct value_s *int_from_bits(const struct value_s *v1) {
     return v;
 }
 
-MUST_CHECK struct value_s *int_from_str(const struct value_s *v1, linepos_t epoint) {
+MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
     int ch;
-    struct value_s *v;
+    value_t v;
 
     if (actual_encoding) {
         uval_t uv = 0;
@@ -1294,11 +1294,11 @@ MUST_CHECK struct value_s *int_from_str(const struct value_s *v1, linepos_t epoi
     return v;
 }
 
-MUST_CHECK struct value_s *int_from_decstr(const uint8_t *s, size_t *ln) {
+MUST_CHECK value_t int_from_decstr(const uint8_t *s, size_t *ln) {
     const uint8_t *end;
     size_t i = 0, j, sz, l;
     digit_t *d, *end2;
-    struct value_s *v;
+    value_t v;
 
     while ((s[i] ^ 0x30) < 10) i++;
     if (i < 10) {
@@ -1373,9 +1373,10 @@ MUST_CHECK struct value_s *int_from_decstr(const uint8_t *s, size_t *ln) {
     return v;
 }
 
-static MUST_CHECK struct value_s *calc2_int(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
-    struct value_s tmp, *err;
+static MUST_CHECK value_t calc2_int(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
+    struct value_s tmp;
+    value_t err;
     ival_t shift;
     int i;
     switch (op->op->u.oper.op) {
@@ -1506,8 +1507,8 @@ static MUST_CHECK struct value_s *calc2_int(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *calc2(oper_t op) {
-    struct value_s *tmp, *ret, *v2 = op->v2;
+static MUST_CHECK value_t calc2(oper_t op) {
+    value_t tmp, ret, v2 = op->v2;
     switch (v2->obj->type) {
     case T_INT: return calc2_int(op);
     case T_BOOL:
@@ -1525,8 +1526,8 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *rcalc2(oper_t op) {
-    struct value_s *tmp, *ret, *v1 = op->v1;
+static MUST_CHECK value_t rcalc2(oper_t op) {
+    value_t tmp, ret, v1 = op->v1;
     switch (v1->obj->type) {
     case T_INT: return calc2_int(op);
     case T_BOOL:

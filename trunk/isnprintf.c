@@ -60,7 +60,7 @@
 #endif
 #endif
 
-static struct value_s return_value;
+static ustr_t return_value;
 static size_t returnsize = 0;
 static int none;
 
@@ -102,18 +102,18 @@ static inline const struct values_s *next_arg(void) {
 }
 
 static inline void PUT_CHAR(uint32_t c) {
-    uint8_t *p = (uint8_t *)return_value.u.str.data;
-    if (return_value.u.str.len + 6 >= returnsize) {
+    uint8_t *p = (uint8_t *)return_value.data;
+    if (return_value.len + 6 >= returnsize) {
         returnsize += 256;
         p = (uint8_t *)realloc(p, returnsize);
         if (!p || returnsize < 256) err_msg_out_of_memory(); /* overflow */
-        return_value.u.str.data = p;
+        return_value.data = p;
     }
-    if (c && c < 0x80) p[return_value.u.str.len++] = c; else {
-        p = utf8out(c, p + return_value.u.str.len);
-        return_value.u.str.len = p - return_value.u.str.data;
+    if (c && c < 0x80) p[return_value.len++] = c; else {
+        p = utf8out(c, p + return_value.len);
+        return_value.len = p - return_value.data;
     }
-    return_value.u.str.chars++;
+    return_value.chars++;
 }
 
 /* pad right */
@@ -145,14 +145,14 @@ static inline void PAD_LEFT(struct DATA *p)
 }
 
 /* if width and prec. in the args */
-static MUST_CHECK struct value_s *star_args(struct DATA *p)
+static MUST_CHECK value_t star_args(struct DATA *p)
 {
     uval_t uval;
-    struct value_s *err;
+    value_t err;
 
     if (p->star_w == FOUND) {
         const struct values_s *v = next_arg();
-        const struct value_s *val = v->val;
+        const value_t val = v->val;
         if (val->obj == NONE_OBJ) none = 1;
         else {
             err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
@@ -162,7 +162,7 @@ static MUST_CHECK struct value_s *star_args(struct DATA *p)
     }
     if (p->star_p == FOUND) {
         const struct values_s *v = next_arg();
-        const struct value_s *val = v->val;
+        const value_t val = v->val;
         if (val->obj == NONE_OBJ) none = 1;
         else {
             err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
@@ -176,10 +176,10 @@ static MUST_CHECK struct value_s *star_args(struct DATA *p)
 /* for %d and friends, it puts in holder
  * the representation with the right padding
  */
-static inline MUST_CHECK struct value_s *decimal(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK value_t decimal(struct DATA *p, const struct values_s *v)
 {
     int minus;
-    struct value_s *val = v->val, *err, *err2;
+    value_t val = v->val, err, err2;
     size_t i;
 
     if (val->obj == NONE_OBJ) {
@@ -204,10 +204,10 @@ static inline MUST_CHECK struct value_s *decimal(struct DATA *p, const struct va
 }
 
 /* for %x %X hexadecimal representation */
-static inline MUST_CHECK struct value_s *hexa(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
 {
     int minus;
-    struct value_s *val = v->val, *err;
+    value_t val = v->val, err;
     const char *hex = (*p->pf == 'x') ? "0123456789abcdef" : "0123456789ABCDEF";
     size_t bits;
     int bp, bp2, b;
@@ -263,10 +263,10 @@ static inline MUST_CHECK struct value_s *hexa(struct DATA *p, const struct value
 }
 
 /* for %b binary representation */
-static inline MUST_CHECK struct value_s *bin(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK value_t bin(struct DATA *p, const struct values_s *v)
 {
     int i;
-    struct value_s *val = v->val, *err;
+    value_t val = v->val, err;
 
     if (val->obj == NONE_OBJ) {
         none = 1; 
@@ -307,10 +307,10 @@ static inline MUST_CHECK struct value_s *bin(struct DATA *p, const struct values
 }
 
 /* %c chars */
-static inline MUST_CHECK struct value_s *chars(const struct values_s *v)
+static inline MUST_CHECK value_t chars(const struct values_s *v)
 {
     uval_t uval;
-    struct value_s *val = v->val, *err;
+    value_t val = v->val, err;
 
     if (val->obj == NONE_OBJ) {
         none = 1; 
@@ -325,12 +325,12 @@ static inline MUST_CHECK struct value_s *chars(const struct values_s *v)
 }
 
 /* %s strings */
-static inline MUST_CHECK struct value_s *strings(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK value_t strings(struct DATA *p, const struct values_s *v)
 {
     int i;
     const uint8_t *tmp;
     uint32_t ch;
-    struct value_s *val = v->val, *err;
+    value_t val = v->val, err;
 
     if (val->obj == NONE_OBJ) {
         none = 1;
@@ -362,12 +362,12 @@ static inline MUST_CHECK struct value_s *strings(struct DATA *p, const struct va
 }
 
 /* %f or %g  floating point representation */
-static inline MUST_CHECK struct value_s *floating(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK value_t floating(struct DATA *p, const struct values_s *v)
 {
     char tmp[400], *t, form[10];
     int minus;
     double d;
-    struct value_s *val = v->val, *err;
+    value_t val = v->val, err;
 
     if (val->obj == NONE_OBJ) {
         none = 1;
@@ -440,10 +440,10 @@ static void conv_flag(char * s, struct DATA * p)
 }
 
 /* return templates only! */
-MUST_CHECK struct value_s *isnprintf(struct values_s *vals, unsigned int args)
+MUST_CHECK value_t isnprintf(struct values_s *vals, unsigned int args)
 {
     struct values_s *v = &vals[2];
-    struct value_s *err;
+    value_t err;
     struct DATA data;
     char conv_field[MAX_FIELD];
     int state;
@@ -469,9 +469,9 @@ MUST_CHECK struct value_s *isnprintf(struct values_s *vals, unsigned int args)
     list = &vals[3];
     largs = args - 1;
 
-    return_value.u.str.data = NULL;
-    return_value.u.str.len = 0;
-    return_value.u.str.chars = 0;
+    return_value.data = NULL;
+    return_value.len = 0;
+    return_value.chars = 0;
     none = returnsize = 0;
 
     for (; data.pf < data.pfend; data.pf++) {
@@ -564,20 +564,20 @@ MUST_CHECK struct value_s *isnprintf(struct values_s *vals, unsigned int args)
     }
     err = val_alloc();
     err->obj = STR_OBJ;
-    err->u.str.len = return_value.u.str.len;
-    err->u.str.chars = return_value.u.str.chars;
-    if (return_value.u.str.len > sizeof(err->u.str.val)) {
-        if (returnsize > return_value.u.str.len) {
-            err->u.str.data = (uint8_t *)realloc(return_value.u.str.data, return_value.u.str.len);
+    err->u.str.len = return_value.len;
+    err->u.str.chars = return_value.chars;
+    if (return_value.len > sizeof(err->u.str.val)) {
+        if (returnsize > return_value.len) {
+            err->u.str.data = (uint8_t *)realloc(return_value.data, return_value.len);
             if (!err->u.str.data) err_msg_out_of_memory(); /* overflow */
-        } else err->u.str.data = return_value.u.str.data;
+        } else err->u.str.data = return_value.data;
         return err;
     }
-    memcpy(err->u.str.val, return_value.u.str.data, return_value.u.str.len);
-    free(return_value.u.str.data);
+    memcpy(err->u.str.val, return_value.data, return_value.len);
+    free(return_value.data);
     return err;
 error:
-    free(return_value.u.str.data);
+    free(return_value.data);
     return err;
 }
 

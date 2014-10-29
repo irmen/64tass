@@ -32,7 +32,7 @@ obj_t TUPLE_OBJ = &tuple_obj;
 obj_t ADDRLIST_OBJ = &addrlist_obj;
 obj_t COLONLIST_OBJ = &colonlist_obj;
 
-static void destroy(struct value_s *v1) {
+static void destroy(value_t v1) {
     size_t i;
     for (i = 0; i < v1->u.list.len; i++) {
         val_destroy(v1->u.list.data[i]);
@@ -40,17 +40,17 @@ static void destroy(struct value_s *v1) {
     if (v1->u.list.val != v1->u.list.data) free(v1->u.list.data);
 }
 
-static struct value_s **lnew(struct value_s *v, size_t len) {
-    if (len > sizeof(v->u.list.val) / sizeof(struct value_s *)) {
-        struct value_s **s = (struct value_s **)malloc(len * sizeof(struct value_s *));
-        if (!s || len > SIZE_MAX / sizeof(struct value_s *)) err_msg_out_of_memory(); /* overflow */
+static value_t *lnew(value_t v, size_t len) {
+    if (len > sizeof(v->u.list.val) / sizeof(value_t)) {
+        value_t *s = (value_t *)malloc(len * sizeof(value_t));
+        if (!s || len > SIZE_MAX / sizeof(value_t)) err_msg_out_of_memory(); /* overflow */
         return s; 
     }
     return v->u.list.val;
 }
 
-static void copy(const struct value_s *v1, struct value_s *v) {
-    struct value_s **vals;
+static void copy(const value_t v1, value_t v) {
+    value_t *vals;
     size_t len = v1->u.list.len;
     size_t i;
     vals = lnew(v, len);
@@ -62,16 +62,16 @@ static void copy(const struct value_s *v1, struct value_s *v) {
     v->u.list.len = len;
 }
 
-static void copy_temp(const struct value_s *v1, struct value_s *v) {
+static void copy_temp(const value_t v1, value_t v) {
     v->obj = v1->obj;
     v->u.list.len = v1->u.list.len;
     if (v1->u.list.data == v1->u.list.val) {
         v->u.list.data = v->u.list.val;
-        memcpy(v->u.list.data, v1->u.list.data, v->u.list.len * sizeof(struct value_s *));
+        memcpy(v->u.list.data, v1->u.list.data, v->u.list.len * sizeof(value_t));
     } else v->u.list.data = v1->u.list.data;
 }
 
-static int same(const struct value_s *v1, const struct value_s *v2) {
+static int same(const value_t v1, const value_t v2) {
     size_t i;
     if (v1->obj != v2->obj || v1->u.list.len != v2->u.list.len) return 0;
     for (i = 0; i < v2->u.list.len; i++) {
@@ -80,9 +80,9 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return 1;
 }
 
-static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e type, linepos_t epoint) {
+static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t epoint) {
     size_t i;
-    struct value_s *err;
+    value_t err;
     switch (type) {
     case TRUTH_ALL:
         for (i = 0; i < v1->u.list.len; i++) {
@@ -110,14 +110,14 @@ static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e t
     }
 }
 
-static MUST_CHECK struct value_s *repr_listtuple(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t repr_listtuple(const value_t v1, linepos_t epoint) {
     size_t i, len = (v1->obj == ADDRLIST_OBJ || v1->obj == COLONLIST_OBJ) ? 0 : 2, chars = 0;
-    struct value_s **tmp = NULL, *err, *v;
+    value_t *tmp = NULL, err, v;
     uint8_t *s;
     size_t llen = v1->u.list.len;
     if (llen) {
-        tmp = (struct value_s **)malloc(llen * sizeof(struct value_s *));
-        if (!tmp || llen > SIZE_MAX / sizeof(struct value_s *)) err_msg_out_of_memory(); /* overflow */
+        tmp = (value_t *)malloc(llen * sizeof(value_t));
+        if (!tmp || llen > SIZE_MAX / sizeof(value_t)) err_msg_out_of_memory(); /* overflow */
         for (i = 0;i < llen; i++) {
             err = v1->u.list.data[i]->obj->repr(v1->u.list.data[i], epoint);
             if (err->obj != STR_OBJ) {
@@ -159,12 +159,12 @@ static MUST_CHECK struct value_s *repr_listtuple(const struct value_s *v1, linep
     return v;
 }
 
-static MUST_CHECK struct value_s *len(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_uval(v1->u.list.len);
 }
 
-static MUST_CHECK struct value_s *getiter(struct value_s *v1) {
-    struct value_s *v = val_alloc();
+static MUST_CHECK value_t getiter(value_t v1) {
+    value_t v = val_alloc();
     v->obj = ITER_OBJ;
     v->u.iter.val = 0;
     v->u.iter.iter = &v->u.iter.val;
@@ -172,27 +172,27 @@ static MUST_CHECK struct value_s *getiter(struct value_s *v1) {
     return v;
 }
 
-static MUST_CHECK struct value_s *next(struct value_s *v1) {
-    const struct value_s *vv1 = v1->u.iter.data;
+static MUST_CHECK value_t next(value_t v1) {
+    const value_t vv1 = v1->u.iter.data;
     if (v1->u.iter.val >= vv1->u.list.len) return NULL;
     return val_reference(vv1->u.list.data[v1->u.iter.val++]);
 }
 
-struct value_s **list_create_elements(struct value_s *v, size_t n) {
+value_t *list_create_elements(value_t v, size_t n) {
     return lnew(v, n);
 }
 
-static MUST_CHECK struct value_s *calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v;
+static MUST_CHECK value_t calc1(oper_t op) {
+    value_t v1 = op->v1, v;
     if (v1->u.list.len) {
-        struct value_s **vals;
+        value_t *vals;
         int error = 1;
         size_t i = 0;
         v = val_alloc();
         v->obj = v1->obj;
         vals = lnew(v, v1->u.list.len);
         for (;i < v1->u.list.len; i++) {
-            struct value_s *val;
+            value_t val;
             op->v1 = v1->u.list.data[i];
             val = op->v1->obj->calc1(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
@@ -206,8 +206,8 @@ static MUST_CHECK struct value_s *calc1(oper_t op) {
     return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
 }
 
-static MUST_CHECK struct value_s *calc2_list(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
+static MUST_CHECK value_t calc2_list(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
     size_t i;
 
     switch (op->op->u.oper.op) {
@@ -231,8 +231,8 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
     case O_EXP:
     case O_MEMBER:
         {
-            struct value_s **vals;
-            const struct value_s *vx;
+            value_t *vals;
+            value_t vx;
             int d1 = 0, d2 = 0;
             i = 0;
             vx = v1;
@@ -255,7 +255,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                         v = val_alloc();
                         vals = lnew(v, v2->u.list.len);
                         for (; i < v2->u.list.len; i++) {
-                            struct value_s *val;
+                            value_t val;
                             op->v2 = v2->u.list.data[i];
                             val = op->v1->obj->calc2(op);
                             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
@@ -273,7 +273,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                         v = val_alloc();
                         vals = lnew(v, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
-                            struct value_s *val;
+                            value_t val;
                             op->v1 = v1->u.list.data[i];
                             val = op->v1->obj->calc2(op);
                             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
@@ -290,7 +290,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                         v = val_alloc();
                         vals = lnew(v, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
-                            struct value_s *val;
+                            value_t val;
                             op->v1 = v1->u.list.data[i];
                             op->v2 = v2->u.list.data[i];
                             val = op->v1->obj->calc2(op);
@@ -311,7 +311,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                     v = val_alloc();
                     vals = lnew(v, v1->u.list.len);
                     for (; i < v1->u.list.len; i++) {
-                        struct value_s *val;
+                        value_t val;
                         op->v1 = v1->u.list.data[i];
                         val = op->v1->obj->calc2(op);
                         if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
@@ -326,7 +326,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
                 v = val_alloc();
                 vals = lnew(v, v2->u.list.len);
                 for (; i < v2->u.list.len; i++) {
-                    struct value_s *val;
+                    value_t val;
                     op->v2 = v2->u.list.data[i];
                     val = v1->obj->calc2(op);
                     if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
@@ -343,7 +343,7 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
         }
     case O_CONCAT:
         {
-            struct value_s **vals;
+            value_t *vals;
             size_t ln;
 
             if (!v1->u.list.len) {
@@ -372,10 +372,10 @@ static MUST_CHECK struct value_s *calc2_list(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
+static MUST_CHECK value_t calc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
     size_t i = 0;
-    struct value_s **vals;
+    value_t *vals;
 
     switch (v2->obj->type) {
     case T_TUPLE:
@@ -390,7 +390,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
             v->obj = v1->obj;
             v->u.list.data = vals = lnew(v, v1->u.list.len);
             for (;i < v1->u.list.len; i++) {
-                struct value_s *val;
+                value_t val;
                 op->v1 = v1->u.list.data[i];
                 val = op->v1->obj->calc2(op);
                 if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
@@ -404,10 +404,10 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
 }
 
-static MUST_CHECK struct value_s *rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
+static MUST_CHECK value_t rcalc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
     size_t i = 0;
-    struct value_s **vals;
+    value_t *vals;
     switch (v1->obj->type) {
     case T_TUPLE:
     case T_LIST:
@@ -442,7 +442,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
                 v->obj = v2->obj;
                 v->u.list.data = vals = lnew(v, v2->u.list.len);
                 for (;i < v2->u.list.len; i++) {
-                    struct value_s *val;
+                    value_t val;
                     op->v2 = v2->u.list.data[i];
                     val = op->v2->obj->rcalc2(op);
                     if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
@@ -456,7 +456,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         case O_IN:
             op->op = &o_EQ;
             for (;i < v2->u.list.len; i++) {
-                struct value_s *result;
+                value_t result;
                 op->v2 = v2->u.list.data[i];
                 result = v1->obj->calc2(op);
                 if (result->obj == BOOL_OBJ && result->u.boolean) {
@@ -477,9 +477,9 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
 }
 
-static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
-    struct value_s **vals;
-    struct value_s *v1 = op->v1, *v;
+static MUST_CHECK value_t repeat(oper_t op, uval_t rep) {
+    value_t *vals;
+    value_t v1 = op->v1, v;
 
     if (v1->u.list.len && rep) {
         size_t i = 0, j, ln;
@@ -502,8 +502,8 @@ static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
     return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
 }
 
-static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, ival_t offs, ival_t end, ival_t step) {
-    struct value_s **vals, *v;
+static inline MUST_CHECK value_t slice(value_t v1, uval_t ln, ival_t offs, ival_t end, ival_t step) {
+    value_t *vals, v;
     size_t i;
 
     if (!ln) {
@@ -525,11 +525,11 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t ln, iv
     return v;
 }
 
-static MUST_CHECK struct value_s *iindex(oper_t op) {
-    struct value_s **vals;
+static MUST_CHECK value_t iindex(oper_t op) {
+    value_t *vals;
     size_t i, ln;
     ival_t offs;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v, *err;
+    value_t v1 = op->v1, v2 = op->v2, v, err;
 
     ln = v1->u.list.len;
 

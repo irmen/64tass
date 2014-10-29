@@ -31,20 +31,20 @@ static struct obj_s obj;
 
 obj_t FUNCTION_OBJ = &obj;
 
-static int same(const struct value_s *v1, const struct value_s *v2) {
+static int same(const value_t v1, const value_t v2) {
     return v2->obj == FUNCTION_OBJ && v1->u.function.func == v2->u.function.func;
 }
 
-static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
     *hs = v1->u.function.name_hash;
     return NULL;
 }
 
-static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *prefix = "<native_function '";
     size_t len = strlen(prefix);
-    struct value_s *v = val_alloc();
+    value_t v = val_alloc();
     v->obj = STR_OBJ;
     v->u.str.len = v1->u.function.name.len + 2 + len;
     if (v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
@@ -59,12 +59,12 @@ static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSE
 }
 
 /* range([start],end,[step]) */
-static inline MUST_CHECK struct value_s *function_range(struct values_s *vals, unsigned int args) {
+static inline MUST_CHECK value_t function_range(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
-    struct value_s *err, *new_value;
+    value_t err, new_value;
     ival_t start = 0, end, step = 1;
     size_t i = 0, len2;
-    struct value_s **val;
+    value_t *val;
     if (args < 1 || args > 3) err_msg_argnum(args, 1, 3, &vals->epoint);
     else {
         switch (args) {
@@ -113,8 +113,8 @@ static inline MUST_CHECK struct value_s *function_range(struct values_s *vals, u
 }
 
 /* register(a) - create register object */
-static inline MUST_CHECK struct value_s *function_register(struct value_s *v1, linepos_t epoint) {
-    struct value_s *v;
+static inline MUST_CHECK value_t function_register(value_t v1, linepos_t epoint) {
+    value_t v;
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
@@ -130,8 +130,8 @@ static inline MUST_CHECK struct value_s *function_register(struct value_s *v1, l
     }
 } 
 
-static MUST_CHECK struct value_s *apply_func(struct value_s *v1, enum func_e func, linepos_t epoint) {
-    struct value_s *err, *v;
+static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epoint) {
+    value_t err, v;
     double real;
     switch (func) {
     case F_ANY: return v1->obj->truth(v1, TRUTH_ANY, epoint);
@@ -144,7 +144,7 @@ static MUST_CHECK struct value_s *apply_func(struct value_s *v1, enum func_e fun
     case T_TUPLE:
         {
             size_t i = 0;
-            struct value_s **vals;
+            value_t *vals;
             v = val_alloc();
             vals = list_create_elements(v, v1->u.list.len);
             for (;i < v1->u.list.len; i++) {
@@ -205,7 +205,7 @@ static MUST_CHECK struct value_s *apply_func(struct value_s *v1, enum func_e fun
     }
 }
 
-static inline MUST_CHECK struct value_s *apply_func_single(struct values_s *vals, unsigned int args) {
+static inline MUST_CHECK value_t apply_func_single(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     enum func_e func = vals->val->u.function.func;
 
@@ -216,15 +216,15 @@ static inline MUST_CHECK struct value_s *apply_func_single(struct values_s *vals
     return apply_func(v[0].val, func, &v[0].epoint);
 }
 
-static MUST_CHECK struct value_s *apply_func2(struct value_s *v1, struct value_s *v2, enum func_e func, linepos_t epoint, linepos_t epoint2) {
-    struct value_s *err, *v;
+static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, linepos_t epoint, linepos_t epoint2) {
+    value_t err, v;
     double real, real2;
     switch (v1->obj->type) {
     case T_LIST:
     case T_TUPLE:
         {
             size_t i = 0;
-            struct value_s **vals;
+            value_t *vals;
             v = val_alloc();
             vals = list_create_elements(v, v1->u.list.len);
             for (;i < v1->u.list.len; i++) {
@@ -242,7 +242,7 @@ static MUST_CHECK struct value_s *apply_func2(struct value_s *v1, struct value_s
     case T_TUPLE:
         {
             size_t i = 0;
-            struct value_s **vals;
+            value_t *vals;
             v = val_alloc();
             vals = list_create_elements(v, v2->u.list.len);
             for (;i < v2->u.list.len; i++) {
@@ -291,7 +291,7 @@ static MUST_CHECK struct value_s *apply_func2(struct value_s *v1, struct value_s
     return float_from_double(real);
 }
 
-static inline MUST_CHECK struct value_s *apply_func_double(struct values_s *vals, unsigned int args) {
+static inline MUST_CHECK value_t apply_func_double(struct values_s *vals, unsigned int args) {
     struct values_s *v = &vals[2];
     enum func_e func = vals->val->u.function.func;
 
@@ -306,7 +306,7 @@ static inline MUST_CHECK struct value_s *apply_func_double(struct values_s *vals
     return apply_func2(v[0].val, v[1].val, func, &v[0].epoint, &v[1].epoint);
 }
 
-MUST_CHECK struct value_s *builtin_function(struct values_s *vals, unsigned int args) {
+MUST_CHECK value_t builtin_function(struct values_s *vals, unsigned int args) {
     switch (vals->val->u.function.func) {
     case F_HYPOT:
     case F_ATAN2:

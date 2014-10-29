@@ -20,13 +20,12 @@
 #define _LISTING_H_
 #include "inttypes.h"
 struct cpu_s;
-struct value_s;
 
 extern unsigned int nolisting;
 extern const uint8_t *llist;
 extern void listing_open(const char *, int, char *[]);
 extern void listing_close(void);
-extern void listing_equal(const struct value_s *);
+extern void listing_equal(const value_t);
 extern void listing_line(linecpos_t);
 extern void listing_line_cut(linecpos_t);
 extern void listing_line_cut2(linecpos_t);

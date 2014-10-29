@@ -41,7 +41,7 @@ struct builtin_functions_s {
     enum func_e func;
 };
 
-extern MUST_CHECK struct value_s *builtin_function(struct values_s *, unsigned int);
+extern MUST_CHECK value_t builtin_function(struct values_s *, unsigned int);
 
 extern struct builtin_functions_s builtin_functions[];
 

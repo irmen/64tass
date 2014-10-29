@@ -273,12 +273,12 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         case ERROR__NOT_DATABANK:
             adderror(terr_error[no & 63]);
             adderror(" '");
-            err_msg_variable(&error_list, (struct value_s *)prm, epoint);
+            err_msg_variable(&error_list, (value_t)prm, epoint);
             adderror("'");
             break;
         case ERROR___UNKNOWN_CPU:
             adderror("unknown processor '");
-            err_msg_variable(&error_list, (struct value_s *)prm, epoint);
+            err_msg_variable(&error_list, (value_t)prm, epoint);
             adderror("'");
             break;
         default:
@@ -411,7 +411,7 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
     }
 }
 
-void err_msg_output(const struct value_s *val) {
+void err_msg_output(const value_t val) {
     if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
         case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.label, val->u.error.u.notdef.down, &val->u.error.epoint);break;
@@ -442,12 +442,12 @@ void err_msg_output(const struct value_s *val) {
     }
 }
 
-void err_msg_output_and_destroy(struct value_s *val) {
+void err_msg_output_and_destroy(value_t val) {
     err_msg_output(val);
     val_destroy(val);
 }
 
-void err_msg_wrong_type(const struct value_s *val, linepos_t epoint) {
+void err_msg_wrong_type(const value_t val, linepos_t epoint) {
     err_msg2(ERROR____WRONG_TYPE, val->obj->name, epoint);
 }
 
@@ -494,8 +494,8 @@ static void add_user_error2(struct errorbuffer_s *user_error, const uint8_t *s, 
     user_error->len += len;
 }
 
-void err_msg_variable(struct errorbuffer_s *user_error, struct value_s *val, linepos_t epoint) {
-    struct value_s *err;
+void err_msg_variable(struct errorbuffer_s *user_error, value_t val, linepos_t epoint) {
+    value_t err;
     if (!val) {user_error->len = 0;return;}
     err = val->obj->str(val, epoint);
     if (err->obj == STR_OBJ) add_user_error2(user_error, err->u.str.data, err->u.str.len);
@@ -521,7 +521,7 @@ void err_msg_shadow_defined(const struct label_s *l, const struct label_s *l2) {
     err_msg_double_defined2("shadow definition", l, l2->file_list, &l2->name, &l2->epoint);
 }
 
-void err_msg_invalid_oper(const struct value_s *op, const struct value_s *v1, const struct value_s *v2, linepos_t epoint) {
+void err_msg_invalid_oper(const value_t op, const value_t v1, const value_t v2, linepos_t epoint) {
     if (v1->obj == ERROR_OBJ) {
         err_msg_output(v1);
         return;

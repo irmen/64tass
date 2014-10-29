@@ -22,8 +22,6 @@
 #include "inttypes.h"
 #include "libtree.h"
 
-struct value_s;
-
 enum filecoding_e {
     E_UNKNOWN, E_UTF8, E_UTF16LE, E_UTF16BE, E_ISO
 };
@@ -51,14 +49,14 @@ struct star_s {
     struct avltree_node node;
 };
 
-extern struct file_s *openfile(const char *, const char *, int, const struct value_s *, linepos_t);
+extern struct file_s *openfile(const char *, const char *, int, const value_t, linepos_t);
 extern void closefile(struct file_s*);
 extern struct star_s *new_star(line_t, int *);
 extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);
 extern void include_list_add(const char *);
-extern const char *get_path(const struct value_s *, const char *);
+extern const char *get_path(const value_t, const char *);
 extern uint32_t fromiso(uint8_t);
 
 #endif

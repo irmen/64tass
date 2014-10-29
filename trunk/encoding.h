@@ -22,7 +22,6 @@
 #include "inttypes.h"
 
 struct encoding_s;
-struct value_s;
 
 struct trans_s {
     uint32_t start;
@@ -35,8 +34,8 @@ extern struct encoding_s *actual_encoding;
 
 extern struct encoding_s *new_encoding(const str_t *);
 extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
-extern int new_escape(const struct value_s *, struct value_s *, struct encoding_s *, linepos_t);
-extern void encode_string_init(const struct value_s *, linepos_t);
+extern int new_escape(const value_t, value_t, struct encoding_s *, linepos_t);
+extern void encode_string_init(const value_t, linepos_t);
 extern int encode_string(void);
 extern void init_encoding(int);
 extern void destroy_encoding(void);

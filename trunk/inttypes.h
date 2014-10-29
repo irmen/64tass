@@ -77,6 +77,8 @@ typedef uint32_t uval_t;
 # define SSIZE_MAX ((ssize_t)(SIZE_MAX / 2))
 #endif
 
+typedef struct value_s *value_t;
+
 #ifdef UNUSED
 #elif defined(__GNUC__)
 # define UNUSED(x) UNUSED_ ## x __attribute__((unused))

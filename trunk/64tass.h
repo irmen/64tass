@@ -30,7 +30,6 @@
 
 struct file_list_s;
 struct label_s;
-struct value_s;
 
 enum wait_e {
     W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
@@ -52,7 +51,7 @@ extern uint16_t reffile;
 extern uint32_t backr, forwr;
 extern uint8_t pass, max_pass;
 extern void new_waitfor(enum wait_e, linepos_t);
-extern struct value_s *compile(struct file_list_s *);
-extern void var_assign(struct label_s *, struct value_s *, int);
+extern value_t compile(struct file_list_s *);
+extern void var_assign(struct label_s *, value_t, int);
 extern void pokeb(uint8_t);
 #endif

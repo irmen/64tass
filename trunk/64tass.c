@@ -81,7 +81,7 @@ static struct waitfor_s {
     struct label_s *label, *cheap_label;
     size_t memp, membp;
     struct section_s *section;
-    struct value_s *val;
+    value_t val;
     uint8_t skip;
     uint8_t breakout;
 } *waitfors, *waitfor, *prevwaitfor;
@@ -265,8 +265,8 @@ static void set_size(struct label_s *var, size_t size, struct memblocks_s *mem, 
     var->value->u.code.membp = membp;
 }
 
-static int toival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s *err;
+static int toival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
+    value_t err;
     if (v1->obj == NONE_OBJ) {
         err_msg_still_none(NULL, epoint);
         return 1;
@@ -279,8 +279,8 @@ static int toival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoi
     return 0;
 }
 
-static int tobool(const struct value_s *v1, int *truth, linepos_t epoint) {
-    struct value_s *err;
+static int tobool(const value_t v1, int *truth, linepos_t epoint) {
+    value_t err;
     if (v1->obj == ERROR_OBJ) {
         err_msg_output(v1); 
         return 1;
@@ -404,7 +404,7 @@ static void set_cpumode(const struct cpu_s *cpumode) {
     listing_set_cpumode(cpumode);
 }
 
-void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
+void var_assign(struct label_s *tmp, value_t val, int fix) {
     tmp->defpass = pass;
     if (obj_same(val, tmp->value)) return;
     val_replace(&tmp->value, val);
@@ -413,12 +413,12 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
     fixeddig = fix;
 }
 
-static int textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit, size_t *sum, int bits, linepos_t epoint2) {
-    struct value_s *iter, *val2;
+static int textrecursion(value_t val, int prm, int *ch2, size_t *uninit, size_t *sum, int bits, linepos_t epoint2) {
+    value_t iter, val2;
     uval_t uval;
     int warn = 0;
     if (val->obj == STR_OBJ) {
-        struct value_s *tmp = bytes_from_str(val, epoint2);
+        value_t tmp = bytes_from_str(val, epoint2);
         iter = tmp->obj->getiter(tmp);
         val_destroy(tmp);
     } else iter = val->obj->getiter(val);
@@ -453,8 +453,8 @@ static int textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit,
     return warn;
 }
 
-static int byterecursion(struct value_s *val, int prm, size_t *uninit, int bits, linepos_t epoint) {
-    struct value_s *iter, *val2;
+static int byterecursion(value_t val, int prm, size_t *uninit, int bits, linepos_t epoint) {
+    value_t iter, val2;
     uint32_t ch2;
     uval_t uv;
     ival_t iv;
@@ -492,7 +492,7 @@ static int byterecursion(struct value_s *val, int prm, size_t *uninit, int bits,
     return warn;
 }
 
-static int instrecursion(struct value_s *val, int prm, int w, linepos_t epoint, struct linepos_s *epoints) {
+static int instrecursion(value_t val, int prm, int w, linepos_t epoint, struct linepos_s *epoints) {
     size_t i;
     int ret;
     for (i = 0; i < val->u.list.len; i++) {
@@ -505,17 +505,17 @@ static int instrecursion(struct value_s *val, int prm, int w, linepos_t epoint, 
     return 0;
 }
 
-struct value_s *compile(struct file_list_s *cflist)
+value_t compile(struct file_list_s *cflist)
 {
     int wht,w;
     int prm = 0;
-    struct value_s *val;
+    value_t val;
 
     struct label_s *newlabel = NULL, *oldcheap = NULL;
     size_t newmemp = 0, newmembp = 0;
     struct label_s *tmp2 = NULL, *mycontext;
     address_t oaddr = 0;
-    struct value_s *retval = NULL;
+    value_t retval = NULL;
 
     size_t oldwaitforp = waitfor_p;
     int nobreak = 1;
@@ -854,7 +854,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                     err_msg_double_defined(label, &labelname, &epoint);
                                     label = NULL;
                                 } else {
-                                    struct value_s *tmp;
+                                    value_t tmp;
                                     label->requires = current_section->requires;
                                     label->conflicts = current_section->conflicts;
                                     tmp = int_from_uval(current_section->l_address);
@@ -989,7 +989,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     newlabel->requires = current_section->requires;
                     newlabel->conflicts = current_section->conflicts;
                     if (!newlabel->update_after) {
-                        struct value_s *tmp;
+                        value_t tmp;
                         tmp = int_from_uval(current_section->l_address);
                         if (!obj_same(tmp, newlabel->value->u.code.addr)) {
                             val_destroy(newlabel->value->u.code.addr);
@@ -1190,7 +1190,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uint8_t skwait = waitfor->skip;
                     ival_t ival;
                     int truth;
-                    struct value_s *err;
+                    value_t err;
                     if (waitfor->skip & 1) listing_line(epoint.pos);
                     new_waitfor(W_FI2, &epoint);
                     if (skwait == 1) {
@@ -1267,7 +1267,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     waitfor->epoint = epoint;
                     if (skwait==2) {
                         struct linepos_s epoint2;
-                        struct value_s *result2;
+                        value_t result2;
                         struct oper_s tmp;
                         if (!get_exp(&w, 0, cfile, 1, 0, &epoint2)) { waitfor->skip = 0; goto breakerr; }
                         tmp.op = &o_EQ;
@@ -1511,7 +1511,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     } else if (prm==CMD_BINARY) { /* .binary */
                         const char *path = NULL;
                         size_t foffset = 0;
-                        struct value_s *val2 = NULL;
+                        value_t val2 = NULL;
                         size_t fsize = all_mem2 + 1;
                         uval_t uval;
                         struct linepos_s epoint2;
@@ -1702,13 +1702,13 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj == ERROR_OBJ) {err_msg_output(val); memskip(db);}
                         else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint); memskip(db);}
                         else {
-                            struct value_s *iter, *val2;
+                            value_t iter, val2;
                             size_t uninit = 0, sum = 0;
                             size_t memp, membp;
                             get_mem(&current_section->mem, &memp, &membp);
 
                             if (val->obj == STR_OBJ) {
-                                struct value_s *tmp = bytes_from_str(val, &epoint);
+                                value_t tmp = bytes_from_str(val, &epoint);
                                 iter = tmp->obj->getiter(tmp);
                                 val_destroy(tmp);
                             } else iter = val->obj->getiter(val);
@@ -1928,7 +1928,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     len = get_val_remaining();
                     for (;;) {
                         struct linepos_s opoint;
-                        struct value_s *v;
+                        value_t v;
                         int tryit = 1;
 
                         v = get_val(&opoint);
@@ -2664,7 +2664,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     cheap_context = oldcheap;
                 } else if (val->obj == MFUNC_OBJ) {
                     struct label_s *context;
-                    struct value_s *mfunc;
+                    value_t mfunc;
                     int labelexists;
                     str_t tmpname;
                     if (sizeof(anonident2) != sizeof(anonident2.type) + sizeof(anonident2.padding) + sizeof(anonident2.star_tree) + sizeof(anonident2.vline)) memset(&anonident2, 0, sizeof(anonident2));
