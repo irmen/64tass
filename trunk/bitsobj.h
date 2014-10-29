@@ -30,13 +30,13 @@ typedef struct {
     bdigit_t *data;
 } bits_t;
 
-extern size_t bits_from_hexstr(struct value_s *, const uint8_t *);
-extern size_t bits_from_binstr(struct value_s *, const uint8_t *);
-extern void bits_from_str(struct value_s *, const struct value_s *, linepos_t);
-extern void bits_from_bytes(struct value_s *, const struct value_s *);
-extern void bits_from_u8(struct value_s *, uint8_t);
-extern void bits_from_u16(struct value_s *, uint16_t);
-extern void bits_from_bools(struct value_s *, int, int);
+extern MUST_CHECK struct value_s *bits_from_hexstr(const uint8_t *, size_t *);
+extern MUST_CHECK struct value_s *bits_from_binstr(const uint8_t *, size_t *);
+extern MUST_CHECK struct value_s *bits_from_str(const struct value_s *, linepos_t);
+extern MUST_CHECK struct value_s *bits_from_bytes(const struct value_s *);
+extern MUST_CHECK struct value_s *bits_from_u8(uint8_t);
+extern MUST_CHECK struct value_s *bits_from_u16(uint16_t);
+extern MUST_CHECK struct value_s *bits_from_bools(int, int);
 
 extern void bitsobj_init(void);
 #endif

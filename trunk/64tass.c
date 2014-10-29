@@ -61,8 +61,6 @@
 #include "bytesobj.h"
 #include "intobj.h"
 
-static struct value_s new_value;
-
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
 address_t all_mem, all_mem2;
@@ -268,20 +266,21 @@ static void set_size(struct label_s *var, size_t size, struct memblocks_s *mem, 
 }
 
 static int toival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s err;
+    struct value_s *err;
     if (v1->obj == NONE_OBJ) {
         err_msg_still_none(NULL, epoint);
         return 1;
     }
-    if (v1->obj->ival(v1, &err, iv, bits, epoint)) {
-        err_msg_output_and_destroy(&err);
+    err = v1->obj->ival(v1, iv, bits, epoint);
+    if (err) {
+        err_msg_output_and_destroy(err);
         return 1;
     }
     return 0;
 }
 
 static int tobool(const struct value_s *v1, int *truth, linepos_t epoint) {
-    struct value_s err;
+    struct value_s *err;
     if (v1->obj == ERROR_OBJ) {
         err_msg_output(v1); 
         return 1;
@@ -290,11 +289,13 @@ static int tobool(const struct value_s *v1, int *truth, linepos_t epoint) {
         err_msg_still_none(NULL, epoint);
         return 1;
     }
-    if (v1->obj->truth(v1, &err, TRUTH_BOOL, epoint)) {
-        err_msg_output_and_destroy(&err);
+    err = v1->obj->truth(v1, TRUTH_BOOL, epoint);
+    if (err->obj != BOOL_OBJ) {
+        err_msg_output_and_destroy(err);
         return 1;
     }
-    *truth = err.u.boolean;
+    *truth = err->u.boolean;
+    val_destroy(err);
     return 0;
 }
 
@@ -413,18 +414,16 @@ void var_assign(struct label_s *tmp, struct value_s *val, int fix) {
 }
 
 static int textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit, size_t *sum, int bits, linepos_t epoint2) {
-    struct value_s iter, item, *val2;
+    struct value_s *iter, *val2;
     uval_t uval;
     int warn = 0;
-    item.refcount = 0;
     if (val->obj == STR_OBJ) {
-        struct value_s *tmp = val_alloc();
-        bytes_from_str(tmp, val, epoint2);
-        tmp->obj->getiter(tmp, &iter);
+        struct value_s *tmp = bytes_from_str(val, epoint2);
+        iter = tmp->obj->getiter(tmp);
         val_destroy(tmp);
-    } else val->obj->getiter(val, &iter);
+    } else iter = val->obj->getiter(val);
 
-    while ((val2 = obj_next(&iter, &item))) {
+    while ((val2 = obj_next(iter))) {
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE: 
@@ -450,20 +449,19 @@ static int textrecursion(struct value_s *val, int prm, int *ch2, size_t *uninit,
         }
         val_destroy(val2);
     }
-    obj_destroy(&iter);
+    val_destroy(iter);
     return warn;
 }
 
 static int byterecursion(struct value_s *val, int prm, size_t *uninit, int bits, linepos_t epoint) {
-    struct value_s iter, item, *val2;
+    struct value_s *iter, *val2;
     uint32_t ch2;
     uval_t uv;
     ival_t iv;
     int warn = 0;
-    item.refcount = 0;
-    if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) val->obj->getiter(val, &iter);
-    else invalid_getiter(val, &iter);
-    while ((val2 = obj_next(&iter, &item))) {
+    if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) iter = val->obj->getiter(val);
+    else iter = invalid_getiter(val);
+    while ((val2 = obj_next(iter))) {
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE: warn |= byterecursion(val2, prm, uninit, bits, epoint); continue;
@@ -490,7 +488,7 @@ static int byterecursion(struct value_s *val, int prm, size_t *uninit, int bits,
         if (prm>=CMD_DINT) pokeb((uint8_t)(ch2>>24));
         val_destroy(val2);
     }
-    obj_destroy(&iter);
+    val_destroy(iter);
     return warn;
 }
 
@@ -698,12 +696,14 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
-                                new_value.obj = LBL_OBJ;
-                                new_value.u.lbl.sline = lpoint.line;
-                                new_value.u.lbl.waitforp = waitfor_p;
-                                new_value.u.lbl.file_list = cflist;
-                                new_value.u.lbl.parent = current_context;
-                                var_assign(label, &new_value, 0);
+                                val = val_alloc();
+                                val->obj = LBL_OBJ;
+                                val->u.lbl.sline = lpoint.line;
+                                val->u.lbl.waitforp = waitfor_p;
+                                val->u.lbl.file_list = cflist;
+                                val->u.lbl.parent = current_context;
+                                var_assign(label, val, 0);
+                                val_destroy(val);
                             }
                         } else {
                             constcreated |= !temporary_label_branch;
@@ -739,12 +739,13 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
-                                new_value.obj = obj;
-                                new_value.u.macro.size = 0;
-                                new_value.u.macro.label = label;
-                                get_macro_params(&new_value);
-                                var_assign(label, &new_value, 0);
-                                val_destroy(&new_value);
+                                val = val_alloc();
+                                val->obj = obj;
+                                val->u.macro.size = 0;
+                                val->u.macro.label = label;
+                                get_macro_params(val);
+                                var_assign(label, val, 0);
+                                val_destroy(val);
                             }
                         } else {
                             constcreated |= !temporary_label_branch;
@@ -778,11 +779,12 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
-                                new_value.obj = MFUNC_OBJ;
-                                new_value.u.mfunc.label = label;
-                                get_func_params(&new_value, cfile);
-                                var_assign(label, &new_value, 0);
-                                val_destroy(&new_value);
+                                val = val_alloc();
+                                val->obj = MFUNC_OBJ;
+                                val->u.mfunc.label = label;
+                                get_func_params(val, cfile);
+                                var_assign(label, val, 0);
+                                val_destroy(val);
                             }
                         } else {
                             constcreated |= !temporary_label_branch;
@@ -824,12 +826,13 @@ struct value_s *compile(struct file_list_s *cflist)
                                     label->constant = 1;
                                     label->requires = 0;
                                     label->conflicts = 0;
-                                    new_value.obj = obj;
-                                    new_value.u.macro.size = (label->value->obj == obj) ? label->value->u.macro.size : 0;
-                                    new_value.u.macro.label = label;
-                                    get_macro_params(&new_value);
-                                    var_assign(label, &new_value, 0);
-                                    val_destroy(&new_value);
+                                    val = val_alloc();
+                                    val->obj = obj;
+                                    val->u.macro.size = (label->value->obj == obj) ? label->value->u.macro.size : 0;
+                                    val->u.macro.label = label;
+                                    get_macro_params(val);
+                                    var_assign(label, val, 0);
+                                    val_destroy(val);
                                 }
                             } else {
                                 constcreated |= !temporary_label_branch;
@@ -851,17 +854,18 @@ struct value_s *compile(struct file_list_s *cflist)
                                     err_msg_double_defined(label, &labelname, &epoint);
                                     label = NULL;
                                 } else {
-                                    struct value_s tmp;
+                                    struct value_s *tmp;
                                     label->requires = current_section->requires;
                                     label->conflicts = current_section->conflicts;
-                                    int_from_uval(&tmp, current_section->l_address);
-                                    if (!obj_same(&tmp, label->value->u.code.addr)) {
-                                        val_replace_template(&label->value->u.code.addr, &tmp);
+                                    tmp = int_from_uval(current_section->l_address);
+                                    if (!obj_same(tmp, label->value->u.code.addr)) {
+                                        val_destroy(label->value->u.code.addr);
+                                        label->value->u.code.addr = tmp;
                                         if (label->usepass >= pass) {
                                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
                                             fixeddig = 0;
                                         }
-                                    } else obj_destroy(&tmp);
+                                    } else val_destroy(tmp);
                                     label->value->u.code.apass = pass;
                                     label->defpass = pass;
                                     get_mem(&current_section->mem, &memp, &membp);
@@ -874,8 +878,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 label->file_list = cflist;
                                 label->epoint = epoint;
                                 val->obj = CODE_OBJ;
-                                val->u.code.addr = val_alloc();
-                                int_from_uval(val->u.code.addr, current_section->l_address);
+                                val->u.code.addr = int_from_uval(current_section->l_address);
                                 val->u.code.size = 0;
                                 val->u.code.dtype = D_NONE;
                                 val->u.code.pass = 0;
@@ -986,15 +989,16 @@ struct value_s *compile(struct file_list_s *cflist)
                     newlabel->requires = current_section->requires;
                     newlabel->conflicts = current_section->conflicts;
                     if (!newlabel->update_after) {
-                        struct value_s tmp;
-                        int_from_uval(&tmp, current_section->l_address);
-                        if (!obj_same(&tmp, newlabel->value->u.code.addr)) {
-                            val_replace_template(&newlabel->value->u.code.addr, &tmp);
+                        struct value_s *tmp;
+                        tmp = int_from_uval(current_section->l_address);
+                        if (!obj_same(tmp, newlabel->value->u.code.addr)) {
+                            val_destroy(newlabel->value->u.code.addr);
+                            newlabel->value->u.code.addr = tmp;
                             if (newlabel->usepass >= pass) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
                                 fixeddig = 0;
                             }
-                        } else obj_destroy(&tmp);
+                        } else val_destroy(tmp);
                         get_mem(&current_section->mem, &newmemp, &newmembp);
                         newlabel->value->u.code.apass = pass;
                         newlabel->defpass = pass;
@@ -1009,8 +1013,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     newlabel->file_list = cflist;
                     newlabel->epoint = epoint;
                     val->obj = CODE_OBJ;
-                    val->u.code.addr = val_alloc();
-                    int_from_uval(val->u.code.addr, current_section->l_address);
+                    val->u.code.addr = int_from_uval(current_section->l_address);
                     val->u.code.size = 0;
                     val->u.code.dtype = D_NONE;
                     val->u.code.pass = 0;
@@ -1187,7 +1190,7 @@ struct value_s *compile(struct file_list_s *cflist)
                     uint8_t skwait = waitfor->skip;
                     ival_t ival;
                     int truth;
-                    struct value_s err;
+                    struct value_s *err;
                     if (waitfor->skip & 1) listing_line(epoint.pos);
                     new_waitfor(W_FI2, &epoint);
                     if (skwait == 1) {
@@ -1203,20 +1206,22 @@ struct value_s *compile(struct file_list_s *cflist)
                         break;
                     case CMD_IFNE:
                     case CMD_IFEQ:
-                        val->obj->sign(val, &err, &epoint);
-                        if (err.obj != INT_OBJ) {err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
-                        waitfor->skip = ((err.u.integer.len == 0) ^ (prm == CMD_IFNE)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                        err = val->obj->sign(val, &epoint);
+                        if (err->obj != INT_OBJ) {err_msg_output_and_destroy(err); waitfor->skip = 0; break; }
+                        waitfor->skip = ((err->u.integer.len == 0) ^ (prm == CMD_IFNE)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                        val_destroy(err);
                         break;
                     case CMD_IFPL:
                     case CMD_IFMI:
                         if (arguments.tasmcomp) {
                             if (toival(val, &ival, 8*sizeof(uval_t), &epoint)) { waitfor->skip = 0; break; } 
-                            err.u.integer.len = -(ival & 0x8000);
+                            waitfor->skip = ((!(ival & 0x8000)) ^ (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         } else {
-                            val->obj->sign(val, &err, &epoint);
-                            if (err.obj != INT_OBJ) { err_msg_output_and_destroy(&err); waitfor->skip = 0; break; }
+                            err = val->obj->sign(val, &epoint);
+                            if (err->obj != INT_OBJ) { err_msg_output_and_destroy(err); waitfor->skip = 0; break; }
+                            waitfor->skip = ((err->u.integer.len >= 0) ^ (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
+                            val_destroy(err);
                         }
-                        waitfor->skip = ((err.u.integer.len >= 0) ^ (prm == CMD_IFMI)) ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     }
                 }
@@ -1262,24 +1267,20 @@ struct value_s *compile(struct file_list_s *cflist)
                     waitfor->epoint = epoint;
                     if (skwait==2) {
                         struct linepos_s epoint2;
-                        struct value_s result, *result2;
+                        struct value_s *result2;
                         struct oper_s tmp;
                         if (!get_exp(&w, 0, cfile, 1, 0, &epoint2)) { waitfor->skip = 0; goto breakerr; }
                         tmp.op = &o_EQ;
                         tmp.v1 = waitfor->val;
                         tmp.epoint = tmp.epoint3 = &epoint2;
-                        tmp.v = &result;
-                        result.refcount = 0;
                         while (!truth && (val = get_val(&epoint2))) {
                             if (val->obj == ERROR_OBJ) { err_msg_output(val); continue; }
                             if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint2);continue; }
                             tmp.v2 = val;
                             tmp.epoint2 = &epoint2;
                             result2 = tmp.v1->obj->calc2(&tmp);
-                            if (result2) {
-                                truth = result2->obj == BOOL_OBJ && result2->u.boolean;
-                                val_destroy(result2);
-                            } else truth = result.obj == BOOL_OBJ && result.u.boolean;
+                            truth = result2->obj == BOOL_OBJ && result2->u.boolean;
+                            val_destroy(result2);
                         }
                     }
                     waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
@@ -1701,20 +1702,18 @@ struct value_s *compile(struct file_list_s *cflist)
                         if (val->obj == ERROR_OBJ) {err_msg_output(val); memskip(db);}
                         else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint); memskip(db);}
                         else {
-                            struct value_s iter, item, *val2;
+                            struct value_s *iter, *val2;
                             size_t uninit = 0, sum = 0;
                             size_t memp, membp;
-                            item.refcount = 0;
                             get_mem(&current_section->mem, &memp, &membp);
 
                             if (val->obj == STR_OBJ) {
-                                struct value_s *tmp = val_alloc();
-                                bytes_from_str(tmp, val, &epoint);
-                                tmp->obj->getiter(tmp, &iter);
+                                struct value_s *tmp = bytes_from_str(val, &epoint);
+                                iter = tmp->obj->getiter(tmp);
                                 val_destroy(tmp);
-                            } else val->obj->getiter(val, &iter);
+                            } else iter = val->obj->getiter(val);
 
-                            while (db && ((val2 = obj_next(&iter, &item)))) {
+                            while (db && ((val2 = obj_next(iter)))) {
                                 db--;
                                 switch (val2->obj->type) {
                                 case T_GAP:uninit++; break;
@@ -1729,7 +1728,7 @@ struct value_s *compile(struct file_list_s *cflist)
                                 }
                                 val_destroy(val2);
                             }
-                            obj_destroy(&iter);
+                            val_destroy(iter);
                             sum += uninit;
                             if (db) {
                                 if (sum == 1 && uninit == 0) {

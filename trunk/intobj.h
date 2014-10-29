@@ -30,13 +30,13 @@ typedef struct {
 } integer_t;
 
 extern void intobj_init(void);
-extern void int_from_int(struct value_s *, int);
-extern void int_from_uval(struct value_s *, uval_t);
-extern void int_from_ival(struct value_s *, ival_t);
-extern void int_from_double(struct value_s *, double, linepos_t);
-extern void int_from_str(struct value_s *, const struct value_s *, linepos_t);
-extern void int_from_bytes(struct value_s *, const struct value_s *);
-extern void int_from_bits(struct value_s *, const struct value_s *);
-extern size_t int_from_decstr(struct value_s *, const uint8_t *);
+extern MUST_CHECK struct value_s *int_from_int(int);
+extern MUST_CHECK struct value_s *int_from_uval(uval_t);
+extern MUST_CHECK struct value_s *int_from_ival(ival_t);
+extern MUST_CHECK struct value_s *int_from_double(double, linepos_t);
+extern MUST_CHECK struct value_s *int_from_str(const struct value_s *, linepos_t);
+extern MUST_CHECK struct value_s *int_from_bytes(const struct value_s *);
+extern MUST_CHECK struct value_s *int_from_bits(const struct value_s *);
+extern MUST_CHECK struct value_s *int_from_decstr(const uint8_t *, size_t *);
 
 #endif

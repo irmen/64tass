@@ -20,5 +20,5 @@
 #define _ISNPRINTF_H_
 #include "inttypes.h"
 struct values_s;
-extern void isnprintf(struct values_s *, unsigned int);
+extern MUST_CHECK struct value_s *isnprintf(struct values_s *, unsigned int);
 #endif

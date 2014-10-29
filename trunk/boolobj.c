@@ -33,112 +33,114 @@ static int same(const struct value_s *v1, const struct value_s *v2) {
     return v2->obj == BOOL_OBJ && v1->u.boolean == v2->u.boolean;
 }
 
-static int truth(const struct value_s *v1, struct value_s *v, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
-    if (v1 != v) bool_from_int(v, v1->u.boolean);
-    return 0;
+static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+    return truth_reference(v1->u.boolean);
 }
 
-static int hash(const struct value_s *v1, struct value_s *UNUSED(v), linepos_t UNUSED(epoint)) {
-    return v1->u.boolean;
+static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
+    *hs = v1->u.boolean;
+    return NULL;
 }
 
-static void repr(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    struct value_s *v = val_alloc();
     uint8_t *s = str_create_elements(v, 4 + !v1->u.boolean);
     v->obj = STR_OBJ;
     v->u.str.data = s;
     v->u.str.len = 4 + !v1->u.boolean;
     v->u.str.chars = v->u.str.len;
     memcpy(s, v1->u.boolean ? "true" : "false", v->u.str.len);
-    return;
+    return v;
 }
 
-static int MUST_CHECK ival(const struct value_s *v1, struct value_s *UNUSED(v), ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
     *iv = v1->u.boolean;
-    return 0;
+    return NULL;
 }
 
-static int MUST_CHECK uval(const struct value_s *v1, struct value_s *UNUSED(v), uval_t *uv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int UNUSED(bits), linepos_t UNUSED(epoint)) {
     *uv = v1->u.boolean;
-    return 0;
+    return NULL;
 }
 
-static int MUST_CHECK real(const struct value_s *v1, struct value_s *UNUSED(v), double *r, linepos_t UNUSED(epoint)) {
+static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t UNUSED(epoint)) {
     *r = v1->u.boolean;
-    return 0;
+    return NULL;
 }
 
-static void sign(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    int_from_int(v, v1->u.boolean);
+static inline MUST_CHECK struct value_s *int_from_bool(int i) {
+    return val_reference(int_value[i]);
 }
 
-static void absolute(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    int_from_int(v, v1->u.boolean);
+static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    return int_from_bool(v1->u.boolean);
 }
 
-static void integer(const struct value_s *v1, struct value_s *v, linepos_t UNUSED(epoint)) {
-    int_from_int(v, v1->u.boolean);
+static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    return int_from_bool(v1->u.boolean);
 }
 
-static void calc1(oper_t op) {
-    struct value_s *v = op->v, *v1 = op->v1;
+static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+    return int_from_bool(v1->u.boolean);
+}
+
+static MUST_CHECK struct value_s *calc1(oper_t op) {
+    struct value_s *v1 = op->v1;
     switch (op->op->u.oper.op) {
     case O_BANK:
-    case O_HIGHER:
-        bits_from_u8(v, 0);
-        return;
-    case O_LOWER:
-        bits_from_u8(v, v1->u.boolean);
-        return;
-    case O_HWORD:
-        bits_from_u16(v, 0);
-        return;
-    case O_WORD:
-        bits_from_u16(v, v1->u.boolean);
-        return;
-    case O_BSWORD:
-        bits_from_u16(v, v1->u.boolean << 8);
-        return;
-    case O_INV:
-        int_from_int(v, ~v1->u.boolean);
-        return;
-    case O_NEG:
-        int_from_int(v, -v1->u.boolean);
-        return;
-    case O_POS:
-        int_from_int(v, v1->u.boolean);
-        return;
-    case O_STRING: repr(v1, v, op->epoint);break;
+    case O_HIGHER: return bits_from_u8(0);
+    case O_LOWER: return bits_from_u8(v1->u.boolean);
+    case O_HWORD: return bits_from_u16(0);
+    case O_WORD: return bits_from_u16(v1->u.boolean);
+    case O_BSWORD: return bits_from_u16(v1->u.boolean << 8);
+    case O_INV: return int_from_int(~v1->u.boolean);
+    case O_NEG: return int_from_int(-v1->u.boolean);
+    case O_POS: return int_from_bool(v1->u.boolean);
+    case O_STRING: return repr(v1, op->epoint);
     default: break;
     }
-    obj_oper_error(op);
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK struct value_s *calc2_bool(oper_t op, int v1, int v2) {
-    struct value_s *v = op->v;
     switch (op->op->u.oper.op) {
-    case O_CMP: int_from_int(v, v1 - v2); return NULL;
+    case O_CMP: 
+        if (!v1 && v2) return int_from_int(-1);
+        return val_reference(int_value[v1 - v2]);
     case O_EQ: return truth_reference(v1 == v2);
     case O_NE: return truth_reference(v1 != v2);
     case O_LT: return truth_reference(v1 < v2);
     case O_LE: return truth_reference(v1 <= v2);
     case O_GT: return truth_reference(v1 > v2);
     case O_GE: return truth_reference(v1 >= v2);
-    case O_ADD: int_from_int(v, v1 + v2); return NULL;
-    case O_SUB: int_from_int(v, v1 - v2); return NULL;
-    case O_MUL: int_from_int(v, v1 & v2); return NULL;
+    case O_ADD: return int_from_int(v1 + v2);
+    case O_SUB: return int_from_int(v1 - v2);
+    case O_MUL: return int_from_bool(v1 & v2);
     case O_DIV:
-        if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = *op->epoint2; return 0; }
-        int_from_int(v, v1); return NULL;
+        if (!v2) { 
+            struct value_s *v = val_alloc();
+            v->obj = ERROR_OBJ; 
+            v->u.error.num = ERROR_DIVISION_BY_Z; 
+            v->u.error.epoint = *op->epoint2; 
+            return v; 
+        }
+        return int_from_bool(v1);
     case O_MOD:
-        if (!v2) { v->obj = ERROR_OBJ; v->u.error.num = ERROR_DIVISION_BY_Z; v->u.error.epoint = *op->epoint2; return 0; }
-        int_from_int(v, 0); return NULL;
-    case O_EXP: int_from_int(v, v1 | !v1); return NULL;
+        if (!v2) { 
+            struct value_s *v = val_alloc();
+            v->obj = ERROR_OBJ; 
+            v->u.error.num = ERROR_DIVISION_BY_Z; 
+            v->u.error.epoint = *op->epoint2; 
+            return v;
+        }
+        return int_from_bool(0);
+    case O_EXP: return int_from_bool(v1 | !v1);
     case O_AND: return truth_reference(v1 & v2);
     case O_OR: return truth_reference(v1 | v2);
     case O_XOR: return truth_reference(v1 ^ v2);
-    case O_LSHIFT: int_from_int(v, v1 << v2); return NULL;
-    case O_RSHIFT: int_from_int(v, v1 >> v2); return NULL;
-    case O_CONCAT: bits_from_bools(v, v1, v2); return NULL;
+    case O_LSHIFT: return int_from_int(v1 << v2);
+    case O_RSHIFT: return int_from_bool(v1 >> v2);
+    case O_CONCAT: return bits_from_bools(v1, v2);
     default: break;
     }
     return obj_oper_error(op);

@@ -65,14 +65,15 @@ void select_opcodes(const struct cpu_s *cpumode) {
     cpu = cpumode;
 }
 
-int touval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s err;
+MUST_CHECK int touval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
+    struct value_s *err;
     if (v1->obj == NONE_OBJ) {
         err_msg_still_none(NULL, epoint);
         return 1;
     }
-    if (v1->obj->uval(v1, &err, uv, bits, epoint)) {
-        err_msg_output_and_destroy(&err);
+    err = v1->obj->uval(v1, uv, bits, epoint);
+    if (err) {
+        err_msg_output_and_destroy(err);
         return 1;
     }
     return 0;

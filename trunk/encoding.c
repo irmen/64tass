@@ -588,7 +588,7 @@ static struct escape_s *lastes = NULL;
 int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *enc, linepos_t epoint)
 {
     struct escape_s *b, tmp;
-    struct value_s iter, item, *val2, err;
+    struct value_s *iter, *val2, *err;
     uval_t uval;
     size_t i, len;
     uint8_t *odata = NULL, *d;
@@ -611,18 +611,20 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
     len = sizeof(tmp.val);
     d = tmp.val;
 
-    item.refcount = 0;
     if (val->obj == STR_OBJ) {
-        struct value_s *tmp2 = val_alloc();
-        bytes_from_str(tmp2, val, epoint);
-        tmp2->obj->getiter(tmp2, &iter);
+        struct value_s *tmp2 = bytes_from_str(val, epoint);
+        iter = tmp2->obj->getiter(tmp2);
         val_destroy(tmp2);
-    } else val->obj->getiter(val, &iter);
+    } else iter = val->obj->getiter(val);
 
-    while ((val2 = obj_next(&iter, &item))) {
+    while ((val2 = obj_next(iter))) {
         switch (val2->obj->type) {
         default:
-            if (val2->obj->uval(val2, &err, &uval, 8, epoint)) uval = 0;
+            err = val2->obj->uval(val2, &uval, 8, epoint);
+            if (err) {
+                err_msg_output_and_destroy(err);
+                uval = 0;
+            }
             break;
         case T_NONE:
             err_msg_still_none(NULL, epoint);
@@ -643,7 +645,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
         d[i++] = (uint8_t)uval;
         val_destroy(val2);
     }
-    obj_destroy(&iter);
+    val_destroy(iter);
 
     if (!foundold) { //new escape
         if (d == tmp.val) {
@@ -666,22 +668,25 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
 }
 
 static void add_esc(const char *s, struct encoding_s *enc) {
-    struct value_s tmp, tmp2;
+    struct value_s *tmp, *tmp2;
     struct linepos_s nopoint = {0, 0};
-    tmp.refcount = 0;
-    tmp.obj = STR_OBJ;
-    tmp2.refcount = 0;
-    tmp2.obj = BYTES_OBJ;
-    tmp2.u.bytes.len = 1;
-    tmp2.u.bytes.data = tmp2.u.bytes.val;
+    tmp = val_alloc();
+    tmp->obj = STR_OBJ;
+    tmp2 = val_alloc();
+    tmp2->obj = BYTES_OBJ;
+    tmp2->u.bytes.len = 1;
+    tmp2->u.bytes.data = tmp2->u.bytes.val;
     while (s[1]) {
-        tmp.u.str.data = (uint8_t *)s + 1;
-        tmp.u.str.len = strlen(s + 1);
-        tmp.u.str.chars = tmp.u.str.len;
-        tmp2.u.bytes.val[0] = (uint8_t)s[0];
-        new_escape(&tmp, &tmp2, enc, &nopoint);
-        s += tmp.u.str.len + 2;
+        tmp->u.str.data = (uint8_t *)s + 1;
+        tmp->u.str.len = strlen(s + 1);
+        tmp->u.str.chars = tmp->u.str.len;
+        tmp2->u.bytes.val[0] = (uint8_t)s[0];
+        new_escape(tmp, tmp2, enc, &nopoint);
+        s += tmp->u.str.len + 2;
     }
+    val_destroy(tmp2);
+    tmp->u.str.data = tmp->u.str.val;
+    val_destroy(tmp);
 }
 
 static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
