@@ -69,10 +69,10 @@ obj_t DEFAULT_OBJ = &default_obj;
 obj_t DICT_OBJ = &dict_obj;
 obj_t ITER_OBJ = &iter_obj;
 
-static void error_copy(const struct value_s *, struct value_s *);
+static void error_copy(const value_t, value_t);
 
-MUST_CHECK struct value_s *obj_oper_error(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v = val_alloc();
+MUST_CHECK value_t obj_oper_error(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v = val_alloc();
     v->obj = ERROR_OBJ;
     v->u.error.num = ERROR__INVALID_OPER;
     v->u.error.u.invoper.op = op->op;
@@ -82,21 +82,21 @@ MUST_CHECK struct value_s *obj_oper_error(oper_t op) {
     return v;
 }
 
-static void invalid_destroy(struct value_s *UNUSED(v1)) {
+static void invalid_destroy(value_t UNUSED(v1)) {
     return;
 }
 
-static void invalid_copy(const struct value_s *v1, struct value_s *v) {
+static void invalid_copy(const value_t v1, value_t v) {
     v->obj = v1->obj;
     memcpy(&v->u, &v1->u, sizeof(v->u));
 }
 
-static int invalid_same(const struct value_s *v1, const struct value_s *v2) {
+static int invalid_same(const value_t v1, const value_t v2) {
     return v1->obj == v2->obj;
 }
 
-static MUST_CHECK struct value_s *generic_invalid(const struct value_s *v1, linepos_t epoint, enum errors_e num) {
-    struct value_s *v = val_alloc();
+static MUST_CHECK value_t generic_invalid(const value_t v1, linepos_t epoint, enum errors_e num) {
+    value_t v = val_alloc();
     if (v1->obj == ERROR_OBJ) {
         error_copy(v1, v);
         return v;
@@ -108,16 +108,16 @@ static MUST_CHECK struct value_s *generic_invalid(const struct value_s *v1, line
     return v;
 }
 
-static MUST_CHECK struct value_s *invalid_truth(const struct value_s *v1, enum truth_e UNUSED(type), linepos_t epoint) {
+static MUST_CHECK value_t invalid_truth(const value_t v1, enum truth_e UNUSED(type), linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR_____CANT_BOOL);
 }
 
-static MUST_CHECK struct value_s *invalid_hash(const struct value_s *v1, int *UNUSED(hash), linepos_t epoint) {
+static MUST_CHECK value_t invalid_hash(const value_t v1, int *UNUSED(hash), linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR__NOT_HASHABLE);
 }
 
-static MUST_CHECK struct value_s *invalid_repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
-    struct value_s *v;
+static MUST_CHECK value_t invalid_repr(const value_t v1, linepos_t UNUSED(epoint)) {
+    value_t v;
     uint8_t *s;
     const char *name;
     if (v1->obj == ERROR_OBJ) {
@@ -136,18 +136,18 @@ static MUST_CHECK struct value_s *invalid_repr(const struct value_s *v1, linepos
     return v;
 }
 
-static MUST_CHECK struct value_s *invalid_str(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t invalid_str(const value_t v1, linepos_t epoint) {
     return v1->obj->repr(v1, epoint);
 }
 
-static MUST_CHECK struct value_s *gap_hash(const struct value_s *UNUSED(v1), int *hs, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t gap_hash(const value_t UNUSED(v1), int *hs, linepos_t UNUSED(epoint)) {
     *hs = 0; /* whatever, there's only one */
     return NULL;
 }
 
-static MUST_CHECK struct value_s *gap_repr(const struct value_s *UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t gap_repr(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     uint8_t *s;
-    struct value_s *v = val_alloc();
+    value_t v = val_alloc();
     v->obj = STR_OBJ;
     v->u.str.len = 1;
     v->u.str.chars = 1;
@@ -157,8 +157,8 @@ static MUST_CHECK struct value_s *gap_repr(const struct value_s *UNUSED(v1), lin
     return v;
 }
 
-static MUST_CHECK struct value_s *gap_calc1(oper_t op) {
-    struct value_s *v1 = op->v1;
+static MUST_CHECK value_t gap_calc1(oper_t op) {
+    value_t v1 = op->v1;
     switch (op->op->u.oper.op) {
     case O_BANK: 
     case O_HIGHER:
@@ -176,8 +176,8 @@ static MUST_CHECK struct value_s *gap_calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *gap_calc2(oper_t op) {
-    struct value_s *v2 = op->v2;
+static MUST_CHECK value_t gap_calc2(oper_t op) {
+    value_t v2 = op->v2;
     switch (v2->obj->type) {
     case T_STR:
     case T_BOOL:
@@ -205,8 +205,8 @@ static MUST_CHECK struct value_s *gap_calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *gap_rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2;
+static MUST_CHECK value_t gap_rcalc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2;
     switch (v1->obj->type) {
     case T_STR:
     case T_BOOL:
@@ -232,75 +232,75 @@ static MUST_CHECK struct value_s *gap_rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *invalid_calc1(oper_t op) {
+static MUST_CHECK value_t invalid_calc1(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->calc1(op);
     }
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *invalid_calc2(oper_t op) {
+static MUST_CHECK value_t invalid_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
         return ERROR_OBJ->rcalc2(op);
     }
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *invalid_rcalc2(oper_t op) {
+static MUST_CHECK value_t invalid_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->calc2(op);
     }
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *invalid_repeat(oper_t op, uval_t rep) {
+static MUST_CHECK value_t invalid_repeat(oper_t op, uval_t rep) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->repeat(op, rep);
     }
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *invalid_iindex(oper_t op) {
+static MUST_CHECK value_t invalid_iindex(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->iindex(op);
     }
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *invalid_ival(const struct value_s *v1, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
+static MUST_CHECK value_t invalid_ival(const value_t v1, ival_t *UNUSED(iv), int UNUSED(bits), linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
 
-static MUST_CHECK struct value_s *invalid_uval(const struct value_s *v1, uval_t *UNUSED(uv), int UNUSED(bits), linepos_t epoint) {
+static MUST_CHECK value_t invalid_uval(const value_t v1, uval_t *UNUSED(uv), int UNUSED(bits), linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
 
-static MUST_CHECK struct value_s *invalid_real(const struct value_s *v1, double *UNUSED(r), linepos_t epoint) {
+static MUST_CHECK value_t invalid_real(const value_t v1, double *UNUSED(r), linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR_____CANT_REAL);
 }
 
-static MUST_CHECK struct value_s *invalid_sign(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t invalid_sign(const value_t v1, linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
 }
 
-static MUST_CHECK struct value_s *invalid_abs(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t invalid_abs(const value_t v1, linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR______CANT_ABS);
 }
 
-static MUST_CHECK struct value_s *invalid_integer(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t invalid_integer(const value_t v1, linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
 
-static MUST_CHECK struct value_s *invalid_len(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t invalid_len(const value_t v1, linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR______CANT_LEN);
 }
 
-static MUST_CHECK struct value_s *invalid_size(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t invalid_size(const value_t v1, linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR_____CANT_SIZE);
 }
 
-MUST_CHECK struct value_s *invalid_getiter(struct value_s *v1) {
-    struct value_s *v = val_alloc();
+MUST_CHECK value_t invalid_getiter(value_t v1) {
+    value_t v = val_alloc();
     v->obj = ITER_OBJ;
     v->u.iter.data = val_reference(v1);
     v->u.iter.iter = NULL;
@@ -308,7 +308,7 @@ MUST_CHECK struct value_s *invalid_getiter(struct value_s *v1) {
     return v;
 }
 
-static MUST_CHECK struct value_s *invalid_next(struct value_s *v1) {
+static MUST_CHECK value_t invalid_next(value_t v1) {
     if (v1->u.iter.val) {
         v1->u.iter.val = 0;
         return val_reference(v1->u.iter.data);
@@ -316,17 +316,17 @@ static MUST_CHECK struct value_s *invalid_next(struct value_s *v1) {
     return NULL;
 }
 
-static void iter_destroy(struct value_s *v1) {
+static void iter_destroy(value_t v1) {
     if (v1->u.iter.iter != &v1->u.iter.val) free(v1->u.iter.iter);
-    val_destroy((struct value_s *)v1->u.iter.data);
+    val_destroy((value_t)v1->u.iter.data);
 }
 
-static MUST_CHECK struct value_s *iter_next(struct value_s *v1) {
+static MUST_CHECK value_t iter_next(value_t v1) {
     if (!v1->u.iter.iter) return invalid_next(v1);
     return v1->u.iter.data->obj->next(v1);
 }
 
-static void macro_destroy(struct value_s *v1) {
+static void macro_destroy(value_t v1) {
     while (v1->u.macro.argc) {
         --v1->u.macro.argc;
         free((char *)v1->u.macro.param[v1->u.macro.argc].cfname.data);
@@ -336,7 +336,7 @@ static void macro_destroy(struct value_s *v1) {
     if (v1->u.macro.label->parent == NULL) label_destroy(v1->u.macro.label);
 }
 
-static void macro_copy(const struct value_s *v1, struct value_s *v) {
+static void macro_copy(const value_t v1, value_t v) {
     v->obj = v1->obj;
     memcpy(&v->u.macro, &v1->u.macro, sizeof(v->u.macro));
     if (v1->u.macro.argc) {
@@ -351,12 +351,12 @@ static void macro_copy(const struct value_s *v1, struct value_s *v) {
     } else v->u.macro.param = NULL;
 }
 
-static void macro_copy_temp(const struct value_s *v1, struct value_s *v) {
+static void macro_copy_temp(const value_t v1, value_t v) {
     v->obj = v1->obj;
     memcpy(&v->u.macro, &v1->u.macro, sizeof(v->u.macro));
 }
 
-static int macro_same(const struct value_s *v1, const struct value_s *v2) {
+static int macro_same(const value_t v1, const value_t v2) {
     size_t i;
     if (v1->obj != v2->obj || v1->u.macro.size != v2->u.macro.size || v1->u.macro.label != v2->u.macro.label) return 0;
     for (i = 0; i < v1->u.macro.argc; i++) {
@@ -366,7 +366,7 @@ static int macro_same(const struct value_s *v1, const struct value_s *v2) {
     return 1;
 }
 
-static void mfunc_destroy(struct value_s *v1) {
+static void mfunc_destroy(value_t v1) {
     size_t i = v1->u.mfunc.argc;
     while (i--) {
         free((char *)v1->u.mfunc.param[i].name.data);
@@ -376,7 +376,7 @@ static void mfunc_destroy(struct value_s *v1) {
     free(v1->u.mfunc.param);
 }
 
-static void mfunc_copy(const struct value_s *v1, struct value_s *v) {
+static void mfunc_copy(const value_t v1, value_t v) {
     v->obj = MFUNC_OBJ;
     memcpy(&v->u.mfunc, &v1->u.mfunc, sizeof(v->u.mfunc));
     if (v1->u.mfunc.argc) {
@@ -396,12 +396,12 @@ static void mfunc_copy(const struct value_s *v1, struct value_s *v) {
     } else v->u.mfunc.param = NULL;
 }
 
-static void mfunc_copy_temp(const struct value_s *v1, struct value_s *v) {
+static void mfunc_copy_temp(const value_t v1, value_t v) {
     v->obj = MFUNC_OBJ;
     memcpy(&v->u.mfunc, &v1->u.mfunc, sizeof(v->u.mfunc));
 }
 
-static int mfunc_same(const struct value_s *v1, const struct value_s *v2) {
+static int mfunc_same(const value_t v1, const value_t v2) {
     size_t i;
     if (v2->obj != MFUNC_OBJ || v1->u.mfunc.label != v2->u.mfunc.label) return 0;
     for (i = 0; i < v1->u.mfunc.argc; i++) {
@@ -421,12 +421,12 @@ static void dict_free(struct avltree_node *aa)
     free(a);
 }
 
-static void dict_destroy(struct value_s *v1) {
+static void dict_destroy(value_t v1) {
     avltree_destroy(&v1->u.dict.members, dict_free);
     if (v1->u.dict.def) val_destroy(v1->u.dict.def);
 }
 
-static void dict_copy(const struct value_s *v1, struct value_s *v) {
+static void dict_copy(const value_t v1, value_t v) {
     v->obj = DICT_OBJ;
     v->u.dict.len = v1->u.dict.len;
     v->u.dict.def = v1->u.dict.def ? val_reference(v1->u.dict.def) : NULL;
@@ -448,14 +448,14 @@ static void dict_copy(const struct value_s *v1, struct value_s *v) {
     }
 }
 
-static void dict_copy_temp(const struct value_s *v1, struct value_s *v) {
+static void dict_copy_temp(const value_t v1, value_t v) {
     v->obj = DICT_OBJ;
     v->u.dict.len = v1->u.dict.len;
     v->u.dict.members = v1->u.dict.members;
     v->u.dict.def = v1->u.dict.def;
 }
 
-static int dict_same(const struct value_s *v1, const struct value_s *v2) {
+static int dict_same(const value_t v1, const value_t v2) {
     const struct avltree_node *n;
     const struct avltree_node *n2;
     if (v2->obj != DICT_OBJ || v1->u.dict.len != v2->u.dict.len) return 0;
@@ -475,23 +475,23 @@ static int dict_same(const struct value_s *v1, const struct value_s *v2) {
     return n == n2;
 }
 
-static MUST_CHECK struct value_s *dict_len(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t dict_len(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_uval(v1->u.dict.len);
 }
 
-static MUST_CHECK struct value_s *dict_repr(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t dict_repr(const value_t v1, linepos_t epoint) {
     const struct pair_s *p;
     size_t i = 0, j, len = 2, chars = 0;
-    struct value_s **tmp = NULL;
-    struct value_s *v;
+    value_t *tmp = NULL;
+    value_t v;
     uint8_t *s;
     unsigned int def = (v1->u.dict.def != NULL);
     if (v1->u.dict.len || def) {
         len = v1->u.dict.len * 2;
         if (len < v1->u.dict.len) err_msg_out_of_memory(); /* overflow */
         len += def;
-        tmp = (struct value_s **)malloc(len * sizeof(struct value_s *));
-        if (!tmp || len < def || len > SIZE_MAX / sizeof(struct value_s *)) err_msg_out_of_memory(); /* overflow */
+        tmp = (value_t *)malloc(len * sizeof(value_t));
+        if (!tmp || len < def || len > SIZE_MAX / sizeof(value_t)) err_msg_out_of_memory(); /* overflow */
         len += 1 + def;
         if (len < 1 + def) err_msg_out_of_memory(); /* overflow */
         if (v1->u.dict.len) {
@@ -553,11 +553,11 @@ static MUST_CHECK struct value_s *dict_repr(const struct value_s *v1, linepos_t 
     return v;
 }
 
-static MUST_CHECK struct value_s *dict_rcalc2(oper_t op) {
+static MUST_CHECK value_t dict_rcalc2(oper_t op) {
     if (op->op == &o_IN) {
         struct pair_s p;
         struct avltree_node *b;
-        struct value_s *err;
+        value_t err;
 
         p.key = op->v1;
         err = obj_hash(p.key, &p.hash, op->epoint);
@@ -568,11 +568,11 @@ static MUST_CHECK struct value_s *dict_rcalc2(oper_t op) {
     return op->v1->obj->calc2(op);
 }
 
-static MUST_CHECK struct value_s *dict_iindex(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2;
+static MUST_CHECK value_t dict_iindex(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2;
     struct pair_s pair;
     const struct avltree_node *b;
-    struct value_s *err;
+    value_t err;
     pair.key = v2;
     err = obj_hash(pair.key, &pair.hash, op->epoint2);
     if (err) return err;
@@ -591,18 +591,18 @@ static MUST_CHECK struct value_s *dict_iindex(oper_t op) {
     return err;
 }
 
-static void error_destroy(struct value_s *v1) {
+static void error_destroy(value_t v1) {
     if (v1->u.error.num == ERROR__INVALID_OPER) {
         if (v1->u.error.u.invoper.v1) val_destroy(v1->u.error.u.invoper.v1);
         if (v1->u.error.u.invoper.v2) val_destroy(v1->u.error.u.invoper.v2);
     }
 }
 
-static MUST_CHECK struct value_s *oper_repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t oper_repr(const value_t v1, linepos_t UNUSED(epoint)) {
     const char *txt = v1->u.oper.name;
     size_t len = strlen(txt);
     uint8_t *s;
-    struct value_s *v = val_alloc();
+    value_t v = val_alloc();
     v->obj = STR_OBJ;
     s = str_create_elements(v, len + 8);
     memcpy(s, "<oper ", 6);
@@ -616,7 +616,7 @@ static MUST_CHECK struct value_s *oper_repr(const struct value_s *v1, linepos_t 
     return v;
 }
 
-static void error_copy(const struct value_s *v1, struct value_s *v) {
+static void error_copy(const value_t v1, value_t v) {
     v->obj = ERROR_OBJ;
     memcpy(&v->u.error, &v1->u.error, sizeof(v->u.error));
     if (v1->u.error.num == ERROR__INVALID_OPER) {
@@ -625,110 +625,110 @@ static void error_copy(const struct value_s *v1, struct value_s *v) {
     }
 }
 
-static void error_copy_temp(const struct value_s *v1, struct value_s *v) {
+static void error_copy_temp(const value_t v1, value_t v) {
     v->obj = ERROR_OBJ;
     memcpy(&v->u.error, &v1->u.error, sizeof(v->u.error));
 }
 
-static MUST_CHECK struct value_s *error_calc1(oper_t op) {
+static MUST_CHECK value_t error_calc1(oper_t op) {
     return val_reference(op->v1);
 }
 
-static MUST_CHECK struct value_s *error_calc2(oper_t op) {
+static MUST_CHECK value_t error_calc2(oper_t op) {
     return val_reference(op->v1);
 }
 
-static MUST_CHECK struct value_s *error_rcalc2(oper_t op) {
+static MUST_CHECK value_t error_rcalc2(oper_t op) {
     return val_reference(op->v2);
 }
 
-static MUST_CHECK struct value_s *error_repeat(oper_t op, uval_t UNUSED(rep)) {
+static MUST_CHECK value_t error_repeat(oper_t op, uval_t UNUSED(rep)) {
     return val_reference(op->v1);
 }
 
-static MUST_CHECK struct value_s *error_iindex(oper_t op) {
+static MUST_CHECK value_t error_iindex(oper_t op) {
     return val_reference(op->v1);
 }
 
-static MUST_CHECK struct value_s *ident_rcalc2(oper_t op) {
+static MUST_CHECK value_t ident_rcalc2(oper_t op) {
     if (op->op == &o_MEMBER) {
         return op->v1->obj->calc2(op);
     }
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *none_truth(const struct value_s *UNUSED(v1), enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_truth(const value_t UNUSED(v1), enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_hash(const struct value_s *UNUSED(v1), int *UNUSED(v), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_hash(const value_t UNUSED(v1), int *UNUSED(v), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_repr(const struct value_s *UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_repr(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_calc1(oper_t UNUSED(op)) {
+static MUST_CHECK value_t none_calc1(oper_t UNUSED(op)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_calc2(oper_t op) {
+static MUST_CHECK value_t none_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
         return ERROR_OBJ->rcalc2(op);
     }
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_rcalc2(oper_t op) {
+static MUST_CHECK value_t none_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return ERROR_OBJ->calc2(op);
     }
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_ival(const struct value_s *UNUSED(v1), ival_t *UNUSED(iv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_ival(const value_t UNUSED(v1), ival_t *UNUSED(iv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_uval(const struct value_s *UNUSED(v1), uval_t *UNUSED(uv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_uval(const value_t UNUSED(v1), uval_t *UNUSED(uv), int UNUSED(bits), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_real(const struct value_s *UNUSED(v1), double *UNUSED(r), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_real(const value_t UNUSED(v1), double *UNUSED(r), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_sign(const struct value_s *UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_sign(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_abs(const struct value_s *UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_abs(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_integer(const struct value_s *UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_integer(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_len(const struct value_s *UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_len(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static MUST_CHECK struct value_s *none_size(const struct value_s *UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_size(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
-static int lbl_same(const struct value_s *v1, const struct value_s *v2) {
+static int lbl_same(const value_t v1, const value_t v2) {
     return v2->obj == LBL_OBJ && v1->u.lbl.sline == v2->u.lbl.sline && v1->u.lbl.waitforp == v2->u.lbl.waitforp && v1->u.lbl.file_list == v2->u.lbl.file_list && v1->u.lbl.parent == v2->u.lbl.parent;
 }
 
-static MUST_CHECK struct value_s *struct_size(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t struct_size(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_uval(v1->u.macro.size);
 }
 
-static MUST_CHECK struct value_s *struct_calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
+static MUST_CHECK value_t struct_calc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
     if (op->op == &o_MEMBER) {
         struct label_s *l, *l2;
         struct linepos_s epoint;

@@ -23,22 +23,22 @@
 
 extern int get_exp(int *, int, struct file_s *, unsigned int, unsigned int, linepos_t);
 extern int get_exp_var(struct file_s *, linepos_t);
-extern struct value_s *get_val(struct linepos_s *);
-extern struct value_s *pull_val(struct linepos_s *);
+extern value_t get_val(struct linepos_s *);
+extern value_t pull_val(struct linepos_s *);
 extern size_t get_val_remaining(void);
 extern void destroy_eval(void);
 extern void init_eval(void);
 extern void eval_enter(void);
 extern void eval_leave(void);
 extern size_t get_label(void);
-extern struct value_s *get_vals_tuple(void);
-extern struct value_s *get_vals_addrlist(struct linepos_s *);
-extern MUST_CHECK struct value_s *indexoffs(const struct value_s *, ival_t *, size_t, linepos_t);
-extern MUST_CHECK struct value_s *sliceparams(oper_t, size_t, ival_t *, ival_t *, ival_t *, ival_t *);
+extern value_t get_vals_tuple(void);
+extern value_t get_vals_addrlist(struct linepos_s *);
+extern MUST_CHECK value_t indexoffs(const value_t, ival_t *, size_t, linepos_t);
+extern MUST_CHECK value_t sliceparams(oper_t, size_t, ival_t *, ival_t *, ival_t *, ival_t *);
 extern void touch_label(struct label_s *);
 
 struct values_s {
-    struct value_s *val;
+    value_t val;
     struct linepos_s epoint;
 };
 #endif

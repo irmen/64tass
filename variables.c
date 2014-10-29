@@ -325,7 +325,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
         }
         if (0) { /* for future use with VICE */
             if (l->value->obj == CODE_OBJ) {
-                struct value_s *err;
+                value_t err;
                 uval_t uv;
                 struct linepos_s epoint;
                 err = l->value->obj->uval(l->value, &uv, 24, &epoint);
@@ -404,7 +404,7 @@ void init_variables2(struct label_s *label) {
     avltree_init(&label->members);
 }
 
-static struct label_s *new_builtin(const char *ident) {
+static struct label_s *new_builtin(const char *ident, value_t val) {
     struct linepos_s nopoint = {0, 0};
     str_t name;
     struct label_s *label;
@@ -415,7 +415,7 @@ static struct label_s *new_builtin(const char *ident) {
     label->constant = 1;
     label->requires = 0;
     label->conflicts = 0;
-    label->value = val_alloc();
+    label->value = val;
     label->file_list = NULL;
     label->epoint = nopoint;
     return label;
@@ -459,41 +459,39 @@ void init_variables(void)
 
 void init_defaultlabels(void) {
     struct label_s *label;
-    struct value_s *v;
+    value_t v;
     int i;
 
-    label = new_builtin("true");
-    bool_from_int(label->value, 1);
+    label = new_builtin("true", val_reference(true_value));
 
-    label = new_builtin("false");
-    bool_from_int(label->value, 0);
+    label = new_builtin("false", val_reference(false_value));
 
     for (i = 0; reg_names[i]; i++) {
         char name[2] = {reg_names[i], 0};
-        label = new_builtin(name);
-        v = label->value;
+        v = val_alloc();
         v->obj = REGISTER_OBJ;
         v->u.str.val[0] = name[0];
         v->u.str.data = v->u.str.val;
         v->u.str.len = 1;
         v->u.str.chars = 1;
+        label = new_builtin(name, v);
     }
 
     for (i = 0; builtin_functions[i].name; i++) {
-        label = new_builtin(builtin_functions[i].name);
-        v = label->value;
+        v = val_alloc();
         v->obj = FUNCTION_OBJ;
         v->u.function.name.data = (const uint8_t *)builtin_functions[i].name;
         v->u.function.name.len = strlen(builtin_functions[i].name);
         v->u.function.name_hash = label->name_hash;
         v->u.function.func = builtin_functions[i].func;
+        label = new_builtin(builtin_functions[i].name, v);
     }
 }
 
 static void label_free2(struct avltree_node *aa)
 {
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
-    struct value_s *val = a->value;
+    value_t val = a->value;
     if (val->refcount > 1) {
         switch (val->obj->type) {
         case T_CODE:

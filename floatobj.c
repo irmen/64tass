@@ -27,20 +27,20 @@ static struct obj_s obj;
 
 obj_t FLOAT_OBJ = &obj;
 
-static void copy(const struct value_s *v1, struct value_s *v) {
+static void copy(const value_t v1, value_t v) {
     v->obj = FLOAT_OBJ;
     v->u.real = v1->u.real;
 }
 
-static int same(const struct value_s *v1, const struct value_s *v2) {
+static int same(const value_t v1, const value_t v2) {
     return v2->obj == FLOAT_OBJ && v1->u.real == v2->u.real;
 }
 
-static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t truth(const value_t v1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
     return truth_reference(!!v1->u.real);
 }
 
-static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
     double integer, r;
     int expo;
     unsigned int h;
@@ -59,8 +59,8 @@ static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepo
     return NULL;
 }
 
-static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
-    struct value_s *v;
+static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
+    value_t v;
     char line[100]; 
     int i = 0;
     uint8_t *s;
@@ -77,8 +77,8 @@ static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSE
     return v;
 }
 
-static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s *v;
+static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
+    value_t v;
     if (-v1->u.real >= (double)(~((~(uval_t)0) >> 1)) + 1.0 || v1->u.real >= (double)((~(uval_t)0) >> 1) + 1.0) {
         *iv = 0;
         v = val_alloc();
@@ -100,8 +100,8 @@ static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int
     return NULL;
 }
 
-static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s *v;
+static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
+    value_t v;
     if (v1->u.real <= -1.0 || v1->u.real >= (double)(~(uval_t)0) + 1.0) {
         v = val_alloc();
         v->obj = ERROR_OBJ;
@@ -122,25 +122,25 @@ static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int
     return NULL;
 }
 
-static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t UNUSED(epoint)) {
     *r = v1->u.real;
     return NULL;
 }
 
-static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
     if (v1->u.real < 0.0) return int_from_int(-1);
     return val_reference(int_value[v1->u.real > 0.0]);
 }
 
-static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
     return float_from_double((v1->u.real < 0.0) ? -v1->u.real : v1->u.real);
 }
 
-static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t integer(const value_t v1, linepos_t epoint) {
     return int_from_double(v1->u.real, epoint);
 }
 
-static MUST_CHECK struct value_s *calc1(oper_t op) {
+static MUST_CHECK value_t calc1(oper_t op) {
     double v1 = op->v1->u.real;
     ival_t val = v1;
     switch (op->op->u.oper.op) {
@@ -164,8 +164,8 @@ static int almost_equal(double a, double b) {
     return b - a <= b * 0.0000000005;
 }
 
-MUST_CHECK struct value_s *calc2_double(oper_t op, double v1, double v2) {
-    struct value_s *v;
+MUST_CHECK value_t calc2_double(oper_t op, double v1, double v2) {
+    value_t v;
     switch (op->op->u.oper.op) {
     case O_CMP: 
         if (almost_equal(v1, v2)) return val_reference(int_value[0]);
@@ -263,16 +263,16 @@ MUST_CHECK struct value_s *calc2_double(oper_t op, double v1, double v2) {
     return obj_oper_error(op);
 }
 
-MUST_CHECK struct value_s *float_from_double(double d) {
-    struct value_s *v = val_alloc();
+MUST_CHECK value_t float_from_double(double d) {
+    value_t v = val_alloc();
     v->obj = FLOAT_OBJ;
     v->u.real = d;
     return v;
 }
 
-static MUST_CHECK struct value_s *calc2(oper_t op) {
+static MUST_CHECK value_t calc2(oper_t op) {
     double d;
-    struct value_s *err;
+    value_t err;
     switch (op->v2->obj->type) {
     case T_BOOL:
     case T_INT:
@@ -290,9 +290,9 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *rcalc2(oper_t op) {
+static MUST_CHECK value_t rcalc2(oper_t op) {
     double d;
-    struct value_s *err;
+    value_t err;
     switch (op->v1->obj->type) {
     case T_BOOL:
     case T_INT:

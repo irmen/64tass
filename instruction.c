@@ -65,8 +65,8 @@ void select_opcodes(const struct cpu_s *cpumode) {
     cpu = cpumode;
 }
 
-MUST_CHECK int touval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s *err;
+MUST_CHECK int touval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
+    value_t err;
     if (v1->obj == NONE_OBJ) {
         err_msg_still_none(NULL, epoint);
         return 1;
@@ -79,7 +79,7 @@ MUST_CHECK int touval(const struct value_s *v1, uval_t *uv, int bits, linepos_t 
     return 0;
 }
 
-int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct linepos_s *epoints) {
+int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s *epoints) {
     enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_DB2, AG_WORD, AG_NONE } adrgen;
     enum opr_e opr;
     enum reg_e reg;
@@ -88,7 +88,7 @@ int instruction(int prm, int w, struct value_s *vals, linepos_t epoint, struct l
     uint8_t cod, longbranch;
     uint32_t adr;
     uval_t uval;
-    struct value_s *val;
+    value_t val;
     linepos_t epoint2 = &epoints[0];
 
     cnmemonic = opcode_table[opcode[prm]];

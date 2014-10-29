@@ -26,29 +26,29 @@ static struct obj_s obj;
 
 obj_t ADDRESS_OBJ = &obj;
 
-static void destroy(struct value_s *v1) {
+static void destroy(value_t v1) {
     val_destroy(v1->u.addr.val);
 }
 
-static void copy(const struct value_s *v1, struct value_s *v) {
+static void copy(const value_t v1, value_t v) {
     v->obj = ADDRESS_OBJ;
     v->u.addr.type = v1->u.addr.type;
     v->u.addr.val = val_reference(v1->u.addr.val);
 }
 
-static void copy_temp(const struct value_s *v1, struct value_s *v) {
+static void copy_temp(const value_t v1, value_t v) {
     v->obj = ADDRESS_OBJ;
     v->u.addr.type = v1->u.addr.type;
     v->u.addr.val = v1->u.addr.val;
 }
 
-static int same(const struct value_s *v1, const struct value_s *v2) {
+static int same(const value_t v1, const value_t v2) {
     return v2->obj == ADDRESS_OBJ && v1->u.addr.type == v2->u.addr.type && obj_same(v1->u.addr.val, v2->u.addr.val);
 }
 
-static inline MUST_CHECK struct value_s *type_check(const struct value_s *v1, enum errors_e num, linepos_t epoint) {
+static inline MUST_CHECK value_t type_check(const value_t v1, enum errors_e num, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
-        struct value_s *v = val_alloc();
+        value_t v = val_alloc();
         v->obj = ERROR_OBJ;
         v->u.error.num = num;
         v->u.error.epoint = *epoint;
@@ -58,62 +58,62 @@ static inline MUST_CHECK struct value_s *type_check(const struct value_s *v1, en
     return NULL;
 }
 
-static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e type, linepos_t epoint) {
-    struct value_s *err = type_check(v1, ERROR_____CANT_BOOL, epoint);
+static MUST_CHECK value_t truth(value_t v1, enum truth_e type, linepos_t epoint) {
+    value_t err = type_check(v1, ERROR_____CANT_BOOL, epoint);
     if (err) return err;
     v1 = v1->u.addr.val;
     return v1->obj->truth(v1, type, epoint);
 }
 
-static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s *err = type_check(v1, ERROR______CANT_INT, epoint);
+static MUST_CHECK value_t ival(value_t v1, ival_t *iv, int bits, linepos_t epoint) {
+    value_t err = type_check(v1, ERROR______CANT_INT, epoint);
     if (err) return err;
     v1 = v1->u.addr.val;
     return v1->obj->ival(v1, iv, bits, epoint);
 }
 
-static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s *err = type_check(v1, ERROR______CANT_INT, epoint);
+static MUST_CHECK value_t uval(value_t v1, uval_t *uv, int bits, linepos_t epoint) {
+    value_t err = type_check(v1, ERROR______CANT_INT, epoint);
     if (err) return err;
     v1 = v1->u.addr.val;
     return v1->obj->uval(v1, uv, bits, epoint);
 }
 
-static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t epoint) {
-    struct value_s *err = type_check(v1, ERROR_____CANT_REAL, epoint);
+static MUST_CHECK value_t real(value_t v1, double *r, linepos_t epoint) {
+    value_t err = type_check(v1, ERROR_____CANT_REAL, epoint);
     if (err) return err;
     v1 = v1->u.addr.val;
     return v1->obj->real(v1, r, epoint);
 }
 
-static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t epoint) {
-    struct value_s *err = type_check(v1, ERROR_____CANT_SIGN, epoint);
+static MUST_CHECK value_t sign(value_t v1, linepos_t epoint) {
+    value_t err = type_check(v1, ERROR_____CANT_SIGN, epoint);
     if (err) return err;
     v1 = v1->u.addr.val;
     return v1->obj->sign(v1, epoint);
 }
 
-static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t epoint) {
-    struct value_s *err = type_check(v1, ERROR______CANT_ABS, epoint);
+static MUST_CHECK value_t absolute(value_t v1, linepos_t epoint) {
+    value_t err = type_check(v1, ERROR______CANT_ABS, epoint);
     if (err) return err;
     v1 = v1->u.addr.val;
     return v1->obj->abs(v1, epoint);
 }
 
-static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t epoint) {
-    struct value_s *err = type_check(v1, ERROR______CANT_INT, epoint);
+static MUST_CHECK value_t integer(value_t v1, linepos_t epoint) {
+    value_t err = type_check(v1, ERROR______CANT_INT, epoint);
     if (err) return err;
     v1 = v1->u.addr.val;
     return v1->obj->integer(v1, epoint);
 }
 
-static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
     uint8_t *s;
     size_t len;
     char buffer[100], buffer2[100];
     atype_t addrtype;
     int ind, ind2;
-    struct value_s *tmp, *v;
+    value_t tmp, v;
 
     tmp = v1->u.addr.val->obj->repr(v1->u.addr.val, epoint);
     if (tmp->obj != STR_OBJ) return tmp;
@@ -176,8 +176,8 @@ static inline int check_addr(atype_t type) {
     return 0;
 }
 
-static MUST_CHECK struct value_s *calc1(oper_t op) {
-    struct value_s *v, *v1 = op->v1;
+static MUST_CHECK value_t calc1(oper_t op) {
+    value_t v, v1 = op->v1;
     atype_t am;
     switch (op->op->u.oper.op) {
     case O_BANK:
@@ -205,9 +205,9 @@ static MUST_CHECK struct value_s *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
-    struct value_s *result;
+static MUST_CHECK value_t calc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
+    value_t result;
     atype_t am;
     switch (v2->obj->type) {
     case T_ADDRESS:
@@ -289,8 +289,8 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
+static MUST_CHECK value_t rcalc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
     atype_t am;
     switch (v1->obj->type) {
     case T_BOOL:

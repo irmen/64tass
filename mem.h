@@ -19,7 +19,7 @@
 #ifndef _MEM_H_
 #define _MEM_H_
 #include "inttypes.h"
-enum lastl_e;
+
 struct memblock_s;
 
 struct memblocks_s {

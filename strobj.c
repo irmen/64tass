@@ -32,11 +32,11 @@ static struct obj_s register_obj;
 obj_t STR_OBJ = &str_obj;
 obj_t REGISTER_OBJ = &register_obj;
 
-static void destroy(struct value_s *v1) {
+static void destroy(value_t v1) {
     if (v1->u.str.val != v1->u.str.data) free(v1->u.str.data);
 }
 
-static uint8_t *snew(struct value_s *v, size_t len) {
+static uint8_t *snew(value_t v, size_t len) {
     if (len > sizeof(v->u.str.val)) {
         uint8_t *s = (uint8_t *)malloc(len);
         if (!s) err_msg_out_of_memory();
@@ -45,7 +45,7 @@ static uint8_t *snew(struct value_s *v, size_t len) {
     return v->u.str.val;
 }
 
-static void copy(const struct value_s *v1, struct value_s *v) {
+static void copy(const value_t v1, value_t v) {
     uint8_t *s;
     v->obj = v1->obj;
     v->u.str.chars = v1->u.str.chars;
@@ -57,7 +57,7 @@ static void copy(const struct value_s *v1, struct value_s *v) {
     v->u.str.data = s;
 }
 
-static void copy_temp(const struct value_s *v1, struct value_s *v) {
+static void copy_temp(const value_t v1, value_t v) {
     v->obj = v1->obj;
     v->u.str.chars = v1->u.str.chars;
     v->u.str.len = v1->u.str.len;
@@ -67,25 +67,25 @@ static void copy_temp(const struct value_s *v1, struct value_s *v) {
     } else v->u.str.data = v1->u.str.data;
 }
 
-static int same(const struct value_s *v1, const struct value_s *v2) {
+static int same(const value_t v1, const value_t v2) {
     return v1->obj == v2->obj && v1->u.str.len == v2->u.str.len && (
             v1->u.str.data == v2->u.str.data ||
             !memcmp(v1->u.str.data, v2->u.str.data, v2->u.str.len));
 }
 
-static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e type, linepos_t epoint) {
-    struct value_s *tmp, *ret;
+static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t epoint) {
+    value_t tmp, ret;
     tmp = bytes_from_str(v1, epoint);
     ret = tmp->obj->truth(tmp, type, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     size_t i2, i, sq = 0, dq = 0;
     uint8_t *s, *s2;
     char q;
-    struct value_s *v = val_alloc();
+    value_t v = val_alloc();
     for (i = 0; i < v1->u.str.len; i++) {
         switch (v1->u.str.data[i]) {
         case '\'': sq++; continue;
@@ -121,7 +121,7 @@ static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSE
     return v;
 }
 
-static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
     size_t l = v1->u.str.len;
     const uint8_t *s2 = v1->u.str.data;
     unsigned int h;
@@ -136,62 +136,62 @@ static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepo
     return NULL;
 }
 
-static MUST_CHECK struct value_s *str(const struct value_s *v1, linepos_t UNUSED(epoint)) {
-    struct value_s *v = val_alloc();
+static MUST_CHECK value_t str(const value_t v1, linepos_t UNUSED(epoint)) {
+    value_t v = val_alloc();
     copy(v1, v);
     return v;
 }
 
-static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s *tmp, *ret;
+static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
+    value_t tmp, ret;
     tmp = bits_from_str(v1, epoint);
     ret = tmp->obj->ival(tmp, iv, bits, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s *tmp, *ret;
+static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
+    value_t tmp, ret;
     tmp = bits_from_str(v1, epoint);
     ret = tmp->obj->uval(tmp, uv, bits, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t epoint) {
-    struct value_s *tmp, *ret;
+static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
+    value_t tmp, ret;
     tmp = bits_from_str(v1, epoint);
     ret = tmp->obj->real(tmp, r, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t epoint) {
-    struct value_s *tmp, *ret;
+static MUST_CHECK value_t sign(const value_t v1, linepos_t epoint) {
+    value_t tmp, ret;
     tmp = bytes_from_str(v1, epoint);
     ret = tmp->obj->sign(tmp, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t epoint) {
-    struct value_s *tmp, *ret;
+static MUST_CHECK value_t absolute(const value_t v1, linepos_t epoint) {
+    value_t tmp, ret;
     tmp = int_from_str(v1, epoint);
     ret = tmp->obj->abs(tmp, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t epoint) {
+static MUST_CHECK value_t integer(const value_t v1, linepos_t epoint) {
     return int_from_str(v1, epoint);
 }
 
-static MUST_CHECK struct value_s *len(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_uval(v1->u.str.chars);
 }
 
-static MUST_CHECK struct value_s *getiter(struct value_s *v1) {
-    struct value_s *v = val_alloc();
+static MUST_CHECK value_t getiter(value_t v1) {
+    value_t v = val_alloc();
     v->obj = ITER_OBJ;
     v->u.iter.val = 0;
     v->u.iter.iter = &v->u.iter.val;
@@ -199,11 +199,11 @@ static MUST_CHECK struct value_s *getiter(struct value_s *v1) {
     return v;
 }
 
-static MUST_CHECK struct value_s *next(struct value_s *v1) {
-    const struct value_s *vv1 = v1->u.iter.data;
+static MUST_CHECK value_t next(value_t v1) {
+    const value_t vv1 = v1->u.iter.data;
     int ln;
     uint8_t *s;
-    struct value_s *v;
+    value_t v;
     if (v1->u.iter.val >= vv1->u.str.len) return NULL;
     ln = utf8len(vv1->u.str.data[v1->u.iter.val]);
     v = val_alloc();
@@ -218,7 +218,7 @@ static MUST_CHECK struct value_s *next(struct value_s *v1) {
     return v;
 }
 
-size_t str_from_str(struct value_s *v, const uint8_t *s) {
+size_t str_from_str(value_t v, const uint8_t *s) {
     size_t i2 = 0;
     size_t i, j;
     size_t r = 0;
@@ -264,13 +264,13 @@ size_t str_from_str(struct value_s *v, const uint8_t *s) {
     return i;
 }
 
-uint8_t *str_create_elements(struct value_s *v, size_t ln) {
+uint8_t *str_create_elements(value_t v, size_t ln) {
     return snew(v, ln);
 }
 
-static MUST_CHECK struct value_s *calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v;
-    struct value_s *tmp;
+static MUST_CHECK value_t calc1(oper_t op) {
+    value_t v1 = op->v1, v;
+    value_t tmp;
     switch (op->op->u.oper.op) {
     case O_NEG:
     case O_POS:
@@ -291,8 +291,8 @@ static MUST_CHECK struct value_s *calc1(oper_t op) {
     return v;
 }
 
-static MUST_CHECK struct value_s *calc2_str(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
+static MUST_CHECK value_t calc2_str(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
     int val;
     switch (op->op->u.oper.op) {
     case O_ADD:
@@ -302,7 +302,7 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     case O_MOD:
     case O_EXP:
         {
-            struct value_s *tmp, *tmp2, *result;
+            value_t tmp, tmp2, result;
             tmp = int_from_str(v1, op->epoint);
             tmp2 = int_from_str(v2, op->epoint2);
             op->v1 = tmp;
@@ -320,7 +320,7 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     case O_LSHIFT:
     case O_RSHIFT:
         {
-            struct value_s *tmp, *tmp2, *result;
+            value_t tmp, tmp2, result;
             tmp = bits_from_str(v1, op->epoint);
             tmp2 = bits_from_str(v2, op->epoint2);
             op->v1 = tmp;
@@ -396,8 +396,8 @@ static MUST_CHECK struct value_s *calc2_str(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
-    struct value_s *v1 = op->v1, *v;
+static MUST_CHECK value_t repeat(oper_t op, uval_t rep) {
+    value_t v1 = op->v1, v;
 
     if (v1->u.str.len && rep) {
         uint8_t *s;
@@ -424,9 +424,9 @@ static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
     return val_reference(null_str);
 }
 
-static MUST_CHECK struct value_s *calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2;
-    struct value_s *tmp;
+static MUST_CHECK value_t calc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2;
+    value_t tmp;
     switch (v2->obj->type) {
     case T_STR: return calc2_str(op);
     case T_BOOL:
@@ -436,7 +436,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
         {
-            struct value_s *result;
+            value_t result;
             switch (op->op->u.oper.op) {
             case O_CONCAT:
             case O_AND:
@@ -454,7 +454,7 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
         }
     case T_BYTES:
         {
-            struct value_s *result;
+            value_t result;
             tmp = bytes_from_str(v1, op->epoint);
             op->v1 = tmp;
             result = tmp->obj->calc2(op);
@@ -476,9 +476,9 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2;
-    struct value_s *tmp;
+static MUST_CHECK value_t rcalc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2;
+    value_t tmp;
     switch (v1->obj->type) {
     case T_STR: return calc2_str(op);
     case T_BOOL:
@@ -488,7 +488,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
         {
-            struct value_s *result;
+            value_t result;
             switch (op->op->u.oper.op) {
             case O_CONCAT:
             case O_AND:
@@ -504,7 +504,7 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
         }
     case T_BYTES:
         {
-            struct value_s *result;
+            value_t result;
             tmp = bytes_from_str(v2, op->epoint2);
             op->v2 = tmp;
             result = tmp->obj->rcalc2(op);
@@ -524,11 +524,11 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, ival_t offs, ival_t end, ival_t step) {
+static inline MUST_CHECK value_t slice(value_t v1, uval_t len1, ival_t offs, ival_t end, ival_t step) {
     size_t len2;
     uint8_t *p;
     uint8_t *p2;
-    struct value_s *v;
+    value_t v;
 
     if (!len1) {
         return val_reference(null_str);
@@ -608,13 +608,13 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *v1, uval_t len1, 
     return v;
 }
 
-static MUST_CHECK struct value_s *iindex(oper_t op) {
+static MUST_CHECK value_t iindex(oper_t op) {
     uint8_t *p;
     uint8_t *p2;
     size_t len1, len2;
     ival_t offs;
     size_t i;
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v, *err;
+    value_t v1 = op->v1, v2 = op->v2, v, err;
 
     len1 = v1->u.str.chars;
 
@@ -719,11 +719,11 @@ static MUST_CHECK struct value_s *iindex(oper_t op) {
     return v;
 }
 
-static MUST_CHECK struct value_s *register_repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t register_repr(const value_t v1, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *prefix = "<register '";
     size_t ln = strlen(prefix), len2 = v1->u.str.len;
-    struct value_s *v = val_alloc();
+    value_t v = val_alloc();
     v->obj = STR_OBJ;
     v->u.str.len = v1->u.str.len + 2 + ln;
     v->u.str.chars = v->u.str.chars + 2 + ln;
@@ -737,8 +737,8 @@ static MUST_CHECK struct value_s *register_repr(const struct value_s *v1, linepo
     return v;
 }
 
-static MUST_CHECK struct value_s *register_calc2(oper_t op) {
-    struct value_s *v2 = op->v2;
+static MUST_CHECK value_t register_calc2(oper_t op) {
+    value_t v2 = op->v2;
     switch (v2->obj->type) {
     case T_REGISTER:
         switch (op->op->u.oper.op) {
@@ -778,8 +778,8 @@ static MUST_CHECK struct value_s *register_calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *register_rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2;
+static MUST_CHECK value_t register_rcalc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2;
     switch (v1->obj->type) {
     case T_STR:
     case T_BOOL:

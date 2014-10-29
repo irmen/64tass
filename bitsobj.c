@@ -29,11 +29,11 @@ static struct obj_s obj;
 
 obj_t BITS_OBJ = &obj;
 
-static void destroy(struct value_s *v1) {
+static void destroy(value_t v1) {
     if (v1->u.bits.val != v1->u.bits.data) free(v1->u.bits.data);
 }
 
-static bdigit_t *bnew(struct value_s *v, size_t len) {
+static bdigit_t *bnew(value_t v, size_t len) {
     if (len > (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0])) {
         bdigit_t *s = (bdigit_t *)malloc(len * sizeof(bdigit_t));
         if (!s || len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
@@ -42,7 +42,7 @@ static bdigit_t *bnew(struct value_s *v, size_t len) {
     return v->u.bits.val;
 }
 
-static void copy(const struct value_s *v1, struct value_s *v) {
+static void copy(const value_t v1, value_t v) {
     v->obj = v1->obj;
     v->u.bits.bits = v1->u.bits.bits;
     v->u.bits.inv = v1->u.bits.inv;
@@ -56,7 +56,7 @@ static void copy(const struct value_s *v1, struct value_s *v) {
     }
 }
 
-static void copy_temp(const struct value_s *v1, struct value_s *v) {
+static void copy_temp(const value_t v1, value_t v) {
     v->obj = BITS_OBJ;
     v->u.bits.bits = v1->u.bits.bits;
     v->u.bits.inv = v1->u.bits.inv;
@@ -72,13 +72,13 @@ static void copy_temp(const struct value_s *v1, struct value_s *v) {
     }
 }
 
-static int same(const struct value_s *v1, const struct value_s *v2) {
+static int same(const value_t v1, const value_t v2) {
     if (v2->obj != BITS_OBJ || v1->u.bits.len != v2->u.bits.len || v1->u.bits.bits != v2->u.bits.bits || v1->u.bits.inv != v2->u.bits.inv) return 0;
     return !memcmp(v1->u.bits.data, v2->u.bits.data, v1->u.bits.len * sizeof(bdigit_t));
 }
 
-static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e type, linepos_t epoint) {
-    struct value_s *v;
+static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t epoint) {
+    value_t v;
     size_t i;
     bdigit_t b;
     switch (type) {
@@ -114,10 +114,10 @@ static MUST_CHECK struct value_s *truth(const struct value_s *v1, enum truth_e t
     }
 }
 
-static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     size_t len, i, len2;
     uint8_t *s;
-    struct value_s *v = val_alloc();
+    value_t v = val_alloc();
 
     len2 = v1->u.bits.bits;
     if (len2 & 3) {
@@ -154,8 +154,8 @@ static MUST_CHECK struct value_s *repr(const struct value_s *v1, linepos_t UNUSE
     return v;
 }
 
-static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepos_t epoint) {
-    struct value_s *tmp, *ret;
+static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t epoint) {
+    value_t tmp, ret;
 
     switch (v1->u.bits.len) {
     case 0: *hs = (-v1->u.bits.inv) & ((~(unsigned int)0) >> 1); return NULL;
@@ -168,16 +168,16 @@ static MUST_CHECK struct value_s *hash(const struct value_s *v1, int *hs, linepo
     return ret;
 }
 
-static MUST_CHECK struct value_s *ival(const struct value_s *v1, ival_t *iv, int bits, linepos_t epoint) {
-    struct value_s *tmp, *ret;
+static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
+    value_t tmp, ret;
     tmp = int_from_bits(v1);
     ret = tmp->obj->ival(tmp, iv, bits, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int bits, linepos_t epoint) {
-    struct value_s *v;
+static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
+    value_t v;
     switch (v1->u.bits.len) {
     case 2: *uv = v1->u.bits.data[0] | (v1->u.bits.data[1] << (8 * sizeof(bdigit_t)));
             if (bits < 2 * 8 * (int)sizeof(bdigit_t) && *uv >> bits) break;
@@ -198,14 +198,14 @@ static MUST_CHECK struct value_s *uval(const struct value_s *v1, uval_t *uv, int
     return v;
 }
 
-static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, linepos_t epoint) {
+static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
     size_t i, len1 = v1->u.bits.len;
     double d = -v1->u.bits.inv;
     for (i = 0; i < len1; i++) {
         if (v1->u.bits.inv) d -= ldexp((double)v1->u.bits.data[i], i * 8 * sizeof(bdigit_t));
         else d += ldexp((double)v1->u.bits.data[i], i * 8 * sizeof(bdigit_t));
         if (d == HUGE_VAL) {
-            struct value_s *v = val_alloc();
+            value_t v = val_alloc();
             v->obj = ERROR_OBJ;
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;
@@ -217,30 +217,30 @@ static MUST_CHECK struct value_s *real(const struct value_s *v1, double *r, line
     return NULL;
 }
 
-static MUST_CHECK struct value_s *sign(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
     if (!v1->u.bits.len) return val_reference(int_value[0]);
     if (v1->u.bits.inv) return int_from_int(-1);
     return val_reference(int_value[1]);
 }
 
-static MUST_CHECK struct value_s *absolute(const struct value_s *v1, linepos_t epoint) {
-    struct value_s *tmp, *ret;
+static MUST_CHECK value_t absolute(const value_t v1, linepos_t epoint) {
+    value_t tmp, ret;
     tmp = int_from_bits(v1);
     ret = tmp->obj->abs(tmp, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK struct value_s *integer(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_bits(v1);
 }
 
-static MUST_CHECK struct value_s *len(const struct value_s *v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_uval(v1->u.bits.bits);
 }
 
-static MUST_CHECK struct value_s *bits_from_bool(int i) {
-    struct value_s *v = val_alloc();
+static MUST_CHECK value_t bits_from_bool(int i) {
+    value_t v = val_alloc();
     v->obj = BITS_OBJ;
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = i;
@@ -250,8 +250,8 @@ static MUST_CHECK struct value_s *bits_from_bool(int i) {
     return v;
 }
 
-MUST_CHECK struct value_s *bits_from_bools(int i, int j) {
-    struct value_s *v = val_alloc();
+MUST_CHECK value_t bits_from_bools(int i, int j) {
+    value_t v = val_alloc();
     v->obj = BITS_OBJ;
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = (i << 1) | j;
@@ -261,8 +261,8 @@ MUST_CHECK struct value_s *bits_from_bools(int i, int j) {
     return v;
 }
 
-MUST_CHECK struct value_s *bits_from_u8(uint8_t i) {
-    struct value_s *v = val_alloc();
+MUST_CHECK value_t bits_from_u8(uint8_t i) {
+    value_t v = val_alloc();
     v->obj = BITS_OBJ;
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = i;
@@ -272,8 +272,8 @@ MUST_CHECK struct value_s *bits_from_u8(uint8_t i) {
     return v;
 }
 
-MUST_CHECK struct value_s *bits_from_u16(uint16_t i) {
-    struct value_s *v = val_alloc();
+MUST_CHECK value_t bits_from_u16(uint16_t i) {
+    value_t v = val_alloc();
     v->obj = BITS_OBJ;
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = i;
@@ -283,8 +283,8 @@ MUST_CHECK struct value_s *bits_from_u16(uint16_t i) {
     return v;
 }
 
-static MUST_CHECK struct value_s *bits_from_u24(int i) {
-    struct value_s *v = val_alloc();
+static MUST_CHECK value_t bits_from_u24(int i) {
+    value_t v = val_alloc();
     v->obj = BITS_OBJ;
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = i;
@@ -295,12 +295,12 @@ static MUST_CHECK struct value_s *bits_from_u24(int i) {
     return v;
 }
 
-MUST_CHECK struct value_s *bits_from_hexstr(const uint8_t *s, size_t *ln) {
+MUST_CHECK value_t bits_from_hexstr(const uint8_t *s, size_t *ln) {
     size_t i = 0, j = 0, sz, l;
     bdigit_t uv = 0;
     int bits = 0;
     bdigit_t *d;
-    struct value_s *v;
+    value_t v;
 
     while ((s[i] ^ 0x30) < 10 || (uint8_t)((s[i] | 0x20) - 0x61) < 6) i++;
     if (!i) {
@@ -340,12 +340,12 @@ MUST_CHECK struct value_s *bits_from_hexstr(const uint8_t *s, size_t *ln) {
     return v;
 }
 
-MUST_CHECK struct value_s *bits_from_binstr(const uint8_t *s, size_t *ln) {
+MUST_CHECK value_t bits_from_binstr(const uint8_t *s, size_t *ln) {
     size_t i = 0, j = 0, sz, l;
     uval_t uv = 0;
     int bits = 0;
     bdigit_t *d;
-    struct value_s *v;
+    value_t v;
 
     while ((s[i] & 0xfe) == 0x30) i++;
     if (!i) {
@@ -384,9 +384,9 @@ MUST_CHECK struct value_s *bits_from_binstr(const uint8_t *s, size_t *ln) {
     return v;
 }
 
-MUST_CHECK struct value_s *bits_from_str(const struct value_s *v1, linepos_t epoint) {
+MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
     int ch;
-    struct value_s *v;
+    value_t v;
 
     if (actual_encoding) {
         uval_t uv = 0;
@@ -471,11 +471,11 @@ MUST_CHECK struct value_s *bits_from_str(const struct value_s *v1, linepos_t epo
     return v;
 }
 
-MUST_CHECK struct value_s *bits_from_bytes(const struct value_s *v1) {
+MUST_CHECK value_t bits_from_bytes(const value_t v1) {
     unsigned int bits = 0;
     size_t i = 0, j = 0, sz;
     bdigit_t *d, uv = 0;
-    struct value_s *v;
+    value_t v;
 
     if (!v1->u.bytes.len) {
         return val_reference(null_bits);
@@ -513,9 +513,9 @@ MUST_CHECK struct value_s *bits_from_bytes(const struct value_s *v1) {
     return v;
 }
 
-static MUST_CHECK struct value_s *calc1(oper_t op) {
-    struct value_s *v1 = op->v1, *v;
-    struct value_s *tmp;
+static MUST_CHECK value_t calc1(oper_t op) {
+    value_t v1 = op->v1, v;
+    value_t tmp;
     uval_t uv;
     switch (op->op->u.oper.op) {
     case O_BANK:
@@ -563,7 +563,7 @@ static MUST_CHECK struct value_s *calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static void and_(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
+static void and_(value_t vv1, value_t vv2, value_t vv) {
     size_t blen1, blen2;
     size_t i, len1, len2, sz;
     int neg1, neg2;
@@ -589,7 +589,7 @@ static void and_(const struct value_s *vv1, const struct value_s *vv2, struct va
         return;
     }
     if (len1 < len2) {
-        const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
     v1 = vv1->u.bits.data; v2 = vv2->u.bits.data;
@@ -629,7 +629,7 @@ static void and_(const struct value_s *vv1, const struct value_s *vv2, struct va
     vv->u.bits.bits = blen1;
 }
 
-static void or_(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
+static void or_(value_t vv1, value_t vv2, value_t vv) {
     size_t blen1, blen2;
     size_t i, len1, len2, sz;
     int neg1, neg2;
@@ -655,7 +655,7 @@ static void or_(const struct value_s *vv1, const struct value_s *vv2, struct val
         return;
     }
     if (len1 < len2) {
-        const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
     v1 = vv1->u.bits.data; v2 = vv2->u.bits.data;
@@ -695,7 +695,7 @@ static void or_(const struct value_s *vv1, const struct value_s *vv2, struct val
     vv->u.bits.bits = blen1;
 }
 
-static void xor_(const struct value_s *vv1, const struct value_s *vv2, struct value_s *vv) {
+static void xor_(value_t vv1, value_t vv2, value_t vv) {
     size_t blen1, blen2;
     size_t i, len1, len2, sz;
     int neg1, neg2;
@@ -719,7 +719,7 @@ static void xor_(const struct value_s *vv1, const struct value_s *vv2, struct va
         return;
     }
     if (len1 < len2) {
-        const struct value_s *tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
     v1 = vv1->u.bits.data; v2 = vv2->u.bits.data;
@@ -746,12 +746,12 @@ static void xor_(const struct value_s *vv1, const struct value_s *vv2, struct va
     vv->u.bits.bits = blen1;
 }
 
-static MUST_CHECK struct value_s *concat(struct value_s *vv1, struct value_s *vv2) {
+static MUST_CHECK value_t concat(value_t vv1, value_t vv2) {
     size_t blen;
     size_t sz, bits, i, j, rbits;
     bdigit_t *v1, *v, uv;
     bdigit_t inv;
-    struct value_s *vv;
+    value_t vv;
 
     if (!vv1->u.bits.bits) {
         return val_reference(vv2);
@@ -806,7 +806,7 @@ static MUST_CHECK struct value_s *concat(struct value_s *vv1, struct value_s *vv
     return vv;
 }
 
-static void lshift(const struct value_s *vv1, const struct value_s *vv2, size_t s, struct value_s *vv) {
+static void lshift(const value_t vv1, const value_t vv2, size_t s, value_t vv) {
     size_t i, sz, bits, len1, word;
     int bit, inv;
     bdigit_t *v1, *v, *o;
@@ -846,7 +846,7 @@ static void lshift(const struct value_s *vv1, const struct value_s *vv2, size_t 
     vv->u.bits.inv = inv;
 }
 
-static void rshift(const struct value_s *vv1, const struct value_s *vv2, uval_t s, struct value_s *vv) {
+static void rshift(const value_t vv1, const value_t vv2, uval_t s, value_t vv) {
     size_t i, sz, bits, word;
     int bit, inv;
     bdigit_t *v1, *v;
@@ -891,8 +891,8 @@ static void rshift(const struct value_s *vv1, const struct value_s *vv2, uval_t 
     vv->u.bits.inv = inv;
 }
 
-static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
-    struct value_s *vv1 = op->v1, *vv;
+static MUST_CHECK value_t repeat(oper_t op, uval_t rep) {
+    value_t vv1 = op->v1, vv;
     bdigit_t *v, *v1;
     bdigit_t uv;
     size_t sz, i, j, rbits, abits, bits;
@@ -957,9 +957,9 @@ static MUST_CHECK struct value_s *repeat(oper_t op, uval_t rep) {
     return vv;
 }
 
-static MUST_CHECK struct value_s *calc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
-    struct value_s *tmp, *result, *err;
+static MUST_CHECK value_t calc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
+    value_t tmp, result, err;
     ival_t shift;
     switch (v2->obj->type) {
     case T_BOOL:
@@ -1008,9 +1008,9 @@ static MUST_CHECK struct value_s *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK struct value_s *rcalc2(oper_t op) {
-    struct value_s *v1 = op->v1, *v2 = op->v2, *v;
-    struct value_s *tmp, *result;
+static MUST_CHECK value_t rcalc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2, v;
+    value_t tmp, result;
     switch (v1->obj->type) {
     case T_BOOL:
         tmp = bits_from_bool(op->v1->u.boolean);
@@ -1043,13 +1043,13 @@ static MUST_CHECK struct value_s *rcalc2(oper_t op) {
     return obj_oper_error(op); 
 }
 
-static inline MUST_CHECK struct value_s *slice(struct value_s *vv1, uval_t ln, ival_t offs, ival_t end, ival_t step) {
+static inline MUST_CHECK value_t slice(value_t vv1, uval_t ln, ival_t offs, ival_t end, ival_t step) {
     size_t bo, wo, bl, wl, sz;
     bdigit_t uv;
     bdigit_t *v, *v1;
     bdigit_t inv = -vv1->u.bits.inv;
     int bits;
-    struct value_s *vv;
+    value_t vv;
 
     if (!ln) {
         return val_reference(null_bits);
@@ -1120,16 +1120,16 @@ static inline MUST_CHECK struct value_s *slice(struct value_s *vv1, uval_t ln, i
     return vv;
 }
 
-static MUST_CHECK struct value_s *iindex(oper_t op) {
+static MUST_CHECK value_t iindex(oper_t op) {
     size_t ln, sz;
     ival_t offs;
     size_t i, o;
-    struct value_s *vv1 = op->v1, *vv2 = op->v2, *vv;
+    value_t vv1 = op->v1, vv2 = op->v2, vv;
     bdigit_t *v;
     bdigit_t uv;
     bdigit_t inv = -vv1->u.bits.inv;
     int bits;
-    struct value_s *err;
+    value_t err;
 
     ln = vv1->u.bits.bits;
 

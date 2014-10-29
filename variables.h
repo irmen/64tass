@@ -27,7 +27,7 @@ struct label_s {
     str_t cfname;
     struct avltree_node node;
 
-    struct value_s *value;
+    value_t value;
     uval_t requires;
     uval_t conflicts;
     struct file_list_s *file_list;

@@ -39,7 +39,7 @@ enum atype_e {
 typedef uint32_t atype_t;
 typedef struct {
     atype_t type;
-    struct value_s *val;
+    value_t val;
 } addrs_t;
 
 extern void addressobj_init(void);

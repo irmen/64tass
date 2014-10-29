@@ -54,7 +54,7 @@ void include_list_add(const char *path)
     if (i != j) strcat(include_list_last->path, "/");
 }
 
-const char *get_path(const struct value_s *v, const char *base) {
+const char *get_path(const value_t v, const char *base) {
     char *path;
     size_t i, len;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
@@ -238,7 +238,7 @@ inline uint32_t fromiso(uint8_t c) {
 static struct file_s *command_line = NULL;
 static struct file_s *lastfi = NULL;
 static uint16_t curfnum=1;
-struct file_s *openfile(const char* name, const char *base, int ftype, const struct value_s *val, linepos_t epoint) {
+struct file_s *openfile(const char* name, const char *base, int ftype, const value_t val, linepos_t epoint) {
     const char *base2;
     struct avltree_node *b;
     struct file_s *tmp;

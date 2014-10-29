@@ -19,19 +19,19 @@
 #ifndef _MACRO_H_
 #define _MACRO_H_
 #include "inttypes.h"
-struct value_s;
+
 struct values_s;
 struct label_s;
 struct file_s;
 enum wait_e;
 
 extern int mtranslate(struct file_s *);
-extern struct value_s *macro_recurse(enum wait_e, struct value_s *, struct label_s *, linepos_t);
-extern struct value_s *mfunc_recurse(enum wait_e, struct value_s *, struct label_s *, linepos_t, uint8_t);
-extern struct value_s *mfunc2_recurse(struct value_s *, struct values_s *, unsigned int, linepos_t);
+extern value_t macro_recurse(enum wait_e, value_t, struct label_s *, linepos_t);
+extern value_t mfunc_recurse(enum wait_e, value_t, struct label_s *, linepos_t, uint8_t);
+extern value_t mfunc2_recurse(value_t, struct values_s *, unsigned int, linepos_t);
 extern void init_macro(void);
 extern void free_macro(void);
-extern void get_macro_params(struct value_s *);
-extern void get_func_params(struct value_s *, struct file_s *);
+extern void get_macro_params(value_t);
+extern void get_func_params(value_t, struct file_s *);
 extern int in_macro(void);
 #endif

@@ -20,7 +20,7 @@
 #define _OBJ_H
 #include <stdio.h>
 #include "inttypes.h"
-struct value_s;
+
 struct oper_s;
 struct values_s;
 
@@ -28,21 +28,21 @@ struct values_s;
 
 struct pair_s {
     int hash;
-    struct value_s *key;
-    struct value_s *data;
+    value_t key;
+    value_t data;
     struct avltree_node node;
 };
 
 typedef struct {
     size_t len;
     struct avltree members;
-    struct value_s *def;
+    value_t def;
 } dict_t;
 
 struct mfunc_param_s {
     str_t name;
     str_t cfname;
-    struct value_s *init;
+    value_t init;
     struct linepos_s epoint;
 };
 
@@ -79,35 +79,35 @@ typedef const struct obj_s* obj_t;
 struct obj_s {
     enum type_e type;
     const char *name;
-    void (*destroy)(struct value_s *);
-    void (*copy)(const struct value_s *, struct value_s *);
-    void (*copy_temp)(const struct value_s *, struct value_s *);
-    int (*same)(const struct value_s *, const struct value_s *);
-    struct value_s *(*truth)(const struct value_s *, enum truth_e, linepos_t) MUST_CHECK;
-    struct value_s *(*hash)(const struct value_s *, int *, linepos_t) MUST_CHECK;
-    struct value_s *(*repr)(const struct value_s *, linepos_t) MUST_CHECK;
-    struct value_s *(*str)(const struct value_s *, linepos_t) MUST_CHECK;
-    struct value_s *(*calc1)(struct oper_s *) MUST_CHECK;
-    struct value_s *(*calc2)(struct oper_s *) MUST_CHECK;
-    struct value_s *(*rcalc2)(struct oper_s *) MUST_CHECK;
-    struct value_s *(*repeat)(struct oper_s *, uval_t) MUST_CHECK;
-    struct value_s *(*iindex)(struct oper_s *) MUST_CHECK;
-    struct value_s *(*ival)(const struct value_s *, ival_t *, int, linepos_t) MUST_CHECK;
-    struct value_s *(*uval)(const struct value_s *, uval_t *, int, linepos_t) MUST_CHECK;
-    struct value_s *(*real)(const struct value_s *, double *, linepos_t) MUST_CHECK;
-    struct value_s *(*sign)(const struct value_s *, linepos_t) MUST_CHECK;
-    struct value_s *(*abs)(const struct value_s *, linepos_t) MUST_CHECK;
-    struct value_s *(*integer)(const struct value_s *, linepos_t) MUST_CHECK;
-    struct value_s *(*len)(const struct value_s *, linepos_t) MUST_CHECK;
-    struct value_s *(*size)(const struct value_s *, linepos_t) MUST_CHECK;
-    struct value_s *(*getiter)(struct value_s *) MUST_CHECK;
-    struct value_s *(*next)(struct value_s *) MUST_CHECK;
+    void (*destroy)(value_t);
+    void (*copy)(const value_t, value_t);
+    void (*copy_temp)(const value_t, value_t);
+    int (*same)(const value_t, const value_t);
+    value_t (*truth)(const value_t, enum truth_e, linepos_t) MUST_CHECK;
+    value_t (*hash)(const value_t, int *, linepos_t) MUST_CHECK;
+    value_t (*repr)(const value_t, linepos_t) MUST_CHECK;
+    value_t (*str)(const value_t, linepos_t) MUST_CHECK;
+    value_t (*calc1)(struct oper_s *) MUST_CHECK;
+    value_t (*calc2)(struct oper_s *) MUST_CHECK;
+    value_t (*rcalc2)(struct oper_s *) MUST_CHECK;
+    value_t (*repeat)(struct oper_s *, uval_t) MUST_CHECK;
+    value_t (*iindex)(struct oper_s *) MUST_CHECK;
+    value_t (*ival)(const value_t, ival_t *, int, linepos_t) MUST_CHECK;
+    value_t (*uval)(const value_t, uval_t *, int, linepos_t) MUST_CHECK;
+    value_t (*real)(const value_t, double *, linepos_t) MUST_CHECK;
+    value_t (*sign)(const value_t, linepos_t) MUST_CHECK;
+    value_t (*abs)(const value_t, linepos_t) MUST_CHECK;
+    value_t (*integer)(const value_t, linepos_t) MUST_CHECK;
+    value_t (*len)(const value_t, linepos_t) MUST_CHECK;
+    value_t (*size)(const value_t, linepos_t) MUST_CHECK;
+    value_t (*getiter)(value_t) MUST_CHECK;
+    value_t (*next)(value_t) MUST_CHECK;
 };
 
 extern void obj_init(struct obj_s *, enum type_e, const char *);
-extern MUST_CHECK struct value_s *obj_oper_error(struct oper_s *);
+extern MUST_CHECK value_t obj_oper_error(struct oper_s *);
 extern void objects_init(void);
-extern MUST_CHECK struct value_s *invalid_getiter(struct value_s *);
+extern MUST_CHECK value_t invalid_getiter(value_t);
 
 extern obj_t LBL_OBJ;
 extern obj_t MACRO_OBJ;

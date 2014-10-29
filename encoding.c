@@ -585,10 +585,10 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
 }
 
 static struct escape_s *lastes = NULL;
-int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *enc, linepos_t epoint)
+int new_escape(const value_t v, value_t val, struct encoding_s *enc, linepos_t epoint)
 {
     struct escape_s *b, tmp;
-    struct value_s *iter, *val2, *err;
+    value_t iter, val2, err;
     uval_t uval;
     size_t i, len;
     uint8_t *odata = NULL, *d;
@@ -612,7 +612,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
     d = tmp.val;
 
     if (val->obj == STR_OBJ) {
-        struct value_s *tmp2 = bytes_from_str(val, epoint);
+        value_t tmp2 = bytes_from_str(val, epoint);
         iter = tmp2->obj->getiter(tmp2);
         val_destroy(tmp2);
     } else iter = val->obj->getiter(val);
@@ -668,7 +668,7 @@ int new_escape(const struct value_s *v, struct value_s *val, struct encoding_s *
 }
 
 static void add_esc(const char *s, struct encoding_s *enc) {
-    struct value_s *tmp, *tmp2;
+    value_t tmp, tmp2;
     struct linepos_s nopoint = {0, 0};
     tmp = val_alloc();
     tmp->obj = STR_OBJ;
@@ -707,7 +707,7 @@ static struct {
     linepos_t epoint;
 } encode_state;
 
-void encode_string_init(const struct value_s *v, linepos_t epoint) {
+void encode_string_init(const value_t v, linepos_t epoint) {
     encode_state.i = 0;
     encode_state.j = 0;
     encode_state.len2 = 0;

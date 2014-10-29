@@ -18,13 +18,11 @@
 */
 #ifndef _FLOATOBJ_H
 #define _FLOATOBJ_H
-struct value_s;
-
 extern obj_t FLOAT_OBJ;
 
 extern void floatobj_init(void);
 
-extern MUST_CHECK struct value_s *calc2_double(oper_t, double, double);
-extern MUST_CHECK struct value_s *float_from_double(double);
+extern MUST_CHECK value_t calc2_double(oper_t, double, double);
+extern MUST_CHECK value_t float_from_double(double);
 
 #endif
