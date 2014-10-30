@@ -33,7 +33,7 @@ enum atype_e {
     A_BR,            /* ,b    */
     A_KR,            /* ,k    */
     A_I,             /* )     */
-    A_LI,            /* ]     */
+    A_LI             /* ]     */
 };
 
 typedef uint32_t atype_t;

@@ -35,15 +35,20 @@ static struct terns_s {
 } *terns = NULL;
 
 static void tern_free(union tern_u *tern) {
-    //free(tern); return;
+#ifdef DEBUG
+    free(tern);
+#else
     tern->next = terns_free;
     terns_free = tern;
+#endif
 }
 
 static ternary_node *tern_alloc(void) {
+#ifdef DEBUG
+    return malloc(sizeof(ternary_node));
+#else
     ternary_node *tern;
     size_t i;
-    //return malloc(sizeof(ternary_node));
     tern = (ternary_node *)terns_free;
     terns_free = terns_free->next;
     if (!terns_free) {
@@ -58,6 +63,7 @@ static ternary_node *tern_alloc(void) {
         terns_free = &terns->terns[0];
     }
     return tern;
+#endif
 }
 
 /* Non-recursive so we don't waste stack space/time on large

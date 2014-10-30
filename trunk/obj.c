@@ -89,10 +89,11 @@ static int invalid_same(const value_t v1, const value_t v2) {
 }
 
 static MUST_CHECK value_t generic_invalid(value_t v1, linepos_t epoint, enum errors_e num) {
+    value_t v;
     if (v1->obj == ERROR_OBJ) {
         return val_reference(v1);
     }
-    value_t v = val_alloc();
+    v = val_alloc();
     v->obj = ERROR_OBJ;
     v->u.error.num = num;
     v->u.error.epoint = *epoint;
@@ -712,7 +713,7 @@ void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->size = invalid_size;
     obj->getiter = invalid_getiter;
     obj->next = invalid_next;
-};
+}
 
 void objects_init(void) {
     boolobj_init();
@@ -792,5 +793,5 @@ void objects_init(void) {
     obj_init(&iter_obj, T_ITER, "<iter>");
     iter_obj.destroy = iter_destroy;
     iter_obj.next = iter_next;
-};
+}
 

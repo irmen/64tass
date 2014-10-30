@@ -23,7 +23,7 @@
 struct memblock_s;
 
 struct memblocks_s {
-    struct {       //Linear memory dump
+    struct {       /* Linear memory dump */
         size_t p, len;
         uint8_t *data;
     } mem;

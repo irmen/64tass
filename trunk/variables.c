@@ -43,15 +43,20 @@ static struct labels_s {
 } *labels = NULL;
 
 static inline void var_free(union label_u *val) {
-//    return free(val);
+#ifdef DEBUG
+    return free(val);
+#else
     val->next = labels_free;
     labels_free = val;
+#endif
 }
 
 static struct label_s *var_alloc(void) {
+#ifdef DEBUG
+    return (struct label_s *)malloc(sizeof(struct label_s));
+#else
     struct label_s *val;
     size_t i;
-//    return (struct label_s *)malloc(sizeof(struct label_s));
     val = (struct label_s *)labels_free;
     labels_free = labels_free->next;
     if (!labels_free) {
@@ -66,9 +71,10 @@ static struct label_s *var_alloc(void) {
         labels_free = &labels->vals[0];
     }
     return val;
+#endif
 }
 
-// ---------------------------------------------------------------------------
+/* --------------------------------------------------------------------------- */
 static void label_free(struct avltree_node *aa)
 {
     struct label_s *a = avltree_container_of(aa, struct label_s, node);
@@ -218,7 +224,7 @@ struct label_s *find_anonlabel2(int32_t count, const struct label_s *context) {
     return strongest_label(b);
 }
 
-// ---------------------------------------------------------------------------
+/* --------------------------------------------------------------------------- */
 static struct label_s *lastlb = NULL;
 struct label_s *new_label(const str_t *name, struct label_s *context, uint8_t strength, int *exists) {
     struct avltree_node *b;
@@ -231,7 +237,7 @@ struct label_s *new_label(const str_t *name, struct label_s *context, uint8_t st
     lastlb->strength = strength;
 
     b = avltree_insert(&lastlb->node, &context->members, label_compare2);
-    if (!b) { //new label
+    if (!b) { /* new label */
         str_cpy(&lastlb->name, name);
         if (lastlb->cfname.data == name->data) lastlb->cfname = lastlb->name;
         else str_cfcpy(&lastlb->cfname, NULL);

@@ -79,7 +79,7 @@ struct section_s *new_section(const str_t *name) {
     str_cfcpy(&lastsc->cfname, name);
     lastsc->name_hash = str_hash(&lastsc->cfname);
     b=avltree_insert(&lastsc->node, &current_section->members, section_compare);
-    if (!b) { //new section
+    if (!b) { /* new section */
         str_cpy(&lastsc->name, name);
         if (lastsc->cfname.data == name->data) lastsc->cfname = lastsc->name;
         else str_cfcpy(&lastsc->cfname, NULL);
@@ -104,7 +104,7 @@ struct section_s *new_section(const str_t *name) {
 	lastsc=NULL;
 	return tmp;
     }
-    return avltree_container_of(b, struct section_s, node);            //already exists
+    return avltree_container_of(b, struct section_s, node);            /* already exists */
 }
 
 void reset_section(struct section_s *section) {
@@ -182,5 +182,3 @@ void sectionprint(void) {
         l = l->next;
     }
 }
-
-// ---------------------------------------------------------------------------

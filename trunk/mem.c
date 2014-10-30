@@ -24,7 +24,7 @@
 #include "64tass.h"
 #include "listing.h"
 
-struct memblock_s { //starts and sizes
+struct memblock_s { /* starts and sizes */
     size_t p, len;
     address_t addr;
     struct memblocks_s *ref;
