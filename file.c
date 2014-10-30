@@ -256,7 +256,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const val
         b = command_line ? &command_line->node : NULL;
         if (!command_line) command_line = lastfi;
     }
-    if (!b) { //new file
+    if (!b) { /* new file */
 	enum filecoding_e type = E_UNKNOWN;
         FILE *f;
         uint32_t c = 0;
@@ -609,7 +609,7 @@ struct star_s *new_star(line_t line, int *exists) {
     struct star_s *tmp;
     lastst->line=line;
     b=avltree_insert(&lastst->node, star_tree, star_compare);
-    if (!b) { //new label
+    if (!b) { /* new label */
 	*exists=0;
         avltree_init(&lastst->tree);
         if (starsp == 254) {
@@ -624,7 +624,7 @@ struct star_s *new_star(line_t line, int *exists) {
 	return tmp;
     }
     *exists=1;
-    return avltree_container_of(b, struct star_s, node);            //already exists
+    return avltree_container_of(b, struct star_s, node);            /* already exists */
 }
 
 void destroy_file(void) {

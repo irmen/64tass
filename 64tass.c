@@ -2968,11 +2968,12 @@ int wmain(int argc, wchar_t *argv2[]) {
 #else
 int main(int argc, char *argv[]) {
     int i, r;
+    char **uargv;
 
     setlocale(LC_ALL, "");
     setlocale(LC_NUMERIC, "C");
 
-    char **uargv = (char **)malloc(sizeof(char *)*argc);
+    uargv = (char **)malloc(sizeof(char *)*argc);
     for (i = 0; i < argc; i++) {
         const char *s = argv[i];
         mbstate_t ps;

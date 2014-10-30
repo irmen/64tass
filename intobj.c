@@ -482,8 +482,8 @@ static void imul(const value_t vv1, const value_t vv2, value_t vv) {
 static void idivrem(const value_t vv1, const value_t vv2, value_t vv, value_t rem) {
     ssize_t len1, len2;
     int neg, negr;
-    len2 = abs(vv2->u.integer.len);
     digit_t *v1, *v2, *v;
+    len2 = abs(vv2->u.integer.len);
     if (!len2) { 
         if (vv1 == rem) destroy(vv);
         rem->obj = vv->obj = ERROR_OBJ;

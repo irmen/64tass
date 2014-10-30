@@ -31,7 +31,7 @@ static const uint8_t *opcode;       /* opcodes */
 static unsigned int last_mnem;
 static const struct cpu_s *cpu;
 
-int longaccu = 0, longindex = 0; // hack
+int longaccu = 0, longindex = 0; /* hack */
 uint16_t dpage = 0;
 uint8_t databank = 0;
 int longbranchasjmp = 0;
