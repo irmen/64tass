@@ -166,16 +166,13 @@ static MUST_CHECK value_t get_exponent(double real, linepos_t epoint) {
             if (expo) real *= pow(base, expo);
         }
     }
-    v = val_alloc();
     if (real == HUGE_VAL) {
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR_CONSTNT_LARGE;
         v->u.error.epoint = *epoint;
         return v;
     }
-    v->obj = FLOAT_OBJ;
-    v->u.real = real;
-    return v;
+    return float_from_double(real);
 }
 
 static MUST_CHECK value_t get_exponent2(value_t v, linepos_t epoint) {
@@ -303,8 +300,9 @@ static MUST_CHECK value_t get_float(linepos_t epoint) {
 }
 
 static MUST_CHECK value_t get_string(void) {
-    value_t v = val_alloc();
-    lpoint.pos += str_from_str(v, pline + lpoint.pos);
+    size_t len;
+    value_t v = str_from_str(pline + lpoint.pos, &len);
+    lpoint.pos += len;
     return v;
 }
 
@@ -324,8 +322,7 @@ static MUST_CHECK value_t get_star(linepos_t epoint) {
         fixeddig = 0;
     }
     tmp->addr=star;
-    v = val_alloc();
-    v->obj = ADDRESS_OBJ;
+    v = val_alloc(ADDRESS_OBJ);
     v->u.addr.type = A_NONE;
     v->u.addr.val = int_from_uval(star);
     return v;
@@ -344,31 +341,6 @@ static struct eval_context_s {
 } **evx;
 
 static struct eval_context_s *eval;
-
-
-static inline value_t push(linepos_t epoint) {
-    struct values_s *o_out;
-    if (eval->outp >= eval->out_size) {
-        size_t i;
-        eval->out_size += 64;
-        eval->o_out = (struct values_s *)realloc(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
-        if (!eval->o_out || eval->out_size < 64 || eval->out_size > SIZE_MAX / sizeof(eval->o_out[0])) err_msg_out_of_memory(); /* overflow */
-        for (i = eval->outp; i < eval->out_size; i++) eval->o_out[i].val = NULL;
-    }
-    o_out = &eval->o_out[eval->outp++];
-    o_out->epoint = *epoint;
-    if (o_out->val == NULL) {
-        o_out->val = val_alloc();
-    } else {
-        if (o_out->val->refcount == 1) {
-            obj_destroy(o_out->val);
-        } else {
-            if (o_out->val->refcount) o_out->val->refcount--;
-            o_out->val = val_alloc();
-        }
-    }
-    return o_out->val;
-}
 
 static inline void push_oper(value_t val, linepos_t epoint) {
     if (eval->outp >= eval->out_size) {
@@ -440,13 +412,13 @@ rest:
             l->shadowcheck = 1;
             push_oper(val_reference(l->value), &epoint);
         } else {
-            val = push(&epoint);
-            val->obj = ERROR_OBJ;
+            val = val_alloc(ERROR_OBJ);
             val->u.error.num = ERROR___NOT_DEFINED;
             val->u.error.epoint = epoint;
             val->u.error.u.notdef.ident = ident;
             val->u.error.u.notdef.label = current_context;
             val->u.error.u.notdef.down = 1;
+            push_oper(val, &epoint);
         }
     other:
         if (stop != 2) ignore();
@@ -560,8 +532,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                 case O_COMMAX:
                 case O_COMMAY:
                 case O_TUPLE:
-                    val = val_alloc();
-                    val->obj = ADDRESS_OBJ;
+                    val = val_alloc(ADDRESS_OBJ);
                     val->u.addr.type = v1->val->u.addr.type << 4;
                     val->u.addr.type |= (op == O_TUPLE) ? A_I : (op == O_COMMAX) ? A_XR : A_YR;
                     val->u.addr.val = val_reference(v1->val->u.addr.val);
@@ -594,8 +565,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     case O_HASH:
                     case O_COMMAX:
                     case O_COMMAY:
-                        val = val_alloc();
-                        val->obj = ADDRESS_OBJ;
+                        val = val_alloc(ADDRESS_OBJ);
                         val->u.addr.type = (op == O_HASH) ? A_IMMEDIATE : (op == O_COMMAX) ? A_XR : A_YR;
                         val->u.addr.val = val_reference(v1->val);
                         val_destroy(v1->val); v1->val = val;
@@ -604,8 +574,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     case O_HIGHER: val1 >>= 8;
                     case O_LOWER: val1 = (uint8_t)val1;break;
                     case O_TUPLE:
-                        val = val_alloc();
-                        val->obj = ADDRESS_OBJ;
+                        val = val_alloc(ADDRESS_OBJ);
                         val->u.addr.type = A_I;
                         val->u.addr.val = val_reference(v1->val);
                         val_destroy(v1->val); v1->val = val;
@@ -671,8 +640,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
                     case O_DIV: if (!val2) {
-                        val = val_alloc();
-                        val->obj = ERROR_OBJ;
+                        val = val_alloc(ERROR_OBJ);
                         val->u.error.num = ERROR_DIVISION_BY_Z;
                         val->u.error.epoint = v2->epoint;
                         val_destroy(v1->val); v1->val = val;
@@ -725,8 +693,7 @@ MUST_CHECK value_t indexoffs(const value_t v1, size_t len, size_t *offs, linepos
             return NULL;
         }
     }
-    err = val_alloc();
-    err->obj = ERROR_OBJ;
+    err = val_alloc(ERROR_OBJ);
     err->u.error.num = ERROR___INDEX_RANGE;
     err->u.error.epoint = *epoint;
     return err;
@@ -745,8 +712,7 @@ MUST_CHECK value_t sliceparams(const value_t v2, size_t len, size_t *olen, ival_
             err = v2->u.list.data[2]->obj->ival(v2->u.list.data[2], &step, 8*sizeof(ival_t), epoint);
             if (err) return err;
             if (step == 0) {
-                v = val_alloc();
-                v->obj = ERROR_OBJ;
+                v = val_alloc(ERROR_OBJ);
                 v->u.error.num = ERROR_DIVISION_BY_Z;
                 v->u.error.epoint = *epoint;
                 return v;
@@ -798,19 +764,17 @@ static MUST_CHECK value_t apply_addressing(value_t v1, enum atype_e am) {
 
     switch (v1->obj->type) {
     case T_ADDRESS:
-        v = val_alloc();
-        v->obj = ADDRESS_OBJ;
+        v = val_alloc(ADDRESS_OBJ);
         v->u.addr.val = val_reference(v1->u.addr.val);
         v->u.addr.type = am | (v1->u.addr.type << 4);
         return v;
     case T_LIST:
     case T_TUPLE:
-        v = val_alloc();
+        v = val_alloc(v1->obj);
         vals = list_create_elements(v, v1->u.list.len);
         for (i = 0; i < v1->u.list.len; i++) {
             vals[i] = apply_addressing(v1->u.list.data[i], am);
         }
-        v->obj = v1->obj;
         v->u.list.len = v1->u.list.len;
         v->u.list.data = vals;
         return v;
@@ -819,8 +783,7 @@ static MUST_CHECK value_t apply_addressing(value_t v1, enum atype_e am) {
         v1 = none_value;
         /* fall through */
     default:
-        v = val_alloc();
-        v->obj = ADDRESS_OBJ;
+        v = val_alloc(ADDRESS_OBJ);
         v->u.addr.val = val_reference(v1);
         v->u.addr.type = am;
         return v;
@@ -871,15 +834,14 @@ static int get_val2(struct eval_context_s *ev) {
             {
                 unsigned int args = 0;
                 op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
-                value_t tmp = val_alloc();
+                value_t tmp = val_alloc(FUNCARGS_OBJ);
                 while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != op) {
                     args++;
                     if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
                 }
-                tmp->obj = FUNCARGS_OBJ; /* assumes no referencing */
                 tmp->u.funcargs.val = &values[vsp-args];
-                tmp->u.funcargs.len = args;
+                tmp->u.funcargs.len = args; /* assumes no referencing */
                 v1--;
 
                 oper.op = op2;
@@ -936,8 +898,7 @@ static int get_val2(struct eval_context_s *ev) {
                     }
                 }
                 if (args) {
-                    val = val_alloc();
-                    val->obj = (op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ;
+                    val = val_alloc((op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ);
                     val->u.list.len = args;
                     val->u.list.data = list_create_elements(val, args);
                     while (args--) {
@@ -960,8 +921,7 @@ static int get_val2(struct eval_context_s *ev) {
                     if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
                 }
-                v1->val = val = val_alloc();
-                val->obj = DICT_OBJ;
+                v1->val = val = val_alloc(DICT_OBJ);
                 val->u.dict.len = 0;
                 val->u.dict.def = NULL;
                 avltree_init(&val->u.dict.members);
@@ -1005,8 +965,8 @@ static int get_val2(struct eval_context_s *ev) {
                             }
                             continue;
                         }
-                        obj_destroy(val);
-                        val->obj = ERROR_OBJ;
+                        val_destroy(val);
+                        val = val_alloc(ERROR_OBJ);
                         val->u.error.num = ERROR__NOT_KEYVALUE;
                         val->u.error.epoint = v1->epoint;
                         val->u.error.u.objname = v1->val->obj->name;
@@ -1052,8 +1012,7 @@ static int get_val2(struct eval_context_s *ev) {
             switch (v1->val->obj->type) {
             case T_COLONLIST:
                 if (v1->val->refcount == 1) {
-                    val = val_alloc();
-                    val->obj = COLONLIST_OBJ;
+                    val = val_alloc(COLONLIST_OBJ);
                     if (v2->val->obj == COLONLIST_OBJ && v2->val->refcount == 1) {
                         val->u.list.len = v1->val->u.list.len + v2->val->u.list.len;
                         if (val->u.list.len < v2->val->u.list.len) err_msg_out_of_memory(); /* overflow */
@@ -1080,8 +1039,7 @@ static int get_val2(struct eval_context_s *ev) {
                 switch (v2->val->obj->type) {
                 case T_COLONLIST:
                     if (v2->val->refcount == 1) {
-                        val = val_alloc();
-                        val->obj = COLONLIST_OBJ;
+                        val = val_alloc(COLONLIST_OBJ);
                         val->u.list.len = v2->val->u.list.len + 1;
                         if (val->u.list.len < 1) err_msg_out_of_memory(); /* overflow */
                         val->u.list.data = list_create_elements(val, val->u.list.len);
@@ -1093,8 +1051,7 @@ static int get_val2(struct eval_context_s *ev) {
                     }
                     /* fall through */
                 default: 
-                    val = val_alloc();
-                    val->obj = COLONLIST_OBJ;
+                    val = val_alloc(COLONLIST_OBJ);
                     val->u.list.len = 2;
                     val->u.list.data = list_create_elements(val, 2);
                     val->u.list.data[0] = v1->val;
@@ -1177,8 +1134,7 @@ static int get_val2(struct eval_context_s *ev) {
                 }
                 while (n) {
                     const struct pair_s *p = cavltree_container_of(n, struct pair_s, node);
-                    val = val_alloc();
-                    val->obj = COLONLIST_OBJ;
+                    val = val_alloc(COLONLIST_OBJ);
                     val->u.list.len = 2;
                     val->u.list.data = list_create_elements(val, 2);
                     val->u.list.data[0] = val_reference(p->key);
@@ -1197,12 +1153,10 @@ static int get_val2(struct eval_context_s *ev) {
                         if (!values || ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                         for (; j < ev->values_size; j++) ev->values[j].val = NULL;
                     }
-                    val = val_alloc();
-                    val->obj = COLONLIST_OBJ;
+                    val = val_alloc(COLONLIST_OBJ);
                     val->u.list.len = 2;
                     val->u.list.data = list_create_elements(val, 2);
-                    val->u.list.data[0] = val_alloc();
-                    val->u.list.data[0]->obj = DEFAULT_OBJ;
+                    val->u.list.data[0] = val_reference(default_value);
                     val->u.list.data[1] = val_reference(tmp->u.dict.def);
 
                     if (values[vsp].val) val_destroy(values[vsp].val);
@@ -1362,7 +1316,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         switch (ch) {
         case ',':
             if (stop != 4 || operp) goto tryanon;
-            lpoint.pos++;val = push(&epoint);val->obj = DEFAULT_OBJ;
+            lpoint.pos++;push_oper(val_reference(default_value), &epoint);
             continue;
         case ')':
             if (operp) {
@@ -1390,8 +1344,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 const value_t o = o_oper[operp-1].val;
                 if (o != &o_PARENT && o != &o_BRACKET && o != &o_BRACE && o != &o_FUNC && o != &o_INDEX && o != &o_COMMA) goto tryanon;
             }
-            val = push(&epoint);
-            val->obj = DEFAULT_OBJ;
+            push_oper(val_reference(default_value), &epoint);
             goto other;
         case '(': 
             if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) identlist++;
@@ -1459,11 +1412,11 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     goto other;
                 }
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
-                    val = push(&epoint);
-                    val->obj = IDENT_OBJ;
+                    val = val_alloc(IDENT_OBJ);
                     val->u.ident.name.data = pline + epoint.pos;
                     val->u.ident.name.len = lpoint.pos - epoint.pos;
                     val->u.ident.epoint = epoint;
+                    push_oper(val, &epoint);
                     goto other;
                 } 
                 ident.data = pline + epoint.pos;
@@ -1476,13 +1429,13 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     push_oper(val_reference(l->value), &epoint);
                     goto other;
                 }
-                val = push(&epoint);
-                val->obj = ERROR_OBJ;
+                val = val_alloc(ERROR_OBJ);
                 val->u.error.num = ERROR___NOT_DEFINED;
                 val->u.error.epoint = epoint;
                 val->u.error.u.notdef.ident = ident;
                 val->u.error.u.notdef.label = down ? current_context : cheap_context;
                 val->u.error.u.notdef.down = down;
+                push_oper(val, &epoint);
                 goto other;
             }
         tryanon:
@@ -1491,10 +1444,10 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             if (db != operp) {
                 struct label_s *l;
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
-                    val = push(&o_oper[operp].epoint);
-                    val->obj = ANONIDENT_OBJ;
+                    val = val_alloc(ANONIDENT_OBJ);
                     val->u.anonident.count = db - operp - 1;
                     val->u.anonident.epoint = o_oper[operp].epoint;
+                    push_oper(val, &o_oper[operp].epoint);
                     goto other;
                 }
                 l = find_anonlabel(db - operp -1);
@@ -1503,24 +1456,24 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
                 }
-                val = push(&o_oper[operp].epoint);
-                val->obj = ERROR_OBJ;
+                val = val_alloc(ERROR_OBJ);
                 val->u.error.num = ERROR___NOT_DEFINED;
                 val->u.error.epoint = o_oper[operp].epoint;
                 val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(db - operp));
                 val->u.error.u.notdef.ident.data = NULL;
                 val->u.error.u.notdef.label = current_context;
                 val->u.error.u.notdef.down = 1;
+                push_oper(val, &o_oper[operp].epoint);
                 goto other;
             }
             while (operp && o_oper[operp-1].val == &o_NEG) operp--;
             if (db != operp) {
                 struct label_s *l;
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
-                    val = push(&o_oper[operp].epoint);
-                    val->obj = ANONIDENT_OBJ;
+                    val = val_alloc(ANONIDENT_OBJ);
                     val->u.anonident.count = operp - db;
                     val->u.anonident.epoint = o_oper[operp].epoint;
+                    push_oper(val, &o_oper[operp].epoint);
                     goto other;
                 }
                 l = find_anonlabel(operp - db);
@@ -1529,20 +1482,19 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
                 }
-                val = push(&o_oper[operp].epoint);
-                val->obj = ERROR_OBJ;
+                val = val_alloc(ERROR_OBJ);
                 val->u.error.num = ERROR___NOT_DEFINED;
                 val->u.error.epoint = o_oper[operp].epoint;
                 val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(operp - db));
                 val->u.error.u.notdef.ident.data = NULL;
                 val->u.error.u.notdef.label = current_context;
                 val->u.error.u.notdef.down = 1;
+                push_oper(val, &o_oper[operp].epoint);
                 goto other;
             }
             if (operp) {
                 if (o_oper[operp-1].val == &o_COLON) {
-                    val = push(&epoint);
-                    val->obj = DEFAULT_OBJ;
+                    push_oper(val_reference(default_value), &epoint);
                     goto other;
                 }
                 if (o_oper[operp-1].val == &o_SPLAT) {
@@ -1799,8 +1751,7 @@ value_t get_vals_tuple(void) {
         if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = val_reference(none_value); }
         return val;
     }
-    val = val_alloc();
-    val->obj = TUPLE_OBJ;
+    val = val_alloc(TUPLE_OBJ);
     val->u.list.len = len;
     val->u.list.data = list_create_elements(val, len);
     for (i = 0; i < len; i++) {
@@ -1821,8 +1772,7 @@ value_t get_vals_addrlist(struct linepos_s *epoints) {
         if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = val_reference(none_value); }
         return val;
     }
-    val = val_alloc();
-    val->obj = ADDRLIST_OBJ;
+    val = val_alloc(ADDRLIST_OBJ);
     val->u.list.data = list_create_elements(val, len);
     for (i = j = 0; j < len; j++) {
         value_t val2 = pull_val((i < 3) ? &epoints[i] : &epoint);

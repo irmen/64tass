@@ -670,10 +670,8 @@ int new_escape(const value_t v, value_t val, struct encoding_s *enc, linepos_t e
 static void add_esc(const char *s, struct encoding_s *enc) {
     value_t tmp, tmp2;
     struct linepos_s nopoint = {0, 0};
-    tmp = val_alloc();
-    tmp->obj = STR_OBJ;
-    tmp2 = val_alloc();
-    tmp2->obj = BYTES_OBJ;
+    tmp = val_alloc(STR_OBJ);
+    tmp2 = val_alloc(BYTES_OBJ);
     tmp2->u.bytes.len = 1;
     tmp2->u.bytes.data = tmp2->u.bytes.val;
     while (s[1]) {

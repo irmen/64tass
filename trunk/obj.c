@@ -73,8 +73,7 @@ obj_t ITER_OBJ = &iter_obj;
 obj_t FUNCARGS_OBJ = &funcargs_obj;
 
 MUST_CHECK value_t obj_oper_error(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2, v = val_alloc();
-    v->obj = ERROR_OBJ;
+    value_t v1 = op->v1, v2 = op->v2, v = val_alloc(ERROR_OBJ);
     v->u.error.num = ERROR__INVALID_OPER;
     v->u.error.u.invoper.op = op->op;
     v->u.error.u.invoper.v1 = v1 ? val_reference(v1) : NULL;
@@ -96,8 +95,7 @@ static MUST_CHECK value_t generic_invalid(value_t v1, linepos_t epoint, enum err
     if (v1->obj == ERROR_OBJ) {
         return val_reference(v1);
     }
-    v = val_alloc();
-    v->obj = ERROR_OBJ;
+    v = val_alloc(ERROR_OBJ);
     v->u.error.num = num;
     v->u.error.epoint = *epoint;
     v->u.error.u.objname = v1->obj->name;
@@ -120,8 +118,7 @@ static MUST_CHECK value_t invalid_repr(const value_t v1, linepos_t UNUSED(epoint
         return val_reference(v1);
     }
     name = v1->obj->name;
-    v = val_alloc();
-    v->obj = STR_OBJ;
+    v = val_alloc(STR_OBJ);
     v->u.str.len = strlen(name);
     v->u.str.chars = v->u.str.len;
     s = str_create_elements(v, v->u.str.len);
@@ -141,8 +138,7 @@ static MUST_CHECK value_t gap_hash(const value_t UNUSED(v1), int *hs, linepos_t 
 
 static MUST_CHECK value_t gap_repr(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     uint8_t *s;
-    value_t v = val_alloc();
-    v->obj = STR_OBJ;
+    value_t v = val_alloc(STR_OBJ);
     v->u.str.len = 1;
     v->u.str.chars = 1;
     s = str_create_elements(v, 1);
@@ -292,8 +288,7 @@ static MUST_CHECK value_t invalid_size(const value_t v1, linepos_t epoint) {
 }
 
 MUST_CHECK value_t invalid_getiter(value_t v1) {
-    value_t v = val_alloc();
-    v->obj = ITER_OBJ;
+    value_t v = val_alloc(ITER_OBJ);
     v->u.iter.data = val_reference(v1);
     v->u.iter.iter = NULL;
     v->u.iter.val = 1;
@@ -474,7 +469,7 @@ static MUST_CHECK value_t dict_repr(const value_t v1, linepos_t epoint) {
             tmp[i] = v;
         }
     }
-    v = val_alloc();
+    v = val_alloc(STR_OBJ);
     s = str_create_elements(v, len);
     len = 0;
     s[len++] = '{';
@@ -496,7 +491,6 @@ static MUST_CHECK value_t dict_repr(const value_t v1, linepos_t epoint) {
     }
     s[len++] = '}';
     free(tmp);
-    v->obj = STR_OBJ;
     v->u.str.data = s;
     v->u.str.len = len;
     v->u.str.chars = len - chars;
@@ -527,8 +521,7 @@ static MUST_CHECK value_t dict_calc2(oper_t op) {
         if (v1->u.dict.def) {
             return val_reference(v1->u.dict.def);
         }
-        err = val_alloc();
-        err->obj = ERROR_OBJ;
+        err = val_alloc(ERROR_OBJ);
         err->u.error.num = ERROR_____KEY_ERROR;
         err->u.error.epoint = *op->epoint2;
         return err;
@@ -562,8 +555,7 @@ static MUST_CHECK value_t oper_repr(const value_t v1, linepos_t UNUSED(epoint)) 
     const char *txt = v1->u.oper.name;
     size_t len = strlen(txt);
     uint8_t *s;
-    value_t v = val_alloc();
-    v->obj = STR_OBJ;
+    value_t v = val_alloc(STR_OBJ);
     s = str_create_elements(v, len + 8);
     memcpy(s, "<oper ", 6);
     memcpy(s + 6, txt, len);
@@ -676,8 +668,7 @@ static MUST_CHECK value_t struct_calc2(oper_t op) {
             }
             epoint = v2->u.ident.epoint;
             name = v2->u.ident.name;
-            v = val_alloc();
-            v->obj = ERROR_OBJ;
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = epoint;
             v->u.error.u.notdef.label = l2;
@@ -698,8 +689,7 @@ static MUST_CHECK value_t struct_calc2(oper_t op) {
                 }
                 epoint = v2->u.anonident.epoint;
                 count = v2->u.anonident.count;
-                v = val_alloc();
-                v->obj = ERROR_OBJ;
+                v = val_alloc(ERROR_OBJ);
                 v->u.error.num = ERROR___NOT_DEFINED;
                 v->u.error.epoint = epoint;
                 v->u.error.u.notdef.label = l2;

@@ -30,7 +30,7 @@ typedef struct {
 } ustr_t;
 
 extern void strobj_init(void);
-extern size_t str_from_str(value_t, const uint8_t *);
+extern MUST_CHECK value_t str_from_str(const uint8_t *, size_t *);
 extern MUST_CHECK value_t register_from_str(const value_t);
 extern uint8_t *str_create_elements(value_t, size_t);
 #endif

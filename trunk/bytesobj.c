@@ -64,8 +64,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
         }
         return truth_reference(0);
     default: 
-        v = val_alloc();
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR_____CANT_BOOL;
         v->u.error.epoint = *epoint;
         v->u.error.u.objname = v1->obj->name;
@@ -76,7 +75,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
 static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     size_t i, len, len2;
     uint8_t *s;
-    value_t v = val_alloc();
+    value_t v = val_alloc(STR_OBJ);
     len2 = v1->u.bytes.len * 4;
     len = 9 - (v1->u.bytes.len > 0) + len2;
     if (len < len2 || v1->u.bytes.len > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */
@@ -89,7 +88,6 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     }
     s[len++] = ']';
     s[len++] = ')';
-    v->obj = STR_OBJ;
     v->u.str.len = len;
     v->u.str.chars = len;
     v->u.str.data = s;
@@ -116,10 +114,10 @@ MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint) {
     uint8_t *s;
     value_t v;
     if (len) {
-        v = val_alloc();
         if (actual_encoding) {
             int ch;
             if (len < sizeof(v->u.bytes.val)) len = sizeof(v->u.bytes.val);
+            v = val_alloc(BYTES_OBJ);
             s = bnew(v, len);
             encode_string_init(v1, epoint);
             while ((ch = encode_string()) != EOF) {
@@ -140,13 +138,14 @@ MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint) {
         } else if (v1->u.str.chars == 1) {
             uint32_t ch2 = v1->u.str.data[0];
             if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
+            v = val_alloc(BYTES_OBJ);
             s = bnew(v, 3);
             s[0] = ch2;
             s[1] = ch2 >> 8;
             s[2] = ch2 >> 16;
             len2 = 3;
         } else {
-            v->obj = ERROR_OBJ;
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_BIG_STRING_CO;
             v->u.error.epoint = *epoint;
             return v;
@@ -161,7 +160,6 @@ MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint) {
                 if (!s) err_msg_out_of_memory();
             }
         }
-        v->obj = BYTES_OBJ;
         v->u.bytes.len = len2;
         v->u.bytes.data = s;
         return v;
@@ -214,8 +212,7 @@ static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK value_t getiter(value_t v1) {
-    value_t v = val_alloc();
-    v->obj = ITER_OBJ;
+    value_t v = val_alloc(ITER_OBJ);
     v->u.iter.val = 0;
     v->u.iter.iter = &v->u.iter.val;
     v->u.iter.data = val_reference(v1);
@@ -226,9 +223,8 @@ static MUST_CHECK value_t next(value_t v1) {
     const value_t vv1 = v1->u.iter.data;
     value_t v;
     if (v1->u.iter.val >= vv1->u.bytes.len) return NULL;
-    v = val_alloc();
+    v = val_alloc(BYTES_OBJ);
     v->u.bytes.val[0] = vv1->u.bytes.data[v1->u.iter.val++];
-    v->obj = BYTES_OBJ;
     v->u.bytes.len = 1;
     v->u.bytes.data = v->u.bytes.val;
     return v;
@@ -296,11 +292,10 @@ static MUST_CHECK value_t calc2_bytes(oper_t op) {
             ln = v1->u.bytes.len + v2->u.bytes.len;
             if (ln < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
 
-            v = val_alloc();
+            v = val_alloc(BYTES_OBJ);
             s = bnew(v, ln);
             memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
             memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
-            v->obj = BYTES_OBJ;
             v->u.bytes.len = ln;
             v->u.bytes.data = s;
             return v;
@@ -339,9 +334,8 @@ static inline MUST_CHECK value_t repeat(oper_t op) {
         }
         ln = v1->u.bytes.len;
         if (ln > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
-        v = val_alloc();
+        v = val_alloc(BYTES_OBJ);
         s2 = s = bnew(v, ln * rep);
-        v->obj = BYTES_OBJ;
         v->u.bytes.len = 0;
         while (rep--) {
             memcpy(s + v->u.bytes.len, v1->u.bytes.data, ln);
@@ -375,25 +369,23 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
         if (length == v1->u.bytes.len) {
             return val_reference(v1); /* original bytes */
         }
-        v = val_alloc();
+        v = val_alloc(BYTES_OBJ);
         p = p2 = bnew(v, length);
         memcpy(p2, v1->u.bytes.data + offs, length);
     } else {
-        v = val_alloc();
+        v = val_alloc(BYTES_OBJ);
         p = p2 = bnew(v, length);
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
             *p2++ = v1->u.bytes.data[offs];
             offs += step;
         }
     }
-    v->obj = BYTES_OBJ;
     v->u.bytes.len = length;
     v->u.bytes.data = p;
     return v;
 }
 
 static inline MUST_CHECK value_t iindex(oper_t op) {
-    uint8_t *p;
     uint8_t *p2;
     size_t offs, len1, len2;
     size_t i;
@@ -412,19 +404,17 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
             return val_reference(null_bytes);
         }
         len2 = v2->u.list.len;
-        v = val_alloc();
-        p = p2 = bnew(v, len2);
+        v = val_alloc(BYTES_OBJ);
+        v->u.bytes.data = p2 = bnew(v, len2);
         for (i = 0; i < len2; i++) {
             err = indexoffs(v2->u.list.data[i], len1, &offs, op->epoint2);
             if (err) {
-                if (p != v->u.bytes.val) free(p);
+                val_destroy(v);
                 return err;
             }
             *p2++ = v1->u.bytes.data[offs];
         }
-        v->obj = BYTES_OBJ;
-        v->u.bytes.len = len2;
-        v->u.bytes.data = p;
+        v->u.bytes.len = i;
         return v;
     }
     if (v2->obj == COLONLIST_OBJ) {
@@ -432,8 +422,7 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
     }
     err = indexoffs(v2, len1, &offs, op->epoint2);
     if (err) return err;
-    v = val_alloc();
-    v->obj = BYTES_OBJ;
+    v = val_alloc(BYTES_OBJ);
     v->u.bytes.len = 1;
     v->u.bytes.val[0] = v1->u.bytes.data[offs];
     v->u.bytes.data = v->u.bytes.val;

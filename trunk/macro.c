@@ -299,8 +299,7 @@ value_t mfunc_recurse(enum wait_e t, value_t tmp2, struct label_s *context, line
         int labelexists;
         if (tmp2->u.mfunc.param[i].init && tmp2->u.mfunc.param[i].init->obj == DEFAULT_OBJ) {
             size_t j = 0;
-            tuple = val_alloc();
-            tuple->obj = TUPLE_OBJ;
+            tuple = val_alloc(TUPLE_OBJ);
             tuple->u.list.len = get_val_remaining();
             tuple->u.list.data = list_create_elements(tuple, tuple->u.list.len);
             for (j = 0; (val = pull_val(NULL)); j++) {
@@ -410,8 +409,7 @@ void get_func_params(value_t v, struct file_s *cfile) {
         } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, &new_mfunc.param[i].epoint);break;}
         ignore();
         if (stard) {
-            new_mfunc.param[i].init = val_alloc();
-            new_mfunc.param[i].init->obj = DEFAULT_OBJ;
+            new_mfunc.param[i].init = val_reference(default_value);
         } else {
             new_mfunc.param[i].init = NULL;
             if (here() == '=') {
@@ -540,8 +538,7 @@ value_t mfunc2_recurse(value_t tmp2, struct values_s *vals, unsigned int args, l
     for (i = 0; i < tmp2->u.mfunc.argc; i++) {
         int labelexists;
         if (tmp2->u.mfunc.param[i].init && tmp2->u.mfunc.param[i].init->obj == DEFAULT_OBJ) {
-            tuple = val_alloc();
-            tuple->obj = TUPLE_OBJ;
+            tuple = val_alloc(TUPLE_OBJ);
             if (i < args) {
                 size_t j = i;
                 tuple->u.list.len = args - i;

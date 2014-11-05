@@ -31,6 +31,7 @@ value_t none_value;
 value_t true_value;
 value_t false_value;
 value_t gap_value;
+value_t default_value;
 value_t null_str;
 value_t null_bytes;
 value_t null_bits;
@@ -120,7 +121,7 @@ static inline void value_free(union values_u *val) {
 #endif
 }
 
-value_t val_alloc(void) {
+value_t val_alloc(obj_t obj) {
     value_t val;
 #ifdef DEBUG
     val = (value_t)malloc(sizeof(struct value_s));
@@ -143,6 +144,7 @@ value_t val_alloc(void) {
     val = (value_t)values_free;
     values_free = values_free->next;
 #endif
+    val->obj = obj;
     return val;
 }
 
@@ -198,42 +200,33 @@ void init_values(void)
 {
     int_value[0] = int_from_int(0);
     int_value[1] = int_from_int(1);
-    none_value = val_alloc();
-    none_value->obj = NONE_OBJ;
-    true_value = val_alloc();
-    true_value->obj = BOOL_OBJ;
+    none_value = val_alloc(NONE_OBJ);
+    true_value = val_alloc(BOOL_OBJ);
     true_value->u.boolean = 1;
-    false_value = val_alloc();
-    false_value->obj = BOOL_OBJ;
+    false_value = val_alloc(BOOL_OBJ);
     false_value->u.boolean = 0;
-    gap_value = val_alloc();
-    gap_value->obj = GAP_OBJ;
-    null_str = val_alloc();
-    null_str->obj = STR_OBJ;
+    gap_value = val_alloc(GAP_OBJ);
+    default_value = val_alloc(DEFAULT_OBJ);
+    null_str = val_alloc(STR_OBJ);
     null_str->u.str.len = 0;
     null_str->u.str.chars = 0;
     null_str->u.str.data = NULL;
-    null_bytes = val_alloc();
-    null_bytes->obj = BYTES_OBJ;
+    null_bytes = val_alloc(BYTES_OBJ);
     null_bytes->u.bytes.len = 0;
     null_bytes->u.bytes.data = NULL;
-    null_bits = val_alloc();
-    null_bits->obj = BITS_OBJ;
+    null_bits = val_alloc(BITS_OBJ);
     null_bits->u.bits.len = 0;
     null_bits->u.bits.bits = 0;
     null_bits->u.bits.inv = 0;
     null_bits->u.bits.val[0] = 0;
     null_bits->u.bits.data = NULL;
-    null_tuple = val_alloc();
-    null_tuple->obj = TUPLE_OBJ;
+    null_tuple = val_alloc(TUPLE_OBJ);
     null_tuple->u.list.len = 0;
     null_tuple->u.list.data = NULL;
-    null_list = val_alloc();
-    null_list->obj = LIST_OBJ;
+    null_list = val_alloc(LIST_OBJ);
     null_list->u.list.len = 0;
     null_list->u.list.data = NULL;
-    null_addrlist = val_alloc();
-    null_addrlist->obj = ADDRLIST_OBJ;
+    null_addrlist = val_alloc(ADDRLIST_OBJ);
     null_addrlist->u.list.len = 0;
     null_addrlist->u.list.data = NULL;
 
@@ -558,6 +551,7 @@ void destroy_values(void)
     if (true_value->refcount != 1) fprintf(stderr, "true %d\n", true_value->refcount - 1);
     if (false_value->refcount != 1) fprintf(stderr, "false %d\n", false_value->refcount - 1);
     if (gap_value->refcount != 1) fprintf(stderr, "gap %d\n", gap_value->refcount - 1);
+    if (default_value->refcount != 1) fprintf(stderr, "default %d\n", default_value->refcount - 1);
     if (null_str->refcount != 1) fprintf(stderr, "str %d\n", null_str->refcount - 1);
     if (null_bytes->refcount != 1) fprintf(stderr, "bytes %d\n", null_bytes->refcount - 1);
     if (null_bits->refcount != 1) fprintf(stderr, "bits %d\n", null_bits->refcount - 1);
@@ -572,6 +566,7 @@ void destroy_values(void)
     val_destroy(true_value);
     val_destroy(false_value);
     val_destroy(gap_value);
+    val_destroy(default_value);
     val_destroy(null_str);
     val_destroy(null_bytes);
     val_destroy(null_bits);

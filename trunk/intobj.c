@@ -51,16 +51,18 @@ static digit_t *inew(value_t v, ssize_t len) {
     return v->u.integer.val;
 }
 
-static void copy(const value_t v1, value_t v) {
-    v->obj = INT_OBJ;
-    v->u.integer.len = v1->u.integer.len;
+static MUST_CHECK value_t negate(const value_t v1) {
+    value_t v = val_alloc(INT_OBJ);
+    v->u.integer.len = -v1->u.integer.len;
     if (v1->u.integer.len) {
-        v->u.integer.data = inew(v, abs(v->u.integer.len));
-        memcpy(v->u.integer.data, v1->u.integer.data, abs(v->u.integer.len) * sizeof(digit_t));
+        size_t ln = abs(v1->u.integer.len);
+        v->u.integer.data = inew(v, ln);
+        memcpy(v->u.integer.data, v1->u.integer.data, ln * sizeof(digit_t));
     } else {
         v->u.integer.data = v->u.integer.val;
         v->u.integer.val[0] = 0;
     }
+    return v;
 }
 
 static int same(const value_t v1, const value_t v2) {
@@ -104,7 +106,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     digit_t ten, r, *out;
     size_t slen, i, j, sz, len2;
     struct value_s tmp;
-    value_t v = val_alloc();
+    value_t v = val_alloc(STR_OBJ);
 
     if (len <= 1) {
         char tmp2[sizeof(digit_t) * 3];
@@ -112,7 +114,6 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
         else {tmp2[0]='0';len = 1;}
         s = str_create_elements(v, len);
         memcpy(s, tmp2, len);
-        v->obj = STR_OBJ;
         v->u.str.data = s;
         v->u.str.len = len;
         v->u.str.chars = len;
@@ -165,7 +166,6 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
 
     if (tmp.u.integer.val != out) free(out);
 
-    v->obj = STR_OBJ;
     v->u.str.data = s;
     v->u.str.len = slen;
     v->u.str.chars = v->u.str.len;
@@ -196,8 +196,7 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
         return NULL;
     default: break;
     }
-    v = val_alloc();
-    v->obj = ERROR_OBJ;
+    v = val_alloc(ERROR_OBJ);
     v->u.error.num = ERROR_____CANT_IVAL;
     v->u.error.u.bits = bits;
     v->u.error.epoint = *epoint;
@@ -219,8 +218,7 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     case 0: *uv = 0; return NULL;
     default: break;
     }
-    v = val_alloc();
-    v->obj = ERROR_OBJ;
+    v = val_alloc(ERROR_OBJ);
     v->u.error.num = ERROR_____CANT_UVAL;
     v->u.error.u.bits = bits;
     v->u.error.epoint = *epoint;
@@ -234,8 +232,7 @@ static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
         if (v1->u.integer.len < 0) d -= ldexp((double)v1->u.integer.data[i], i * SHIFT);
         else d += ldexp((double)v1->u.integer.data[i], i * SHIFT);
         if (d == HUGE_VAL) {
-            value_t v = val_alloc();
-            v->obj = ERROR_OBJ;
+            value_t v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_____CANT_REAL;
             v->u.error.epoint = *epoint;
             v->u.error.u.objname = v1->obj->name;
@@ -252,10 +249,7 @@ static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
-    value_t v = val_alloc();
-    copy(v1, v);
-    if (v->u.integer.len < 0) v->u.integer.len = -v->u.integer.len;
-    return v;
+    return (v1->u.integer.len >= 0) ? val_reference(v1) : negate(v1);
 }
 
 static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
@@ -294,19 +288,14 @@ static MUST_CHECK value_t calc1(oper_t op) {
         if (v1->u.integer.len < 0) uv = -uv;
         return bits_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
     case O_INV:
-        v = val_alloc();
-        v->obj = INT_OBJ;
+        v = val_alloc(INT_OBJ);
         if (v1->u.integer.len < 0) isub(v1, int_value[1], v);
         else {
             iadd(v1, int_value[1], v);
             v->u.integer.len = -v->u.integer.len;
         }
         return v;
-    case O_NEG:
-        v = val_alloc();
-        copy(v1, v);
-        v->u.integer.len = -v->u.integer.len;
-        return v;
+    case O_NEG: return negate(v1);
     case O_POS: return val_reference(v1);
     case O_STRING: return repr(v1, op->epoint);
     default: break;
@@ -479,26 +468,24 @@ static void imul(const value_t vv1, const value_t vv2, value_t vv) {
     vv->u.integer.len = i;
 }
 
-static void idivrem(const value_t vv1, const value_t vv2, value_t vv, value_t rem) {
+static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div, linepos_t epoint) {
     ssize_t len1, len2;
     int neg, negr;
     digit_t *v1, *v2, *v;
+    value_t vv;
+
     len2 = abs(vv2->u.integer.len);
     if (!len2) { 
-        if (vv1 == rem) destroy(vv);
-        rem->obj = vv->obj = ERROR_OBJ;
-        rem->u.error.num = vv->u.error.num = ERROR_DIVISION_BY_Z; return; 
+        vv = val_alloc(ERROR_OBJ);
+        vv->u.error.num = ERROR_DIVISION_BY_Z; 
+        vv->u.error.epoint = *epoint; 
+        return vv;
     }
     len1 = abs(vv1->u.integer.len);
     v1 = vv1->u.integer.data;
     v2 = vv2->u.integer.data;
     if (len1 < len2 || (len1 == len2 && v1[len1 - 1] < v2[len2 - 1])) {
-        if (vv1 != rem) copy(vv1, rem);
-        if (vv1 == vv) destroy(vv);
-        vv->u.integer.val[0] = 0;
-        vv->u.integer.len = 0;
-        vv->u.integer.data = vv->u.integer.val;
-        return;
+        return val_reference(int_value[0]);
     }
     negr = (vv1->u.integer.len < 0);
     neg = (negr != (vv2->u.integer.len < 0));
@@ -506,28 +493,39 @@ static void idivrem(const value_t vv1, const value_t vv2, value_t vv, value_t re
         ssize_t i;
         twodigits_t r = 0;
         digit_t n = v2[0];
-        v = inew(vv, len1);
+        if (div) {
+            vv = val_alloc(INT_OBJ);
+            v = inew(vv, len1);
+            for (i = len1; i--;) {
+                digit_t h;
+                r = (r << SHIFT) | v1[i];
+                h = (digit_t)(r / n);
+                v[i] = h;
+                r -= (twodigits_t)h * n;
+            }
+            i = len1;
+            while (i && !v[i - 1]) i--;
+            if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
+                memcpy(vv->u.integer.val, v, i * sizeof(digit_t));
+                free(v);
+                v = vv->u.integer.val;
+            }
+            vv->u.integer.data = v;
+            vv->u.integer.len = neg ? -i : i;
+            return vv;
+        }
         for (i = len1; i--;) {
             digit_t h;
             r = (r << SHIFT) | v1[i];
             h = (digit_t)(r / n);
-            v[i] = h;
             r -= (twodigits_t)h * n;
         }
-        if (vv1 == vv) destroy(vv);
-        if (vv1 == rem) destroy(rem);
-        i = len1;
-        while (i && !v[i - 1]) i--;
-        if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
-            memcpy(vv->u.integer.val, v, i * sizeof(digit_t));
-            free(v);
-            v = vv->u.integer.val;
-        }
-        vv->u.integer.data = v;
-        vv->u.integer.len = neg ? -i : i;
-        rem->u.integer.val[0] = r;
-        rem->u.integer.data = rem->u.integer.val;
-        rem->u.integer.len = (rem->u.integer.val[0] != 0);
+        if (!r) return val_reference(int_value[0]);
+        vv = val_alloc(INT_OBJ);
+        vv->u.integer.val[0] = r;
+        vv->u.integer.data = vv->u.integer.val;
+        vv->u.integer.len = negr ? -1 : 1;
+        return vv;
     } else {
         typedef int32_t sdigit_t;
         typedef int64_t stwodigits_t;
@@ -596,27 +594,29 @@ static void idivrem(const value_t vv1, const value_t vv2, value_t vv, value_t re
             v0[i] >>= d;
         } 
 
-        if (vv1 == vv) destroy(vv);
-        while (k && !a[k - 1]) k--;
-        if (k <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0])) {
-            memcpy(vv->u.integer.val, a, k * sizeof(digit_t));
-            if (a != tmp3.u.integer.val) free(a);
-            a = vv->u.integer.val;
+        vv = val_alloc(INT_OBJ);
+        if (div) {
+            while (k && !a[k - 1]) k--;
+            if (k <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0])) {
+                memcpy(vv->u.integer.val, a, k * sizeof(digit_t));
+                if (a != tmp3.u.integer.val) free(a);
+                a = vv->u.integer.val;
+            }
+            vv->u.integer.data = a;
+            vv->u.integer.len = neg ? -k : k;
+            return vv;
         }
-        vv->u.integer.data = a;
-        vv->u.integer.len = neg ? -k : k;
 
-        if (vv1 == rem) destroy(rem);
         while (len2 && !v0[len2 - 1]) len2--;
         if (len2 <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0])) {
-            memcpy(rem->u.integer.val, v0, len2 * sizeof(digit_t));
+            memcpy(vv->u.integer.val, v0, len2 * sizeof(digit_t));
             if (v0 != tmp1.u.integer.val) free(v0);
-            v0 = rem->u.integer.val;
+            v0 = vv->u.integer.val;
         }
-        rem->u.integer.data = v0;
-        rem->u.integer.len = len2;
+        vv->u.integer.data = v0;
+        vv->u.integer.len = negr ? -len2 : len2;
+        return vv;
     }
-    if (negr) rem->u.integer.len = -rem->u.integer.len;
 }
 
 static MUST_CHECK value_t power(const value_t vv1, const value_t vv2) {
@@ -971,8 +971,7 @@ static int icmp(const value_t vv1, const value_t vv2) {
 }
 
 MUST_CHECK value_t int_from_int(int i) {
-    value_t v = val_alloc();
-    v->obj = INT_OBJ;
+    value_t v = val_alloc(INT_OBJ);
     v->u.integer.data = v->u.integer.val;
     if (i < 0) {
         v->u.integer.val[0] = -i;
@@ -985,8 +984,7 @@ MUST_CHECK value_t int_from_int(int i) {
 }
 
 MUST_CHECK value_t int_from_uval(uval_t i) {
-    value_t v = val_alloc();
-    v->obj = INT_OBJ;
+    value_t v = val_alloc(INT_OBJ);
     v->u.integer.data = v->u.integer.val;
     if (i > MASK) {
         v->u.integer.val[0] = i & MASK;
@@ -1000,8 +998,7 @@ MUST_CHECK value_t int_from_uval(uval_t i) {
 }
 
 MUST_CHECK value_t int_from_ival(ival_t i) {
-    value_t v = val_alloc();
-    v->obj = INT_OBJ;
+    value_t v = val_alloc(INT_OBJ);
     v->u.integer.data = v->u.integer.val;
     if (i < 0) {
         if (i < -MASK) {
@@ -1033,8 +1030,7 @@ MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
     value_t v;
 
     if (f == HUGE_VAL) {
-        v = val_alloc();
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR______CANT_INT;
         v->u.error.epoint = *epoint;
         v->u.error.u.objname = FLOAT_OBJ->name;
@@ -1049,9 +1045,8 @@ MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
     }
     sz = (expo - 1) / SHIFT + 1;
 
-    v = val_alloc();
+    v = val_alloc(INT_OBJ);
     d = inew(v, sz);
-    v->obj = INT_OBJ;
     v->u.integer.len = neg ? -sz : +sz;
     v->u.integer.data = d;
 
@@ -1079,7 +1074,7 @@ MUST_CHECK value_t int_from_bytes(const value_t v1) {
     }
     sz = (v1->u.bytes.len * 8 + SHIFT - 1) / SHIFT;
     if (v1->u.bytes.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
-    v = val_alloc();
+    v = val_alloc(INT_OBJ);
     d = inew(v, sz);
 
     b = v1->u.bytes.data;
@@ -1106,7 +1101,6 @@ MUST_CHECK value_t int_from_bytes(const value_t v1) {
         free(d);
         d = v->u.integer.val;
     }
-    v->obj = INT_OBJ;
     v->u.integer.data = d;
     v->u.integer.len = sz;
     return v;
@@ -1132,7 +1126,7 @@ MUST_CHECK value_t int_from_bits(const value_t v1) {
     inv = v1->u.bits.inv;
     sz = (v1->u.bits.len * 8 * sizeof(bdigit_t) + SHIFT - 1 + (inv && (bdigit_t)~0 == v1->u.bits.data[v1->u.bits.len - 1])) / SHIFT;
     if (v1->u.bits.len > (SSIZE_MAX - SHIFT) / 8 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-    v = val_alloc();
+    v = val_alloc(INT_OBJ);
     d = inew(v, sz);
 
     b = v1->u.bits.data;
@@ -1185,7 +1179,6 @@ MUST_CHECK value_t int_from_bits(const value_t v1) {
         free(d);
         d = v->u.integer.val;
     }
-    v->obj = INT_OBJ;
     v->u.integer.data = d;
     v->u.integer.len = inv ? -sz : sz;
     return v;
@@ -1207,7 +1200,7 @@ MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
 
         sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
         if (v1->u.str.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
-        v = val_alloc();
+        v = val_alloc(INT_OBJ);
         d = inew(v, sz);
 
         encode_string_init(v1, epoint);
@@ -1257,7 +1250,6 @@ MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
                 if (!d) err_msg_out_of_memory();
             }
         }
-        v->obj = INT_OBJ;
         v->u.integer.data = d;
         v->u.integer.len = osz;
         return v;
@@ -1267,8 +1259,7 @@ MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
         if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
         return int_from_uval(ch2);
     } 
-    v = val_alloc();
-    v->obj = ERROR_OBJ;
+    v = val_alloc(ERROR_OBJ);
     v->u.error.num = ERROR_BIG_STRING_CO;
     v->u.error.epoint = *epoint;
     return v;
@@ -1289,8 +1280,7 @@ MUST_CHECK value_t int_from_decstr(const uint8_t *s, size_t *ln) {
         }
         *ln = i;
         if (val) {
-            v = val_alloc();
-            v->obj = INT_OBJ;
+            v = val_alloc(INT_OBJ);
             v->u.integer.val[0] = val;
             v->u.integer.data = v->u.integer.val;
             v->u.integer.len = 1;
@@ -1301,8 +1291,7 @@ MUST_CHECK value_t int_from_decstr(const uint8_t *s, size_t *ln) {
     sz = (double)i * 0.11073093649624542178511177326072356663644313812255859375 + 1;
     l = i;
 
-    v = val_alloc();
-    v->obj = INT_OBJ;
+    v = val_alloc(INT_OBJ);
     d = inew(v, sz);
 
     end = s + i;
@@ -1355,7 +1344,6 @@ MUST_CHECK value_t int_from_decstr(const uint8_t *s, size_t *ln) {
 
 static MUST_CHECK value_t calc2_int(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v;
-    struct value_s tmp;
     value_t err;
     ival_t shift;
     int i;
@@ -1371,8 +1359,7 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
     case O_GT: return truth_reference(icmp(v1, v2) > 0);
     case O_GE: return truth_reference(icmp(v1, v2) >= 0);
     case O_ADD: 
-        v = val_alloc();
-        v->obj = INT_OBJ; 
+        v = val_alloc(INT_OBJ);
         if (v1->u.integer.len < 0) {
             if (v2->u.integer.len < 0) {
                 iadd(v1, v2, v);
@@ -1384,8 +1371,7 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
         }
         return v;
     case O_SUB:
-        v = val_alloc();
-        v->obj = INT_OBJ; 
+        v = val_alloc(INT_OBJ);
         if (v1->u.integer.len < 0) {
             if (v2->u.integer.len < 0) isub(v1, v2, v);
             else iadd(v1, v2, v);
@@ -1396,38 +1382,26 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
         }
         return v;
     case O_MUL:
-        v = val_alloc();
-        v->obj = INT_OBJ; 
+        v = val_alloc(INT_OBJ);
         if ((v1->u.integer.len ^ v2->u.integer.len) < 0) {
             imul(v1, v2, v);
             v->u.integer.len = -v->u.integer.len;
         } else imul(v1, v2, v);
         return v;
     case O_DIV:
-        v = val_alloc();
         i = (v2->u.integer.len < 0);
-        v->obj = INT_OBJ; 
-        idivrem(v1, v2, v, &tmp);
-        if (v->obj == ERROR_OBJ) {
-            v->u.error.epoint = *op->epoint2;
-            return v;
-        }
-        if ((tmp.u.integer.len < 0) ^ i) {
+        v = idivrem(v1, v2, 1, op->epoint2);
+        if (v->obj != INT_OBJ) return v;
+        if ((v1->u.integer.len < 0) ^ i) {
             if (v->u.integer.len < 0) {
                 iadd(v, int_value[1], v);
                 v->u.integer.len = -v->u.integer.len;
             } else isub(v, int_value[1], v);
         }
-        if (tmp.u.integer.data != tmp.u.integer.val) free(tmp.u.integer.data);
         return v;
     case O_MOD:
-        v = val_alloc();
-        v->obj = INT_OBJ; 
-        idivrem(v1, v2, &tmp, v);
-        if (v->obj == ERROR_OBJ) {
-            v->u.error.epoint = *op->epoint2;
-            return v;
-        }
+        v = idivrem(v1, v2, 0, op->epoint2);
+        if (v->obj != INT_OBJ) return v;
         if ((v->u.integer.len < 0) ^ (v2->u.integer.len < 0)) {
             if (v->u.integer.len < 0) {
                 if (v2->u.integer.len < 0) {
@@ -1439,7 +1413,6 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
                 else iadd(v, v2, v);
             }
         }
-        if (tmp.u.integer.data != tmp.u.integer.val) free(tmp.u.integer.data);
         return v;
     case O_EXP:
         if (v2->u.integer.len < 0) {
@@ -1454,32 +1427,27 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
     case O_LSHIFT:
         err = ival(v2, &shift, 8*sizeof(ival_t), op->epoint2);
         if (err) return err;
-        v = val_alloc();
-        v->obj = INT_OBJ;
+        v = val_alloc(INT_OBJ);
         if (shift < 0) irshift(v1, v2, -shift, v);
         else ilshift(v1, v2, shift, v);
         return v;
     case O_RSHIFT:
         err = ival(v2, &shift, 8*sizeof(ival_t), op->epoint2);
         if (err) return err;
-        v = val_alloc();
-        v->obj = INT_OBJ;
+        v = val_alloc(INT_OBJ);
         if (shift < 0) ilshift(v1, v2, -shift, v);
         else irshift(v1, v2, shift, v);
         return v;
     case O_AND:
-        v = val_alloc();
-        v->obj = INT_OBJ; 
+        v = val_alloc(INT_OBJ);
         iand(v1, v2, v);
         return v;
     case O_OR:
-        v = val_alloc();
-        v->obj = INT_OBJ; 
+        v = val_alloc(INT_OBJ);
         ior(v1, v2, v);
         return v;
     case O_XOR:
-        v = val_alloc();
-        v->obj = INT_OBJ; 
+        v = val_alloc(INT_OBJ);
         ixor(v1, v2, v);
         return v;
     default: break;

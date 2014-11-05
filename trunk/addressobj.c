@@ -36,8 +36,7 @@ static int same(const value_t v1, const value_t v2) {
 
 static inline MUST_CHECK value_t type_check(const value_t v1, enum errors_e num, linepos_t epoint) {
     if (v1->u.addr.type != A_NONE) {
-        value_t v = val_alloc();
-        v->obj = ERROR_OBJ;
+        value_t v = val_alloc(ERROR_OBJ);
         v->u.error.num = num;
         v->u.error.epoint = *epoint;
         v->u.error.u.objname = v1->obj->name;
@@ -129,8 +128,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
 
     len = 99 - ind + ind2;
 
-    v = val_alloc();
-    v->obj = STR_OBJ;
+    v = val_alloc(STR_OBJ);
     v->u.str.len = len + tmp->u.str.len;
     v->u.str.chars = len + tmp->u.str.chars;
     if (v->u.str.len < len) err_msg_out_of_memory(); /* overflow */
@@ -180,8 +178,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
         am = v1->u.addr.type;
         if (am != A_IMMEDIATE && am != A_NONE) break;
         op->v1 = v1->u.addr.val;
-        v = val_alloc();
-        v->obj = ADDRESS_OBJ; 
+        v = val_alloc(ADDRESS_OBJ);
         v->u.addr.type = am;
         v->u.addr.val = op->v1->obj->calc1(op);
         if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.addr.val); v->u.addr.val = val_reference(none_value); }
@@ -245,8 +242,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
                 }
             op->v1 = v1->u.addr.val;
             op->v2 = v2->u.addr.val;
-            v = val_alloc();
-            v->obj = ADDRESS_OBJ;
+            v = val_alloc(ADDRESS_OBJ);
             v->u.addr.val = op->v1->obj->calc2(op);
             if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.addr.val); v->u.addr.val = val_reference(none_value); }
             v->u.addr.type = am;
@@ -262,8 +258,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
         am = v1->u.addr.type;
         if (check_addr(am)) break;
         op->v1 = v1->u.addr.val;
-        v = val_alloc();
-        v->obj = ADDRESS_OBJ;
+        v = val_alloc(ADDRESS_OBJ);
         v->u.addr.val = op->v1->obj->calc2(op);
         if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.addr.val); v->u.addr.val = val_reference(none_value); }
         v->u.addr.type = am;
@@ -289,8 +284,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         am = v2->u.addr.type;
         if (check_addr(am)) break;
         op->v2 = v2->u.addr.val;
-        v = val_alloc();
-        v->obj = ADDRESS_OBJ;
+        v = val_alloc(ADDRESS_OBJ);
         v->u.addr.val = op->v2->obj->rcalc2(op);
         if (v->u.addr.val->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.addr.val); v->u.addr.val = val_reference(none_value); }
         v->u.addr.type = am;

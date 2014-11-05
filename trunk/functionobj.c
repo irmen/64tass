@@ -44,8 +44,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     uint8_t *s;
     const char *prefix = "<native_function '";
     size_t len = strlen(prefix);
-    value_t v = val_alloc();
-    v->obj = STR_OBJ;
+    value_t v = val_alloc(STR_OBJ);
     v->u.str.len = v1->u.function.name.len + 2 + len;
     if (v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
     v->u.str.chars = v->u.str.len;
@@ -86,8 +85,7 @@ static inline MUST_CHECK value_t function_range(value_t vals, linepos_t epoint) 
     }
     if (err) return err;
     if (step == 0) {
-        err = val_alloc();
-        err->obj = ERROR_OBJ;
+        err = val_alloc(ERROR_OBJ);
         err->u.error.num = ERROR_DIVISION_BY_Z;
         err->u.error.epoint = v[2].epoint;
         return err;
@@ -99,7 +97,7 @@ static inline MUST_CHECK value_t function_range(value_t vals, linepos_t epoint) 
         if (end > start) end = start;
         len2 = (start - end - step - 1) / -step;
     }
-    new_value = val_alloc();
+    new_value = val_alloc(LIST_OBJ);
     val = list_create_elements(new_value, len2);
     if (len2) {
         i = 0;
@@ -108,7 +106,6 @@ static inline MUST_CHECK value_t function_range(value_t vals, linepos_t epoint) 
             i++; start += step;
         }
     }
-    new_value->obj = LIST_OBJ;
     new_value->u.list.len = len2;
     new_value->u.list.data = val;
     return new_value;
@@ -141,12 +138,11 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
         {
             size_t i = 0;
             value_t *vals;
-            v = val_alloc();
+            v = val_alloc(v1->obj);
             vals = list_create_elements(v, v1->u.list.len);
             for (;i < v1->u.list.len; i++) {
                 vals[i] = apply_func(v1->u.list.data[i], func, epoint);
             }
-            v->obj = v1->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
             return v;
@@ -191,8 +187,7 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
         default: real = HUGE_VAL; break;
         }
         if (real == HUGE_VAL) {
-            v = val_alloc();
-            v->obj = ERROR_OBJ;
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_CONSTNT_LARGE;
             v->u.error.epoint = *epoint;
             return v;
@@ -210,12 +205,11 @@ static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, 
         {
             size_t i = 0;
             value_t *vals;
-            v = val_alloc();
+            v = val_alloc(v1->obj);
             vals = list_create_elements(v, v1->u.list.len);
             for (;i < v1->u.list.len; i++) {
                 vals[i] = apply_func2(v1->u.list.data[i], v2, func, epoint, epoint2);
             }
-            v->obj = v1->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
             return v;
@@ -228,12 +222,11 @@ static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, 
         {
             size_t i = 0;
             value_t *vals;
-            v = val_alloc();
+            v = val_alloc(v2->obj);
             vals = list_create_elements(v, v2->u.list.len);
             for (;i < v2->u.list.len; i++) {
                 vals[i] = apply_func2(v1, v2->u.list.data[i], func, epoint, epoint2);
             }
-            v->obj = v2->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
             return v;
@@ -249,15 +242,13 @@ static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, 
     case F_ATAN2: real = atan2(real, real2);break;
     case F_POW:
         if (real2 < 0.0 && !real) {
-            v = val_alloc();
-            v->obj = ERROR_OBJ;
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_DIVISION_BY_Z;
             v->u.error.epoint = *epoint2;
             return v;
         }
         if (real < 0.0 && (double)((int)real2) != real2) {
-            v = val_alloc();
-            v->obj = ERROR_OBJ;
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_NEGFRAC_POWER;
             v->u.error.epoint = *epoint2;
             return v;
@@ -267,8 +258,7 @@ static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, 
     default: real = HUGE_VAL; break;
     }
     if (real == HUGE_VAL) {
-        v = val_alloc();
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR_CONSTNT_LARGE;
         v->u.error.epoint = *epoint;
         return v;
