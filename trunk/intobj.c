@@ -485,7 +485,7 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
     v1 = vv1->u.integer.data;
     v2 = vv2->u.integer.data;
     if (len1 < len2 || (len1 == len2 && v1[len1 - 1] < v2[len2 - 1])) {
-        return val_reference(int_value[0]);
+        return div ? val_reference(int_value[0]) : val_reference(vv1);
     }
     negr = (vv1->u.integer.len < 0);
     neg = (negr != (vv2->u.integer.len < 0));
@@ -638,10 +638,11 @@ static MUST_CHECK value_t power(const value_t vv1, const value_t vv2) {
     return v;
 }
 
-static void ilshift(const value_t vv1, const value_t vv2, uval_t s, value_t vv) {
+static MUST_CHECK value_t ilshift(const value_t vv1, uval_t s) {
     ssize_t i, len1, sz;
     int word, bit, neg;
     digit_t *v1, *v, *v2;
+    value_t vv;
 
     word = s / SHIFT;
     bit = s % SHIFT;
@@ -649,6 +650,7 @@ static void ilshift(const value_t vv1, const value_t vv2, uval_t s, value_t vv) 
     len1 = abs(vv1->u.integer.len);
     neg = (vv1->u.integer.len < 0);
     sz = len1 + word + (bit > 0);
+    vv = val_alloc(INT_OBJ);
     v = inew(vv, sz);
     v2 = v + word;
     if (bit) {
@@ -666,37 +668,33 @@ static void ilshift(const value_t vv1, const value_t vv2, uval_t s, value_t vv) 
         free(v);
         v = vv->u.integer.val;
     }
-    if (vv == vv1 || vv == vv2) destroy(vv);
     vv->u.integer.data = v;
     vv->u.integer.len = neg ? -i : i;
+    return vv;
 }
 
-static void irshift(value_t vv1, value_t vv2, uval_t s, value_t vv) {
+static MUST_CHECK value_t irshift(value_t vv1, uval_t s) {
     ssize_t i, sz;
     int word, bit, neg;
     digit_t *v1, *v;
+    value_t vv;
 
     word = s / SHIFT;
     bit = s % SHIFT;
     neg = (vv1->u.integer.len < 0);
     if (neg) {
+        vv = val_alloc(INT_OBJ);
         isub(vv1, int_value[1], vv);
         vv1 = vv;
         sz = abs(vv->u.integer.len) - word;
+        if (sz <= 0) {
+            val_destroy(vv);
+            return int_from_int(-1);
+        }
     } else {
         sz = abs(vv1->u.integer.len) - word;
-    }
-    if (sz <= 0) {
-        if (vv == vv1 || vv == vv2) destroy(vv);
-        if (neg) {
-            vv->u.integer.val[0] = 1;
-            vv->u.integer.len = -1;
-        } else {
-            vv->u.integer.val[0] = 0;
-            vv->u.integer.len = 0;
-        }
-        vv->u.integer.data = vv->u.integer.val;
-        return;
+        if (sz <= 0) return val_reference(int_value[0]);
+        vv = val_alloc(INT_OBJ);
     }
     v = inew(vv, sz);
     v1 = vv1->u.integer.data + word;
@@ -709,12 +707,11 @@ static void irshift(value_t vv1, value_t vv2, uval_t s, value_t vv) {
     } else if (sz) memmove(v, v1, sz * sizeof(digit_t));
     i = sz;
     if (neg) {
-        if (vv == vv1 || vv == vv2) destroy(vv);
         vv->u.integer.data = v;
         vv->u.integer.len = i;
         iadd(int_value[1], vv, vv);
         vv->u.integer.len = -vv->u.integer.len;
-        return;
+        return vv;
     }
     while (i && !v[i - 1]) i--;
     if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
@@ -722,16 +719,17 @@ static void irshift(value_t vv1, value_t vv2, uval_t s, value_t vv) {
         free(v);
         v = vv->u.integer.val;
     }
-    if (vv == vv1 || vv == vv2) destroy(vv);
     vv->u.integer.data = v;
     vv->u.integer.len = i;
+    return vv;
 }
 
-static void iand(value_t vv1, value_t vv2, value_t vv) {
+static MUST_CHECK value_t iand(value_t vv1, value_t vv2) {
     ssize_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
     digit_t c;
+    value_t vv = val_alloc(INT_OBJ);
     len1 = abs(vv1->u.integer.len);
     len2 = abs(vv2->u.integer.len);
 
@@ -745,7 +743,7 @@ static void iand(value_t vv1, value_t vv2, value_t vv) {
         vv->u.integer.data = v;
         v[0] = c;
         vv->u.integer.len = neg1 ? -(v[0] != 0) : (v[0] != 0);
-        return;
+        return vv;
     }
     if (len1 < len2) {
         const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
@@ -796,16 +794,17 @@ static void iand(value_t vv1, value_t vv2, value_t vv) {
         free(v);
         v = vv->u.integer.val;
     }
-    if (vv == vv1 || vv == vv2) destroy(vv);
     vv->u.integer.data = v;
     vv->u.integer.len = (neg1 & neg2) ? -sz : sz;
+    return vv;
 }
 
-static void ior(value_t vv1, value_t vv2, value_t vv) {
+static MUST_CHECK value_t ior(value_t vv1, value_t vv2) {
     ssize_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
     digit_t c;
+    value_t vv = val_alloc(INT_OBJ);
     len1 = abs(vv1->u.integer.len);
     len2 = abs(vv2->u.integer.len);
 
@@ -819,7 +818,7 @@ static void ior(value_t vv1, value_t vv2, value_t vv) {
         vv->u.integer.data = v;
         v[0] = c;
         vv->u.integer.len = neg1 ? -(v[0] != 0) : (v[0] != 0);
-        return;
+        return vv;
     }
     if (len1 < len2) {
         const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
@@ -876,16 +875,17 @@ static void ior(value_t vv1, value_t vv2, value_t vv) {
         free(v);
         v = vv->u.integer.val;
     }
-    if (vv == vv1 || vv == vv2) destroy(vv);
     vv->u.integer.data = v;
     vv->u.integer.len = (neg1 | neg2) ? -sz : sz;
+    return vv;
 }
 
-static void ixor(value_t vv1, value_t vv2, value_t vv) {
+static MUST_CHECK value_t ixor(value_t vv1, value_t vv2) {
     ssize_t i, len1, len2, sz;
     int neg1, neg2;
     digit_t *v1, *v2, *v;
     digit_t c;
+    value_t vv = val_alloc(INT_OBJ);
     len1 = abs(vv1->u.integer.len);
     len2 = abs(vv2->u.integer.len);
 
@@ -899,7 +899,7 @@ static void ixor(value_t vv1, value_t vv2, value_t vv) {
         vv->u.integer.data = v;
         v[0] = c;
         vv->u.integer.len = neg1 ? -(v[0] != 0) : (v[0] != 0);
-        return;
+        return vv;
     }
     if (len1 < len2) {
         const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
@@ -954,9 +954,9 @@ static void ixor(value_t vv1, value_t vv2, value_t vv) {
         free(v);
         v = vv->u.integer.val;
     }
-    if (vv == vv1 || vv == vv2) destroy(vv);
     vv->u.integer.data = v;
     vv->u.integer.len = (neg1 ^ neg2) ? -sz : sz;
+    return vv;
 }
 
 static int icmp(const value_t vv1, const value_t vv2) {
@@ -1393,25 +1393,31 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
         v = idivrem(v1, v2, 1, op->epoint2);
         if (v->obj != INT_OBJ) return v;
         if ((v1->u.integer.len < 0) ^ i) {
+            value_t vv = val_alloc(INT_OBJ);
             if (v->u.integer.len < 0) {
-                iadd(v, int_value[1], v);
-                v->u.integer.len = -v->u.integer.len;
-            } else isub(v, int_value[1], v);
+                iadd(v, int_value[1], vv);
+                vv->u.integer.len = -vv->u.integer.len;
+            } else isub(v, int_value[1], vv);
+            val_destroy(v); 
+            return vv;
         }
         return v;
     case O_MOD:
         v = idivrem(v1, v2, 0, op->epoint2);
         if (v->obj != INT_OBJ) return v;
         if ((v->u.integer.len < 0) ^ (v2->u.integer.len < 0)) {
+            value_t vv = val_alloc(INT_OBJ);
             if (v->u.integer.len < 0) {
                 if (v2->u.integer.len < 0) {
-                    iadd(v, v2, v);
-                    v->u.integer.len = -v->u.integer.len;
-                } else isub(v2, v, v);
+                    iadd(v, v2, vv);
+                    vv->u.integer.len = -vv->u.integer.len;
+                } else isub(v2, v, vv);
             } else {
-                if (v2->u.integer.len < 0) isub(v, v2, v);
-                else iadd(v, v2, v);
+                if (v2->u.integer.len < 0) isub(v, v2, vv);
+                else iadd(v, v2, vv);
             }
+            val_destroy(v);
+            return vv;
         }
         return v;
     case O_EXP:
@@ -1427,29 +1433,14 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
     case O_LSHIFT:
         err = ival(v2, &shift, 8*sizeof(ival_t), op->epoint2);
         if (err) return err;
-        v = val_alloc(INT_OBJ);
-        if (shift < 0) irshift(v1, v2, -shift, v);
-        else ilshift(v1, v2, shift, v);
-        return v;
+        return (shift < 0) ? irshift(v1, -shift) : ilshift(v1, shift);
     case O_RSHIFT:
         err = ival(v2, &shift, 8*sizeof(ival_t), op->epoint2);
         if (err) return err;
-        v = val_alloc(INT_OBJ);
-        if (shift < 0) ilshift(v1, v2, -shift, v);
-        else irshift(v1, v2, shift, v);
-        return v;
-    case O_AND:
-        v = val_alloc(INT_OBJ);
-        iand(v1, v2, v);
-        return v;
-    case O_OR:
-        v = val_alloc(INT_OBJ);
-        ior(v1, v2, v);
-        return v;
-    case O_XOR:
-        v = val_alloc(INT_OBJ);
-        ixor(v1, v2, v);
-        return v;
+        return (shift < 0) ? ilshift(v1, -shift) : irshift(v1, shift);
+    case O_AND: return iand(v1, v2);
+    case O_OR: return ior(v1, v2);
+    case O_XOR: return ixor(v1, v2);
     default: break;
     }
     return obj_oper_error(op);
