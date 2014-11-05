@@ -1279,14 +1279,14 @@ MUST_CHECK value_t int_from_decstr(const uint8_t *s, size_t *ln) {
             for (j = 1;j < i; j++) val = val * 10 + (s[j] & 15);
         }
         *ln = i;
-        if (val) {
+        if (val >= sizeof(int_value) / sizeof(int_value[0])) {
             v = val_alloc(INT_OBJ);
             v->u.integer.val[0] = val;
             v->u.integer.data = v->u.integer.val;
             v->u.integer.len = 1;
             return v;
         }
-        return val_reference(int_value[0]);
+        return val_reference(int_value[val]);
     }
     sz = (double)i * 0.11073093649624542178511177326072356663644313812255859375 + 1;
     l = i;
