@@ -350,11 +350,117 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
     return obj_oper_error(op);
 }
 
+static inline MUST_CHECK value_t repeat(oper_t op) {
+    value_t *vals;
+    value_t v1 = op->v1, v;
+    uval_t rep;
+
+    v = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
+    if (v) return v;
+
+    if (v1->u.list.len && rep) {
+        size_t i = 0, j, ln;
+        if (rep == 1) {
+            return val_reference(v1);
+        }
+        ln = v1->u.list.len * rep;
+        if (v1->u.list.len > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
+        v = val_alloc();
+        v->obj = v1->obj;
+        v->u.list.data = vals = lnew(v, ln);
+        while (rep--) {
+            for (j = 0;j < v1->u.list.len; j++, i++) {
+                vals[i] = val_reference(v1->u.list.data[j]);
+            }
+        }
+        v->u.list.len = i;
+        return v;
+    }
+    return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
+}
+
+static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
+    value_t *vals, v, v1 = op->v1;
+    size_t i;
+    size_t length;
+    ival_t offs, end, step;
+
+    v = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
+    if (v) return v;
+
+    if (!length) {
+        return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
+    }
+
+    if (step == 1 && length == v1->u.list.len) {
+        return val_reference(v1); /* original tuple */
+    }
+    v = val_alloc();
+    v->obj = v1->obj;
+    v->u.list.data = vals = lnew(v, length);
+    i = 0;
+    while ((end > offs && step > 0) || (end < offs && step < 0)) {
+        vals[i++] = val_reference(v1->u.list.data[offs]);
+        offs += step;
+    }
+    v->u.list.len = i;
+    return v;
+}
+
+static inline MUST_CHECK value_t iindex(oper_t op) {
+    value_t *vals;
+    size_t offs, i, ln;
+    value_t v1 = op->v1, v2 = op->v2, v, err;
+
+    if (v2->u.funcargs.len != 1) {
+        err_msg_argnum(v2->u.funcargs.len, 1, 1, op->epoint2);
+        return val_reference(none_value);
+    }
+    v2 = v2->u.funcargs.val->val;
+
+    ln = v1->u.list.len;
+
+    if (v2->obj == LIST_OBJ) {
+        int error = 1;
+        if (!v2->u.list.len) {
+            return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
+        }
+        v = val_alloc();
+        v->obj = v1->obj;
+        v->u.list.data = vals = lnew(v, v2->u.list.len);
+        for (i = 0; i < v2->u.list.len; i++) {
+            err = indexoffs(v2->u.list.data[i], ln, &offs, op->epoint2);
+            if (err) {
+                if (error) {err_msg_output(err); error = 0;} 
+                val_destroy(err);
+                vals[i] = val_reference(none_value);
+                continue;
+            }
+            vals[i] = val_reference(v1->u.list.data[offs]);
+        }
+        v->u.list.len = i;
+        return v;
+    }
+    if (v2->obj == COLONLIST_OBJ) {
+        return slice(v2, op, ln);
+    }
+    err = indexoffs(v2, ln, &offs, op->epoint2);
+    if (err) return err;
+    return val_reference(v1->u.list.data[offs]);
+}
+
+
 static MUST_CHECK value_t calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v;
     size_t i = 0;
     value_t *vals;
 
+    if (op->op == &o_INDEX) {
+        return iindex(op);
+    }
+    if (op->op == &o_X) {
+        return repeat(op); 
+    }
     switch (v2->obj->type) {
     case T_TUPLE:
     case T_LIST:
@@ -455,94 +561,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
 }
 
-static MUST_CHECK value_t repeat(oper_t op, uval_t rep) {
-    value_t *vals;
-    value_t v1 = op->v1, v;
-
-    if (v1->u.list.len && rep) {
-        size_t i = 0, j, ln;
-        if (rep == 1) {
-            return val_reference(v1);
-        }
-        ln = v1->u.list.len * rep;
-        if (v1->u.list.len > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
-        v = val_alloc();
-        v->obj = v1->obj;
-        v->u.list.data = vals = lnew(v, ln);
-        while (rep--) {
-            for (j = 0;j < v1->u.list.len; j++, i++) {
-                vals[i] = val_reference(v1->u.list.data[j]);
-            }
-        }
-        v->u.list.len = i;
-        return v;
-    }
-    return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
-}
-
-static inline MUST_CHECK value_t slice(value_t v1, uval_t ln, ival_t offs, ival_t end, ival_t step) {
-    value_t *vals, v;
-    size_t i;
-
-    if (!ln) {
-        return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
-    }
-
-    if (step == 1 && ln == v1->u.list.len) {
-        return val_reference(v1); /* original tuple */
-    }
-    v = val_alloc();
-    v->obj = v1->obj;
-    v->u.list.data = vals = lnew(v, ln);
-    i = 0;
-    while ((end > offs && step > 0) || (end < offs && step < 0)) {
-        vals[i++] = val_reference(v1->u.list.data[offs]);
-        offs += step;
-    }
-    v->u.list.len = i;
-    return v;
-}
-
-static MUST_CHECK value_t iindex(oper_t op) {
-    value_t *vals;
-    size_t i, ln;
-    ival_t offs;
-    value_t v1 = op->v1, v2 = op->v2, v, err;
-
-    ln = v1->u.list.len;
-
-    if (v2->obj == LIST_OBJ) {
-        int error = 1;
-        if (!v2->u.list.len) {
-            return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
-        }
-        v = val_alloc();
-        v->obj = v1->obj;
-        v->u.list.data = vals = lnew(v, v2->u.list.len);
-        for (i = 0; i < v2->u.list.len; i++) {
-            err = indexoffs(v2->u.list.data[i], &offs, ln, op->epoint2);
-            if (err) {
-                if (error) {err_msg_output(err); error = 0;} 
-                val_destroy(err);
-                vals[i] = val_reference(none_value);
-                continue;
-            }
-            vals[i] = val_reference(v1->u.list.data[offs]);
-        }
-        v->u.list.len = i;
-        return v;
-    }
-    if (v2->obj == COLONLIST_OBJ) {
-        ival_t length, end, step;
-        err = sliceparams(op, ln, &length, &offs, &end, &step);
-        if (err) return err;
-        return slice(v1, length, offs, end, step);
-    }
-    err = indexoffs(v2, &offs, ln, op->epoint2);
-    if (err) return err;
-    return val_reference(v1->u.list.data[offs]);
-}
-
 static void init(struct obj_s *obj) {
     obj->destroy = destroy;
     obj->same = same;
@@ -553,8 +571,6 @@ static void init(struct obj_s *obj) {
     obj->calc1 = calc1;
     obj->calc2 = calc2;
     obj->rcalc2 = rcalc2;
-    obj->repeat = repeat;
-    obj->iindex = iindex;
     obj->repr = repr_listtuple;
 }
 

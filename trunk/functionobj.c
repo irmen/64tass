@@ -292,7 +292,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
             case F_ATAN2:
             case F_POW: 
                 if (args != 2) {
-                    err_msg_argnum(args, 2, 2, op->epoint);
+                    err_msg_argnum(args, 2, 2, op->epoint2);
                     return val_reference(none_value);
                 }
                 if ((v[0].val->obj == TUPLE_OBJ || v[0].val->obj == LIST_OBJ) && (v[1].val->obj == TUPLE_OBJ || v[1].val->obj == LIST_OBJ)) {
@@ -334,12 +334,12 @@ static MUST_CHECK value_t calc2(oper_t op) {
             case F_REGISTER:
             case F_SIZE:
                 if (args != 1) {
-                    err_msg_argnum(args, 1, 1, op->epoint);
+                    err_msg_argnum(args, 1, 1, op->epoint2);
                     return val_reference(none_value);
                 }
                 return apply_func(v[0].val, func, &v[0].epoint);
-            case F_RANGE: return function_range(op->v2, op->epoint);
-            case F_FORMAT: return isnprintf(op->v2, op->epoint);
+            case F_RANGE: return function_range(op->v2, op->epoint2);
+            case F_FORMAT: return isnprintf(op->v2, op->epoint2);
             case F_NONE: break;
             }
             return val_reference(none_value); /* can't happen */

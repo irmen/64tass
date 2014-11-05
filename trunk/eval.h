@@ -33,8 +33,8 @@ extern void eval_leave(void);
 extern size_t get_label(void);
 extern value_t get_vals_tuple(void);
 extern value_t get_vals_addrlist(struct linepos_s *);
-extern MUST_CHECK value_t indexoffs(const value_t, ival_t *, size_t, linepos_t);
-extern MUST_CHECK value_t sliceparams(oper_t, size_t, ival_t *, ival_t *, ival_t *, ival_t *);
+extern MUST_CHECK value_t indexoffs(const value_t, size_t, size_t *, linepos_t);
+extern MUST_CHECK value_t sliceparams(const value_t, size_t, size_t *, ival_t *, ival_t *, ival_t *, linepos_t);
 extern void touch_label(struct label_s *);
 
 struct values_s {

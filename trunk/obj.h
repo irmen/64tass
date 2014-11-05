@@ -88,8 +88,6 @@ struct obj_s {
     value_t (*calc1)(struct oper_s *) MUST_CHECK;
     value_t (*calc2)(struct oper_s *) MUST_CHECK;
     value_t (*rcalc2)(struct oper_s *) MUST_CHECK;
-    value_t (*repeat)(struct oper_s *, uval_t) MUST_CHECK;
-    value_t (*iindex)(struct oper_s *) MUST_CHECK;
     value_t (*ival)(const value_t, ival_t *, int, linepos_t) MUST_CHECK;
     value_t (*uval)(const value_t, uval_t *, int, linepos_t) MUST_CHECK;
     value_t (*real)(const value_t, double *, linepos_t) MUST_CHECK;

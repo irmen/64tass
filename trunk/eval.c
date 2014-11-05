@@ -708,7 +708,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
     return 1;
 }
 
-MUST_CHECK value_t indexoffs(const value_t v1, ival_t *iv, size_t len, linepos_t epoint) {
+MUST_CHECK value_t indexoffs(const value_t v1, size_t len, size_t *offs, linepos_t epoint) {
     ival_t ival;
     value_t err;
     err = v1->obj->ival(v1, &ival, 8*sizeof(ival_t), epoint);
@@ -716,12 +716,12 @@ MUST_CHECK value_t indexoffs(const value_t v1, ival_t *iv, size_t len, linepos_t
 
     if (ival >= 0) {
         if ((size_t)ival < len) {
-            *iv = ival;
+            *offs = ival;
             return NULL;
         }
     } else {
         if ((size_t)-ival <= len) {
-            *iv = len + ival;
+            *offs = len + ival;
             return NULL;
         }
     }
@@ -732,23 +732,23 @@ MUST_CHECK value_t indexoffs(const value_t v1, ival_t *iv, size_t len, linepos_t
     return err;
 }
 
-MUST_CHECK value_t sliceparams(oper_t op, size_t len, ival_t *olen, ival_t *offs2, ival_t *end2, ival_t *step2) {
-    value_t v2 = op->v2, v, err;
-    ival_t ln, offs, end, step = 1;
+MUST_CHECK value_t sliceparams(const value_t v2, size_t len, size_t *olen, ival_t *offs2, ival_t *end2, ival_t *step2, linepos_t epoint) {
+    value_t v, err;
+    ival_t offs, end, step = 1;
     if (v2->u.list.len > 3 || v2->u.list.len < 1) {
-        err_msg_argnum(v2->u.list.len, 1, 3, op->epoint2);
+        err_msg_argnum(v2->u.list.len, 1, 3, epoint);
         return val_reference(none_value);
     }
     end = (ival_t)len;
     if (v2->u.list.len > 2) {
         if (v2->u.list.data[2]->obj != DEFAULT_OBJ) {
-            err = v2->u.list.data[2]->obj->ival(v2->u.list.data[2], &step, 8*sizeof(ival_t), op->epoint2);
+            err = v2->u.list.data[2]->obj->ival(v2->u.list.data[2], &step, 8*sizeof(ival_t), epoint);
             if (err) return err;
             if (step == 0) {
                 v = val_alloc();
                 v->obj = ERROR_OBJ;
                 v->u.error.num = ERROR_DIVISION_BY_Z;
-                v->u.error.epoint = *op->epoint2;
+                v->u.error.epoint = *epoint;
                 return v;
             }
         }
@@ -756,7 +756,7 @@ MUST_CHECK value_t sliceparams(oper_t op, size_t len, ival_t *olen, ival_t *offs
     if (v2->u.list.len > 1) {
         if (v2->u.list.data[1]->obj == DEFAULT_OBJ) end = (step > 0) ? (ival_t)len : -1;
         else {
-            err = v2->u.list.data[1]->obj->ival(v2->u.list.data[1], &end, 8*sizeof(ival_t), op->epoint2);
+            err = v2->u.list.data[1]->obj->ival(v2->u.list.data[1], &end, 8*sizeof(ival_t), epoint);
             if (err) return err;
             if (end >= 0) {
                 if (end > (ival_t)len) end = len;
@@ -768,7 +768,7 @@ MUST_CHECK value_t sliceparams(oper_t op, size_t len, ival_t *olen, ival_t *offs
     } else end = len;
     if (v2->u.list.data[0]->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
     else {
-        err = v2->u.list.data[0]->obj->ival(v2->u.list.data[0], &offs, 8*sizeof(ival_t), op->epoint2);
+        err = v2->u.list.data[0]->obj->ival(v2->u.list.data[0], &offs, 8*sizeof(ival_t), epoint);
         if (err) return err;
         if (offs >= 0) {
             if (offs > (ival_t)len - (step < 0)) offs = len - (step < 0);
@@ -780,51 +780,16 @@ MUST_CHECK value_t sliceparams(oper_t op, size_t len, ival_t *olen, ival_t *offs
 
     if (step > 0) {
         if (offs > end) offs = end;
-        ln = (end - offs + step - 1) / step;
+        *olen = (end - offs + step - 1) / step;
     } else {
         if (end > offs) end = offs;
-        ln = (offs - end - step - 1) / -step;
+        *olen = (offs - end - step - 1) / -step;
     }
 
     *offs2 = offs;
     *end2 = end;
     *step2 = step;
-    *olen = ln;
     return NULL;
-}
-
-static void indexes(struct values_s *vals, unsigned int args) {
-    struct values_s *v = &vals[2];
-    value_t val;
-
-    switch (vals->val->obj->type) {
-    case T_ERROR:
-    case T_NONE: return;
-    default: break;
-    }
-    if (args != 1) err_msg_argnum(args, 1, 1, &vals[1].epoint); else {
-        struct oper_s oper;
-        oper.op = &o_INDEX;
-        oper.v1 = vals->val;
-        oper.v2 = v[0].val;
-        oper.epoint = &vals->epoint;
-        oper.epoint2 = &v[0].epoint;
-        oper.epoint3 = &vals[1].epoint;
-        val = oper.v1->obj->iindex(&oper);
-        val_destroy(vals->val); vals->val = val;
-        return;
-    }
-    val_replace(&vals->val, none_value);
-}
-
-static inline MUST_CHECK value_t apply_op2(oper_t op) {
-    if (op->op == &o_X) {
-        ival_t shift;
-        value_t err = op->v2->obj->ival(op->v2, &shift, 8*sizeof(ival_t), op->epoint2);
-        if (err) return err;
-        return op->v1->obj->repeat(op, (shift > 0) ? shift : 0); 
-    }
-    return op->v1->obj->calc2(op);
 }
 
 static MUST_CHECK value_t apply_addressing(value_t v1, enum atype_e am) {
@@ -902,10 +867,12 @@ static int get_val2(struct eval_context_s *ev) {
         v1 = &values[vsp-1];
         switch (op) {
         case O_FUNC:
+        case O_INDEX:
             {
                 unsigned int args = 0;
+                op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
                 value_t tmp = val_alloc();
-                while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != O_PARENT) {
+                while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != op) {
                     args++;
                     if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
@@ -919,24 +886,12 @@ static int get_val2(struct eval_context_s *ev) {
                 oper.v1 = v1->val;
                 oper.v2 = tmp;
                 oper.epoint = &v1->epoint;
-                oper.epoint2 = &tmp->u.funcargs.val->epoint;
+                oper.epoint2 = args ? &tmp->u.funcargs.val->epoint : &o_out->epoint;
                 oper.epoint3 = &o_out->epoint;
                 val = oper.v1->obj->calc2(&oper);
                 val_destroy(tmp);
                 val_destroy(v1->val); v1->val = val;
 
-                vsp -= args + 1;
-                continue;
-            }
-        case O_INDEX:
-            {
-                unsigned int args = 0;
-                while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != O_BRACKET) {
-                    args++;
-                    if (vsp <= args) goto syntaxe;
-                    v1 = &values[vsp-1-args];
-                }
-                indexes(&values[vsp-2-args], args);
                 vsp -= args + 1;
                 continue;
             }
@@ -1319,7 +1274,7 @@ static int get_val2(struct eval_context_s *ev) {
         oper.epoint = &v1->epoint;
         oper.epoint2 = &v2->epoint;
         oper.epoint3 = &o_out->epoint;
-        val = apply_op2(&oper);
+        val = oper.v1->obj->calc2(&oper);
         val_destroy(v1->val); v1->val = val;
     }
     ev->outp2 = i;
