@@ -86,7 +86,7 @@ static inline MUST_CHECK value_t function_range(value_t vals, linepos_t epoint) 
     if (err) return err;
     if (step == 0) {
         err = val_alloc(ERROR_OBJ);
-        err->u.error.num = ERROR_DIVISION_BY_Z;
+        err->u.error.num = ERROR_NO_ZERO_VALUE;
         err->u.error.epoint = v[2].epoint;
         return err;
     }

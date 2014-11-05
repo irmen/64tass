@@ -370,8 +370,19 @@ void argv_print(const char *line, FILE *f) {
         if (ch & 0x80) {
             if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in((const uint8_t *)line + i, &ch);
-            if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) putc('?', f);
             l = i;
+            if (iswprint(ch)) {
+                mbstate_t ps;
+                char temp[MB_CUR_MAX];
+                size_t ln;
+                memset(&ps, 0, sizeof(ps));
+                ln = wcrtomb(temp, ch, &ps);
+                if (ln != (size_t)-1) {
+                    fwrite(temp, ln, 1, f);
+                    continue;
+                }
+            }
+            putc('?', f);
             continue;
         }
         if (ch == 0) break;
@@ -437,8 +448,19 @@ void argv_print(const char *line, FILE *f) {
         if (ch & 0x80) {
             if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in((const uint8_t *)line + i, &ch);
-            if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) fprintf(f, ch < 0x10000 ? "$'\\u%x'" : "$'\\U%x'", ch);
             l = i;
+            if (iswprint(ch)) {
+                mbstate_t ps;
+                char temp[MB_CUR_MAX];
+                size_t ln;
+                memset(&ps, 0, sizeof(ps));
+                ln = wcrtomb(temp, ch, &ps);
+                if (ln != (size_t)-1) {
+                    fwrite(temp, ln, 1, f);
+                    continue;
+                }
+            }
+            fprintf(f, ch < 0x10000 ? "$'\\u%x'" : "$'\\U%x'", ch);
             continue;
         }
         if (ch == 0) break;
@@ -474,8 +496,19 @@ void printable_print(const uint8_t *line, FILE *f) {
         if (ch & 0x80) {
             if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
-            if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) fprintf(f, "{$%x}", ch);
             l = i;
+            if (iswprint(ch)) {
+                mbstate_t ps;
+                char temp[MB_CUR_MAX];
+                size_t ln;
+                memset(&ps, 0, sizeof(ps));
+                ln = wcrtomb(temp, ch, &ps);
+                if (ln != (size_t)-1) {
+                    fwrite(temp, ln, 1, f);
+                    continue;
+                }
+            }
+            fprintf(f, "{$%x}", ch);
             continue;
         }
         if (ch == 0) break;
@@ -493,20 +526,34 @@ void printable_print(const uint8_t *line, FILE *f) {
 
 size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0, len = 0;
+    int err;
     for (i = 0; i < max;) {
         uint32_t ch = line[i];
         if (ch & 0x80) {
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i += utf8in(line + i, &ch);
-            if (!iswprint(ch) || fprintf(f, "%lc", (wint_t)ch) < 0) len += fprintf(f, "{$%x}", ch); else len++;
             l = i;
+            if (iswprint(ch)) {
+                mbstate_t ps;
+                char temp[MB_CUR_MAX];
+                size_t ln;
+                memset(&ps, 0, sizeof(ps));
+                ln = wcrtomb(temp, ch, &ps);
+                if (ln != (size_t)-1) {
+                    len += fwrite(temp, ln, 1, f); /* 1 character */
+                    continue;
+                }
+            }
+            err = fprintf(f, "{$%x}", ch);
+            if (err >= 0) len += err;
             continue;
         }
         if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i++;
-            len += fprintf(f, "{$%x}", ch);
             l = i;
+            err = fprintf(f, "{$%x}", ch);
+            if (err >= 0) len += err;
             continue;
         }
         i++;
@@ -515,7 +562,6 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     return len;
 }
 
-
 void caret_print(const uint8_t *line, FILE *f, size_t max) {
     size_t i, l = 0;
     for (i = 0; i < max;) {
@@ -523,7 +569,15 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
         uint32_t ch = line[i];
         if (ch & 0x80) {
             i += utf8in(line + i, &ch);
-            if (!iswprint(ch) || sprintf(temp, "%lc", (wint_t)ch) < 0) l += sprintf(temp, "{$%x}", ch); else l++;
+            if (iswprint(ch)) {
+                mbstate_t ps;
+                memset(&ps, 0, sizeof(ps));
+                if (wcrtomb(temp, ch, &ps) != (size_t)-1) {
+                    l++;
+                    continue;
+                }
+            }
+            l += sprintf(temp, "{$%x}", ch);
             continue;
         }
         if (ch == 0) break;
