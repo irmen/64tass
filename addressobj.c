@@ -194,6 +194,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v;
     value_t result;
     atype_t am;
+    int h;
     switch (v2->obj->type) {
     case T_ADDRESS:
         switch (op->op->u.oper.op) {
@@ -205,14 +206,16 @@ static MUST_CHECK value_t calc2(oper_t op) {
                 op->v1 = v1;
                 op->v2 = v2;
                 return result;
-            } 
-            return int_from_int((v1->u.addr.type > v2->u.addr.type) - (v1->u.addr.type < v2->u.addr.type));
+            }
+            h = (v1->u.addr.type > v2->u.addr.type) - (v1->u.addr.type < v2->u.addr.type);
+            if (h < 0) return int_from_int(-1);
+            return val_reference(int_value[h]);
         case O_EQ:
         case O_NE:
         case O_LT:
         case O_LE:
         case O_GT:
-        case O_GE: 
+        case O_GE:
             if (v1->u.addr.type == v2->u.addr.type) {
                 op->v1 = v1->u.addr.val;
                 op->v2 = v2->u.addr.val;
@@ -220,7 +223,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
                 op->v1 = v1;
                 op->v2 = v2;
                 return result;
-            } 
+            }
             {
                 int r;
                 switch (op->op->u.oper.op) {
@@ -236,7 +239,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
             }
         default:
             am = v1->u.addr.type;
-            if (am != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE) 
+            if (am != A_IMMEDIATE || v2->u.addr.type != A_IMMEDIATE)
                 if (am != A_NONE || v2->u.addr.type != A_NONE) {
                     return obj_oper_error(op);
                 }
@@ -253,9 +256,25 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
-    case T_FLOAT: 
-    case T_CODE: 
+    case T_FLOAT:
+    case T_CODE:
         am = v1->u.addr.type;
+        if (am == A_NONE) {
+            switch (op->op->u.oper.op) {
+            case O_CMP:
+            case O_EQ:
+            case O_NE:
+            case O_LT:
+            case O_LE:
+            case O_GT:
+            case O_GE:
+                op->v1 = v1->u.addr.val;
+                v = op->v1->obj->calc2(op);
+                op->v1 = v1;
+                return v;
+            default: break;
+            }
+        }
         if (check_addr(am)) break;
         op->v1 = v1->u.addr.val;
         v = val_alloc(ADDRESS_OBJ);
@@ -264,7 +283,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
         v->u.addr.type = am;
         op->v1 = v1;
         return v;
-    default: 
+    default:
         if (op->op != &o_MEMBER) {
             return v2->obj->rcalc2(op);
         }
@@ -279,9 +298,25 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
-    case T_FLOAT: 
-    case T_CODE: 
+    case T_FLOAT:
+    case T_CODE:
         am = v2->u.addr.type;
+        if (am == A_NONE) {
+            switch (op->op->u.oper.op) {
+            case O_CMP:
+            case O_EQ:
+            case O_NE:
+            case O_LT:
+            case O_LE:
+            case O_GT:
+            case O_GE:
+                op->v2 = v2->u.addr.val;
+                v = op->v2->obj->rcalc2(op);
+                op->v2 = v2;
+                return v;
+            default: break;
+            }
+        }
         if (check_addr(am)) break;
         op->v2 = v2->u.addr.val;
         v = val_alloc(ADDRESS_OBJ);
