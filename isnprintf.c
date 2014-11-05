@@ -547,10 +547,12 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
                     break;
                 default:
                     {
-                        uint8_t str[2] = {'%', (uint8_t)*data.pf};
-                        str_t msg = {2, str};
+                        str_t msg;
+                        msg.len = utf8len(*data.pf) + 1;
+                        msg.data = (uint8_t *)data.pf - 1;
                         err_msg_not_defined(&msg, &v[0].epoint);
                         state = 0;
+                        data.pf += msg.len - 2;
                     }
                 } /* end switch */
             } /* end of for state */

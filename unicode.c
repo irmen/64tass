@@ -373,7 +373,7 @@ void argv_print(const char *line, FILE *f) {
             l = i;
             if (iswprint(ch)) {
                 mbstate_t ps;
-                char temp[MB_CUR_MAX];
+                char temp[64];
                 size_t ln;
                 memset(&ps, 0, sizeof(ps));
                 ln = wcrtomb(temp, ch, &ps);
@@ -451,7 +451,7 @@ void argv_print(const char *line, FILE *f) {
             l = i;
             if (iswprint(ch)) {
                 mbstate_t ps;
-                char temp[MB_CUR_MAX];
+                char temp[64];
                 size_t ln;
                 memset(&ps, 0, sizeof(ps));
                 ln = wcrtomb(temp, ch, &ps);
@@ -499,7 +499,7 @@ void printable_print(const uint8_t *line, FILE *f) {
             l = i;
             if (iswprint(ch)) {
                 mbstate_t ps;
-                char temp[MB_CUR_MAX];
+                char temp[64];
                 size_t ln;
                 memset(&ps, 0, sizeof(ps));
                 ln = wcrtomb(temp, ch, &ps);
@@ -535,7 +535,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             l = i;
             if (iswprint(ch)) {
                 mbstate_t ps;
-                char temp[MB_CUR_MAX];
+                char temp[64];
                 size_t ln;
                 memset(&ps, 0, sizeof(ps));
                 ln = wcrtomb(temp, ch, &ps);

@@ -410,7 +410,7 @@ void init_variables2(struct label_s *label) {
     avltree_init(&label->members);
 }
 
-static struct label_s *new_builtin(const char *ident, value_t val) {
+static const struct label_s *new_builtin(const char *ident, value_t val) {
     struct linepos_s nopoint = {0, 0};
     str_t name;
     struct label_s *label;
@@ -464,31 +464,32 @@ void init_variables(void)
 }
 
 void init_defaultlabels(void) {
-    struct label_s *label;
     value_t v;
     int i;
 
-    label = new_builtin("true", val_reference(true_value));
-
-    label = new_builtin("false", val_reference(false_value));
+    new_builtin("true", val_reference(true_value));
+    new_builtin("false", val_reference(false_value));
 
     for (i = 0; reg_names[i]; i++) {
-        char name[2] = {reg_names[i], 0};
+        char name[2];
+        name[0] = reg_names[i];
+        name[1] = 0;
         v = val_alloc(REGISTER_OBJ);
         v->u.str.val[0] = name[0];
         v->u.str.data = v->u.str.val;
         v->u.str.len = 1;
         v->u.str.chars = 1;
-        label = new_builtin(name, v);
+        new_builtin(name, v);
     }
 
     for (i = 0; builtin_functions[i].name; i++) {
+        const struct label_s *label;
         v = val_alloc(FUNCTION_OBJ);
         v->u.function.name.data = (const uint8_t *)builtin_functions[i].name;
         v->u.function.name.len = strlen(builtin_functions[i].name);
-        v->u.function.name_hash = label->name_hash;
         v->u.function.func = builtin_functions[i].func;
         label = new_builtin(builtin_functions[i].name, v);
+        v->u.function.name_hash = label->name_hash;
     }
 }
 

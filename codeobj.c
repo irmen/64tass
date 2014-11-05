@@ -197,8 +197,6 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
     }
     v2 = v2->u.funcargs.val->val;
 
-    ln = v1->u.list.len;
-
     if (v1->u.code.pass != pass) {
         v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR____NO_FORWARD;
