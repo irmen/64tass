@@ -59,57 +59,59 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
 }
 
 /* range([start],end,[step]) */
-static inline MUST_CHECK value_t function_range(struct values_s *vals, unsigned int args) {
-    struct values_s *v = &vals[2];
+static inline MUST_CHECK value_t function_range(value_t vals, linepos_t epoint) {
+    struct values_s *v = vals->u.funcargs.val;
+    size_t args = vals->u.funcargs.len;
     value_t err, new_value;
     ival_t start = 0, end, step = 1;
     size_t i = 0, len2;
     value_t *val;
-    if (args < 1 || args > 3) err_msg_argnum(args, 1, 3, &vals->epoint);
-    else {
-        switch (args) {
-        case 1: 
-            err = v[0].val->obj->ival(v[0].val, &end, 8*sizeof(ival_t), &v[0].epoint);
-            break;
-        case 3: 
-            err = v[2].val->obj->ival(v[2].val, &step, 8*sizeof(ival_t), &v[2].epoint);
-            if (err) return err; 
-        case 2: 
-            err = v[0].val->obj->ival(v[0].val, &start, 8*sizeof(ival_t), &v[0].epoint);
-            if (err) return err; 
-            err = v[1].val->obj->ival(v[1].val, &end, 8*sizeof(ival_t), &v[1].epoint);
-            break;
-        }
-        if (err) return err;
-        if (step == 0) {
-            err = val_alloc();
-            err->obj = ERROR_OBJ;
-            err->u.error.num = ERROR_DIVISION_BY_Z;
-            err->u.error.epoint = v[2].epoint;
-            return err;
-        }
-        if (step > 0) {
-            if (end < start) end = start;
-            len2 = (end - start + step - 1) / step;
-        } else {
-            if (end > start) end = start;
-            len2 = (start - end - step - 1) / -step;
-        }
-        new_value = val_alloc();
-        val = list_create_elements(new_value, len2);
-        if (len2) {
-            i = 0;
-            while ((end > start && step > 0) || (end < start && step < 0)) {
-                val[i] = int_from_ival(start);
-                i++; start += step;
-            }
-        }
-        new_value->obj = LIST_OBJ;
-        new_value->u.list.len = len2;
-        new_value->u.list.data = val;
-        return new_value;
+
+    if (args < 1 || args > 3) {
+        err_msg_argnum(args, 1, 3, epoint);
+        return val_reference(none_value);
     }
-    return val_reference(none_value);
+    switch (args) {
+    case 1: 
+        err = v[0].val->obj->ival(v[0].val, &end, 8*sizeof(ival_t), &v[0].epoint);
+        break;
+    case 3: 
+        err = v[2].val->obj->ival(v[2].val, &step, 8*sizeof(ival_t), &v[2].epoint);
+        if (err) return err; 
+    case 2: 
+        err = v[0].val->obj->ival(v[0].val, &start, 8*sizeof(ival_t), &v[0].epoint);
+        if (err) return err; 
+        err = v[1].val->obj->ival(v[1].val, &end, 8*sizeof(ival_t), &v[1].epoint);
+        break;
+    }
+    if (err) return err;
+    if (step == 0) {
+        err = val_alloc();
+        err->obj = ERROR_OBJ;
+        err->u.error.num = ERROR_DIVISION_BY_Z;
+        err->u.error.epoint = v[2].epoint;
+        return err;
+    }
+    if (step > 0) {
+        if (end < start) end = start;
+        len2 = (end - start + step - 1) / step;
+    } else {
+        if (end > start) end = start;
+        len2 = (start - end - step - 1) / -step;
+    }
+    new_value = val_alloc();
+    val = list_create_elements(new_value, len2);
+    if (len2) {
+        i = 0;
+        while ((end > start && step > 0) || (end < start && step < 0)) {
+            val[i] = int_from_ival(start);
+            i++; start += step;
+        }
+    }
+    new_value->obj = LIST_OBJ;
+    new_value->u.list.len = len2;
+    new_value->u.list.data = val;
+    return new_value;
 }
 
 /* register(a) - create register object */
@@ -199,17 +201,6 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
     }
 }
 
-static inline MUST_CHECK value_t apply_func_single(struct values_s *vals, unsigned int args) {
-    struct values_s *v = &vals[2];
-    enum func_e func = vals->val->u.function.func;
-
-    if (args != 1) {
-        err_msg_argnum(args, 1, 1, &vals->epoint);
-        return val_reference(none_value);
-    }
-    return apply_func(v[0].val, func, &v[0].epoint);
-}
-
 static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, linepos_t epoint, linepos_t epoint2) {
     value_t err, v;
     double real, real2;
@@ -285,64 +276,79 @@ static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, 
     return float_from_double(real);
 }
 
-static inline MUST_CHECK value_t apply_func_double(struct values_s *vals, unsigned int args) {
-    struct values_s *v = &vals[2];
-    enum func_e func = vals->val->u.function.func;
-
-    if (args != 2) {
-        err_msg_argnum(args, 2, 2, &vals->epoint);
-        return val_reference(none_value);
+static MUST_CHECK value_t calc2(oper_t op) {
+    enum func_e func;
+    struct values_s *v;
+    size_t args;
+    switch (op->v2->obj->type) {
+    case T_FUNCARGS:
+        v = op->v2->u.funcargs.val;
+        args = op->v2->u.funcargs.len;
+        switch (op->op->u.oper.op) {
+        case O_FUNC:
+            func = op->v1->u.function.func;
+            switch (func) {
+            case F_HYPOT:
+            case F_ATAN2:
+            case F_POW: 
+                if (args != 2) {
+                    err_msg_argnum(args, 2, 2, op->epoint);
+                    return val_reference(none_value);
+                }
+                if ((v[0].val->obj == TUPLE_OBJ || v[0].val->obj == LIST_OBJ) && (v[1].val->obj == TUPLE_OBJ || v[1].val->obj == LIST_OBJ)) {
+                    err_msg_wrong_type(v[0].val, &v[0].epoint);
+                    return val_reference(none_value);
+                }
+                return apply_func2(v[0].val, v[1].val, func, &v[0].epoint, &v[1].epoint);
+            case F_LOG:
+            case F_EXP:
+            case F_SIN:
+            case F_COS:
+            case F_TAN:
+            case F_RAD:
+            case F_DEG:
+            case F_ABS:
+            case F_INT:
+            case F_ALL:
+            case F_ANY:
+            case F_CEIL:
+            case F_FRAC:
+            case F_SQRT:
+            case F_ACOS:
+            case F_ASIN:
+            case F_ATAN:
+            case F_CBRT:
+            case F_COSH:
+            case F_SINH:
+            case F_TANH:
+            case F_SIGN:
+            case F_BOOL:
+            case F_FLOOR:
+            case F_ROUND:
+            case F_TRUNC:
+            case F_LOG10:
+            case F_FLOAT:
+            case F_STR:
+            case F_REPR:
+            case F_LEN:
+            case F_REGISTER:
+            case F_SIZE:
+                if (args != 1) {
+                    err_msg_argnum(args, 1, 1, op->epoint);
+                    return val_reference(none_value);
+                }
+                return apply_func(v[0].val, func, &v[0].epoint);
+            case F_RANGE: return function_range(op->v2, op->epoint);
+            case F_FORMAT: return isnprintf(op->v2, op->epoint);
+            case F_NONE: break;
+            }
+            return val_reference(none_value); /* can't happen */
+        default: break;
+        }
+        break;
+    default: break;
     }
-    if ((v[0].val->obj == TUPLE_OBJ || v[0].val->obj == LIST_OBJ) && (v[1].val->obj == TUPLE_OBJ || v[1].val->obj == LIST_OBJ)) {
-        err_msg_wrong_type(v[0].val, &v[0].epoint);
-        return val_reference(none_value);
-    }
-    return apply_func2(v[0].val, v[1].val, func, &v[0].epoint, &v[1].epoint);
-}
-
-MUST_CHECK value_t builtin_function(struct values_s *vals, unsigned int args) {
-    switch (vals->val->u.function.func) {
-    case F_HYPOT:
-    case F_ATAN2:
-    case F_POW: return apply_func_double(vals, args);
-    case F_LOG:
-    case F_EXP:
-    case F_SIN:
-    case F_COS:
-    case F_TAN:
-    case F_RAD:
-    case F_DEG:
-    case F_ABS:
-    case F_INT:
-    case F_ALL:
-    case F_ANY:
-    case F_CEIL:
-    case F_FRAC:
-    case F_SQRT:
-    case F_ACOS:
-    case F_ASIN:
-    case F_ATAN:
-    case F_CBRT:
-    case F_COSH:
-    case F_SINH:
-    case F_TANH:
-    case F_SIGN:
-    case F_BOOL:
-    case F_FLOOR:
-    case F_ROUND:
-    case F_TRUNC:
-    case F_LOG10:
-    case F_FLOAT:
-    case F_STR:
-    case F_REPR:
-    case F_LEN:
-    case F_REGISTER:
-    case F_SIZE: return apply_func_single(vals, args);
-    case F_RANGE: return function_range(vals, args);
-    case F_FORMAT: return isnprintf(vals, args);
-    case F_NONE: break;
-    }
-    return val_reference(none_value); /* can't happen */
+    return obj_oper_error(op);
 }
 
 struct builtin_functions_s builtin_functions[] = {
@@ -392,4 +398,5 @@ void functionobj_init(void) {
     obj.hash = hash;
     obj.same = same;
     obj.repr = repr;
+    obj.calc2 = calc2;
 }

@@ -68,7 +68,7 @@ enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
-    T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST
+    T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS
 };
 
 enum truth_e {
@@ -122,6 +122,7 @@ extern obj_t OPER_OBJ;
 extern obj_t DEFAULT_OBJ;
 extern obj_t DICT_OBJ;
 extern obj_t ITER_OBJ;
+extern obj_t FUNCARGS_OBJ;
 
 extern int referenceit;
 #endif

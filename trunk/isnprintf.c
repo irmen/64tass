@@ -440,9 +440,10 @@ static void conv_flag(char * s, struct DATA * p)
 }
 
 /* return templates only! */
-MUST_CHECK value_t isnprintf(struct values_s *vals, unsigned int args)
+MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
 {
-    struct values_s *v = &vals[2];
+    struct values_s *v = vals->u.funcargs.val;
+    size_t args = vals->u.funcargs.len;
     value_t err;
     struct DATA data;
     char conv_field[MAX_FIELD];
@@ -450,7 +451,7 @@ MUST_CHECK value_t isnprintf(struct values_s *vals, unsigned int args)
     int i;
 
     if (args < 1) {
-        err_msg_argnum(args, 1, 0, &vals->epoint);
+        err_msg_argnum(args, 1, 0, epoint);
         return val_reference(none_value);
     }
     switch (v[0].val->obj->type) {
@@ -466,7 +467,7 @@ MUST_CHECK value_t isnprintf(struct values_s *vals, unsigned int args)
     data.pfend = data.pf + v[0].val->u.str.len;
 
     listp = 0;
-    list = &vals[3];
+    list = &v[1];
     largs = args - 1;
 
     return_value.data = NULL;
@@ -558,9 +559,9 @@ MUST_CHECK value_t isnprintf(struct values_s *vals, unsigned int args)
         }
     }
     if (listp != largs) {
-        err_msg_argnum(args, listp + 1, listp + 1, &vals->epoint);
+        err_msg_argnum(args, listp + 1, listp + 1, epoint);
     } else if (none) {
-        err_msg_still_none(NULL, &vals->epoint);
+        err_msg_still_none(NULL, epoint);
     }
     err = val_alloc();
     err->obj = STR_OBJ;
@@ -574,6 +575,7 @@ MUST_CHECK value_t isnprintf(struct values_s *vals, unsigned int args)
         return err;
     }
     memcpy(err->u.str.val, return_value.data, return_value.len);
+    err->u.str.data = err->u.str.val;
     free(return_value.data);
     return err;
 error:

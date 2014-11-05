@@ -21,5 +21,5 @@
 #include "inttypes.h"
 struct values_s;
 
-extern MUST_CHECK value_t isnprintf(struct values_s *, unsigned int);
+extern MUST_CHECK value_t isnprintf(value_t, linepos_t);
 #endif

@@ -169,6 +169,10 @@ struct value_s {
             size_t val;
             value_t data;
         } iter;
+        struct {
+            size_t len;
+            struct values_s *val;
+        } funcargs;
         double real;
         int boolean;
         function_t function;
