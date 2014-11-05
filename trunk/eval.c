@@ -833,8 +833,8 @@ static int get_val2(struct eval_context_s *ev) {
         case O_INDEX:
             {
                 unsigned int args = 0;
-                op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
                 value_t tmp = val_alloc(FUNCARGS_OBJ);
+                op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
                 while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != op) {
                     args++;
                     if (vsp <= args) goto syntaxe;
