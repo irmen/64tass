@@ -62,8 +62,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     sprintf(line, "%.10g", v1->u.real);
     while (line[i] && line[i]!='.' && line[i]!='e' && line[i]!='n' && line[i]!='i') i++;
     if (!line[i]) {line[i++]='.';line[i++]='0';line[i]=0;}
-    v = val_alloc();
-    v->obj = STR_OBJ;
+    v = val_alloc(STR_OBJ);
     v->u.str.len = i + strlen(line + i);
     v->u.str.chars = v->u.str.len;
     s = str_create_elements(v, v->u.str.len);
@@ -76,8 +75,7 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
     value_t v;
     if (-v1->u.real >= (double)(~((~(uval_t)0) >> 1)) + 1.0 || v1->u.real >= (double)((~(uval_t)0) >> 1) + 1.0) {
         *iv = 0;
-        v = val_alloc();
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR_____CANT_IVAL;
         v->u.error.u.bits = bits;
         v->u.error.epoint = *epoint;
@@ -85,8 +83,7 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
     }
     *iv = v1->u.real;
     if (((*iv >= 0) ? *iv : (~*iv)) >> (bits-1)) {
-        v = val_alloc();
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR_____CANT_IVAL;
         v->u.error.u.bits = bits;
         v->u.error.epoint = *epoint;
@@ -98,8 +95,7 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
 static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
     value_t v;
     if (v1->u.real <= -1.0 || v1->u.real >= (double)(~(uval_t)0) + 1.0) {
-        v = val_alloc();
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR_____CANT_UVAL;
         v->u.error.u.bits = bits;
         v->u.error.epoint = *epoint;
@@ -107,8 +103,7 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     }
     *uv = v1->u.real;
     if (bits < 8*(int)sizeof(uval_t) && *uv >> bits) {
-        v = val_alloc();
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR_____CANT_UVAL;
         v->u.error.u.bits = bits;
         v->u.error.epoint = *epoint;
@@ -128,7 +123,7 @@ static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
-    return float_from_double((v1->u.real < 0.0) ? -v1->u.real : v1->u.real);
+    return (v1->u.real < 0.0) ? float_from_double(-v1->u.real) : val_reference(v1);
 }
 
 static MUST_CHECK value_t integer(const value_t v1, linepos_t epoint) {
@@ -161,6 +156,7 @@ static int almost_equal(double a, double b) {
 
 MUST_CHECK value_t calc2_double(oper_t op, double v1, double v2) {
     value_t v;
+    double r;
     switch (op->op->u.oper.op) {
     case O_CMP: 
         if (almost_equal(v1, v2)) return val_reference(int_value[0]);
@@ -177,8 +173,7 @@ MUST_CHECK value_t calc2_double(oper_t op, double v1, double v2) {
     case O_MUL: return float_from_double(v1 * v2);
     case O_DIV:
         if (v2 == 0.0) { 
-            v = val_alloc();
-            v->obj = ERROR_OBJ; 
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_DIVISION_BY_Z; 
             v->u.error.epoint = *op->epoint2;
             return v;
@@ -186,81 +181,64 @@ MUST_CHECK value_t calc2_double(oper_t op, double v1, double v2) {
         return float_from_double(v1 / v2);
     case O_MOD:
         if (v2 == 0.0) { 
-            v = val_alloc();
-            v->obj = ERROR_OBJ; 
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_DIVISION_BY_Z; 
             v->u.error.epoint = *op->epoint2; 
             return v; 
         }
-        v = val_alloc();
-        v->obj = FLOAT_OBJ; 
-        v->u.real = fmod(v1, v2); 
-        if (v->u.real && ((v2 < 0.0) != (v->u.real < 0))) v->u.real += v2;
-        return v;
+        r = fmod(v1, v2); 
+        if (r && ((v2 < 0.0) != (r < 0))) r += v2;
+        return float_from_double(r);
     case O_AND:
-        v = val_alloc();
-        v->obj = FLOAT_OBJ; 
-        v->u.real = (ival_t)floor(v1) & (ival_t)floor(v2);
+        r = (ival_t)floor(v1) & (ival_t)floor(v2);
         v1 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
-        v->u.real += ((uval_t)floor(v1 * 2.0) & (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
-        return v;
+        r += ((uval_t)floor(v1 * 2.0) & (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
+        return float_from_double(r);
     case O_OR:
-        v = val_alloc();
-        v->obj = FLOAT_OBJ; 
-        v->u.real = (ival_t)floor(v1) | (ival_t)floor(v2);
+        r = (ival_t)floor(v1) | (ival_t)floor(v2);
         v1 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
-        v->u.real += ((uval_t)floor(v1 * 2.0) | (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
-        return v;
+        r += ((uval_t)floor(v1 * 2.0) | (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
+        return float_from_double(r);
     case O_XOR:
-        v = val_alloc();
-        v->obj = FLOAT_OBJ; 
-        v->u.real = (ival_t)floor(v1) | (ival_t)floor(v2);
+        r = (ival_t)floor(v1) | (ival_t)floor(v2);
         v1 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
         v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
-        v->u.real += ((uval_t)floor(v1 * 2.0) ^ (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
-        return v;
+        r += ((uval_t)floor(v1 * 2.0) ^ (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
+        return float_from_double(r);
     case O_LSHIFT: return float_from_double(v1 * pow(2.0, v2));
     case O_RSHIFT: return float_from_double(v1 * pow(2.0, -v2));
     case O_EXP: 
         if (!v1) {
             if (v2 < 0.0) {
-                v = val_alloc();
-                v->obj = ERROR_OBJ;
+                v = val_alloc(ERROR_OBJ);
                 v->u.error.num = ERROR_DIVISION_BY_Z;
                 v->u.error.epoint = *op->epoint2;
                 return v;
             }
-            v = val_alloc();
-            v->obj = FLOAT_OBJ; 
-            v->u.real = 0.0;
-            return v;
+            return float_from_double(0.0);
         } 
         if (v1 < 0.0 && floor(v2) != v2) {
-            v = val_alloc();
-            v->obj = ERROR_OBJ;
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_NEGFRAC_POWER;
             v->u.error.epoint = *op->epoint2;
             return v;
         }
-        v = val_alloc();
-        v->obj = FLOAT_OBJ; 
-        v->u.real = pow(v1, v2); 
-        if (v->u.real == HUGE_VAL) {
-            v->obj = ERROR_OBJ;
+        r = pow(v1, v2); 
+        if (r == HUGE_VAL) {
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_CONSTNT_LARGE;
             v->u.error.epoint = *op->epoint3;
         }
-        return v;
+        return float_from_double(r);
     default: break;
     }
     return obj_oper_error(op);
 }
 
 MUST_CHECK value_t float_from_double(double d) {
-    value_t v = val_alloc();
-    v->obj = FLOAT_OBJ;
+    value_t v = val_alloc(FLOAT_OBJ);
     v->u.real = d;
     return v;
 }

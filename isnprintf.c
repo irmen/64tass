@@ -563,8 +563,7 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
     } else if (none) {
         err_msg_still_none(NULL, epoint);
     }
-    err = val_alloc();
-    err->obj = STR_OBJ;
+    err = val_alloc(STR_OBJ);
     err->u.str.len = return_value.len;
     err->u.str.chars = return_value.chars;
     if (return_value.len > sizeof(err->u.str.val)) {

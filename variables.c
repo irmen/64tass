@@ -474,8 +474,7 @@ void init_defaultlabels(void) {
 
     for (i = 0; reg_names[i]; i++) {
         char name[2] = {reg_names[i], 0};
-        v = val_alloc();
-        v->obj = REGISTER_OBJ;
+        v = val_alloc(REGISTER_OBJ);
         v->u.str.val[0] = name[0];
         v->u.str.data = v->u.str.val;
         v->u.str.len = 1;
@@ -484,8 +483,7 @@ void init_defaultlabels(void) {
     }
 
     for (i = 0; builtin_functions[i].name; i++) {
-        v = val_alloc();
-        v->obj = FUNCTION_OBJ;
+        v = val_alloc(FUNCTION_OBJ);
         v->u.function.name.data = (const uint8_t *)builtin_functions[i].name;
         v->u.function.name.len = strlen(builtin_functions[i].name);
         v->u.function.name_hash = label->name_hash;

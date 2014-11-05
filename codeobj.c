@@ -38,16 +38,14 @@ static void destroy(value_t v1) {
 
 static MUST_CHECK value_t access_check(const value_t v1, linepos_t epoint) {
     if (v1->u.code.label->requires & ~current_section->provides) {
-        value_t v = val_alloc();
-        v->obj = ERROR_OBJ;
+        value_t v = val_alloc(ERROR_OBJ);
         v->u.error.u.ident = v1->u.code.label->name;
         v->u.error.epoint = *epoint;
         v->u.error.num = ERROR_REQUIREMENTS_;
         return v;
     }
     if (v1->u.code.label->conflicts & current_section->provides) {
-        value_t v = val_alloc();
-        v->obj = ERROR_OBJ;
+        value_t v = val_alloc(ERROR_OBJ);
         v->u.error.u.ident = v1->u.code.label->name;
         v->u.error.epoint = *epoint;
         v->u.error.num = ERROR______CONFLICT;
@@ -148,14 +146,14 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
     if (!length) {
         return val_reference(null_tuple);
     }
-    v = val_alloc();
     if (v1->u.code.pass != pass) {
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = *op->epoint;
         v->u.error.u.ident = v1->u.code.label->name;
         return v;
     }
+    v = val_alloc(TUPLE_OBJ);
     vals = list_create_elements(v, length);
     i = 0;
     ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
@@ -179,7 +177,6 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
         else vals[i] = int_from_uval(val);
         i++; offs += step;
     }
-    v->obj = TUPLE_OBJ;
     v->u.list.len = length;
     v->u.list.data = vals;
     return NULL;
@@ -203,8 +200,7 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
     ln = v1->u.list.len;
 
     if (v1->u.code.pass != pass) {
-        v = val_alloc();
-        v->obj = ERROR_OBJ;
+        v = val_alloc(ERROR_OBJ);
         v->u.error.num = ERROR____NO_FORWARD;
         v->u.error.epoint = *op->epoint;
         v->u.error.u.ident = v1->u.code.label->name;
@@ -216,18 +212,20 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
     ln = v1->u.code.size / ln2;
 
     if (v2->obj == LIST_OBJ) {
+        int error;
         if (!v2->u.list.len) {
             return val_reference(null_tuple);
         }
-        v = val_alloc();
-        v->obj = TUPLE_OBJ;
+        v = val_alloc(TUPLE_OBJ);
         v->u.list.data = vals = list_create_elements(v, v2->u.list.len);
+        error = 1;
         for (i = 0; i < v2->u.list.len; i++) {
             err = indexoffs(v2->u.list.data[i], ln, &offs, op->epoint2);
             if (err) {
-                v->u.list.len = i;
-                val_destroy(v);
-                return err;
+                if (error) {err_msg_output(err); error = 0;} 
+                val_destroy(err);
+                vals[i] = val_reference(none_value);
+                continue;
             }
             offs2 = offs * ln2;
             val = 0;
@@ -291,8 +289,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
     case O_NEG:
     case O_POS:
         op->v1 = v1->u.code.addr;
-        v = val_alloc();
-        v->obj = CODE_OBJ; 
+        v = val_alloc(CODE_OBJ);
         memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
         v->u.code.addr = op->v1->obj->calc1(op);
         if (v->u.code.addr->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.code.addr); v->u.code.addr = val_reference(none_value); }
@@ -322,8 +319,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
             }
             epoint = v2->u.ident.epoint;
             name = v2->u.ident.name;
-            v = val_alloc();
-            v->obj = ERROR_OBJ;
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR___NOT_DEFINED;
             v->u.error.epoint = epoint;
             v->u.error.u.notdef.label = l2;
@@ -344,8 +340,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
                 }
                 epoint = v2->u.anonident.epoint;
                 count = v2->u.anonident.count;
-                v = val_alloc();
-                v->obj = ERROR_OBJ;
+                v = val_alloc(ERROR_OBJ);
                 v->u.error.num = ERROR___NOT_DEFINED;
                 v->u.error.epoint = epoint;
                 v->u.error.u.notdef.label = l2;
@@ -383,8 +378,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
         switch (op->op->u.oper.op) {
         case O_ADD:
         case O_SUB:
-            v = val_alloc(); 
-            v->obj = CODE_OBJ; 
+            v = val_alloc(CODE_OBJ); 
             memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
             v->u.code.addr = op->v1->obj->calc2(op);
             if (v->u.code.addr->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.code.addr); v->u.code.addr = val_reference(none_value); }
@@ -409,8 +403,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         uval_t uv;
 
         if (v2->u.code.pass != pass) {
-            v = val_alloc();
-            v->obj = ERROR_OBJ;
+            v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR____NO_FORWARD;
             v->u.error.epoint = *op->epoint2;
             v->u.error.u.ident = v2->u.code.label->name;
@@ -468,8 +461,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         op->v2 = v2->u.code.addr;
         switch (op->op->u.oper.op) {
         case O_ADD:
-            v = val_alloc(); 
-            v->obj = CODE_OBJ; 
+            v = val_alloc(CODE_OBJ); 
             memcpy(&v->u.code, &v2->u.code, sizeof(v->u.code));
             v->u.code.addr = op->v2->obj->rcalc2(op);
             if (v->u.code.addr->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.code.addr); v->u.code.addr = val_reference(none_value); }

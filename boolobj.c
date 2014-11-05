@@ -38,9 +38,8 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoin
 }
 
 static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
-    value_t v = val_alloc();
+    value_t v = val_alloc(STR_OBJ);
     uint8_t *s = str_create_elements(v, 4 + !v1->u.boolean);
-    v->obj = STR_OBJ;
     v->u.str.data = s;
     v->u.str.len = 4 + !v1->u.boolean;
     v->u.str.chars = v->u.str.len;
@@ -113,8 +112,7 @@ static MUST_CHECK value_t calc2_bool(oper_t op, int v1, int v2) {
     case O_MUL: return int_from_bool(v1 & v2);
     case O_DIV:
         if (!v2) { 
-            value_t v = val_alloc();
-            v->obj = ERROR_OBJ; 
+            value_t v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_DIVISION_BY_Z; 
             v->u.error.epoint = *op->epoint2; 
             return v; 
@@ -122,8 +120,7 @@ static MUST_CHECK value_t calc2_bool(oper_t op, int v1, int v2) {
         return int_from_bool(v1);
     case O_MOD:
         if (!v2) { 
-            value_t v = val_alloc();
-            v->obj = ERROR_OBJ; 
+            value_t v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_DIVISION_BY_Z; 
             v->u.error.epoint = *op->epoint2; 
             return v;

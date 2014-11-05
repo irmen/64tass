@@ -696,8 +696,7 @@ value_t compile(struct file_list_s *cflist)
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
-                                val = val_alloc();
-                                val->obj = LBL_OBJ;
+                                val = val_alloc(LBL_OBJ);
                                 val->u.lbl.sline = lpoint.line;
                                 val->u.lbl.waitforp = waitfor_p;
                                 val->u.lbl.file_list = cflist;
@@ -707,14 +706,13 @@ value_t compile(struct file_list_s *cflist)
                             }
                         } else {
                             constcreated |= !temporary_label_branch;
-                            val = val_alloc();
+                            val = val_alloc(LBL_OBJ);
                             label->constant = 1;
                             label->requires = 0;
                             label->conflicts = 0;
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
-                            val->obj = LBL_OBJ;
                             val->u.lbl.sline = lpoint.line;
                             val->u.lbl.waitforp = waitfor_p;
                             val->u.lbl.file_list = cflist;
@@ -739,8 +737,7 @@ value_t compile(struct file_list_s *cflist)
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
-                                val = val_alloc();
-                                val->obj = obj;
+                                val = val_alloc(obj);
                                 val->u.macro.size = 0;
                                 val->u.macro.label = label;
                                 get_macro_params(val);
@@ -749,14 +746,13 @@ value_t compile(struct file_list_s *cflist)
                             }
                         } else {
                             constcreated |= !temporary_label_branch;
-                            val = val_alloc();
+                            val = val_alloc(obj);
                             label->constant = 1;
                             label->requires = 0;
                             label->conflicts = 0;
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
-                            val->obj = obj;
                             val->u.macro.size = 0;
                             val->u.macro.label = label;
                             get_macro_params(val);
@@ -779,8 +775,7 @@ value_t compile(struct file_list_s *cflist)
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
-                                val = val_alloc();
-                                val->obj = MFUNC_OBJ;
+                                val = val_alloc(MFUNC_OBJ);
                                 val->u.mfunc.label = label;
                                 get_func_params(val, cfile);
                                 var_assign(label, val, 0);
@@ -788,14 +783,13 @@ value_t compile(struct file_list_s *cflist)
                             }
                         } else {
                             constcreated |= !temporary_label_branch;
-                            val = val_alloc();
+                            val = val_alloc(MFUNC_OBJ);
                             label->constant = 1;
                             label->requires = 0;
                             label->conflicts = 0;
                             label->value = val;
                             label->file_list = cflist;
                             label->epoint = epoint;
-                            val->obj = MFUNC_OBJ;
                             val->u.mfunc.label = label;
                             get_func_params(val, cfile);
                         }
@@ -826,8 +820,7 @@ value_t compile(struct file_list_s *cflist)
                                     label->constant = 1;
                                     label->requires = 0;
                                     label->conflicts = 0;
-                                    val = val_alloc();
-                                    val->obj = obj;
+                                    val = val_alloc(obj);
                                     val->u.macro.size = (label->value->obj == obj) ? label->value->u.macro.size : 0;
                                     val->u.macro.label = label;
                                     get_macro_params(val);
@@ -836,14 +829,13 @@ value_t compile(struct file_list_s *cflist)
                                 }
                             } else {
                                 constcreated |= !temporary_label_branch;
-                                val = val_alloc();
+                                val = val_alloc(obj);
                                 label->constant = 1;
                                 label->requires = 0;
                                 label->conflicts = 0;
                                 label->value = val;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                                val->obj = obj;
                                 val->u.macro.size = 0;
                                 val->u.macro.label = label;
                                 get_macro_params(val);
@@ -871,13 +863,12 @@ value_t compile(struct file_list_s *cflist)
                                     get_mem(&current_section->mem, &memp, &membp);
                                 }
                             } else {
-                                val = val_alloc();
+                                val = val_alloc(CODE_OBJ);
                                 label->requires=current_section->requires;
                                 label->conflicts=current_section->conflicts;
                                 label->value = val;
                                 label->file_list = cflist;
                                 label->epoint = epoint;
-                                val->obj = CODE_OBJ;
                                 val->u.code.addr = int_from_uval(current_section->l_address);
                                 val->u.code.size = 0;
                                 val->u.code.dtype = D_NONE;
@@ -1005,14 +996,13 @@ value_t compile(struct file_list_s *cflist)
                     }
                 } else {
                     constcreated |= !temporary_label_branch;
-                    val = val_alloc();
+                    val = val_alloc(CODE_OBJ);
                     newlabel->constant = 1;
                     newlabel->requires=current_section->requires;
                     newlabel->conflicts=current_section->conflicts;
                     newlabel->value = val;
                     newlabel->file_list = cflist;
                     newlabel->epoint = epoint;
-                    val->obj = CODE_OBJ;
                     val->u.code.addr = int_from_uval(current_section->l_address);
                     val->u.code.size = 0;
                     val->u.code.dtype = D_NONE;

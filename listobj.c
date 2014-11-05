@@ -79,8 +79,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
         }
         return truth_reference(0);
     default: 
-        err = val_alloc();
-        err->obj = ERROR_OBJ;
+        err = val_alloc(ERROR_OBJ);
         err->u.error.num = ERROR_____CANT_BOOL;
         err->u.error.epoint = *epoint;
         err->u.error.u.objname = v1->obj->name;
@@ -113,7 +112,7 @@ static MUST_CHECK value_t repr_listtuple(const value_t v1, linepos_t epoint) {
             if (len < i) err_msg_out_of_memory(); /* overflow */
         }
     }
-    v = val_alloc();
+    v = val_alloc(STR_OBJ);
     s = str_create_elements(v, len);
     len = 0;
     if (v1->obj != ADDRLIST_OBJ && v1->obj != COLONLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? '[' : '(';
@@ -130,7 +129,6 @@ static MUST_CHECK value_t repr_listtuple(const value_t v1, linepos_t epoint) {
     if (i == 1 && (v1->obj == TUPLE_OBJ)) s[len++] = ',';
     if (v1->obj != ADDRLIST_OBJ && v1->obj != COLONLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? ']' : ')';
     free(tmp);
-    v->obj = STR_OBJ;
     v->u.str.data = s;
     v->u.str.len = len;
     v->u.str.chars = len - chars;
@@ -142,8 +140,7 @@ static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK value_t getiter(value_t v1) {
-    value_t v = val_alloc();
-    v->obj = ITER_OBJ;
+    value_t v = val_alloc(ITER_OBJ);
     v->u.iter.val = 0;
     v->u.iter.iter = &v->u.iter.val;
     v->u.iter.data = val_reference(v1);
@@ -166,8 +163,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
         value_t *vals;
         int error = 1;
         size_t i = 0;
-        v = val_alloc();
-        v->obj = v1->obj;
+        v = val_alloc(v1->obj);
         vals = lnew(v, v1->u.list.len);
         for (;i < v1->u.list.len; i++) {
             value_t val;
@@ -230,7 +226,7 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
                     if (v2->u.list.len) {
                         int error = 1;
                         op->v1 = v1->u.list.data[0];
-                        v = val_alloc();
+                        v = val_alloc(v1->obj);
                         vals = lnew(v, v2->u.list.len);
                         for (; i < v2->u.list.len; i++) {
                             value_t val;
@@ -248,7 +244,7 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
                     if (v1->u.list.len) {
                         int error = 1;
                         op->v2 = v2->u.list.data[0];
-                        v = val_alloc();
+                        v = val_alloc(v1->obj);
                         vals = lnew(v, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
                             value_t val;
@@ -265,7 +261,7 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
                 } else if (v1->u.list.len == v2->u.list.len) {
                     if (v1->u.list.len) {
                         int error = 1;
-                        v = val_alloc();
+                        v = val_alloc(v1->obj);
                         vals = lnew(v, v1->u.list.len);
                         for (; i < v1->u.list.len; i++) {
                             value_t val;
@@ -286,7 +282,7 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
             } else if (d1 > d2) {
                 if (v1->u.list.len) {
                     int error = 1;
-                    v = val_alloc();
+                    v = val_alloc(v1->obj);
                     vals = lnew(v, v1->u.list.len);
                     for (; i < v1->u.list.len; i++) {
                         value_t val;
@@ -301,7 +297,7 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
                 }
             } else if (v2->u.list.len) {
                 int error = 1;
-                v = val_alloc();
+                v = val_alloc(v1->obj);
                 vals = lnew(v, v2->u.list.len);
                 for (; i < v2->u.list.len; i++) {
                     value_t val;
@@ -314,7 +310,6 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
             } else {
                 return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
             }
-            v->obj = v1->obj;
             v->u.list.len = i;
             v->u.list.data = vals;
             return v;
@@ -332,8 +327,7 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
             }
             ln = v1->u.list.len + v2->u.list.len;
             if (ln < v2->u.list.len) err_msg_out_of_memory(); /* overflow */
-            v = val_alloc();
-            v->obj = v1->obj;
+            v = val_alloc(v1->obj);
             vals = lnew(v, ln);
             for (i = 0; i < v1->u.list.len; i++) {
                 vals[i] = val_reference(v1->u.list.data[i]);
@@ -365,8 +359,7 @@ static inline MUST_CHECK value_t repeat(oper_t op) {
         }
         ln = v1->u.list.len * rep;
         if (v1->u.list.len > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
-        v = val_alloc();
-        v->obj = v1->obj;
+        v = val_alloc(v1->obj);
         v->u.list.data = vals = lnew(v, ln);
         while (rep--) {
             for (j = 0;j < v1->u.list.len; j++, i++) {
@@ -395,8 +388,7 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
     if (step == 1 && length == v1->u.list.len) {
         return val_reference(v1); /* original tuple */
     }
-    v = val_alloc();
-    v->obj = v1->obj;
+    v = val_alloc(v1->obj);
     v->u.list.data = vals = lnew(v, length);
     i = 0;
     while ((end > offs && step > 0) || (end < offs && step < 0)) {
@@ -425,8 +417,7 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
         if (!v2->u.list.len) {
             return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
         }
-        v = val_alloc();
-        v->obj = v1->obj;
+        v = val_alloc(v1->obj);
         v->u.list.data = vals = lnew(v, v2->u.list.len);
         for (i = 0; i < v2->u.list.len; i++) {
             err = indexoffs(v2->u.list.data[i], ln, &offs, op->epoint2);
@@ -470,8 +461,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
     default:
         if (v1->u.list.len) {
             int error = 1;
-            v = val_alloc();
-            v->obj = v1->obj;
+            v = val_alloc(v1->obj);
             v->u.list.data = vals = lnew(v, v1->u.list.len);
             for (;i < v1->u.list.len; i++) {
                 value_t val;
@@ -522,8 +512,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         case O_CONCAT:
             if (v2->u.list.len) {
                 int error = 1;
-                v = val_alloc();
-                v->obj = v2->obj;
+                v = val_alloc(v2->obj);
                 v->u.list.data = vals = lnew(v, v2->u.list.len);
                 for (;i < v2->u.list.len; i++) {
                     value_t val;

@@ -179,7 +179,7 @@ struct value_s {
     } u;
 };
 
-extern value_t val_alloc(void);
+extern value_t val_alloc(obj_t);
 extern void val_destroy(value_t);
 extern void val_replace(value_t *, value_t);
 extern int val_print(const value_t, FILE *);
@@ -190,6 +190,7 @@ extern value_t none_value;
 extern value_t true_value;
 extern value_t false_value;
 extern value_t gap_value;
+extern value_t default_value;
 extern value_t null_str;
 extern value_t null_bytes;
 extern value_t null_bits;
