@@ -642,7 +642,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     case O_DIV: if (!val2) {
                         val = val_alloc(ERROR_OBJ);
                         val->u.error.num = ERROR_DIVISION_BY_Z;
-                        val->u.error.epoint = v2->epoint;
+                        val->u.error.epoint = o_out->epoint;
                         val_destroy(v1->val); v1->val = val;
                         continue;
                     } else val1 /= val2; break;
@@ -713,7 +713,7 @@ MUST_CHECK value_t sliceparams(const value_t v2, size_t len, size_t *olen, ival_
             if (err) return err;
             if (step == 0) {
                 v = val_alloc(ERROR_OBJ);
-                v->u.error.num = ERROR_DIVISION_BY_Z;
+                v->u.error.num = ERROR_NO_ZERO_VALUE;
                 v->u.error.epoint = *epoint;
                 return v;
             }

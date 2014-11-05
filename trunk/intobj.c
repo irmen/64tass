@@ -1390,7 +1390,7 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
         return v;
     case O_DIV:
         i = (v2->u.integer.len < 0);
-        v = idivrem(v1, v2, 1, op->epoint2);
+        v = idivrem(v1, v2, 1, op->epoint3);
         if (v->obj != INT_OBJ) return v;
         if ((v1->u.integer.len < 0) ^ i) {
             value_t vv = val_alloc(INT_OBJ);
@@ -1403,7 +1403,7 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
         }
         return v;
     case O_MOD:
-        v = idivrem(v1, v2, 0, op->epoint2);
+        v = idivrem(v1, v2, 0, op->epoint3);
         if (v->obj != INT_OBJ) return v;
         if ((v->u.integer.len < 0) ^ (v2->u.integer.len < 0)) {
             value_t vv = val_alloc(INT_OBJ);
