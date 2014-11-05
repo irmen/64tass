@@ -708,47 +708,6 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
     return 1;
 }
 
-static void functions(struct values_s *vals, unsigned int args) {
-    struct values_s *v = &vals[2];
-    value_t val;
-
-    switch (vals->val->obj->type) {
-    case T_FUNCTION: 
-        val = builtin_function(vals, args); 
-        val_destroy(vals->val); vals->val = val; 
-        return;
-    case T_MFUNC:
-        {
-            unsigned int i;
-            size_t max = 0;
-            for (i = 0; i < args; i++) {
-                if (v[i].val->obj == NONE_OBJ || v[i].val->obj == ERROR_OBJ) {
-                    val_replace(&vals->val, v[i].val);
-                    return;
-                }
-            }
-            for (; i < vals->val->u.mfunc.argc; i++) {
-                if (!vals->val->u.mfunc.param[i].init) {
-                    max = i + 1;
-                }
-            }
-            if (max) err_msg_argnum(args, max, vals->val->u.mfunc.argc, &vals->epoint);
-            eval_enter();
-            val = mfunc2_recurse(vals->val, v, args, &vals->epoint);
-            eval_leave();
-            if (!val) val = val_reference(null_tuple);
-            val_destroy(vals->val);
-            vals->val = val;
-        }
-        break;
-    default:
-        err_msg_invalid_oper(&o_FUNC, vals->val, NULL, &vals->epoint);
-        val_replace(&vals->val, none_value);
-    case T_ERROR:
-    case T_NONE: break;
-    }
-}
-
 MUST_CHECK value_t indexoffs(const value_t v1, ival_t *iv, size_t len, linepos_t epoint) {
     ival_t ival;
     value_t err;
@@ -943,17 +902,41 @@ static int get_val2(struct eval_context_s *ev) {
         v1 = &values[vsp-1];
         switch (op) {
         case O_FUNC:
-        case O_INDEX:
             {
                 unsigned int args = 0;
-                op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
-                while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != op) {
+                value_t tmp = val_alloc();
+                while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != O_PARENT) {
                     args++;
                     if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
                 }
-                if (op == O_PARENT) functions(&values[vsp-2-args], args);
-                else indexes(&values[vsp-2-args], args);
+                tmp->obj = FUNCARGS_OBJ; /* assumes no referencing */
+                tmp->u.funcargs.val = &values[vsp-args];
+                tmp->u.funcargs.len = args;
+                v1--;
+
+                oper.op = op2;
+                oper.v1 = v1->val;
+                oper.v2 = tmp;
+                oper.epoint = &v1->epoint;
+                oper.epoint2 = &tmp->u.funcargs.val->epoint;
+                oper.epoint3 = &o_out->epoint;
+                val = oper.v1->obj->calc2(&oper);
+                val_destroy(tmp);
+                val_destroy(v1->val); v1->val = val;
+
+                vsp -= args + 1;
+                continue;
+            }
+        case O_INDEX:
+            {
+                unsigned int args = 0;
+                while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != O_BRACKET) {
+                    args++;
+                    if (vsp <= args) goto syntaxe;
+                    v1 = &values[vsp-1-args];
+                }
+                indexes(&values[vsp-2-args], args);
                 vsp -= args + 1;
                 continue;
             }

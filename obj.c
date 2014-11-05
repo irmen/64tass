@@ -34,6 +34,7 @@
 #include "bitsobj.h"
 #include "intobj.h"
 #include "functionobj.h"
+#include "macro.h"
 
 int referenceit = 1;
 
@@ -52,6 +53,7 @@ static struct obj_s oper_obj;
 static struct obj_s default_obj;
 static struct obj_s dict_obj;
 static struct obj_s iter_obj;
+static struct obj_s funcargs_obj;
 
 obj_t MACRO_OBJ = &macro_obj;
 obj_t SEGMENT_OBJ = &segment_obj;
@@ -68,6 +70,7 @@ obj_t OPER_OBJ = &oper_obj;
 obj_t DEFAULT_OBJ = &default_obj;
 obj_t DICT_OBJ = &dict_obj;
 obj_t ITER_OBJ = &iter_obj;
+obj_t FUNCARGS_OBJ = &funcargs_obj;
 
 MUST_CHECK value_t obj_oper_error(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v = val_alloc();
@@ -223,37 +226,57 @@ static MUST_CHECK value_t gap_rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
+static MUST_CHECK value_t error_calc1(oper_t op) {
+    return val_reference(op->v1);
+}
+
+static MUST_CHECK value_t error_calc2(oper_t op) {
+    return val_reference(op->v1);
+}
+
+static MUST_CHECK value_t error_rcalc2(oper_t op) {
+    return val_reference(op->v2);
+}
+
+static MUST_CHECK value_t error_repeat(oper_t op, uval_t UNUSED(rep)) {
+    return val_reference(op->v1);
+}
+
+static MUST_CHECK value_t error_iindex(oper_t op) {
+    return val_reference(op->v1);
+}
+
 static MUST_CHECK value_t invalid_calc1(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->calc1(op);
+        return error_calc1(op);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK value_t invalid_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
-        return ERROR_OBJ->rcalc2(op);
+        return error_rcalc2(op);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK value_t invalid_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->calc2(op);
+        return error_calc2(op);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK value_t invalid_repeat(oper_t op, uval_t rep) {
     if (op->v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->repeat(op, rep);
+        return error_repeat(op, rep);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK value_t invalid_iindex(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->iindex(op);
+        return error_iindex(op);
     }
     return obj_oper_error(op);
 }
@@ -357,6 +380,38 @@ static int mfunc_same(const value_t v1, const value_t v2) {
         if (v1->u.mfunc.param[i].epoint.pos != v2->u.mfunc.param[i].epoint.pos) return 0;
     }
     return 1;
+}
+
+static MUST_CHECK value_t mfunc_calc2(oper_t op) {
+    switch (op->v2->obj->type) {
+    case T_FUNCARGS: 
+        switch (op->op->u.oper.op) {
+        case O_FUNC:
+        {
+            struct value_s *val, *v1 = op->v1, *v2 = op->v2;
+            size_t i, max = 0, args = v2->u.funcargs.len;
+            for (i = 0; i < args; i++) {
+                if (v2->u.funcargs.val[i].val->obj == NONE_OBJ || v2->u.funcargs.val[i].val->obj == ERROR_OBJ) {
+                    return val_reference(v2->u.funcargs.val[i].val);
+                }
+            }
+            for (; i < v1->u.mfunc.argc; i++) {
+                if (!v1->u.mfunc.param[i].init) {
+                    max = i + 1;
+                }
+            }
+            if (max) err_msg_argnum(args, max, v1->u.mfunc.argc, op->epoint);
+            eval_enter();
+            val = mfunc2_recurse(v1, v2->u.funcargs.val, args, op->epoint);
+            eval_leave();
+            return val ? val : val_reference(null_tuple);
+        }
+        default: break;
+        }
+        break;
+    default: break;
+    }
+    return obj_oper_error(op);
 }
 
 static void dict_free(struct avltree_node *aa)
@@ -533,26 +588,6 @@ static MUST_CHECK value_t oper_repr(const value_t v1, linepos_t UNUSED(epoint)) 
     return v;
 }
 
-static MUST_CHECK value_t error_calc1(oper_t op) {
-    return val_reference(op->v1);
-}
-
-static MUST_CHECK value_t error_calc2(oper_t op) {
-    return val_reference(op->v1);
-}
-
-static MUST_CHECK value_t error_rcalc2(oper_t op) {
-    return val_reference(op->v2);
-}
-
-static MUST_CHECK value_t error_repeat(oper_t op, uval_t UNUSED(rep)) {
-    return val_reference(op->v1);
-}
-
-static MUST_CHECK value_t error_iindex(oper_t op) {
-    return val_reference(op->v1);
-}
-
 static MUST_CHECK value_t ident_rcalc2(oper_t op) {
     if (op->op == &o_MEMBER) {
         return op->v1->obj->calc2(op);
@@ -578,14 +613,14 @@ static MUST_CHECK value_t none_calc1(oper_t UNUSED(op)) {
 
 static MUST_CHECK value_t none_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
-        return ERROR_OBJ->rcalc2(op);
+        return error_rcalc2(op);
     }
     return val_reference(none_value);
 }
 
 static MUST_CHECK value_t none_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        return ERROR_OBJ->calc2(op);
+        return error_calc2(op);
     }
     return val_reference(none_value);
 }
@@ -624,6 +659,10 @@ static MUST_CHECK value_t none_size(const value_t UNUSED(v1), linepos_t UNUSED(e
 
 static int lbl_same(const value_t v1, const value_t v2) {
     return v2->obj == LBL_OBJ && v1->u.lbl.sline == v2->u.lbl.sline && v1->u.lbl.waitforp == v2->u.lbl.waitforp && v1->u.lbl.file_list == v2->u.lbl.file_list && v1->u.lbl.parent == v2->u.lbl.parent;
+}
+
+static int funcargs_same(const value_t v1, const value_t v2) {
+    return v1->u.funcargs.val == v2->u.funcargs.val && v1->u.funcargs.len == v2->u.funcargs.len;
 }
 
 static MUST_CHECK value_t struct_size(const value_t v1, linepos_t UNUSED(epoint)) {
@@ -738,6 +777,7 @@ void objects_init(void) {
     obj_init(&mfunc_obj, T_MFUNC, "<function>");
     mfunc_obj.destroy = mfunc_destroy;
     mfunc_obj.same = mfunc_same;
+    mfunc_obj.calc2 = mfunc_calc2;
     obj_init(&struct_obj, T_STRUCT, "<struct>");
     struct_obj.destroy = macro_destroy;
     struct_obj.same = macro_same;
@@ -793,5 +833,7 @@ void objects_init(void) {
     obj_init(&iter_obj, T_ITER, "<iter>");
     iter_obj.destroy = iter_destroy;
     iter_obj.next = iter_next;
+    obj_init(&funcargs_obj, T_FUNCARGS, "<funcargs>");
+    funcargs_obj.same = funcargs_same;
 }
 
