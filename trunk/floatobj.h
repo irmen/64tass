@@ -24,5 +24,6 @@ extern void floatobj_init(void);
 
 extern MUST_CHECK value_t calc2_double(oper_t, double, double);
 extern MUST_CHECK value_t float_from_double(double);
+extern MUST_CHECK value_t float_from_double2(double, linepos_t);
 
 #endif

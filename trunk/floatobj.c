@@ -140,7 +140,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
     case O_HWORD: val >>= 8;
     case O_WORD: return bits_from_u16(val);
     case O_BSWORD: return bits_from_u16((uint8_t)(val >> 8) | (uint16_t)(val << 8));
-    case O_INV: return float_from_double(-0.5/((double)((uval_t)1 << (8 * sizeof(uval_t) - 1)))-v1);
+    case O_INV: return float_from_double(-0.5/((double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)))-v1);
     case O_NEG: return float_from_double(-v1);
     case O_POS: return val_reference(op->v1);
     case O_STRING: return repr(op->v1, op->epoint);
@@ -168,22 +168,22 @@ MUST_CHECK value_t calc2_double(oper_t op, double v1, double v2) {
     case O_LE: return truth_reference(v1 < v2 || almost_equal(v1, v2));
     case O_GT: return truth_reference(v1 > v2 && !almost_equal(v1, v2));
     case O_GE: return truth_reference(v1 > v2 || almost_equal(v1, v2));
-    case O_ADD: return float_from_double(v1 + v2);
-    case O_SUB: return float_from_double(v1 - v2);
-    case O_MUL: return float_from_double(v1 * v2);
+    case O_ADD: return float_from_double2(v1 + v2, op->epoint3);
+    case O_SUB: return float_from_double2(v1 - v2, op->epoint3);
+    case O_MUL: return float_from_double2(v1 * v2, op->epoint3);
     case O_DIV:
         if (v2 == 0.0) { 
             v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_DIVISION_BY_Z; 
-            v->u.error.epoint = *op->epoint2;
+            v->u.error.epoint = *op->epoint3;
             return v;
         }
-        return float_from_double(v1 / v2);
+        return float_from_double2(v1 / v2, op->epoint3);
     case O_MOD:
         if (v2 == 0.0) { 
             v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_DIVISION_BY_Z; 
-            v->u.error.epoint = *op->epoint2; 
+            v->u.error.epoint = *op->epoint3; 
             return v; 
         }
         r = fmod(v1, v2); 
@@ -191,30 +191,30 @@ MUST_CHECK value_t calc2_double(oper_t op, double v1, double v2) {
         return float_from_double(r);
     case O_AND:
         r = (ival_t)floor(v1) & (ival_t)floor(v2);
-        v1 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
-        v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
-        r += ((uval_t)floor(v1 * 2.0) & (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
+        v1 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
+        v2 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
+        r += ((uint32_t)floor(v1 * 2.0) & (uint32_t)floor(v2 * 2.0))/(double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)) / 2.0;
         return float_from_double(r);
     case O_OR:
         r = (ival_t)floor(v1) | (ival_t)floor(v2);
-        v1 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
-        v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
-        r += ((uval_t)floor(v1 * 2.0) | (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
+        v1 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
+        v2 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
+        r += ((uint32_t)floor(v1 * 2.0) | (uint32_t)floor(v2 * 2.0))/(double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)) / 2.0;
         return float_from_double(r);
     case O_XOR:
         r = (ival_t)floor(v1) | (ival_t)floor(v2);
-        v1 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
-        v2 *= (uval_t)1 << (8 * sizeof(uval_t) - 1);
-        r += ((uval_t)floor(v1 * 2.0) ^ (uval_t)floor(v2 * 2.0))/(double)((uval_t)1 << (8 * sizeof(uval_t) - 1)) / 2.0;
+        v1 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
+        v2 *= (uint32_t)1 << (8 * sizeof(uint32_t) - 1);
+        r += ((uint32_t)floor(v1 * 2.0) ^ (uint32_t)floor(v2 * 2.0))/(double)((uint32_t)1 << (8 * sizeof(uint32_t) - 1)) / 2.0;
         return float_from_double(r);
-    case O_LSHIFT: return float_from_double(v1 * pow(2.0, v2));
+    case O_LSHIFT: return float_from_double2(v1 * pow(2.0, v2), op->epoint3);
     case O_RSHIFT: return float_from_double(v1 * pow(2.0, -v2));
     case O_EXP: 
         if (!v1) {
             if (v2 < 0.0) {
                 v = val_alloc(ERROR_OBJ);
                 v->u.error.num = ERROR_DIVISION_BY_Z;
-                v->u.error.epoint = *op->epoint2;
+                v->u.error.epoint = *op->epoint3;
                 return v;
             }
             return float_from_double(0.0);
@@ -222,16 +222,10 @@ MUST_CHECK value_t calc2_double(oper_t op, double v1, double v2) {
         if (v1 < 0.0 && floor(v2) != v2) {
             v = val_alloc(ERROR_OBJ);
             v->u.error.num = ERROR_NEGFRAC_POWER;
-            v->u.error.epoint = *op->epoint2;
+            v->u.error.epoint = *op->epoint3;
             return v;
         }
-        r = pow(v1, v2); 
-        if (r == HUGE_VAL) {
-            v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR_CONSTNT_LARGE;
-            v->u.error.epoint = *op->epoint3;
-        }
-        return float_from_double(r);
+        return float_from_double2(pow(v1, v2), op->epoint3);
     default: break;
     }
     return obj_oper_error(op);
@@ -241,6 +235,16 @@ MUST_CHECK value_t float_from_double(double d) {
     value_t v = val_alloc(FLOAT_OBJ);
     v->u.real = d;
     return v;
+}
+
+MUST_CHECK value_t float_from_double2(double d, linepos_t epoint) {
+    if (d == HUGE_VAL || d == -HUGE_VAL) {
+        value_t v = val_alloc(ERROR_OBJ);
+        v->u.error.num = ERROR_NUMERIC_OVERF;
+        v->u.error.epoint = *epoint;
+        return v;
+    }
+    return float_from_double(d);
 }
 
 static MUST_CHECK value_t calc2(oper_t op) {

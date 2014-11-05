@@ -164,15 +164,55 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
         switch (func) {
         case F_FLOOR: real = floor(real);break;
         case F_CEIL: real = ceil(real);break;
-        case F_SQRT: real = (real < 0.0) ? HUGE_VAL : sqrt(real);break;
-        case F_LOG10: real = (real <= 0.0) ? HUGE_VAL : log10(real);break;
-        case F_LOG: real = (real <= 0.0) ? HUGE_VAL : log(real);break;
+        case F_SQRT: 
+            if (real < 0.0) {
+                v = val_alloc(ERROR_OBJ);
+                v->u.error.num = ERROR_SQUARE_ROOT_N;
+                v->u.error.epoint = *epoint;
+                return v;
+            }
+            real = sqrt(real);
+            break;
+        case F_LOG10: 
+            if (real <= 0.0) {
+                v = val_alloc(ERROR_OBJ);
+                v->u.error.num = ERROR_LOG_NON_POSIT;
+                v->u.error.epoint = *epoint;
+                return v;
+            }
+            real = log10(real);
+            break;
+        case F_LOG: 
+            if (real <= 0.0) {
+                v = val_alloc(ERROR_OBJ);
+                v->u.error.num = ERROR_LOG_NON_POSIT;
+                v->u.error.epoint = *epoint;
+                return v;
+            }
+            real = log(real);
+            break;
         case F_EXP: real = exp(real);break;
         case F_SIN: real = sin(real);break;
         case F_COS: real = cos(real);break;
         case F_TAN: real = tan(real);break;
-        case F_ACOS: real = (real < -1.0 || real > 1.0) ? HUGE_VAL : acos(real);break;
-        case F_ASIN: real = (real < -1.0 || real > 1.0) ? HUGE_VAL : asin(real);break;
+        case F_ACOS: 
+            if (real < -1.0 || real > 1.0) {
+                v = val_alloc(ERROR_OBJ);
+                v->u.error.num = ERROR___MATH_DOMAIN;
+                v->u.error.epoint = *epoint;
+                return v;
+            }
+            real = acos(real);
+            break;
+        case F_ASIN: 
+            if (real < -1.0 || real > 1.0) {
+                v = val_alloc(ERROR_OBJ);
+                v->u.error.num = ERROR___MATH_DOMAIN;
+                v->u.error.epoint = *epoint;
+                return v;
+            }
+            real = asin(real);
+            break;
         case F_ATAN: real = atan(real);break;
         case F_CBRT: real = cbrt(real);break;
         case F_ROUND: real = round(real);break;
@@ -183,16 +223,10 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
         case F_COSH: real = cosh(real);break;
         case F_SINH: real = sinh(real);break;
         case F_TANH: real = tanh(real);break;
-        case F_FLOAT: break; /* nothing to do */
-        default: real = HUGE_VAL; break;
+        case F_FLOAT: return val_reference(v1); /* nothing to do */
+        default: real = HUGE_VAL; break; /* can't happen */
         }
-        if (real == HUGE_VAL) {
-            v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR_CONSTNT_LARGE;
-            v->u.error.epoint = *epoint;
-            return v;
-        } 
-        return float_from_double(real);
+        return float_from_double2(real, epoint);
     }
 }
 
@@ -257,13 +291,7 @@ static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, 
         break;
     default: real = HUGE_VAL; break;
     }
-    if (real == HUGE_VAL) {
-        v = val_alloc(ERROR_OBJ);
-        v->u.error.num = ERROR_CONSTNT_LARGE;
-        v->u.error.epoint = *epoint;
-        return v;
-    }
-    return float_from_double(real);
+    return float_from_double2(real, epoint);
 }
 
 static MUST_CHECK value_t calc2(oper_t op) {
@@ -290,49 +318,15 @@ static MUST_CHECK value_t calc2(oper_t op) {
                     return val_reference(none_value);
                 }
                 return apply_func2(v[0].val, v[1].val, func, &v[0].epoint, &v[1].epoint);
-            case F_LOG:
-            case F_EXP:
-            case F_SIN:
-            case F_COS:
-            case F_TAN:
-            case F_RAD:
-            case F_DEG:
-            case F_ABS:
-            case F_INT:
-            case F_ALL:
-            case F_ANY:
-            case F_CEIL:
-            case F_FRAC:
-            case F_SQRT:
-            case F_ACOS:
-            case F_ASIN:
-            case F_ATAN:
-            case F_CBRT:
-            case F_COSH:
-            case F_SINH:
-            case F_TANH:
-            case F_SIGN:
-            case F_BOOL:
-            case F_FLOOR:
-            case F_ROUND:
-            case F_TRUNC:
-            case F_LOG10:
-            case F_FLOAT:
-            case F_STR:
-            case F_REPR:
-            case F_LEN:
-            case F_REGISTER:
-            case F_SIZE:
+            case F_RANGE: return function_range(op->v2, op->epoint2);
+            case F_FORMAT: return isnprintf(op->v2, op->epoint2);
+            default:
                 if (args != 1) {
                     err_msg_argnum(args, 1, 1, op->epoint2);
                     return val_reference(none_value);
                 }
                 return apply_func(v[0].val, func, &v[0].epoint);
-            case F_RANGE: return function_range(op->v2, op->epoint2);
-            case F_FORMAT: return isnprintf(op->v2, op->epoint2);
-            case F_NONE: break;
             }
-            return val_reference(none_value); /* can't happen */
         default: break;
         }
         break;
