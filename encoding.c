@@ -722,7 +722,6 @@ int encode_string(void) {
     const struct avltree_node *c;
     const struct trans_s *t;
     struct trans_s tmp;
-    struct linepos_s epoint;
 
     if (encode_state.j < encode_state.len2) {
         return encode_state.data2[encode_state.j++];
@@ -750,31 +749,9 @@ next:
             return (uint8_t)(ch - t->start + t->offset);
         }
     }
-    epoint = *encode_state.epoint;
-    if (epoint.line == lpoint.line && strlen((char *)pline) > epoint.pos) {
-        uint8_t q = pline[epoint.pos];
-        if (q == '"' || q == '\'') {
-            linecpos_t pos = epoint.pos + 1;
-            size_t pp = 0;
-            uint32_t ch2;
-            while (pp < encode_state.i && pline[pos]) {
-                unsigned int ln2;
-                if (pline[pos] == q) {
-                    if (pline[pos + 1] != q) break;
-                    pos++;
-                }
-                ln2 = utf8len(pline[pos]);
-                if (memcmp(pline + pos, encode_state.data + pp, ln2)) break;
-                pos += ln2; pp += ln2;
-            }
-            if (pp == encode_state.i) {
-                ch2 = pline[pos];
-                if (ch2 & 0x80) utf8in(encode_state.data + encode_state.i, &ch2);
-                if (ch2 == ch) epoint.pos = pos;
-            }
-        }
-    }
     if (!encode_state.err) {
+        struct linepos_s epoint = *encode_state.epoint;
+        epoint.pos = interstring_position(&epoint, encode_state.data, encode_state.i, ch);
         err_msg2(ERROR___UNKNOWN_CHR, &ch, &epoint);
         encode_state.err = 1;
     }

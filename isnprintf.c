@@ -62,7 +62,7 @@
 
 static ustr_t return_value;
 static size_t returnsize = 0;
-static int none;
+static size_t none;
 
 /* this struct holds everything we need */
 struct DATA {
@@ -153,7 +153,7 @@ static MUST_CHECK value_t star_args(struct DATA *p)
     if (p->star_w == FOUND) {
         const struct values_s *v = next_arg();
         const value_t val = v->val;
-        if (val->obj == NONE_OBJ) none = 1;
+        if (val->obj == NONE_OBJ) none = listp;
         else {
             err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
             if (err) return err;
@@ -163,7 +163,7 @@ static MUST_CHECK value_t star_args(struct DATA *p)
     if (p->star_p == FOUND) {
         const struct values_s *v = next_arg();
         const value_t val = v->val;
-        if (val->obj == NONE_OBJ) none = 1;
+        if (val->obj == NONE_OBJ) none = listp;
         else {
             err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
             if (err) return err;
@@ -183,7 +183,7 @@ static inline MUST_CHECK value_t decimal(struct DATA *p, const struct values_s *
     size_t i;
 
     if (val->obj == NONE_OBJ) {
-        none = 1;
+        none = listp;
         err = val_reference(int_value[0]);
     } else {
         err = val->obj->integer(val, &v->epoint);
@@ -213,7 +213,7 @@ static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
     int bp, bp2, b;
 
     if (val->obj == NONE_OBJ) {
-        none = 1;
+        none = listp;
         err = val_reference(int_value[0]);
     } else {
         err = val->obj->integer(val, &v->epoint);
@@ -269,7 +269,7 @@ static inline MUST_CHECK value_t bin(struct DATA *p, const struct values_s *v)
     value_t val = v->val, err;
 
     if (val->obj == NONE_OBJ) {
-        none = 1; 
+        none = listp;
         err = val_reference(int_value[0]);
     } else {
         err = val->obj->integer(val, &v->epoint);
@@ -313,7 +313,7 @@ static inline MUST_CHECK value_t chars(const struct values_s *v)
     value_t val = v->val, err;
 
     if (val->obj == NONE_OBJ) {
-        none = 1; 
+        none = listp;
         uval = 0;
     } else {
         err = val->obj->uval(val, &uval, 24, &v->epoint);
@@ -333,14 +333,14 @@ static inline MUST_CHECK value_t strings(struct DATA *p, const struct values_s *
     value_t val = v->val, err;
 
     if (val->obj == NONE_OBJ) {
-        none = 1;
+        none = listp;
         return NULL;
     }
     if (*p->pf == 'r') err = val->obj->repr(val, &v->epoint);
     else err = val->obj->str(val, &v->epoint);
     if (err->obj != STR_OBJ) {
         if (err->obj == NONE_OBJ) {
-            none = 1;
+            none = listp;
             val_destroy(err);
             return NULL;
         }
@@ -370,7 +370,7 @@ static inline MUST_CHECK value_t floating(struct DATA *p, const struct values_s 
     value_t val = v->val, err;
 
     if (val->obj == NONE_OBJ) {
-        none = 1;
+        none = listp;
         d = 0;
     } else {
         err = val->obj->real(val, &d, &v->epoint);
@@ -439,7 +439,6 @@ static void conv_flag(char * s, struct DATA * p)
     }
 }
 
-/* return templates only! */
 MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
 {
     struct values_s *v = vals->u.funcargs.val;
@@ -547,10 +546,19 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
                     break;
                 default:
                     {
+                        struct linepos_s epoint2 = v[0].epoint;
+                        uint32_t ch;
                         str_t msg;
-                        msg.len = utf8len(*data.pf) + 1;
+                        epoint2.pos = interstring_position(&epoint2, v[0].val->u.str.data, data.pf - (char *)v[0].val->u.str.data - 1, '%');
                         msg.data = (uint8_t *)data.pf - 1;
-                        err_msg_not_defined(&msg, &v[0].epoint);
+                        ch = (uint8_t)*data.pf;
+                        if (ch & 0x80) msg.len = utf8in((const uint8_t *)data.pf, &ch) + 1; else msg.len = 2;
+                        err_msg_not_defined(&msg, &epoint2);
+                        err = star_args(&data);
+                        if (err) goto error;
+                        next_arg();
+                        PUT_CHAR('%');
+                        PUT_CHAR(ch);
                         state = 0;
                         data.pf += msg.len - 2;
                     }
@@ -563,7 +571,7 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
     if (listp != largs) {
         err_msg_argnum(args, listp + 1, listp + 1, epoint);
     } else if (none) {
-        err_msg_still_none(NULL, epoint);
+        err_msg_still_none(NULL, (largs >= none) ? &v[none].epoint : epoint);
     }
     err = val_alloc(STR_OBJ);
     err->u.str.len = return_value.len;

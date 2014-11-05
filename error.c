@@ -789,6 +789,33 @@ void error_status(void) {
     if (warnings) printf("%u\n", warnings); else puts("None");
 }
 
+linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i, uint32_t ch) {
+    if (epoint->line == lpoint.line && strlen((char *)pline) > epoint->pos) {
+        uint8_t q = pline[epoint->pos];
+        if (q == '"' || q == '\'') {
+            linecpos_t pos = epoint->pos + 1;
+            size_t pp = 0;
+            uint32_t ch2;
+            while (pp < i && pline[pos]) {
+                unsigned int ln2;
+                if (pline[pos] == q) {
+                    if (pline[pos + 1] != q) break;
+                    pos++;
+                }
+                ln2 = utf8len(pline[pos]);
+                if (memcmp(pline + pos, data + pp, ln2)) break;
+                pos += ln2; pp += ln2;
+            }
+            if (pp == i) {
+                ch2 = pline[pos];
+                if (ch2 & 0x80) utf8in(data + i, &ch2);
+                if (ch2 == ch) return pos;
+            }
+        }
+    }
+    return epoint->pos;
+}
+
 int error_serious(int fix, int newvar) {
     const struct error_s *err;
     size_t pos;
