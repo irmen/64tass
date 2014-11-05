@@ -319,7 +319,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
                 }
                 return apply_func2(v[0].val, v[1].val, func, &v[0].epoint, &v[1].epoint);
             case F_RANGE: return function_range(op->v2, op->epoint2);
-            case F_FORMAT: return isnprintf(op->v2, op->epoint2);
+            case F_FORMAT: return isnprintf(op->v2, op->epoint);
             default:
                 if (args != 1) {
                     err_msg_argnum(args, 1, 1, op->epoint2);

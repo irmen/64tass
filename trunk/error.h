@@ -149,5 +149,6 @@ extern void errors_destroy(struct errorbuffer_s *);
 extern void error_init(struct errorbuffer_s *);
 extern void error_status(void);
 extern int error_serious(int, int);
+extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t, uint32_t);
 
 #endif
