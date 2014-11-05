@@ -2397,6 +2397,8 @@ expression syntax
     syntax error
 extra characters on line
     there's some garbage on the end of line
+floating point overflow
+    infinity reached during a calculation
 general syntax
     can't do anything with this
 index out of range
@@ -2409,6 +2411,8 @@ key error
     not in dictionary
 label required
     a label is mandatory for this directive
+logarithm of non-positive number
+    Only positive numbers have a logarithm
 missing argument
     not enough arguments supplied to function
 negative number raised on fractional power
@@ -2431,6 +2435,8 @@ not defined '?'
     can't find this label
 not hashable
     can't be used as a key in a dictionary
+not in range -1.0 to 1.0
+    the function is only valid in the -1.0 to 1.0 range
 not iterable
     value is not a list or other iterable object
 page error at $xxxx
@@ -2441,6 +2447,8 @@ requirements not met
     Not all features are provided, at least one is missing
 reserved symbol name '?'
     do not use this symbol name
+square root of negative number
+    can't calculate the square root of a negative number
 too early to reference
     processing still ongoing, can't access this yet
 unknown processor '?'

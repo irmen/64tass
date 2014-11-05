@@ -161,6 +161,7 @@ static const char *terr_error[]={
     "double defined escape",
     "extra characters on line",
     "constant too large",
+    "floating point overflow",
     "address not in processor address space",
     "general syntax",
     "expression syntax",
@@ -171,6 +172,9 @@ static const char *terr_error[]={
     "instruction can't cross banks",
     "address out of section",
     "negative number raised on fractional power",
+    "square root of negative number",
+    "logarithm of non-positive number",
+    "not in range -1.0 to 1.0",
     "not a one character string",
     "index out of range",
     "key error",
@@ -228,7 +232,12 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         case ERROR_NO_ZERO_VALUE:
         case ERROR____WRONG_TYPE:
         case ERROR_NO_ADDRESSING:
-        case ERROR_CONSTNT_LARGE: new_error(SV_CONDERROR, current_file_list, epoint); break;
+        case ERROR_CONSTNT_LARGE: 
+        case ERROR_NUMERIC_OVERF: 
+        case ERROR_NEGFRAC_POWER:
+        case ERROR_SQUARE_ROOT_N:
+        case ERROR_LOG_NON_POSIT:
+        case ERROR___MATH_DOMAIN: new_error(SV_CONDERROR, current_file_list, epoint); break;
         default: new_error(SV_ERROR, current_file_list, epoint);
         }
         switch (no) {
@@ -424,7 +433,11 @@ void err_msg_output(const value_t val) {
         case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->u.error.num & 63], val->u.error.u.bits, &val->u.error.epoint);break;
         case ERROR___INDEX_RANGE:
         case ERROR_CONSTNT_LARGE:
+        case ERROR_NUMERIC_OVERF:
         case ERROR_NEGFRAC_POWER:
+        case ERROR_SQUARE_ROOT_N:
+        case ERROR_LOG_NON_POSIT:
+        case ERROR___MATH_DOMAIN:
         case ERROR_BIG_STRING_CO:
         case ERROR_____KEY_ERROR:
         case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);break;
