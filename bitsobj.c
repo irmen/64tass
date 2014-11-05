@@ -873,12 +873,16 @@ static void rshift(const value_t vv1, const value_t vv2, uval_t s, value_t vv) {
     vv->u.bits.inv = inv;
 }
 
-static MUST_CHECK value_t repeat(oper_t op, uval_t rep) {
+static inline MUST_CHECK value_t repeat(oper_t op) {
     value_t vv1 = op->v1, vv;
     bdigit_t *v, *v1;
     bdigit_t uv;
     size_t sz, i, j, rbits, abits, bits;
     size_t blen = vv1->u.bits.bits;
+    uval_t rep;
+
+    vv = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
+    if (vv) return vv;
 
     if (!rep || !blen) {
         return val_reference(null_bits);
@@ -939,10 +943,175 @@ static MUST_CHECK value_t repeat(oper_t op, uval_t rep) {
     return vv;
 }
 
+static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
+    size_t bo, wo, bl, wl, sz;
+    bdigit_t uv;
+    bdigit_t *v, *v1;
+    bdigit_t inv;
+    int bits;
+    value_t vv, vv1 = op->v1;
+    size_t length;
+    ival_t offs, end, step;
+
+    vv = sliceparams(vv2, ln, &length, &offs, &end, &step, op->epoint2);
+    if (vv) return vv;
+
+    if (!length) {
+        return val_reference(null_bits);
+    }
+    inv = -vv1->u.bits.inv;
+    if (step == 1) {
+        if (length == vv1->u.bits.len) {
+            return val_reference(vv1); /* original bits */
+        }
+
+        bo = offs % (8 * sizeof(bdigit_t));
+        wo = offs / (8 * sizeof(bdigit_t));
+        bl = length % (8 * sizeof(bdigit_t));
+        wl = length / (8 * sizeof(bdigit_t));
+
+        sz = wl + (bl > 0);
+        vv = val_alloc();
+        v = bnew(vv, sz);
+
+        v1 = vv1->u.bits.data + wo;
+        if (bo) {
+            for (sz = 0; sz < wl; sz++) {
+                v[sz] = inv ^ (v1[sz] >> bo) ^ (v1[sz + 1] << (8 * sizeof(bdigit_t) - bo));
+            }
+            if (bl) {
+                v[sz] = v1[sz] >> bo;
+                if (bl > (8 * sizeof(bdigit_t) - bo)) v[sz] |= v1[sz + 1] << (8 * sizeof(bdigit_t) - bo);
+                v[sz] ^= inv;
+            }
+        } else {
+            for (sz = 0; sz < wl; sz++) v[sz] = v1[sz] ^ inv;
+            if (bl) v[sz] = v1[sz] ^ inv;
+        }
+        if (bl) v[sz++] &= ((1 << bl) - 1);
+    } else {
+        sz = length / 8 / sizeof(bdigit_t);
+        if (length % (8 * sizeof(bdigit_t))) sz++;
+        vv = val_alloc();
+        v = bnew(vv, sz);
+
+        uv = inv;
+        sz = bits = 0;
+        while ((end > offs && step > 0) || (end < offs && step < 0)) {
+            wo = offs / 8 / sizeof(bdigit_t);
+            if (wo < vv1->u.bits.len && ((vv1->u.bits.data[wo] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
+                uv ^= 1 << bits;
+            }
+            bits++;
+            if (bits == 8 * sizeof(bdigit_t)) {
+                v[sz++] = uv;
+                uv = inv;
+                bits = 0;
+            }
+            offs += step;
+        }
+        if (bits) v[sz++] = uv & ((1 << bits) - 1);
+    }
+    while (sz && !v[sz - 1]) sz--;
+    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
+        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
+        free(v);
+        v = vv->u.bits.val;
+    }
+    vv->obj = BITS_OBJ;
+    vv->u.bits.bits = length;
+    vv->u.bits.len = sz;
+    vv->u.bits.inv = 0;
+    vv->u.bits.data = v;
+    return vv;
+}
+
+static inline MUST_CHECK value_t iindex(oper_t op) {
+    size_t offs, ln, sz;
+    size_t i, o;
+    value_t vv1 = op->v1, vv2 = op->v2, vv;
+    bdigit_t *v;
+    bdigit_t uv;
+    bdigit_t inv = -vv1->u.bits.inv;
+    int bits;
+    value_t err;
+
+    if (vv2->u.funcargs.len != 1) {
+        err_msg_argnum(vv2->u.funcargs.len, 1, 1, op->epoint2);
+        return val_reference(none_value);
+    }
+    vv2 = vv2->u.funcargs.val->val;
+
+    ln = vv1->u.bits.bits;
+
+    if (vv2->obj == LIST_OBJ) {
+        if (!vv2->u.list.len) {
+            return val_reference(null_bits);
+        }
+        sz = (vv2->u.list.len + 8 * sizeof(bdigit_t) - 1) / (8 * sizeof(bdigit_t));
+
+        vv = val_alloc();
+        v = bnew(vv, sz);
+
+        uv = inv;
+        bits = sz = 0;
+        for (i = 0; i < vv2->u.list.len; i++) {
+            err = indexoffs(vv2->u.list.data[i], ln, &offs, op->epoint2);
+            if (err) {
+                if (vv->u.bits.val != v) free(v);
+                return err;
+            }
+            o = offs / 8 / sizeof(bdigit_t);
+            if (o < vv1->u.bits.len && ((vv1->u.bits.data[o] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
+                uv ^= 1 << bits;
+            }
+            bits++;
+            if (bits == 8 * sizeof(bdigit_t)) {
+                v[sz++] = uv;
+                uv = inv;
+                bits = 0;
+            }
+        }
+        if (bits) v[sz++] = uv & ((1 << bits) - 1);
+
+        while (sz && !v[sz - 1]) sz--;
+        if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
+            memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
+            free(v);
+            v = vv->u.bits.val;
+        }
+        vv->obj = BITS_OBJ;
+        vv->u.bits.bits = vv2->u.list.len;
+        vv->u.bits.len = sz;
+        vv->u.bits.inv = 0;
+        vv->u.bits.data = v;
+        return vv;
+    }
+    if (vv2->obj == COLONLIST_OBJ) {
+        return slice(vv2, op, ln);
+    }
+    err = indexoffs(vv2, ln, &offs, op->epoint2);
+    if (err) return err;
+
+    uv = inv;
+    o = offs / 8 / sizeof(bdigit_t);
+    if (o < vv1->u.bits.len && ((vv1->u.bits.data[o] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
+        uv ^= 1;
+    }
+    return bits_from_bool(uv & 1);
+}
+
 static MUST_CHECK value_t calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v;
     value_t tmp, result, err;
     ival_t shift;
+
+    if (op->op == &o_INDEX) {
+        return iindex(op);
+    }
+    if (op->op == &o_X) {
+        return repeat(op); 
+    }
     switch (v2->obj->type) {
     case T_BOOL:
         tmp = bits_from_bool(op->v2->u.boolean);
@@ -1025,156 +1194,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     return obj_oper_error(op); 
 }
 
-static inline MUST_CHECK value_t slice(value_t vv1, uval_t ln, ival_t offs, ival_t end, ival_t step) {
-    size_t bo, wo, bl, wl, sz;
-    bdigit_t uv;
-    bdigit_t *v, *v1;
-    bdigit_t inv = -vv1->u.bits.inv;
-    int bits;
-    value_t vv;
-
-    if (!ln) {
-        return val_reference(null_bits);
-    }
-    if (step == 1) {
-        if (ln == vv1->u.bits.len) {
-            return val_reference(vv1); /* original bits */
-        }
-
-        bo = offs % (8 * sizeof(bdigit_t));
-        wo = offs / (8 * sizeof(bdigit_t));
-        bl = ln % (8 * sizeof(bdigit_t));
-        wl = ln / (8 * sizeof(bdigit_t));
-
-        sz = wl + (bl > 0);
-        vv = val_alloc();
-        v = bnew(vv, sz);
-
-        v1 = vv1->u.bits.data + wo;
-        if (bo) {
-            for (sz = 0; sz < wl; sz++) {
-                v[sz] = inv ^ (v1[sz] >> bo) ^ (v1[sz + 1] << (8 * sizeof(bdigit_t) - bo));
-            }
-            if (bl) {
-                v[sz] = v1[sz] >> bo;
-                if (bl > (8 * sizeof(bdigit_t) - bo)) v[sz] |= v1[sz + 1] << (8 * sizeof(bdigit_t) - bo);
-                v[sz] ^= inv;
-            }
-        } else {
-            for (sz = 0; sz < wl; sz++) v[sz] = v1[sz] ^ inv;
-            if (bl) v[sz] = v1[sz] ^ inv;
-        }
-        if (bl) v[sz++] &= ((1 << bl) - 1);
-    } else {
-        sz = ln / 8 / sizeof(bdigit_t);
-        if (ln % (8 * sizeof(bdigit_t))) sz++;
-        vv = val_alloc();
-        v = bnew(vv, sz);
-
-        uv = inv;
-        sz = bits = 0;
-        while ((end > offs && step > 0) || (end < offs && step < 0)) {
-            wo = offs / 8 / sizeof(bdigit_t);
-            if (wo < vv1->u.bits.len && ((vv1->u.bits.data[wo] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
-                uv ^= 1 << bits;
-            }
-            bits++;
-            if (bits == 8 * sizeof(bdigit_t)) {
-                v[sz++] = uv;
-                uv = inv;
-                bits = 0;
-            }
-            offs += step;
-        }
-        if (bits) v[sz++] = uv & ((1 << bits) - 1);
-    }
-    while (sz && !v[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
-        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        free(v);
-        v = vv->u.bits.val;
-    }
-    vv->obj = BITS_OBJ;
-    vv->u.bits.bits = ln;
-    vv->u.bits.len = sz;
-    vv->u.bits.inv = 0;
-    vv->u.bits.data = v;
-    return vv;
-}
-
-static MUST_CHECK value_t iindex(oper_t op) {
-    size_t ln, sz;
-    ival_t offs;
-    size_t i, o;
-    value_t vv1 = op->v1, vv2 = op->v2, vv;
-    bdigit_t *v;
-    bdigit_t uv;
-    bdigit_t inv = -vv1->u.bits.inv;
-    int bits;
-    value_t err;
-
-    ln = vv1->u.bits.bits;
-
-    if (vv2->obj == LIST_OBJ) {
-        if (!vv2->u.list.len) {
-            return val_reference(null_bits);
-        }
-        sz = (vv2->u.list.len + 8 * sizeof(bdigit_t) - 1) / (8 * sizeof(bdigit_t));
-
-        vv = val_alloc();
-        v = bnew(vv, sz);
-
-        uv = inv;
-        bits = sz = 0;
-        for (i = 0; i < vv2->u.list.len; i++) {
-            err = indexoffs(vv2->u.list.data[i], &offs, ln, op->epoint2);
-            if (err) {
-                if (vv->u.bits.val != v) free(v);
-                return err;
-            }
-            o = offs / 8 / sizeof(bdigit_t);
-            if (o < vv1->u.bits.len && ((vv1->u.bits.data[o] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
-                uv ^= 1 << bits;
-            }
-            bits++;
-            if (bits == 8 * sizeof(bdigit_t)) {
-                v[sz++] = uv;
-                uv = inv;
-                bits = 0;
-            }
-        }
-        if (bits) v[sz++] = uv & ((1 << bits) - 1);
-
-        while (sz && !v[sz - 1]) sz--;
-        if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
-            memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-            free(v);
-            v = vv->u.bits.val;
-        }
-        vv->obj = BITS_OBJ;
-        vv->u.bits.bits = vv2->u.list.len;
-        vv->u.bits.len = sz;
-        vv->u.bits.inv = 0;
-        vv->u.bits.data = v;
-        return vv;
-    }
-    if (vv2->obj == COLONLIST_OBJ) {
-        ival_t length, end, step;
-        err = sliceparams(op, ln, &length, &offs, &end, &step);
-        if (err) return err;
-        return slice(vv1, length, offs, end, step);
-    }
-    err = indexoffs(vv2, &offs, ln, op->epoint2);
-    if (err) return err;
-
-    uv = inv;
-    o = offs / 8 / sizeof(bdigit_t);
-    if (o < vv1->u.bits.len && ((vv1->u.bits.data[o] >> (offs & (8 * sizeof(bdigit_t) - 1))) & 1)) {
-        uv ^= 1;
-    }
-    return bits_from_bool(uv & 1);
-}
-
 void bitsobj_init(void) {
     obj_init(&obj, T_BITS, "<bits>");
     obj.destroy = destroy;
@@ -1192,6 +1211,4 @@ void bitsobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
-    obj.repeat = repeat;
-    obj.iindex = iindex;
 }

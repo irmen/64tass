@@ -90,7 +90,7 @@ my_getopt.o: my_getopt.c my_getopt.h
 obj.o: obj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h variables.h misc.h section.h mem.h 64tass.h opcodes.h \
- eval.h boolobj.h floatobj.h
+ eval.h boolobj.h floatobj.h macro.h
 opcodes.o: opcodes.c opcodes.h
 section.o: section.c unicode.h inttypes.h unicodedata.h section.h \
  libtree.h mem.h error.h misc.h 64tass.h opcodes.h

@@ -132,6 +132,147 @@ static MUST_CHECK value_t size(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_uval(v1->u.code.size);
 }
 
+static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
+    value_t *vals, v1 = op->v1, v;
+    size_t i, i2;
+    size_t ln2;
+    size_t offs2;
+    int16_t r;
+    uval_t val;
+    size_t length;
+    ival_t offs, end, step;
+
+    v = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
+    if (v) return v;
+
+    if (!length) {
+        return val_reference(null_tuple);
+    }
+    v = val_alloc();
+    if (v1->u.code.pass != pass) {
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR____NO_FORWARD;
+        v->u.error.epoint = *op->epoint;
+        v->u.error.u.ident = v1->u.code.label->name;
+        return v;
+    }
+    vals = list_create_elements(v, length);
+    i = 0;
+    ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
+    ln2 = ln2 + !ln2;
+    while ((end > offs && step > 0) || (end < offs && step < 0)) {
+        offs2 = offs * ln2;
+        val = 0;
+        r = -1;
+        for (i2 = 0; i2 < ln2; i2++) {
+            r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
+            if (r < 0) break;
+            val |= r << (i2 * 8);
+        }
+        if (v1->u.code.dtype < 0 && (r & 0x80)) {
+            for (; i2 < sizeof(val); i2++) {
+                val |= 0xff << (i2 * 8);
+            }
+        }
+        if (r < 0) vals[i] = val_reference(gap_value);
+        else if (v1->u.code.dtype < 0) vals[i] = int_from_ival((ival_t)val);
+        else vals[i] = int_from_uval(val);
+        i++; offs += step;
+    }
+    v->obj = TUPLE_OBJ;
+    v->u.list.len = length;
+    v->u.list.data = vals;
+    return NULL;
+}
+
+static inline MUST_CHECK value_t iindex(oper_t op) {
+    value_t *vals;
+    size_t i, i2;
+    size_t ln, ln2;
+    size_t offs, offs2;
+    int16_t r;
+    uval_t val;
+    value_t v1 = op->v1, v2 = op->v2, v, err;
+
+    if (v2->u.funcargs.len != 1) {
+        err_msg_argnum(v2->u.funcargs.len, 1, 1, op->epoint2);
+        return val_reference(none_value);
+    }
+    v2 = v2->u.funcargs.val->val;
+
+    ln = v1->u.list.len;
+
+    if (v1->u.code.pass != pass) {
+        v = val_alloc();
+        v->obj = ERROR_OBJ;
+        v->u.error.num = ERROR____NO_FORWARD;
+        v->u.error.epoint = *op->epoint;
+        v->u.error.u.ident = v1->u.code.label->name;
+        return v;
+    }
+
+    ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
+    ln2 = ln2 + !ln2;
+    ln = v1->u.code.size / ln2;
+
+    if (v2->obj == LIST_OBJ) {
+        if (!v2->u.list.len) {
+            return val_reference(null_tuple);
+        }
+        v = val_alloc();
+        v->obj = TUPLE_OBJ;
+        v->u.list.data = vals = list_create_elements(v, v2->u.list.len);
+        for (i = 0; i < v2->u.list.len; i++) {
+            err = indexoffs(v2->u.list.data[i], ln, &offs, op->epoint2);
+            if (err) {
+                v->u.list.len = i;
+                val_destroy(v);
+                return err;
+            }
+            offs2 = offs * ln2;
+            val = 0;
+            r = -1;
+            for (i2 = 0; i2 < ln2; i2++) {
+                r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
+                if (r < 0) break;
+                val |= r << (i2 * 8);
+            }
+            if (v1->u.code.dtype < 0 && (r & 0x80)) {
+                for (; i2 < sizeof(val); i2++) {
+                    val |= 0xff << (i2 * 8);
+                }
+            }
+            if (r < 0) vals[i] = val_reference(gap_value);
+            else if (v1->u.code.dtype < 0) vals[i] = int_from_ival((ival_t)val);
+            else vals[i] = int_from_uval(val);
+        }
+        v->u.list.len = i;
+        return v;
+    }
+    if (v2->obj == COLONLIST_OBJ) {
+        return slice(v2, op, ln);
+    }
+    err = indexoffs(v2, ln, &offs, op->epoint2);
+    if (err) return err;
+
+    offs2 = offs * ln2;
+    val = 0;
+    r = -1;
+    for (i2 = 0; i2 < ln2; i2++) {
+        r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
+        if (r < 0) break;
+        val |= r << (i2 * 8);
+    }
+    if (v1->u.code.dtype < 0 && (r & 0x80)) {
+        for (; i2 < sizeof(val); i2++) {
+            val |= 0xff << (i2 * 8);
+        }
+    }
+    if (r < 0) return val_reference(gap_value);
+    if (v1->u.code.dtype < 0) return int_from_ival((ival_t)val);
+    return int_from_uval(val);
+}
+
 static MUST_CHECK value_t calc1(oper_t op) {
     value_t v, v1 = op->v1;
     switch (op->op->u.oper.op) {
@@ -217,6 +358,9 @@ static MUST_CHECK value_t calc2(oper_t op) {
         case T_LIST: return v2->obj->rcalc2(op);
         default: return obj_oper_error(op);
         }
+    }
+    if (op->op == &o_INDEX) {
+        return iindex(op);
     }
     switch (v2->obj->type) {
     case T_CODE:
@@ -341,138 +485,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static inline MUST_CHECK value_t slice(value_t v1, uval_t ln, ival_t offs, ival_t end, ival_t step, linepos_t epoint) {
-    value_t *vals, v;
-    size_t i, i2;
-    size_t ln2;
-    size_t offs2;
-    int16_t r;
-    uval_t val;
-
-    if (!ln) {
-        return val_reference(null_tuple);
-    }
-    v = val_alloc();
-    if (v1->u.code.pass != pass) {
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR____NO_FORWARD;
-        v->u.error.epoint = *epoint;
-        v->u.error.u.ident = v1->u.code.label->name;
-        return v;
-    }
-    vals = list_create_elements(v, ln);
-    i = 0;
-    ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
-    ln2 = ln2 + !ln2;
-    while ((end > offs && step > 0) || (end < offs && step < 0)) {
-        offs2 = offs * ln2;
-        val = 0;
-        r = -1;
-        for (i2 = 0; i2 < ln2; i2++) {
-            r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
-            if (r < 0) break;
-            val |= r << (i2 * 8);
-        }
-        if (v1->u.code.dtype < 0 && (r & 0x80)) {
-            for (; i2 < sizeof(val); i2++) {
-                val |= 0xff << (i2 * 8);
-            }
-        }
-        if (r < 0) vals[i] = val_reference(gap_value);
-        else if (v1->u.code.dtype < 0) vals[i] = int_from_ival((ival_t)val);
-        else vals[i] = int_from_uval(val);
-        i++; offs += step;
-    }
-    v->obj = TUPLE_OBJ;
-    v->u.list.len = ln;
-    v->u.list.data = vals;
-    return NULL;
-}
-
-static MUST_CHECK value_t iindex(oper_t op) {
-    value_t *vals;
-    size_t i, i2;
-    size_t ln, ln2;
-    size_t offs2;
-    int16_t r;
-    ival_t offs;
-    uval_t val;
-    value_t v1 = op->v1, v2 = op->v2, v, err;
-
-    if (v1->u.code.pass != pass) {
-        v = val_alloc();
-        v->obj = ERROR_OBJ;
-        v->u.error.num = ERROR____NO_FORWARD;
-        v->u.error.epoint = *op->epoint;
-        v->u.error.u.ident = v1->u.code.label->name;
-        return v;
-    }
-
-    ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
-    ln2 = ln2 + !ln2;
-    ln = v1->u.code.size / ln2;
-
-    if (v2->obj == LIST_OBJ) {
-        if (!v2->u.list.len) {
-            return val_reference(null_tuple);
-        }
-        v = val_alloc();
-        v->obj = TUPLE_OBJ;
-        v->u.list.data = vals = list_create_elements(v, v2->u.list.len);
-        for (i = 0; i < v2->u.list.len; i++) {
-            err = indexoffs(v2->u.list.data[i], &offs, ln, op->epoint2);
-            if (err) {
-                v->u.list.len = i;
-                val_destroy(v);
-                return err;
-            }
-            offs2 = offs * ln2;
-            val = 0;
-            r = -1;
-            for (i2 = 0; i2 < ln2; i2++) {
-                r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
-                if (r < 0) break;
-                val |= r << (i2 * 8);
-            }
-            if (v1->u.code.dtype < 0 && (r & 0x80)) {
-                for (; i2 < sizeof(val); i2++) {
-                    val |= 0xff << (i2 * 8);
-                }
-            }
-            if (r < 0) vals[i] = val_reference(gap_value);
-            else if (v1->u.code.dtype < 0) vals[i] = int_from_ival((ival_t)val);
-            else vals[i] = int_from_uval(val);
-        }
-        v->u.list.len = i;
-        return v;
-    }
-    if (v2->obj == COLONLIST_OBJ) {
-        ival_t length, end, step;
-        err = sliceparams(op, ln, &length, &offs, &end, &step);
-        if (err) return err;
-        return slice(v1, length, offs, end, step, op->epoint);
-    }
-    err = indexoffs(v2, &offs, ln, op->epoint2);
-    if (err) return err;
-
-    offs2 = offs * ln2;
-    val = 0;
-    r = -1;
-    for (i2 = 0; i2 < ln2; i2++) {
-        r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
-        if (r < 0) break;
-        val |= r << (i2 * 8);
-    }
-    if (v1->u.code.dtype < 0 && (r & 0x80)) {
-        for (; i2 < sizeof(val); i2++) {
-            val |= 0xff << (i2 * 8);
-        }
-    }
-    if (r < 0) return val_reference(gap_value);
-    if (v1->u.code.dtype < 0) return int_from_ival((ival_t)val);
-    return int_from_uval(val);
-}
-
 void codeobj_init(void) {
     obj_init(&obj, T_CODE, "<code>");
     obj.destroy = destroy;
@@ -490,5 +502,4 @@ void codeobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
-    obj.iindex = iindex;
 }

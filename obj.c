@@ -238,14 +238,6 @@ static MUST_CHECK value_t error_rcalc2(oper_t op) {
     return val_reference(op->v2);
 }
 
-static MUST_CHECK value_t error_repeat(oper_t op, uval_t UNUSED(rep)) {
-    return val_reference(op->v1);
-}
-
-static MUST_CHECK value_t error_iindex(oper_t op) {
-    return val_reference(op->v1);
-}
-
 static MUST_CHECK value_t invalid_calc1(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return error_calc1(op);
@@ -263,20 +255,6 @@ static MUST_CHECK value_t invalid_calc2(oper_t op) {
 static MUST_CHECK value_t invalid_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
         return error_calc2(op);
-    }
-    return obj_oper_error(op);
-}
-
-static MUST_CHECK value_t invalid_repeat(oper_t op, uval_t rep) {
-    if (op->v1->obj == ERROR_OBJ) {
-        return error_repeat(op, rep);
-    }
-    return obj_oper_error(op);
-}
-
-static MUST_CHECK value_t invalid_iindex(oper_t op) {
-    if (op->v1->obj == ERROR_OBJ) {
-        return error_iindex(op);
     }
     return obj_oper_error(op);
 }
@@ -400,7 +378,7 @@ static MUST_CHECK value_t mfunc_calc2(oper_t op) {
                     max = i + 1;
                 }
             }
-            if (max) err_msg_argnum(args, max, v1->u.mfunc.argc, op->epoint);
+            if (max) err_msg_argnum(args, max, v1->u.mfunc.argc, op->epoint2);
             eval_enter();
             val = mfunc2_recurse(v1, v2->u.funcargs.val, args, op->epoint);
             eval_leave();
@@ -525,6 +503,39 @@ static MUST_CHECK value_t dict_repr(const value_t v1, linepos_t epoint) {
     return v;
 }
 
+static MUST_CHECK value_t dict_calc2(oper_t op) {
+    if (op->op == &o_INDEX) {
+        value_t v1 = op->v1, v2 = op->v2;
+        struct pair_s pair;
+        const struct avltree_node *b;
+        value_t err;
+
+        if (v2->u.funcargs.len != 1) {
+            err_msg_argnum(v2->u.funcargs.len, 1, 1, op->epoint2);
+            return val_reference(none_value);
+        }
+        v2 = v2->u.funcargs.val->val;
+
+        pair.key = v2;
+        err = obj_hash(pair.key, &pair.hash, op->epoint2);
+        if (err) return err;
+        b = avltree_lookup(&pair.node, &v1->u.dict.members, pair_compare);
+        if (b) {
+            const struct pair_s *p = cavltree_container_of(b, struct pair_s, node);
+            return val_reference(p->data);
+        }
+        if (v1->u.dict.def) {
+            return val_reference(v1->u.dict.def);
+        }
+        err = val_alloc();
+        err->obj = ERROR_OBJ;
+        err->u.error.num = ERROR_____KEY_ERROR;
+        err->u.error.epoint = *op->epoint2;
+        return err;
+    }
+    return op->v1->obj->calc2(op);
+}
+
 static MUST_CHECK value_t dict_rcalc2(oper_t op) {
     if (op->op == &o_IN) {
         struct pair_s p;
@@ -538,29 +549,6 @@ static MUST_CHECK value_t dict_rcalc2(oper_t op) {
         return truth_reference(b != NULL);
     }
     return op->v1->obj->calc2(op);
-}
-
-static MUST_CHECK value_t dict_iindex(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
-    struct pair_s pair;
-    const struct avltree_node *b;
-    value_t err;
-    pair.key = v2;
-    err = obj_hash(pair.key, &pair.hash, op->epoint2);
-    if (err) return err;
-    b = avltree_lookup(&pair.node, &v1->u.dict.members, pair_compare);
-    if (b) {
-        const struct pair_s *p = cavltree_container_of(b, struct pair_s, node);
-        return val_reference(p->data);
-    }
-    if (v1->u.dict.def) {
-        return val_reference(v1->u.dict.def);
-    }
-    err = val_alloc();
-    err->obj = ERROR_OBJ;
-    err->u.error.num = ERROR_____KEY_ERROR;
-    err->u.error.epoint = *op->epoint2;
-    return err;
 }
 
 static void error_destroy(value_t v1) {
@@ -740,8 +728,6 @@ void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->calc1 = invalid_calc1;
     obj->calc2 = invalid_calc2;
     obj->rcalc2 = invalid_rcalc2;
-    obj->repeat = invalid_repeat;
-    obj->iindex = invalid_iindex;
     obj->ival = invalid_ival;
     obj->uval = invalid_uval;
     obj->real = invalid_real;
@@ -808,8 +794,6 @@ void objects_init(void) {
     error_obj.calc1 = error_calc1;
     error_obj.calc2 = error_calc2;
     error_obj.rcalc2 = error_rcalc2;
-    error_obj.repeat = error_repeat;
-    error_obj.iindex = error_iindex;
     obj_init(&gap_obj, T_GAP, "<gap>");
     gap_obj.hash = gap_hash;
     gap_obj.repr = gap_repr;
@@ -828,8 +812,8 @@ void objects_init(void) {
     dict_obj.same = dict_same;
     dict_obj.len = dict_len;
     dict_obj.repr = dict_repr;
+    dict_obj.calc2 = dict_calc2;
     dict_obj.rcalc2 = dict_rcalc2;
-    dict_obj.iindex = dict_iindex;
     obj_init(&iter_obj, T_ITER, "<iter>");
     iter_obj.destroy = iter_destroy;
     iter_obj.next = iter_next;
