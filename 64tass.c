@@ -209,7 +209,6 @@ void status(int anyerr) {
         printf("Passes:            %u\n",pass);
         if (!errors) sectionprint();
     }
-    destroy_eval();
     tfree();
     free_macro();
     free(waitfors);
@@ -2805,6 +2804,12 @@ static int main2(int argc, char *argv[]) {
 
     fin = openfile(NULL, "", 0, NULL, &nopoint);
     opts = testarg(argc,argv, fin);
+    if (opts <= 0) {
+        tfree();
+        free_macro();
+        free(waitfors);
+        return -opts;
+    }
     init_encoding(arguments.toascii);
     init_defaultlabels();
 
