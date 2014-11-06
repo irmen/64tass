@@ -18,6 +18,7 @@
 */
 #include "mem.h"
 #include <string.h>
+#include <fcntl.h>
 #include "error.h"
 #include "file.h"
 #include "misc.h"
@@ -280,6 +281,9 @@ void output_mem(struct memblocks_s *memblocks) {
 
     if (memblocks->mem.p) {
         if (arguments.output[0] == '-' && !arguments.output[1]) {
+#ifdef _WIN32
+            setmode(fileno(stdout), O_BINARY);
+#endif
             fout = stdout;
         } else {
             if ((fout=file_open(arguments.output,"wb"))==NULL) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
@@ -292,8 +296,12 @@ void output_mem(struct memblocks_s *memblocks) {
         case OUTPUT_RAW: 
         case OUTPUT_CBM: output_mem_c64(fout, memblocks); break;
         }
-        if (ferror(fout)) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
         if (fout != stdout) fclose(fout);
+        else fflush(fout);
+        if (ferror(fout)) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
+#ifdef _WIN32
+        setmode(fileno(stdout), O_TEXT);
+#endif
     }
 }
 
