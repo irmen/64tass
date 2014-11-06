@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <wchar.h>
 #include <wctype.h>
+#include <locale.h>
 #include "error.h"
 #include "misc.h"
 #include "values.h"
@@ -747,11 +748,17 @@ void err_msg_out_of_memory(void)
 
 void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
     mbstate_t ps;
-    const char *s = strerror(errno);
+    const char *s;
     wchar_t w;
     uint8_t s2[10];
-    size_t n = strlen(s), i = 0;
+    size_t n, i = 0;
     ssize_t l;
+
+#ifdef _WIN32
+    setlocale(LC_ALL, "");
+#endif
+    s = strerror(errno);
+    n = strlen(s);
 
     new_error(SV_FATAL, current_file_list, epoint);
     adderror(terr_fatal[no & 63]);
@@ -770,6 +777,9 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
         adderror((char *)s2);
         i += l;
     }
+#ifdef _WIN32
+    setlocale(LC_ALL, "C");
+#endif
     status(1);exit(1);
 }
 

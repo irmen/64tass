@@ -108,7 +108,8 @@ void listing_open(const char *filename, int argc, char *argv[]) {
         putc(' ', flist);
         argv_print(i ? argv[i] : prgname, flist);
     }
-    time(&t); fprintf(flist,"\n; %s",ctime(&t));
+    fputs("\n; ", flist);
+    time(&t); fputs(ctime(&t), flist);
 }
 
 void listing_close(void) {
@@ -354,7 +355,6 @@ void listing_file(const char *txt, const char *name) {
     if (flist) {
         fputs(txt, flist);
         argv_print(name, flist);
-        putc('\n', flist);
-        putc('\n', flist);
+        fputs("\n\n", flist);
     }
 }

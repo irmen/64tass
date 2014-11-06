@@ -25,6 +25,7 @@
  */
 
 #include "my_getopt.h"
+#include "unicode.h"
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -65,9 +66,9 @@ int my_getopt(int argc, char * argv[], const char *opts)
         } else if(*(++s) != ':') {
           charind = 0;
           if(++my_optind >= argc) {
-            if(my_opterr) fprintf(stderr,
-                                "%s: option requires an argument -- %c\n",
-                                argv[0], my_optopt);
+            if(my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
+                            fputs(": option requires an argument -- ", stderr);
+                            putc(my_optopt, stderr); putc('\n', stderr);}
             opt = (colon_mode == ':') ? ':' : '?';
             goto my_getopt_ok;
           }
@@ -77,9 +78,10 @@ int my_getopt(int argc, char * argv[], const char *opts)
       opt = my_optopt;
       goto my_getopt_ok;
     }
-    if(my_opterr) fprintf(stderr,
-                        "%s: illegal option -- %c\n",
-                        argv[0], my_optopt);
+    if(my_opterr) { printable_print((const uint8_t *)argv[0], stderr);
+                    fputs(": illegal option -- ", stderr);
+                    printable_print2((const uint8_t *)argv[my_optind] + charind, stderr, (my_optopt & 0x80) ? utf8len(my_optopt) : 1);
+                    putc('\n', stderr);}
     opt = '?';
     if(argv[my_optind][++charind] == '\0') {
       my_optind++;
@@ -219,9 +221,10 @@ int _my_getopt_internal(int argc, char * argv[], const char *shortopts,
       if(argv[my_optind][charind] == '=') {
         if(longopts[found].has_arg == 0) {
           opt = '?';
-          if(my_opterr) fprintf(stderr,
-                             "%s: option `--%s' doesn't allow an argument\n",
-                             argv[0], longopts[found].name);
+          if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
+                         fputs(": option `--", stderr);
+                         printable_print((const uint8_t *)longopts[found].name, stderr);
+                         fputs("' doesn't allow an argument\n", stderr); }
         } else {
           my_optarg = argv[my_optind] + ++charind;
           /*charind = 0;*/
@@ -229,9 +232,10 @@ int _my_getopt_internal(int argc, char * argv[], const char *shortopts,
       } else if(longopts[found].has_arg == 1) {
         if(++my_optind >= argc) {
           opt = (colon_mode == ':') ? ':' : '?';
-          if(my_opterr) fprintf(stderr,
-                             "%s: option `--%s' requires an argument\n",
-                             argv[0], longopts[found].name);
+          if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
+                         fputs(": option `--", stderr);
+                         printable_print((const uint8_t *)longopts[found].name, stderr);
+                         fputs("' requires an argument\n", stderr); }
         } else my_optarg = argv[my_optind];
       }
       if(!opt) {
@@ -244,15 +248,17 @@ int _my_getopt_internal(int argc, char * argv[], const char *shortopts,
       if(offset == 1) opt = my_getopt(argc, argv, shortopts);
       else {
         opt = '?';
-        if(my_opterr) fprintf(stderr,
-                           "%s: unrecognized option `%s'\n",
-                           argv[0], argv[my_optind++]);
+        if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
+                       fputs(": unrecognized option `", stderr);
+                       printable_print((const uint8_t *)argv[my_optind++], stderr);
+                       fputs("'\n", stderr); }
       }
     } else {
       opt = '?';
-      if(my_opterr) fprintf(stderr,
-                         "%s: option `%s' is ambiguous\n",
-                         argv[0], argv[my_optind++]);
+      if(my_opterr) {printable_print((const uint8_t *)argv[0], stderr);
+                     fputs(": option `", stderr);
+                     printable_print((const uint8_t *)argv[my_optind++], stderr);
+                     fputs("' is ambiguous\n", stderr); }
     }
   }
   if (my_optind > argc) my_optind = argc;

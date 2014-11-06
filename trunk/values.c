@@ -25,6 +25,7 @@
 #include "intobj.h"
 #include "bytesobj.h"
 #include "bitsobj.h"
+#include "unicode.h"
 
 value_t int_value[2];
 value_t none_value;
@@ -189,9 +190,8 @@ int val_print(const value_t v1, FILE *f) {
     struct linepos_s nopoint = {0, 0};
     int len;
     err = v1->obj->repr(v1, &nopoint);
-    if (err->obj == STR_OBJ) {
-        len = fwrite(err->u.str.data, 1, err->u.str.len, f);
-    } else len = fwrite(err->obj->name, 1, strlen(err->obj->name), f);
+    if (err->obj == STR_OBJ) len = printable_print2(err->u.str.data, f, err->u.str.len);
+    else len = printable_print2((uint8_t *)err->obj->name, f, strlen(err->obj->name));
     val_destroy(err);
     return len;
 }

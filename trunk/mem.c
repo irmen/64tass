@@ -19,6 +19,7 @@
 #include "mem.h"
 #include <string.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "error.h"
 #include "file.h"
 #include "misc.h"
@@ -298,7 +299,7 @@ void output_mem(struct memblocks_s *memblocks) {
         }
         if (fout != stdout) fclose(fout);
         else fflush(fout);
-        if (ferror(fout)) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
+        if (ferror(fout) && errno) err_msg_file(ERROR_CANT_WRTE_OBJ, arguments.output, &nopoint);
 #ifdef _WIN32
         setmode(fileno(stdout), O_TEXT);
 #endif
