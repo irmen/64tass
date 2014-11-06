@@ -40,11 +40,15 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoin
     return NULL;
 }
 
-static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
     uint8_t *s;
-    const char *prefix = "<native_function '";
-    size_t len = strlen(prefix);
-    value_t v = val_alloc(STR_OBJ);
+    const char *prefix;
+    size_t len;
+    value_t v;
+    if (!epoint) return NULL;
+    prefix = "<native_function '";
+    len = strlen(prefix);
+    v = val_alloc(STR_OBJ);
     v->u.str.len = v1->u.function.name.len + 2 + len;
     if (v->u.str.len < (2 + len)) err_msg_out_of_memory(); /* overflow */
     v->u.str.chars = v->u.str.len;

@@ -32,7 +32,6 @@
 #include "mem.h"
 
 #define VERBOSE 0
-#define TAB_SIZE 8
 #define HEX_COLUMN 9
 #define MONITOR_COLUMN 24
 #define SOURCE_COLUMN 40
@@ -150,12 +149,9 @@ static void printllist(int l) {
 
 void listing_equal(const value_t val) {
     if (!nolisting && flist && arguments.source && !temporary_label_branch) {
-        int oldreferenceit = referenceit;
         int l;
         putc('=', flist);
-        referenceit = 0;
         l = val_print(val, flist) + 1;
-        referenceit = oldreferenceit;
         printllist(l);
     }
 }

@@ -186,13 +186,16 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 }
 
 int val_print(const value_t v1, FILE *f) {
+    int oldreferenceit = referenceit;
     value_t err;
     struct linepos_s nopoint = {0, 0};
     int len;
+    referenceit = 0;
     err = v1->obj->repr(v1, &nopoint);
     if (err->obj == STR_OBJ) len = printable_print2(err->u.str.data, f, err->u.str.len);
     else len = printable_print2((uint8_t *)err->obj->name, f, strlen(err->obj->name));
     val_destroy(err);
+    referenceit = oldreferenceit;
     return len;
 }
 

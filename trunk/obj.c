@@ -110,10 +110,11 @@ static MUST_CHECK value_t invalid_hash(const value_t v1, int *UNUSED(hash), line
     return generic_invalid(v1, epoint, ERROR__NOT_HASHABLE);
 }
 
-static MUST_CHECK value_t invalid_repr(const value_t v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t invalid_repr(const value_t v1, linepos_t epoint) {
     value_t v;
     uint8_t *s;
     const char *name;
+    if (!epoint) return NULL;
     if (v1->obj == ERROR_OBJ) {
         return val_reference(v1);
     }
@@ -444,12 +445,12 @@ static MUST_CHECK value_t dict_repr(const value_t v1, linepos_t epoint) {
             while (n) {
                 p = cavltree_container_of(n, struct pair_s, node);
                 v = p->key->obj->repr(p->key, epoint);
-                if (v->obj != STR_OBJ) goto error;
+                if (!v || v->obj != STR_OBJ) goto error;
                 len += v->u.str.len;
                 if (len < v->u.str.len) err_msg_out_of_memory(); /* overflow */
                 tmp[i++] = v;
                 v = p->data->obj->repr(p->data, epoint);
-                if (v->obj != STR_OBJ) goto error;
+                if (!v || v->obj != STR_OBJ) goto error;
                 len += v->u.str.len;
                 if (len < v->u.str.len) err_msg_out_of_memory(); /* overflow */
                 tmp[i++] = v;
@@ -458,7 +459,7 @@ static MUST_CHECK value_t dict_repr(const value_t v1, linepos_t epoint) {
         }
         if (def) {
             v = v1->u.dict.def->obj->repr(v1->u.dict.def, epoint);
-            if (v->obj != STR_OBJ) {
+            if (!v || v->obj != STR_OBJ) {
             error:
                 while (i--) val_destroy(tmp[i]);
                 free(tmp);
@@ -551,11 +552,15 @@ static void error_destroy(value_t v1) {
     }
 }
 
-static MUST_CHECK value_t oper_repr(const value_t v1, linepos_t UNUSED(epoint)) {
-    const char *txt = v1->u.oper.name;
-    size_t len = strlen(txt);
+static MUST_CHECK value_t oper_repr(const value_t v1, linepos_t epoint) {
+    const char *txt;
+    size_t len;
     uint8_t *s;
-    value_t v = val_alloc(STR_OBJ);
+    value_t v;
+    if (!epoint) return NULL;
+    v = val_alloc(STR_OBJ);
+    txt = v1->u.oper.name;
+    len = strlen(txt);
     s = str_create_elements(v, len + 8);
     memcpy(s, "<oper ", 6);
     memcpy(s + 6, txt, len);
@@ -583,7 +588,8 @@ static MUST_CHECK value_t none_hash(const value_t UNUSED(v1), int *UNUSED(v), li
     return val_reference(none_value);
 }
 
-static MUST_CHECK value_t none_repr(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t none_repr(const value_t UNUSED(v1), linepos_t epoint) {
+    if (!epoint) return NULL;
     return val_reference(none_value);
 }
 

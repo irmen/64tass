@@ -28,6 +28,8 @@
 #include "strobj.h"
 #include "obj.h"
 
+#define EQUAL_COLUMN 16
+
 struct label_s *root_label;
 struct label_s builtin_label;
 struct label_s *current_context;
@@ -313,6 +315,14 @@ static void labelname_print(const struct label_s *l, FILE *flab) {
     printable_print2(l->name.data, flab, l->name.len);
 }
 
+static inline void padding(int l, int t, FILE *f) {
+    if (TAB_SIZE > 1) {
+        int l2 = l - l % TAB_SIZE;
+        while (l2 + TAB_SIZE <= t) { l2 += TAB_SIZE; l = l2; putc('\t', f);} 
+    }
+    while (l < t) { l++; putc(' ', f);} 
+}
+
 static void labelprint2(const struct avltree *members, FILE *flab) {
     struct avltree_node *n;
     struct label_s *l;
@@ -377,15 +387,13 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
             }
             labelprint2(&l->members, flab);
         } else {
+            value_t val = l->value->obj->repr(l->value, NULL);
+            if (!val || val->obj != STR_OBJ) continue;
             size_t len = printable_print2(l->name.data, flab, l->name.len);
-            if (l->constant) {
-                if (len < 16) fputs(&"                "[len], flab);
-                fputs("= ", flab);
-            } else {
-                if (len < 15) fputs(&"               "[len], flab);
-                fputs(" .var ", flab);
-            }
-            val_print(l->value, flab);
+            padding(len, EQUAL_COLUMN, flab);
+            if (l->constant) fputs("= ", flab);
+            else fputs(&" .var "[len < EQUAL_COLUMN], flab);
+            printable_print2(val->u.str.data, flab, val->u.str.len);
             putc('\n', flab);
         }
     }
