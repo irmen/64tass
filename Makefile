@@ -86,7 +86,7 @@ misc.o: misc.c misc.h inttypes.h 64tass.h opcodes.h getopt.h my_getopt.h \
  section.h libtree.h mem.h encoding.h file.h eval.h values.h error.h \
  obj.h intobj.h bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h \
  addressobj.h functionobj.h variables.h ternary.h unicode.h unicodedata.h
-my_getopt.o: my_getopt.c my_getopt.h
+my_getopt.o: my_getopt.c my_getopt.h unicode.h inttypes.h unicodedata.h
 obj.o: obj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
  functionobj.h variables.h misc.h section.h mem.h 64tass.h opcodes.h \
@@ -103,7 +103,7 @@ unicodedata.o: unicodedata.c unicodedata.h
 unicode.o: unicode.c unicode.h inttypes.h unicodedata.h error.h libtree.h
 values.o: values.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h listobj.h codeobj.h addressobj.h \
- functionobj.h boolobj.h
+ functionobj.h boolobj.h unicode.h unicodedata.h
 variables.o: variables.c unicode.h inttypes.h unicodedata.h variables.h \
  libtree.h misc.h values.h error.h obj.h intobj.h bitsobj.h bytesobj.h \
  strobj.h listobj.h codeobj.h addressobj.h functionobj.h 64tass.h \

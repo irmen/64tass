@@ -2915,11 +2915,24 @@ static int main2(int argc, char *argv[]) {
 }
 
 #ifdef _WIN32
+static UINT oldcodepage;
+static UINT oldcodepage2;
+
+void myexit(void) {
+    SetConsoleCP(oldcodepage2);
+    SetConsoleOutputCP(oldcodepage);
+}
+
 int wmain(int argc, wchar_t *argv2[]) {
     int i, r;
 
-    setlocale(LC_ALL, "");
-    setlocale(LC_NUMERIC, "C");
+    if (IsValidCodePage(CP_UTF8)) {
+        oldcodepage = GetConsoleOutputCP();
+        oldcodepage2 = GetConsoleCP();
+        SetConsoleCP(CP_UTF8);
+        SetConsoleOutputCP(CP_UTF8);
+        atexit(myexit);
+    }
 
     char **argv = (char **)malloc(sizeof(char *)*argc);
     for (i = 0; i < argc; i++) {

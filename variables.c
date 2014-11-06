@@ -17,6 +17,7 @@
 
 */
 #include <string.h>
+#include <errno.h>
 #include "unicode.h"
 #include "variables.h"
 #include "misc.h"
@@ -384,7 +385,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
                 if (len < 15) fputs(&"               "[len], flab);
                 fputs(" .var ", flab);
             }
-            obj_print(l->value, flab);
+            val_print(l->value, flab);
             putc('\n', flab);
         }
     }
@@ -403,7 +404,7 @@ void labelprint(void) {
     labelprint2(&root_label->members, flab);
     if (flab != stdout) fclose(flab);
     else fflush(flab);
-    if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
+    if (ferror(flab) && errno) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
 }
 
 

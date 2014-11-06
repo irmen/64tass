@@ -344,7 +344,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
 
 void argv_print(const char *line, FILE *f) {
 #ifdef _WIN32
-    size_t i = 0, l = 0, back;
+    size_t i = 0, back;
     int quote = 0, space = 0;
 
     for (;;i++) {
@@ -366,20 +366,17 @@ void argv_print(const char *line, FILE *f) {
     for (;;) {
         uint32_t ch = (uint8_t)line[i];
         if (ch & 0x80) {
-            if (l != i) fwrite(line + l, 1, i - l, f);
-            i += utf8in((const uint8_t *)line + i, &ch);
-            l = i;
+            unsigned int ln = utf8in((const uint8_t *)line + i, &ch);
             if (iswprint(ch)) {
-                mbstate_t ps;
-                char temp[64];
-                size_t ln;
-                memset(&ps, 0, sizeof(ps));
-                ln = wcrtomb(temp, ch, &ps);
-                if (ln != (size_t)-1) {
-                    fwrite(temp, ln, 1, f);
+                char tmp[64];
+                memcpy(tmp, line + i, ln);
+                tmp[ln] = 0;
+                if (fwprintf(f, L"%S", tmp) > 0) {
+                    i += ln;
                     continue;
                 }
             }
+            i += ln;
             putc('?', f);
             continue;
         }
@@ -392,40 +389,33 @@ void argv_print(const char *line, FILE *f) {
         }
         if (!space || quote) {
             if (strchr("()%!^<>&|\"", ch)) {
-                if (l != i) fwrite(line + l, 1, i - l, f);
                 if (ch == '"') {
                     while (back--) putc('\\', f);
                     putc('\\', f);
                 }
                 putc('^', f);
-                l = i;
             }
         } else {
             if (ch == '%') {
-                if (l != i) fwrite(line + l, 1, i - l, f);
                 putc('^', f);
-                l = i;
             }
         }
         back = 0;
- 
+
+        i++;
         if (!isprint(ch)) {
-            if (l != i) fwrite(line + l, 1, i - l, f);
-            i++;
             putc('?', f);
-            l = i;
             continue;
         }
-        i++;
+        putc(ch, f);
     }
-    if (i != l) fwrite(line + l, i - l, 1, f);
     if (space) {
         while (back--) putc('\\', f);
         if (quote) putc('^', f);
         putc('"', f);
     }
 #else
-    size_t i, l = 0;
+    size_t i;
     int quote = 0;
 
     for (i = 0;line[i];i++) {
@@ -444,9 +434,7 @@ void argv_print(const char *line, FILE *f) {
     for (;;) {
         uint32_t ch = (uint8_t)line[i];
         if (ch & 0x80) {
-            if (l != i) fwrite(line + l, 1, i - l, f);
             i += utf8in((const uint8_t *)line + i, &ch);
-            l = i;
             if (iswprint(ch)) {
                 mbstate_t ps;
                 char temp[64];
@@ -467,27 +455,57 @@ void argv_print(const char *line, FILE *f) {
             if (strchr("$`\"\\", ch)) putc('\\', f);
         } else {
             if (strchr(" !\"$&()*;<>'?[\\]`{|}", ch)) {
-                if (l != i) fwrite(line + l, 1, i - l, f);
                 putc('\\', f);
-                l = i;
             }
         }
- 
+
+        i++;
         if (!isprint(ch)) {
+            fprintf(f, "$'\\x%x'", ch);
+            continue;
+        }
+        putc(ch, f);
+    }
+    if (quote) putc('"', f);
+#endif
+}
+
+void printable_print(const uint8_t *line, FILE *f) {
+#ifdef _WIN32
+    size_t i = 0, l = 0;
+    for (;;) {
+        uint32_t ch = line[i];
+        if (ch & 0x80) {
+            unsigned int ln;
+            if (l != i) fwrite(line + l, 1, i - l, f);
+            ln = utf8in(line + i, &ch);
+            if (iswprint(ch)) {
+                char tmp[64];
+                memcpy(tmp, line + i, ln);
+                tmp[ln] = 0;
+                if (fwprintf(f, L"%S", tmp) > 0) {
+                    i += ln;
+                    l = i;
+                    continue;
+                }
+            }
+            i += ln;
+            l = i;
+            fprintf(f, "{$%x}", ch);
+            continue;
+        }
+        if (ch == 0) break;
+        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
             if (l != i) fwrite(line + l, 1, i - l, f);
             i++;
-            fprintf(f, "$'\\x%x'", ch);
+            fprintf(f, "{$%x}", ch);
             l = i;
             continue;
         }
         i++;
     }
     if (i != l) fwrite(line + l, i - l, 1, f);
-    if (quote) putc('"', f);
-#endif
-}
-
-void printable_print(const uint8_t *line, FILE *f) {
+#else
     size_t i = 0, l = 0;
     for (;;) {
         uint32_t ch = line[i];
@@ -520,9 +538,49 @@ void printable_print(const uint8_t *line, FILE *f) {
         i++;
     }
     if (i != l) fwrite(line + l, i - l, 1, f);
+#endif
 }
 
 size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
+#ifdef _WIN32
+    size_t i, l = 0, len = 0;
+    int err;
+    for (i = 0; i < max;) {
+        uint32_t ch = line[i];
+        if (ch & 0x80) {
+            unsigned int ln;
+            if (l != i) len += fwrite(line + l, 1, i - l, f);
+            ln = utf8in(line + i, &ch);
+            if (iswprint(ch)) {
+                char tmp[64];
+                memcpy(tmp, line + i, ln);
+                tmp[ln] = 0;
+                if (fwprintf(f, L"%S", tmp) >= 0) {
+                    i += ln;
+                    l = i;
+                    len++;
+                    continue;
+                }
+            }
+            i += ln;
+            l = i;
+            err = fprintf(f, "{$%x}", ch);
+            if (err >= 0) len += err;
+            continue;
+        }
+        if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
+            if (l != i) len += fwrite(line + l, 1, i - l, f);
+            i++;
+            l = i;
+            err = fprintf(f, "{$%x}", ch);
+            if (err >= 0) len += err;
+            continue;
+        }
+        i++;
+    }
+    if (i != l) len += fwrite(line + l, 1, i - l, f);
+    return len;
+#else
     size_t i, l = 0, len = 0;
     int err;
     for (i = 0; i < max;) {
@@ -558,6 +616,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
     }
     if (i != l) len += fwrite(line + l, 1, i - l, f);
     return len;
+#endif
 }
 
 void caret_print(const uint8_t *line, FILE *f, size_t max) {
@@ -566,6 +625,21 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
         char temp[64];
         uint32_t ch = line[i];
         if (ch & 0x80) {
+#ifdef _WIN32
+            unsigned int ln = utf8in(line + i, &ch);
+            if (iswprint(ch)) {
+                char tmp[64];
+                wchar_t tmp2[64];
+                memcpy(tmp, line + i, ln);
+                tmp[ln] = 0;
+                if (swprintf(tmp2, sizeof(tmp2) / sizeof(tmp2[0]), L"%S", tmp) > 0) {
+                    i += ln;
+                    l++;
+                    continue;
+                }
+            }
+            i += ln;
+#else
             i += utf8in(line + i, &ch);
             if (iswprint(ch)) {
                 mbstate_t ps;
@@ -575,6 +649,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
                     continue;
                 }
             }
+#endif
             l += sprintf(temp, "{$%x}", ch);
             continue;
         }

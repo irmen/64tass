@@ -24,8 +24,6 @@
 struct oper_s;
 struct values_s;
 
-#define obj_print(v, f) val_print(v, f)
-
 struct pair_s {
     int hash;
     value_t key;

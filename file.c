@@ -19,6 +19,7 @@
 #include <string.h>
 #include <wchar.h>
 #include <errno.h>
+#include <locale.h>
 #include "file.h"
 #include "values.h"
 #include "misc.h"
@@ -350,6 +351,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const val
                 }
                 bl = fread(buffer, 1, BUFSIZ, f);
                 if (bl && !buffer[0]) type = E_UTF16BE; /* most likely */
+#ifdef _WIN32
+                setlocale(LC_CTYPE, "");
+#endif
                 do {
                     int i, j;
                     uint8_t *p;
@@ -560,6 +564,9 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const val
                     p[i++] = 0;
                     fp += i;
                 } while (bp != bl);
+#ifdef _WIN32
+                setlocale(LC_CTYPE, "C");
+#endif
                 free(ubuff.data);
                 if (tmp->lines != max_lines) {
                     tmp->line = (size_t *)realloc(tmp->line, tmp->lines * sizeof(tmp->line[0]));
@@ -567,7 +574,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const val
                 }
             }
             if (f!=stdin) fclose(f);
-            if (ferror(f)) err_msg_file(ERROR__READING_FILE, name, epoint);
+            if (ferror(f) && errno) err_msg_file(ERROR__READING_FILE, name, epoint);
             tmp->len = fp;
             tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
             if (!tmp->data) err_msg_out_of_memory();
