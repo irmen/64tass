@@ -103,7 +103,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
     value_t tmp, v;
 
     tmp = v1->u.addr.val->obj->repr(v1->u.addr.val, epoint);
-    if (tmp->obj != STR_OBJ) return tmp;
+    if (!tmp || tmp->obj != STR_OBJ) return tmp;
     ind2 = 0;
     addrtype = v1->u.addr.type;
     ind = 99;

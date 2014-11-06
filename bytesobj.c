@@ -72,10 +72,12 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
     }
 }
 
-static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
     size_t i, len, len2;
     uint8_t *s;
-    value_t v = val_alloc(STR_OBJ);
+    value_t v;
+    if (!epoint) return NULL; /* not yet */
+    v = val_alloc(STR_OBJ);
     len2 = v1->u.bytes.len * 4;
     len = 9 - (v1->u.bytes.len > 0) + len2;
     if (len < len2 || v1->u.bytes.len > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */

@@ -97,7 +97,7 @@ static MUST_CHECK value_t repr_listtuple(const value_t v1, linepos_t epoint) {
         if (!tmp || llen > SIZE_MAX / sizeof(value_t)) err_msg_out_of_memory(); /* overflow */
         for (i = 0;i < llen; i++) {
             err = v1->u.list.data[i]->obj->repr(v1->u.list.data[i], epoint);
-            if (err->obj != STR_OBJ) {
+            if (!err || err->obj != STR_OBJ) {
                 while (i--) val_destroy(tmp[i]);
                 free(tmp);
                 return err;

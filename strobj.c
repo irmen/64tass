@@ -72,11 +72,8 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
     return ret;
 }
 
-static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
-    size_t i2, i, sq = 0, dq = 0;
-    uint8_t *s, *s2;
-    char q;
-    value_t v = val_alloc(STR_OBJ);
+static size_t quoting(const value_t v1, char *q) {
+    size_t i, sq = 0, dq = 0;
     for (i = 0; i < v1->u.str.len; i++) {
         switch (v1->u.str.data[i]) {
         case '\'': sq++; continue;
@@ -86,12 +83,21 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     if (sq < dq) {
         i += sq;
         if (i < sq) err_msg_out_of_memory(); /* overflow */
-        q = '\'';
+        *q = '\'';
     } else {
         i += dq;
         if (i < dq) err_msg_out_of_memory(); /* overflow */
-        q = '"';
+        *q = '"';
     }
+    return i;
+}
+
+static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
+    size_t i2, i;
+    uint8_t *s, *s2;
+    char q;
+    value_t v = val_alloc(STR_OBJ);
+    i = quoting(v1, &q);
 
     i2 = i + 2;
     if (i2 < 2) err_msg_out_of_memory(); /* overflow */
@@ -107,7 +113,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     s[i] = q;
     v->u.str.data = s2;
     v->u.str.len = i2;
-    v->u.str.chars = i2;
+    v->u.str.chars = i2 - (i - v1->u.str.chars);
     return v;
 }
 
@@ -722,19 +728,31 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 static MUST_CHECK value_t register_repr(const value_t v1, linepos_t UNUSED(epoint)) {
-    uint8_t *s;
-    const char *prefix = "<register '";
-    size_t ln = strlen(prefix), len2 = v1->u.str.len;
+    size_t i2, i;
+    uint8_t *s, *s2;
+    char q;
+    const char *prefix = "register(";
+    size_t ln = strlen(prefix) + 3;
     value_t v = val_alloc(STR_OBJ);
-    v->u.str.len = v1->u.str.len + 2 + ln;
-    v->u.str.chars = v->u.str.chars + 2 + ln;
-    if (v->u.str.len < (2 + ln)) err_msg_out_of_memory(); /* overflow */
-    s = str_create_elements(v, v->u.str.len);
-    memcpy(s, prefix, ln);
-    memcpy(s + ln, v1->u.str.data, len2);
-    s[v->u.str.len - 2] = '\'';
-    s[v->u.str.len - 1] = '>';
-    v->u.str.data = s;
+    i = quoting(v1, &q);
+
+    i2 = i + ln;
+    if (i2 < ln) err_msg_out_of_memory(); /* overflow */
+    s2 = s = snew(v, i2);
+
+    while (*prefix) *s++ = *prefix++;
+    *s++ = q;
+    for (i = 0; i < v1->u.str.len; i++) {
+        s[i] = v1->u.str.data[i];
+        if (s[i] == q) {
+            s++; s[i] = q;
+        }
+    }
+    s[i] = q;
+    s[i+1] = ')';
+    v->u.str.data = s2;
+    v->u.str.len = i2;
+    v->u.str.chars = i2 - (i - v1->u.str.chars);
     return v;
 }
 
