@@ -729,7 +729,7 @@ static MUST_CHECK value_t concat(value_t vv1, value_t vv2) {
     if (blen % (8 * sizeof(bdigit_t))) sz++;
     vv = val_alloc(BITS_OBJ);
     v = bnew(vv, sz);
-    inv = -vv2->u.bits.inv;
+    inv = -(vv2->u.bits.inv ^ vv1->u.bits.inv);
 
     v1 = vv2->u.bits.data;
     rbits = vv2->u.bits.bits / 8 / sizeof(bdigit_t);
