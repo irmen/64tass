@@ -114,6 +114,7 @@ void listing_open(const char *filename, int argc, char *argv[]) {
 void listing_close(void) {
     fputs("\n;******  End of listing\n", flist);
     if (flist != stdout) fclose(flist);
+    else fflush(flist);
     flist = NULL;
 }
 

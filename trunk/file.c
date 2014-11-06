@@ -566,8 +566,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const val
                     if (!tmp->lines) err_msg_out_of_memory();
                 }
             }
-            if (ferror(f)) err_msg_file(ERROR__READING_FILE, name, epoint);
             if (f!=stdin) fclose(f);
+            if (ferror(f)) err_msg_file(ERROR__READING_FILE, name, epoint);
             tmp->len = fp;
             tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
             if (!tmp->data) err_msg_out_of_memory();

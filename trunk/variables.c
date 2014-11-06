@@ -401,8 +401,9 @@ void labelprint(void) {
     }
     clearerr(flab);
     labelprint2(&root_label->members, flab);
-    if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
     if (flab != stdout) fclose(flab);
+    else fflush(flab);
+    if (ferror(flab)) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
 }
 
 
