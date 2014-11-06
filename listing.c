@@ -32,11 +32,25 @@
 #include "mem.h"
 
 #define VERBOSE 0
+#define TAB_SIZE 8
+#define HEX_COLUMN 9
+#define MONITOR_COLUMN 24
+#define SOURCE_COLUMN 40
 
 unsigned int nolisting;   /* listing */
 const uint8_t *llist = NULL;
 static FILE* flist = NULL;      /* listfile */
 static const char *hex = "0123456789abcdef";
+
+static int padding(int l, int t) {
+    if (l >= t) {putc('\n', flist); l = 0;}
+    if (TAB_SIZE > 1) {
+        int l2 = l - l % TAB_SIZE;
+        while (l2 + TAB_SIZE <= t) { l2 += TAB_SIZE; l = l2; putc('\t', flist);} 
+    }
+    while (l < t) { l++; putc(' ', flist);} 
+    return l;
+}
 
 static inline char *out_hex(char *s, unsigned int c) {
     *s++ = hex[(c >> 4) & 15];
@@ -125,8 +139,7 @@ static void printllist(int l) {
             const uint8_t *c = llist;
             while (*c == 0x20 || *c == 0x09) c++;
             if (*c) {
-                if (l >= 40) {putc('\n', flist); l = 0;}
-                while (l < 40) { l += 8; putc('\t', flist);} 
+                padding(l, SOURCE_COLUMN);
                 printable_print(llist, flist);
             }
             llist = NULL;
@@ -167,16 +180,14 @@ void listing_line(linecpos_t pos) {
             l = (i < pos) ? printaddr('.', current_section->address) : 0;
             if (VERBOSE) {
                 if (llist[i]) {
-                    if (l >= 40) {putc('\n', flist); l = 0;}
-                    while (l < 40) { l += 8; putc('\t', flist);} 
+                    padding(l, SOURCE_COLUMN);
                     printable_print(llist, flist);
                 }
                 putc('\n', flist);
             } else {
                 if (l) {
                     while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
-                    if (l >= 40) {putc('\n', flist); l = 0;}
-                    while (l < 40) { l += 8; putc('\t', flist);} 
+                    padding(l, SOURCE_COLUMN);
                     printable_print2(llist, flist, pos);
                     putc('\n', flist);
                 }
@@ -194,8 +205,7 @@ void listing_line_cut(linecpos_t pos) {
             if (i < pos) {
                 int l = printaddr('.', current_section->address);
                 while (llist[pos-1] == 0x20 || llist[pos-1] == 0x09) pos--;
-                if (l >= 40) {putc('\n', flist); l = 0;}
-                while (l < 40) { l += 8; putc('\t', flist);} 
+                padding(l, SOURCE_COLUMN);
                 printable_print2(llist, flist, pos);
                 putc('\n', flist);
             }
@@ -208,9 +218,7 @@ void listing_line_cut2(linecpos_t pos) {
     if (VERBOSE) {
         if (!nolisting && flist && arguments.source && !temporary_label_branch) {
             if (llist) {
-                int l = 0;
-                if (l >= 40) {putc('\n', flist); l = 0;}
-                while (l < 40) { l += 8; putc('\t', flist);} 
+                padding(0, SOURCE_COLUMN);
                 caret_print(llist, flist, pos);
                 printable_print(llist + pos, flist);
                 putc('\n', flist);
@@ -230,26 +238,26 @@ void listing_set_cpumode(const struct cpu_s *cpumode) {
 
 void listing_instr(uint8_t cod, uint32_t adr, int ln) {
     if (!nolisting && flist && !temporary_label_branch) {
-        int i;
+        int i, l;
 
-        printaddr('.', current_section->address - ln - 1);
-        putc((all_mem == 0xffff) ? '\t' : ' ', flist);
+        l = printaddr('.', current_section->address - ln - 1);
         if (current_section->dooutput) {
-            char str[32], *s = str;
+            char str[32], *s;
             if (ln >= 0) {
                 uint32_t temp = adr;
-                *s++ = ' '; s = out_hex(s, cod ^ outputeor);
+                l = padding(l, HEX_COLUMN);
+                s = out_hex(str, cod ^ outputeor);
                 for (i = 0; i < ln; i++) {*s++ = ' '; s = out_hex(s, temp); temp >>= 8;}
+                *s = 0;
+                fputs(str, flist);
+                l += s - str;
             }
-            if (ln < 2) *s++ = '\t';
-            *s++ = '\t';
-            *s = 0;
-            fputs(str, flist);
             if (arguments.monitor) {
-                const char *post = "";
-                s = str;
                 if (ln >= 0) {
+                    const char *post = "";
                     uint32_t mnem = mnemonic[disasm[cod] & 0xff];
+                    l = padding(l, MONITOR_COLUMN);
+                    s = str;
                     for (i = 16; i >= 0; i -= 8) *s++ = mnem >> i;
                     *s++ = ' ';
 
@@ -294,15 +302,15 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
                     case ADR_MOVE: s = out_byte(s, adr >> 8); *s++ = ','; s = out_byte(s, adr);
                     case ADR_LEN: break;/* not an addressing mode */
                     }
+                    while (*post) *s++ = *post++;
+                    *s = 0;
+                    fputs(str, flist);
+                    l += s - str;
                 }
-                while (*post) *s++ = *post++;
-                if (s < str + 8) *s++ = '\t';
-                *s = 0;
-                fputs(str, flist);
-            } else if (arguments.source) putc('\t', flist);
-        } else if (arguments.source) fputs("\t\t\t", flist);
+            }
+        }
         if (arguments.source) {
-            printllist(32);
+            printllist(l);
         } else putc('\n', flist);
     }
 }
@@ -316,34 +324,33 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr) {
 
     print = 1;
     l = printaddr('>', myaddr);
-    lcol = arguments.source ? 8 : 16;
-    s = str;
     if (len) {
         size_t p = 0;
-        while (l < 8) {l += 8; putc('\t', flist);}
-        l &= ~7;
+        lcol = arguments.source ? 8 : 16;
+        s = str;
+        l = padding(l, HEX_COLUMN);
         while (len) {
             if (!lcol--) {
                 *s = 0;
-                fputs(str, flist);
+                fputs(str + 1, flist);
+                l += s - str - 1;
                 s = str;
                 if (arguments.source && print) {
                     printllist(l);
                     print = 0;
                 } else putc('\n',flist);
                 l = printaddr('>', myaddr);
-                while (l < 8) {l += 8; putc('\t', flist);}
-                l &= ~7;
+                l = padding(l, HEX_COLUMN);
                 lcol = 15;
             }
             *s++ = ' ';
             s = out_hex(s, data[p++]);
-            l += 3;
             myaddr = (myaddr + 1) & all_mem;
             len--;
         }
         *s = 0;
-        fputs(str, flist);
+        fputs(str + 1, flist);
+        l += s - str - 1;
     }
 
     if (arguments.source && print) {
