@@ -138,6 +138,7 @@ void str_cpy(str_t *s1, const str_t *s2) {
 }
 
 void tfree(void) {
+    destroy_eval();
     destroy_variables();
     destroy_section();
     destroy_file();
@@ -259,14 +260,10 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "        [--mw65c02] [--m65ce02] [--labels=<file>] [--list=<file>]\n"
                "        [--no-monitor] [--no-source] [--help] [--usage] [--version]\n"
                "        SOURCES");
-                   destroy_eval();
-                   tfree();
-                   exit(0);
+                   return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
-                     destroy_eval();
-                     tfree();
-                     exit(0);
+                     return 0;
             case 3:
             case '?':if (optopt=='?' || opt==3) { puts(
                "Usage: 64tass [OPTIONS...] SOURCES\n"
@@ -315,14 +312,10 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "for any corresponding short options.\n"
                "\n"
                "Report bugs to <soci" "\x40" "c64.rulez.org>.");
-               destroy_eval();
-               tfree();
-               exit(0);
+               return 0;
             }
             default:fputs("Try `64tass --help' or `64tass --usage' for more information.\n", stderr);
-                    destroy_eval();
-                    tfree();
-                    exit(1);
+                    return -1;
         }
     }
     if (fin->lines != max_lines) {
@@ -341,9 +334,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
     if (argc <= optind) {
         fputs("Usage: 64tass [OPTIONS...] SOURCES\n"
               "Try `64tass --help' or `64tass --usage' for more information.\n", stderr);
-        destroy_eval();
-        tfree();
-        exit(1);
+        return -1;
     }
     return optind;
 }
