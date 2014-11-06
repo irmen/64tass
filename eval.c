@@ -1514,11 +1514,6 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         }
         lpoint.pos++;
     rtl:
-        prec = op->u.oper.prio;
-        while (operp && prec < o_oper[operp-1].val->u.oper.prio) {
-            operp--;
-            push_oper(o_oper[operp].val, &o_oper[operp].epoint);
-        }
         o_oper[operp].epoint = epoint;
         o_oper[operp++].val = op;
         continue;
