@@ -76,8 +76,8 @@ MUST_CHECK value_t obj_oper_error(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v = val_alloc(ERROR_OBJ);
     v->u.error.num = ERROR__INVALID_OPER;
     v->u.error.u.invoper.op = op->op;
-    v->u.error.u.invoper.v1 = v1 ? val_reference(v1) : NULL;
-    v->u.error.u.invoper.v2 = v2 ? val_reference(v2) : NULL;
+    v->u.error.u.invoper.v1 = v1 ? (v1->refcount ? val_reference(v1) : v1) : NULL;
+    v->u.error.u.invoper.v2 = v2 ? (v2->refcount ? val_reference(v2) : v2) : NULL;
     v->u.error.epoint = *op->epoint3;
     return v;
 }
