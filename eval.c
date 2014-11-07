@@ -314,7 +314,6 @@ void touch_label(struct label_s *tmp) {
 static MUST_CHECK value_t get_star(linepos_t epoint) {
     struct star_s *tmp;
     int labelexists;
-    value_t v;
 
     tmp=new_star(vline, &labelexists);
     if (labelexists && tmp->addr != star) {
@@ -322,10 +321,7 @@ static MUST_CHECK value_t get_star(linepos_t epoint) {
         fixeddig = 0;
     }
     tmp->addr=star;
-    v = val_alloc(ADDRESS_OBJ);
-    v->u.addr.type = A_NONE;
-    v->u.addr.val = int_from_uval(star);
-    return v;
+    return int_from_uval(star);
 }
 
 static size_t evxnum, evx_p;

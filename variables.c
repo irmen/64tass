@@ -400,6 +400,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
 }
 
 void labelprint(void) {
+    int oldreferenceit = referenceit;
     FILE *flab;
     struct linepos_s nopoint = {0, 0};
 
@@ -409,7 +410,9 @@ void labelprint(void) {
         if (!(flab = file_open(arguments.label, "wt"))) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
     }
     clearerr(flab);
+    referenceit = 0;
     labelprint2(&root_label->members, flab);
+    referenceit = oldreferenceit;
     if (flab != stdout) fclose(flab);
     else fflush(flab);
     if (ferror(flab) && errno) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
