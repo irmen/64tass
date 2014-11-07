@@ -20,11 +20,6 @@
 #include "values.h"
 
 #include "boolobj.h"
-#include "listobj.h"
-#include "strobj.h"
-#include "intobj.h"
-#include "bytesobj.h"
-#include "bitsobj.h"
 #include "unicode.h"
 
 value_t int_value[2];

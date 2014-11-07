@@ -24,8 +24,6 @@
 #include "eval.h"
 #include "variables.h"
 #include "floatobj.h"
-#include "boolobj.h"
-#include "listobj.h"
 
 static struct obj_s obj;
 

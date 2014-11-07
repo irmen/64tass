@@ -24,8 +24,6 @@
 #include "values.h"
 #include "64tass.h"
 #include "file.h"
-#include "boolobj.h"
-#include "strobj.h"
 #include "obj.h"
 
 #define EQUAL_COLUMN 16

@@ -20,14 +20,10 @@
 #include <math.h>
 #include "values.h"
 #include "intobj.h"
-#include "eval.h"
 #include "unicode.h"
 #include "encoding.h"
 
-#include "strobj.h"
-#include "boolobj.h"
 #include "floatobj.h"
-#include "addressobj.h"
 
 #define SHIFT 30
 #define MASK ((1 << SHIFT)-1)

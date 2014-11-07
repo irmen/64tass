@@ -24,16 +24,8 @@
 #include "64tass.h"
 #include "eval.h"
 
-#include "listobj.h"
 #include "boolobj.h"
-#include "addressobj.h"
-#include "codeobj.h"
 #include "floatobj.h"
-#include "strobj.h"
-#include "bytesobj.h"
-#include "bitsobj.h"
-#include "intobj.h"
-#include "functionobj.h"
 #include "macro.h"
 
 int referenceit = 1;
@@ -742,6 +734,7 @@ void objects_init(void) {
     addressobj_init();
     codeobj_init();
     strobj_init();
+    registerobj_init();
     listobj_init();
     bytesobj_init();
     bitsobj_init();

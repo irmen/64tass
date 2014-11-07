@@ -16,20 +16,18 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _STROBJ_H
-#define _STROBJ_H
+#ifndef _REGISTEROBJ_H
+#define _REGISTEROBJ_H
 
-extern obj_t STR_OBJ;
+extern obj_t REGISTER_OBJ;
 
 typedef struct {
     size_t len;
     size_t chars;
     uint8_t *data;
     uint8_t val[16];
-} ustr_t;
+} ureg_t;
 
-extern void strobj_init(void);
-extern MUST_CHECK value_t str_from_str(const uint8_t *, size_t *);
-extern uint8_t *str_create_elements(value_t, size_t);
-extern size_t str_quoting(const value_t, char *);
+extern void registerobj_init(void);
+extern MUST_CHECK value_t register_from_str(const value_t);
 #endif
