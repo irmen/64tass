@@ -25,12 +25,9 @@
 
 #include "boolobj.h"
 
-struct encoding_s;
 static struct obj_s str_obj;
-static struct obj_s register_obj;
 
 obj_t STR_OBJ = &str_obj;
-obj_t REGISTER_OBJ = &register_obj;
 
 static void destroy(value_t v1) {
     if (v1->u.str.val != v1->u.str.data) free(v1->u.str.data);
@@ -45,21 +42,8 @@ static uint8_t *snew(value_t v, size_t len) {
     return v->u.str.val;
 }
 
-MUST_CHECK value_t register_from_str(const value_t v1) {
-    uint8_t *s;
-    value_t v = val_alloc(REGISTER_OBJ);
-    v->u.str.chars = v1->u.str.chars;
-    v->u.str.len = v1->u.str.len;
-    if (v1->u.str.len) {
-        s = snew(v, v->u.str.len);
-        memcpy(s, v1->u.str.data, v->u.str.len);
-    } else s = NULL;
-    v->u.str.data = s;
-    return v;
-}
-
 static int same(const value_t v1, const value_t v2) {
-    return v1->obj == v2->obj && v1->u.str.len == v2->u.str.len && (
+    return v1->obj == STR_OBJ && v1->u.str.len == v2->u.str.len && (
             v1->u.str.data == v2->u.str.data ||
             !memcmp(v1->u.str.data, v2->u.str.data, v2->u.str.len));
 }
@@ -72,7 +56,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
     return ret;
 }
 
-static size_t quoting(const value_t v1, char *q) {
+size_t str_quoting(const value_t v1, char *q) {
     size_t i, sq = 0, dq = 0;
     for (i = 0; i < v1->u.str.len; i++) {
         switch (v1->u.str.data[i]) {
@@ -97,7 +81,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     uint8_t *s, *s2;
     char q;
     value_t v = val_alloc(STR_OBJ);
-    i = quoting(v1, &q);
+    i = str_quoting(v1, &q);
 
     i2 = i + 2;
     if (i2 < 2) err_msg_out_of_memory(); /* overflow */
@@ -727,107 +711,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK value_t register_repr(const value_t v1, linepos_t UNUSED(epoint)) {
-    size_t i2, i;
-    uint8_t *s, *s2;
-    char q;
-    const char *prefix = "register(";
-    size_t ln = strlen(prefix) + 3;
-    value_t v = val_alloc(STR_OBJ);
-    i = quoting(v1, &q);
-
-    i2 = i + ln;
-    if (i2 < ln) err_msg_out_of_memory(); /* overflow */
-    s2 = s = snew(v, i2);
-
-    while (*prefix) *s++ = *prefix++;
-    *s++ = q;
-    for (i = 0; i < v1->u.str.len; i++) {
-        s[i] = v1->u.str.data[i];
-        if (s[i] == q) {
-            s++; s[i] = q;
-        }
-    }
-    s[i] = q;
-    s[i+1] = ')';
-    v->u.str.data = s2;
-    v->u.str.len = i2;
-    v->u.str.chars = i2 - (i - v1->u.str.chars);
-    return v;
-}
-
-static MUST_CHECK value_t register_calc2(oper_t op) {
-    value_t v2 = op->v2;
-    switch (v2->obj->type) {
-    case T_REGISTER:
-        switch (op->op->u.oper.op) {
-        case O_CMP:
-        case O_EQ:
-        case O_NE:
-        case O_LT:
-        case O_GT:
-        case O_LE:
-        case O_GE:
-            return calc2_str(op);
-        default: break;
-        }
-        break;
-    case T_STR:
-    case T_BOOL:
-    case T_INT:
-    case T_BITS:
-    case T_FLOAT:
-    case T_CODE:
-    case T_ADDRESS:
-    case T_BYTES:
-    case T_GAP:
-        switch (op->op->u.oper.op) {
-        case O_EQ: return truth_reference(0);
-        case O_NE: return truth_reference(1);
-        default: break;
-        }
-        break;
-    case T_TUPLE:
-    case T_LIST:
-        if (op->op != &o_MEMBER) {
-            return v2->obj->rcalc2(op);
-        }
-    default: break;
-    }
-    return obj_oper_error(op);
-}
-
-static MUST_CHECK value_t register_rcalc2(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
-    switch (v1->obj->type) {
-    case T_STR:
-    case T_BOOL:
-    case T_INT:
-    case T_BITS:
-    case T_FLOAT:
-    case T_CODE:
-    case T_ADDRESS:
-    case T_BYTES:
-    case T_GAP:
-        switch (op->op->u.oper.op) {
-        case O_EQ: return truth_reference(0);
-        case O_NE: return truth_reference(1);
-        default: break;
-        }
-        break;
-    case T_TUPLE:
-    case T_LIST:
-        return v2->obj->calc2(op);
-    default:
-    case T_REGISTER:
-        if (op->op != &o_IN) {
-            return v1->obj->calc2(op);
-        }
-    }
-    return obj_oper_error(op);
-}
-
-
 void strobj_init(void) {
     obj_init(&str_obj, T_STR, "<str>");
     str_obj.destroy = destroy;
@@ -848,11 +731,4 @@ void strobj_init(void) {
     str_obj.calc1 = calc1;
     str_obj.calc2 = calc2;
     str_obj.rcalc2 = rcalc2;
-    obj_init(&register_obj, T_REGISTER, "<register>");
-    register_obj.destroy = destroy;
-    register_obj.same = same;
-    register_obj.hash = hash;
-    register_obj.repr = register_repr;
-    register_obj.calc2 = register_calc2;
-    register_obj.rcalc2 = register_rcalc2;
 }

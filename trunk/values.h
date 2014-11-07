@@ -26,6 +26,7 @@
 #include "bitsobj.h"
 #include "bytesobj.h"
 #include "strobj.h"
+#include "registerobj.h"
 #include "listobj.h"
 #include "codeobj.h"
 #include "addressobj.h"
@@ -119,6 +120,7 @@ struct value_s {
         integer_t integer;
         addrs_t addr;
         ustr_t str;
+        ureg_t reg;
         bytes_t bytes;
         bits_t bits;
         code_t code;

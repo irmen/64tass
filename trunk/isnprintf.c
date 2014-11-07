@@ -51,8 +51,6 @@
 #include "unicode.h"
 #include "eval.h"
 
-#include "strobj.h"
-
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
 #ifndef snprintf
