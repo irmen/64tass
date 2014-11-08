@@ -91,113 +91,114 @@ uint32_t backr, forwr;
 struct avltree *star_tree = NULL;
 
 static const char* command[]={ /* must be sorted, first char is the ID */
-    "\x21" "al",
-    "\x33" "align",
-    "\x20" "as",
-    "\x34" "assert",
-    "\x39" "bend",
-    "\x19" "binary",
-    "\x4f" "binclude",
-    "\x38" "block",
-    "\x59" "break",
+    "\x08" "addr",
+    "\x22" "al",
+    "\x34" "align",
+    "\x21" "as",
+    "\x35" "assert",
+    "\x3a" "bend",
+    "\x1a" "binary",
+    "\x50" "binclude",
+    "\x39" "block",
+    "\x5a" "break",
     "\x05" "byte",
-    "\x53" "case",
-    "\x4d" "cdef",
-    "\x31" "cerror",
+    "\x54" "case",
+    "\x4e" "cdef",
+    "\x32" "cerror",
     "\x06" "char",
-    "\x35" "check",
-    "\x1a" "comment",
-    "\x58" "continue",
-    "\x36" "cpu",
-    "\x32" "cwarn",
-    "\x27" "databank",
-    "\x54" "default",
-    "\x0c" "dint",
-    "\x28" "dpage",
-    "\x4b" "dsection",
-    "\x46" "dstruct",
-    "\x49" "dunion",
-    "\x0d" "dword",
-    "\x4e" "edef",
-    "\x14" "else",
-    "\x16" "elsif",
-    "\x2b" "enc",
-    "\x3e" "end",
-    "\x1b" "endc",
-    "\x51" "endf",
-    "\x2c" "endif",
-    "\x10" "endm",
-    "\x1d" "endp",
-    "\x45" "ends",
-    "\x55" "endswitch",
-    "\x48" "endu",
-    "\x57" "endweak",
-    "\x3f" "eor",
-    "\x24" "error",
-    "\x15" "fi",
-    "\x29" "fill",
-    "\x11" "for",
-    "\x50" "function",
-    "\x43" "goto",
-    "\x1f" "here",
-    "\x3d" "hidemac",
-    "\x13" "if",
-    "\x2e" "ifeq",
-    "\x30" "ifmi",
-    "\x2d" "ifne",
-    "\x2f" "ifpl",
-    "\x18" "include",
-    "\x08" "int",
-    "\x42" "lbl",
-    "\x0a" "lint",
-    "\x1e" "logical",
-    "\x0b" "long",
-    "\x0f" "macro",
-    "\x12" "next",
+    "\x36" "check",
+    "\x1b" "comment",
+    "\x59" "continue",
+    "\x37" "cpu",
+    "\x33" "cwarn",
+    "\x28" "databank",
+    "\x55" "default",
+    "\x0d" "dint",
+    "\x29" "dpage",
+    "\x4c" "dsection",
+    "\x47" "dstruct",
+    "\x4a" "dunion",
+    "\x0e" "dword",
+    "\x4f" "edef",
+    "\x15" "else",
+    "\x17" "elsif",
+    "\x2c" "enc",
+    "\x3f" "end",
+    "\x1c" "endc",
+    "\x52" "endf",
+    "\x2d" "endif",
+    "\x11" "endm",
+    "\x1e" "endp",
+    "\x46" "ends",
+    "\x56" "endswitch",
+    "\x49" "endu",
+    "\x58" "endweak",
+    "\x40" "eor",
+    "\x25" "error",
+    "\x16" "fi",
+    "\x2a" "fill",
+    "\x12" "for",
+    "\x51" "function",
+    "\x44" "goto",
+    "\x20" "here",
+    "\x3e" "hidemac",
+    "\x14" "if",
+    "\x2f" "ifeq",
+    "\x31" "ifmi",
+    "\x2e" "ifne",
+    "\x30" "ifpl",
+    "\x19" "include",
+    "\x09" "int",
+    "\x43" "lbl",
+    "\x0b" "lint",
+    "\x1f" "logical",
+    "\x0c" "long",
+    "\x10" "macro",
+    "\x13" "next",
     "\x04" "null",
-    "\x0e" "offs",
-    "\x37" "option",
-    "\x1c" "page",
-    "\x26" "pend",
-    "\x25" "proc",
-    "\x3b" "proff",
-    "\x3a" "pron",
+    "\x0f" "offs",
+    "\x38" "option",
+    "\x1d" "page",
+    "\x27" "pend",
+    "\x26" "proc",
+    "\x3c" "proff",
+    "\x3b" "pron",
     "\x01" "ptext",
-    "\x17" "rept",
+    "\x18" "rept",
     "\x07" "rta",
-    "\x4a" "section",
-    "\x40" "segment",
-    "\x4c" "send",
+    "\x4b" "section",
+    "\x41" "segment",
+    "\x4d" "send",
     "\x02" "shift",
     "\x03" "shiftl",
-    "\x3c" "showmac",
-    "\x44" "struct",
-    "\x52" "switch",
+    "\x3d" "showmac",
+    "\x45" "struct",
+    "\x53" "switch",
     "\x00" "text",
-    "\x47" "union",
-    "\x41" "var",
-    "\x2a" "warn",
-    "\x56" "weak",
-    "\x09" "word",
-    "\x23" "xl",
-    "\x22" "xs",
+    "\x48" "union",
+    "\x42" "var",
+    "\x2b" "warn",
+    "\x57" "weak",
+    "\x0a" "word",
+    "\x24" "xl",
+    "\x23" "xs",
 };
 
 enum command_e {
     CMD_TEXT=0, CMD_PTEXT, CMD_SHIFT, CMD_SHIFTL, CMD_NULL, CMD_BYTE, CMD_CHAR,
-    CMD_RTA, CMD_INT, CMD_WORD, CMD_LINT, CMD_LONG, CMD_DINT, CMD_DWORD,
-    CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF, CMD_ELSE, CMD_FI,
-    CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY, CMD_COMMENT, CMD_ENDC,
-    CMD_PAGE, CMD_ENDP, CMD_LOGICAL, CMD_HERE, CMD_AS, CMD_AL, CMD_XS, CMD_XL,
-    CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK, CMD_DPAGE, CMD_FILL, CMD_WARN,
-    CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ, CMD_IFPL, CMD_IFMI, CMD_CERROR,
-    CMD_CWARN, CMD_ALIGN, CMD_ASSERT, CMD_CHECK, CMD_CPU, CMD_OPTION,
-    CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF, CMD_SHOWMAC, CMD_HIDEMAC,
-    CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL, CMD_GOTO, CMD_STRUCT,
-    CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU, CMD_DUNION, CMD_SECTION,
-    CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF, CMD_BINCLUDE, CMD_FUNCTION,
-    CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT, CMD_ENDSWITCH, CMD_WEAK,
-    CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK
+    CMD_RTA, CMD_ADDR, CMD_INT, CMD_WORD, CMD_LINT, CMD_LONG, CMD_DINT,
+    CMD_DWORD, CMD_OFFS, CMD_MACRO, CMD_ENDM, CMD_FOR, CMD_NEXT, CMD_IF,
+    CMD_ELSE, CMD_FI, CMD_ELSIF, CMD_REPT, CMD_INCLUDE, CMD_BINARY,
+    CMD_COMMENT, CMD_ENDC, CMD_PAGE, CMD_ENDP, CMD_LOGICAL, CMD_HERE, CMD_AS,
+    CMD_AL, CMD_XS, CMD_XL, CMD_ERROR, CMD_PROC, CMD_PEND, CMD_DATABANK,
+    CMD_DPAGE, CMD_FILL, CMD_WARN, CMD_ENC, CMD_ENDIF, CMD_IFNE, CMD_IFEQ,
+    CMD_IFPL, CMD_IFMI, CMD_CERROR, CMD_CWARN, CMD_ALIGN, CMD_ASSERT,
+    CMD_CHECK, CMD_CPU, CMD_OPTION, CMD_BLOCK, CMD_BEND, CMD_PRON, CMD_PROFF,
+    CMD_SHOWMAC, CMD_HIDEMAC, CMD_END, CMD_EOR, CMD_SEGMENT, CMD_VAR, CMD_LBL,
+    CMD_GOTO, CMD_STRUCT, CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU,
+    CMD_DUNION, CMD_SECTION, CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF,
+    CMD_BINCLUDE, CMD_FUNCTION, CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT,
+    CMD_ENDSWITCH, CMD_WEAK, CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK
 };
 
 /* --------------------------------------------------------------------------- */
@@ -466,6 +467,12 @@ static int byterecursion(value_t val, int prm, size_t *uninit, int bits, linepos
         case T_TUPLE: warn |= byterecursion(val2, prm, uninit, bits, epoint); continue;
         case T_GAP: *uninit += abs(bits) / 8; val_destroy(val2); continue;
         default:
+            if (prm == CMD_RTA || prm == CMD_ADDR) {
+                if (touval(val2, &uv, 24, epoint)) uv = 1;
+                else if ((current_section->l_address ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                ch2 = uv - (prm == CMD_RTA);
+                break;
+            }
             if (bits >= 0) {
                 if (touval(val2, &uv, bits, epoint)) uv = 0;
                 ch2 = uv;
@@ -478,8 +485,6 @@ static int byterecursion(value_t val, int prm, size_t *uninit, int bits, linepos
             warn = 1;
             ch2 = 0;
         }
-        if (prm==CMD_RTA) ch2--;
-
         if (*uninit) {memskip(*uninit);*uninit = 0;}
         pokeb((uint8_t)ch2);
         if (prm>=CMD_RTA) pokeb((uint8_t)(ch2>>8));
@@ -1428,6 +1433,7 @@ value_t compile(struct file_list_s *cflist)
             case CMD_BYTE: /* .byte */
             case CMD_CHAR: /* .char */
             case CMD_RTA: /* .rta */
+            case CMD_ADDR: /* .addr */
             case CMD_INT: /* .int */
             case CMD_WORD: /* .word */
             case CMD_LINT: /* .lint */
@@ -1476,6 +1482,7 @@ value_t compile(struct file_list_s *cflist)
                             default:
                             case CMD_BYTE: dtype = D_BYTE;break;
                             case CMD_RTA:
+                            case CMD_ADDR:
                             case CMD_WORD: dtype = D_WORD;break;
                             case CMD_LONG: dtype = D_LONG;break;
                             case CMD_DWORD: dtype = D_DWORD;break;

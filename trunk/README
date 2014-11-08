@@ -912,19 +912,26 @@ When using lists or tuples their values will be used one by one. Uninitialized
 data creates holes of different sizes. Small string constants are converted
 using the current encoding.
 
+Please note that multi character strings usually don't fit into 8 bits and
+therefore the .byte directive is not appropriate for them. Better use .text for
+this sort of usage.
+
 .byte <expression>[, <expression>, ...]
     Create bytes from 8 bit unsigned constants (0-255)
 .char <expression>[, <expression>, ...]
     Create bytes from 8 bit signed constants (-128-127)
 
             .byte 255       ; $ff
+            .byte "a"       ; single character
             .byte ?         ; reserve 1 byte of space
+            .char -3        ; $fd
+    ;Store 4.4 signed fixed point constants
+            .byte (-3.5, 3.25, 3.125) * 1p4
 
     ;Compact computed jumps using self modifying code
             lda jumps,x
             sta smod+1
     smod    bne *
-
     jumps   .char (routine1, routine2)-smod-2 ;Routines nearby (-128-127 bytes)
 
 .word <expression>[, <expression>, ...]
@@ -932,48 +939,50 @@ using the current encoding.
 .int <expression>[, <expression>, ...]
     Create bytes from 16 bit signed constants (-32768-32767)
 
-            .word $2342, $4555
+            .word $2342, $4555; $42 $23 $55 $45
             .word ?         ; reserve 2 bytes of space
-            .int -533, 4433
+            .int -533, 4433 ; $eb $fd $51 $11
+    ;Store 8.8 signed fixed point constants
+            .int (-3.5, 3.25, 3.125) * 1p8
 
-    ;Computed jumps with jump table
+    ;Computed jumps with jump table (bank zero or non-65816)
             lda jumps,x
             sta ind
             lda jumps+1,x
             sta ind+1
             jmp (ind)
+    jumps   .word routine1, routine2; but better use .addr instead
 
-    ;Computed jumps with jump table (65C02)
-            jmp (jumps,x)
-
-    jumps   .word routine1, routine2
-    ;On 65816 subtract the current program bank
-    jumps2  .word (routine1, routine2) - (* & ~$ffff)
-
+.addr <expression>[, <expression>, ...]
+    Create 16 bit address constants for addresses (in current program bank)
 .rta <expression>[, <expression>, ...]
-    Create return address constants, which are 16 bit unsigned constants
-    (usually addresses) but with one subtracted.
+    Create 16 bit return address constants for addresses (in current program
+    bank)
 
-    ;Computed jumps by using stack
-            asl
-            tax
+    ;Computed jumps with jump table (65816, current bank)
+            *= $12000
+            jmp (jumps,x)
+    jumps   .addr $12050, routine1, routine2
+
+    ;Computed jumps by using stack (current bank)
+            *= $103000
             lda rets+1,x
             pha
             lda rets,x
             pha
             rts
-    rets    .rta $fce2, routine1, routine2
-    ;On 65816 subtract the current program bank
-    rets2   .rta ($fce2, routine1, routine2) - (* & ~$ffff)
+    rets    .rta $10f000, routine1, routine2
 
 .long <expression>[, <expression>, ...]
     Create bytes from 24 bit unsigned constants (0-16777215)
 .lint <expression>[, <expression>, ...]
     Create bytes from 24 bit signed constants (-8388608-8388607)
 
-            .long $123456
+            .long $123456   ; $56 $34 $12
             .long ?         ; reserve 3 bytes of space
-            .lint -533, 4433
+            .lint -533, 4433; $eb $fd $ff $51 $11 $00
+    ;Store 8.16 signed fixed point constants
+            .lint (-3.44, 3.4, 3.52) * 1p16
 
     ;Computed long jumps with jump table (65816)
             lda jumps,x
@@ -984,18 +993,17 @@ using the current encoding.
             sta ind+2
             jmp [ind]
     jumps   .long routine1, routine2
-    ;Store 8.16 signed fixed point constants
-            .lint (-3.44, 3.4, 3.52) * (1 << 16)
 
 .dword <expression>[, <expression>, ...]
     Create bytes from 32 bit constants (0-4294967295)
 .dint <expression>[, <expression>, ...]
     Create bytes from 32 bit signed constants (-2147483648-2147483647)
 
-            .dword $12345678
+            .dword $12345678; $78 $56 $34 $12
             .dword ?        ; reserve 4 bytes of space
-    ;Store 8.24 signed fixed point constants
-            .dint (-3.44, 3.4, 3.52) * (1 << 24)
+            .dint -411469219; $5d $7a $79 $e7
+    ;Store 16.16 signed fixed point constants
+            .dint (-3.44, 3.4, 3.52) * 1p16
 
 Storing text data
 
@@ -1003,7 +1011,7 @@ Texts are stored as a string of bytes. Small numeric constants can be mixed in
 to represent control characters.
 
 .text <expression>[, <expression>, ...]
-    Assemble strings and small constants into bytes:
+    Assemble strings and 8 bit constants into bytes.
 
             .text "oeU"     ; text, "" means $22
             .text 'oeU'     ; text, '' means $27
@@ -1054,15 +1062,14 @@ to represent control characters.
 .null <expression>[, <expression>, ...]
     Same as .text, but adds a null at the end, null in string is an error.
 
-    txt     .text "lot of stuff"
-            .null "to write"
             lda #<txt
             ldy #>txt
             jsr $ab1e
+    txt     .null "some text"
 
 .ptext <expression>[, <expression>, ...]
     Same as .text, but prepend the number of bytes in front of the string
-    (pascal style string). Longer than 255 bytes are not allowed.
+    (pascal style string). Therefore it can't do more than 255 bytes.
 
             lda #<txt
             ldx #>txt
@@ -1081,7 +1088,6 @@ to represent control characters.
             dex
             bne -
     null    rts
-
     txt     .ptext "note"
 
 Text encoding
@@ -2954,14 +2960,14 @@ Appendix
 
 Assembler directives
 
-.al .align .as .assert .bend .binary .binclude .block .break .byte .case .cdef
-.cerror .char .check .comment .continue .cpu .cwarn .databank .default .dint
-.dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc .end .endc
-.endf .endif .endm .endp .ends .endswitch .endu .endweak .eor .error .fi .fill
-.for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include .int
-.lbl .lint .logical .long .macro .next .null .offs .option .page .pend .proc
-.proff .pron .ptext .rept .rta .section .segment .send .shift .shiftl .showmac
-.struct .switch .text .union .var .warn .weak .word .xl .xs
+.addr .al .align .as .assert .bend .binary .binclude .block .break .byte .case
+.cdef .cerror .char .check .comment .continue .cpu .cwarn .databank .default
+.dint .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc .end
+.endc .endf .endif .endm .endp .ends .endswitch .endu .endweak .eor .error .fi
+.fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include
+.int .lbl .lint .logical .long .macro .next .null .offs .option .page .pend
+.proc .proff .pron .ptext .rept .rta .section .segment .send .shift .shiftl
+.showmac .struct .switch .text .union .var .warn .weak .word .xl .xs
 
 -------------------------------------------------------------------------------
 
