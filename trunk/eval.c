@@ -1489,7 +1489,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 }
                 if (o_oper[operp-1].val == &o_SPLAT) {
                     operp--;
-                    push_oper(get_star(&epoint), &epoint);
+                    push_oper(get_star(&o_oper[operp].epoint), &o_oper[operp].epoint);
                     goto other;
                 }
                 epoint = o_oper[operp-1].epoint;
@@ -1499,7 +1499,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         if (operp && o_oper[operp - 1].val == &o_SPLAT) {
             operp--;
             lpoint.pos = epoint.pos;
-            push_oper(get_star(&epoint), &epoint);
+            push_oper(get_star(&o_oper[operp].epoint), &o_oper[operp].epoint);
             goto other;
         }
         lpoint.pos++;
