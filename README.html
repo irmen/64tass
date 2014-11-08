@@ -1093,6 +1093,9 @@ on the directives used.</p>
 <p>When using lists or tuples their values will be used one by one.
 Uninitialized data creates holes of different sizes. Small string constants are
 converted using the current encoding.</p>
+<p>Please note that multi character strings usually don't fit into 8&nbsp;bits
+and therefore the <code>.byte</code> directive is not appropriate for them.
+Better use <code>.text</code> for this sort of usage.</p>
 <dl class="dir">
 <dt><code><b class="d"><a name="d_byte">.byte</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 8&nbsp;bit unsigned constants (0&ndash;255)
@@ -1100,13 +1103,16 @@ converted using the current encoding.</p>
 <dd>Create bytes from 8&nbsp;bit signed constants (&minus;128&ndash;127)
 <pre width=80>
         <b class="d">.byte</b> <span>255</span>	<i>; $ff</i>
+        <b class="d">.byte</b> <span class="s">"a"</span>	<i>; single character</i>
         <b class="d">.byte</b> <span>?</span>	        <i>; reserve 1 byte of space</i>
+        <b class="d">.char</b> <span>-3</span>	<i>; $fd</i>
+<i>;Store 4.4 signed fixed point constants</i>
+        <b class="d">.byte</b> (<span>-3.5</span>, <span>3.25</span>, <span>3.125</span>) * <span>1p4</span>
 
 <i>;Compact computed jumps using self modifying code</i>
         <b>lda</b> <u>jumps</u>,x
         <b>sta</b> <u>smod</u>+<span>1</span>
 smod    <b>bne</b> <u>*</u>
-
 jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)-<u>smod</u>-<span>2</span> <i>;Routines nearby (&minus;128&ndash;127 bytes)</i>
 </pre>
 
@@ -1115,40 +1121,39 @@ jumps   <b class="d">.char</b> (<u>routine1</u>, <u>routine2</u>)-<u>smod</u>-<s
 <dt><code><b class="d"><a name="d_int">.int</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 16&nbsp;bit signed constants (&minus;32768&ndash;32767)
 <pre width=80>
-        <b class="d">.word</b> <span>$2342</span>, <span>$4555</span>
+        <b class="d">.word</b> <span>$2342</span>, <span>$4555</span><i>; $42 $23 $55 $45</i>
         <b class="d">.word</b> <span>?</span>	        <i>; reserve 2 bytes of space</i>
-        <b class="d">.int</b> <span>-533</span>, <span>4433</span>
+        <b class="d">.int</b> <span>-533</span>, <span>4433</span> <i>; $eb $fd $51 $11</i>
+<i>;Store 8.8 signed fixed point constants</i>
+        <b class="d">.int</b> (<span>-3.5</span>, <span>3.25</span>, <span>3.125</span>) * <span>1p8</span>
 
-<i>;Computed jumps with jump table</i>
+<i>;Computed jumps with jump table (bank zero or non-65816)</i>
         <b>lda</b> <u>jumps</u>,x
         <b>sta</b> <u>ind</u>
         <b>lda</b> <u>jumps</u>+<span>1</span>,x
         <b>sta</b> <u>ind</u>+<span>1</span>
         <b>jmp</b> (<u>ind</u>)
-
-<i>;Computed jumps with jump table (65C02)</i>
-        <b>jmp</b> (<u>jumps</u>,x)
-
-jumps   <b class="d">.word</b> <u>routine1</u>, <u>routine2</u>
-<i>;On 65816 subtract the current program bank</i>
-jumps2  <b class="d">.word</b> (<u>routine1</u>, <u>routine2</u>) - (<u>*</u> &amp; ~<span>$ffff</span>)
+jumps   <b class="d">.word</b> <u>routine1</u>, <u>routine2</u><i>; but better use .addr instead</i>
 </pre>
 
+<dt><code><b class="d"><a name="d_addr">.addr</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
+<dd>Create 16&nbsp;bit address constants for addresses (in current program bank)
 <dt><code><b class="d"><a name="d_rta">.rta</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Create return address constants, which are 16&nbsp;bit unsigned
-constants (usually addresses) but with one subtracted.
+<dd>Create 16&nbsp;bit return address constants for addresses (in current program bank)
 <pre width=80>
-<i>;Computed jumps by using stack</i>
-	<b>asl</b>
-	<b>tax</b>
+<i>;Computed jumps with jump table (65816, current bank)</i>
+        <b>*=</b> <span>$12000</span>
+        <b>jmp</b> (<u>jumps</u>,x)
+jumps   <b class="d">.addr</b> <span>$12050</span>, <u>routine1</u>, <u>routine2</u>
+
+<i>;Computed jumps by using stack (current bank)</i>
+        <b>*=</b> <span>$103000</span>
         <b>lda</b> <u>rets</u>+<span>1</span>,x
 	<b>pha</b>
         <b>lda</b> <u>rets</u>,x
 	<b>pha</b>
 	<b>rts</b>
-rets	<b class="d">.rta</b> <span>$fce2</span>, <u>routine1</u>, <u>routine2</u>
-<i>;On 65816 subtract the current program bank</i>
-rets2	<b class="d">.rta</b> (<span>$fce2</span>, <u>routine1</u>, <u>routine2</u>) - (<u>*</u> &amp; ~<span>$ffff</span>)
+rets	<b class="d">.rta</b> <span>$10f000</span>, <u>routine1</u>, <u>routine2</u>
 </pre>
 
 <dt><code><b class="d"><a name="d_long">.long</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1156,9 +1161,11 @@ rets2	<b class="d">.rta</b> (<span>$fce2</span>, <u>routine1</u>, <u>routine2</u
 <dt><code><b class="d"><a name="d_lint">.lint</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 24&nbsp;bit signed constants (&minus;8388608&ndash;8388607)
 <pre width=80>
-        <b class="d">.long</b> <span>$123456</span>
+        <b class="d">.long</b> <span>$123456</span>   <i>; $56 $34 $12</i>
         <b class="d">.long</b> <span>?</span>	        <i>; reserve 3 bytes of space</i>
-        <b class="d">.lint</b> <span>-533</span>, <span>4433</span>
+        <b class="d">.lint</b> <span>-533</span>, <span>4433</span><i>; $eb $fd $ff $51 $11 $00</i>
+<i>;Store 8.16 signed fixed point constants</i>
+        <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
 
 <i>;Computed long jumps with jump table (65816)</i>
         <b>lda</b> <u>jumps</u>,x
@@ -1169,8 +1176,6 @@ rets2	<b class="d">.rta</b> (<span>$fce2</span>, <u>routine1</u>, <u>routine2</u
         <b>sta</b> <u>ind</u>+<span>2</span>
         <b>jmp</b> [<u>ind</u>]
 jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
-<i>;Store 8.16 signed fixed point constants</i>
-        <b class="d">.lint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * (<span>1</span> &lt;&lt; <span>16</span>)
 </pre>
 
 <dt><code><b class="d"><a name="d_dword">.dword</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1178,10 +1183,11 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 <dt><code><b class="d"><a name="d_dint">.dint</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 32&nbsp;bit signed constants (&minus;2147483648&ndash;2147483647)
 <pre width=80>
-        <b class="d">.dword</b> <span>$12345678</span>
+        <b class="d">.dword</b> <span>$12345678</span><i>; $78 $56 $34 $12</i>
         <b class="d">.dword</b> <span>?</span>        <i>; reserve 4 bytes of space</i>
-<i>;Store 8.24 signed fixed point constants</i>
-        <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * (<span>1</span> &lt;&lt; <span>24</span>)
+        <b class="d">.dint</b> <span>-411469219</span><i>; $5d $7a $79 $e7</i>
+<i>;Store 16.16 signed fixed point constants</i>
+        <b class="d">.dint</b> (<span>-3.44</span>, <span>3.4</span>, <span>3.52</span>) * <span>1p16</span>
 </pre>
 </dl>
 
@@ -1190,7 +1196,7 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 in to represent control characters.</p>
 <dl class="dir">
 <dt><code><b class="d"><a name="d_text">.text</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Assemble strings and small constants into bytes:
+<dd>Assemble strings and 8&nbsp;bit constants into bytes.
 <pre width=80>
         <b class="d">.text</b> <span class="s">"oeU"</span>	<i>; text, "" means $22</i>
         <b class="d">.text</b> <span class="s">'oeU'</span>	<i>; text, '' means $27</i>
@@ -1243,16 +1249,15 @@ txt	<b class="d">.shiftl</b> <span class="s">"some text"</span>
 <dt><code><b class="d"><a name="d_null">.null</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Same as <code>.text</code>, but adds a null at the end, null in string is an error.
 <pre width=80>
-txt	<b class="d">.text</b> <span class="s">"lot of stuff"</span>
-        <b class="d">.null</b> <span class="s">"to write"</span>
         <b>lda</b> #&lt;<u>txt</u>
         <b>ldy</b> #&gt;<u>txt</u>
         <b>jsr</b> <span>$ab1e</span>
+txt	<b class="d">.null</b> <span class="s">"some text"</span>
 </pre>
 
 <dt><code><b class="d"><a name="d_ptext">.ptext</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Same as <code>.text</code>, but prepend the
-number of bytes in front of the string (pascal style string). Longer than 255 bytes are not allowed.
+<dd>Same as <code>.text</code>, but prepend the number of bytes in front of the
+string (pascal style string). Therefore it can't do more than 255 bytes.
 <pre width=80>
         <b>lda</b> #&lt;<u>txt</u>
         <b>ldx</b> #&gt;<u>txt</u>
@@ -1271,7 +1276,6 @@ print	<b>sta</b> <span>$fb</span>
 	<b>dex</b>
 	<b>bne</b> <u>-</u>
 null	<b>rts</b>
-
 txt	<b class="d">.ptext</b> <span class="s">"note"</span>
 </pre>
 </dl>
@@ -3700,6 +3704,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 
 <h3>Assembler directives<a name="directives" href="#directives"></a></h3>
 <p class="links">
+<a href="#d_addr">.addr</a>
 <a href="#d_al">.al</a>
 <a href="#d_align">.align</a>
 <a href="#d_as">.as</a>
