@@ -581,7 +581,7 @@ value_t compile(struct file_list_s *cflist)
                     else tmp2 = find_label2(&labelname, mycontext);
                     if (!tmp2) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
                     if (tmp2->value->obj != CODE_OBJ) {
-                        err_msg_wrong_type(tmp2->value, &epoint); goto breakerr;
+                        err_msg_wrong_type(tmp2->value, CODE_OBJ, &epoint); goto breakerr;
                     }
                     mycontext = tmp2;
                 }
@@ -1034,6 +1034,7 @@ value_t compile(struct file_list_s *cflist)
                     {
                         int old_unionmode = current_section->unionmode;
                         struct linepos_s epoint2;
+                        obj_t obj;
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
                         listing_line(epoint.pos);
@@ -1042,7 +1043,8 @@ value_t compile(struct file_list_s *cflist)
                         val = get_val(&epoint2);
                         if (val->obj == ERROR_OBJ) { err_msg_output(val); goto finish; }
                         if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &epoint2); goto finish;}
-                        if (val->obj != ((prm==CMD_DSTRUCT) ? STRUCT_OBJ : UNION_OBJ)) {err_msg_wrong_type(val, &epoint2); goto breakerr;}
+                        obj = (prm == CMD_DSTRUCT) ? STRUCT_OBJ : UNION_OBJ;
+                        if (val->obj != obj) {err_msg_wrong_type(val, obj, &epoint2); goto breakerr;}
                         ignore();if (here() == ',') lpoint.pos++;
                         current_section->structrecursion++;
                         current_section->unionmode = (prm==CMD_DUNION);
@@ -1463,7 +1465,7 @@ value_t compile(struct file_list_s *cflist)
                             if (prm==CMD_SHIFT) ch2|=0x80;
                             if (prm==CMD_SHIFTL) ch2|=0x01;
                             pokeb(ch2); sum++;
-                        } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) err_msg_wrong_type(gap_value, &epoint2);
+                        } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) err_msg_wrong_type(gap_value, NULL, &epoint2);
                         if (prm==CMD_NULL) pokeb(0);
                         if (prm==CMD_PTEXT) {
                             if (sum > 0x100) err_msg2(ERROR____PTEXT_LONG, &sum, &epoint);
@@ -1520,7 +1522,7 @@ value_t compile(struct file_list_s *cflist)
                         val = get_val(&epoint2);
                         if (val->obj == ERROR_OBJ) err_msg_output(val);
                         else if (val->obj == NONE_OBJ) err_msg_still_none(NULL, &epoint2);
-                        else if (val->obj != STR_OBJ) err_msg_wrong_type(val, &epoint2);
+                        else if (val->obj != STR_OBJ) err_msg_wrong_type(val, STR_OBJ, &epoint2);
                         else {
                             path = get_path(val, cfile->realname);
                             val2 = val;
@@ -1884,7 +1886,7 @@ value_t compile(struct file_list_s *cflist)
                             tryit = 0;
                             break;
                         default:
-                            err_msg_wrong_type(val, &epoint);
+                            err_msg_wrong_type(val, NULL, &epoint);
                             goto breakerr;
                         }
                         if (!endok) {
@@ -1942,7 +1944,7 @@ value_t compile(struct file_list_s *cflist)
                             tryit = 0;
                             break;
                         default:
-                            err_msg_wrong_type(v, &opoint);
+                            err_msg_wrong_type(v, STR_OBJ, &opoint);
                             goto breakerr;
                         }
                         val = get_val(&epoint);
@@ -2005,7 +2007,7 @@ value_t compile(struct file_list_s *cflist)
                         err_msg_output(val);
                         break;
                     default:
-                        err_msg_wrong_type(val, &epoint2);
+                        err_msg_wrong_type(val, STR_OBJ, &epoint2);
                         break;
                     }
                 }
@@ -2085,7 +2087,7 @@ value_t compile(struct file_list_s *cflist)
                     val = get_val(&epoint2);
                     if (val->obj == ERROR_OBJ) {err_msg_output(val); goto breakerr;}
                     if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint2); goto breakerr;}
-                    if (val->obj != STR_OBJ) {err_msg_wrong_type(val, &epoint2);goto breakerr;}
+                    if (val->obj != STR_OBJ) {err_msg_wrong_type(val, STR_OBJ, &epoint2);goto breakerr;}
                     path = get_path(val, cfile->realname);
                     if (here() && here()!=';') err_msg(ERROR_EXTRA_CHAR_OL,NULL);
 
@@ -2340,7 +2342,7 @@ value_t compile(struct file_list_s *cflist)
                     val = get_val(&epoint);
                     if (val->obj == ERROR_OBJ) {err_msg_output(val); break; }
                     if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint); break; }
-                    if (val->obj != LBL_OBJ) {err_msg_wrong_type(val, &epoint); break;}
+                    if (val->obj != LBL_OBJ) {err_msg_wrong_type(val, LBL_OBJ, &epoint); break;}
                     if (val->u.lbl.file_list == cflist && val->u.lbl.parent == current_context) {
                         while (val->u.lbl.waitforp < waitfor_p) {
                             const char *msg = NULL;
@@ -2472,7 +2474,7 @@ value_t compile(struct file_list_s *cflist)
                     if (val->obj == ERROR_OBJ) {err_msg_output(val); goto breakerr; }
                     if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint2); goto breakerr; }
                     ignore();if (here() == ',') lpoint.pos++;
-                    if (val->obj != STRUCT_OBJ) {err_msg_wrong_type(val, &epoint2); goto breakerr;}
+                    if (val->obj != STRUCT_OBJ) {err_msg_wrong_type(val, STRUCT_OBJ, &epoint2); goto breakerr;}
                     current_section->structrecursion++;
                     val = macro_recurse(W_ENDS2, val, current_context, &epoint);
                     if (val) val_destroy(val);
@@ -2493,7 +2495,7 @@ value_t compile(struct file_list_s *cflist)
                     if (val->obj == ERROR_OBJ) {err_msg_output(val); goto breakerr; }
                     if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint2); goto breakerr; }
                     ignore();if (here() == ',') lpoint.pos++;
-                    if (val->obj != UNION_OBJ) {err_msg_wrong_type(val, &epoint2); goto breakerr;}
+                    if (val->obj != UNION_OBJ) {err_msg_wrong_type(val, UNION_OBJ, &epoint2); goto breakerr;}
                     current_section->structrecursion++;
                     val = macro_recurse(W_ENDU2, val, current_context, &epoint);
                     if (val) val_destroy(val);
@@ -2628,7 +2630,7 @@ value_t compile(struct file_list_s *cflist)
                 val = get_val(&epoint2);
                 if (val->obj == ERROR_OBJ) {err_msg_output(val); goto breakerr; }
                 if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &epoint2); goto breakerr; }
-                if (val->obj != MACRO_OBJ && val->obj != SEGMENT_OBJ && val->obj != MFUNC_OBJ) {err_msg_wrong_type(val, &epoint2); goto breakerr;}
+                if (val->obj != MACRO_OBJ && val->obj != SEGMENT_OBJ && val->obj != MFUNC_OBJ) {err_msg_wrong_type(val, NULL, &epoint2); goto breakerr;}
             as_macro:
                 listing_line_cut(epoint.pos);
                 if (val->obj == MACRO_OBJ) {

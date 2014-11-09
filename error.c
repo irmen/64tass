@@ -233,7 +233,6 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         case ERROR_OUTOF_SECTION:
         case ERROR_DIVISION_BY_Z:
         case ERROR_NO_ZERO_VALUE:
-        case ERROR____WRONG_TYPE:
         case ERROR_CONSTNT_LARGE: 
         case ERROR_NUMERIC_OVERF: 
         case ERROR_NEGFRAC_POWER:
@@ -265,10 +264,6 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         case ERROR______EXPECTED:
             adderror((char *)prm);
             adderror(" expected");
-            break;
-        case ERROR____WRONG_TYPE:
-            adderror("wrong type ");
-            adderror((char *)prm);
             break;
         case ERROR___NOT_ALLOWED:
             adderror("not allowed here: ");
@@ -507,8 +502,14 @@ void err_msg_output_and_destroy(value_t val) {
     val_destroy(val);
 }
 
-void err_msg_wrong_type(const value_t val, linepos_t epoint) {
-    err_msg2(ERROR____WRONG_TYPE, val->obj->name, epoint);
+void err_msg_wrong_type(const value_t val, obj_t expected, linepos_t epoint) {
+    new_error(SV_CONDERROR, current_file_list, epoint);
+    adderror("wrong type ");
+    adderror(val->obj->name);
+    if (expected) {
+        adderror(", expected ");
+        adderror(expected->name);
+    }
 }
 
 void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {

@@ -78,6 +78,7 @@ typedef uint32_t uval_t;
 #endif
 
 typedef struct value_s *value_t;
+typedef const struct obj_s *obj_t;
 
 #ifdef UNUSED
 #elif defined(__GNUC__)
