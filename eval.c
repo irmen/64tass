@@ -1741,9 +1741,9 @@ value_t get_vals_addrlist(struct linepos_s *epoints) {
     for (i = j = 0; j < len; j++) {
         value_t val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
         if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = val_reference(none_value); }
-        else if (val2->obj == REGISTER_OBJ && val2->u.str.len == 1 && i) {
+        else if (val2->obj == REGISTER_OBJ && val2->u.reg.len == 1 && i) {
             enum atype_e am;
-            switch (val2->u.str.data[0]) {
+            switch (val2->u.reg.data[0]) {
             case 's': am = A_SR; break;
             case 'r': am = A_RR; break;
             case 'z': am = A_ZR; break;

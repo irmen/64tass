@@ -332,8 +332,8 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
             if (val->obj == REGISTER_OBJ) {
                 value_t err;
                 cod = cnmemonic[(opr = ADR_REG)];
-                if (cod && val->u.str.len == 1) {
-                    const char *ind = strchr(reg_names, val->u.str.data[0]);
+                if (cod && val->u.reg.len == 1) {
+                    const char *ind = strchr(reg_names, val->u.reg.data[0]);
                     if (ind) {
                         reg = ind - reg_names;
                         if (regopcode_table[cod][reg] != ____) {
