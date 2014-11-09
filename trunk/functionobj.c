@@ -131,151 +131,196 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
     case F_LEN: return v1->obj->len(v1, epoint);
     default: break;
     }
-    switch (v1->obj->type) {
-    case T_LIST:
-    case T_TUPLE:
-        {
-            size_t i = 0;
+    if (v1->obj == TUPLE_OBJ || v1->obj == LIST_OBJ) {
+        if (v1->u.list.len) {
+            int error = 1;
+            size_t i;
             value_t *vals;
             v = val_alloc(v1->obj);
             vals = list_create_elements(v, v1->u.list.len);
-            for (;i < v1->u.list.len; i++) {
-                vals[i] = apply_func(v1->u.list.data[i], func, epoint);
+            for (i = 0; i < v1->u.list.len; i++) {
+                value_t val = apply_func(v1->u.list.data[i], func, epoint);
+                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
+                vals[i] = val;
             }
             v->u.list.len = i;
             v->u.list.data = vals;
             return v;
         }
-    default:
-        switch (func) {
-        case F_BOOL: return v1->obj->truth(v1, TRUTH_BOOL, epoint);
-        case F_SIZE: return v1->obj->size(v1, epoint);
-        case F_SIGN: return v1->obj->sign(v1, epoint);
-        case F_ABS: return v1->obj->abs(v1, epoint);
-        case F_INT: return v1->obj->integer(v1, epoint);
-        case F_REGISTER: return function_register(v1, epoint);
-        case F_REPR: return v1->obj->repr(v1, epoint);
-        case F_STR: return v1->obj->str(v1, epoint);
-        default: break;
-        }
-        err = v1->obj->real(v1, &real, epoint);
-        if (err) return err;
-        switch (func) {
-        case F_FLOOR: real = floor(real);break;
-        case F_CEIL: real = ceil(real);break;
-        case F_SQRT: 
-            if (real < 0.0) {
-                return new_error_obj(ERROR_SQUARE_ROOT_N, epoint);
-            }
-            real = sqrt(real);
-            break;
-        case F_LOG10: 
-            if (real <= 0.0) {
-                return new_error_obj(ERROR_LOG_NON_POSIT, epoint);
-            }
-            real = log10(real);
-            break;
-        case F_LOG: 
-            if (real <= 0.0) {
-                return new_error_obj(ERROR_LOG_NON_POSIT, epoint);
-            }
-            real = log(real);
-            break;
-        case F_EXP: real = exp(real);break;
-        case F_SIN: real = sin(real);break;
-        case F_COS: real = cos(real);break;
-        case F_TAN: real = tan(real);break;
-        case F_ACOS: 
-            if (real < -1.0 || real > 1.0) {
-                return new_error_obj(ERROR___MATH_DOMAIN, epoint);
-            }
-            real = acos(real);
-            break;
-        case F_ASIN: 
-            if (real < -1.0 || real > 1.0) {
-                return new_error_obj(ERROR___MATH_DOMAIN, epoint);
-            }
-            real = asin(real);
-            break;
-        case F_ATAN: real = atan(real);break;
-        case F_CBRT: real = cbrt(real);break;
-        case F_ROUND: real = round(real);break;
-        case F_TRUNC: real = trunc(real);break;
-        case F_FRAC: real -= trunc(real);break;
-        case F_RAD: real = real * M_PI / 180.0;break;
-        case F_DEG: real = real * 180.0 / M_PI;break;
-        case F_COSH: real = cosh(real);break;
-        case F_SINH: real = sinh(real);break;
-        case F_TANH: real = tanh(real);break;
-        case F_FLOAT: return val_reference(v1); /* nothing to do */
-        default: real = HUGE_VAL; break; /* can't happen */
-        }
-        return float_from_double2(real, epoint);
+        return val_reference(v1);
     }
-}
-
-static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, linepos_t epoint, linepos_t epoint2) {
-    value_t err, v;
-    double real, real2;
-    switch (v1->obj->type) {
-    case T_LIST:
-    case T_TUPLE:
-        {
-            size_t i = 0;
-            value_t *vals;
-            v = val_alloc(v1->obj);
-            vals = list_create_elements(v, v1->u.list.len);
-            for (;i < v1->u.list.len; i++) {
-                vals[i] = apply_func2(v1->u.list.data[i], v2, func, epoint, epoint2);
-            }
-            v->u.list.len = i;
-            v->u.list.data = vals;
-            return v;
-        }
-    default: break;
-    }
-    switch (v2->obj->type) {
-    case T_LIST:
-    case T_TUPLE:
-        {
-            size_t i = 0;
-            value_t *vals;
-            v = val_alloc(v2->obj);
-            vals = list_create_elements(v, v2->u.list.len);
-            for (;i < v2->u.list.len; i++) {
-                vals[i] = apply_func2(v1, v2->u.list.data[i], func, epoint, epoint2);
-            }
-            v->u.list.len = i;
-            v->u.list.data = vals;
-            return v;
-        }
+    switch (func) {
+    case F_BOOL: return v1->obj->truth(v1, TRUTH_BOOL, epoint);
+    case F_SIZE: return v1->obj->size(v1, epoint);
+    case F_SIGN: return v1->obj->sign(v1, epoint);
+    case F_ABS: return v1->obj->abs(v1, epoint);
+    case F_INT: return v1->obj->integer(v1, epoint);
+    case F_REGISTER: return function_register(v1, epoint);
+    case F_REPR: return v1->obj->repr(v1, epoint);
+    case F_STR: return v1->obj->str(v1, epoint);
     default: break;
     }
     err = v1->obj->real(v1, &real, epoint);
     if (err) return err;
-    err = v2->obj->real(v2, &real2, epoint2);
+    switch (func) {
+    case F_FLOOR: real = floor(real);break;
+    case F_CEIL: real = ceil(real);break;
+    case F_SQRT: 
+        if (real < 0.0) {
+            return new_error_obj(ERROR_SQUARE_ROOT_N, epoint);
+        }
+        real = sqrt(real);
+        break;
+    case F_LOG10: 
+        if (real <= 0.0) {
+            return new_error_obj(ERROR_LOG_NON_POSIT, epoint);
+        }
+        real = log10(real);
+        break;
+    case F_LOG: 
+        if (real <= 0.0) {
+            return new_error_obj(ERROR_LOG_NON_POSIT, epoint);
+        }
+        real = log(real);
+        break;
+    case F_EXP: real = exp(real);break;
+    case F_SIN: real = sin(real);break;
+    case F_COS: real = cos(real);break;
+    case F_TAN: real = tan(real);break;
+    case F_ACOS: 
+        if (real < -1.0 || real > 1.0) {
+            return new_error_obj(ERROR___MATH_DOMAIN, epoint);
+        }
+        real = acos(real);
+        break;
+    case F_ASIN: 
+        if (real < -1.0 || real > 1.0) {
+            return new_error_obj(ERROR___MATH_DOMAIN, epoint);
+        }
+        real = asin(real);
+        break;
+    case F_ATAN: real = atan(real);break;
+    case F_CBRT: real = cbrt(real);break;
+    case F_ROUND: real = round(real);break;
+    case F_TRUNC: real = trunc(real);break;
+    case F_FRAC: real -= trunc(real);break;
+    case F_RAD: real = real * M_PI / 180.0;break;
+    case F_DEG: real = real * 180.0 / M_PI;break;
+    case F_COSH: real = cosh(real);break;
+    case F_SINH: real = sinh(real);break;
+    case F_TANH: real = tanh(real);break;
+    case F_FLOAT: return val_reference(v1); /* nothing to do */
+    default: real = HUGE_VAL; break; /* can't happen */
+    }
+    return float_from_double2(real, epoint);
+}
+
+static MUST_CHECK value_t apply_func2(oper_t op, enum func_e func) {
+    value_t err, v, v1 = op->v1, v2 = op->v2, val, *vals;
+    double real, real2;
+
+    if (v1->obj == TUPLE_OBJ || v1->obj == LIST_OBJ) {
+        size_t i;
+        if (v1->obj == v2->obj) {
+            if (v1->u.list.len == v2->u.list.len) {
+                if (v1->u.list.len) {
+                    int error = 1;
+                    v = val_alloc(v1->obj);
+                    vals = list_create_elements(v, v1->u.list.len);
+                    for (i = 0; i < v1->u.list.len; i++) {
+                        op->v1 = v1->u.list.data[i];
+                        op->v2 = v2->u.list.data[i];
+                        val = apply_func2(op, func);
+                        if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
+                        vals[i] = val;
+                    }
+                    op->v1 = v1;
+                    op->v2 = v2;
+                    v->u.list.len = i;
+                    v->u.list.data = vals;
+                    return v;
+                } 
+                return val_reference(v1);
+            } 
+            if (v1->u.list.len == 1) {
+                op->v1 = v1->u.list.data[0];
+                v = apply_func2(op, func);
+                op->v1 = v1;
+                return v;
+            } 
+            if (v2->u.list.len == 1) {
+                op->v2 = v2->u.list.data[0];
+                v = apply_func2(op, func);
+                op->v2 = v2;
+                return v;
+            } 
+            v = new_error_obj(ERROR_CANT_BROADCAS, op->epoint3);
+            v->u.error.u.broadcast.v1 = v1->u.list.len;
+            v->u.error.u.broadcast.v2 = v2->u.list.len;
+            return v;
+        }
+        if (v1->u.list.len) {
+            int error = 1;
+            v = val_alloc(v1->obj);
+            vals = list_create_elements(v, v1->u.list.len);
+            for (i = 0; i < v1->u.list.len; i++) {
+                op->v1 = v1->u.list.data[i];
+                val = apply_func2(op, func);
+                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
+                vals[i] = val;
+            }
+            op->v1 = v1;
+            v->u.list.len = i;
+            v->u.list.data = vals;
+            return v;
+        }
+        return val_reference(v1);
+    }
+    if (v2->obj == TUPLE_OBJ || v2->obj == LIST_OBJ) {
+        if (v2->u.list.len) {
+            int  error = 1;
+            size_t i;
+            v = val_alloc(v2->obj);
+            vals = list_create_elements(v, v2->u.list.len);
+            for (i = 0; i < v2->u.list.len; i++) {
+                op->v2 = v2->u.list.data[i];
+                val = apply_func2(op, func);
+                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
+                vals[i] = val;
+            }
+            op->v2 = v2;
+            v->u.list.len = i;
+            v->u.list.data = vals;
+            return v;
+        }
+        return val_reference(v2);
+    }
+    err = v1->obj->real(v1, &real, op->epoint);
+    if (err) return err;
+    err = v2->obj->real(v2, &real2, op->epoint2);
     if (err) return err;
     switch (func) {
     case F_HYPOT: real = hypot(real, real2); break;
     case F_ATAN2: real = atan2(real, real2);break;
     case F_POW:
         if (real2 < 0.0 && !real) {
-            return new_error_obj(ERROR_DIVISION_BY_Z, epoint2);
+            return new_error_obj(ERROR_DIVISION_BY_Z, op->epoint3);
         }
         if (real < 0.0 && (double)((int)real2) != real2) {
-            return new_error_obj(ERROR_NEGFRAC_POWER, epoint2);
+            return new_error_obj(ERROR_NEGFRAC_POWER, op->epoint3);
         }
         real = pow(real, real2);
         break;
     default: real = HUGE_VAL; break;
     }
-    return float_from_double2(real, epoint);
+    return float_from_double2(real, op->epoint3);
 }
 
 static MUST_CHECK value_t calc2(oper_t op) {
     enum func_e func;
     struct values_s *v;
     size_t args;
+    struct oper_s oper;
     switch (op->v2->obj->type) {
     case T_FUNCARGS:
         v = op->v2->u.funcargs.val;
@@ -291,11 +336,12 @@ static MUST_CHECK value_t calc2(oper_t op) {
                     err_msg_argnum(args, 2, 2, op->epoint2);
                     return val_reference(none_value);
                 }
-                if ((v[0].val->obj == TUPLE_OBJ || v[0].val->obj == LIST_OBJ) && (v[1].val->obj == TUPLE_OBJ || v[1].val->obj == LIST_OBJ)) {
-                    err_msg_wrong_type(v[0].val, NULL, &v[0].epoint);
-                    return val_reference(none_value);
-                }
-                return apply_func2(v[0].val, v[1].val, func, &v[0].epoint, &v[1].epoint);
+                oper.v1 = v[0].val;
+                oper.v2 = v[1].val;
+                oper.epoint = &v[0].epoint;
+                oper.epoint2 = &v[1].epoint;
+                oper.epoint3 = op->epoint;
+                return apply_func2(&oper, func);
             case F_RANGE: return function_range(op->v2, op->epoint2);
             case F_FORMAT: return isnprintf(op->v2, op->epoint);
             default:

@@ -237,7 +237,10 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
                 op->v2 = v2;
                 return v;
             } 
-            return obj_oper_error(op);
+            v = new_error_obj(ERROR_CANT_BROADCAS, op->epoint3);
+            v->u.error.u.broadcast.v1 = v1->u.list.len;
+            v->u.error.u.broadcast.v2 = v2->u.list.len;
+            return v;
         }
     case O_CONCAT:
         {

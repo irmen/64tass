@@ -183,6 +183,7 @@ static const char *terr_error[]={
     "not a key and value pair",
     "can't convert to a %d bit signed integer",
     "can't convert to a %d bit unsigned integer",
+    "operands could not be broadcast together with shapes %u and %u",
     "can't convert to float",
     "can't get sign",
     "can't get absolute value",
@@ -456,6 +457,13 @@ static void err_msg_no_lot_operand(size_t opers, linepos_t epoint) {
     adderror(msg2);
 }
 
+static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2, linepos_t epoint) {
+    char msg2[256];
+    new_error(SV_CONDERROR, current_file_list, epoint);
+    sprintf(msg2, msg, (unsigned int)v1, (unsigned int)v2);
+    adderror(msg2);
+}
+
 void err_msg_output(const value_t val) {
     if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
@@ -492,6 +500,7 @@ void err_msg_output(const value_t val) {
         case ERROR_NO_ADDRESSING: err_msg_no_addressing(val->u.error.u.addressing, &val->u.error.epoint);break;
         case ERROR___NO_REGISTER: err_msg_no_register(val->u.error.u.reg, &val->u.error.epoint);break;
         case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.error.u.opers, &val->u.error.epoint);break;
+        case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->u.error.num & 63], val->u.error.u.broadcast.v1, val->u.error.u.broadcast.v2, &val->u.error.epoint);break;
         default: break;
         }
     }
