@@ -486,10 +486,10 @@ void init_defaultlabels(void) {
         name[0] = reg_names[i];
         name[1] = 0;
         v = val_alloc(REGISTER_OBJ);
-        v->u.str.val[0] = name[0];
-        v->u.str.data = v->u.str.val;
-        v->u.str.len = 1;
-        v->u.str.chars = 1;
+        v->u.reg.val[0] = name[0];
+        v->u.reg.data = v->u.reg.val;
+        v->u.reg.len = 1;
+        v->u.reg.chars = 1;
         new_builtin(name, v);
     }
 
