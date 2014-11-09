@@ -457,7 +457,7 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
         return val_reference(v[0].val);
     case T_STR: break;
     default:
-        err_msg_wrong_type(v[0].val, &v[0].epoint);
+        err_msg_wrong_type(v[0].val, STR_OBJ, &v[0].epoint);
         return val_reference(none_value);
     }
     data.pf = (char *)v[0].val->u.str.data;

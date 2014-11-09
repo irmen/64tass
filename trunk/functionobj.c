@@ -117,7 +117,7 @@ static inline MUST_CHECK value_t function_register(value_t v1, linepos_t epoint)
     case T_ERROR: return val_reference(v1);
     case T_STR: return register_from_str(v1);
     default:
-        err_msg_wrong_type(v1, epoint);
+        err_msg_wrong_type(v1, STR_OBJ, epoint);
         return val_reference(none_value);
     }
 } 
@@ -292,7 +292,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
                     return val_reference(none_value);
                 }
                 if ((v[0].val->obj == TUPLE_OBJ || v[0].val->obj == LIST_OBJ) && (v[1].val->obj == TUPLE_OBJ || v[1].val->obj == LIST_OBJ)) {
-                    err_msg_wrong_type(v[0].val, &v[0].epoint);
+                    err_msg_wrong_type(v[0].val, NULL, &v[0].epoint);
                     return val_reference(none_value);
                 }
                 return apply_func2(v[0].val, v[1].val, func, &v[0].epoint, &v[1].epoint);

@@ -73,7 +73,6 @@ enum truth_e {
     TRUTH_BOOL, TRUTH_ALL, TRUTH_ANY
 };
 
-typedef const struct obj_s* obj_t;
 struct obj_s {
     enum type_e type;
     const char *name;

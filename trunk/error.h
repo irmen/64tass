@@ -103,7 +103,6 @@ enum errors_e {
     ERROR____PTEXT_LONG,
     ERROR___UNKNOWN_CHR,
     ERROR______EXPECTED,
-    ERROR____WRONG_TYPE,
     ERROR___NOT_ALLOWED,
     ERROR_RESERVED_LABL,
     ERROR___UNKNOWN_CPU,
@@ -128,7 +127,7 @@ enum errors_e {
 
 extern void err_msg(enum errors_e, const void*);
 extern void err_msg2(enum errors_e, const void*, linepos_t);
-extern void err_msg_wrong_type(const value_t, linepos_t);
+extern void err_msg_wrong_type(const value_t, obj_t, linepos_t);
 extern void err_msg_cant_calculate(const str_t *, linepos_t);
 extern void err_msg_still_none(const str_t *, linepos_t);
 extern void err_msg_invalid_oper(const value_t, const value_t, const value_t, linepos_t);
