@@ -87,10 +87,7 @@ static inline MUST_CHECK value_t function_range(value_t vals, linepos_t epoint) 
     }
     if (err) return err;
     if (step == 0) {
-        err = val_alloc(ERROR_OBJ);
-        err->u.error.num = ERROR_NO_ZERO_VALUE;
-        err->u.error.epoint = v[2].epoint;
-        return err;
+        return new_error_obj(ERROR_NO_ZERO_VALUE, &v[2].epoint);
     }
     if (step > 0) {
         if (end < start) end = start;
@@ -168,28 +165,19 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
         case F_CEIL: real = ceil(real);break;
         case F_SQRT: 
             if (real < 0.0) {
-                v = val_alloc(ERROR_OBJ);
-                v->u.error.num = ERROR_SQUARE_ROOT_N;
-                v->u.error.epoint = *epoint;
-                return v;
+                return new_error_obj(ERROR_SQUARE_ROOT_N, epoint);
             }
             real = sqrt(real);
             break;
         case F_LOG10: 
             if (real <= 0.0) {
-                v = val_alloc(ERROR_OBJ);
-                v->u.error.num = ERROR_LOG_NON_POSIT;
-                v->u.error.epoint = *epoint;
-                return v;
+                return new_error_obj(ERROR_LOG_NON_POSIT, epoint);
             }
             real = log10(real);
             break;
         case F_LOG: 
             if (real <= 0.0) {
-                v = val_alloc(ERROR_OBJ);
-                v->u.error.num = ERROR_LOG_NON_POSIT;
-                v->u.error.epoint = *epoint;
-                return v;
+                return new_error_obj(ERROR_LOG_NON_POSIT, epoint);
             }
             real = log(real);
             break;
@@ -199,19 +187,13 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
         case F_TAN: real = tan(real);break;
         case F_ACOS: 
             if (real < -1.0 || real > 1.0) {
-                v = val_alloc(ERROR_OBJ);
-                v->u.error.num = ERROR___MATH_DOMAIN;
-                v->u.error.epoint = *epoint;
-                return v;
+                return new_error_obj(ERROR___MATH_DOMAIN, epoint);
             }
             real = acos(real);
             break;
         case F_ASIN: 
             if (real < -1.0 || real > 1.0) {
-                v = val_alloc(ERROR_OBJ);
-                v->u.error.num = ERROR___MATH_DOMAIN;
-                v->u.error.epoint = *epoint;
-                return v;
+                return new_error_obj(ERROR___MATH_DOMAIN, epoint);
             }
             real = asin(real);
             break;
@@ -278,16 +260,10 @@ static MUST_CHECK value_t apply_func2(value_t v1, value_t v2, enum func_e func, 
     case F_ATAN2: real = atan2(real, real2);break;
     case F_POW:
         if (real2 < 0.0 && !real) {
-            v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR_DIVISION_BY_Z;
-            v->u.error.epoint = *epoint2;
-            return v;
+            return new_error_obj(ERROR_DIVISION_BY_Z, epoint2);
         }
         if (real < 0.0 && (double)((int)real2) != real2) {
-            v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR_NEGFRAC_POWER;
-            v->u.error.epoint = *epoint2;
-            return v;
+            return new_error_obj(ERROR_NEGFRAC_POWER, epoint2);
         }
         real = pow(real, real2);
         break;

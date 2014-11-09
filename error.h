@@ -150,5 +150,6 @@ extern void error_init(struct errorbuffer_s *);
 extern void error_status(void);
 extern int error_serious(int, int);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t, uint32_t);
+extern MUST_CHECK value_t new_error_obj(enum errors_e, linepos_t);
 
 #endif

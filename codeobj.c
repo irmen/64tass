@@ -38,17 +38,13 @@ static void destroy(value_t v1) {
 
 static MUST_CHECK value_t access_check(const value_t v1, linepos_t epoint) {
     if (v1->u.code.label->requires & ~current_section->provides) {
-        value_t v = val_alloc(ERROR_OBJ);
+        value_t v = new_error_obj(ERROR_REQUIREMENTS_, epoint);
         v->u.error.u.ident = v1->u.code.label->name;
-        v->u.error.epoint = *epoint;
-        v->u.error.num = ERROR_REQUIREMENTS_;
         return v;
     }
     if (v1->u.code.label->conflicts & current_section->provides) {
-        value_t v = val_alloc(ERROR_OBJ);
+        value_t v = new_error_obj(ERROR______CONFLICT, epoint);
         v->u.error.u.ident = v1->u.code.label->name;
-        v->u.error.epoint = *epoint;
-        v->u.error.num = ERROR______CONFLICT;
         return v;
     }
     return NULL;
@@ -147,9 +143,7 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
         return val_reference(null_tuple);
     }
     if (v1->u.code.pass != pass) {
-        v = val_alloc(ERROR_OBJ);
-        v->u.error.num = ERROR____NO_FORWARD;
-        v->u.error.epoint = *op->epoint;
+        v = new_error_obj(ERROR____NO_FORWARD, op->epoint);
         v->u.error.u.ident = v1->u.code.label->name;
         return v;
     }
@@ -198,9 +192,7 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
     v2 = v2->u.funcargs.val->val;
 
     if (v1->u.code.pass != pass) {
-        v = val_alloc(ERROR_OBJ);
-        v->u.error.num = ERROR____NO_FORWARD;
-        v->u.error.epoint = *op->epoint;
+        v = new_error_obj(ERROR____NO_FORWARD, op->epoint);
         v->u.error.u.ident = v1->u.code.label->name;
         return v;
     }
@@ -302,8 +294,6 @@ static MUST_CHECK value_t calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v, err;
     if (op->op == &o_MEMBER) {
         struct label_s *l, *l2;
-        struct linepos_s epoint;
-        str_t name;
         switch (v2->obj->type) {
         case T_IDENT:
             l2 = v1->u.code.label;
@@ -315,13 +305,9 @@ static MUST_CHECK value_t calc2(oper_t op) {
             if (!referenceit) {
                 return val_reference(none_value);
             }
-            epoint = v2->u.ident.epoint;
-            name = v2->u.ident.name;
-            v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR___NOT_DEFINED;
-            v->u.error.epoint = epoint;
+            v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.ident.epoint);
             v->u.error.u.notdef.label = l2;
-            v->u.error.u.notdef.ident = name;
+            v->u.error.u.notdef.ident = v2->u.ident.name;
             v->u.error.u.notdef.down = 0;
             return v;
         case T_ANONIDENT:
@@ -336,11 +322,8 @@ static MUST_CHECK value_t calc2(oper_t op) {
                 if (!referenceit) {
                     return val_reference(none_value);
                 }
-                epoint = v2->u.anonident.epoint;
                 count = v2->u.anonident.count;
-                v = val_alloc(ERROR_OBJ);
-                v->u.error.num = ERROR___NOT_DEFINED;
-                v->u.error.epoint = epoint;
+                v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.anonident.epoint);
                 v->u.error.u.notdef.label = l2;
                 v->u.error.u.notdef.ident.len = count + (count >= 0);
                 v->u.error.u.notdef.ident.data = NULL;
@@ -401,9 +384,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         uval_t uv;
 
         if (v2->u.code.pass != pass) {
-            v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR____NO_FORWARD;
-            v->u.error.epoint = *op->epoint2;
+            v = new_error_obj(ERROR____NO_FORWARD, op->epoint2);
             v->u.error.u.ident = v2->u.code.label->name;
             return v;
         }

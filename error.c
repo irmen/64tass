@@ -846,3 +846,9 @@ int error_serious(int fix, int newvar) {
     return 0;
 }
 
+MUST_CHECK value_t new_error_obj(enum errors_e num, linepos_t epoint) {
+    value_t v = val_alloc(ERROR_OBJ);
+    v->u.error.num = num;
+    v->u.error.epoint = *epoint;
+    return v;
+}

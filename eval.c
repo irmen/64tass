@@ -161,10 +161,7 @@ static MUST_CHECK value_t get_exponent(double real, linepos_t epoint) {
         }
     }
     if (real == HUGE_VAL) {
-        v = val_alloc(ERROR_OBJ);
-        v->u.error.num = ERROR_CONSTNT_LARGE;
-        v->u.error.epoint = *epoint;
-        return v;
+        return new_error_obj(ERROR_CONSTNT_LARGE, epoint);
     }
     return float_from_double(real);
 }
@@ -402,9 +399,7 @@ rest:
             l->shadowcheck = 1;
             push_oper(val_reference(l->value), &epoint);
         } else {
-            val = val_alloc(ERROR_OBJ);
-            val->u.error.num = ERROR___NOT_DEFINED;
-            val->u.error.epoint = epoint;
+            val = new_error_obj(ERROR___NOT_DEFINED, &epoint);
             val->u.error.u.notdef.ident = ident;
             val->u.error.u.notdef.label = current_context;
             val->u.error.u.notdef.down = 1;
@@ -630,9 +625,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
                     case O_DIV: if (!val2) {
-                        val = val_alloc(ERROR_OBJ);
-                        val->u.error.num = ERROR_DIVISION_BY_Z;
-                        val->u.error.epoint = o_out->epoint;
+                        val = new_error_obj(ERROR_DIVISION_BY_Z, &o_out->epoint);
                         val_destroy(v1->val); v1->val = val;
                         continue;
                     } else val1 /= val2; break;
@@ -683,14 +676,11 @@ MUST_CHECK value_t indexoffs(const value_t v1, size_t len, size_t *offs, linepos
             return NULL;
         }
     }
-    err = val_alloc(ERROR_OBJ);
-    err->u.error.num = ERROR___INDEX_RANGE;
-    err->u.error.epoint = *epoint;
-    return err;
+    return new_error_obj(ERROR___INDEX_RANGE, epoint);
 }
 
 MUST_CHECK value_t sliceparams(const value_t v2, size_t len, size_t *olen, ival_t *offs2, ival_t *end2, ival_t *step2, linepos_t epoint) {
-    value_t v, err;
+    value_t err;
     ival_t offs, end, step = 1;
     if (v2->u.list.len > 3 || v2->u.list.len < 1) {
         err_msg_argnum(v2->u.list.len, 1, 3, epoint);
@@ -702,10 +692,7 @@ MUST_CHECK value_t sliceparams(const value_t v2, size_t len, size_t *olen, ival_
             err = v2->u.list.data[2]->obj->ival(v2->u.list.data[2], &step, 8*sizeof(ival_t), epoint);
             if (err) return err;
             if (step == 0) {
-                v = val_alloc(ERROR_OBJ);
-                v->u.error.num = ERROR_NO_ZERO_VALUE;
-                v->u.error.epoint = *epoint;
-                return v;
+                return new_error_obj(ERROR_NO_ZERO_VALUE, epoint);
             }
         }
     }
@@ -956,9 +943,7 @@ static int get_val2(struct eval_context_s *ev) {
                             continue;
                         }
                         val_destroy(val);
-                        val = val_alloc(ERROR_OBJ);
-                        val->u.error.num = ERROR__NOT_KEYVALUE;
-                        val->u.error.epoint = v1->epoint;
+                        val = new_error_obj(ERROR__NOT_KEYVALUE, &v1->epoint);
                         val->u.error.u.objname = v1->val->obj->name;
                         break;
                     }
@@ -1419,9 +1404,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     push_oper(val_reference(l->value), &epoint);
                     goto other;
                 }
-                val = val_alloc(ERROR_OBJ);
-                val->u.error.num = ERROR___NOT_DEFINED;
-                val->u.error.epoint = epoint;
+                val = new_error_obj(ERROR___NOT_DEFINED, &epoint);
                 val->u.error.u.notdef.ident = ident;
                 val->u.error.u.notdef.label = down ? current_context : cheap_context;
                 val->u.error.u.notdef.down = down;
@@ -1446,9 +1429,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
                 }
-                val = val_alloc(ERROR_OBJ);
-                val->u.error.num = ERROR___NOT_DEFINED;
-                val->u.error.epoint = o_oper[operp].epoint;
+                val = new_error_obj(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
                 val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(db - operp));
                 val->u.error.u.notdef.ident.data = NULL;
                 val->u.error.u.notdef.label = current_context;
@@ -1472,9 +1453,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
                 }
-                val = val_alloc(ERROR_OBJ);
-                val->u.error.num = ERROR___NOT_DEFINED;
-                val->u.error.epoint = o_oper[operp].epoint;
+                val = new_error_obj(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
                 val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(operp - db));
                 val->u.error.u.notdef.ident.data = NULL;
                 val->u.error.u.notdef.label = current_context;

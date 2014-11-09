@@ -112,18 +112,12 @@ static MUST_CHECK value_t calc2_bool(oper_t op, int v1, int v2) {
     case O_MUL: return int_from_bool(v1 & v2);
     case O_DIV:
         if (!v2) { 
-            value_t v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR_DIVISION_BY_Z;
-            v->u.error.epoint = *op->epoint3;
-            return v; 
+            return new_error_obj(ERROR_DIVISION_BY_Z, op->epoint3); 
         }
         return int_from_bool(v1);
     case O_MOD:
         if (!v2) { 
-            value_t v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR_DIVISION_BY_Z;
-            v->u.error.epoint = *op->epoint3;
-            return v;
+            return new_error_obj(ERROR_DIVISION_BY_Z, op->epoint3);
         }
         return int_from_bool(0);
     case O_EXP: return int_from_bool(v1 | !v1);

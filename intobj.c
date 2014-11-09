@@ -192,10 +192,8 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
         return NULL;
     default: break;
     }
-    v = val_alloc(ERROR_OBJ);
-    v->u.error.num = ERROR_____CANT_IVAL;
+    v = new_error_obj(ERROR_____CANT_IVAL, epoint);
     v->u.error.u.bits = bits;
-    v->u.error.epoint = *epoint;
     return v;
 }
 
@@ -214,10 +212,8 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     case 0: *uv = 0; return NULL;
     default: break;
     }
-    v = val_alloc(ERROR_OBJ);
-    v->u.error.num = ERROR_____CANT_UVAL;
+    v = new_error_obj(ERROR_____CANT_UVAL, epoint);
     v->u.error.u.bits = bits;
-    v->u.error.epoint = *epoint;
     return v;
 }
 
@@ -228,9 +224,7 @@ static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
         if (v1->u.integer.len < 0) d -= ldexp((double)v1->u.integer.data[i], i * SHIFT);
         else d += ldexp((double)v1->u.integer.data[i], i * SHIFT);
         if (d == HUGE_VAL) {
-            value_t v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR_____CANT_REAL;
-            v->u.error.epoint = *epoint;
+            value_t v = new_error_obj(ERROR_____CANT_REAL, epoint);
             v->u.error.u.objname = v1->obj->name;
             return v;
         }
@@ -472,10 +466,7 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
 
     len2 = abs(vv2->u.integer.len);
     if (!len2) { 
-        vv = val_alloc(ERROR_OBJ);
-        vv->u.error.num = ERROR_DIVISION_BY_Z; 
-        vv->u.error.epoint = *epoint; 
-        return vv;
+        return new_error_obj(ERROR_DIVISION_BY_Z, epoint);
     }
     len1 = abs(vv1->u.integer.len);
     v1 = vv1->u.integer.data;
@@ -1026,9 +1017,7 @@ MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
     value_t v;
 
     if (f == HUGE_VAL) {
-        v = val_alloc(ERROR_OBJ);
-        v->u.error.num = ERROR______CANT_INT;
-        v->u.error.epoint = *epoint;
+        v = new_error_obj(ERROR______CANT_INT, epoint);
         v->u.error.u.objname = FLOAT_OBJ->name;
         return v;
     }
@@ -1255,10 +1244,7 @@ MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
         if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
         return int_from_uval(ch2);
     } 
-    v = val_alloc(ERROR_OBJ);
-    v->u.error.num = ERROR_BIG_STRING_CO;
-    v->u.error.epoint = *epoint;
-    return v;
+    return new_error_obj(ERROR_BIG_STRING_CO, epoint);
 }
 
 MUST_CHECK value_t int_from_decstr(const uint8_t *s, size_t *ln) {
