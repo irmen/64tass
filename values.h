@@ -156,6 +156,9 @@ struct value_s {
                 } notdef;
                 int bits;
                 const char *objname;
+                atype_t addressing;
+                value_t reg;
+                size_t opers;
             } u;
         } error;
         struct {

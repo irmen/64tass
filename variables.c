@@ -411,9 +411,9 @@ void labelprint(void) {
     referenceit = 0;
     labelprint2(&root_label->members, flab);
     referenceit = oldreferenceit;
-    if (flab != stdout) fclose(flab);
-    else fflush(flab);
+    if (flab == stdout) fflush(flab);
     if (ferror(flab) && errno) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
+    if (flab != stdout) fclose(flab);
 }
 
 

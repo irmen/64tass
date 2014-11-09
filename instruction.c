@@ -79,8 +79,14 @@ MUST_CHECK int touval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) 
     return 0;
 }
 
-int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s *epoints) {
-    enum { AG_ZP, AG_B0, AG_PB, AG_BYTE, AG_DB3, AG_DB2, AG_WORD, AG_NONE } adrgen;
+static MUST_CHECK value_t err_addressing(atype_t am, linepos_t epoint) {
+    value_t v = new_error_obj(ERROR_NO_ADDRESSING, epoint);
+    v->u.error.u.addressing = am;
+    return v;
+}
+
+MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s *epoints) {
+    enum { AG_ZP, AG_B0, AG_PB, AG_PB2, AG_BYTE, AG_DB3, AG_DB2, AG_WORD, AG_RELPB, AG_RELL, AG_IMP, AG_NONE } adrgen;
     enum opr_e opr;
     enum reg_e reg;
     const uint8_t *cnmemonic; /* current nmemonic */
@@ -92,19 +98,20 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
     linepos_t epoint2 = &epoints[0];
 
     cnmemonic = opcode_table[opcode[prm]];
-    longbranch = 0; reg = REG_A; adr = 0; adrgen = AG_NONE;
+    longbranch = 0; reg = REG_A; adr = 0;
 
 
     if (vals->obj != ADDRLIST_OBJ) {
         val = vals; goto single;
     } else {
-        switch (vals->u.list.len) {
+        size_t opers = vals->u.list.len;
+        switch (opers) {
         case 0:
             if (cnmemonic[ADR_IMPLIED] != ____) {
-                opr = ADR_IMPLIED; w = ln = 0;
+                adrgen = AG_IMP; opr = ADR_IMPLIED;
                 break;
             }
-            return 2;
+            return err_addressing(A_NONE, epoint);
         case 1:
             val = vals->u.list.data[0];
         single:
@@ -114,7 +121,7 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                 switch (am) {
                 case A_IMMEDIATE:
                     if ((cod = cnmemonic[(opr = ADR_IMMEDIATE)]) == ____ && prm) { /* 0x69 hack */
-                        return 2;
+                        return err_addressing(am, epoint);
                     }
                     switch (cod) {
                     case 0xE0:
@@ -142,7 +149,7 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                         adrgen = AG_WORD; opr = ADR_ADDR; /* lda $ffff,b */
                         break;
                     }
-                    return 2;
+                    return err_addressing(am, epoint);
                 case A_KR:
                     if (cnmemonic[ADR_REL] != ____) {
                         ln = 1; opr = ADR_REL;
@@ -150,119 +157,194 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                         goto justrel2;
                     }
                     if (cnmemonic[ADR_REL_L] != ____) {
-                        if (touval(val, &uval, 16, epoint2)) {}
-                        else adr = (uint16_t)(uval - current_section->l_address - 3);
-                        opr = ADR_REL_L; ln = 2; /* brl */
+                        adrgen = AG_RELPB; opr = ADR_REL_L; /* brl */
                         break;
                     }
                     if (cnmemonic[ADR_ADDR] == 0x4C || cnmemonic[ADR_ADDR] == 0x20) {/* jmp $ffff, jsr $ffff */
                         adrgen = AG_WORD; opr = ADR_ADDR; /* jmp $ffff */
                         break;
                     }
-                    return 2;
+                    return err_addressing(am, epoint);
                 case A_DR:
-                    adrgen = AG_BYTE; opr = ADR_ZP; /* lda $ff,d */
-                    break;
+                    if (cnmemonic[ADR_ZP] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP; /* lda $ff,d */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_BR << 4) | A_XR:
-                    adrgen = AG_WORD; opr = ADR_ADDR_X; /* lda $ffff,b,x */
-                    break;
+                    if (cnmemonic[ADR_ADDR_X] != ____) {
+                        adrgen = AG_WORD; opr = ADR_ADDR_X; /* lda $ffff,b,x */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_DR << 4) | A_XR:
-                    adrgen = AG_BYTE; opr = ADR_ZP_X; /* lda $ff,d,x */
-                    break;
+                    if (cnmemonic[ADR_ZP_X] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_X; /* lda $ff,d,x */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case A_XR:
-                    adrgen = AG_DB3; opr = ADR_ZP_X; /* lda $ff,x lda $ffff,x lda $ffffff,x */
-                    break;
+                    if (cnmemonic[ADR_ZP_X] != ____ || cnmemonic[ADR_ADDR_X] != ____ || cnmemonic[ADR_LONG_X] != ____) {
+                        adrgen = AG_DB3; opr = ADR_ZP_X; /* lda $ff,x lda $ffff,x lda $ffffff,x */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_BR << 4) | A_YR:
-                    adrgen = AG_WORD; opr = ADR_ADDR_Y; /* ldx $ffff,b,y */
-                    break;
+                    if (cnmemonic[ADR_ADDR_Y] != ____) {
+                        adrgen = AG_WORD; opr = ADR_ADDR_Y; /* ldx $ffff,b,y */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_DR << 4) | A_YR:
-                    adrgen = AG_BYTE; opr = ADR_ZP_Y; /* ldx $ff,d,y */
-                    break;
+                    if (cnmemonic[ADR_ZP_Y] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_Y; /* ldx $ff,d,y */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case A_YR: 
-                    adrgen = AG_DB2; opr = ADR_ZP_Y; /* lda $ff,y lda $ffff,y lda $ffffff,y */
-                    break;
+                    if (cnmemonic[ADR_ZP_Y] != ____ || cnmemonic[ADR_ADDR_Y] != ____) {
+                        adrgen = AG_DB2; opr = ADR_ZP_Y; /* lda $ff,y lda $ffff,y lda $ffffff,y */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case A_SR:
-                    adrgen = AG_BYTE; opr = ADR_ZP_S; /* lda $ff,s */
-                    break;
+                    if (cnmemonic[ADR_ZP_S] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_S; /* lda $ff,s */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case A_RR:
-                    adrgen = AG_BYTE; opr = ADR_ZP_R; /* lda $ff,r */
-                    break;
+                    if (cnmemonic[ADR_ZP_R] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_R; /* lda $ff,r */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_DR << 8) | (A_I << 4) | A_YR:
-                    adrgen = AG_BYTE; opr = ADR_ZP_I_Y; /* lda ($ff,d),y */
-                    break;
+                    if (cnmemonic[ADR_ZP_I_Y] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_I_Y; /* lda ($ff,d),y */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_I << 4) | A_YR:
-                    adrgen = AG_ZP; opr = ADR_ZP_I_Y; /* lda ($ff),y */
-                    break;
+                    if (cnmemonic[ADR_ZP_I_Y] != ____) {
+                        adrgen = AG_ZP; opr = ADR_ZP_I_Y; /* lda ($ff),y */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_DR << 8) | (A_I << 4) | A_ZR:
-                    adrgen = AG_BYTE; opr = ADR_ZP_I_Z; /* lda ($ff,d),z */
-                    break;
+                    if (cnmemonic[ADR_ZP_I_Z] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_I_Z; /* lda ($ff,d),z */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_I << 4) | A_ZR:
-                    adrgen = AG_ZP; opr = ADR_ZP_I_Z; /* lda ($ff),z */
-                    break;
+                    if (cnmemonic[ADR_ZP_I_Z] != ____) {
+                        adrgen = AG_ZP; opr = ADR_ZP_I_Z; /* lda ($ff),z */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_SR << 8) | (A_I << 4) | A_YR:
-                    adrgen = AG_BYTE; opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
-                    break;
+                    if (cnmemonic[ADR_ZP_S_I_Y] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_S_I_Y; /* lda ($ff,s),y */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_RR << 8) | (A_I << 4) | A_YR:
-                    adrgen = AG_BYTE; opr = ADR_ZP_R_I_Y; /* lda ($ff,r),y */
-                    break;
+                    if (cnmemonic[ADR_ZP_R_I_Y] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_R_I_Y; /* lda ($ff,r),y */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_DR << 8) | (A_LI << 4) | A_YR:
-                    adrgen = AG_BYTE; opr = ADR_ZP_LI_Y; /* lda [$ff,d],y */
-                    break;
+                    if (cnmemonic[ADR_ZP_LI_Y] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_LI_Y; /* lda [$ff,d],y */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_LI << 4) | A_YR:
-                    adrgen = AG_ZP; opr = ADR_ZP_LI_Y; /* lda [$ff],y */
-                    break;
+                    if (cnmemonic[ADR_ZP_LI_Y] != ____) {
+                        adrgen = AG_ZP; opr = ADR_ZP_LI_Y; /* lda [$ff],y */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_XR << 4) | A_I:
                     if (cnmemonic[ADR_ADDR_X_I] == 0x7C || cnmemonic[ADR_ADDR_X_I] == 0xFC || cnmemonic[ADR_ADDR_X_I] == 0x23) {/* jmp ($ffff,x) jsr ($ffff,x) */
                         adrgen = AG_PB; opr = ADR_ADDR_X_I; /* jmp ($ffff,x) */
                         break;
                     } 
-                    adrgen = AG_ZP; opr = ADR_ZP_X_I; /* lda ($ff,x) */
-                    break;
+                    if (cnmemonic[ADR_ZP_X_I] != ____) {
+                        adrgen = AG_ZP; opr = ADR_ZP_X_I; /* lda ($ff,x) */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_KR << 8) | (A_XR << 4) | A_I:
                     if (cnmemonic[ADR_ADDR_X_I] == 0x7C || cnmemonic[ADR_ADDR_X_I] == 0xFC || cnmemonic[ADR_ADDR_X_I] == 0x23) {/* jmp ($ffff,x) jsr ($ffff,x) */
                         adrgen = AG_WORD; opr = ADR_ADDR_X_I; /* jmp ($ffff,k,x) */
                         break;
                     }
-                    return 2;
+                    return err_addressing(am, epoint);
                 case (A_DR << 8) | (A_XR << 4) | A_I:
-                    adrgen = AG_BYTE; opr = ADR_ZP_X_I; /* lda ($ff,d,x) */
-                    break;
+                    if (cnmemonic[ADR_ZP_X_I] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_X_I; /* lda ($ff,d,x) */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case A_I:
                     if (cnmemonic[ADR_ADDR_I] == 0x6C || cnmemonic[ADR_ADDR_I] == 0x22) {/* jmp ($ffff), jsr ($ffff) */
                         adrgen = AG_B0; opr = ADR_ADDR_I; /* jmp ($ffff) */
                         break;
                     } 
-                    adrgen = AG_ZP; opr = ADR_ZP_I; /* lda ($ff) */
-                    break;
+                    if (cnmemonic[ADR_ZP_I] != ____) {
+                        adrgen = AG_ZP; opr = ADR_ZP_I; /* lda ($ff) */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_DR << 4) | A_I:
-                    adrgen = AG_BYTE; opr = ADR_ZP_I; /* lda ($ff,d) */
-                    break;
+                    if (cnmemonic[ADR_ZP_I] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_I; /* lda ($ff,d) */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case A_LI:
                     if (cnmemonic[ADR_ADDR_LI] == 0xDC) { /* jmp [$ffff] */
                         adrgen = AG_B0; opr = ADR_ADDR_LI; /* jmp [$ffff] */
                         break;
                     } 
-                    adrgen = AG_ZP; opr = ADR_ZP_LI; /* lda [$ff] */
-                    break;
+                    if (cnmemonic[ADR_ZP_LI] != ____) {
+                        adrgen = AG_ZP; opr = ADR_ZP_LI; /* lda [$ff] */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case (A_DR << 4) | A_LI:
-                    adrgen = AG_BYTE; opr = ADR_ZP_LI; /* lda [$ff,d] */
-                    break;
+                    if (cnmemonic[ADR_ZP_LI] != ____) {
+                        adrgen = AG_BYTE; opr = ADR_ZP_LI; /* lda [$ff,d] */
+                        break;
+                    }
+                    return err_addressing(am, epoint);
                 case A_NONE:
                     goto noneaddr;
-                default: return 2; /* non-existing */
+                default: 
+                    return err_addressing(am, epoint); /* non-existing */
                 }
                 break;
             }
         noneaddr:
-            if (cnmemonic[ADR_REG] != 0 && val->obj == REGISTER_OBJ) {
-                char *ind;
-                if (val->u.str.len != 1) return 2;
-                ind = strchr(reg_names, val->u.str.data[0]);
-                if (!ind) return 2;
-                opr = ADR_REG; reg = ind - reg_names;
-                if (regopcode_table[cnmemonic[opr]][reg] == ____) return 2;
-                ln = 0;
-                break;
+            if (val->obj == REGISTER_OBJ) {
+                value_t err;
+                cod = cnmemonic[(opr = ADR_REG)];
+                if (cod && val->u.str.len == 1) {
+                    const char *ind = strchr(reg_names, val->u.str.data[0]);
+                    if (ind) {
+                        reg = ind - reg_names;
+                        if (regopcode_table[cod][reg] != ____) {
+                            adrgen = AG_IMP;
+                            break;
+                        }
+                    }
+                }
+                err = new_error_obj(ERROR___NO_REGISTER, epoint);
+                err->u.error.u.reg = val_reference(val);
+                return err;
             }
             if (cnmemonic[ADR_REL] != ____) {
                 struct star_s *s;
@@ -299,19 +381,19 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                         ln = 2;
                     } else if (arguments.longbranch && (cnmemonic[ADR_ADDR] == ____)) { /* fake long branches */
                         if ((cnmemonic[ADR_REL] & 0x1f) == 0x10) {/* bxx branch */
-                            int r;
+                            value_t err;
                             cod = cnmemonic[ADR_REL] ^ 0x20;
                             ln = labelexists ? ((uint16_t)(s->addr - star - 2)) : 3;
                             pokeb(cod);
                             pokeb(ln);
                             listing_instr(cod, ln, 1);
-                            r = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, vals, epoint, epoints);
+                            err = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, vals, epoint, epoints);
                             if (labelexists && s->addr != (current_section->l_address & all_mem)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
                             }
                             s->addr = current_section->l_address & all_mem;
-                            return r;
+                            return err;
                         } else if (opr == ADR_BIT_ZP_REL) {
                             if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                             cod = cnmemonic[ADR_BIT_ZP_REL] ^ 0x80 ^ longbranch;
@@ -336,15 +418,15 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                                 if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                                 else err_msg2(ERROR_BRANCH_TOOFAR, &dist, epoint); /* rer not a branch */
                             } else { /* bra -> jmp */
-                                int r;
+                                value_t err;
                             asjmp:
-                                r = instruction(cpu->jmp, w, vals, epoint, epoints);
+                                err = instruction(cpu->jmp, w, vals, epoint, epoints);
                                 if (labelexists && s->addr != (current_section->l_address & all_mem)) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                     fixeddig = 0;
                                 }
                                 s->addr = current_section->l_address & all_mem;
-                                return r;
+                                return err;
                             }
                         }
                         /* erro = ERROR___LONG_BRANCH; */
@@ -373,7 +455,7 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                                 fixeddig = 0;
                             }
                             s->addr = current_section->l_address & all_mem;
-                            return 0;
+                            return NULL;
                         } else if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
                             cod = cnmemonic[ADR_REL] ^ 0x20;
                             pokeb(cod);
@@ -383,7 +465,7 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                                 fixeddig = 0;
                             }
                             s->addr = current_section->l_address & all_mem;
-                            return 0;
+                            return NULL;
                         }
                     }
                 }
@@ -393,32 +475,14 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                 }
                 s->addr = (star + 1 + ln) & all_mem;
                 if (opr == ADR_BIT_ZP_REL) adr = xadr | (adr << 8);
-                break;
+                adrgen = AG_NONE; break;
             }
             if (cnmemonic[ADR_REL_L] != ____) {
-                if (w != 3 && w != 1) return 2;
-                if (touval(val, &uval, 24, epoint2)) {}
-                else {
-                    adr = (uint16_t)(uval - current_section->l_address - 3);
-                    if ((current_section->l_address ^ uval) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
-                }
-                opr = ADR_REL_L; ln = 2; /* brl */
+                adrgen = AG_RELL; opr = ADR_REL_L; /* brl */
                 break;
             }
             if (cnmemonic[ADR_LONG] == 0x5C) {
-                if (w == 3) {/* auto length */
-                    if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[ADR_ADDR] == ____) + 1;
-                    else if (cnmemonic[ADR_ADDR] != ____ && (current_section->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
-                    else {adr = uval; w = 2;}
-                } else {
-                    if (touval(val, &uval, 24, epoint2)) {}
-                    else if (w == 1 && cnmemonic[ADR_ADDR] != ____) {
-                        adr = uval;
-                        if ((current_section->l_address ^ uval) > 0xffff) {err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint); w = 2;}
-                    } else if (w == 2) adr = uval;
-                    else return 2;
-                }
-                opr = ADR_ZP - w; ln = w + 1; /* jml */
+                adrgen = AG_PB2; opr = ADR_ZP; /* jml */
                 break;
             }
             if (cnmemonic[ADR_ADDR] == 0x20 || cnmemonic[ADR_ADDR] == 0x4C) {
@@ -429,8 +493,13 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                 adrgen = AG_WORD; opr = ADR_ADDR; /* pea $ffff */
                 break;
             } 
-            adrgen = AG_DB3; opr = ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
-            break;
+            if (cnmemonic[ADR_ZP] != ____ || cnmemonic[ADR_ADDR] != ____ || cnmemonic[ADR_LONG] != ____) {
+                adrgen = AG_DB3; opr = ADR_ZP; /* lda $ff lda $ffff lda $ffffff */
+                break;
+            }
+            val = new_error_obj(ERROR___NO_LOT_OPER, epoint);
+            val->u.error.u.opers = 1;
+            return val;
         case 2:
             if (cnmemonic[ADR_MOVE] != ____) {
                 val = vals->u.list.data[0];
@@ -442,11 +511,12 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                 if (val->obj == ADDRESS_OBJ && val->u.addr.type == A_IMMEDIATE) val = val->u.addr.val;
                 if (touval(val, &uval, 8, epoint2)) {}
                 else adr |= (uint8_t)uval;
-                ln = 2; opr = ADR_MOVE;
+                ln = 2; 
+                adrgen = AG_NONE; opr = ADR_MOVE;
                 break;
             } 
             if (cnmemonic[ADR_BIT_ZP] != ____) {
-                if (w != 3 && w != 0) return 2;
+                if (w != 3 && w != 0) return new_error_obj((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
                 if (touval(vals->u.list.data[0], &uval, 3, epoint2)) {}
                 else longbranch = (uval << 4) & 0x70;
                 val = vals->u.list.data[1];
@@ -460,10 +530,12 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                 opr = ADR_BIT_ZP;
                 break;
             }
-            return 2;
+            val = new_error_obj(ERROR___NO_LOT_OPER, epoint);
+            val->u.error.u.opers = opers;
+            return val;
         case 3:
             if (cnmemonic[ADR_BIT_ZP_REL] != ____) {
-                if (w != 3 && w != 0) return 2;
+                if (w != 3 && w != 1) return new_error_obj(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
                 if (touval(vals->u.list.data[0], &uval, 3, epoint2)) {}
                 else longbranch = (uval << 4) & 0x70;
                 val = vals->u.list.data[1];
@@ -490,14 +562,16 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                 }
                 goto justrel;
             }
-            return 2;
-        default: return 2;
+            /* fall through */
+        default: 
+            val = new_error_obj(ERROR___NO_LOT_OPER, epoint);
+            val->u.error.u.opers = opers;
+            return val;
         }
     } 
     switch (adrgen) {
     case AG_ZP: /* zero page address only */
-        if (w != 3 && w != 0) return 2;
-        if (cnmemonic[opr] == ____) return 2;
+        if (w != 3 && w != 0) return new_error_obj((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
         if (touval(val, &uval, 24, epoint2)) {}
         else if (uval <= 0xffff) {
             adr = (uint16_t)(uval - dpage);
@@ -506,8 +580,7 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
         ln = 1;
         break;
     case AG_B0: /* bank 0 address only */
-        if (w != 3 && w != 1) return 2;
-        if (cnmemonic[opr] == ____) return 2;
+        if (w != 3 && w != 1) return new_error_obj(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (touval(val, &uval, 24, epoint2)) {}
         else if (uval <= 0xffff) {
             adr = uval;
@@ -516,26 +589,23 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
         ln = 2;
         break;
     case AG_PB: /* address in program bank */
-        if (w != 3 && w != 1) return 2;
-        if (cnmemonic[opr] == ____) return 2;
+        if (w != 3 && w != 1) return new_error_obj(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (touval(val, &uval, 24, epoint2)) {}
-        else if ((current_section->l_address ^ uval) <= 0xffff) adr = (uint16_t)uval;
+        else if ((current_section->l_address ^ uval) <= 0xffff) adr = uval;
         else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         ln = 2;
         break;
     case AG_BYTE: /* byte only */
-        if (w != 3 && w != 0) return 2;
-        if (cnmemonic[opr] == ____ && (prm || opr != ADR_IMMEDIATE)) return 2; /* 0x69 hack */
+        if (w != 3 && w != 0) return new_error_obj((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
         if (touval(val, &uval, 8, epoint2)) {}
         else adr = uval;
         ln = 1;
         break;
     case AG_DB3: /* 3 choice data bank */
         if (w == 3) {/* auto length */
-            if (cnmemonic[opr] == ____ && cnmemonic[opr - 1] == ____ && cnmemonic[opr - 2] == ____) return 2;
             if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[opr - 1] != ____);
-            else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
-            else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
+            else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
+            else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
             else if (cnmemonic[opr - 2] != ____) {adr = uval; w = 2;}
             else {
                 w = (cnmemonic[opr - 1] != ____);
@@ -544,7 +614,7 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
         } else {
             switch (w) {
             case 0:
-                if (cnmemonic[opr] == ____) return 2;
+                if (cnmemonic[opr] == ____) return new_error_obj(ERROR__NO_BYTE_ADDR, epoint);
                 if (touval(val, &uval, 24, epoint2)) {}
                 else if (uval <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
@@ -552,29 +622,28 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                 } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
                 break;
             case 1:
-                if (cnmemonic[opr - 1] == ____) return 2;
+                if (cnmemonic[opr - 1] == ____) return new_error_obj(ERROR__NO_WORD_ADDR, epoint);
                 if (touval(val, &uval, 24, epoint2)) {}
                 else {
-                    adr = (uint16_t)uval;
+                    adr = uval;
                     if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val, epoint2);
                 }
                 break;
             case 2:
-                if (cnmemonic[opr - 2] == ____) return 2;
+                if (cnmemonic[opr - 2] == ____) return new_error_obj(ERROR__NO_LONG_ADDR, epoint);
                 if (touval(val, &uval, 24, epoint2)) {}
                 else adr = uval;
                 break;
-            default: return 2;
+            default: return new_error_obj(ERROR__NO_LONG_ADDR, epoint); /* can't happen */
             }
         }
         opr = opr - w; ln = w + 1;
         break;
     case AG_DB2: /* 2 choice data bank */
         if (w == 3) {/* auto length */
-            if (cnmemonic[opr] == ____ && cnmemonic[opr - 1] == ____) return 2;
             if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[opr - 1] != ____);
-            else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = (uint16_t)(uval - dpage); w = 0;}
-            else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = (uint16_t)uval; w = 1;}
+            else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
+            else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
             else {
                 w = (cnmemonic[opr - 1] != ____);
                 err_msg2(w ? ERROR__NOT_DATABANK : ERROR____NOT_DIRECT, val, epoint2);
@@ -582,7 +651,7 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
         } else {
             switch (w) {
             case 0:
-                if (cnmemonic[opr] == ____) return 2;
+                if (cnmemonic[opr] == ____) return new_error_obj(ERROR__NO_BYTE_ADDR, epoint);
                 if (touval(val, &uval, 24, epoint2)) {}
                 else if (uval <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
@@ -590,27 +659,64 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
                 } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
                 break;
             case 1:
-                if (cnmemonic[opr - 1] == ____) return 2;
+                if (cnmemonic[opr - 1] == ____) return new_error_obj(ERROR__NO_WORD_ADDR, epoint);
                 if (touval(val, &uval, 24, epoint2)) {}
                 else {
-                    adr = (uint16_t)uval;
+                    adr = uval;
                     if (databank != (uval >> 16)) err_msg2(ERROR__NOT_DATABANK, val, epoint2);
                 }
                 break;
-            default: return 2;
+            default: return new_error_obj(ERROR__NO_LONG_ADDR, epoint);
             }
         }
         opr = opr - w; ln = w + 1;
         break;
     case AG_WORD: /* word only */
-        if (w != 3 && w != 1) return 2;
-        if (cnmemonic[opr] == ____ && (prm || opr != ADR_IMMEDIATE)) return 2; /* 0x69 hack */
+        if (w != 3 && w != 1) return new_error_obj(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (touval(val, &uval, 16, epoint2)) {}
         else adr = uval;
         ln = 2;
         break;
+    case AG_RELPB:
+        if (w != 3 && w != 1) return new_error_obj(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
+        if (touval(val, &uval, 16, epoint2)) {}
+        else adr = uval - current_section->l_address - 3;
+        ln = 2;
+        break;
+    case AG_RELL:
+        if (w != 3 && w != 1) return new_error_obj(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
+        if (touval(val, &uval, 24, epoint2)) {}
+        else if ((current_section->l_address ^ uval) <= 0xffff) adr = uval - current_section->l_address - 3;
+        else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+        ln = 2;
+        break;
+    case AG_PB2:
+        if (w == 3) {/* auto length */
+            if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[ADR_ADDR] == ____) + 1;
+            else if (cnmemonic[ADR_ADDR] != ____ && (current_section->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
+            else {adr = uval; w = 2;}
+        } else {
+            switch (w) {
+            case 1:
+                if (cnmemonic[opr - 1] == ____) return new_error_obj(ERROR__NO_WORD_ADDR, epoint);
+                if (touval(val, &uval, 24, epoint2)) {}
+                else if ((current_section->l_address ^ uval) <= 0xffff) adr = uval;
+                else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                break;
+            case 2:
+                if (cnmemonic[opr - 2] == ____) return new_error_obj(ERROR__NO_LONG_ADDR, epoint);
+                if (touval(val, &uval, 24, epoint2)) {}
+                else adr = uval;
+                break;
+            default: return new_error_obj(ERROR__NO_BYTE_ADDR, epoint);
+            }
+        }
+        opr = opr - w; ln = w + 1;
+        break;
+    case AG_IMP:
+        ln = 0;
+        break;
     case AG_NONE:
-        if (cnmemonic[opr] == ____) return 2;
         break;
     }
 
@@ -628,6 +734,6 @@ int instruction(int prm, int w, value_t vals, linepos_t epoint, struct linepos_s
         }
     }
     listing_instr(cod ^ longbranch, adr, ln);
-    return 0;
+    return NULL;
 }
 

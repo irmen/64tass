@@ -21,7 +21,7 @@
 #include "inttypes.h"
 struct cpu_s;
 
-extern int instruction(int, int, value_t, linepos_t, struct linepos_s *);
+extern MUST_CHECK value_t instruction(int, int, value_t, linepos_t, struct linepos_s *);
 extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const char *);
 extern MUST_CHECK int touval(const value_t, uval_t *, int, linepos_t);
