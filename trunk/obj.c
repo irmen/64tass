@@ -65,12 +65,11 @@ obj_t ITER_OBJ = &iter_obj;
 obj_t FUNCARGS_OBJ = &funcargs_obj;
 
 MUST_CHECK value_t obj_oper_error(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2, v = val_alloc(ERROR_OBJ);
-    v->u.error.num = ERROR__INVALID_OPER;
+    value_t v1 = op->v1, v2 = op->v2, v;
+    v = new_error_obj(ERROR__INVALID_OPER, op->epoint3);
     v->u.error.u.invoper.op = op->op;
     v->u.error.u.invoper.v1 = v1 ? (v1->refcount ? val_reference(v1) : v1) : NULL;
     v->u.error.u.invoper.v2 = v2 ? (v2->refcount ? val_reference(v2) : v2) : NULL;
-    v->u.error.epoint = *op->epoint3;
     return v;
 }
 
@@ -87,9 +86,7 @@ static MUST_CHECK value_t generic_invalid(value_t v1, linepos_t epoint, enum err
     if (v1->obj == ERROR_OBJ) {
         return val_reference(v1);
     }
-    v = val_alloc(ERROR_OBJ);
-    v->u.error.num = num;
-    v->u.error.epoint = *epoint;
+    v = new_error_obj(num, epoint);
     v->u.error.u.objname = v1->obj->name;
     return v;
 }
@@ -514,10 +511,7 @@ static MUST_CHECK value_t dict_calc2(oper_t op) {
         if (v1->u.dict.def) {
             return val_reference(v1->u.dict.def);
         }
-        err = val_alloc(ERROR_OBJ);
-        err->u.error.num = ERROR_____KEY_ERROR;
-        err->u.error.epoint = *op->epoint2;
-        return err;
+        return new_error_obj(ERROR_____KEY_ERROR, op->epoint2);
     }
     return op->v1->obj->calc2(op);
 }
@@ -651,8 +645,6 @@ static MUST_CHECK value_t struct_calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v;
     if (op->op == &o_MEMBER) {
         struct label_s *l, *l2;
-        struct linepos_s epoint;
-        str_t name;
         switch (v2->obj->type) {
         case T_IDENT:
             l2 = v1->u.macro.label;
@@ -664,13 +656,9 @@ static MUST_CHECK value_t struct_calc2(oper_t op) {
             if (!referenceit) {
                 return val_reference(none_value);
             }
-            epoint = v2->u.ident.epoint;
-            name = v2->u.ident.name;
-            v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR___NOT_DEFINED;
-            v->u.error.epoint = epoint;
+            v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.ident.epoint);
             v->u.error.u.notdef.label = l2;
-            v->u.error.u.notdef.ident = name;
+            v->u.error.u.notdef.ident = v2->u.ident.name;
             v->u.error.u.notdef.down = 0;
             return v;
         case T_ANONIDENT:
@@ -685,11 +673,8 @@ static MUST_CHECK value_t struct_calc2(oper_t op) {
                 if (!referenceit) {
                     return val_reference(none_value);
                 }
-                epoint = v2->u.anonident.epoint;
                 count = v2->u.anonident.count;
-                v = val_alloc(ERROR_OBJ);
-                v->u.error.num = ERROR___NOT_DEFINED;
-                v->u.error.epoint = epoint;
+                v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.anonident.epoint);
                 v->u.error.u.notdef.label = l2;
                 v->u.error.u.notdef.ident.len = count + (count >= 0);
                 v->u.error.u.notdef.ident.data = NULL;

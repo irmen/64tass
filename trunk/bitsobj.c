@@ -90,9 +90,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
     case TRUTH_BOOL:
         return truth_reference(!!v1->u.bits.len || v1->u.bits.inv);
     default:
-        v = val_alloc(ERROR_OBJ);
-        v->u.error.num = ERROR_____CANT_BOOL;
-        v->u.error.epoint = *epoint;
+        v = new_error_obj(ERROR_____CANT_BOOL, epoint);
         v->u.error.u.objname = v1->obj->name;
         return v;
     }
@@ -173,10 +171,8 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     case 0: *uv = v1->u.bits.inv ? ~(uval_t)0 : 0; return NULL;
     default: break;
     }
-    v = val_alloc(ERROR_OBJ);
-    v->u.error.num = ERROR_____CANT_UVAL;
+    v = new_error_obj(ERROR_____CANT_UVAL, epoint);
     v->u.error.u.bits = bits;
-    v->u.error.epoint = *epoint;
     return v;
 }
 
@@ -187,9 +183,7 @@ static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
         if (v1->u.bits.inv) d -= ldexp((double)v1->u.bits.data[i], i * 8 * sizeof(bdigit_t));
         else d += ldexp((double)v1->u.bits.data[i], i * 8 * sizeof(bdigit_t));
         if (d == HUGE_VAL) {
-            value_t v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR_____CANT_REAL;
-            v->u.error.epoint = *epoint;
+            value_t v = new_error_obj(ERROR_____CANT_REAL, epoint);
             v->u.error.u.objname = v1->obj->name;
             return v;
         }
@@ -437,10 +431,7 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
         if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
         return bits_from_u24(ch2);
     } 
-    v = val_alloc(ERROR_OBJ);
-    v->u.error.num = ERROR_BIG_STRING_CO;
-    v->u.error.epoint = *epoint;
-    return v;
+    return new_error_obj(ERROR_BIG_STRING_CO, epoint);
 }
 
 MUST_CHECK value_t bits_from_bytes(const value_t v1) {

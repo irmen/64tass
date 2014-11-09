@@ -79,9 +79,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
         }
         return truth_reference(0);
     default: 
-        err = val_alloc(ERROR_OBJ);
-        err->u.error.num = ERROR_____CANT_BOOL;
-        err->u.error.epoint = *epoint;
+        err = new_error_obj(ERROR_____CANT_BOOL, epoint);
         err->u.error.u.objname = v1->obj->name;
         return err;
     }

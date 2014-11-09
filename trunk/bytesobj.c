@@ -64,9 +64,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
         }
         return truth_reference(0);
     default: 
-        v = val_alloc(ERROR_OBJ);
-        v->u.error.num = ERROR_____CANT_BOOL;
-        v->u.error.epoint = *epoint;
+        v = new_error_obj(ERROR_____CANT_BOOL, epoint);
         v->u.error.u.objname = v1->obj->name;
         return v;
     }
@@ -147,10 +145,7 @@ MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint) {
             s[2] = ch2 >> 16;
             len2 = 3;
         } else {
-            v = val_alloc(ERROR_OBJ);
-            v->u.error.num = ERROR_BIG_STRING_CO;
-            v->u.error.epoint = *epoint;
-            return v;
+            return new_error_obj(ERROR_BIG_STRING_CO, epoint);
         }
         if (v->u.bytes.val != s) {
             if (len2 <= sizeof(v->u.bytes.val)) {
