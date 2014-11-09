@@ -1246,7 +1246,7 @@ value_t compile(struct file_list_s *cflist)
                     if (skwait==1) {
                         if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) {waitfor->skip = 0; goto breakerr;}
                         val = pull_val(&epoint);
-                        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = val_reference(none_value); }
+                        if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy(val); val = val_reference(none_value); }
                         else if (val->obj == NONE_OBJ) err_msg_still_none(NULL, &epoint);
                     } else val = val_reference(none_value);
                     waitfor->val = val;
