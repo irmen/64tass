@@ -54,15 +54,15 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
     switch (type) {
     case TRUTH_ALL:
         for (i = 0; i < v1->u.bytes.len; i++) {
-            if (!v1->u.bytes.data[i]) return truth_reference(0);
+            if (!v1->u.bytes.data[i]) return val_reference(false_value);
         }
-        return truth_reference(1);
+        return val_reference(true_value);
     case TRUTH_ANY:
     case TRUTH_BOOL:
         for (i = 0; i < v1->u.bytes.len; i++) {
-            if (v1->u.bytes.data[i]) return truth_reference(1);
+            if (v1->u.bytes.data[i]) return val_reference(true_value);
         }
-        return truth_reference(0);
+        return val_reference(false_value);
     default: 
         v = new_error_obj(ERROR_____CANT_BOOL, epoint);
         v->u.error.u.objname = v1->obj->name;
@@ -300,14 +300,14 @@ static MUST_CHECK value_t calc2_bytes(oper_t op) {
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
-            if (!v1->u.bytes.len) return truth_reference(1);
-            if (v1->u.bytes.len > v2->u.bytes.len) return truth_reference(0);
+            if (!v1->u.bytes.len) return val_reference(true_value);
+            if (v1->u.bytes.len > v2->u.bytes.len) return val_reference(false_value);
             c2 = v2->u.bytes.data;
             e = c2 + v2->u.bytes.len - v1->u.bytes.len;
             for (;;) {
                 c = (uint8_t *)memchr(c2, v1->u.bytes.data[0], e - c2 + 1);
-                if (!c) return truth_reference(0);
-                if (!memcmp(c, v1->u.bytes.data, v1->u.bytes.len)) return truth_reference(1);
+                if (!c) return val_reference(false_value);
+                if (!memcmp(c, v1->u.bytes.data, v1->u.bytes.len)) return val_reference(true_value);
                 c2 = c + 1;
             }
         }

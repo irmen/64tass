@@ -71,7 +71,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
         for (i = 0; i < v1->u.bits.bits / 8 / sizeof(bdigit_t); i++) {
             b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
             if (!v1->u.bits.inv) b = ~b;
-            if (b) return truth_reference(0);
+            if (b) return val_reference(false_value);
         }
         b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
         if (!v1->u.bits.inv) b = ~b;
@@ -81,7 +81,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
         for (i = 0; i < v1->u.bits.bits / 8 / sizeof(bdigit_t); i++) {
             b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
             if (v1->u.bits.inv) b = ~b;
-            if (b) return truth_reference(1);
+            if (b) return val_reference(true_value);
         }
         b = (i >= v1->u.bits.len) ? 0 : v1->u.bits.data[i];
         if (v1->u.bits.inv) b = ~b;

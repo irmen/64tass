@@ -418,7 +418,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
             if (err->obj == BOOL_OBJ && err->u.boolean) return err;
             val_destroy(err);
         }
-        return truth_reference(0);
+        return val_reference(false_value);
     }
     switch (v1->obj->type) {
     case T_CODE:
