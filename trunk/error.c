@@ -191,7 +191,9 @@ static const char *terr_error[]={
     "can't get size",
     "can't convert to boolean",
     "not iterable",
-    "no fitting addressing mode for opcode",
+    "no byte sized addressing mode for opcode",
+    "no word sized addressing mode for opcode",
+    "no long sized addressing mode for opcode",
     "not a direct page address",
     "not a data bank address",
     "not a bank 0 address"
@@ -232,7 +234,6 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         case ERROR_DIVISION_BY_Z:
         case ERROR_NO_ZERO_VALUE:
         case ERROR____WRONG_TYPE:
-        case ERROR_NO_ADDRESSING:
         case ERROR_CONSTNT_LARGE: 
         case ERROR_NUMERIC_OVERF: 
         case ERROR_NEGFRAC_POWER:
@@ -421,6 +422,45 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
     }
 }
 
+static void err_msg_no_addressing(atype_t addrtype, linepos_t epoint) {
+    new_error(SV_CONDERROR, current_file_list, epoint);
+    adderror("no");
+    if (addrtype == A_NONE) adderror(" implied");
+    for (;addrtype & 0xfff; addrtype <<= 4) {
+        const char *txt = "?";
+        switch ((enum atype_e)((addrtype & 0xf00) >> 8)) {
+        case A_NONE: continue;
+        case A_IMMEDIATE: txt = " immediate"; break;
+        case A_XR: txt = " x indexed"; break;
+        case A_YR: txt = " y indexed"; break;
+        case A_ZR: txt = " z indexed"; break;
+        case A_SR: txt = " stack"; break;
+        case A_RR: txt = " data stack"; break;
+        case A_DR: txt = " direct page"; break;
+        case A_BR: txt = " data bank"; break;
+        case A_KR: txt = " program bank"; break;
+        case A_I: txt = " indirect"; break;
+        case A_LI: txt = " long indirect"; break;
+        }
+        adderror(txt);
+    }
+    adderror(" addressing mode for opcode");
+}
+
+static void err_msg_no_register(value_t val, linepos_t epoint) {
+    new_error(SV_CONDERROR, current_file_list, epoint);
+    adderror("no register '");
+    adderror2(val->u.reg.data, val->u.reg.len);
+    adderror("' addressing mode for opcode");
+}
+
+static void err_msg_no_lot_operand(size_t opers, linepos_t epoint) {
+    char msg2[256];
+    new_error(SV_CONDERROR, current_file_list, epoint);
+    sprintf(msg2, "no %u operand addressing mode for opcode", (unsigned int)opers);
+    adderror(msg2);
+}
+
 void err_msg_output(const value_t val) {
     if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
@@ -441,6 +481,9 @@ void err_msg_output(const value_t val) {
         case ERROR___MATH_DOMAIN:
         case ERROR_BIG_STRING_CO:
         case ERROR_____KEY_ERROR:
+        case ERROR__NO_BYTE_ADDR:
+        case ERROR__NO_WORD_ADDR:
+        case ERROR__NO_LONG_ADDR:
         case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);break;
         case ERROR__NOT_KEYVALUE:
         case ERROR__NOT_HASHABLE:
@@ -451,6 +494,9 @@ void err_msg_output(const value_t val) {
         case ERROR______CANT_LEN:
         case ERROR_____CANT_SIZE:
         case ERROR_____CANT_BOOL: err_msg_char_name(terr_error[val->u.error.num & 63], val->u.error.u.objname, &val->u.error.epoint);break;
+        case ERROR_NO_ADDRESSING: err_msg_no_addressing(val->u.error.u.addressing, &val->u.error.epoint);break;
+        case ERROR___NO_REGISTER: err_msg_no_register(val->u.error.u.reg, &val->u.error.epoint);break;
+        case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.error.u.opers, &val->u.error.epoint);break;
         default: break;
         }
     }

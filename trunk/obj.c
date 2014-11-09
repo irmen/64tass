@@ -532,9 +532,15 @@ static MUST_CHECK value_t dict_rcalc2(oper_t op) {
 }
 
 static void error_destroy(value_t v1) {
-    if (v1->u.error.num == ERROR__INVALID_OPER) {
+    switch (v1->u.error.num) {
+    case ERROR__INVALID_OPER:
         if (v1->u.error.u.invoper.v1) val_destroy(v1->u.error.u.invoper.v1);
         if (v1->u.error.u.invoper.v2) val_destroy(v1->u.error.u.invoper.v2);
+        return;
+    case ERROR___NO_REGISTER: 
+        val_destroy(v1->u.error.u.reg);
+        return;
+    default: return;
     }
 }
 

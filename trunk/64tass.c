@@ -496,17 +496,17 @@ static int byterecursion(value_t val, int prm, size_t *uninit, int bits, linepos
     return warn;
 }
 
-static int instrecursion(value_t val, int prm, int w, linepos_t epoint, struct linepos_s *epoints) {
+static void instrecursion(value_t val, int prm, int w, linepos_t epoint, struct linepos_s *epoints) {
     size_t i;
-    int ret;
+    value_t err;
     for (i = 0; i < val->u.list.len; i++) {
         if (val->u.list.data[i]->obj == TUPLE_OBJ || val->u.list.data[i]->obj == LIST_OBJ) {
-            ret = instrecursion(val->u.list.data[i], prm, w, epoint, epoints);
-        } else ret = instruction(prm, w, val->u.list.data[i], epoint, epoints);
-        if (ret == 0) continue;
-        return ret;
+            instrecursion(val->u.list.data[i], prm, w, epoint, epoints);
+            continue;
+        } 
+        err = instruction(prm, w, val->u.list.data[i], epoint, epoints);
+        if (err) err_msg_output_and_destroy(err);
     }
-    return 0;
 }
 
 value_t compile(struct file_list_s *cflist)
@@ -2703,7 +2703,7 @@ value_t compile(struct file_list_s *cflist)
 
                 opname.data = pline + lpoint.pos; opname.len = get_label();
                 if (opname.len == 3 && (prm=lookup_opcode((const char *)opname.data))>=0) {
-                    int ret;
+                    value_t err;
                     struct linepos_s oldlpoint;
                     struct linepos_s epoints[3];
                     if (0) {
@@ -2720,30 +2720,25 @@ value_t compile(struct file_list_s *cflist)
                     if (val->obj == TUPLE_OBJ || val->obj == LIST_OBJ) {
                         epoints[1] = epoints[0];
                         epoints[2] = epoints[0];
-                        ret = instrecursion(val, prm, w, &epoint, epoints);
-                        if (ret == 2) {
-                            err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint);
-                        }
+                        instrecursion(val, prm, w, &epoint, epoints);
                         val_destroy(val);
-                        if (ret == 0) break;
-                        goto breakerr;
+                        break;
                     }
-                    ret = instruction(prm, w, val, &epoint, epoints);
+                    err = instruction(prm, w, val, &epoint, epoints);
                     val_destroy(val);
-                    if (ret == 0) break;
-                    if (ret == 2) {
-                        tmp2 = find_label(&opname);
-                        if (tmp2) {
-                            if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
-                                tmp2->shadowcheck = 1;
-                                lpoint=oldlpoint;
-                                val = tmp2->value;
-                                goto as_macro;
-                            }
+                    if (err == NULL) break;
+                    tmp2 = find_label(&opname);
+                    if (tmp2) {
+                        if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
+                            val_destroy(err);
+                            tmp2->shadowcheck = 1;
+                            lpoint=oldlpoint;
+                            val = tmp2->value;
+                            goto as_macro;
                         }
-                        err_msg2(ERROR_NO_ADDRESSING, NULL, &epoint); 
                     }
-                    goto breakerr;
+                    err_msg_output_and_destroy(err);
+                    break;
                 }
                 tmp2 = find_label(&opname);
                 if (tmp2) {

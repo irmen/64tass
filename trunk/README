@@ -2423,8 +2423,8 @@ missing argument
     not enough arguments supplied to function
 negative number raised on fractional power
     can't calculate this
-no fitting addressing mode for opcode
-    couldn't find the right addressing mode for this opcode
+no ? addressing mode for opcode
+    this addressing mode is not valid for this opcode
 not a bank 0 address
     value must be a bank zero address
 not a data bank address
