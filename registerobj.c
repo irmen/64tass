@@ -143,8 +143,8 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_BYTES:
     case T_GAP:
         switch (op->op->u.oper.op) {
-        case O_EQ: return truth_reference(0);
-        case O_NE: return truth_reference(1);
+        case O_EQ: return val_reference(false_value);
+        case O_NE: return val_reference(true_value);
         default: break;
         }
         break;
@@ -171,8 +171,8 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_BYTES:
     case T_GAP:
         switch (op->op->u.oper.op) {
-        case O_EQ: return truth_reference(0);
-        case O_NE: return truth_reference(1);
+        case O_EQ: return val_reference(false_value);
+        case O_NE: return val_reference(true_value);
         default: break;
         }
         break;

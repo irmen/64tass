@@ -356,14 +356,14 @@ static MUST_CHECK value_t calc2_str(oper_t op) {
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
-            if (!v1->u.str.len) return truth_reference(1);
-            if (v1->u.str.len > v2->u.str.len) return truth_reference(0);
+            if (!v1->u.str.len) return val_reference(true_value);
+            if (v1->u.str.len > v2->u.str.len) return val_reference(false_value);
             c2 = v2->u.str.data;
             e = c2 + v2->u.str.len - v1->u.str.len;
             for (;;) {
                 c = (uint8_t *)memchr(c2, v1->u.str.data[0], e - c2 + 1);
-                if (!c) return truth_reference(0);
-                if (!memcmp(c, v1->u.str.data, v1->u.str.len)) return truth_reference(1);
+                if (!c) return val_reference(false_value);
+                if (!memcmp(c, v1->u.str.data, v1->u.str.len)) return val_reference(true_value);
                 c2 = c + 1;
             }
         }

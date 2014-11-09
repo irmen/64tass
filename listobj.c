@@ -69,7 +69,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
             if (!err->u.boolean) return err;
             val_destroy(err);
         }
-        return truth_reference(1);
+        return val_reference(true_value);
     case TRUTH_ANY:
         for (i = 0; i < v1->u.list.len; i++) {
             err = v1->u.list.data[i]->obj->truth(v1->u.list.data[i], type, epoint);
@@ -77,7 +77,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
             if (err->u.boolean) return err;
             val_destroy(err);
         }
-        return truth_reference(0);
+        return val_reference(false_value);
     default: 
         err = new_error_obj(ERROR_____CANT_BOOL, epoint);
         err->u.error.u.objname = v1->obj->name;
@@ -203,114 +203,41 @@ static MUST_CHECK value_t calc2_list(oper_t op) {
     case O_EXP:
     case O_MEMBER:
         {
-            value_t *vals;
-            value_t vx;
-            int d1 = 0, d2 = 0;
-            i = 0;
-            vx = v1;
-            while (vx->obj == LIST_OBJ || vx->obj == TUPLE_OBJ) {
-                d1++;
-                if (!vx->u.list.len) break;
-                vx = vx->u.list.data[0];
-            }
-            vx = v2;
-            while (vx->obj == LIST_OBJ || vx->obj == TUPLE_OBJ) {
-                d2++;
-                if (!vx->u.list.len) break;
-                vx = vx->u.list.data[0];
-            }
-            if (d1 == d2) {
-                if (v1->u.list.len == 1) {
-                    if (v2->u.list.len) {
-                        int error = 1;
-                        op->v1 = v1->u.list.data[0];
-                        v = val_alloc(v1->obj);
-                        vals = lnew(v, v2->u.list.len);
-                        for (; i < v2->u.list.len; i++) {
-                            value_t val;
-                            op->v2 = v2->u.list.data[i];
-                            val = op->v1->obj->calc2(op);
-                            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
-                            vals[i] = val;
-                        }
-                        op->v1 = v1;
-                        op->v2 = v2;
-                    } else {
-                         return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
-                    }
-                } else if (v2->u.list.len == 1) {
-                    if (v1->u.list.len) {
-                        int error = 1;
-                        op->v2 = v2->u.list.data[0];
-                        v = val_alloc(v1->obj);
-                        vals = lnew(v, v1->u.list.len);
-                        for (; i < v1->u.list.len; i++) {
-                            value_t val;
-                            op->v1 = v1->u.list.data[i];
-                            val = op->v1->obj->calc2(op);
-                            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
-                            vals[i] = val;
-                        }
-                        op->v1 = v1;
-                        op->v2 = v2;
-                    } else {
-                         return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
-                    }
-                } else if (v1->u.list.len == v2->u.list.len) {
-                    if (v1->u.list.len) {
-                        int error = 1;
-                        v = val_alloc(v1->obj);
-                        vals = lnew(v, v1->u.list.len);
-                        for (; i < v1->u.list.len; i++) {
-                            value_t val;
-                            op->v1 = v1->u.list.data[i];
-                            op->v2 = v2->u.list.data[i];
-                            val = op->v1->obj->calc2(op);
-                            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
-                            vals[i] = val;
-                        }
-                        op->v1 = v1;
-                        op->v2 = v2;
-                    } else {
-                         return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
-                    }
-                } else {
-                    return obj_oper_error(op);
-                }
-            } else if (d1 > d2) {
+            if (v1->u.list.len == v2->u.list.len) {
                 if (v1->u.list.len) {
+                    value_t *vals;
                     int error = 1;
                     v = val_alloc(v1->obj);
                     vals = lnew(v, v1->u.list.len);
-                    for (; i < v1->u.list.len; i++) {
+                    for (i = 0; i < v1->u.list.len; i++) {
                         value_t val;
                         op->v1 = v1->u.list.data[i];
+                        op->v2 = v2->u.list.data[i];
                         val = op->v1->obj->calc2(op);
                         if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
                         vals[i] = val;
                     }
                     op->v1 = v1;
-                } else {
-                     return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
-                }
-            } else if (v2->u.list.len) {
-                int error = 1;
-                v = val_alloc(v1->obj);
-                vals = lnew(v, v2->u.list.len);
-                for (; i < v2->u.list.len; i++) {
-                    value_t val;
-                    op->v2 = v2->u.list.data[i];
-                    val = v1->obj->calc2(op);
-                    if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
-                    vals[i] = val;
-                }
+                    op->v2 = v2;
+                    v->u.list.len = i;
+                    v->u.list.data = vals;
+                    return v;
+                } 
+                return val_reference(v1);
+            } 
+            if (v1->u.list.len == 1) {
+                op->v1 = v1->u.list.data[0];
+                v = op->v2->obj->rcalc2(op);
+                op->v1 = v1;
+                return v;
+            } 
+            if (v2->u.list.len == 1) {
+                op->v2 = v2->u.list.data[0];
+                v = op->v1->obj->calc2(op);
                 op->v2 = v2;
-            } else {
-                return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
-            }
-            v->u.list.len = i;
-            v->u.list.data = vals;
-            return v;
+                return v;
+            } 
+            return obj_oper_error(op);
         }
     case O_CONCAT:
         {
@@ -450,102 +377,71 @@ static MUST_CHECK value_t calc2(oper_t op) {
     if (op->op == &o_X) {
         return repeat(op); 
     }
-    switch (v2->obj->type) {
-    case T_TUPLE:
-    case T_LIST:
-        if (v1->obj == v2->obj) {
-            return calc2_list(op);
-        }
-    default:
-        if (v1->u.list.len) {
-            int error = 1;
-            v = val_alloc(v1->obj);
-            v->u.list.data = vals = lnew(v, v1->u.list.len);
-            for (;i < v1->u.list.len; i++) {
-                value_t val;
-                op->v1 = v1->u.list.data[i];
-                val = op->v1->obj->calc2(op);
-                if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
-                vals[i] = val;
-            }
-            op->v1 = v1;
-            v->u.list.len = i;
-            return v;
-        }
+    if (op->op == &o_IN) {
+        return v2->obj->rcalc2(op);
     }
-    return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
+    if (v1->obj == v2->obj && (v1->obj == TUPLE_OBJ || v1->obj == LIST_OBJ)) {
+        return calc2_list(op);
+    }
+    if (v1->u.list.len) {
+        int error = 1;
+        v = val_alloc(v1->obj);
+        v->u.list.data = vals = lnew(v, v1->u.list.len);
+        for (;i < v1->u.list.len; i++) {
+            value_t val;
+            op->v1 = v1->u.list.data[i];
+            val = op->v1->obj->calc2(op);
+            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
+            vals[i] = val;
+        }
+        op->v1 = v1;
+        v->u.list.len = i;
+        return v;
+    }
+    return val_reference(v1);
 }
 
 static MUST_CHECK value_t rcalc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v;
     size_t i = 0;
     value_t *vals;
-    switch (v1->obj->type) {
-    case T_TUPLE:
-    case T_LIST:
-        if (v1->obj == v2->obj) {
-            return calc2_list(op);
-        }
-    default:
-        switch (op->op->u.oper.op) {
-        case O_CMP:
-        case O_EQ:
-        case O_NE:
-        case O_LT:
-        case O_LE:
-        case O_GT:
-        case O_GE: 
-        case O_MUL:
-        case O_DIV:
-        case O_MOD:
-        case O_ADD:
-        case O_SUB:
-        case O_AND:
-        case O_OR:
-        case O_XOR:
-        case O_LSHIFT:
-        case O_RSHIFT:
-        case O_EXP:
-        case O_MEMBER:
-        case O_CONCAT:
-            if (v2->u.list.len) {
-                int error = 1;
-                v = val_alloc(v2->obj);
-                v->u.list.data = vals = lnew(v, v2->u.list.len);
-                for (;i < v2->u.list.len; i++) {
-                    value_t val;
-                    op->v2 = v2->u.list.data[i];
-                    val = op->v2->obj->rcalc2(op);
-                    if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
-                    vals[i] = val;
-                }
+
+    if (op->op == &o_IN) {
+        op->op = &o_EQ;
+        for (;i < v2->u.list.len; i++) {
+            value_t result;
+            op->v2 = v2->u.list.data[i];
+            result = v1->obj->calc2(op);
+            if (result->obj == BOOL_OBJ && result->u.boolean) {
+                op->op = &o_IN;
                 op->v2 = v2;
-                v->u.list.len = i;
-                return v;
+                return result;
             }
-            break;
-        case O_IN:
-            op->op = &o_EQ;
-            for (;i < v2->u.list.len; i++) {
-                value_t result;
-                op->v2 = v2->u.list.data[i];
-                result = v1->obj->calc2(op);
-                if (result->obj == BOOL_OBJ && result->u.boolean) {
-                    op->op = &o_IN;
-                    op->v2 = v2;
-                    return result;
-                }
-                val_destroy(result);
-            }
-            op->op = &o_IN;
-            op->v2 = v2;
-            return truth_reference(0);
-        default: 
-            return v1->obj->calc2(op);
+            val_destroy(result);
         }
-        break;
+        op->op = &o_IN;
+        op->v2 = v2;
+        return val_reference(false_value);
     }
-    return val_reference((v1->obj == TUPLE_OBJ) ? null_tuple : null_list);
+    if (v1->obj == v2->obj && (v1->obj == TUPLE_OBJ || v1->obj == LIST_OBJ)) {
+        return calc2_list(op);
+    }
+    if (v2->u.list.len) {
+        int error = 1;
+        v = val_alloc(v2->obj);
+        v->u.list.data = vals = lnew(v, v2->u.list.len);
+        for (;i < v2->u.list.len; i++) {
+            value_t val;
+            op->v2 = v2->u.list.data[i];
+            val = op->v2->obj->rcalc2(op);
+            if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
+            vals[i] = val;
+        }
+        op->v2 = v2;
+        v->u.list.len = i;
+        return v;
+    }
+    return val_reference(v2);
 }
 
 static void init(struct obj_s *obj) {
