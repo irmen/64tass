@@ -79,6 +79,7 @@ enum errors_e {
     ERROR__NOT_KEYVALUE,
     ERROR_____CANT_IVAL,
     ERROR_____CANT_UVAL,
+    ERROR_CANT_BROADCAS,
     ERROR_____CANT_REAL,
     ERROR_____CANT_SIGN,
     ERROR______CANT_ABS,

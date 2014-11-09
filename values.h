@@ -159,6 +159,10 @@ struct value_s {
                 atype_t addressing;
                 value_t reg;
                 size_t opers;
+                struct {
+                    size_t v1;
+                    size_t v2;
+                } broadcast;
             } u;
         } error;
         struct {
