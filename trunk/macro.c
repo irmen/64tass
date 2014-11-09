@@ -303,7 +303,7 @@ value_t mfunc_recurse(enum wait_e t, value_t tmp2, struct label_s *context, line
             tuple->u.list.len = get_val_remaining();
             tuple->u.list.data = list_create_elements(tuple, tuple->u.list.len);
             for (j = 0; (val = pull_val(NULL)); j++) {
-                if (val->obj == ERROR_OBJ) {err_msg_output(val); val_destroy(val); val = val_reference(none_value);}
+                if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy(val); val = val_reference(none_value);}
                 tuple->u.list.data[j] = val;
             }
             val = tuple;
@@ -420,7 +420,7 @@ void get_func_params(value_t v, struct file_s *cfile) {
                     break;
                 }
                 val = pull_val(NULL);
-                if (val->obj == ERROR_OBJ) {err_msg_output(val); val_destroy(val); val = val_reference(none_value);}
+                if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy(val); val = val_reference(none_value);}
                 new_mfunc.param[i].init = val;
             }
         }

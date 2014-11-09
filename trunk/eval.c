@@ -880,7 +880,7 @@ static int get_val2(struct eval_context_s *ev) {
                     val->u.list.data = list_create_elements(val, args);
                     while (args--) {
                         v2 = &values[vsp-1];
-                        if (v2->val->obj == ERROR_OBJ) { err_msg_output(v2->val); val_destroy(v2->val); v2->val = val_reference(none_value); }
+                        if (v2->val->obj == ERROR_OBJ) { err_msg_output_and_destroy(v2->val); v2->val = val_reference(none_value); }
                         val->u.list.data[args] = v2->val;
                         v2->val = NULL;
                         vsp--;
@@ -1712,7 +1712,7 @@ value_t get_vals_tuple(void) {
 
     if (len == 1) {
         val = pull_val(NULL);
-        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = val_reference(none_value); }
+        if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy(val); val = val_reference(none_value); }
         return val;
     }
     val = val_alloc(TUPLE_OBJ);
@@ -1720,7 +1720,7 @@ value_t get_vals_tuple(void) {
     val->u.list.data = list_create_elements(val, len);
     for (i = 0; i < len; i++) {
         value_t val2 = pull_val(NULL);
-        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = val_reference(none_value); }
+        if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy(val2); val2 = val_reference(none_value); }
         val->u.list.data[i] = val2;
     }
     return val;
@@ -1733,14 +1733,14 @@ value_t get_vals_addrlist(struct linepos_s *epoints) {
 
     if (len == 1) {
         val = pull_val(&epoints[0]);
-        if (val->obj == ERROR_OBJ) { err_msg_output(val); val_destroy(val); val = val_reference(none_value); }
+        if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy(val); val = val_reference(none_value); }
         return val;
     }
     val = val_alloc(ADDRLIST_OBJ);
     val->u.list.data = list_create_elements(val, len);
     for (i = j = 0; j < len; j++) {
         value_t val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
-        if (val2->obj == ERROR_OBJ) { err_msg_output(val2); val_destroy(val2); val2 = val_reference(none_value); }
+        if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy(val2); val2 = val_reference(none_value); }
         else if (val2->obj == REGISTER_OBJ && val2->u.reg.len == 1 && i) {
             enum atype_e am;
             switch (val2->u.reg.data[0]) {
