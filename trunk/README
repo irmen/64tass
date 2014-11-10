@@ -2945,8 +2945,9 @@ PLZ FB                                  ROW EB
 RTS 62                                  SEE 03
 STA 82                                  STX 9B
 STY 8B                                  TAB 5B
-TAZ 4B                                  TSY 0B
-TYS 2B                                  TZA 6B
+TAZ 4B                                  TBA 7B
+TSY 0B                                  TYS 2B
+TZA 6B
 
                               Additional aliases
 ASR 43                                  BGE B3
