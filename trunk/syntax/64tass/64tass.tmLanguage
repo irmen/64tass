@@ -49,7 +49,7 @@
 			</dict>
 			<dict>
 				<key>match</key>
-				<string>(^|\s)\.(byte|binary|char|ptext|lint|long|null|dword|int|fill|rta|shift|shiftl|dint|word|text|dstruct|dunion|dsection)\b</string>
+				<string>(^|\s)\.(byte|binary|char|ptext|lint|long|null|dword|int|fill|rta|shift|shiftl|dint|word|text|dstruct|dunion|dsection|addr)\b</string>
 				<key>name</key>
 				<string>storage.type</string>
 			</dict>
