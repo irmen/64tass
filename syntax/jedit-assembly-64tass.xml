@@ -124,6 +124,7 @@
                         <KEYWORD4>.shiftl</KEYWORD4>
                         <KEYWORD4>.text</KEYWORD4>
                         <KEYWORD4>.word</KEYWORD4>
+                        <KEYWORD4>.addr</KEYWORD4>
 
 			<!-- Instructions: standard -->
                         <KEYWORD1>adc</KEYWORD1>
