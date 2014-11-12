@@ -933,7 +933,7 @@ static inline MUST_CHECK value_t repeat(oper_t op) {
 }
 
 static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
-    size_t bo, wo, bl, wl, sz;
+    size_t bo, wo, bl, wl, sz, wl2;
     bdigit_t uv;
     bdigit_t *v, *v1;
     bdigit_t inv;
@@ -950,7 +950,7 @@ static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
     }
     inv = -vv1->u.bits.inv;
     if (step == 1) {
-        if (length == vv1->u.bits.len) {
+        if (length == vv1->u.bits.bits) {
             return val_reference(vv1); /* original bits */
         }
 
@@ -964,18 +964,20 @@ static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
         v = bnew(vv, sz);
 
         v1 = vv1->u.bits.data + wo;
+        wl2 = (wo > vv1->u.bits.len) ? 0 : (vv1->u.bits.len - wo);
         if (bo) {
             for (sz = 0; sz < wl; sz++) {
-                v[sz] = inv ^ (v1[sz] >> bo) ^ (v1[sz + 1] << (SHIFT - bo));
+                v[sz] = inv ^ (sz < wl2 ? (v1[sz] >> bo) : 0) ^ ((sz + 1 < wl2) ? (v1[sz + 1] << (SHIFT - bo)) : 0);
             }
             if (bl) {
-                v[sz] = v1[sz] >> bo;
+                v[sz] = sz < wl2 ? (v1[sz] >> bo) : 0;
                 if (bl > (SHIFT - bo)) v[sz] |= v1[sz + 1] << (SHIFT - bo);
                 v[sz] ^= inv;
             }
         } else {
-            for (sz = 0; sz < wl; sz++) v[sz] = v1[sz] ^ inv;
-            if (bl) v[sz] = v1[sz] ^ inv;
+            for (sz = 0; sz < wl2 && sz < wl; sz++) v[sz] = v1[sz] ^ inv;
+            for (; sz < wl; sz++) v[sz] = inv;
+            if (bl) v[sz] = inv ^ ((sz < wl2) ? v1[sz] : 0);
         }
         if (bl) v[sz++] &= ((1 << bl) - 1);
     } else {
