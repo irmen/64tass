@@ -583,6 +583,7 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
 
         vv = val_alloc(INT_OBJ);
         if (div) {
+            if (v0 != tmp1.u.integer.val) free(v0);
             while (k && !a[k - 1]) k--;
             if (k <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0])) {
                 memcpy(vv->u.integer.val, a, k * sizeof(digit_t));
@@ -594,6 +595,7 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
             return vv;
         }
 
+        if (a != tmp3.u.integer.val) free(a);
         while (len2 && !v0[len2 - 1]) len2--;
         if (len2 <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0])) {
             memcpy(vv->u.integer.val, v0, len2 * sizeof(digit_t));
