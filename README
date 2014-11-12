@@ -189,7 +189,7 @@ Integers are automatically promoted to float as necessary in expressions.
         lda #size(source)-1
         mvn #`source, #`dest; bank extraction
 
-        lda #((bitmap & $2000) >> 10) | ((screen & $3c00) >> 6)
+        lda #((bitmap >> 10) & $0f) | ((screen >> 6) & $f0)
         sta $d018
 
 Bit string constants

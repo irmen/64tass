@@ -284,7 +284,7 @@ true value is the same as 1.</p>
         <b>lda</b> #<span class="k">size</span>(<u>source</u>)-<span>1</span>
         <b>mvn</b> #`<u>source</u>, #`<u>dest</u><i>; bank extraction</i>
 
-        <b>lda</b> #((<u>bitmap</u> &amp; <span>$2000</span>) &gt;&gt; <span>10</span>) | ((<u>screen</u> &amp; <span>$3c00</span>) &gt;&gt; <span>6</span>)
+        <b>lda</b> #((<u>bitmap</u> &gt;&gt; <span>10</span>) &amp; <span>$0f</span>) | ((<u>screen</u> &gt;&gt; <span>6</span>) &amp; <span>$f0</span>)
         <b>sta</b> <span>$d018</span>
 </pre>
 
