@@ -59,6 +59,18 @@ static MUST_CHECK value_t invert(const value_t v1) {
     return v;
 }
 
+static MUST_CHECK value_t normalize(value_t v, bdigit_t *d, size_t sz) {
+    while (sz && !d[sz - 1]) sz--;
+    if (v->u.bits.val != d && sz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0])) {
+        memcpy(v->u.bits.val, d, sz);
+        free(d);
+        d = v->u.bits.val;
+    }
+    v->u.bits.data = d;
+    v->u.bits.len = sz;
+    return v;
+}
+
 static int same(const value_t v1, const value_t v2) {
     if (v2->obj != BITS_OBJ || v1->u.bits.len != v2->u.bits.len || v1->u.bits.bits != v2->u.bits.bits || v1->u.bits.inv != v2->u.bits.inv) return 0;
     return !memcmp(v1->u.bits.data, v2->u.bits.data, v1->u.bits.len * sizeof(bdigit_t));
@@ -241,7 +253,7 @@ MUST_CHECK value_t bits_from_bools(int i, int j) {
     value_t v = val_alloc(BITS_OBJ);
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = (i << 1) | j;
-    v->u.bits.len = (v->u.bits.val[0] != 0);
+    v->u.bits.len = i | j;
     v->u.bits.inv = 0;
     v->u.bits.bits = 2;
     return v;
@@ -272,7 +284,7 @@ static MUST_CHECK value_t bits_from_u24(int i) {
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = i;
     v->u.bits.val[1] = i >> 16;
-    v->u.bits.len = (i != 0);
+    v->u.bits.len = (i != 0) + (i > 0xffff);
     v->u.bits.inv = 0;
     v->u.bits.bits = 24;
     return v;
@@ -308,18 +320,10 @@ MUST_CHECK value_t bits_from_hexstr(const uint8_t *s, size_t *ln) {
     }
     if (bits) d[j] = uv;
 
-    while (sz && !d[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0]) && v->u.bits.val != d) {
-        memcpy(v->u.bits.val, d, sz);
-        free(d);
-        d = v->u.bits.val;
-    }
-    v->u.bits.data = d;
-    v->u.bits.len = sz;
+    *ln = l;
     v->u.bits.inv = 0;
     v->u.bits.bits = j * SHIFT + bits;
-    *ln = l;
-    return v;
+    return normalize(v, d, sz);
 }
 
 MUST_CHECK value_t bits_from_binstr(const uint8_t *s, size_t *ln) {
@@ -351,18 +355,10 @@ MUST_CHECK value_t bits_from_binstr(const uint8_t *s, size_t *ln) {
     }
     if (bits) d[j] = uv;
 
-    while (sz && !d[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0]) && v->u.bits.val != d) {
-        memcpy(v->u.bits.val, d, sz);
-        free(d);
-        d = v->u.bits.val;
-    }
-    v->u.bits.data = d;
-    v->u.bits.len = sz;
+    *ln = l;
     v->u.bits.inv = 0;
     v->u.bits.bits = j * SHIFT + bits;
-    *ln = l;
-    return v;
+    return normalize(v, d, sz);
 }
 
 MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
@@ -475,17 +471,9 @@ MUST_CHECK value_t bits_from_bytes(const value_t v1) {
         sz = j + 1;
     } else sz = j;
 
-    while (sz && !d[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0]) && v->u.bits.val != d) {
-        memcpy(v->u.bits.val, d, sz * sizeof(bdigit_t));
-        free(d);
-        d = v->u.bits.val;
-    }
-    v->u.bits.data = d;
-    v->u.bits.len = sz;
     v->u.bits.inv = 0;
     v->u.bits.bits = j * SHIFT + bits;
-    return v;
+    return normalize(v, d, sz);
 }
 
 static MUST_CHECK value_t calc1(oper_t op) {
@@ -594,16 +582,9 @@ static MUST_CHECK value_t and_(value_t vv1, value_t vv2) {
             for (i = 0; i < len2; i++) v[i] = v1[i] & v2[i];
         }
     }
-    while (sz && !v[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && v != vv->u.bits.val) {
-        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        free(v);
-        v = vv->u.bits.val;
-    }
-    vv->u.bits.data = v;
-    vv->u.bits.len = sz;
+
     vv->u.bits.inv = neg1 & neg2;
-    return vv;
+    return normalize(vv, v, sz);
 }
 
 static MUST_CHECK value_t or_(value_t vv1, value_t vv2) {
@@ -666,16 +647,9 @@ static MUST_CHECK value_t or_(value_t vv1, value_t vv2) {
             for (; i < len1; i++) v[i] = v1[i];
         }
     }
-    while (sz && !v[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
-        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        free(v);
-        v = vv->u.bits.val;
-    }
-    vv->u.bits.data = v;
-    vv->u.bits.len = sz;
+
     vv->u.bits.inv = neg1 | neg2;
-    return vv;
+    return normalize(vv, v, sz);
 }
 
 static MUST_CHECK value_t xor_(value_t vv1, value_t vv2) {
@@ -713,16 +687,9 @@ static MUST_CHECK value_t xor_(value_t vv1, value_t vv2) {
 
     for (i = 0; i < len2; i++) v[i] = v1[i] ^ v2[i];
     for (; i < len1; i++) v[i] = v1[i];
-    while (sz && !v[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
-        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        free(v);
-        v = vv->u.bits.val;
-    }
-    vv->u.bits.data = v;
-    vv->u.bits.len = sz;
+
     vv->u.bits.inv = neg1 ^ neg2;
-    return vv;
+    return normalize(vv, v, sz);
 }
 
 static MUST_CHECK value_t concat(value_t vv1, value_t vv2) {
@@ -753,7 +720,6 @@ static MUST_CHECK value_t concat(value_t vv1, value_t vv2) {
     for (; i < rbits; i++) v[i] = inv;
     if (i < vv2->u.bits.len) uv = v1[i] ^ inv; else uv = inv;
     if (inv) uv &= (1 << bits) - 1;
-    inv = vv1->u.bits.inv;
 
     rbits = vv1->u.bits.bits / SHIFT;
     v1 = vv1->u.bits.data;
@@ -771,22 +737,14 @@ static MUST_CHECK value_t concat(value_t vv1, value_t vv2) {
         for (; j < rbits; j++) v[i++] = 0;
     }
 
-    while (sz && !v[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
-        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        free(v);
-        v = vv->u.bits.val;
-    }
-    vv->u.bits.data = v;
-    vv->u.bits.len = sz;
+    vv->u.bits.inv = vv1->u.bits.inv;
     vv->u.bits.bits = blen;
-    vv->u.bits.inv = inv;
-    return vv;
+    return normalize(vv, v, sz);
 }
 
 static MUST_CHECK value_t lshift(const value_t vv1, size_t s) {
     size_t i, sz, bits, len1, word;
-    int bit, inv;
+    int bit;
     bdigit_t *v1, *v, *o;
     value_t vv = val_alloc(BITS_OBJ);
 
@@ -796,7 +754,6 @@ static MUST_CHECK value_t lshift(const value_t vv1, size_t s) {
     len1 = vv1->u.bits.len;
     bits = vv1->u.bits.bits + s;
     if (bits < s) err_msg_out_of_memory(); /* overflow */
-    inv = vv1->u.bits.inv;
     sz = word + (bit > 0);
     sz += len1;
     if (sz < len1) err_msg_out_of_memory(); /* overflow */
@@ -811,22 +768,14 @@ static MUST_CHECK value_t lshift(const value_t vv1, size_t s) {
     } else if (len1) memmove(o, v1, len1 * sizeof(bdigit_t));
     memset(v, 0, word * sizeof(bdigit_t));
 
-    while (sz && !v[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && v != vv->u.bits.val) {
-        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        free(v);
-        v = vv->u.bits.val;
-    }
-    vv->u.bits.data = v;
-    vv->u.bits.len = sz;
+    vv->u.bits.inv = vv1->u.bits.inv;
     vv->u.bits.bits = bits;
-    vv->u.bits.inv = inv;
-    return vv;
+    return normalize(vv, v, sz);
 }
 
 static MUST_CHECK value_t rshift(const value_t vv1, uval_t s) {
     size_t i, sz, bits, word;
-    int bit, inv;
+    int bit;
     bdigit_t *v1, *v;
     value_t vv;
 
@@ -849,18 +798,9 @@ static MUST_CHECK value_t rshift(const value_t vv1, uval_t s) {
         v[i] = v1[i] >> bit;
     } else if (sz) memmove(v, v1, sz * sizeof(bdigit_t));
 
-    while (sz && !v[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && v != vv->u.bits.val) {
-        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        free(v);
-        v = vv->u.bits.val;
-    }
-    inv = vv1->u.bits.inv;
-    vv->u.bits.data = v;
-    vv->u.bits.len = sz;
+    vv->u.bits.inv = vv1->u.bits.inv;
     vv->u.bits.bits = bits;
-    vv->u.bits.inv = inv;
-    return vv;
+    return normalize(vv, v, sz);
 }
 
 static inline MUST_CHECK value_t repeat(oper_t op) {
@@ -920,16 +860,9 @@ static inline MUST_CHECK value_t repeat(oper_t op) {
     }
     if (i < sz) v[i] = uv;
 
-    while (sz && !v[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
-        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        free(v);
-        v = vv->u.bits.val;
-    }
-    vv->u.bits.data = v;
-    vv->u.bits.len = sz;
+    vv->u.bits.inv = vv1->u.bits.inv;
     vv->u.bits.bits = blen;
-    return vv;
+    return normalize(vv, v, sz);
 }
 
 static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
@@ -1003,17 +936,10 @@ static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
         }
         if (bits) v[sz++] = uv & ((1 << bits) - 1);
     }
-    while (sz && !v[sz - 1]) sz--;
-    if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
-        memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-        free(v);
-        v = vv->u.bits.val;
-    }
-    vv->u.bits.bits = length;
-    vv->u.bits.len = sz;
+
     vv->u.bits.inv = 0;
-    vv->u.bits.data = v;
-    return vv;
+    vv->u.bits.bits = length;
+    return normalize(vv, v, sz);
 }
 
 static inline MUST_CHECK value_t iindex(oper_t op) {
@@ -1065,17 +991,9 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
         }
         if (bits) v[sz++] = uv & ((1 << bits) - 1);
 
-        while (sz && !v[sz - 1]) sz--;
-        if (sz <= (ssize_t)sizeof(vv->u.bits.val)/(ssize_t)sizeof(vv->u.bits.val[0]) && vv->u.bits.val != v) {
-            memcpy(vv->u.bits.val, v, sz * sizeof(bdigit_t));
-            free(v);
-            v = vv->u.bits.val;
-        }
-        vv->u.bits.bits = vv2->u.list.len;
-        vv->u.bits.len = sz;
         vv->u.bits.inv = 0;
-        vv->u.bits.data = v;
-        return vv;
+        vv->u.bits.bits = vv2->u.list.len;
+        return normalize(vv, v, sz);
     }
     if (vv2->obj == COLONLIST_OBJ) {
         return slice(vv2, op, ln);
