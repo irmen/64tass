@@ -299,11 +299,13 @@ The following operations are accepted:</p>
 <tr><td><code>~<u>x</u></code><td>invert bits<td><code>~<span>%101</span></code> is <code><span>~%101</span></code>
 <tr><td><code><u>y</u> .. <u>x</u></code><td>concatenate bits<td><code><span>$a</span> .. <span>$b</span></code> is <code><span>$ab</span></code>
 <tr><td><code><u>y</u> <span class="k">x</span> <u>n</u></code><td>repeat<td><code><span>%101</span> <span class="k">x</span> <span>3</span></code> is <code><span>%101101101</span></code>
-<tr><td><code><u>x</u>[<u>n</u>]</code><td>extract bit(s)<td><code><span>$a</span>[<span>1</span>]</code> is <code><span>0</span></code>
+<tr><td><code><u>x</u>[<u>n</u>]</code><td>extract bit(s)<td><code><span>$a</span>[<span>1</span>]</code> is <code><span>%1</span></code>
 <tr><td><code><u>x</u>[<u>s</u>]</code><td>slice bits<td><code><span>$1234</span>[<span>4</span>:<span>8</span>]</code> is <code><span>$3</span></code>
 <tr><td><code><u>x</u> | <u>y</u></code><td>bitwise or<td><code><span>~$2</span> | <span>$6</span></code> is <code><span>~$0</span></code>
 <tr><td><code><u>x</u> ^ <u>y</u></code><td>bitwise xor<td><code><span>~$2</span> ^ <span>$6</span></code> is <code><span>~$4</span></code>
 <tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>~$2</span> &amp; <span>$6</span></code> is <code><span>$4</span></code>
+<tr><td><code><u>x</u> &lt;&lt; <u>y</u></code><td>bitwise shift left<td><code><span>$0f</span> &lt;&lt; <span>4</span></code> is <code><span>$0f0</span></code>
+<tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>bitwise shift right<td><code><span>~$f4</span> &gt;&gt; <span>4</span></code> is <code><span>~$f</span></code>
 <tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
 <tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>&minus;1</span></code>
 <tr><td><code><span class="k">int</span>(<u>a</u>)</code><td>convert to integer<td><code><span class="k">int</span>(<span>%11</span>)</code> is <code><span>3</span></code>

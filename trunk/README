@@ -201,11 +201,13 @@ binary with a leading percent sign. The following operations are accepted:
 ~x      invert bits                    ~%101 is ~%101
 y .. x  concatenate bits               $a .. $b is $ab
 y x n   repeat                         %101 x 3 is %101101101
-x[n]    extract bit(s)                 $a[1] is 0
+x[n]    extract bit(s)                 $a[1] is %1
 x[s]    slice bits                     $1234[4:8] is $3
 x | y   bitwise or                     ~$2 | $6 is ~$0
 x ^ y   bitwise xor                    ~$2 ^ $6 is ~$4
 x & y   bitwise and                    ~$2 & $6 is $4
+x << y  bitwise shift left             $0f << 4 is $0f0
+x >> y  bitwise shift right            ~$f4 >> 4 is ~$f
 abs(a)  absolute value                 abs(%11) is 3
 sign(a) sign value (-1, 0, 1)          sign(~%11) is -1
 int(a)  convert to integer             int(%11) is 3
