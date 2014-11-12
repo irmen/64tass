@@ -183,6 +183,34 @@ c   = 2
     .cerror (b,b).(-) != (b,b)
     .cerror {1:"test","3":4}[1] != "test"
 
+    .cerror (~$f)..(~$e) != (~$fe)
+    .cerror (~$f)..$e != (~$f1)
+    .cerror $f..(~$e) != $f1
+    .cerror $f..$e != $fe
+
+    ; bit and length
+    .cerror repr($0f & $f) != repr($f)
+    .cerror repr($f & $0f) != repr($f)
+    .cerror repr(~$0f & $f) != repr($0)
+    .cerror repr(~$f & $0f) != repr($00)
+    .cerror repr($0f & ~$f) != repr($00)
+    .cerror repr($f & ~$0f) != repr($0)
+    .cerror repr(~$0f & ~$f) != repr(~$0f)
+    .cerror repr(~$f & ~$0f) != repr(~$0f)
+
+    ; bit or length
+    .cerror repr($0f | $f) != repr($0f)
+    .cerror repr($f | $0f) != repr($0f)
+    .cerror repr(~$0f | $f) != repr(~$00)
+    .cerror repr(~$f | $0f) != repr(~$0)
+    .cerror repr($0f | ~$f) != repr(~$0)
+    .cerror repr($f | ~$0f) != repr(~$00)
+    .cerror repr(~$0f | ~$f) != repr(~$f)
+    .cerror repr(~$f | ~$0f) != repr(~$f)
+
+    .cerror (1,b)+(1,x) != (2,b,x)
+    .cerror (3,x)-(1,x) != 2
+
 ; check all operators
 
 ; bit or

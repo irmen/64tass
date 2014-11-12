@@ -166,7 +166,7 @@ MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint) {
 
 static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = int_from_bytes(v1);
+    tmp = bits_from_bytes(v1);
     ret = tmp->obj->ival(tmp, iv, bits, epoint);
     val_destroy(tmp);
     return ret;
@@ -174,7 +174,7 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
 
 static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = int_from_bytes(v1);
+    tmp = bits_from_bytes(v1);
     ret = tmp->obj->uval(tmp, uv, bits, epoint);
     val_destroy(tmp);
     return ret;

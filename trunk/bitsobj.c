@@ -150,11 +150,22 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t epoint) {
 }
 
 static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
-    value_t tmp, ret;
-    tmp = int_from_bits(v1);
-    ret = tmp->obj->ival(tmp, iv, bits, epoint);
-    val_destroy(tmp);
-    return ret;
+    value_t v;
+    switch (v1->u.bits.len) {
+    case 2: *iv = v1->u.bits.data[0] | (v1->u.bits.data[1] << (8 * sizeof(bdigit_t)));
+            if (bits < 2 * 8 * (int)sizeof(bdigit_t) && *iv >> bits) break;
+            if (v1->u.bits.inv) *iv = ~*iv;
+            return NULL;
+    case 1: *iv = v1->u.bits.data[0];
+            if (bits < 8 * (int)sizeof(bdigit_t) && *iv >> bits) break;
+            if (v1->u.bits.inv) *iv = ~*iv;
+            return NULL;
+    case 0: *iv = v1->u.bits.inv ? ~(ival_t)0 : 0; return NULL;
+    default: break;
+    }
+    v = new_error_obj(ERROR_____CANT_IVAL, epoint);
+    v->u.error.u.bits = bits;
+    return v;
 }
 
 static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
@@ -405,9 +416,9 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
                 } else d = (bdigit_t *)realloc(d, sz * sizeof(bdigit_t));
                 if (!d) err_msg_out_of_memory();
             }
-            d[j++] = uv;
-        }
-        osz = j;
+            d[j] = uv;
+            osz = j + 1;
+        } else osz = j;
 
         while (osz && !d[osz - 1]) osz--;
         if (v->u.bits.val != d) {
@@ -526,24 +537,34 @@ static MUST_CHECK value_t and_(value_t vv1, value_t vv2) {
     size_t i, len1, len2, sz;
     int neg1, neg2;
     bdigit_t *v1, *v2, *v;
-    bdigit_t c;
     value_t vv = val_alloc(BITS_OBJ);
+    blen1 = vv1->u.bits.bits; 
+    blen2 = vv2->u.bits.bits;
+    if (blen1 < blen2) {
+        vv->u.bits.bits = vv1->u.bits.inv ? blen2 : blen1;
+    } else {
+        vv->u.bits.bits = vv2->u.bits.inv ? blen1 : blen2;
+    }
     len1 = vv1->u.bits.len;
     len2 = vv2->u.bits.len;
 
     if (len1 <= 1 && len2 <= 1) {
-        blen1 = vv1->u.bits.bits; blen2 = vv2->u.bits.bits;
+        bdigit_t c;
         neg1 = vv1->u.bits.inv; neg2 = vv2->u.bits.inv;
-        c = neg1 ? ~vv1->u.bits.val[0] : vv1->u.bits.val[0];
-        c &= neg2 ? ~vv2->u.bits.val[0] : vv2->u.bits.val[0];
-        neg1 &= neg2;
-        if (neg1) c = ~c;
+        if (neg1) {
+            if (neg2) {
+                c = vv1->u.bits.data[0] | vv2->u.bits.data[0];
+            } else {
+                c = ~vv1->u.bits.data[0] & vv2->u.bits.data[0];
+            }
+        } else {
+            c = vv1->u.bits.data[0] & (neg2 ? ~vv2->u.bits.data[0] : vv2->u.bits.data[0]);
+        }
         v = vv->u.bits.val;
-        vv->u.bits.data = v;
-        vv->u.bits.bits = blen1 > blen2 ? blen1 : blen2;
-        vv->u.bits.inv = neg1;
         v[0] = c;
+        vv->u.bits.data = v;
         vv->u.bits.len = (c != 0);
+        vv->u.bits.inv = neg1 & neg2;
         return vv;
     }
     if (len1 < len2) {
@@ -551,9 +572,7 @@ static MUST_CHECK value_t and_(value_t vv1, value_t vv2) {
         i = len1; len1 = len2; len2 = i;
     }
     v1 = vv1->u.bits.data; v2 = vv2->u.bits.data;
-    blen1 = vv1->u.bits.bits; blen2 = vv2->u.bits.bits;
     neg1 = vv1->u.bits.inv; neg2 = vv2->u.bits.inv;
-    if (blen1 < blen2) blen1 = blen2;
 
     sz = neg2 ? len1 : len2;
     v = bnew(vv, sz);
@@ -582,7 +601,6 @@ static MUST_CHECK value_t and_(value_t vv1, value_t vv2) {
     vv->u.bits.data = v;
     vv->u.bits.len = sz;
     vv->u.bits.inv = neg1 & neg2;
-    vv->u.bits.bits = blen1;
     return vv;
 }
 
@@ -591,24 +609,34 @@ static MUST_CHECK value_t or_(value_t vv1, value_t vv2) {
     size_t i, len1, len2, sz;
     int neg1, neg2;
     bdigit_t *v1, *v2, *v;
-    bdigit_t c;
     value_t vv = val_alloc(BITS_OBJ);
+    blen1 = vv1->u.bits.bits; 
+    blen2 = vv2->u.bits.bits;
+    if (blen1 < blen2) {
+        vv->u.bits.bits = vv1->u.bits.inv ? blen1 : blen2;
+    } else {
+        vv->u.bits.bits = vv2->u.bits.inv ? blen2 : blen1;
+    }
     len1 = vv1->u.bits.len;
     len2 = vv2->u.bits.len;
 
     if (len1 <= 1 && len2 <= 1) {
-        blen1 = vv1->u.bits.bits; blen2 = vv2->u.bits.bits;
+        bdigit_t c;
         neg1 = vv1->u.bits.inv; neg2 = vv2->u.bits.inv;
-        c = neg1 ? ~vv1->u.bits.val[0] : vv1->u.bits.val[0];
-        c |= neg2 ? ~vv2->u.bits.val[0] : vv2->u.bits.val[0];
-        neg1 |= neg2;
-        if (neg1) c = ~c;
+        if (neg1) {
+            c = vv1->u.bits.data[0] & (neg2 ? vv2->u.bits.data[0] : ~vv2->u.bits.data[0]);
+        } else {
+            if (neg2) {
+                c = ~vv1->u.bits.data[0] & vv2->u.bits.data[0];
+            } else {
+                c = vv1->u.bits.data[0] | vv2->u.bits.data[0];
+            }
+        }
         v = vv->u.bits.val;
-        vv->u.bits.data = v;
-        vv->u.bits.bits = blen1 > blen2 ? blen1 : blen2;
-        vv->u.bits.inv = neg1;
         v[0] = c;
+        vv->u.bits.data = v;
         vv->u.bits.len = (c != 0);
+        vv->u.bits.inv = neg1 | neg2;
         return vv;
     }
     if (len1 < len2) {
@@ -616,9 +644,7 @@ static MUST_CHECK value_t or_(value_t vv1, value_t vv2) {
         i = len1; len1 = len2; len2 = i;
     }
     v1 = vv1->u.bits.data; v2 = vv2->u.bits.data;
-    blen1 = vv1->u.bits.bits; blen2 = vv2->u.bits.bits;
     neg1 = vv1->u.bits.inv; neg2 = vv2->u.bits.inv;
-    if (blen1 < blen2) blen1 = blen2;
 
     sz = neg2 ? len2 : len1;
     v = bnew(vv, sz);
@@ -647,7 +673,6 @@ static MUST_CHECK value_t or_(value_t vv1, value_t vv2) {
     vv->u.bits.data = v;
     vv->u.bits.len = sz;
     vv->u.bits.inv = neg1 | neg2;
-    vv->u.bits.bits = blen1;
     return vv;
 }
 
@@ -656,22 +681,22 @@ static MUST_CHECK value_t xor_(value_t vv1, value_t vv2) {
     size_t i, len1, len2, sz;
     int neg1, neg2;
     bdigit_t *v1, *v2, *v;
-    bdigit_t c;
     value_t vv = val_alloc(BITS_OBJ);
+    blen1 = vv1->u.bits.bits; 
+    blen2 = vv2->u.bits.bits;
+    vv->u.bits.bits = (blen1 < blen2) ? blen2 : blen1;
     len1 = vv1->u.bits.len;
     len2 = vv2->u.bits.len;
 
     if (len1 <= 1 && len2 <= 1) {
-        blen1 = vv1->u.bits.bits; blen2 = vv2->u.bits.bits;
+        bdigit_t c;
         neg1 = vv1->u.bits.inv; neg2 = vv2->u.bits.inv;
         c = vv1->u.bits.val[0] ^ vv2->u.bits.val[0];
-        neg1 ^= neg2;
         v = vv->u.bits.val;
-        vv->u.bits.data = v;
-        vv->u.bits.bits = blen1 > blen2 ? blen1 : blen2;
-        vv->u.bits.inv = neg1;
         v[0] = c;
+        vv->u.bits.data = v;
         vv->u.bits.len = (c != 0);
+        vv->u.bits.inv = neg1 ^ neg2;
         return vv;
     }
     if (len1 < len2) {
@@ -679,9 +704,7 @@ static MUST_CHECK value_t xor_(value_t vv1, value_t vv2) {
         i = len1; len1 = len2; len2 = i;
     }
     v1 = vv1->u.bits.data; v2 = vv2->u.bits.data;
-    blen1 = vv1->u.bits.bits; blen2 = vv2->u.bits.bits;
     neg1 = vv1->u.bits.inv; neg2 = vv2->u.bits.inv;
-    if (blen1 < blen2) blen1 = blen2;
 
     sz = len1;
     v = bnew(vv, sz);
@@ -697,7 +720,6 @@ static MUST_CHECK value_t xor_(value_t vv1, value_t vv2) {
     vv->u.bits.data = v;
     vv->u.bits.len = sz;
     vv->u.bits.inv = neg1 ^ neg2;
-    vv->u.bits.bits = blen1;
     return vv;
 }
 
