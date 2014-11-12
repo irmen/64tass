@@ -155,7 +155,7 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t epoint) {
     switch (v1->u.bits.len) {
     case 0: *hs = (-v1->u.bits.inv) & ((~(unsigned int)0) >> 1); return NULL;
     case 1: *hs = (v1->u.bits.inv ? ~v1->u.bits.data[0] : v1->u.bits.data[0]) & ((~(unsigned int)0) >> 1); return NULL;
-    case 2: *hs = (v1->u.bits.inv ? ~(v1->u.bits.data[0] | (v1->u.bits.data[1] << 16)) : (v1->u.bits.data[0] | (v1->u.bits.data[1] << 16))) & ((~(unsigned int)0) >> 1); return NULL;
+    case 2: *hs = (v1->u.bits.inv ? ~(v1->u.bits.data[0] | (v1->u.bits.data[1] << SHIFT)) : (v1->u.bits.data[0] | (v1->u.bits.data[1] << SHIFT))) & ((~(unsigned int)0) >> 1); return NULL;
     }
     tmp = int_from_bits(v1);
     ret = obj_hash(tmp, hs, epoint);
@@ -279,12 +279,12 @@ MUST_CHECK value_t bits_from_u16(uint16_t i) {
     return v;
 }
 
-static MUST_CHECK value_t bits_from_u24(int i) {
+static MUST_CHECK value_t bits_from_u24(uint32_t i) {
     value_t v = val_alloc(BITS_OBJ);
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = i;
-    v->u.bits.val[1] = i >> 16;
-    v->u.bits.len = (i != 0) + (i > 0xffff);
+    v->u.bits.val[1] = i >> SHIFT;
+    v->u.bits.len = (i != 0) + (v->u.bits.val[1] != 0);
     v->u.bits.inv = 0;
     v->u.bits.bits = 24;
     return v;
@@ -494,7 +494,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
         if (v1->u.bits.inv) uv = ~uv;
         return bits_from_u8(uv);
     case O_HWORD:
-        uv = v1->u.bits.len > 1 ? (v1->u.bits.data[1] << 16) : 0;
+        uv = v1->u.bits.len > 1 ? (v1->u.bits.data[1] << SHIFT) : 0;
         uv |= v1->u.bits.len > 0 ? v1->u.bits.data[0] : 0;
         if (v1->u.bits.inv) uv = ~uv;
         return bits_from_u16(uv >> 8);
