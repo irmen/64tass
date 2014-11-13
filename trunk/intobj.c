@@ -660,14 +660,14 @@ static MUST_CHECK value_t irshift(value_t vv1, uval_t s) {
         vv = val_alloc(INT_OBJ);
         isub(vv1, int_value[1], vv);
         vv1 = vv;
-        sz = abs(vv->u.integer.len) - word;
-        if (sz <= 0) {
+        if (vv->u.integer.len <= word) {
             val_destroy(vv);
             return int_from_int(-1);
         }
+        sz = vv->u.integer.len - word;
     } else {
-        sz = abs(vv1->u.integer.len) - word;
-        if (sz <= 0) return val_reference(int_value[0]);
+        if (vv1->u.integer.len <= word) return val_reference(int_value[0]);
+        sz = vv1->u.integer.len - word;
         vv = val_alloc(INT_OBJ);
     }
     v = inew(vv, sz);
