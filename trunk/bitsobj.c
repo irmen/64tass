@@ -775,10 +775,10 @@ static MUST_CHECK value_t rshift(const value_t vv1, uval_t s) {
     word = s / SHIFT;
     bit = s - word * SHIFT;
     bits = vv1->u.bits.bits;
-    sz = vv1->u.bits.len - word;
-    if (sz <= 0 || bits <= s) {
+    if (vv1->u.bits.len <= word || bits <= s) {
         return val_reference(null_bits);
     }
+    sz = vv1->u.bits.len - word;
     bits -= s;
     vv = val_alloc(BITS_OBJ);
     v = bnew(vv, sz);
