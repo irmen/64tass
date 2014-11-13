@@ -25,8 +25,8 @@
 
 #include "floatobj.h"
 
-#define SHIFT 30
-#define MASK ((1 << SHIFT)-1)
+#define SHIFT (8 * sizeof(digit_t))
+#define MASK (~(digit_t)0)
 #define DSHIFT 9
 #define DMUL ((digit_t)1000000000)
 
@@ -94,13 +94,11 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoin
     h = 0;
     if (l > 0) {
         while (l--) {
-            h = (h << SHIFT) | (h >> (8 * sizeof(unsigned int) - SHIFT));
             h += v1->u.integer.val[l];
         }
     } else {
         while (l++) {
-            h = (h << SHIFT) | (h >> (8 * sizeof(unsigned int) - SHIFT));
-            h -= v1->u.integer.val[l];
+            h -= v1->u.integer.val[-l];
         }
     }
     *hs = h & ((~(unsigned int)0) >> 1);
@@ -129,7 +127,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     }
 
     sz = 1 + (len * SHIFT / (3 * DSHIFT));
-    if (len > SSIZE_MAX / SHIFT) err_msg_out_of_memory(); /* overflow */
+    if (len > SSIZE_MAX / (int)SHIFT) err_msg_out_of_memory(); /* overflow */
     out = inew(&tmp, sz);
 
     for (sz = 0, i = len; i--;) {
@@ -183,25 +181,13 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
 static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
     value_t v;
     switch (v1->u.integer.len) {
-    case 2: 
-        if (v1->u.integer.data[1] >= (~(uval_t)1 << (8*sizeof(uval_t) - SHIFT - 1))) break;
-        *iv = v1->u.integer.data[0] | (v1->u.integer.data[1] << SHIFT);
-        if (bits < SHIFT) break;
-        if (bits < (SHIFT*2-1) && v1->u.integer.data[1] >> (bits - SHIFT - 1)) break;
-        return NULL;
     case 1: *iv = v1->u.integer.data[0];
-            if (bits < (SHIFT-1) && *iv >> (bits-1)) break;
+            if (bits < (int)(SHIFT-1) && (uval_t)*iv >> (bits-1)) break;
             return NULL;
     case 0: *iv = 0; return NULL;
     case -1: *iv = -v1->u.integer.data[0];
-             if (bits < (SHIFT-1) && ~*iv >> (bits-1)) break;
+             if (bits < (int)(SHIFT-1) && (uval_t)~*iv >> (bits-1)) break;
              return NULL;
-    case -2: 
-        if (v1->u.integer.data[1] > (~(uval_t)1 << (8*sizeof(uval_t) - SHIFT - 1))) break;
-        *iv = -(v1->u.integer.data[0] | (v1->u.integer.data[1] << SHIFT));
-        if (bits < SHIFT) break;
-        if (bits < (SHIFT*2-1) && ~*iv >> (bits-1)) break;
-        return NULL;
     default: break;
     }
     v = new_error_obj(ERROR_____CANT_IVAL, epoint);
@@ -212,14 +198,8 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
 static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
     value_t v;
     switch (v1->u.integer.len) {
-    case 2:
-        if (v1->u.integer.data[1] >= (~(uval_t)1 << (8*sizeof(uval_t) - SHIFT))) break;
-        *uv = v1->u.integer.data[0] | (v1->u.integer.data[1] << SHIFT);
-        if (bits < SHIFT) break;
-        if (bits < SHIFT*2 && v1->u.integer.data[1] >> (bits - SHIFT)) break;
-        return NULL;
     case 1: *uv = v1->u.integer.data[0];
-            if (bits < SHIFT && *uv >> bits) break;
+            if (bits < (int)SHIFT && *uv >> bits) break;
             return NULL;
     case 0: *uv = 0; return NULL;
     default: break;
@@ -263,7 +243,7 @@ static void isub(const value_t, const value_t, value_t);
 
 static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1, v;
-    uval_t uv;
+    digit_t uv;
     switch (op->op->u.oper.op) {
     case O_BANK: 
         uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
@@ -315,8 +295,8 @@ static void iadd(value_t vv1, value_t vv2, value_t vv) {
         c = vv1->u.integer.val[0] + vv2->u.integer.val[0];
         v = vv->u.integer.val;
         vv->u.integer.data = v;
-        if (c > MASK) {
-            v[0] = c & MASK;
+        if (c < vv1->u.integer.val[0]) {
+            v[0] = c;
             v[1] = 1;
             vv->u.integer.len = 2;
             return;
@@ -333,14 +313,16 @@ static void iadd(value_t vv1, value_t vv2, value_t vv) {
     v = inew(vv, len1 + 1);
     v1 = vv1->u.integer.data; v2 = vv2->u.integer.data;
     for (c = i = 0; i < len2; i++) {
-        c += v1[i] + v2[i];
-        v[i] = c & MASK;
-        c = c > MASK;
+        if (c) {
+            c = v1[i];
+            c = (v[i] = c + v2[i] + 1) <= c;
+            continue;
+        }
+        c = v1[i];
+        c = (v[i] = c + v2[i]) < c;
     }
     for (;c && i < len1; i++) {
-        c += v1[i];
-        v[i] = c & MASK;
-        c = c > MASK;
+        c = (v[i] = v1[i] + 1) < 1;
     }
     for (;i < len1; i++) v[i] = v1[i];
     if (c) v[i++] = c;
@@ -363,15 +345,15 @@ static void isub(value_t vv1, value_t vv2, value_t vv) {
     len1 = abs(vv1->u.integer.len);
     len2 = abs(vv2->u.integer.len);
     if (len1 <= 1 && len2 <= 1) {
-        c = vv1->u.integer.val[0] - vv2->u.integer.val[0];
+        digit_t d1 = vv1->u.integer.val[0], d2 = vv2->u.integer.val[0];
         v = vv->u.integer.val;
         vv->u.integer.data = v;
-        if (c > MASK) {
-            v[0] = -c;
+        if (d1 < d2) {
+            v[0] = d2 - d1;
             vv->u.integer.len = -1;
             return;
         }
-        v[0] = c;
+        v[0] = d1 - d2;
         vv->u.integer.len = (v[0] != 0);
         return;
     }
@@ -402,14 +384,17 @@ static void isub(value_t vv1, value_t vv2, value_t vv) {
     v = inew(vv, len1);
     v1 = vv1->u.integer.data; v2 = vv2->u.integer.data;
     for (c = i = 0; i < len2; i++) {
-        c = v1[i] - v2[i] - c;
-        v[i] = c & MASK;
-        c = c > MASK;
+        if (c) {
+            c = v1[i] <= v2[i];
+            v[i] = v1[i] - v2[i] - 1;
+            continue;
+        } 
+        c = v1[i] < v2[i];
+        v[i] = v1[i] - v2[i];
     }
     for (;c && i < len1; i++) {
-        c = v1[i] - c;
-        v[i] = c & MASK;
-        c = c > MASK;
+        c = v1[i] == 0;
+        v[i] = v1[i] - 1;
     }
     for (;i < len1; i++) v[i] = v1[i];
     while (i && !v[i - 1]) i--;
@@ -436,7 +421,7 @@ static void imul(const value_t vv1, const value_t vv2, value_t vv) {
         v = vv->u.integer.val;
         vv->u.integer.data = v;
         if (c > MASK) {
-            v[0] = c & MASK;
+            v[0] = (digit_t)c;
             v[1] = c >> SHIFT;
             vv->u.integer.len = 2;
             return;
@@ -453,10 +438,10 @@ static void imul(const value_t vv1, const value_t vv2, value_t vv) {
         digit_t *o = v + i;
         for (j = 0; j < len2; j++) {
             c += o[j] + v2[j] * t;
-            o[j] = (digit_t)(c & MASK);
+            o[j] = (digit_t)c;
             c >>= SHIFT;
         }
-        if (c) o[j] += (digit_t)(c & MASK);
+        if (c) o[j] += (digit_t)c;
     }
     i = sz;
     while (i && !v[i - 1]) i--;
@@ -502,16 +487,7 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
                 v[i] = h;
                 r -= (twodigits_t)h * n;
             }
-            i = len1;
-            while (i && !v[i - 1]) i--;
-            if (i <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0]) && v != vv->u.integer.val) {
-                memcpy(vv->u.integer.val, v, i * sizeof(digit_t));
-                free(v);
-                v = vv->u.integer.val;
-            }
-            vv->u.integer.data = v;
-            vv->u.integer.len = neg ? -i : i;
-            return vv;
+            return normalize(vv, v, len1, neg);
         }
         for (i = len1; i--;) {
             digit_t h;
@@ -526,14 +502,9 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
         vv->u.integer.len = negr ? -1 : 1;
         return vv;
     } else {
-        typedef int32_t sdigit_t;
-        typedef int64_t stwodigits_t;
         ssize_t i;
         int k, d;
-        digit_t wm1, wm2, c, q, r, vtop, *v0, *vk, *w0, *ak, *a;
-        twodigits_t vvv;
-        sdigit_t zhi;
-        stwodigits_t z;
+        digit_t wm1, wm2, c, *v0, *vk, *w0, *ak, *a;
         struct value_s tmp1, tmp2, tmp3;
 
         if (len1 + 1 < 1) err_msg_out_of_memory(); /* overflow */
@@ -544,10 +515,10 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
         while ((v2[len2 - 1] << d) <= MASK / 2) d++;
 
         if (d) {
-            w0[0] = (v2[0] << d) & MASK;
-            for (i = 1; i < len2; i++) w0[i] = ((v2[i] << d) | (v2[i - 1] >> (SHIFT - d))) & MASK;
-            v0[0] = (v1[0] << d) & MASK;
-            for (i = 1; i < len1; i++) v0[i] = ((v1[i] << d) | (v1[i - 1] >> (SHIFT - d))) & MASK;
+            w0[0] = v2[0] << d;
+            for (i = 1; i < len2; i++) w0[i] = (v2[i] << d) | (v2[i - 1] >> (SHIFT - d));
+            v0[0] = v1[0] << d;
+            for (i = 1; i < len1; i++) v0[i] = (v1[i] << d) | (v1[i - 1] >> (SHIFT - d));
             v0[i] = v1[i - 1] >> (SHIFT - d);
         } else {
             memcpy(w0, v2, len2 * sizeof(digit_t));
@@ -561,37 +532,43 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
 
         wm1 = w0[len2 - 1]; wm2 = w0[len2 - 2];
         for (vk = v0 + k, ak = a + k; vk-- > v0;) {
-            vtop = vk[len2];
-            vvv = ((twodigits_t)vtop << SHIFT) | vk[len2 - 1];
-            q = (digit_t)(vvv / wm1);
-            r = (digit_t)(vvv - (twodigits_t)wm1 * q);
-            while ((twodigits_t)wm2 * q > (((twodigits_t)r << SHIFT) | vk[len2 - 2])) {
+            digit_t vtop = vk[len2];
+            twodigits_t vvv = ((twodigits_t)vtop << SHIFT) | vk[len2 - 1];
+            digit_t q = (digit_t)(vvv / wm1);
+            digit_t r = (digit_t)(vvv - (twodigits_t)q * wm1);
+            twodigits_t e;
+            while ((twodigits_t)q * wm2 > (((twodigits_t)r << SHIFT) | vk[len2 - 2])) {
                 --q;
                 r += wm1;
-                if (r > MASK) break;
+                if (r < wm1) break;
             }
-            for (zhi = i = 0; i < len2; i++) {
-                z = (sdigit_t)vk[i] + zhi - (stwodigits_t)q * (stwodigits_t)w0[i];
-                vk[i] = z & MASK;
-                if (z < 0) zhi = ~(~z >> SHIFT);
-                else zhi = z >> SHIFT;
+            for (e = c = i = 0; i < len2; i++) {
+                digit_t t;
+                e += (twodigits_t)q * w0[i];
+                t = e; e >>= SHIFT;
+                if (c) {
+                    c = vk[i] <= t;
+                    vk[i] = vk[i] - t - 1;
+                    continue;
+                } 
+                c = vk[i] < t;
+                vk[i] -= t;
             }
-            if ((sdigit_t)vtop + zhi < 0) {
+            if (c ? (vtop <= e) : (vtop < e)) {
                 for (c = i = 0; i < len2; i++) {
-                    c += vk[i] + w0[i];
-                    vk[i] = c & MASK;
-                    c >>= SHIFT;
+                    if (c) {
+                        c = vk[i];
+                        c = (vk[i] = c + w0[i] + 1) <= c;
+                        continue;
+                    }
+                    c = vk[i];
+                    c = (vk[i] = c + w0[i]) < c;
                 }
                 --q;
             }
             *--ak = q;
         }
         if (w0 != tmp2.u.integer.val) free(w0);
-
-        if (d) {
-            for (i = 0; i < len2 - 1; i++) v0[i] = ((v0[i] >> d) | (v0[i + 1] << (SHIFT - d))) & MASK;
-            v0[i] >>= d;
-        } 
 
         vv = val_alloc(INT_OBJ);
         if (div) {
@@ -606,6 +583,11 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
             vv->u.integer.len = neg ? -k : k;
             return vv;
         }
+
+        if (d) {
+            for (i = 0; i < len2 - 1; i++) v0[i] = (v0[i] >> d) | (v0[i + 1] << (SHIFT - d));
+            v0[i] >>= d;
+        } 
 
         if (a != tmp3.u.integer.val) free(a);
         while (len2 && !v0[len2 - 1]) len2--;
@@ -627,9 +609,9 @@ static MUST_CHECK value_t power(const value_t vv1, const value_t vv2) {
 
     for (i = vv2->u.integer.len; i--;) {
         digit_t d = vv2->u.integer.data[i];
-        for (j = 1 << (SHIFT - 1); j; j >>= 1) {
+        for (j = SHIFT - 1; j >= 0; j--) {
             imul(v, v, v);
-            if (d & j) {
+            if (d & (1 << j)) {
                 imul(v, vv1, v);
                 neg = 1;
             } else neg = 0;
@@ -657,9 +639,9 @@ static MUST_CHECK value_t ilshift(const value_t vv1, uval_t s) {
         v2[len1] = 0;
         for (i = len1; i--;) {
             v2[i + 1] |= v1[i] >> (SHIFT - bit);
-            v2[i] = (v1[i] << bit) & MASK;
+            v2[i] = (digit_t)(v1[i] << bit);
         }
-    } else if (len1) memmove(v2, v1, len1 * sizeof(digit_t));
+    } else if (len1) memcpy(v2, v1, len1 * sizeof(digit_t));
     if (word) memset(v, 0, word * sizeof(digit_t));
 
     return normalize(vv, v, sz, vv1->u.integer.len < 0);
@@ -693,10 +675,10 @@ static MUST_CHECK value_t irshift(value_t vv1, uval_t s) {
     if (bit) {
         for (i = 0; i < sz - 1; i++) {
             v[i] = v1[i] >> bit;
-            v[i] |= (v1[i + 1] << (SHIFT - bit)) & MASK;
+            v[i] |= (digit_t)(v1[i + 1] << (SHIFT - bit));
         }
         v[i] = v1[i] >> bit;
-    } else if (sz) memmove(v, v1, sz * sizeof(digit_t));
+    } else if (sz) memcpy(v, v1, sz * sizeof(digit_t));
 
     if (neg) {
         vv->u.integer.data = v;
@@ -741,33 +723,73 @@ static MUST_CHECK value_t iand(value_t vv1, value_t vv2) {
 
     if (neg1) {
         if (neg2) {
-            digit_t c1 = 1, c2 = 1;
-            for (c = 1, i = 0; i < len1; i++) {
-                c1 += v1[i] ^ MASK;
-                c2 += (i < len2) ? (v2[i] ^ MASK) : MASK;
-                c += (c1 & c2 & MASK) ^ MASK;
-                v[i] = c & MASK;
-                c = c > MASK;
-                c1 = c1 > MASK;
-                c2 = c2 > MASK;
+            int c1 = 1, c2 = 1;
+            for (c = 1, i = 0; i < len2; i++) {
+                digit_t e = v1[i], f = v2[i], g;
+                if (c1) {
+                    c1 = e == 0;
+                    if (c2) {
+                        c2 = f == 0;
+                        g = (~e + 1) & (~f + 1);
+                    } else g = (~e + 1) & ~f;
+                } else {
+                    if (c2) {
+                        c2 = f == 0;
+                        g = ~e & (~f + 1);
+                    } else g = ~e & ~f;
+                }
+                if (c) {
+                    c = g == 0;
+                    v[i] = ~g + 1;
+                    continue;
+                }
+                v[i] = ~g;
+            }
+            if (c2) {
+                if (c) for (; i < len1; i++) v[i] = 0;
+                else for (; i < len1; i++) v[i] = ~0;
+            } else {
+                for (; i < len1; i++) {
+                    digit_t e = v1[i], g;
+                    if (c1) {
+                        c1 = e == 0;
+                        g = ~e + 1;
+                    } else g = ~e;
+                    if (c) {
+                        c = g == 0;
+                        v[i] = ~g + 1;
+                        continue;
+                    }
+                    v[i] = ~g;
+                }
             }
             v[i] = c;
         } else {
-            digit_t c1 = 1;
+            int c1 = 1;
             for (i = 0; i < len2; i++) {
-                c1 += v1[i] ^ MASK;
-                v[i] = c1 & v2[i] & MASK;
-                c1 = c1 > MASK;
+                digit_t e = v1[i], f = v2[i];
+                if (c1) {
+                    c1 = e == 0;
+                    v[i] = (~e + 1) & f;
+                    continue;
+                }
+                v[i] = ~e & f;
             }
         }
     } else {
         if (neg2) {
-            digit_t c2 = 1;
-            for (i = 0; i < len1; i++) {
-                c2 += (i < len2) ? (v2[i] ^ MASK) : MASK;
-                v[i] = c2 & v1[i] & MASK;
-                c2 = c2 > MASK;
+            int c2 = 1;
+            for (i = 0; i < len2; i++) {
+                digit_t e = v1[i], f = v2[i];
+                if (c2) {
+                    c2 = f == 0;
+                    v[i] = e & (~f + 1);
+                    continue;
+                }
+                v[i] = e & ~f;
             }
+            if (c2) for (; i < len1; i++) v[i] = 0;
+            else for (; i < len1; i++) v[i] = v1[i];
         } else {
             for (i = 0; i < len2; i++) v[i] = v1[i] & v2[i];
         }
@@ -808,36 +830,73 @@ static MUST_CHECK value_t ior(value_t vv1, value_t vv2) {
 
     if (neg1) {
         if (neg2) {
-            digit_t c1 = 1, c2 = 1;
+            int c1 = 1, c2 = 1;
             for (c = 1, i = 0; i < len2; i++) {
-                c1 += v1[i] ^ MASK;
-                c2 += v2[i] ^ MASK;
-                c += ((c1 | c2) & MASK) ^ MASK;
-                v[i] = c & MASK;
-                c = c > MASK;
-                c1 = c1 > MASK;
-                c2 = c2 > MASK;
+                digit_t e = v1[i], f = v2[i], g;
+                if (c1) {
+                    c1 = e == 0;
+                    if (c2) {
+                        c2 = f == 0;
+                        g = (~e + 1) | (~f + 1);
+                    } else g = (~e + 1) | ~f;
+                } else {
+                    if (c2) {
+                        c2 = f == 0;
+                        g = ~e | (~f + 1);
+                    } else g = ~e | ~f;
+                }
+                if (c) {
+                    c = g == 0;
+                    v[i] = ~g + 1;
+                    continue;
+                }
+                v[i] = ~g;
             }
         } else {
-            digit_t c1 = 1;
-            for (c = 1, i = 0; i < len1; i++) {
-                c1 += v1[i] ^ MASK;
-                c += (((i < len2) ? (c1 | v2[i]) : c1) & MASK) ^ MASK;
-                v[i] = c & MASK;
-                c = c > MASK;
-                c1 = c1 > MASK;
+            int c1 = 1;
+            for (c = 1, i = 0; i < len2; i++) {
+                digit_t e = v1[i], f = v2[i], g;
+                if (c1) {
+                    c1 = e == 0;
+                    g = (~e + 1) | f;
+                } else g = ~e | f;
+                if (c) {
+                    c = g == 0;
+                    v[i] = ~g + 1;
+                    continue;
+                }
+                v[i] = ~g;
+            }
+            for (; i < len1; i++) {
+                digit_t e = v1[i], g;
+                if (c1) {
+                    c1 = e == 0;
+                    g = ~e + 1;
+                } else g = ~e;
+                if (c) {
+                    c = g == 0;
+                    v[i] = ~g + 1;
+                    continue;
+                }
+                v[i] = ~g;
             }
         }
         v[i] = c;
     } else {
         if (neg2) {
-            digit_t c2 = 1;
+            int c2 = 1;
             for (c = 1, i = 0; i < len2; i++) {
-                c2 += v2[i] ^ MASK;
-                c += ((c2 | v1[i]) & MASK) ^ MASK;
-                v[i] = c & MASK;
-                c = c > MASK;
-                c2 = c2 > MASK;
+                digit_t e = v1[i], f = v2[i], g;
+                if (c2) {
+                    c2 = f == 0;
+                    g = e | (~f + 1);
+                } else g = e | ~f;
+                if (c) {
+                    c = g == 0;
+                    v[i] = ~g + 1;
+                    continue;
+                }
+                v[i] = ~g;
             }
             v[i] = c;
         } else {
@@ -881,34 +940,86 @@ static MUST_CHECK value_t ixor(value_t vv1, value_t vv2) {
 
     if (neg1) {
         if (neg2) {
-            digit_t c1 = 1, c2 = 1;
-            for (i = 0; i < len1; i++) {
-                c1 += v1[i] ^ MASK;
-                c2 += (i < len2) ? (v2[i] ^ MASK) : MASK;
-                v[i] = (c1 ^ c2) & MASK;
-                c1 = c1 > MASK;
-                c2 = c2 > MASK;
+            int c1 = 1, c2 = 1;
+            for (i = 0; i < len2; i++) {
+                digit_t e = v1[i], f = v2[i], g;
+                if (c1) {
+                    c1 = e == 0;
+                    if (c2) {
+                        c2 = f == 0;
+                        g = (~e + 1) ^ (~f + 1);
+                    } else g = (~e + 1) ^ ~f;
+                } else {
+                    if (c2) {
+                        c2 = f == 0;
+                        g = ~e ^ (~f + 1);
+                    } else g = e ^ f;
+                }
+                v[i] = g;
+            }
+            for (; i < len1; i++) {
+                digit_t e = v1[i], g;
+                if (c1) {
+                    c1 = e == 0;
+                    g = ~e + 1;
+                } else g = ~e;
+                v[i] = c2 ? g : ~g;
             }
         } else {
-            digit_t c1 = 1;
-            for (c = 1, i = 0; i < len1; i++) {
-                c1 += v1[i] ^ MASK;
-                c += (((i < len2) ? (c1 ^ v2[i]) : c1) & MASK) ^ MASK;
-                v[i] = c & MASK;
-                c = c > MASK;
-                c1 = c1 > MASK;
+            int c1 = 1;
+            for (c = 1, i = 0; i < len2; i++) {
+                digit_t e = v1[i], f = v2[i], g;
+                if (c1) {
+                    c1 = e == 0;
+                    g = (~e + 1) ^ f;
+                } else g = ~e ^ f;
+                if (c) {
+                    c = g == 0;
+                    v[i] = ~g + 1;
+                    continue;
+                }
+                v[i] = ~g;
+            }
+            for (; i < len1; i++) {
+                digit_t e = v1[i], g;
+                if (c1) {
+                    c1 = e == 0;
+                    g = ~e + 1;
+                } else g = ~e;
+                if (c) {
+                    c = g == 0;
+                    v[i] = ~g + 1;
+                    continue;
+                }
+                v[i] = ~g;
             }
             v[i] = c;
         }
     } else {
         if (neg2) {
-            digit_t c2 = 1;
-            for (c = 1, i = 0; i < len1; i++) {
-                c2 += (i < len2) ? (v2[i] ^ MASK) : MASK;
-                c += ((c2 ^ v1[i]) & MASK) ^ MASK;
-                v[i] = c & MASK;
-                c = c > MASK;
-                c2 = c2 > MASK;
+            int c2 = 1;
+            for (c = 1, i = 0; i < len2; i++) {
+                digit_t e = v1[i], f = v2[i], g;
+                if (c2) {
+                    c2 = f == 0;
+                    g = e ^ (~f + 1);
+                } else g = e ^ ~f;
+                if (c) {
+                    c = g == 0;
+                    v[i] = ~g + 1;
+                    continue;
+                }
+                v[i] = ~g;
+            }
+            for (; i < len1; i++) {
+                digit_t e = v1[i], g;
+                g = c2 ? e : ~e;
+                if (c) {
+                    c = g == 0;
+                    v[i] = ~g + 1;
+                    continue;
+                }
+                v[i] = ~g;
             }
             v[i] = c;
         } else {
@@ -946,12 +1057,6 @@ MUST_CHECK value_t int_from_int(int i) {
 MUST_CHECK value_t int_from_uval(uval_t i) {
     value_t v = val_alloc(INT_OBJ);
     v->u.integer.data = v->u.integer.val;
-    if (i > MASK) {
-        v->u.integer.val[0] = i & MASK;
-        v->u.integer.val[1] = i >> SHIFT;
-        v->u.integer.len = 2;
-        return v;
-    }
     v->u.integer.val[0] = i;
     v->u.integer.len = (i != 0);
     return v;
@@ -961,20 +1066,8 @@ MUST_CHECK value_t int_from_ival(ival_t i) {
     value_t v = val_alloc(INT_OBJ);
     v->u.integer.data = v->u.integer.val;
     if (i < 0) {
-        if (i < -MASK) {
-            v->u.integer.val[0] = (-i) & MASK;
-            v->u.integer.val[1] = (-i) >> SHIFT;
-            v->u.integer.len = -2;
-            return v;
-        }
         v->u.integer.val[0] = -i;
         v->u.integer.len = -1;
-        return v;
-    }
-    if (i > MASK) {
-        v->u.integer.val[0] = i & MASK;
-        v->u.integer.val[1] = i >> SHIFT;
-        v->u.integer.len = 2;
         return v;
     }
     v->u.integer.val[0] = i;
@@ -998,7 +1091,7 @@ MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
     if (neg) f = -f;
 
     frac = frexp(f, &expo);
-    if (expo < 0) {
+    if (expo <= 0) {
         return val_reference(int_value[0]);
     }
     sz = (expo - 1) / SHIFT + 1;
@@ -1011,7 +1104,7 @@ MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
     frac = ldexp(frac, (expo - 1) % SHIFT + 1);
 
     while (sz--) {
-        digit_t dg = (digit_t)frac & MASK;
+        digit_t dg = (digit_t)frac;
         d[sz] = dg;
         frac = ldexp(frac - (double)dg, SHIFT);
     }
@@ -1019,44 +1112,36 @@ MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
 }
 
 MUST_CHECK value_t int_from_bytes(const value_t v1) {
-    uval_t uv = 0;
-    int bits = 0;
-    ssize_t j = 0, sz;
-    size_t i = 0;
-    digit_t *d;
-    const uint8_t *b;
+    int bits;
+    size_t i, j, sz;
+    digit_t *d, uv;
     value_t v;
 
-    if (!v1->u.bytes.len) {
+    i = v1->u.bytes.len;
+    if (!i) {
         return val_reference(int_value[0]);
     }
-    sz = (v1->u.bytes.len * 8 + SHIFT - 1) / SHIFT;
-    if (v1->u.bytes.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
+    sz = i / sizeof(digit_t);
+    if (i % sizeof(digit_t)) sz++;
+
     v = val_alloc(INT_OBJ);
     d = inew(v, sz);
 
-    b = v1->u.bytes.data;
+    uv = bits = j = i = 0;
     while (v1->u.bytes.len > i) {
-        uv |= b[i] << bits;
-        bits += 8 * sizeof(b[0]);
-        if (bits >= SHIFT) {
-            if (j >= sz) err_msg_out_of_memory();
-            d[j++] = uv & MASK;
-            bits -= SHIFT;
-            uv = b[i] >> (8 * sizeof(b[0]) - bits);
-        }
-        i++;
+        uv |= v1->u.bytes.data[i++] << bits;
+        if (bits == SHIFT - 8) {
+            d[j++] = uv;
+            bits = uv = 0;
+        } else bits += 8;
     }
-    if (bits) {
-        if (j >= sz) err_msg_out_of_memory();
-        d[j++] = uv & MASK;
-    }
+    if (bits) d[j] = uv;
 
-    return normalize(v, d, j, 0);
+    return normalize(v, d, sz, 0);
 }
 
 MUST_CHECK value_t int_from_bits(const value_t v1) {
-    uval_t uv = 0;
+    digit_t uv = 0;
     int bits = 0;
     int inv;
     ssize_t j = 0, sz;
@@ -1083,45 +1168,29 @@ MUST_CHECK value_t int_from_bits(const value_t v1) {
         int c = 1;
         while (v1->u.bits.len > i) {
             uv |= (bdigit_t)(b[i] + c) << bits;
-            bits += 8 * sizeof(bdigit_t);
-            if (bits >= SHIFT) {
-                if (j >= sz) err_msg_out_of_memory();
-                d[j++] = uv & MASK;
-                bits -= SHIFT;
-                uv = (bdigit_t)(b[i] + c) >> (8 * sizeof(bdigit_t) - bits);
-            }
+            if (bits == SHIFT - 8 * sizeof(bdigit_t)) {
+                d[j++] = uv;
+                bits = uv = 0;
+            } else bits += 8 * sizeof(bdigit_t);
             if (b[i] < ((bdigit_t)~0)) c = 0;
             i++;
         }
         if (c) {
             uv |= 1 << bits;
             bits++;
-            if (bits >= SHIFT) {
-                if (j >= sz) err_msg_out_of_memory();
-                d[j++] = uv & MASK;
-                uv >>= SHIFT;
-                bits -= SHIFT;
-            }
         }
     } else {
         while (v1->u.bits.len > i) {
-            uv |= b[i] << bits;
-            bits += 8 * sizeof(bdigit_t);
-            if (bits >= SHIFT) {
-                if (j >= sz) err_msg_out_of_memory();
-                d[j++] = uv & MASK;
-                bits -= SHIFT;
-                uv = b[i] >> (8 * sizeof(bdigit_t) - bits);
-            }
-            i++;
+            uv |= b[i++] << bits;
+            if (bits == SHIFT - 8 * sizeof(bdigit_t)) {
+                d[j++] = uv;
+                bits = uv = 0;
+            } else bits += 8 * sizeof(bdigit_t);
         }
     }
-    if (bits) {
-        if (j >= sz) err_msg_out_of_memory();
-        d[j++] = uv & MASK;
-    }
+    if (bits) d[j] = uv;
 
-    return normalize(v, d, j, inv);
+    return normalize(v, d, sz, inv);
 }
 
 MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
@@ -1129,25 +1198,26 @@ MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
     value_t v;
 
     if (actual_encoding) {
-        uval_t uv = 0;
-        int bits = 0;
-        ssize_t j = 0, sz, osz;
+        digit_t uv;
+        int bits;
+        size_t i, j, sz, osz;
         digit_t *d;
 
-        if (!v1->u.str.len) {
+        i = v1->u.str.len;
+        if (!i) {
             return val_reference(int_value[0]);
         }
 
-        sz = (v1->u.str.len * 8 + SHIFT - 1) / SHIFT;
-        if (v1->u.str.len > (SSIZE_MAX - SHIFT + 1) / 8) err_msg_out_of_memory(); /* overflow */
+        sz = i / sizeof(digit_t);
+        if (i % sizeof(digit_t)) sz++;
         v = val_alloc(INT_OBJ);
         d = inew(v, sz);
 
+        uv = bits = j = 0;
         encode_string_init(v1, epoint);
         while ((ch = encode_string()) != EOF) {
             uv |= (uint8_t)ch << bits;
-            bits += 8;
-            if (bits >= SHIFT) {
+            if (bits == SHIFT - 8) {
                 if (j >= sz) {
                     if (v->u.integer.val == d) {
                         sz = 16 / sizeof(digit_t);
@@ -1160,10 +1230,9 @@ MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
                     }
                     if (!d) err_msg_out_of_memory();
                 }
-                d[j++] = uv & MASK;
-                bits -= SHIFT;
-                uv = (uint8_t)ch >> (8 - bits);
-            }
+                d[j++] = uv;
+                bits = uv = 0;
+            } else bits += 8;
         }
         if (bits) {
             if (j >= sz) {
@@ -1175,9 +1244,9 @@ MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
                 } else d = (digit_t *)realloc(d, sz * sizeof(digit_t));
                 if (!d) err_msg_out_of_memory();
             }
-            d[j++] = uv & MASK;
-        }
-        osz = j;
+            d[j] = uv;
+            osz = j + 1;
+        } else osz = j;
 
         while (osz && !d[osz - 1]) osz--;
         if (v->u.integer.val != d) {
@@ -1243,8 +1312,9 @@ MUST_CHECK value_t int_from_decstr(const uint8_t *s, size_t *ln) {
             while (--j) mul *= 10;
         }
         while (d2 < end2) {
-            a += (twodigits_t)*d2 * mul;
-            *d2++ = a & MASK;
+            twodigits_t m = *d2 * mul;
+            a += m;
+            *d2++ = (digit_t)a;
             a >>= SHIFT;
         }
         if (a) {
