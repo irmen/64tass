@@ -455,7 +455,7 @@ static void imul(const value_t vv1, const value_t vv2, value_t vv) {
     vv->u.integer.len = i;
 }
 
-static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div, linepos_t epoint) {
+static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int divrem, linepos_t epoint) {
     size_t len1, len2;
     int neg, negr;
     digit_t *v1, *v2, *v;
@@ -469,7 +469,7 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
     v1 = vv1->u.integer.data;
     v2 = vv2->u.integer.data;
     if (len1 < len2 || (len1 == len2 && v1[len1 - 1] < v2[len2 - 1])) {
-        return div ? val_reference(int_value[0]) : val_reference(vv1);
+        return divrem ? val_reference(int_value[0]) : val_reference(vv1);
     }
     negr = (vv1->u.integer.len < 0);
     neg = (negr != (vv2->u.integer.len < 0));
@@ -477,7 +477,7 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
         size_t i;
         twodigits_t r = 0;
         digit_t n = v2[0];
-        if (div) {
+        if (divrem) {
             vv = val_alloc(INT_OBJ);
             v = inew(vv, len1);
             for (i = len1; i--;) {
@@ -571,7 +571,7 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int div,
         if (w0 != tmp2.u.integer.val) free(w0);
 
         vv = val_alloc(INT_OBJ);
-        if (div) {
+        if (divrem) {
             if (v0 != tmp1.u.integer.val) free(v0);
             while (k && !a[k - 1]) k--;
             if (k <= (ssize_t)sizeof(vv->u.integer.val)/(ssize_t)sizeof(vv->u.integer.val[0])) {
