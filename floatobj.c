@@ -231,12 +231,11 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_INT:
     case T_BITS:
     case T_FLOAT:
-    case T_CODE: 
         err = op->v2->obj->real(op->v2, &d, op->epoint2);
         if (err) return err;
         return calc2_double(op, op->v1->u.real, d);
     default:
-        if (op->op != &o_MEMBER) {
+        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
             return op->v2->obj->rcalc2(op);
         }
     }
@@ -251,7 +250,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_INT:
     case T_BITS:
     case T_FLOAT:
-    case T_CODE:
         err = op->v1->obj->real(op->v1, &d, op->epoint);
         if (err) return err;
         return calc2_double(op, d, op->v2->u.real);

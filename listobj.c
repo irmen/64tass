@@ -386,6 +386,9 @@ static MUST_CHECK value_t calc2(oper_t op) {
     if (v1->obj == v2->obj && (v1->obj == TUPLE_OBJ || v1->obj == LIST_OBJ)) {
         return calc2_list(op);
     }
+    if (v2->obj == NONE_OBJ || v2->obj == ERROR_OBJ) {
+        return v2->obj->rcalc2(op);
+    }
     if (v1->u.list.len) {
         int error = 1;
         v = val_alloc(v1->obj);
@@ -428,6 +431,9 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     }
     if (v1->obj == v2->obj && (v1->obj == TUPLE_OBJ || v1->obj == LIST_OBJ)) {
         return calc2_list(op);
+    }
+    if (v1->obj == NONE_OBJ || v1->obj == ERROR_OBJ) {
+        return v1->obj->calc2(op);
     }
     if (v2->u.list.len) {
         int error = 1;

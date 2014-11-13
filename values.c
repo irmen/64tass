@@ -405,7 +405,7 @@ void init_values(void)
     o_LAND.u.oper.prio = 7;
     o_IN.obj = OPER_OBJ;
     o_IN.refcount = 0;
-    o_IN.u.oper.name = "membership 'in";
+    o_IN.u.oper.name = "contains 'in";
     o_IN.u.oper.op = O_IN;
     o_IN.u.oper.prio = 8;
     o_CMP.obj = OPER_OBJ;

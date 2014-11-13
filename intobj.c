@@ -1439,7 +1439,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
         op->v2 = v2;
         return ret;
     default: 
-        if (op->op != &o_MEMBER) {
+        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
             return v2->obj->rcalc2(op);
         }
     }

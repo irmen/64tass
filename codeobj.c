@@ -338,6 +338,9 @@ static MUST_CHECK value_t calc2(oper_t op) {
     if (op->op == &o_INDEX) {
         return iindex(op);
     }
+    if (op->op == &o_X) {
+        return obj_oper_error(op);
+    }
     switch (v2->obj->type) {
     case T_CODE:
         err = access_check(op->v1, op->epoint);
@@ -353,6 +356,9 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
+    case T_FLOAT:
+    case T_STR:
+    case T_BYTES:
         err = access_check(op->v1, op->epoint);
         if (err) return err;
         op->v1 = v1->u.code.addr;
@@ -435,6 +441,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
+    case T_FLOAT:
         err = access_check(op->v2, op->epoint2);
         if (err) return err;
         op->v2 = v2->u.code.addr;
