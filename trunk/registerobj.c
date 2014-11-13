@@ -148,9 +148,11 @@ static MUST_CHECK value_t calc2(oper_t op) {
         default: break;
         }
         break;
+    case T_NONE:
+    case T_ERROR:
     case T_TUPLE:
     case T_LIST:
-        if (op->op != &o_MEMBER) {
+        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
             return v2->obj->rcalc2(op);
         }
     default: break;
@@ -176,6 +178,8 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         default: break;
         }
         break;
+    case T_NONE:
+    case T_ERROR:
     case T_TUPLE:
     case T_LIST:
         return v2->obj->calc2(op);

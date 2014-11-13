@@ -159,6 +159,18 @@ static MUST_CHECK value_t gap_calc1(oper_t op) {
 static MUST_CHECK value_t gap_calc2(oper_t op) {
     value_t v2 = op->v2;
     switch (v2->obj->type) {
+    case T_GAP:
+        switch (op->op->u.oper.op) {
+        case O_CMP: return val_reference(int_value[0]);
+        case O_GE: 
+        case O_LE:
+        case O_EQ: return val_reference(true_value);
+        case O_NE:
+        case O_LT:
+        case O_GT: return val_reference(false_value);
+        default: break;
+        }
+        break;
     case T_STR:
     case T_BOOL:
     case T_INT:
@@ -167,17 +179,18 @@ static MUST_CHECK value_t gap_calc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
     case T_BYTES:
-    case T_GAP:
     case T_REGISTER:
         switch (op->op->u.oper.op) {
-        case O_EQ: return truth_reference(v2->obj == GAP_OBJ);
-        case O_NE: return truth_reference(v2->obj != GAP_OBJ);
+        case O_EQ: return val_reference(false_value);
+        case O_NE: return val_reference(true_value);
         default: break;
         }
         break;
+    case T_NONE:
+    case T_ERROR:
     case T_TUPLE:
     case T_LIST:
-        if (op->op != &o_MEMBER) {
+        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
             return v2->obj->rcalc2(op);
         }
     default: break;
@@ -188,6 +201,7 @@ static MUST_CHECK value_t gap_calc2(oper_t op) {
 static MUST_CHECK value_t gap_rcalc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     switch (v1->obj->type) {
+    case T_GAP: return gap_calc2(op);
     case T_STR:
     case T_BOOL:
     case T_INT:
@@ -196,14 +210,15 @@ static MUST_CHECK value_t gap_rcalc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
     case T_BYTES:
-    case T_GAP:
     case T_REGISTER:
         switch (op->op->u.oper.op) {
-        case O_EQ: return truth_reference(v1->obj == GAP_OBJ);
-        case O_NE: return truth_reference(v1->obj != GAP_OBJ);
+        case O_EQ: return val_reference(false_value);
+        case O_NE: return val_reference(true_value);
         default: break;
         }
         break;
+    case T_NONE:
+    case T_ERROR:
     case T_TUPLE:
     case T_LIST:
         return v2->obj->calc2(op);

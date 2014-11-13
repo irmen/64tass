@@ -200,7 +200,6 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_CODE:
     case T_BYTES:
     case T_STR:
-    case T_GAP:
         switch (op->op->u.oper.op) {
         case O_EQ: return val_reference(false_value);
         case O_NE: return val_reference(true_value);
@@ -220,7 +219,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
         }
         break;
     default:
-        if (op->op != &o_MEMBER) {
+        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
             return v2->obj->rcalc2(op);
         }
     }
