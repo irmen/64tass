@@ -36,7 +36,7 @@ static void destroy(value_t v1) {
 }
 
 static bdigit_t *bnew(value_t v, size_t len) {
-    if (len > (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0])) {
+    if (len > sizeof(v->u.bits.val)/sizeof(v->u.bits.val[0])) {
         bdigit_t *s = (bdigit_t *)malloc(len * sizeof(bdigit_t));
         if (!s || len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
         return s;
@@ -61,7 +61,7 @@ static MUST_CHECK value_t invert(const value_t v1) {
 
 static MUST_CHECK value_t normalize(value_t v, bdigit_t *d, size_t sz) {
     while (sz && !d[sz - 1]) sz--;
-    if (v->u.bits.val != d && sz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0])) {
+    if (v->u.bits.val != d && sz <= sizeof(v->u.bits.val)/sizeof(v->u.bits.val[0])) {
         memcpy(v->u.bits.val, d, sz);
         free(d);
         d = v->u.bits.val;
@@ -149,29 +149,34 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     return v;
 }
 
-static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t epoint) {
-    value_t tmp, ret;
+static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
+    size_t l = v1->u.bits.len;
+    unsigned int h;
 
-    switch (v1->u.bits.len) {
+    switch (l) {
     case 0: *hs = (-v1->u.bits.inv) & ((~(unsigned int)0) >> 1); return NULL;
     case 1: *hs = (v1->u.bits.inv ? ~v1->u.bits.data[0] : v1->u.bits.data[0]) & ((~(unsigned int)0) >> 1); return NULL;
-    case 2: *hs = (v1->u.bits.inv ? ~(v1->u.bits.data[0] | (v1->u.bits.data[1] << SHIFT)) : (v1->u.bits.data[0] | (v1->u.bits.data[1] << SHIFT))) & ((~(unsigned int)0) >> 1); return NULL;
     }
-    tmp = int_from_bits(v1);
-    ret = obj_hash(tmp, hs, epoint);
-    val_destroy(tmp);
-    return ret;
+    if (v1->u.bits.inv) {
+        h = -1;
+        while (l--) {
+            h -= v1->u.integer.val[l];
+        }
+    } else {
+        h = 0;
+        while (l--) {
+            h += v1->u.integer.val[l];
+        }
+    }
+    *hs = h & ((~(unsigned int)0) >> 1);
+    return NULL;
 }
 
 static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
     value_t v;
     switch (v1->u.bits.len) {
-    case 2: *iv = v1->u.bits.data[0] | (v1->u.bits.data[1] << SHIFT);
-            if (bits < 2 * (int)SHIFT && *iv >> bits) break;
-            if (v1->u.bits.inv) *iv = ~*iv;
-            return NULL;
     case 1: *iv = v1->u.bits.data[0];
-            if (bits < (int)SHIFT && *iv >> bits) break;
+            if (bits < (int)SHIFT && (uval_t)*iv >> bits) break;
             if (v1->u.bits.inv) *iv = ~*iv;
             return NULL;
     case 0: *iv = v1->u.bits.inv ? ~(ival_t)0 : 0; return NULL;
@@ -185,10 +190,6 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
 static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
     value_t v;
     switch (v1->u.bits.len) {
-    case 2: *uv = v1->u.bits.data[0] | (v1->u.bits.data[1] << SHIFT);
-            if (bits < 2 * (int)SHIFT && *uv >> bits) break;
-            if (v1->u.bits.inv) *uv = ~*uv;
-            return NULL;
     case 1: *uv = v1->u.bits.data[0];
             if (bits < (int)SHIFT && *uv >> bits) break;
             if (v1->u.bits.inv) *uv = ~*uv;
@@ -283,8 +284,7 @@ static MUST_CHECK value_t bits_from_u24(uint32_t i) {
     value_t v = val_alloc(BITS_OBJ);
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = i;
-    v->u.bits.val[1] = i >> SHIFT;
-    v->u.bits.len = (i != 0) + (v->u.bits.val[1] != 0);
+    v->u.bits.len = (i != 0);
     v->u.bits.inv = 0;
     v->u.bits.bits = 24;
     return v;
@@ -370,7 +370,7 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
             return val_reference(null_bits);
         }
 
-        if (v1->u.str.len <= (ssize_t)sizeof(v->u.bits.val)) sz = (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0]);
+        if (v1->u.str.len <= sizeof(v->u.bits.val)) sz = sizeof(v->u.bits.val) / sizeof(v->u.bits.val[0]);
         else {
             sz = v1->u.str.len / sizeof(bdigit_t);
             if (v1->u.str.len % sizeof(bdigit_t)) sz++;
@@ -415,7 +415,7 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
 
         while (osz && !d[osz - 1]) osz--;
         if (v->u.bits.val != d) {
-            if (osz <= (ssize_t)sizeof(v->u.bits.val)/(ssize_t)sizeof(v->u.bits.val[0])) {
+            if (osz <= sizeof(v->u.bits.val)/sizeof(v->u.bits.val[0])) {
                 memcpy(v->u.bits.val, d, osz * sizeof(bdigit_t));
                 free(d);
                 d = v->u.bits.val;
@@ -473,12 +473,12 @@ MUST_CHECK value_t bits_from_bytes(const value_t v1) {
 static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1, v;
     value_t tmp;
-    uval_t uv;
+    bdigit_t uv;
     switch (op->op->u.oper.op) {
     case O_BANK:
-        uv = v1->u.bits.len > 1 ? v1->u.bits.data[1] : 0;
+        uv = v1->u.bits.len > 0 ? v1->u.bits.data[0] : 0;
         if (v1->u.bits.inv) uv = ~uv;
-        return bits_from_u8(uv);
+        return bits_from_u8(uv >> 16);
     case O_HIGHER:
         uv = v1->u.bits.len > 0 ? v1->u.bits.data[0] : 0;
         if (v1->u.bits.inv) uv = ~uv;
@@ -488,8 +488,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
         if (v1->u.bits.inv) uv = ~uv;
         return bits_from_u8(uv);
     case O_HWORD:
-        uv = v1->u.bits.len > 1 ? (v1->u.bits.data[1] << SHIFT) : 0;
-        uv |= v1->u.bits.len > 0 ? v1->u.bits.data[0] : 0;
+        uv = v1->u.bits.len > 0 ? v1->u.bits.data[0] : 0;
         if (v1->u.bits.inv) uv = ~uv;
         return bits_from_u16(uv >> 8);
     case O_WORD:
