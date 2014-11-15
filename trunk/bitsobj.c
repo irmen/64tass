@@ -1063,7 +1063,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_BOOL:
         tmp = bits_from_bool(op->v1->u.boolean);
         op->v1 = tmp;
-        result = rcalc2(op);
+        result = tmp->obj->calc2(op);
         val_destroy(tmp);
         op->v1 = v1;
         return result;
@@ -1083,10 +1083,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         val_destroy(tmp);
         op->v2 = v2;
         return result;
-    default:
-        if (op->op != &o_IN) {
-            return v1->obj->calc2(op);
-        }
+    default: break;
     }
     return obj_oper_error(op);
 }

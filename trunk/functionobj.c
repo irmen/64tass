@@ -317,17 +317,32 @@ static MUST_CHECK value_t apply_func2(oper_t op, enum func_e func) {
 }
 
 static MUST_CHECK value_t calc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2;
     enum func_e func;
     struct values_s *v;
     size_t args;
     struct oper_s oper;
-    switch (op->v2->obj->type) {
+    switch (v2->obj->type) {
+    case T_FUNCTION:
+        switch (op->op->u.oper.op) {
+        case O_CMP:
+            if (v1->u.function.func < v1->u.function.func) return int_from_int(-1);
+            return val_reference(int_value[v1->u.function.func > v2->u.function.func]);
+        case O_EQ: return truth_reference(v1->u.function.func == v2->u.function.func);
+        case O_NE: return truth_reference(v1->u.function.func != v2->u.function.func);
+        case O_LT: return truth_reference(v1->u.function.func < v2->u.function.func);
+        case O_LE: return truth_reference(v1->u.function.func <= v2->u.function.func);
+        case O_GT: return truth_reference(v1->u.function.func > v2->u.function.func);
+        case O_GE: return truth_reference(v1->u.function.func >= v2->u.function.func);
+        default: break;
+        }
+        break;
     case T_FUNCARGS:
-        v = op->v2->u.funcargs.val;
-        args = op->v2->u.funcargs.len;
+        v = v2->u.funcargs.val;
+        args = v2->u.funcargs.len;
         switch (op->op->u.oper.op) {
         case O_FUNC:
-            func = op->v1->u.function.func;
+            func = v1->u.function.func;
             switch (func) {
             case F_HYPOT:
             case F_ATAN2:
@@ -342,8 +357,8 @@ static MUST_CHECK value_t calc2(oper_t op) {
                 oper.epoint2 = &v[1].epoint;
                 oper.epoint3 = op->epoint;
                 return apply_func2(&oper, func);
-            case F_RANGE: return function_range(op->v2, op->epoint2);
-            case F_FORMAT: return isnprintf(op->v2, op->epoint);
+            case F_RANGE: return function_range(v2, op->epoint2);
+            case F_FORMAT: return isnprintf(v2, op->epoint);
             default:
                 if (args != 1) {
                     err_msg_argnum(args, 1, 1, op->epoint2);
@@ -354,6 +369,14 @@ static MUST_CHECK value_t calc2(oper_t op) {
         default: break;
         }
         break;
+    case T_NONE:
+    case T_ERROR:
+    case T_LIST:
+    case T_TUPLE:
+    case T_DICT:
+        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
+            return v2->obj->rcalc2(op);
+        }
     default: break;
     }
     return obj_oper_error(op);

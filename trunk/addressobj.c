@@ -241,7 +241,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
             am = v2->u.addr.type;
             if (check_addr(am)) break;
             op->v2 = v2->u.addr.val;
-            result = op->v2->obj->rcalc2(op);
+            result = v1->obj->calc2(op);
             op->v2 = v2;
             if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy(result); result = val_reference(none_value); }
             v = val_alloc(ADDRESS_OBJ);
@@ -251,11 +251,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         default: break;
         }
         break;
-    default:
-    case T_ADDRESS:
-        if (op->op != &o_IN) {
-            return v1->obj->calc2(op);
-        }
+    default: break;
     }
     return obj_oper_error(op);
 }

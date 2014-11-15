@@ -653,6 +653,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_LIST:
     case T_GAP:
     case T_REGISTER:
+    case T_DICT:
     case T_NONE:
     case T_ERROR:
         if (op->op != &o_MEMBER) {
@@ -667,7 +668,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     value_t tmp;
     switch (v1->obj->type) {
-    case T_STR: return calc2_str(op);
     case T_BOOL:
     case T_INT:
     case T_BITS:
@@ -684,7 +684,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
             default: tmp = int_from_str(v2, op->epoint2);
             }
             op->v2 = tmp;
-            result = tmp->obj->rcalc2(op);
+            result = v1->obj->calc2(op);
             op->v2 = v2;
             val_destroy(tmp);
             return result;

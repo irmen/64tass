@@ -458,7 +458,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         v = op->v2->obj->rcalc2(op);
         op->v2 = v2;
         return v;
-    default: return v1->obj->calc2(op);
+    default: break;
     }
     return obj_oper_error(op);
 }

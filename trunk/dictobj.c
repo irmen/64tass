@@ -136,8 +136,8 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
 }
 
 static MUST_CHECK value_t calc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2;
     if (op->op == &o_INDEX) {
-        value_t v1 = op->v1, v2 = op->v2;
         struct pair_s pair;
         const struct avltree_node *b;
         value_t err;
@@ -161,20 +161,39 @@ static MUST_CHECK value_t calc2(oper_t op) {
         }
         return new_error_obj(ERROR_____KEY_ERROR, op->epoint2);
     }
+    switch (v2->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_TUPLE:
+    case T_LIST:
+        if (op->op != &o_MEMBER && op->op != &o_X) {
+            return v2->obj->rcalc2(op);
+        }
+    default: break;
+    }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK value_t rcalc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2;
     if (op->op == &o_IN) {
         struct pair_s p;
         struct avltree_node *b;
         value_t err;
 
-        p.key = op->v1;
+        p.key = v1;
         err = obj_hash(p.key, &p.hash, op->epoint);
         if (err) return err;
-        b = avltree_lookup(&p.node, &op->v2->u.dict.members, pair_compare);
+        b = avltree_lookup(&p.node, &v2->u.dict.members, pair_compare);
         return truth_reference(b != NULL);
+    }
+    switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_TUPLE:
+    case T_LIST:
+        return v1->obj->calc2(op);
+    default: break;
     }
     return obj_oper_error(op);
 }

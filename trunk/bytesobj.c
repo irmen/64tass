@@ -466,6 +466,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_STR:
     case T_GAP:
     case T_REGISTER:
+    case T_DICT:
     case T_NONE:
     case T_ERROR:
         if (op->op != &o_MEMBER) {
@@ -497,7 +498,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
             default: tmp = int_from_bytes(v2);
             }
             op->v2 = tmp;
-            result = tmp->obj->rcalc2(op);
+            result = v1->obj->calc2(op);
             op->v2 = v2;
             val_destroy(tmp);
             return result;

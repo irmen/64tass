@@ -102,41 +102,46 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     return v;
 }
 
-static MUST_CHECK value_t calc2(oper_t op) {
+static MUST_CHECK value_t calc2_register(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     int val;
-    switch (v2->obj->type) {
-    case T_REGISTER:
-        switch (op->op->u.oper.op) {
-        case O_CMP:
-            {
-                int h = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len : v2->u.reg.len);
-                if (h) h = (h > 0) - (h < 0);
-                else h = (v1->u.reg.len > v2->u.reg.len) - (v1->u.reg.len < v2->u.reg.len);
-                if (h < 0) return int_from_int(-1);
-                return val_reference(int_value[h]);
-            }
-        case O_EQ: return truth_reference(v1->u.reg.len == v2->u.reg.len && (v1->u.reg.data == v2->u.reg.data || !memcmp(v1->u.reg.data, v2->u.reg.data, v1->u.reg.len)));
-        case O_NE: return truth_reference(v1->u.reg.len != v2->u.reg.len || (v1->u.reg.data != v2->u.reg.data && memcmp(v1->u.reg.data, v2->u.reg.data, v1->u.reg.len)));
-        case O_LT:
-            val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
-            return truth_reference(val ? (val < 0) : (v1->u.reg.len < v2->u.reg.len));
-        case O_GT:
-            val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
-            return truth_reference(val ? (val > 0) : (v1->u.reg.len > v2->u.reg.len));
-        case O_LE:
-            val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
-            return truth_reference(val ? (val <= 0) : (v1->u.reg.len <= v2->u.reg.len));
-        case O_GE:
-            val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
-            return truth_reference(val ? (val >= 0) : (val = v1->u.reg.len >= v2->u.reg.len));
-        default: break;
+    switch (op->op->u.oper.op) {
+    case O_CMP:
+        {
+            int h = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len : v2->u.reg.len);
+            if (h) h = (h > 0) - (h < 0);
+            else h = (v1->u.reg.len > v2->u.reg.len) - (v1->u.reg.len < v2->u.reg.len);
+            if (h < 0) return int_from_int(-1);
+            return val_reference(int_value[h]);
         }
-        break;
+    case O_EQ: return truth_reference(v1->u.reg.len == v2->u.reg.len && (v1->u.reg.data == v2->u.reg.data || !memcmp(v1->u.reg.data, v2->u.reg.data, v1->u.reg.len)));
+    case O_NE: return truth_reference(v1->u.reg.len != v2->u.reg.len || (v1->u.reg.data != v2->u.reg.data && memcmp(v1->u.reg.data, v2->u.reg.data, v1->u.reg.len)));
+    case O_LT:
+        val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
+        return truth_reference(val ? (val < 0) : (v1->u.reg.len < v2->u.reg.len));
+    case O_GT:
+        val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
+        return truth_reference(val ? (val > 0) : (v1->u.reg.len > v2->u.reg.len));
+    case O_LE:
+        val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
+        return truth_reference(val ? (val <= 0) : (v1->u.reg.len <= v2->u.reg.len));
+    case O_GE:
+        val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
+        return truth_reference(val ? (val >= 0) : (val = v1->u.reg.len >= v2->u.reg.len));
+    default: break;
+    }
+    return obj_oper_error(op);
+}
+
+static MUST_CHECK value_t calc2(oper_t op) {
+    value_t v2 = op->v2;
+    switch (v2->obj->type) {
+    case T_REGISTER: return calc2_register(op);
     case T_NONE:
     case T_ERROR:
     case T_TUPLE:
     case T_LIST:
+    case T_DICT:
         if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
             return v2->obj->rcalc2(op);
         }
@@ -146,18 +151,16 @@ static MUST_CHECK value_t calc2(oper_t op) {
 }
 
 static MUST_CHECK value_t rcalc2(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
+    value_t v1 = op->v1;
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
     case T_TUPLE:
     case T_LIST:
-        return v2->obj->calc2(op);
-    default:
-    case T_REGISTER:
         if (op->op != &o_IN) {
             return v1->obj->calc2(op);
         }
+    default: break;
     }
     return obj_oper_error(op);
 }
