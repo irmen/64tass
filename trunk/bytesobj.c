@@ -227,6 +227,86 @@ static MUST_CHECK value_t next(value_t v1) {
     return v;
 }
 
+static MUST_CHECK value_t and_(value_t vv1, value_t vv2) {
+    size_t i, len1, len2, sz;
+    uint8_t *v1, *v2, *v;
+    value_t vv = val_alloc(BYTES_OBJ);
+    len1 = vv1->u.bytes.len; len2 = vv2->u.bytes.len;
+    v1 = vv1->u.bytes.data; v2 = vv2->u.bytes.data;
+
+    sz = (len1 < len2) ? len1 : len2;
+    if (sz == 0) return val_reference(null_bytes);
+    vv->u.bytes.data = v = bnew(vv, sz);
+    vv->u.bytes.len = sz;
+    for (i = 0; i < sz; i++) v[i] = v1[i] & v2[i];
+    return vv;
+}
+
+static MUST_CHECK value_t or_(value_t vv1, value_t vv2) {
+    size_t i, len1, len2, sz;
+    uint8_t *v1, *v2, *v;
+    value_t vv = val_alloc(BYTES_OBJ);
+    len1 = vv1->u.bytes.len; len2 = vv2->u.bytes.len;
+
+    if (len1 < len2) {
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
+        i = len1; len1 = len2; len2 = i;
+    }
+    v1 = vv1->u.bytes.data; v2 = vv2->u.bytes.data;
+
+    sz = len1;
+    if (sz == 0) return val_reference(null_bytes);
+    vv->u.bytes.data = v = bnew(vv, sz);
+    vv->u.bytes.len = sz;
+    for (i = 0; i < len2; i++) v[i] = v1[i] | v2[i];
+    for (; i < len1; i++) v[i] = v1[i];
+    return vv;
+}
+
+static MUST_CHECK value_t xor_(value_t vv1, value_t vv2) {
+    size_t i, len1, len2, sz;
+    uint8_t *v1, *v2, *v;
+    value_t vv = val_alloc(BYTES_OBJ);
+    len1 = vv1->u.bytes.len; len2 = vv2->u.bytes.len;
+
+    if (len1 < len2) {
+        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
+        i = len1; len1 = len2; len2 = i;
+    }
+    v1 = vv1->u.bytes.data; v2 = vv2->u.bytes.data;
+
+    sz = len1;
+    if (sz == 0) return val_reference(null_bytes);
+    vv->u.bytes.data = v = bnew(vv, sz);
+    vv->u.bytes.len = sz;
+    for (i = 0; i < len2; i++) v[i] = v1[i] ^ v2[i];
+    for (; i < len1; i++) v[i] = v1[i];
+    return vv;
+}
+
+static MUST_CHECK value_t concat(value_t v1, value_t v2) {
+    value_t v;
+    uint8_t *s;
+    size_t ln;
+
+    if (!v1->u.bytes.len) {
+        return val_reference(v2);
+    }
+    if (!v2->u.bytes.len) {
+        return val_reference(v1);
+    }
+    ln = v1->u.bytes.len + v2->u.bytes.len;
+    if (ln < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
+
+    v = val_alloc(BYTES_OBJ);
+    s = bnew(v, ln);
+    memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
+    memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
+    v->u.bytes.len = ln;
+    v->u.bytes.data = s;
+    return v;
+}
+
 static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1, v;
     value_t tmp;
@@ -251,7 +331,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
 }
 
 static MUST_CHECK value_t calc2_bytes(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2, v;
+    value_t v1 = op->v1, v2 = op->v2;
     int val;
     switch (op->op->u.oper.op) {
     case O_ADD:
@@ -273,9 +353,9 @@ static MUST_CHECK value_t calc2_bytes(oper_t op) {
             val_destroy(tmp);
             return result;
         }
-    case O_AND:
-    case O_OR:
-    case O_XOR:
+    case O_AND: return and_(v1, v2);
+    case O_OR: return or_(v1, v2);
+    case O_XOR: return xor_(v1, v2);
     case O_LSHIFT:
     case O_RSHIFT:
         {
@@ -313,26 +393,7 @@ static MUST_CHECK value_t calc2_bytes(oper_t op) {
     case O_GE:
         val = memcmp(v1->u.bytes.data, v2->u.bytes.data, (v1->u.bytes.len < v2->u.bytes.len) ? v1->u.bytes.len:v2->u.bytes.len);
         return truth_reference(val ? (val >= 0) : (v1->u.bytes.len >= v2->u.bytes.len));
-    case O_CONCAT:
-        if (!v1->u.bytes.len) {
-            return val_reference(v2);
-        }
-        if (!v2->u.bytes.len) {
-            return val_reference(v1);
-        }
-        {
-            uint8_t *s;
-            size_t ln = v1->u.bytes.len + v2->u.bytes.len;
-            if (ln < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
-
-            v = val_alloc(BYTES_OBJ);
-            s = bnew(v, ln);
-            memcpy(s, v1->u.bytes.data, v1->u.bytes.len);
-            memcpy(s + v1->u.bytes.len, v2->u.bytes.data, v2->u.bytes.len);
-            v->u.bytes.len = ln;
-            v->u.bytes.data = s;
-            return v;
-        }
+    case O_CONCAT: return concat(v1, v2);
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
