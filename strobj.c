@@ -241,6 +241,12 @@ uint8_t *str_create_elements(value_t v, size_t ln) {
     return snew(v, ln);
 }
 
+static int scmp(value_t v1, value_t v2) {
+    int h = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len : v2->u.str.len);
+    if (h) return h;
+    return (v1->u.str.len > v2->u.str.len) - (v1->u.str.len < v2->u.str.len);
+}
+
 static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1, v;
     value_t tmp;
@@ -306,27 +312,15 @@ static MUST_CHECK value_t calc2_str(oper_t op) {
             return result;
         }
     case O_CMP:
-        {
-            int h = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len : v2->u.str.len);
-            if (h) h = (h > 0) - (h < 0);
-            else h = (v1->u.str.len > v2->u.str.len) - (v1->u.str.len < v2->u.str.len);
-            if (h < 0) return int_from_int(-1);
-            return val_reference(int_value[h]);
-        }
-    case O_EQ: return truth_reference(v1->u.str.len == v2->u.str.len && (v1->u.str.data == v2->u.str.data || !memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len)));
-    case O_NE: return truth_reference(v1->u.str.len != v2->u.str.len || (v1->u.str.data != v2->u.str.data && memcmp(v1->u.str.data, v2->u.str.data, v1->u.str.len)));
-    case O_LT:
-        val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-        return truth_reference(val ? (val < 0) : (v1->u.str.len < v2->u.str.len));
-    case O_GT:
-        val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-        return truth_reference(val ? (val > 0) : (v1->u.str.len > v2->u.str.len));
-    case O_LE:
-        val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-        return truth_reference(val ? (val <= 0) : (v1->u.str.len <= v2->u.str.len));
-    case O_GE:
-        val = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len:v2->u.str.len);
-        return truth_reference(val ? (val >= 0) : (val = v1->u.str.len >= v2->u.str.len));
+        val = scmp(v1, v2);
+        if (val < 0) return int_from_int(-1);
+        return val_reference(int_value[val > 0]);
+    case O_EQ: return truth_reference(scmp(v1, v2) == 0);
+    case O_NE: return truth_reference(scmp(v1, v2) != 0);
+    case O_LT: return truth_reference(scmp(v1, v2) < 0);
+    case O_LE: return truth_reference(scmp(v1, v2) <= 0);
+    case O_GT: return truth_reference(scmp(v1, v2) > 0);
+    case O_GE: return truth_reference(scmp(v1, v2) >= 0);
     case O_CONCAT:
         if (!v1->u.str.len) {
             return val_reference(v2);
