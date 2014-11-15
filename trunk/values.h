@@ -31,6 +31,7 @@
 #include "codeobj.h"
 #include "addressobj.h"
 #include "functionobj.h"
+#include "dictobj.h"
 
 struct memblocks_s;
 
