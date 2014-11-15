@@ -211,6 +211,26 @@ c   = 2
     .cerror (1,b)+(1,x) != (2,b,x)
     .cerror (3,x)-(1,x) != 2
 
+    .cerror (1 <=> 2) != ($1 <=> $2)
+    .cerror (1 <=> 1) != ($1 <=> $1)
+    .cerror (2 <=> 1) != ($2 <=> $1)
+    .cerror (~1 <=> ~2) != (~$1 <=> ~$2)
+    .cerror (~1 <=> ~1) != (~$1 <=> ~$1)
+    .cerror (~2 <=> ~1) != (~$2 <=> ~$1)
+    .cerror (1 <=> 2) != (b"1" <=> b"2")
+    .cerror (1 <=> 1) != (b"1" <=> b"1")
+    .cerror (2 <=> 1) != (b"2" <=> b"1")
+    .cerror ("a" <=> "ab") != (b"a" <=> b"ab")
+    .cerror ("a" <=> "a") != (b"a" <=> b"a")
+    .cerror ("ab" <=> "a") != (b"ab" <=> b"a")
+    .cerror ~"a" != ~+"a"
+    .cerror ~b"abcd" != ~+"abcd"
+    .cerror (`b"abcd") != (`+"abcd")
+    .cerror (<b"abcd") != (<+"abcd")
+    .cerror (>b"abcd") != (>+"abcd")
+    .cerror (<>b"abcd") != (<>+"abcd")
+    .cerror (><b"abcd") != (><+"abcd")
+
 ; check all operators
 
 ; bit or

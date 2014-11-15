@@ -251,16 +251,16 @@ static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1, v;
     value_t tmp;
     switch (op->op->u.oper.op) {
-    case O_NEG:
-    case O_POS:
-    case O_STRING: tmp = int_from_str(v1, op->epoint); break;
-    case O_INV:
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
-    case O_BSWORD: tmp = bits_from_str(v1, op->epoint); break;
+    case O_BSWORD: tmp = bytes_from_str(v1, op->epoint); break;
+    case O_INV: tmp = bits_from_str(v1, op->epoint); break;
+    case O_NEG:
+    case O_POS:
+    case O_STRING: tmp = int_from_str(v1, op->epoint); break;
     default: return obj_oper_error(op);
     }
     op->v1 = tmp;

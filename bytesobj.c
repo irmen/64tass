@@ -316,17 +316,27 @@ static int icmp(value_t v1, value_t v2) {
 static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1, v;
     value_t tmp;
+    uint16_t uv;
     switch (op->op->u.oper.op) {
+    case O_BANK: return bits_from_u8(v1->u.bytes.len > 2 ? v1->u.bytes.data[2] : 0);
+    case O_HIGHER: return bits_from_u8(v1->u.bytes.len > 1 ? v1->u.bytes.data[1] : 0);
+    case O_LOWER: return bits_from_u8(v1->u.bytes.len > 0 ? v1->u.bytes.data[0] : 0);
+    case O_HWORD:
+        uv = v1->u.bytes.len > 1 ? v1->u.bytes.data[1] : 0;
+        if (v1->u.bytes.len > 2) uv |= v1->u.bytes.data[2] << 8;
+        return bits_from_u16(uv);
+    case O_WORD:
+        uv = v1->u.bytes.len > 0 ? v1->u.bytes.data[0] : 0;
+        if (v1->u.bytes.len > 1) uv |= v1->u.bytes.data[1] << 8;
+        return bits_from_u16(uv);
+    case O_BSWORD:
+        uv = v1->u.bytes.len > 1 ? v1->u.bytes.data[1] : 0;
+        if (v1->u.bytes.len > 0) uv |= v1->u.bytes.data[0] << 8;
+        return bits_from_u16(uv);
+    case O_INV: tmp = bits_from_bytes(v1);break;
     case O_NEG:
     case O_POS:
-    case O_STRING: tmp = int_from_bytes(v1); break;
-    case O_INV:
-    case O_BANK:
-    case O_HIGHER:
-    case O_LOWER:
-    case O_HWORD:
-    case O_WORD:
-    case O_BSWORD: tmp = bits_from_bytes(v1); break;
+    case O_STRING: tmp = int_from_bytes(v1);break;
     default: return obj_oper_error(op);
     }
     op->v1 = tmp;
