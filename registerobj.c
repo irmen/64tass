@@ -102,32 +102,26 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     return v;
 }
 
+static int rcmp(value_t v1, value_t v2) {
+    int h = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len : v2->u.reg.len);
+    if (h) return h;
+    return (v1->u.reg.len > v2->u.reg.len) - (v1->u.reg.len < v2->u.reg.len);
+}
+
 static MUST_CHECK value_t calc2_register(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     int val;
     switch (op->op->u.oper.op) {
     case O_CMP:
-        {
-            int h = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len : v2->u.reg.len);
-            if (h) h = (h > 0) - (h < 0);
-            else h = (v1->u.reg.len > v2->u.reg.len) - (v1->u.reg.len < v2->u.reg.len);
-            if (h < 0) return int_from_int(-1);
-            return val_reference(int_value[h]);
-        }
-    case O_EQ: return truth_reference(v1->u.reg.len == v2->u.reg.len && (v1->u.reg.data == v2->u.reg.data || !memcmp(v1->u.reg.data, v2->u.reg.data, v1->u.reg.len)));
-    case O_NE: return truth_reference(v1->u.reg.len != v2->u.reg.len || (v1->u.reg.data != v2->u.reg.data && memcmp(v1->u.reg.data, v2->u.reg.data, v1->u.reg.len)));
-    case O_LT:
-        val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
-        return truth_reference(val ? (val < 0) : (v1->u.reg.len < v2->u.reg.len));
-    case O_GT:
-        val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
-        return truth_reference(val ? (val > 0) : (v1->u.reg.len > v2->u.reg.len));
-    case O_LE:
-        val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
-        return truth_reference(val ? (val <= 0) : (v1->u.reg.len <= v2->u.reg.len));
-    case O_GE:
-        val = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len:v2->u.reg.len);
-        return truth_reference(val ? (val >= 0) : (val = v1->u.reg.len >= v2->u.reg.len));
+        val = rcmp(v1, v2);
+        if (val < 0) return int_from_int(-1);
+        return val_reference(int_value[val > 0]);
+    case O_EQ: return truth_reference(rcmp(v1, v2) == 0);
+    case O_NE: return truth_reference(rcmp(v1, v2) != 0);
+    case O_LT: return truth_reference(rcmp(v1, v2) < 0);
+    case O_LE: return truth_reference(rcmp(v1, v2) <= 0);
+    case O_GT: return truth_reference(rcmp(v1, v2) > 0);
+    case O_GE: return truth_reference(rcmp(v1, v2) >= 0);
     default: break;
     }
     return obj_oper_error(op);
