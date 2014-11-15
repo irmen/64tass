@@ -201,8 +201,6 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_BYTES:
     case T_STR:
         switch (op->op->u.oper.op) {
-        case O_EQ: return val_reference(false_value);
-        case O_NE: return val_reference(true_value);
         case O_ADD:
         case O_SUB:
             am = v1->u.addr.type;
@@ -239,8 +237,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_STR:
     case T_GAP:
         switch (op->op->u.oper.op) {
-        case O_EQ: return val_reference(false_value);
-        case O_NE: return val_reference(true_value);
         case O_ADD:
             am = v2->u.addr.type;
             if (check_addr(am)) break;

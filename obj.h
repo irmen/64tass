@@ -31,12 +31,6 @@ struct pair_s {
     struct avltree_node node;
 };
 
-typedef struct {
-    size_t len;
-    struct avltree members;
-    value_t def;
-} dict_t;
-
 struct mfunc_param_s {
     str_t name;
     str_t cfname;
@@ -115,7 +109,6 @@ extern obj_t IDENT_OBJ;
 extern obj_t ANONIDENT_OBJ;
 extern obj_t OPER_OBJ;
 extern obj_t DEFAULT_OBJ;
-extern obj_t DICT_OBJ;
 extern obj_t ITER_OBJ;
 extern obj_t FUNCARGS_OBJ;
 

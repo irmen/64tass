@@ -133,21 +133,6 @@ static MUST_CHECK value_t calc2(oper_t op) {
         default: break;
         }
         break;
-    case T_STR:
-    case T_BOOL:
-    case T_INT:
-    case T_BITS:
-    case T_FLOAT:
-    case T_CODE:
-    case T_ADDRESS:
-    case T_BYTES:
-    case T_GAP:
-        switch (op->op->u.oper.op) {
-        case O_EQ: return val_reference(false_value);
-        case O_NE: return val_reference(true_value);
-        default: break;
-        }
-        break;
     case T_NONE:
     case T_ERROR:
     case T_TUPLE:
@@ -163,21 +148,6 @@ static MUST_CHECK value_t calc2(oper_t op) {
 static MUST_CHECK value_t rcalc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     switch (v1->obj->type) {
-    case T_STR:
-    case T_BOOL:
-    case T_INT:
-    case T_BITS:
-    case T_FLOAT:
-    case T_CODE:
-    case T_ADDRESS:
-    case T_BYTES:
-    case T_GAP:
-        switch (op->op->u.oper.op) {
-        case O_EQ: return val_reference(false_value);
-        case O_NE: return val_reference(true_value);
-        default: break;
-        }
-        break;
     case T_NONE:
     case T_ERROR:
     case T_TUPLE:
