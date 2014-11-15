@@ -1329,7 +1329,7 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
     ival_t shift;
     int i;
     switch (op->op->u.oper.op) {
-    case O_CMP: 
+    case O_CMP:
         i = icmp(v1, v2);
         if (i < 0) return int_from_int(-1);
         return val_reference(int_value[i > 0]);
@@ -1339,7 +1339,7 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
     case O_LE: return truth_reference(icmp(v1, v2) <= 0);
     case O_GT: return truth_reference(icmp(v1, v2) > 0);
     case O_GE: return truth_reference(icmp(v1, v2) >= 0);
-    case O_ADD: 
+    case O_ADD:
         v = val_alloc(INT_OBJ);
         if (v1->u.integer.len < 0) {
             if (v2->u.integer.len < 0) {
@@ -1438,6 +1438,27 @@ static MUST_CHECK value_t calc2(oper_t op) {
         val_destroy(tmp);
         op->v2 = v2;
         return ret;
+    case T_BYTES:
+        tmp = int_from_bytes(v2);
+        op->v2 = tmp;
+        ret = calc2(op);
+        val_destroy(tmp);
+        op->v2 = v2;
+        return ret;
+    case T_BITS:
+        tmp = int_from_bits(v2);
+        op->v2 = tmp;
+        ret = calc2(op);
+        val_destroy(tmp);
+        op->v2 = v2;
+        return ret;
+    case T_STR:
+        tmp = int_from_str(v2, op->epoint2);
+        op->v2 = tmp;
+        ret = calc2(op);
+        val_destroy(tmp);
+        op->v2 = v2;
+        return ret;
     default: 
         if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
             return v2->obj->rcalc2(op);
@@ -1449,7 +1470,6 @@ static MUST_CHECK value_t calc2(oper_t op) {
 static MUST_CHECK value_t rcalc2(oper_t op) {
     value_t tmp, ret, v1 = op->v1;
     switch (v1->obj->type) {
-    case T_INT: return calc2_int(op);
     case T_BOOL:
         tmp = val_reference(int_value[v1->u.boolean]);
         op->v1 = tmp;
@@ -1457,10 +1477,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         val_destroy(tmp);
         op->v1 = v1;
         return ret;
-    default:
-        if (op->op != &o_IN) {
-            return v1->obj->calc2(op);
-        }
+    default: break;
     }
     return obj_oper_error(op);
 }

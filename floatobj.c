@@ -227,10 +227,12 @@ static MUST_CHECK value_t calc2(oper_t op) {
     double d;
     value_t err;
     switch (op->v2->obj->type) {
+    case T_FLOAT: return calc2_double(op, op->v1->u.real, op->v2->u.real);
     case T_BOOL:
     case T_INT:
     case T_BITS:
-    case T_FLOAT:
+    case T_STR:
+    case T_BYTES:
         err = op->v2->obj->real(op->v2, &d, op->epoint2);
         if (err) return err;
         return calc2_double(op, op->v1->u.real, d);
@@ -249,14 +251,10 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
-    case T_FLOAT:
         err = op->v1->obj->real(op->v1, &d, op->epoint);
         if (err) return err;
         return calc2_double(op, d, op->v2->u.real);
-    default:
-        if (op->op != &o_IN) {
-            return op->v1->obj->calc2(op);
-        }
+    default: break;
     }
     return obj_oper_error(op);
 }
