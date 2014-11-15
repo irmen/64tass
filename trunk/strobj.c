@@ -694,7 +694,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
             value_t result;
             tmp = bytes_from_str(v2, op->epoint2);
             op->v2 = tmp;
-            result = tmp->obj->rcalc2(op);
+            result = v1->obj->calc2(op);
             op->v2 = v2;
             val_destroy(tmp);
             return result;

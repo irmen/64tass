@@ -1079,7 +1079,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_INT:
         tmp = int_from_bits(v2);
         op->v2 = tmp;
-        result = tmp->obj->rcalc2(op);
+        result = v1->obj->calc2(op);
         val_destroy(tmp);
         op->v2 = v2;
         return result;
