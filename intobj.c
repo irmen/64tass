@@ -1030,15 +1030,17 @@ static MUST_CHECK value_t ixor(value_t vv1, value_t vv2) {
     return normalize(vv, v, sz, neg1 ^ neg2);
 }
 
-static int icmp(const value_t vv1, const value_t vv2) {
+static ssize_t icmp(const value_t vv1, const value_t vv2) {
     ssize_t i;
+    size_t j;
     i = vv1->u.integer.len - vv2->u.integer.len;
     if (i) return i;
-    i = abs(vv1->u.integer.len);
-    while (i && vv1->u.integer.data[i - 1] == vv2->u.integer.data[i - 1]) i--;
-    if (!i) return 0;
-    i = vv1->u.integer.data[i - 1] - vv2->u.integer.data[i - 1];
-    return (vv1->u.integer.len < 0) ? -i : i;
+    j = abs(vv1->u.integer.len);
+    while (j--) {
+        i = vv1->u.integer.data[j] - vv2->u.integer.data[j];
+        if (i) return (vv1->u.integer.len < 0) ? -i : i;
+    }
+    return 0;
 }
 
 MUST_CHECK value_t int_from_int(int i) {
@@ -1328,11 +1330,12 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
     value_t err;
     ival_t shift;
     int i;
+    ssize_t val;
     switch (op->op->u.oper.op) {
     case O_CMP:
-        i = icmp(v1, v2);
-        if (i < 0) return int_from_int(-1);
-        return val_reference(int_value[i > 0]);
+        val = icmp(v1, v2);
+        if (val < 0) return int_from_int(-1);
+        return val_reference(int_value[val > 0]);
     case O_EQ: return truth_reference(icmp(v1, v2) == 0);
     case O_NE: return truth_reference(icmp(v1, v2) != 0);
     case O_LT: return truth_reference(icmp(v1, v2) < 0);

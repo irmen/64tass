@@ -470,6 +470,21 @@ MUST_CHECK value_t bits_from_bytes(const value_t v1) {
     return normalize(v, d, sz);
 }
 
+static ssize_t icmp(const value_t vv1, const value_t vv2) {
+    ssize_t i;
+    size_t j;
+    i = vv2->u.bits.inv - vv1->u.bits.inv;
+    if (i) return i;
+    i = vv1->u.bits.len - vv2->u.bits.len;
+    if (i) return i;
+    j = vv1->u.bits.len;
+    while (j--) {
+        i = vv1->u.bits.data[j] - vv2->u.bits.data[j];
+        if (i) return vv1->u.bits.inv ? -i : i;
+    }
+    return 0;
+}
+
 static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1, v;
     value_t tmp;
@@ -1006,6 +1021,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     value_t tmp, result, err;
     ival_t shift;
+    ssize_t val;
 
     if (op->op == &o_INDEX) {
         return iindex(op);
@@ -1023,6 +1039,16 @@ static MUST_CHECK value_t calc2(oper_t op) {
         return result;
     case T_BITS:
         switch (op->op->u.oper.op) {
+        case O_CMP:
+            val = icmp(v1, v2);
+            if (val < 0) return int_from_int(-1);
+            return val_reference(int_value[val > 0]);
+        case O_EQ: return truth_reference(icmp(v1, v2) == 0);
+        case O_NE: return truth_reference(icmp(v1, v2) != 0);
+        case O_LT: return truth_reference(icmp(v1, v2) < 0);
+        case O_LE: return truth_reference(icmp(v1, v2) <= 0);
+        case O_GT: return truth_reference(icmp(v1, v2) > 0);
+        case O_GE: return truth_reference(icmp(v1, v2) >= 0);
         case O_AND: return and_(v1, v2);
         case O_OR: return or_(v1, v2);
         case O_XOR: return xor_(v1, v2);
@@ -1059,6 +1085,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
 static MUST_CHECK value_t rcalc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     value_t tmp, result;
+    ssize_t val;
     switch (v1->obj->type) {
     case T_BOOL:
         switch (op->op->u.oper.op) {
@@ -1073,6 +1100,16 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         return result;
     case T_BITS:
         switch (op->op->u.oper.op) {
+        case O_CMP:
+            val = icmp(v1, v2);
+            if (val < 0) return int_from_int(-1);
+            return val_reference(int_value[val > 0]);
+        case O_EQ: return truth_reference(icmp(v1, v2) == 0);
+        case O_NE: return truth_reference(icmp(v1, v2) != 0);
+        case O_LT: return truth_reference(icmp(v1, v2) < 0);
+        case O_LE: return truth_reference(icmp(v1, v2) <= 0);
+        case O_GT: return truth_reference(icmp(v1, v2) > 0);
+        case O_GE: return truth_reference(icmp(v1, v2) >= 0);
         case O_AND: return and_(v1, v2);
         case O_OR: return or_(v1, v2);
         case O_XOR: return xor_(v1, v2);
