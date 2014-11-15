@@ -296,6 +296,19 @@ static MUST_CHECK value_t calc2_str(oper_t op) {
     case O_AND:
     case O_OR:
     case O_XOR:
+        {
+            value_t tmp, tmp2, result;
+            tmp = bytes_from_str(v1, op->epoint);
+            tmp2 = bytes_from_str(v2, op->epoint2);
+            op->v1 = tmp;
+            op->v2 = tmp2;
+            result = tmp->obj->calc2(op);
+            op->v1 = v1;
+            op->v2 = v2;
+            val_destroy(tmp2);
+            val_destroy(tmp);
+            return result;
+        }
     case O_LSHIFT:
     case O_RSHIFT:
         {
