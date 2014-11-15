@@ -254,6 +254,43 @@ static MUST_CHECK value_t calc2_bytes(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v;
     int val;
     switch (op->op->u.oper.op) {
+    case O_ADD:
+    case O_SUB:
+    case O_MUL:
+    case O_DIV:
+    case O_MOD:
+    case O_EXP:
+        {
+            value_t tmp, tmp2, result;
+            tmp = int_from_bytes(v1);
+            tmp2 = int_from_bytes(v2);
+            op->v1 = tmp;
+            op->v2 = tmp2;
+            result = tmp->obj->calc2(op);
+            op->v1 = v1;
+            op->v2 = v2;
+            val_destroy(tmp2);
+            val_destroy(tmp);
+            return result;
+        }
+    case O_AND:
+    case O_OR:
+    case O_XOR:
+    case O_LSHIFT:
+    case O_RSHIFT:
+        {
+            value_t tmp, tmp2, result;
+            tmp = bits_from_bytes(v1);
+            tmp2 = bits_from_bytes(v2);
+            op->v1 = tmp;
+            op->v2 = tmp2;
+            result = tmp->obj->calc2(op);
+            op->v1 = v1;
+            op->v2 = v2;
+            val_destroy(tmp2);
+            val_destroy(tmp);
+            return result;
+        }
     case O_CMP:
         {
             int h = memcmp(v1->u.bytes.data, v2->u.bytes.data, (v1->u.bytes.len < v2->u.bytes.len) ? v1->u.bytes.len : v2->u.bytes.len);
@@ -277,16 +314,15 @@ static MUST_CHECK value_t calc2_bytes(oper_t op) {
         val = memcmp(v1->u.bytes.data, v2->u.bytes.data, (v1->u.bytes.len < v2->u.bytes.len) ? v1->u.bytes.len:v2->u.bytes.len);
         return truth_reference(val ? (val >= 0) : (v1->u.bytes.len >= v2->u.bytes.len));
     case O_CONCAT:
+        if (!v1->u.bytes.len) {
+            return val_reference(v2);
+        }
+        if (!v2->u.bytes.len) {
+            return val_reference(v1);
+        }
         {
             uint8_t *s;
-            size_t ln;
-            if (!v1->u.bytes.len) {
-                return val_reference(v2);
-            }
-            if (!v2->u.bytes.len) {
-                return val_reference(v1);
-            }
-            ln = v1->u.bytes.len + v2->u.bytes.len;
+            size_t ln = v1->u.bytes.len + v2->u.bytes.len;
             if (ln < v2->u.bytes.len) err_msg_out_of_memory(); /* overflow */
 
             v = val_alloc(BYTES_OBJ);
@@ -481,7 +517,6 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     value_t tmp;
     switch (v1->obj->type) {
-    case T_BYTES: return calc2_bytes(op);
     case T_BOOL:
     case T_INT:
     case T_BITS:
