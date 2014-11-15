@@ -25,9 +25,9 @@
 
 #include "boolobj.h"
 
-static struct obj_s str_obj;
+static struct obj_s obj;
 
-obj_t STR_OBJ = &str_obj;
+obj_t STR_OBJ = &obj;
 
 static void destroy(value_t v1) {
     if (v1->u.str.val != v1->u.str.data) free(v1->u.str.data);
@@ -153,11 +153,7 @@ static MUST_CHECK value_t sign(const value_t v1, linepos_t epoint) {
 }
 
 static MUST_CHECK value_t absolute(const value_t v1, linepos_t epoint) {
-    value_t tmp, ret;
-    tmp = int_from_str(v1, epoint);
-    ret = tmp->obj->abs(tmp, epoint);
-    val_destroy(tmp);
-    return ret;
+    return int_from_str(v1, epoint);
 }
 
 static MUST_CHECK value_t integer(const value_t v1, linepos_t epoint) {
@@ -712,23 +708,23 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void strobj_init(void) {
-    obj_init(&str_obj, T_STR, "<str>");
-    str_obj.destroy = destroy;
-    str_obj.same = same;
-    str_obj.truth = truth;
-    str_obj.hash = hash;
-    str_obj.repr = repr;
-    str_obj.str = str;
-    str_obj.ival = ival;
-    str_obj.uval = uval;
-    str_obj.real = real;
-    str_obj.sign = sign;
-    str_obj.abs = absolute;
-    str_obj.integer = integer;
-    str_obj.len = len;
-    str_obj.getiter = getiter;
-    str_obj.next = next;
-    str_obj.calc1 = calc1;
-    str_obj.calc2 = calc2;
-    str_obj.rcalc2 = rcalc2;
+    obj_init(&obj, T_STR, "<str>");
+    obj.destroy = destroy;
+    obj.same = same;
+    obj.truth = truth;
+    obj.hash = hash;
+    obj.repr = repr;
+    obj.str = str;
+    obj.ival = ival;
+    obj.uval = uval;
+    obj.real = real;
+    obj.sign = sign;
+    obj.abs = absolute;
+    obj.integer = integer;
+    obj.len = len;
+    obj.getiter = getiter;
+    obj.next = next;
+    obj.calc1 = calc1;
+    obj.calc2 = calc2;
+    obj.rcalc2 = rcalc2;
 }
