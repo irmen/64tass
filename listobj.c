@@ -442,7 +442,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         for (;i < v2->u.list.len; i++) {
             value_t val;
             op->v2 = v2->u.list.data[i];
-            val = op->v2->obj->rcalc2(op);
+            val = op->v1->obj->calc2(op);
             if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
             vals[i] = val;
         }

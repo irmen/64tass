@@ -434,7 +434,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         if (err) return err;
         op->v1 = v1->u.code.addr;
         op->v2 = v2->u.code.addr;
-        v = op->v2->obj->rcalc2(op);
+        v = op->v1->obj->calc2(op);
         op->v1 = v1;
         op->v2 = v2;
         return v;
@@ -449,13 +449,13 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         case O_ADD:
             v = val_alloc(CODE_OBJ); 
             memcpy(&v->u.code, &v2->u.code, sizeof(v->u.code));
-            v->u.code.addr = op->v2->obj->rcalc2(op);
+            v->u.code.addr = op->v1->obj->calc2(op);
             if (v->u.code.addr->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.code.addr); v->u.code.addr = val_reference(none_value); }
             op->v2 = v2;
             return v;
         default: break;
         }
-        v = op->v2->obj->rcalc2(op);
+        v = op->v1->obj->calc2(op);
         op->v2 = v2;
         return v;
     default: break;
