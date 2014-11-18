@@ -34,6 +34,11 @@ static struct obj_s obj;
 
 obj_t INT_OBJ = &obj;
 
+static inline size_t intlen(const value_t v1) {
+    ssize_t len = v1->u.integer.len;
+    return (len < 0) ? -len : len;
+}
+
 static void destroy(value_t v1) {
     if (v1->u.integer.val != v1->u.integer.data) free(v1->u.integer.data);
 }
@@ -51,7 +56,7 @@ static MUST_CHECK value_t negate(const value_t v1) {
     value_t v = val_alloc(INT_OBJ);
     v->u.integer.len = -v1->u.integer.len;
     if (v1->u.integer.len) {
-        size_t ln = abs(v1->u.integer.len);
+        size_t ln = intlen(v1);
         v->u.integer.data = inew(v, ln);
         memcpy(v->u.integer.data, v1->u.integer.data, ln * sizeof(digit_t));
     } else {
@@ -75,7 +80,7 @@ static MUST_CHECK value_t normalize(const value_t v, digit_t *d, size_t sz, int 
 
 static int same(const value_t v1, const value_t v2) {
     if (v2->obj != INT_OBJ || v1->u.integer.len != v2->u.integer.len) return 0;
-    return !memcmp(v1->u.integer.data, v2->u.integer.data, abs(v1->u.integer.len) * sizeof(digit_t));
+    return !memcmp(v1->u.integer.data, v2->u.integer.data, intlen(v1) * sizeof(digit_t));
 }
 
 static MUST_CHECK value_t truth(const value_t v1, enum truth_e UNUSED(type), linepos_t UNUSED(epoint)) {
@@ -106,7 +111,7 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoin
 }
 
 static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
-    size_t len = abs(v1->u.integer.len);
+    size_t len = intlen(v1);
     int neg = v1->u.integer.len < 0;
     uint8_t *s;
     digit_t ten, r, *out;
@@ -210,7 +215,7 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
 }
 
 static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
-    size_t i, len1 = abs(v1->u.integer.len);
+    size_t i, len1 = intlen(v1);
     double d = 0;
     for (i = 0; i < len1; i++) {
         if (v1->u.integer.len < 0) d -= ldexp((double)v1->u.integer.data[i], i * SHIFT);
@@ -289,8 +294,8 @@ static void iadd(value_t vv1, value_t vv2, value_t vv) {
     size_t i, len1, len2;
     digit_t *v1, *v2, *v;
     digit_t c;
-    len1 = abs(vv1->u.integer.len);
-    len2 = abs(vv2->u.integer.len);
+    len1 = intlen(vv1);
+    len2 = intlen(vv2);
     if (len1 <= 1 && len2 <= 1) {
         c = vv1->u.integer.val[0] + vv2->u.integer.val[0];
         v = vv->u.integer.val;
@@ -342,8 +347,8 @@ static void isub(value_t vv1, value_t vv2, value_t vv) {
     digit_t *v1, *v2, *v;
     digit_t c;
     int neg;
-    len1 = abs(vv1->u.integer.len);
-    len2 = abs(vv2->u.integer.len);
+    len1 = intlen(vv1);
+    len2 = intlen(vv2);
     if (len1 <= 1 && len2 <= 1) {
         digit_t d1 = vv1->u.integer.val[0], d2 = vv2->u.integer.val[0];
         v = vv->u.integer.val;
@@ -412,8 +417,8 @@ static void imul(const value_t vv1, const value_t vv2, value_t vv) {
     size_t i, j, len1, len2, sz;
     digit_t *v1, *v2, *v;
     struct value_s tmp;
-    len1 = abs(vv1->u.integer.len);
-    len2 = abs(vv2->u.integer.len);
+    len1 = intlen(vv1);
+    len2 = intlen(vv2);
     sz = len1 + len2;
     if (sz < len2) err_msg_out_of_memory(); /* overflow */
     if (sz <= 2) {
@@ -461,11 +466,11 @@ static MUST_CHECK value_t idivrem(const value_t vv1, const value_t vv2, int divr
     digit_t *v1, *v2, *v;
     value_t vv;
 
-    len2 = abs(vv2->u.integer.len);
+    len2 = intlen(vv2);
     if (!len2) { 
         return new_error_obj(ERROR_DIVISION_BY_Z, epoint);
     }
-    len1 = abs(vv1->u.integer.len);
+    len1 = intlen(vv1);
     v1 = vv1->u.integer.data;
     v2 = vv2->u.integer.data;
     if (len1 < len2 || (len1 == len2 && v1[len1 - 1] < v2[len2 - 1])) {
@@ -630,7 +635,7 @@ static MUST_CHECK value_t ilshift(const value_t vv1, uval_t s) {
     word = s / SHIFT;
     bit = s % SHIFT;
     v1 = vv1->u.integer.data;
-    len1 = abs(vv1->u.integer.len);
+    len1 = intlen(vv1);
     sz = len1 + word + (bit > 0);
     vv = val_alloc(INT_OBJ);
     v = inew(vv, sz);
@@ -696,8 +701,8 @@ static MUST_CHECK value_t iand(value_t vv1, value_t vv2) {
     digit_t *v1, *v2, *v;
     digit_t c;
     value_t vv = val_alloc(INT_OBJ);
-    len1 = abs(vv1->u.integer.len);
-    len2 = abs(vv2->u.integer.len);
+    len1 = intlen(vv1);
+    len2 = intlen(vv2);
 
     if (len1 <= 1 && len2 <= 1) {
         neg1 = (vv1->u.integer.len < 0); neg2 = (vv2->u.integer.len < 0);
@@ -803,8 +808,8 @@ static MUST_CHECK value_t ior(value_t vv1, value_t vv2) {
     digit_t *v1, *v2, *v;
     digit_t c;
     value_t vv = val_alloc(INT_OBJ);
-    len1 = abs(vv1->u.integer.len);
-    len2 = abs(vv2->u.integer.len);
+    len1 = intlen(vv1);
+    len2 = intlen(vv2);
 
     if (len1 <= 1 && len2 <= 1) {
         neg1 = (vv1->u.integer.len < 0); neg2 = (vv2->u.integer.len < 0);
@@ -913,8 +918,8 @@ static MUST_CHECK value_t ixor(value_t vv1, value_t vv2) {
     digit_t *v1, *v2, *v;
     digit_t c;
     value_t vv = val_alloc(INT_OBJ);
-    len1 = abs(vv1->u.integer.len);
-    len2 = abs(vv2->u.integer.len);
+    len1 = intlen(vv1);
+    len2 = intlen(vv2);
 
     if (len1 <= 1 && len2 <= 1) {
         neg1 = (vv1->u.integer.len < 0); neg2 = (vv2->u.integer.len < 0);
@@ -1036,7 +1041,7 @@ static ssize_t icmp(const value_t vv1, const value_t vv2) {
     digit_t a, b;
     i = vv1->u.integer.len - vv2->u.integer.len;
     if (i) return i;
-    j = abs(vv1->u.integer.len);
+    j = intlen(vv1);
     while (j--) {
         a = vv1->u.integer.data[j]; b = vv2->u.integer.data[j];
         if (a > b) return (vv1->u.integer.len < 0) ? -1 : 1;
