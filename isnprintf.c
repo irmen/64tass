@@ -207,8 +207,8 @@ static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
     int minus;
     value_t val = v->val, err;
     const char *hex = (*p->pf == 'x') ? "0123456789abcdef" : "0123456789ABCDEF";
-    size_t bits;
-    int bp, bp2, b;
+    unsigned int bp, b;
+    size_t bp2;
 
     if (val->obj == NONE_OBJ) {
         none = listp;
@@ -219,42 +219,29 @@ static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
     }
 
     minus = (err->u.integer.len < 0);
-    bits = 30 * abs(err->u.integer.len);
-    if (bits & 3) {
-        bits &= ~3;
-        bp = bits % 30;
-        bp2 = bits / 30;
-        if (bp <= (30 - 4)) b = err->u.integer.data[bp2] >> bp;
-        else {
-            b = err->u.integer.data[bp2] >> bp;
-            if (bp2 + 1 < err->u.integer.len) b |= err->u.integer.data[bp2 + 1] << (30 - bp);
-        }
-    } else {
-        b = 0;
-        bp = bits % 30;
-        bp2 = bits / 30;
-    }
-    while (!b && bp | bp2) {
-        if (bp >= 4) bp -=4; else { bp2--; bp = 30 - 4 + bp; }
-        if (bp <= (30 - 4)) b = err->u.integer.data[bp2] >> bp;
-        else b = (err->u.integer.data[bp2] >> bp) | (err->u.integer.data[bp2 + 1] << (30 - bp));
-        b &= 15;
-    }
-    bits = bp2 * 30 + bp + 4;
+    bp2 = abs(err->u.integer.len);
+    bp = b = 0;
+    do {
+        if (!bp) {
+            if (!bp2) break;
+            bp2--;
+            bp = 8 * sizeof(digit_t) - 4;
+        } else bp -= 4;
+        b = (err->u.integer.data[bp2] >> bp) & 0xf;
+    } while (!b);
 
-    p->width -= (bits + 3) / 4;
+    p->width -= bp / 4 + bp2 * (sizeof(digit_t) * 2) + 1;
     PAD_RIGHT2(p, '$', minus);
-    
-    b = err->u.integer.data[bp2] >> bp;
-    if (bp > 30 - 4 && bp2 + 1 < err->u.integer.len) b |= err->u.integer.data[bp2 + 1] << (30 - bp);
-    PUT_CHAR(hex[b & 15]);
-  
-    while (bp | bp2) {
-        if (bp >= 4) bp -=4; else { bp2--; bp = 30 - 4 + bp; }
-        b = err->u.integer.data[bp2] >> bp;
-        if (bp > 30 - 4) b |= (err->u.integer.data[bp2 + 1] << (30 - bp));
-        PUT_CHAR(hex[b & 15]);
-    }
+    PUT_CHAR(hex[b]);
+    do {
+        if (!bp) {
+            if (!bp2) break;
+            bp2--;
+            bp = 8 * sizeof(digit_t) - 4;
+        } else bp -= 4;
+        b = (err->u.integer.data[bp2] >> bp) & 0xf;
+        PUT_CHAR(hex[b]);
+    } while (1);
     PAD_LEFT(p);
     val_destroy(err);
     return NULL;
@@ -263,8 +250,10 @@ static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
 /* for %b binary representation */
 static inline MUST_CHECK value_t bin(struct DATA *p, const struct values_s *v)
 {
-    int i;
+    int minus;
     value_t val = v->val, err;
+    unsigned int bp, b;
+    size_t bp2;
 
     if (val->obj == NONE_OBJ) {
         none = listp;
@@ -273,32 +262,31 @@ static inline MUST_CHECK value_t bin(struct DATA *p, const struct values_s *v)
         err = val->obj->integer(val, &v->epoint);
         if (err->obj != INT_OBJ) return err;
     }
-    i = abs(err->u.integer.len);
-    if (i) {
-        int minus;
-        int span, bits;
-        uval_t uval = err->u.integer.data[i - 1];
-        minus = (err->u.integer.len < 0);
-        span = 4 * sizeof(digit_t); bits = 0;
-        while (span) {
-            if (uval >> (bits + span)) {
-                bits |= span;
-            }
-            span >>= 1;
-        }
-        i = (i - 1) * 30 + bits + 1;
 
-        p->width -= i;
-        PAD_RIGHT2(p, '%', minus);
-        for (i = i - 1; i >= 0; i--) {
-            PUT_CHAR((err->u.integer.data[i / 30] & (1 << (i % 30))) ? '1' : '0');
-        }
-    } else {
-        p->width -= 1;
-        PAD_RIGHT2(p, '%', 0);
-        PUT_CHAR('0');
-    }
+    minus = (err->u.integer.len < 0);
+    bp2 = abs(err->u.integer.len);
+    bp = b = 0;
+    do {
+        if (!bp) {
+            if (!bp2) break;
+            bp2--;
+            bp = 8 * sizeof(digit_t) - 1;
+        } else bp--;
+        b = (err->u.integer.data[bp2] >> bp) & 1;
+    } while (!b);
 
+    p->width -= bp + bp2 * (sizeof(digit_t) * 8) + 1;
+    PAD_RIGHT2(p, '%', minus);
+    PUT_CHAR('0' + b);
+    do {
+        if (!bp) {
+            if (!bp2) break;
+            bp2--;
+            bp = 8 * sizeof(digit_t) - 1;
+        } else bp--;
+        b = (err->u.integer.data[bp2] >> bp) & 1;
+        PUT_CHAR('0' + b);
+    } while (1);
     PAD_LEFT(p);
     val_destroy(err);
     return NULL;
