@@ -219,7 +219,7 @@ static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
     }
 
     minus = (err->u.integer.len < 0);
-    bp2 = abs(err->u.integer.len);
+    bp2 = minus ? -err->u.integer.len : err->u.integer.len;
     bp = b = 0;
     do {
         if (!bp) {
@@ -264,7 +264,7 @@ static inline MUST_CHECK value_t bin(struct DATA *p, const struct values_s *v)
     }
 
     minus = (err->u.integer.len < 0);
-    bp2 = abs(err->u.integer.len);
+    bp2 = minus ? -err->u.integer.len : err->u.integer.len;
     bp = b = 0;
     do {
         if (!bp) {
