@@ -116,7 +116,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
 
     if (len <= 1) {
         char tmp2[sizeof(digit_t) * 3];
-        if (len) len = sprintf(tmp2, neg ? "-%d" : "%d", v1->u.integer.val[0]);
+        if (len) len = sprintf(tmp2, neg ? "-%u" : "%u", v1->u.integer.val[0]);
         else {tmp2[0]='0';len = 1;}
         s = str_create_elements(v, len);
         memcpy(s, tmp2, len);
