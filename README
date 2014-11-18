@@ -154,7 +154,7 @@ x ** y   x raised to power of y           2 ** 4 is 16
 >x       higher byte                      >2049 is $08
 `x       bank byte                        `65536 is $01
 <>x      lower word                       <>65537 is $0001
->`x      higher word                      <`65537 is $1000
+>`x      higher word                      >`65537 is $0100
 ><x      lower byte swapped word          ><2049 is $0108
 x <=> y  x compares to y                  2 <=> 5 is -1
 x == y   x equals to y                    2 == 3 is false

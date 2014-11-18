@@ -473,14 +473,16 @@ MUST_CHECK value_t bits_from_bytes(const value_t v1) {
 static ssize_t icmp(const value_t vv1, const value_t vv2) {
     ssize_t i;
     size_t j;
+    bdigit_t a, b;
     i = vv2->u.bits.inv - vv1->u.bits.inv;
     if (i) return i;
     i = vv1->u.bits.len - vv2->u.bits.len;
     if (i) return i;
     j = vv1->u.bits.len;
     while (j--) {
-        i = vv1->u.bits.data[j] - vv2->u.bits.data[j];
-        if (i) return vv1->u.bits.inv ? -i : i;
+        a = vv1->u.bits.data[j]; b = vv2->u.bits.data[j];
+        if (a > b) return vv1->u.bits.inv ? -1: 1;
+        if (a < b) return vv1->u.bits.inv ? 1: -1;
     }
     return 0;
 }
