@@ -59,23 +59,55 @@ struct notdefines_s {
     struct avltree_node node;
 };
 
-static void close_error(struct errorbuffer_s *elist) {
-    if (elist->header_pos < elist->len) {
-        struct error_s *err = (struct error_s *)&elist->data[elist->header_pos];
-        err->error_len = elist->len - elist->header_pos - sizeof(struct error_s) - err->line_len;
+static int check_duplicate(const struct error_s *nerr) {
+    size_t pos;
+    const struct error_s *err;
+    for (pos = 0; pos < error_list.header_pos; pos = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7) {
+        err = (const struct error_s *)&error_list.data[pos];
+        if (err->severity != nerr->severity) continue;
+        if (err->file_list != nerr->file_list) continue;
+        if (err->line_len != nerr->line_len) continue;
+        if (err->error_len != nerr->error_len) continue;
+        if (err->epoint.line != nerr->epoint.line) continue;
+        if (err->epoint.pos != nerr->epoint.pos) continue;
+        if (memcmp(((uint8_t *)err) + sizeof(struct error_s), ((uint8_t *)nerr) + sizeof(struct error_s), err->line_len + err->error_len)) continue;
+        return 1;
     }
+    return 0;
 }
 
-static void new_error(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
+static int close_error(void) {
+    if (error_list.header_pos < error_list.len) {
+        struct error_s *err = (struct error_s *)&error_list.data[error_list.header_pos];
+        err->error_len = error_list.len - error_list.header_pos - sizeof(struct error_s) - err->line_len;
+        switch (err->severity) {
+        case SV_NOTDEFGNOTE:
+        case SV_NOTDEFLNOTE:
+        case SV_DOUBLENOTE: return 0;
+        default: break;
+        }
+        if (check_duplicate(err)) {
+            error_list.len = error_list.header_pos;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int new_error(enum severity_e severity, const struct file_list_s *flist, linepos_t epoint) {
     struct error_s *err;
     size_t line_len;
+    int dupl;
+    dupl = close_error();
     switch (severity) {
     case SV_NOTDEFGNOTE:
     case SV_NOTDEFLNOTE:
-    case SV_DOUBLENOTE: line_len = 0;break;
+    case SV_DOUBLENOTE:
+        if (dupl) return 1;
+        line_len = 0;
+        break;
     default: line_len = ((epoint->line == lpoint.line) && in_macro()) ? (strlen((char *)pline) + 1) : 0; break;
     }
-    close_error(&error_list);
     error_list.header_pos = (error_list.len + 7) & ~7;
     if (error_list.header_pos + sizeof(struct error_s) + line_len > error_list.max) {
         error_list.max += (sizeof(struct error_s) > 0x200) ? sizeof(struct error_s) : 0x200;
@@ -90,6 +122,7 @@ static void new_error(enum severity_e severity, const struct file_list_s *flist,
     err->file_list = flist;
     err->epoint = *epoint;
     if (line_len) memcpy(&error_list.data[error_list.header_pos + sizeof(struct error_s)], pline, line_len);
+    return 0;
 }
 
 static int file_list_compare(const struct avltree_node *aa, const struct avltree_node *bb)
@@ -408,10 +441,10 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
     }
 
     if (!l->file_list) {
-        new_error(SV_NOTDEFGNOTE, current_file_list, epoint);
+        if (new_error(SV_NOTDEFGNOTE, current_file_list, epoint)) return;
         adderror("searched in the global scope");
     } else {
-        new_error(SV_NOTDEFLNOTE, l->file_list, &l->epoint);
+        if (new_error(SV_NOTDEFLNOTE, l->file_list, &l->epoint)) return;
         adderror("searched in");
         str_name(l->name.data, l->name.len);
         adderror(down ? " defined here, and in all it's parents" : " defined here");
@@ -577,7 +610,7 @@ static void err_msg_double_defined2(const char *msg, const struct label_s *l, st
     new_error(SV_DOUBLEERROR, cflist, epoint2);
     adderror(msg);
     str_name(labelname2->data, labelname2->len);
-    new_error(SV_DOUBLENOTE, l->file_list, &l->epoint);
+    if (new_error(SV_DOUBLENOTE, l->file_list, &l->epoint)) return;
     adderror("previous definition of");
     str_name(labelname2->data, labelname2->len);
     adderror(" was here");
@@ -711,7 +744,7 @@ int error_print(int fix, int newvar, int anyerr) {
     size_t pos, pos2;
     int noneerr = 0;
     warnings = errors = 0;
-    close_error(&error_list);
+    close_error();
 
     for (pos = 0; !noneerr && pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7) {
         err = (const struct error_s *)&error_list.data[pos];
@@ -885,7 +918,7 @@ linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i,
 int error_serious(int fix, int newvar) {
     const struct error_s *err;
     size_t pos;
-    close_error(&error_list);
+    close_error();
     for (pos = 0; pos < error_list.len; pos = (pos + sizeof(struct error_s) + err->line_len + err->error_len + 7) & ~7) {
         err = (const struct error_s *)&error_list.data[pos];
         switch (err->severity) {
