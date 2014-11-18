@@ -1033,12 +1033,14 @@ static MUST_CHECK value_t ixor(value_t vv1, value_t vv2) {
 static ssize_t icmp(const value_t vv1, const value_t vv2) {
     ssize_t i;
     size_t j;
+    digit_t a, b;
     i = vv1->u.integer.len - vv2->u.integer.len;
     if (i) return i;
     j = abs(vv1->u.integer.len);
     while (j--) {
-        i = vv1->u.integer.data[j] - vv2->u.integer.data[j];
-        if (i) return (vv1->u.integer.len < 0) ? -i : i;
+        a = vv1->u.integer.data[j]; b = vv2->u.integer.data[j];
+        if (a > b) return (vv1->u.integer.len < 0) ? -1 : 1;
+        if (a < b) return (vv1->u.integer.len < 0) ? 1 : -1;
     }
     return 0;
 }
