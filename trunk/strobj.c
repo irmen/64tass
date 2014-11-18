@@ -395,12 +395,12 @@ static inline MUST_CHECK value_t repeat(oper_t op) {
         v = val_alloc(STR_OBJ);
         s = snew(v, ln * rep);
         v->u.str.len = 0;
+        v->u.str.chars = chars * rep;
         while (rep--) {
             memcpy(s + v->u.str.len, v1->u.str.data, ln);
             v->u.str.len += ln;
         }
         v->u.str.data = s;
-        v->u.str.chars = chars * rep;
         return v;
     } 
     return val_reference(null_str);
@@ -517,7 +517,7 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
         if (v1->u.str.len == v1->u.str.chars) {
             len2 = v2->u.list.len;
             p = p2 = snew(v, len2);
-            for (i = 0; i < v2->u.list.len; i++) {
+            for (i = 0; i < len2; i++) {
                 err = indexoffs(v2->u.list.data[i], len1, &offs, op->epoint2);
                 if (err) {
                     v->u.str.data = p;
@@ -526,6 +526,7 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
                 }
                 *p2++ = v1->u.str.data[offs];
             }
+            len1 = i;
         }
         else {
             size_t m = v1->u.str.len;
@@ -565,6 +566,7 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
                 }
                 memcpy(p2, p, k);p2 += k;
             }
+            len1 = i;
             len2 = p2 - o;
             if (len2 > sizeof(v->u.str.val) && o != v->u.str.val) {
                 if (len2 <= sizeof(v->u.str.val)) {
