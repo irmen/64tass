@@ -526,15 +526,17 @@ static MUST_CHECK value_t type_repr(const value_t v1, linepos_t epoint) {
     value_t v;
     uint8_t *s;
     const char *name;
+    size_t ln;
     if (!epoint) return NULL;
     name = v1->u.type->name;
+    ln = strlen(name);
     v = val_alloc(STR_OBJ);
-    v->u.str.len = strlen(name) + 9;
+    v->u.str.len = ln + 9;
     v->u.str.chars = v->u.str.len;
     s = str_create_elements(v, v->u.str.len);
     memcpy(s, "<type '", 7);
-    memcpy(s + 7, name, v->u.str.len);
-    memcpy(s + v->u.str.len - 2, "'>", 2);
+    memcpy(s + 7, name, ln);
+    memcpy(s + 7 + ln , "'>", 2);
     v->u.str.data = s;
     return v;
 }
