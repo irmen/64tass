@@ -63,12 +63,13 @@ obj_t ITER_OBJ = &iter_obj;
 obj_t FUNCARGS_OBJ = &funcargs_obj;
 
 MUST_CHECK value_t obj_oper_error(oper_t op) {
+    value_t v1, v2, v;
     switch (op->op->u.oper.op) {
     case O_EQ: return val_reference(false_value);
     case O_NE: return val_reference(true_value);
     default: break;
     }
-    value_t v1 = op->v1, v2 = op->v2, v;
+    v1 = op->v1; v2 = op->v2;
     v = new_error_obj(ERROR__INVALID_OPER, op->epoint3);
     v->u.error.u.invoper.op = op->op;
     v->u.error.u.invoper.v1 = v1 ? (v1->refcount ? val_reference(v1) : v1) : NULL;
@@ -509,7 +510,7 @@ static int funcargs_same(const value_t v1, const value_t v2) {
 }
 
 static MUST_CHECK value_t struct_size(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_uval(v1->u.macro.size);
+    return int_from_size(v1->u.macro.size);
 }
 
 static MUST_CHECK value_t struct_calc2(oper_t op) {

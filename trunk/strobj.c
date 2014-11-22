@@ -122,7 +122,7 @@ static MUST_CHECK value_t str(const value_t v1, linepos_t UNUSED(epoint)) {
 
 static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = bits_from_str(v1, epoint);
+    tmp = bytes_from_str(v1, epoint);
     ret = tmp->obj->ival(tmp, iv, bits, epoint);
     val_destroy(tmp);
     return ret;
@@ -130,7 +130,7 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
 
 static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = bits_from_str(v1, epoint);
+    tmp = bytes_from_str(v1, epoint);
     ret = tmp->obj->uval(tmp, uv, bits, epoint);
     val_destroy(tmp);
     return ret;
@@ -138,7 +138,7 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
 
 static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = bits_from_str(v1, epoint);
+    tmp = bytes_from_str(v1, epoint);
     ret = tmp->obj->real(tmp, r, epoint);
     val_destroy(tmp);
     return ret;
@@ -161,7 +161,7 @@ static MUST_CHECK value_t integer(const value_t v1, linepos_t epoint) {
 }
 
 static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
-    return v1->u.str.chars ? int_from_uval(v1->u.str.chars) : val_reference(int_value[0]);
+    return int_from_size(v1->u.str.chars);
 }
 
 static MUST_CHECK value_t getiter(value_t v1) {
@@ -256,8 +256,8 @@ static MUST_CHECK value_t calc1(oper_t op) {
     case O_LOWER:
     case O_HWORD:
     case O_WORD:
-    case O_BSWORD: tmp = bytes_from_str(v1, op->epoint); break;
-    case O_INV: tmp = bits_from_str(v1, op->epoint); break;
+    case O_BSWORD:
+    case O_INV: tmp = bytes_from_str(v1, op->epoint); break;
     case O_NEG:
     case O_POS:
     case O_STRING: tmp = int_from_str(v1, op->epoint); break;

@@ -250,7 +250,7 @@ static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
-    return v1->u.bits.bits ? int_from_uval(v1->u.bits.bits) : val_reference(int_value[0]);
+    return int_from_size(v1->u.bits.bits);
 }
 
 static MUST_CHECK value_t bits_from_bool(int i) {
@@ -310,6 +310,7 @@ MUST_CHECK value_t bits_from_hexstr(const uint8_t *s, size_t *ln) {
         return val_reference(null_bits);
     }
 
+    if (i > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */
     v = val_alloc(BITS_OBJ);
     v->u.bits.bits = i * 4;
 
@@ -393,7 +394,7 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
                     if (v->u.bits.val == d) {
                         sz = 16 / sizeof(bdigit_t);
                         d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-                        memcpy(d, v->u.bytes.val, j * sizeof(bdigit_t));
+                        memcpy(d, v->u.bits.val, j * sizeof(bdigit_t));
                     } else {
                         sz += 1024 / sizeof(bdigit_t);
                         if (sz < 1024 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
@@ -411,7 +412,7 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
                 if (sz < 1) err_msg_out_of_memory(); /* overflow */
                 if (v->u.bits.val == d) {
                     d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-                    memcpy(d, v->u.bytes.val, j * sizeof(bdigit_t));
+                    memcpy(d, v->u.bits.val, j * sizeof(bdigit_t));
                 } else d = (bdigit_t *)realloc(d, sz * sizeof(bdigit_t));
                 if (!d) err_msg_out_of_memory();
             }
@@ -433,6 +434,7 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
         v->u.bits.data = d;
         v->u.bits.len = osz;
         v->u.bits.bits = j * SHIFT + bits;
+        if (j > SIZE_MAX / SHIFT) err_msg_out_of_memory(); /* overflow */
         return v;
     }
     if (v1->u.str.chars == 1) {
@@ -445,24 +447,26 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
 
 MUST_CHECK value_t bits_from_bytes(const value_t v1) {
     int bits;
-    size_t i, j, sz;
+    size_t i, j, sz, len1;
     bdigit_t *d, uv;
     value_t v;
+    int inv = v1->u.bytes.len < 0;
 
-    i = v1->u.bytes.len;
-    if (!i) {
-        return val_reference(null_bits);
+    len1 = inv ? ~v1->u.bytes.len : v1->u.bytes.len;
+    if (!len1) {
+        return val_reference(inv ? inv_bits : null_bits);
     }
 
+    if (len1 > SIZE_MAX / 8) err_msg_out_of_memory(); /* overflow */
     v = val_alloc(BITS_OBJ);
-    v->u.bits.bits = i * 8;
+    v->u.bits.bits = len1 * 8;
 
-    sz = i / sizeof(bdigit_t);
-    if (i % sizeof(bdigit_t)) sz++;
+    sz = len1 / sizeof(bdigit_t);
+    if (len1 % sizeof(bdigit_t)) sz++;
     d = bnew(v, sz);
 
     uv = bits = j = i = 0;
-    while (v1->u.bytes.len > i) {
+    while (len1 > i) {
         uv |= v1->u.bytes.data[i++] << bits;
         if (bits == SHIFT - 8) {
             d[j++] = uv;
@@ -471,7 +475,7 @@ MUST_CHECK value_t bits_from_bytes(const value_t v1) {
     }
     if (bits) d[j] = uv;
 
-    return normalize(v, d, sz, 0);
+    return normalize(v, d, sz, inv);
 }
 
 static ssize_t icmp(const value_t vv1, const value_t vv2) {
@@ -490,10 +494,10 @@ static ssize_t icmp(const value_t vv1, const value_t vv2) {
 }
 
 static bdigit_t ldigit(const value_t v1) {
-    ssize_t len = v1->u.bits.len;
-    if (len > 0) return v1->u.bits.data[0];
-    if (len < ~(ssize_t)0) return ~v1->u.bits.data[0];
-    return len;
+    ssize_t ln = v1->u.bits.len;
+    if (ln > 0) return v1->u.bits.data[0];
+    if (ln < ~(ssize_t)0) return ~v1->u.bits.data[0];
+    return ln;
 }
 
 static MUST_CHECK value_t calc1(oper_t op) {
@@ -781,7 +785,7 @@ static MUST_CHECK value_t rshift(const value_t vv1, uval_t s) {
     bits = vv1->u.bits.bits;
     l = bitslen(vv1);
     if (l <= word || bits <= s) {
-        return val_reference(null_bits);
+        return val_reference((vv1->u.bits.len < 0) ? inv_bits : null_bits);
     }
     sz = l - word;
     bits -= s;
@@ -812,7 +816,7 @@ static inline MUST_CHECK value_t repeat(oper_t op) {
     if (vv) return vv;
 
     if (!rep || !blen) {
-        return val_reference(null_bits);
+        return val_reference((vv1->u.bits.len < 0) ? inv_bits : null_bits);
     }
     if (rep == 1) {
         return val_reference(vv1);
@@ -880,7 +884,7 @@ static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
     }
     inv = -(vv1->u.bits.len < 0);
     if (step == 1) {
-        if (length == vv1->u.bits.bits) {
+        if (length == vv1->u.bits.bits && !inv) {
             return val_reference(vv1); /* original bits */
         }
 

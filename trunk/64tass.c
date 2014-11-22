@@ -413,7 +413,7 @@ void var_assign(struct label_s *tmp, value_t val, int fix) {
     fixeddig = fix;
 }
 
-static int textrecursion(value_t val, int prm, int *ch2, size_t *uninit, size_t *sum, int bits, linepos_t epoint2) {
+static int textrecursion(value_t val, int prm, int *ch2, size_t *uninit, size_t *sum, linepos_t epoint2) {
     value_t iter, val2;
     uval_t uval;
     int warn = 0;
@@ -427,7 +427,7 @@ static int textrecursion(value_t val, int prm, int *ch2, size_t *uninit, size_t 
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE: 
-        case T_STR: warn |= textrecursion(val2, prm, ch2, uninit, sum, bits, epoint2); break;
+        case T_STR: warn |= textrecursion(val2, prm, ch2, uninit, sum, epoint2); break;
         case T_GAP: 
             if (*ch2 >= 0) {
                 if (*uninit) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
@@ -439,10 +439,23 @@ static int textrecursion(value_t val, int prm, int *ch2, size_t *uninit, size_t 
                 if (*uninit) { memskip(*uninit); (*sum) += *uninit; *uninit = 0; }
                 pokeb(*ch2); (*sum)++;
             }
-            if (touval(val2, &uval, bits, epoint2)) uval = 256;
-            *ch2 = (uint8_t)uval;
-            if (prm==CMD_SHIFTL) *ch2 <<= 1;
-            else if (prm==CMD_NULL && !uval) err_msg2(ERROR_NO_ZERO_VALUE, NULL, epoint2);
+            if (touval(val2, &uval, 8, epoint2)) uval = 256;
+            switch (prm) {
+            case CMD_SHIFT:
+                if (uval & 0x80) err_msg2(ERROR___NO_HIGH_BIT, NULL, epoint2);
+                *ch2 = uval & 0x7f;
+                break;
+            case CMD_SHIFTL:
+                if (uval & 0x80) err_msg2(ERROR___NO_HIGH_BIT, NULL, epoint2);
+                *ch2 = (uval << 1) & 0xfe;
+                break;
+            case CMD_NULL:
+                if (!uval) err_msg2(ERROR_NO_ZERO_VALUE, NULL, epoint2);
+                /* fall through */
+            default:
+                *ch2 = uval & 0xff;
+                break;
+            }
             break;
         case T_NONE:
             warn = 1;
@@ -1448,9 +1461,8 @@ value_t compile(struct file_list_s *cflist)
                     size_t sum = 0;
 
                     mark_mem(&current_section->mem, current_section->address);
-                    if (prm<CMD_BYTE) {    /* .text .ptext .shift .shift2 .null */
+                    if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
                         int ch2=-1;
-                        int bits = 8 - (prm==CMD_SHIFT || prm==CMD_SHIFTL);
                         struct linepos_s epoint2;
                         if (newlabel) {
                             newlabel->value->u.code.dtype = D_BYTE;
@@ -1458,7 +1470,7 @@ value_t compile(struct file_list_s *cflist)
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
                         while ((val = get_val(&epoint2))) {
-                            if (textrecursion(val, prm, &ch2, &uninit, &sum, bits, &epoint2)) err_msg_still_none(NULL, &epoint2);
+                            if (textrecursion(val, prm, &ch2, &uninit, &sum, &epoint2)) err_msg_still_none(NULL, &epoint2);
                         }
                         if (uninit) {memskip(uninit);sum += uninit;}
                         if (ch2 >= 0) {

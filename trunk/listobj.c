@@ -134,7 +134,7 @@ static MUST_CHECK value_t repr_listtuple(const value_t v1, linepos_t epoint) {
 }
 
 static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_uval(v1->u.list.len);
+    return int_from_size(v1->u.list.len);
 }
 
 static MUST_CHECK value_t getiter(value_t v1) {

@@ -386,8 +386,9 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
             labelprint2(&l->members, flab);
         } else {
             value_t val = l->value->obj->repr(l->value, NULL);
+            size_t len;
             if (!val || val->obj != STR_OBJ) continue;
-            size_t len = printable_print2(l->name.data, flab, l->name.len);
+            len = printable_print2(l->name.data, flab, l->name.len);
             padding(len, EQUAL_COLUMN, flab);
             if (l->constant) fputs("= ", flab);
             else fputs(&" .var "[len < EQUAL_COLUMN], flab);
