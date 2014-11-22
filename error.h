@@ -32,13 +32,6 @@ struct file_list_s {
     struct avltree members;
 };
 
-struct errorbuffer_s {
-    size_t max;
-    size_t len;
-    size_t header_pos;
-    uint8_t *data;
-};
-
 /* ---------------------------------------------------------------------------
    $00-$3f warning
    $40-$7f error
@@ -138,7 +131,6 @@ extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_not_definedx(const str_t *, linepos_t);
 extern void err_msg_requires(const str_t *name, linepos_t);
 extern void err_msg_conflicts(const str_t *name, linepos_t);
-extern void err_msg_variable(struct errorbuffer_s *, value_t, linepos_t);
 extern void err_msg_file(enum errors_e, const char *, linepos_t);
 extern void err_msg_output(const value_t);
 extern void err_msg_output_and_destroy(value_t);
@@ -150,8 +142,6 @@ extern void exitfile(void);
 extern void err_init(void);
 extern void err_destroy(void);
 extern void NO_RETURN err_msg_out_of_memory(void);
-extern void errors_destroy(struct errorbuffer_s *);
-extern void error_init(struct errorbuffer_s *);
 extern void error_status(void);
 extern int error_serious(int, int);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t, uint32_t);
