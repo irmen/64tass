@@ -549,8 +549,8 @@ static inline int tcmp(const value_t vv1, const value_t vv2) {
 static MUST_CHECK value_t type_calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     size_t args;
-    int val;
     if (v2->obj == TYPE_OBJ) {
+        int val;
         switch (op->op->u.oper.op) {
         case O_CMP:
             val = tcmp(v1, v2);
@@ -575,8 +575,29 @@ static MUST_CHECK value_t type_calc2(oper_t op) {
             return val_reference(none_value);
         }
         v2 = v2->u.funcargs.val[0].val;
-        if (v2->obj == NONE_OBJ || v2->obj == ERROR_OBJ) return val_reference(v2);
-        return v1->u.type->create(v2, op->epoint2);
+        switch (v2->obj->type) {
+        case T_NONE:
+        case T_ERROR: return val_reference(v2);
+        case T_LIST:
+        case T_TUPLE: 
+            if (v1->u.type != LIST_OBJ && v1->u.type != TUPLE_OBJ && v1->u.type != TYPE_OBJ) {
+                value_t *vals;
+                size_t i;
+                int error;
+                value_t v = val_alloc(v2->obj);
+                v->u.list.data = vals = list_create_elements(v, v2->u.list.len);
+                error = 1;
+                for (i = 0;i < v2->u.list.len; i++) {
+                    value_t val = v1->u.type->create(v2->u.list.data[i], op->epoint2);
+                    if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
+                    vals[i] = val;
+                }
+                v->u.list.len = i;
+                return v;
+            }
+            /* fall through */
+        default: return v1->u.type->create(v2, op->epoint2);
+        }
     default: break;
     }
     return obj_oper_error(op);
