@@ -39,17 +39,21 @@ static uint8_t *rnew(value_t v, size_t len) {
     return v->u.reg.val;
 }
 
-MUST_CHECK value_t register_from_str(const value_t v1) {
-    uint8_t *s;
-    value_t v = val_alloc(REGISTER_OBJ);
-    v->u.reg.chars = v1->u.str.chars;
-    v->u.reg.len = v1->u.str.len;
-    if (v1->u.str.len) {
-        s = rnew(v, v->u.reg.len);
-        memcpy(s, v1->u.str.data, v->u.reg.len);
-    } else s = NULL;
-    v->u.reg.data = s;
-    return v;
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    if (v1->obj == STR_OBJ) {
+        uint8_t *s;
+        value_t v = val_alloc(REGISTER_OBJ);
+        v->u.reg.chars = v1->u.str.chars;
+        v->u.reg.len = v1->u.str.len;
+        if (v1->u.str.len) {
+            s = rnew(v, v->u.reg.len);
+            memcpy(s, v1->u.str.data, v->u.reg.len);
+        } else s = NULL;
+        v->u.reg.data = s;
+        return v;
+    }
+    err_msg_wrong_type(v1, STR_OBJ, epoint);
+    return val_reference(none_value);
 }
 
 static int same(const value_t v1, const value_t v2) {
@@ -160,7 +164,8 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void registerobj_init(void) {
-    obj_init(&register_obj, T_REGISTER, "<register>");
+    obj_init(&register_obj, T_REGISTER, "register");
+    register_obj.create = create;
     register_obj.destroy = destroy;
     register_obj.same = same;
     register_obj.hash = hash;

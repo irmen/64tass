@@ -39,5 +39,6 @@ extern MUST_CHECK value_t int_from_str(const value_t, linepos_t);
 extern MUST_CHECK value_t int_from_bytes(const value_t);
 extern MUST_CHECK value_t int_from_bits(const value_t);
 extern MUST_CHECK value_t int_from_decstr(const uint8_t *, size_t *);
+extern MUST_CHECK value_t float_from_int(const value_t, linepos_t);
 
 #endif

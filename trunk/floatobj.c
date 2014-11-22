@@ -27,6 +27,21 @@ static struct obj_s obj;
 
 obj_t FLOAT_OBJ = &obj;
 
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_FLOAT: return val_reference(v1);
+    case T_CODE: return float_from_code(v1, epoint);
+    case T_STR: return float_from_str(v1, epoint);
+    case T_BOOL: return float_from_bool(v1);
+    case T_BYTES: return float_from_bytes(v1, epoint);
+    case T_INT: return float_from_int(v1, epoint);
+    case T_BITS: return float_from_bits(v1, epoint);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
+}
+
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == FLOAT_OBJ && v1->u.real == v2->u.real;
 }
@@ -104,11 +119,6 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     return NULL;
 }
 
-static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t UNUSED(epoint)) {
-    *r = v1->u.real;
-    return NULL;
-}
-
 static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
     if (v1->u.real < 0.0) return int_from_int(-1);
     return val_reference(int_value[v1->u.real > 0.0]);
@@ -116,10 +126,6 @@ static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
 
 static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
     return (v1->u.real < 0.0) ? float_from_double(-v1->u.real) : val_reference(v1);
-}
-
-static MUST_CHECK value_t integer(const value_t v1, linepos_t epoint) {
-    return int_from_double(v1->u.real, epoint);
 }
 
 static MUST_CHECK value_t calc1(oper_t op) {
@@ -233,8 +239,10 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_BITS:
     case T_STR:
     case T_BYTES:
-        err = op->v2->obj->real(op->v2, &d, op->epoint2);
-        if (err) return err;
+        err = create(op->v2, op->epoint2);
+        if (err->obj != FLOAT_OBJ) return err;
+        d = err->u.real;
+        val_destroy(err);
         return calc2_double(op, op->v1->u.real, d);
     default:
         if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
@@ -251,8 +259,10 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_BOOL:
     case T_INT:
     case T_BITS:
-        err = op->v1->obj->real(op->v1, &d, op->epoint);
-        if (err) return err;
+        err = create(op->v1, op->epoint);
+        if (err->obj != FLOAT_OBJ) return err;
+        d = err->u.real;
+        val_destroy(err);
         return calc2_double(op, d, op->v2->u.real);
     default: break;
     }
@@ -260,17 +270,16 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void floatobj_init(void) {
-    obj_init(&obj, T_FLOAT, "<float>");
+    obj_init(&obj, T_FLOAT, "float");
+    obj.create = create;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
-    obj.real = real;
     obj.sign = sign;
     obj.abs = absolute;
-    obj.integer = integer;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

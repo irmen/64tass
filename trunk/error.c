@@ -218,7 +218,6 @@ static const char *terr_error[]={
     "can't convert to a %d bit signed integer",
     "can't convert to a %d bit unsigned integer",
     "operands could not be broadcast together with shapes %u and %u",
-    "can't convert to float",
     "can't get sign",
     "can't get absolute value",
     "can't convert to integer",
@@ -524,7 +523,6 @@ void err_msg_output(const value_t val) {
         case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->u.error.num & 63], NULL, &val->u.error.epoint);break;
         case ERROR__NOT_KEYVALUE:
         case ERROR__NOT_HASHABLE:
-        case ERROR_____CANT_REAL:
         case ERROR_____CANT_SIGN:
         case ERROR______CANT_ABS:
         case ERROR______CANT_INT:
@@ -547,12 +545,13 @@ void err_msg_output_and_destroy(value_t val) {
 
 void err_msg_wrong_type(const value_t val, obj_t expected, linepos_t epoint) {
     new_error(SV_CONDERROR, current_file_list, epoint);
-    adderror("wrong type ");
+    adderror("wrong type '");
     adderror(val->obj->name);
     if (expected) {
-        adderror(", expected ");
+        adderror("', expected '");
         adderror(expected->name);
     }
+    adderror("'");
 }
 
 void err_msg_cant_calculate(const str_t *name, linepos_t epoint) {
@@ -601,7 +600,7 @@ static void add_user_error2(struct errorbuffer_s *user_error, const uint8_t *s, 
 void err_msg_variable(struct errorbuffer_s *user_error, value_t val, linepos_t epoint) {
     value_t err;
     if (!val) {user_error->len = 0;return;}
-    err = val->obj->str(val, epoint);
+    err = STR_OBJ->create(val, epoint);
     if (err->obj == STR_OBJ) add_user_error2(user_error, err->u.str.data, err->u.str.len);
     else err_msg_output(err);
     val_destroy(err);

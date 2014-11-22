@@ -26,18 +26,18 @@ avl.o: avl.c libtree.h
 bitsobj.o: bitsobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h registerobj.h listobj.h codeobj.h \
  addressobj.h functionobj.h dictobj.h eval.h unicode.h unicodedata.h \
- encoding.h boolobj.h
+ encoding.h boolobj.h floatobj.h
 boolobj.o: boolobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h registerobj.h listobj.h codeobj.h \
- addressobj.h functionobj.h dictobj.h boolobj.h
+ addressobj.h functionobj.h dictobj.h boolobj.h floatobj.h
 bytesobj.o: bytesobj.c values.h inttypes.h error.h libtree.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h registerobj.h listobj.h codeobj.h \
  addressobj.h functionobj.h dictobj.h eval.h unicode.h unicodedata.h \
- encoding.h boolobj.h
+ encoding.h boolobj.h floatobj.h
 codeobj.o: codeobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h registerobj.h listobj.h codeobj.h \
  addressobj.h functionobj.h dictobj.h eval.h mem.h 64tass.h opcodes.h \
- section.h variables.h boolobj.h
+ section.h variables.h boolobj.h floatobj.h
 dictobj.o: dictobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h registerobj.h listobj.h codeobj.h \
  addressobj.h functionobj.h dictobj.h eval.h
@@ -72,11 +72,11 @@ instruction.o: instruction.c instruction.h inttypes.h opcodes.h values.h \
 intobj.o: intobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h registerobj.h listobj.h codeobj.h \
  addressobj.h functionobj.h dictobj.h unicode.h unicodedata.h encoding.h \
- floatobj.h
+ boolobj.h floatobj.h
 isnprintf.o: isnprintf.c isnprintf.h inttypes.h unicode.h unicodedata.h \
  eval.h values.h error.h libtree.h obj.h intobj.h bitsobj.h bytesobj.h \
  strobj.h registerobj.h listobj.h codeobj.h addressobj.h functionobj.h \
- dictobj.h
+ dictobj.h floatobj.h
 listing.o: listing.c listing.h inttypes.h file.h libtree.h error.h \
  64tass.h opcodes.h unicode.h unicodedata.h misc.h section.h mem.h \
  instruction.h obj.h values.h intobj.h bitsobj.h bytesobj.h strobj.h \
@@ -109,7 +109,7 @@ section.o: section.c unicode.h inttypes.h unicodedata.h section.h \
 strobj.o: strobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h registerobj.h listobj.h codeobj.h \
  addressobj.h functionobj.h dictobj.h eval.h misc.h unicode.h \
- unicodedata.h boolobj.h
+ unicodedata.h boolobj.h floatobj.h
 ternary.o: ternary.c ternary.h unicode.h inttypes.h unicodedata.h error.h \
  libtree.h
 unicodedata.o: unicodedata.c unicodedata.h
@@ -120,7 +120,7 @@ values.o: values.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
 variables.o: variables.c unicode.h inttypes.h unicodedata.h variables.h \
  libtree.h misc.h values.h error.h obj.h intobj.h bitsobj.h bytesobj.h \
  strobj.h registerobj.h listobj.h codeobj.h addressobj.h functionobj.h \
- dictobj.h 64tass.h opcodes.h file.h
+ dictobj.h 64tass.h opcodes.h file.h boolobj.h floatobj.h
 
 README: README.html
 	-sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph | sed -e 's/\s\+$$//' >README

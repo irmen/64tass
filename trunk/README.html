@@ -262,8 +262,8 @@ following operations are accepted:</p>
 <tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>arithmetic shift right<td><code><span>&minus;8</span> &gt;&gt; <span>3</span></code> is <code><span>&minus;1</span></code>
 <tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>&minus;1</span>)</code> is <code><span>1</span></code>
 <tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>&minus;4</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td><code><span class="k">int</span>(<u>a</u>)</code><td>convert to integer<td><code><span class="k">int</span>(<span>11</span>)</code> is <code><span>11</span></code>
-<tr><td><code><span class="k">bool</span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span>1</span>)</code> is <code><span>true</span></code>
+<tr><td><code><span class="k"><a name="t_int">int</a></span>(<u>a</u>)</code><td>convert to integer<td><code><span class="k">int</span>(<span>11</span>)</code> is <code><span>11</span></code>
+<tr><td><code><span class="k"><a name="t_bool">bool</a></span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span>1</span>)</code> is <code><span>true</span></code>
 </tbody>
 </table></div>
 
@@ -313,6 +313,7 @@ The following operations are accepted:</p>
 <tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
 <tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is <code><span>false</span></code>
+<tr><td><code><span class="k"><a name="t_bits">bits</a></span>(<u>a</u>)</code><td>convert to bits<td><code><span class="k">bits</span>(<span>true</span>)</code> is <code><span>%1</span></code>
 </tbody>
 </table></div>
 
@@ -394,7 +395,7 @@ following operations can be used:</p>
 <tr><td><code><span class="k"><a name="f_deg">deg</a></span>(<u>a</u>)</code><td>radian to degrees<td><code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 <tr><td><code><span class="k"><a name="f_hypot">hypot</a></span>(<u>y</u>,&nbsp;<u>x</u>)</code><td>polar distance<td><code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
 <tr><td><code><span class="k"><a name="f_atan2">atan2</a></span>(<u>y</u>,&nbsp;<u>x</u>)</code><td>polar angle<td><code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k">float</span>(<u>a</u>)</code><td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
+<tr><td><code><span class="k"><a name="t_float">float</a></span>(<u>a</u>)</code><td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
 </tbody>
 </table></div>
 
@@ -442,7 +443,7 @@ Doubling the quotes inside the strings escapes them.</p>
 <tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
 <tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
-<tr><td><code><span class="k">str</span>(<u>a</u>)</code><td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
+<tr><td><code><span class="k"><a name="t_str">str</a></span>(<u>a</u>)</code><td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
 <tr><td><code><span class="k">repr</span>(<u>a</u>)</code><td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
 <tr><td><code><span class="k">format</span>(<u>s</u>, &lowast;)</code><td>string formatting<td><code><span class="k">format</span>(<span class="s">"<span>%02x</span>"</span>, <span>12</span>)</code> is <code><span class="s">"0c"</span></code>
 </tbody>
@@ -541,6 +542,7 @@ string using the current encoding to bytes.</p>
 <tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
 <tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
+<tr><td><code><span class="k"><a name="t_bytes">bytes</a></span>(<u>a</u>)</code><td>convert to bytes<td><code><span class="k">bytes</span>(<span class="s">"a"</span>)</code> is <code><span class="s">b"a"</span></code>
 </tbody>
 </table></div>
 
@@ -583,6 +585,8 @@ types are immutable.</p>
 <tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
 <tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">range</span>(<u>s</u>,<u>e</u>,<u>t</u>)</code><td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
+<tr><td><code><span class="k"><a name="t_list">list</a></span>(<u>a</u>)</code><td>convert to list<td><code><span class="k">list</span>((<span>1</span>, <span>1</span>, <span>0</span>))</code> is <code>[<span>1</span>, <span>1</span>, <span>0</span>]</code>
+<tr><td><code><span class="k"><a name="t_tuple">tuple</a></span>(<u>a</u>)</code><td>convert to tuple<td><code><span class="k">tuple</span>([<span>1</span>, <span>1</span>])</code> is <code>(<span>1</span>, <span>1</span>)</code>
 </tbody>
 </table></div>
 
@@ -653,6 +657,7 @@ and string keys are accepted, the value can be anything.</p>
 <tr><td><code><u>x</u>[<u>i</u>]</code><td>value lookup<td><code>{<span class="s">"1"</span>:<span>2</span>}[<span class="s">"1"</span>]</code> is <code><span>2</span></code>
 <tr><td><code><u>y</u> <span class="k">in</span> <u>x</u></code><td>is a key<td><code><span>1</span> <span class="k">in</span> {<span>1</span>:<span>2</span>}</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">len</span>(<u>x</u>)</code><td>number of elements<td><code><span class="k">len</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>])</code> is <code><span>2</span></code>
+<tr><td><code><span class="k"><a name="t_dict">dict</a></span>(<u>x</u>)</code><td>convert to dictionary<td><code><span class="k">dict</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>})</code> is <code>{<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>}</code>
 </tbody>
 </table></div>
 
@@ -1011,16 +1016,12 @@ floating point constants section.</p>
 <tr><td width="150"><code><span class="k"><a name="f_abs">abs</a></span>(<u>a</u>)</code><td>absolute value
 <tr><td><code><span class="k"><a name="f_all">all</a></span>(<u>a</u>)</code><td>all elements true or no elements
 <tr><td><code><span class="k"><a name="f_any">any</a></span>(<u>a</u>)</code><td>any elements true
-<tr><td><code><span class="k"><a name="f_bool">bool</a></span>(<u>a</u>)</code><td>truth value
-<tr><td><code><span class="k"><a name="f_float">float</a></span>(<u>a</u>)</code><td>convert to floating point
 <tr><td><code><span class="k"><a name="f_format">format</a></span>(<u>s</u>, &lowast;)</code><td>convert to string with formatting
-<tr><td><code><span class="k"><a name="f_int">int</a></span>(<u>a</u>)</code><td>convert to integer
 <tr><td><code><span class="k"><a name="f_len">len</a></span>(<u>a</u>)</code><td>number of elements
 <tr><td><code><span class="k"><a name="f_range">range</a></span>(<u>s</u>, <u>e</u>, <u>t</u>)</code><td>create a list with values from a range
 <tr><td><code><span class="k"><a name="f_repr">repr</a></span>(<u>a</u>)</code><td>representation to string
 <tr><td><code><span class="k"><a name="f_sign">sign</a></span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)
 <tr><td><code><span class="k"><a name="f_size">size</a></span>(<u>a</u>)</code><td>size in bytes
-<tr><td><code><span class="k"><a name="f_str">str</a></span>(<u>a</u>)</code><td>convert to string
 </tbody>
 </table></div>
 
@@ -2624,7 +2625,6 @@ will display without them.</p>
 <dt>can't calculate this<dd>could not get any value, is this a circular reference?
 <dt>can't convert to a ? bit signed/unsigned integer<dd>value out of range
 <dt>can't convert to boolean<dd>conversion error
-<dt>can't convert to float<dd>conversion error
 <dt>can't convert to integer<dd>conversion error
 <dt>can't encode character $xx<dd>can't translate character, not part of current encoding
 <dt>can't get absolute value<dd>value has no absolute value
@@ -3746,19 +3746,16 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#f_asin">asin</a>
 <a href="#f_atan">atan</a>
 <a href="#f_atan2">atan2</a>
-<a href="#f_bool">bool</a>
 <a href="#f_cbrt">cbrt</a>
 <a href="#f_ceil">ceil</a>
 <a href="#f_cos">cos</a>
 <a href="#f_cosh">cosh</a>
 <a href="#f_deg">deg</a>
 <a href="#f_exp">exp</a>
-<a href="#f_float">float</a>
 <a href="#f_floor">floor</a>
 <a href="#f_format">format</a>
 <a href="#f_frac">frac</a>
 <a href="#f_hypot">hypot</a>
-<a href="#f_int">int</a>
 <a href="#f_len">len</a>
 <a href="#f_log">log</a>
 <a href="#f_log10">log10</a>
@@ -3772,10 +3769,21 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#f_sinh">sinh</a>
 <a href="#f_size">size</a>
 <a href="#f_sqrt">sqrt</a>
-<a href="#f_str">str</a>
 <a href="#f_tan">tan</a>
 <a href="#f_tanh">tanh</a>
 <a href="#f_trunc">trunc</a>
+</p>
+<h3>Built-in types<a name="types" href="#types"></a></h3>
+<p class="links">
+<a href="#t_bits">bits</a>
+<a href="#t_bool">bool</a>
+<a href="#t_bytes">bytes</a>
+<a href="#t_dict">dict</a>
+<a href="#t_float">float</a>
+<a href="#t_int">int</a>
+<a href="#t_list">list</a>
+<a href="#t_str">str</a>
+<a href="#t_tuple">tuple</a>
 </p>
 </div>
 </body></html>

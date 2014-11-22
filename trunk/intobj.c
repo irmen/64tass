@@ -23,6 +23,7 @@
 #include "unicode.h"
 #include "encoding.h"
 
+#include "boolobj.h"
 #include "floatobj.h"
 
 #define SHIFT (8 * sizeof(digit_t))
@@ -37,6 +38,21 @@ obj_t INT_OBJ = &obj;
 static inline size_t intlen(const value_t v1) {
     ssize_t len = v1->u.integer.len;
     return (len < 0) ? -len : len;
+}
+
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_INT: return val_reference(v1);
+    case T_FLOAT: return int_from_double(v1->u.real, epoint);
+    case T_CODE: return int_from_code(v1, epoint);
+    case T_STR: return int_from_str(v1, epoint);
+    case T_BOOL: return int_from_bool(v1);
+    case T_BYTES: return int_from_bytes(v1);
+    case T_BITS: return int_from_bits(v1);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
 }
 
 static void destroy(value_t v1) {
@@ -214,7 +230,7 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     return v;
 }
 
-static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
+MUST_CHECK value_t float_from_int(const value_t v1, linepos_t epoint) {
     size_t i, len1 = intlen(v1);
     double d = 0;
     for (i = 0; i < len1; i++) {
@@ -224,8 +240,7 @@ static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
             return new_error_obj(ERROR_NUMERIC_OVERF, epoint);
         }
     }
-    *r = d;
-    return NULL;
+    return float_from_double(d);
 }
 
 static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
@@ -235,10 +250,6 @@ static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
 
 static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
     return (v1->u.integer.len >= 0) ? val_reference(v1) : negate(v1);
-}
-
-static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
-    return val_reference(v1);
 }
 
 static void iadd(const value_t, const value_t, value_t);
@@ -1442,10 +1453,14 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
     case O_EXP:
         if (v2->u.integer.len < 0) {
             double d1, d2;
-            err = real(v1, &d1, op->epoint);
-            if (err) return err;
-            err = real(v2, &d2, op->epoint);
-            if (err) return err;
+            err = FLOAT_OBJ->create(v1, op->epoint);
+            if (err->obj != FLOAT_OBJ) return err;
+            d1 = err->u.real;
+            val_destroy(err);
+            err = FLOAT_OBJ->create(v2, op->epoint);
+            if (err->obj != FLOAT_OBJ) return err;
+            d2 = err->u.real;
+            val_destroy(err);
             return calc2_double(op, d1, d2);
         }
         return power(v1, v2);
@@ -1521,7 +1536,8 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void intobj_init(void) {
-    obj_init(&obj, T_INT, "<int>");
+    obj_init(&obj, T_INT, "int");
+    obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
     obj.truth = truth;
@@ -1529,10 +1545,8 @@ void intobj_init(void) {
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
-    obj.real = real;
     obj.sign = sign;
     obj.abs = absolute;
-    obj.integer = integer;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

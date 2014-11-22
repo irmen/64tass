@@ -50,6 +50,7 @@
 #include "isnprintf.h"
 #include "unicode.h"
 #include "eval.h"
+#include "floatobj.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -184,12 +185,12 @@ static inline MUST_CHECK value_t decimal(struct DATA *p, const struct values_s *
         none = listp;
         err = val_reference(int_value[0]);
     } else {
-        err = val->obj->integer(val, &v->epoint);
+        err = INT_OBJ->create(val, &v->epoint);
         if (err->obj != INT_OBJ) return err;
     }
 
     minus = (err->u.integer.len < 0);
-    err2 = err->obj->str(err, &v->epoint);
+    err2 = STR_OBJ->create(err, &v->epoint);
     val_destroy(err);
     if (err2->obj != STR_OBJ) return err2;
 
@@ -214,7 +215,7 @@ static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
         none = listp;
         err = val_reference(int_value[0]);
     } else {
-        err = val->obj->integer(val, &v->epoint);
+        err = INT_OBJ->create(val, &v->epoint);
         if (err->obj != INT_OBJ) return err;
     }
 
@@ -259,7 +260,7 @@ static inline MUST_CHECK value_t bin(struct DATA *p, const struct values_s *v)
         none = listp;
         err = val_reference(int_value[0]);
     } else {
-        err = val->obj->integer(val, &v->epoint);
+        err = INT_OBJ->create(val, &v->epoint);
         if (err->obj != INT_OBJ) return err;
     }
 
@@ -323,7 +324,7 @@ static inline MUST_CHECK value_t strings(struct DATA *p, const struct values_s *
         return NULL;
     }
     if (*p->pf == 'r') err = val->obj->repr(val, &v->epoint);
-    else err = val->obj->str(val, &v->epoint);
+    else err = STR_OBJ->create(val, &v->epoint);
     if (err->obj != STR_OBJ) {
         if (err->obj == NONE_OBJ) {
             none = listp;
@@ -359,8 +360,10 @@ static inline MUST_CHECK value_t floating(struct DATA *p, const struct values_s 
         none = listp;
         d = 0;
     } else {
-        err = val->obj->real(val, &d, &v->epoint);
-        if (err) return err;
+        err = FLOAT_OBJ->create(val, &v->epoint);
+        if (err->obj != FLOAT_OBJ) return err;
+        d = err->u.real;
+        val_destroy(err);
     }
     if (d < 0.0) { d = -d; minus = 1;} else minus = 0;
     if (p->precision == NOT_FOUND) p->precision = 6;

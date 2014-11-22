@@ -26,10 +26,20 @@
 #include "variables.h"
 
 #include "boolobj.h"
+#include "floatobj.h"
 
 static struct obj_s obj;
 
 obj_t CODE_OBJ = &obj;
+
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_CODE: return val_reference(v1);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
+}
 
 static void destroy(value_t v1) {
     val_destroy(v1->u.code.addr);
@@ -70,25 +80,24 @@ static MUST_CHECK value_t repr(value_t v1, linepos_t epoint) {
     return v1->obj->repr(v1, epoint);
 }
 
-static MUST_CHECK value_t MUST_CHECK ival(value_t v1, ival_t *iv, int bits, linepos_t epoint) {
+static MUST_CHECK value_t ival(value_t v1, ival_t *iv, int bits, linepos_t epoint) {
     value_t err = access_check(v1, epoint);
     if (err) return err;
     v1 = v1->u.code.addr;
     return v1->obj->ival(v1, iv, bits, epoint);
 }
 
-static MUST_CHECK value_t MUST_CHECK uval(value_t v1, uval_t *uv, int bits, linepos_t epoint) {
+static MUST_CHECK value_t uval(value_t v1, uval_t *uv, int bits, linepos_t epoint) {
     value_t err = access_check(v1, epoint);
     if (err) return err;
     v1 = v1->u.code.addr;
     return v1->obj->uval(v1, uv, bits, epoint);
 }
 
-static MUST_CHECK value_t MUST_CHECK real(value_t v1, double *r, linepos_t epoint) {
+MUST_CHECK value_t float_from_code(value_t v1, linepos_t epoint) {
     value_t err = access_check(v1, epoint);
     if (err) return err;
-    v1 = v1->u.code.addr;
-    return v1->obj->real(v1, r, epoint);
+    return FLOAT_OBJ->create(v1->u.code.addr, epoint);
 }
 
 static MUST_CHECK value_t sign(value_t v1, linepos_t epoint) {
@@ -105,11 +114,10 @@ static MUST_CHECK value_t absolute(value_t v1, linepos_t epoint) {
     return v1->obj->abs(v1, epoint);
 }
 
-static MUST_CHECK value_t integer(value_t v1, linepos_t epoint) {
+MUST_CHECK value_t int_from_code(value_t v1, linepos_t epoint) {
     value_t err = access_check(v1, epoint);
     if (err) return err;
-    v1 = v1->u.code.addr;
-    return v1->obj->integer(v1, epoint);
+    return INT_OBJ->create(v1->u.code.addr, epoint);
 }
 
 static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
@@ -464,17 +472,16 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void codeobj_init(void) {
-    obj_init(&obj, T_CODE, "<code>");
+    obj_init(&obj, T_CODE, "code");
+    obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
     obj.truth = truth;
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
-    obj.real = real;
     obj.sign = sign;
     obj.abs = absolute;
-    obj.integer = integer;
     obj.len = len;
     obj.size = size;
     obj.calc1 = calc1;

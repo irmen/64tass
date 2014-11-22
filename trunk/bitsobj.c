@@ -24,12 +24,27 @@
 #include "unicode.h"
 #include "encoding.h"
 #include "boolobj.h"
+#include "floatobj.h"
 
 #define SHIFT (8 * sizeof(bdigit_t))
 
 static struct obj_s obj;
 
 obj_t BITS_OBJ = &obj;
+
+static MUST_CHECK value_t bits_from_bool(int);
+
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_BITS: return val_reference(v1);
+    case T_BOOL: return bits_from_bool(v1->u.boolean);
+    case T_STR: return bits_from_str(v1, epoint);
+    case T_BYTES: return bits_from_bytes(v1);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
+}
 
 static inline size_t bitslen(const value_t v1) {
     ssize_t len = v1->u.bits.len;
@@ -217,7 +232,7 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     return v;
 }
 
-static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
+MUST_CHECK value_t float_from_bits(const value_t v1, linepos_t epoint) {
     double d = -(v1->u.bits.len < 0);
     size_t i, len1 = d ? ~v1->u.bits.len : v1->u.bits.len;
     for (i = 0; i < len1; i++) {
@@ -227,8 +242,7 @@ static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
             return new_error_obj(ERROR_NUMERIC_OVERF, epoint);
         }
     }
-    *r = d;
-    return NULL;
+    return float_from_double(d);
 }
 
 static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
@@ -243,10 +257,6 @@ static MUST_CHECK value_t absolute(const value_t v1, linepos_t epoint) {
     ret = tmp->obj->abs(tmp, epoint);
     val_destroy(tmp);
     return ret;
-}
-
-static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_bits(v1);
 }
 
 static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
@@ -1123,7 +1133,8 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void bitsobj_init(void) {
-    obj_init(&obj, T_BITS, "<bits>");
+    obj_init(&obj, T_BITS, "bits");
+    obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
     obj.truth = truth;
@@ -1131,10 +1142,8 @@ void bitsobj_init(void) {
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
-    obj.real = real;
     obj.sign = sign;
     obj.abs = absolute;
-    obj.integer = integer;
     obj.len = len;
     obj.calc1 = calc1;
     obj.calc2 = calc2;

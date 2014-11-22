@@ -45,6 +45,7 @@ static struct obj_s oper_obj;
 static struct obj_s default_obj;
 static struct obj_s iter_obj;
 static struct obj_s funcargs_obj;
+static struct obj_s type_obj;
 
 obj_t MACRO_OBJ = &macro_obj;
 obj_t SEGMENT_OBJ = &segment_obj;
@@ -61,6 +62,7 @@ obj_t OPER_OBJ = &oper_obj;
 obj_t DEFAULT_OBJ = &default_obj;
 obj_t ITER_OBJ = &iter_obj;
 obj_t FUNCARGS_OBJ = &funcargs_obj;
+obj_t TYPE_OBJ = &type_obj;
 
 MUST_CHECK value_t obj_oper_error(oper_t op) {
     value_t v1, v2, v;
@@ -79,6 +81,11 @@ MUST_CHECK value_t obj_oper_error(oper_t op) {
 
 static void invalid_destroy(value_t UNUSED(v1)) {
     return;
+}
+
+static MUST_CHECK value_t invalid_create(const value_t v1, linepos_t epoint) {
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
 }
 
 static int invalid_same(const value_t v1, const value_t v2) {
@@ -113,16 +120,23 @@ static MUST_CHECK value_t invalid_repr(const value_t v1, linepos_t epoint) {
     }
     name = v1->obj->name;
     v = val_alloc(STR_OBJ);
-    v->u.str.len = strlen(name);
+    v->u.str.len = strlen(name) + 2;
     v->u.str.chars = v->u.str.len;
     s = str_create_elements(v, v->u.str.len);
-    memcpy(s, name, v->u.str.len);
+    *s = '<';
+    memcpy(s + 1, name, v->u.str.len);
+    s[v->u.str.len - 1] = '>';
     v->u.str.data = s;
     return v;
 }
 
-static MUST_CHECK value_t invalid_str(const value_t v1, linepos_t epoint) {
-    return v1->obj->repr(v1, epoint);
+static MUST_CHECK value_t gap_create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_GAP: return val_reference(v1);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
 }
 
 static MUST_CHECK value_t gap_hash(const value_t UNUSED(v1), int *hs, linepos_t UNUSED(epoint)) {
@@ -273,20 +287,12 @@ static MUST_CHECK value_t invalid_uval(const value_t v1, uval_t *UNUSED(uv), int
     return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
 
-static MUST_CHECK value_t invalid_real(const value_t v1, double *UNUSED(r), linepos_t epoint) {
-    return generic_invalid(v1, epoint, ERROR_____CANT_REAL);
-}
-
 static MUST_CHECK value_t invalid_sign(const value_t v1, linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
 }
 
 static MUST_CHECK value_t invalid_abs(const value_t v1, linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR______CANT_ABS);
-}
-
-static MUST_CHECK value_t invalid_integer(const value_t v1, linepos_t epoint) {
-    return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
 
 static MUST_CHECK value_t invalid_len(const value_t v1, linepos_t epoint) {
@@ -477,19 +483,11 @@ static MUST_CHECK value_t none_uval(const value_t UNUSED(v1), uval_t *UNUSED(uv)
     return val_reference(none_value);
 }
 
-static MUST_CHECK value_t none_real(const value_t UNUSED(v1), double *UNUSED(r), linepos_t UNUSED(epoint)) {
-    return val_reference(none_value);
-}
-
 static MUST_CHECK value_t none_sign(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
 static MUST_CHECK value_t none_abs(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
-    return val_reference(none_value);
-}
-
-static MUST_CHECK value_t none_integer(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
 
@@ -507,6 +505,81 @@ static int lbl_same(const value_t v1, const value_t v2) {
 
 static int funcargs_same(const value_t v1, const value_t v2) {
     return v1->u.funcargs.val == v2->u.funcargs.val && v1->u.funcargs.len == v2->u.funcargs.len;
+}
+
+static MUST_CHECK value_t type_create(const value_t v1, linepos_t UNUSED(epoint)) {
+    value_t v = val_alloc(TYPE_OBJ);
+    v->u.type = v1->obj;
+    return v;
+}
+
+static int type_same(const value_t v1, const value_t v2) {
+    return v1->u.type == v2->u.type;
+}
+
+static MUST_CHECK value_t type_hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
+    *hs = v1->u.type->type;
+    return NULL;
+}
+
+static MUST_CHECK value_t type_repr(const value_t v1, linepos_t epoint) {
+    value_t v;
+    uint8_t *s;
+    const char *name;
+    if (!epoint) return NULL;
+    name = v1->u.type->name;
+    v = val_alloc(STR_OBJ);
+    v->u.str.len = strlen(name) + 9;
+    v->u.str.chars = v->u.str.len;
+    s = str_create_elements(v, v->u.str.len);
+    memcpy(s, "<type '", 7);
+    memcpy(s + 7, name, v->u.str.len);
+    memcpy(s + v->u.str.len - 2, "'>", 2);
+    v->u.str.data = s;
+    return v;
+}
+
+static inline int tcmp(const value_t vv1, const value_t vv2) {
+    enum type_e v1 = vv1->u.type->type;
+    enum type_e v2 = vv2->u.type->type;
+    if (v1 < v2) return -1;
+    return v1 > v2;
+}
+
+static MUST_CHECK value_t type_calc2(oper_t op) {
+    value_t v1 = op->v1, v2 = op->v2;
+    size_t args;
+    int val;
+    if (v2->obj == TYPE_OBJ) {
+        switch (op->op->u.oper.op) {
+        case O_CMP:
+            val = tcmp(v1, v2);
+            if (val < 0) return int_from_int(-1);
+            return val_reference(int_value[val > 0]);
+        case O_EQ: return truth_reference(tcmp(v1, v2) == 0);
+        case O_NE: return truth_reference(tcmp(v1, v2) != 0);
+        case O_LT: return truth_reference(tcmp(v1, v2) < 0);
+        case O_LE: return truth_reference(tcmp(v1, v2) <= 0);
+        case O_GT: return truth_reference(tcmp(v1, v2) > 0);
+        case O_GE: return truth_reference(tcmp(v1, v2) >= 0);
+        default: break;
+        }
+    }
+    switch (op->op->u.oper.op) {
+    case O_EQ: return val_reference(false_value);
+    case O_NE: return val_reference(true_value);
+    case O_FUNC:
+        args = v2->u.funcargs.len;
+        if (args != 1) {
+            err_msg_argnum(args, 1, 1, op->epoint2);
+            return val_reference(none_value);
+        }
+        v2 = v2->u.funcargs.val[0].val;
+        if (v2->obj == NONE_OBJ || v2->obj == ERROR_OBJ) return val_reference(v2);
+        return v1->u.type->create(v2, op->epoint2);
+    default: break;
+    }
+    return obj_oper_error(op);
 }
 
 static MUST_CHECK value_t struct_size(const value_t v1, linepos_t UNUSED(epoint)) {
@@ -564,21 +637,19 @@ static MUST_CHECK value_t struct_calc2(oper_t op) {
 void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->type = type;
     obj->name = name;
+    obj->create = invalid_create;
     obj->destroy = invalid_destroy;
     obj->same = invalid_same;
     obj->truth = invalid_truth;
     obj->hash = invalid_hash;
     obj->repr = invalid_repr;
-    obj->str = invalid_str;
     obj->calc1 = invalid_calc1;
     obj->calc2 = invalid_calc2;
     obj->rcalc2 = invalid_rcalc2;
     obj->ival = invalid_ival;
     obj->uval = invalid_uval;
-    obj->real = invalid_real;
     obj->sign = invalid_sign;
     obj->abs = invalid_abs;
-    obj->integer = invalid_integer;
     obj->len = invalid_len;
     obj->size = invalid_size;
     obj->getiter = invalid_getiter;
@@ -599,29 +670,29 @@ void objects_init(void) {
     functionobj_init();
     dictobj_init();
 
-    obj_init(&macro_obj, T_MACRO, "<macro>");
+    obj_init(&macro_obj, T_MACRO, "macro");
     macro_obj.destroy = macro_destroy;
     macro_obj.same = macro_same;
-    obj_init(&segment_obj, T_SEGMENT, "<segment>");
+    obj_init(&segment_obj, T_SEGMENT, "segment");
     segment_obj.destroy = macro_destroy;
     segment_obj.same = macro_same;
-    obj_init(&lbl_obj, T_LBL, "<lbl>");
+    obj_init(&lbl_obj, T_LBL, "lbl");
     lbl_obj.same = lbl_same;
-    obj_init(&mfunc_obj, T_MFUNC, "<function>");
+    obj_init(&mfunc_obj, T_MFUNC, "function");
     mfunc_obj.destroy = mfunc_destroy;
     mfunc_obj.same = mfunc_same;
     mfunc_obj.calc2 = mfunc_calc2;
-    obj_init(&struct_obj, T_STRUCT, "<struct>");
+    obj_init(&struct_obj, T_STRUCT, "struct");
     struct_obj.destroy = macro_destroy;
     struct_obj.same = macro_same;
     struct_obj.size = struct_size;
     struct_obj.calc2 = struct_calc2;
-    obj_init(&union_obj, T_UNION, "<union>");
+    obj_init(&union_obj, T_UNION, "union");
     union_obj.destroy = macro_destroy;
     union_obj.same = macro_same;
     union_obj.size = struct_size;
     union_obj.calc2 = struct_calc2;
-    obj_init(&none_obj, T_NONE, "<none>");
+    obj_init(&none_obj, T_NONE, "none");
     none_obj.truth = none_truth;
     none_obj.repr = none_repr;
     none_obj.hash = none_hash;
@@ -630,34 +701,39 @@ void objects_init(void) {
     none_obj.rcalc2 = none_rcalc2;
     none_obj.ival = none_ival;
     none_obj.uval = none_uval;
-    none_obj.real = none_real;
     none_obj.sign = none_sign;
     none_obj.abs = none_abs;
-    none_obj.integer = none_integer;
     none_obj.len = none_len;
     none_obj.size = none_size;
-    obj_init(&error_obj, T_ERROR, "<error>");
+    obj_init(&error_obj, T_ERROR, "error");
     error_obj.destroy = error_destroy;
     error_obj.calc1 = error_calc1;
     error_obj.calc2 = error_calc2;
     error_obj.rcalc2 = error_rcalc2;
-    obj_init(&gap_obj, T_GAP, "<gap>");
+    obj_init(&gap_obj, T_GAP, "gap");
+    gap_obj.create = gap_create;
     gap_obj.hash = gap_hash;
     gap_obj.repr = gap_repr;
     gap_obj.calc1 = gap_calc1;
     gap_obj.calc2 = gap_calc2;
     gap_obj.rcalc2 = gap_rcalc2;
-    obj_init(&ident_obj, T_IDENT, "<ident>");
+    obj_init(&ident_obj, T_IDENT, "ident");
     ident_obj.rcalc2 = ident_rcalc2;
-    obj_init(&anonident_obj, T_ANONIDENT, "<anonident>");
+    obj_init(&anonident_obj, T_ANONIDENT, "anonident");
     anonident_obj.rcalc2 = ident_rcalc2;
-    obj_init(&oper_obj, T_OPER, "<oper>");
+    obj_init(&oper_obj, T_OPER, "oper");
     oper_obj.repr = oper_repr;
-    obj_init(&default_obj, T_DEFAULT, "<default>");
-    obj_init(&iter_obj, T_ITER, "<iter>");
+    obj_init(&default_obj, T_DEFAULT, "default");
+    obj_init(&iter_obj, T_ITER, "iter");
     iter_obj.destroy = iter_destroy;
     iter_obj.next = iter_next;
-    obj_init(&funcargs_obj, T_FUNCARGS, "<funcargs>");
+    obj_init(&funcargs_obj, T_FUNCARGS, "funcargs");
     funcargs_obj.same = funcargs_same;
+    obj_init(&type_obj, T_TYPE, "type");
+    type_obj.create = type_create;
+    type_obj.same = type_same;
+    type_obj.hash = type_hash;
+    type_obj.repr = type_repr;
+    type_obj.calc2 = type_calc2;
 }
 

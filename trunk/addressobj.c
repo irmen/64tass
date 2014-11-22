@@ -26,6 +26,15 @@ static struct obj_s obj;
 
 obj_t ADDRESS_OBJ = &obj;
 
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_ADDRESS: return val_reference(v1);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
+}
+
 static void destroy(value_t v1) {
     val_destroy(v1->u.addr.val);
 }
@@ -257,7 +266,8 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void addressobj_init(void) {
-    obj_init(&obj, T_ADDRESS, "<address>");
+    obj_init(&obj, T_ADDRESS, "address");
+    obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
     obj.repr = repr;

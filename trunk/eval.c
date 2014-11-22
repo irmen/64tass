@@ -166,28 +166,32 @@ static MUST_CHECK value_t get_exponent(double real, linepos_t epoint) {
     return float_from_double(real);
 }
 
+static double toreal(value_t v, linepos_t epoint) {
+    value_t err = FLOAT_OBJ->create(v, epoint);
+    double real;
+    if (err->obj != FLOAT_OBJ) {
+        err_msg_output(err);
+        real = 0;
+    } else {
+        real = err->u.real;
+    }
+    val_destroy(err);
+    return real;
+}
+
 static MUST_CHECK value_t get_exponent2(value_t v, linepos_t epoint) {
-    value_t err;
     double real;
     switch (here() | 0x20) {
     case 'e':
     case 'p':
         if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
             if ((pline[lpoint.pos + 2] ^ 0x30) < 10) {
-                err = v->obj->real(v, &real, &lpoint);
-                if (err) {
-                    err_msg_output_and_destroy(err);
-                    real = 0;
-                }
+                real = toreal(v, &lpoint);
                 val_destroy(v);
                 return get_exponent(real, epoint);
             }
         } else if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
-            err = v->obj->real(v, &real, &lpoint);
-            if (err) {
-                err_msg_output_and_destroy(err);
-                real = 0;
-            }
+            real = toreal(v, &lpoint);
             val_destroy(v);
             return get_exponent(real, epoint);
         }
@@ -197,26 +201,17 @@ static MUST_CHECK value_t get_exponent2(value_t v, linepos_t epoint) {
 }
 
 static MUST_CHECK value_t get_hex(linepos_t epoint) {
-    value_t err;
     size_t len;
     value_t v = bits_from_hexstr(pline + lpoint.pos, &len);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
-        err = v->obj->real(v, &real, &lpoint);
-        if (err) {
-            err_msg_output_and_destroy(err);
-            real = 0;
-        }
+        real = toreal(v, &lpoint);
         val_destroy(v);
         lpoint.pos += len + 1;
 
         v = bits_from_hexstr(pline + lpoint.pos, &len);
-        err = v->obj->real(v, &real2, &lpoint);
-        if (err) {
-            err_msg_output_and_destroy(err);
-            real2 = 0;
-        }
+        real2 = toreal(v, &lpoint);
         val_destroy(v);
         lpoint.pos += len;
 
@@ -228,26 +223,17 @@ static MUST_CHECK value_t get_hex(linepos_t epoint) {
 }
 
 static MUST_CHECK value_t get_bin(linepos_t epoint) {
-    value_t err;
     size_t len;
     value_t v = bits_from_binstr(pline + lpoint.pos, &len);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
-        err = v->obj->real(v, &real, &lpoint);
-        if (err) {
-            err_msg_output_and_destroy(err);
-            real = 0;
-        }
+        real = toreal(v, &lpoint);
         val_destroy(v);
         lpoint.pos += len + 1;
 
         v = bits_from_binstr(pline + lpoint.pos, &len);
-        err = v->obj->real(v, &real2, &lpoint);
-        if (err) {
-            err_msg_output_and_destroy(err);
-            real2 = 0;
-        }
+        real2 = toreal(v, &lpoint);
         val_destroy(v);
         lpoint.pos += len;
 
@@ -260,26 +246,18 @@ static MUST_CHECK value_t get_bin(linepos_t epoint) {
 
 static MUST_CHECK value_t get_float(linepos_t epoint) {
     size_t len;
-    value_t err, v;
+    value_t v;
 
     while (here() == 0x30) lpoint.pos++;
     v = int_from_decstr(pline + lpoint.pos, &len);
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
-        err = v->obj->real(v, &real, &lpoint);
-        if (err) {
-            err_msg_output_and_destroy(err);
-            real = 0;
-        }
+        real = toreal(v, &lpoint);
         val_destroy(v);
         lpoint.pos += len + 1;
 
         v = int_from_decstr(pline + lpoint.pos, &len);
-        err = v->obj->real(v, &real2, &lpoint);
-        if (err) {
-            err_msg_output_and_destroy(err);
-            real2 = 0;
-        }
+        real2 = toreal(v, &lpoint);
         val_destroy(v);
         lpoint.pos += len;
 

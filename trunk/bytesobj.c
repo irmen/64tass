@@ -25,6 +25,7 @@
 #include "encoding.h"
 
 #include "boolobj.h"
+#include "floatobj.h"
 
 static struct obj_s obj;
 
@@ -33,6 +34,16 @@ obj_t BYTES_OBJ = &obj;
 static inline size_t byteslen(const value_t v1) {
     ssize_t len = v1->u.bytes.len;
     return (len < 0) ? ~len : len;
+}
+
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_BYTES: return val_reference(v1);
+    case T_STR: return bytes_from_str(v1, epoint);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
 }
 
 static void destroy(value_t v1) {
@@ -245,7 +256,7 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     return v;
 }
 
-static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
+MUST_CHECK value_t float_from_bytes(const value_t v1, linepos_t epoint) {
     double d = -(v1->u.bytes.len < 0);
     size_t i, len1 = d ? ~v1->u.bytes.len : v1->u.bytes.len;
     for (i = 0; i < len1; i++) {
@@ -255,8 +266,7 @@ static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
             return new_error_obj(ERROR_NUMERIC_OVERF, epoint);
         }
     }
-    *r = d;
-    return NULL;
+    return float_from_double(d);
 }
 
 static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
@@ -270,10 +280,6 @@ static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_bytes(v1);
-}
-
-static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_bytes(v1);
 }
 
@@ -772,7 +778,8 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void bytesobj_init(void) {
-    obj_init(&obj, T_BYTES, "<bytes>");
+    obj_init(&obj, T_BYTES, "bytes");
+    obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
     obj.truth = truth;
@@ -780,10 +787,8 @@ void bytesobj_init(void) {
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
-    obj.real = real;
     obj.sign = sign;
     obj.abs = absolute;
-    obj.integer = integer;
     obj.len = len;
     obj.getiter = getiter;
     obj.next = next;
