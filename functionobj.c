@@ -209,7 +209,7 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
     case F_COSH: real = cosh(real);break;
     case F_SINH: real = sinh(real);break;
     case F_TANH: real = tanh(real);break;
-    case F_FLOAT: return val_reference(v1); /* nothing to do */
+    case F_FLOAT: return (v1->obj == FLOAT_OBJ) ? val_reference(v1) : float_from_double(real);
     default: real = HUGE_VAL; break; /* can't happen */
     }
     return float_from_double2(real, epoint);
