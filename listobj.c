@@ -49,6 +49,46 @@ static value_t *lnew(value_t v, size_t len) {
     return v->u.list.val;
 }
 
+static MUST_CHECK value_t list_create(const value_t v1, linepos_t epoint) {
+    value_t v;
+    value_t *vals;
+    size_t i;
+    switch (v1->obj->type) {
+    case T_LIST: return val_reference(v1);
+    case T_TUPLE:
+        v = val_alloc(LIST_OBJ);
+        v->u.list.data = vals = lnew(v, v1->u.list.len);
+        for (i = 0;i < v1->u.list.len; i++) {
+            vals[i] = val_reference(v1->u.list.data[i]);
+        }
+        v->u.list.len = i;
+        return v;
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
+}
+
+static MUST_CHECK value_t tuple_create(const value_t v1, linepos_t epoint) {
+    value_t v;
+    value_t *vals;
+    size_t i;
+    switch (v1->obj->type) {
+    case T_TUPLE: return val_reference(v1);
+    case T_LIST:
+        v = val_alloc(TUPLE_OBJ);
+        v->u.list.data = vals = lnew(v, v1->u.list.len);
+        for (i = 0;i < v1->u.list.len; i++) {
+            vals[i] = val_reference(v1->u.list.data[i]);
+        }
+        v->u.list.len = i;
+        return v;
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
+}
+
 static int same(const value_t v1, const value_t v2) {
     size_t i;
     if (v1->obj != v2->obj || v1->u.list.len != v2->u.list.len) return 0;
@@ -467,15 +507,17 @@ static void init(struct obj_s *obj) {
 }
 
 void listobj_init(void) {
-    obj_init(&list_obj, T_LIST, "<list>");
+    obj_init(&list_obj, T_LIST, "list");
     init(&list_obj);
-    obj_init(&tuple_obj, T_TUPLE, "<tuple>");
+    list_obj.create = list_create;
+    obj_init(&tuple_obj, T_TUPLE, "tuple");
     init(&tuple_obj);
-    obj_init(&addrlist_obj, T_ADDRLIST, "<address list>");
+    tuple_obj.create = tuple_create;
+    obj_init(&addrlist_obj, T_ADDRLIST, "addresslist");
     addrlist_obj.destroy = destroy;
     addrlist_obj.same = same;
     addrlist_obj.repr = repr_listtuple;
-    obj_init(&colonlist_obj, T_COLONLIST, "<colon list>");
+    obj_init(&colonlist_obj, T_COLONLIST, "colonlist");
     colonlist_obj.destroy = destroy;
     colonlist_obj.same = same;
     colonlist_obj.repr = repr_listtuple;

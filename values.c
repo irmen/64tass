@@ -163,21 +163,21 @@ void val_replace(value_t *val, value_t val2) {
     *val = val_reference(val2);
 }
 
+static struct oper_s pair_oper;
+
 int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
     const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
     value_t result;
-    struct oper_s oper;
     int h = a->hash - b->hash;
 
     if (h) return h;
-    oper.op = &o_CMP;
-    oper.v1 = a->key;
-    oper.v2 = b->key;
-    result = oper.v1->obj->calc2(&oper);
+    pair_oper.v1 = a->key;
+    pair_oper.v2 = b->key;
+    result = pair_oper.v1->obj->calc2(&pair_oper);
     if (result->obj == INT_OBJ) h = result->u.integer.len;
-    else h = oper.v1->obj->type - oper.v2->obj->type;
+    else h = pair_oper.v1->obj->type - pair_oper.v2->obj->type;
     val_destroy(result);
     return h;
 }
@@ -198,6 +198,12 @@ int val_print(const value_t v1, FILE *f) {
 
 void init_values(void)
 {
+    static struct linepos_s nopoint;
+    pair_oper.op = &o_CMP;
+    pair_oper.epoint = &nopoint;
+    pair_oper.epoint2 = &nopoint;
+    pair_oper.epoint3 = &nopoint;
+
     int_value[0] = int_from_int(0);
     int_value[1] = int_from_int(1);
     none_value = val_alloc(NONE_OBJ);

@@ -33,6 +33,15 @@ static void dict_free(struct avltree_node *aa)
     free(a);
 }
 
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_DICT: return val_reference(v1);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
+}
+
 static void destroy(value_t v1) {
     avltree_destroy(&v1->u.dict.members, dict_free);
     if (v1->u.dict.def) val_destroy(v1->u.dict.def);
@@ -200,7 +209,8 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 
 
 void dictobj_init(void) {
-    obj_init(&dict_obj, T_DICT, "<dict>");
+    obj_init(&dict_obj, T_DICT, "dict");
+    dict_obj.create = create;
     dict_obj.destroy = destroy;
     dict_obj.same = same;
     dict_obj.len = len;

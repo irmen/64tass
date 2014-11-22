@@ -25,6 +25,8 @@
 #include "64tass.h"
 #include "file.h"
 #include "obj.h"
+#include "boolobj.h"
+#include "floatobj.h"
 
 #define EQUAL_COLUMN 16
 
@@ -503,6 +505,21 @@ void init_defaultlabels(void) {
         label = new_builtin(builtin_functions[i].name, v);
         v->u.function.name_hash = label->name_hash;
     }
+
+    v = val_alloc(TYPE_OBJ); v->u.type = TYPE_OBJ; new_builtin("type", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = STR_OBJ; new_builtin("str", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = BOOL_OBJ; new_builtin("bool", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = INT_OBJ; new_builtin("int", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = FLOAT_OBJ; new_builtin("float", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = REGISTER_OBJ; new_builtin("register", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = BYTES_OBJ; new_builtin("bytes", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = BITS_OBJ; new_builtin("bits", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = DICT_OBJ; new_builtin("dict", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = LIST_OBJ; new_builtin("list", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = TUPLE_OBJ; new_builtin("tuple", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = ADDRESS_OBJ; new_builtin("address", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = CODE_OBJ; new_builtin("code", v);
+    v = val_alloc(TYPE_OBJ); v->u.type = GAP_OBJ; new_builtin("gap", v);
 }
 
 static void label_free2(struct avltree_node *aa)

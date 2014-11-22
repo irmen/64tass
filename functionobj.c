@@ -110,18 +110,6 @@ static inline MUST_CHECK value_t function_range(value_t vals, linepos_t epoint) 
     return new_value;
 }
 
-/* register(a) - create register object */
-static inline MUST_CHECK value_t function_register(value_t v1, linepos_t epoint) {
-    switch (v1->obj->type) {
-    case T_NONE:
-    case T_ERROR: return val_reference(v1);
-    case T_STR: return register_from_str(v1);
-    default:
-        err_msg_wrong_type(v1, STR_OBJ, epoint);
-        return val_reference(none_value);
-    }
-} 
-
 static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epoint) {
     value_t err, v;
     double real;
@@ -150,18 +138,16 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
         return val_reference(v1);
     }
     switch (func) {
-    case F_BOOL: return v1->obj->truth(v1, TRUTH_BOOL, epoint);
     case F_SIZE: return v1->obj->size(v1, epoint);
     case F_SIGN: return v1->obj->sign(v1, epoint);
     case F_ABS: return v1->obj->abs(v1, epoint);
-    case F_INT: return v1->obj->integer(v1, epoint);
-    case F_REGISTER: return function_register(v1, epoint);
     case F_REPR: return v1->obj->repr(v1, epoint);
-    case F_STR: return v1->obj->str(v1, epoint);
     default: break;
     }
-    err = v1->obj->real(v1, &real, epoint);
-    if (err) return err;
+    err = FLOAT_OBJ->create(v1, epoint);
+    if (err->obj != FLOAT_OBJ) return err;
+    real = err->u.real;
+    val_destroy(err);
     switch (func) {
     case F_FLOOR: real = floor(real);break;
     case F_CEIL: real = ceil(real);break;
@@ -209,7 +195,6 @@ static MUST_CHECK value_t apply_func(value_t v1, enum func_e func, linepos_t epo
     case F_COSH: real = cosh(real);break;
     case F_SINH: real = sinh(real);break;
     case F_TANH: real = tanh(real);break;
-    case F_FLOAT: return (v1->obj == FLOAT_OBJ) ? val_reference(v1) : float_from_double(real);
     default: real = HUGE_VAL; break; /* can't happen */
     }
     return float_from_double2(real, epoint);
@@ -295,10 +280,14 @@ static MUST_CHECK value_t apply_func2(oper_t op, enum func_e func) {
         }
         return val_reference(v2);
     }
-    err = v1->obj->real(v1, &real, op->epoint);
-    if (err) return err;
-    err = v2->obj->real(v2, &real2, op->epoint2);
-    if (err) return err;
+    err = FLOAT_OBJ->create(v1, op->epoint);
+    if (err->obj != FLOAT_OBJ) return err;
+    real = err->u.real;
+    val_destroy(err);
+    err = FLOAT_OBJ->create(v2, op->epoint2);
+    if (err->obj != FLOAT_OBJ) return err;
+    real2 = err->u.real;
+    val_destroy(err);
     switch (func) {
     case F_HYPOT: real = hypot(real, real2); break;
     case F_ATAN2: real = atan2(real, real2);break;
@@ -390,25 +379,21 @@ struct builtin_functions_s builtin_functions[] = {
     {"asin", F_ASIN}, 
     {"atan", F_ATAN}, 
     {"atan2", F_ATAN2}, 
-    {"bool", F_BOOL}, 
     {"cbrt", F_CBRT}, 
     {"ceil", F_CEIL},
     {"cos", F_COS}, 
     {"cosh", F_COSH}, 
     {"deg", F_DEG}, 
     {"exp", F_EXP}, 
-    {"float", F_FLOAT}, 
     {"floor", F_FLOOR},
     {"frac", F_FRAC}, 
     {"hypot", F_HYPOT}, 
-    {"int", F_INT},
     {"len", F_LEN},
     {"log", F_LOG},
     {"log10", F_LOG10}, 
     {"pow", F_POW}, 
     {"rad", F_RAD}, 
     {"range", F_RANGE},
-    {"register", F_REGISTER},
     {"repr", F_REPR},
     {"round", F_ROUND},
     {"sign", F_SIGN}, 
@@ -416,7 +401,6 @@ struct builtin_functions_s builtin_functions[] = {
     {"sinh", F_SINH}, 
     {"size", F_SIZE},
     {"sqrt", F_SQRT}, 
-    {"str", F_STR},
     {"tan", F_TAN}, 
     {"tanh", F_TANH}, 
     {"trunc", F_TRUNC}, 
@@ -425,7 +409,7 @@ struct builtin_functions_s builtin_functions[] = {
 };
 
 void functionobj_init(void) {
-    obj_init(&obj, T_FUNCTION, "<function>");
+    obj_init(&obj, T_FUNCTION, "function");
     obj.hash = hash;
     obj.same = same;
     obj.repr = repr;

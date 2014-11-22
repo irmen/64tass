@@ -29,5 +29,4 @@ typedef struct {
 } ureg_t;
 
 extern void registerobj_init(void);
-extern MUST_CHECK value_t register_from_str(const value_t);
 #endif

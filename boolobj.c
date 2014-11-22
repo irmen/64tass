@@ -19,10 +19,18 @@
 #include <string.h>
 #include "values.h"
 #include "boolobj.h"
+#include "floatobj.h"
 
 static struct obj_s obj;
 
 obj_t BOOL_OBJ = &obj;
+
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_BOOL: return val_reference(v1);
+    default: return v1->obj->truth(v1, TRUTH_BOOL, epoint);
+    }
+}
 
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == BOOL_OBJ && v1->u.boolean == v2->u.boolean;
@@ -57,25 +65,24 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int UNUSED(bits), l
     return NULL;
 }
 
-static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t UNUSED(epoint)) {
-    *r = v1->u.boolean;
-    return NULL;
+MUST_CHECK value_t float_from_bool(const value_t v1) {
+    return float_from_double(v1->u.boolean);
 }
 
-static inline MUST_CHECK value_t int_from_bool(int i) {
+MUST_CHECK value_t int_from_bool(const value_t v1) {
+    return val_reference(int_value[v1->u.boolean]);
+}
+
+static inline MUST_CHECK value_t int_from_bool2(int i) {
     return val_reference(int_value[i]);
 }
 
 static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_bool(v1->u.boolean);
+    return int_from_bool(v1);
 }
 
 static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_bool(v1->u.boolean);
-}
-
-static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_bool(v1->u.boolean);
+    return int_from_bool(v1);
 }
 
 static MUST_CHECK value_t calc1(oper_t op) {
@@ -89,7 +96,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
     case O_BSWORD: return bits_from_u16(v1->u.boolean << 8);
     case O_INV: return int_from_int(~v1->u.boolean);
     case O_NEG: return int_from_int(-v1->u.boolean);
-    case O_POS: return int_from_bool(v1->u.boolean);
+    case O_POS: return int_from_bool(v1);
     case O_STRING: return repr(v1, op->epoint);
     default: break;
     }
@@ -109,23 +116,23 @@ static MUST_CHECK value_t calc2_bool(oper_t op, int v1, int v2) {
     case O_GE: return truth_reference(v1 >= v2);
     case O_ADD: return int_from_int(v1 + v2);
     case O_SUB: return int_from_int(v1 - v2);
-    case O_MUL: return int_from_bool(v1 & v2);
+    case O_MUL: return int_from_bool2(v1 & v2);
     case O_DIV:
         if (!v2) { 
             return new_error_obj(ERROR_DIVISION_BY_Z, op->epoint3); 
         }
-        return int_from_bool(v1);
+        return int_from_bool2(v1);
     case O_MOD:
         if (!v2) { 
             return new_error_obj(ERROR_DIVISION_BY_Z, op->epoint3);
         }
-        return int_from_bool(0);
-    case O_EXP: return int_from_bool(v1 | !v1);
+        return int_from_bool2(0);
+    case O_EXP: return int_from_bool2(v1 | !v1);
     case O_AND: return truth_reference(v1 & v2);
     case O_OR: return truth_reference(v1 | v2);
     case O_XOR: return truth_reference(v1 ^ v2);
     case O_LSHIFT: return int_from_int(v1 << v2);
-    case O_RSHIFT: return int_from_bool(v1 >> v2);
+    case O_RSHIFT: return int_from_bool2(v1 >> v2);
     case O_CONCAT: return bits_from_bools(v1, v2);
     default: break;
     }
@@ -155,17 +162,16 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void boolobj_init(void) {
-    obj_init(&obj, T_BOOL, "<bool>");
+    obj_init(&obj, T_BOOL, "bool");
+    obj.create = create;
     obj.same = same;
     obj.truth = truth;
     obj.hash = hash;
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
-    obj.real = real;
     obj.sign = sign;
     obj.abs = absolute;
-    obj.integer = integer;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

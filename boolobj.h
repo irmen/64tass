@@ -21,4 +21,7 @@
 extern obj_t BOOL_OBJ;
 
 extern void boolobj_init(void);
+
+extern MUST_CHECK value_t int_from_bool(const value_t);
+extern MUST_CHECK value_t float_from_bool(const value_t);
 #endif

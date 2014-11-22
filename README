@@ -215,6 +215,7 @@ bool(a) convert to boolean             bool(%11) is true
 len(a)  length in bits                 len($034) is 12
 all(a)  all bits set or no bits at all all($f) is true
 any(a)  at least one bit set           any(~$f) is false
+bits(a) convert to bits                bits(true) is %1
 
 A bit string has a truth value of true if it's integer value is non-zero.
 
@@ -404,19 +405,20 @@ be created by prefixing quoted strings with a `b', this converts the string
 using the current encoding to bytes.
 
              Byte string operators and functions
-y .. x  concatenate strings            b"a" .. b"b" is b"ab"
-y in x  is substring of                b"b" in b"abc" is true
-a x n   repeat                         b"ab" x 3 is b"ababab"
-a[i]    byte from start                b"abc"[1] is b"b"
-a[i]    byte from end                  b"abc"[-1] is b"c"
-a[s]    no change                      b"abc"[:] is b"abc"
-a[s]    cut off start                  b"abc"[1:] is b"bc"
-a[s]    cut off end                    b"abc"[:-1] is b"ab"
-a[s]    reverse                        b"abc"[::-1] is b"cba"
-bool(a) convert to boolean             bool(b"a") is true
-len(a)  number of bytes                len(b"abc") is 3
-all(a)  all bytes non-zero or no bytes all(b"c") is true
-any(a)  at least one non-zero byte     any(b"c") is true
+y .. x   concatenate strings            b"a" .. b"b" is b"ab"
+y in x   is substring of                b"b" in b"abc" is true
+a x n    repeat                         b"ab" x 3 is b"ababab"
+a[i]     byte from start                b"abc"[1] is b"b"
+a[i]     byte from end                  b"abc"[-1] is b"c"
+a[s]     no change                      b"abc"[:] is b"abc"
+a[s]     cut off start                  b"abc"[1:] is b"bc"
+a[s]     cut off end                    b"abc"[:-1] is b"ab"
+a[s]     reverse                        b"abc"[::-1] is b"cba"
+bool(a)  convert to boolean             bool(b"a") is true
+len(a)   number of bytes                len(b"abc") is 3
+all(a)   all bytes non-zero or no bytes all(b"c") is true
+any(a)   at least one non-zero byte     any(b"c") is true
+bytes(a) convert to bytes               bytes("a") is b"a"
 
 A byte string has a truth value of true if it contains at least one non-zero
 byte.
@@ -454,6 +456,8 @@ all(a)       all elements true or empty list       all([1, 1, 0]) is false
 any(a)       at least one true element             any([1, 1, 0]) is true
 range(s,e,t) create a list with values from a      range(3) is [0,1,2]
              range
+list(a)      convert to list                       list((1, 1, 0)) is [1, 1, 0]
+tuple(a)     convert to tuple                      tuple([1, 1]) is (1, 1)
 
 Arithmetic operations are applied on the all elements recursively, therefore
 [1, 2] + 1 is [2, 3], and abs([1, -1]) is [1, 1].
@@ -510,10 +514,11 @@ Looking up a non existing key is normally an error unless a default value is
 given. An empty dictionary is {}. Currently this type is immutable. Numeric and
 string keys are accepted, the value can be anything.
 
-      Dictionary operators and functions
-x[i]   value lookup       {"1":2}["1"] is 2
-y in x is a key           1 in {1:2} is true
-len(x) number of elements len({1:2, 3:4]) is 2
+             Dictionary operators and functions
+x[i]    value lookup          {"1":2}["1"] is 2
+y in x  is a key              1 in {1:2} is true
+len(x)  number of elements    len({1:2, 3:4]) is 2
+dict(x) convert to dictionary dict({1:2, 3:4}) is {1:2, 3:4}
 
 A dictionary has a truth value of true if it contains at least one key value
 pair.
@@ -834,16 +839,12 @@ floating point constants section.
 abs(a)                absolute value
 all(a)                all elements true or no elements
 any(a)                any elements true
-bool(a)               truth value
-float(a)              convert to floating point
 format(s, *)          convert to string with formatting
-int(a)                convert to integer
 len(a)                number of elements
 range(s, e, t)        create a list with values from a range
 repr(a)               representation to string
 sign(a)               sign value (-1, 0, 1)
 size(a)               size in bytes
-str(a)                convert to string
 
 Special addressing mode forcing operators in front of an expression can be used
 to make sure the expected addressing mode is used.
@@ -2373,8 +2374,6 @@ can't convert to a ? bit signed/unsigned integer
     value out of range
 can't convert to boolean
     conversion error
-can't convert to float
-    conversion error
 can't convert to integer
     conversion error
 can't encode character $xx
@@ -2980,7 +2979,11 @@ Assembler directives
 
 Built-in functions
 
-abs acos all any asin atan atan2 bool cbrt ceil cos cosh deg exp float floor
-format frac hypot int len log log10 pow rad range repr round sign sin sinh size
-sqrt str tan tanh trunc
+abs acos all any asin atan atan2 cbrt ceil cos cosh deg exp floor format frac
+hypot len log log10 pow rad range repr round sign sin sinh size sqrt tan tanh
+trunc
+
+Built-in types
+
+bits bool bytes dict float int list str tuple
 

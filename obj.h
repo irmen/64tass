@@ -60,7 +60,7 @@ enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
-    T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS
+    T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE
 };
 
 enum truth_e {
@@ -70,21 +70,19 @@ enum truth_e {
 struct obj_s {
     enum type_e type;
     const char *name;
+    value_t (*create)(value_t, linepos_t) MUST_CHECK;
     void (*destroy)(value_t);
     int (*same)(const value_t, const value_t);
     value_t (*truth)(const value_t, enum truth_e, linepos_t) MUST_CHECK;
     value_t (*hash)(const value_t, int *, linepos_t) MUST_CHECK;
     value_t (*repr)(const value_t, linepos_t) MUST_CHECK;
-    value_t (*str)(const value_t, linepos_t) MUST_CHECK;
     value_t (*calc1)(struct oper_s *) MUST_CHECK;
     value_t (*calc2)(struct oper_s *) MUST_CHECK;
     value_t (*rcalc2)(struct oper_s *) MUST_CHECK;
     value_t (*ival)(const value_t, ival_t *, int, linepos_t) MUST_CHECK;
     value_t (*uval)(const value_t, uval_t *, int, linepos_t) MUST_CHECK;
-    value_t (*real)(const value_t, double *, linepos_t) MUST_CHECK;
     value_t (*sign)(const value_t, linepos_t) MUST_CHECK;
     value_t (*abs)(const value_t, linepos_t) MUST_CHECK;
-    value_t (*integer)(const value_t, linepos_t) MUST_CHECK;
     value_t (*len)(const value_t, linepos_t) MUST_CHECK;
     value_t (*size)(const value_t, linepos_t) MUST_CHECK;
     value_t (*getiter)(value_t) MUST_CHECK;
@@ -111,6 +109,7 @@ extern obj_t OPER_OBJ;
 extern obj_t DEFAULT_OBJ;
 extern obj_t ITER_OBJ;
 extern obj_t FUNCARGS_OBJ;
+extern obj_t TYPE_OBJ;
 
 extern int referenceit;
 #endif

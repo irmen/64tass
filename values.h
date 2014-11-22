@@ -186,6 +186,7 @@ struct value_s {
         double real;
         int boolean;
         function_t function;
+        obj_t type;
     } u;
 };
 
