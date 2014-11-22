@@ -220,10 +220,8 @@ static MUST_CHECK value_t real(const value_t v1, double *r, linepos_t epoint) {
     for (i = 0; i < len1; i++) {
         if (v1->u.integer.len < 0) d -= ldexp((double)v1->u.integer.data[i], i * SHIFT);
         else d += ldexp((double)v1->u.integer.data[i], i * SHIFT);
-        if (d == HUGE_VAL) {
-            value_t v = new_error_obj(ERROR_____CANT_REAL, epoint);
-            v->u.error.u.objname = v1->obj->name;
-            return v;
+        if (d == HUGE_VAL || d == -HUGE_VAL) {
+            return new_error_obj(ERROR_NUMERIC_OVERF, epoint);
         }
     }
     *r = d;
@@ -246,33 +244,23 @@ static MUST_CHECK value_t integer(const value_t v1, linepos_t UNUSED(epoint)) {
 static void iadd(const value_t, const value_t, value_t);
 static void isub(const value_t, const value_t, value_t);
 
+static digit_t ldigit(const value_t v1) {
+    ssize_t len = v1->u.integer.len;
+    if (len < 0) return -v1->u.integer.data[0];
+    return len ? v1->u.integer.data[0] : 0;
+}
+
 static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1, v;
     digit_t uv;
     switch (op->op->u.oper.op) {
-    case O_BANK: 
-        uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
-        if (v1->u.integer.len < 0) uv = -uv;
-        return bits_from_u8(uv >> 16);
-    case O_HIGHER:
-        uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
-        if (v1->u.integer.len < 0) uv = -uv;
-        return bits_from_u8(uv >> 8);
-    case O_LOWER:
-        uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
-        if (v1->u.integer.len < 0) uv = -uv;
-        return bits_from_u8(uv);
-    case O_HWORD:
-        uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
-        if (v1->u.integer.len < 0) uv = -uv;
-        return bits_from_u16(uv >> 8);
-    case O_WORD:
-        uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
-        if (v1->u.integer.len < 0) uv = -uv;
-        return bits_from_u16(uv);
+    case O_BANK: return bits_from_u8(ldigit(v1) >> 16);
+    case O_HIGHER: return bits_from_u8(ldigit(v1) >> 8);
+    case O_LOWER: return bits_from_u8(ldigit(v1));
+    case O_HWORD: return bits_from_u16(ldigit(v1) >> 8);
+    case O_WORD: return bits_from_u16(ldigit(v1));
     case O_BSWORD:
-        uv = v1->u.integer.len ? v1->u.integer.data[0] : 0;
-        if (v1->u.integer.len < 0) uv = -uv;
+        uv = ldigit(v1);
         return bits_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
     case O_INV:
         v = val_alloc(INT_OBJ);
@@ -1091,7 +1079,7 @@ MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
     digit_t *d;
     value_t v;
 
-    if (f == HUGE_VAL) {
+    if (f == HUGE_VAL || f == -HUGE_VAL) {
         v = new_error_obj(ERROR______CANT_INT, epoint);
         v->u.error.u.objname = FLOAT_OBJ->name;
         return v;
@@ -1156,15 +1144,13 @@ MUST_CHECK value_t int_from_bits(const value_t v1) {
     const bdigit_t *b;
     value_t v;
 
-    if (!v1->u.bits.len) {
-        if (v1->u.bits.inv) {
-            return int_from_int(-1);
-        }
-        return val_reference(int_value[0]);
+    switch (v1->u.bits.len) {
+    case 0: return val_reference(int_value[0]);
+    case ~0: return int_from_int(-1);
     }
 
-    inv = v1->u.bits.inv;
-    sz = v1->u.bits.len + inv;
+    inv = v1->u.bits.len < 0;
+    sz = inv ? -v1->u.bits.len : v1->u.bits.len; /* it's - for the additional length  */
     if (sz < inv) err_msg_out_of_memory(); /* overflow */
     v = val_alloc(INT_OBJ);
     d = inew(v, sz);
@@ -1172,14 +1158,14 @@ MUST_CHECK value_t int_from_bits(const value_t v1) {
     b = v1->u.bits.data;
     if (inv) {
         int c = 1;
-        for (i = 0; c && i < v1->u.bits.len; i++) {
+        for (i = 0; c && i < sz - 1; i++) {
             c = (d[i] = b[i] + 1) < 1;
         }
-        for (; i < v1->u.bits.len; i++) {
+        for (; i < sz - 1; i++) {
             d[i] = b[i];
         }
         d[i] = c;
-    } else memcpy(d, b, v1->u.bits.len * sizeof(digit_t));
+    } else memcpy(d, b, sz * sizeof(digit_t));
 
     return normalize(v, d, sz, inv);
 }

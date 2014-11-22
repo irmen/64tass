@@ -215,7 +215,6 @@ void init_values(void)
     null_bits = val_alloc(BITS_OBJ);
     null_bits->u.bits.len = 0;
     null_bits->u.bits.bits = 0;
-    null_bits->u.bits.inv = 0;
     null_bits->u.bits.val[0] = 0;
     null_bits->u.bits.data = NULL;
     null_tuple = val_alloc(TUPLE_OBJ);
