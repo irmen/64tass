@@ -294,7 +294,7 @@ static MUST_CHECK value_t next(value_t v1) {
     value_t v;
     if (v1->u.iter.val >= byteslen(vv1)) return NULL;
     v = val_alloc(BYTES_OBJ);
-    v->u.bytes.val[0] = vv1->u.bytes.data[v1->u.iter.val++];
+    v->u.bytes.val[0] = (-(vv1->u.bytes.len < 0)) ^ vv1->u.bytes.data[v1->u.iter.val++];
     v->u.bytes.len = 1;
     v->u.bytes.data = v->u.bytes.val;
     return v;
