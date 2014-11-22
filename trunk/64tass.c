@@ -1804,31 +1804,48 @@ value_t compile(struct file_list_s *cflist)
             case CMD_ERROR:
             case CMD_CERROR: if (waitfor->skip & 1)
                 { /* .warn .cwarn .error .cerror */
-                    int first = 1;
                     int writeit = 1;
-                    struct errorbuffer_s user_error;
                     struct linepos_s epoint2;
                     listing_line(epoint.pos);
-                    error_init(&user_error);
                     if (!get_exp(&w, 0, cfile, (prm == CMD_CWARN || prm == CMD_CERROR), 0, &epoint)) goto breakerr;
-                    err_msg_variable(&user_error, NULL, &epoint);
-                    for (;;) {
+                    if (prm == CMD_CWARN || prm == CMD_CERROR) {
                         val = get_val(&epoint2);
-                        if (!val) break;
-                        if (first) {
-                            first = 0;
-                            if (prm == CMD_CWARN || prm == CMD_CERROR) {
-                                if (tobool(val, &writeit, &epoint2)) writeit = 0;
-                                continue;
-                            }
-                            writeit = 1;
-                        }
-                        if (writeit) {
-                            if (val->obj != NONE_OBJ) err_msg_variable(&user_error, val, &epoint2);
-                        }
+                        if (tobool(val, &writeit, &epoint2)) writeit = 0;
                     }
-                    if (writeit) err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED, &user_error, &epoint);
-                    errors_destroy(&user_error);
+                    if (writeit) {
+                        size_t i, len = get_val_remaining(), len2 = 0;
+                        value_t tmp, *vals, v;
+                        uint8_t *s;
+                        tmp = val_alloc(TUPLE_OBJ);
+                        tmp->u.list.data = vals = list_create_elements(tmp, len);
+                        for (i = 0; i < len; i++) {
+                            val = get_val(&epoint2);
+                            if (val->obj == NONE_OBJ) val = val_reference(null_str);
+                            else {
+                                val = STR_OBJ->create(val, &epoint2);
+                                if (val->obj != STR_OBJ) { err_msg_output_and_destroy(val); val = val_reference(null_str); }
+                                else {
+                                    len2 += val->u.str.len;
+                                    if (len2 < val->u.str.len) err_msg_out_of_memory(); /* overflow */
+                                }
+                            }
+                            vals[i] = val;
+                        }
+                        tmp->u.list.len = i;
+                        v = val_alloc(STR_OBJ);
+                        v->u.str.data = s = str_create_elements(v, len2);
+                        len2 = 0;
+                        for (i = 0; i < len; i++) {
+                            val = vals[i];
+                            memcpy(s + len2, val->u.str.data, val->u.str.len);
+                            len2 += val->u.str.len;
+                        }
+                        v->u.str.len = len2;
+                        v->u.str.chars = len2;
+                        err_msg2((prm==CMD_CERROR || prm==CMD_ERROR)?ERROR__USER_DEFINED:ERROR_WUSER_DEFINED, v, &epoint);
+                        val_destroy(v);
+                        val_destroy(tmp);
+                    } else while (get_val(&epoint2));
                 }
                 break;
             case CMD_ENC: if (waitfor->skip & 1) 

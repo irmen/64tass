@@ -37,6 +37,13 @@ static struct file_list_s file_list;
 static const struct file_list_s *included_from = &file_list;
 static struct file_list_s *current_file_list = &file_list;
 
+struct errorbuffer_s {
+    size_t max;
+    size_t len;
+    size_t header_pos;
+    uint8_t *data;
+};
+
 static struct errorbuffer_s error_list = {0, 0, 0, NULL};
 static struct avltree notdefines;
 
@@ -244,12 +251,20 @@ static const char *terr_fatal[]={
     "too many passes"
 };
 
-void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
+static void err_msg_variable(value_t val, linepos_t epoint) {
+    value_t err;
+    err = val->obj->repr(val, epoint);
+    if (err->obj == STR_OBJ) adderror2(err->u.str.data, err->u.str.len);
+    else err_msg_output(err);
+    val_destroy(err);
+}
+
+void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
 
     if (no < 0x40) {
         new_error(SV_WARNING, current_file_list, epoint);
         if (!arguments.warning) return;
-        if (no == ERROR_WUSER_DEFINED) adderror2(((struct errorbuffer_s *)prm)->data, ((struct errorbuffer_s *)prm)->len);
+        if (no == ERROR_WUSER_DEFINED) adderror2(((value_t)prm)->u.str.data, ((value_t)prm)->u.str.len);
         else adderror(terr_warning[no]);
         return;
     }
@@ -290,7 +305,7 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
             adderror("branch crosses page");
             break;
         case ERROR__USER_DEFINED:
-            adderror2(((struct errorbuffer_s *)prm)->data, ((struct errorbuffer_s *)prm)->len);
+            adderror2(((value_t)prm)->u.str.data, ((value_t)prm)->u.str.len);
             break;
         case ERROR___UNKNOWN_CHR:
             sprintf(line,"can't encode character $%02x", *(const uint32_t *)prm); adderror(line);
@@ -313,13 +328,12 @@ void err_msg2(enum errors_e no, const void* prm, linepos_t epoint) {
         case ERROR__NOT_DATABANK:
             adderror(terr_error[no & 63]);
             adderror(" '");
-            err_msg_variable(&error_list, (value_t)prm, epoint);
+            err_msg_variable((value_t)prm, epoint);
             adderror("'");
             break;
         case ERROR___UNKNOWN_CPU:
-            adderror("unknown processor '");
-            err_msg_variable(&error_list, (value_t)prm, epoint);
-            adderror("'");
+            adderror("unknown processor ");
+            err_msg_variable((value_t)prm, epoint);
             break;
         default:
             adderror(terr_error[no & 63]);
@@ -587,25 +601,6 @@ void err_msg_conflicts(const str_t *name, linepos_t epoint) {
     if (name) str_name(name->data, name->len);
 }
 
-static void add_user_error2(struct errorbuffer_s *user_error, const uint8_t *s, size_t len) {
-    if (len + user_error->len > user_error->max) {
-        user_error->max += (len > 0x100) ? len : 0x100;
-        user_error->data = (uint8_t *)realloc(user_error->data, user_error->max);
-        if (!user_error->data) {fputs("Out of memory error\n", stderr);exit(1);}
-    }
-    memcpy(user_error->data + user_error->len, s, len);
-    user_error->len += len;
-}
-
-void err_msg_variable(struct errorbuffer_s *user_error, value_t val, linepos_t epoint) {
-    value_t err;
-    if (!val) {user_error->len = 0;return;}
-    err = STR_OBJ->create(val, epoint);
-    if (err->obj == STR_OBJ) add_user_error2(user_error, err->u.str.data, err->u.str.len);
-    else err_msg_output(err);
-    val_destroy(err);
-}
-
 static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
     new_error(SV_DOUBLEERROR, cflist, epoint2);
     adderror(msg);
@@ -814,7 +809,8 @@ void error_reset(void) {
 
 void err_init(void) {
     avltree_init(&file_list.members);
-    error_init(&error_list);
+    error_list.len = error_list.max = error_list.header_pos = 0;
+    error_list.data = NULL;
     current_file_list = &file_list;
     included_from = &file_list;
     avltree_init(&notdefines);
@@ -870,15 +866,6 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
     setlocale(LC_ALL, "C");
 #endif
     status(1);exit(1);
-}
-
-void error_init(struct errorbuffer_s *error) {
-    error->len = error->max = error->header_pos = 0;
-    error->data = NULL;
-}
-
-void errors_destroy(struct errorbuffer_s *error) {
-    free(error->data);
 }
 
 void error_status(void) {
