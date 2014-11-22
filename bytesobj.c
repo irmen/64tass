@@ -294,8 +294,8 @@ static MUST_CHECK value_t next(value_t v1) {
     value_t v;
     if (v1->u.iter.val >= byteslen(vv1)) return NULL;
     v = val_alloc(BYTES_OBJ);
-    v->u.bytes.val[0] = (-(vv1->u.bytes.len < 0)) ^ vv1->u.bytes.data[v1->u.iter.val++];
-    v->u.bytes.len = 1;
+    v->u.bytes.val[0] = vv1->u.bytes.data[v1->u.iter.val++];
+    v->u.bytes.len = (vv1->u.bytes.len < 0) ? ~1 : 1;
     v->u.bytes.data = v->u.bytes.val;
     return v;
 }
@@ -602,7 +602,7 @@ static inline MUST_CHECK value_t repeat(oper_t op) {
 }
 
 static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
-    uint8_t *p, *p2, inv;
+    uint8_t *p, *p2;
     value_t v, v1 = op->v1;
     size_t length;
     ival_t offs, end, step;
@@ -613,8 +613,7 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
     if (!length) {
         return val_reference(null_bytes);
     }
-    inv = v1->u.bytes.len < 0;
-    if (step == 1 && !inv) {
+    if (step == 1) {
         if (length == byteslen(v1)) {
             return val_reference(v1); /* original bytes */
         }
@@ -622,15 +621,14 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
         p = p2 = bnew(v, length);
         memcpy(p2, v1->u.bytes.data + offs, length);
     } else {
-        inv = -inv;
         v = val_alloc(BYTES_OBJ);
         p = p2 = bnew(v, length);
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
-            *p2++ = v1->u.bytes.data[offs] ^ inv;
+            *p2++ = v1->u.bytes.data[offs];
             offs += step;
         }
     }
-    v->u.bytes.len = length;
+    v->u.bytes.len = (v1->u.bytes.len < 0) ? ~length : length;
     v->u.bytes.data = p;
     return v;
 }
@@ -640,7 +638,6 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
     size_t offs, len1, len2;
     size_t i;
     value_t v1 = op->v1, v2 = op->v2, v, err;
-    uint8_t inv;
 
     if (v2->u.funcargs.len != 1) {
         err_msg_argnum(v2->u.funcargs.len, 1, 1, op->epoint2);
@@ -655,7 +652,6 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
             return val_reference(null_bytes);
         }
         len2 = v2->u.list.len;
-        inv = -(v1->u.bytes.len < 0);
         v = val_alloc(BYTES_OBJ);
         v->u.bytes.data = p2 = bnew(v, len2);
         for (i = 0; i < len2; i++) {
@@ -664,9 +660,9 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
                 val_destroy(v);
                 return err;
             }
-            *p2++ = v1->u.bytes.data[offs] ^ inv;
+            *p2++ = v1->u.bytes.data[offs];
         }
-        v->u.bytes.len = i;
+        v->u.bytes.len = (v1->u.bytes.len < 0) ? ~i : i;
         return v;
     }
     if (v2->obj == COLONLIST_OBJ) {
@@ -674,10 +670,9 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
     }
     err = indexoffs(v2, len1, &offs, op->epoint2);
     if (err) return err;
-    inv = -(v1->u.bytes.len < 0);
     v = val_alloc(BYTES_OBJ);
-    v->u.bytes.len = 1;
-    v->u.bytes.val[0] = v1->u.bytes.data[offs] ^ inv;
+    v->u.bytes.len = (v1->u.bytes.len < 0) ? ~1 : 1;
+    v->u.bytes.val[0] = v1->u.bytes.data[offs];
     v->u.bytes.data = v->u.bytes.val;
     return v;
 }
