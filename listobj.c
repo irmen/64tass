@@ -127,23 +127,24 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
 
 static MUST_CHECK value_t repr_listtuple(const value_t v1, linepos_t epoint) {
     size_t i, len = (v1->obj == ADDRLIST_OBJ || v1->obj == COLONLIST_OBJ) ? 0 : 2, chars = 0;
-    value_t *tmp = NULL, err, v;
+    value_t tmp = NULL, *vals, err, v;
     uint8_t *s;
     size_t llen = v1->u.list.len;
     if (llen) {
-        tmp = (value_t *)malloc(llen * sizeof(value_t));
-        if (!tmp || llen > SIZE_MAX / sizeof(value_t)) err_msg_out_of_memory(); /* overflow */
+        tmp = val_alloc(TUPLE_OBJ);
+        tmp->u.list.data = vals = lnew(tmp, llen);
         for (i = 0;i < llen; i++) {
             err = v1->u.list.data[i]->obj->repr(v1->u.list.data[i], epoint);
             if (!err || err->obj != STR_OBJ) {
-                while (i--) val_destroy(tmp[i]);
-                free(tmp);
+                tmp->u.list.len = i;
+                val_destroy(tmp);
                 return err;
             }
             len += err->u.str.len;
             if (len < err->u.str.len) err_msg_out_of_memory(); /* overflow */
-            tmp[i] = err;
+            vals[i] = err;
         }
+        tmp->u.list.len = i;
         if (i && (v1->obj != TUPLE_OBJ)) i--;
         if (i) {
             len += i;
@@ -155,18 +156,17 @@ static MUST_CHECK value_t repr_listtuple(const value_t v1, linepos_t epoint) {
     len = 0;
     if (v1->obj != ADDRLIST_OBJ && v1->obj != COLONLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? '[' : '(';
     for (i = 0;i < llen; i++) {
-        err = tmp[i];
+        err = vals[i];
         if (i) s[len++] = (v1->obj == COLONLIST_OBJ) ? ':' : ',';
         if (err->u.str.len) {
             memcpy(s + len, err->u.str.data, err->u.str.len);
             len += err->u.str.len;
             chars += err->u.str.len - err->u.str.chars;
         }
-        val_destroy(err);
     }
     if (i == 1 && (v1->obj == TUPLE_OBJ)) s[len++] = ',';
     if (v1->obj != ADDRLIST_OBJ && v1->obj != COLONLIST_OBJ) s[len++] = (v1->obj == LIST_OBJ) ? ']' : ')';
-    free(tmp);
+    if (tmp) val_destroy(tmp);
     v->u.str.data = s;
     v->u.str.len = len;
     v->u.str.chars = len - chars;
