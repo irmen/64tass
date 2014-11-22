@@ -2605,12 +2605,6 @@ internal limitations referenced lines in relation to the actual fault
 will display without them.</p>
 <h3>Warnings<a name="messages-warnings" href="#messages-warnings"></a></h3>
 <dl class="errorlist">
-<!--<dt>top of memory exceeded<dd>compile continues at the bottom ($0000)
-<dt>memory bank exceeded<dd>compile continues in the next 64&nbsp;KiB bank, however execution may not
-<dt>possible jmp ($xxff) bug<dd>yet another 65xx feature...
-<dt>long branch used<dd>branch too long, so long branch was used (bxx &lowast;+5 jmp)
-<dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons.
-<dt>label not on left side<dd>check if an instruction name was not mistyped and if the currect CPU has it, or remove white space before label-->
 <dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons.
 <dt>label not on left side<dd>check if an instruction name was not mistyped and if the currect CPU has it, or remove white space before label
 <dt>long branch used<dd>branch too long, so long branch was used (bxx &lowast;+5 jmp)
@@ -2621,57 +2615,6 @@ will display without them.</p>
 
 <h3>Errors<a name="messages-errors" href="#messages-errors"></a></h3>
 <dl class="errorlist">
-<!--<dt>double defined range<dd>part of a character range was already defined by another .cdef
-<dt>double defined escape<dd>escape sequence already defined in another .edef
-<dt>extra characters on line<dd>there's some garbage on the end of line
-<dt>constant too large<dd>floating point overflow and other value out of range conditions
-<dt>address not in processor address space<dd>value larger than current CPU address space
-<dt>general syntax<dd>can't do anything with this
-<dt>expression syntax<dd>syntax error
-<dt>label required<dd>a label is mandatory for this directive
-<dt>missing argument<dd>not enough arguments supplied to function
-<dt>division by zero<dd>can't calculate this
-<dt>zero value not allowed<dd>do not use zero
-<dt>instruction can't cross banks<dd>this instruction is only limited to the current bank
-<dt>address out of section<dd>moving the address around is fine, but do not place it before the section
-<dt>negative number raised on fractional power<dd>can't calculate this
-<dt>not a one character string<dd>only a single character string is allowed
-<dt>index out of range<dd>not enough elements in list
-<dt>key error<dd>not in dictionary
-<dt>not hashable<dd>can't be used as a key in a dictionary
-<dt>not a key and value pair<dd>dictionaries are built from key and value pairs separated by a colon
-<dt>can't convert to a ? bit signed/unsigned integer<dd>value out of range
-<dt>can't convert to float<dd>conversion error
-<dt>can't get sign<dd>value does not have a sign
-<dt>can't get absolute value<dd>value has no absolute value
-<dt>can't convert to integer<dd>conversion error
-<dt>can't get length<dd>value has no length
-<dt>can't get size<dd>value has no size
-<dt>can't convert to boolean<dd>conversion error
-<dt>not iterable<dd>value is not a list or other iterable object
-<dt>no fitting addressing mode for opcode<dd>couldn't find the right addressing mode for this opcode
-<dt>not a direct page address<dd>value must be a direct page address
-<dt>not a data bank address<dd>value must be a data bank address
-<dt>not a bank 0 address<dd>value must be a bank zero address
-<dt>page error at $xxxx<dd>page crossing detected
-<dt>branch too far by ? bytes<dd>can't branch that far
-<dt>ptext too long by ? bytes<dd>.ptext is limited to 255 bytes maximum
-<dt>branch crosses page<dd>page crossing detected
-<dt>can't encode character $xx<dd>can't translate character, not part of current encoding
-<dt>? expected<dd>something is missing
-<dt>wrong type &lt;?&gt;<dd>wrong object type used
-<dt>not allowed here: ?<dd>do not use this directive here
-<dt>reserved symbol name '?'<dd>do not use this symbol name
-<dt>unknown processor '?'<dd>unknown cpu name
-<dt>too early to reference<dd>processing still ongoing, can't access this yet
-<dt>not defined '?'<dd>can't find this label
-<dt>can't calculate stable value<dd>somehow it's impossible to calculate this expression
-<dt>can't calculate this<dd>could not get any value, is this a circular reference?
-<dt>requirements not met<dd>Not all features are provided, at least one is missing
-<dt>conflict<dd>at least one feature is provided, which shouldn't be there
-<dt>duplicate definition<dd>symbol defined more than once
-<dt>invalid operands to ? '?' and '?'<dd>can't do this calculation with these values
-<dt>expected exactly/at least/at most ? arguments, got ?<dd>wrong number of function arguments-->
 <dt>? expected<dd>something is missing
 <dt>address not in processor address space<dd>value larger than current CPU address space
 <dt>address out of section<dd>moving the address around is fine, but do not place it before the section
@@ -2706,6 +2649,7 @@ will display without them.</p>
 <dt>label required<dd>a label is mandatory for this directive
 <dt>logarithm of non-positive number<dd>Only positive numbers have a logarithm
 <dt>missing argument<dd>not enough arguments supplied to function
+<dt>most significiant bit must be clear in byte<dd>.shift and .shiftl only valid with 7 bit strings
 <dt>negative number raised on fractional power<dd>can't calculate this
 <dt>no ? addressing mode for opcode<dd>this addressing mode is not valid for this opcode
 <dt>not a bank 0 address<dd>value must be a bank zero address
@@ -2727,21 +2671,11 @@ will display without them.</p>
 <dt>too early to reference<dd>processing still ongoing, can't access this yet
 <dt>unknown processor '?'<dd>unknown cpu name
 <dt>wrong type &lt;?&gt;<dd>wrong object type used
-<dt>zero value not allowed<dd>do not use zero
+<dt>zero value not allowed<dd>do not use zero, also not with .null
 </dl>
 
 <h3>Fatal errors<a name="messages-fatal" href="#messages-fatal"></a></h3>
 <dl class="errorlist">
-<!-- <dt>can't open file<dd>cannot open file
-<dt>error reading file<dd>error while reading
-<dt>can't write object file<dd>cannot write the result
-<dt>can't write listing file<dd>cannot write the list file
-<dt>can't write label file<dd>cannot write the label file
-<dt>file recursion<dd>wrong use of .include
-<dt>macro recursion too deep<dd>wrong use of nested macros
-<dt>too many passes<dd>with a carefully crafted source file it's possible to create unresolvable situations. Fix your code.
-<dt>unknown option '?'<dd>option not known
-<dt>out of memory<dd>won't happen ;)-->
 <dt>can't open file<dd>cannot open file
 <dt>can't write label file<dd>cannot write the label file
 <dt>can't write listing file<dd>cannot write the list file

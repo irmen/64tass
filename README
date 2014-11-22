@@ -2423,6 +2423,8 @@ logarithm of non-positive number
     Only positive numbers have a logarithm
 missing argument
     not enough arguments supplied to function
+most significiant bit must be clear in byte
+    .shift and .shiftl only valid with 7 bit strings
 negative number raised on fractional power
     can't calculate this
 no ? addressing mode for opcode
@@ -2466,7 +2468,7 @@ unknown processor '?'
 wrong type <?>
     wrong object type used
 zero value not allowed
-    do not use zero
+    do not use zero, also not with .null
 
 Fatal errors
 

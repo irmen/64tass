@@ -1051,6 +1051,23 @@ MUST_CHECK value_t int_from_int(int i) {
     return v;
 }
 
+MUST_CHECK value_t int_from_size(size_t i) {
+    unsigned int j;
+    value_t v;
+    if (i < sizeof(int_value) / sizeof(int_value[0])) return val_reference(int_value[i]);
+    v = val_alloc(INT_OBJ);
+    v->u.integer.data = v->u.integer.val;
+    v->u.integer.val[0] = i;
+    for (j = 1; j < sizeof(size_t) / sizeof(digit_t); j++) {
+        i >>= 4 * sizeof(digit_t);
+        i >>= 4 * sizeof(digit_t);
+        if (!i) break;
+        v->u.integer.val[j] = i;
+    }
+    v->u.integer.len = j;
+    return v;
+}
+
 MUST_CHECK value_t int_from_uval(uval_t i) {
     value_t v = val_alloc(INT_OBJ);
     v->u.integer.data = v->u.integer.val;
@@ -1110,31 +1127,56 @@ MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
 
 MUST_CHECK value_t int_from_bytes(const value_t v1) {
     int bits;
-    size_t i, j, sz;
+    size_t i, j, sz, len1;
     digit_t *d, uv;
     value_t v;
+    int inv;
 
-    i = v1->u.bytes.len;
-    if (!i) {
-        return val_reference(int_value[0]);
+    switch (v1->u.bytes.len) {
+    case 0: return val_reference(int_value[0]);
+    case ~0: return int_from_int(-1);
     }
-    sz = i / sizeof(digit_t);
-    if (i % sizeof(digit_t)) sz++;
+
+    inv = v1->u.bytes.len < 0;
+    len1 = inv ? -v1->u.bytes.len : v1->u.bytes.len; /* it's - for the additional length  */
+    sz = len1 / sizeof(digit_t);
+    if (len1 % sizeof(digit_t)) sz++;
 
     v = val_alloc(INT_OBJ);
     d = inew(v, sz);
 
     uv = bits = j = i = 0;
-    while (v1->u.bytes.len > i) {
-        uv |= v1->u.bytes.data[i++] << bits;
-        if (bits == SHIFT - 8) {
-            d[j++] = uv;
-            bits = uv = 0;
-        } else bits += 8;
+    if (inv) {
+        uint8_t c = 0xff;
+        for (;c == 0xff && i < len1 - 1; i++) {
+            c = v1->u.bytes.data[i];
+            uv |= ((uint8_t)(c + 1)) << bits;
+            if (bits == SHIFT - 8) {
+                d[j++] = uv;
+                bits = uv = 0;
+            } else bits += 8;
+        }
+        for (; i < len1 - 1; i++) {
+            uv |= v1->u.bytes.data[i] << bits;
+            if (bits == SHIFT - 8) {
+                d[j++] = uv;
+                bits = uv = 0;
+            } else bits += 8;
+        }
+        uv |= (c == 0xff) << bits;
+        d[j] = uv;
+    } else {
+        for (;i < len1; i++) {
+            uv |= v1->u.bytes.data[i] << bits;
+            if (bits == SHIFT - 8) {
+                d[j++] = uv;
+                bits = uv = 0;
+            } else bits += 8;
+        }
+        if (bits) d[j] = uv;
     }
-    if (bits) d[j] = uv;
 
-    return normalize(v, d, sz, 0);
+    return normalize(v, d, sz, inv);
 }
 
 MUST_CHECK value_t int_from_bits(const value_t v1) {
@@ -1199,7 +1241,7 @@ MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
                     if (v->u.integer.val == d) {
                         sz = 16 / sizeof(digit_t);
                         d = (digit_t *)malloc(sz * sizeof(digit_t));
-                        memcpy(d, v->u.bytes.val, j * sizeof(digit_t));
+                        memcpy(d, v->u.integer.val, j * sizeof(digit_t));
                     } else {
                         sz += 1024 / sizeof(digit_t);
                         if (sz < 1024 / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
@@ -1217,7 +1259,7 @@ MUST_CHECK value_t int_from_str(const value_t v1, linepos_t epoint) {
                 if (sz < 1) err_msg_out_of_memory(); /* overflow */
                 if (v->u.integer.val == d) {
                     d = (digit_t *)malloc(sz * sizeof(digit_t));
-                    memcpy(d, v->u.bytes.val, j * sizeof(digit_t));
+                    memcpy(d, v->u.integer.val, j * sizeof(digit_t));
                 } else d = (digit_t *)realloc(d, sz * sizeof(digit_t));
                 if (!d) err_msg_out_of_memory();
             }

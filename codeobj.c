@@ -116,14 +116,14 @@ static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
     if (!v1->u.code.pass) {
         return val_reference(none_value);
     }
-    return int_from_uval(v1->u.code.size / (abs(v1->u.code.dtype) + !v1->u.code.dtype));
+    return int_from_size(v1->u.code.size / (abs(v1->u.code.dtype) + !v1->u.code.dtype));
 }
 
 static MUST_CHECK value_t size(const value_t v1, linepos_t UNUSED(epoint)) {
     if (!v1->u.code.pass) {
         return val_reference(none_value);
     }
-    return int_from_uval(v1->u.code.size);
+    return int_from_size(v1->u.code.size);
 }
 
 static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {

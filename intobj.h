@@ -31,6 +31,7 @@ typedef struct {
 
 extern void intobj_init(void);
 extern MUST_CHECK value_t int_from_int(int);
+extern MUST_CHECK value_t int_from_size(size_t);
 extern MUST_CHECK value_t int_from_uval(uval_t);
 extern MUST_CHECK value_t int_from_ival(ival_t);
 extern MUST_CHECK value_t int_from_double(double, linepos_t);

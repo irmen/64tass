@@ -59,37 +59,37 @@ static int same(const value_t v1, const value_t v2) {
 }
 
 static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_uval(v1->u.dict.len);
+    return int_from_size(v1->u.dict.len);
 }
 
 static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
     const struct pair_s *p;
-    size_t i = 0, j, len = 2, chars = 0;
+    size_t i = 0, j, ln = 2, chars = 0;
     value_t *tmp = NULL;
     value_t v;
     uint8_t *s;
     unsigned int def = (v1->u.dict.def != NULL);
     if (v1->u.dict.len || def) {
-        len = v1->u.dict.len * 2;
-        if (len < v1->u.dict.len) err_msg_out_of_memory(); /* overflow */
-        len += def;
-        tmp = (value_t *)malloc(len * sizeof(value_t));
-        if (!tmp || len < def || len > SIZE_MAX / sizeof(value_t)) err_msg_out_of_memory(); /* overflow */
-        len += 1 + def;
-        if (len < 1 + def) err_msg_out_of_memory(); /* overflow */
+        ln = v1->u.dict.len * 2;
+        if (ln < v1->u.dict.len) err_msg_out_of_memory(); /* overflow */
+        ln += def;
+        tmp = (value_t *)malloc(ln * sizeof(value_t));
+        if (!tmp || ln < def || ln > SIZE_MAX / sizeof(value_t)) err_msg_out_of_memory(); /* overflow */
+        ln += 1 + def;
+        if (ln < 1 + def) err_msg_out_of_memory(); /* overflow */
         if (v1->u.dict.len) {
             const struct avltree_node *n = avltree_first(&v1->u.dict.members);
             while (n) {
                 p = cavltree_container_of(n, struct pair_s, node);
                 v = p->key->obj->repr(p->key, epoint);
                 if (!v || v->obj != STR_OBJ) goto error;
-                len += v->u.str.len;
-                if (len < v->u.str.len) err_msg_out_of_memory(); /* overflow */
+                ln += v->u.str.len;
+                if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
                 tmp[i++] = v;
                 v = p->data->obj->repr(p->data, epoint);
                 if (!v || v->obj != STR_OBJ) goto error;
-                len += v->u.str.len;
-                if (len < v->u.str.len) err_msg_out_of_memory(); /* overflow */
+                ln += v->u.str.len;
+                if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
                 tmp[i++] = v;
                 n = avltree_next(n);
             }
@@ -102,36 +102,36 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
                 free(tmp);
                 return v;
             }
-            len += v->u.str.len;
-            if (len < v->u.str.len) err_msg_out_of_memory(); /* overflow */
+            ln += v->u.str.len;
+            if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
             tmp[i] = v;
         }
     }
     v = val_alloc(STR_OBJ);
-    s = str_create_elements(v, len);
-    len = 0;
-    s[len++] = '{';
+    s = str_create_elements(v, ln);
+    ln = 0;
+    s[ln++] = '{';
     for (j = 0; j < i; j++) {
-        if (j) s[len++] = (j & 1) ? ':' : ',';
-        memcpy(s + len, tmp[j]->u.str.data, tmp[j]->u.str.len);
-        len += tmp[j]->u.str.len;
+        if (j) s[ln++] = (j & 1) ? ':' : ',';
+        memcpy(s + ln, tmp[j]->u.str.data, tmp[j]->u.str.len);
+        ln += tmp[j]->u.str.len;
         chars += tmp[j]->u.str.len - tmp[j]->u.str.chars;
         val_destroy(tmp[j]);
     }
     if (def) {
-        if (j) s[len++] = ',';
-        s[len++] = ':';
-        memcpy(s + len, tmp[j]->u.str.data, tmp[j]->u.str.len);
-        len += tmp[j]->u.str.len;
+        if (j) s[ln++] = ',';
+        s[ln++] = ':';
+        memcpy(s + ln, tmp[j]->u.str.data, tmp[j]->u.str.len);
+        ln += tmp[j]->u.str.len;
         chars += tmp[j]->u.str.len - tmp[j]->u.str.chars;
         val_destroy(tmp[j]);
         j++;
     }
-    s[len++] = '}';
+    s[ln++] = '}';
     free(tmp);
     v->u.str.data = s;
-    v->u.str.len = len;
-    v->u.str.chars = len - chars;
+    v->u.str.len = ln;
+    v->u.str.chars = ln - chars;
     return v;
 }
 

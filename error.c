@@ -203,6 +203,7 @@ static const char *terr_error[]={
     "missing argument",
     "division by zero",
     "zero value not allowed",
+    "most significiant bit must be clear in byte",
     "instruction can't cross banks",
     "address out of section",
     "negative number raised on fractional power",
