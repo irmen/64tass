@@ -74,7 +74,7 @@ static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
 static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
     const struct pair_s *p;
     size_t i = 0, j, ln = 2, chars = 0;
-    value_t *tmp = NULL;
+    value_t tmp = NULL, *vals;
     value_t v;
     uint8_t *s;
     unsigned int def = (v1->u.dict.def != NULL);
@@ -82,8 +82,9 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
         ln = v1->u.dict.len * 2;
         if (ln < v1->u.dict.len) err_msg_out_of_memory(); /* overflow */
         ln += def;
-        tmp = (value_t *)malloc(ln * sizeof(value_t));
-        if (!tmp || ln < def || ln > SIZE_MAX / sizeof(value_t)) err_msg_out_of_memory(); /* overflow */
+        if (ln < def) err_msg_out_of_memory(); /* overflow */
+        tmp = val_alloc(TUPLE_OBJ);
+        tmp->u.list.data = vals = list_create_elements(tmp, ln);
         ln += 1 + def;
         if (ln < 1 + def) err_msg_out_of_memory(); /* overflow */
         if (v1->u.dict.len) {
@@ -94,12 +95,12 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
                 if (!v || v->obj != STR_OBJ) goto error;
                 ln += v->u.str.len;
                 if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
-                tmp[i++] = v;
+                vals[i++] = v;
                 v = p->data->obj->repr(p->data, epoint);
                 if (!v || v->obj != STR_OBJ) goto error;
                 ln += v->u.str.len;
                 if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
-                tmp[i++] = v;
+                vals[i++] = v;
                 n = avltree_next(n);
             }
         }
@@ -107,14 +108,15 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
             v = v1->u.dict.def->obj->repr(v1->u.dict.def, epoint);
             if (!v || v->obj != STR_OBJ) {
             error:
-                while (i--) val_destroy(tmp[i]);
-                free(tmp);
+                tmp->u.list.len = i;
+                val_destroy(tmp);
                 return v;
             }
             ln += v->u.str.len;
             if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
-            tmp[i] = v;
+            vals[i] = v;
         }
+        tmp->u.list.len = i + def;
     }
     v = val_alloc(STR_OBJ);
     s = str_create_elements(v, ln);
@@ -122,22 +124,20 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
     s[ln++] = '{';
     for (j = 0; j < i; j++) {
         if (j) s[ln++] = (j & 1) ? ':' : ',';
-        memcpy(s + ln, tmp[j]->u.str.data, tmp[j]->u.str.len);
-        ln += tmp[j]->u.str.len;
-        chars += tmp[j]->u.str.len - tmp[j]->u.str.chars;
-        val_destroy(tmp[j]);
+        memcpy(s + ln, vals[j]->u.str.data, vals[j]->u.str.len);
+        ln += vals[j]->u.str.len;
+        chars += vals[j]->u.str.len - vals[j]->u.str.chars;
     }
     if (def) {
         if (j) s[ln++] = ',';
         s[ln++] = ':';
-        memcpy(s + ln, tmp[j]->u.str.data, tmp[j]->u.str.len);
-        ln += tmp[j]->u.str.len;
-        chars += tmp[j]->u.str.len - tmp[j]->u.str.chars;
-        val_destroy(tmp[j]);
+        memcpy(s + ln, vals[j]->u.str.data, vals[j]->u.str.len);
+        ln += vals[j]->u.str.len;
+        chars += vals[j]->u.str.len - vals[j]->u.str.chars;
         j++;
     }
     s[ln++] = '}';
-    free(tmp);
+    if (tmp) val_destroy(tmp);
     v->u.str.data = s;
     v->u.str.len = ln;
     v->u.str.chars = ln - chars;
