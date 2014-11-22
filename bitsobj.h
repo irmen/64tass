@@ -23,10 +23,9 @@ extern obj_t BITS_OBJ;
 
 typedef digit_t bdigit_t;
 typedef struct {
-    size_t len;
+    ssize_t len;
     size_t bits;
-    int inv;
-    bdigit_t val[3];
+    bdigit_t val[4];
     bdigit_t *data;
 } bits_t;
 

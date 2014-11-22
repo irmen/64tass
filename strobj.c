@@ -161,7 +161,7 @@ static MUST_CHECK value_t integer(const value_t v1, linepos_t epoint) {
 }
 
 static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_uval(v1->u.str.chars);
+    return v1->u.str.chars ? int_from_uval(v1->u.str.chars) : val_reference(int_value[0]);
 }
 
 static MUST_CHECK value_t getiter(value_t v1) {
