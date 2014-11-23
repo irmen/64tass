@@ -36,8 +36,12 @@ static inline size_t byteslen(const value_t v1) {
     return (len < 0) ? ~len : len;
 }
 
+static MUST_CHECK value_t bytes_from_bits(const value_t);
+
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     switch (v1->obj->type) {
+    case T_BOOL: return bytes_from_u8(v1->u.boolean);
+    case T_BITS: return bytes_from_bits(v1);
     case T_BYTES: return val_reference(v1);
     case T_STR: return bytes_from_str(v1, epoint);
     default: break;
@@ -106,25 +110,29 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
 }
 
 static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
+    static const char *hex = "0123456789abcdef";
     size_t i, len, len2, sz;
-    uint8_t *s;
+    uint8_t *s, b;
     value_t v;
     if (!epoint) return NULL; /* not yet */
     v = val_alloc(STR_OBJ);
     sz = byteslen(v1);
-    len2 = sz * 4;
-    len = 9 - (sz > 0) + len2 + (v1->u.bytes.len < 0);
-    if (len < len2 || sz > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */
+    len2 = sz * 2;
+    len = 8 + len2 + (v1->u.bytes.len < 0);
+    if (len < len2 || sz > SIZE_MAX / 2) err_msg_out_of_memory(); /* overflow */
     s = str_create_elements(v, len);
 
-    len = v1->u.bytes.len < 0;
-    *s = '~';
-    memcpy(s + len, "bytes([", 7);
-    len += 7;
-    for (i = 0;i < sz; i++) {
-        len += sprintf((char *)s + len, i ? ",$%02x" : "$%02x", v1->u.bytes.data[i]);
+    memcpy(s, "bytes(", 6);
+    len = 6;
+    if (v1->u.bytes.len < 0) {
+        s[len++] = '~';
     }
-    s[len++] = ']';
+    s[len++] = '$';
+    for (i = 0;i < sz; i++) {
+        b = v1->u.bytes.data[sz - i - 1];
+        s[len++] = hex[b >> 4];
+        s[len++] = hex[b & 0xf];
+    }
     s[len++] = ')';
     v->u.str.len = len;
     v->u.str.chars = len;
@@ -216,6 +224,41 @@ MUST_CHECK value_t bytes_from_u16(uint16_t i) {
     v->u.bytes.val[0] = i;
     v->u.bytes.val[1] = i >> 8;
     v->u.bytes.len = 2;
+    return v;
+}
+
+static MUST_CHECK value_t bytes_from_bits(const value_t v1) {
+    int bits;
+    size_t i, j, sz, len1;
+    uint8_t *d;
+    value_t v;
+    int inv = v1->u.bits.len < 0;
+
+    len1 = v1->u.bits.bits;
+    if (!len1) {
+        return val_reference(inv ? inv_bytes : null_bytes);
+    }
+
+    v = val_alloc(BYTES_OBJ);
+
+    sz = len1 / 8;
+    if (len1 % 8) sz++;
+    v->u.bytes.data = d = bnew(v, sz);
+    v->u.bytes.len = inv ? ~sz : sz;
+
+    len1 = v1->u.bits.len;
+    bits = j = i = 0;
+    if (len1) {
+        while (sz > i) {
+            d[i++] = v1->u.bits.data[j] >> bits;
+            if (bits == (8 * sizeof(bdigit_t)) - 8) {
+                bits = 0;
+                j++;
+                if (j >= len1) break;
+            } else bits += 8;
+        }
+    }
+    if (sz > i) memset(d + i , 0, sz - i);
     return v;
 }
 
