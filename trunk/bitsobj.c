@@ -32,8 +32,6 @@ static struct obj_s obj;
 
 obj_t BITS_OBJ = &obj;
 
-static MUST_CHECK value_t bits_from_bool(int);
-
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_BITS: return val_reference(v1);
@@ -263,7 +261,16 @@ static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_size(v1->u.bits.bits);
 }
 
-static MUST_CHECK value_t bits_from_bool(int i) {
+MUST_CHECK value_t ibits_from_bool(int i) {
+    value_t v = val_alloc(BITS_OBJ);
+    v->u.bits.data = v->u.bits.val;
+    v->u.bits.val[0] = i;
+    v->u.bits.len = ~(i != 0);
+    v->u.bits.bits = 1;
+    return v;
+}
+
+MUST_CHECK value_t bits_from_bool(int i) {
     value_t v = val_alloc(BITS_OBJ);
     v->u.bits.data = v->u.bits.val;
     v->u.bits.val[0] = i;
@@ -1034,7 +1041,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
     }
     switch (v2->obj->type) {
     case T_BOOL:
-        tmp = bits_from_bool(op->v2->u.boolean);
+        tmp = bits_from_bool(v2->u.boolean);
         op->v2 = tmp;
         result = calc2(op);
         val_destroy(tmp);
@@ -1079,7 +1086,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
         return result;
     default:
         if (op->op != &o_MEMBER) {
-            return op->v2->obj->rcalc2(op);
+            return v2->obj->rcalc2(op);
         }
     }
     return obj_oper_error(op);
@@ -1091,13 +1098,9 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     ssize_t val;
     switch (v1->obj->type) {
     case T_BOOL:
-        switch (op->op->u.oper.op) {
-        case O_LSHIFT:
-        case O_RSHIFT: tmp = val_reference(int_value[v1->u.boolean]); break;
-        default: tmp = bits_from_bool(v1->u.boolean); break;
-        }
+        tmp = bits_from_bool(v1->u.boolean);
         op->v1 = tmp;
-        result = tmp->obj->calc2(op);
+        result = calc2(op);
         val_destroy(tmp);
         op->v1 = v1;
         return result;

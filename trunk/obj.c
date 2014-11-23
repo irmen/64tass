@@ -84,6 +84,9 @@ static void invalid_destroy(value_t UNUSED(v1)) {
 }
 
 static MUST_CHECK value_t invalid_create(const value_t v1, linepos_t epoint) {
+    if (v1->obj == ERROR_OBJ || v1->obj == NONE_OBJ) {
+        return val_reference(v1);
+    }
     err_msg_wrong_type(v1, NULL, epoint);
     return val_reference(none_value);
 }
@@ -156,7 +159,6 @@ static MUST_CHECK value_t gap_repr(const value_t UNUSED(v1), linepos_t UNUSED(ep
 }
 
 static MUST_CHECK value_t gap_calc1(oper_t op) {
-    value_t v1 = op->v1;
     switch (op->op->u.oper.op) {
     case O_BANK: 
     case O_HIGHER:
@@ -167,8 +169,8 @@ static MUST_CHECK value_t gap_calc1(oper_t op) {
     case O_INV:
     case O_NEG:
     case O_POS:
+    case O_STRING:
         return val_reference(gap_value);
-    case O_STRING: return gap_repr(v1, op->epoint);
     default: break;
     }
     return obj_oper_error(op);
@@ -186,6 +188,17 @@ static MUST_CHECK value_t gap_calc2(oper_t op) {
         case O_NE:
         case O_LT:
         case O_GT: return val_reference(false_value);
+        case O_ADD:
+        case O_SUB:
+        case O_MUL:
+        case O_DIV:
+        case O_MOD:
+        case O_EXP:
+        case O_AND:
+        case O_OR:
+        case O_XOR:
+        case O_LSHIFT:
+        case O_RSHIFT: return val_reference(gap_value);
         default: break;
         }
         break;
@@ -437,6 +450,20 @@ static MUST_CHECK value_t oper_repr(const value_t v1, linepos_t epoint) {
     return v;
 }
 
+static MUST_CHECK value_t ident_calc2(oper_t op) {
+    switch (op->v2->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_TUPLE:
+    case T_LIST:
+        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
+            return op->v2->obj->rcalc2(op);
+        }
+    default: break;
+    }
+    return obj_oper_error(op);
+}
+
 static MUST_CHECK value_t ident_rcalc2(oper_t op) {
     if (op->op == &o_MEMBER) {
         return op->v1->obj->calc2(op);
@@ -551,54 +578,66 @@ static inline int tcmp(const value_t vv1, const value_t vv2) {
 static MUST_CHECK value_t type_calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     size_t args;
-    if (v2->obj == TYPE_OBJ) {
-        int val;
-        switch (op->op->u.oper.op) {
-        case O_CMP:
-            val = tcmp(v1, v2);
-            if (val < 0) return int_from_int(-1);
-            return val_reference(int_value[val > 0]);
-        case O_EQ: return truth_reference(tcmp(v1, v2) == 0);
-        case O_NE: return truth_reference(tcmp(v1, v2) != 0);
-        case O_LT: return truth_reference(tcmp(v1, v2) < 0);
-        case O_LE: return truth_reference(tcmp(v1, v2) <= 0);
-        case O_GT: return truth_reference(tcmp(v1, v2) > 0);
-        case O_GE: return truth_reference(tcmp(v1, v2) >= 0);
-        default: break;
-        }
-    }
-    switch (op->op->u.oper.op) {
-    case O_EQ: return val_reference(false_value);
-    case O_NE: return val_reference(true_value);
-    case O_FUNC:
-        args = v2->u.funcargs.len;
-        if (args != 1) {
-            err_msg_argnum(args, 1, 1, op->epoint2);
-            return val_reference(none_value);
-        }
-        v2 = v2->u.funcargs.val[0].val;
-        switch (v2->obj->type) {
-        case T_NONE:
-        case T_ERROR: return val_reference(v2);
-        case T_LIST:
-        case T_TUPLE: 
-            if (v1->u.type != LIST_OBJ && v1->u.type != TUPLE_OBJ && v1->u.type != TYPE_OBJ) {
-                value_t *vals;
-                size_t i;
-                int error;
-                value_t v = val_alloc(v2->obj);
-                v->u.list.data = vals = list_create_elements(v, v2->u.list.len);
-                error = 1;
-                for (i = 0;i < v2->u.list.len; i++) {
-                    value_t val = v1->u.type->create(v2->u.list.data[i], op->epoint2);
-                    if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
-                    vals[i] = val;
-                }
-                v->u.list.len = i;
-                return v;
+
+    switch (v2->obj->type) {
+    case T_TYPE:
+        {
+            int val;
+            switch (op->op->u.oper.op) {
+            case O_CMP:
+                val = tcmp(v1, v2);
+                if (val < 0) return int_from_int(-1);
+                return val_reference(int_value[val > 0]);
+            case O_EQ: return truth_reference(tcmp(v1, v2) == 0);
+            case O_NE: return truth_reference(tcmp(v1, v2) != 0);
+            case O_LT: return truth_reference(tcmp(v1, v2) < 0);
+            case O_LE: return truth_reference(tcmp(v1, v2) <= 0);
+            case O_GT: return truth_reference(tcmp(v1, v2) > 0);
+            case O_GE: return truth_reference(tcmp(v1, v2) >= 0);
+            default: break;
             }
-            /* fall through */
-        default: return v1->u.type->create(v2, op->epoint2);
+        }
+    case T_FUNCARGS:
+        if (op->op == &o_FUNC) {
+            args = v2->u.funcargs.len;
+            if (args != 1) {
+                err_msg_argnum(args, 1, 1, op->epoint2);
+                return val_reference(none_value);
+            }
+            v2 = v2->u.funcargs.val[0].val;
+            switch (v2->obj->type) {
+            case T_NONE:
+            case T_ERROR: 
+                return val_reference(v2);
+            case T_LIST:
+            case T_TUPLE: 
+                if (v1->u.type != LIST_OBJ && v1->u.type != TUPLE_OBJ && v1->u.type != TYPE_OBJ) {
+                    value_t *vals;
+                    size_t i;
+                    int error;
+                    value_t v = val_alloc(v2->obj);
+                    v->u.list.data = vals = list_create_elements(v, v2->u.list.len);
+                    error = 1;
+                    for (i = 0;i < v2->u.list.len; i++) {
+                        value_t val = v1->u.type->create(v2->u.list.data[i], op->epoint2);
+                        if (val->obj == ERROR_OBJ) { if (error) {err_msg_output(val); error = 0;} val_destroy(val); val = val_reference(none_value); }
+                        vals[i] = val;
+                    }
+                    v->u.list.len = i;
+                    return v;
+                }
+                /* fall through */
+            default: return v1->u.type->create(v2, op->epoint2);
+            }
+        }
+        break;
+    case T_NONE:
+    case T_ERROR:
+    case T_TUPLE:
+    case T_LIST:
+    case T_DICT:
+        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
+            return v2->obj->rcalc2(op);
         }
     default: break;
     }
@@ -741,8 +780,10 @@ void objects_init(void) {
     gap_obj.calc2 = gap_calc2;
     gap_obj.rcalc2 = gap_rcalc2;
     obj_init(&ident_obj, T_IDENT, "ident");
+    ident_obj.calc2 = ident_calc2;
     ident_obj.rcalc2 = ident_rcalc2;
     obj_init(&anonident_obj, T_ANONIDENT, "anonident");
+    anonident_obj.calc2 = ident_calc2;
     anonident_obj.rcalc2 = ident_rcalc2;
     obj_init(&oper_obj, T_OPER, "oper");
     oper_obj.repr = oper_repr;
