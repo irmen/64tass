@@ -42,6 +42,7 @@ static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     case T_STR: return bits_from_str(v1, epoint);
     case T_BYTES: return bits_from_bytes(v1);
     case T_INT: return bits_from_int(v1);
+    case T_CODE: return bits_from_code(v1, epoint);
     case T_FLOAT: 
          err = int_from_float(v1);
          ret = bits_from_int(err);
