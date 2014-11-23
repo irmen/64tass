@@ -32,12 +32,21 @@ static struct obj_s obj;
 
 obj_t BITS_OBJ = &obj;
 
+static MUST_CHECK value_t bits_from_int(const value_t);
+
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    value_t err, ret;
     switch (v1->obj->type) {
     case T_BITS: return val_reference(v1);
     case T_BOOL: return bits_from_bool(v1->u.boolean);
     case T_STR: return bits_from_str(v1, epoint);
     case T_BYTES: return bits_from_bytes(v1);
+    case T_INT: return bits_from_int(v1);
+    case T_FLOAT: 
+         err = int_from_float(v1);
+         ret = bits_from_int(err);
+         val_destroy(err);
+         return ret;
     default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);
@@ -473,6 +482,41 @@ MUST_CHECK value_t bits_from_bytes(const value_t v1) {
         } else bits += 8;
     }
     if (bits) d[j] = uv;
+
+    return normalize(v, d, sz, inv);
+}
+
+static MUST_CHECK value_t bits_from_int(const value_t v1) {
+    unsigned int inv;
+    size_t i, sz, bits;
+    bdigit_t *d, d2;
+    const digit_t *b;
+    value_t v;
+
+    if (!v1->u.integer.len) return val_reference(null_bits);
+    if (v1->u.integer.len == -1 && v1->u.integer.data[0] == 1) return val_reference(inv_bits);
+
+    inv = v1->u.integer.len < 0;
+    sz = inv ? -v1->u.integer.len : v1->u.integer.len;
+    v = val_alloc(BITS_OBJ);
+    d = bnew(v, sz);
+
+    b = v1->u.integer.data;
+    if (inv) {
+        int c = 0;
+        for (i = 0; !c && i < sz; i++) {
+            d[i] = (c = b[i]) - 1;
+        }
+        for (; i < sz; i++) {
+            d[i] = b[i];
+        }
+        d[i] = c;
+    } else memcpy(d, b, sz * sizeof(bdigit_t));
+
+    d2 = d[sz - 1];
+    for (bits = 0; d2; bits++) d2 >>= 1;
+
+    v->u.bits.bits = (sz - 1) * SHIFT + bits;
 
     return normalize(v, d, sz, inv);
 }
