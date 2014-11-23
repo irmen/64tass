@@ -48,4 +48,6 @@ typedef struct {
 extern void codeobj_init(void);
 extern MUST_CHECK value_t int_from_code(value_t, linepos_t);
 extern MUST_CHECK value_t float_from_code(value_t, linepos_t);
+extern MUST_CHECK value_t bits_from_code(value_t, linepos_t);
+extern MUST_CHECK value_t bytes_from_code(value_t, linepos_t);
 #endif

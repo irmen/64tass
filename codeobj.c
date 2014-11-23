@@ -134,6 +134,18 @@ static MUST_CHECK value_t size(const value_t v1, linepos_t UNUSED(epoint)) {
     return int_from_size(v1->u.code.size);
 }
 
+MUST_CHECK value_t bits_from_code(value_t v1, linepos_t epoint) {
+    value_t err = access_check(v1, epoint);
+    if (err) return err;
+    return BITS_OBJ->create(v1->u.code.addr, epoint);
+}
+
+MUST_CHECK value_t bytes_from_code(value_t v1, linepos_t epoint) {
+    value_t err = access_check(v1, epoint);
+    if (err) return err;
+    return BYTES_OBJ->create(v1->u.code.addr, epoint);
+}
+
 static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
     value_t *vals, v1 = op->v1, v;
     size_t i, i2;
