@@ -88,7 +88,7 @@ static MUST_CHECK value_t absolute(const value_t v1, linepos_t UNUSED(epoint)) {
 }
 
 static MUST_CHECK value_t calc1(oper_t op) {
-    value_t v1 = op->v1;
+    value_t v1 = op->v1, v;
     switch (op->op->u.oper.op) {
     case O_BANK:
     case O_HIGHER: return bytes_from_u8(0);
@@ -99,7 +99,13 @@ static MUST_CHECK value_t calc1(oper_t op) {
     case O_INV: return ibits_from_bool(v1->u.boolean);
     case O_NEG: return int_from_int(-v1->u.boolean);
     case O_POS: return int_from_bool(v1);
-    case O_STRING: return repr(v1, op->epoint);
+    case O_STRING:
+        v = val_alloc(STR_OBJ);
+        v->u.str.data = v->u.str.val;
+        v->u.str.len = 1;
+        v->u.str.chars = 1;
+        v->u.str.val[0] = v1->u.boolean ? '1' : '0';
+        return v;
     default: break;
     }
     return obj_oper_error(op);
