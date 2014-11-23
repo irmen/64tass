@@ -267,14 +267,14 @@ static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1, v;
     digit_t uv;
     switch (op->op->u.oper.op) {
-    case O_BANK: return bits_from_u8(ldigit(v1) >> 16);
-    case O_HIGHER: return bits_from_u8(ldigit(v1) >> 8);
-    case O_LOWER: return bits_from_u8(ldigit(v1));
-    case O_HWORD: return bits_from_u16(ldigit(v1) >> 8);
-    case O_WORD: return bits_from_u16(ldigit(v1));
+    case O_BANK: return bytes_from_u8(ldigit(v1) >> 16);
+    case O_HIGHER: return bytes_from_u8(ldigit(v1) >> 8);
+    case O_LOWER: return bytes_from_u8(ldigit(v1));
+    case O_HWORD: return bytes_from_u16(ldigit(v1) >> 8);
+    case O_WORD: return bytes_from_u16(ldigit(v1));
     case O_BSWORD:
         uv = ldigit(v1);
-        return bits_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
+        return bytes_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
     case O_INV:
         v = val_alloc(INT_OBJ);
         if (v1->u.integer.len < 0) isub(v1, int_value[1], v);

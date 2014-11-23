@@ -89,11 +89,11 @@ static MUST_CHECK value_t calc1(oper_t op) {
     value_t v1 = op->v1;
     switch (op->op->u.oper.op) {
     case O_BANK:
-    case O_HIGHER: return bits_from_u8(0);
-    case O_LOWER: return bits_from_u8(v1->u.boolean);
-    case O_HWORD: return bits_from_u16(0);
-    case O_WORD: return bits_from_u16(v1->u.boolean);
-    case O_BSWORD: return bits_from_u16(v1->u.boolean << 8);
+    case O_HIGHER: return bytes_from_u8(0);
+    case O_LOWER: return bytes_from_u8(v1->u.boolean);
+    case O_HWORD: return bytes_from_u16(0);
+    case O_WORD: return bytes_from_u16(v1->u.boolean);
+    case O_BSWORD: return bytes_from_u16(v1->u.boolean << 8);
     case O_INV: return ibits_from_bool(v1->u.boolean);
     case O_NEG: return int_from_int(-v1->u.boolean);
     case O_POS: return int_from_bool(v1);
