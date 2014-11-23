@@ -84,8 +84,10 @@ static void invalid_destroy(value_t UNUSED(v1)) {
 }
 
 static MUST_CHECK value_t invalid_create(const value_t v1, linepos_t epoint) {
-    if (v1->obj == ERROR_OBJ || v1->obj == NONE_OBJ) {
-        return val_reference(v1);
+    switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR: return val_reference(v1);
+    default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);
     return val_reference(none_value);
@@ -135,6 +137,8 @@ static MUST_CHECK value_t invalid_repr(const value_t v1, linepos_t epoint) {
 
 static MUST_CHECK value_t gap_create(const value_t v1, linepos_t epoint) {
     switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
     case T_GAP: return val_reference(v1);
     default: break;
     }
@@ -535,6 +539,12 @@ static int funcargs_same(const value_t v1, const value_t v2) {
 }
 
 static MUST_CHECK value_t type_create(const value_t v1, linepos_t UNUSED(epoint)) {
+    switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_TYPE: return val_reference(v1);
+    default: break;
+    }
     value_t v = val_alloc(TYPE_OBJ);
     v->u.type = v1->obj;
     return v;
@@ -606,9 +616,6 @@ static MUST_CHECK value_t type_calc2(oper_t op) {
             }
             v2 = v2->u.funcargs.val[0].val;
             switch (v2->obj->type) {
-            case T_NONE:
-            case T_ERROR: 
-                return val_reference(v2);
             case T_LIST:
             case T_TUPLE: 
                 if (v1->u.type != LIST_OBJ && v1->u.type != TUPLE_OBJ && v1->u.type != TYPE_OBJ) {

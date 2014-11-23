@@ -40,9 +40,14 @@ static uint8_t *rnew(value_t v, size_t len) {
 }
 
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
-    if (v1->obj == STR_OBJ) {
-        uint8_t *s;
-        value_t v = val_alloc(REGISTER_OBJ);
+    uint8_t *s;
+    value_t v;
+    switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_REGISTER: return val_reference(v1);
+    case T_STR:
+        v = val_alloc(REGISTER_OBJ);
         v->u.reg.chars = v1->u.str.chars;
         v->u.reg.len = v1->u.str.len;
         if (v1->u.str.len) {
@@ -51,6 +56,7 @@ static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
         } else s = NULL;
         v->u.reg.data = s;
         return v;
+    default: break;
     }
     err_msg_wrong_type(v1, STR_OBJ, epoint);
     return val_reference(none_value);
