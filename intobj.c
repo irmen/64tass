@@ -1521,9 +1521,13 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     value_t tmp, ret, v1 = op->v1;
     switch (v1->obj->type) {
     case T_BOOL:
-        tmp = val_reference(int_value[v1->u.boolean]);
+        switch (op->op->u.oper.op) {
+        case O_LSHIFT:
+        case O_RSHIFT: tmp = bits_from_bool(v1->u.boolean); break;
+        default: tmp = val_reference(int_value[v1->u.boolean]); break;
+        }
         op->v1 = tmp;
-        ret = calc2_int(op);
+        ret = tmp->obj->calc2(op);
         val_destroy(tmp);
         op->v1 = v1;
         return ret;

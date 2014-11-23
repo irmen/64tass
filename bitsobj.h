@@ -33,6 +33,8 @@ extern MUST_CHECK value_t bits_from_hexstr(const uint8_t *, size_t *);
 extern MUST_CHECK value_t bits_from_binstr(const uint8_t *, size_t *);
 extern MUST_CHECK value_t bits_from_str(const value_t, linepos_t);
 extern MUST_CHECK value_t bits_from_bytes(const value_t);
+extern MUST_CHECK value_t ibits_from_bool(int);
+extern MUST_CHECK value_t bits_from_bool(int);
 extern MUST_CHECK value_t bits_from_u8(uint8_t);
 extern MUST_CHECK value_t bits_from_u16(uint16_t);
 extern MUST_CHECK value_t bits_from_bools(int, int);

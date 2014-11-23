@@ -94,7 +94,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
     case O_HWORD: return bits_from_u16(0);
     case O_WORD: return bits_from_u16(v1->u.boolean);
     case O_BSWORD: return bits_from_u16(v1->u.boolean << 8);
-    case O_INV: return int_from_int(~v1->u.boolean);
+    case O_INV: return ibits_from_bool(v1->u.boolean);
     case O_NEG: return int_from_int(-v1->u.boolean);
     case O_POS: return int_from_bool(v1);
     case O_STRING: return repr(v1, op->epoint);
@@ -131,8 +131,8 @@ static MUST_CHECK value_t calc2_bool(oper_t op, int v1, int v2) {
     case O_AND: return truth_reference(v1 & v2);
     case O_OR: return truth_reference(v1 | v2);
     case O_XOR: return truth_reference(v1 ^ v2);
-    case O_LSHIFT: return int_from_int(v1 << v2);
-    case O_RSHIFT: return int_from_bool2(v1 >> v2);
+    case O_LSHIFT: return v2 ? bits_from_bools(v1, 0) : bits_from_bool(v1);
+    case O_RSHIFT: return v2 ? val_reference(null_bits) : bits_from_bool(v1);
     case O_CONCAT: return bits_from_bools(v1, v2);
     default: break;
     }
