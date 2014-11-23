@@ -40,12 +40,12 @@ static inline size_t intlen(const value_t v1) {
     return (len < 0) ? -len : len;
 }
 
-static MUST_CHECK value_t int_from_float(const value_t, linepos_t);
+static MUST_CHECK value_t int_from_float(const value_t);
 
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_INT: return val_reference(v1);
-    case T_FLOAT: return int_from_float(v1, epoint);
+    case T_FLOAT: return int_from_float(v1);
     case T_CODE: return int_from_code(v1, epoint);
     case T_STR: return int_from_str(v1, epoint);
     case T_BOOL: return int_from_bool(v1);
@@ -1102,7 +1102,7 @@ MUST_CHECK value_t int_from_ival(ival_t i) {
     return v;
 }
 
-static MUST_CHECK value_t int_from_float(const value_t v1, linepos_t epoint) {
+static MUST_CHECK value_t int_from_float(const value_t v1) {
     int neg, expo;
     double frac, f = v1->u.real;
     size_t sz;
