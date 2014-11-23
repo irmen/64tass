@@ -37,6 +37,8 @@ static MUST_CHECK value_t bits_from_int(const value_t);
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     value_t err, ret;
     switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
     case T_BITS: return val_reference(v1);
     case T_BOOL: return bits_from_bool(v1->u.boolean);
     case T_STR: return bits_from_str(v1, epoint);

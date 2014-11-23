@@ -32,6 +32,8 @@ obj_t STR_OBJ = &obj;
 
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
     case T_STR: return val_reference(v1);
     default: return v1->obj->repr(v1, epoint); 
     }

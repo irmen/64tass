@@ -54,6 +54,8 @@ static MUST_CHECK value_t list_create(const value_t v1, linepos_t epoint) {
     value_t *vals;
     size_t i;
     switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
     case T_LIST: return val_reference(v1);
     case T_TUPLE:
         v = val_alloc(LIST_OBJ);
@@ -74,6 +76,8 @@ static MUST_CHECK value_t tuple_create(const value_t v1, linepos_t epoint) {
     value_t *vals;
     size_t i;
     switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
     case T_TUPLE: return val_reference(v1);
     case T_LIST:
         v = val_alloc(TUPLE_OBJ);

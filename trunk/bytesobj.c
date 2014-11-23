@@ -42,9 +42,11 @@ static MUST_CHECK value_t bytes_from_int(const value_t);
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     value_t err, ret;
     switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_BYTES: return val_reference(v1);
     case T_BOOL: return bytes_from_u8(v1->u.boolean);
     case T_BITS: return bytes_from_bits(v1);
-    case T_BYTES: return val_reference(v1);
     case T_STR: return bytes_from_str(v1, epoint);
     case T_INT: return bytes_from_int(v1);
     case T_CODE: return bytes_from_code(v1, epoint);

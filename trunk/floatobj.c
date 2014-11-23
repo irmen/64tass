@@ -29,6 +29,8 @@ obj_t FLOAT_OBJ = &obj;
 
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
     case T_FLOAT: return val_reference(v1);
     case T_CODE: return float_from_code(v1, epoint);
     case T_STR: return float_from_str(v1, epoint);

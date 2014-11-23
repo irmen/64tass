@@ -42,6 +42,8 @@ static inline size_t intlen(const value_t v1) {
 
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
     case T_INT: return val_reference(v1);
     case T_FLOAT: return int_from_float(v1);
     case T_CODE: return int_from_code(v1, epoint);
