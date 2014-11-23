@@ -202,6 +202,23 @@ MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint) {
     return val_reference(null_bytes);
 }
 
+MUST_CHECK value_t bytes_from_u8(uint8_t i) {
+    value_t v = val_alloc(BYTES_OBJ);
+    v->u.bytes.data = v->u.bytes.val;
+    v->u.bytes.val[0] = i;
+    v->u.bytes.len = 1;
+    return v;
+}
+
+MUST_CHECK value_t bytes_from_u16(uint16_t i) {
+    value_t v = val_alloc(BYTES_OBJ);
+    v->u.bytes.data = v->u.bytes.val;
+    v->u.bytes.val[0] = i;
+    v->u.bytes.val[1] = i >> 8;
+    v->u.bytes.len = 2;
+    return v;
+}
+
 static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
     value_t v;
     switch (byteslen(v1)) {
@@ -454,35 +471,35 @@ static MUST_CHECK value_t calc1(oper_t op) {
     value_t tmp;
     switch (op->op->u.oper.op) {
     case O_BANK: 
-        if (v1->u.bytes.len > 2) return bits_from_u8(v1->u.bytes.data[2]);
-        if (v1->u.bytes.len < ~2) return bits_from_u8(~v1->u.bytes.data[2]);
-        return bits_from_u8(-(v1->u.bytes.len < 0));
+        if (v1->u.bytes.len > 2) return bytes_from_u8(v1->u.bytes.data[2]);
+        if (v1->u.bytes.len < ~2) return bytes_from_u8(~v1->u.bytes.data[2]);
+        return bytes_from_u8(-(v1->u.bytes.len < 0));
     case O_HIGHER: 
-        if (v1->u.bytes.len > 1) return bits_from_u8(v1->u.bytes.data[1]);
-        if (v1->u.bytes.len < ~1) return bits_from_u8(~v1->u.bytes.data[1]);
-        return bits_from_u8(-(v1->u.bytes.len < 0));
+        if (v1->u.bytes.len > 1) return bytes_from_u8(v1->u.bytes.data[1]);
+        if (v1->u.bytes.len < ~1) return bytes_from_u8(~v1->u.bytes.data[1]);
+        return bytes_from_u8(-(v1->u.bytes.len < 0));
     case O_LOWER: 
-        if (v1->u.bytes.len > 0) return bits_from_u8(v1->u.bytes.data[0]);
-        if (v1->u.bytes.len < ~0) return bits_from_u8(~v1->u.bytes.data[0]);
-        return bits_from_u8(-(v1->u.bytes.len < 0));
+        if (v1->u.bytes.len > 0) return bytes_from_u8(v1->u.bytes.data[0]);
+        if (v1->u.bytes.len < ~0) return bytes_from_u8(~v1->u.bytes.data[0]);
+        return bytes_from_u8(-(v1->u.bytes.len < 0));
     case O_HWORD:
-        if (v1->u.bytes.len > 2) return bits_from_u16(v1->u.bytes.data[1] + (v1->u.bytes.data[2] << 8));
-        if (v1->u.bytes.len > 1) return bits_from_u16(v1->u.bytes.data[1]);
-        if (v1->u.bytes.len < ~2) return bits_from_u16(~(v1->u.bytes.data[1] + (v1->u.bytes.data[2] << 8)));
-        if (v1->u.bytes.len < ~1) return bits_from_u16(~v1->u.bytes.data[1]);
-        return bits_from_u16(-(v1->u.bytes.len < 0));
+        if (v1->u.bytes.len > 2) return bytes_from_u16(v1->u.bytes.data[1] + (v1->u.bytes.data[2] << 8));
+        if (v1->u.bytes.len > 1) return bytes_from_u16(v1->u.bytes.data[1]);
+        if (v1->u.bytes.len < ~2) return bytes_from_u16(~(v1->u.bytes.data[1] + (v1->u.bytes.data[2] << 8)));
+        if (v1->u.bytes.len < ~1) return bytes_from_u16(~v1->u.bytes.data[1]);
+        return bytes_from_u16(-(v1->u.bytes.len < 0));
     case O_WORD:
-        if (v1->u.bytes.len > 1) return bits_from_u16(v1->u.bytes.data[0] + (v1->u.bytes.data[1] << 8));
-        if (v1->u.bytes.len > 0) return bits_from_u16(v1->u.bytes.data[0]);
-        if (v1->u.bytes.len < ~1) return bits_from_u16(~(v1->u.bytes.data[0] + (v1->u.bytes.data[1] << 8)));
-        if (v1->u.bytes.len < ~0) return bits_from_u16(~v1->u.bytes.data[0]);
-        return bits_from_u16(-(v1->u.bytes.len < 0));
+        if (v1->u.bytes.len > 1) return bytes_from_u16(v1->u.bytes.data[0] + (v1->u.bytes.data[1] << 8));
+        if (v1->u.bytes.len > 0) return bytes_from_u16(v1->u.bytes.data[0]);
+        if (v1->u.bytes.len < ~1) return bytes_from_u16(~(v1->u.bytes.data[0] + (v1->u.bytes.data[1] << 8)));
+        if (v1->u.bytes.len < ~0) return bytes_from_u16(~v1->u.bytes.data[0]);
+        return bytes_from_u16(-(v1->u.bytes.len < 0));
     case O_BSWORD:
-        if (v1->u.bytes.len > 1) return bits_from_u16(v1->u.bytes.data[1] + (v1->u.bytes.data[0] << 8));
-        if (v1->u.bytes.len > 0) return bits_from_u16(v1->u.bytes.data[0] << 8);
-        if (v1->u.bytes.len < ~1) return bits_from_u16(~(v1->u.bytes.data[1] + (v1->u.bytes.data[0] << 8)));
-        if (v1->u.bytes.len < ~0) return bits_from_u16(~(v1->u.bytes.data[0] << 8));
-        return bits_from_u16(-(v1->u.bytes.len < 0));
+        if (v1->u.bytes.len > 1) return bytes_from_u16(v1->u.bytes.data[1] + (v1->u.bytes.data[0] << 8));
+        if (v1->u.bytes.len > 0) return bytes_from_u16(v1->u.bytes.data[0] << 8);
+        if (v1->u.bytes.len < ~1) return bytes_from_u16(~(v1->u.bytes.data[1] + (v1->u.bytes.data[0] << 8)));
+        if (v1->u.bytes.len < ~0) return bytes_from_u16(~(v1->u.bytes.data[0] << 8));
+        return bytes_from_u16(-(v1->u.bytes.len < 0));
     case O_INV: return invert(v1);
     case O_NEG:
     case O_POS:

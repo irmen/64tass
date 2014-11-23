@@ -29,6 +29,8 @@ typedef struct {
 
 extern void bytesobj_init(void);
 
+extern MUST_CHECK value_t bytes_from_u8(uint8_t);
+extern MUST_CHECK value_t bytes_from_u16(uint16_t);
 extern MUST_CHECK value_t bytes_from_str(const value_t, linepos_t);
 extern MUST_CHECK value_t float_from_bytes(const value_t, linepos_t);
 #endif
