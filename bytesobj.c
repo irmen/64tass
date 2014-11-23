@@ -37,13 +37,21 @@ static inline size_t byteslen(const value_t v1) {
 }
 
 static MUST_CHECK value_t bytes_from_bits(const value_t);
+static MUST_CHECK value_t bytes_from_int(const value_t);
 
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    value_t err, ret;
     switch (v1->obj->type) {
     case T_BOOL: return bytes_from_u8(v1->u.boolean);
     case T_BITS: return bytes_from_bits(v1);
     case T_BYTES: return val_reference(v1);
     case T_STR: return bytes_from_str(v1, epoint);
+    case T_INT: return bytes_from_int(v1);
+    case T_FLOAT: 
+         err = int_from_float(v1);
+         ret = bytes_from_int(err);
+         val_destroy(err);
+         return ret;
     default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);
@@ -228,8 +236,7 @@ MUST_CHECK value_t bytes_from_u16(uint16_t i) {
 }
 
 static MUST_CHECK value_t bytes_from_bits(const value_t v1) {
-    int bits;
-    size_t i, j, sz, len1;
+    size_t i, sz, len1;
     uint8_t *d;
     value_t v;
     int inv = v1->u.bits.len < 0;
@@ -247,18 +254,85 @@ static MUST_CHECK value_t bytes_from_bits(const value_t v1) {
     v->u.bytes.len = inv ? ~sz : sz;
 
     len1 = v1->u.bits.len;
-    bits = j = i = 0;
+    i = 0;
     if (len1) {
+        bdigit_t b = v1->u.bits.data[0];
+        int bits = 0;
+        size_t j = 0;
         while (sz > i) {
-            d[i++] = v1->u.bits.data[j] >> bits;
+            d[i++] = b >> bits;
             if (bits == (8 * sizeof(bdigit_t)) - 8) {
                 bits = 0;
                 j++;
                 if (j >= len1) break;
+                b = v1->u.bits.data[j];
             } else bits += 8;
         }
     }
     if (sz > i) memset(d + i , 0, sz - i);
+    return v;
+}
+
+static MUST_CHECK value_t bytes_from_int(const value_t v1) {
+    unsigned int inv;
+    size_t i, j, sz, bits;
+    uint8_t *d;
+    const digit_t *b;
+    value_t v;
+
+    if (!v1->u.integer.len) return val_reference(null_bytes);
+    if (v1->u.integer.len == -1 && v1->u.integer.data[0] == 1) return val_reference(inv_bytes);
+
+    inv = v1->u.integer.len < 0;
+    sz = inv ? -v1->u.integer.len : v1->u.integer.len;
+    if (sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+    sz *= sizeof(digit_t);
+    v = val_alloc(BYTES_OBJ);
+    d = bnew(v, sz);
+
+    b = v1->u.integer.data;
+    if (inv) {
+        int c = !b[0];
+        digit_t b2 = b[0] - 1;
+        bits = j = 0;
+        for (i = 0; i < sz; i++) {
+            d[i] = b2 >> bits;
+            if (bits == (8 * sizeof(digit_t)) - 8) {
+                j++;
+                if (c) {
+                    c = !b[j];
+                    b2 = b[j] - 1;
+                } else b2 = b[j];
+                bits = 0;
+            } else bits += 8;
+        }
+    } else {
+        digit_t b2 = b[0];
+        bits = j = 0;
+        for (i = 0; i < sz; i++) {
+            d[i] = b2 >> bits;
+            if (bits == (8 * sizeof(digit_t)) - 8) {
+                j++;
+                b2 = b[j];
+                bits = 0;
+            } else bits += 8;
+        }
+    }
+
+    while (sz && !d[sz - 1]) sz--;
+    if (v->u.bytes.val != d) {
+        if (sz <= sizeof(v->u.bytes.val)) {
+            if (sz) memcpy(v->u.bytes.val, d, sz);
+            free(d);
+            d = v->u.bytes.val;
+        } else if (sz < i) {
+            d = (uint8_t *)realloc(d, sz);
+            if (!d) err_msg_out_of_memory();
+        }
+    }
+    v->u.bytes.data = d;
+    v->u.bytes.len = inv ? ~sz : sz;
+
     return v;
 }
 
