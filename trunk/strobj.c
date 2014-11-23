@@ -144,7 +144,7 @@ MUST_CHECK value_t float_from_str(const value_t v1, linepos_t epoint) {
     value_t tmp, ret;
     tmp = bytes_from_str(v1, epoint);
     if (tmp->obj != BYTES_OBJ) return tmp;
-    ret = FLOAT_OBJ->create(tmp, epoint);
+    ret = float_from_bytes(tmp, epoint);
     val_destroy(tmp);
     return ret;
 }

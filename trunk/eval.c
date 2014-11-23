@@ -166,7 +166,7 @@ static MUST_CHECK value_t get_exponent(double real, linepos_t epoint) {
     return float_from_double(real);
 }
 
-static double toreal(value_t v, linepos_t epoint) {
+static double toreal_destroy(value_t v, linepos_t epoint) {
     value_t err = FLOAT_OBJ->create(v, epoint);
     double real;
     if (err->obj != FLOAT_OBJ) {
@@ -176,6 +176,7 @@ static double toreal(value_t v, linepos_t epoint) {
         real = err->u.real;
     }
     val_destroy(err);
+    val_destroy(v);
     return real;
 }
 
@@ -186,13 +187,11 @@ static MUST_CHECK value_t get_exponent2(value_t v, linepos_t epoint) {
     case 'p':
         if (pline[lpoint.pos + 1] == '-' || pline[lpoint.pos + 1] == '+') {
             if ((pline[lpoint.pos + 2] ^ 0x30) < 10) {
-                real = toreal(v, &lpoint);
-                val_destroy(v);
+                real = toreal_destroy(v, &lpoint);
                 return get_exponent(real, epoint);
             }
         } else if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
-            real = toreal(v, &lpoint);
-            val_destroy(v);
+            real = toreal_destroy(v, &lpoint);
             return get_exponent(real, epoint);
         }
     default: break;
@@ -206,13 +205,11 @@ static MUST_CHECK value_t get_hex(linepos_t epoint) {
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
-        real = toreal(v, &lpoint);
-        val_destroy(v);
+        real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
         v = bits_from_hexstr(pline + lpoint.pos, &len);
-        real2 = toreal(v, &lpoint);
-        val_destroy(v);
+        real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
         if (real2) real += real2 * pow(16.0, -(double)len);
@@ -228,13 +225,11 @@ static MUST_CHECK value_t get_bin(linepos_t epoint) {
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
-        real = toreal(v, &lpoint);
-        val_destroy(v);
+        real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
         v = bits_from_binstr(pline + lpoint.pos, &len);
-        real2 = toreal(v, &lpoint);
-        val_destroy(v);
+        real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
         if (real2) real += real2 * pow(2.0, -(double)len);
@@ -252,13 +247,11 @@ static MUST_CHECK value_t get_float(linepos_t epoint) {
     v = int_from_decstr(pline + lpoint.pos, &len);
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
-        real = toreal(v, &lpoint);
-        val_destroy(v);
+        real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
         v = int_from_decstr(pline + lpoint.pos, &len);
-        real2 = toreal(v, &lpoint);
-        val_destroy(v);
+        real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
         if (real2) real += real2 * pow(10.0, -(double)len);
