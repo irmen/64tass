@@ -40,10 +40,12 @@ static inline size_t intlen(const value_t v1) {
     return (len < 0) ? -len : len;
 }
 
+static MUST_CHECK value_t int_from_float(const value_t, linepos_t);
+
 static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_INT: return val_reference(v1);
-    case T_FLOAT: return int_from_double(v1->u.real, epoint);
+    case T_FLOAT: return int_from_float(v1, epoint);
     case T_CODE: return int_from_code(v1, epoint);
     case T_STR: return int_from_str(v1, epoint);
     case T_BOOL: return int_from_bool(v1);
@@ -1100,18 +1102,13 @@ MUST_CHECK value_t int_from_ival(ival_t i) {
     return v;
 }
 
-MUST_CHECK value_t int_from_double(double f, linepos_t epoint) {
+static MUST_CHECK value_t int_from_float(const value_t v1, linepos_t epoint) {
     int neg, expo;
-    double frac;
+    double frac, f = v1->u.real;
     size_t sz;
     digit_t *d;
     value_t v;
 
-    if (f == HUGE_VAL || f == -HUGE_VAL) {
-        v = new_error_obj(ERROR______CANT_INT, epoint);
-        v->u.error.u.objname = FLOAT_OBJ->name;
-        return v;
-    }
     neg = (f < 0.0);
     if (neg) f = -f;
 
@@ -1453,11 +1450,11 @@ static MUST_CHECK value_t calc2_int(oper_t op) {
     case O_EXP:
         if (v2->u.integer.len < 0) {
             double d1, d2;
-            err = FLOAT_OBJ->create(v1, op->epoint);
+            err = float_from_int(v1, op->epoint);
             if (err->obj != FLOAT_OBJ) return err;
             d1 = err->u.real;
             val_destroy(err);
-            err = FLOAT_OBJ->create(v2, op->epoint);
+            err = float_from_int(v2, op->epoint);
             if (err->obj != FLOAT_OBJ) return err;
             d2 = err->u.real;
             val_destroy(err);

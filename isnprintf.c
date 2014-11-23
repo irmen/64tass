@@ -190,7 +190,7 @@ static inline MUST_CHECK value_t decimal(struct DATA *p, const struct values_s *
     }
 
     minus = (err->u.integer.len < 0);
-    err2 = STR_OBJ->create(err, &v->epoint);
+    err2 = err->obj->repr(err, &v->epoint);
     val_destroy(err);
     if (err2->obj != STR_OBJ) return err2;
 

@@ -34,7 +34,6 @@ extern MUST_CHECK value_t int_from_int(int);
 extern MUST_CHECK value_t int_from_size(size_t);
 extern MUST_CHECK value_t int_from_uval(uval_t);
 extern MUST_CHECK value_t int_from_ival(ival_t);
-extern MUST_CHECK value_t int_from_double(double, linepos_t);
 extern MUST_CHECK value_t int_from_str(const value_t, linepos_t);
 extern MUST_CHECK value_t int_from_bytes(const value_t);
 extern MUST_CHECK value_t int_from_bits(const value_t);
