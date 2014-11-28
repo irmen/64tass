@@ -209,8 +209,28 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     return obj_oper_error(op);
 }
 
+static struct oper_s pair_oper;
+
+int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
+    const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
+    value_t result;
+    int h = a->hash - b->hash;
+
+    if (h) return h;
+    pair_oper.v1 = a->key;
+    pair_oper.v2 = b->key;
+    result = pair_oper.v1->obj->calc2(&pair_oper);
+    if (result->obj == INT_OBJ) h = result->u.integer.len;
+    else h = pair_oper.v1->obj->type - pair_oper.v2->obj->type;
+    val_destroy(result);
+    return h;
+}
 
 void dictobj_init(void) {
+    static struct linepos_s nopoint;
+
     obj_init(&dict_obj, T_DICT, "dict");
     dict_obj.create = create;
     dict_obj.destroy = destroy;
@@ -219,4 +239,9 @@ void dictobj_init(void) {
     dict_obj.repr = repr;
     dict_obj.calc2 = calc2;
     dict_obj.rcalc2 = rcalc2;
+
+    pair_oper.op = &o_CMP;
+    pair_oper.epoint = &nopoint;
+    pair_oper.epoint2 = &nopoint;
+    pair_oper.epoint3 = &nopoint;
 }
