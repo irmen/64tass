@@ -22,14 +22,6 @@
 #include "inttypes.h"
 
 struct oper_s;
-struct values_s;
-
-struct pair_s {
-    int hash;
-    value_t key;
-    value_t data;
-    struct avltree_node node;
-};
 
 struct mfunc_param_s {
     str_t name;

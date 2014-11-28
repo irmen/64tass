@@ -27,5 +27,13 @@ typedef struct {
     value_t def;
 } dict_t;
 
+struct pair_s {
+    int hash;
+    value_t key;
+    value_t data;
+    struct avltree_node node;
+};
+
 extern void dictobj_init(void);
+extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
 #endif

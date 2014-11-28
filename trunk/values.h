@@ -194,7 +194,6 @@ extern value_t val_alloc(obj_t);
 extern void val_destroy(value_t);
 extern void val_replace(value_t *, value_t);
 extern int val_print(const value_t, FILE *);
-extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
 
 extern value_t int_value[2];
 extern value_t none_value;
