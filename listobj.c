@@ -65,6 +65,7 @@ static MUST_CHECK value_t list_create(const value_t v1, linepos_t epoint) {
         }
         v->u.list.len = i;
         return v;
+    case T_CODE: return tuple_from_code(v1, LIST_OBJ, epoint);
     default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);
@@ -87,6 +88,7 @@ static MUST_CHECK value_t tuple_create(const value_t v1, linepos_t epoint) {
         }
         v->u.list.len = i;
         return v;
+    case T_CODE: return tuple_from_code(v1, TUPLE_OBJ, epoint);
     default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);
