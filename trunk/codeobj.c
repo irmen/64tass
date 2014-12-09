@@ -148,6 +148,52 @@ MUST_CHECK value_t bytes_from_code(value_t v1, linepos_t epoint) {
     return BYTES_OBJ->create(v1->u.code.addr, epoint);
 }
 
+MUST_CHECK value_t tuple_from_code(const value_t v1, obj_t typ, linepos_t epoint) {
+    size_t ln, ln2, i, i2, offs2;
+    value_t v, *vals;
+    int16_t r;
+    uval_t val;
+
+    if (v1->u.code.pass != pass) {
+        v = new_error_obj(ERROR____NO_FORWARD, epoint);
+        v->u.error.u.ident = v1->u.code.label->name;
+        return v;
+    }
+
+    ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
+    ln2 = ln2 + !ln2;
+    ln = v1->u.code.size / ln2;
+
+    if (!ln) {
+        return val_reference(typ == TUPLE_OBJ ? null_tuple : null_list);
+    }
+
+    v = val_alloc(typ);
+    v->u.list.len = ln;
+    v->u.list.data = vals = list_create_elements(v, ln);
+    i = 0;
+    while (ln > i) {
+        offs2 = i * ln2;
+        val = 0;
+        r = -1;
+        for (i2 = 0; i2 < ln2; i2++) {
+            r = read_mem(v1->u.code.mem, v1->u.code.memp, v1->u.code.membp, offs2++);
+            if (r < 0) break;
+            val |= r << (i2 * 8);
+        }
+        if (v1->u.code.dtype < 0 && (r & 0x80)) {
+            for (; i2 < sizeof(val); i2++) {
+                val |= 0xff << (i2 * 8);
+            }
+        }
+        if (r < 0) vals[i] = val_reference(gap_value);
+        else if (v1->u.code.dtype < 0) vals[i] = int_from_ival((ival_t)val);
+        else vals[i] = int_from_uval(val);
+        i++;
+    }
+    return v;
+}
+
 static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
     value_t *vals, v1 = op->v1, v;
     size_t i, i2;
@@ -195,7 +241,7 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
     }
     v->u.list.len = length;
     v->u.list.data = vals;
-    return NULL;
+    return v;
 }
 
 static inline MUST_CHECK value_t iindex(oper_t op) {

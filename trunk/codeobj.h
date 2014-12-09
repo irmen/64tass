@@ -50,4 +50,5 @@ extern MUST_CHECK value_t int_from_code(value_t, linepos_t);
 extern MUST_CHECK value_t float_from_code(value_t, linepos_t);
 extern MUST_CHECK value_t bits_from_code(value_t, linepos_t);
 extern MUST_CHECK value_t bytes_from_code(value_t, linepos_t);
+extern MUST_CHECK value_t tuple_from_code(const value_t, obj_t, linepos_t);
 #endif
