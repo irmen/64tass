@@ -28,8 +28,6 @@
 #define VERSION "1.51." REVISION
 #define MAX_PASS 20
 
-#define TAB_SIZE 8
-
 struct file_list_s;
 struct label_s;
 

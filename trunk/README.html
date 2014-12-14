@@ -2664,7 +2664,7 @@ for SuperCPU projects. Don't forget to use <q>--word-start</q> for small ones
 <h3>Source listing options<a name="commandline-listing" href="#commandline-listing"></a></h3>
 
 <dl class="dir">
-<dt><b>-l</b> &lt;file&gt;
+<dt><b>-l</b> &lt;file&gt;, <b>--labels</b>=&lt;file&gt;
 <dd>List labels into &lt;file&gt;. List global used labels to a file.
 <pre width=80>
 64tass -l labels.txt a.asm
@@ -2675,7 +2675,7 @@ result (labels.txt):
 label           = $1000
 </pre>
 
-<dt><b>-L</b> &lt;file&gt;
+<dt><b>-L</b> &lt;file&gt;, <b>--list</b>=&lt;file&gt;
 <dd>List into &lt;file&gt;. Dumps source code and compiled code into file.
 Useful for debugging, it's much easier to identify the code in memory within
 the source files.
@@ -2738,6 +2738,13 @@ result (list.txt):
 
 ;&lowast;&lowast;&lowast;&lowast;&lowast;&lowast;  end of code
 </pre>
+
+<dt><b>--tab-size</b>=&lt;number&gt;
+
+<dd>By default the listing file is using a tab size of 8 to align the
+disassembly. This can be changed to other more favorable values like 4.
+Only spaces are used if 1 is selected. Please note that this has
+no effect on the source code on the right hand side.
 </dl>
 
 <h3>Other options<a name="commandline-other" href="#commandline-other"></a></h3>

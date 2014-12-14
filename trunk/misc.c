@@ -36,7 +36,7 @@
 
 #include "codeobj.h"
 
-struct arguments_s arguments={1,1,0,1,1,0,0,0,0,"a.out",&c6502,NULL,NULL, OUTPUT_CBM};
+struct arguments_s arguments={1,1,0,1,1,0,0,0,0,"a.out",&c6502,NULL,NULL, OUTPUT_CBM, 8};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -172,34 +172,35 @@ static const struct option long_options[]={
     {"nostart"          , no_argument      , 0, 'b'},
     {"flat"             , no_argument      , 0, 'f'},
     {"long-address"     , no_argument      , 0, 'X'},
-    {"atari-xex"        , no_argument      , 0,   7},
-    {"apple-ii"         , no_argument      , 0,   8},
+    {"atari-xex"        , no_argument      , 0,  0x107},
+    {"apple-ii"         , no_argument      , 0,  0x108},
     {"ascii"            , no_argument      , 0, 'a'},
     {"tasm-compatible"  , no_argument      , 0, 'T'},
     {"case-sensitive"   , no_argument      , 0, 'C'},
     {"long-branch"      , no_argument      , 0, 'B'},
-    {"m65xx"            , no_argument      , 0,   1},
+    {"m65xx"            , no_argument      , 0,  0x101},
     {"m6502"            , no_argument      , 0, 'i'},
     {"m65c02"           , no_argument      , 0, 'c'},
-    {"m65ce02"          , no_argument      , 0,   6},
+    {"m65ce02"          , no_argument      , 0,  0x106},
     {"m65816"           , no_argument      , 0, 'x'},
     {"m65dtv02"         , no_argument      , 0, 't'},
     {"m65el02"          , no_argument      , 0, 'e'},
-    {"mr65c02"          , no_argument      , 0,   4},
-    {"mw65c02"          , no_argument      , 0,   5},
+    {"mr65c02"          , no_argument      , 0,  0x104},
+    {"mw65c02"          , no_argument      , 0,  0x105},
     {"labels"           , required_argument, 0, 'l'},
     {"list"             , required_argument, 0, 'L'},
     {""                 , required_argument, 0, 'I'},
     {"no-monitor"       , no_argument      , 0, 'm'},
     {"no-source"        , no_argument      , 0, 's'},
+    {"tab-size"         , required_argument, 0,  0x109},
     {"version"          , no_argument      , 0, 'V'},
-    {"usage"            , no_argument      , 0,   2},
-    {"help"             , no_argument      , 0,   3},
+    {"usage"            , no_argument      , 0,  0x102},
+    {"help"             , no_argument      , 0,  0x103},
     { 0, 0, 0, 0}
 };
 
 int testarg(int argc,char *argv[], struct file_s *fin) {
-    int opt, longind;
+    int opt, longind, tab;
     size_t max_lines = 0, fp = 0;
 
     while ((opt = getopt_long(argc, argv, short_options, long_options, &longind)) != -1) {
@@ -208,8 +209,8 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'q':arguments.quiet=0;break;
             case 'X':arguments.longaddr=1;break;
             case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
-            case 7:arguments.output_mode = OUTPUT_XEX;break;
-            case 8:arguments.output_mode = OUTPUT_APPLE;break;
+            case 0x107:arguments.output_mode = OUTPUT_XEX;break;
+            case 0x108:arguments.output_mode = OUTPUT_APPLE;break;
             case 'b':arguments.output_mode = OUTPUT_RAW;break;
             case 'f':arguments.output_mode = OUTPUT_FLAT;break;
             case 'a':arguments.toascii=1;break;
@@ -237,22 +238,23 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                 }
                 break;
             case 'B':arguments.longbranch=1;break;
-            case 1:arguments.cpumode = &c6502;break;
+            case 0x101:arguments.cpumode = &c6502;break;
             case 'i':arguments.cpumode = &c6502i;break;
             case 'c':arguments.cpumode = &c65c02;break;
-            case 6:arguments.cpumode = &c65ce02;break;
+            case 0x106:arguments.cpumode = &c65ce02;break;
             case 'x':arguments.cpumode = &w65816;break;
             case 't':arguments.cpumode = &c65dtv02;break;
             case 'e':arguments.cpumode = &c65el02;break;
-            case 4:arguments.cpumode = &r65c02;break;
-            case 5:arguments.cpumode = &w65c02;break;
+            case 0x104:arguments.cpumode = &r65c02;break;
+            case 0x105:arguments.cpumode = &w65c02;break;
             case 'l':arguments.label=optarg;break;
             case 'L':arguments.list=optarg;break;
             case 'I':include_list_add(optarg);break;
             case 'm':arguments.monitor=0;break;
             case 's':arguments.source=0;break;
             case 'C':arguments.casesensitive=1;break;
-            case 2:puts(
+            case 0x109:tab = atoi(optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
+            case 0x102:puts(
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
                "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
                "        [-l <file>] [-L <file>] [-I <path>] [--ascii] [--nostart]\n"
@@ -260,14 +262,14 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "        [--nonlinear] [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
                "        [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02]\n"
                "        [--mr65c02] [--mw65c02] [--m65ce02] [--labels=<file>] [--list=<file>]\n"
-               "        [--no-monitor] [--no-source] [--help] [--usage] [--version]\n"
-               "        SOURCES");
+               "        [--no-monitor] [--no-source] [--tab-size=<value>] [--help] [--usage]\n"
+               "        [--version] SOURCES");
                    return 0;
 
             case 'V':puts("64tass Turbo Assembler Macro V" VERSION);
                      return 0;
-            case 3:
-            case '?':if (optopt=='?' || opt==3) { puts(
+            case 0x103:
+            case '?':if (optopt == '?' || opt == 0x103) { puts(
                "Usage: 64tass [OPTIONS...] SOURCES\n"
                "64tass Turbo Assembler Macro V" VERSION "\n"
                "\n"
@@ -305,6 +307,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -L, --list=<file>     List into <file>\n"
                "  -m, --no-monitor      Don't put monitor code into listing\n"
                "  -s, --no-source       Don't put source code into listing\n"
+               "      --tab-size=<n>    Override the default tab size (8)\n"
                "\n"
                " Misc:\n"
                "  -?, --help            Give this help list\n"

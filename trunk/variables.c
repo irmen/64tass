@@ -316,9 +316,9 @@ static void labelname_print(const struct label_s *l, FILE *flab) {
 }
 
 static inline void padding(int l, int t, FILE *f) {
-    if (TAB_SIZE > 1) {
-        int l2 = l - l % TAB_SIZE;
-        while (l2 + TAB_SIZE <= t) { l2 += TAB_SIZE; l = l2; putc('\t', f);} 
+    if (arguments.tab_size > 1) {
+        int l2 = l - l % arguments.tab_size;
+        while (l2 + arguments.tab_size <= t) { l2 += arguments.tab_size; l = l2; putc('\t', f);} 
     }
     while (l < t) { l++; putc(' ', f);} 
 }

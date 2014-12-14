@@ -2347,7 +2347,7 @@ using the .cpu directive in the source.
 
 Source listing options
 
--l <file>
+-l <file>, --labels=<file>
     List labels into <file>. List global used labels to a file.
 
     64tass -l labels.txt a.asm
@@ -2357,7 +2357,7 @@ Source listing options
     result (labels.txt):
     label           = $1000
 
--L <file>
+-L <file>, --list=<file>
     List into <file>. Dumps source code and compiled code into file. Useful for
     debugging, it's much easier to identify the code in memory within the
     source files.
@@ -2419,6 +2419,12 @@ Source listing options
     .1005    60             rts
 
     ;******  end of code
+
+--tab-size=<number>
+    By default the listing file is using a tab size of 8 to align the
+    disassembly. This can be changed to other more favorable values like 4.
+    Only spaces are used if 1 is selected. Please note that this has no effect
+    on the source code on the right hand side.
 
 Other options
 

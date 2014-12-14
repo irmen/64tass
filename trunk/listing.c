@@ -43,9 +43,9 @@ static const char *hex = "0123456789abcdef";
 
 static int padding(int l, int t) {
     if (l >= t) {putc('\n', flist); l = 0;}
-    if (TAB_SIZE > 1) {
-        int l2 = l - l % TAB_SIZE;
-        while (l2 + TAB_SIZE <= t) { l2 += TAB_SIZE; l = l2; putc('\t', flist);} 
+    if (arguments.tab_size > 1) {
+        int l2 = l - l % arguments.tab_size;
+        while (l2 + arguments.tab_size <= t) { l2 += arguments.tab_size; l = l2; putc('\t', flist);} 
     }
     while (l < t) { l++; putc(' ', flist);} 
     return l;
