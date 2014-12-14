@@ -43,6 +43,7 @@ struct arguments_s {
     const char *label;
     const char *list;
     enum output_mode_e output_mode;
+    uint8_t tab_size;
 };
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++
