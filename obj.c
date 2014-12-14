@@ -539,13 +539,14 @@ static int funcargs_same(const value_t v1, const value_t v2) {
 }
 
 static MUST_CHECK value_t type_create(const value_t v1, linepos_t UNUSED(epoint)) {
+    value_t v;
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
     case T_TYPE: return val_reference(v1);
     default: break;
     }
-    value_t v = val_alloc(TYPE_OBJ);
+    v = val_alloc(TYPE_OBJ);
     v->u.type = v1->obj;
     return v;
 }
