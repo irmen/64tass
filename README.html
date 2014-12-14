@@ -55,6 +55,18 @@ thead th {background-color:#eee;border-bottom:1px solid black;}
    pre {overflow:hidden;}
 }
 
+a, a:visited { text-decoration: none; color: blue; }
+a[href]:hover { text-decoration: underline; }
+
+#toc ul { margin: 0px; font-weight: normal;}
+#toc > ul > li { margin-top: 0.5em; font-weight: bold; }
+#toc { counter-reset: count1 }
+#toc > ul > li > a:before { content: counter(count1) " "; counter-increment: count1; }
+#toc > ul > li > a { counter-reset: count2;}
+#toc > ul ul > li > a:before { content: counter(count1) "." counter(count2) " "; counter-increment: count2; }
+#toc > ul ul > li > a { counter-reset: count3;}
+#toc > ul ul ul > li > a:before { content: counter(count1) "." counter(count2) "." counter(count3) " "; counter-increment: count3; }
+
 body { counter-reset: countcaption;}
 h1 { counter-reset: counth2; font-size: 2em; margin: 0 0 0.67em 0; }
 
@@ -95,6 +107,131 @@ the 65xx series of processors. Key features:</p>
 Not everything is backwards compatible.</b></p>
 
 <p>Project page: <a href="http://sourceforge.net/projects/tass64/">http://sourceforge.net/projects/tass64/</a></p>
+
+<hr>
+<h2>Table of Contents<a name="contents" href="#contents"></a></h2>
+
+<div id="toc">
+<ul>
+ <li><a href="#contents">Table of Contents</a>
+ <li><a href="#usage-tips">Usage tips</a>
+ <li><a href="#expressions-datatypes">Expressions and data types</a>
+ <ul>
+  <li><a href="#integers">Integer constants</a>
+  <li><a href="#bit-string">Bit string constants</a>
+  <li><a href="#floating-point">Floating point constants</a>
+  <li><a href="#character-string">Character string constants</a>
+  <li><a href="#byte-string">Byte string constants</a>
+  <li><a href="#list-tuples">List and tuples</a>
+  <li><a href="#dictionaries">Dictionaries</a>
+  <li><a href="#code">Code</a>
+  <li><a href="#addressing">Addressing modes</a>
+  <li><a href="#uninitialized">Uninitialized memory</a>
+  <li><a href="#type">Types</a>
+  <li><a href="#symbols">Symbols</a>
+  <ul>
+   <li><a href="#symbols-regular">Regular symbols</a>
+   <li><a href="#symbols-local">Local symbols</a>
+   <li><a href="#symbols-anonymous">Anonymous symbols</a>
+   <li><a href="#symbols-constant">Constant and re-definable symbols</a>
+  </ul>
+  <li><a href="#conditionals">Conditional expressions</a>
+  <li><a href="#expressions">Expressions</a>
+ </ul>
+ <li><a href="#compiler-directives">Compiler directives</a>
+ <ul>
+  <li><a href="#program-counter">Controlling the compile offset and program counter</a>
+  <li><a href="#data-dumping">Dumping data</a>
+  <ul>
+   <li><a href="#data-numeric">Storing numeric data</a>
+   <li><a href="#data-text">Storing text data</a>
+  </ul>
+  <li><a href="#text-encoding">Text encoding</a>
+  <li><a href="#structures">Structured data</a>
+  <ul>
+   <li><a href="#structure">Structure</a>
+   <li><a href="#union">Union</a>
+   <li><a href="#struct-and-union">Combined use of structures and unions</a>
+  </ul>
+  <li><a href="#macros">Macros</a>
+  <ul>
+   <li><a href="#macro-parameters">Parameter references</a>
+   <li><a href="#macro-textreference">Text references</a>
+  </ul>
+  <li><a href="#user-functions">Custom functions</a>
+  <li><a href="#conditional-assembly">Conditional assembly</a>
+  <ul>
+   <li><a href="#conditional-if">If, else if, else</a>
+   <li><a href="#conditional-switch">Switch, case, default</a>
+  </ul>
+  <li><a href="#repetitions">Repetitions</a>
+  <li><a href="#including">Including files</a>
+  <li><a href="#scopes">Scopes</a>
+  <li><a href="#sections">Sections</a>
+  <li><a href="#w65816">65816 related</a>
+  <li><a href="#compiletime-checks">Controlling errors</a>
+  <li><a href="#target-cpu">Target</a>
+  <li><a href="#misc">Misc</a>
+  <li><a href="#listing-control">Printer control</a>
+ </ul>
+ <li><a href="#pseudo-instructions">Pseudo instructions</a>
+ <li><a href="#tasm-compatibility">Original turbo assembler compatibility</a>
+ <ul>
+  <li><a href="#tasm-convert">How to convert source code for use with 64tass</a>
+  <li><a href="#tasm-diff">Differences to the original turbo ass macro on the C64</a>
+  <li><a href="#tasm-labels">Labels</a>
+  <li><a href="#tasm-expression">Expression evaluation</a>
+  <li><a href="#tasm-macros">Macros</a>
+  <li><a href="#tasm-bugs">Bugs</a>
+ </ul>
+ <li><a href="#commandline-options">Command line options</a>
+ <ul>
+  <li><a href="#commandline-output">Output options</a>
+  <li><a href="#commandline-operation">Operation options</a>
+  <li><a href="#commandline-target">Target selection on command line</a>
+  <li><a href="#commandline-listing">Source listing options</a>
+  <li><a href="#commandline-other">Other options</a>
+ </ul>
+ <li><a href="#messages">Messages</a>
+ <ul>
+  <li><a href="#messages-warnings">Warnings</a>
+  <li><a href="#messages-errors">Errors</a>
+  <li><a href="#messages-fatal">Fatal errors</a>
+ </ul>
+ <li><a href="#credits">Credits</a>
+ <li><a href="#builtin-translations-escapes">Default translation and escape sequences</a>
+ <ul>
+  <li><a href="#translate-raw8">Raw 8-bit source</a>
+  <ul>
+   <li><a href="#translate-raw8-none">The none encoding for raw 8-bit</a>
+   <li><a href="#translate-raw8-screen">The screen encoding for raw 8-bit</a>
+  </ul>
+  <li><a href="#translate-unicode">Unicode and ASCII source</a>
+  <ul>
+   <li><a href="#translate-unicode-none">The none encoding for Unicode</a>
+   <li><a href="#translate-unicode-screen">The screen encoding for Unicode</a>
+  </ul>
+ </ul>
+ <li><a href="#opcodes">Opcodes</a>
+ <ul>
+  <li><a href="#opcodes-6502">Standard 6502 opcodes</a>
+  <li><a href="#opcodes-6502i">6502 illegal opcodes</a>
+  <li><a href="#opcodes-65dtv02">65DTV02 opcodes</a>
+  <li><a href="#opcodes-65c02">Standard 65C02 opcodes</a>
+  <li><a href="#opcodes-r65c02">R65C02 opcodes</a>
+  <li><a href="#opcodes-w65c02">W65C02 opcodes</a>
+  <li><a href="#opcodes-w65816">W65816 opcodes</a>
+  <li><a href="#opcodes-65el02">65EL02 opcodes</a>
+  <li><a href="#opcodes-65ce02">65CE02 opcodes</a>
+ </ul>
+ <li><a href="#appendix">Appendix</a>
+ <ul>
+  <li><a href="#directives">Assembler directives</a>
+  <li><a href="#functions">Built-in functions</a>
+  <li><a href="#types">Built-in types</a>
+ </ul>
+</ul>
+</div>
 
 <hr>
 <h2>Usage tips<a name="usage-tips" href="#usage-tips"></a></h2>
@@ -262,8 +399,6 @@ following operations are accepted:</p>
 <tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>arithmetic shift right<td><code><span>&minus;8</span> &gt;&gt; <span>3</span></code> is <code><span>&minus;1</span></code>
 <tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>&minus;1</span>)</code> is <code><span>1</span></code>
 <tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>&minus;4</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td><code><span class="k"><a name="t_int">int</a></span>(<u>a</u>)</code><td>convert to integer<td><code><span class="k">int</span>(<span>11</span>)</code> is <code><span>11</span></code>
-<tr><td><code><span class="k"><a name="t_bool">bool</a></span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span>1</span>)</code> is <code><span>true</span></code>
 </tbody>
 </table></div>
 
@@ -308,12 +443,9 @@ The following operations are accepted:</p>
 <tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>bitwise shift right<td><code><span>~$f4</span> &gt;&gt; <span>4</span></code> is <code><span>~$f</span></code>
 <tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
 <tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td><code><span class="k">int</span>(<u>a</u>)</code><td>convert to integer<td><code><span class="k">int</span>(<span>%11</span>)</code> is <code><span>3</span></code>
-<tr><td><code><span class="k">bool</span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span>%11</span>)</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
 <tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is <code><span>false</span></code>
-<tr><td><code><span class="k"><a name="t_bits">bits</a></span>(<u>a</u>)</code><td>convert to bits<td><code><span class="k">bits</span>(<span>true</span>)</code> is <code><span>%1</span></code>
 </tbody>
 </table></div>
 
@@ -328,6 +460,7 @@ expressions. The higher bits are extended with zeros or ones as needed.</p>
 <pre width=80>
         <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
         <b class="d">.byte</b> <span>%00011111</span> <i>; binary</i>
+        <b class="d">.text</b> <span>$1234</span>     <i>; $34, $12</i>
 
         <b>lda</b> <span>$01</span>
         <b>and</b> #~<span>$07</span>
@@ -395,7 +528,6 @@ following operations can be used:</p>
 <tr><td><code><span class="k"><a name="f_deg">deg</a></span>(<u>a</u>)</code><td>radian to degrees<td><code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
 <tr><td><code><span class="k"><a name="f_hypot">hypot</a></span>(<u>y</u>,&nbsp;<u>x</u>)</code><td>polar distance<td><code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
 <tr><td><code><span class="k"><a name="f_atan2">atan2</a></span>(<u>y</u>,&nbsp;<u>x</u>)</code><td>polar angle<td><code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="t_float">float</a></span>(<u>a</u>)</code><td>convert to floating point<td><code><span class="k">float</span>(<span>1</span>)</code> is <code><span>1.0</span></code>
 </tbody>
 </table></div>
 
@@ -439,11 +571,9 @@ Doubling the quotes inside the strings escapes them.</p>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start<td><code><span class="s">"abc"</span>[<span>1</span>:]</code> is <code><span class="s">"bc"</span></code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end<td><code><span class="s">"abc"</span>[:<span>&minus;1</span>]</code> is <code><span class="s">"ab"</span></code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse<td><code><span class="s">"abc"</span>[::<span>&minus;1</span>]</code> is <code><span class="s">"cba"</span></code>
-<tr><td><code><span class="k">bool</span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">"a"</span>)</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
 <tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
-<tr><td><code><span class="k"><a name="t_str">str</a></span>(<u>a</u>)</code><td>convert to string<td><code><span class="k">str</span>(<span>$1</span>)</code> is <code><span class="s">"$1"</span></code>
 <tr><td><code><span class="k">repr</span>(<u>a</u>)</code><td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
 <tr><td><code><span class="k">format</span>(<u>s</u>, &lowast;)</code><td>string formatting<td><code><span class="k">format</span>(<span class="s">"<span>%02x</span>"</span>, <span>12</span>)</code> is <code><span class="s">"0c"</span></code>
 </tbody>
@@ -538,11 +668,9 @@ string using the current encoding to bytes.</p>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start<td><code><span class="s">b"abc"</span>[<span>1</span>:]</code> is <code><span class="s">b"bc"</span></code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end<td><code><span class="s">b"abc"</span>[:<span>&minus;1</span>]</code> is <code><span class="s">b"ab"</span></code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse<td><code><span class="s">b"abc"</span>[::<span>&minus;1</span>]</code> is <code><span class="s">b"cba"</span></code>
-<tr><td><code><span class="k">bool</span>(<u>a</u>)</code><td>convert to boolean<td><code><span class="k">bool</span>(<span class="s">b"a"</span>)</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
 <tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
-<tr><td><code><span class="k"><a name="t_bytes">bytes</a></span>(<u>a</u>)</code><td>convert to bytes<td><code><span class="k">bytes</span>(<span class="s">"a"</span>)</code> is <code><span class="s">b"a"</span></code>
 </tbody>
 </table></div>
 
@@ -585,8 +713,6 @@ types are immutable.</p>
 <tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
 <tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">range</span>(<u>s</u>,<u>e</u>,<u>t</u>)</code><td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
-<tr><td><code><span class="k"><a name="t_list">list</a></span>(<u>a</u>)</code><td>convert to list<td><code><span class="k">list</span>((<span>1</span>, <span>1</span>, <span>0</span>))</code> is <code>[<span>1</span>, <span>1</span>, <span>0</span>]</code>
-<tr><td><code><span class="k"><a name="t_tuple">tuple</a></span>(<u>a</u>)</code><td>convert to tuple<td><code><span class="k">tuple</span>([<span>1</span>, <span>1</span>])</code> is <code>(<span>1</span>, <span>1</span>)</code>
 </tbody>
 </table></div>
 
@@ -657,7 +783,6 @@ and string keys are accepted, the value can be anything.</p>
 <tr><td><code><u>x</u>[<u>i</u>]</code><td>value lookup<td><code>{<span class="s">"1"</span>:<span>2</span>}[<span class="s">"1"</span>]</code> is <code><span>2</span></code>
 <tr><td><code><u>y</u> <span class="k">in</span> <u>x</u></code><td>is a key<td><code><span>1</span> <span class="k">in</span> {<span>1</span>:<span>2</span>}</code> is <code><span>true</span></code>
 <tr><td><code><span class="k">len</span>(<u>x</u>)</code><td>number of elements<td><code><span class="k">len</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>])</code> is <code><span>2</span></code>
-<tr><td><code><span class="k"><a name="t_dict">dict</a></span>(<u>x</u>)</code><td>convert to dictionary<td><code><span class="k">dict</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>})</code> is <code>{<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>}</code>
 </tbody>
 </table></div>
 
@@ -805,6 +930,57 @@ const   <b>=</b> #<span>1</span>              <i>;immediate constant</i>
         <b>ldx</b> <u>const</u>         <i>;results in ldx #$01</i>
 </pre>
 
+<h3>Uninitialized memory<a name="uninitialized" href="#uninitialized"></a></h3>
+
+<p>There's a special value for uninitialized memory, it's represented by a
+question mark. Whenever it's used to generate data it creates a <q>hole</q>
+where the previous content of memory is visible.</p>
+
+<p>Uninitialized memory holes without previous content are not saved unless
+it's really necessary for the output format, in that case it's replaced with
+zeros.</p>
+
+<p>It's not just data generation statements (e.g. <code>.byte</code>) that can
+create uninitialized memory, but filling, alignment or address manipulation as
+well.</p>
+
+<pre width=80>
+        <b>*=</b> <span>$200</span>         <i>;bytes as necessary</i>
+	<b class="d">.word</b> <span>?</span>         <i>;2 bytes</i>
+	<b class="d">.fill</b> <span>10</span>        <i>;10 bytes</i>
+	<b class="k">.align</b> <span>64</span>       <i>;bytes as necessary</i>
+	<b class="k">.offs</b> <span>16</span>        <i>;16 bytes</i>
+</pre>
+
+<h3>Types<a name="type" href="#type"></a></h3>
+
+<p>The various types mentioned earlier have predefined names. These can
+used for conversions or type checks.</p>
+
+<div><table border="0">
+<caption>Built-in type names</caption>
+<tbody>
+<tr><td><code><a name="t_address"><u>address</u></a></code><td>Address type
+<tr><td><code><a name="t_bits"><u>bits</u></a></code><td>Bit string type
+<tr><td><code><a name="t_bool"><u>bool</u></a></code><td>Boolean type
+<tr><td><code><a name="t_bytes"><u>bytes</u></a></code><td>Byte string type
+<tr><td><code><a name="t_code"><u>code</u></a></code><td>Code type
+<tr><td><code><a name="t_dict"><u>dict</u></a></code><td>Dictionary type
+<tr><td><code><a name="t_float"><u>float</u></a></code><td>Floating point type
+<tr><td><code><a name="t_gap"><u>gap</u></a></code><td>Uninitialized memory type
+<tr><td><code><a name="t_int"><u>int</u></a></code><td>Integer type
+<tr><td><code><a name="t_list"><u>list</u></a></code><td>List type
+<tr><td><code><a name="t_str"><u>str</u></a></code><td>String type
+<tr><td><code><a name="t_tuple"><u>tuple</u></a></code><td>Tuple type
+<tr><td><code><a name="t_type"><u>type</u></a></code><td>Type type
+</tbody>
+</table></div>
+
+<pre width=80>
+        <b class="k">.cerror</b> <span class="k">type</span>(<u>var</u>) != <u>str</u>, <span class="s">"Not a string!"</span>
+        <b class="d">.text</b> <span class="k">str</span>(<u>year</u>)   <i>; convert to string</i>
+</pre>
+
 <h3>Symbols<a name="symbols" href="#symbols"></a></h3>
 
 <p>Symbols are used to reference objects. Regularly named, anonymous and local
@@ -944,28 +1120,6 @@ variabl	<b class="k">.var</b> <span>1</span>          <i>;a variable</i>
         <b class="d">.byte</b> <u>variabl</u>
 variabl	<b class="k">.var</b> <u>variabl</u>+<span>1</span>  <i>;increment it</i>
 	<b class="k">.next</b>
-</pre>
-
-<h3>Uninitialized memory<a name="uninitialized" href="#uninitialized"></a></h3>
-
-<p>There's a special value for uninitialized memory, it's represented by a
-question mark. Whenever it's used to generate data it creates a <q>hole</q>
-where the previous content of memory is visible.</p>
-
-<p>Uninitialized memory holes without previous content are not saved unless
-it's really necessary for the output format, in that case it's replaced with
-zeros.</p>
-
-<p>It's not just data generation statements (e.g. <code>.byte</code>) that can
-create uninitialized memory, but filling, alignment or address manipulation as
-well.</p>
-
-<pre width=80>
-        <b>*=</b> <span>$200</span>         <i>;bytes as necessary</i>
-	<b class="d">.word</b> <span>?</span>         <i>;2 bytes</i>
-	<b class="d">.fill</b> <span>10</span>        <i>;10 bytes</i>
-	<b class="k">.align</b> <span>64</span>       <i>;bytes as necessary</i>
-	<b class="k">.offs</b> <span>16</span>        <i>;16 bytes</i>
 </pre>
 
 <h3>Conditional expressions<a name="conditionals" href="#conditionals"></a></h3>
@@ -3775,15 +3929,19 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 </p>
 <h3>Built-in types<a name="types" href="#types"></a></h3>
 <p class="links">
+<a href="#t_address">address</a>
 <a href="#t_bits">bits</a>
 <a href="#t_bool">bool</a>
 <a href="#t_bytes">bytes</a>
+<a href="#t_code">code</a>
 <a href="#t_dict">dict</a>
 <a href="#t_float">float</a>
+<a href="#t_gap">gap</a>
 <a href="#t_int">int</a>
 <a href="#t_list">list</a>
 <a href="#t_str">str</a>
 <a href="#t_tuple">tuple</a>
+<a href="#t_type">type</a>
 </p>
 </div>
 </body></html>

@@ -23,6 +23,98 @@ Project page: http://sourceforge.net/projects/tass64/
 
 -------------------------------------------------------------------------------
 
+Table of Contents
+
+  * Table of Contents
+  * Usage tips
+  * Expressions and data types
+      + Integer constants
+      + Bit string constants
+      + Floating point constants
+      + Character string constants
+      + Byte string constants
+      + List and tuples
+      + Dictionaries
+      + Code
+      + Addressing modes
+      + Uninitialized memory
+      + Types
+      + Symbols
+          o Regular symbols
+          o Local symbols
+          o Anonymous symbols
+          o Constant and re-definable symbols
+      + Conditional expressions
+      + Expressions
+  * Compiler directives
+      + Controlling the compile offset and program counter
+      + Dumping data
+          o Storing numeric data
+          o Storing text data
+      + Text encoding
+      + Structured data
+          o Structure
+          o Union
+          o Combined use of structures and unions
+      + Macros
+          o Parameter references
+          o Text references
+      + Custom functions
+      + Conditional assembly
+          o If, else if, else
+          o Switch, case, default
+      + Repetitions
+      + Including files
+      + Scopes
+      + Sections
+      + 65816 related
+      + Controlling errors
+      + Target
+      + Misc
+      + Printer control
+  * Pseudo instructions
+  * Original turbo assembler compatibility
+      + How to convert source code for use with 64tass
+      + Differences to the original turbo ass macro on the C64
+      + Labels
+      + Expression evaluation
+      + Macros
+      + Bugs
+  * Command line options
+      + Output options
+      + Operation options
+      + Target selection on command line
+      + Source listing options
+      + Other options
+  * Messages
+      + Warnings
+      + Errors
+      + Fatal errors
+  * Credits
+  * Default translation and escape sequences
+      + Raw 8-bit source
+          o The none encoding for raw 8-bit
+          o The screen encoding for raw 8-bit
+      + Unicode and ASCII source
+          o The none encoding for Unicode
+          o The screen encoding for Unicode
+  * Opcodes
+      + Standard 6502 opcodes
+      + 6502 illegal opcodes
+      + 65DTV02 opcodes
+      + Standard 65C02 opcodes
+      + R65C02 opcodes
+      + W65C02 opcodes
+      + W65816 opcodes
+      + 65EL02 opcodes
+      + 65CE02 opcodes
+  * Appendix
+      + Assembler directives
+      + Built-in functions
+      + Built-in types
+
+-------------------------------------------------------------------------------
+
 Usage tips
 
 64tass is a command line assembler, the source can be written in any text
@@ -170,8 +262,6 @@ x << y   logical shift left               1 << 3 is 8
 x >> y   arithmetic shift right           -8 >> 3 is -1
 abs(a)   absolute value                   abs(-1) is 1
 sign(a)  sign value (-1, 0, 1)            sign(-4) is -1
-int(a)   convert to integer               int(11) is 11
-bool(a)  convert to boolean               bool(1) is true
 
 An integer has a truth value of true if it's non-zero. The true value is the
 same as 1.
@@ -210,12 +300,9 @@ x << y  bitwise shift left             $0f << 4 is $0f0
 x >> y  bitwise shift right            ~$f4 >> 4 is ~$f
 abs(a)  absolute value                 abs(%11) is 3
 sign(a) sign value (-1, 0, 1)          sign(~%11) is -1
-int(a)  convert to integer             int(%11) is 3
-bool(a) convert to boolean             bool(%11) is true
 len(a)  length in bits                 len($034) is 12
 all(a)  all bits set or no bits at all all($f) is true
 any(a)  at least one bit set           any(~$f) is false
-bits(a) convert to bits                bits(true) is %1
 
 A bit string has a truth value of true if it's integer value is non-zero.
 
@@ -228,6 +315,7 @@ needed.
 
         .byte $33       ; hex
         .byte %00011111 ; binary
+        .text $1234     ; $34, $12
 
         lda $01
         and #~$07
@@ -292,7 +380,6 @@ rad(a)      degrees to radian                rad(0.0) is 0.0
 deg(a)      radian to degrees                deg(0.0) is 0.0
 hypot(y, x) polar distance                   hypot(4.0, 3.0) is 5.0
 atan2(y, x) polar angle                      atan2(0.0, 3.0) is 0.0
-float(a)    convert to floating point        float(1) is 1.0
 
 A floating point number has a truth value of true if it's non-zero.
 
@@ -331,11 +418,9 @@ a[s]         no change                               "abc"[:] is "abc"
 a[s]         cut off start                           "abc"[1:] is "bc"
 a[s]         cut off end                             "abc"[:-1] is "ab"
 a[s]         reverse                                 "abc"[::-1] is "cba"
-bool(a)      convert to boolean                      bool("a") is true
 len(a)       number of characters                    len("abc") is 3
 all(a)       all characters non-zero or empty string all("c") is true
 any(a)       at least one non-zero character         any("c") is true
-str(a)       convert to string                       str($1) is "$1"
 repr(a)      representation to string                str("a") is '"a"'
 format(s, *) string formatting                       format("%02x", 12) is "0c"
 
@@ -404,21 +489,19 @@ Byte strings are like strings, but hold bytes instead of characters. They can
 be created by prefixing quoted strings with a `b', this converts the string
 using the current encoding to bytes.
 
-             Byte string operators and functions
-y .. x   concatenate strings            b"a" .. b"b" is b"ab"
-y in x   is substring of                b"b" in b"abc" is true
-a x n    repeat                         b"ab" x 3 is b"ababab"
-a[i]     byte from start                b"abc"[1] is b"b"
-a[i]     byte from end                  b"abc"[-1] is b"c"
-a[s]     no change                      b"abc"[:] is b"abc"
-a[s]     cut off start                  b"abc"[1:] is b"bc"
-a[s]     cut off end                    b"abc"[:-1] is b"ab"
-a[s]     reverse                        b"abc"[::-1] is b"cba"
-bool(a)  convert to boolean             bool(b"a") is true
-len(a)   number of bytes                len(b"abc") is 3
-all(a)   all bytes non-zero or no bytes all(b"c") is true
-any(a)   at least one non-zero byte     any(b"c") is true
-bytes(a) convert to bytes               bytes("a") is b"a"
+            Byte string operators and functions
+y .. x concatenate strings            b"a" .. b"b" is b"ab"
+y in x is substring of                b"b" in b"abc" is true
+a x n  repeat                         b"ab" x 3 is b"ababab"
+a[i]   byte from start                b"abc"[1] is b"b"
+a[i]   byte from end                  b"abc"[-1] is b"c"
+a[s]   no change                      b"abc"[:] is b"abc"
+a[s]   cut off start                  b"abc"[1:] is b"bc"
+a[s]   cut off end                    b"abc"[:-1] is b"ab"
+a[s]   reverse                        b"abc"[::-1] is b"cba"
+len(a) number of bytes                len(b"abc") is 3
+all(a) all bytes non-zero or no bytes all(b"c") is true
+any(a) at least one non-zero byte     any(b"c") is true
 
 A byte string has a truth value of true if it contains at least one non-zero
 byte.
@@ -456,8 +539,6 @@ all(a)       all elements true or empty list       all([1, 1, 0]) is false
 any(a)       at least one true element             any([1, 1, 0]) is true
 range(s,e,t) create a list with values from a      range(3) is [0,1,2]
              range
-list(a)      convert to list                       list((1, 1, 0)) is [1, 1, 0]
-tuple(a)     convert to tuple                      tuple([1, 1]) is (1, 1)
 
 Arithmetic operations are applied on the all elements recursively, therefore
 [1, 2] + 1 is [2, 3], and abs([1, -1]) is [1, 1].
@@ -514,11 +595,10 @@ Looking up a non existing key is normally an error unless a default value is
 given. An empty dictionary is {}. Currently this type is immutable. Numeric and
 string keys are accepted, the value can be anything.
 
-             Dictionary operators and functions
-x[i]    value lookup          {"1":2}["1"] is 2
-y in x  is a key              1 in {1:2} is true
-len(x)  number of elements    len({1:2, 3:4]) is 2
-dict(x) convert to dictionary dict({1:2, 3:4}) is {1:2, 3:4}
+      Dictionary operators and functions
+x[i]   value lookup       {"1":2}["1"] is 2
+y in x is a key           1 in {1:2} is true
+len(x) number of elements len({1:2, 3:4]) is 2
 
 A dictionary has a truth value of true if it contains at least one key value
 pair.
@@ -647,6 +727,47 @@ const   = #1              ;immediate constant
         lda param+1       ;results in lda $02,s
         lda (param),y     ;results in lda ($01,s),y
         ldx const         ;results in ldx #$01
+
+Uninitialized memory
+
+There's a special value for uninitialized memory, it's represented by a
+question mark. Whenever it's used to generate data it creates a `hole' where
+the previous content of memory is visible.
+
+Uninitialized memory holes without previous content are not saved unless it's
+really necessary for the output format, in that case it's replaced with zeros.
+
+It's not just data generation statements (e.g. .byte) that can create
+uninitialized memory, but filling, alignment or address manipulation as well.
+
+        *= $200         ;bytes as necessary
+        .word ?         ;2 bytes
+        .fill 10        ;10 bytes
+        .align 64       ;bytes as necessary
+        .offs 16        ;16 bytes
+
+Types
+
+The various types mentioned earlier have predefined names. These can used for
+conversions or type checks.
+
+       Built-in type names
+address Address type
+bits    Bit string type
+bool    Boolean type
+bytes   Byte string type
+code    Code type
+dict    Dictionary type
+float   Floating point type
+gap     Uninitialized memory type
+int     Integer type
+list    List type
+str     String type
+tuple   Tuple type
+type    Type type
+
+        .cerror type(var) != str, "Not a string!"
+        .text str(year)   ; convert to string
 
 Symbols
 
@@ -782,24 +903,6 @@ variabl .var 1          ;a variable
         .byte variabl
 variabl .var variabl+1  ;increment it
         .next
-
-Uninitialized memory
-
-There's a special value for uninitialized memory, it's represented by a
-question mark. Whenever it's used to generate data it creates a `hole' where
-the previous content of memory is visible.
-
-Uninitialized memory holes without previous content are not saved unless it's
-really necessary for the output format, in that case it's replaced with zeros.
-
-It's not just data generation statements (e.g. .byte) that can create
-uninitialized memory, but filling, alignment or address manipulation as well.
-
-        *= $200         ;bytes as necessary
-        .word ?         ;2 bytes
-        .fill 10        ;10 bytes
-        .align 64       ;bytes as necessary
-        .offs 16        ;16 bytes
 
 Conditional expressions
 
@@ -2985,5 +3088,5 @@ trunc
 
 Built-in types
 
-bits bool bytes dict float int list str tuple
+address bits bool bytes code dict float gap int list str tuple type
 
