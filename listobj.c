@@ -133,7 +133,7 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
 
 static MUST_CHECK value_t repr_listtuple(const value_t v1, linepos_t epoint) {
     size_t i, len = (v1->obj == ADDRLIST_OBJ || v1->obj == COLONLIST_OBJ) ? 0 : 2, chars = 0;
-    value_t tmp = NULL, *vals, err, v;
+    value_t tmp = NULL, *vals = NULL, err, v;
     uint8_t *s;
     size_t llen = v1->u.list.len;
     if (llen) {
