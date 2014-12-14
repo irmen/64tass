@@ -120,12 +120,11 @@ static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t e
     }
 }
 
-static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
+static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
     static const char *hex = "0123456789abcdef";
     size_t i, len, len2, sz;
     uint8_t *s, b;
     value_t v;
-    if (!epoint) return NULL; /* not yet */
     v = val_alloc(STR_OBJ);
     sz = byteslen(v1);
     len2 = sz * 2;
