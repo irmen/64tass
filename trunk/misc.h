@@ -21,7 +21,7 @@
 #include "inttypes.h"
 
 enum output_mode_e {
-    OUTPUT_CBM, OUTPUT_RAW, OUTPUT_NONLINEAR, OUTPUT_FLAT, OUTPUT_XEX
+    OUTPUT_CBM, OUTPUT_RAW, OUTPUT_NONLINEAR, OUTPUT_FLAT, OUTPUT_XEX, OUTPUT_APPLE
 };
 
 struct file_s;
