@@ -60,6 +60,7 @@
 #include "boolobj.h"
 #include "bytesobj.h"
 #include "intobj.h"
+#include "bitsobj.h"
 
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
@@ -417,8 +418,8 @@ static int textrecursion(value_t val, int prm, int *ch2, size_t *uninit, size_t 
     value_t iter, val2;
     uval_t uval;
     int warn = 0;
-    if (val->obj == STR_OBJ) {
-        value_t tmp = bytes_from_str(val, epoint2);
+    if (val->obj == STR_OBJ || val->obj == BITS_OBJ) {
+        value_t tmp = BYTES_OBJ->create(val, epoint2);
         iter = tmp->obj->getiter(tmp);
         val_destroy(tmp);
     } else iter = val->obj->getiter(val);
