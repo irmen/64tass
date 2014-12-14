@@ -2465,6 +2465,24 @@ start	<b>rts</b>
 <tr><td><tt>$60</tt><td>code
 </tbody>
 </table></div>
+
+<dt><b>--apple2</b>
+<dd>Generate a Apple II output file (DOS 3.3).
+<p>Overlapping blocks are flattened and uninitialized memory is filled up with zeros. Uninitialized memory
+before the first and after the last valid bytes are not saved.</p>
+<pre width=80>
+64tass --apple-ii a.asm
+        <b>*=</b> <span>$0c00</span>
+        <b>rts</b>
+</pre>
+<div><table border="0">
+<caption>Result of compilation</caption>
+<tbody>
+<tr><td><tt>$00, $0c</tt><td>little endian start $0c00
+<tr><td><tt>$01, $00</tt><td>little endian length $0001
+<tr><td><tt>$60</tt><td>code
+</tbody>
+</table></div>
 </dl>
 
 <h3>Operation options<a name="commandline-operation" href="#commandline-operation"></a></h3>

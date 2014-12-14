@@ -170,15 +170,21 @@ static void putlw(int w, FILE *f) {
 }
 
 static void output_mem_c64(FILE *fout, const struct memblocks_s *memblocks) {
-    address_t pos;
+    address_t pos, end;
     size_t size;
     unsigned int i;
 
     if (memblocks->p) {
         pos = memblocks->data[0].addr;
-        if (arguments.output_mode == OUTPUT_CBM) {
+        if (arguments.output_mode == OUTPUT_CBM || arguments.output_mode == OUTPUT_APPLE) {
             putlw(pos, fout);
             if (arguments.longaddr) putc(pos >> 16,fout);
+        }
+        if (arguments.output_mode == OUTPUT_APPLE) {
+            end = memblocks->data[memblocks->p - 1].addr + memblocks->data[memblocks->p - 1].len;
+            end -= pos;
+            putlw(end, fout);
+            if (arguments.longaddr) putc(end >> 16,fout);
         }
         for (i = 0; i < memblocks->p; i++) {
             size = memblocks->data[i].addr - pos;
@@ -295,6 +301,7 @@ void output_mem(struct memblocks_s *memblocks) {
         case OUTPUT_NONLINEAR: output_mem_nonlinear(fout, memblocks); break;
         case OUTPUT_XEX: output_mem_atari_xex(fout, memblocks); break;
         case OUTPUT_RAW: 
+        case OUTPUT_APPLE: 
         case OUTPUT_CBM: output_mem_c64(fout, memblocks); break;
         }
         if (fout == stdout) fflush(fout);

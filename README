@@ -2166,6 +2166,22 @@ no option
     $00, $20 little endian last byte $2000
     $60      code
 
+--apple2
+    Generate a Apple II output file (DOS 3.3).
+
+    Overlapping blocks are flattened and uninitialized memory is filled up with
+    zeros. Uninitialized memory before the first and after the last valid bytes
+    are not saved.
+
+    64tass --apple-ii a.asm
+            *= $0c00
+            rts
+
+         Result of compilation
+    $00, $0c little endian start $0c00
+    $01, $00 little endian length $0001
+    $60      code
+
 Operation options
 
 -a, --ascii

@@ -173,6 +173,7 @@ static const struct option long_options[]={
     {"flat"             , no_argument      , 0, 'f'},
     {"long-address"     , no_argument      , 0, 'X'},
     {"atari-xex"        , no_argument      , 0,   7},
+    {"apple-ii"         , no_argument      , 0,   8},
     {"ascii"            , no_argument      , 0, 'a'},
     {"tasm-compatible"  , no_argument      , 0, 'T'},
     {"case-sensitive"   , no_argument      , 0, 'C'},
@@ -208,6 +209,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'X':arguments.longaddr=1;break;
             case 'n':arguments.output_mode = OUTPUT_NONLINEAR;break;
             case 7:arguments.output_mode = OUTPUT_XEX;break;
+            case 8:arguments.output_mode = OUTPUT_APPLE;break;
             case 'b':arguments.output_mode = OUTPUT_RAW;break;
             case 'f':arguments.output_mode = OUTPUT_FLAT;break;
             case 'a':arguments.toascii=1;break;
@@ -254,10 +256,10 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
                "Usage: 64tass [-abBCfnTqwWcitxmse?V] [-D <label>=<value>] [-o <file>]\n"
                "        [-l <file>] [-L <file>] [-I <path>] [--ascii] [--nostart]\n"
-               "        [--long-branch] [--case-sensitive] [--flat] [--atari-xex] [--nonlinear]\n"
-               "        [--tasm-compatible] [--quiet] [--no-warn] [--long-address] [--m65c02]\n"
-               "        [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02] [--mr65c02]\n"
-               "        [--mw65c02] [--m65ce02] [--labels=<file>] [--list=<file>]\n"
+               "        [--long-branch] [--case-sensitive] [--flat] [--atari-xex] [--apple-ii]\n"
+               "        [--nonlinear] [--tasm-compatible] [--quiet] [--no-warn] [--long-address]\n"
+               "        [--m65c02] [--m6502] [--m65xx] [--m65dtv02] [--m65816] [--m65el02]\n"
+               "        [--mr65c02] [--mw65c02] [--m65ce02] [--labels=<file>] [--list=<file>]\n"
                "        [--no-monitor] [--no-source] [--help] [--usage] [--version]\n"
                "        SOURCES");
                    return 0;
@@ -285,6 +287,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -n, --nonlinear       Generate nonlinear output file\n"
                "  -X, --long-address    Use 3 byte start/len address\n"
                "      --atari-xex       Output Atari XEX file\n"
+               "      --apple-ii        Output Apple II file\n"
                "\n"
                " Target selection:\n"
                "  -c, --m65c02          CMOS 65C02\n"
