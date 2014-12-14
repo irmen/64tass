@@ -823,11 +823,11 @@ value_t compile(struct file_list_s *cflist)
                         obj_t obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
 
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &lpoint);waitfor->skip=0;
-                        label=new_label(&labelname, mycontext, strength, &labelexists);oaddr = current_section->address;
+                        label=new_label(&labelname, mycontext, strength, &labelexists);
 
                         current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
                         current_section->end=current_section->start=current_section->restart=current_section->l_restart=current_section->address=current_section->l_address=0;
-                        current_section->dooutput=0;memjmp(&current_section->mem, 0); oaddr = 0;
+                        current_section->dooutput=0;memjmp(&current_section->mem, 0);
 
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
@@ -881,8 +881,8 @@ value_t compile(struct file_list_s *cflist)
                         current_section->structrecursion--;
                         if (!label) goto finish;
 
-                        if (label->value->u.macro.size != ((current_section->address - oaddr) & all_mem2)) {
-                            label->value->u.macro.size = (current_section->address - oaddr) & all_mem2;
+                        if (label->value->u.macro.size != (current_section->address & all_mem2)) {
+                            label->value->u.macro.size = current_section->address & all_mem2;
                             if (label->usepass >= pass) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
                                 fixeddig = 0;
