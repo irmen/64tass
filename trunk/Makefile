@@ -1,3 +1,4 @@
+SHELL = /bin/sh
 CC = gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o registerobj.o dictobj.o
 LIBS = -lm
@@ -6,12 +7,15 @@ REVISION := $(shell svnversion | grep "^[1-9]" || echo "883?")
 CFLAGS = -pipe -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -g -Wstrict-aliasing=2 -Werror=missing-prototypes
 LDFLAGS = -g
 CFLAGS += $(LDFLAGS)
+TARGET = 64tass
+PREFIX = $(DESTDIR)/usr/local
+BINDIR = $(PREFIX)/bin
 
 .SILENT:
 
-all: 64tass README
+all: $(TARGET) README
 
-64tass: $(OBJ)
+$(TARGET): $(OBJ)
 	$(CC) -o $@ $^ $(LIBS)
 
 64tass.o: 64tass.c 64tass.h inttypes.h opcodes.h misc.h eval.h values.h \
@@ -125,7 +129,20 @@ variables.o: variables.c unicode.h inttypes.h unicodedata.h variables.h \
 README: README.html
 	-sed -e 's/&larr;/<-/g;s/&hellip;/.../g;s/&lowast;/*/g;s/&minus;/-/g;s/&ndash;/-/g;' README.html | w3m -T text/html -dump -no-graph | sed -e 's/\s\+$$//' >README
 
-.PHONY: clean
+
+.PHONY: all clean distclean install install-strip uninstall
 
 clean:
-	rm -f $(OBJ) 64tass *~
+	-rm -f $(OBJ)
+
+distclean: clean
+	-rm -f $(TARGET)
+
+install: $(TARGET)
+	install -D $(TARGET) $(BINDIR)/$(TARGET)
+
+install-strip: $(TARGET)
+	install -D -s $(TARGET) $(BINDIR)/$(TARGET)
+
+uninstall:
+	-rm $(BINDIR)/$(TARGET)
