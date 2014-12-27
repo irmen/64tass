@@ -252,27 +252,30 @@ static int close_waitfor(enum wait_e what) {
 }
 
 static void set_size(struct label_s *var, size_t size, struct memblocks_s *mem, size_t memp, size_t membp) {
+    value_t val = var->value;
     size &= all_mem2;
-    if (var->value->u.code.size != size) {
-        var->value->u.code.size = size;
-        if (var->value->u.code.pass) {
+    if (val->u.code.size != size) {
+        val->u.code.size = size;
+        if (val->u.code.pass) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&var->name, &var->epoint);
             fixeddig = 0;
         }
     }
-    var->value->u.code.pass = pass;
-    var->value->u.code.mem = mem;
-    var->value->u.code.memp = memp;
-    var->value->u.code.membp = membp;
+    val->u.code.pass = pass;
+    val->u.code.mem = mem;
+    val->u.code.memp = memp;
+    val->u.code.membp = membp;
 }
 
 static int toival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
     value_t err;
-    if (v1->obj == NONE_OBJ) {
+    obj_t obj = v1->obj;
+
+    if (obj == NONE_OBJ) {
         err_msg_still_none(NULL, epoint);
         return 1;
     }
-    err = v1->obj->ival(v1, iv, bits, epoint);
+    err = obj->ival(v1, iv, bits, epoint);
     if (err) {
         err_msg_output_and_destroy(err);
         return 1;
@@ -280,17 +283,20 @@ static int toival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
     return 0;
 }
 
-static int tobool(const value_t v1, int *truth, linepos_t epoint) {
+static int tobool(const struct values_s *v1, int *truth) {
     value_t err;
-    if (v1->obj == ERROR_OBJ) {
-        err_msg_output(v1);
+    value_t val = v1->val;
+    obj_t obj = val->obj;
+
+    if (obj == ERROR_OBJ) {
+        err_msg_output(val);
         return 1;
     }
-    if (v1->obj == NONE_OBJ) {
-        err_msg_still_none(NULL, epoint);
+    if (obj == NONE_OBJ) {
+        err_msg_still_none(NULL, &v1->epoint);
         return 1;
     }
-    err = v1->obj->truth(v1, TRUTH_BOOL, epoint);
+    err = obj->truth(val, TRUTH_BOOL, &v1->epoint);
     if (err->obj != BOOL_OBJ) {
         err_msg_output_and_destroy(err);
         return 1;
@@ -933,7 +939,8 @@ value_t compile(struct file_list_s *cflist)
             if (!islabel) {
                 tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname);
                 if (tmp2) {
-                    if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
+                    obj_t obj = tmp2->value->obj;
+                    if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                         tmp2->shadowcheck = 1;
                         labelname.len = 0;val = tmp2->value; goto as_macro;
                     }
@@ -1169,7 +1176,7 @@ value_t compile(struct file_list_s *cflist)
                     if (val->obj == NONE_OBJ) { err_msg_still_none(NULL, &vs->epoint); waitfor->skip = 0; break;}
                     switch (prm) {
                     case CMD_IF:
-                        if (tobool(val, &truth, &vs->epoint)) { waitfor->skip = 0; break; }
+                        if (tobool(vs, &truth)) { waitfor->skip = 0; break; }
                         waitfor->skip = truth ? (prevwaitfor->skip & 1) : ((prevwaitfor->skip & 1) << 1);
                         break;
                     case CMD_IFNE:
@@ -1206,7 +1213,7 @@ value_t compile(struct file_list_s *cflist)
                         if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) { waitfor->skip = 0; goto breakerr;}
                         vs = get_val();
                     } else { waitfor->skip = 0; break; }
-                    if (tobool(vs->val, &truth, &vs->epoint)) { waitfor->skip = 0; break; }
+                    if (tobool(vs, &truth)) { waitfor->skip = 0; break; }
                     waitfor->skip = truth ? (waitfor->skip >> 1) : (waitfor->skip & 2);
                     if (waitfor->skip & 1) listing_line_cut2(epoint.pos);
                 }
@@ -1777,7 +1784,7 @@ value_t compile(struct file_list_s *cflist)
                     if (!get_exp(&w, 0, cfile, (prm == CMD_CWARN || prm == CMD_CERROR), 0, &epoint)) goto breakerr;
                     if (prm == CMD_CWARN || prm == CMD_CERROR) {
                         vs = get_val();
-                        if (tobool(vs->val, &writeit, &vs->epoint)) writeit = 0;
+                        if (tobool(vs, &writeit)) writeit = 0;
                     }
                     if (writeit) {
                         size_t i, len = get_val_remaining(), len2 = 0;
@@ -2229,7 +2236,7 @@ value_t compile(struct file_list_s *cflist)
                         lpoint=apoint;
                         if (!get_exp(&w, 1, cfile, 1, 1, &apoint)) break;
                         vs = get_val();
-                        if (tobool(vs->val, &truth, &vs->epoint)) break;
+                        if (tobool(vs, &truth)) break;
                         if (!truth) break;
                         if (nopos < 0) {
                             str_t varname;
@@ -2332,9 +2339,9 @@ value_t compile(struct file_list_s *cflist)
                     vs = get_val();
                     str_cfcpy(&cf, &optname);
                     if (!str_cmp(&cf, &branch_across)) {
-                        if (tobool(vs->val, &allowslowbranch, &vs->epoint)) break;
+                        if (tobool(vs, &allowslowbranch)) break;
                     } else if (!str_cmp(&cf, &longjmp)) {
-                        if (tobool(vs->val, &longbranchasjmp, &vs->epoint)) break;
+                        if (tobool(vs, &longbranchasjmp)) break;
                     } else err_msg2(ERROR_UNKNOWN_OPTIO, &optname, &epoint);
                 }
                 break;
@@ -2736,7 +2743,8 @@ value_t compile(struct file_list_s *cflist)
                     if (err == NULL) break;
                     tmp2 = find_label(&opname);
                     if (tmp2) {
-                        if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
+                        obj_t obj = tmp2->value->obj;
+                        if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                             val_destroy(err);
                             tmp2->shadowcheck = 1;
                             lpoint=oldlpoint;
@@ -2749,7 +2757,8 @@ value_t compile(struct file_list_s *cflist)
                 }
                 tmp2 = find_label(&opname);
                 if (tmp2) {
-                    if (tmp2->value->obj == MACRO_OBJ || tmp2->value->obj == SEGMENT_OBJ || tmp2->value->obj == MFUNC_OBJ) {
+                    obj_t obj = tmp2->value->obj;
+                    if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                         tmp2->shadowcheck = 1;
                         val = tmp2->value;goto as_macro;
                     }
