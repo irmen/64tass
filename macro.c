@@ -308,10 +308,15 @@ value_t mfunc_recurse(enum wait_e t, value_t tmp2, struct label_s *context, line
             }
             val = tuple;
         } else {
-            val = get_val(NULL);
-            if (val && val->obj == ERROR_OBJ) {err_msg_output(val); val = none_value;}
-            if (!val) val = tmp2->u.mfunc.param[i].init;
-            if (!val) { max = i + 1; val = none_value; }
+            struct values_s *vs;
+            vs = get_val();
+            if (!vs) {
+                val = tmp2->u.mfunc.param[i].init;
+                if (!val) { max = i + 1; val = none_value; }
+            } else {
+                val = vs->val;
+                if (val->obj == ERROR_OBJ) {err_msg_output(val); val = none_value;}
+            }
         }
         label = new_label(&tmp2->u.mfunc.param[i].name, context, strength, &labelexists);
         label->ref=0;
