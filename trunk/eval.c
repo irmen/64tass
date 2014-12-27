@@ -1182,14 +1182,9 @@ static int get_val2(struct eval_context_s *ev) {
     return 1;
 }
 
-value_t get_val(struct linepos_s *epoint) {
-    struct values_s *value;
-
+struct values_s *get_val(void) {
     if (eval->values_p >= eval->values_len) return NULL;
-
-    value = &eval->values[eval->values_p++];
-    if (epoint) *epoint = value->epoint;
-    return value->val;
+    return &eval->values[eval->values_p++];
 }
 
 value_t pull_val(struct linepos_s *epoint) {

@@ -23,7 +23,7 @@
 
 extern int get_exp(int *, int, struct file_s *, unsigned int, unsigned int, linepos_t);
 extern int get_exp_var(struct file_s *, linepos_t);
-extern value_t get_val(struct linepos_s *);
+extern struct values_s *get_val(void);
 extern value_t pull_val(struct linepos_s *);
 extern size_t get_val_remaining(void);
 extern void destroy_eval(void);
