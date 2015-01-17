@@ -385,8 +385,8 @@ void list_mem(const struct memblocks_s *memblocks, int dooutput) {
                 len = memblocks->mem.p - ptextaddr;
                 if (!len) {
                     if (!print) continue;
-                    if (omemp) myaddr = (memblocks->data[omemp-1].addr + memblocks->data[omemp-1].len) & all_mem;
-                    else myaddr = oaddr;
+                    if (first) myaddr = oaddr;
+                    else myaddr = (memblocks->data[omemp-1].addr + memblocks->data[omemp-1].len) & all_mem;
                 }
             }
         }

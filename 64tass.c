@@ -1682,8 +1682,8 @@ value_t compile(struct file_list_s *cflist)
                     mark_mem(&current_section->mem, current_section->address);
                     if ((vs = get_val())) {
                         val = vs->val;
-                        if (val->obj == ERROR_OBJ) {err_msg_output(val); memskip(db);}
-                        else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); memskip(db);}
+                        if (val->obj == ERROR_OBJ) {err_msg_output(val); if (db) memskip(db);}
+                        else if (val->obj == NONE_OBJ) {err_msg_still_none(NULL, &vs->epoint); if (db) memskip(db);}
                         else {
                             value_t iter, val2;
                             size_t uninit = 0, sum = 0;
@@ -1736,7 +1736,7 @@ value_t compile(struct file_list_s *cflist)
                             }
                             if (uninit) memskip(uninit);
                         }
-                    } else memskip(db);
+                    } else if (db) memskip(db);
                     if (!nolisting) {
                         list_mem(&current_section->mem, current_section->dooutput);
                     }
@@ -2580,7 +2580,7 @@ value_t compile(struct file_list_s *cflist)
                         }
                         tmp3->usepass = pass;
                         tmp3->defpass = pass;
-                        memskip(t);
+                        if (t) memskip(t);
                         memref(&current_section->mem, &tmp3->mem);
                     }
                 }
