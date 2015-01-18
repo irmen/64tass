@@ -9,7 +9,8 @@ the 65xx series of processors. Key features:
   * Arbitrary-precision integers and bitstrings, double precision floating
     point numbers
   * Character and byte strings, array arithmetic
-  * Handles UTF-8, UTF-16 and 8 bit RAW encoded source files, unicode strings
+  * Handles UTF-8, UTF-16 and 8 bit RAW encoded source files, unicode character
+    strings
   * Supports Unicode identifiers with case folding and compatibility
     normalization
   * Built-in `linker' with section support
@@ -33,11 +34,12 @@ Table of Contents
       + Floating point constants
       + Character string constants
       + Byte string constants
-      + List and tuples
+      + Lists and tuples
       + Dictionaries
       + Code
       + Addressing modes
       + Uninitialized memory
+      + Booleans
       + Types
       + Symbols
           o Regular symbols
@@ -49,8 +51,8 @@ Table of Contents
   * Compiler directives
       + Controlling the compile offset and program counter
       + Dumping data
-          o Storing numeric data
-          o Storing text data
+          o Storing numeric values
+          o Storing string values
       + Text encoding
       + Structured data
           o Structure
@@ -229,8 +231,8 @@ Expressions and data types
 
 Integer constants
 
-Integer constants can be entered as a string of decimal numbers of arbitary
-length. The following operations are accepted:
+Integer constants can be entered as decimal digits of arbitrary length. The
+following operations are accepted:
 
              Integer operators and functions
 x + y    add x to y                       2 + 2 is 4
@@ -263,10 +265,8 @@ x >> y   arithmetic shift right           -8 >> 3 is -1
 abs(a)   absolute value                   abs(-1) is 1
 sign(a)  sign value (-1, 0, 1)            sign(-4) is -1
 
-An integer has a truth value of true if it's non-zero. The true value is the
-same as 1.
-
-Integers are automatically promoted to float as necessary in expressions.
+Integers are automatically promoted to float as necessary in expressions. Other
+types can can be converted to integer using the integer type int.
 
         .byte 23        ; decimal
 
@@ -284,8 +284,9 @@ Integers are automatically promoted to float as necessary in expressions.
 
 Bit string constants
 
-Bit string constants can be entered as hexadecimal by a leading dollar sign or
-binary with a leading percent sign. The following operations are accepted:
+Bit string constants can be entered in hexadecimal form by a leading dollar
+sign or in binary with a leading percent sign. The following operations are
+accepted:
 
              Bit string operators and functions
 ~x      invert bits                    ~%101 is ~%101
@@ -304,14 +305,14 @@ len(a)  length in bits                 len($034) is 12
 all(a)  all bits set or no bits at all all($f) is true
 any(a)  at least one bit set           any(~$f) is false
 
-A bit string has a truth value of true if it's integer value is non-zero.
-
 Length of bit string constants are defined in bits and is calculated from the
-number of digits used including leading zeros.
+number of bit digits used including leading zeros.
 
 Bit strings are automatically promoted to integer or floating point as
 necessary in expressions. The higher bits are extended with zeros or ones as
 needed.
+
+Other types can can be converted to bit string using the bit string type bits.
 
         .byte $33       ; hex
         .byte %00011111 ; binary
@@ -381,8 +382,6 @@ deg(a)      radian to degrees                deg(0.0) is 0.0
 hypot(y, x) polar distance                   hypot(4.0, 3.0) is 5.0
 atan2(y, x) polar angle                      atan2(0.0, 3.0) is 0.0
 
-A floating point number has a truth value of true if it's non-zero.
-
 As usual comparing floating point numbers for (non) equality is a bad idea due
 to rounding errors.
 
@@ -390,6 +389,7 @@ There are no predefined floating point constants, define them as necessary.
 Hint: pi is rad(180) and e is exp(1).
 
 Floating point numbers are automatically truncated to integer as necessary.
+Other types can can be converted to floating point by using the type float.
 
 Fixed point conversion can be done by using the shift operators for example a
 8.16 fixed point number can be calculated as (3.14 << 16) & $ffffff. The binary
@@ -402,13 +402,14 @@ This is the reason for the strange definition of inversion.
 
 Character string constants
 
-Strings are enclosed in single or double quotes and can hold any Unicode
-character. Operations like indexing or slicing are always done on the original
-representation. The current encoding is only applied when it's used in
+Character strings are enclosed in single or double quotes and can hold any
+Unicode character. Operations like indexing or slicing are always done on the
+original representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
-Doubling the quotes inside the strings escapes them.
+Doubling the quotes inside character strings escapes them and results in a
+single quote.
 
-                        String operators and functions
+                   Character string operators and functions
 y .. x       concatenate strings                     "a" .. "b" is "ab"
 y in x       is substring of                         "b" in "abc" is true
 a x n        repeat                                  "ab" x 3 is "ababab"
@@ -424,12 +425,12 @@ any(a)       at least one non-zero character         any("c") is true
 repr(a)      representation to string                str("a") is '"a"'
 format(s, *) string formatting                       format("%02x", 12) is "0c"
 
-A string has a truth value of true if it contains at least one character which
-is not translated to zero.
+Character strings are converted to integers, byte and bit strings as necessary
+using the current encoding and escape rules. For example when using a sane
+encoding "z"-"a" is 25.
 
-Strings are converted to integers, byte and bit strings as necessary using the
-current encoding and escape rules. For example when using a sane encoding
-"z"-"a" is 25.
+Other types can be converted to character strings by using the type str or by
+using the repr and format functions.
 
 Indexing characters with positive integers start with zero. Negative indexes
 are translated internally by adding the number of characters to them, therefore
@@ -453,9 +454,10 @@ mystr   = "oeU"         ; text
         .text "text"[:-1]    ; "tex"
         .text "reverse"[::-1]; "esrever"
 
-String formatting can interpret a list of values and convert them to a string.
-The converted values are inserted at the % sign which is followed by conversion
-flags, minimum field length, and conversion type. The these flags can be used:
+The format function converts a list of values into a character string. The
+converted values are inserted in place of the % sign. Optional conversion flags
+and minimum field length may follow, before the conversion type character.
+These flags can be used:
 
            Formatting flags
 #     alternate form ($a, %10, 10.)
@@ -466,9 +468,9 @@ flags, minimum field length, and conversion type. The these flags can be used:
       blank when positive or minus sign
 +     sign even if positive
 
-The following conversions are implemented:
+The following conversion types are implemented:
 
-           Formatting conversions
+        Formatting conversion types
 a A   hexadecimal floating point (uppercase)
 b     binary
 c     unicode character
@@ -485,9 +487,11 @@ x X   hexadecimal (uppercase)
 
 Byte string constants
 
-Byte strings are like strings, but hold bytes instead of characters. They can
-be created by prefixing quoted strings with a `b', this converts the string
-using the current encoding to bytes.
+Byte strings are like character strings, but hold bytes instead of characters.
+
+Quoted character strings prefixing by `b', `l', `n', `p' or `s' characters can
+be used to create byte strings. The resulting byte string contains what .text,
+.shiftl, .null, .ptext and .shift would create.
 
             Byte string operators and functions
 y .. x concatenate strings            b"a" .. b"b" is b"ab"
@@ -503,18 +507,21 @@ len(a) number of bytes                len(b"abc") is 3
 all(a) all bytes non-zero or no bytes all(b"c") is true
 any(a) at least one non-zero byte     any(b"c") is true
 
-A byte string has a truth value of true if it contains at least one non-zero
-byte.
-
 Indexing and slicing works as with character strings.
 
+Other types can be converted to byte strings by using the type bytes.
+
         .enc screen     ;use screen encoding
-mystr   = b"oeU"        ;convert text to bytes
+mystr   = b"oeU"        ;convert text to bytes, like .text
         .enc none       ;normal encoding
 
         .text mystr     ;text as originally encoded
+        .text s"p1"     ;convert to bytes like .shift
+        .text l"p2"     ;convert to bytes like .shiftl
+        .text n"p3"     ;convert to bytes like .null
+        .text p"p4"     ;convert to bytes like .ptext
 
-List and tuples
+Lists and tuples
 
 Lists and tuples can hold a collection of values. Lists are defined from values
 separated by comma between square brackets [1, 2, 3], an empty list is [].
@@ -600,9 +607,6 @@ x[i]   value lookup       {"1":2}["1"] is 2
 y in x is a key           1 in {1:2} is true
 len(x) number of elements len({1:2, 3:4]) is 2
 
-A dictionary has a truth value of true if it contains at least one key value
-pair.
-
         .text {1:"one", 2:"two"}[2]; "two"
 
 Code
@@ -626,8 +630,6 @@ a[s]    cut off end, as tuple   label[:-1]
 a[s]    reverse, as tuple       label[::-1]
 len(a)  number of elements      len(label)
 size(a) size in bytes           size(label)
-
-A code object has a truth value of true when it's address is non-zero.
 
 mydata  .word 1, 4, 3
 mycode  .block
@@ -746,6 +748,29 @@ uninitialized memory, but filling, alignment or address manipulation as well.
         .align 64       ;bytes as necessary
         .offs 16        ;16 bytes
 
+Booleans
+
+There are two predefined boolean variables, true and false.
+
+In numeric expressions true is 1 and false is 0. Other types can be converted
+to boolean by using the type bool.
+
+Booleans are created by comparison operators (<, <=, !=, ==, >=, >), logical
+operators (&&, ||, ^^, !), the membership operator (in) and the all and any
+functions.
+
+Conditional expressions, logical expressions and conditional compilation uses
+them.
+
+         Boolean values of various types
+bits  At least one non-zero bit
+bool  When true
+bytes At least one non-zero byte
+code  Address is non-zero
+float Not 0.0
+int   Not zero
+str   At least one non-zero byte after translation
+
 Types
 
 The various types mentioned earlier have predefined names. These can used for
@@ -762,7 +787,7 @@ float   Floating point type
 gap     Uninitialized memory type
 int     Integer type
 list    List type
-str     String type
+str     Character string type
 tuple   Tuple type
 type    Type type
 
@@ -1008,19 +1033,19 @@ Here's an example how .logical and *= works together:
 
 Dumping data
 
-Storing numeric data
+Storing numeric values
 
 Multi byte numeric data is stored in the little-endian order, which is the
 natural byte order for 65xx processors. Numeric ranges are enforced depending
 on the directives used.
 
-When using lists or tuples their values will be used one by one. Uninitialized
-data creates holes of different sizes. Small string constants are converted
-using the current encoding.
+When using lists or tuples their content will be used one by one. Uninitialized
+data (`?') creates holes of different sizes. Character string constants are
+converted using the current encoding.
 
 Please note that multi character strings usually don't fit into 8 bits and
-therefore the .byte directive is not appropriate for them. Better use .text for
-this sort of usage.
+therefore the .byte directive is not appropriate for them. Use .text instead
+which accepts strings of any length.
 
 .byte <expression>[, <expression>, ...]
     Create bytes from 8 bit unsigned constants (0-255)
@@ -1111,17 +1136,23 @@ this sort of usage.
     ;Store 16.16 signed fixed point constants
             .dint (-3.44, 3.4, 3.52) * 1p16
 
-Storing text data
+Storing string values
 
-Texts are stored as a string of bytes. Small numeric constants can be mixed in
-to represent control characters.
+The following directives store strings of characters, bytes or bits as bytes.
+Small numeric constants can be mixed in to represent single byte control
+characters.
+
+When using lists or tuples their content will be used one by one. Uninitialized
+data (`?') creates byte sized holes. Character string constants are converted
+using the current encoding.
 
 .text <expression>[, <expression>, ...]
-    Assemble strings and 8 bit constants into bytes.
+    Assemble strings without conversion into bytes.
 
             .text "oeU"     ; text, "" means $22
             .text 'oeU'     ; text, '' means $27
             .text 23, $33   ; bytes
+            .text $0a0d     ; $0d, $0a, little endian!
             .text %00011111 ; more bytes
             .text ^OEU      ; the decimal value as string (^23 is $32,$33)
 
@@ -1134,9 +1165,9 @@ to represent control characters.
             .fill 8000, [$55, $aa];8000 bytes of alternating $55, $aa
 
 .shift <expression>[, <expression>, ...]
-    Same as .text, but the last byte will have the highest bit set. Any
-    character which already has the most significant bit set will cause an
-    error.
+    Same as .text, but the last byte will have the highest bit set. Any byte
+    which already has the most significant bit set will cause an error. The
+    last byte can't be uninitialized or missing of course.
 
             ldx #0
     loop    lda txt,x
@@ -1147,12 +1178,14 @@ to represent control characters.
             plp
             bpl loop
             rts
-    txt     .shift "some text"
+    txt     .shift "single", 32, "string"
+            .text s"first", s"second"
 
 .shiftl <expression>[, <expression>, ...]
-    Same as .text, but all bytes are shifted to left, and the last character
-    gets the lowest bit set. Any character which already has the most
-    significant bit set will cause an error as this would be cut off.
+    Same as .text, but all bytes are shifted to left, and the last byte gets
+    the lowest bit set. Any byte which already has the most significant bit set
+    will cause an error as this is cut off on shifting. The last byte can't be
+    uninitialized or missing of course.
 
             ldx #0
     loop    lda txt,x
@@ -1162,16 +1195,19 @@ to represent control characters.
             bcc loop
             rts
             .enc screen
-    txt     .shiftl "some text"
+    txt     .shiftl "single", 32, "string"
+            .text l"first", l"second"
             .enc none
 
 .null <expression>[, <expression>, ...]
-    Same as .text, but adds a null at the end, null in string is an error.
+    Same as .text, but adds a zero byte to the end. An existing zero byte is an
+    error as it'd cause a false end marker.
 
             lda #<txt
             ldy #>txt
             jsr $ab1e
-    txt     .null "some text"
+    txt     .null "single", 32, "string"
+            .text n"first", n"second"
 
 .ptext <expression>[, <expression>, ...]
     Same as .text, but prepend the number of bytes in front of the string
@@ -1194,7 +1230,8 @@ to represent control characters.
             dex
             bne -
     null    rts
-    txt     .ptext "note"
+    txt     .ptext "single", 32, "string"
+            .text p"first", p"second"
 
 Text encoding
 
@@ -2487,6 +2524,8 @@ address not in processor address space
     value larger than current CPU address space
 address out of section
     moving the address around is fine, but do not place it before the section
+at least one byte is needed
+    the expression didn't yield any bytes
 branch crosses page
     page crossing detected
 branch too far by ? bytes
@@ -2523,6 +2562,8 @@ double defined range
     part of a character range was already defined by another .cdef
 duplicate definition
     symbol defined more than once
+empty string not allowed
+    at least one character is required
 expected exactly/at least/at most ? arguments, got ?
     wrong number of function arguments
 expression syntax
@@ -2548,7 +2589,7 @@ logarithm of non-positive number
 missing argument
     not enough arguments supplied to function
 most significiant bit must be clear in byte
-    .shift and .shiftl only valid with 7 bit strings
+    for .shift and .shiftl only 7 bit "bytes" are valid
 negative number raised on fractional power
     can't calculate this
 no ? addressing mode for opcode

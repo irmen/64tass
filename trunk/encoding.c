@@ -612,7 +612,7 @@ int new_escape(const value_t v, value_t val, struct encoding_s *enc, linepos_t e
     d = tmp.val;
 
     if (val->obj == STR_OBJ) {
-        value_t tmp2 = bytes_from_str(val, epoint);
+        value_t tmp2 = bytes_from_str(val, epoint, BYTES_MODE_TEXT);
         iter = tmp2->obj->getiter(tmp2);
         val_destroy(tmp2);
     } else iter = val->obj->getiter(val);
@@ -699,10 +699,11 @@ static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
 }
 
 static struct {
-    size_t i, j, len, len2;
+    size_t i, i2, j, len, len2;
     int err;
     const uint8_t *data, *data2;
     linepos_t epoint;
+    char mode;
 } encode_state;
 
 void encode_string_init(const value_t v, linepos_t epoint) {
@@ -713,6 +714,15 @@ void encode_string_init(const value_t v, linepos_t epoint) {
     encode_state.data = v->u.str.data;
     encode_state.epoint = epoint;
     encode_state.err = 0;
+}
+
+void encode_error(enum errors_e no) {
+    if (!encode_state.err) {
+        struct linepos_s epoint = *encode_state.epoint;
+        epoint.pos = interstring_position(&epoint, encode_state.data, encode_state.i2);
+        err_msg2(no, NULL, &epoint);
+        encode_state.err = 1;
+    }
 }
 
 int encode_string(void) {
@@ -728,6 +738,7 @@ int encode_string(void) {
     }
 next:
     if (encode_state.i >= encode_state.len) return EOF;
+    encode_state.i2 = encode_state.i;
     e = (struct escape_s *)ternary_search(actual_encoding->escape, encode_state.data + encode_state.i, encode_state.data + encode_state.len);
     if (e && e->data) {
         encode_state.i += e->strlen;
@@ -751,7 +762,7 @@ next:
     }
     if (!encode_state.err) {
         struct linepos_s epoint = *encode_state.epoint;
-        epoint.pos = interstring_position(&epoint, encode_state.data, encode_state.i, ch);
+        epoint.pos = interstring_position(&epoint, encode_state.data, encode_state.i);
         err_msg2(ERROR___UNKNOWN_CHR, &ch, &epoint);
         encode_state.err = 1;
     }

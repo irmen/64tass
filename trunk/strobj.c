@@ -60,7 +60,7 @@ static int same(const value_t v1, const value_t v2) {
 
 static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = bytes_from_str(v1, epoint);
+    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->truth(tmp, type, epoint);
     val_destroy(tmp);
     return ret;
@@ -128,7 +128,7 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoin
 
 static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = bytes_from_str(v1, epoint);
+    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->ival(tmp, iv, bits, epoint);
     val_destroy(tmp);
     return ret;
@@ -136,7 +136,7 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
 
 static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = bytes_from_str(v1, epoint);
+    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->uval(tmp, uv, bits, epoint);
     val_destroy(tmp);
     return ret;
@@ -144,7 +144,7 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
 
 MUST_CHECK value_t float_from_str(const value_t v1, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = bytes_from_str(v1, epoint);
+    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     if (tmp->obj != BYTES_OBJ) return tmp;
     ret = float_from_bytes(tmp, epoint);
     val_destroy(tmp);
@@ -153,7 +153,7 @@ MUST_CHECK value_t float_from_str(const value_t v1, linepos_t epoint) {
 
 static MUST_CHECK value_t sign(const value_t v1, linepos_t epoint) {
     value_t tmp, ret;
-    tmp = bytes_from_str(v1, epoint);
+    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->sign(tmp, epoint);
     val_destroy(tmp);
     return ret;
@@ -260,7 +260,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
     case O_HWORD:
     case O_WORD:
     case O_BSWORD:
-    case O_INV: tmp = bytes_from_str(v1, op->epoint); break;
+    case O_INV: tmp = bytes_from_str(v1, op->epoint, BYTES_MODE_TEXT); break;
     case O_NEG:
     case O_POS:
     case O_STRING: tmp = int_from_str(v1, op->epoint); break;
@@ -301,8 +301,8 @@ static MUST_CHECK value_t calc2_str(oper_t op) {
     case O_XOR:
         {
             value_t tmp, tmp2, result;
-            tmp = bytes_from_str(v1, op->epoint);
-            tmp2 = bytes_from_str(v2, op->epoint2);
+            tmp = bytes_from_str(v1, op->epoint, BYTES_MODE_TEXT);
+            tmp2 = bytes_from_str(v2, op->epoint2, BYTES_MODE_TEXT);
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
@@ -650,7 +650,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_BYTES:
         {
             value_t result;
-            tmp = bytes_from_str(v1, op->epoint);
+            tmp = bytes_from_str(v1, op->epoint, BYTES_MODE_TEXT);
             op->v1 = tmp;
             result = tmp->obj->calc2(op);
             op->v1 = v1;
@@ -700,7 +700,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_BYTES:
         {
             value_t result;
-            tmp = bytes_from_str(v2, op->epoint2);
+            tmp = bytes_from_str(v2, op->epoint2, BYTES_MODE_TEXT);
             op->v2 = tmp;
             result = v1->obj->calc2(op);
             op->v2 = v2;

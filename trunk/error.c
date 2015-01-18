@@ -211,12 +211,14 @@ static const char *terr_error[]={
     "division by zero",
     "zero value not allowed",
     "most significiant bit must be clear in byte",
+    "at least one byte is needed",
     "instruction can't cross banks",
     "address out of section",
     "negative number raised on fractional power",
     "square root of negative number",
     "logarithm of non-positive number",
     "not in range -1.0 to 1.0",
+    "empty string not allowed",
     "not a one character string",
     "index out of range",
     "key error",
@@ -529,6 +531,8 @@ void err_msg_output(const value_t val) {
         case ERROR_SQUARE_ROOT_N:
         case ERROR_LOG_NON_POSIT:
         case ERROR___MATH_DOMAIN:
+        case ERROR__EMPTY_STRING:
+        case ERROR__BYTES_NEEDED:
         case ERROR_BIG_STRING_CO:
         case ERROR_____KEY_ERROR:
         case ERROR__NO_BYTE_ADDR:
@@ -875,13 +879,12 @@ void error_status(void) {
     if (warnings) printf("%u\n", warnings); else puts("None");
 }
 
-linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i, uint32_t ch) {
+linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i) {
     if (epoint->line == lpoint.line && strlen((char *)pline) > epoint->pos) {
         uint8_t q = pline[epoint->pos];
         if (q == '"' || q == '\'') {
             linecpos_t pos = epoint->pos + 1;
             size_t pp = 0;
-            uint32_t ch2;
             while (pp < i && pline[pos]) {
                 unsigned int ln2;
                 if (pline[pos] == q) {
@@ -893,9 +896,7 @@ linecpos_t interstring_position(linepos_t epoint, const uint8_t *data, size_t i,
                 pos += ln2; pp += ln2;
             }
             if (pp == i) {
-                ch2 = pline[pos];
-                if (ch2 & 0x80) utf8in(data + i, &ch2);
-                if (ch2 == ch) return pos;
+                return pos;
             }
         }
     }

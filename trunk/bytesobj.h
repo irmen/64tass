@@ -27,10 +27,20 @@ typedef struct {
     uint8_t val[20];
 } bytes_t;
 
+enum bytes_mode_e {
+    BYTES_MODE_TEXT,
+    BYTES_MODE_SHIFT_CHECK,
+    BYTES_MODE_SHIFT,
+    BYTES_MODE_SHIFTL,
+    BYTES_MODE_NULL_CHECK,
+    BYTES_MODE_NULL,
+    BYTES_MODE_PTEXT
+};
+
 extern void bytesobj_init(void);
 
 extern MUST_CHECK value_t bytes_from_u8(uint8_t);
 extern MUST_CHECK value_t bytes_from_u16(uint16_t);
-extern MUST_CHECK value_t bytes_from_str(const value_t, linepos_t);
+extern MUST_CHECK value_t bytes_from_str(const value_t, linepos_t, enum bytes_mode_e);
 extern MUST_CHECK value_t float_from_bytes(const value_t, linepos_t);
 #endif

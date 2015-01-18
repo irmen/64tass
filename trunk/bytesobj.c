@@ -47,7 +47,7 @@ static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     case T_BYTES: return val_reference(v1);
     case T_BOOL: return bytes_from_u8(v1->u.boolean);
     case T_BITS: return bytes_from_bits(v1);
-    case T_STR: return bytes_from_str(v1, epoint);
+    case T_STR: return bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     case T_INT: return bytes_from_int(v1);
     case T_CODE: return bytes_from_code(v1, epoint);
     case T_FLOAT: 
@@ -165,11 +165,11 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoin
     return NULL;
 }
 
-MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint) {
-    size_t len = v1->u.str.len, len2 = 0;
+MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint, enum bytes_mode_e mode) {
+    size_t len = v1->u.str.len, len2 = (mode == BYTES_MODE_PTEXT || mode == BYTES_MODE_NULL);
     uint8_t *s;
     value_t v;
-    if (len) {
+    if (len || len2) {
         if (actual_encoding) {
             int ch;
             if (len < sizeof(v->u.bytes.val)) len = sizeof(v->u.bytes.val);
@@ -189,7 +189,25 @@ MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint) {
                     }
                     if (!s) err_msg_out_of_memory();
                 }
-                s[len2++] = ch;
+                switch (mode) {
+                case BYTES_MODE_SHIFT_CHECK:
+                case BYTES_MODE_SHIFT: if (ch & 0x80) {encode_error(ERROR___NO_HIGH_BIT); ch &= 0x7f;} s[len2] = ch; break;
+                case BYTES_MODE_SHIFTL: if (ch & 0x80) encode_error(ERROR___NO_HIGH_BIT); s[len2] = ch << 1; break;
+                case BYTES_MODE_NULL_CHECK:if (!ch) {encode_error(ERROR_NO_ZERO_VALUE); ch = 0xff;} s[len2] = ch; break;
+                case BYTES_MODE_NULL: if (!ch) encode_error(ERROR_NO_ZERO_VALUE); s[len2 - 1] = ch; break;
+                case BYTES_MODE_PTEXT:
+                case BYTES_MODE_TEXT: s[len2] = ch; break;
+                }
+                len2++;
+            }
+            switch (mode) {
+            case BYTES_MODE_SHIFT: if (len2) s[len2 - 1] |= 0x80; else err_msg2(ERROR__BYTES_NEEDED, NULL, epoint); break;
+            case BYTES_MODE_SHIFTL: if (len2) s[len2 - 1] |= 0x01; else err_msg2(ERROR__BYTES_NEEDED, NULL, epoint);break;
+            case BYTES_MODE_NULL: s[len2 - 1] = 0x00; break;
+            case BYTES_MODE_PTEXT: s[0] = len2 - 1; if (len2 > 256) err_msg2(ERROR____PTEXT_LONG, &len2, epoint); break;
+            case BYTES_MODE_SHIFT_CHECK:
+            case BYTES_MODE_NULL_CHECK:
+            case BYTES_MODE_TEXT: break;
             }
         } else if (v1->u.str.chars == 1) {
             uint32_t ch2 = v1->u.str.data[0];
@@ -216,6 +234,9 @@ MUST_CHECK value_t bytes_from_str(const value_t v1, linepos_t epoint) {
         v->u.bytes.len = len2;
         v->u.bytes.data = s;
         return v;
+    }
+    if (actual_encoding) {
+        if (mode == BYTES_MODE_SHIFT || mode == BYTES_MODE_SHIFTL) err_msg2(ERROR__EMPTY_STRING, NULL, epoint);
     }
     return val_reference(null_bytes);
 }

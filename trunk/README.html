@@ -96,7 +96,7 @@ the 65xx series of processors. Key features:</p>
 <li>Supports 6502, 65C02, R65C02, W65C02, 65CE02, 65816, DTV, 65EL02
 <li>Arbitrary-precision integers and bitstrings, double precision floating point numbers
 <li>Character and byte strings, array arithmetic
-<li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files, unicode strings
+<li>Handles UTF-8, UTF-16 and 8&nbsp;bit RAW encoded source files, unicode character strings
 <li>Supports Unicode identifiers with case folding and compatibility normalization
 <li>Built-in <q>linker</q> with section support
 <li>CPU or flat address space for creating huge binaries (e.g. cartridges)
@@ -122,11 +122,12 @@ Not everything is backwards compatible.</b></p>
   <li><a href="#floating-point">Floating point constants</a>
   <li><a href="#character-string">Character string constants</a>
   <li><a href="#byte-string">Byte string constants</a>
-  <li><a href="#list-tuples">List and tuples</a>
+  <li><a href="#list-tuples">Lists and tuples</a>
   <li><a href="#dictionaries">Dictionaries</a>
   <li><a href="#code">Code</a>
   <li><a href="#addressing">Addressing modes</a>
   <li><a href="#uninitialized">Uninitialized memory</a>
+  <li><a href="#booleans">Booleans</a>
   <li><a href="#type">Types</a>
   <li><a href="#symbols">Symbols</a>
   <ul>
@@ -143,8 +144,8 @@ Not everything is backwards compatible.</b></p>
   <li><a href="#program-counter">Controlling the compile offset and program counter</a>
   <li><a href="#data-dumping">Dumping data</a>
   <ul>
-   <li><a href="#data-numeric">Storing numeric data</a>
-   <li><a href="#data-text">Storing text data</a>
+   <li><a href="#data-numeric">Storing numeric values</a>
+   <li><a href="#data-text">Storing string values</a>
   </ul>
   <li><a href="#text-encoding">Text encoding</a>
   <li><a href="#structures">Structured data</a>
@@ -364,7 +365,7 @@ hibytes <b class="d">.byte</b> &gt;(<u>-</u>)      <i>; high bytes</i>
 
 <h3>Integer constants<a name="integers" href="#integers"></a></h3>
 
-<p>Integer constants can be entered as a string of decimal numbers of arbitary length. The
+<p>Integer constants can be entered as decimal digits of arbitrary length. The
 following operations are accepted:</p>
 
 <div><table border="0">
@@ -402,10 +403,9 @@ following operations are accepted:</p>
 </tbody>
 </table></div>
 
-<p>An integer has a truth value of true if it's non-zero. The
-true value is the same as 1.</p>
-
-<p>Integers are automatically promoted to float as necessary in expressions.</p>
+<p>Integers are automatically promoted to float as necessary in expressions.
+Other types can can be converted to integer using the integer type
+<code>int</code>.</p>
 
 <pre width=80>
         <b class="d">.byte</b> <span>23</span>        <i>; decimal</i>
@@ -425,7 +425,7 @@ true value is the same as 1.</p>
 
 <h3>Bit string constants<a name="bit-string" href="#bit-string"></a></h3>
 
-<p>Bit string constants can be entered as hexadecimal by a leading dollar sign or binary with a leading percent sign.
+<p>Bit string constants can be entered in hexadecimal form by a leading dollar sign or in binary with a leading percent sign.
 The following operations are accepted:</p>
 
 <div><table border="0">
@@ -449,13 +449,13 @@ The following operations are accepted:</p>
 </tbody>
 </table></div>
 
-<p>A bit string has a truth value of true if it's integer value is non-zero.</p>
-
 <p>Length of bit string constants are defined in bits and is calculated from
-the number of digits used including leading zeros.</p>
+the number of bit digits used including leading zeros.</p>
 
 <p>Bit strings are automatically promoted to integer or floating point as necessary in
 expressions. The higher bits are extended with zeros or ones as needed.</p>
+
+<p>Other types can can be converted to bit string using the bit string type <code>bits</code>.</p>
 
 <pre width=80>
         <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
@@ -531,14 +531,13 @@ following operations can be used:</p>
 </tbody>
 </table></div>
 
-<p>A floating point number has a truth value of true if it's non-zero.</p>
-
 <p>As usual comparing floating point numbers for (non) equality is a bad idea due to rounding errors.</p>
 
 <p>There are no predefined floating point constants, define them as necessary. Hint: pi is <code>rad(180)</code>
 and e is <code>exp(1)</code>.</p>
 
-<p>Floating point numbers are automatically truncated to integer as necessary.</p>
+<p>Floating point numbers are automatically truncated to integer as necessary.
+Other types can can be converted to floating point by using the type <code>float</code>.</p>
 
 <p>Fixed point conversion can be done by using the shift operators for example
 a 8.16 fixed point number can be calculated as <code>(3.14 &lt;&lt; 16) &amp; $ffffff</code>.
@@ -553,14 +552,14 @@ point one. This is the reason for the strange definition of inversion.</p>
 
 <h3>Character string constants<a name="character-string" href="#character-string"></a></h3>
 
-<p>Strings are enclosed in single or double quotes and can hold any Unicode
+<p>Character strings are enclosed in single or double quotes and can hold any Unicode
 character. Operations like indexing or slicing are always done on the original
 representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
-Doubling the quotes inside the strings escapes them.</p>
+Doubling the quotes inside character strings escapes them and results in a single quote.</p>
 
 <div><table border="0">
-<caption>String operators and functions</caption>
+<caption>Character string operators and functions</caption>
 <tbody>
 <tr><td><code><u>y</u> .. <u>x</u></code><td>concatenate strings<td><code><span class="s">"a"</span> .. <span class="s">"b"</span></code> is <code><span class="s">"ab"</span></code>
 <tr><td><code><u>y</u> <span class="k">in</span> <u>x</u></code><td>is substring of<td><code><span class="s">"b"</span> <span class="k">in</span> <span class="s">"abc"</span></code> is <code><span>true</span></code>
@@ -579,11 +578,13 @@ Doubling the quotes inside the strings escapes them.</p>
 </tbody>
 </table></div>
 
-<p>A string has a truth value of true if it contains at least one character which is not translated to zero.</p>
-
-<p>Strings are converted to integers, byte and bit strings as necessary using the current
+<p>Character strings are converted to integers, byte and bit strings as necessary using the current
 encoding and escape rules. For example when using a sane encoding <code>"z"&minus;"a"</code> is
 <code>25</code>.</p>
+
+<p>Other types can be converted to character strings by using the type
+<code>str</code> or by using the <code>repr</code> and </code>format</code>
+functions.</p>
 
 <p>Indexing characters with positive integers start with zero. Negative indexes
 are translated internally by adding the number of characters to them, therefore
@@ -609,10 +610,10 @@ mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
         <b class="d">.text</b> <span class="s">"reverse"</span>[::<span>-1</span>]<i>; "esrever"</i>
 </pre>
 
-<p>String formatting can interpret a list of values and convert them to a string.
-The converted values are inserted at the <code>%</code> sign which is followed by
-conversion flags, minimum field length, and conversion type. The these flags
-can be used:</p>
+<p>The <code>format</code> function converts a list of values into a character string.
+The converted values are inserted in place of the <code>%</code> sign. Optional 
+conversion flags and minimum field length may follow, before the conversion
+type character. These flags can be used:</p>
 
 <div><table border="0">
 <caption>Formatting flags</caption>
@@ -627,10 +628,10 @@ can be used:</p>
 </tbody>
 </table></div>
 
-<p>The following conversions are implemented:</p>
+<p>The following conversion types are implemented:</p>
 
 <div><table border="0">
-<caption>Formatting conversions</caption>
+<caption>Formatting conversion types</caption>
 <tbody>
 <tr><td width="40"><code>a&nbsp;A</code><td>hexadecimal floating point (uppercase)
 <tr><td><code>b</code><td>binary
@@ -651,10 +652,12 @@ can be used:</p>
 </pre>
 
 <h3>Byte string constants<a name="byte-string" href="#byte-string"></a></h3>
-
-<p>Byte strings are like strings, but hold bytes instead of characters. They
-can be created by prefixing quoted strings with a <q>b</q>, this converts the
-string using the current encoding to bytes.</p>
+<p>Byte strings are like character strings, but hold bytes instead of characters.</p>
+<p>Quoted character strings prefixing by <q>b</q>, <q>l</q>, <q>n</q>, <q>p</q>
+or <q>s</q> characters can be used to create byte strings. The resulting byte
+string contains what <code>.text</code>, <code>.shiftl</code>,
+<code>.null</code>, <code>.ptext</code> and <code>.shift</code> would
+create.</p>
 
 <div><table border="0">
 <caption>Byte string operators and functions</caption>
@@ -674,19 +677,23 @@ string using the current encoding to bytes.</p>
 </tbody>
 </table></div>
 
-<p>A byte string has a truth value of true if it contains at least one non-zero byte.</p>
-
 <p>Indexing and slicing works as with character strings.</p>
+
+<p>Other types can be converted to byte strings by using the type <code>bytes</code>.</p>
 
 <pre width=80>
         <b class="k">.enc</b> screen	<i>;use screen encoding</i>
-mystr   <b>=</b> <span class="s">b"oeU"</span>        <i>;convert text to bytes</i>
+mystr   <b>=</b> <span class="s">b"oeU"</span>        <i>;convert text to bytes, like .text</i>
         <b class="k">.enc</b> none	<i>;normal encoding</i>
 
         <b class="d">.text</b> <u>mystr</u>     <i>;text as originally encoded</i>
+        <b class="d">.text</b> <span class="s">s"p1"</span>     <i>;convert to bytes like .shift</i>
+        <b class="d">.text</b> <span class="s">l"p2"</span>     <i>;convert to bytes like .shiftl</i>
+        <b class="d">.text</b> <span class="s">n"p3"</span>     <i>;convert to bytes like .null</i>
+        <b class="d">.text</b> <span class="s">p"p4"</span>     <i>;convert to bytes like .ptext</i>
 </pre>
 
-<h3>List and tuples<a name="list-tuples" href="#list-tuples"></a></h3>
+<h3>Lists and tuples<a name="list-tuples" href="#list-tuples"></a></h3>
 
 <p>Lists and tuples can hold a collection of values. Lists are defined from
 values separated by comma between square brackets <code>[1, 2, 3]</code>, an
@@ -786,8 +793,6 @@ and string keys are accepted, the value can be anything.</p>
 </tbody>
 </table></div>
 
-<p>A dictionary has a truth value of true if it contains at least one key value pair.</p>
-
 <pre width=80>
         <b class="d">.text</b> {<span>1</span>:<span class="s">"one"</span>, <span>2</span>:<span class="s">"two"</span>}[<span>2</span>]<i>; "two"</i>
 </pre>
@@ -816,8 +821,6 @@ risk for now, you might need to update your code later.</b></p>
 <tr><td><code><span class="k">size</span>(<u>a</u>)</code><td>size in bytes<td><code><span class="k">size</span>(<u>label</u>)</code>
 </tbody>
 </table></div>
-
-<p>A code object has a truth value of true when it's address is non-zero.</p>
 
 <pre width=80>
 mydata  <b class="d">.word</b> <span>1</span>, <span>4</span>, <span>3</span>
@@ -952,6 +955,34 @@ well.</p>
 	<b class="k">.offs</b> <span>16</span>        <i>;16 bytes</i>
 </pre>
 
+<h3>Booleans<a name="booleans" href="#booleans"></a></h3>
+
+<p>There are two predefined boolean variables, <code>true</code> and <code>false</code>.</p>
+
+<p>In numeric expressions <code>true</code> is <code>1</code> and <code>false</code> is <code>0</code>.
+Other types can be converted to boolean by using the type <code>bool</code>.</p>
+
+<p>Booleans are created by comparison operators (<code>&lt;</code>,
+<code>&lt;=</code>, <code>!=</code>, <code>==</code>, <code>&gt;=</code>, <code>&gt;</code>),
+logical operators (<code>&amp;&amp;</code>, <code>||</code>, <code>^^</code>,
+<code>!</code>), the membership operator (<code>in</code>) and the
+<code>all</code> and <code>any</code> functions.</p>
+
+<p>Conditional expressions, logical expressions and conditional compilation uses them.</p>
+
+<div><table border="0">
+<caption>Boolean values of various types</caption>
+<tbody>
+<tr><td><code><u>bits</u></code><td>At least one non-zero bit
+<tr><td><code><u>bool</u></code><td>When true
+<tr><td><code><u>bytes</u></code><td>At least one non-zero byte
+<tr><td><code><u>code</u></code><td>Address is non-zero
+<tr><td><code><u>float</u></code><td>Not 0.0
+<tr><td><code><u>int</u></code><td>Not zero
+<tr><td><code><u>str</u></code><td>At least one non-zero byte after translation
+</tbody>
+</table></div>
+
 <h3>Types<a name="type" href="#type"></a></h3>
 
 <p>The various types mentioned earlier have predefined names. These can
@@ -970,7 +1001,7 @@ used for conversions or type checks.</p>
 <tr><td><code><a name="t_gap"><u>gap</u></a></code><td>Uninitialized memory type
 <tr><td><code><a name="t_int"><u>int</u></a></code><td>Integer type
 <tr><td><code><a name="t_list"><u>list</u></a></code><td>List type
-<tr><td><code><a name="t_str"><u>str</u></a></code><td>String type
+<tr><td><code><a name="t_str"><u>str</u></a></code><td>Character string type
 <tr><td><code><a name="t_tuple"><u>tuple</u></a></code><td>Tuple type
 <tr><td><code><a name="t_type"><u>type</u></a></code><td>Type type
 </tbody>
@@ -1243,16 +1274,16 @@ loop    <b>adc</b> #<span>1</span>          <i>;padding with "nop" for DTV burst
 </pre>
 
 <h3>Dumping data<a name="data-dumping" href="#data-dumping"></a></h3>
-<h4>Storing numeric data<a name="data-numeric" href="#data-numeric"></a></h4>
+<h4>Storing numeric values<a name="data-numeric" href="#data-numeric"></a></h4>
 <p>Multi byte numeric data is stored in the little-endian order, which is the
 natural byte order for 65xx processors. Numeric ranges are enforced depending
 on the directives used.</p>
-<p>When using lists or tuples their values will be used one by one.
-Uninitialized data creates holes of different sizes. Small string constants are
-converted using the current encoding.</p>
+<p>When using lists or tuples their content will be used one by one.
+Uninitialized data (<q>?</q>) creates holes of different sizes. Character string constants
+are converted using the current encoding.</p>
 <p>Please note that multi character strings usually don't fit into 8&nbsp;bits
 and therefore the <code>.byte</code> directive is not appropriate for them.
-Better use <code>.text</code> for this sort of usage.</p>
+Use <code>.text</code> instead which accepts strings of any length.</p>
 <dl class="dir">
 <dt><code><b class="d"><a name="d_byte">.byte</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Create bytes from 8&nbsp;bit unsigned constants (0&ndash;255)
@@ -1348,16 +1379,20 @@ jumps   <b class="d">.long</b> <u>routine1</u>, <u>routine2</u>
 </pre>
 </dl>
 
-<h4>Storing text data<a name="data-text" href="#data-text"></a></h4>
-<p>Texts are stored as a string of bytes. Small numeric constants can be mixed
-in to represent control characters.</p>
+<h4>Storing string values<a name="data-text" href="#data-text"></a></h4>
+<p>The following directives store strings of characters, bytes or bits as bytes. Small
+numeric constants can be mixed in to represent single byte control characters.</p>
+<p>When using lists or tuples their content will be used one by one.
+Uninitialized data (<q>?</q>) creates byte sized holes. Character string constants
+are converted using the current encoding.</p>
 <dl class="dir">
 <dt><code><b class="d"><a name="d_text">.text</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Assemble strings and 8&nbsp;bit constants into bytes.
+<dd>Assemble strings without conversion into bytes.
 <pre width=80>
         <b class="d">.text</b> <span class="s">"oeU"</span>	<i>; text, "" means $22</i>
         <b class="d">.text</b> <span class="s">'oeU'</span>	<i>; text, '' means $27</i>
         <b class="d">.text</b> <span>23</span>, <span>$33</span>	<i>; bytes</i>
+        <b class="d">.text</b> <span>$0a0d</span>	<i>; $0d, $0a, little endian!</i>
         <b class="d">.text</b> <span>%00011111</span>	<i>; more bytes</i>
         <b class="d">.text</b> ^<u>OEU</u>	<i>; the decimal value as string (^23 is $32,$33)</i>
 </pre>
@@ -1372,7 +1407,8 @@ in to represent control characters.</p>
 
 <dt><code><b class="d"><a name="d_shift">.shift</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Same as <code>.text</code>, but the last byte will have the highest bit set.
-Any character which already has the most significant bit set will cause an error.
+Any byte which already has the most significant bit set will cause an error.
+The last byte can't be uninitialized or missing of course.
 <pre width=80>
         <b>ldx</b> #<span>0</span>
 loop	<b>lda</b> <u>txt</u>,x
@@ -1383,13 +1419,15 @@ loop	<b>lda</b> <u>txt</u>,x
 	<b>plp</b>
         <b>bpl</b> <u>loop</u>
 	<b>rts</b>
-txt	<b class="d">.shift</b> <span class="s">"some text"</span>
+txt	<b class="d">.shift</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+	<b class="d">.text</b> <span class="s">s"first"</span>, <span class="s">s"second"</span>
 </pre>
 
 <dt><code><b class="d"><a name="d_shiftl">.shiftl</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
 <dd>Same as <code>.text</code>, but all bytes are shifted to left, and the last
-character gets the lowest bit set. Any character which already has the most significant
-bit set will cause an error as this would be cut off.
+byte gets the lowest bit set. Any byte which already has the most significant
+bit set will cause an error as this is cut off on shifting.
+The last byte can't be uninitialized or missing of course.
 <pre width=80>
         <b>ldx</b> #<span>0</span>
 loop	<b>lda</b> <u>txt</u>,x
@@ -1399,17 +1437,20 @@ loop	<b>lda</b> <u>txt</u>,x
         <b>bcc</b> <u>loop</u>
 	<b>rts</b>
 	<b class="k">.enc</b> screen
-txt	<b class="d">.shiftl</b> <span class="s">"some text"</span>
+txt	<b class="d">.shiftl</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+	<b class="d">.text</b> <span class="s">l"first"</span>, <span class="s">l"second"</span>
 	<b class="k">.enc</b> none
 </pre>
 
 <dt><code><b class="d"><a name="d_null">.null</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
-<dd>Same as <code>.text</code>, but adds a null at the end, null in string is an error.
+<dd>Same as <code>.text</code>, but adds a zero byte to the end. An existing
+zero byte is an error as it'd cause a false end marker.
 <pre width=80>
         <b>lda</b> #&lt;<u>txt</u>
         <b>ldy</b> #&gt;<u>txt</u>
         <b>jsr</b> <span>$ab1e</span>
-txt	<b class="d">.null</b> <span class="s">"some text"</span>
+txt	<b class="d">.null</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+	<b class="d">.text</b> <span class="s">n"first"</span>, <span class="s">n"second"</span>
 </pre>
 
 <dt><code><b class="d"><a name="d_ptext">.ptext</a></b></code> &lt;expression&gt;[, &lt;expression&gt;, &hellip;]
@@ -1433,7 +1474,8 @@ print	<b>sta</b> <span>$fb</span>
 	<b>dex</b>
 	<b>bne</b> <u>-</u>
 null	<b>rts</b>
-txt	<b class="d">.ptext</b> <span class="s">"note"</span>
+txt	<b class="d">.ptext</b> <span class="s">"single"</span>, <span>32</span>, <span class="s">"string"</span>
+	<b class="d">.text</b> <span class="s">p"first"</span>, <span class="s">p"second"</span>
 </pre>
 </dl>
 
@@ -2798,6 +2840,7 @@ will display without them.</p>
 <dt>? expected<dd>something is missing
 <dt>address not in processor address space<dd>value larger than current CPU address space
 <dt>address out of section<dd>moving the address around is fine, but do not place it before the section
+<dt>at least one byte is needed<dd>the expression didn't yield any bytes
 <dt>branch crosses page<dd>page crossing detected
 <dt>branch too far by ? bytes<dd>can't branch that far
 <dt>can't calculate stable value<dd>somehow it's impossible to calculate this expression
@@ -2816,6 +2859,7 @@ will display without them.</p>
 <dt>double defined escape<dd>escape sequence already defined in another .edef
 <dt>double defined range<dd>part of a character range was already defined by another .cdef
 <dt>duplicate definition<dd>symbol defined more than once
+<dt>empty string not allowed<dd>at least one character is required
 <dt>expected exactly/at least/at most ? arguments, got ?<dd>wrong number of function arguments
 <dt>expression syntax<dd>syntax error
 <dt>extra characters on line<dd>there's some garbage on the end of line
@@ -2828,7 +2872,7 @@ will display without them.</p>
 <dt>label required<dd>a label is mandatory for this directive
 <dt>logarithm of non-positive number<dd>Only positive numbers have a logarithm
 <dt>missing argument<dd>not enough arguments supplied to function
-<dt>most significiant bit must be clear in byte<dd>.shift and .shiftl only valid with 7 bit strings
+<dt>most significiant bit must be clear in byte<dd>for .shift and .shiftl only 7 bit "bytes" are valid
 <dt>negative number raised on fractional power<dd>can't calculate this
 <dt>no ? addressing mode for opcode<dd>this addressing mode is not valid for this opcode
 <dt>not a bank 0 address<dd>value must be a bank zero address
