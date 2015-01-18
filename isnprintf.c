@@ -538,7 +538,7 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
                         struct linepos_s epoint2 = v[0].epoint;
                         uint32_t ch;
                         str_t msg;
-                        epoint2.pos = interstring_position(&epoint2, v[0].val->u.str.data, data.pf - (char *)v[0].val->u.str.data - 1, '%');
+                        epoint2.pos = interstring_position(&epoint2, v[0].val->u.str.data, data.pf - (char *)v[0].val->u.str.data - 1);
                         msg.data = (uint8_t *)data.pf - 1;
                         ch = (uint8_t)*data.pf;
                         if (ch & 0x80) msg.len = utf8in((const uint8_t *)data.pf, &ch) + 1; else msg.len = 2;

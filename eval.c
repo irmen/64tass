@@ -1346,11 +1346,23 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 struct label_s *l;
                 str_t ident;
             as_ident:
-                if ((pline[epoint.pos] | (arguments.casesensitive ? 0 : 0x20)) == 'b' && (pline[epoint.pos + 1] == '"' || pline[epoint.pos + 1] == '\'')) {
-                    val = get_string();
-                    push_oper(bytes_from_str(val, &epoint), &epoint);
-                    val_destroy(val);
-                    goto other;
+                if (pline[epoint.pos + 1] == '"' || pline[epoint.pos + 1] == '\'') {
+                    enum bytes_mode_e mode;
+                    switch (pline[epoint.pos] | (arguments.casesensitive ? 0 : 0x20)) {
+                    case 'n': mode = BYTES_MODE_NULL; break;
+                    case 's': mode = BYTES_MODE_SHIFT; break;
+                    case 'p': mode = BYTES_MODE_PTEXT; break;
+                    case 'l': mode = BYTES_MODE_SHIFTL; break;
+                    case 'b': mode = BYTES_MODE_TEXT; break;
+                    default: mode = BYTES_MODE_NULL_CHECK; break;
+                    }
+                    if (mode != BYTES_MODE_NULL_CHECK) {
+                        val = get_string();
+                        epoint.pos++;
+                        push_oper(bytes_from_str(val, &epoint, mode), &epoint);
+                        val_destroy(val);
+                        goto other;
+                    }
                 }
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
                     val = val_alloc(IDENT_OBJ);

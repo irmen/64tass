@@ -60,12 +60,14 @@ enum errors_e {
     ERROR_DIVISION_BY_Z,
     ERROR_NO_ZERO_VALUE,
     ERROR___NO_HIGH_BIT,
+    ERROR__BYTES_NEEDED,
     ERROR_CANT_CROSS_BA,
     ERROR_OUTOF_SECTION,
     ERROR_NEGFRAC_POWER,
     ERROR_SQUARE_ROOT_N,
     ERROR_LOG_NON_POSIT,
     ERROR___MATH_DOMAIN,
+    ERROR__EMPTY_STRING,
     ERROR_BIG_STRING_CO,
     ERROR___INDEX_RANGE,
     ERROR_____KEY_ERROR,
@@ -119,8 +121,8 @@ enum errors_e {
     ERROR_UNKNOWN_OPTIO
 };
 
-extern void err_msg(enum errors_e, const void*);
-extern void err_msg2(enum errors_e, const void*, linepos_t);
+extern void err_msg(enum errors_e, const void *);
+extern void err_msg2(enum errors_e, const void *, linepos_t);
 extern void err_msg_wrong_type(const value_t, obj_t, linepos_t);
 extern void err_msg_cant_calculate(const str_t *, linepos_t);
 extern void err_msg_still_none(const str_t *, linepos_t);
@@ -144,7 +146,7 @@ extern void err_destroy(void);
 extern void NO_RETURN err_msg_out_of_memory(void);
 extern void error_status(void);
 extern int error_serious(int, int);
-extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t, uint32_t);
+extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t);
 extern MUST_CHECK value_t new_error_obj(enum errors_e, linepos_t);
 
 #endif

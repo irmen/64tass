@@ -424,7 +424,18 @@ static int textrecursion(value_t val, int prm, int *ch2, size_t *uninit, size_t 
     value_t iter, val2;
     uval_t uval;
     int warn = 0;
-    if (val->obj == STR_OBJ || val->obj == BITS_OBJ) {
+    if (val->obj == STR_OBJ) {
+        enum bytes_mode_e m;
+        switch (prm) {
+        case CMD_SHIFTL:
+        case CMD_SHIFT: m = BYTES_MODE_SHIFT_CHECK; break;
+        case CMD_NULL: m = BYTES_MODE_NULL_CHECK; break;
+        default: m = BYTES_MODE_TEXT; break;
+        }
+        value_t tmp = bytes_from_str(val, epoint2, m);
+        iter = tmp->obj->getiter(tmp);
+        val_destroy(tmp);
+    } else if (val->obj == BITS_OBJ) {
         value_t tmp = BYTES_OBJ->create(val, epoint2);
         iter = tmp->obj->getiter(tmp);
         val_destroy(tmp);
@@ -1446,7 +1457,13 @@ value_t compile(struct file_list_s *cflist)
                             if (prm==CMD_SHIFT) ch2|=0x80;
                             if (prm==CMD_SHIFTL) ch2|=0x01;
                             pokeb(ch2); sum++;
-                        } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) err_msg_wrong_type(gap_value, NULL, &vs->epoint);
+                        } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
+                            if (uninit) {
+                                err_msg_wrong_type(gap_value, NULL, &epoint);
+                            } else {
+                                err_msg2(ERROR__BYTES_NEEDED, NULL, &epoint);
+                            }
+                        }
                         if (prm==CMD_NULL) pokeb(0);
                         if (prm==CMD_PTEXT) {
                             if (sum > 0x100) err_msg2(ERROR____PTEXT_LONG, &sum, &epoint);
@@ -1691,7 +1708,7 @@ value_t compile(struct file_list_s *cflist)
                             get_mem(&current_section->mem, &memp, &membp);
 
                             if (val->obj == STR_OBJ) {
-                                value_t tmp = bytes_from_str(val, &vs->epoint);
+                                value_t tmp = bytes_from_str(val, &vs->epoint, BYTES_MODE_TEXT);
                                 iter = tmp->obj->getiter(tmp);
                                 val_destroy(tmp);
                             } else iter = val->obj->getiter(val);
@@ -1865,7 +1882,7 @@ value_t compile(struct file_list_s *cflist)
                             tmp.start = uval;
                             break;
                         case T_STR:
-                            if (!val->u.str.len) err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);
+                            if (!val->u.str.len) err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint);
                             else {
                                 ch = val->u.str.data[0];
                                 if (ch & 0x80) i = utf8in(val->u.str.data, &ch); else i = 1;
@@ -1940,7 +1957,7 @@ value_t compile(struct file_list_s *cflist)
                         v = vs->val;
                         switch (v->obj->type) {
                         case T_STR:
-                            if (!v->u.str.len) err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);
+                            if (!v->u.str.len) err_msg2(ERROR__EMPTY_STRING, NULL, &vs->epoint);
                             break;
                         case T_NONE:
                             err_msg_still_none(NULL, &vs->epoint);
