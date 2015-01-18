@@ -1463,18 +1463,20 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 uint8_t c = pline[epoint.pos + 1];
                 if (!arguments.casesensitive) c |= 0x20;
                 switch (c) {
-                case 'x': op = &o_COMMAX;llen=0;break;
-                case 'y': op = &o_COMMAY;llen=0;break;
-                case 'z': op = &o_COMMAZ;llen=0;break;
-                case 'r': op = &o_COMMAR;llen=0;break;
-                case 's': op = &o_COMMAS;llen=0;break;
-                case 'd': op = &o_COMMAD;llen=0;break;
-                case 'b': op = &o_COMMAB;llen=0;break;
-                case 'k': op = &o_COMMAK;llen=0;break;
-                default: op = &o_COMMA;break;
+                case 'x': op = &o_COMMAX; prec = o_WORD.u.oper.prio; break;
+                case 'y': op = &o_COMMAY; prec = o_WORD.u.oper.prio; break;
+                case 'z': op = &o_COMMAZ; prec = o_WORD.u.oper.prio; break;
+                case 'r': op = &o_COMMAR; prec = o_WORD.u.oper.prio; break;
+                case 's': op = &o_COMMAS; prec = o_WORD.u.oper.prio; break;
+                case 'd': op = &o_COMMAD; prec = o_WORD.u.oper.prio; break;
+                case 'b': op = &o_COMMAB; prec = o_WORD.u.oper.prio; break;
+                case 'k': op = &o_COMMAK; prec = o_WORD.u.oper.prio; break;
+                default: op = &o_COMMA; prec = op->u.oper.prio; break;
                 }
-            } else op = &o_COMMA;
-            prec = op->u.oper.prio;
+            } else {
+                op = &o_COMMA;
+                prec = op->u.oper.prio;
+            }
             while (operp && prec <= o_oper[operp-1].val->u.oper.prio) {
                 operp--;
                 push_oper(o_oper[operp].val, &o_oper[operp].epoint);
