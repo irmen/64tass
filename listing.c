@@ -159,7 +159,8 @@ void listing_equal(const value_t val) {
 static int printaddr(char pre, address_t addr) {
     char str[8], *s = str;
     *s++ = pre;
-    if (all_mem != 0xffff) s = out_hex(s, addr >> 16);
+    if (addr > 0xffffff) s = out_hex(s, addr >> 24);
+    if (addr > 0xffff) s = out_hex(s, addr >> 16);
     s = out_hex(s, addr >> 8);
     s = out_hex(s, addr);
     *s = 0;

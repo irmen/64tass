@@ -560,7 +560,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const val
                     if (ubuff.p) flushubuff(&ubuff, &p, tmp);
                     i = (p - tmp->data) - fp;
                     p = tmp->data + fp;
-                    while (i && p[i-1]==' ') i--;
+                    while (i && (p[i-1]==' ' || p[i-1]=='\t')) i--;
                     p[i++] = 0;
                     fp += i;
                 } while (bp != bl);
