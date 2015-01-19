@@ -1444,13 +1444,17 @@ value_t compile(struct file_list_s *cflist)
                     if (prm<CMD_BYTE) {    /* .text .ptext .shift .shiftl .null */
                         int ch2=-1;
                         struct values_s *vs;
+                        size_t i;
+                        struct linepos_s epoint2;
                         if (newlabel) {
                             newlabel->value->u.code.dtype = D_BYTE;
                         }
                         if (prm==CMD_PTEXT) ch2=0;
                         if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
+                        i = get_val_remaining();
                         while ((vs = get_val())) {
                             if (textrecursion(vs->val, prm, &ch2, &uninit, &sum, &vs->epoint)) err_msg_still_none(NULL, &vs->epoint);
+                            if (!--i) epoint2 = vs->epoint;
                         }
                         if (uninit) {memskip(uninit);sum += uninit;}
                         if (ch2 >= 0) {
@@ -1459,7 +1463,7 @@ value_t compile(struct file_list_s *cflist)
                             pokeb(ch2); sum++;
                         } else if (prm==CMD_SHIFT || prm==CMD_SHIFTL) {
                             if (uninit) {
-                                err_msg_wrong_type(gap_value, NULL, &epoint);
+                                err_msg2(ERROR___NO_LAST_GAP, NULL, &epoint2);
                             } else {
                                 err_msg2(ERROR__BYTES_NEEDED, NULL, &epoint);
                             }

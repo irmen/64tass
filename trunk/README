@@ -2584,6 +2584,8 @@ key error
     not in dictionary
 label required
     a label is mandatory for this directive
+last byte must not be gap
+    .shift or .shiftl needs a normal byte at the end
 logarithm of non-positive number
     Only positive numbers have a logarithm
 missing argument
