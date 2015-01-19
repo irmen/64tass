@@ -212,6 +212,7 @@ static const char *terr_error[]={
     "zero value not allowed",
     "most significiant bit must be clear in byte",
     "at least one byte is needed",
+    "last byte must not be gap",
     "instruction can't cross banks",
     "address out of section",
     "negative number raised on fractional power",
@@ -533,6 +534,7 @@ void err_msg_output(const value_t val) {
         case ERROR___MATH_DOMAIN:
         case ERROR__EMPTY_STRING:
         case ERROR__BYTES_NEEDED:
+        case ERROR___NO_LAST_GAP:
         case ERROR_BIG_STRING_CO:
         case ERROR_____KEY_ERROR:
         case ERROR__NO_BYTE_ADDR:
