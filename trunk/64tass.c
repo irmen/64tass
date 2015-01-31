@@ -577,6 +577,10 @@ value_t compile(struct file_list_s *cflist)
         if (current_section->unionmode) {
             if (current_section->address > current_section->unionend) current_section->unionend = current_section->address;
             if (current_section->l_address > current_section->l_unionend) current_section->l_unionend = current_section->l_address;
+            if ((uval_t)current_section->l_unionstart & ~(uval_t)all_mem) {
+                err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
+                current_section->l_unionstart &= all_mem;
+            }
             current_section->l_address = current_section->l_unionstart;
             if (current_section->address != current_section->unionstart) {
                 current_section->address = current_section->unionstart;
@@ -909,6 +913,10 @@ value_t compile(struct file_list_s *cflist)
                         current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
                         current_section->end=olds.end;current_section->start=olds.start;current_section->restart=olds.restart;current_section->l_restart=olds.l_restart;current_section->address=olds.address;current_section->l_address=olds.l_address;
                         current_section->dooutput=olds.dooutput;memjmp(&current_section->mem, current_section->address);
+                        if ((uval_t)current_section->l_address & ~(uval_t)all_mem) {
+                            current_section->l_address &= all_mem;
+                            err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
+                        }
                         goto finish;
                     }
                 case CMD_SECTION:
@@ -1367,7 +1375,12 @@ value_t compile(struct file_list_s *cflist)
                 if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_ENDU)) {
                 } else if (close_waitfor(W_ENDU2)) {
-                    nobreak=0; current_section->l_address = current_section->l_unionend;
+                    nobreak=0; 
+                    if ((uval_t)current_section->l_unionend & ~(uval_t)all_mem) {
+                        err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
+                        current_section->l_unionend &= all_mem;
+                    }
+                    current_section->l_address = current_section->l_unionend;
                     if (current_section->address != current_section->unionend) {
                         current_section->address = current_section->unionend;
                         memjmp(&current_section->mem, current_section->address);
@@ -1391,6 +1404,10 @@ value_t compile(struct file_list_s *cflist)
                     current_section->logicalrecursion--;
                 } else if (waitfor->what==W_HERE2) {
                     current_section->l_address = current_section->address + waitfor->laddr;
+                    if ((uval_t)current_section->l_address & ~(uval_t)all_mem) {
+                        err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
+                        current_section->l_address &= all_mem;
+                    }
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_HERE2);
                     current_section->logicalrecursion--;
