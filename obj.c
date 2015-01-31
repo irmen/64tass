@@ -304,6 +304,10 @@ static MUST_CHECK value_t invalid_uval(const value_t v1, uval_t *UNUSED(uv), int
     return generic_invalid(v1, epoint, ERROR______CANT_INT);
 }
 
+static MUST_CHECK value_t invalid_address(const value_t v1, uval_t *uv, int bits, uint32_t *UNUSED(am), linepos_t epoint) {
+    return uv ? v1->obj->uval(v1, uv, bits, epoint) : NULL;
+}
+
 static MUST_CHECK value_t invalid_sign(const value_t v1, linepos_t epoint) {
     return generic_invalid(v1, epoint, ERROR_____CANT_SIGN);
 }
@@ -514,6 +518,10 @@ static MUST_CHECK value_t none_uval(const value_t UNUSED(v1), uval_t *UNUSED(uv)
     return val_reference(none_value);
 }
 
+static MUST_CHECK value_t none_address(const value_t UNUSED(v1), uval_t *UNUSED(uv), int UNUSED(bits), uint32_t *UNUSED(am), linepos_t UNUSED(epoint)) {
+    return val_reference(none_value);
+}
+
 static MUST_CHECK value_t none_sign(const value_t UNUSED(v1), linepos_t UNUSED(epoint)) {
     return val_reference(none_value);
 }
@@ -718,6 +726,7 @@ void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->rcalc2 = invalid_rcalc2;
     obj->ival = invalid_ival;
     obj->uval = invalid_uval;
+    obj->address = invalid_address;
     obj->sign = invalid_sign;
     obj->abs = invalid_abs;
     obj->len = invalid_len;
@@ -771,6 +780,7 @@ void objects_init(void) {
     none_obj.rcalc2 = none_rcalc2;
     none_obj.ival = none_ival;
     none_obj.uval = none_uval;
+    none_obj.address = none_address;
     none_obj.sign = none_sign;
     none_obj.abs = none_abs;
     none_obj.len = none_len;

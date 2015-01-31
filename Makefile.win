@@ -103,7 +103,7 @@ registerobj.o: registerobj.c values.h inttypes.h error.h libtree.h obj.h \
  intobj.h bitsobj.h bytesobj.h strobj.h registerobj.h listobj.h codeobj.h \
  addressobj.h functionobj.h dictobj.h boolobj.h
 section.o: section.c unicode.h inttypes.h unicodedata.h section.h \
- libtree.h mem.h error.h misc.h 64tass.h opcodes.h
+ libtree.h mem.h error.h misc.h 64tass.h opcodes.h values.h
 strobj.o: strobj.c values.h inttypes.h error.h libtree.h obj.h intobj.h \
  bitsobj.h bytesobj.h strobj.h registerobj.h listobj.h codeobj.h \
  addressobj.h functionobj.h dictobj.h eval.h misc.h unicode.h \

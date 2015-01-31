@@ -96,6 +96,15 @@ static MUST_CHECK value_t uval(value_t v1, uval_t *uv, int bits, linepos_t epoin
     return v1->obj->uval(v1, uv, bits, epoint);
 }
 
+static MUST_CHECK value_t address(value_t v1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
+    if (uv) {
+        value_t err = access_check(v1, epoint);
+        if (err) return err;
+    }
+    v1 = v1->u.code.addr;
+    return v1->obj->address(v1, uv, bits, am, epoint);
+}
+
 MUST_CHECK value_t float_from_code(value_t v1, linepos_t epoint) {
     value_t err = access_check(v1, epoint);
     if (err) return err;
@@ -540,6 +549,7 @@ void codeobj_init(void) {
     obj.repr = repr;
     obj.ival = ival;
     obj.uval = uval;
+    obj.address = address;
     obj.sign = sign;
     obj.abs = absolute;
     obj.len = len;

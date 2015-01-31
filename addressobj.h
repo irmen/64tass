@@ -43,4 +43,6 @@ typedef struct {
 } addrs_t;
 
 extern void addressobj_init(void);
+extern int check_addr(atype_t);
+extern MUST_CHECK value_t address_from_value(value_t, atype_t);
 #endif
