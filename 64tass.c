@@ -572,7 +572,7 @@ value_t compile(struct file_list_s *cflist)
 
     while (nobreak) {
         if (mtranslate(cfile)) break; /* expand macro parameters, if any */
-        star=current_section->l_address;newlabel = NULL;
+        newlabel = NULL;
         labelname.len = 0;ignore();epoint = lpoint; mycontext = current_context;
         if (current_section->unionmode) {
             if (current_section->address > current_section->unionend) current_section->unionend = current_section->address;
@@ -583,6 +583,7 @@ value_t compile(struct file_list_s *cflist)
                 memjmp(&current_section->mem, current_section->address);
             }
         }
+        star=current_section->l_address;
         wht = here();
         if (wht =='-' || wht =='+') {
             lpoint.pos++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) {
