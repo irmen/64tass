@@ -258,6 +258,17 @@ MUST_CHECK value_t bytes_from_u16(uint16_t i) {
     return v;
 }
 
+MUST_CHECK value_t bytes_from_uval(uval_t i, int bytes) {
+    value_t v = val_alloc(BYTES_OBJ);
+    v->u.bytes.data = v->u.bytes.val;
+    v->u.bytes.val[0] = i;
+    v->u.bytes.val[1] = i >> 8;
+    v->u.bytes.val[2] = i >> 16;
+    v->u.bytes.val[3] = i >> 24;
+    v->u.bytes.len = bytes;
+    return v;
+}
+
 static MUST_CHECK value_t bytes_from_bits(const value_t v1) {
     size_t i, sz, len1;
     uint8_t *d;

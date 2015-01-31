@@ -273,6 +273,23 @@ void touch_label(struct label_s *tmp) {
     tmp->usepass = pass;
 }
 
+MUST_CHECK value_t get_star_value(value_t val) {
+    if (!val) {
+        return int_from_uval(star);
+    }
+    switch (val->obj->type) {
+    case T_BITS: return bits_from_uval(star, (all_mem == 0xffff) ? 16 : 24);
+    default:
+    case T_CODE: return get_star_value(val->u.code.addr);
+    case T_BOOL:
+    case T_INT: return int_from_uval(star);
+    case T_FLOAT: return float_from_double(star + (current_section->l_address_val->u.real - trunc(current_section->l_address_val->u.real)));
+    case T_STR:
+    case T_BYTES: return bytes_from_uval(star, (all_mem == 0xffff) ? 2 : 3);
+    case T_ADDRESS: return address_from_value(get_star_value(val->u.addr.val), val->u.addr.type);
+    }
+}
+
 static MUST_CHECK value_t get_star(linepos_t epoint) {
     struct star_s *tmp;
     int labelexists;
@@ -283,7 +300,7 @@ static MUST_CHECK value_t get_star(linepos_t epoint) {
         fixeddig = 0;
     }
     tmp->addr=star;
-    return int_from_uval(star);
+    return get_star_value(current_section->l_address_val);
 }
 
 static size_t evxnum, evx_p;

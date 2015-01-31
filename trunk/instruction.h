@@ -25,6 +25,8 @@ extern MUST_CHECK value_t instruction(int, int, value_t, linepos_t, struct linep
 extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const char *);
 extern MUST_CHECK int touval(const value_t, uval_t *, int, linepos_t);
+extern MUST_CHECK int toaddress(const value_t, uval_t *, int, uint32_t *, linepos_t);
+extern MUST_CHECK value_t err_addressing(uint32_t, linepos_t);
 
 extern int longaccu, longindex;
 extern uint16_t dpage;

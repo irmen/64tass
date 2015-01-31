@@ -92,7 +92,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
     return v;
 }
 
-static inline int check_addr(atype_t type) {
+int check_addr(atype_t type) {
     while (type) {
         switch ((enum atype_e)(type & 15)) {
         case A_I:
@@ -111,6 +111,27 @@ static inline int check_addr(atype_t type) {
         type >>= 4;
     }
     return 0;
+}
+
+MUST_CHECK value_t address_from_value(value_t v1, atype_t am) {
+    value_t v = val_alloc(ADDRESS_OBJ);
+    v->u.addr.val = v1;
+    v->u.addr.type = am;
+    return v;
+}
+
+static MUST_CHECK value_t address(const value_t v1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
+    value_t v = v1->u.addr.val;
+    v = v->obj->address(v, uv, bits, am, epoint);
+    if (am) {
+        atype_t type = v1->u.addr.type;
+        while (type) {
+            *am <<= 4;
+            type >>= 4;
+        }
+        *am |= v1->u.addr.type;
+    }
+    return v;
 }
 
 static MUST_CHECK value_t calc1(oper_t op) {
@@ -273,6 +294,7 @@ void addressobj_init(void) {
     obj.destroy = destroy;
     obj.same = same;
     obj.repr = repr;
+    obj.address = address;
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;

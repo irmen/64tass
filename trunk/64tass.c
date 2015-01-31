@@ -951,7 +951,7 @@ value_t compile(struct file_list_s *cflist)
                         }
                         tmp->usepass = pass;
                         waitfor->what = W_SEND2;
-                        current_section = tmp;
+                        current_section = tmp; star = current_section->l_address;
                         break;
                     }
                 }
@@ -983,8 +983,7 @@ value_t compile(struct file_list_s *cflist)
                     newlabel->requires = current_section->requires;
                     newlabel->conflicts = current_section->conflicts;
                     if (!newlabel->update_after) {
-                        value_t tmp;
-                        tmp = int_from_uval(current_section->l_address);
+                        value_t tmp = get_star_value(current_section->l_address_val);
                         if (!obj_same(tmp, newlabel->value->u.code.addr)) {
                             val_destroy(newlabel->value->u.code.addr);
                             newlabel->value->u.code.addr = tmp;
@@ -1006,7 +1005,7 @@ value_t compile(struct file_list_s *cflist)
                     newlabel->value = val;
                     newlabel->file_list = cflist;
                     newlabel->epoint = epoint;
-                    val->u.code.addr = int_from_uval(current_section->l_address);
+                    val->u.code.addr = get_star_value(current_section->l_address_val);
                     val->u.code.size = 0;
                     val->u.code.dtype = D_NONE;
                     val->u.code.pass = 0;
@@ -1097,11 +1096,18 @@ value_t compile(struct file_list_s *cflist)
                 if (current_section->structrecursion && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, "*=", &epoint);
                 else {
                     uval_t uval;
-                    if (touval(vs->val, &uval, 8*sizeof(uval_t), &vs->epoint)) break;
+                    atype_t am;
+                    if (toaddress(vs->val, &uval, 8*sizeof(uval_t), &am, &vs->epoint)) break;
+                    if (am != A_NONE && check_addr(am)) {
+                        err_msg_output_and_destroy(err_addressing(am, &vs->epoint));
+                        break;
+                    }
                     if ((arguments.output_mode == OUTPUT_FLAT) && !current_section->logicalrecursion) {
                         if ((address_t)uval & ~all_mem2) err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);
                         else {
                             current_section->l_address = (address_t)uval & all_mem;
+                            if (current_section->l_address_val) val_destroy(current_section->l_address_val);
+                            current_section->l_address_val = val_reference(vs->val);
                             if (current_section->address != (address_t)uval) {
                                 current_section->address = (address_t)uval;
                                 memjmp(&current_section->mem, current_section->address);
@@ -1122,6 +1128,8 @@ value_t compile(struct file_list_s *cflist)
                                 memjmp(&current_section->mem, current_section->address);
                             }
                             current_section->l_address = (uval_t)uval & all_mem;
+                            if (current_section->l_address_val) val_destroy(current_section->l_address_val);
+                            current_section->l_address_val = val_reference(vs->val);
                         }
                     }
                 }
@@ -1408,6 +1416,8 @@ value_t compile(struct file_list_s *cflist)
                         err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
                         current_section->l_address &= all_mem;
                     }
+                    if (current_section->l_address_val) val_destroy(current_section->l_address_val);
+                    current_section->l_address_val = waitfor->val; waitfor->val = NULL;
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
                     close_waitfor(W_HERE2);
                     current_section->logicalrecursion--;
@@ -1606,16 +1616,25 @@ value_t compile(struct file_list_s *cflist)
                     struct values_s *vs;
                     uval_t uval;
                     listing_line(epoint.pos);
-                    new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address - current_section->address;waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;
+                    new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address - current_section->address;waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = current_section->l_address_val ? val_reference(current_section->l_address_val) : NULL;
                     current_section->logicalrecursion++;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (current_section->structrecursion && !current_section->dooutput) err_msg2(ERROR___NOT_ALLOWED, ".LOGICAL", &epoint);
-                    else {
-                        if (touval(vs->val, &uval, 24, &vs->epoint)) {}
-                        else if ((uval_t)uval & ~(uval_t)all_mem) err_msg2(ERROR_ADDRESS_LARGE, NULL, &vs->epoint);
-                        else current_section->l_address = (address_t)uval;
-                    }
+                    else do {
+                        atype_t am;
+                        if (toaddress(vs->val, &uval, 24, &am, &vs->epoint)) break;
+                        if (am != A_NONE && check_addr(am)) {
+                            err_msg_output_and_destroy(err_addressing(am, &vs->epoint));
+                            break;
+                        }
+                        if ((uval_t)uval & ~(uval_t)all_mem) err_msg2(ERROR_ADDRESS_LARGE, NULL, &vs->epoint);
+                        else {
+                            current_section->l_address = (address_t)uval;
+                            if (current_section->l_address_val) val_destroy(current_section->l_address_val);
+                            current_section->l_address_val = val_reference(vs->val);
+                        }
+                    } while (0);
                     newlabel = NULL;
                 } else new_waitfor(W_HERE, &epoint);
                 break;

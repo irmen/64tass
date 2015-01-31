@@ -73,6 +73,7 @@ struct obj_s {
     value_t (*rcalc2)(struct oper_s *) MUST_CHECK;
     value_t (*ival)(const value_t, ival_t *, int, linepos_t) MUST_CHECK;
     value_t (*uval)(const value_t, uval_t *, int, linepos_t) MUST_CHECK;
+    value_t (*address)(const value_t, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;
     value_t (*sign)(const value_t, linepos_t) MUST_CHECK;
     value_t (*abs)(const value_t, linepos_t) MUST_CHECK;
     value_t (*len)(const value_t, linepos_t) MUST_CHECK;

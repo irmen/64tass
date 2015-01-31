@@ -309,6 +309,15 @@ static MUST_CHECK value_t bits_from_u24(uint32_t i) {
     return v;
 }
 
+MUST_CHECK value_t bits_from_uval(uval_t i, int bits) {
+    value_t v = val_alloc(BITS_OBJ);
+    v->u.bits.data = v->u.bits.val;
+    v->u.bits.val[0] = i;
+    v->u.bits.len = (i != 0);
+    v->u.bits.bits = bits;
+    return v;
+}
+
 MUST_CHECK value_t bits_from_hexstr(const uint8_t *s, size_t *ln) {
     size_t i = 0, j, sz;
     int bits;

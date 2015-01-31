@@ -21,6 +21,7 @@
 #include "error.h"
 #include "misc.h"
 #include "64tass.h"
+#include "values.h"
 
 struct section_s root_section;
 struct section_s *current_section = &root_section;
@@ -42,6 +43,7 @@ static void section_free(struct avltree_node *aa)
     if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
     avltree_destroy(&a->members, section_free);
     destroy_memblocks(&a->mem);
+    if (a->l_address_val) val_destroy(a->l_address_val);
     free(a);
 }
 
@@ -86,6 +88,7 @@ struct section_s *new_section(const str_t *name) {
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
         lastsc->end=lastsc->address=lastsc->l_address=lastsc->size=0;
+        lastsc->l_address_val = NULL;
         lastsc->dooutput=1;
         lastsc->defpass=0;
         lastsc->usepass=0;
@@ -110,6 +113,8 @@ struct section_s *new_section(const str_t *name) {
 void reset_section(struct section_s *section) {
     section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
     section->end = section->start = section->restart = section->l_restart = section->address = section->l_address = 0;
+    if (section->l_address_val) val_destroy(section->l_address_val);
+    section->l_address_val = val_reference(int_value[0]);
     section->dooutput = 1;
     section->structrecursion = 0;
     section->logicalrecursion = 0;
@@ -127,6 +132,7 @@ void init_section2(struct section_s *section) {
     section->cfname.len = 0;
     section->next = NULL;
     init_memblocks(&section->mem);
+    section->l_address_val = NULL;
     avltree_init(&section->members);
 }
 
@@ -138,6 +144,10 @@ void init_section(void) {
 void destroy_section2(struct section_s *section) {
     avltree_destroy(&section->members, section_free);
     destroy_memblocks(&section->mem);
+    if (section->l_address_val) {
+        val_destroy(section->l_address_val);
+        section->l_address_val = NULL;
+    }
 }
 
 void destroy_section(void) {

@@ -31,6 +31,7 @@ extern void init_eval(void);
 extern void eval_enter(void);
 extern void eval_leave(void);
 extern size_t get_label(void);
+extern MUST_CHECK value_t get_star_value(value_t);
 extern value_t get_vals_tuple(void);
 extern value_t get_vals_addrlist(struct linepos_s *);
 extern MUST_CHECK value_t indexoffs(const value_t, size_t, size_t *, linepos_t);
