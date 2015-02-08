@@ -190,7 +190,7 @@ static void adderror(const char *s) {
 
 static const char *terr_warning[]={
     "top of memory exceeded",
-    "memory bank exceeded",
+    "processor program counter overflow",
     "possible jmp ($xxff) bug",
     "long branch used",
     "directive ignored",

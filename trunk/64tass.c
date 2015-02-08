@@ -78,7 +78,7 @@ static struct waitfor_s {
     enum wait_e what;
     struct linepos_s epoint;
     address_t addr;
-    address_t laddr;
+    address2_t laddr;
     struct label_s *label, *cheap_label;
     size_t memp, membp;
     struct section_s *section;
@@ -316,16 +316,10 @@ static void memskip(address_t db) {
         if (current_section->wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;}
         current_section->moved = 0;
     }
-    if (current_section->wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;}
-    if (db > (~current_section->l_address & all_mem)) {
-        if (db - 1 + current_section->l_address == all_mem) {
-            current_section->wrapwarn2 = 1;
-            current_section->l_address = 0;
-        } else {
-            current_section->l_address = (current_section->l_address + db) & all_mem;
-            err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;
-        }
-    } else current_section->l_address += db;
+    if (current_section->l_address.address > 0xffff || db > 0x10000 - current_section->l_address.address) {
+        current_section->l_address.address = ((current_section->l_address.address + db - 1) & 0xffff) + 1;
+        err_msg(ERROR___BANK_BORDER,NULL);
+    } else current_section->l_address.address += db;
     if (db > (~current_section->address & all_mem2)) {
         if (db - 1 + current_section->address == all_mem2) {
             current_section->wrapwarn = current_section->moved = 1;
@@ -353,18 +347,17 @@ void pokeb(uint8_t byte)
         if (current_section->wrapwarn) {err_msg(ERROR_TOP_OF_MEMORY,NULL);current_section->wrapwarn=0;}
         current_section->moved = 0;
     }
-    if (current_section->wrapwarn2) {err_msg(ERROR___BANK_BORDER,NULL);current_section->wrapwarn2=0;}
+    if (current_section->l_address.address > 0xffff) {
+        current_section->l_address.address = 0;
+        err_msg(ERROR___BANK_BORDER,NULL);
+    }
     if (current_section->dooutput) write_mem(&current_section->mem, byte ^ outputeor);
-    current_section->address++;current_section->l_address++;
+    current_section->address++;current_section->l_address.address++;
     if (current_section->address & ~all_mem2) {
         current_section->wrapwarn = current_section->moved = 1;
         if (current_section->end <= all_mem2) current_section->end = all_mem2 + 1;
         current_section->address = 0;
         memjmp(&current_section->mem, current_section->address);
-    }
-    if (current_section->l_address & ~all_mem) {
-        current_section->wrapwarn2 = 1;
-        current_section->l_address = 0;
     }
 }
 
@@ -500,7 +493,7 @@ static int byterecursion(value_t val, int prm, size_t *uninit, int bits, linepos
         default:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
                 if (touval(val2, &uv, 24, epoint)) uv = 1;
-                else if ((current_section->l_address ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                else if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                 ch2 = uv - (prm == CMD_RTA);
                 break;
             }
@@ -575,19 +568,21 @@ value_t compile(struct file_list_s *cflist)
         newlabel = NULL;
         labelname.len = 0;ignore();epoint = lpoint; mycontext = current_context;
         if (current_section->unionmode) {
-            if (current_section->address > current_section->unionend) current_section->unionend = current_section->address;
-            if (current_section->l_address > current_section->l_unionend) current_section->l_unionend = current_section->l_address;
-            if ((uval_t)current_section->l_unionstart & ~(uval_t)all_mem) {
-                err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                current_section->l_unionstart &= all_mem;
+            if (current_section->address > current_section->unionend) {
+                current_section->unionend = current_section->address;
+                current_section->l_unionend = current_section->l_address;
             }
             current_section->l_address = current_section->l_unionstart;
+            if (current_section->l_address.bank > all_mem) {
+                current_section->l_address.bank &= all_mem;
+                err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
+            }
             if (current_section->address != current_section->unionstart) {
                 current_section->address = current_section->unionstart;
                 memjmp(&current_section->mem, current_section->address);
             }
         }
-        star=current_section->l_address;
+        star = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
         wht = here();
         if (wht =='-' || wht =='+') {
             lpoint.pos++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) {
@@ -847,9 +842,11 @@ value_t compile(struct file_list_s *cflist)
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &lpoint);waitfor->skip=0;
                         label=new_label(&labelname, mycontext, strength, &labelexists);
 
-                        current_section->provides=~(uval_t)0;current_section->requires=current_section->conflicts=0;
-                        current_section->end=current_section->start=current_section->restart=current_section->l_restart=current_section->address=current_section->l_address=0;
-                        current_section->dooutput=0;memjmp(&current_section->mem, 0);
+                        current_section->provides = ~(uval_t)0;current_section->requires = current_section->conflicts = 0;
+                        current_section->end = current_section->start = current_section->restart = current_section->address = 0;
+                        current_section->l_restart.address = current_section->l_restart.bank = 0;
+                        current_section->l_address.address = current_section->l_address.bank = 0;
+                        current_section->dooutput = 0;memjmp(&current_section->mem, 0);
 
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
@@ -878,22 +875,19 @@ value_t compile(struct file_list_s *cflist)
                             val->u.macro.label = label;
                             get_macro_params(val);
                         }
-
-                        if (label) {
-                            label->ref = 0;
-                        }
+                        label->ref = 0;
                         listing_line(cmdpoint.pos);
                         current_section->structrecursion++;
                         if (current_section->structrecursion<100) {
                             int old_unionmode = current_section->unionmode;
                             address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
-                            address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+                            address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
                             current_section->unionmode = (prm==CMD_UNION);
                             current_section->unionstart = current_section->unionend = current_section->address;
                             current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
                             waitfor->skip=1;
-                            if (label && (label->value->obj == STRUCT_OBJ || label->value->obj == UNION_OBJ)) val = macro_recurse(W_ENDS, label->value, label, &lpoint);
+                            if (label->value->obj == STRUCT_OBJ || label->value->obj == UNION_OBJ) val = macro_recurse(W_ENDS, label->value, label, &lpoint);
                             else val = compile(cflist);
                             if (val) val_destroy(val);
                             current_section->unionmode = old_unionmode;
@@ -901,7 +895,6 @@ value_t compile(struct file_list_s *cflist)
                             current_section->l_unionstart = old_l_unionstart; current_section->l_unionend = old_l_unionend;
                         } else err_msg2(ERROR__MACRECURSION, NULL, &cmdpoint);
                         current_section->structrecursion--;
-                        if (!label) goto finish;
 
                         if (label->value->u.macro.size != (current_section->address & all_mem2)) {
                             label->value->u.macro.size = current_section->address & all_mem2;
@@ -910,11 +903,12 @@ value_t compile(struct file_list_s *cflist)
                                 fixeddig = 0;
                             }
                         }
-                        current_section->provides=olds.provides;current_section->requires=olds.requires;current_section->conflicts=olds.conflicts;
-                        current_section->end=olds.end;current_section->start=olds.start;current_section->restart=olds.restart;current_section->l_restart=olds.l_restart;current_section->address=olds.address;current_section->l_address=olds.l_address;
-                        current_section->dooutput=olds.dooutput;memjmp(&current_section->mem, current_section->address);
-                        if ((uval_t)current_section->l_address & ~(uval_t)all_mem) {
-                            current_section->l_address &= all_mem;
+                        current_section->provides = olds.provides;current_section->requires = olds.requires;current_section->conflicts = olds.conflicts;
+                        current_section->end = olds.end;current_section->start = olds.start;current_section->restart = olds.restart;
+                        current_section->l_restart = olds.l_restart;current_section->address = olds.address;current_section->l_address = olds.l_address;
+                        current_section->dooutput = olds.dooutput;memjmp(&current_section->mem, current_section->address);
+                        if (current_section->l_address.bank > all_mem) {
+                            current_section->l_address.bank &= all_mem;
                             err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
                         }
                         goto finish;
@@ -932,7 +926,7 @@ value_t compile(struct file_list_s *cflist)
                         if (!tmp->usepass || tmp->defpass < pass - 1) {
                             if (tmp->usepass && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, &opoint); goto breakerr;}
                             tmp->end = tmp->start = tmp->restart = tmp->address = 0;
-                            tmp->size = tmp->l_restart = tmp->l_address = 0;
+                            tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
                             if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &opoint);
                             fixeddig=0;
                             tmp->defpass = pass - 1;
@@ -944,14 +938,14 @@ value_t compile(struct file_list_s *cflist)
                             }
                             tmp->size = tmp->end - tmp->start;
                             tmp->end = tmp->start = tmp->restart;
-                            tmp->wrapwarn = tmp->wrapwarn2 = 0;
+                            tmp->wrapwarn = 0;
                             tmp->address = tmp->restart;
                             tmp->l_address = tmp->l_restart;
                             restart_memblocks(&tmp->mem, tmp->address);
                         }
                         tmp->usepass = pass;
                         waitfor->what = W_SEND2;
-                        current_section = tmp; star = current_section->l_address;
+                        current_section = tmp; star = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                         break;
                     }
                 }
@@ -1034,7 +1028,7 @@ value_t compile(struct file_list_s *cflist)
                         struct values_s *vs;
                         obj_t obj;
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
-                        address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+                        address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
                         listing_line(epoint.pos);
                         newlabel->ref = 0;
                         if (!get_exp(&w, 1, cfile, 1, 0, &epoint)) goto breakerr;
@@ -1085,7 +1079,7 @@ value_t compile(struct file_list_s *cflist)
                 struct values_s *vs;
                 lpoint.pos++;ignore();if (here()!='=') {err_msg(ERROR______EXPECTED,"=");goto breakerr;}
                 lpoint.pos++;
-                current_section->wrapwarn = current_section->wrapwarn2 = 0;
+                current_section->wrapwarn = 0;
                 if (!current_section->moved) {
                     if (current_section->end < current_section->address) current_section->end = current_section->address;
                     current_section->moved = 1;
@@ -1105,7 +1099,8 @@ value_t compile(struct file_list_s *cflist)
                     if ((arguments.output_mode == OUTPUT_FLAT) && !current_section->logicalrecursion) {
                         if ((address_t)uval & ~all_mem2) err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);
                         else {
-                            current_section->l_address = (address_t)uval & all_mem;
+                            current_section->l_address.address = uval & 0xffff;
+                            current_section->l_address.bank = uval & all_mem & ~0xffff;
                             if (current_section->l_address_val) val_destroy(current_section->l_address_val);
                             current_section->l_address_val = val_reference(vs->val);
                             if (current_section->address != (address_t)uval) {
@@ -1116,18 +1111,19 @@ value_t compile(struct file_list_s *cflist)
                     } else {
                         if ((uval_t)uval & ~(uval_t)all_mem) err_msg2(ERROR_ADDRESS_LARGE, NULL, &vs->epoint);
                         else {
-                            address_t addr;
+                            address_t addr, laddr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             if (arguments.tasmcomp) addr = (uint16_t)uval;
-                            else if ((address_t)uval > current_section->l_address) {
-                                addr = (current_section->address + (((address_t)uval - current_section->l_address) & all_mem)) & all_mem2;
+                            else if ((address_t)uval > laddr) {
+                                addr = (current_section->address + (uval - laddr)) & all_mem2;
                             } else {
-                                addr = (current_section->address - ((current_section->l_address - (address_t)uval) & all_mem)) & all_mem2;
+                                addr = (current_section->address - (laddr - uval)) & all_mem2;
                             }
                             if (current_section->address != addr) {
                                 current_section->address = addr;
                                 memjmp(&current_section->mem, current_section->address);
                             }
-                            current_section->l_address = (uval_t)uval & all_mem;
+                            current_section->l_address.address = uval & 0xffff;
+                            current_section->l_address.bank = uval & all_mem & ~0xffff;
                             if (current_section->l_address_val) val_destroy(current_section->l_address_val);
                             current_section->l_address_val = val_reference(vs->val);
                         }
@@ -1384,11 +1380,11 @@ value_t compile(struct file_list_s *cflist)
                 if (close_waitfor(W_ENDU)) {
                 } else if (close_waitfor(W_ENDU2)) {
                     nobreak=0; 
-                    if ((uval_t)current_section->l_unionend & ~(uval_t)all_mem) {
-                        err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                        current_section->l_unionend &= all_mem;
-                    }
                     current_section->l_address = current_section->l_unionend;
+                    if (current_section->l_address.bank > all_mem) {
+                        current_section->l_address.bank &= all_mem;
+                        err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
+                    }
                     if (current_section->address != current_section->unionend) {
                         current_section->address = current_section->unionend;
                         memjmp(&current_section->mem, current_section->address);
@@ -1399,7 +1395,8 @@ value_t compile(struct file_list_s *cflist)
                 if (waitfor->skip & 1) listing_line(epoint.pos);
                 if (close_waitfor(W_ENDP)) {
                 } else if (waitfor->what==W_ENDP2) {
-                    if ((current_section->l_address ^ waitfor->laddr) > 0xff) {
+                    if (((current_section->l_address.address ^ waitfor->laddr.address) & 0xff00) || 
+                            current_section->l_address.bank != waitfor->laddr.bank) {
                         err_msg2(ERROR____PAGE_ERROR, &current_section->l_address, &epoint);
                     }
                     if (waitfor->label) set_size(waitfor->label, current_section->address - waitfor->addr, &current_section->mem, waitfor->memp, waitfor->membp);
@@ -1411,10 +1408,14 @@ value_t compile(struct file_list_s *cflist)
                 if (close_waitfor(W_HERE)) {
                     current_section->logicalrecursion--;
                 } else if (waitfor->what==W_HERE2) {
-                    current_section->l_address = current_section->address + waitfor->laddr;
-                    if ((uval_t)current_section->l_address & ~(uval_t)all_mem) {
+                    current_section->l_address.address = (waitfor->laddr.address + current_section->address - waitfor->addr) & 0xffff;
+                    if (current_section->address > waitfor->addr) {
+                        if (current_section->l_address.address == 0) current_section->l_address.address = 0x10000;
+                    }
+                    current_section->l_address.bank = (waitfor->laddr.bank + ((current_section->l_address.bank - waitfor->laddr.bank) & ~0xffff)) & all_mem;
+                    if (current_section->l_address.bank > all_mem) {
+                        current_section->l_address.bank &= all_mem;
                         err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                        current_section->l_address &= all_mem;
                     }
                     if (current_section->l_address_val) val_destroy(current_section->l_address_val);
                     current_section->l_address_val = waitfor->val; waitfor->val = NULL;
@@ -1593,18 +1594,14 @@ value_t compile(struct file_list_s *cflist)
                         if (current_section->end < current_section->address) current_section->end = current_section->address;
                         current_section->moved = 1;
                     }
-                    current_section->wrapwarn = current_section->wrapwarn2 = 0;
+                    current_section->wrapwarn = 0;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
                     if (toival(vs->val, &ival, 8*sizeof(ival_t), &vs->epoint)) break;
                     if (ival) {
                         if (current_section->structrecursion) {
                             if (ival < 0) err_msg2(ERROR___NOT_ALLOWED, ".OFFS", &epoint);
-                            else {
-                                current_section->l_address += ival;
-                                current_section->l_address &= all_mem;
-                                current_section->address += ival;
-                            }
+                            else if (ival) memskip(ival);
                         } else current_section->address += ival;
                         current_section->address &= all_mem2;
                         memjmp(&current_section->mem, current_section->address);
@@ -1616,7 +1613,7 @@ value_t compile(struct file_list_s *cflist)
                     struct values_s *vs;
                     uval_t uval;
                     listing_line(epoint.pos);
-                    new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address - current_section->address;waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = current_section->l_address_val ? val_reference(current_section->l_address_val) : NULL;
+                    new_waitfor(W_HERE2, &epoint);waitfor->laddr = current_section->l_address;waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp; waitfor->val = current_section->l_address_val ? val_reference(current_section->l_address_val) : NULL;
                     current_section->logicalrecursion++;
                     if (!get_exp(&w, 0, cfile, 1, 1, &epoint)) goto breakerr;
                     vs = get_val();
@@ -1630,7 +1627,8 @@ value_t compile(struct file_list_s *cflist)
                         }
                         if ((uval_t)uval & ~(uval_t)all_mem) err_msg2(ERROR_ADDRESS_LARGE, NULL, &vs->epoint);
                         else {
-                            current_section->l_address = (address_t)uval;
+                            current_section->l_address.address = uval & 0xffff;
+                            current_section->l_address.bank = uval & ~0xffff;
                             if (current_section->l_address_val) val_destroy(current_section->l_address_val);
                             current_section->l_address_val = val_reference(vs->val);
                         }
@@ -1734,7 +1732,7 @@ value_t compile(struct file_list_s *cflist)
                     if (prm == CMD_ALIGN) {
                         if (!uval) err_msg2(ERROR_NO_ZERO_VALUE, NULL, &vs->epoint);
                         else if ((uval & ~(uval_t)all_mem)) err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);
-                        else if (uval > 1 && current_section->l_address % uval) db = uval - (current_section->l_address % uval);
+                        else if (uval > 1 && current_section->l_address.address % uval) db = uval - (current_section->l_address.address % uval);
                     } else db = uval;
                     if (db && db - 1 > all_mem2) {err_msg2(ERROR_CONSTNT_LARGE, NULL, &vs->epoint);goto breakerr;}
                     mark_mem(&current_section->mem, current_section->address);
@@ -2049,9 +2047,9 @@ value_t compile(struct file_list_s *cflist)
                         while (cpui->name) {
                             if (len == strlen(cpui->name) && !memcmp(cpui->name, val->u.str.data, len)) {
                                 const struct cpu_s *cpumode = cpui->def ? cpui->def : arguments.cpumode;
-                                if (current_section->l_address & ~(address_t)cpumode->max_address) {
+                                if (current_section->l_address.bank > cpumode->max_address) {
+                                    current_section->l_address.bank &= cpumode->max_address;
                                     err_msg2(ERROR_ADDRESS_LARGE, NULL, &epoint);
-                                    current_section->l_address &= cpumode->max_address;
                                 }
                                 if (arguments.output_mode != OUTPUT_FLAT) {
                                     if (current_section->address & ~cpumode->max_address) {
@@ -2515,7 +2513,7 @@ value_t compile(struct file_list_s *cflist)
                 { /* .union */
                     int old_unionmode = current_section->unionmode;
                     address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
-                    address_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
+                    address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
                     listing_line(0);
                     current_section->unionmode = 1;
                     current_section->unionstart = current_section->unionend = current_section->address;
@@ -2593,7 +2591,7 @@ value_t compile(struct file_list_s *cflist)
                     } else {
                         address_t t;
                         if (!tmp3->usepass || tmp3->defpass < pass - 1) {
-                            tmp3->wrapwarn = tmp3->wrapwarn2 = tmp3->moved = 0;
+                            tmp3->wrapwarn = tmp3->moved = 0;
                             tmp3->end = tmp3->start = tmp3->restart = tmp3->address = current_section->address;
                             tmp3->l_restart = tmp3->l_address = current_section->l_address;
                             tmp3->usepass = pass;
@@ -2619,7 +2617,8 @@ value_t compile(struct file_list_s *cflist)
                                 if (t < tmp3->address - tmp3->start) t = tmp3->address - tmp3->start;
                             }
                             tmp3->restart = current_section->address;
-                            if (tmp3->l_restart != current_section->l_address) {
+                            if (tmp3->l_restart.address != current_section->l_address.address ||
+                                    tmp3->l_restart.bank != current_section->l_address.bank) {
                                 tmp3->l_restart = current_section->l_address;
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
                                 fixeddig = 0;
@@ -2629,7 +2628,7 @@ value_t compile(struct file_list_s *cflist)
                                 if (tmp3->end < tmp3->address) tmp3->end = tmp3->address;
                                 tmp3->moved=1;
                             }
-                            tmp3->wrapwarn = tmp3->wrapwarn2 = 0;
+                            tmp3->wrapwarn = 0;
                             t = tmp3->end - tmp3->start;
                             tmp3->end = tmp3->start = tmp3->restart = tmp3->address = current_section->address;
                             tmp3->l_restart = tmp3->l_address = current_section->l_address;
@@ -2656,7 +2655,7 @@ value_t compile(struct file_list_s *cflist)
                     if (!tmp->usepass || tmp->defpass < pass - 1) {
                         if (tmp->usepass && tmp->usepass >= pass - 1) {err_msg_not_defined(&sectionname, &epoint); goto breakerr;}
                         tmp->end = tmp->start = tmp->restart = tmp->address = 0;
-                        tmp->size = tmp->l_restart = tmp->l_address = 0;
+                        tmp->size = tmp->l_restart.address = tmp->l_restart.bank = tmp->l_address.address = tmp->l_address.bank = 0;
                         if (fixeddig && pass > max_pass) err_msg_cant_calculate(&sectionname, &epoint);
                         fixeddig = 0;
                         tmp->defpass = pass - 1;
@@ -2668,7 +2667,7 @@ value_t compile(struct file_list_s *cflist)
                         }
                         tmp->size = tmp->end - tmp->start;
                         tmp->end = tmp->start = tmp->restart;
-                        tmp->wrapwarn = tmp->wrapwarn2 = 0;
+                        tmp->wrapwarn = 0;
                         tmp->address = tmp->restart;
                         tmp->l_address = tmp->l_restart;
                         restart_memblocks(&tmp->mem, tmp->address);

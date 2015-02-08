@@ -32,16 +32,16 @@ struct section_s {
     uval_t conflicts;
     uval_t provides;
     address_t restart;
-    address_t l_restart;
+    address2_t l_restart;
     address_t address;
-    address_t l_address;
+    address2_t l_address;
     value_t l_address_val;
     address_t start;
     address_t end;
     address_t unionstart;
     address_t unionend;
-    address_t l_unionstart;
-    address_t l_unionend;
+    address2_t l_unionstart;
+    address2_t l_unionend;
     size_t size;
     struct memblocks_s mem;
     uint8_t usepass;
@@ -53,7 +53,6 @@ struct section_s {
     unsigned int unionmode:1;
     unsigned int moved:1;
     unsigned int wrapwarn:1;
-    unsigned int wrapwarn2:1;
     struct section_s *parent;
     struct section_s *next;
     struct file_list_s *file_list;

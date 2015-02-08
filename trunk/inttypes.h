@@ -60,6 +60,7 @@ typedef uint32_t line_t;
 #define PRIuline PRIu32
 #define PRIxline PRIx32
 typedef uint32_t address_t;
+typedef struct { address_t address, bank; } address2_t;
 #define PRIaddress PRIx32
 typedef uint32_t linecpos_t;
 struct linepos_s {line_t line;linecpos_t pos;};

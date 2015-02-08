@@ -1233,18 +1233,25 @@ used to make sure the expected addressing mode is used.</p>
 
 <p>Two counters are used while assembling. The compile offset is where the data
 and code ends up in memory, while the program counter is what labels will be
-set or what the special star label gets when referenced.</p>
+set or what the special star label gets when referenced. Normally these two are
+the same (code compiled to the location it runs from) but it does not need to
+be.</p>
+
+<p>The program counter wraps when the border of a 64&nbsp;KiB program bank is
+crossed. The actual program bank is not incremented, just like on a real
+processor.</p>
 
 <dl class="dir">
 <dt><code><b>&lowast;=</b></code> &lt;expression&gt;
-<dd>The compile offset is moved so that the program counter will match the one
-in the expression.
+<dd>The compile offset is incremented/decremented so that the program counter
+will match the address in the expression.
 <dt><code><b class="k"><a name="d_offs">.offs</a></b></code> &lt;expression&gt;
 <dd>Add an offset to the compile offset (create a gap). The program counter
 stays the same as before.
 <dt><code><b class="k"><a name="d_logical">.logical</a></b></code> &lt;expression&gt;
 <dt><code><b class="k"><a name="d_here">.here</a></b></code>
-<dd>Changes the program counter, the compile offset is not changed. Can be nested of course.
+<dd>Changes the program counter only, the compile offset is not changed. Used
+for code copied to it's proper location at runtime. Can be nested of course.
 <dt><code><b class="k"><a name="d_align">.align</a></b></code> &lt;modulo&gt;[, &lt;fill&gt;]
 <dd>Align code to a dividable program counter address by inserting uninitialized memory or repeated bytes.
 </dl>
@@ -2830,8 +2837,8 @@ will display without them.</p>
 <dt>directive ignored<dd>an assembler directive was ignored for compatibility reasons.
 <dt>label not on left side<dd>check if an instruction name was not mistyped and if the currect CPU has it, or remove white space before label
 <dt>long branch used<dd>branch too long, so long branch was used (bxx &lowast;+5 jmp)
-<dt>memory bank exceeded<dd>compile continues in the next 64&nbsp;KiB bank, however execution may not
 <dt>possible jmp ($xxff) bug<dd>yet another 65xx feature...
+<dt>processor program counter overflow<dd>pc address was set back to the start of actual 64&nbsp;KiB program bank
 <dt>top of memory exceeded<dd>compile continues at the bottom ($0000)
 </dl>
 

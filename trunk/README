@@ -992,18 +992,24 @@ Controlling the compile offset and program counter
 
 Two counters are used while assembling. The compile offset is where the data
 and code ends up in memory, while the program counter is what labels will be
-set or what the special star label gets when referenced.
+set or what the special star label gets when referenced. Normally these two are
+the same (code compiled to the location it runs from) but it does not need to
+be.
+
+The program counter wraps when the border of a 64 KiB program bank is crossed.
+The actual program bank is not incremented, just like on a real processor.
 
 *= <expression>
-    The compile offset is moved so that the program counter will match the one
-    in the expression.
+    The compile offset is incremented/decremented so that the program counter
+    will match the address in the expression.
 .offs <expression>
     Add an offset to the compile offset (create a gap). The program counter
     stays the same as before.
 .logical <expression>
 .here
-    Changes the program counter, the compile offset is not changed. Can be
-    nested of course.
+    Changes the program counter only, the compile offset is not changed. Used
+    for code copied to it's proper location at runtime. Can be nested of
+    course.
 .align <modulo>[, <fill>]
     Align code to a dividable program counter address by inserting
     uninitialized memory or repeated bytes.
@@ -2509,10 +2515,10 @@ label not on left side
     it, or remove white space before label
 long branch used
     branch too long, so long branch was used (bxx *+5 jmp)
-memory bank exceeded
-    compile continues in the next 64 KiB bank, however execution may not
 possible jmp ($xxff) bug
     yet another 65xx feature...
+processor program counter overflow
+    pc address was set back to the start of actual 64 KiB program bank
 top of memory exceeded
     compile continues at the bottom ($0000)
 

@@ -391,12 +391,14 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
                 longbranch = 0;
                 if (0) {
             justrel2:
-                    if (toaddress(val, &uval, 16, NULL, epoint2)) uval = current_section->l_address + 1 + ln;
+                    if (toaddress(val, &uval, 16, NULL, epoint2)) uval = current_section->l_address.address + 1 + ln;
                     crossbank = 0;
                 } else {
             justrel: 
-                    if (touval(val, &uval, 24, epoint2)) uval = current_section->l_address + 1 + ln;
-                    crossbank = ((uval_t)current_section->l_address ^ uval) > 0xffff;
+                    if (touval(val, &uval, 24, epoint2)) {
+                        uval = current_section->l_address.address + 1 + ln;
+                        crossbank = 0;
+                    } else crossbank = ((uval_t)current_section->l_address.bank ^ uval) > 0xffff;
                 }
                 xadr = adr;
                 s = new_star(vline + 1, &labelexists);
@@ -409,7 +411,7 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
                 if (labelexists2 && oval->obj == CODE_OBJ && pass != oval->u.code.apass) {
                     adr = (uint16_t)(uval - s->addr);
                 } else {
-                    adr = (uint16_t)(uval - current_section->l_address - 1 - ln); labelexists2 = 0;
+                    adr = (uint16_t)(uval - current_section->l_address.address - 1 - ln); labelexists2 = 0;
                 }
                 if ((adr<0xFF80 && adr>0x007F) || crossbank) {
                     if (cnmemonic[ADR_REL_L] != ____ && !crossbank) { /* 65CE02 long branches */
@@ -426,11 +428,11 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
                             pokeb(ln);
                             listing_instr(cod, ln, 1);
                             err = instruction((cpu->brl >= 0 && !longbranchasjmp && !crossbank) ? cpu->brl : cpu->jmp, w, vals, epoint, epoints);
-                            if (labelexists && s->addr != (current_section->l_address & all_mem)) {
+                            if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
                             }
-                            s->addr = current_section->l_address & all_mem;
+                            s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             return err;
                         } else if (opr == ADR_BIT_ZP_REL) {
                             if (crossbank) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
@@ -459,11 +461,11 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
                                 value_t err;
                             asjmp:
                                 err = instruction(cpu->jmp, w, vals, epoint, epoints);
-                                if (labelexists && s->addr != (current_section->l_address & all_mem)) {
+                                if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
                                     if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                     fixeddig = 0;
                                 }
-                                s->addr = current_section->l_address & all_mem;
+                                s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                                 return err;
                             }
                         }
@@ -482,27 +484,27 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
                         }
                     }
                 } else { /* short */
-                    if (((uint16_t)(current_section->l_address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
+                    if (((uint16_t)(current_section->l_address.address + 1 + ln) & 0xff00) != (oadr & 0xff00)) {
                         if (!allowslowbranch) err_msg2(ERROR__BRANCH_CROSS, NULL, epoint);
                     }
                     if (cnmemonic[ADR_ADDR] != ____) { /* gcc */
                         if (adr == 0) {
                             listing_instr(0, 0, -1);
-                            if (labelexists && s->addr != (current_section->l_address & all_mem)) {
+                            if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
                             }
-                            s->addr = current_section->l_address & all_mem;
+                            s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             return NULL;
                         } else if (adr == 1 && (cnmemonic[ADR_REL] & 0x1f) == 0x10) {
                             cod = cnmemonic[ADR_REL] ^ 0x20;
                             pokeb(cod);
                             listing_instr(cod, 0, 0);
-                            if (labelexists && s->addr != (current_section->l_address & all_mem)) {
+                            if (labelexists && s->addr != ((current_section->l_address.address & 0xffff) | current_section->l_address.bank)) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, epoint);
                                 fixeddig = 0;
                             }
-                            s->addr = current_section->l_address & all_mem;
+                            s->addr = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
                             return NULL;
                         }
                     }
@@ -633,7 +635,7 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
     case AG_PB: /* address in program bank */
         if (w != 3 && w != 1) return new_error_obj(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (toaddress(val, &uval, 24, NULL, epoint2)) {}
-        else if ((current_section->l_address ^ uval) <= 0xffff) adr = uval;
+        else if ((current_section->l_address.bank ^ uval) <= 0xffff) adr = uval;
         else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         ln = 2;
         break;
@@ -722,27 +724,27 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
     case AG_RELPB:
         if (w != 3 && w != 1) return new_error_obj(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (toaddress(val, &uval, 16, NULL, epoint2)) {}
-        else adr = uval - current_section->l_address - 3;
+        else adr = uval - current_section->l_address.address - 3;
         ln = 2;
         break;
     case AG_RELL:
         if (w != 3 && w != 1) return new_error_obj(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
         if (touval(val, &uval, 24, epoint2)) {}
-        else if ((current_section->l_address ^ uval) <= 0xffff) adr = uval - current_section->l_address - 3;
+        else if ((current_section->l_address.bank ^ uval) <= 0xffff) adr = uval - current_section->l_address.address - 3;
         else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
         ln = 2;
         break;
     case AG_PB2:
         if (w == 3) {/* auto length */
             if (touval(val, &uval, 24, epoint2)) w = (cnmemonic[ADR_ADDR] == ____) + 1;
-            else if (cnmemonic[ADR_ADDR] != ____ && (current_section->l_address ^ uval) <= 0xffff) {adr = uval; w = 1;}
+            else if (cnmemonic[ADR_ADDR] != ____ && (current_section->l_address.bank ^ uval) <= 0xffff) {adr = uval; w = 1;}
             else {adr = uval; w = 2;}
         } else {
             switch (w) {
             case 1:
                 if (cnmemonic[opr - 1] == ____) return new_error_obj(ERROR__NO_WORD_ADDR, epoint);
                 if (touval(val, &uval, 24, epoint2)) {}
-                else if ((current_section->l_address ^ uval) <= 0xffff) adr = uval;
+                else if ((current_section->l_address.bank ^ uval) <= 0xffff) adr = uval;
                 else err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
                 break;
             case 2:
