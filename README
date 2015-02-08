@@ -1889,6 +1889,15 @@ routine .word print
             .xl
             ldx #$1000
 
+.autsiz
+.mansiz
+    Select automatic adjustment of immediate constant sizes based on SEP/REP
+    instructions.
+
+            .autsiz
+            rep #$10        ;implicit .xl
+            ldx #$1000
+
 .databank <expression>
     Set data bank (65816). Absolute addressing is used only for symbols in this
     bank, anything else (except direct page) is using long addressing.
@@ -3140,14 +3149,15 @@ Appendix
 
 Assembler directives
 
-.addr .al .align .as .assert .bend .binary .binclude .block .break .byte .case
-.cdef .cerror .char .check .comment .continue .cpu .cwarn .databank .default
-.dint .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc .end
-.endc .endf .endif .endm .endp .ends .endswitch .endu .endweak .eor .error .fi
-.fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl .include
-.int .lbl .lint .logical .long .macro .next .null .offs .option .page .pend
-.proc .proff .pron .ptext .rept .rta .section .segment .send .shift .shiftl
-.showmac .struct .switch .text .union .var .warn .weak .word .xl .xs
+.addr .al .align .as .assert .autsiz .bend .binary .binclude .block .break
+.byte .case .cdef .cerror .char .check .comment .continue .cpu .cwarn .databank
+.default .dint .dpage .dsection .dstruct .dunion .dword .edef .else .elsif .enc
+.end .endc .endf .endif .endm .endp .ends .endswitch .endu .endweak .eor .error
+.fi .fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl
+.include .int .lbl .lint .logical .long .macro .mansiz .next .null .offs
+.option .page .pend .proc .proff .pron .ptext .rept .rta .section .segment
+.send .shift .shiftl .showmac .struct .switch .text .union .var .warn .weak
+.word .xl .xs
 
 -------------------------------------------------------------------------------
 
