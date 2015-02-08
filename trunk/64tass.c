@@ -97,6 +97,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x34" "align",
     "\x21" "as",
     "\x35" "assert",
+    "\x5b" "autsiz",
     "\x3a" "bend",
     "\x1a" "binary",
     "\x50" "binclude",
@@ -155,6 +156,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x1f" "logical",
     "\x0c" "long",
     "\x10" "macro",
+    "\x5c" "mansiz",
     "\x13" "next",
     "\x04" "null",
     "\x0f" "offs",
@@ -199,7 +201,8 @@ enum command_e {
     CMD_GOTO, CMD_STRUCT, CMD_ENDS, CMD_DSTRUCT, CMD_UNION, CMD_ENDU,
     CMD_DUNION, CMD_SECTION, CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF,
     CMD_BINCLUDE, CMD_FUNCTION, CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT,
-    CMD_ENDSWITCH, CMD_WEAK, CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK
+    CMD_ENDSWITCH, CMD_WEAK, CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK, CMD_AUTSIZ,
+    CMD_MANSIZ
 };
 
 /* --------------------------------------------------------------------------- */
@@ -1650,6 +1653,13 @@ value_t compile(struct file_list_s *cflist)
                     longindex = (prm == CMD_XL);
                 }
                 break;
+            case CMD_AUTSIZ: /* .autsiz */
+            case CMD_MANSIZ: /* .mansiz */
+                if (waitfor->skip & 1) {
+                    listing_line(epoint.pos);
+                    autosize = (prm == CMD_AUTSIZ);
+                }
+                break;
             case CMD_BLOCK: if (waitfor->skip & 1)
                 { /* .block */
                     listing_line(epoint.pos);
@@ -2900,7 +2910,7 @@ static int main2(int argc, char *argv[]) {
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
+            star=databank=dpage=strength=longaccu=longindex=autosize=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
             cheap_context=root_label;
@@ -2945,7 +2955,7 @@ static int main2(int argc, char *argv[]) {
                 listing_file("\n;******  Processing input file: ", argv[i]);
             }
             set_cpumode(arguments.cpumode);
-            star=databank=dpage=strength=longaccu=longindex=0;actual_encoding=new_encoding(&none_enc);
+            star=databank=dpage=strength=longaccu=longindex=autosize=0;actual_encoding=new_encoding(&none_enc);
             allowslowbranch=1;temporary_label_branch=0;
             reset_waitfor();lpoint.line=vline=0;outputeor=0;forwr=backr=0;
             cheap_context=root_label;

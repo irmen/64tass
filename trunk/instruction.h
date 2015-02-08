@@ -28,7 +28,7 @@ extern MUST_CHECK int touval(const value_t, uval_t *, int, linepos_t);
 extern MUST_CHECK int toaddress(const value_t, uval_t *, int, uint32_t *, linepos_t);
 extern MUST_CHECK value_t err_addressing(uint32_t, linepos_t);
 
-extern int longaccu, longindex;
+extern int longaccu, longindex, autosize;
 extern uint16_t dpage;
 extern uint8_t databank;
 extern int longbranchasjmp;

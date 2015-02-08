@@ -2176,6 +2176,16 @@ routine <b class="d">.word</b> <u>print</u>
         <b>ldx</b> #<span>$1000</span>
 </pre>
 
+<dt><code><b class="k"><a name="d_autsiz">.autsiz</a></b></code>
+<dt><code><b class="k"><a name="d_mansiz">.mansiz</a></b></code>
+<dd>Select automatic adjustment of immediate constant sizes based on
+<code>SEP</code>/<code>REP</code> instructions.
+<pre width=80>
+	<b class="k">.autsiz</b>
+        <b>rep</b> #<span>$10</span>        <i>;implicit .xl</i>
+        <b>ldx</b> #<span>$1000</span>
+</pre>
+
 <dt><code><b class="k"><a name="d_databank">.databank</a></b></code> &lt;expression&gt;
 <dd>Set data bank (65816). Absolute addressing is used only for symbols in this
 bank, anything else (except direct page) is using long addressing.
@@ -3879,6 +3889,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_align">.align</a>
 <a href="#d_as">.as</a>
 <a href="#d_assert">.assert</a>
+<a href="#d_autsiz">.autsiz</a>
 <a href="#d_bend">.bend</a>
 <a href="#d_binary">.binary</a>
 <a href="#d_binclude">.binclude</a>
@@ -3937,6 +3948,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_logical">.logical</a>
 <a href="#d_long">.long</a>
 <a href="#d_macro">.macro</a>
+<a href="#d_mansiz">.mansiz</a>
 <a href="#d_next">.next</a>
 <a href="#d_null">.null</a>
 <a href="#d_offs">.offs</a>

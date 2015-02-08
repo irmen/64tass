@@ -31,7 +31,7 @@ static const uint8_t *opcode;       /* opcodes */
 static unsigned int last_mnem;
 static const struct cpu_s *cpu;
 
-int longaccu = 0, longindex = 0; /* hack */
+int longaccu = 0, longindex = 0, autosize = 0; /* hack */
 uint16_t dpage = 0;
 uint8_t databank = 0;
 int longbranchasjmp = 0;
@@ -642,7 +642,21 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
     case AG_BYTE: /* byte only */
         if (w != 3 && w != 0) return new_error_obj((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
         if (toaddress(val, &uval, 8, NULL, epoint2)) {}
-        else adr = uval;
+        else {
+            adr = uval;
+            if (autosize && (opcode == c65el02.opcode || opcode == w65816.opcode)) {
+                switch (cnmemonic[opr]) {
+                case 0xC2:
+                    if (adr & 0x10) longindex = 1;
+                    if (adr & 0x20) longaccu = 1;
+                    break;
+                case 0xE2:
+                    if (adr & 0x10) longindex = 0;
+                    if (adr & 0x20) longaccu = 0;
+                    break;
+                }
+            }
+        }
         ln = 1;
         break;
     case AG_DB3: /* 3 choice data bank */
