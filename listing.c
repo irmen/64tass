@@ -86,7 +86,7 @@ static char *out_db(char *s, unsigned int adr) {
 
 static char *out_pb(char *s, unsigned int adr) {
     *s++ = '$';
-    if (current_section->l_address & 0xff0000) s = out_hex(s, current_section->l_address >> 16);
+    if (current_section->l_address.bank) s = out_hex(s, current_section->l_address.bank >> 16);
     s = out_hex(s, adr >> 8);
     return out_hex(s, adr);
 }
@@ -237,7 +237,7 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
     if (!nolisting && flist && !temporary_label_branch) {
         int i, l;
 
-        l = printaddr('.', current_section->address - ln - 1);
+        l = printaddr('.', (current_section->address - ln - 1) & all_mem2);
         if (current_section->dooutput) {
             char str[32], *s;
             if (ln >= 0) {
@@ -290,12 +290,12 @@ void listing_instr(uint8_t cod, uint32_t adr, int ln) {
                     case ADR_ZP_LI: *s++ = '['; s = out_zp(s, adr); post = "]"; break;
                     case ADR_ADDR_I: *s++ = '('; s = out_word(s, adr); post = ")"; break;
                     case ADR_ZP_I: *s++ = '('; s = out_zp(s, adr); post = ")"; break;
-                    case ADR_REL: if (ln > 0) s = out_pb(s, ((int8_t)adr) + current_section->l_address); else s--; break;
+                    case ADR_REL: if (ln > 0) s = out_pb(s, ((int8_t)adr) + current_section->l_address.address); else s--; break;
                     case ADR_BIT_ZP_REL: 
                         s = out_bit(s, cod, adr);
-                        s = out_pb(s, ((int8_t)(adr >> 8)) + current_section->l_address);
+                        s = out_pb(s, ((int8_t)(adr >> 8)) + current_section->l_address.address);
                         break;
-                    case ADR_REL_L: s = out_pb(s, ((int16_t)adr) + current_section->l_address); break;
+                    case ADR_REL_L: s = out_pb(s, ((int16_t)adr) + current_section->l_address.address); break;
                     case ADR_MOVE: s = out_byte(s, adr >> 8); *s++ = ','; s = out_byte(s, adr);
                     case ADR_LEN: break;/* not an addressing mode */
                     }
@@ -342,7 +342,7 @@ void listing_mem(const uint8_t *data, size_t len, address_t myaddr) {
             }
             *s++ = ' ';
             s = out_hex(s, data[p++]);
-            myaddr = (myaddr + 1) & all_mem;
+            myaddr = (myaddr + 1) & all_mem2;
             len--;
         }
         *s = 0;

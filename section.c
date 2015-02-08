@@ -87,7 +87,7 @@ struct section_s *new_section(const str_t *name) {
         else str_cfcpy(&lastsc->cfname, NULL);
         lastsc->parent=current_section;
         lastsc->provides=~(uval_t)0;lastsc->requires=lastsc->conflicts=0;
-        lastsc->end=lastsc->address=lastsc->l_address=lastsc->size=0;
+        lastsc->end=lastsc->address=lastsc->l_address.address=lastsc->l_address.bank=lastsc->size=0;
         lastsc->l_address_val = NULL;
         lastsc->dooutput=1;
         lastsc->defpass=0;
@@ -97,7 +97,6 @@ struct section_s *new_section(const str_t *name) {
         lastsc->logicalrecursion=0;
         lastsc->moved=0;
         lastsc->wrapwarn=0;
-        lastsc->wrapwarn2=0;
         lastsc->next=NULL;
         prev_section->next = lastsc;
         prev_section = lastsc;
@@ -112,7 +111,7 @@ struct section_s *new_section(const str_t *name) {
 
 void reset_section(struct section_s *section) {
     section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
-    section->end = section->start = section->restart = section->l_restart = section->address = section->l_address = 0;
+    section->end = section->start = section->restart = section->l_restart.address = section->l_restart.bank = section->address = section->l_address.address = section->l_address.bank = 0;
     if (section->l_address_val) val_destroy(section->l_address_val);
     section->l_address_val = val_reference(int_value[0]);
     section->dooutput = 1;
@@ -120,7 +119,6 @@ void reset_section(struct section_s *section) {
     section->logicalrecursion = 0;
     section->moved = 0;
     section->wrapwarn = 0;
-    section->wrapwarn2 = 0;
     section->unionmode = 0;
 }
 
