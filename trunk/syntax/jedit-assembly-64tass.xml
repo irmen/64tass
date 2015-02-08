@@ -106,6 +106,8 @@
                         <KEYWORD3>.weak</KEYWORD3>
                         <KEYWORD3>.xl</KEYWORD3>
                         <KEYWORD3>.xs</KEYWORD3>
+                        <KEYWORD3>.autsiz</KEYWORD3>
+                        <KEYWORD3>.mansiz</KEYWORD3>
 
                         <KEYWORD4>.binary</KEYWORD4>
                         <KEYWORD4>.byte</KEYWORD4>
