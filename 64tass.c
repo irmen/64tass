@@ -495,9 +495,25 @@ static int byterecursion(value_t val, int prm, size_t *uninit, int bits, linepos
         case T_GAP: *uninit += abs(bits) / 8; val_destroy(val2); continue;
         default:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
-                if (touval(val2, &uv, 24, epoint)) uv = 1;
-                else if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
-                ch2 = uv - (prm == CMD_RTA);
+                atype_t am;
+                if (toaddress(val2, &uv, 24, &am, epoint)) ch2 = 0;
+                else {
+                    switch (am) {
+                    case A_NONE:
+                        if ((current_section->l_address.bank ^ uv) > 0xffff) err_msg2(ERROR_CANT_CROSS_BA, NULL, epoint);
+                        break;
+                    case A_KR:
+                        if (uv > 0xffff) {
+                            value_t v = new_error_obj(ERROR_____CANT_UVAL, epoint);
+                            v->u.error.u.bits = 16;
+                            err_msg_output_and_destroy(v);
+                        }
+                        break;
+                    default:
+                        err_msg_output_and_destroy(err_addressing(am, epoint));
+                    }
+                    ch2 = uv - (prm == CMD_RTA);
+                }
                 break;
             }
             if (bits >= 0) {
