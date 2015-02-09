@@ -32,8 +32,8 @@ static unsigned int last_mnem;
 static const struct cpu_s *cpu;
 
 int longaccu = 0, longindex = 0, autosize = 0; /* hack */
-uint16_t dpage = 0;
-uint8_t databank = 0;
+unsigned int dpage = 0;
+unsigned int databank = 0;
 int longbranchasjmp = 0;
 int allowslowbranch = 1;
 
@@ -591,7 +591,7 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
                     if (am != A_NONE) err_msg_output_and_destroy(err_addressing(am, epoint2));
                     else if (toaddress(val, &uval, 24, NULL, epoint2)) {}
                     else {
-                        if (uval <= 0xffff) {
+                        if (uval <= 0xffff && dpage <= 0xffff) {
                             adr = (uint16_t)(uval - dpage);
                             if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
                         } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
@@ -617,7 +617,7 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
     case AG_ZP: /* zero page address only */
         if (w != 3 && w != 0) return new_error_obj((w == 1) ? ERROR__NO_WORD_ADDR : ERROR__NO_LONG_ADDR, epoint);
         if (toaddress(val, &uval, 24, NULL, epoint2)) {}
-        else if (uval <= 0xffff) {
+        else if (uval <= 0xffff && dpage <= 0xffff) {
             adr = (uint16_t)(uval - dpage);
             if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
         } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
@@ -662,7 +662,7 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
     case AG_DB3: /* 3 choice data bank */
         if (w == 3) {/* auto length */
             if (toaddress(val, &uval, 24, NULL, epoint2)) w = (cnmemonic[opr - 1] != ____);
-            else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
+            else if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
             else if (cnmemonic[opr - 2] != ____) {adr = uval; w = 2;}
             else {
@@ -674,7 +674,7 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
             case 0:
                 if (cnmemonic[opr] == ____) return new_error_obj(ERROR__NO_BYTE_ADDR, epoint);
                 if (toaddress(val, &uval, 24, NULL, epoint2)) {}
-                else if (uval <= 0xffff) {
+                else if (uval <= 0xffff && dpage <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
                     if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
                 } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);
@@ -700,7 +700,7 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
     case AG_DB2: /* 2 choice data bank */
         if (w == 3) {/* auto length */
             if (toaddress(val, &uval, 24, NULL, epoint2)) w = (cnmemonic[opr - 1] != ____);
-            else if (cnmemonic[opr] != ____ && uval <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
+            else if (cnmemonic[opr] != ____ && uval <= 0xffff && dpage <= 0xffff && (uint16_t)(uval - dpage) <= 0xff) {adr = uval - dpage; w = 0;}
             else if (cnmemonic[opr - 1] != ____ && databank == (uval >> 16)) {adr = uval; w = 1;}
             else {
                 w = (cnmemonic[opr - 1] != ____);
@@ -711,7 +711,7 @@ MUST_CHECK value_t instruction(int prm, int w, value_t vals, linepos_t epoint, s
             case 0:
                 if (cnmemonic[opr] == ____) return new_error_obj(ERROR__NO_BYTE_ADDR, epoint);
                 if (toaddress(val, &uval, 24, NULL, epoint2)) {}
-                else if (uval <= 0xffff) {
+                else if (uval <= 0xffff && dpage <= 0xffff) {
                     adr = (uint16_t)(uval - dpage);
                     if (adr > 0xff) err_msg2(ERROR____NOT_DIRECT, val, epoint2);
                 } else err_msg2(ERROR_____NOT_BANK0, val, epoint2);

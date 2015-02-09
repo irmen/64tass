@@ -840,8 +840,8 @@ local   <b>lda</b> #<span>0</span>
 <p>Addressing modes are used for determining addressing modes of
 instructions.</p>
 
-<p>There must be no white space between the comma and the register letter,
-otherwise the operator is not recognized. On the other hand put a space between
+<p>For indexing there must be no white space between the comma and the register letter,
+otherwise the indexing operator is not recognized. On the other hand put a space between
 the comma and a single letter symbol in a list to avoid it being recognized
 as an operator.</p>
 
@@ -907,6 +907,12 @@ modes of the supported CPUs.</b></p>
 </tbody>
 </table></div>
 
+<p>Direct page, data bank, program bank indexed and long addressing modes
+of instructions are inteligently chosen based on the instruction type,
+the address ranges set up by <code>.dpage</code>, <code>.databank</code>
+and the current program counter address. Therefore the <q>,d</q>,
+<q>,b</q> and <q>,k</q> indexing is only used in very special cases.</p>
+
 <p>The direct page indexed addressing mode is not affected by the
 <code>.dpage</code> directive and always forces the 8&nbsp;bit address as
 is. It's only usable for direct/zero page instructions.</p>
@@ -921,7 +927,7 @@ is. It's only usable with jump instructions.</p>
 
 <p>Normally addressing mode operators are used right after instructions. They
 can also be used for defining stack variable symbols when using a 65816, or to
-force a specific addressing modes.</p>
+force a specific addressing mode.</p>
 
 <pre width=80>
 param   <b>=</b> <span>1</span>,s             <i>;define a stack variable</i>
@@ -2187,18 +2193,27 @@ routine <b class="d">.word</b> <u>print</u>
 </pre>
 
 <dt><code><b class="k"><a name="d_databank">.databank</a></b></code> &lt;expression&gt;
-<dd>Set data bank (65816). Absolute addressing is used only for symbols in this
-bank, anything else (except direct page) is using long addressing.
+<dd>Data bank (absolute) addressing is only used for addresses falling into this 64&nbsp;KiB
+bank. The default is 0, which means addresses in bank zero.
+<p>When data bank is switched off only data bank indexed (,b) addresses create data bank accessing instructions.</p>
 <pre width=80>
-        <b class="k">.databank</b> <span>$10</span>   <i>;$10xxxx</i>
+        <b class="k">.databank</b> <span>$10</span>   <i>;data bank at $10xxxx</i>
+        <b>lda</b> <span>$101234</span>     <i>;results in $ad, $34, $12</i>
+        <b class="k">.databank</b> <span>?</span>     <i>;no data bank</i>
+        <b>lda</b> <span>$1234</span>       <i>;direct page or long addressing</i>
+        <b>lda</b> <span>$1234</span>,b     <i>;results in $ad, $34, $12</i>
 </pre>
 
 <dt><code><b class="k"><a name="d_dpage">.dpage</a></b></code> &lt;expression&gt;
-<dd>Set direct page. Direct or zero page addressing is only used for addresses
-in the following 256 byte range, anything else is using absolute or long
-addressing.
+<dd>Direct (zero) page addressing is only used for addresses falling
+into a specific 256 byte address range. The default is 0, which is the first page of bank zero.
+<p>When direct page is switched off only the direct page indexed (,d) addresses create direct page accessing instructions.</p>
 <pre width=80>
-        <b class="k">.dpage</b> <span>$400</span>
+        <b class="k">.dpage</b> <span>$400</span>     <i>;direct page $400-$4ff</i>
+        <b>lda</b> <span>$456</span>        <i>;results in $a5, $56</i>
+        <b class="k">.dpage</b> <span>?</span>        <i>;no direct page</i>
+        <b>lda</b> <span>$56</span>         <i>;data bank or long addressing</i>
+        <b>lda</b> <span>$56</span>,d       <i>;results in $a5, $56</i>
 </pre>
 
 </dl>

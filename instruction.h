@@ -29,8 +29,8 @@ extern MUST_CHECK int toaddress(const value_t, uval_t *, int, uint32_t *, linepo
 extern MUST_CHECK value_t err_addressing(uint32_t, linepos_t);
 
 extern int longaccu, longindex, autosize;
-extern uint16_t dpage;
-extern uint8_t databank;
+extern unsigned int dpage;
+extern unsigned int databank;
 extern int longbranchasjmp;
 extern int allowslowbranch;
 #endif
