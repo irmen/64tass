@@ -93,13 +93,15 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
     if (-v1->u.real >= (double)(~((~(uval_t)0) >> 1)) + 1.0 || v1->u.real >= (double)((~(uval_t)0) >> 1) + 1.0) {
         *iv = 0;
         v = new_error_obj(ERROR_____CANT_IVAL, epoint);
-        v->u.error.u.bits = bits;
+        v->u.error.u.intconv.bits = bits;
+        v->u.error.u.intconv.val = val_reference(v1);
         return v;
     }
     *iv = v1->u.real;
     if (((*iv >= 0) ? *iv : (~*iv)) >> (bits-1)) {
         v = new_error_obj(ERROR_____CANT_IVAL, epoint);
-        v->u.error.u.bits = bits;
+        v->u.error.u.intconv.bits = bits;
+        v->u.error.u.intconv.val = val_reference(v1);
         return v;
     }
     return NULL;
@@ -109,13 +111,15 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     value_t v;
     if (v1->u.real <= -1.0 || v1->u.real >= (double)(~(uval_t)0) + 1.0) {
         v = new_error_obj(ERROR_____CANT_UVAL, epoint);
-        v->u.error.u.bits = bits;
+        v->u.error.u.intconv.bits = bits;
+        v->u.error.u.intconv.val = val_reference(v1);
         return v;
     }
     *uv = v1->u.real;
     if (bits < 8*(int)sizeof(uval_t) && *uv >> bits) {
         v = new_error_obj(ERROR_____CANT_UVAL, epoint);
-        v->u.error.u.bits = bits;
+        v->u.error.u.intconv.bits = bits;
+        v->u.error.u.intconv.val = val_reference(v1);
         return v;
     }
     return NULL;

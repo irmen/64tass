@@ -393,7 +393,8 @@ static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t
     default: break;
     }
     v = new_error_obj(ERROR_____CANT_IVAL, epoint);
-    v->u.error.u.bits = bits;
+    v->u.error.u.intconv.bits = bits;
+    v->u.error.u.intconv.val = val_reference(v1);
     return v;
 }
 
@@ -420,7 +421,8 @@ static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t
     default: break;
     }
     v = new_error_obj(ERROR_____CANT_UVAL, epoint);
-    v->u.error.u.bits = bits;
+    v->u.error.u.intconv.bits = bits;
+    v->u.error.u.intconv.val = val_reference(v1);
     return v;
 }
 
