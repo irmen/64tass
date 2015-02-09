@@ -1727,11 +1727,13 @@ value_t compile(struct file_list_s *cflist)
                     vs = get_val();
                     switch (prm) {
                     case CMD_DATABANK:
-                        if (touval(vs->val, &uval, 8, &vs->epoint)) {}
+                        if (vs->val->obj == GAP_OBJ) databank = 256;
+                        else if (touval(vs->val, &uval, 8, &vs->epoint)) {}
                         else databank = uval;
                         break;
                     case CMD_DPAGE:
-                        if (touval(vs->val, &uval, 16, &vs->epoint)) {}
+                        if (vs->val->obj == GAP_OBJ) dpage = 65536;
+                        else if (touval(vs->val, &uval, 16, &vs->epoint)) {}
                         else dpage = uval;
                         break;
                     case CMD_EOR:
