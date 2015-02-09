@@ -433,6 +433,10 @@ static void error_destroy(value_t v1) {
     case ERROR___NO_REGISTER: 
         val_destroy(v1->u.error.u.reg);
         return;
+    case ERROR_____CANT_UVAL: 
+    case ERROR_____CANT_IVAL: 
+        val_destroy(v1->u.error.u.intconv.val);
+        return;
     default: return;
     }
 }

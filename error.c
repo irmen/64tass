@@ -228,12 +228,12 @@ static const char *terr_error[]={
     "can't convert to a %d bit signed integer",
     "can't convert to a %d bit unsigned integer",
     "operands could not be broadcast together with shapes %u and %u",
-    "can't get sign",
-    "can't get absolute value",
-    "can't convert to integer",
-    "can't get length",
-    "can't get size",
-    "can't convert to boolean",
+    "can't get sign of type",
+    "can't get absolute value of type",
+    "can't get integer value of type",
+    "can't get length of type",
+    "can't get size of type",
+    "can't get boolean value of type",
     "not iterable",
     "no byte sized addressing mode for opcode",
     "no word sized addressing mode for opcode",
@@ -387,11 +387,14 @@ static void err_msg_char_name(const char *msg, const char *name, linepos_t epoin
     str_name((const uint8_t *)name, strlen(name));
 }
 
-static void err_msg_big_integer(const char *msg, int bits, linepos_t epoint) {
+static void err_msg_big_integer(const char *msg, const value_t val) {
     char msg2[256];
-    new_error(SV_CONDERROR, current_file_list, epoint);
-    sprintf(msg2, msg, bits);
+    new_error(SV_CONDERROR, current_file_list, &val->u.error.epoint);
+    sprintf(msg2, msg, val->u.error.u.intconv.bits);
     adderror(msg2);
+    adderror(" '");
+    err_msg_variable(val->u.error.u.intconv.val, &val->u.error.epoint);
+    adderror("'");
 }
 
 static void err_msg_no_forward(const str_t *name, linepos_t epoint) {
@@ -524,7 +527,7 @@ void err_msg_output(const value_t val) {
         case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, &val->u.error.epoint);break;
         case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->u.error.epoint); break;
         case ERROR_____CANT_IVAL:
-        case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->u.error.num & 63], val->u.error.u.bits, &val->u.error.epoint);break;
+        case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->u.error.num & 63], val);break;
         case ERROR___INDEX_RANGE:
         case ERROR_CONSTNT_LARGE:
         case ERROR_NUMERIC_OVERF:

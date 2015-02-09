@@ -155,7 +155,10 @@ struct value_s {
                     const struct label_s *label;
                     int down;
                 } notdef;
-                int bits;
+                struct {
+                    int bits;
+                    value_t val;
+                } intconv;
                 const char *objname;
                 atype_t addressing;
                 value_t reg;

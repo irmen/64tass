@@ -505,7 +505,8 @@ static int byterecursion(value_t val, int prm, size_t *uninit, int bits, linepos
                     case A_KR:
                         if (uv > 0xffff) {
                             value_t v = new_error_obj(ERROR_____CANT_UVAL, epoint);
-                            v->u.error.u.bits = 16;
+                            v->u.error.u.intconv.bits = 16;
+                            v->u.error.u.intconv.val = val_reference(val2);
                             err_msg_output_and_destroy(v);
                         }
                         break;
