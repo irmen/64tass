@@ -491,7 +491,7 @@ static int byterecursion(value_t val, int prm, size_t *uninit, int bits, linepos
     while ((val2 = obj_next(iter))) {
         switch (val2->obj->type) {
         case T_LIST:
-        case T_TUPLE: warn |= byterecursion(val2, prm, uninit, bits, epoint); continue;
+        case T_TUPLE: warn |= byterecursion(val2, prm, uninit, bits, epoint); val_destroy(val2); continue;
         case T_GAP: *uninit += abs(bits) / 8; val_destroy(val2); continue;
         default:
             if (prm == CMD_RTA || prm == CMD_ADDR) {
