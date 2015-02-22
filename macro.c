@@ -628,6 +628,8 @@ value_t mfunc2_recurse(value_t tmp2, struct values_s *vals, unsigned int args, l
         current_section->conflicts = oldsection->conflicts;
         current_section->l_address.address = star & 0xffff; /* TODO */
         current_section->l_address.bank = star & ~0xffff;
+        if (current_section->l_address_val) val_destroy(current_section->l_address_val);
+        current_section->l_address_val = oldsection->l_address_val ? val_reference(oldsection->l_address_val) : NULL;
         current_section->dooutput = 0;
         retval = compile(cflist);
         current_section = oldsection;
