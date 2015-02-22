@@ -345,6 +345,25 @@ static void iter_destroy(value_t v1) {
     val_destroy((value_t)v1->u.iter.data);
 }
 
+static void iter_garbage(value_t v1, int i) {
+    value_t v;
+    switch (i) {
+    case -1:
+        ((value_t)v1->u.iter.data)->refcount--;
+        return;
+    case 0:
+        if (v1->u.iter.iter != &v1->u.iter.val) free(v1->u.iter.iter);
+        return;
+    case 1:
+        v = (value_t)v1->u.iter.data;
+        if (v->refcount & SIZE_MSB) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
+        return;
+    }
+}
+
 static MUST_CHECK value_t iter_next(value_t v1) {
     if (!v1->u.iter.iter) return invalid_next(v1);
     return v1->u.iter.data->obj->next(v1);
@@ -357,12 +376,11 @@ static void macro_destroy(value_t v1) {
         free((char *)v1->u.macro.param[v1->u.macro.argc].init.data);
     }
     free(v1->u.macro.param);
-    if (v1->u.macro.label->parent == NULL) label_destroy(v1->u.macro.label);
 }
 
 static int macro_same(const value_t v1, const value_t v2) {
     size_t i;
-    if (v1->obj != v2->obj || v1->u.macro.size != v2->u.macro.size || v1->u.macro.label != v2->u.macro.label) return 0;
+    if (v1->obj != v2->obj || v1->u.macro.file_list != v2->u.macro.file_list || v1->u.macro.line != v2->u.macro.line) return 0;
     for (i = 0; i < v1->u.macro.argc; i++) {
         if (str_cmp(&v1->u.macro.param[i].cfname, &v2->u.macro.param[i].cfname)) return 0;
         if (str_cmp(&v1->u.macro.param[i].init, &v2->u.macro.param[i].init)) return 0;
@@ -380,9 +398,40 @@ static void mfunc_destroy(value_t v1) {
     free(v1->u.mfunc.param);
 }
 
+static void mfunc_garbage(value_t v1, int j) {
+    size_t i = v1->u.mfunc.argc;
+    value_t v ;
+    switch (j) {
+    case -1:
+        while (i--) {
+            v = v1->u.mfunc.param[i].init;
+            if (v) v->refcount--;
+        }
+        return;
+    case 0:
+        while (i--) {
+            free((char *)v1->u.mfunc.param[i].name.data);
+            if (v1->u.mfunc.param[i].name.data != v1->u.mfunc.param[i].cfname.data) free((char *)v1->u.mfunc.param[i].cfname.data);
+        }
+        free(v1->u.mfunc.param);
+        return;
+    case 1:
+        while (i--) {
+            v = v1->u.mfunc.param[i].init;
+            if (v) {
+                if (v->refcount & SIZE_MSB) {
+                    v->refcount -= SIZE_MSB - 1;
+                    v->obj->garbage(v, 1);
+                } else v->refcount++;
+            }
+        }
+        return;
+    }
+}
+
 static int mfunc_same(const value_t v1, const value_t v2) {
     size_t i;
-    if (v2->obj != MFUNC_OBJ || v1->u.mfunc.label != v2->u.mfunc.label) return 0;
+    if (v2->obj != MFUNC_OBJ || v1->u.mfunc.file_list != v2->u.mfunc.file_list || v1->u.mfunc.line != v2->u.mfunc.line) return 0;
     for (i = 0; i < v1->u.mfunc.argc; i++) {
         if (str_cmp(&v1->u.mfunc.param[i].name, &v2->u.mfunc.param[i].name)) return 0;
         if ((v1->u.mfunc.param[i].name.data != v1->u.mfunc.param[i].cfname.data || v2->u.mfunc.param[i].name.data != v2->u.mfunc.param[i].cfname.data) && str_cmp(&v1->u.mfunc.param[i].cfname, &v2->u.mfunc.param[i].cfname)) return 0;
@@ -437,7 +486,59 @@ static void error_destroy(value_t v1) {
     case ERROR_____CANT_IVAL: 
         val_destroy(v1->u.error.u.intconv.val);
         return;
+    case ERROR___NOT_DEFINED: 
+        val_destroy(v1->u.error.u.notdef.labeldict);
     default: return;
+    }
+}
+
+static void error_garbage(value_t v1, int i) {
+    value_t v;
+    switch (v1->u.error.num) {
+    case ERROR__INVALID_OPER:
+        v = v1->u.error.u.invoper.v1;
+        if (v) {
+            switch (i) {
+            case -1:
+                v->refcount--;
+                break;
+            case 0:
+                break;
+            case 1:
+                if (v->refcount & SIZE_MSB) {
+                    v->refcount -= SIZE_MSB - 1;
+                    v->obj->garbage(v, 1);
+                } else v->refcount++;
+                break;
+            }
+        }
+        v = v1->u.error.u.invoper.v2;
+        if (!v) return;
+        break;
+    case ERROR___NO_REGISTER: 
+        v = v1->u.error.u.reg;
+        break;
+    case ERROR_____CANT_UVAL: 
+    case ERROR_____CANT_IVAL: 
+        v = v1->u.error.u.intconv.val;
+        break;
+    case ERROR___NOT_DEFINED: 
+        v = v1->u.error.u.notdef.labeldict;
+        break;
+    default: return;
+    }
+    switch (i) {
+    case -1:
+        v->refcount--;
+        return;
+    case 0:
+        return;
+    case 1:
+        if (v->refcount & SIZE_MSB) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
+        return;
     }
 }
 
@@ -664,54 +765,58 @@ static MUST_CHECK value_t type_calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
+static void struct_destroy(value_t v1) {
+    while (v1->u.structure.argc) {
+        --v1->u.structure.argc;
+        free((char *)v1->u.structure.param[v1->u.structure.argc].cfname.data);
+        free((char *)v1->u.structure.param[v1->u.structure.argc].init.data);
+    }
+    free(v1->u.structure.param);
+    val_destroy(v1->u.structure.labeldict);
+}
+
+static void struct_garbage(value_t v1, int i) {
+    value_t v;
+    switch (i) {
+    case -1:
+        v1->u.structure.labeldict->refcount--;
+        return;
+    case 0:
+        while (v1->u.structure.argc) {
+            --v1->u.structure.argc;
+            free((char *)v1->u.structure.param[v1->u.structure.argc].cfname.data);
+            free((char *)v1->u.structure.param[v1->u.structure.argc].init.data);
+        }
+        free(v1->u.structure.param);
+        return;
+    case 1:
+        v = v1->u.structure.labeldict;
+        if (v->refcount & SIZE_MSB) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
+        return;
+    }
+}
+
+static int struct_same(const value_t v1, const value_t v2) {
+    size_t i;
+    if (v1->obj != v2->obj || v1->u.structure.size != v2->u.structure.size || v1->u.structure.file_list != v2->u.structure.file_list || v1->u.structure.line != v2->u.structure.line) return 0;
+    if (v1->u.structure.labeldict != v2->u.structure.labeldict && !obj_same(v1->u.structure.labeldict, v2->u.structure.labeldict)) return 0;
+    for (i = 0; i < v1->u.structure.argc; i++) {
+        if (str_cmp(&v1->u.structure.param[i].cfname, &v2->u.structure.param[i].cfname)) return 0;
+        if (str_cmp(&v1->u.structure.param[i].init, &v2->u.structure.param[i].init)) return 0;
+    }
+    return 1;
+}
+
 static MUST_CHECK value_t struct_size(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_size(v1->u.macro.size);
+    return int_from_size(v1->u.structure.size);
 }
 
 static MUST_CHECK value_t struct_calc2(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2, v;
     if (op->op == &o_MEMBER) {
-        struct label_s *l, *l2;
-        switch (v2->obj->type) {
-        case T_IDENT:
-            l2 = v1->u.macro.label;
-            l = find_label2(&v2->u.ident.name, l2);
-            if (l) {
-                touch_label(l);
-                return val_reference(l->value);
-            }
-            if (!referenceit) {
-                return val_reference(none_value);
-            }
-            v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.ident.epoint);
-            v->u.error.u.notdef.label = l2;
-            v->u.error.u.notdef.ident = v2->u.ident.name;
-            v->u.error.u.notdef.down = 0;
-            return v;
-        case T_ANONIDENT:
-            {
-                ssize_t count;
-                l2 = v1->u.macro.label;
-                l = find_anonlabel2(v2->u.anonident.count, l2);
-                if (l) {
-                    touch_label(l);
-                    return val_reference(l->value);
-                }
-                if (!referenceit) {
-                    return val_reference(none_value);
-                }
-                count = v2->u.anonident.count;
-                v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.anonident.epoint);
-                v->u.error.u.notdef.label = l2;
-                v->u.error.u.notdef.ident.len = count + (count >= 0);
-                v->u.error.u.notdef.ident.data = NULL;
-                v->u.error.u.notdef.down = 0;
-                return v;
-            }
-        case T_TUPLE:
-        case T_LIST: return v2->obj->rcalc2(op);
-        default: return v2->obj->rcalc2(op);
-        }
+        return labeldict_member(op, op->v1->u.structure.labeldict);
     }
     return obj_oper_error(op);
 }
@@ -721,6 +826,7 @@ void obj_init(struct obj_s *obj, enum type_e type, const char *name) {
     obj->name = name;
     obj->create = invalid_create;
     obj->destroy = invalid_destroy;
+    obj->garbage = NULL;
     obj->same = invalid_same;
     obj->truth = invalid_truth;
     obj->hash = invalid_hash;
@@ -752,6 +858,7 @@ void objects_init(void) {
     intobj_init();
     functionobj_init();
     dictobj_init();
+    labelobj_init();
 
     obj_init(&macro_obj, T_MACRO, "macro");
     macro_obj.destroy = macro_destroy;
@@ -763,16 +870,19 @@ void objects_init(void) {
     lbl_obj.same = lbl_same;
     obj_init(&mfunc_obj, T_MFUNC, "function");
     mfunc_obj.destroy = mfunc_destroy;
+    mfunc_obj.garbage = mfunc_garbage;
     mfunc_obj.same = mfunc_same;
     mfunc_obj.calc2 = mfunc_calc2;
     obj_init(&struct_obj, T_STRUCT, "struct");
-    struct_obj.destroy = macro_destroy;
-    struct_obj.same = macro_same;
+    struct_obj.destroy = struct_destroy;
+    struct_obj.garbage = struct_garbage;
+    struct_obj.same = struct_same;
     struct_obj.size = struct_size;
     struct_obj.calc2 = struct_calc2;
     obj_init(&union_obj, T_UNION, "union");
-    union_obj.destroy = macro_destroy;
-    union_obj.same = macro_same;
+    union_obj.destroy = struct_destroy;
+    union_obj.garbage = struct_garbage;
+    union_obj.same = struct_same;
     union_obj.size = struct_size;
     union_obj.calc2 = struct_calc2;
     obj_init(&none_obj, T_NONE, "none");
@@ -791,6 +901,7 @@ void objects_init(void) {
     none_obj.size = none_size;
     obj_init(&error_obj, T_ERROR, "error");
     error_obj.destroy = error_destroy;
+    error_obj.garbage = error_garbage;
     error_obj.calc1 = error_calc1;
     error_obj.calc2 = error_calc2;
     error_obj.rcalc2 = error_rcalc2;
@@ -812,6 +923,7 @@ void objects_init(void) {
     obj_init(&default_obj, T_DEFAULT, "default");
     obj_init(&iter_obj, T_ITER, "iter");
     iter_obj.destroy = iter_destroy;
+    iter_obj.garbage = iter_garbage;
     iter_obj.next = iter_next;
     obj_init(&funcargs_obj, T_FUNCARGS, "funcargs");
     funcargs_obj.same = funcargs_same;

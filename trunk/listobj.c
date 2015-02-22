@@ -40,6 +40,30 @@ static void destroy(value_t v1) {
     if (v1->u.list.val != v1->u.list.data) free(v1->u.list.data);
 }
 
+static void garbage(value_t v1, int j) {
+    size_t i;
+    value_t v;
+    switch (j) {
+    case -1:
+        for (i = 0; i < v1->u.list.len; i++) {
+            v1->u.list.data[i]->refcount--;
+        }
+        return;
+    case 0:
+        if (v1->u.list.val != v1->u.list.data) free(v1->u.list.data);
+        return;
+    case 1:
+        for (i = 0; i < v1->u.list.len; i++) {
+            v = v1->u.list.data[i];
+            if (v->refcount & SIZE_MSB) {
+                v->refcount -= SIZE_MSB - 1;
+                v->obj->garbage(v, 1);
+            } else v->refcount++;
+        }
+        return;
+    }
+}
+
 static value_t *lnew(value_t v, size_t len) {
     if (len > sizeof(v->u.list.val) / sizeof(value_t)) {
         value_t *s = (value_t *)malloc(len * sizeof(value_t));
@@ -501,6 +525,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 
 static void init(struct obj_s *obj) {
     obj->destroy = destroy;
+    obj->garbage = garbage;
     obj->same = same;
     obj->truth = truth;
     obj->len = len;
@@ -521,10 +546,12 @@ void listobj_init(void) {
     tuple_obj.create = tuple_create;
     obj_init(&addrlist_obj, T_ADDRLIST, "addresslist");
     addrlist_obj.destroy = destroy;
+    addrlist_obj.garbage = garbage;
     addrlist_obj.same = same;
     addrlist_obj.repr = repr_listtuple;
     obj_init(&colonlist_obj, T_COLONLIST, "colonlist");
     colonlist_obj.destroy = destroy;
+    colonlist_obj.garbage = garbage;
     colonlist_obj.same = same;
     colonlist_obj.repr = repr_listtuple;
 }

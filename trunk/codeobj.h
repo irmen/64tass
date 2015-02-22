@@ -42,7 +42,9 @@ typedef struct {
     const struct memblocks_s *mem;
     size_t memp;
     size_t membp;
-    struct label_s *label;
+    value_t labeldict;
+    uval_t requires;
+    uval_t conflicts;
 } code_t;
 
 extern void codeobj_init(void);

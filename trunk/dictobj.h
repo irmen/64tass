@@ -19,13 +19,23 @@
 #ifndef _DICTOBJ_H
 #define _DICTOBJ_H
 
+typedef struct oper_s *oper_t;
+
 extern obj_t DICT_OBJ;
+extern obj_t LABELDICT_OBJ;
 
 typedef struct {
     size_t len;
     struct avltree members;
     value_t def;
 } dict_t;
+
+typedef struct {
+    size_t len;
+    struct avltree members;
+    const struct file_list_s *file_list;
+    struct linepos_s epoint;
+} labeldict_t;
 
 struct pair_s {
     int hash;
@@ -36,4 +46,6 @@ struct pair_s {
 
 extern void dictobj_init(void);
 extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
+extern MUST_CHECK value_t new_labeldict(const struct file_list_s *, linepos_t);
+extern MUST_CHECK value_t labeldict_member(oper_t, value_t);
 #endif

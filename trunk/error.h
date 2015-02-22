@@ -22,7 +22,6 @@
 #include "libtree.h"
 
 struct file_s;
-struct label_s;
 
 struct file_list_s {
     struct linepos_s epoint;
@@ -70,6 +69,9 @@ enum errors_e {
     ERROR___MATH_DOMAIN,
     ERROR__EMPTY_STRING,
     ERROR_BIG_STRING_CO,
+    ERROR____NO_FORWARD,
+    ERROR_REQUIREMENTS_,
+    ERROR______CONFLICT,
     ERROR___INDEX_RANGE,
     ERROR_____KEY_ERROR,
     ERROR__NOT_HASHABLE,
@@ -105,9 +107,6 @@ enum errors_e {
     ERROR___UNKNOWN_CPU,
 
     ERROR___NOT_DEFINED,
-    ERROR____NO_FORWARD,
-    ERROR_REQUIREMENTS_,
-    ERROR______CONFLICT,
     ERROR__INVALID_OPER,
     ERROR____STILL_NONE,
 
@@ -128,12 +127,10 @@ extern void err_msg_wrong_type(const value_t, obj_t, linepos_t);
 extern void err_msg_cant_calculate(const str_t *, linepos_t);
 extern void err_msg_still_none(const str_t *, linepos_t);
 extern void err_msg_invalid_oper(const value_t, const value_t, const value_t, linepos_t);
-extern void err_msg_double_defined(const struct label_s *, const str_t *, linepos_t);
-extern void err_msg_shadow_defined(const struct label_s *, const struct label_s *);
+extern void err_msg_double_defined(value_t, const str_t *, linepos_t);
+extern void err_msg_shadow_defined(value_t, value_t);
 extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_not_definedx(const str_t *, linepos_t);
-extern void err_msg_requires(const str_t *name, linepos_t);
-extern void err_msg_conflicts(const str_t *name, linepos_t);
 extern void err_msg_file(enum errors_e, const char *, linepos_t);
 extern void err_msg_output(const value_t);
 extern void err_msg_output_and_destroy(value_t);

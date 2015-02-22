@@ -61,7 +61,8 @@ struct error_s {
 
 struct notdefines_s {
     str_t cfname;
-    const struct label_s *parent;
+    const struct file_list_s *file_list;
+    struct linepos_s epoint;
     uint8_t pass;
     struct avltree_node node;
 };
@@ -221,6 +222,9 @@ static const char *terr_error[]={
     "not in range -1.0 to 1.0",
     "empty string not allowed",
     "not a one character string",
+    "too early to reference",
+    "requirements not met",
+    "conflict",
     "index out of range",
     "key error",
     "not hashable",
@@ -397,15 +401,15 @@ static void err_msg_big_integer(const char *msg, const value_t val) {
     adderror("'");
 }
 
-static void err_msg_no_forward(const str_t *name, linepos_t epoint) {
-    err_msg_str_name("too early to reference", name, epoint);
-}
-
 static int notdefines_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct notdefines_s *a = cavltree_container_of(aa, struct notdefines_s, node);
     const struct notdefines_s *b = cavltree_container_of(bb, struct notdefines_s, node);
-    int h = a->parent - b->parent;
+    int h = a->file_list - b->file_list;
+    if (h) return h;
+    h = a->epoint.line - b->epoint.line;
+    if (h) return h;
+    h = a->epoint.pos - b->epoint.pos;
     if (h) return h;
     return str_cmp(&a->cfname, &b->cfname);
 }
@@ -417,7 +421,7 @@ static void notdefines_free(struct avltree_node *aa) {
 }
 
 static struct notdefines_s *lastnd = NULL;
-static inline void err_msg_not_defined2(const str_t *name, const struct label_s *l, int down, linepos_t epoint) {
+static inline void err_msg_not_defined2(const str_t *name, value_t l, int down, linepos_t epoint) {
     struct notdefines_s *tmp2;
     struct avltree_node *b;
 
@@ -430,7 +434,8 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
 
     if (name->data) {
         str_cfcpy(&lastnd->cfname, name);
-        lastnd->parent = l;
+        lastnd->file_list = l->u.labeldict.file_list;
+        lastnd->epoint = l->u.labeldict.epoint;
         lastnd->pass = pass;
         b=avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
         if (b) {
@@ -460,14 +465,13 @@ static inline void err_msg_not_defined2(const str_t *name, const struct label_s 
         adderror("'");
     }
 
-    if (!l->file_list) {
+    if (!l->u.labeldict.file_list) {
         if (new_error(SV_NOTDEFGNOTE, current_file_list, epoint)) return;
         adderror("searched in the global scope");
     } else {
-        if (new_error(SV_NOTDEFLNOTE, l->file_list, &l->epoint)) return;
-        adderror("searched in");
-        str_name(l->name.data, l->name.len);
-        adderror(down ? " defined here, and in all it's parents" : " defined here");
+        if (new_error(SV_NOTDEFLNOTE, l->u.labeldict.file_list, &l->u.labeldict.epoint)) return;
+        if (down) adderror("searched in this scope and in all it's parents");
+        else adderror("searched in this object only");
     }
 }
 
@@ -520,14 +524,14 @@ static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2, linepo
 void err_msg_output(const value_t val) {
     if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
-        case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.label, val->u.error.u.notdef.down, &val->u.error.epoint);break;
-        case ERROR____NO_FORWARD: err_msg_no_forward(&val->u.error.u.ident, &val->u.error.epoint);break;
-        case ERROR_REQUIREMENTS_: err_msg_requires(&val->u.error.u.ident, &val->u.error.epoint);break;
-        case ERROR______CONFLICT: err_msg_conflicts(&val->u.error.u.ident, &val->u.error.epoint);break;
+        case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.labeldict, val->u.error.u.notdef.down, &val->u.error.epoint);break;
         case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, &val->u.error.epoint);break;
         case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->u.error.epoint); break;
         case ERROR_____CANT_IVAL:
         case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->u.error.num & 63], val);break;
+        case ERROR____NO_FORWARD:
+        case ERROR_REQUIREMENTS_:
+        case ERROR______CONFLICT:
         case ERROR___INDEX_RANGE:
         case ERROR_CONSTNT_LARGE:
         case ERROR_NUMERIC_OVERF:
@@ -598,34 +602,22 @@ void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
     if (name) str_name(name->data, name->len);
 }
 
-void err_msg_requires(const str_t *name, linepos_t epoint) {
-    new_error(SV_CONDERROR, current_file_list, epoint);
-    adderror("requirements not met");
-    if (name) str_name(name->data, name->len);
-}
-
-void err_msg_conflicts(const str_t *name, linepos_t epoint) {
-    new_error(SV_CONDERROR, current_file_list, epoint);
-    adderror("conflict");
-    if (name) str_name(name->data, name->len);
-}
-
-static void err_msg_double_defined2(const char *msg, const struct label_s *l, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
+static void err_msg_double_defined2(const char *msg, value_t l, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
     new_error(SV_DOUBLEERROR, cflist, epoint2);
     adderror(msg);
     str_name(labelname2->data, labelname2->len);
-    if (new_error(SV_DOUBLENOTE, l->file_list, &l->epoint)) return;
+    if (new_error(SV_DOUBLENOTE, l->u.label.file_list, &l->u.label.epoint)) return;
     adderror("previous definition of");
     str_name(labelname2->data, labelname2->len);
     adderror(" was here");
 }
 
-void err_msg_double_defined(const struct label_s *l, const str_t *labelname2, linepos_t epoint2) {
+void err_msg_double_defined(value_t l, const str_t *labelname2, linepos_t epoint2) {
     err_msg_double_defined2("duplicate definition", l, current_file_list, labelname2, epoint2);
 }
 
-void err_msg_shadow_defined(const struct label_s *l, const struct label_s *l2) {
-    err_msg_double_defined2("shadow definition", l, l2->file_list, &l2->name, &l2->epoint);
+void err_msg_shadow_defined(value_t l, value_t l2) {
+    err_msg_double_defined2("shadow definition", l, l2->u.label.file_list, &l2->u.label.name, &l2->u.label.epoint);
 }
 
 void err_msg_invalid_oper(const value_t op, const value_t v1, const value_t v2, linepos_t epoint) {
