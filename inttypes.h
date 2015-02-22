@@ -78,6 +78,8 @@ typedef uint32_t uval_t;
 # define SSIZE_MAX ((ssize_t)(SIZE_MAX / 2))
 #endif
 
+#define SIZE_MSB ((size_t)1 << (sizeof(size_t) * 8 - 1))
+
 typedef struct value_s *value_t;
 typedef const struct obj_s *obj_t;
 

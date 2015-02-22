@@ -32,6 +32,7 @@
 #include "addressobj.h"
 #include "functionobj.h"
 #include "dictobj.h"
+#include "variables.h"
 
 struct memblocks_s;
 
@@ -127,13 +128,16 @@ struct value_s {
         code_t code;
         list_t list;
         dict_t dict;
+        labeldict_t labeldict;
         mfunc_t mfunc;
         macro_t macro;
+        struct_t structure;
+        label_t label;
         struct {
             line_t sline;
             size_t waitforp;
             const struct file_list_s *file_list;
-            const struct label_s *parent;
+            value_t parent;
         } lbl;
         struct {
             const char *name;
@@ -144,7 +148,6 @@ struct value_s {
             enum errors_e num;
             struct linepos_s epoint;
             union {
-                str_t ident;
                 struct {
                     value_t op;
                     value_t v1;
@@ -152,7 +155,7 @@ struct value_s {
                 } invoper;
                 struct {
                     str_t ident;
-                    const struct label_s *label;
+                    value_t labeldict;
                     int down;
                 } notdef;
                 struct {
@@ -278,6 +281,7 @@ extern struct value_s o_MEMBER;
 
 extern void destroy_values(void);
 extern void init_values(void);
+extern void garbage_collect(void);
 
 static inline void obj_destroy(value_t v1) {
     v1->obj->destroy(v1);

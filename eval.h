@@ -36,7 +36,7 @@ extern value_t get_vals_tuple(void);
 extern value_t get_vals_addrlist(struct linepos_s *);
 extern MUST_CHECK value_t indexoffs(const value_t, size_t, size_t *, linepos_t);
 extern MUST_CHECK value_t sliceparams(const value_t, size_t, size_t *, ival_t *, ival_t *, ival_t *, linepos_t);
-extern void touch_label(struct label_s *);
+extern void touch_label(value_t);
 
 struct values_s {
     value_t val;

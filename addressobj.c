@@ -41,6 +41,24 @@ static void destroy(value_t v1) {
     val_destroy(v1->u.addr.val);
 }
 
+static void garbage(value_t v1, int i) {
+    value_t v;
+    switch (i) {
+    case -1:
+        v1->u.addr.val->refcount--;
+        return;
+    case 0:
+        return;
+    case 1:
+        v = v1->u.addr.val;
+        if (v->refcount & SIZE_MSB) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
+        return;
+    }
+}
+
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == ADDRESS_OBJ && v1->u.addr.type == v2->u.addr.type && obj_same(v1->u.addr.val, v2->u.addr.val);
 }
@@ -292,6 +310,7 @@ void addressobj_init(void) {
     obj_init(&obj, T_ADDRESS, "address");
     obj.create = create;
     obj.destroy = destroy;
+    obj.garbage = garbage;
     obj.same = same;
     obj.repr = repr;
     obj.address = address;

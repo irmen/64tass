@@ -31,9 +31,10 @@ struct mfunc_param_s {
 };
 
 typedef struct {
-    struct label_s *label;
     size_t argc;
     struct mfunc_param_s *param; 
+    struct file_list_s *file_list;
+    line_t line;
 } mfunc_t;
 
 struct macro_param_s {
@@ -42,17 +43,28 @@ struct macro_param_s {
 }; 
 
 typedef struct {
-    size_t size;
     size_t argc;
-    struct macro_param_s *param; 
-    struct label_s *label;
+    struct macro_param_s *param;
+    struct file_list_s *file_list;
+    line_t line;
+    int retval;
 } macro_t;
+
+typedef struct {
+    size_t argc;
+    struct macro_param_s *param;
+    struct file_list_s *file_list;
+    line_t line;
+    size_t size; /* first part same as macro! */
+    value_t labeldict;
+} struct_t;
 
 enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
-    T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE
+    T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE,
+    T_LABEL, T_LABELDICT
 };
 
 enum truth_e {
@@ -64,6 +76,7 @@ struct obj_s {
     const char *name;
     value_t (*create)(value_t, linepos_t) MUST_CHECK;
     void (*destroy)(value_t);
+    void (*garbage)(value_t, int);
     int (*same)(const value_t, const value_t);
     value_t (*truth)(const value_t, enum truth_e, linepos_t) MUST_CHECK;
     value_t (*hash)(const value_t, int *, linepos_t) MUST_CHECK;

@@ -21,13 +21,12 @@
 #include "inttypes.h"
 
 struct values_s;
-struct label_s;
 struct file_s;
 enum wait_e;
 
 extern int mtranslate(struct file_s *);
-extern value_t macro_recurse(enum wait_e, value_t, struct label_s *, linepos_t);
-extern value_t mfunc_recurse(enum wait_e, value_t, struct label_s *, linepos_t, uint8_t);
+extern value_t macro_recurse(enum wait_e, value_t, value_t, linepos_t);
+extern value_t mfunc_recurse(enum wait_e, value_t, value_t, linepos_t, uint8_t);
 extern value_t mfunc2_recurse(value_t, struct values_s *, unsigned int, linepos_t);
 extern void init_macro(void);
 extern void free_macro(void);

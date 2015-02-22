@@ -21,15 +21,13 @@
 #include "libtree.h"
 #include "inttypes.h"
 
-struct label_s {
-    int name_hash;
+extern obj_t LABEL_OBJ;
+
+typedef struct {
     str_t name;
     str_t cfname;
-    struct avltree_node node;
 
     value_t value;
-    uval_t requires;
-    uval_t conflicts;
     struct file_list_s *file_list;
     struct linepos_s epoint;
     unsigned ref:1;
@@ -39,23 +37,23 @@ struct label_s {
     uint8_t usepass;
     uint8_t defpass;
     uint8_t strength;
-    struct label_s *parent;
-    struct avltree members;
-};
+} label_t;
 
-extern struct label_s *current_context, *cheap_context, *root_label;
-extern struct label_s *find_label(const str_t *);
-extern struct label_s *find_label2(const str_t *, const struct label_s *);
-extern struct label_s *find_label3(const str_t *, const struct label_s *, uint8_t);
-extern struct label_s *find_anonlabel(int32_t);
-extern struct label_s *find_anonlabel2(int32_t, const struct label_s *);
-extern struct label_s *new_label(const str_t *, struct label_s *, uint8_t, int *);
+extern void push_context(value_t);
+extern int pop_context(void);
+extern void reset_context(void);
+
+extern void labelobj_init(void);
+extern value_t current_context, cheap_context, root_dict;
+extern value_t find_label(const str_t *);
+extern value_t find_label2(const str_t *, value_t);
+extern value_t find_label3(const str_t *, value_t, uint8_t);
+extern value_t find_anonlabel(int32_t);
+extern value_t find_anonlabel2(int32_t, value_t);
+extern value_t new_label(const str_t *, value_t, uint8_t, int *);
 extern void labelprint(void);
-extern void shadow_check(const struct avltree *);
+extern void shadow_check(value_t);
 extern void destroy_variables(void);
-extern void destroy_variables2(struct label_s *);
 extern void init_variables(void);
 extern void init_defaultlabels(void);
-extern void init_variables2(struct label_s *);
-extern void label_destroy(struct label_s *);
 #endif

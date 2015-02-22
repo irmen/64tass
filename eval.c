@@ -268,9 +268,9 @@ static MUST_CHECK value_t get_string(void) {
     return v;
 }
 
-void touch_label(struct label_s *tmp) {
-    if (referenceit) tmp->ref = 1;
-    tmp->usepass = pass;
+void touch_label(value_t tmp) {
+    if (referenceit) tmp->u.label.ref = 1;
+    tmp->u.label.usepass = pass;
 }
 
 MUST_CHECK value_t get_star_value(value_t val) {
@@ -340,7 +340,7 @@ static int get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
     size_t llen;
     int first;
     str_t ident;
-    struct label_s *l;
+    value_t l;
 
     *wd=3;    /* 0=byte 1=word 2=long 3=negative/too big */
 
@@ -384,12 +384,12 @@ rest:
         l = find_label(&ident);
         if (l) {
             touch_label(l);
-            l->shadowcheck = 1;
-            push_oper(val_reference(l->value), &epoint);
+            l->u.label.shadowcheck = 1;
+            push_oper(val_reference(l->u.label.value), &epoint);
         } else {
             val = new_error_obj(ERROR___NOT_DEFINED, &epoint);
             val->u.error.u.notdef.ident = ident;
-            val->u.error.u.notdef.label = current_context;
+            val->u.error.u.notdef.labeldict = val_reference(current_context);
             val->u.error.u.notdef.down = 1;
             push_oper(val, &epoint);
         }
@@ -1360,7 +1360,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         default: 
             if (get_label()) {
                 int down;
-                struct label_s *l;
+                value_t l;
                 str_t ident;
             as_ident:
                 if (pline[epoint.pos + 1] == '"' || pline[epoint.pos + 1] == '\'') {
@@ -1395,13 +1395,13 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 l = down ? find_label(&ident) : find_label2(&ident, cheap_context);
                 if (l) {
                     touch_label(l);
-                    l->shadowcheck = 1;
-                    push_oper(val_reference(l->value), &epoint);
+                    l->u.label.shadowcheck = 1;
+                    push_oper(val_reference(l->u.label.value), &epoint);
                     goto other;
                 }
                 val = new_error_obj(ERROR___NOT_DEFINED, &epoint);
                 val->u.error.u.notdef.ident = ident;
-                val->u.error.u.notdef.label = down ? current_context : cheap_context;
+                val->u.error.u.notdef.labeldict = val_reference(down ? current_context : cheap_context);
                 val->u.error.u.notdef.down = down;
                 push_oper(val, &epoint);
                 goto other;
@@ -1410,7 +1410,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             db = operp;
             while (operp && o_oper[operp-1].val == &o_POS) operp--;
             if (db != operp) {
-                struct label_s *l;
+                value_t l;
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
                     val = val_alloc(ANONIDENT_OBJ);
                     val->u.anonident.count = db - operp - 1;
@@ -1421,20 +1421,20 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 l = find_anonlabel(db - operp -1);
                 if (l) {
                     touch_label(l);
-                    push_oper(val_reference(l->value), &o_oper[operp].epoint);
+                    push_oper(val_reference(l->u.label.value), &o_oper[operp].epoint);
                     goto other;
                 }
                 val = new_error_obj(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
                 val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(db - operp));
                 val->u.error.u.notdef.ident.data = NULL;
-                val->u.error.u.notdef.label = current_context;
+                val->u.error.u.notdef.labeldict = val_reference(current_context);
                 val->u.error.u.notdef.down = 1;
                 push_oper(val, &o_oper[operp].epoint);
                 goto other;
             }
             while (operp && o_oper[operp-1].val == &o_NEG) operp--;
             if (db != operp) {
-                struct label_s *l;
+                value_t l;
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
                     val = val_alloc(ANONIDENT_OBJ);
                     val->u.anonident.count = operp - db;
@@ -1445,13 +1445,13 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 l = find_anonlabel(operp - db);
                 if (l) {
                     touch_label(l);
-                    push_oper(val_reference(l->value), &o_oper[operp].epoint);
+                    push_oper(val_reference(l->u.label.value), &o_oper[operp].epoint);
                     goto other;
                 }
                 val = new_error_obj(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
                 val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(operp - db));
                 val->u.error.u.notdef.ident.data = NULL;
-                val->u.error.u.notdef.label = current_context;
+                val->u.error.u.notdef.labeldict = val_reference(current_context);
                 val->u.error.u.notdef.down = 1;
                 push_oper(val, &o_oper[operp].epoint);
                 goto other;

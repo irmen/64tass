@@ -28,140 +28,208 @@
 #include "boolobj.h"
 #include "floatobj.h"
 
+static struct pair_s *lastlb2 = NULL;
+static value_t lastlb = NULL;
+
+static struct obj_s obj;
+
+obj_t LABEL_OBJ = &obj;
+
 #define EQUAL_COLUMN 16
 
-struct label_s *root_label;
-struct label_s builtin_label;
-struct label_s *current_context;
-struct label_s *cheap_context;
+value_t root_dict;
+static value_t builtin_dict;
+value_t current_context;
+value_t cheap_context;
 
-static union label_u {
-    struct label_s val;
-    union label_u *next;
-} *labels_free = NULL;
-
-static struct labels_s {
-    union label_u vals[255];
-    struct labels_s *next;
-} *labels = NULL;
-
-static inline void var_free(union label_u *val) {
-#ifdef DEBUG
-    return free(val);
-#else
-    val->next = labels_free;
-    labels_free = val;
-#endif
+static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+    switch (v1->obj->type) {
+    case T_NONE:
+    case T_ERROR:
+    case T_LABEL: return val_reference(v1);
+    default: break;
+    }
+    err_msg_wrong_type(v1, NULL, epoint);
+    return val_reference(none_value);
 }
 
-static struct label_s *var_alloc(void) {
-#ifdef DEBUG
-    return (struct label_s *)malloc(sizeof(struct label_s));
-#else
-    struct label_s *val;
-    size_t i;
-    val = (struct label_s *)labels_free;
-    labels_free = labels_free->next;
-    if (!labels_free) {
-        struct labels_s *old = labels;
-        labels = (struct labels_s *)malloc(sizeof(struct labels_s));
-        if (!labels) err_msg_out_of_memory();
-        for (i = 0; i < 254; i++) {
-            labels->vals[i].next = &labels->vals[i+1];
-        }
-        labels->vals[i].next = NULL;
-        labels->next = old;
-        labels_free = &labels->vals[0];
+static void destroy(value_t v1) {
+    free((char *)v1->u.label.name.data);
+    if (v1->u.label.name.data != v1->u.label.cfname.data) free((uint8_t *)v1->u.label.cfname.data);
+    val_destroy(v1->u.label.value);
+}
+
+static void garbage(value_t v1, int i) {
+    value_t v;
+    switch (i) {
+    case -1:
+        v1->u.label.value->refcount--;
+        return;
+    case 0:
+        free((char *)v1->u.label.name.data);
+        if (v1->u.label.name.data != v1->u.label.cfname.data) free((uint8_t *)v1->u.label.cfname.data);
+        return;
+    case 1:
+        v = v1->u.label.value;
+        if (v->refcount & SIZE_MSB) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
+        return;
     }
-    return val;
-#endif
+}
+
+static int same(const value_t v1, const value_t v2) {
+    return v2->obj == LABEL_OBJ && (v1->u.label.value == v2->u.label.value || obj_same(v1->u.label.value, v2->u.label.value))
+        && v1->u.label.name.len == v2->u.label.name.len
+        && v1->u.label.cfname.len == v2->u.label.cfname.len
+        && (v1->u.label.name.data == v2->u.label.name.data || !memcmp(v1->u.label.name.data, v2->u.label.name.data, v1->u.label.name.len))
+        && (v1->u.label.cfname.data == v2->u.label.cfname.data || !memcmp(v1->u.label.cfname.data, v2->u.label.cfname.data, v1->u.label.cfname.len))
+        && v1->u.label.file_list == v2->u.label.file_list
+        && v1->u.label.epoint.pos == v2->u.label.epoint.pos
+        && v1->u.label.epoint.line == v2->u.label.epoint.line
+        && v1->u.label.strength == v2->u.label.strength;
 }
 
 /* --------------------------------------------------------------------------- */
-static void label_free(struct avltree_node *aa)
-{
-    struct label_s *a = avltree_container_of(aa, struct label_s, node);
-    free((char *)a->name.data);
-    if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
-    avltree_destroy(&a->members, label_free);
-    val_destroy(a->value);
-    var_free((union label_u *)a);
+
+struct context_stack_s {
+    value_t *stack;
+    size_t len, p;
+};
+
+static struct context_stack_s context_stack;
+
+void push_context(value_t label) {
+    if (context_stack.p >= context_stack.len) {
+        context_stack.len += 8;
+        context_stack.stack = (value_t *)realloc(context_stack.stack, context_stack.len * sizeof(value_t));
+        if (!context_stack.stack || context_stack.len < 8 || context_stack.len > SIZE_MAX / sizeof(value_t)) err_msg_out_of_memory(); /* overflow */
+    }
+    context_stack.stack[context_stack.p++] = val_reference(label);
+    current_context = label;
 }
+
+int pop_context(void) {
+    if (context_stack.p) {
+        context_stack.p--;
+        val_destroy(context_stack.stack[context_stack.p]);
+        if (context_stack.p) {
+            current_context = context_stack.stack[context_stack.p - 1];
+            return 0;
+        }
+    }
+    return 1;
+}
+
+void reset_context(void) {
+    while (context_stack.p) {
+        context_stack.p--;
+        val_destroy(context_stack.stack[context_stack.p]);
+    }
+    push_context(root_dict);
+}
+
+static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
+    size_t len;
+    uint8_t *s;
+    value_t v;
+    if (!epoint) return NULL;
+    v = val_alloc(STR_OBJ);
+    len = v1->u.label.name.len;
+    s = str_create_elements(v, len + 8);
+    memcpy(s, "<label ", 7);
+    memcpy(s + 7, v1->u.label.name.data, len);
+    len += 7;
+    s[len++] = '>';
+    v->u.str.data = s;
+    v->u.str.len = len;
+    v->u.str.chars = len;
+    return v;
+}
+
+/* --------------------------------------------------------------------------- */
 
 static int label_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    const struct label_s *a = cavltree_container_of(aa, struct label_s, node);
-    const struct label_s *b = cavltree_container_of(bb, struct label_s, node);
-    int h = a->name_hash - b->name_hash;
+    const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
+    const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
+    int h = a->hash - b->hash;
     if (h) return h; 
-    return str_cmp(&a->cfname, &b->cfname);
+    return str_cmp(&a->key->u.label.cfname, &b->key->u.label.cfname);
 }
 
 static int label_compare2(const struct avltree_node *aa, const struct avltree_node *bb)
 {
-    const struct label_s *a = cavltree_container_of(aa, struct label_s, node);
-    const struct label_s *b = cavltree_container_of(bb, struct label_s, node);
-    int h = a->name_hash - b->name_hash;
+    const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
+    const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
+    int h = a->hash - b->hash;
     if (h) return h; 
-    h = str_cmp(&a->cfname, &b->cfname);
+    h = str_cmp(&a->key->u.label.cfname, &b->key->u.label.cfname);
     if (h) return h;
-    return b->strength - a->strength;
+    return b->key->u.label.strength - a->key->u.label.strength;
 }
 
-static struct label_s *strongest_label(struct avltree_node *b) {
-    struct label_s *a = NULL, *c; 
+static struct pair_s *strongest_label(struct avltree_node *b) {
+    struct pair_s *a = NULL, *c; 
     struct avltree_node *n = b;
 
     do {
-        c = avltree_container_of(n, struct label_s, node);
-        if (c->defpass == pass || (c->constant && (!fixeddig || c->defpass == pass - 1))) a = c;
+        c = avltree_container_of(n, struct pair_s, node);
+        if (c->key->u.label.defpass == pass || (c->key->u.label.constant && (!fixeddig || c->key->u.label.defpass == pass - 1))) a = c;
         n = avltree_next(n);
     } while (n && !label_compare(n, b));
     if (a) return a;
     n = avltree_prev(b);
     while (n && !label_compare(n, b)) {
-        c = avltree_container_of(n, struct label_s, node);
-        if (c->defpass == pass || (c->constant && (!fixeddig || c->defpass == pass - 1))) a = c;
+        c = avltree_container_of(n, struct pair_s, node);
+        if (c->key->u.label.defpass == pass || (c->key->u.label.constant && (!fixeddig || c->key->u.label.defpass == pass - 1))) a = c;
         n = avltree_prev(n);
     }
     return a;
 }
 
-struct label_s *find_label(const str_t *name) {
+value_t find_label(const str_t *name) {
     struct avltree_node *b;
-    struct label_s *context = current_context;
-    struct label_s tmp, *c;
+    struct pair_s tmp, *c;
+    size_t p = context_stack.p;
+    value_t context;
 
-    if (name->len > 1 && !name->data[1]) tmp.cfname = *name;
-    else str_cfcpy(&tmp.cfname, name);
-    tmp.name_hash = str_hash(&tmp.cfname);
+    if (!lastlb) lastlb = val_alloc(NONE_OBJ);
+    tmp.key = lastlb;
+    if (name->len > 1 && !name->data[1]) tmp.key->u.label.cfname = *name;
+    else str_cfcpy(&tmp.key->u.label.cfname, name);
+    tmp.hash = str_hash(&tmp.key->u.label.cfname);
 
-    while (context->parent) {
-        b = avltree_lookup(&tmp.node, &context->members, label_compare);
+    while (p) {
+        context = context_stack.stack[--p];
+        b = avltree_lookup(&tmp.node, &context->u.labeldict.members, label_compare);
         if (b) {
             c = strongest_label(b);
             if (c) {
-                return c;
+                return c->key;
             }
         }
-        context = context->parent;
     }
-    b = avltree_lookup(&tmp.node, &builtin_label.members, label_compare);
-    if (b) return avltree_container_of(b, struct label_s, node);
+    b = avltree_lookup(&tmp.node, &builtin_dict->u.labeldict.members, label_compare);
+    if (b) return avltree_container_of(b, struct pair_s, node)->key;
     return NULL;
 }
 
-struct label_s *find_label2(const str_t *name, const struct label_s *context) {
+value_t find_label2(const str_t *name, value_t context) {
     struct avltree_node *b;
-    struct label_s tmp;
+    struct pair_s tmp, *c;
 
-    if (name->len > 1 && !name->data[1]) tmp.cfname = *name;
-    else str_cfcpy(&tmp.cfname, name);
-    tmp.name_hash = str_hash(&tmp.cfname);
+    if (!lastlb) lastlb = val_alloc(NONE_OBJ);
+    tmp.key = lastlb;
+    if (name->len > 1 && !name->data[1]) tmp.key->u.label.cfname = *name;
+    else str_cfcpy(&tmp.key->u.label.cfname, name);
+    tmp.hash = str_hash(&tmp.key->u.label.cfname);
 
-    b = avltree_lookup(&tmp.node, &context->members, label_compare);
+    b = avltree_lookup(&tmp.node, &context->u.labeldict.members, label_compare);
     if (!b) return NULL;
-    return strongest_label(b);
+    c = strongest_label(b);
+    return c ? c->key : NULL;
 }
 
 static struct {
@@ -171,148 +239,188 @@ static struct {
     int32_t count;
 } anon_idents;
 
-struct label_s *find_label3(const str_t *name, const struct label_s *context, uint8_t strength) {
+value_t find_label3(const str_t *name, value_t context, uint8_t strength) {
     struct avltree_node *b;
-    struct label_s tmp;
+    struct pair_s tmp, *c;
 
-    if (name->len > 1 && !name->data[1]) tmp.cfname = *name;
-    else str_cfcpy(&tmp.cfname, name);
-    tmp.name_hash = str_hash(&tmp.cfname);
-    tmp.strength = strength;
+    if (!lastlb) lastlb = val_alloc(NONE_OBJ);
+    tmp.key = lastlb;
+    if (name->len > 1 && !name->data[1]) tmp.key->u.label.cfname = *name;
+    else str_cfcpy(&tmp.key->u.label.cfname, name);
+    tmp.hash = str_hash(&tmp.key->u.label.cfname);
+    tmp.key->u.label.strength = strength;
 
-    b = avltree_lookup(&tmp.node, &context->members, label_compare2);
+    b = avltree_lookup(&tmp.node, &context->u.labeldict.members, label_compare2);
     if (!b) return NULL;
-    return avltree_container_of(b, struct label_s, node);
+    c = avltree_container_of(b, struct pair_s, node);
+    return c ? c->key : NULL;
 }
 
-struct label_s *find_anonlabel(int32_t count) {
+value_t find_anonlabel(int32_t count) {
     struct avltree_node *b;
-    struct label_s *context = current_context;
-    struct label_s tmp, *c;
+    struct pair_s tmp, *c;
+    size_t p = context_stack.p;
+    value_t context;
 
     anon_idents.dir = (count >= 0) ? '+' : '-';
     anon_idents.reffile = reffile;
     anon_idents.count = ((count >= 0) ? forwr : backr) + count;
 
-    tmp.cfname.data = (const uint8_t *)&anon_idents;
-    tmp.cfname.len = sizeof(anon_idents);
-    tmp.name_hash = str_hash(&tmp.cfname);
+    if (!lastlb) lastlb = val_alloc(NONE_OBJ);
+    tmp.key = lastlb;
+    tmp.key->u.label.cfname.data = (const uint8_t *)&anon_idents;
+    tmp.key->u.label.cfname.len = sizeof(anon_idents);
+    tmp.hash = str_hash(&tmp.key->u.label.cfname);
 
-    while (context->parent) {
-        b = avltree_lookup(&tmp.node, &context->members, label_compare);
+    while (p) {
+        context = context_stack.stack[--p];
+        b = avltree_lookup(&tmp.node, &context->u.labeldict.members, label_compare);
         if (b) {
             c = strongest_label(b);
-            if (c) return c;
+            if (c) return c->key;
         }
-        context = context->parent;
     }
-    b = avltree_lookup(&tmp.node, &builtin_label.members, label_compare);
-    if (b) return avltree_container_of(b, struct label_s, node);
+    b = avltree_lookup(&tmp.node, &builtin_dict->u.labeldict.members, label_compare);
+    if (b) {
+        c = avltree_container_of(b, struct pair_s, node);
+        return c ? c->key : NULL;
+    }
     return NULL;
 }
 
-struct label_s *find_anonlabel2(int32_t count, const struct label_s *context) {
+value_t find_anonlabel2(int32_t count, value_t context) {
     struct avltree_node *b;
-    struct label_s tmp;
+    struct pair_s tmp, *c;
     anon_idents.dir = (count >= 0) ? '+' : '-';
     anon_idents.reffile = reffile;
     anon_idents.count = ((count >= 0) ? forwr : backr) + count;
 
-    tmp.cfname.data = (const uint8_t *)&anon_idents;
-    tmp.cfname.len = sizeof(anon_idents);
-    tmp.name_hash = str_hash(&tmp.cfname);
+    if (!lastlb) lastlb = val_alloc(NONE_OBJ);
+    tmp.key = lastlb;
+    tmp.key->u.label.cfname.data = (const uint8_t *)&anon_idents;
+    tmp.key->u.label.cfname.len = sizeof(anon_idents);
+    tmp.hash = str_hash(&tmp.key->u.label.cfname);
 
-    b = avltree_lookup(&tmp.node, &context->members, label_compare);
+    b = avltree_lookup(&tmp.node, &context->u.labeldict.members, label_compare);
     if (!b) return NULL;
-    return strongest_label(b);
+    c = strongest_label(b);
+    return c ? c->key : NULL;
 }
 
 /* --------------------------------------------------------------------------- */
-static struct label_s *lastlb = NULL;
-struct label_s *new_label(const str_t *name, struct label_s *context, uint8_t strength, int *exists) {
+value_t new_label(const str_t *name, value_t context, uint8_t strength, int *exists) {
     struct avltree_node *b;
-    struct label_s *tmp;
-    if (!lastlb) lastlb = var_alloc();
+    value_t tmp;
+    if (!lastlb2) {
+        lastlb2 = malloc(sizeof(struct pair_s));
+        if (!lastlb2) err_msg_out_of_memory();
+    }
+    if (!lastlb) lastlb = val_alloc(NONE_OBJ);
 
-    if (name->len > 1 && !name->data[1]) lastlb->cfname = *name;
-    else str_cfcpy(&lastlb->cfname, name);
-    lastlb->name_hash = str_hash(&lastlb->cfname);
-    lastlb->strength = strength;
+    if (name->len > 1 && !name->data[1]) lastlb->u.label.cfname = *name;
+    else str_cfcpy(&lastlb->u.label.cfname, name);
+    lastlb2->hash = str_hash(&lastlb->u.label.cfname);
+    lastlb2->key = lastlb;
+    lastlb->u.label.strength = strength;
 
-    b = avltree_insert(&lastlb->node, &context->members, label_compare2);
+    b = avltree_insert(&lastlb2->node, &context->u.labeldict.members, label_compare2);
+    
     if (!b) { /* new label */
-        str_cpy(&lastlb->name, name);
-        if (lastlb->cfname.data == name->data) lastlb->cfname = lastlb->name;
-        else str_cfcpy(&lastlb->cfname, NULL);
-        lastlb->parent = context;
-        lastlb->ref = 0;
-        lastlb->shadowcheck = 0;
-        lastlb->update_after = 0;
-        lastlb->usepass = 0;
-        lastlb->defpass = pass;
-        avltree_init(&lastlb->members);
+        lastlb->obj = LABEL_OBJ;
+        str_cpy(&lastlb->u.label.name, name);
+        if (lastlb->u.label.cfname.data == name->data) lastlb->u.label.cfname = lastlb->u.label.name;
+        else str_cfcpy(&lastlb->u.label.cfname, NULL);
+        lastlb->u.label.ref = 0;
+        lastlb->u.label.shadowcheck = 0;
+        lastlb->u.label.update_after = 0;
+        lastlb->u.label.usepass = 0;
+        lastlb->u.label.defpass = pass;
+        lastlb2->data = NULL;
 	*exists = 0;
 	tmp = lastlb;
 	lastlb = NULL;
+        lastlb2 = NULL;
+        context->u.labeldict.len++;
 	return tmp;
     }
     *exists = 1;
-    return avltree_container_of(b, struct label_s, node);            /* already exists */
+    return avltree_container_of(b, struct pair_s, node)->key;            /* already exists */
 }
 
-void shadow_check(const struct avltree *members) {
+void shadow_check(value_t members) {
     const struct avltree_node *n, *b;
-    const struct label_s *l, *c;
+    const struct pair_s *l;
 
     return; /* this works, but needs an option to enable */
 
-    n = avltree_first(members);
+    n = avltree_first(&members->u.labeldict.members);
     while (n) {
-        l = cavltree_container_of(n, struct label_s, node);            /* already exists */
-        shadow_check(&l->members);
+        l = cavltree_container_of(n, struct pair_s, node);            /* already exists */
+        switch (l->key->u.label.value->obj->type) {
+        case T_CODE:
+            push_context(l->key->u.label.value->u.code.labeldict);
+            shadow_check(l->key->u.label.value->u.code.labeldict);
+            pop_context();
+            break;
+        case T_UNION:
+        case T_STRUCT:
+            push_context(l->key->u.label.value->u.structure.labeldict);
+            shadow_check(l->key->u.label.value->u.structure.labeldict);
+            pop_context();
+            break;
+        case T_LABELDICT:
+            push_context(l->key->u.label.value);
+            shadow_check(l->key->u.label.value);
+            pop_context();
+            break;
+        default: break;
+        }
         n = avltree_next(n);
-        if (l->shadowcheck) {
-            c = l->parent->parent;
-            while (c) {
-                b = avltree_lookup(&l->node, &c->members, label_compare);
+        if (l->key->u.label.shadowcheck) {
+            size_t p = context_stack.p;
+            while (p) {
+                b = avltree_lookup(&l->node, &context_stack.stack[--p]->u.labeldict.members, label_compare);
                 if (b) {
-                    const struct label_s *l2, *v1, *v2;
-                    v1 = l2 = cavltree_container_of(b, struct label_s, node);
+                    const struct pair_s *l2, *v1, *v2;
+                    v1 = l2 = cavltree_container_of(b, struct pair_s, node);
                     v2 = l;
-                    if (v1 != v2 && !obj_same(v1->value, v2->value)) {
-                        err_msg_shadow_defined(l2, l);
+                    if (v1->key->u.label.value != v2->key->u.label.value && !obj_same(v1->key->u.label.value, v2->key->u.label.value)) {
+                        err_msg_shadow_defined(l2->key, l->key);
                         break;
                     }
                 }
-                c = c->parent;
             }
         }
     }
 }
 
-static struct label_s *find_strongest_label(struct avltree_node **x, avltree_cmp_fn_t cmp) {
-    struct label_s *a = NULL, *c; 
+static value_t find_strongest_label(struct avltree_node **x, avltree_cmp_fn_t cmp) {
+    struct pair_s *a = NULL, *c; 
     struct avltree_node *b = *x, *n = b;
     do {
-        c = avltree_container_of(n, struct label_s, node);
-        if (c->defpass == pass) a = c;
+        c = avltree_container_of(n, struct pair_s, node);
+        if (c->key->u.label.defpass == pass) a = c;
         n = avltree_next(n);
     } while (n && !cmp(n, b));
     *x = n;
-    if (a) return a;
+    if (a) return a->key;
     n = avltree_prev(b);
     while (n && !cmp(n, b)) {
-        c = avltree_container_of(n, struct label_s, node);
-        if (c->defpass == pass) return c;
+        c = avltree_container_of(n, struct pair_s, node);
+        if (c->key->u.label.defpass == pass) return c->key;
         n = avltree_prev(n);
     }
     return NULL;
 }
 
-static void labelname_print(const struct label_s *l, FILE *flab) {
-    if (l->parent->parent->parent) labelname_print(l->parent, flab);
+static void labelname_print(value_t l, FILE *flab) {
+    size_t p;
+    for (p = 1; p < context_stack.p; p++) {
+        putc('.', flab);
+        printable_print2(context_stack.stack[p]->u.label.name.data, flab, context_stack.stack[p]->u.label.name.len);
+    }
     putc('.', flab);
-    printable_print2(l->name.data, flab, l->name.len);
+    printable_print2(l->u.label.name.data, flab, l->u.label.name.len);
 }
 
 static inline void padding(int l, int t, FILE *f) {
@@ -325,14 +433,14 @@ static inline void padding(int l, int t, FILE *f) {
 
 static void labelprint2(const struct avltree *members, FILE *flab) {
     struct avltree_node *n;
-    struct label_s *l;
+    value_t l;
 
     n = avltree_first(members);
     while (n) {
         l = find_strongest_label(&n, label_compare);            /* already exists */
         if (!l) continue;
-        if (l->name.data && l->name.len > 1 && !l->name.data[1]) continue;
-        switch (l->value->obj->type) {
+        if (l->u.label.name.data && l->u.label.name.len > 1 && !l->u.label.name.data[1]) continue;
+        switch (l->u.label.value->obj->type) {
         case T_LBL:
         case T_MACRO:
         case T_SEGMENT:
@@ -341,42 +449,42 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
         default:break;
         }
         if (0) { /* for future use with VICE */
-            if (l->value->obj == CODE_OBJ) {
+            if (l->u.label.value->obj == CODE_OBJ) {
                 value_t err;
                 uval_t uv;
                 struct linepos_s epoint;
-                err = l->value->obj->uval(l->value, &uv, 24, &epoint);
+                err = l->u.label.value->obj->uval(l->u.label.value, &uv, 24, &epoint);
                 if (err) val_destroy(err);
                 else {
                     fprintf(flab, "al %x ", uv);
                     labelname_print(l, flab);
-                    switch ((enum dtype_e)l->value->u.code.dtype) {
+                    switch ((enum dtype_e)l->u.label.value->u.code.dtype) {
                     case D_CHAR:
                     case D_BYTE: 
                         fputs(" byte", flab);
-                        if (l->value->u.code.size > 1) {
-                            fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
+                        if (l->u.label.value->u.code.size > 1) {
+                            fprintf(flab, " %" PRIxSIZE, l->u.label.value->u.code.size);
                         }
                         break;
                     case D_INT:
                     case D_WORD: 
                         fputs(" word", flab);
-                        if (l->value->u.code.size > 2) {
-                            fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
+                        if (l->u.label.value->u.code.size > 2) {
+                            fprintf(flab, " %" PRIxSIZE, l->u.label.value->u.code.size);
                         }
                         break;
                     case D_LINT:
                     case D_LONG:
                         fputs(" long", flab);
-                        if (l->value->u.code.size > 3) {
-                            fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
+                        if (l->u.label.value->u.code.size > 3) {
+                            fprintf(flab, " %" PRIxSIZE, l->u.label.value->u.code.size);
                         }
                         break;
                     case D_DINT:
                     case D_DWORD:
                         fputs(" dword", flab);
-                        if (l->value->u.code.size > 4) {
-                            fprintf(flab, " %" PRIxSIZE, l->value->u.code.size);
+                        if (l->u.label.value->u.code.size > 4) {
+                            fprintf(flab, " %" PRIxSIZE, l->u.label.value->u.code.size);
                         }
                         break;
                     case D_NONE:
@@ -385,17 +493,20 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
                     putc('\n', flab);
                 }
             }
-            labelprint2(&l->members, flab);
+            push_context(l);
+            labelprint2(&l->u.label.value->u.code.labeldict->u.labeldict.members, flab);
+            pop_context();
         } else {
-            value_t val = l->value->obj->repr(l->value, NULL);
+            value_t val = l->u.label.value->obj->repr(l->u.label.value, NULL);
             size_t len;
             if (!val || val->obj != STR_OBJ) continue;
-            len = printable_print2(l->name.data, flab, l->name.len);
+            len = printable_print2(l->u.label.name.data, flab, l->u.label.name.len);
             padding(len, EQUAL_COLUMN, flab);
-            if (l->constant) fputs("= ", flab);
+            if (l->u.label.constant) fputs("= ", flab);
             else fputs(&" .var "[len < EQUAL_COLUMN], flab);
             printable_print2(val->u.str.data, flab, val->u.str.len);
             putc('\n', flab);
+            val_destroy(val);
         }
     }
 }
@@ -412,69 +523,36 @@ void labelprint(void) {
     }
     clearerr(flab);
     referenceit = 0;
-    labelprint2(&root_label->members, flab);
+    labelprint2(&root_dict->u.labeldict.members, flab);
     referenceit = oldreferenceit;
     if (flab == stdout) fflush(flab);
     if (ferror(flab) && errno) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
     if (flab != stdout) fclose(flab);
 }
 
-
-void init_variables2(struct label_s *label) {
-    avltree_init(&label->members);
-}
-
-static const struct label_s *new_builtin(const char *ident, value_t val) {
+static void new_builtin(const char *ident, value_t val) {
     struct linepos_s nopoint = {0, 0};
     str_t name;
-    struct label_s *label;
+    value_t label;
     int label_exists;
     name.len = strlen(ident);
     name.data = (const uint8_t *)ident;
-    label = new_label(&name, &builtin_label, 0, &label_exists);
-    label->constant = 1;
-    label->requires = 0;
-    label->conflicts = 0;
-    label->value = val;
-    label->file_list = NULL;
-    label->epoint = nopoint;
-    return label;
+    label = new_label(&name, builtin_dict, 0, &label_exists);
+    label->u.label.constant = 1;
+    label->u.label.value = val;
+    label->u.label.file_list = NULL;
+    label->u.label.epoint = nopoint;
 }
 
 void init_variables(void)
 {
-    size_t i;
-    str_t name;
-    int label_exists;
     struct linepos_s nopoint = {0, 0};
 
-    labels = (struct labels_s *)malloc(sizeof(struct labels_s));
-    if (!labels) err_msg_out_of_memory();
-    for (i = 0; i < 254; i++) {
-        labels->vals[i].next = &labels->vals[i+1];
-    }
-    labels->vals[i].next = NULL;
-    labels->next = NULL;
+    builtin_dict = new_labeldict(NULL, &nopoint);
+    root_dict = new_labeldict(NULL, &nopoint);
 
-    labels_free = &labels->vals[0];
-
-    avltree_init(&builtin_label.members);
-    builtin_label.cfname.len = builtin_label.name.len = 9;
-    builtin_label.cfname.data = builtin_label.name.data = (const uint8_t *)"<builtin>";
-    builtin_label.constant = 1;
-    builtin_label.defpass = 1;
-    builtin_label.usepass = 1;
-    builtin_label.parent = NULL;
-
-    name.len = 8;
-    name.data = (const uint8_t *)"<global>";
-    root_label = new_label(&name, &builtin_label, 0, &label_exists);
-    root_label->constant = 1;
-    root_label->requires = 0;
-    root_label->conflicts = 0;
-    root_label->value = val_reference(none_value);
-    root_label->file_list = NULL;
-    root_label->epoint = nopoint;
+    context_stack.stack = NULL;
+    context_stack.p = context_stack.len = 0;
 }
 
 void init_defaultlabels(void) {
@@ -497,13 +575,12 @@ void init_defaultlabels(void) {
     }
 
     for (i = 0; builtin_functions[i].name; i++) {
-        const struct label_s *label;
         v = val_alloc(FUNCTION_OBJ);
         v->u.function.name.data = (const uint8_t *)builtin_functions[i].name;
         v->u.function.name.len = strlen(builtin_functions[i].name);
         v->u.function.func = builtin_functions[i].func;
-        label = new_builtin(builtin_functions[i].name, v);
-        v->u.function.name_hash = label->name_hash;
+        v->u.function.name_hash = str_hash(&v->u.function.name);
+        new_builtin(builtin_functions[i].name, v);
     }
 
     v = val_alloc(TYPE_OBJ); v->u.type = TYPE_OBJ; new_builtin("type", v);
@@ -522,60 +599,24 @@ void init_defaultlabels(void) {
     v = val_alloc(TYPE_OBJ); v->u.type = GAP_OBJ; new_builtin("gap", v);
 }
 
-static void label_free2(struct avltree_node *aa)
-{
-    struct label_s *a = avltree_container_of(aa, struct label_s, node);
-    value_t val = a->value;
-    if (val->refcount > 1) {
-        switch (val->obj->type) {
-        case T_CODE:
-            if (val->u.code.label == a) {
-                val->refcount--;
-                a->parent = NULL;
-                return;
-            }
-            break;
-        case T_MACRO:
-        case T_SEGMENT:
-        case T_UNION:
-        case T_STRUCT:
-            if (val->u.macro.label == a) {
-                val->refcount--;
-                a->parent = NULL;
-                return;
-            }
-            break;
-        default: break;
-        }
-    }
-    free((char *)a->name.data);
-    if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
-    avltree_destroy(&a->members, label_free2);
-    val_destroy(a->value);
-    var_free((union label_u *)a);
-}
-
-void label_destroy(struct label_s *a) {
-    free((char *)a->name.data);
-    if (a->name.data != a->cfname.data) free((uint8_t *)a->cfname.data);
-    avltree_destroy(&a->members, label_free2);
-    var_free((union label_u *)a);
-}
-
-void destroy_variables2(struct label_s *label) {
-    avltree_destroy(&label->members, label_free2);
-}
-
 void destroy_variables(void)
 {
-    struct labels_s *old;
-
-    avltree_destroy(&builtin_label.members, label_free);
-    if (lastlb) var_free((union label_u *)lastlb);
-
-    while (labels) {
-        old = labels;
-        labels = labels->next;
-        free(old);
+    val_destroy(builtin_dict);
+    val_destroy(root_dict);
+    if (lastlb) val_destroy(lastlb);
+    free(lastlb2);
+    while (context_stack.p) {
+        context_stack.p--;
+        val_destroy(context_stack.stack[context_stack.p]);
     }
+    free(context_stack.stack);
+}
+
+void labelobj_init(void) {
+    obj_init(&obj, T_LABEL, "label");
+    obj.create = create;
+    obj.destroy = destroy;
+    obj.garbage = garbage;
+    obj.same = same;
+    obj.repr = repr;
 }

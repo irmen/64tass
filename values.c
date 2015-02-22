@@ -102,7 +102,11 @@ struct value_s o_MEMBER;
 
 static union values_u {
     struct value_s val;
-    union values_u *next;
+    struct {
+        obj_t obj;
+        size_t refcount;
+        union values_u *next;
+    };
 } *values_free = NULL;
 
 static struct values_s {
@@ -111,29 +115,24 @@ static struct values_s {
 } *values = NULL;
 
 static inline void value_free(union values_u *val) {
-#ifdef DEBUG
-    return free(val);
-#else
+    val->obj = NONE_OBJ;
     val->next = values_free;
     values_free = val;
-#endif
 }
 
 value_t val_alloc(obj_t obj) {
     value_t val;
-#ifdef DEBUG
-    val = (value_t)malloc(sizeof(struct value_s));
-    val->refcount = 1;
-#else
     if (!values_free) {
         size_t i;
         struct values_s *old = values;
         values = (struct values_s *)malloc(sizeof(struct values_s));
         if (!values) err_msg_out_of_memory();
         for (i = 0; i < 254; i++) {
+            values->vals[i].obj = NONE_OBJ;
             values->vals[i].next = &values->vals[i+1];
             values->vals[i].val.refcount = 1;
         }
+        values->vals[i].obj = NONE_OBJ;
         values->vals[i].next = NULL;
         values->vals[i].val.refcount = 1;
         values->next = old;
@@ -141,9 +140,47 @@ value_t val_alloc(obj_t obj) {
     }
     val = (value_t)values_free;
     values_free = values_free->next;
-#endif
     val->obj = obj;
     return val;
+}
+
+void garbage_collect(void) {
+    struct values_s *vals;
+    size_t i;
+
+    for (vals = values; vals; vals = vals->next) {
+        for (i = 0; i < 255; i++) {
+            value_t val = &vals->vals[i].val;
+            if (val->obj->garbage) {
+                val->obj->garbage(val, -1);
+                val->refcount |= SIZE_MSB;
+            }
+        }
+    }
+
+    for (vals = values; vals; vals = vals->next) {
+        for (i = 0; i < 255; i++) {
+            value_t val = &vals->vals[i].val;
+            if (val->obj->garbage) {
+                if (val->refcount > SIZE_MSB) {
+                    val->refcount -= SIZE_MSB;
+                    val->obj->garbage(val, 1);
+                }
+            }
+        }
+    }
+
+    for (vals = values; vals; vals = vals->next) {
+        for (i = 0; i < 255; i++) {
+            value_t val = &vals->vals[i].val;
+            if (!(val->refcount & ~SIZE_MSB)) {
+                val->refcount = 1;
+                if (val->obj->garbage) val->obj->garbage(val, 0);
+                else obj_destroy(val);
+                value_free((union values_u *)val);
+            }
+        }
+    }
 }
 
 void val_destroy(value_t val) {
@@ -530,7 +567,8 @@ void init_values(void)
 
 void destroy_values(void)
 {
-#if DEBUG
+    garbage_collect();
+#ifdef DEBUG
     if (int_value[0]->refcount != 1) fprintf(stderr, "int[0] %d\n", int_value[0]->refcount - 1);
     if (int_value[1]->refcount != 1) fprintf(stderr, "int[1] %d\n", int_value[1]->refcount - 1);
     if (none_value->refcount != 1) fprintf(stderr, "none %d\n", none_value->refcount - 1);
@@ -563,6 +601,22 @@ void destroy_values(void)
     val_destroy(null_tuple);
     val_destroy(null_list);
     val_destroy(null_addrlist);
+
+#ifdef DEBUG
+    {
+    struct values_s *vals;
+    size_t i;
+    for (vals = values; vals; vals = vals->next) {
+        for (i = 0; i < 255; i++) {
+            value_t val = &vals->vals[i].val;
+            if (val->obj != NONE_OBJ) {
+                val_print(val, stderr);
+                fprintf(stderr, " %s %d %x\n", val->obj->name, val->refcount, (int)val); 
+            }
+        }
+    }
+    }
+#endif
 
     while (values) {
         struct values_s *old = values;

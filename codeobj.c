@@ -45,25 +45,48 @@ static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
 
 static void destroy(value_t v1) {
     val_destroy(v1->u.code.addr);
-    if (v1->u.code.label->parent == NULL) label_destroy(v1->u.code.label);
+    val_destroy(v1->u.code.labeldict);
+}
+
+static void garbage(value_t v1, int i) {
+    value_t v;
+    switch (i) {
+    case -1:
+        v1->u.code.addr->refcount--;
+        v1->u.code.labeldict->refcount--;
+        return;
+    case 0:
+        return;
+    case 1:
+        v = v1->u.code.addr;
+        if (v->refcount & SIZE_MSB) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
+        v = v1->u.code.labeldict;
+        if (v->refcount & SIZE_MSB) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
+        return;
+    }
 }
 
 static MUST_CHECK value_t access_check(const value_t v1, linepos_t epoint) {
-    if (v1->u.code.label->requires & ~current_section->provides) {
-        value_t v = new_error_obj(ERROR_REQUIREMENTS_, epoint);
-        v->u.error.u.ident = v1->u.code.label->name;
-        return v;
+    if (v1->u.code.requires & ~current_section->provides) {
+        return new_error_obj(ERROR_REQUIREMENTS_, epoint);
     }
-    if (v1->u.code.label->conflicts & current_section->provides) {
-        value_t v = new_error_obj(ERROR______CONFLICT, epoint);
-        v->u.error.u.ident = v1->u.code.label->name;
-        return v;
+    if (v1->u.code.conflicts & current_section->provides) {
+        return new_error_obj(ERROR______CONFLICT, epoint);
     }
     return NULL;
 }
 
 static int same(const value_t v1, const value_t v2) {
-    return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || obj_same(v1->u.code.addr, v2->u.code.addr)) && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype && v1->u.code.label == v2->u.code.label;
+    return v2->obj == CODE_OBJ && (v1->u.code.addr == v2->u.code.addr || obj_same(v1->u.code.addr, v2->u.code.addr)) 
+        && v1->u.code.size == v2->u.code.size && v1->u.code.dtype == v2->u.code.dtype
+        && v1->u.code.requires == v2->u.code.requires && v1->u.code.conflicts == v2->u.code.conflicts;
+//      && (v1->u.code.labeldict == v2->u.code.labeldict || obj_same(v1->u.code.labeldict, v2->u.code.labeldict));
 }
 
 static MUST_CHECK value_t truth(value_t v1, enum truth_e type, linepos_t epoint) {
@@ -164,9 +187,7 @@ MUST_CHECK value_t tuple_from_code(const value_t v1, obj_t typ, linepos_t epoint
     uval_t val;
 
     if (v1->u.code.pass != pass) {
-        v = new_error_obj(ERROR____NO_FORWARD, epoint);
-        v->u.error.u.ident = v1->u.code.label->name;
-        return v;
+        return new_error_obj(ERROR____NO_FORWARD, epoint);
     }
 
     ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
@@ -220,9 +241,7 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
         return val_reference(null_tuple);
     }
     if (v1->u.code.pass != pass) {
-        v = new_error_obj(ERROR____NO_FORWARD, op->epoint);
-        v->u.error.u.ident = v1->u.code.label->name;
-        return v;
+        return new_error_obj(ERROR____NO_FORWARD, op->epoint);
     }
     v = val_alloc(TUPLE_OBJ);
     vals = list_create_elements(v, length);
@@ -269,9 +288,7 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
     v2 = v2->u.funcargs.val->val;
 
     if (v1->u.code.pass != pass) {
-        v = new_error_obj(ERROR____NO_FORWARD, op->epoint);
-        v->u.error.u.ident = v1->u.code.label->name;
-        return v;
+        return new_error_obj(ERROR____NO_FORWARD, op->epoint);
     }
 
     ln2 = (v1->u.code.dtype < 0) ? -v1->u.code.dtype : v1->u.code.dtype;
@@ -358,6 +375,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
         op->v1 = v1->u.code.addr;
         v = val_alloc(CODE_OBJ);
         memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
+        v->u.code.labeldict = val_reference(v1->u.code.labeldict);
         v->u.code.addr = op->v1->obj->calc1(op);
         if (v->u.code.addr->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.code.addr); v->u.code.addr = val_reference(none_value); }
         op->v1 = v1;
@@ -370,47 +388,7 @@ static MUST_CHECK value_t calc1(oper_t op) {
 static MUST_CHECK value_t calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2, v, err;
     if (op->op == &o_MEMBER) {
-        struct label_s *l, *l2;
-        switch (v2->obj->type) {
-        case T_IDENT:
-            l2 = v1->u.code.label;
-            l = find_label2(&v2->u.ident.name, l2);
-            if (l) {
-                touch_label(l);
-                return val_reference(l->value);
-            } 
-            if (!referenceit) {
-                return val_reference(none_value);
-            }
-            v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.ident.epoint);
-            v->u.error.u.notdef.label = l2;
-            v->u.error.u.notdef.ident = v2->u.ident.name;
-            v->u.error.u.notdef.down = 0;
-            return v;
-        case T_ANONIDENT:
-            {
-                ssize_t count;
-                l2 = v1->u.code.label;
-                l = find_anonlabel2(v2->u.anonident.count, l2);
-                if (l) {
-                    touch_label(l);
-                    return val_reference(l->value);
-                }
-                if (!referenceit) {
-                    return val_reference(none_value);
-                }
-                count = v2->u.anonident.count;
-                v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.anonident.epoint);
-                v->u.error.u.notdef.label = l2;
-                v->u.error.u.notdef.ident.len = count + (count >= 0);
-                v->u.error.u.notdef.ident.data = NULL;
-                v->u.error.u.notdef.down = 0;
-                return v;
-            }
-        case T_TUPLE:
-        case T_LIST: return v2->obj->rcalc2(op);
-        default: return obj_oper_error(op);
-        }
+        return labeldict_member(op, v1->u.code.labeldict);
     }
     if (op->op == &o_INDEX) {
         return iindex(op);
@@ -444,6 +422,7 @@ static MUST_CHECK value_t calc2(oper_t op) {
         case O_SUB:
             v = val_alloc(CODE_OBJ); 
             memcpy(&v->u.code, &v1->u.code, sizeof(v->u.code));
+            v->u.code.labeldict = val_reference(v1->u.code.labeldict);
             v->u.code.addr = op->v1->obj->calc2(op);
             if (v->u.code.addr->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.code.addr); v->u.code.addr = val_reference(none_value); }
             op->v1 = v1;
@@ -467,9 +446,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         uval_t uv;
 
         if (v2->u.code.pass != pass) {
-            v = new_error_obj(ERROR____NO_FORWARD, op->epoint2);
-            v->u.error.u.ident = v2->u.code.label->name;
-            return v;
+            return new_error_obj(ERROR____NO_FORWARD, op->epoint2);
         }
         ln = (v2->u.code.dtype < 0) ? -v2->u.code.dtype : v2->u.code.dtype;
         ln = ln + !ln;
@@ -526,6 +503,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
         case O_ADD:
             v = val_alloc(CODE_OBJ); 
             memcpy(&v->u.code, &v2->u.code, sizeof(v->u.code));
+            v->u.code.labeldict = val_reference(v2->u.code.labeldict);
             v->u.code.addr = op->v1->obj->calc2(op);
             if (v->u.code.addr->obj == ERROR_OBJ) { err_msg_output_and_destroy(v->u.code.addr); v->u.code.addr = val_reference(none_value); }
             op->v2 = v2;
@@ -544,6 +522,7 @@ void codeobj_init(void) {
     obj_init(&obj, T_CODE, "code");
     obj.create = create;
     obj.destroy = destroy;
+    obj.garbage = garbage;
     obj.same = same;
     obj.truth = truth;
     obj.repr = repr;
