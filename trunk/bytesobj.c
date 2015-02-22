@@ -90,7 +90,7 @@ static MUST_CHECK value_t invert(const value_t v1) {
 static int same(const value_t v1, const value_t v2) {
     return v2->obj == BYTES_OBJ && v1->u.bytes.len == v2->u.bytes.len && (
             v1->u.bytes.data == v2->u.bytes.data ||
-            !memcmp(v1->u.bytes.data, v2->u.bytes.data, v2->u.bytes.len));
+            !memcmp(v1->u.bytes.data, v2->u.bytes.data, byteslen(v2)));
 }
 
 static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t epoint) {

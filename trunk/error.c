@@ -777,12 +777,13 @@ int error_print(int fix, int newvar, int anyerr) {
                 err2 = (const struct error_s *)&error_list.data[pos2];
                 if (pos2 >= error_list.len) break;
             } while (noneerr && err2->severity == SV_NONEERROR);
-            if (err2->severity != SV_NOTDEFERROR) break;
+            if (pos2 >= error_list.len || err2->severity != SV_NOTDEFERROR) break;
             do {
                 pos2 = (pos2 + sizeof(struct error_s) + err2->line_len + err2->error_len + 7) & ~7;
                 err2 = (const struct error_s *)&error_list.data[pos2];
                 if (pos2 >= error_list.len) break;
             } while (noneerr && err2->severity == SV_NONEERROR);
+            if (pos2 >= error_list.len) break;
             if (err2->severity != SV_NOTDEFGNOTE && err2->severity != SV_NOTDEFLNOTE) break;
             if (err->severity != err2->severity) break;
             if (err->severity == SV_NOTDEFGNOTE) continue;
