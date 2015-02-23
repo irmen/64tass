@@ -69,9 +69,11 @@ MUST_CHECK value_t obj_oper_error(oper_t op) {
     switch (op->op->u.oper.op) {
     case O_EQ: return val_reference(false_value);
     case O_NE: return val_reference(true_value);
-    default: break;
+    case O_FUNC:
+    case O_INDEX: v2 = NULL; break;
+    default: v2 = op->v2; break;
     }
-    v1 = op->v1; v2 = op->v2;
+    v1 = op->v1;
     v = new_error_obj(ERROR__INVALID_OPER, op->epoint3);
     v->u.error.u.invoper.op = op->op;
     v->u.error.u.invoper.v1 = v1 ? (v1->refcount ? val_reference(v1) : v1) : NULL;
