@@ -540,17 +540,20 @@ static int byterecursion(value_t val, int prm, size_t *uninit, int bits, linepos
     return warn;
 }
 
-static void instrecursion(value_t val, int prm, int w, linepos_t epoint, struct linepos_s *epoints) {
+static int instrecursion(value_t val, int prm, int w, linepos_t epoint, struct linepos_s *epoints) {
     size_t i;
-    value_t err;
+    value_t err, tmp;
+    int was = 0;
     for (i = 0; i < val->u.list.len; i++) {
-        if (val->u.list.data[i]->obj == TUPLE_OBJ || val->u.list.data[i]->obj == LIST_OBJ) {
-            instrecursion(val->u.list.data[i], prm, w, epoint, epoints);
+        tmp = val->u.list.data[i];
+        if (tmp->obj == TUPLE_OBJ || tmp->obj == LIST_OBJ) {
+            was |= instrecursion(tmp, prm, w, epoint, epoints);
             continue;
         }
-        err = instruction(prm, w, val->u.list.data[i], epoint, epoints);
-        if (err) err_msg_output_and_destroy(err);
+        err = instruction(prm, w, tmp, epoint, epoints);
+        if (err) err_msg_output_and_destroy(err); else was = 1;
     }
+    return was;
 }
 
 value_t compile(struct file_list_s *cflist)
@@ -2822,7 +2825,9 @@ value_t compile(struct file_list_s *cflist)
                     if (val->obj == TUPLE_OBJ || val->obj == LIST_OBJ) {
                         epoints[1] = epoints[0];
                         epoints[2] = epoints[0];
-                        instrecursion(val, prm, w, &epoint, epoints);
+                        if (!instrecursion(val, prm, w, &epoint, epoints)) {
+                            listing_instr(0, 0, -1);
+                        }
                         val_destroy(val);
                         break;
                     }
