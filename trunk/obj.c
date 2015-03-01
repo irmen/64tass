@@ -489,7 +489,7 @@ static void error_destroy(value_t v1) {
         val_destroy(v1->u.error.u.intconv.val);
         return;
     case ERROR___NOT_DEFINED: 
-        val_destroy(v1->u.error.u.notdef.labeldict);
+        val_destroy(v1->u.error.u.notdef.names);
     default: return;
     }
 }
@@ -525,7 +525,7 @@ static void error_garbage(value_t v1, int i) {
         v = v1->u.error.u.intconv.val;
         break;
     case ERROR___NOT_DEFINED: 
-        v = v1->u.error.u.notdef.labeldict;
+        v = v1->u.error.u.notdef.names;
         break;
     default: return;
     }
@@ -774,14 +774,14 @@ static void struct_destroy(value_t v1) {
         free((char *)v1->u.structure.param[v1->u.structure.argc].init.data);
     }
     free(v1->u.structure.param);
-    val_destroy(v1->u.structure.labeldict);
+    val_destroy(v1->u.structure.names);
 }
 
 static void struct_garbage(value_t v1, int i) {
     value_t v;
     switch (i) {
     case -1:
-        v1->u.structure.labeldict->refcount--;
+        v1->u.structure.names->refcount--;
         return;
     case 0:
         while (v1->u.structure.argc) {
@@ -792,7 +792,7 @@ static void struct_garbage(value_t v1, int i) {
         free(v1->u.structure.param);
         return;
     case 1:
-        v = v1->u.structure.labeldict;
+        v = v1->u.structure.names;
         if (v->refcount & SIZE_MSB) {
             v->refcount -= SIZE_MSB - 1;
             v->obj->garbage(v, 1);
@@ -804,7 +804,7 @@ static void struct_garbage(value_t v1, int i) {
 static int struct_same(const value_t v1, const value_t v2) {
     size_t i;
     if (v1->obj != v2->obj || v1->u.structure.size != v2->u.structure.size || v1->u.structure.file_list != v2->u.structure.file_list || v1->u.structure.line != v2->u.structure.line) return 0;
-    if (v1->u.structure.labeldict != v2->u.structure.labeldict && !obj_same(v1->u.structure.labeldict, v2->u.structure.labeldict)) return 0;
+    if (v1->u.structure.names != v2->u.structure.names && !obj_same(v1->u.structure.names, v2->u.structure.names)) return 0;
     for (i = 0; i < v1->u.structure.argc; i++) {
         if (str_cmp(&v1->u.structure.param[i].cfname, &v2->u.structure.param[i].cfname)) return 0;
         if (str_cmp(&v1->u.structure.param[i].init, &v2->u.structure.param[i].init)) return 0;
@@ -818,7 +818,7 @@ static MUST_CHECK value_t struct_size(const value_t v1, linepos_t UNUSED(epoint)
 
 static MUST_CHECK value_t struct_calc2(oper_t op) {
     if (op->op == &o_MEMBER) {
-        return labeldict_member(op, op->v1->u.structure.labeldict);
+        return namespace_member(op, op->v1->u.structure.names);
     }
     return obj_oper_error(op);
 }
@@ -861,6 +861,7 @@ void objects_init(void) {
     functionobj_init();
     dictobj_init();
     labelobj_init();
+    namespaceobj_init();
 
     obj_init(&macro_obj, T_MACRO, "macro");
     macro_obj.destroy = macro_destroy;

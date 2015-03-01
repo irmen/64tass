@@ -44,7 +44,7 @@ extern int pop_context(void);
 extern void reset_context(void);
 
 extern void labelobj_init(void);
-extern value_t current_context, cheap_context, root_dict;
+extern value_t current_context, cheap_context, root_namespace;
 extern value_t find_label(const str_t *);
 extern value_t find_label2(const str_t *, value_t);
 extern value_t find_label3(const str_t *, value_t, uint8_t);

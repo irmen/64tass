@@ -434,8 +434,8 @@ static inline void err_msg_not_defined2(const str_t *name, value_t l, int down, 
 
     if (name->data) {
         str_cfcpy(&lastnd->cfname, name);
-        lastnd->file_list = l->u.labeldict.file_list;
-        lastnd->epoint = l->u.labeldict.epoint;
+        lastnd->file_list = l->u.names.file_list;
+        lastnd->epoint = l->u.names.epoint;
         lastnd->pass = pass;
         b=avltree_insert(&lastnd->node, &notdefines, notdefines_compare);
         if (b) {
@@ -465,11 +465,11 @@ static inline void err_msg_not_defined2(const str_t *name, value_t l, int down, 
         adderror("'");
     }
 
-    if (!l->u.labeldict.file_list) {
+    if (!l->u.names.file_list) {
         if (new_error(SV_NOTDEFGNOTE, current_file_list, epoint)) return;
         adderror("searched in the global scope");
     } else {
-        if (new_error(SV_NOTDEFLNOTE, l->u.labeldict.file_list, &l->u.labeldict.epoint)) return;
+        if (new_error(SV_NOTDEFLNOTE, l->u.names.file_list, &l->u.names.epoint)) return;
         if (down) adderror("searched in this scope and in all it's parents");
         else adderror("searched in this object only");
     }
@@ -524,7 +524,7 @@ static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2, linepo
 void err_msg_output(const value_t val) {
     if (val->obj == ERROR_OBJ) {
         switch (val->u.error.num) {
-        case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.labeldict, val->u.error.u.notdef.down, &val->u.error.epoint);break;
+        case ERROR___NOT_DEFINED: err_msg_not_defined2(&val->u.error.u.notdef.ident, val->u.error.u.notdef.names, val->u.error.u.notdef.down, &val->u.error.epoint);break;
         case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.error.u.invoper.op, val->u.error.u.invoper.v1, val->u.error.u.invoper.v2, &val->u.error.epoint);break;
         case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->u.error.epoint); break;
         case ERROR_____CANT_IVAL:

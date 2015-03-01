@@ -21,11 +21,9 @@
 #include "dictobj.h"
 #include "eval.h"
 
-static struct obj_s dict_obj;
-static struct obj_s labeldict_obj;
+static struct obj_s obj;
 
-obj_t DICT_OBJ = &dict_obj;
-obj_t LABELDICT_OBJ = &labeldict_obj;
+obj_t DICT_OBJ = &obj;
 
 static void dict_free(struct avltree_node *aa)
 {
@@ -105,24 +103,6 @@ static void garbage(value_t v1, int i) {
     }
 }
 
-static void labeldict_destroy(value_t v1) {
-    avltree_destroy(&v1->u.labeldict.members, dict_free);
-}
-
-static void labeldict_garbage(value_t v1, int i) {
-    switch (i) {
-    case -1:
-        avltree_destroy(&v1->u.labeldict.members, dict_garbage1);
-        return;
-    case 0:
-        avltree_destroy(&v1->u.labeldict.members, dict_free2);
-        return;
-    case 1:
-        avltree_destroy(&v1->u.labeldict.members, dict_garbage2);
-        return;
-    }
-}
-
 static int same(const value_t v1, const value_t v2) {
     const struct avltree_node *n;
     const struct avltree_node *n2;
@@ -131,25 +111,6 @@ static int same(const value_t v1, const value_t v2) {
     if (v1->u.dict.def && v2->u.dict.def && !obj_same(v1->u.dict.def, v2->u.dict.def)) return 0;
     n = avltree_first(&v1->u.dict.members);
     n2 = avltree_first(&v2->u.dict.members);
-    while (n && n2) {
-        const struct pair_s *p, *p2;
-        if (pair_compare(n, n2)) return 0;
-        p = cavltree_container_of(n, struct pair_s, node);
-        p2 = cavltree_container_of(n2, struct pair_s, node);
-        if (!p->data ^ !p2->data) return 0;
-        if (p->data && p2->data && !obj_same(p->data, p2->data)) return 0;
-        n = avltree_next(n);
-        n2 = avltree_next(n2);
-    }
-    return n == n2;
-}
-
-static int labeldict_same(const value_t v1, const value_t v2) {
-    const struct avltree_node *n;
-    const struct avltree_node *n2;
-    if (v2->obj != LABELDICT_OBJ) return 0;
-    n = avltree_first(&v1->u.labeldict.members);
-    n2 = avltree_first(&v2->u.labeldict.members);
     while (n && n2) {
         const struct pair_s *p, *p2;
         if (pair_compare(n, n2)) return 0;
@@ -246,101 +207,6 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
     return v;
 }
 
-static MUST_CHECK value_t labeldict_repr(const value_t v1, linepos_t epoint) {
-    const struct pair_s *p;
-    size_t i = 0, j, ln = 2, chars = 0;
-    value_t tmp = NULL, *vals;
-    value_t v;
-    uint8_t *s;
-
-    if (v1->u.labeldict.len) {
-        ln = v1->u.labeldict.len;
-        tmp = val_alloc(TUPLE_OBJ);
-        tmp->u.list.data = vals = list_create_elements(tmp, ln);
-        ln += 1;
-        if (ln < 1) err_msg_out_of_memory(); /* overflow */
-        if (v1->u.labeldict.len) {
-            const struct avltree_node *n = avltree_first(&v1->u.labeldict.members);
-            while (n) {
-                p = cavltree_container_of(n, struct pair_s, node);
-                v = p->key->obj->repr(p->key, epoint);
-                if (!v || v->obj != STR_OBJ) {
-                    tmp->u.list.len = i;
-                    val_destroy(tmp);
-                    return v;
-                }
-                ln += v->u.str.len;
-                if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
-                vals[i++] = v;
-                n = avltree_next(n);
-            }
-        }
-        tmp->u.list.len = i;
-    }
-    v = val_alloc(STR_OBJ);
-    s = str_create_elements(v, ln);
-    ln = 0;
-    s[ln++] = '{';
-    for (j = 0; j < i; j++) {
-        if (j) s[ln++] = ',';
-        memcpy(s + ln, vals[j]->u.str.data, vals[j]->u.str.len);
-        ln += vals[j]->u.str.len;
-        chars += vals[j]->u.str.len - vals[j]->u.str.chars;
-    }
-    s[ln++] = '}';
-    if (tmp) val_destroy(tmp);
-    v->u.str.data = s;
-    v->u.str.len = ln;
-    v->u.str.chars = ln - chars;
-    return v;
-}
-
-MUST_CHECK value_t labeldict_member(oper_t op, value_t v1) {
-    value_t v2 = op->v2, v;
-    if (op->op == &o_MEMBER) {
-        value_t l;
-        switch (v2->obj->type) {
-        case T_IDENT:
-            l = find_label2(&v2->u.ident.name, v1);
-            if (l) {
-                touch_label(l);
-                return val_reference(l->u.label.value);
-            }
-            if (!referenceit) {
-                return val_reference(none_value);
-            }
-            v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.ident.epoint);
-            v->u.error.u.notdef.labeldict = val_reference(v1);
-            v->u.error.u.notdef.ident = v2->u.ident.name;
-            v->u.error.u.notdef.down = 0;
-            return v;
-        case T_ANONIDENT:
-            {
-                ssize_t count;
-                l = find_anonlabel2(v2->u.anonident.count, v1);
-                if (l) {
-                    touch_label(l);
-                    return val_reference(l->u.label.value);
-                }
-                if (!referenceit) {
-                    return val_reference(none_value);
-                }
-                count = v2->u.anonident.count;
-                v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.anonident.epoint);
-                v->u.error.u.notdef.labeldict = val_reference(v1);
-                v->u.error.u.notdef.ident.len = count + (count >= 0);
-                v->u.error.u.notdef.ident.data = NULL;
-                v->u.error.u.notdef.down = 0;
-                return v;
-            }
-        case T_TUPLE:
-        case T_LIST: return v2->obj->rcalc2(op);
-        default: return v2->obj->rcalc2(op);
-        }
-    }
-    return obj_oper_error(op);
-}
-
 static MUST_CHECK value_t calc2(oper_t op) {
     value_t v1 = op->v1, v2 = op->v2;
     if (op->op == &o_INDEX) {
@@ -423,33 +289,18 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
     return h;
 }
 
-MUST_CHECK value_t new_labeldict(const struct file_list_s *file_list, linepos_t epoint) {
-    value_t val = val_alloc(LABELDICT_OBJ);
-    avltree_init(&val->u.labeldict.members);
-    val->u.labeldict.file_list = file_list;
-    val->u.labeldict.epoint = *epoint;
-    val->u.labeldict.len = 0;
-    return val;
-}
-
 void dictobj_init(void) {
     static struct linepos_s nopoint;
 
-    obj_init(&dict_obj, T_DICT, "dict");
-    dict_obj.create = create;
-    dict_obj.destroy = destroy;
-    dict_obj.garbage = garbage;
-    dict_obj.same = same;
-    dict_obj.len = len;
-    dict_obj.repr = repr;
-    dict_obj.calc2 = calc2;
-    dict_obj.rcalc2 = rcalc2;
-
-    obj_init(&labeldict_obj, T_LABELDICT, "labeldict");
-    labeldict_obj.destroy = labeldict_destroy;
-    labeldict_obj.garbage = labeldict_garbage;
-    labeldict_obj.same = labeldict_same;
-    labeldict_obj.repr = labeldict_repr;
+    obj_init(&obj, T_DICT, "dict");
+    obj.create = create;
+    obj.destroy = destroy;
+    obj.garbage = garbage;
+    obj.same = same;
+    obj.len = len;
+    obj.repr = repr;
+    obj.calc2 = calc2;
+    obj.rcalc2 = rcalc2;
 
     pair_oper.op = &o_CMP;
     pair_oper.epoint = &nopoint;
