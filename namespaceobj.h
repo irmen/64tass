@@ -16,24 +16,21 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _DICTOBJ_H
-#define _DICTOBJ_H
+#ifndef _NAMESPACEOBJ_H
+#define _NAMESPACEOBJ_H
 
-extern obj_t DICT_OBJ;
+typedef struct oper_s *oper_t;
+
+extern obj_t NAMESPACE_OBJ;
 
 typedef struct {
     size_t len;
     struct avltree members;
-    value_t def;
-} dict_t;
+    const struct file_list_s *file_list;
+    struct linepos_s epoint;
+} namespace_t;
 
-struct pair_s {
-    int hash;
-    value_t key;
-    value_t data;
-    struct avltree_node node;
-};
-
-extern void dictobj_init(void);
-extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
+extern void namespaceobj_init(void);
+extern MUST_CHECK value_t new_namespace(const struct file_list_s *, linepos_t);
+extern MUST_CHECK value_t namespace_member(oper_t, value_t);
 #endif

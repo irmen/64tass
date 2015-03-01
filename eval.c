@@ -389,7 +389,7 @@ rest:
         } else {
             val = new_error_obj(ERROR___NOT_DEFINED, &epoint);
             val->u.error.u.notdef.ident = ident;
-            val->u.error.u.notdef.labeldict = val_reference(current_context);
+            val->u.error.u.notdef.names = val_reference(current_context);
             val->u.error.u.notdef.down = 1;
             push_oper(val, &epoint);
         }
@@ -1401,7 +1401,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 }
                 val = new_error_obj(ERROR___NOT_DEFINED, &epoint);
                 val->u.error.u.notdef.ident = ident;
-                val->u.error.u.notdef.labeldict = val_reference(down ? current_context : cheap_context);
+                val->u.error.u.notdef.names = val_reference(down ? current_context : cheap_context);
                 val->u.error.u.notdef.down = down;
                 push_oper(val, &epoint);
                 goto other;
@@ -1427,7 +1427,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 val = new_error_obj(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
                 val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(db - operp));
                 val->u.error.u.notdef.ident.data = NULL;
-                val->u.error.u.notdef.labeldict = val_reference(current_context);
+                val->u.error.u.notdef.names = val_reference(current_context);
                 val->u.error.u.notdef.down = 1;
                 push_oper(val, &o_oper[operp].epoint);
                 goto other;
@@ -1451,7 +1451,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 val = new_error_obj(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
                 val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(operp - db));
                 val->u.error.u.notdef.ident.data = NULL;
-                val->u.error.u.notdef.labeldict = val_reference(current_context);
+                val->u.error.u.notdef.names = val_reference(current_context);
                 val->u.error.u.notdef.down = 1;
                 push_oper(val, &o_oper[operp].epoint);
                 goto other;

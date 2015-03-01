@@ -637,7 +637,7 @@ value_t compile(struct file_list_s *cflist)
                     if (tmp2->u.label.value->obj != CODE_OBJ) {
                         err_msg_wrong_type(tmp2->u.label.value, CODE_OBJ, &epoint); goto breakerr;
                     }
-                    mycontext = tmp2->u.label.value->u.code.labeldict;
+                    mycontext = tmp2->u.label.value->u.code.names;
                 }
                 lpoint.pos++; islabel = 1; epoint = lpoint;
                 labelname.data = pline + lpoint.pos; labelname.len = get_label();
@@ -864,10 +864,10 @@ value_t compile(struct file_list_s *cflist)
                                 val = val_alloc(obj);
                                 if (label->u.label.value->obj == obj) {
                                     val->u.structure.size = label->u.label.value->u.structure.size;
-                                    val->u.structure.labeldict = val_reference(label->u.label.value->u.structure.labeldict);
+                                    val->u.structure.names = val_reference(label->u.label.value->u.structure.names);
                                 } else {
                                     val->u.structure.size = 0;
-                                    val->u.structure.labeldict = new_labeldict(cflist, &epoint);
+                                    val->u.structure.names = new_namespace(cflist, &epoint);
                                 }
                                 val->u.structure.file_list = cflist;
                                 val->u.structure.line = epoint.line;
@@ -883,7 +883,7 @@ value_t compile(struct file_list_s *cflist)
                             label->u.label.file_list = cflist;
                             label->u.label.epoint = epoint;
                             val->u.structure.size = 0;
-                            val->u.structure.labeldict = new_labeldict(cflist, &epoint);
+                            val->u.structure.names = new_namespace(cflist, &epoint);
                             val->u.structure.file_list = cflist;
                             val->u.structure.line = epoint.line;
                             get_macro_params(val);
@@ -900,7 +900,7 @@ value_t compile(struct file_list_s *cflist)
                             current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
                             waitfor->what = (prm == CMD_STRUCT) ? W_ENDS2 : W_ENDU2;
                             waitfor->skip=1;
-                            val = macro_recurse(W_ENDS, label->u.label.value, label->u.label.value->u.structure.labeldict, &lpoint);
+                            val = macro_recurse(W_ENDS, label->u.label.value, label->u.label.value->u.structure.names, &lpoint);
                             if (val) val_destroy(val);
                             current_section->unionmode = old_unionmode;
                             current_section->unionstart = old_unionstart; current_section->unionend = old_unionend;
@@ -1021,7 +1021,7 @@ value_t compile(struct file_list_s *cflist)
                     val->u.code.dtype = D_NONE;
                     val->u.code.pass = 0;
                     val->u.code.apass = pass;
-                    val->u.code.labeldict = new_labeldict(cflist, &epoint);
+                    val->u.code.names = new_namespace(cflist, &epoint);
                     val->u.code.requires = current_section->requires;
                     val->u.code.conflicts = current_section->conflicts;
                     get_mem(&current_section->mem, &newmemp, &newmembp);
@@ -1035,7 +1035,7 @@ value_t compile(struct file_list_s *cflist)
                     new_waitfor(W_PEND, &epoint);waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;waitfor->cheap_label = oldcheap;
                     if (!newlabel->u.label.ref && newlabel->u.label.value->u.code.pass) {waitfor->skip=0; set_size(newlabel, 0, &current_section->mem, newmemp, newmembp);}
                     else {         /* TODO: first time it should not compile */
-                        push_context(newlabel->u.label.value->u.code.labeldict);
+                        push_context(newlabel->u.label.value->u.code.names);
                         newlabel->u.label.ref = 0;
                     }
                     newlabel = NULL;
@@ -1061,7 +1061,7 @@ value_t compile(struct file_list_s *cflist)
                         current_section->unionmode = (prm==CMD_DUNION);
                         current_section->unionstart = current_section->unionend = current_section->address;
                         current_section->l_unionstart = current_section->l_unionend = current_section->l_address;
-                        val = macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, newlabel->u.label.value->u.code.labeldict, &epoint);
+                        val = macro_recurse((prm==CMD_DSTRUCT)?W_ENDS2:W_ENDU2, val, newlabel->u.label.value->u.code.names, &epoint);
                         if (val) {
                             if (newlabel) {
                                 newlabel->u.label.update_after = 1;
@@ -1680,7 +1680,7 @@ value_t compile(struct file_list_s *cflist)
                     listing_line(epoint.pos);
                     new_waitfor(W_BEND2, &epoint);
                     if (newlabel) {
-                        push_context(newlabel->u.label.value->u.code.labeldict);
+                        push_context(newlabel->u.label.value->u.code.names);
                         waitfor->label=newlabel;waitfor->addr = current_section->address;waitfor->memp = newmemp;waitfor->membp = newmembp;waitfor->cheap_label = oldcheap;
                         newlabel = NULL;
                     } else {
@@ -1700,7 +1700,7 @@ value_t compile(struct file_list_s *cflist)
                             context->u.label.defpass = pass;
                         } else {
                             context->u.label.constant = 1;
-                            context->u.label.value = new_labeldict(cflist, &epoint);
+                            context->u.label.value = new_namespace(cflist, &epoint);
                             context->u.label.file_list = cflist;
                             context->u.label.epoint = epoint;
                         }
@@ -2214,7 +2214,7 @@ value_t compile(struct file_list_s *cflist)
                         reffile=f->uid;
                         if (prm == CMD_BINCLUDE) {
                             if (newlabel) {
-                                push_context(newlabel->u.label.value->u.code.labeldict);
+                                push_context(newlabel->u.label.value->u.code.names);
                             } else {
                                 value_t context;
                                 int labelexists;
@@ -2232,7 +2232,7 @@ value_t compile(struct file_list_s *cflist)
                                     context->u.label.defpass = pass;
                                 } else {
                                     context->u.label.constant = 1;
-                                    context->u.label.value = new_labeldict(cflist, &epoint);
+                                    context->u.label.value = new_namespace(cflist, &epoint);
                                     context->u.label.file_list = cflist;
                                     context->u.label.epoint = epoint;
                                 }
@@ -2734,7 +2734,7 @@ value_t compile(struct file_list_s *cflist)
                 if (val->obj == MACRO_OBJ) {
                     value_t context;
                     if (newlabel && !val->u.macro.retval) {
-                        context=newlabel->u.label.value->u.code.labeldict;
+                        context=newlabel->u.label.value->u.code.names;
                     } else {
                         int labelexists;
                         str_t tmpname;
@@ -2751,7 +2751,7 @@ value_t compile(struct file_list_s *cflist)
                             context->u.label.defpass = pass;
                         } else {
                             context->u.label.constant = 1;
-                            context->u.label.value = new_labeldict(cflist, &epoint);
+                            context->u.label.value = new_namespace(cflist, &epoint);
                             context->u.label.file_list = cflist;
                             context->u.label.epoint = epoint;
                         } 
@@ -2779,7 +2779,7 @@ value_t compile(struct file_list_s *cflist)
                         context->u.label.defpass = pass;
                     } else {
                         context->u.label.constant = 1;
-                        context->u.label.value = new_labeldict(cflist, &epoint);
+                        context->u.label.value = new_namespace(cflist, &epoint);
                         context->u.label.file_list = cflist;
                         context->u.label.epoint = epoint;
                     }
@@ -2965,7 +2965,7 @@ static int main2(int argc, char *argv[]) {
             exitfile();
         }
         garbage_collect();
-        if (fixeddig && !constcreated) shadow_check(root_dict);
+        if (fixeddig && !constcreated) shadow_check(root_namespace);
         if (error_serious(fixeddig, constcreated)) {status(1);return 1;}
     } while (!fixeddig || constcreated);
 

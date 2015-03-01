@@ -549,7 +549,7 @@ value_t mfunc2_recurse(value_t tmp2, struct values_s *vals, unsigned int args, l
 
     xpoint.line = tmp2->u.mfunc.line;
     xpoint.pos = 0;
-    context = new_labeldict(tmp2->u.mfunc.file_list, &xpoint);
+    context = new_namespace(tmp2->u.mfunc.file_list, &xpoint);
 
     cflist = enterfile(tmp2->u.mfunc.file_list->file, epoint);
     tuple = NULL;

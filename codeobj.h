@@ -42,7 +42,7 @@ typedef struct {
     const struct memblocks_s *mem;
     size_t memp;
     size_t membp;
-    value_t labeldict;
+    value_t names;
     uval_t requires;
     uval_t conflicts;
 } code_t;

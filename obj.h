@@ -56,7 +56,7 @@ typedef struct {
     struct file_list_s *file_list;
     line_t line;
     size_t size; /* first part same as macro! */
-    value_t labeldict;
+    value_t names;
 } struct_t;
 
 enum type_e {
@@ -64,7 +64,7 @@ enum type_e {
     T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
     T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
     T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE,
-    T_LABEL, T_LABELDICT
+    T_LABEL, T_NAMESPACE
 };
 
 enum truth_e {

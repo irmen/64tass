@@ -32,6 +32,7 @@
 #include "addressobj.h"
 #include "functionobj.h"
 #include "dictobj.h"
+#include "namespaceobj.h"
 #include "variables.h"
 
 struct memblocks_s;
@@ -128,7 +129,7 @@ struct value_s {
         code_t code;
         list_t list;
         dict_t dict;
-        labeldict_t labeldict;
+        namespace_t names;
         mfunc_t mfunc;
         macro_t macro;
         struct_t structure;
@@ -155,7 +156,7 @@ struct value_s {
                 } invoper;
                 struct {
                     str_t ident;
-                    value_t labeldict;
+                    value_t names;
                     int down;
                 } notdef;
                 struct {
