@@ -270,9 +270,9 @@ static MUST_CHECK Obj *get_float(linepos_t epoint) {
     return get_exponent2(v, epoint);
 }
 
-static MUST_CHECK Str *get_string(void) {
+static MUST_CHECK Obj *get_string(void) {
     size_t len;
-    Str *v = str_from_str(pline + lpoint.pos, &len);
+    Obj *v = str_from_str(pline + lpoint.pos, &len);
     lpoint.pos += len;
     return v;
 }
@@ -378,7 +378,7 @@ rest:
         case '(': lpoint.pos++;o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_PARENT;continue;
         case '$': lpoint.pos++;push_oper(get_hex(&epoint), &epoint);goto other;
         case '%': lpoint.pos++;push_oper(get_bin(&epoint), &epoint);goto other;
-        case '"': push_oper((Obj *)get_string(), &epoint);goto other;
+        case '"': push_oper(get_string(), &epoint);goto other;
         case '*': lpoint.pos++;push_oper(get_star(&epoint), &epoint);goto other;
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             push_oper((Obj *)get_dec(), &epoint);goto other;
@@ -1377,7 +1377,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         case '%': if ((pline[lpoint.pos+1] & 0xfe) == 0x30 || (pline[lpoint.pos+1] == '.' && (pline[lpoint.pos+2] & 0xfe) == 0x30)) { lpoint.pos++;push_oper(get_bin(&epoint), &epoint);goto other; }
                   goto tryanon;
         case '"':
-        case '\'': push_oper((Obj *)get_string(), &epoint);goto other;
+        case '\'': push_oper(get_string(), &epoint);goto other;
         case '?': 
             if (operp) { 
                 if (o_oper[operp - 1].val == &o_SPLAT || o_oper[operp - 1].val == &o_POS || o_oper[operp - 1].val == &o_NEG) goto tryanon;
@@ -1414,10 +1414,12 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     default: mode = BYTES_MODE_NULL_CHECK; break;
                     }
                     if (mode != BYTES_MODE_NULL_CHECK) {
-                        Str *str = get_string();
+                        Obj *str = get_string();
                         epoint.pos++;
-                        push_oper(bytes_from_str(str, &epoint, mode), &epoint);
-                        val_destroy(&str->v);
+                        if (str->obj == STR_OBJ) {
+                            push_oper(bytes_from_str((Str *)str, &epoint, mode), &epoint);
+                            val_destroy(str);
+                        } else push_oper(str, &epoint);
                         goto other;
                     }
                 }
