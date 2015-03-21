@@ -18,28 +18,32 @@
 */
 #ifndef EVAL_H
 #define EVAL_H
-#include "values.h"
 #include "obj.h"
+
+struct file_s;
+typedef struct List Colonlist;
+typedef struct Label Label;
+typedef struct Error Error;
 
 extern int get_exp(int *, int, struct file_s *, unsigned int, unsigned int, linepos_t);
 extern int get_exp_var(struct file_s *, linepos_t);
 extern struct values_s *get_val(void);
-extern value_t pull_val(struct linepos_s *);
+extern Obj *pull_val(struct linepos_s *);
 extern size_t get_val_remaining(void);
 extern void destroy_eval(void);
 extern void init_eval(void);
 extern void eval_enter(void);
 extern void eval_leave(void);
 extern size_t get_label(void);
-extern MUST_CHECK value_t get_star_value(value_t);
-extern value_t get_vals_tuple(void);
-extern value_t get_vals_addrlist(struct linepos_s *);
-extern MUST_CHECK value_t indexoffs(const value_t, size_t, size_t *, linepos_t);
-extern MUST_CHECK value_t sliceparams(const value_t, size_t, size_t *, ival_t *, ival_t *, ival_t *, linepos_t);
-extern void touch_label(value_t);
+extern MUST_CHECK Obj *get_star_value(Obj *);
+extern Obj *get_vals_tuple(void);
+extern Obj *get_vals_addrlist(struct linepos_s *);
+extern MUST_CHECK Error *indexoffs(Obj *, size_t, size_t *, linepos_t);
+extern MUST_CHECK Obj *sliceparams(const Colonlist *, size_t, size_t *, ival_t *, ival_t *, ival_t *, linepos_t);
+extern void touch_label(Label *);
 
 struct values_s {
-    value_t val;
+    Obj *val;
     struct linepos_s epoint;
 };
 #endif

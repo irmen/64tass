@@ -18,19 +18,58 @@
 */
 #ifndef _LISTOBJ_H
 #define _LISTOBJ_H
+#include "obj.h"
 
 extern obj_t LIST_OBJ;
 extern obj_t TUPLE_OBJ;
 extern obj_t ADDRLIST_OBJ;
 extern obj_t COLONLIST_OBJ;
 
-typedef struct {
+typedef struct List {
+    Obj v;
     size_t len;
-    value_t *data;
-    value_t val[5];
-} list_t;
+    Obj **data;
+    Obj *val[5];
+} List;
+typedef struct List Tuple;
+typedef struct List Addrlist;
+typedef struct List Colonlist;
+
+extern Tuple *null_tuple;
+extern List *null_list;
+extern Addrlist *null_addrlist;
 
 extern void listobj_init(void);
+extern void listobj_destroy(void);
 
-extern value_t *list_create_elements(value_t, size_t);
+static inline List *ref_list(List *v1) {
+    v1->v.refcount++; return v1;
+}
+
+static inline Tuple *ref_tuple(Tuple *v1) {
+    v1->v.refcount++; return v1;
+}
+
+static inline Addrlist *ref_addrlist(Addrlist *v1) {
+    v1->v.refcount++; return v1;
+}
+
+static inline Colonlist *ref_colonlist(Colonlist *v1) {
+    v1->v.refcount++; return v1;
+}
+
+static inline MUST_CHECK List *new_list(void) {
+    return (List *)val_alloc(LIST_OBJ);
+}
+static inline MUST_CHECK Tuple *new_tuple(void) {
+    return (Tuple *)val_alloc(TUPLE_OBJ);
+}
+static inline MUST_CHECK Addrlist *new_addrlist(void) {
+    return (Addrlist *)val_alloc(ADDRLIST_OBJ);
+}
+static inline MUST_CHECK Colonlist *new_colonlist(void) {
+    return (Colonlist *)val_alloc(COLONLIST_OBJ);
+}
+
+extern Obj **list_create_elements(List *, size_t);
 #endif

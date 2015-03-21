@@ -2687,6 +2687,8 @@ file recursion
     wrong use of .include
 macro recursion too deep
     wrong use of nested macros
+function recursion too deep
+    wrong use of nested functions
 unknown option '?'
     option not known
 out of memory

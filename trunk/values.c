@@ -19,195 +19,203 @@
 #include <string.h>
 #include "values.h"
 
-#include "boolobj.h"
 #include "unicode.h"
+#include "error.h"
+#include "strobj.h"
+#include "variables.h"
 
-value_t int_value[2];
-value_t none_value;
-value_t true_value;
-value_t false_value;
-value_t gap_value;
-value_t default_value;
-value_t null_str;
-value_t null_bytes;
-value_t inv_bytes;
-value_t null_bits;
-value_t inv_bits;
-value_t null_tuple;
-value_t null_list;
-value_t null_addrlist;
+Oper o_TUPLE;
+Oper o_LIST;
+Oper o_DICT;
+Oper o_RPARENT;
+Oper o_RBRACKET;
+Oper o_RBRACE;
+Oper o_FUNC;
+Oper o_INDEX;
+Oper o_BRACE;
+Oper o_BRACKET;
+Oper o_PARENT;
+Oper o_COMMA;
+Oper o_QUEST;
+Oper o_COLON;
+Oper o_COND;
+Oper o_COLON2;
+Oper o_HASH;
+Oper o_COMMAX;
+Oper o_COMMAY;
+Oper o_COMMAZ;
+Oper o_COMMAS;
+Oper o_COMMAR;
+Oper o_COMMAD;
+Oper o_COMMAB;
+Oper o_COMMAK;
+Oper o_WORD;
+Oper o_HWORD;
+Oper o_BSWORD;
+Oper o_LOWER;
+Oper o_HIGHER;
+Oper o_BANK;
+Oper o_STRING;
+Oper o_LOR;
+Oper o_LXOR;
+Oper o_LAND;
+Oper o_IN;
+Oper o_CMP;
+Oper o_EQ;
+Oper o_NE;
+Oper o_LT;
+Oper o_GT;
+Oper o_GE;
+Oper o_LE;
+Oper o_OR;
+Oper o_XOR;
+Oper o_AND;
+Oper o_LSHIFT;
+Oper o_RSHIFT;
+Oper o_ADD;
+Oper o_SUB;
+Oper o_MUL;
+Oper o_DIV;
+Oper o_MOD;
+Oper o_EXP;
+Oper o_SPLAT;
+Oper o_NEG;
+Oper o_POS;
+Oper o_INV;
+Oper o_LNOT;
+Oper o_CONCAT;
+Oper o_X;
+Oper o_MEMBER;
 
-struct value_s o_TUPLE;
-struct value_s o_LIST;
-struct value_s o_DICT;
-struct value_s o_RPARENT;
-struct value_s o_RBRACKET;
-struct value_s o_RBRACE;
-struct value_s o_FUNC;
-struct value_s o_INDEX;
-struct value_s o_BRACE;
-struct value_s o_BRACKET;
-struct value_s o_PARENT;
-struct value_s o_COMMA;
-struct value_s o_QUEST;
-struct value_s o_COLON;
-struct value_s o_COND;
-struct value_s o_COLON2;
-struct value_s o_HASH;
-struct value_s o_COMMAX;
-struct value_s o_COMMAY;
-struct value_s o_COMMAZ;
-struct value_s o_COMMAS;
-struct value_s o_COMMAR;
-struct value_s o_COMMAD;
-struct value_s o_COMMAB;
-struct value_s o_COMMAK;
-struct value_s o_WORD;
-struct value_s o_HWORD;
-struct value_s o_BSWORD;
-struct value_s o_LOWER;
-struct value_s o_HIGHER;
-struct value_s o_BANK;
-struct value_s o_STRING;
-struct value_s o_LOR;
-struct value_s o_LXOR;
-struct value_s o_LAND;
-struct value_s o_IN;
-struct value_s o_CMP;
-struct value_s o_EQ;
-struct value_s o_NE;
-struct value_s o_LT;
-struct value_s o_GT;
-struct value_s o_GE;
-struct value_s o_LE;
-struct value_s o_OR;
-struct value_s o_XOR;
-struct value_s o_AND;
-struct value_s o_LSHIFT;
-struct value_s o_RSHIFT;
-struct value_s o_ADD;
-struct value_s o_SUB;
-struct value_s o_MUL;
-struct value_s o_DIV;
-struct value_s o_MOD;
-struct value_s o_EXP;
-struct value_s o_SPLAT;
-struct value_s o_NEG;
-struct value_s o_POS;
-struct value_s o_INV;
-struct value_s o_LNOT;
-struct value_s o_CONCAT;
-struct value_s o_X;
-struct value_s o_MEMBER;
+#define SLOTS 128
+#define ALIGN sizeof(int *)
 
-static union values_u {
-    struct value_s val;
-    struct {
-        obj_t obj;
-        size_t refcount;
-        union values_u *next;
-    };
-} *values_free = NULL;
+typedef struct Slot {
+    Obj v;
+    struct Slot *next;
+} Slot;
 
-static struct values_s {
-    union values_u vals[255];
-    struct values_s *next;
-} *values = NULL;
+static Slot *values_free[32];
 
-static inline void value_free(union values_u *val) {
+typedef struct Slotcoll {
+    struct Slotcoll *next;
+} Slotcoll;
+
+static Slotcoll *slotcoll[32];
+
+static inline void value_free(Obj *val) {
+    size_t p = (val->obj->length + (ALIGN - 1)) / ALIGN;
+    Slot *slot = (Slot *)val, **c = &values_free[p];
+    slot->next = *c;
     val->obj = NONE_OBJ;
-    val->next = values_free;
-    values_free = val;
+    *c = slot;
 }
 
-value_t val_alloc(obj_t obj) {
-    value_t val;
-    if (!values_free) {
-        size_t i;
-        struct values_s *old = values;
-        values = (struct values_s *)malloc(sizeof(struct values_s));
-        if (!values) err_msg_out_of_memory();
-        for (i = 0; i < 254; i++) {
-            values->vals[i].obj = NONE_OBJ;
-            values->vals[i].next = &values->vals[i+1];
-            values->vals[i].val.refcount = 1;
+Obj *val_alloc(obj_t obj) {
+    size_t p = (obj->length + (ALIGN - 1)) / ALIGN;
+    Slot **c = &values_free[p];
+    Obj *val = (Obj *)*c;
+    if (!val) {
+        size_t i, size = p * ALIGN;
+        Slot *slot;
+        Slotcoll **s = &slotcoll[p];
+        Slotcoll *n = (Slotcoll *)malloc(sizeof(Slotcoll) + size * SLOTS);
+        if (!n) err_msg_out_of_memory();
+        n->next = *s; *s = n;
+        slot = ((void *)n) + sizeof(Slotcoll);
+        val = (Obj *)slot;
+        for (i = 0; i < (SLOTS - 1); i++, slot = ((void *)slot) + size) {
+            slot->v.obj = NONE_OBJ;
+            slot->v.refcount = 1;
+            slot->next = (Slot *)(((void *)slot) + size);
         }
-        values->vals[i].obj = NONE_OBJ;
-        values->vals[i].next = NULL;
-        values->vals[i].val.refcount = 1;
-        values->next = old;
-        values_free = &values->vals[0];
+        slot->v.obj = NONE_OBJ;
+        slot->v.refcount = 1;
+        slot->next = NULL;
     }
-    val = (value_t)values_free;
-    values_free = values_free->next;
+    *c = ((Slot *)val)->next;
     val->obj = obj;
     return val;
 }
 
+static inline void obj_destroy(Obj *v1) {
+    v1->obj->destroy(v1);
+}
+
 void garbage_collect(void) {
-    struct values_s *vals;
-    size_t i;
+    Slotcoll *vals;
+    size_t i, j;
+    destroy_lastlb();
 
-    for (vals = values; vals; vals = vals->next) {
-        for (i = 0; i < 255; i++) {
-            value_t val = &vals->vals[i].val;
-            if (val->obj->garbage) {
-                val->obj->garbage(val, -1);
-                val->refcount |= SIZE_MSB;
-            }
-        }
-    }
-
-    for (vals = values; vals; vals = vals->next) {
-        for (i = 0; i < 255; i++) {
-            value_t val = &vals->vals[i].val;
-            if (val->obj->garbage) {
-                if (val->refcount > SIZE_MSB) {
-                    val->refcount -= SIZE_MSB;
-                    val->obj->garbage(val, 1);
+    for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
+        size_t size = j * ALIGN;
+        for (vals = slotcoll[j]; vals; vals = vals->next) {
+            Obj *val = ((void *)vals) + sizeof(Slotcoll);
+            for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
+                if (val->obj->garbage) {
+                    val->obj->garbage(val, -1);
+                    val->refcount |= SIZE_MSB;
                 }
             }
         }
     }
 
-    for (vals = values; vals; vals = vals->next) {
-        for (i = 0; i < 255; i++) {
-            value_t val = &vals->vals[i].val;
-            if (!(val->refcount & ~SIZE_MSB)) {
-                val->refcount = 1;
-                if (val->obj->garbage) val->obj->garbage(val, 0);
-                else obj_destroy(val);
-                value_free((union values_u *)val);
+    for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
+        size_t size = j * ALIGN;
+        for (vals = slotcoll[j]; vals; vals = vals->next) {
+            Obj *val = ((void *)vals) + sizeof(Slotcoll);
+            for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
+                if (val->obj->garbage) {
+                    if (val->refcount > SIZE_MSB) {
+                        val->refcount -= SIZE_MSB;
+                        val->obj->garbage(val, 1);
+                    }
+                }
+            }
+        }
+    }
+
+    for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
+        size_t size = j * ALIGN;
+        for (vals = slotcoll[j]; vals; vals = vals->next) {
+            Obj *val = ((void *)vals) + sizeof(Slotcoll);
+            for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
+                if (!(val->refcount & ~SIZE_MSB)) {
+                    val->refcount = 1;
+                    if (val->obj->garbage) val->obj->garbage(val, 0);
+                    else obj_destroy(val);
+                    value_free(val);
+                }
             }
         }
     }
 }
 
-void val_destroy(value_t val) {
+void val_destroy(Obj *val) {
     if (!val->refcount) {
         obj_destroy(val);
         return;
     }
     if (val->refcount == 1) {
         obj_destroy(val);
-        value_free((union values_u *)val);
+        value_free(val);
     } else val->refcount--;
 }
 
-void val_replace(value_t *val, value_t val2) {
+void val_replace(Obj **val, Obj *val2) {
     if (*val == val2) return;
     val_destroy(*val);
     *val = val_reference(val2);
 }
 
-int val_print(const value_t v1, FILE *f) {
+int val_print(Obj *v1, FILE *f) {
     int oldreferenceit = referenceit;
-    value_t err;
+    Obj *err;
     struct linepos_s nopoint = {0, 0};
     int len;
     referenceit = 0;
     err = v1->obj->repr(v1, &nopoint);
-    if (err->obj == STR_OBJ) len = printable_print2(err->u.str.data, f, err->u.str.len);
+    if (err->obj == STR_OBJ) len = printable_print2(((Str *)err)->data, f, ((Str *)err)->len);
     else len = printable_print2((uint8_t *)err->obj->name, f, strlen(err->obj->name));
     val_destroy(err);
     referenceit = oldreferenceit;
@@ -216,411 +224,348 @@ int val_print(const value_t v1, FILE *f) {
 
 void init_values(void)
 {
-    int_value[0] = int_from_int(0);
-    int_value[1] = int_from_int(1);
-    none_value = val_alloc(NONE_OBJ);
-    true_value = val_alloc(BOOL_OBJ);
-    true_value->u.boolean = 1;
-    false_value = val_alloc(BOOL_OBJ);
-    false_value->u.boolean = 0;
-    gap_value = val_alloc(GAP_OBJ);
-    default_value = val_alloc(DEFAULT_OBJ);
-    null_str = val_alloc(STR_OBJ);
-    null_str->u.str.len = 0;
-    null_str->u.str.chars = 0;
-    null_str->u.str.data = NULL;
-    null_bytes = val_alloc(BYTES_OBJ);
-    null_bytes->u.bytes.len = 0;
-    null_bytes->u.bytes.data = NULL;
-    inv_bytes = val_alloc(BYTES_OBJ);
-    inv_bytes->u.bytes.len = ~0;
-    inv_bytes->u.bytes.data = NULL;
-    null_bits = val_alloc(BITS_OBJ);
-    null_bits->u.bits.len = 0;
-    null_bits->u.bits.bits = 0;
-    null_bits->u.bits.data = NULL;
-    inv_bits = val_alloc(BITS_OBJ);
-    inv_bits->u.bits.len = ~0;
-    inv_bits->u.bits.bits = 0;
-    inv_bits->u.bits.data = NULL;
-    null_tuple = val_alloc(TUPLE_OBJ);
-    null_tuple->u.list.len = 0;
-    null_tuple->u.list.data = NULL;
-    null_list = val_alloc(LIST_OBJ);
-    null_list->u.list.len = 0;
-    null_list->u.list.data = NULL;
-    null_addrlist = val_alloc(ADDRLIST_OBJ);
-    null_addrlist->u.list.len = 0;
-    null_addrlist->u.list.data = NULL;
-
-    o_TUPLE.obj = OPER_OBJ;
-    o_TUPLE.refcount = 0;
-    o_TUPLE.u.oper.name = "')";
-    o_TUPLE.u.oper.op = O_TUPLE;
-    o_TUPLE.u.oper.prio = 0;
-    o_LIST.obj = OPER_OBJ;
-    o_LIST.refcount = 0;
-    o_LIST.u.oper.name = "']";
-    o_LIST.u.oper.op = O_LIST;
-    o_LIST.u.oper.prio = 0;
-    o_DICT.obj = OPER_OBJ;
-    o_DICT.refcount = 0;
-    o_DICT.u.oper.name = "'}";
-    o_DICT.u.oper.op = O_DICT;
-    o_DICT.u.oper.prio = 0;
-    o_RPARENT.obj = OPER_OBJ;
-    o_RPARENT.refcount = 0;
-    o_RPARENT.u.oper.name = "')";
-    o_RPARENT.u.oper.op = O_RPARENT;
-    o_RPARENT.u.oper.prio = 0;
-    o_RBRACKET.obj = OPER_OBJ;
-    o_RBRACKET.refcount = 0;
-    o_RBRACKET.u.oper.name = "']";
-    o_RBRACKET.u.oper.op = O_RBRACKET;
-    o_RBRACKET.u.oper.prio = 0;
-    o_RBRACE.obj = OPER_OBJ;
-    o_RBRACE.refcount = 0;
-    o_RBRACE.u.oper.name = "'}";
-    o_RBRACE.u.oper.op = O_RBRACE;
-    o_RBRACE.u.oper.prio = 0;
-    o_FUNC.obj = OPER_OBJ;
-    o_FUNC.refcount = 0;
-    o_FUNC.u.oper.name = "function call '()";
-    o_FUNC.u.oper.op = O_FUNC;
-    o_FUNC.u.oper.prio = 0;
-    o_INDEX.obj = OPER_OBJ;
-    o_INDEX.refcount = 0;
-    o_INDEX.u.oper.name = "indexing '[]";
-    o_INDEX.u.oper.op = O_INDEX;
-    o_INDEX.u.oper.prio = 0;
-    o_BRACE.obj = OPER_OBJ;
-    o_BRACE.refcount = 0;
-    o_BRACE.u.oper.name = "'{";
-    o_BRACE.u.oper.op = O_BRACE;
-    o_BRACE.u.oper.prio = 0;
-    o_BRACKET.obj = OPER_OBJ;
-    o_BRACKET.refcount = 0;
-    o_BRACKET.u.oper.name = "'[";
-    o_BRACKET.u.oper.op = O_BRACKET;
-    o_BRACKET.u.oper.prio = 0;
-    o_PARENT.obj = OPER_OBJ;
-    o_PARENT.refcount = 0;
-    o_PARENT.u.oper.name = "'(";
-    o_PARENT.u.oper.op = O_PARENT;
-    o_PARENT.u.oper.prio = 0;
-    o_COMMA.obj = OPER_OBJ;
-    o_COMMA.refcount = 0;
-    o_COMMA.u.oper.name = "',";
-    o_COMMA.u.oper.op = O_COMMA;
-    o_COMMA.u.oper.prio = 1;
-    o_QUEST.obj = OPER_OBJ;
-    o_QUEST.refcount = 0;
-    o_QUEST.u.oper.name = "'?";
-    o_QUEST.u.oper.op = O_QUEST;
-    o_QUEST.u.oper.prio = 2;
-    o_COLON.obj = OPER_OBJ;
-    o_COLON.refcount = 0;
-    o_COLON.u.oper.name = "':";
-    o_COLON.u.oper.op = O_COLON;
-    o_COLON.u.oper.prio = 2;
-    o_COND.obj = OPER_OBJ;
-    o_COND.refcount = 0;
-    o_COND.u.oper.name = "condition '?";
-    o_COND.u.oper.op = O_COND;
-    o_COND.u.oper.prio = 3;
-    o_COLON2.obj = OPER_OBJ;
-    o_COLON2.refcount = 0;
-    o_COLON2.u.oper.name = "':";
-    o_COLON2.u.oper.op = O_COLON2;
-    o_COLON2.u.oper.prio = 3;
-    o_HASH.obj = OPER_OBJ;
-    o_HASH.refcount = 0;
-    o_HASH.u.oper.name = "immediate '#";
-    o_HASH.u.oper.op = O_HASH;
-    o_HASH.u.oper.prio = 3;
-    o_WORD.obj = OPER_OBJ;
-    o_WORD.refcount = 0;
-    o_WORD.u.oper.name = "word '<>";
-    o_WORD.u.oper.op = O_WORD;
-    o_WORD.u.oper.prio = 4;
-    o_HWORD.obj = OPER_OBJ;
-    o_HWORD.refcount = 0;
-    o_HWORD.u.oper.name = "high word '>`";
-    o_HWORD.u.oper.op = O_HWORD;
-    o_HWORD.u.oper.prio = 4;
-    o_BSWORD.obj = OPER_OBJ;
-    o_BSWORD.refcount = 0;
-    o_BSWORD.u.oper.name = "swapped word '><";
-    o_BSWORD.u.oper.op = O_BSWORD;
-    o_BSWORD.u.oper.prio = 4;
-    o_LOWER.obj = OPER_OBJ;
-    o_LOWER.refcount = 0;
-    o_LOWER.u.oper.name = "low byte '<";
-    o_LOWER.u.oper.op = O_LOWER;
-    o_LOWER.u.oper.prio = 4;
-    o_HIGHER.obj = OPER_OBJ;
-    o_HIGHER.refcount = 0;
-    o_HIGHER.u.oper.name = "high byte '>";
-    o_HIGHER.u.oper.op = O_HIGHER;
-    o_HIGHER.u.oper.prio = 4;
-    o_BANK.obj = OPER_OBJ;
-    o_BANK.refcount = 0;
-    o_BANK.u.oper.name = "bank byte '`";
-    o_BANK.u.oper.op = O_BANK;
-    o_BANK.u.oper.prio = 4;
-    o_STRING.obj = OPER_OBJ;
-    o_STRING.refcount = 0;
-    o_STRING.u.oper.name = "decimal string '^";
-    o_STRING.u.oper.op = O_STRING;
-    o_STRING.u.oper.prio = 4;
-    o_LOR.obj = OPER_OBJ;
-    o_LOR.refcount = 0;
-    o_LOR.u.oper.name = "logical or '||";
-    o_LOR.u.oper.op = O_LOR;
-    o_LOR.u.oper.prio = 5;
-    o_LXOR.obj = OPER_OBJ;
-    o_LXOR.refcount = 0;
-    o_LXOR.u.oper.name = "logical xor '^^";
-    o_LXOR.u.oper.op = O_LXOR;
-    o_LXOR.u.oper.prio = 6;
-    o_LAND.obj = OPER_OBJ;
-    o_LAND.refcount = 0;
-    o_LAND.u.oper.name = "logical and '&&";
-    o_LAND.u.oper.op = O_LAND;
-    o_LAND.u.oper.prio = 7;
-    o_IN.obj = OPER_OBJ;
-    o_IN.refcount = 0;
-    o_IN.u.oper.name = "contains 'in";
-    o_IN.u.oper.op = O_IN;
-    o_IN.u.oper.prio = 8;
-    o_CMP.obj = OPER_OBJ;
-    o_CMP.refcount = 0;
-    o_CMP.u.oper.name = "compare '<=>";
-    o_CMP.u.oper.op = O_CMP;
-    o_CMP.u.oper.prio = 8;
-    o_EQ.obj = OPER_OBJ;
-    o_EQ.refcount = 0;
-    o_EQ.u.oper.name = "equal '==";
-    o_EQ.u.oper.op = O_EQ;
-    o_EQ.u.oper.prio = 8;
-    o_NE.obj = OPER_OBJ;
-    o_NE.refcount = 0;
-    o_NE.u.oper.name = "not equal '!=";
-    o_NE.u.oper.op = O_NE;
-    o_NE.u.oper.prio = 8;
-    o_LT.obj = OPER_OBJ;
-    o_LT.refcount = 0;
-    o_LT.u.oper.name = "less than '<";
-    o_LT.u.oper.op = O_LT;
-    o_LT.u.oper.prio = 8;
-    o_GT.obj = OPER_OBJ;
-    o_GT.refcount = 0;
-    o_GT.u.oper.name = "greater than '>";
-    o_GT.u.oper.op = O_GT;
-    o_GT.u.oper.prio = 8;
-    o_GE.obj = OPER_OBJ;
-    o_GE.refcount = 0;
-    o_GE.u.oper.name = "greater than or equal '>=";
-    o_GE.u.oper.op = O_GE;
-    o_GE.u.oper.prio = 8;
-    o_LE.obj = OPER_OBJ;
-    o_LE.refcount = 0;
-    o_LE.u.oper.name = "less than or equal '<=";
-    o_LE.u.oper.op = O_LE;
-    o_LE.u.oper.prio = 8;
-    o_OR.obj = OPER_OBJ;
-    o_OR.refcount = 0;
-    o_OR.u.oper.name = "binary or '|";
-    o_OR.u.oper.op = O_OR;
-    o_OR.u.oper.prio = 9;
-    o_XOR.obj = OPER_OBJ;
-    o_XOR.refcount = 0;
-    o_XOR.u.oper.name = "binary exclusive or '^";
-    o_XOR.u.oper.op = O_XOR;
-    o_XOR.u.oper.prio = 10;
-    o_AND.obj = OPER_OBJ;
-    o_AND.refcount = 0;
-    o_AND.u.oper.name = "binary and '&";
-    o_AND.u.oper.op = O_AND;
-    o_AND.u.oper.prio = 11;
-    o_LSHIFT.obj = OPER_OBJ;
-    o_LSHIFT.refcount = 0;
-    o_LSHIFT.u.oper.name = "binary left shift '<<";
-    o_LSHIFT.u.oper.op = O_LSHIFT;
-    o_LSHIFT.u.oper.prio = 12;
-    o_RSHIFT.obj = OPER_OBJ;
-    o_RSHIFT.refcount = 0;
-    o_RSHIFT.u.oper.name = "binary right shift '>>";
-    o_RSHIFT.u.oper.op = O_RSHIFT;
-    o_RSHIFT.u.oper.prio = 12;
-    o_ADD.obj = OPER_OBJ;
-    o_ADD.refcount = 0;
-    o_ADD.u.oper.name = "add '+";
-    o_ADD.u.oper.op = O_ADD;
-    o_ADD.u.oper.prio = 13;
-    o_SUB.obj = OPER_OBJ;
-    o_SUB.refcount = 0;
-    o_SUB.u.oper.name = "subtract '-";
-    o_SUB.u.oper.op = O_SUB;
-    o_SUB.u.oper.prio = 13;
-    o_MUL.obj = OPER_OBJ;
-    o_MUL.refcount = 0;
-    o_MUL.u.oper.name = "multiply '*";
-    o_MUL.u.oper.op = O_MUL;
-    o_MUL.u.oper.prio = 14;
-    o_DIV.obj = OPER_OBJ;
-    o_DIV.refcount = 0;
-    o_DIV.u.oper.name = "division '/";
-    o_DIV.u.oper.op = O_DIV;
-    o_DIV.u.oper.prio = 14;
-    o_MOD.obj = OPER_OBJ;
-    o_MOD.refcount = 0;
-    o_MOD.u.oper.name = "modulo '%";
-    o_MOD.u.oper.op = O_MOD;
-    o_MOD.u.oper.prio = 14;
-    o_EXP.obj = OPER_OBJ;
-    o_EXP.refcount = 0;
-    o_EXP.u.oper.name = "exponent '**";
-    o_EXP.u.oper.op = O_EXP;
-    o_EXP.u.oper.prio = 15;
-    o_NEG.obj = OPER_OBJ;
-    o_NEG.refcount = 0;
-    o_NEG.u.oper.name = "unary negative '-";
-    o_NEG.u.oper.op = O_NEG;
-    o_NEG.u.oper.prio = 16;
-    o_POS.obj = OPER_OBJ;
-    o_POS.refcount = 0;
-    o_POS.u.oper.name = "unary positive '+";
-    o_POS.u.oper.op = O_POS;
-    o_POS.u.oper.prio = 16;
-    o_INV.obj = OPER_OBJ;
-    o_INV.refcount = 0;
-    o_INV.u.oper.name = "binary invert '~";
-    o_INV.u.oper.op = O_INV;
-    o_INV.u.oper.prio = 16;
-    o_LNOT.obj = OPER_OBJ;
-    o_LNOT.refcount = 0;
-    o_LNOT.u.oper.name = "logical not '!";
-    o_LNOT.u.oper.op = O_LNOT;
-    o_LNOT.u.oper.prio = 16;
-    o_COMMAX.obj = OPER_OBJ;
-    o_COMMAX.refcount = 0;
-    o_COMMAX.u.oper.name = "register indexing ',x";
-    o_COMMAX.u.oper.op = O_COMMAX;
-    o_COMMAX.u.oper.prio = 16;
-    o_COMMAY.obj = OPER_OBJ;
-    o_COMMAY.refcount = 0;
-    o_COMMAY.u.oper.name = "register indexing ',y";
-    o_COMMAY.u.oper.op = O_COMMAY;
-    o_COMMAY.u.oper.prio = 16;
-    o_COMMAZ.obj = OPER_OBJ;
-    o_COMMAZ.refcount = 0;
-    o_COMMAZ.u.oper.name = "register indexing ',z";
-    o_COMMAZ.u.oper.op = O_COMMAZ;
-    o_COMMAZ.u.oper.prio = 16;
-    o_COMMAS.obj = OPER_OBJ;
-    o_COMMAS.refcount = 0;
-    o_COMMAS.u.oper.name = "register indexing ',s";
-    o_COMMAS.u.oper.op = O_COMMAS;
-    o_COMMAS.u.oper.prio = 16;
-    o_COMMAR.obj = OPER_OBJ;
-    o_COMMAR.refcount = 0;
-    o_COMMAR.u.oper.name = "register indexing ',r";
-    o_COMMAR.u.oper.op = O_COMMAR;
-    o_COMMAR.u.oper.prio = 16;
-    o_COMMAD.obj = OPER_OBJ;
-    o_COMMAD.refcount = 0;
-    o_COMMAD.u.oper.name = "register indexing ',d";
-    o_COMMAD.u.oper.op = O_COMMAD;
-    o_COMMAD.u.oper.prio = 16;
-    o_COMMAB.obj = OPER_OBJ;
-    o_COMMAB.refcount = 0;
-    o_COMMAB.u.oper.name = "register indexing ',b";
-    o_COMMAB.u.oper.op = O_COMMAB;
-    o_COMMAB.u.oper.prio = 16;
-    o_COMMAK.obj = OPER_OBJ;
-    o_COMMAK.refcount = 0;
-    o_COMMAK.u.oper.name = "register indexing ',k";
-    o_COMMAK.u.oper.op = O_COMMAK;
-    o_COMMAK.u.oper.prio = 16;
-    o_SPLAT.obj = OPER_OBJ;
-    o_SPLAT.refcount = 0;
-    o_SPLAT.u.oper.name = "unary splat '*";
-    o_SPLAT.u.oper.op = O_SPLAT;
-    o_SPLAT.u.oper.prio = 17;
-    o_CONCAT.obj = OPER_OBJ;
-    o_CONCAT.refcount = 0;
-    o_CONCAT.u.oper.name = "concatenate '..";
-    o_CONCAT.u.oper.op = O_CONCAT;
-    o_CONCAT.u.oper.prio = 18;
-    o_X.obj = OPER_OBJ;
-    o_X.refcount = 0;
-    o_X.u.oper.name = "repeat 'x";
-    o_X.u.oper.op = O_X;
-    o_X.u.oper.prio = 19;
-    o_MEMBER.obj = OPER_OBJ;
-    o_MEMBER.refcount = 0;
-    o_MEMBER.u.oper.name = "member '.";
-    o_MEMBER.u.oper.op = O_MEMBER;
-    o_MEMBER.u.oper.prio = 20;
+    o_TUPLE.v.obj = OPER_OBJ;
+    o_TUPLE.v.refcount = 0;
+    o_TUPLE.name = "')";
+    o_TUPLE.op = O_TUPLE;
+    o_TUPLE.prio = 0;
+    o_LIST.v.obj = OPER_OBJ;
+    o_LIST.v.refcount = 0;
+    o_LIST.name = "']";
+    o_LIST.op = O_LIST;
+    o_LIST.prio = 0;
+    o_DICT.v.obj = OPER_OBJ;
+    o_DICT.v.refcount = 0;
+    o_DICT.name = "'}";
+    o_DICT.op = O_DICT;
+    o_DICT.prio = 0;
+    o_RPARENT.v.obj = OPER_OBJ;
+    o_RPARENT.v.refcount = 0;
+    o_RPARENT.name = "')";
+    o_RPARENT.op = O_RPARENT;
+    o_RPARENT.prio = 0;
+    o_RBRACKET.v.obj = OPER_OBJ;
+    o_RBRACKET.v.refcount = 0;
+    o_RBRACKET.name = "']";
+    o_RBRACKET.op = O_RBRACKET;
+    o_RBRACKET.prio = 0;
+    o_RBRACE.v.obj = OPER_OBJ;
+    o_RBRACE.v.refcount = 0;
+    o_RBRACE.name = "'}";
+    o_RBRACE.op = O_RBRACE;
+    o_RBRACE.prio = 0;
+    o_FUNC.v.obj = OPER_OBJ;
+    o_FUNC.v.refcount = 0;
+    o_FUNC.name = "function call '()";
+    o_FUNC.op = O_FUNC;
+    o_FUNC.prio = 0;
+    o_INDEX.v.obj = OPER_OBJ;
+    o_INDEX.v.refcount = 0;
+    o_INDEX.name = "indexing '[]";
+    o_INDEX.op = O_INDEX;
+    o_INDEX.prio = 0;
+    o_BRACE.v.obj = OPER_OBJ;
+    o_BRACE.v.refcount = 0;
+    o_BRACE.name = "'{";
+    o_BRACE.op = O_BRACE;
+    o_BRACE.prio = 0;
+    o_BRACKET.v.obj = OPER_OBJ;
+    o_BRACKET.v.refcount = 0;
+    o_BRACKET.name = "'[";
+    o_BRACKET.op = O_BRACKET;
+    o_BRACKET.prio = 0;
+    o_PARENT.v.obj = OPER_OBJ;
+    o_PARENT.v.refcount = 0;
+    o_PARENT.name = "'(";
+    o_PARENT.op = O_PARENT;
+    o_PARENT.prio = 0;
+    o_COMMA.v.obj = OPER_OBJ;
+    o_COMMA.v.refcount = 0;
+    o_COMMA.name = "',";
+    o_COMMA.op = O_COMMA;
+    o_COMMA.prio = 1;
+    o_QUEST.v.obj = OPER_OBJ;
+    o_QUEST.v.refcount = 0;
+    o_QUEST.name = "'?";
+    o_QUEST.op = O_QUEST;
+    o_QUEST.prio = 2;
+    o_COLON.v.obj = OPER_OBJ;
+    o_COLON.v.refcount = 0;
+    o_COLON.name = "':";
+    o_COLON.op = O_COLON;
+    o_COLON.prio = 2;
+    o_COND.v.obj = OPER_OBJ;
+    o_COND.v.refcount = 0;
+    o_COND.name = "condition '?";
+    o_COND.op = O_COND;
+    o_COND.prio = 3;
+    o_COLON2.v.obj = OPER_OBJ;
+    o_COLON2.v.refcount = 0;
+    o_COLON2.name = "':";
+    o_COLON2.op = O_COLON2;
+    o_COLON2.prio = 3;
+    o_HASH.v.obj = OPER_OBJ;
+    o_HASH.v.refcount = 0;
+    o_HASH.name = "immediate '#";
+    o_HASH.op = O_HASH;
+    o_HASH.prio = 3;
+    o_WORD.v.obj = OPER_OBJ;
+    o_WORD.v.refcount = 0;
+    o_WORD.name = "word '<>";
+    o_WORD.op = O_WORD;
+    o_WORD.prio = 4;
+    o_HWORD.v.obj = OPER_OBJ;
+    o_HWORD.v.refcount = 0;
+    o_HWORD.name = "high word '>`";
+    o_HWORD.op = O_HWORD;
+    o_HWORD.prio = 4;
+    o_BSWORD.v.obj = OPER_OBJ;
+    o_BSWORD.v.refcount = 0;
+    o_BSWORD.name = "swapped word '><";
+    o_BSWORD.op = O_BSWORD;
+    o_BSWORD.prio = 4;
+    o_LOWER.v.obj = OPER_OBJ;
+    o_LOWER.v.refcount = 0;
+    o_LOWER.name = "low byte '<";
+    o_LOWER.op = O_LOWER;
+    o_LOWER.prio = 4;
+    o_HIGHER.v.obj = OPER_OBJ;
+    o_HIGHER.v.refcount = 0;
+    o_HIGHER.name = "high byte '>";
+    o_HIGHER.op = O_HIGHER;
+    o_HIGHER.prio = 4;
+    o_BANK.v.obj = OPER_OBJ;
+    o_BANK.v.refcount = 0;
+    o_BANK.name = "bank byte '`";
+    o_BANK.op = O_BANK;
+    o_BANK.prio = 4;
+    o_STRING.v.obj = OPER_OBJ;
+    o_STRING.v.refcount = 0;
+    o_STRING.name = "decimal string '^";
+    o_STRING.op = O_STRING;
+    o_STRING.prio = 4;
+    o_LOR.v.obj = OPER_OBJ;
+    o_LOR.v.refcount = 0;
+    o_LOR.name = "logical or '||";
+    o_LOR.op = O_LOR;
+    o_LOR.prio = 5;
+    o_LXOR.v.obj = OPER_OBJ;
+    o_LXOR.v.refcount = 0;
+    o_LXOR.name = "logical xor '^^";
+    o_LXOR.op = O_LXOR;
+    o_LXOR.prio = 6;
+    o_LAND.v.obj = OPER_OBJ;
+    o_LAND.v.refcount = 0;
+    o_LAND.name = "logical and '&&";
+    o_LAND.op = O_LAND;
+    o_LAND.prio = 7;
+    o_IN.v.obj = OPER_OBJ;
+    o_IN.v.refcount = 0;
+    o_IN.name = "contains 'in";
+    o_IN.op = O_IN;
+    o_IN.prio = 8;
+    o_CMP.v.obj = OPER_OBJ;
+    o_CMP.v.refcount = 0;
+    o_CMP.name = "compare '<=>";
+    o_CMP.op = O_CMP;
+    o_CMP.prio = 8;
+    o_EQ.v.obj = OPER_OBJ;
+    o_EQ.v.refcount = 0;
+    o_EQ.name = "equal '==";
+    o_EQ.op = O_EQ;
+    o_EQ.prio = 8;
+    o_NE.v.obj = OPER_OBJ;
+    o_NE.v.refcount = 0;
+    o_NE.name = "not equal '!=";
+    o_NE.op = O_NE;
+    o_NE.prio = 8;
+    o_LT.v.obj = OPER_OBJ;
+    o_LT.v.refcount = 0;
+    o_LT.name = "less than '<";
+    o_LT.op = O_LT;
+    o_LT.prio = 8;
+    o_GT.v.obj = OPER_OBJ;
+    o_GT.v.refcount = 0;
+    o_GT.name = "greater than '>";
+    o_GT.op = O_GT;
+    o_GT.prio = 8;
+    o_GE.v.obj = OPER_OBJ;
+    o_GE.v.refcount = 0;
+    o_GE.name = "greater than or equal '>=";
+    o_GE.op = O_GE;
+    o_GE.prio = 8;
+    o_LE.v.obj = OPER_OBJ;
+    o_LE.v.refcount = 0;
+    o_LE.name = "less than or equal '<=";
+    o_LE.op = O_LE;
+    o_LE.prio = 8;
+    o_OR.v.obj = OPER_OBJ;
+    o_OR.v.refcount = 0;
+    o_OR.name = "binary or '|";
+    o_OR.op = O_OR;
+    o_OR.prio = 9;
+    o_XOR.v.obj = OPER_OBJ;
+    o_XOR.v.refcount = 0;
+    o_XOR.name = "binary exclusive or '^";
+    o_XOR.op = O_XOR;
+    o_XOR.prio = 10;
+    o_AND.v.obj = OPER_OBJ;
+    o_AND.v.refcount = 0;
+    o_AND.name = "binary and '&";
+    o_AND.op = O_AND;
+    o_AND.prio = 11;
+    o_LSHIFT.v.obj = OPER_OBJ;
+    o_LSHIFT.v.refcount = 0;
+    o_LSHIFT.name = "binary left shift '<<";
+    o_LSHIFT.op = O_LSHIFT;
+    o_LSHIFT.prio = 12;
+    o_RSHIFT.v.obj = OPER_OBJ;
+    o_RSHIFT.v.refcount = 0;
+    o_RSHIFT.name = "binary right shift '>>";
+    o_RSHIFT.op = O_RSHIFT;
+    o_RSHIFT.prio = 12;
+    o_ADD.v.obj = OPER_OBJ;
+    o_ADD.v.refcount = 0;
+    o_ADD.name = "add '+";
+    o_ADD.op = O_ADD;
+    o_ADD.prio = 13;
+    o_SUB.v.obj = OPER_OBJ;
+    o_SUB.v.refcount = 0;
+    o_SUB.name = "subtract '-";
+    o_SUB.op = O_SUB;
+    o_SUB.prio = 13;
+    o_MUL.v.obj = OPER_OBJ;
+    o_MUL.v.refcount = 0;
+    o_MUL.name = "multiply '*";
+    o_MUL.op = O_MUL;
+    o_MUL.prio = 14;
+    o_DIV.v.obj = OPER_OBJ;
+    o_DIV.v.refcount = 0;
+    o_DIV.name = "division '/";
+    o_DIV.op = O_DIV;
+    o_DIV.prio = 14;
+    o_MOD.v.obj = OPER_OBJ;
+    o_MOD.v.refcount = 0;
+    o_MOD.name = "modulo '%";
+    o_MOD.op = O_MOD;
+    o_MOD.prio = 14;
+    o_EXP.v.obj = OPER_OBJ;
+    o_EXP.v.refcount = 0;
+    o_EXP.name = "exponent '**";
+    o_EXP.op = O_EXP;
+    o_EXP.prio = 15;
+    o_NEG.v.obj = OPER_OBJ;
+    o_NEG.v.refcount = 0;
+    o_NEG.name = "unary negative '-";
+    o_NEG.op = O_NEG;
+    o_NEG.prio = 16;
+    o_POS.v.obj = OPER_OBJ;
+    o_POS.v.refcount = 0;
+    o_POS.name = "unary positive '+";
+    o_POS.op = O_POS;
+    o_POS.prio = 16;
+    o_INV.v.obj = OPER_OBJ;
+    o_INV.v.refcount = 0;
+    o_INV.name = "binary invert '~";
+    o_INV.op = O_INV;
+    o_INV.prio = 16;
+    o_LNOT.v.obj = OPER_OBJ;
+    o_LNOT.v.refcount = 0;
+    o_LNOT.name = "logical not '!";
+    o_LNOT.op = O_LNOT;
+    o_LNOT.prio = 16;
+    o_COMMAX.v.obj = OPER_OBJ;
+    o_COMMAX.v.refcount = 0;
+    o_COMMAX.name = "register indexing ',x";
+    o_COMMAX.op = O_COMMAX;
+    o_COMMAX.prio = 16;
+    o_COMMAY.v.obj = OPER_OBJ;
+    o_COMMAY.v.refcount = 0;
+    o_COMMAY.name = "register indexing ',y";
+    o_COMMAY.op = O_COMMAY;
+    o_COMMAY.prio = 16;
+    o_COMMAZ.v.obj = OPER_OBJ;
+    o_COMMAZ.v.refcount = 0;
+    o_COMMAZ.name = "register indexing ',z";
+    o_COMMAZ.op = O_COMMAZ;
+    o_COMMAZ.prio = 16;
+    o_COMMAS.v.obj = OPER_OBJ;
+    o_COMMAS.v.refcount = 0;
+    o_COMMAS.name = "register indexing ',s";
+    o_COMMAS.op = O_COMMAS;
+    o_COMMAS.prio = 16;
+    o_COMMAR.v.obj = OPER_OBJ;
+    o_COMMAR.v.refcount = 0;
+    o_COMMAR.name = "register indexing ',r";
+    o_COMMAR.op = O_COMMAR;
+    o_COMMAR.prio = 16;
+    o_COMMAD.v.obj = OPER_OBJ;
+    o_COMMAD.v.refcount = 0;
+    o_COMMAD.name = "register indexing ',d";
+    o_COMMAD.op = O_COMMAD;
+    o_COMMAD.prio = 16;
+    o_COMMAB.v.obj = OPER_OBJ;
+    o_COMMAB.v.refcount = 0;
+    o_COMMAB.name = "register indexing ',b";
+    o_COMMAB.op = O_COMMAB;
+    o_COMMAB.prio = 16;
+    o_COMMAK.v.obj = OPER_OBJ;
+    o_COMMAK.v.refcount = 0;
+    o_COMMAK.name = "register indexing ',k";
+    o_COMMAK.op = O_COMMAK;
+    o_COMMAK.prio = 16;
+    o_SPLAT.v.obj = OPER_OBJ;
+    o_SPLAT.v.refcount = 0;
+    o_SPLAT.name = "unary splat '*";
+    o_SPLAT.op = O_SPLAT;
+    o_SPLAT.prio = 17;
+    o_CONCAT.v.obj = OPER_OBJ;
+    o_CONCAT.v.refcount = 0;
+    o_CONCAT.name = "concatenate '..";
+    o_CONCAT.op = O_CONCAT;
+    o_CONCAT.prio = 18;
+    o_X.v.obj = OPER_OBJ;
+    o_X.v.refcount = 0;
+    o_X.name = "repeat 'x";
+    o_X.op = O_X;
+    o_X.prio = 19;
+    o_MEMBER.v.obj = OPER_OBJ;
+    o_MEMBER.v.refcount = 0;
+    o_MEMBER.name = "member '.";
+    o_MEMBER.op = O_MEMBER;
+    o_MEMBER.prio = 20;
 }
 
 void destroy_values(void)
 {
+    size_t j;
     garbage_collect();
-#ifdef DEBUG
-    if (int_value[0]->refcount != 1) fprintf(stderr, "int[0] %d\n", int_value[0]->refcount - 1);
-    if (int_value[1]->refcount != 1) fprintf(stderr, "int[1] %d\n", int_value[1]->refcount - 1);
-    if (none_value->refcount != 1) fprintf(stderr, "none %d\n", none_value->refcount - 1);
-    if (true_value->refcount != 1) fprintf(stderr, "true %d\n", true_value->refcount - 1);
-    if (false_value->refcount != 1) fprintf(stderr, "false %d\n", false_value->refcount - 1);
-    if (gap_value->refcount != 1) fprintf(stderr, "gap %d\n", gap_value->refcount - 1);
-    if (default_value->refcount != 1) fprintf(stderr, "default %d\n", default_value->refcount - 1);
-    if (null_str->refcount != 1) fprintf(stderr, "str %d\n", null_str->refcount - 1);
-    if (null_bytes->refcount != 1) fprintf(stderr, "bytes %d\n", null_bytes->refcount - 1);
-    if (inv_bytes->refcount != 1) fprintf(stderr, "invbytes %d\n", inv_bytes->refcount - 1);
-    if (null_bits->refcount != 1) fprintf(stderr, "bits %d\n", null_bits->refcount - 1);
-    if (inv_bits->refcount != 1) fprintf(stderr, "invbits %d\n", inv_bits->refcount - 1);
-    if (null_tuple->refcount != 1) fprintf(stderr, "tuple %d\n", null_tuple->refcount - 1);
-    if (null_list->refcount != 1) fprintf(stderr, "list %d\n", null_list->refcount - 1);
-    if (null_addrlist->refcount != 1) fprintf(stderr, "addrlist %d\n", null_addrlist->refcount - 1);
-#endif
-
-    val_destroy(int_value[0]);
-    val_destroy(int_value[1]);
-    val_destroy(none_value);
-    val_destroy(true_value);
-    val_destroy(false_value);
-    val_destroy(gap_value);
-    val_destroy(default_value);
-    val_destroy(null_str);
-    val_destroy(null_bytes);
-    val_destroy(inv_bytes);
-    val_destroy(null_bits);
-    val_destroy(inv_bits);
-    val_destroy(null_tuple);
-    val_destroy(null_list);
-    val_destroy(null_addrlist);
 
 #ifdef DEBUG
     {
-    struct values_s *vals;
+    Slotcoll *vals;
     size_t i;
-    for (vals = values; vals; vals = vals->next) {
-        for (i = 0; i < 255; i++) {
-            value_t val = &vals->vals[i].val;
-            if (val->obj != NONE_OBJ) {
-                val_print(val, stderr);
-                fprintf(stderr, " %s %d %x\n", val->obj->name, val->refcount, (int)val); 
+    for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
+        size_t size = j * ALIGN;
+        for (vals = slotcoll[j]; vals; vals = vals->next) {
+            Obj *val = ((void *)vals) + sizeof(Slotcoll);
+            for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
+                if (val->obj != NONE_OBJ) {
+                    val_print(val, stderr);
+                    fprintf(stderr, " %s %d %x\n", val->obj->name, val->refcount, (int)val); 
+                }
             }
         }
     }
     }
 #endif
 
-    while (values) {
-        struct values_s *old = values;
-        values = values->next;
-        free(old);
+    for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
+        Slotcoll *s = slotcoll[j];
+        while (s) {
+            Slotcoll *old = s;
+            s = s->next;
+            free(old);
+        }
     }
 }

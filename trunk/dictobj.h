@@ -18,22 +18,32 @@
 */
 #ifndef _DICTOBJ_H
 #define _DICTOBJ_H
+#include "obj.h"
+#include "libtree.h"
 
 extern obj_t DICT_OBJ;
 
-typedef struct {
+typedef struct Dict {
+    Obj v;
     size_t len;
     struct avltree members;
-    value_t def;
-} dict_t;
+    Obj *def;
+} Dict;
+
+extern void dictobj_init(void);
+
+static inline MUST_CHECK Dict *new_dict(void) {
+    Dict *v = (Dict *)val_alloc(DICT_OBJ);
+    avltree_init(&v->members);
+    return v;
+}
 
 struct pair_s {
     int hash;
-    value_t key;
-    value_t data;
+    Obj *key;
+    Obj *data;
     struct avltree_node node;
 };
 
-extern void dictobj_init(void);
 extern int pair_compare(const struct avltree_node *, const struct avltree_node *);
 #endif

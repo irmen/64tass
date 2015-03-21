@@ -20,44 +20,120 @@
 #define _OBJ_H
 #include <stdio.h>
 #include "inttypes.h"
+#include "values.h"
 
 struct oper_s;
+typedef struct Error Error;
+typedef struct Namespace Namespace;
+typedef struct Int Int;
+
+typedef struct Obj {
+    obj_t obj;
+    size_t refcount;
+} Obj;
 
 struct mfunc_param_s {
     str_t name;
     str_t cfname;
-    value_t init;
+    Obj *init;
     struct linepos_s epoint;
 };
 
-typedef struct {
+typedef struct Mfunc {
+    Obj v;
     size_t argc;
     struct mfunc_param_s *param; 
     struct file_list_s *file_list;
     line_t line;
-} mfunc_t;
+} Mfunc;
 
 struct macro_param_s {
     str_t cfname;
     str_t init;
 }; 
 
-typedef struct {
+typedef struct Macro {
+    Obj v;
     size_t argc;
     struct macro_param_s *param;
     struct file_list_s *file_list;
     line_t line;
     int retval;
-} macro_t;
+} Macro;
 
-typedef struct {
+typedef struct Macro Segment;
+
+typedef struct Struct {
+    Obj v;
     size_t argc;
     struct macro_param_s *param;
     struct file_list_s *file_list;
     line_t line;
     size_t size; /* first part same as macro! */
-    value_t names;
-} struct_t;
+    Namespace *names;
+} Struct;
+
+typedef struct Struct Union;
+
+typedef struct Lbl_s {
+    Obj v;
+    line_t sline;
+    size_t waitforp;
+    const struct file_list_s *file_list;
+    Namespace *parent;
+} Lbl;
+
+typedef struct Type {
+    Obj v;
+    obj_t type;
+} Type;
+
+typedef struct Oper {
+    Obj v;
+    const char *name;
+    enum oper_e op;
+    int prio;
+} Oper;
+
+typedef struct Funcargs {
+    Obj v;
+    size_t len;
+    struct values_s *val;
+} Funcargs;
+
+typedef struct Iter {
+    Obj v;
+    void *iter;
+    size_t val;
+    Obj *data;
+} Iter;
+
+typedef struct Ident {
+    Obj v;
+    str_t name;
+    struct linepos_s epoint;
+} Ident;
+
+typedef struct Anonident {
+    Obj v;
+    int32_t count;
+    struct linepos_s epoint;
+} Anonident;
+
+typedef struct None {
+    Obj v;
+    int *dummy;
+} None;
+
+typedef struct Gap {
+    Obj v;
+    int *dummy;
+} Gap;
+
+typedef struct Default {
+    Obj v;
+    int *dummy;
+} Default;
 
 enum type_e {
     T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
@@ -74,31 +150,49 @@ enum truth_e {
 struct obj_s {
     enum type_e type;
     const char *name;
-    value_t (*create)(value_t, linepos_t) MUST_CHECK;
-    void (*destroy)(value_t);
-    void (*garbage)(value_t, int);
-    int (*same)(const value_t, const value_t);
-    value_t (*truth)(const value_t, enum truth_e, linepos_t) MUST_CHECK;
-    value_t (*hash)(const value_t, int *, linepos_t) MUST_CHECK;
-    value_t (*repr)(const value_t, linepos_t) MUST_CHECK;
-    value_t (*calc1)(struct oper_s *) MUST_CHECK;
-    value_t (*calc2)(struct oper_s *) MUST_CHECK;
-    value_t (*rcalc2)(struct oper_s *) MUST_CHECK;
-    value_t (*ival)(const value_t, ival_t *, int, linepos_t) MUST_CHECK;
-    value_t (*uval)(const value_t, uval_t *, int, linepos_t) MUST_CHECK;
-    value_t (*address)(const value_t, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;
-    value_t (*sign)(const value_t, linepos_t) MUST_CHECK;
-    value_t (*abs)(const value_t, linepos_t) MUST_CHECK;
-    value_t (*len)(const value_t, linepos_t) MUST_CHECK;
-    value_t (*size)(const value_t, linepos_t) MUST_CHECK;
-    value_t (*getiter)(value_t) MUST_CHECK;
-    value_t (*next)(value_t) MUST_CHECK;
+    size_t length;
+    Obj *(*create)(Obj *, linepos_t) MUST_CHECK;
+    void (*destroy)(Obj *);
+    void (*garbage)(Obj *, int);
+    int (*same)(const Obj *, const Obj *);
+    Obj *(*truth)(Obj *, enum truth_e, linepos_t) MUST_CHECK;
+    Error *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
+    Obj *(*repr)(Obj *, linepos_t) MUST_CHECK;
+    Obj *(*calc1)(struct oper_s *) MUST_CHECK;
+    Obj *(*calc2)(struct oper_s *) MUST_CHECK;
+    Obj *(*rcalc2)(struct oper_s *) MUST_CHECK;
+    Error *(*ival)(Obj *, ival_t *, int, linepos_t) MUST_CHECK;
+    Error *(*uval)(Obj *, uval_t *, int, linepos_t) MUST_CHECK;
+    Error *(*address)(Obj *, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;
+    Obj *(*sign)(Obj *, linepos_t) MUST_CHECK;
+    Obj *(*abs)(Obj *, linepos_t) MUST_CHECK;
+    Obj *(*len)(Obj *, linepos_t) MUST_CHECK;
+    Obj *(*size)(Obj *, linepos_t) MUST_CHECK;
+    Iter *(*getiter)(Obj *) MUST_CHECK;
+    Obj *(*next)(Iter *) MUST_CHECK;
 };
 
-extern void obj_init(struct obj_s *, enum type_e, const char *);
-extern MUST_CHECK value_t obj_oper_error(struct oper_s *);
+static inline MUST_CHECK int obj_same(const Obj *v1, const Obj *v2) {
+    return v1->obj->same(v1, v2);
+}
+
+static inline MUST_CHECK Error *obj_hash(Obj *v1, int *hs, linepos_t epoint) {
+    return v1->obj->hash(v1, hs, epoint);
+}
+
+static inline Obj *val_reference(Obj *v1) {
+    v1->refcount++; return v1;
+}
+
+static inline Obj *obj_next(Iter *v1) {
+    return v1->v.obj->next(v1);
+}
+
+extern void obj_init(struct obj_s *, enum type_e, const char *, size_t);
+extern MUST_CHECK Obj *obj_oper_error(struct oper_s *);
 extern void objects_init(void);
-extern MUST_CHECK value_t invalid_getiter(value_t);
+extern void objects_destroy(void);
+extern MUST_CHECK Iter *invalid_getiter(Obj *);
 
 extern obj_t LBL_OBJ;
 extern obj_t MACRO_OBJ;
@@ -116,6 +210,21 @@ extern obj_t DEFAULT_OBJ;
 extern obj_t ITER_OBJ;
 extern obj_t FUNCARGS_OBJ;
 extern obj_t TYPE_OBJ;
+extern None *none_value;
+extern Gap *gap_value;
+extern Default *default_value;
+
+static inline None *ref_none(void) {
+    none_value->v.refcount++; return none_value;
+}
+
+static inline Gap *ref_gap(void) {
+    gap_value->v.refcount++; return gap_value;
+}
+
+static inline Default *ref_default(void) {
+    default_value->v.refcount++; return default_value;
+}
 
 extern int referenceit;
 #endif

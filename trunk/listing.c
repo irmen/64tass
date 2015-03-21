@@ -28,7 +28,6 @@
 #include "section.h"
 #include "instruction.h"
 #include "obj.h"
-#include "values.h"
 #include "mem.h"
 
 #define VERBOSE 0
@@ -147,7 +146,7 @@ static void printllist(int l) {
     }
 }
 
-void listing_equal(const value_t val) {
+void listing_equal(Obj *val) {
     if (!nolisting && flist && arguments.source && !temporary_label_branch) {
         int l;
         putc('=', flist);

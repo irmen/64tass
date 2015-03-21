@@ -17,9 +17,13 @@
 
 */
 #include <string.h>
-#include "values.h"
 #include "namespaceobj.h"
 #include "eval.h"
+#include "intobj.h"
+#include "listobj.h"
+#include "error.h"
+#include "strobj.h"
+#include "variables.h"
 
 static struct obj_s obj;
 
@@ -27,173 +31,211 @@ obj_t NAMESPACE_OBJ = &obj;
 
 static void namespace_free(struct avltree_node *aa)
 {
-    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
-    val_destroy(a->key);
+    struct namespacekey_s *a = avltree_container_of(aa, struct namespacekey_s, node);
+    val_destroy(&a->key->v);
     free(a);
 }
 
 static void namespace_free2(struct avltree_node *aa)
 {
-    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
+    struct namespacekey_s *a = avltree_container_of(aa, struct namespacekey_s, node);
     free(a);
 }
 
 static void garbage1(struct avltree_node *aa)
 {
-    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
-    a->key->refcount--;
+    struct namespacekey_s *a = avltree_container_of(aa, struct namespacekey_s, node);
+    a->key->v.refcount--;
 }
 
 static void garbage2(struct avltree_node *aa)
 {
-    struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
-    value_t v = a->key;
+    struct namespacekey_s *a = avltree_container_of(aa, struct namespacekey_s, node);
+    Obj *v = &a->key->v;
     if (v->refcount & SIZE_MSB) {
         v->refcount -= SIZE_MSB - 1;
         v->obj->garbage(v, 1);
     } else v->refcount++;
 }
 
-static void destroy(value_t v1) {
-    avltree_destroy(&v1->u.names.members, namespace_free);
+static void destroy(Obj *o1) {
+    Namespace *v1 = (Namespace *)o1;
+    avltree_destroy(&v1->members, namespace_free);
 }
 
-static void garbage(value_t v1, int i) {
+static void garbage(Obj *o1, int i) {
+    Namespace *v1 = (Namespace *)o1;
     switch (i) {
     case -1:
-        avltree_destroy(&v1->u.names.members, garbage1);
+        avltree_destroy(&v1->members, garbage1);
         return;
     case 0:
-        avltree_destroy(&v1->u.names.members, namespace_free2);
+        avltree_destroy(&v1->members, namespace_free2);
         return;
     case 1:
-        avltree_destroy(&v1->u.names.members, garbage2);
+        avltree_destroy(&v1->members, garbage2);
         return;
     }
 }
 
-static int same(const value_t v1, const value_t v2) {
+static struct oper_s pair_oper;
+static int namespacekey_compare(const struct avltree_node *aa, const struct avltree_node *bb)
+{
+    const struct namespacekey_s *a = cavltree_container_of(aa, struct namespacekey_s, node);
+    const struct namespacekey_s *b = cavltree_container_of(bb, struct namespacekey_s, node);
+    Obj *result;
+    int h = a->hash - b->hash;
+
+    if (h) return h;
+    pair_oper.v1 = (Obj *)a->key;
+    pair_oper.v2 = (Obj *)b->key;
+    result = pair_oper.v1->obj->calc2(&pair_oper);
+    if (result->obj == INT_OBJ) h = ((Int *)result)->len;
+    else h = pair_oper.v1->obj->type - pair_oper.v2->obj->type;
+    val_destroy(result);
+    return h;
+}
+
+static int same(const Obj *o1, const Obj *o2) {
+    const Namespace *v1 = (const Namespace *)o1, *v2 = (const Namespace *)o2;
     const struct avltree_node *n;
     const struct avltree_node *n2;
-    if (v2->obj != NAMESPACE_OBJ) return 0;
-    n = avltree_first(&v1->u.names.members);
-    n2 = avltree_first(&v2->u.names.members);
+    if (o2->obj != NAMESPACE_OBJ) return 0;
+    n = avltree_first(&v1->members);
+    n2 = avltree_first(&v2->members);
     while (n && n2) {
-        if (pair_compare(n, n2)) return 0;
+        if (namespacekey_compare(n, n2)) return 0;
         n = avltree_next(n);
         n2 = avltree_next(n2);
     }
     return n == n2;
 }
 
-static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
-    const struct pair_s *p;
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
+    const Namespace *v1 = (const Namespace *)o1;
+    const struct namespacekey_s *p;
     size_t i = 0, j, ln = 2, chars = 0;
-    value_t tmp = NULL, *vals;
-    value_t v;
+    Obj **vals;
+    Str *str;
+    Tuple *tuple = NULL;
     uint8_t *s;
 
-    if (v1->u.names.len) {
-        ln = v1->u.names.len;
-        tmp = val_alloc(TUPLE_OBJ);
-        tmp->u.list.data = vals = list_create_elements(tmp, ln);
+    if (v1->len) {
+        ln = v1->len;
+        tuple = new_tuple();
+        tuple->data = vals = list_create_elements(tuple, ln);
         ln += 1;
         if (ln < 1) err_msg_out_of_memory(); /* overflow */
-        if (v1->u.names.len) {
-            const struct avltree_node *n = avltree_first(&v1->u.names.members);
+        if (v1->len) {
+            const struct avltree_node *n = avltree_first(&v1->members);
             while (n) {
-                p = cavltree_container_of(n, struct pair_s, node);
-                v = p->key->obj->repr(p->key, epoint);
+                Obj *v;
+                p = cavltree_container_of(n, struct namespacekey_s, node);
+                v = ((Obj *)p->key)->obj->repr((Obj *)p->key, epoint);
                 if (!v || v->obj != STR_OBJ) {
-                    tmp->u.list.len = i;
-                    val_destroy(tmp);
+                    tuple->len = i;
+                    val_destroy(&tuple->v);
                     return v;
                 }
-                ln += v->u.str.len;
-                if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
-                vals[i++] = v;
+                str = (Str *)v;
+                ln += str->len;
+                if (ln < str->len) err_msg_out_of_memory(); /* overflow */
+                vals[i++] = &str->v;
                 n = avltree_next(n);
             }
         }
-        tmp->u.list.len = i;
+        tuple->len = i;
     }
-    v = val_alloc(STR_OBJ);
-    s = str_create_elements(v, ln);
+    str = new_str();
+    s = str_create_elements(str, ln);
     ln = 0;
     s[ln++] = '{';
     for (j = 0; j < i; j++) {
+        Str *str2 = (Str *)vals[j];
         if (j) s[ln++] = ',';
-        memcpy(s + ln, vals[j]->u.str.data, vals[j]->u.str.len);
-        ln += vals[j]->u.str.len;
-        chars += vals[j]->u.str.len - vals[j]->u.str.chars;
+        memcpy(s + ln, str2->data, str2->len);
+        ln += str2->len;
+        chars += str2->len - str2->chars;
     }
     s[ln++] = '}';
-    if (tmp) val_destroy(tmp);
-    v->u.str.data = s;
-    v->u.str.len = ln;
-    v->u.str.chars = ln - chars;
-    return v;
+    if (tuple) val_destroy(&tuple->v);
+    str->data = s;
+    str->len = ln;
+    str->chars = ln - chars;
+    return &str->v;
 }
 
-MUST_CHECK value_t namespace_member(oper_t op, value_t v1) {
-    value_t v2 = op->v2, v;
+MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
+    Obj *o2 = op->v2;
+    Error *err;
     if (op->op == &o_MEMBER) {
-        value_t l;
-        switch (v2->obj->type) {
+        Label *l;
+        switch (o2->obj->type) {
         case T_IDENT:
-            l = find_label2(&v2->u.ident.name, v1);
-            if (l) {
-                touch_label(l);
-                return val_reference(l->u.label.value);
-            }
-            if (!referenceit) {
-                return val_reference(none_value);
-            }
-            v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.ident.epoint);
-            v->u.error.u.notdef.names = val_reference(v1);
-            v->u.error.u.notdef.ident = v2->u.ident.name;
-            v->u.error.u.notdef.down = 0;
-            return v;
-        case T_ANONIDENT:
             {
-                ssize_t count;
-                l = find_anonlabel2(v2->u.anonident.count, v1);
+                Ident *v2 = (Ident *)o2;
+                l = find_label2(&v2->name, v1);
                 if (l) {
                     touch_label(l);
-                    return val_reference(l->u.label.value);
+                    return val_reference(l->value);
                 }
                 if (!referenceit) {
-                    return val_reference(none_value);
+                    return (Obj *)ref_none();
                 }
-                count = v2->u.anonident.count;
-                v = new_error_obj(ERROR___NOT_DEFINED, &v2->u.anonident.epoint);
-                v->u.error.u.notdef.names = val_reference(v1);
-                v->u.error.u.notdef.ident.len = count + (count >= 0);
-                v->u.error.u.notdef.ident.data = NULL;
-                v->u.error.u.notdef.down = 0;
-                return v;
+                err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
+                err->u.notdef.names = ref_namespace(v1);
+                err->u.notdef.ident = v2->name;
+                err->u.notdef.down = 0;
+                return &err->v;
+            }
+        case T_ANONIDENT:
+            {
+                Anonident *v2 = (Anonident *)o2;
+                ssize_t count;
+                l = find_anonlabel2(v2->count, v1);
+                if (l) {
+                    touch_label(l);
+                    return val_reference(l->value);
+                }
+                if (!referenceit) {
+                    return (Obj *)ref_none();
+                }
+                count = v2->count;
+                err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
+                err->u.notdef.names = ref_namespace(v1);
+                err->u.notdef.ident.len = count + (count >= 0);
+                err->u.notdef.ident.data = NULL;
+                err->u.notdef.down = 0;
+                return &err->v;
             }
         case T_TUPLE:
-        case T_LIST: return v2->obj->rcalc2(op);
-        default: return v2->obj->rcalc2(op);
+        case T_LIST: return o2->obj->rcalc2(op);
+        default: return o2->obj->rcalc2(op);
         }
     }
     return obj_oper_error(op);
 }
 
-MUST_CHECK value_t new_namespace(const struct file_list_s *file_list, linepos_t epoint) {
-    value_t val = val_alloc(NAMESPACE_OBJ);
-    avltree_init(&val->u.names.members);
-    val->u.names.file_list = file_list;
-    val->u.names.epoint = *epoint;
-    val->u.names.len = 0;
+MUST_CHECK Namespace *new_namespace(const struct file_list_s *file_list, linepos_t epoint) {
+    Namespace *val = (Namespace *)val_alloc(NAMESPACE_OBJ);
+    avltree_init(&val->members);
+    val->file_list = file_list;
+    val->epoint = *epoint;
+    val->len = 0;
     return val;
 }
 
 void namespaceobj_init(void) {
-    obj_init(&obj, T_NAMESPACE, "namespace");
+    static struct linepos_s nopoint;
+
+    obj_init(&obj, T_NAMESPACE, "namespace", sizeof(Namespace));
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;
     obj.repr = repr;
+
+    pair_oper.op = &o_CMP;
+    pair_oper.epoint = &nopoint;
+    pair_oper.epoint2 = &nopoint;
+    pair_oper.epoint3 = &nopoint;
 }

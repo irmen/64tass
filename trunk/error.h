@@ -20,6 +20,7 @@
 #define _ERROR_H_
 #include "inttypes.h"
 #include "libtree.h"
+#include "obj.h"
 
 struct file_s;
 
@@ -117,23 +118,62 @@ enum errors_e {
     ERROR_CANT_DUMP_LBL,
     ERROR_FILERECURSION,
     ERROR__MACRECURSION,
+    ERROR__FUNRECURSION,
     ERROR_TOO_MANY_PASS,
     ERROR_UNKNOWN_OPTIO
 };
 
+typedef uint32_t atype_t;
+typedef struct Namespace Namespace;
+typedef struct Register Register;
+
+typedef struct Error {
+    Obj v;
+    enum errors_e num;
+    struct linepos_s epoint;
+    union {
+        struct {
+            Oper *op;
+            Obj *v1;
+            Obj *v2;
+        } invoper;
+        struct {
+            str_t ident;
+            Namespace *names;
+            int down;
+        } notdef;
+        struct {
+            int bits;
+            Obj *val;
+        } intconv;
+        const char *objname;
+        atype_t addressing;
+        Register *reg;
+        size_t opers;
+        struct {
+            size_t v1;
+            size_t v2;
+        } broadcast;
+    } u;
+} Error;
+
+extern MUST_CHECK Error *new_error(enum errors_e, linepos_t);
+
+typedef struct Label Label;
+
 extern void err_msg(enum errors_e, const void *);
 extern void err_msg2(enum errors_e, const void *, linepos_t);
-extern void err_msg_wrong_type(const value_t, obj_t, linepos_t);
+extern void err_msg_wrong_type(const Obj *, obj_t, linepos_t);
 extern void err_msg_cant_calculate(const str_t *, linepos_t);
 extern void err_msg_still_none(const str_t *, linepos_t);
-extern void err_msg_invalid_oper(const value_t, const value_t, const value_t, linepos_t);
-extern void err_msg_double_defined(value_t, const str_t *, linepos_t);
-extern void err_msg_shadow_defined(value_t, value_t);
+extern void err_msg_invalid_oper(const Oper *, const Obj *, const Obj *, linepos_t);
+extern void err_msg_double_defined(Label *, const str_t *, linepos_t);
+extern void err_msg_shadow_defined(Label *, Label *);
 extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_not_definedx(const str_t *, linepos_t);
 extern void err_msg_file(enum errors_e, const char *, linepos_t);
-extern void err_msg_output(const value_t);
-extern void err_msg_output_and_destroy(value_t);
+extern void err_msg_output(const Error *);
+extern void err_msg_output_and_destroy(Error *);
 extern void err_msg_argnum(unsigned int, unsigned int, unsigned int, linepos_t);
 extern void error_reset(void);
 extern int error_print(int, int, int);
@@ -145,6 +185,5 @@ extern void NO_RETURN err_msg_out_of_memory(void);
 extern void error_status(void);
 extern int error_serious(int, int);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t);
-extern MUST_CHECK value_t new_error_obj(enum errors_e, linepos_t);
 
 #endif

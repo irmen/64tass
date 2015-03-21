@@ -33,6 +33,7 @@
 #include "variables.h"
 #include "ternary.h"
 #include "unicode.h"
+#include "error.h"
 
 #include "codeobj.h"
 
@@ -144,6 +145,7 @@ void tfree(void) {
     destroy_file();
     err_destroy();
     destroy_encoding();
+    objects_destroy();
     destroy_values();
     destroy_ternary();
     unfc(NULL);

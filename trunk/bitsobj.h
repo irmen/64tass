@@ -18,26 +18,44 @@
 */
 #ifndef _BITSOBJ_H
 #define _BITSOBJ_H
+#include "obj.h"
 
 extern obj_t BITS_OBJ;
 
-typedef digit_t bdigit_t;
-typedef struct {
+typedef uint32_t bdigit_t;
+typedef struct Bits {
+    Obj v;
     ssize_t len;
     size_t bits;
-    bdigit_t val[4];
+    bdigit_t val[3];
     bdigit_t *data;
-} bits_t;
+} Bits;
 
-extern MUST_CHECK value_t bits_from_hexstr(const uint8_t *, size_t *);
-extern MUST_CHECK value_t bits_from_binstr(const uint8_t *, size_t *);
-extern MUST_CHECK value_t bits_from_str(const value_t, linepos_t);
-extern MUST_CHECK value_t bits_from_bytes(const value_t);
-extern MUST_CHECK value_t bits_from_uval(uval_t, int);
-extern MUST_CHECK value_t ibits_from_bool(int);
-extern MUST_CHECK value_t bits_from_bool(int);
-extern MUST_CHECK value_t bits_from_bools(int, int);
-extern MUST_CHECK value_t float_from_bits(const value_t, linepos_t);
+extern Bits *null_bits;
+extern Bits *inv_bits;
+extern Bits *bits_value[2];
 
 extern void bitsobj_init(void);
+extern void bitsobj_destroy(void);
+
+typedef struct Str Str;
+typedef struct Bytes Bytes;
+
+static inline Bits *ref_bits(Bits *v1) {
+    v1->v.refcount++; return v1;
+}
+
+static inline MUST_CHECK Bits *new_bits(void) {
+    return (Bits *)val_alloc(BITS_OBJ);
+}
+
+extern MUST_CHECK Bits *bits_from_hexstr(const uint8_t *, size_t *);
+extern MUST_CHECK Bits *bits_from_binstr(const uint8_t *, size_t *);
+extern MUST_CHECK Obj *bits_from_str(const Str *, linepos_t);
+extern MUST_CHECK Bits *bits_from_bytes(const Bytes *);
+extern MUST_CHECK Bits *bits_from_uval(uval_t, int);
+extern MUST_CHECK Bits *ibits_from_bool(int);
+extern MUST_CHECK Bits *bits_from_bools(int, int);
+extern MUST_CHECK Obj *float_from_bits(const Bits *, linepos_t);
+
 #endif

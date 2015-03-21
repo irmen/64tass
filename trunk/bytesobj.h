@@ -18,14 +18,22 @@
 */
 #ifndef _BYTESOBJ_H
 #define _BYTESOBJ_H
+#include "obj.h"
 
 extern obj_t BYTES_OBJ;
 
-typedef struct {
+typedef struct Bytes {
+    Obj v;
     ssize_t len;
     uint8_t *data;
-    uint8_t val[20];
-} bytes_t;
+    uint8_t val[16];
+} Bytes;
+
+extern Bytes *null_bytes;
+extern Bytes *inv_bytes;
+
+extern void bytesobj_init(void);
+extern void bytesobj_destroy(void);
 
 enum bytes_mode_e {
     BYTES_MODE_TEXT,
@@ -37,11 +45,19 @@ enum bytes_mode_e {
     BYTES_MODE_PTEXT
 };
 
-extern void bytesobj_init(void);
+static inline Bytes *ref_bytes(Bytes *v1) {
+    v1->v.refcount++; return v1;
+}
 
-extern MUST_CHECK value_t bytes_from_u8(uint8_t);
-extern MUST_CHECK value_t bytes_from_u16(uint16_t);
-extern MUST_CHECK value_t bytes_from_uval(uval_t, int);
-extern MUST_CHECK value_t bytes_from_str(const value_t, linepos_t, enum bytes_mode_e);
-extern MUST_CHECK value_t float_from_bytes(const value_t, linepos_t);
+static inline MUST_CHECK Bytes *new_bytes(void) {
+    return (Bytes *)val_alloc(BYTES_OBJ);
+}
+
+typedef struct Str Str;
+
+extern MUST_CHECK Bytes *bytes_from_u8(uint8_t);
+extern MUST_CHECK Bytes *bytes_from_u16(uint16_t);
+extern MUST_CHECK Bytes *bytes_from_uval(uval_t, int);
+extern MUST_CHECK Obj *bytes_from_str(const Str *, linepos_t, enum bytes_mode_e);
+extern MUST_CHECK Obj *float_from_bytes(const Bytes *, linepos_t);
 #endif

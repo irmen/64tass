@@ -18,6 +18,9 @@
 */
 #ifndef _CODEOBJ_H
 #define _CODEOBJ_H
+#include "obj.h"
+
+extern obj_t CODE_OBJ;
 
 enum dtype_e {
     D_DINT = -4,
@@ -31,26 +34,32 @@ enum dtype_e {
     D_DWORD = 4
 };
 
-extern obj_t CODE_OBJ;
+typedef struct Namespace Namespace;
 
-typedef struct {
+typedef struct Code {
+    Obj v;
     size_t size;
     uint8_t pass;
     uint8_t apass;
     signed char dtype;
-    value_t addr;
+    Obj *addr;
     const struct memblocks_s *mem;
     size_t memp;
     size_t membp;
-    value_t names;
+    Namespace *names;
     uval_t requires;
     uval_t conflicts;
-} code_t;
+} Code;
 
 extern void codeobj_init(void);
-extern MUST_CHECK value_t int_from_code(value_t, linepos_t);
-extern MUST_CHECK value_t float_from_code(value_t, linepos_t);
-extern MUST_CHECK value_t bits_from_code(value_t, linepos_t);
-extern MUST_CHECK value_t bytes_from_code(value_t, linepos_t);
-extern MUST_CHECK value_t tuple_from_code(const value_t, obj_t, linepos_t);
+
+static inline MUST_CHECK Code *new_code(void) {
+    return (Code *)val_alloc(CODE_OBJ);
+}
+
+extern MUST_CHECK Obj *int_from_code(Code *, linepos_t);
+extern MUST_CHECK Obj *float_from_code(Code *, linepos_t);
+extern MUST_CHECK Obj *bits_from_code(Code *, linepos_t);
+extern MUST_CHECK Obj *bytes_from_code(Code *, linepos_t);
+extern MUST_CHECK Obj *tuple_from_code(const Code *, obj_t, linepos_t);
 #endif

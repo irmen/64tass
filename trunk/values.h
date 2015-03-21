@@ -20,22 +20,8 @@
 #define _VALUES_H_
 #include <stdio.h>
 #include "inttypes.h"
-#include "error.h"
-#include "obj.h"
-#include "intobj.h"
-#include "bitsobj.h"
-#include "bytesobj.h"
-#include "strobj.h"
-#include "registerobj.h"
-#include "listobj.h"
-#include "codeobj.h"
-#include "addressobj.h"
-#include "functionobj.h"
-#include "dictobj.h"
-#include "namespaceobj.h"
-#include "variables.h"
 
-struct memblocks_s;
+typedef struct Oper Oper;
 
 enum oper_e {
     O_FUNC,          /* a(    */
@@ -107,204 +93,84 @@ enum oper_e {
 };
 
 struct oper_s {
-    value_t op;
-    value_t v1;
-    value_t v2;
+    Oper *op;
+    Obj *v1;
+    Obj *v2;
     linepos_t epoint;
     linepos_t epoint2;
     linepos_t epoint3;
 };
 typedef struct oper_s *oper_t;
 
-struct value_s {
-    obj_t obj;
-    size_t refcount;
-    union {
-        integer_t integer;
-        addrs_t addr;
-        ustr_t str;
-        ureg_t reg;
-        bytes_t bytes;
-        bits_t bits;
-        code_t code;
-        list_t list;
-        dict_t dict;
-        namespace_t names;
-        mfunc_t mfunc;
-        macro_t macro;
-        struct_t structure;
-        label_t label;
-        struct {
-            line_t sline;
-            size_t waitforp;
-            const struct file_list_s *file_list;
-            value_t parent;
-        } lbl;
-        struct {
-            const char *name;
-            enum oper_e op;
-            int prio;
-        } oper;
-        struct {
-            enum errors_e num;
-            struct linepos_s epoint;
-            union {
-                struct {
-                    value_t op;
-                    value_t v1;
-                    value_t v2;
-                } invoper;
-                struct {
-                    str_t ident;
-                    value_t names;
-                    int down;
-                } notdef;
-                struct {
-                    int bits;
-                    value_t val;
-                } intconv;
-                const char *objname;
-                atype_t addressing;
-                value_t reg;
-                size_t opers;
-                struct {
-                    size_t v1;
-                    size_t v2;
-                } broadcast;
-            } u;
-        } error;
-        struct {
-            str_t name;
-            struct linepos_s epoint;
-        } ident;
-        struct {
-            int32_t count;
-            struct linepos_s epoint;
-        } anonident;
-        struct {
-            void *iter;
-            size_t val;
-            value_t data;
-        } iter;
-        struct {
-            size_t len;
-            struct values_s *val;
-        } funcargs;
-        double real;
-        int boolean;
-        function_t function;
-        obj_t type;
-    } u;
-};
+extern Obj *val_alloc(obj_t);
+extern void val_destroy(Obj *);
+extern void val_replace(Obj **, Obj *);
+extern int val_print(Obj *, FILE *);
 
-extern value_t val_alloc(obj_t);
-extern void val_destroy(value_t);
-extern void val_replace(value_t *, value_t);
-extern int val_print(const value_t, FILE *);
-
-extern value_t int_value[2];
-extern value_t none_value;
-extern value_t true_value;
-extern value_t false_value;
-extern value_t gap_value;
-extern value_t default_value;
-extern value_t null_str;
-extern value_t null_bytes;
-extern value_t inv_bytes;
-extern value_t null_bits;
-extern value_t inv_bits;
-extern value_t null_tuple;
-extern value_t null_list;
-extern value_t null_addrlist;
-
-extern struct value_s o_TUPLE;
-extern struct value_s o_LIST;
-extern struct value_s o_DICT;
-extern struct value_s o_RPARENT;
-extern struct value_s o_RBRACKET;
-extern struct value_s o_RBRACE;
-extern struct value_s o_FUNC;
-extern struct value_s o_INDEX;
-extern struct value_s o_BRACE;
-extern struct value_s o_BRACKET;
-extern struct value_s o_PARENT;
-extern struct value_s o_COMMA;
-extern struct value_s o_QUEST;
-extern struct value_s o_COLON;
-extern struct value_s o_COND;
-extern struct value_s o_COLON2;
-extern struct value_s o_HASH;
-extern struct value_s o_COMMAX;
-extern struct value_s o_COMMAY;
-extern struct value_s o_COMMAZ;
-extern struct value_s o_COMMAS;
-extern struct value_s o_COMMAR;
-extern struct value_s o_COMMAD;
-extern struct value_s o_COMMAB;
-extern struct value_s o_COMMAK;
-extern struct value_s o_WORD;
-extern struct value_s o_HWORD;
-extern struct value_s o_BSWORD;
-extern struct value_s o_LOWER;
-extern struct value_s o_HIGHER;
-extern struct value_s o_BANK;
-extern struct value_s o_STRING;
-extern struct value_s o_LOR;
-extern struct value_s o_LXOR;
-extern struct value_s o_LAND;
-extern struct value_s o_IN;
-extern struct value_s o_CMP;
-extern struct value_s o_EQ;
-extern struct value_s o_NE;
-extern struct value_s o_LT;
-extern struct value_s o_GT;
-extern struct value_s o_GE;
-extern struct value_s o_LE;
-extern struct value_s o_OR;
-extern struct value_s o_XOR;
-extern struct value_s o_AND;
-extern struct value_s o_LSHIFT;
-extern struct value_s o_RSHIFT;
-extern struct value_s o_ADD;
-extern struct value_s o_SUB;
-extern struct value_s o_MUL;
-extern struct value_s o_DIV;
-extern struct value_s o_MOD;
-extern struct value_s o_EXP;
-extern struct value_s o_SPLAT;
-extern struct value_s o_NEG;
-extern struct value_s o_POS;
-extern struct value_s o_INV;
-extern struct value_s o_LNOT;
-extern struct value_s o_CONCAT;
-extern struct value_s o_X;
-extern struct value_s o_MEMBER;
+extern Oper o_TUPLE;
+extern Oper o_LIST;
+extern Oper o_DICT;
+extern Oper o_RPARENT;
+extern Oper o_RBRACKET;
+extern Oper o_RBRACE;
+extern Oper o_FUNC;
+extern Oper o_INDEX;
+extern Oper o_BRACE;
+extern Oper o_BRACKET;
+extern Oper o_PARENT;
+extern Oper o_COMMA;
+extern Oper o_QUEST;
+extern Oper o_COLON;
+extern Oper o_COND;
+extern Oper o_COLON2;
+extern Oper o_HASH;
+extern Oper o_COMMAX;
+extern Oper o_COMMAY;
+extern Oper o_COMMAZ;
+extern Oper o_COMMAS;
+extern Oper o_COMMAR;
+extern Oper o_COMMAD;
+extern Oper o_COMMAB;
+extern Oper o_COMMAK;
+extern Oper o_WORD;
+extern Oper o_HWORD;
+extern Oper o_BSWORD;
+extern Oper o_LOWER;
+extern Oper o_HIGHER;
+extern Oper o_BANK;
+extern Oper o_STRING;
+extern Oper o_LOR;
+extern Oper o_LXOR;
+extern Oper o_LAND;
+extern Oper o_IN;
+extern Oper o_CMP;
+extern Oper o_EQ;
+extern Oper o_NE;
+extern Oper o_LT;
+extern Oper o_GT;
+extern Oper o_GE;
+extern Oper o_LE;
+extern Oper o_OR;
+extern Oper o_XOR;
+extern Oper o_AND;
+extern Oper o_LSHIFT;
+extern Oper o_RSHIFT;
+extern Oper o_ADD;
+extern Oper o_SUB;
+extern Oper o_MUL;
+extern Oper o_DIV;
+extern Oper o_MOD;
+extern Oper o_EXP;
+extern Oper o_SPLAT;
+extern Oper o_NEG;
+extern Oper o_POS;
+extern Oper o_INV;
+extern Oper o_LNOT;
+extern Oper o_CONCAT;
+extern Oper o_X;
+extern Oper o_MEMBER;
 
 extern void destroy_values(void);
 extern void init_values(void);
 extern void garbage_collect(void);
-
-static inline void obj_destroy(value_t v1) {
-    v1->obj->destroy(v1);
-}
-
-static inline int obj_same(const value_t v1, const value_t v2) {
-    return v1->obj->same(v1, v2);
-}
-
-static inline MUST_CHECK value_t obj_hash(const value_t v1, int *hs, linepos_t epoint) {
-    return v1->obj->hash(v1, hs, epoint);
-}
-
-static inline value_t val_reference(value_t v1) {
-    v1->refcount++; return v1;
-}
-
-static inline MUST_CHECK value_t truth_reference(int i) {
-    return val_reference(i ? true_value : false_value);
-}
-
-static inline value_t obj_next(value_t v1) {
-    return v1->obj->next(v1);
-}
 #endif

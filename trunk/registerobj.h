@@ -18,15 +18,25 @@
 */
 #ifndef _REGISTEROBJ_H
 #define _REGISTEROBJ_H
+#include "obj.h"
 
 extern obj_t REGISTER_OBJ;
 
-typedef struct {
+typedef struct Register {
+    Obj v;
     size_t len;
     size_t chars;
     uint8_t *data;
-    uint8_t val[16];
-} ureg_t;
+    uint8_t val[4];
+} Register;
 
 extern void registerobj_init(void);
+
+static inline Register *ref_register(Register *v1) {
+    v1->v.refcount++; return v1;
+}
+
+static inline MUST_CHECK Register *new_register(void) {
+    return (Register *)val_alloc(REGISTER_OBJ);
+}
 #endif

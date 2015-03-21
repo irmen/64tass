@@ -18,27 +18,47 @@
 */
 #ifndef _INTOBJ_H
 #define _INTOBJ_H
+#include "obj.h"
 
 extern obj_t INT_OBJ;
+extern Int *int_value[2];
+extern Int *minus1_value;
 
 typedef uint32_t digit_t;
 typedef uint64_t twodigits_t;
-typedef struct {
+
+typedef struct Int {
+    Obj v;
     ssize_t len;
-    digit_t val[5];
+    digit_t val[2];
     digit_t *data;
-} integer_t;
+} Int;
 
 extern void intobj_init(void);
-extern MUST_CHECK value_t int_from_int(int);
-extern MUST_CHECK value_t int_from_size(size_t);
-extern MUST_CHECK value_t int_from_uval(uval_t);
-extern MUST_CHECK value_t int_from_ival(ival_t);
-extern MUST_CHECK value_t int_from_str(const value_t, linepos_t);
-extern MUST_CHECK value_t int_from_bytes(const value_t);
-extern MUST_CHECK value_t int_from_bits(const value_t);
-extern MUST_CHECK value_t int_from_decstr(const uint8_t *, size_t *);
-extern MUST_CHECK value_t int_from_float(const value_t);
-extern MUST_CHECK value_t float_from_int(const value_t, linepos_t);
+extern void intobj_destroy(void);
+
+static inline Int *ref_int(Int *v1) {
+    v1->v.refcount++; return v1;
+}
+
+static inline MUST_CHECK Int *new_int(void) {
+    return (Int *)val_alloc(INT_OBJ);
+}
+
+typedef struct Str Str;
+typedef struct Bytes Bytes;
+typedef struct Bits Bits;
+typedef struct Float Float;
+
+extern MUST_CHECK Int *int_from_int(int);
+extern MUST_CHECK Int *int_from_size(size_t);
+extern MUST_CHECK Int *int_from_uval(uval_t);
+extern MUST_CHECK Int *int_from_ival(ival_t);
+extern MUST_CHECK Obj *int_from_str(const Str *, linepos_t);
+extern MUST_CHECK Int *int_from_bytes(const Bytes *);
+extern MUST_CHECK Int *int_from_bits(const Bits *);
+extern MUST_CHECK Int *int_from_decstr(const uint8_t *, size_t *);
+extern MUST_CHECK Int *int_from_float(const Float *);
+extern MUST_CHECK Obj *float_from_int(const Int *, linepos_t);
 
 #endif

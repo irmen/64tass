@@ -19,7 +19,8 @@
 #ifndef _ISNPRINTF_H_
 #define _ISNPRINTF_H_
 #include "inttypes.h"
-struct values_s;
 
-extern MUST_CHECK value_t isnprintf(value_t, linepos_t);
+typedef struct Funcargs Funcargs;
+
+extern MUST_CHECK Obj *isnprintf(Funcargs *, linepos_t);
 #endif

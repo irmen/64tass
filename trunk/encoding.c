@@ -21,9 +21,10 @@
 #include "string.h"
 #include "ternary.h"
 #include "misc.h"
-#include "values.h"
 #include "64tass.h"
 #include "unicode.h"
+#include "strobj.h"
+#include "bytesobj.h"
 
 struct encoding_s *actual_encoding;
 
@@ -585,10 +586,11 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
 }
 
 static struct escape_s *lastes = NULL;
-int new_escape(const value_t v, value_t val, struct encoding_s *enc, linepos_t epoint)
+int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
 {
     struct escape_s *b, tmp;
-    value_t iter, val2, err;
+    Obj *val2;
+    Iter *iter;
     uval_t uval;
     size_t i, len;
     uint8_t *odata = NULL, *d;
@@ -598,7 +600,7 @@ int new_escape(const value_t v, value_t val, struct encoding_s *enc, linepos_t e
         lastes = (struct escape_s *)malloc(sizeof(struct escape_s));
         if (!lastes) err_msg_out_of_memory();
     }
-    b = (struct escape_s *)ternary_insert(&enc->escape, v->u.str.data, v->u.str.data + v->u.str.len, lastes, 0);
+    b = (struct escape_s *)ternary_insert(&enc->escape, v->data, v->data + v->len, lastes, 0);
     if (!b) err_msg_out_of_memory();
     foundold = (b != lastes);
     if (foundold) {
@@ -612,22 +614,15 @@ int new_escape(const value_t v, value_t val, struct encoding_s *enc, linepos_t e
     d = tmp.val;
 
     if (val->obj == STR_OBJ) {
-        value_t tmp2 = bytes_from_str(val, epoint, BYTES_MODE_TEXT);
+        Obj *tmp2 = bytes_from_str((Str *)val, epoint, BYTES_MODE_TEXT);
         iter = tmp2->obj->getiter(tmp2);
         val_destroy(tmp2);
     } else iter = val->obj->getiter(val);
 
     while ((val2 = obj_next(iter))) {
-        switch (val2->obj->type) {
-        default:
-            err = val2->obj->uval(val2, &uval, 8, epoint);
-            if (err) {
-                err_msg_output_and_destroy(err);
-                uval = 0;
-            }
-            break;
-        case T_NONE:
-            err_msg_still_none(NULL, epoint);
+        Error *err = val2->obj->uval(val2, &uval, 8, epoint);
+        if (err) {
+            err_msg_output_and_destroy(err);
             uval = 0;
         }
         if (i >= len) {
@@ -645,7 +640,7 @@ int new_escape(const value_t v, value_t val, struct encoding_s *enc, linepos_t e
         d[i++] = (uint8_t)uval;
         val_destroy(val2);
     }
-    val_destroy(iter);
+    val_destroy(&iter->v);
 
     if (!foundold) { /* new escape */
         if (d == tmp.val) {
@@ -655,7 +650,7 @@ int new_escape(const value_t v, value_t val, struct encoding_s *enc, linepos_t e
             d = (uint8_t *)realloc(d, i);
             if (!d) err_msg_out_of_memory();
         }
-        lastes->strlen = v->u.str.len;
+        lastes->strlen = v->len;
         lastes->len = i;
         lastes->data = d; /* unlock new */
         lastes = NULL;
@@ -668,23 +663,24 @@ int new_escape(const value_t v, value_t val, struct encoding_s *enc, linepos_t e
 }
 
 static void add_esc(const char *s, struct encoding_s *enc) {
-    value_t tmp, tmp2;
+    Str *tmp;
+    Bytes *tmp2;
     struct linepos_s nopoint = {0, 0};
-    tmp = val_alloc(STR_OBJ);
-    tmp2 = val_alloc(BYTES_OBJ);
-    tmp2->u.bytes.len = 1;
-    tmp2->u.bytes.data = tmp2->u.bytes.val;
+    tmp = new_str();
+    tmp2 = new_bytes();
+    tmp2->len = 1;
+    tmp2->data = tmp2->val;
     while (s[1]) {
-        tmp->u.str.data = (uint8_t *)s + 1;
-        tmp->u.str.len = strlen(s + 1);
-        tmp->u.str.chars = tmp->u.str.len;
-        tmp2->u.bytes.val[0] = (uint8_t)s[0];
-        new_escape(tmp, tmp2, enc, &nopoint);
-        s += tmp->u.str.len + 2;
+        tmp->data = (uint8_t *)s + 1;
+        tmp->len = strlen(s + 1);
+        tmp->chars = tmp->len;
+        tmp2->val[0] = (uint8_t)s[0];
+        new_escape(tmp, (Obj *)tmp2, enc, &nopoint);
+        s += tmp->len + 2;
     }
-    val_destroy(tmp2);
-    tmp->u.str.data = tmp->u.str.val;
-    val_destroy(tmp);
+    val_destroy(&tmp2->v);
+    tmp->data = tmp->val;
+    val_destroy(&tmp->v);
 }
 
 static void add_trans(struct trans2_s *t, int max, struct encoding_s *tmp) {
@@ -706,12 +702,12 @@ static struct {
     char mode;
 } encode_state;
 
-void encode_string_init(const value_t v, linepos_t epoint) {
+void encode_string_init(const Str *v, linepos_t epoint) {
     encode_state.i = 0;
     encode_state.j = 0;
     encode_state.len2 = 0;
-    encode_state.len = v->u.str.len;
-    encode_state.data = v->u.str.data;
+    encode_state.len = v->len;
+    encode_state.data = v->data;
     encode_state.epoint = epoint;
     encode_state.err = 0;
 }

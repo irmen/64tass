@@ -38,7 +38,7 @@ char *my_optarg=0;
 /* if you're porting some piece of UNIX software, this is all you need. */
 /* this supports GNU-style permution and optional arguments */
 
-int my_getopt(int argc, char * argv[], const char *opts)
+int my_getopt(int argc, char *argv[], const char *opts)
 {
   static int charind=0;
   const char *s;
@@ -135,7 +135,7 @@ int my_getopt(int argc, char * argv[], const char *opts)
  * expecting GNU libc getopt call it.
  */
 
-int _my_getopt_internal(int argc, char * argv[], const char *shortopts,
+int _my_getopt_internal(int argc, char *argv[], const char *shortopts,
                      const struct option *longopts, int *longind,
                      int long_only)
 {
@@ -265,13 +265,13 @@ int _my_getopt_internal(int argc, char * argv[], const char *shortopts,
   return opt;
 }
 
-int my_getopt_long(int argc, char * argv[], const char *shortopts,
+int my_getopt_long(int argc, char *argv[], const char *shortopts,
                 const struct option *longopts, int *longind)
 {
   return _my_getopt_internal(argc, argv, shortopts, longopts, longind, 0);
 }
 
-int my_getopt_long_only(int argc, char * argv[], const char *shortopts,
+int my_getopt_long_only(int argc, char *argv[], const char *shortopts,
                 const struct option *longopts, int *longind)
 {
   return _my_getopt_internal(argc, argv, shortopts, longopts, longind, 1);

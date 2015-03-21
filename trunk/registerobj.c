@@ -17,60 +17,69 @@
 
 */
 #include <string.h>
-#include "values.h"
+#include "obj.h"
 #include "registerobj.h"
+#include "error.h"
 
 #include "boolobj.h"
+#include "strobj.h"
+#include "intobj.h"
 
 static struct obj_s register_obj;
 
 obj_t REGISTER_OBJ = &register_obj;
 
-static void destroy(value_t v1) {
-    if (v1->u.reg.val != v1->u.reg.data) free(v1->u.reg.data);
+static void destroy(Obj *o1) {
+    Register *v1 = (Register *)o1;
+    if (v1->val != v1->data) free(v1->data);
 }
 
-static uint8_t *rnew(value_t v, size_t len) {
-    if (len > sizeof(v->u.reg.val)) {
+static uint8_t *rnew(Register *v, size_t len) {
+    if (len > sizeof(v->val)) {
         uint8_t *s = (uint8_t *)malloc(len);
         if (!s) err_msg_out_of_memory();
         return s;
     }
-    return v->u.reg.val;
+    return v->val;
 }
 
-static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+static MUST_CHECK Obj *create(Obj *o1, linepos_t epoint) {
     uint8_t *s;
-    value_t v;
-    switch (v1->obj->type) {
+    switch (o1->obj->type) {
     case T_NONE:
     case T_ERROR:
-    case T_REGISTER: return val_reference(v1);
+    case T_REGISTER: 
+        return val_reference(o1);
     case T_STR:
-        v = val_alloc(REGISTER_OBJ);
-        v->u.reg.chars = v1->u.str.chars;
-        v->u.reg.len = v1->u.str.len;
-        if (v1->u.str.len) {
-            s = rnew(v, v->u.reg.len);
-            memcpy(s, v1->u.str.data, v->u.reg.len);
-        } else s = NULL;
-        v->u.reg.data = s;
-        return v;
+        {
+            Str *v1 = (Str *)o1;
+            Register *v = new_register();
+            v->chars = v1->chars;
+            v->len = v1->len;
+            if (v1->len) {
+                s = rnew(v, v->len);
+                memcpy(s, v1->data, v->len);
+            } else s = NULL;
+            v->data = s;
+            return &v->v;
+        }
     default: break;
     }
-    err_msg_wrong_type(v1, STR_OBJ, epoint);
-    return val_reference(none_value);
+    err_msg_wrong_type(o1, STR_OBJ, epoint);
+    return (Obj *)ref_none();
 }
 
-static int same(const value_t v1, const value_t v2) {
-    return v1->obj == REGISTER_OBJ && v1->u.reg.len == v2->u.reg.len && (
-            v1->u.reg.data == v2->u.reg.data ||
-            !memcmp(v1->u.reg.data, v2->u.reg.data, v2->u.reg.len));
+static int same(const Obj *o1, const Obj *o2) {
+    const Register *v1 = (const Register *)o1, *v2 = (const Register *)o2;
+    return o1->obj == REGISTER_OBJ && v1->len == v2->len && (
+            v1->data == v2->data ||
+            !memcmp(v1->data, v2->data, v2->len));
 }
 
-static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
-    size_t l = v1->u.reg.len;
-    const uint8_t *s2 = v1->u.reg.data;
+static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
+    Register *v1 = (Register *)o1;
+    size_t l = v1->len;
+    const uint8_t *s2 = v1->data;
     unsigned int h;
     if (!l) {
         *hs = 0;
@@ -78,19 +87,20 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoin
     }
     h = *s2 << 7;
     while (l--) h = (1000003 * h) ^ *s2++;
-    h ^= v1->u.reg.len;
+    h ^= v1->len;
     *hs = h & ((~(unsigned int)0) >> 1);
     return NULL;
 }
 
-static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
+    Register *v1 = (Register *)o1;
     size_t i2, i;
     uint8_t *s, *s2;
     char q;
     const char *prefix = "register(";
     size_t ln = strlen(prefix) + 3;
-    value_t v = val_alloc(STR_OBJ);
-    i = str_quoting(v1, &q);
+    Str *v = new_str();
+    i = str_quoting(v1->data, v1->len, &q);
 
     i2 = i + ln;
     if (i2 < ln) err_msg_out_of_memory(); /* overflow */
@@ -98,34 +108,34 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
 
     while (*prefix) *s++ = *prefix++;
     *s++ = q;
-    for (i = 0; i < v1->u.reg.len; i++) {
-        s[i] = v1->u.reg.data[i];
+    for (i = 0; i < v1->len; i++) {
+        s[i] = v1->data[i];
         if (s[i] == q) {
             s++; s[i] = q;
         }
     }
     s[i] = q;
     s[i+1] = ')';
-    v->u.str.data = s2;
-    v->u.str.len = i2;
-    v->u.str.chars = i2 - (i - v1->u.reg.chars);
-    return v;
+    v->data = s2;
+    v->len = i2;
+    v->chars = i2 - (i - v1->chars);
+    return &v->v;
 }
 
-static int rcmp(value_t v1, value_t v2) {
-    int h = memcmp(v1->u.reg.data, v2->u.reg.data, (v1->u.reg.len < v2->u.reg.len) ? v1->u.reg.len : v2->u.reg.len);
+static int rcmp(Register *v1, Register *v2) {
+    int h = memcmp(v1->data, v2->data, (v1->len < v2->len) ? v1->len : v2->len);
     if (h) return h;
-    return (v1->u.reg.len > v2->u.reg.len) - (v1->u.reg.len < v2->u.reg.len);
+    return (v1->len > v2->len) - (v1->len < v2->len);
 }
 
-static MUST_CHECK value_t calc2_register(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
+static MUST_CHECK Obj *calc2_register(oper_t op) {
+    Register *v1 = (Register *)op->v1, *v2 = (Register *)op->v2;
     int val;
-    switch (op->op->u.oper.op) {
+    switch (op->op->op) {
     case O_CMP:
         val = rcmp(v1, v2);
-        if (val < 0) return int_from_int(-1);
-        return val_reference(int_value[val > 0]);
+        if (val < 0) return (Obj *)ref_int(minus1_value);
+        return (Obj *)ref_int(int_value[val > 0]);
     case O_EQ: return truth_reference(rcmp(v1, v2) == 0);
     case O_NE: return truth_reference(rcmp(v1, v2) != 0);
     case O_LT: return truth_reference(rcmp(v1, v2) < 0);
@@ -137,8 +147,8 @@ static MUST_CHECK value_t calc2_register(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK value_t calc2(oper_t op) {
-    value_t v2 = op->v2;
+static MUST_CHECK Obj *calc2(oper_t op) {
+    Obj *v2 = op->v2;
     switch (v2->obj->type) {
     case T_REGISTER: return calc2_register(op);
     case T_NONE:
@@ -154,8 +164,8 @@ static MUST_CHECK value_t calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK value_t rcalc2(oper_t op) {
-    value_t v1 = op->v1;
+static MUST_CHECK Obj *rcalc2(oper_t op) {
+    Obj *v1 = op->v1;
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
@@ -170,7 +180,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void registerobj_init(void) {
-    obj_init(&register_obj, T_REGISTER, "register");
+    obj_init(&register_obj, T_REGISTER, "register", sizeof(Register));
     register_obj.create = create;
     register_obj.destroy = destroy;
     register_obj.same = same;

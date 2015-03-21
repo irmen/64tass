@@ -17,9 +17,14 @@
 
 */
 #include <string.h>
-#include "values.h"
 #include "dictobj.h"
 #include "eval.h"
+#include "error.h"
+
+#include "intobj.h"
+#include "listobj.h"
+#include "strobj.h"
+#include "boolobj.h"
 
 static struct obj_s obj;
 
@@ -49,7 +54,7 @@ static void dict_garbage1(struct avltree_node *aa)
 static void dict_garbage2(struct avltree_node *aa)
 {
     struct pair_s *a = avltree_container_of(aa, struct pair_s, node);
-    value_t v;
+    Obj *v;
     v = a->data;
     if (v) {
         if (v->refcount & SIZE_MSB) {
@@ -64,7 +69,7 @@ static void dict_garbage2(struct avltree_node *aa)
     } else v->refcount++;
 }
 
-static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
@@ -72,28 +77,30 @@ static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);
-    return val_reference(none_value);
+    return (Obj *)ref_none();
 }
 
-static void destroy(value_t v1) {
-    avltree_destroy(&v1->u.dict.members, dict_free);
-    if (v1->u.dict.def) val_destroy(v1->u.dict.def);
+static void destroy(Obj *o1) {
+    Dict *v1 = (Dict *)o1;
+    avltree_destroy(&v1->members, dict_free);
+    if (v1->def) val_destroy(v1->def);
 }
 
-static void garbage(value_t v1, int i) {
-    value_t v;
+static void garbage(Obj *o1, int i) {
+    Dict *v1 = (Dict *)o1;
+    Obj *v;
     switch (i) {
     case -1:
-        avltree_destroy(&v1->u.dict.members, dict_garbage1);
-        v = v1->u.dict.def;
+        avltree_destroy(&v1->members, dict_garbage1);
+        v = v1->def;
         if (v) v->refcount--;
         return;
     case 0:
-        avltree_destroy(&v1->u.dict.members, dict_free2);
+        avltree_destroy(&v1->members, dict_free2);
         return;
     case 1:
-        avltree_destroy(&v1->u.dict.members, dict_garbage2);
-        v = v1->u.dict.def;
+        avltree_destroy(&v1->members, dict_garbage2);
+        v = v1->def;
         if (!v) return;
         if (v->refcount & SIZE_MSB) {
             v->refcount -= SIZE_MSB - 1;
@@ -103,14 +110,15 @@ static void garbage(value_t v1, int i) {
     }
 }
 
-static int same(const value_t v1, const value_t v2) {
+static int same(const Obj *o1, const Obj *o2) {
+    const Dict *v1 = (const Dict *)o1, *v2 = (const Dict *)o2;
     const struct avltree_node *n;
     const struct avltree_node *n2;
-    if (v2->obj != DICT_OBJ || v1->u.dict.len != v2->u.dict.len) return 0;
-    if (!v1->u.dict.def ^ !v2->u.dict.def) return 0;
-    if (v1->u.dict.def && v2->u.dict.def && !obj_same(v1->u.dict.def, v2->u.dict.def)) return 0;
-    n = avltree_first(&v1->u.dict.members);
-    n2 = avltree_first(&v2->u.dict.members);
+    if (o2->obj != DICT_OBJ || v1->len != v2->len) return 0;
+    if (!v1->def ^ !v2->def) return 0;
+    if (v1->def && v2->def && !obj_same(v1->def, v2->def)) return 0;
+    n = avltree_first(&v1->members);
+    n2 = avltree_first(&v2->members);
     while (n && n2) {
         const struct pair_s *p, *p2;
         if (pair_compare(n, n2)) return 0;
@@ -124,42 +132,48 @@ static int same(const value_t v1, const value_t v2) {
     return n == n2;
 }
 
-static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_size(v1->u.dict.len);
+static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
+    Dict *v1 = (Dict *)o1;
+    return (Obj *)int_from_size(v1->len);
 }
 
-static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
+    Dict *v1 = (Dict *)o1;
     const struct pair_s *p;
     size_t i = 0, j, ln = 2, chars = 0;
-    value_t tmp = NULL, *vals;
-    value_t v;
+    Tuple *list = NULL;
+    Obj **vals;
+    Obj *v;
+    Str *str;
     uint8_t *s;
-    unsigned int def = (v1->u.dict.def != NULL);
-    if (v1->u.dict.len || def) {
-        ln = v1->u.dict.len * 2;
-        if (ln < v1->u.dict.len) err_msg_out_of_memory(); /* overflow */
+    unsigned int def = (v1->def != NULL);
+    if (v1->len || def) {
+        ln = v1->len * 2;
+        if (ln < v1->len) err_msg_out_of_memory(); /* overflow */
         ln += def;
         if (ln < def) err_msg_out_of_memory(); /* overflow */
-        tmp = val_alloc(TUPLE_OBJ);
-        tmp->u.list.data = vals = list_create_elements(tmp, ln);
+        list = new_tuple();
+        list->data = vals = list_create_elements(list, ln);
         ln += 1 + def;
         if (ln < 1 + def) err_msg_out_of_memory(); /* overflow */
-        if (v1->u.dict.len) {
-            const struct avltree_node *n = avltree_first(&v1->u.dict.members);
+        if (v1->len) {
+            const struct avltree_node *n = avltree_first(&v1->members);
             while (n) {
                 p = cavltree_container_of(n, struct pair_s, node);
                 v = p->key->obj->repr(p->key, epoint);
                 if (!v || v->obj != STR_OBJ) goto error;
-                ln += v->u.str.len;
-                if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
-                vals[i++] = v;
+                str = (Str *)v;
+                ln += str->len;
+                if (ln < str->len) err_msg_out_of_memory(); /* overflow */
+                vals[i++] = (Obj *)str;
                 if (p->data) {
                     v = p->data->obj->repr(p->data, epoint);
                     if (!v || v->obj != STR_OBJ) goto error;
-                    ln += v->u.str.len;
-                    if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
+                    str = (Str *)v;
+                    ln += str->len;
+                    if (ln < str->len) err_msg_out_of_memory(); /* overflow */
                 } else {
-                    v = val_reference(none_value);
+                    v = (Obj *)ref_none();
                     ln--;
                 }
                 vals[i++] = v;
@@ -167,104 +181,111 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t epoint) {
             }
         }
         if (def) {
-            v = v1->u.dict.def->obj->repr(v1->u.dict.def, epoint);
+            v = v1->def->obj->repr(v1->def, epoint);
             if (!v || v->obj != STR_OBJ) {
             error:
-                tmp->u.list.len = i;
-                val_destroy(tmp);
+                list->len = i;
+                val_destroy(&list->v);
                 return v;
             }
-            ln += v->u.str.len;
-            if (ln < v->u.str.len) err_msg_out_of_memory(); /* overflow */
-            vals[i] = v;
+            str = (Str *)v;
+            ln += str->len;
+            if (ln < str->len) err_msg_out_of_memory(); /* overflow */
+            vals[i] = (Obj *)str;
         }
-        tmp->u.list.len = i + def;
+        list->len = i + def;
     }
-    v = val_alloc(STR_OBJ);
-    s = str_create_elements(v, ln);
+    str = new_str();
+    s = str_create_elements(str, ln);
     ln = 0;
     s[ln++] = '{';
     for (j = 0; j < i; j++) {
+        Str *str2;
         if (vals[j]->obj != STR_OBJ) continue;
+        str2 = (Str *)vals[j];
         if (j) s[ln++] = (j & 1) ? ':' : ',';
-        memcpy(s + ln, vals[j]->u.str.data, vals[j]->u.str.len);
-        ln += vals[j]->u.str.len;
-        chars += vals[j]->u.str.len - vals[j]->u.str.chars;
+        memcpy(s + ln, str2->data, str2->len);
+        ln += str2->len;
+        chars += str2->len - str2->chars;
     }
     if (def) {
+        Str *str2 = (Str *)vals[j];
         if (j) s[ln++] = ',';
         s[ln++] = ':';
-        memcpy(s + ln, vals[j]->u.str.data, vals[j]->u.str.len);
-        ln += vals[j]->u.str.len;
-        chars += vals[j]->u.str.len - vals[j]->u.str.chars;
+        memcpy(s + ln, str2->data, str2->len);
+        ln += str2->len;
+        chars += str2->len - str2->chars;
         j++;
     }
     s[ln++] = '}';
-    if (tmp) val_destroy(tmp);
-    v->u.str.data = s;
-    v->u.str.len = ln;
-    v->u.str.chars = ln - chars;
-    return v;
+    if (list) val_destroy(&list->v);
+    str->data = s;
+    str->len = ln;
+    str->chars = ln - chars;
+    return (Obj *)str;
 }
 
-static MUST_CHECK value_t calc2(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
+static MUST_CHECK Obj *calc2(oper_t op) {
+    Dict *v1 = (Dict *)op->v1;
+    Obj *o2 = op->v2;
     if (op->op == &o_INDEX) {
         struct pair_s pair;
         const struct avltree_node *b;
-        value_t err;
+        Error *err;
+        Funcargs *args = (Funcargs *)o2;
 
-        if (v2->u.funcargs.len != 1) {
-            err_msg_argnum(v2->u.funcargs.len, 1, 1, op->epoint2);
-            return val_reference(none_value);
+        if (args->len != 1) {
+            err_msg_argnum(args->len, 1, 1, op->epoint2);
+            return (Obj *)ref_none();
         }
-        v2 = v2->u.funcargs.val->val;
+        o2 = args->val->val;
 
-        pair.key = v2;
+        pair.key = o2;
         err = obj_hash(pair.key, &pair.hash, op->epoint2);
-        if (err) return err;
-        b = avltree_lookup(&pair.node, &v1->u.dict.members, pair_compare);
+        if (err) return &err->v;
+        b = avltree_lookup(&pair.node, &v1->members, pair_compare);
         if (b) {
             const struct pair_s *p = cavltree_container_of(b, struct pair_s, node);
             return val_reference(p->data);
         }
-        if (v1->u.dict.def) {
-            return val_reference(v1->u.dict.def);
+        if (v1->def) {
+            return val_reference(v1->def);
         }
-        return new_error_obj(ERROR_____KEY_ERROR, op->epoint2);
+        return (Obj *)new_error(ERROR_____KEY_ERROR, op->epoint2);
     }
-    switch (v2->obj->type) {
+    switch (o2->obj->type) {
     case T_NONE:
     case T_ERROR:
     case T_TUPLE:
     case T_LIST:
         if (op->op != &o_MEMBER && op->op != &o_X) {
-            return v2->obj->rcalc2(op);
+            return o2->obj->rcalc2(op);
         }
     default: break;
     }
     return obj_oper_error(op);
 }
 
-static MUST_CHECK value_t rcalc2(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
+static MUST_CHECK Obj *rcalc2(oper_t op) {
+    Dict *v2 = (Dict *)op->v2;
+    Obj *o1 = op->v1;
     if (op->op == &o_IN) {
         struct pair_s p;
         struct avltree_node *b;
-        value_t err;
+        Error *err;
 
-        p.key = v1;
+        p.key = o1;
         err = obj_hash(p.key, &p.hash, op->epoint);
-        if (err) return err;
-        b = avltree_lookup(&p.node, &v2->u.dict.members, pair_compare);
+        if (err) return &err->v;
+        b = avltree_lookup(&p.node, &v2->members, pair_compare);
         return truth_reference(b != NULL);
     }
-    switch (v1->obj->type) {
+    switch (o1->obj->type) {
     case T_NONE:
     case T_ERROR:
     case T_TUPLE:
     case T_LIST:
-        return v1->obj->calc2(op);
+        return o1->obj->calc2(op);
     default: break;
     }
     return obj_oper_error(op);
@@ -276,14 +297,14 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 {
     const struct pair_s *a = cavltree_container_of(aa, struct pair_s, node);
     const struct pair_s *b = cavltree_container_of(bb, struct pair_s, node);
-    value_t result;
+    Obj *result;
     int h = a->hash - b->hash;
 
     if (h) return h;
     pair_oper.v1 = a->key;
     pair_oper.v2 = b->key;
     result = pair_oper.v1->obj->calc2(&pair_oper);
-    if (result->obj == INT_OBJ) h = result->u.integer.len;
+    if (result->obj == INT_OBJ) h = ((Int *)result)->len;
     else h = pair_oper.v1->obj->type - pair_oper.v2->obj->type;
     val_destroy(result);
     return h;
@@ -292,7 +313,7 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 void dictobj_init(void) {
     static struct linepos_s nopoint;
 
-    obj_init(&obj, T_DICT, "dict");
+    obj_init(&obj, T_DICT, "dict", sizeof(Dict));
     obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;

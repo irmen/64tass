@@ -18,132 +18,141 @@
 */
 #include <string.h>
 #include <math.h>
-#include "values.h"
 #include "bitsobj.h"
 #include "eval.h"
 #include "unicode.h"
 #include "encoding.h"
 #include "boolobj.h"
 #include "floatobj.h"
+#include "codeobj.h"
+#include "error.h"
+#include "strobj.h"
+#include "bytesobj.h"
+#include "intobj.h"
+#include "error.h"
+#include "listobj.h"
 
 #define SHIFT (8 * sizeof(bdigit_t))
 
 static struct obj_s obj;
 
 obj_t BITS_OBJ = &obj;
+Bits *null_bits;
+Bits *inv_bits;
+Bits *bits_value[2];
 
-static MUST_CHECK value_t bits_from_int(const value_t);
+static MUST_CHECK Obj *bits_from_int(const Int *);
 
-static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
-    value_t err, ret;
+static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
+    Obj *err, *ret;
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
     case T_BITS: return val_reference(v1);
-    case T_BOOL: return bits_from_bool(v1->u.boolean);
-    case T_STR: return bits_from_str(v1, epoint);
-    case T_BYTES: return bits_from_bytes(v1);
-    case T_INT: return bits_from_int(v1);
-    case T_CODE: return bits_from_code(v1, epoint);
+    case T_BOOL: return (Obj *)ref_bits(bits_value[((Bool *)v1)->boolean]);
+    case T_STR: return bits_from_str((Str *)v1, epoint);
+    case T_BYTES: return (Obj *)bits_from_bytes((Bytes *)v1);
+    case T_INT: return bits_from_int((Int *)v1);
+    case T_CODE: return bits_from_code((Code *)v1, epoint);
     case T_FLOAT: 
-         err = int_from_float(v1);
-         ret = bits_from_int(err);
+         err = (Obj *)int_from_float((Float *)v1);
+         if (err->obj != INT_OBJ) return err;
+         ret = bits_from_int((Int *)err);
          val_destroy(err);
          return ret;
     default: break;
     }
     err_msg_wrong_type(v1, NULL, epoint);
-    return val_reference(none_value);
+    return (Obj *)ref_none();
 }
 
-static inline size_t bitslen(const value_t v1) {
-    ssize_t len = v1->u.bits.len;
+static inline size_t bitslen(const Bits *v1) {
+    ssize_t len = v1->len;
     return (len < 0) ? ~len : len;
 }
 
-static void destroy(value_t v1) {
-    if (v1->u.bits.val != v1->u.bits.data) free(v1->u.bits.data);
+static void destroy(Obj *o1) {
+    Bits *v1 = (Bits *)o1;
+    if (v1->val != v1->data) free(v1->data);
 }
 
-static bdigit_t *bnew(value_t v, size_t len) {
-    if (len > sizeof(v->u.bits.val)/sizeof(v->u.bits.val[0])) {
+static bdigit_t *bnew(Bits *v, size_t len) {
+    if (len > sizeof(v->val)/sizeof(v->val[0])) {
         bdigit_t *s = (bdigit_t *)malloc(len * sizeof(bdigit_t));
         if (!s || len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
         return s;
     }
-    return v->u.bits.val;
+    return v->val;
 }
 
-static MUST_CHECK value_t invert(const value_t v1) {
+static MUST_CHECK Obj *invert(const Bits *v1) {
     size_t sz;
-    value_t v = val_alloc(BITS_OBJ);
-    v->u.bits.bits = v1->u.bits.bits;
-    v->u.bits.len = ~v1->u.bits.len;
+    Bits *v = new_bits();
+    v->bits = v1->bits;
+    v->len = ~v1->len;
     sz = bitslen(v1);
     if (sz) {
-        v->u.bits.data = bnew(v, sz);
-        memcpy(v->u.bits.data, v1->u.bits.data, sz * sizeof(bdigit_t));
+        v->data = bnew(v, sz);
+        memcpy(v->data, v1->data, sz * sizeof(bdigit_t));
     } else {
-        v->u.bits.val[0] = 0;
-        v->u.bits.data = v->u.bits.val;
+        v->val[0] = 0;
+        v->data = v->val;
     }
-    return v;
+    return &v->v;
 }
 
-static MUST_CHECK value_t normalize(value_t v, bdigit_t *d, size_t sz, int neg) {
+static MUST_CHECK Obj *normalize(Bits *v, bdigit_t *d, size_t sz, int neg) {
     while (sz && !d[sz - 1]) sz--;
-    if (v->u.bits.val != d && sz <= sizeof(v->u.bits.val)/sizeof(v->u.bits.val[0])) {
-        memcpy(v->u.bits.val, d, sz);
+    if (v->val != d && sz <= sizeof(v->val)/sizeof(v->val[0])) {
+        memcpy(v->val, d, sz);
         free(d);
-        d = v->u.bits.val;
+        d = v->val;
     }
-    v->u.bits.data = d;
-    v->u.bits.len = neg ? ~sz : sz;
-    return v;
+    v->data = d;
+    v->len = neg ? ~sz : sz;
+    return &v->v;
 }
 
-static int same(const value_t v1, const value_t v2) {
-    if (v2->obj != BITS_OBJ || v1->u.bits.len != v2->u.bits.len || v1->u.bits.bits != v2->u.bits.bits) return 0;
-    return !memcmp(v1->u.bits.data, v2->u.bits.data, bitslen(v1) * sizeof(bdigit_t));
+static int same(const Obj *o1, const Obj *o2) {
+    const Bits *v1 = (const Bits *)o1, *v2 = (const Bits *)o2;
+    if (o2->obj != BITS_OBJ || v1->len != v2->len || v1->bits != v2->bits) return 0;
+    return !memcmp(v1->data, v2->data, bitslen(v1) * sizeof(bdigit_t));
 }
 
-static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t epoint) {
-    value_t v;
+static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t UNUSED(epoint)) {
+    const Bits *v1 = (const Bits *)o1;
     size_t i, sz, sz2;
     bdigit_t b, inv;
     switch (type) {
     case TRUTH_ALL:
         sz = bitslen(v1);
-        sz2 = v1->u.bits.bits / SHIFT;
+        sz2 = v1->bits / SHIFT;
         if (sz2 > sz) sz2 = sz;
-        inv = -(v1->u.bits.len >= 0);
+        inv = -(v1->len >= 0);
         for (i = 0; i < sz2; i++) {
-            if (v1->u.bits.data[i] != inv) return val_reference(false_value);
+            if (v1->data[i] != inv) return (Obj *)ref_bool(false_value);
         }
-        b = (i >= sz) ? 0 : v1->u.bits.data[i];
+        b = (i >= sz) ? 0 : v1->data[i];
         b ^= inv;
-        b <<= SHIFT - v1->u.bits.bits % SHIFT;
+        b <<= SHIFT - v1->bits % SHIFT;
         return truth_reference(!b);
     case TRUTH_ANY:
-        return truth_reference(v1->u.bits.len != 0 && v1->u.bits.len != ~0);
-    case TRUTH_BOOL:
-        return truth_reference(!!v1->u.bits.len);
+        return truth_reference(v1->len != 0 && v1->len != ~0);
     default:
-        v = new_error_obj(ERROR_____CANT_BOOL, epoint);
-        v->u.error.u.objname = v1->obj->name;
-        return v;
+        return truth_reference(!!v1->len);
     }
 }
 
-static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
+    const Bits *v1 = (const Bits *)o1;
     size_t len, i, len2, sz;
     uint8_t *s;
     int inv;
-    value_t v = val_alloc(STR_OBJ);
+    Str *v = new_str();
 
-    len2 = v1->u.bits.bits;
+    len2 = v1->bits;
     sz = bitslen(v1);
-    inv = (v1->u.bits.len < 0);
+    inv = (v1->len < 0);
     if (len2 & 3) {
         len = 1 + inv;
         len += len2;
@@ -154,7 +163,7 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
         s[len++] = '%';
         for (i = len2; i--;) {
             size_t j = i / SHIFT;
-            s[len++] = (j >= sz) ? 0x30 : 0x30 | ((v1->u.bits.data[j] >> (i & (SHIFT - 1))) & 1);
+            s[len++] = (j >= sz) ? 0x30 : 0x30 | ((v1->data[j] >> (i & (SHIFT - 1))) & 1);
         }
     } else {
         static const char *hex = "0123456789abcdef";
@@ -168,173 +177,167 @@ static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
         s[len++] = '$';
         for (i = len2; i--;) {
             size_t j = i / (2 * sizeof(bdigit_t));
-            s[len++] = (j >= sz) ? 0x30 : (uint8_t)hex[(v1->u.bits.data[j] >> ((i & (2 * sizeof(bdigit_t) - 1)) * 4)) & 15];
+            s[len++] = (j >= sz) ? 0x30 : (uint8_t)hex[(v1->data[j] >> ((i & (2 * sizeof(bdigit_t) - 1)) * 4)) & 15];
         }
     }
-    v->u.str.len = len;
-    v->u.str.chars = len;
-    v->u.str.data = s;
-    return v;
+    v->len = len;
+    v->chars = len;
+    v->data = s;
+    return &v->v;
 }
 
-static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
+    const Bits *v1 = (const Bits *)o1;
     size_t l;
     unsigned int h;
 
-    switch (v1->u.bits.len) {
-    case ~1: *hs = (~v1->u.bits.data[0]) & ((~(unsigned int)0) >> 1); return NULL;
+    switch (v1->len) {
+    case ~1: *hs = (~v1->data[0]) & ((~(unsigned int)0) >> 1); return NULL;
     case ~0: *hs = ((~(unsigned int)0) >> 1); return NULL;
     case 0: *hs = 0; return NULL;
-    case 1: *hs = v1->u.bits.data[0] & ((~(unsigned int)0) >> 1); return NULL;
+    case 1: *hs = v1->data[0] & ((~(unsigned int)0) >> 1); return NULL;
     default: break;
     }
-    h = -(v1->u.bits.len < 0);
+    h = -(v1->len < 0);
     if (h) {
-        l = ~v1->u.bits.len;
+        l = ~v1->len;
         while (l--) {
-            h -= v1->u.integer.val[l];
+            h -= v1->val[l];
         }
     } else {
-        l = v1->u.bits.len;
+        l = v1->len;
         while (l--) {
-            h += v1->u.integer.val[l];
+            h += v1->val[l];
         }
     }
     *hs = h & ((~(unsigned int)0) >> 1);
     return NULL;
 }
 
-static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
-    value_t v;
-    switch (v1->u.bits.len) {
-    case ~1: *iv = v1->u.bits.data[0];
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
+    Bits *v1 = (Bits *)o1;
+    Error *v;
+    switch (v1->len) {
+    case ~1: *iv = v1->data[0];
             if (bits < (int)SHIFT && (uval_t)*iv >> bits) break;
             *iv = ~*iv;
             return NULL;
     case ~0: *iv = ~(ival_t)0; return NULL;
     case 0: *iv = 0; return NULL;
-    case 1: *iv = v1->u.bits.data[0];
+    case 1: *iv = v1->data[0];
             if (bits < (int)SHIFT && (uval_t)*iv >> bits) break;
             return NULL;
     default: break;
     }
-    v = new_error_obj(ERROR_____CANT_IVAL, epoint);
-    v->u.error.u.intconv.bits = bits;
-    v->u.error.u.intconv.val = val_reference(v1);
+    v = new_error(ERROR_____CANT_IVAL, epoint);
+    v->u.intconv.bits = bits;
+    v->u.intconv.val = (Obj *)ref_bits(v1);
     return v;
 }
 
-static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
-    value_t v;
-    switch (v1->u.bits.len) {
-    case ~1: *uv = v1->u.bits.data[0];
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
+    Bits *v1 = (Bits *)o1;
+    Error *v;
+    switch (v1->len) {
+    case ~1: *uv = v1->data[0];
             if (bits < (int)SHIFT && *uv >> bits) break;
             *uv = ~*uv;
             return NULL;
     case ~0: *uv = ~(uval_t)0; return NULL;
     case 0: *uv = 0; return NULL;
-    case 1: *uv = v1->u.bits.data[0];
+    case 1: *uv = v1->data[0];
             if (bits < (int)SHIFT && *uv >> bits) break;
             return NULL;
     default: break;
     }
-    v = new_error_obj(ERROR_____CANT_UVAL, epoint);
-    v->u.error.u.intconv.bits = bits;
-    v->u.error.u.intconv.val = val_reference(v1);
+    v = new_error(ERROR_____CANT_UVAL, epoint);
+    v->u.intconv.bits = bits;
+    v->u.intconv.val = (Obj *)ref_bits(v1);
     return v;
 }
 
-MUST_CHECK value_t float_from_bits(const value_t v1, linepos_t epoint) {
-    double d = -(v1->u.bits.len < 0);
-    size_t i, len1 = d ? ~v1->u.bits.len : v1->u.bits.len;
+MUST_CHECK Obj *float_from_bits(const Bits *v1, linepos_t epoint) {
+    double d = -(v1->len < 0);
+    size_t i, len1 = d ? ~v1->len : v1->len;
     for (i = 0; i < len1; i++) {
-        if (v1->u.bits.len < 0) d -= ldexp((double)v1->u.bits.data[i], i * SHIFT);
-        else d += ldexp((double)v1->u.bits.data[i], i * SHIFT);
-        if (d == HUGE_VAL || d == -HUGE_VAL) {
-            return new_error_obj(ERROR_NUMERIC_OVERF, epoint);
-        }
+        if (v1->len < 0) d -= ldexp((double)v1->data[i], i * SHIFT);
+        else d += ldexp((double)v1->data[i], i * SHIFT);
     }
-    return float_from_double(d);
+    return (Obj *)float_from_double(d, epoint);
 }
 
-static MUST_CHECK value_t sign(const value_t v1, linepos_t UNUSED(epoint)) {
-    ssize_t len = v1->u.bits.len;
-    if (len < 0) return int_from_int(-1);
-    return val_reference(int_value[len > 0]);
+static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
+    Bits *v1 = (Bits *)o1;
+    ssize_t len = v1->len;
+    if (len < 0) return (Obj *)ref_int(minus1_value);
+    return (Obj *)ref_int(int_value[len > 0]);
 }
 
-static MUST_CHECK value_t absolute(const value_t v1, linepos_t epoint) {
-    value_t tmp, ret;
-    tmp = int_from_bits(v1);
+static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
+    Bits *v1 = (Bits *)o1;
+    Obj *tmp, *ret;
+    tmp = (Obj *)int_from_bits(v1);
     ret = tmp->obj->abs(tmp, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_size(v1->u.bits.bits);
+static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
+    Bits *v1 = (Bits *)o1;
+    return (Obj *)int_from_size(v1->bits);
 }
 
-MUST_CHECK value_t ibits_from_bool(int i) {
-    value_t v = val_alloc(BITS_OBJ);
-    v->u.bits.data = v->u.bits.val;
-    v->u.bits.val[0] = i;
-    v->u.bits.len = ~(i != 0);
-    v->u.bits.bits = 1;
+MUST_CHECK Bits *ibits_from_bool(int i) {
+    Bits *v = new_bits();
+    v->data = v->val;
+    v->val[0] = i;
+    v->len = ~(i != 0);
+    v->bits = 1;
     return v;
 }
 
-MUST_CHECK value_t bits_from_bool(int i) {
-    value_t v = val_alloc(BITS_OBJ);
-    v->u.bits.data = v->u.bits.val;
-    v->u.bits.val[0] = i;
-    v->u.bits.len = (i != 0);
-    v->u.bits.bits = 1;
+MUST_CHECK Bits *bits_from_bools(int i, int j) {
+    Bits *v = new_bits();
+    v->data = v->val;
+    v->val[0] = (i << 1) | j;
+    v->len = i | j;
+    v->bits = 2;
     return v;
 }
 
-MUST_CHECK value_t bits_from_bools(int i, int j) {
-    value_t v = val_alloc(BITS_OBJ);
-    v->u.bits.data = v->u.bits.val;
-    v->u.bits.val[0] = (i << 1) | j;
-    v->u.bits.len = i | j;
-    v->u.bits.bits = 2;
+static MUST_CHECK Bits *bits_from_u24(uint32_t i) {
+    Bits *v = new_bits();
+    v->data = v->val;
+    v->val[0] = i;
+    v->len = (i != 0);
+    v->bits = 24;
     return v;
 }
 
-static MUST_CHECK value_t bits_from_u24(uint32_t i) {
-    value_t v = val_alloc(BITS_OBJ);
-    v->u.bits.data = v->u.bits.val;
-    v->u.bits.val[0] = i;
-    v->u.bits.len = (i != 0);
-    v->u.bits.bits = 24;
+MUST_CHECK Bits *bits_from_uval(uval_t i, int bits) {
+    Bits *v = new_bits();
+    v->data = v->val;
+    v->val[0] = i;
+    v->len = (i != 0);
+    v->bits = bits;
     return v;
 }
 
-MUST_CHECK value_t bits_from_uval(uval_t i, int bits) {
-    value_t v = val_alloc(BITS_OBJ);
-    v->u.bits.data = v->u.bits.val;
-    v->u.bits.val[0] = i;
-    v->u.bits.len = (i != 0);
-    v->u.bits.bits = bits;
-    return v;
-}
-
-MUST_CHECK value_t bits_from_hexstr(const uint8_t *s, size_t *ln) {
+MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln) {
     size_t i = 0, j, sz;
     int bits;
     bdigit_t *d, uv;
-    value_t v;
+    Bits *v;
 
     while ((s[i] ^ 0x30) < 10 || (uint8_t)((s[i] | 0x20) - 0x61) < 6) i++;
     *ln = i;
     if (!i) {
-        return val_reference(null_bits);
+        return ref_bits(null_bits);
     }
 
     if (i > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */
-    v = val_alloc(BITS_OBJ);
-    v->u.bits.bits = i * 4;
+    v = new_bits();
+    v->bits = i * 4;
 
     sz = i / (2 * sizeof(bdigit_t));
     if (i % (2 * sizeof(bdigit_t))) sz++;
@@ -351,23 +354,23 @@ MUST_CHECK value_t bits_from_hexstr(const uint8_t *s, size_t *ln) {
     }
     if (bits) d[j] = uv;
 
-    return normalize(v, d, sz, 0);
+    return (Bits *)normalize(v, d, sz, 0);
 }
 
-MUST_CHECK value_t bits_from_binstr(const uint8_t *s, size_t *ln) {
+MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln) {
     size_t i = 0, j, sz;
     int bits;
     bdigit_t *d, uv;
-    value_t v;
+    Bits *v;
 
     while ((s[i] & 0xfe) == 0x30) i++;
     *ln = i;
     if (!i) {
-        return val_reference(null_bits);
+        return ref_bits(null_bits);
     }
 
-    v = val_alloc(BITS_OBJ);
-    v->u.bits.bits = i;
+    v = new_bits();
+    v->bits = i;
 
     sz = i / SHIFT;
     if (i % SHIFT) sz++;
@@ -383,28 +386,28 @@ MUST_CHECK value_t bits_from_binstr(const uint8_t *s, size_t *ln) {
     }
     if (bits) d[j] = uv;
 
-    return normalize(v, d, sz, 0);
+    return (Bits *)normalize(v, d, sz, 0);
 }
 
-MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
+MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
     int ch;
-    value_t v;
+    Bits *v;
 
     if (actual_encoding) {
         int bits;
         size_t j, sz, osz;
         bdigit_t *d, uv;
 
-        if (!v1->u.str.len) {
-            return val_reference(null_bits);
+        if (!v1->len) {
+            return (Obj *)ref_bits(null_bits);
         }
 
-        if (v1->u.str.len <= sizeof(v->u.bits.val)) sz = sizeof(v->u.bits.val) / sizeof(v->u.bits.val[0]);
+        if (v1->len <= sizeof(v->val)) sz = sizeof(v->val) / sizeof(v->val[0]);
         else {
-            sz = v1->u.str.len / sizeof(bdigit_t);
-            if (v1->u.str.len % sizeof(bdigit_t)) sz++;
+            sz = v1->len / sizeof(bdigit_t);
+            if (v1->len % sizeof(bdigit_t)) sz++;
         }
-        v = val_alloc(BITS_OBJ);
+        v = new_bits();
         d = bnew(v, sz);
 
         uv = bits = j = 0;
@@ -413,10 +416,10 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
             uv |= (uint8_t)ch << bits;
             if (bits == SHIFT - 8) {
                 if (j >= sz) {
-                    if (v->u.bits.val == d) {
+                    if (v->val == d) {
                         sz = 16 / sizeof(bdigit_t);
                         d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-                        memcpy(d, v->u.bits.val, j * sizeof(bdigit_t));
+                        memcpy(d, v->val, j * sizeof(bdigit_t));
                     } else {
                         sz += 1024 / sizeof(bdigit_t);
                         if (sz < 1024 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
@@ -432,9 +435,9 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
             if (j >= sz) {
                 sz++;
                 if (sz < 1) err_msg_out_of_memory(); /* overflow */
-                if (v->u.bits.val == d) {
+                if (v->val == d) {
                     d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
-                    memcpy(d, v->u.bits.val, j * sizeof(bdigit_t));
+                    memcpy(d, v->val, j * sizeof(bdigit_t));
                 } else d = (bdigit_t *)realloc(d, sz * sizeof(bdigit_t));
                 if (!d) err_msg_out_of_memory();
             }
@@ -443,45 +446,45 @@ MUST_CHECK value_t bits_from_str(const value_t v1, linepos_t epoint) {
         } else osz = j;
 
         while (osz && !d[osz - 1]) osz--;
-        if (v->u.bits.val != d) {
-            if (osz <= sizeof(v->u.bits.val)/sizeof(v->u.bits.val[0])) {
-                memcpy(v->u.bits.val, d, osz * sizeof(bdigit_t));
+        if (v->val != d) {
+            if (osz <= sizeof(v->val)/sizeof(v->val[0])) {
+                memcpy(v->val, d, osz * sizeof(bdigit_t));
                 free(d);
-                d = v->u.bits.val;
+                d = v->val;
             } else if (osz < sz) {
                 d = (bdigit_t *)realloc(d, osz * sizeof(bdigit_t));
                 if (!d) err_msg_out_of_memory();
             }
         }
-        v->u.bits.data = d;
-        v->u.bits.len = osz;
-        v->u.bits.bits = j * SHIFT + bits;
+        v->data = d;
+        v->len = osz;
+        v->bits = j * SHIFT + bits;
         if (j > SIZE_MAX / SHIFT) err_msg_out_of_memory(); /* overflow */
-        return v;
+        return &v->v;
     }
-    if (v1->u.str.chars == 1) {
-        uint32_t ch2 = v1->u.str.data[0];
-        if (ch2 & 0x80) utf8in(v1->u.str.data, &ch2);
-        return bits_from_u24(ch2);
+    if (v1->chars == 1) {
+        uint32_t ch2 = v1->data[0];
+        if (ch2 & 0x80) utf8in(v1->data, &ch2);
+        return (Obj *)bits_from_u24(ch2);
     }
-    return new_error_obj(ERROR_BIG_STRING_CO, epoint);
+    return (Obj *)new_error(ERROR_BIG_STRING_CO, epoint);
 }
 
-MUST_CHECK value_t bits_from_bytes(const value_t v1) {
+MUST_CHECK Bits *bits_from_bytes(const Bytes *v1) {
     int bits;
     size_t i, j, sz, len1;
     bdigit_t *d, uv;
-    value_t v;
-    int inv = v1->u.bytes.len < 0;
+    Bits *v;
+    int inv = v1->len < 0;
 
-    len1 = inv ? ~v1->u.bytes.len : v1->u.bytes.len;
+    len1 = inv ? ~v1->len : v1->len;
     if (!len1) {
-        return val_reference(inv ? inv_bits : null_bits);
+        return ref_bits(inv ? inv_bits : null_bits);
     }
 
     if (len1 > SIZE_MAX / 8) err_msg_out_of_memory(); /* overflow */
-    v = val_alloc(BITS_OBJ);
-    v->u.bits.bits = len1 * 8;
+    v = new_bits();
+    v->bits = len1 * 8;
 
     sz = len1 / sizeof(bdigit_t);
     if (len1 % sizeof(bdigit_t)) sz++;
@@ -489,7 +492,7 @@ MUST_CHECK value_t bits_from_bytes(const value_t v1) {
 
     uv = bits = j = i = 0;
     while (len1 > i) {
-        uv |= v1->u.bytes.data[i++] << bits;
+        uv |= v1->data[i++] << bits;
         if (bits == SHIFT - 8) {
             d[j++] = uv;
             bits = uv = 0;
@@ -497,25 +500,25 @@ MUST_CHECK value_t bits_from_bytes(const value_t v1) {
     }
     if (bits) d[j] = uv;
 
-    return normalize(v, d, sz, inv);
+    return (Bits *)normalize(v, d, sz, inv);
 }
 
-static MUST_CHECK value_t bits_from_int(const value_t v1) {
+static MUST_CHECK Obj *bits_from_int(const Int *v1) {
     unsigned int inv;
     size_t i, sz, bits;
     bdigit_t *d, d2;
     const digit_t *b;
-    value_t v;
+    Bits *v;
 
-    if (!v1->u.integer.len) return val_reference(null_bits);
-    if (v1->u.integer.len == -1 && v1->u.integer.data[0] == 1) return val_reference(inv_bits);
+    if (!v1->len) return (Obj *)ref_bits(null_bits);
+    if (v1->len == -1 && v1->data[0] == 1) return (Obj *)ref_bits(inv_bits);
 
-    inv = v1->u.integer.len < 0;
-    sz = inv ? -v1->u.integer.len : v1->u.integer.len;
-    v = val_alloc(BITS_OBJ);
+    inv = v1->len < 0;
+    sz = inv ? -v1->len : v1->len;
+    v = new_bits();
     d = bnew(v, sz);
 
-    b = v1->u.integer.data;
+    b = v1->data;
     if (inv) {
         int c = 0;
         for (i = 0; !c && i < sz; i++) {
@@ -530,55 +533,55 @@ static MUST_CHECK value_t bits_from_int(const value_t v1) {
     d2 = d[sz - 1];
     for (bits = 0; d2; bits++) d2 >>= 1;
 
-    v->u.bits.bits = (sz - 1) * SHIFT + bits;
+    v->bits = (sz - 1) * SHIFT + bits;
 
     return normalize(v, d, sz, inv);
 }
 
-static ssize_t icmp(const value_t vv1, const value_t vv2) {
+static ssize_t icmp(const Bits *vv1, const Bits *vv2) {
     ssize_t i;
     size_t j;
     bdigit_t a, b;
-    i = vv1->u.bits.len - vv2->u.bits.len;
+    i = vv1->len - vv2->len;
     if (i) return i;
     j = bitslen(vv1);
     while (j--) {
-        a = vv1->u.bits.data[j]; b = vv2->u.bits.data[j];
-        if (a > b) return (vv1->u.bits.len < 0) ? -1: 1;
-        if (a < b) return (vv1->u.bits.len < 0) ? 1: -1;
+        a = vv1->data[j]; b = vv2->data[j];
+        if (a > b) return (vv1->len < 0) ? -1: 1;
+        if (a < b) return (vv1->len < 0) ? 1: -1;
     }
     return 0;
 }
 
-static bdigit_t ldigit(const value_t v1) {
-    ssize_t ln = v1->u.bits.len;
-    if (ln > 0) return v1->u.bits.data[0];
-    if (ln < ~(ssize_t)0) return ~v1->u.bits.data[0];
+static bdigit_t ldigit(const Bits *v1) {
+    ssize_t ln = v1->len;
+    if (ln > 0) return v1->data[0];
+    if (ln < ~(ssize_t)0) return ~v1->data[0];
     return ln;
 }
 
-static MUST_CHECK value_t calc1(oper_t op) {
-    value_t v1 = op->v1, v;
-    value_t tmp;
+static MUST_CHECK Obj *calc1(oper_t op) {
+    Bits *v1 = (Bits *)op->v1;
+    Obj *tmp, *v;
     bdigit_t uv;
-    switch (op->op->u.oper.op) {
-    case O_BANK: return bytes_from_u8(ldigit(v1) >> 16);
-    case O_HIGHER: return bytes_from_u8(ldigit(v1) >> 8);
-    case O_LOWER: return bytes_from_u8(ldigit(v1));
-    case O_HWORD: return bytes_from_u16(ldigit(v1) >> 8);
-    case O_WORD: return bytes_from_u16(ldigit(v1));
+    switch (op->op->op) {
+    case O_BANK: return (Obj *)bytes_from_u8(ldigit(v1) >> 16);
+    case O_HIGHER: return (Obj *)bytes_from_u8(ldigit(v1) >> 8);
+    case O_LOWER: return (Obj *)bytes_from_u8(ldigit(v1));
+    case O_HWORD: return (Obj *)bytes_from_u16(ldigit(v1) >> 8);
+    case O_WORD: return (Obj *)bytes_from_u16(ldigit(v1));
     case O_BSWORD:
         uv = ldigit(v1);
-        return bytes_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
+        return (Obj *)bytes_from_u16((uint8_t)(uv >> 8) | (uint16_t)(uv << 8));
     case O_INV: return invert(v1);
     case O_NEG:
     case O_POS:
     case O_STRING:
-        tmp = int_from_bits(v1);
+        tmp = (Obj *)int_from_bits(v1);
         op->v1 = tmp;
         v = tmp->obj->calc1(op);
         val_destroy(tmp);
-        op->v1 = v1;
+        op->v1 = &v1->v;
         return v;
     default:
         break;
@@ -586,46 +589,46 @@ static MUST_CHECK value_t calc1(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK value_t and_(value_t vv1, value_t vv2) {
+static MUST_CHECK Obj *and_(const Bits *vv1, const Bits *vv2) {
     size_t blen1, blen2;
     size_t i, len1, len2, sz;
     int neg1, neg2;
     bdigit_t *v1, *v2, *v;
-    value_t vv = val_alloc(BITS_OBJ);
-    blen1 = vv1->u.bits.bits;
-    blen2 = vv2->u.bits.bits;
+    Bits *vv = new_bits();
+    blen1 = vv1->bits;
+    blen2 = vv2->bits;
     if (blen1 < blen2) {
-        vv->u.bits.bits = (vv1->u.bits.len < 0) ? blen2 : blen1;
+        vv->bits = (vv1->len < 0) ? blen2 : blen1;
     } else {
-        vv->u.bits.bits = (vv2->u.bits.len < 0) ? blen1 : blen2;
+        vv->bits = (vv2->len < 0) ? blen1 : blen2;
     }
     len1 = bitslen(vv1);
     len2 = bitslen(vv2);
 
     if (len1 <= 1 && len2 <= 1) {
         bdigit_t c;
-        neg1 = vv1->u.bits.len < 0; neg2 = vv2->u.bits.len < 0;
+        neg1 = vv1->len < 0; neg2 = vv2->len < 0;
         if (neg1) {
             if (neg2) {
-                c = vv1->u.bits.data[0] | vv2->u.bits.data[0];
+                c = vv1->data[0] | vv2->data[0];
             } else {
-                c = ~vv1->u.bits.data[0] & vv2->u.bits.data[0];
+                c = ~vv1->data[0] & vv2->data[0];
             }
         } else {
-            c = vv1->u.bits.data[0] & (neg2 ? ~vv2->u.bits.data[0] : vv2->u.bits.data[0]);
+            c = vv1->data[0] & (neg2 ? ~vv2->data[0] : vv2->data[0]);
         }
-        v = vv->u.bits.val;
+        v = vv->val;
         v[0] = c;
-        vv->u.bits.data = v;
-        vv->u.bits.len = (neg1 & neg2) ? ~(c != 0) : (c != 0);
-        return vv;
+        vv->data = v;
+        vv->len = (neg1 & neg2) ? ~(c != 0) : (c != 0);
+        return &vv->v;
     }
     if (len1 < len2) {
-        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const Bits *tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
-    v1 = vv1->u.bits.data; v2 = vv2->u.bits.data;
-    neg1 = vv1->u.bits.len < 0; neg2 = vv2->u.bits.len < 0;
+    v1 = vv1->data; v2 = vv2->data;
+    neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = neg2 ? len1 : len2;
     v = bnew(vv, sz);
@@ -649,46 +652,46 @@ static MUST_CHECK value_t and_(value_t vv1, value_t vv2) {
     return normalize(vv, v, sz, neg1 & neg2);
 }
 
-static MUST_CHECK value_t or_(value_t vv1, value_t vv2) {
+static MUST_CHECK Obj *or_(const Bits *vv1, const Bits *vv2) {
     size_t blen1, blen2;
     size_t i, len1, len2, sz;
     int neg1, neg2;
     bdigit_t *v1, *v2, *v;
-    value_t vv = val_alloc(BITS_OBJ);
-    blen1 = vv1->u.bits.bits;
-    blen2 = vv2->u.bits.bits;
+    Bits *vv = new_bits();
+    blen1 = vv1->bits;
+    blen2 = vv2->bits;
     if (blen1 < blen2) {
-        vv->u.bits.bits = (vv1->u.bits.len < 0) ? blen1 : blen2;
+        vv->bits = (vv1->len < 0) ? blen1 : blen2;
     } else {
-        vv->u.bits.bits = (vv2->u.bits.len < 0) ? blen2 : blen1;
+        vv->bits = (vv2->len < 0) ? blen2 : blen1;
     }
     len1 = bitslen(vv1);
     len2 = bitslen(vv2);
 
     if (len1 <= 1 && len2 <= 1) {
         bdigit_t c;
-        neg1 = vv1->u.bits.len < 0; neg2 = vv2->u.bits.len < 0;
+        neg1 = vv1->len < 0; neg2 = vv2->len < 0;
         if (neg1) {
-            c = vv1->u.bits.data[0] & (neg2 ? vv2->u.bits.data[0] : ~vv2->u.bits.data[0]);
+            c = vv1->data[0] & (neg2 ? vv2->data[0] : ~vv2->data[0]);
         } else {
             if (neg2) {
-                c = ~vv1->u.bits.data[0] & vv2->u.bits.data[0];
+                c = ~vv1->data[0] & vv2->data[0];
             } else {
-                c = vv1->u.bits.data[0] | vv2->u.bits.data[0];
+                c = vv1->data[0] | vv2->data[0];
             }
         }
-        v = vv->u.bits.val;
+        v = vv->val;
         v[0] = c;
-        vv->u.bits.data = v;
-        vv->u.bits.len = (neg1 | neg2) ? ~(c != 0) : (c != 0);
-        return vv;
+        vv->data = v;
+        vv->len = (neg1 | neg2) ? ~(c != 0) : (c != 0);
+        return &vv->v;
     }
     if (len1 < len2) {
-        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const Bits *tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
-    v1 = vv1->u.bits.data; v2 = vv2->u.bits.data;
-    neg1 = vv1->u.bits.len < 0; neg2 = vv2->u.bits.len < 0;
+    v1 = vv1->data; v2 = vv2->data;
+    neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = neg2 ? len2 : len1;
     v = bnew(vv, sz);
@@ -712,34 +715,34 @@ static MUST_CHECK value_t or_(value_t vv1, value_t vv2) {
     return normalize(vv, v, sz, neg1 | neg2);
 }
 
-static MUST_CHECK value_t xor_(value_t vv1, value_t vv2) {
+static MUST_CHECK Obj *xor_(const Bits *vv1, const Bits *vv2) {
     size_t blen1, blen2;
     size_t i, len1, len2, sz;
     int neg1, neg2;
     bdigit_t *v1, *v2, *v;
-    value_t vv = val_alloc(BITS_OBJ);
-    blen1 = vv1->u.bits.bits;
-    blen2 = vv2->u.bits.bits;
-    vv->u.bits.bits = (blen1 < blen2) ? blen2 : blen1;
+    Bits *vv = new_bits();
+    blen1 = vv1->bits;
+    blen2 = vv2->bits;
+    vv->bits = (blen1 < blen2) ? blen2 : blen1;
     len1 = bitslen(vv1);
     len2 = bitslen(vv2);
 
     if (len1 <= 1 && len2 <= 1) {
         bdigit_t c;
-        neg1 = vv1->u.bits.len < 0; neg2 = vv2->u.bits.len < 0;
-        c = vv1->u.bits.val[0] ^ vv2->u.bits.val[0];
-        v = vv->u.bits.val;
+        neg1 = vv1->len < 0; neg2 = vv2->len < 0;
+        c = vv1->val[0] ^ vv2->val[0];
+        v = vv->val;
         v[0] = c;
-        vv->u.bits.data = v;
-        vv->u.bits.len = (neg1 ^ neg2) ? ~(c != 0) : (c != 0);
-        return vv;
+        vv->data = v;
+        vv->len = (neg1 ^ neg2) ? ~(c != 0) : (c != 0);
+        return &vv->v;
     }
     if (len1 < len2) {
-        const value_t tmp = vv1; vv1 = vv2; vv2 = tmp;
+        const Bits *tmp = vv1; vv1 = vv2; vv2 = tmp;
         i = len1; len1 = len2; len2 = i;
     }
-    v1 = vv1->u.bits.data; v2 = vv2->u.bits.data;
-    neg1 = vv1->u.bits.len < 0; neg2 = vv2->u.bits.len < 0;
+    v1 = vv1->data; v2 = vv2->data;
+    neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = len1;
     v = bnew(vv, sz);
@@ -750,38 +753,38 @@ static MUST_CHECK value_t xor_(value_t vv1, value_t vv2) {
     return normalize(vv, v, sz, neg1 ^ neg2);
 }
 
-static MUST_CHECK value_t concat(value_t vv1, value_t vv2) {
+static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
     size_t blen;
     size_t sz, bits, i, j, rbits, l;
     bdigit_t *v1, *v, uv;
     bdigit_t inv;
-    value_t vv;
+    Bits *vv;
 
-    if (!vv1->u.bits.bits) {
-        return val_reference(vv2);
+    if (!vv1->bits) {
+        return (Obj *)ref_bits(vv2);
     }
-    if (!vv2->u.bits.bits) {
-        return val_reference(vv1);
+    if (!vv2->bits) {
+        return (Obj *)ref_bits(vv1);
     }
-    blen = vv1->u.bits.bits + vv2->u.bits.bits;
-    if (blen < vv2->u.bits.bits) err_msg_out_of_memory(); /* overflow */
+    blen = vv1->bits + vv2->bits;
+    if (blen < vv2->bits) err_msg_out_of_memory(); /* overflow */
     sz = blen / SHIFT;
     if (blen % SHIFT) sz++;
-    vv = val_alloc(BITS_OBJ);
+    vv = new_bits();
     v = bnew(vv, sz);
-    inv = -((vv2->u.bits.len ^ vv1->u.bits.len) < 0);
+    inv = -((vv2->len ^ vv1->len) < 0);
 
-    v1 = vv2->u.bits.data;
-    rbits = vv2->u.bits.bits / SHIFT;
-    bits = vv2->u.bits.bits & (SHIFT - 1);
+    v1 = vv2->data;
+    rbits = vv2->bits / SHIFT;
+    bits = vv2->bits & (SHIFT - 1);
     l = bitslen(vv2);
     for (i = 0; i < rbits && i < l; i++) v[i] = v1[i] ^ inv;
     for (; i < rbits; i++) v[i] = inv;
     if (i < l) uv = v1[i] ^ inv; else uv = inv;
     if (inv) uv &= (1 << bits) - 1;
 
-    rbits = vv1->u.bits.bits / SHIFT;
-    v1 = vv1->u.bits.data;
+    rbits = vv1->bits / SHIFT;
+    v1 = vv1->data;
 
     l = bitslen(vv1);
     if (bits) {
@@ -797,21 +800,21 @@ static MUST_CHECK value_t concat(value_t vv1, value_t vv2) {
         for (; j < rbits; j++) v[i++] = 0;
     }
 
-    vv->u.bits.bits = blen;
-    return normalize(vv, v, sz, vv1->u.bits.len < 0);
+    vv->bits = blen;
+    return normalize(vv, v, sz, vv1->len < 0);
 }
 
-static MUST_CHECK value_t lshift(const value_t vv1, size_t s) {
+static MUST_CHECK Obj *lshift(const Bits *vv1, size_t s) {
     size_t i, sz, bits, len1, word;
     int bit;
     bdigit_t *v1, *v, *o;
-    value_t vv = val_alloc(BITS_OBJ);
+    Bits *vv = new_bits();
 
     word = s / SHIFT;
     bit = s % SHIFT;
-    v1 = vv1->u.bits.data;
+    v1 = vv1->data;
     len1 = bitslen(vv1);
-    bits = vv1->u.bits.bits + s;
+    bits = vv1->bits + s;
     if (bits < s) err_msg_out_of_memory(); /* overflow */
     sz = word + (bit > 0);
     sz += len1;
@@ -827,28 +830,28 @@ static MUST_CHECK value_t lshift(const value_t vv1, size_t s) {
     } else if (len1) memmove(o, v1, len1 * sizeof(bdigit_t));
     memset(v, 0, word * sizeof(bdigit_t));
 
-    vv->u.bits.bits = bits;
-    return normalize(vv, v, sz, vv1->u.bits.len < 0);
+    vv->bits = bits;
+    return normalize(vv, v, sz, vv1->len < 0);
 }
 
-static MUST_CHECK value_t rshift(const value_t vv1, uval_t s) {
+static MUST_CHECK Obj *rshift(const Bits *vv1, uval_t s) {
     size_t i, sz, bits, word, l;
     int bit;
     bdigit_t *v1, *v;
-    value_t vv;
+    Bits *vv;
 
     word = s / SHIFT;
     bit = s - word * SHIFT;
-    bits = vv1->u.bits.bits;
+    bits = vv1->bits;
     l = bitslen(vv1);
     if (l <= word || bits <= s) {
-        return val_reference((vv1->u.bits.len < 0) ? inv_bits : null_bits);
+        return (Obj *)ref_bits((vv1->len < 0) ? inv_bits : null_bits);
     }
     sz = l - word;
     bits -= s;
-    vv = val_alloc(BITS_OBJ);
+    vv = new_bits();
     v = bnew(vv, sz);
-    v1 = vv1->u.bits.data + word;
+    v1 = vv1->data + word;
     if (bit) {
         for (i = 0; i < sz - 1; i++) {
             v[i] = v1[i] >> bit;
@@ -857,42 +860,43 @@ static MUST_CHECK value_t rshift(const value_t vv1, uval_t s) {
         v[i] = v1[i] >> bit;
     } else if (sz) memmove(v, v1, sz * sizeof(bdigit_t));
 
-    vv->u.bits.bits = bits;
-    return normalize(vv, v, sz, vv1->u.bits.len < 0);
+    vv->bits = bits;
+    return normalize(vv, v, sz, vv1->len < 0);
 }
 
-static inline MUST_CHECK value_t repeat(oper_t op) {
-    value_t vv1 = op->v1, vv;
+static inline MUST_CHECK Obj *repeat(oper_t op) {
+    Bits *vv1 = (Bits *)op->v1, *vv;
     bdigit_t *v, *v1;
     bdigit_t uv;
     size_t sz, i, j, rbits, abits, bits, l;
-    size_t blen = vv1->u.bits.bits;
+    size_t blen = vv1->bits;
     uval_t rep;
+    Error *err;
 
-    vv = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
-    if (vv) return vv;
+    err = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
+    if (err) return &err->v;
 
     if (!rep || !blen) {
-        return val_reference((vv1->u.bits.len < 0) ? inv_bits : null_bits);
+        return (Obj *)ref_bits((vv1->len < 0) ? inv_bits : null_bits);
     }
     if (rep == 1) {
-        return val_reference(vv1);
+        return (Obj *)ref_bits(vv1);
     }
 
-    vv = val_alloc(BITS_OBJ);
+    vv = new_bits();
     if (blen > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
     blen *= rep;
     sz = blen / SHIFT;
     if (blen % SHIFT) sz++;
 
     v = bnew(vv, sz);
-    v1 = vv1->u.bits.data;
+    v1 = vv1->data;
 
     i = 0;
     bits = 0;
     uv = 0;
-    rbits = vv1->u.bits.bits / SHIFT;
-    abits = vv1->u.bits.bits % SHIFT;
+    rbits = vv1->bits / SHIFT;
+    abits = vv1->bits % SHIFT;
     l = bitslen(vv1);
     while (rep--) {
         if (bits) {
@@ -919,30 +923,31 @@ static inline MUST_CHECK value_t repeat(oper_t op) {
     }
     if (i < sz) v[i] = uv;
 
-    vv->u.bits.bits = blen;
-    return normalize(vv, v, sz, vv1->u.bits.len < 0);
+    vv->bits = blen;
+    return normalize(vv, v, sz, vv1->len < 0);
 }
 
-static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
+static inline MUST_CHECK Obj *slice(Colonlist *vv2, oper_t op, size_t ln) {
     size_t bo, wo, bl, wl, sz, wl2, l;
     bdigit_t uv;
     bdigit_t *v, *v1;
     bdigit_t inv;
     int bits;
-    value_t vv, vv1 = op->v1;
+    Bits *vv, *vv1 = (Bits *)op->v1;
     size_t length;
     ival_t offs, end, step;
+    Obj *err;
 
-    vv = sliceparams(vv2, ln, &length, &offs, &end, &step, op->epoint2);
-    if (vv) return vv;
+    err = sliceparams(vv2, ln, &length, &offs, &end, &step, op->epoint2);
+    if (err) return err;
 
     if (!length) {
-        return val_reference(null_bits);
+        return (Obj *)ref_bits(null_bits);
     }
-    inv = -(vv1->u.bits.len < 0);
+    inv = -(vv1->len < 0);
     if (step == 1) {
-        if (length == vv1->u.bits.bits && !inv) {
-            return val_reference(vv1); /* original bits */
+        if (length == vv1->bits && !inv) {
+            return (Obj *)ref_bits(vv1); /* original bits */
         }
 
         bo = offs % SHIFT;
@@ -951,11 +956,11 @@ static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
         wl = length / SHIFT;
 
         sz = wl + (bl > 0);
-        vv = val_alloc(BITS_OBJ);
+        vv = new_bits();
         v = bnew(vv, sz);
 
         l = bitslen(vv1);
-        v1 = vv1->u.bits.data + wo;
+        v1 = vv1->data + wo;
         wl2 = (wo > l) ? 0 : (l - wo);
         if (bo) {
             for (sz = 0; sz < wl; sz++) {
@@ -975,7 +980,7 @@ static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
     } else {
         sz = length / SHIFT;
         if (length % SHIFT) sz++;
-        vv = val_alloc(BITS_OBJ);
+        vv = new_bits();
         v = bnew(vv, sz);
 
         uv = inv;
@@ -983,7 +988,7 @@ static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
         l = bitslen(vv1);
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
             wo = offs / SHIFT;
-            if (wo < l && ((vv1->u.bits.data[wo] >> (offs & (SHIFT - 1))) & 1)) {
+            if (wo < l && ((vv1->data[wo] >> (offs & (SHIFT - 1))) & 1)) {
                 uv ^= 1 << bits;
             }
             bits++;
@@ -997,48 +1002,51 @@ static inline MUST_CHECK value_t slice(value_t vv2, oper_t op, size_t ln) {
         if (bits) v[sz++] = uv & ((1 << bits) - 1);
     }
 
-    vv->u.bits.bits = length;
+    vv->bits = length;
     return normalize(vv, v, sz, 0);
 }
 
-static inline MUST_CHECK value_t iindex(oper_t op) {
+static inline MUST_CHECK Obj *iindex(oper_t op) {
     size_t offs, ln, sz;
     size_t i, o;
-    value_t vv1 = op->v1, vv2 = op->v2, vv;
+    Bits *vv1 = (Bits *)op->v1, *vv;
+    Obj *vv2 = op->v2;
     bdigit_t *v;
     bdigit_t uv;
-    bdigit_t inv = -(vv1->u.bits.len < 0);
+    bdigit_t inv = -(vv1->len < 0);
     int bits;
-    value_t err;
+    Error *err;
+    Funcargs *args = (Funcargs *)vv2;
 
-    if (vv2->u.funcargs.len != 1) {
-        err_msg_argnum(vv2->u.funcargs.len, 1, 1, op->epoint2);
-        return val_reference(none_value);
+    if (args->len != 1) {
+        err_msg_argnum(args->len, 1, 1, op->epoint2);
+        return (Obj *)ref_none();
     }
-    vv2 = vv2->u.funcargs.val->val;
+    vv2 = args->val->val;
 
-    ln = vv1->u.bits.bits;
+    ln = vv1->bits;
 
     if (vv2->obj == LIST_OBJ) {
-        if (!vv2->u.list.len) {
-            return val_reference(null_bits);
+        List *list = (List *)vv2;
+        if (!list->len) {
+            return (Obj *)ref_bits(null_bits);
         }
-        sz = (vv2->u.list.len + SHIFT - 1) / SHIFT;
+        sz = (list->len + SHIFT - 1) / SHIFT;
 
-        vv = val_alloc(BITS_OBJ);
+        vv = new_bits();
         v = bnew(vv, sz);
 
         uv = inv;
         bits = sz = 0;
-        for (i = 0; i < vv2->u.list.len; i++) {
-            err = indexoffs(vv2->u.list.data[i], ln, &offs, op->epoint2);
+        for (i = 0; i < list->len; i++) {
+            err = indexoffs(list->data[i], ln, &offs, op->epoint2);
             if (err) {
-                vv->u.bits.data = v;
-                val_destroy(vv);
-                return err;
+                vv->data = v;
+                val_destroy(&vv->v);
+                return &err->v;
             }
             o = offs / SHIFT;
-            if (o < bitslen(vv1) && ((vv1->u.bits.data[o] >> (offs & (SHIFT - 1))) & 1)) {
+            if (o < bitslen(vv1) && ((vv1->data[o] >> (offs & (SHIFT - 1))) & 1)) {
                 uv ^= 1 << bits;
             }
             bits++;
@@ -1050,125 +1058,140 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
         }
         if (bits) v[sz++] = uv & ((1 << bits) - 1);
 
-        vv->u.bits.bits = vv2->u.list.len;
+        vv->bits = list->len;
         return normalize(vv, v, sz, 0);
     }
     if (vv2->obj == COLONLIST_OBJ) {
-        return slice(vv2, op, ln);
+        return slice((Colonlist *)vv2, op, ln);
     }
     err = indexoffs(vv2, ln, &offs, op->epoint2);
-    if (err) return err;
+    if (err) return &err->v;
 
     uv = inv;
     o = offs / SHIFT;
-    if (o < bitslen(vv1) && ((vv1->u.bits.data[o] >> (offs & (SHIFT - 1))) & 1)) {
+    if (o < bitslen(vv1) && ((vv1->data[o] >> (offs & (SHIFT - 1))) & 1)) {
         uv ^= 1;
     }
-    return bits_from_bool(uv & 1);
+    return (Obj *)ref_bits(bits_value[uv & 1]);
 }
 
-static MUST_CHECK value_t calc2(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
-    value_t tmp, result, err;
+static MUST_CHECK Obj *calc2(oper_t op) {
+    Bits *v1 = (Bits *)op->v1;
+    Obj *o2 = op->v2;
+    Obj *tmp, *result;
+    Error *err;
     ival_t shift;
     ssize_t val;
 
     if (op->op == &o_INDEX) {
-        return iindex(op);
+        return (Obj *)iindex(op);
     }
     if (op->op == &o_X) {
         return repeat(op);
     }
-    switch (v2->obj->type) {
+    switch (o2->obj->type) {
     case T_BOOL:
-        tmp = bits_from_bool(v2->u.boolean);
-        op->v2 = tmp;
-        result = calc2(op);
-        val_destroy(tmp);
-        op->v2 = v2;
-        return result;
-    case T_BITS:
-        switch (op->op->u.oper.op) {
-        case O_CMP:
-            val = icmp(v1, v2);
-            if (val < 0) return int_from_int(-1);
-            return val_reference(int_value[val > 0]);
-        case O_EQ: return truth_reference(icmp(v1, v2) == 0);
-        case O_NE: return truth_reference(icmp(v1, v2) != 0);
-        case O_LT: return truth_reference(icmp(v1, v2) < 0);
-        case O_LE: return truth_reference(icmp(v1, v2) <= 0);
-        case O_GT: return truth_reference(icmp(v1, v2) > 0);
-        case O_GE: return truth_reference(icmp(v1, v2) >= 0);
-        case O_AND: return and_(v1, v2);
-        case O_OR: return or_(v1, v2);
-        case O_XOR: return xor_(v1, v2);
-        case O_CONCAT: return concat(v1, v2);
-        default: break;
+        {
+            Bool *v2 = (Bool *)o2;
+            tmp = (Obj *)ref_bits(bits_value[v2->boolean]);
+            op->v2 = tmp;
+            result = calc2(op);
+            val_destroy(tmp);
+            op->v2 = &v2->v;
+            return result;
         }
-        /* fall through */
+    case T_BITS:
+        {
+            Bits *v2 = (Bits *)o2;
+            switch (op->op->op) {
+            case O_CMP:
+                val = icmp(v1, v2);
+                if (val < 0) return (Obj *)ref_int(minus1_value);
+                return (Obj *)ref_int(int_value[val > 0]);
+            case O_EQ: return truth_reference(icmp(v1, v2) == 0);
+            case O_NE: return truth_reference(icmp(v1, v2) != 0);
+            case O_LT: return truth_reference(icmp(v1, v2) < 0);
+            case O_LE: return truth_reference(icmp(v1, v2) <= 0);
+            case O_GT: return truth_reference(icmp(v1, v2) > 0);
+            case O_GE: return truth_reference(icmp(v1, v2) >= 0);
+            case O_AND: return and_(v1, v2);
+            case O_OR: return or_(v1, v2);
+            case O_XOR: return xor_(v1, v2);
+            case O_CONCAT: return concat(v1, v2);
+            default: break;
+            }
+            /* fall through */
+        }
     case T_INT:
-        switch (op->op->u.oper.op) {
+        switch (op->op->op) {
         case O_LSHIFT:
-            err = v2->obj->ival(v2, &shift, 8*sizeof(ival_t), op->epoint2);
-            if (err) return err;
+            err = o2->obj->ival(o2, &shift, 8*sizeof(ival_t), op->epoint2);
+            if (err) return &err->v;
             return (shift < 0) ? rshift(v1, -shift) : lshift(v1, shift);
         case O_RSHIFT:
-            err = v2->obj->ival(v2, &shift, 8*sizeof(ival_t), op->epoint2);
-            if (err) return err;
+            err = o2->obj->ival(o2, &shift, 8*sizeof(ival_t), op->epoint2);
+            if (err) return &err->v;
             return (shift < 0) ? lshift(v1, -shift) : rshift(v1, shift);
         default: break;
         }
-        tmp = int_from_bits(v1);
+        tmp = (Obj *)int_from_bits(v1);
         op->v1 = tmp;
         result = tmp->obj->calc2(op);
         val_destroy(tmp);
-        op->v1 = v1;
+        op->v1 = &v1->v;
         return result;
     default:
         if (op->op != &o_MEMBER) {
-            return v2->obj->rcalc2(op);
+            return o2->obj->rcalc2(op);
         }
     }
     return obj_oper_error(op);
 }
 
-static MUST_CHECK value_t rcalc2(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
-    value_t tmp, result;
+static MUST_CHECK Obj *rcalc2(oper_t op) {
+    Bits *v2 = (Bits *)op->v2;
+    Obj *o1 = op->v1;
+    Obj *tmp, *result;
     ssize_t val;
-    switch (v1->obj->type) {
+    switch (o1->obj->type) {
     case T_BOOL:
-        tmp = bits_from_bool(v1->u.boolean);
-        op->v1 = tmp;
-        result = calc2(op);
-        val_destroy(tmp);
-        op->v1 = v1;
-        return result;
-    case T_BITS:
-        switch (op->op->u.oper.op) {
-        case O_CMP:
-            val = icmp(v1, v2);
-            if (val < 0) return int_from_int(-1);
-            return val_reference(int_value[val > 0]);
-        case O_EQ: return truth_reference(icmp(v1, v2) == 0);
-        case O_NE: return truth_reference(icmp(v1, v2) != 0);
-        case O_LT: return truth_reference(icmp(v1, v2) < 0);
-        case O_LE: return truth_reference(icmp(v1, v2) <= 0);
-        case O_GT: return truth_reference(icmp(v1, v2) > 0);
-        case O_GE: return truth_reference(icmp(v1, v2) >= 0);
-        case O_AND: return and_(v1, v2);
-        case O_OR: return or_(v1, v2);
-        case O_XOR: return xor_(v1, v2);
-        case O_CONCAT: return concat(v1, v2);
-        default: break;
+        {
+            Bool *v1 = (Bool *)o1;
+            tmp = (Obj *)ref_bits(bits_value[v1->boolean]);
+            op->v1 = tmp;
+            result = calc2(op);
+            val_destroy(tmp);
+            op->v1 = &v1->v;
+            return result;
         }
-        /* fall through */
+    case T_BITS:
+        {
+            Bits *v1 = (Bits *)o1;
+            switch (op->op->op) {
+            case O_CMP:
+                val = icmp(v1, v2);
+                if (val < 0) return (Obj *)ref_int(minus1_value);
+                return (Obj *)ref_int(int_value[val > 0]);
+            case O_EQ: return truth_reference(icmp(v1, v2) == 0);
+            case O_NE: return truth_reference(icmp(v1, v2) != 0);
+            case O_LT: return truth_reference(icmp(v1, v2) < 0);
+            case O_LE: return truth_reference(icmp(v1, v2) <= 0);
+            case O_GT: return truth_reference(icmp(v1, v2) > 0);
+            case O_GE: return truth_reference(icmp(v1, v2) >= 0);
+            case O_AND: return and_(v1, v2);
+            case O_OR: return or_(v1, v2);
+            case O_XOR: return xor_(v1, v2);
+            case O_CONCAT: return concat(v1, v2);
+            default: break;
+            }
+            /* fall through */
+        }
     case T_INT:
-        tmp = int_from_bits(v2);
+        tmp = (Obj *)int_from_bits(v2);
         op->v2 = tmp;
-        result = v1->obj->calc2(op);
+        result = o1->obj->calc2(op);
         val_destroy(tmp);
-        op->v2 = v2;
+        op->v2 = &v2->v;
         return result;
     default: break;
     }
@@ -1176,7 +1199,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void bitsobj_init(void) {
-    obj_init(&obj, T_BITS, "bits");
+    obj_init(&obj, T_BITS, "bits", sizeof(Bits));
     obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
@@ -1191,4 +1214,39 @@ void bitsobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+
+    null_bits = new_bits();
+    null_bits->len = 0;
+    null_bits->bits = 0;
+    null_bits->val[0] = 0;
+    null_bits->data = null_bits->val;
+    inv_bits = new_bits();
+    inv_bits->len = ~0;
+    inv_bits->bits = 0;
+    inv_bits->val[0] = 0;
+    inv_bits->data = inv_bits->val;
+    bits_value[0] = new_bits();
+    bits_value[0]->len = 0;
+    bits_value[0]->bits = 1;
+    bits_value[0]->val[0] = 0;
+    bits_value[0]->data = bits_value[0]->val;
+    bits_value[1] = new_bits();
+    bits_value[1]->len = 1;
+    bits_value[1]->bits = 1;
+    bits_value[1]->val[0] = 1;
+    bits_value[1]->data = bits_value[1]->val;
+}
+
+void bitsobj_destroy(void) {
+#ifdef DEBUG
+    if (null_bits->v.refcount != 1) fprintf(stderr, "bits %d\n", null_bits->v.refcount - 1);
+    if (inv_bits->v.refcount != 1) fprintf(stderr, "invbits %d\n", inv_bits->v.refcount - 1);
+    if (bits_value[0]->v.refcount != 1) fprintf(stderr, "bit0 %d\n", bits_value[0]->v.refcount - 1);
+    if (bits_value[1]->v.refcount != 1) fprintf(stderr, "bit1 %d\n", bits_value[1]->v.refcount - 1);
+#endif
+
+    val_destroy(&null_bits->v);
+    val_destroy(&inv_bits->v);
+    val_destroy(&bits_value[0]->v);
+    val_destroy(&bits_value[1]->v);
 }
