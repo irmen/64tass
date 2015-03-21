@@ -209,7 +209,7 @@ static MUST_CHECK Obj *next(Iter *v1) {
     return &v->v;
 }
 
-MUST_CHECK Str *str_from_str(const uint8_t *s, size_t *ln) {
+MUST_CHECK Obj *str_from_str(const uint8_t *s, size_t *ln) {
     Str *v;
     size_t i2 = 0;
     size_t i, j;
@@ -221,7 +221,7 @@ MUST_CHECK Str *str_from_str(const uint8_t *s, size_t *ln) {
         if (!(ch2 = s[i])) {
             err_msg(ERROR______EXPECTED, "end of string");
             *ln = i;
-            return ref_str(null_str);
+            return (Obj *)ref_none();
         }
         if (ch2 & 0x80) i += utf8len(ch2); else i++;
         if (ch2 == ch) {
@@ -257,7 +257,7 @@ MUST_CHECK Str *str_from_str(const uint8_t *s, size_t *ln) {
         memcpy(v->data, s + 1, v->len);
     }
     *ln = i;
-    return v;
+    return &v->v;
 }
 
 uint8_t *str_create_elements(Str *v, size_t ln) {
