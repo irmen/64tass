@@ -29,9 +29,20 @@
 #include "misc.h"
 #include "unicode.h"
 #include "listing.h"
+#include "error.h"
 
 #include "floatobj.h"
 #include "boolobj.h"
+#include "intobj.h"
+#include "bitsobj.h"
+#include "strobj.h"
+#include "codeobj.h"
+#include "bytesobj.h"
+#include "addressobj.h"
+#include "listobj.h"
+#include "dictobj.h"
+#include "registerobj.h"
+#include "namespaceobj.h"
 
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -120,8 +131,8 @@ size_t get_label(void) {
     return s - e;
 }
 
-static MUST_CHECK value_t get_dec(void) {
-    value_t v;
+static MUST_CHECK Int *get_dec(void) {
+    Int *v;
     size_t len;
     while (here() == 0x30) lpoint.pos++;
     v = int_from_decstr(pline + lpoint.pos, &len);
@@ -129,9 +140,8 @@ static MUST_CHECK value_t get_dec(void) {
     return v;
 }
 
-static MUST_CHECK value_t get_exponent(double real, linepos_t epoint) {
+static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
     int base;
-    value_t v;
 
     switch (here() | 0x20) {
     case 'p': base = 2; break;
@@ -146,41 +156,40 @@ static MUST_CHECK value_t get_exponent(double real, linepos_t epoint) {
         }
         if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
             ival_t expo;
-            value_t err;
+            Error *err;
             size_t len;
+            Obj *v;
             lpoint.pos++;
 
-            v = int_from_decstr(pline + lpoint.pos, &len);
+            v = (Obj *)int_from_decstr(pline + lpoint.pos, &len);
             err = v->obj->ival(v, &expo, 8*sizeof(uval_t), &lpoint);
             val_destroy(v);
-            if (err) return err;
+            if (err) return &err->v;
             lpoint.pos += len;
 
             if (neg) expo = -expo;
             if (expo) real *= pow(base, expo);
         }
     }
-    if (real == HUGE_VAL) {
-        return new_error_obj(ERROR_CONSTNT_LARGE, epoint);
-    }
-    return float_from_double(real);
+    return float_from_double(real, epoint);
 }
 
-static double toreal_destroy(value_t v, linepos_t epoint) {
-    value_t err = FLOAT_OBJ->create(v, epoint);
+static double toreal_destroy(Obj *v, linepos_t epoint) {
+    Obj *err = FLOAT_OBJ->create(v, epoint);
     double real;
     if (err->obj != FLOAT_OBJ) {
-        err_msg_output(err);
+        if (err->obj == NONE_OBJ) err_msg_still_none(NULL, epoint);
+        else if (err->obj == ERROR_OBJ) err_msg_output((Error *)err);
         real = 0;
     } else {
-        real = err->u.real;
+        real = ((Float *)err)->real;
     }
     val_destroy(err);
     val_destroy(v);
     return real;
 }
 
-static MUST_CHECK value_t get_exponent2(value_t v, linepos_t epoint) {
+static MUST_CHECK Obj *get_exponent2(Obj *v, linepos_t epoint) {
     double real;
     switch (here() | 0x20) {
     case 'e':
@@ -199,16 +208,16 @@ static MUST_CHECK value_t get_exponent2(value_t v, linepos_t epoint) {
     return v;
 }
 
-static MUST_CHECK value_t get_hex(linepos_t epoint) {
+static MUST_CHECK Obj *get_hex(linepos_t epoint) {
     size_t len;
-    value_t v = bits_from_hexstr(pline + lpoint.pos, &len);
+    Obj *v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
         real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
-        v = bits_from_hexstr(pline + lpoint.pos, &len);
+        v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len);
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
@@ -219,16 +228,16 @@ static MUST_CHECK value_t get_hex(linepos_t epoint) {
     return get_exponent2(v, epoint);
 }
 
-static MUST_CHECK value_t get_bin(linepos_t epoint) {
+static MUST_CHECK Obj *get_bin(linepos_t epoint) {
     size_t len;
-    value_t v = bits_from_binstr(pline + lpoint.pos, &len);
+    Obj *v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
         real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
-        v = bits_from_binstr(pline + lpoint.pos, &len);
+        v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len);
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
@@ -239,18 +248,18 @@ static MUST_CHECK value_t get_bin(linepos_t epoint) {
     return get_exponent2(v, epoint);
 }
 
-static MUST_CHECK value_t get_float(linepos_t epoint) {
+static MUST_CHECK Obj *get_float(linepos_t epoint) {
     size_t len;
-    value_t v;
+    Obj *v;
 
     while (here() == 0x30) lpoint.pos++;
-    v = int_from_decstr(pline + lpoint.pos, &len);
+    v = (Obj *)int_from_decstr(pline + lpoint.pos, &len);
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
         real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
-        v = int_from_decstr(pline + lpoint.pos, &len);
+        v = (Obj *)int_from_decstr(pline + lpoint.pos, &len);
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
@@ -261,36 +270,36 @@ static MUST_CHECK value_t get_float(linepos_t epoint) {
     return get_exponent2(v, epoint);
 }
 
-static MUST_CHECK value_t get_string(void) {
+static MUST_CHECK Str *get_string(void) {
     size_t len;
-    value_t v = str_from_str(pline + lpoint.pos, &len);
+    Str *v = str_from_str(pline + lpoint.pos, &len);
     lpoint.pos += len;
     return v;
 }
 
-void touch_label(value_t tmp) {
-    if (referenceit) tmp->u.label.ref = 1;
-    tmp->u.label.usepass = pass;
+void touch_label(Label *tmp) {
+    if (referenceit) tmp->ref = 1;
+    tmp->usepass = pass;
 }
 
-MUST_CHECK value_t get_star_value(value_t val) {
+MUST_CHECK Obj *get_star_value(Obj *val) {
     if (!val) {
-        return int_from_uval(star);
+        return (Obj *)int_from_uval(star);
     }
     switch (val->obj->type) {
-    case T_BITS: return bits_from_uval(star, (all_mem == 0xffff) ? 16 : 24);
+    case T_BITS: return (Obj *)bits_from_uval(star, (all_mem == 0xffff) ? 16 : 24);
     default:
-    case T_CODE: return get_star_value(val->u.code.addr);
+    case T_CODE: return get_star_value(((Code *)val)->addr);
     case T_BOOL:
-    case T_INT: return int_from_uval(star);
-    case T_FLOAT: return float_from_double(star + (current_section->l_address_val->u.real - trunc(current_section->l_address_val->u.real)));
+    case T_INT: return (Obj *)int_from_uval(star);
+    case T_FLOAT: return (Obj *)new_float(star + (((Float *)val)->real - trunc(((Float *)val)->real)));
     case T_STR:
-    case T_BYTES: return bytes_from_uval(star, (all_mem == 0xffff) ? 2 : 3);
-    case T_ADDRESS: return address_from_value(get_star_value(val->u.addr.val), val->u.addr.type);
+    case T_BYTES: return (Obj *)bytes_from_uval(star, (all_mem == 0xffff) ? 2 : 3);
+    case T_ADDRESS: return (Obj *)new_address(get_star_value(((Address *)val)->val), ((Address *)val)->type);
     }
 }
 
-static MUST_CHECK value_t get_star(linepos_t epoint) {
+static MUST_CHECK Obj *get_star(linepos_t epoint) {
     struct star_s *tmp;
     int labelexists;
 
@@ -317,7 +326,7 @@ static struct eval_context_s {
 
 static struct eval_context_s *eval;
 
-static inline void push_oper(value_t val, linepos_t epoint) {
+static inline void push_oper(Obj *val, linepos_t epoint) {
     if (eval->outp >= eval->out_size) {
         size_t i;
         eval->out_size += 64;
@@ -332,15 +341,17 @@ static inline void push_oper(value_t val, linepos_t epoint) {
 static int get_exp_compat(int *wd, int stop) {/* length in bytes, defined */
     char ch;
 
-    value_t conv, conv2;
-    struct values_s o_oper[256];
+    Obj *conv, *conv2;
+    struct {
+        Oper *val;
+        struct linepos_s epoint;
+    } o_oper[256];
     uint8_t operp = 0;
     struct linepos_s epoint, cpoint = {0, 0};
-    value_t val;
     size_t llen;
     int first;
     str_t ident;
-    value_t l;
+    Label *l;
 
     *wd=3;    /* 0=byte 1=word 2=long 3=negative/too big */
 
@@ -351,14 +362,14 @@ rest:
     conv = conv2 = NULL;
     first = (here() == '(') && (stop == 3 || stop == 4);
     if (!eval->outp && here() == '#') {
-        conv2 = &o_HASH; lpoint.pos++;
+        conv2 = &o_HASH.v; lpoint.pos++;
     }
     switch (here()) {
     case 0:
     case ';': return 1;
     case '!':*wd=1;lpoint.pos++;break;
-    case '<': conv = &o_LOWER; cpoint = lpoint; lpoint.pos++;break; 
-    case '>': conv = &o_HIGHER;cpoint = lpoint; lpoint.pos++;break; 
+    case '<': conv = &o_LOWER.v; cpoint = lpoint; lpoint.pos++;break; 
+    case '>': conv = &o_HIGHER.v;cpoint = lpoint; lpoint.pos++;break; 
     }
     for (;;) {
         ignore();ch = here(); epoint=lpoint;
@@ -367,10 +378,10 @@ rest:
         case '(': lpoint.pos++;o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_PARENT;continue;
         case '$': lpoint.pos++;push_oper(get_hex(&epoint), &epoint);goto other;
         case '%': lpoint.pos++;push_oper(get_bin(&epoint), &epoint);goto other;
-        case '"': push_oper(get_string(), &epoint);goto other;
+        case '"': push_oper((Obj *)get_string(), &epoint);goto other;
         case '*': lpoint.pos++;push_oper(get_star(&epoint), &epoint);goto other;
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
-            push_oper(get_dec(), &epoint);goto other;
+            push_oper((Obj *)get_dec(), &epoint);goto other;
         default: 
             if (!get_label()) {
                 if (operp) epoint = o_oper[operp-1].epoint;
@@ -384,14 +395,14 @@ rest:
         l = find_label(&ident);
         if (l) {
             touch_label(l);
-            l->u.label.shadowcheck = 1;
-            push_oper(val_reference(l->u.label.value), &epoint);
+            l->shadowcheck = 1;
+            push_oper(val_reference(l->value), &epoint);
         } else {
-            val = new_error_obj(ERROR___NOT_DEFINED, &epoint);
-            val->u.error.u.notdef.ident = ident;
-            val->u.error.u.notdef.names = val_reference(current_context);
-            val->u.error.u.notdef.down = 1;
-            push_oper(val, &epoint);
+            Error *err = new_error(ERROR___NOT_DEFINED, &epoint);
+            err->u.notdef.ident = ident;
+            err->u.notdef.names = ref_namespace(current_context);
+            err->u.notdef.down = 1;
+            push_oper((Obj *)err, &epoint);
         }
     other:
         if (stop != 2) ignore();
@@ -399,7 +410,7 @@ rest:
 
         while (operp && o_oper[operp-1].val != &o_PARENT) {
             operp--;
-            push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+            push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
         }
         switch (ch) {
         case ',':
@@ -461,9 +472,9 @@ rest:
 static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defined */
     size_t vsp = 0;
     enum oper_e op;
-    value_t op2;
+    Oper *op2;
     size_t i;
-    value_t val;
+    Obj *val;
     struct values_s *v1, *v2;
     struct values_s *o_out;
     struct values_s *values;
@@ -487,8 +498,8 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
             values[vsp++].epoint = o_out->epoint;
             continue;
         }
-        op2 = val;
-        op = op2->u.oper.op;
+        op2 = (Oper *)val;
+        op = op2->op;
 
         if (vsp < 1) goto syntaxe;
         v1 = &values[vsp-1];
@@ -505,17 +516,20 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                 case O_COMMAX:
                 case O_COMMAY:
                 case O_TUPLE:
-                    val = val_alloc(ADDRESS_OBJ);
-                    val->u.addr.type = v1->val->u.addr.type << 4;
-                    val->u.addr.type |= (op == O_TUPLE) ? A_I : (op == O_COMMAX) ? A_XR : A_YR;
-                    val->u.addr.val = val_reference(v1->val->u.addr.val);
-                    val_destroy(v1->val); v1->val = val;
-                    v1->epoint = o_out->epoint;
-                    continue;
+                    {
+                        Address *old = (Address *)v1->val;
+                        Address *val2 = (Address *)val_alloc(ADDRESS_OBJ);
+                        val2->type = old->type << 4;
+                        val2->type |= (op == O_TUPLE) ? A_I : (op == O_COMMAX) ? A_XR : A_YR;
+                        val2->val = val_reference(old->val);
+                        val_destroy(v1->val); v1->val = (Obj *)val2;
+                        v1->epoint = o_out->epoint;
+                        continue;
+                    }
                 default:break;
                 }
                 err_msg_invalid_oper(op2, v1->val, NULL, &o_out->epoint);
-                val_replace(&v1->val, none_value); 
+                val_replace(&v1->val, (Obj *)none_value); 
                 break;
             case T_CODE:
             case T_INT:
@@ -525,11 +539,10 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                 {
                     uint16_t val1;
                     uval_t uval;
-                    value_t err;
-                    err = v1->val->obj->uval(v1->val, &uval, 8*sizeof(uval_t), &v1->epoint);
+                    Error *err = v1->val->obj->uval(v1->val, &uval, 8*sizeof(uval_t), &v1->epoint);
                     if (err) {
                         val_destroy(v1->val);
-                        v1->val = err;
+                        v1->val = &err->v;
                         break;
                     }
                     val1 = uval;
@@ -538,30 +551,38 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     case O_HASH:
                     case O_COMMAX:
                     case O_COMMAY:
-                        val = val_alloc(ADDRESS_OBJ);
-                        val->u.addr.type = (op == O_HASH) ? A_IMMEDIATE : (op == O_COMMAX) ? A_XR : A_YR;
-                        val->u.addr.val = val_reference(v1->val);
-                        val_destroy(v1->val); v1->val = val;
-                        v1->epoint = o_out->epoint;
-                        continue;
-                    case O_HIGHER: val1 >>= 8;
-                    case O_LOWER: val1 = (uint8_t)val1;break;
+                        {
+                            Address *val2 = (Address *)val_alloc(ADDRESS_OBJ);
+                            val2->type = (op == O_HASH) ? A_IMMEDIATE : (op == O_COMMAX) ? A_XR : A_YR;
+                            val2->val = val_reference(v1->val);
+                            val_destroy(v1->val); v1->val = &val2->v;
+                            v1->epoint = o_out->epoint;
+                            continue;
+                        }
+                    case O_HIGHER: 
+                        val1 >>= 8;
+                        /* fall through */
+                    case O_LOWER: 
+                        val1 = (uint8_t)val1;
+                        break;
                     case O_TUPLE:
-                        val = val_alloc(ADDRESS_OBJ);
-                        val->u.addr.type = A_I;
-                        val->u.addr.val = val_reference(v1->val);
-                        val_destroy(v1->val); v1->val = val;
-                        v1->epoint = o_out->epoint;
-                        continue;
+                        {
+                            Address *val2 = (Address *)val_alloc(ADDRESS_OBJ);
+                            val2->type = A_I;
+                            val2->val = val_reference(v1->val);
+                            val_destroy(v1->val); v1->val = &val2->v;
+                            v1->epoint = o_out->epoint;
+                            continue;
+                        }
                     default: break;
                     }
                     val_destroy(v1->val);
-                    v1->val = int_from_uval(val1);
+                    v1->val = (Obj *)int_from_uval(val1);
                     break;
                 }
             default:
                 err_msg_invalid_oper(op2, v1->val, NULL, &o_out->epoint);
-                val_replace(&v1->val, none_value); 
+                val_replace(&v1->val, (Obj *)none_value); 
             case T_ERROR:
             case T_NONE:break;
             }
@@ -594,18 +615,17 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                 {
                     uint16_t val1, val2;
                     uval_t uval;
-                    value_t err;
-                    err = v1->val->obj->uval(v1->val, &uval, 8*sizeof(uval_t), &v1->epoint);
+                    Error *err = v1->val->obj->uval(v1->val, &uval, 8*sizeof(uval_t), &v1->epoint);
                     if (err) {
                         val_destroy(v1->val);
-                        v1->val = err;
+                        v1->val = &err->v;
                         continue;
                     }
                     val1 = uval;
                     err = v2->val->obj->uval(v2->val, &uval, 8*sizeof(uval_t), &v2->epoint);
                     if (err) {
                         val_destroy(v1->val);
-                        v1->val = err;
+                        v1->val = &err->v;
                         continue;
                     }
                     val2 = uval;
@@ -613,8 +633,8 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     switch (op) {
                     case O_MUL: val1 *= val2; break;
                     case O_DIV: if (!val2) {
-                        val = new_error_obj(ERROR_DIVISION_BY_Z, &o_out->epoint);
-                        val_destroy(v1->val); v1->val = val;
+                        err = new_error(ERROR_DIVISION_BY_Z, &o_out->epoint);
+                        val_destroy(v1->val); v1->val = &err->v;
                         continue;
                     } else val1 /= val2; break;
                     case O_ADD: val1 += val2; break;
@@ -625,7 +645,7 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
                     default: break;
                     }
                     val_destroy(v1->val);
-                    v1->val = int_from_uval(val1);
+                    v1->val = (Obj *)int_from_uval(val1);
                     continue;
                 }
             default: err_msg_invalid_oper(op2, v1->val, v2->val, &o_out->epoint); break;
@@ -640,17 +660,16 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
         case T_ERROR:
         case T_NONE: continue;
         }
-        val_replace(&v1->val, none_value); continue;
+        val_replace(&v1->val, (Obj *)none_value); continue;
     }
     ev->outp2 = i;
     ev->values_len = vsp;
     return 1;
 }
 
-MUST_CHECK value_t indexoffs(const value_t v1, size_t len, size_t *offs, linepos_t epoint) {
+MUST_CHECK Error *indexoffs(Obj *v1, size_t len, size_t *offs, linepos_t epoint) {
     ival_t ival;
-    value_t err;
-    err = v1->obj->ival(v1, &ival, 8*sizeof(ival_t), epoint);
+    Error *err = v1->obj->ival(v1, &ival, 8*sizeof(ival_t), epoint);
     if (err) return err;
 
     if (ival >= 0) {
@@ -664,31 +683,31 @@ MUST_CHECK value_t indexoffs(const value_t v1, size_t len, size_t *offs, linepos
             return NULL;
         }
     }
-    return new_error_obj(ERROR___INDEX_RANGE, epoint);
+    return new_error(ERROR___INDEX_RANGE, epoint);
 }
 
-MUST_CHECK value_t sliceparams(const value_t v2, size_t len, size_t *olen, ival_t *offs2, ival_t *end2, ival_t *step2, linepos_t epoint) {
-    value_t err;
+MUST_CHECK Obj *sliceparams(const Colonlist *v2, size_t len, size_t *olen, ival_t *offs2, ival_t *end2, ival_t *step2, linepos_t epoint) {
+    Error *err;
     ival_t offs, end, step = 1;
-    if (v2->u.list.len > 3 || v2->u.list.len < 1) {
-        err_msg_argnum(v2->u.list.len, 1, 3, epoint);
-        return val_reference(none_value);
+    if (v2->len > 3 || v2->len < 1) {
+        err_msg_argnum(v2->len, 1, 3, epoint);
+        return (Obj *)ref_none();
     }
     end = (ival_t)len;
-    if (v2->u.list.len > 2) {
-        if (v2->u.list.data[2]->obj != DEFAULT_OBJ) {
-            err = v2->u.list.data[2]->obj->ival(v2->u.list.data[2], &step, 8*sizeof(ival_t), epoint);
-            if (err) return err;
+    if (v2->len > 2) {
+        if (v2->data[2]->obj != DEFAULT_OBJ) {
+            err = v2->data[2]->obj->ival(v2->data[2], &step, 8*sizeof(ival_t), epoint);
+            if (err) return (Obj *)err;
             if (step == 0) {
-                return new_error_obj(ERROR_NO_ZERO_VALUE, epoint);
+                return (Obj *)new_error(ERROR_NO_ZERO_VALUE, epoint);
             }
         }
     }
-    if (v2->u.list.len > 1) {
-        if (v2->u.list.data[1]->obj == DEFAULT_OBJ) end = (step > 0) ? (ival_t)len : -1;
+    if (v2->len > 1) {
+        if (v2->data[1]->obj == DEFAULT_OBJ) end = (step > 0) ? (ival_t)len : -1;
         else {
-            err = v2->u.list.data[1]->obj->ival(v2->u.list.data[1], &end, 8*sizeof(ival_t), epoint);
-            if (err) return err;
+            err = v2->data[1]->obj->ival(v2->data[1], &end, 8*sizeof(ival_t), epoint);
+            if (err) return (Obj *)err;
             if (end >= 0) {
                 if (end > (ival_t)len) end = len;
             } else {
@@ -697,10 +716,10 @@ MUST_CHECK value_t sliceparams(const value_t v2, size_t len, size_t *olen, ival_
             if (end < -1) end = -1;
         }
     } else end = len;
-    if (v2->u.list.data[0]->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
+    if (v2->data[0]->obj == DEFAULT_OBJ) offs = (step > 0) ? 0 : len - 1;
     else {
-        err = v2->u.list.data[0]->obj->ival(v2->u.list.data[0], &offs, 8*sizeof(ival_t), epoint);
-        if (err) return err;
+        err = v2->data[0]->obj->ival(v2->data[0], &offs, 8*sizeof(ival_t), epoint);
+        if (err) return (Obj *)err;
         if (offs >= 0) {
             if (offs > (ival_t)len - (step < 0)) offs = len - (step < 0);
         } else {
@@ -723,35 +742,46 @@ MUST_CHECK value_t sliceparams(const value_t v2, size_t len, size_t *olen, ival_
     return NULL;
 }
 
-static MUST_CHECK value_t apply_addressing(value_t v1, enum atype_e am) {
-    size_t i;
-    value_t *vals, v;
+static MUST_CHECK Obj *apply_addressing(Obj *o1, enum atype_e am) {
 
-    switch (v1->obj->type) {
+    switch (o1->obj->type) {
     case T_ADDRESS:
-        v = val_alloc(ADDRESS_OBJ);
-        v->u.addr.val = val_reference(v1->u.addr.val);
-        v->u.addr.type = am | (v1->u.addr.type << 4);
-        return v;
+        {
+            Address *v1 = (Address *)o1;
+            Address *v = (Address *)val_alloc(ADDRESS_OBJ);
+            v->val = val_reference(v1->val);
+            v->type = am | (v1->type << 4);
+            return (Obj *)v;
+        }
     case T_LIST:
     case T_TUPLE:
-        v = val_alloc(v1->obj);
-        vals = list_create_elements(v, v1->u.list.len);
-        for (i = 0; i < v1->u.list.len; i++) {
-            vals[i] = apply_addressing(v1->u.list.data[i], am);
+        {
+            List *v1 = (List *)o1;
+            List *v = (List *)val_alloc(o1->obj);
+            Obj **vals = list_create_elements(v, v1->len);
+            size_t i;
+            for (i = 0; i < v1->len; i++) {
+                vals[i] = apply_addressing(v1->data[i], am);
+            }
+            v->len = v1->len;
+            v->data = vals;
+            return (Obj *)v;
         }
-        v->u.list.len = v1->u.list.len;
-        v->u.list.data = vals;
-        return v;
     case T_ERROR:
-        err_msg_output(v1);
-        v1 = none_value;
-        /* fall through */
+        {
+            Address *v = (Address *)val_alloc(ADDRESS_OBJ);
+            v->val = (Obj *)ref_none();
+            v->type = am;
+            err_msg_output((Error *)o1);
+            return (Obj *)v;
+        }
     default:
-        v = val_alloc(ADDRESS_OBJ);
-        v->u.addr.val = val_reference(v1);
-        v->u.addr.type = am;
-        return v;
+        {
+            Address *v = (Address *)val_alloc(ADDRESS_OBJ);
+            v->val = val_reference(o1);
+            v->type = am;
+            return (Obj *)v;
+        }
     }
 }
 
@@ -759,11 +789,11 @@ static int get_val2(struct eval_context_s *ev) {
     size_t vsp = 0;
     size_t i;
     enum oper_e op;
-    value_t op2;
+    Oper *op2;
     struct values_s *v1, *v2;
     int stop = ev->gstop == 3 || ev->gstop == 4;
     struct values_s *o_out;
-    value_t val, err;
+    Obj *val;
     struct values_s *values;
     struct oper_s oper;
     enum atype_e am;
@@ -774,7 +804,7 @@ static int get_val2(struct eval_context_s *ev) {
     for (i = ev->outp2; i < ev->outp; i++) {
         o_out = &ev->o_out[i];
         val = o_out->val;
-        if (val->obj != OPER_OBJ || val == &o_PARENT || val == &o_BRACKET || val == &o_BRACE) {
+        if (val->obj != OPER_OBJ || val == &o_PARENT.v || val == &o_BRACKET.v || val == &o_BRACE.v) {
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
                 ev->values_size += 16;
@@ -788,9 +818,9 @@ static int get_val2(struct eval_context_s *ev) {
             continue;
         }
 
-        if (val == &o_COMMA || val == &o_COLON2) continue;
-        op2 = val;
-        op = op2->u.oper.op;
+        if (val == &o_COMMA.v || val == &o_COLON2.v) continue;
+        op2 = (Oper *)val;
+        op = op2->op;
         if (vsp == 0) goto syntaxe;
         v1 = &values[vsp-1];
         switch (op) {
@@ -798,25 +828,25 @@ static int get_val2(struct eval_context_s *ev) {
         case O_INDEX:
             {
                 unsigned int args = 0;
-                value_t tmp = val_alloc(FUNCARGS_OBJ);
+                Funcargs *tmp = (Funcargs *)val_alloc(FUNCARGS_OBJ);
                 op = (op == O_FUNC) ? O_PARENT : O_BRACKET;
-                while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != op) {
+                while (v1->val->obj != OPER_OBJ || ((Oper *)v1->val)->op != op) {
                     args++;
                     if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
                 }
-                tmp->u.funcargs.val = &values[vsp-args];
-                tmp->u.funcargs.len = args; /* assumes no referencing */
+                tmp->val = &values[vsp-args];
+                tmp->len = args; /* assumes no referencing */
                 v1--;
 
                 oper.op = op2;
                 oper.v1 = v1->val;
-                oper.v2 = tmp;
+                oper.v2 = (Obj *)tmp;
                 oper.epoint = &v1->epoint;
-                oper.epoint2 = args ? &tmp->u.funcargs.val->epoint : &o_out->epoint;
+                oper.epoint2 = args ? &tmp->val->epoint : &o_out->epoint;
                 oper.epoint3 = &o_out->epoint;
                 val = oper.v1->obj->calc2(&oper);
-                val_destroy(tmp);
+                val_destroy(&tmp->v);
                 val_destroy(v1->val); v1->val = val;
 
                 vsp -= args + 1;
@@ -827,10 +857,11 @@ static int get_val2(struct eval_context_s *ev) {
         case O_TUPLE:
         case O_LIST:
             {
+                List *list;
                 unsigned int tup = (op == O_RPARENT), expc = (op == O_TUPLE || op == O_LIST);
                 size_t args = 0;
                 op = (op == O_RBRACKET || op == O_LIST) ? O_BRACKET : O_PARENT;
-                while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != op) {
+                while (v1->val->obj != OPER_OBJ || ((Oper *)v1->val)->op != op) {
                     args++;
                     if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
@@ -840,13 +871,13 @@ static int get_val2(struct eval_context_s *ev) {
                         size_t j = i + 1;
                         vsp--;
                         if (tup && j < ev->outp && (ev->o_out[j].val->obj != OPER_OBJ || (
-                                        ev->o_out[j].val != &o_RPARENT &&   /* ((3)) */
-                                        ev->o_out[j].val != &o_RBRACKET &&  /* [(3)] */
-                                        ev->o_out[j].val != &o_FUNC &&      /* f((3)) */
-                                        ev->o_out[j].val != &o_LIST &&      /* [(3),] */
-                                        ev->o_out[j].val != &o_COMMA &&     /* [(3),(3)] */
-                                        ev->o_out[j].val != &o_COMMAY &&    /* (3),y */
-                                        ev->o_out[j].val != &o_COMMAZ       /* (3),z */
+                                        ev->o_out[j].val != &o_RPARENT.v &&   /* ((3)) */
+                                        ev->o_out[j].val != &o_RBRACKET.v &&  /* [(3)] */
+                                        ev->o_out[j].val != &o_FUNC.v &&      /* f((3)) */
+                                        ev->o_out[j].val != &o_LIST.v &&      /* [(3),] */
+                                        ev->o_out[j].val != &o_COMMA.v &&     /* [(3),(3)] */
+                                        ev->o_out[j].val != &o_COMMAY.v &&    /* (3),y */
+                                        ev->o_out[j].val != &o_COMMAZ.v       /* (3),z */
                                         ))) {
                             v1->val = values[vsp].val; 
                             values[vsp].val = NULL;
@@ -863,76 +894,77 @@ static int get_val2(struct eval_context_s *ev) {
                     }
                 }
                 if (args) {
-                    val = val_alloc((op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ);
-                    val->u.list.len = args;
-                    val->u.list.data = list_create_elements(val, args);
+                    list = (List *)val_alloc((op == O_BRACKET) ? LIST_OBJ : TUPLE_OBJ);
+                    list->len = args;
+                    list->data = list_create_elements(list, args);
                     while (args--) {
                         v2 = &values[vsp-1];
-                        if (v2->val->obj == ERROR_OBJ) { err_msg_output_and_destroy(v2->val); v2->val = val_reference(none_value); }
-                        val->u.list.data[args] = v2->val;
+                        if (v2->val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)v2->val); v2->val = (Obj *)ref_none(); }
+                        list->data[args] = v2->val;
                         v2->val = NULL;
                         vsp--;
                     }
-                } else val = val_reference((op == O_BRACKET) ? null_list : null_tuple);
-                v1->val = val;
+                } else list = (List *)val_reference((op == O_BRACKET) ? &null_list->v : &null_tuple->v);
+                v1->val = (Obj *)list;
                 continue;
             }
         case O_RBRACE:
         case O_DICT:
             {
                 unsigned int args = 0;
-                while (v1->val->obj != OPER_OBJ || v1->val->u.oper.op != O_BRACE) {
+                Dict *dict;
+                while (v1->val->obj != OPER_OBJ || ((Oper *)v1->val)->op != O_BRACE) {
                     args++;
                     if (vsp <= args) goto syntaxe;
                     v1 = &values[vsp-1-args];
                 }
-                v1->val = val = val_alloc(DICT_OBJ);
-                val->u.dict.len = 0;
-                val->u.dict.def = NULL;
-                avltree_init(&val->u.dict.members);
+                dict = new_dict();
+                v1->val = (Obj *)dict;
+                dict->len = 0;
+                dict->def = NULL;
                 if (args) {
                     unsigned int j;
                     vsp -= args;
                     for (j = 0; j < args; j++) {
+                        Error *err;
                         v2 = &values[vsp+j];
                         if (v2->val->obj == NONE_OBJ || v2->val->obj == ERROR_OBJ) {
-                            obj_destroy(val);
-                            v1->val = val_reference(v2->val);
+                            val_destroy(v1->val); v1->val = val_reference(v2->val);
                             break;
                         }
                         if (v2->val->obj == COLONLIST_OBJ) {
+                            Colonlist *list = (Colonlist *)v2->val;
                             struct pair_s *p, *p2;
                             struct avltree_node *b;
-                            if (v2->val->u.list.data[0]->obj == DEFAULT_OBJ) {
-                                if (val->u.dict.def) val_destroy(val->u.dict.def);
-                                val->u.dict.def = val_reference(v2->val->u.list.data[1]);
+                            if (list->data[0]->obj == DEFAULT_OBJ) {
+                                if (dict->def) val_destroy(dict->def);
+                                dict->def = val_reference(list->data[1]);
                             } else {
                                 p = (struct pair_s *)malloc(sizeof(struct pair_s));
                                 if (!p) err_msg_out_of_memory();
-                                err = obj_hash(v2->val->u.list.data[0], &p->hash, &v2->epoint);
+                                err = obj_hash(list->data[0], &p->hash, &v2->epoint);
                                 if (err) {
                                     free(p);
-                                    obj_destroy(val);
-                                    v1->val = err;
+                                    val_destroy(v1->val); v1->val = &err->v;
                                     break;
                                 }
-                                p->key = v2->val->u.list.data[0];
-                                b = avltree_insert(&p->node, &val->u.dict.members, pair_compare);
+                                p->key = list->data[0];
+                                b = avltree_insert(&p->node, &dict->members, pair_compare);
                                 if (b) {
                                     p2 = avltree_container_of(b, struct pair_s, node);
-                                    val_replace(&p2->data, v2->val->u.list.data[1]);
+                                    val_replace(&p2->data, list->data[1]);
                                     free(p);
                                 } else {
                                     p->key = val_reference(p->key);
-                                    p->data = val_reference(v2->val->u.list.data[1]);
-                                    val->u.dict.len++;
+                                    p->data = val_reference(list->data[1]);
+                                    dict->len++;
                                 }
                             }
                             continue;
                         }
-                        val_destroy(val);
-                        val = new_error_obj(ERROR__NOT_KEYVALUE, &v1->epoint);
-                        val->u.error.u.objname = v1->val->obj->name;
+                        err = new_error(ERROR__NOT_KEYVALUE, &v1->epoint);
+                        err->u.objname = v1->val->obj->name;
+                        val_destroy(v1->val); v1->val = (Obj *)err;
                         break;
                     }
                 }
@@ -943,31 +975,31 @@ static int get_val2(struct eval_context_s *ev) {
             if (vsp == 0) goto syntaxe;
             v1 = &values[vsp-1]; vsp--;
             if (vsp == 0) goto syntaxe;
-            err = values[vsp-1].val->obj->truth(values[vsp-1].val, TRUTH_BOOL, &values[vsp-1].epoint);
-            if (err->obj != BOOL_OBJ) {
+            val = values[vsp-1].val->obj->truth(values[vsp-1].val, TRUTH_BOOL, &values[vsp-1].epoint);
+            if (val->obj != BOOL_OBJ) {
                 val_destroy(values[vsp-1].val);
-                values[vsp-1].val = err;
+                values[vsp-1].val = val;
                 continue;
             }
-            if (err->u.boolean) {
-                value_t tmp = values[vsp-1].val;
+            if (((Bool *)val)->boolean) {
+                Obj *tmp = values[vsp-1].val;
                 values[vsp-1].val = v1->val;
                 v1->val = tmp;
                 values[vsp-1].epoint = v1->epoint;
             } else {
-                value_t tmp = values[vsp-1].val;
+                Obj *tmp = values[vsp-1].val;
                 values[vsp-1].val = v2->val;
                 v2->val = tmp;
                 values[vsp-1].epoint = v2->epoint;
             }
-            val_destroy(err);
+            val_destroy(val);
             continue;
         case O_QUEST:
             vsp--;
             if (vsp == 0) goto syntaxe;
             v1 = &values[vsp-1];
             err_msg2(ERROR______EXPECTED,"':'", &o_out->epoint);
-            val_replace(&v1->val, none_value);
+            val_replace(&v1->val, (Obj *)none_value);
             continue;
         case O_COLON:
             v2 = v1; v1 = &values[--vsp-1];
@@ -975,26 +1007,28 @@ static int get_val2(struct eval_context_s *ev) {
             switch (v1->val->obj->type) {
             case T_COLONLIST:
                 if (v1->val->refcount == 1) {
-                    val = val_alloc(COLONLIST_OBJ);
+                    Colonlist *l1 = (Colonlist *)v1->val;
+                    Colonlist *list = new_colonlist();
                     if (v2->val->obj == COLONLIST_OBJ && v2->val->refcount == 1) {
-                        val->u.list.len = v1->val->u.list.len + v2->val->u.list.len;
-                        if (val->u.list.len < v2->val->u.list.len) err_msg_out_of_memory(); /* overflow */
-                        val->u.list.data = list_create_elements(val, val->u.list.len);
-                        memcpy(val->u.list.data, v1->val->u.list.data, v1->val->u.list.len * sizeof(val->u.list.data[0]));
-                        memcpy(val->u.list.data + v1->val->u.list.len, v2->val->u.list.data, v2->val->u.list.len * sizeof(val->u.list.data[0]));
-                        v1->val->u.list.len = 0;
-                        v2->val->u.list.len = 0;
-                        val_destroy(v1->val); v1->val = val;
+                        Colonlist *l2 = (Colonlist *)v2->val;
+                        list->len = l1->len + l2->len;
+                        if (list->len < l2->len) err_msg_out_of_memory(); /* overflow */
+                        list->data = list_create_elements(list, list->len);
+                        memcpy(list->data, l1->data, l1->len * sizeof(list->data[0]));
+                        memcpy(list->data + l1->len, l2->data, l2->len * sizeof(list->data[0]));
+                        l1->len = 0;
+                        l2->len = 0;
+                        val_destroy(v1->val); v1->val = (Obj *)list;
                         continue;
                     }
-                    val->u.list.len = v1->val->u.list.len + 1;
-                    if (val->u.list.len < 1) err_msg_out_of_memory(); /* overflow */
-                    val->u.list.data = list_create_elements(val, val->u.list.len);
-                    memcpy(val->u.list.data, v1->val->u.list.data, v1->val->u.list.len * sizeof(val->u.list.data[0]));
-                    val->u.list.data[v1->val->u.list.len] = v2->val;
-                    v1->val->u.list.len = 0;
+                    list->len = l1->len + 1;
+                    if (list->len < 1) err_msg_out_of_memory(); /* overflow */
+                    list->data = list_create_elements(list, list->len);
+                    memcpy(list->data, l1->data, l1->len * sizeof(list->data[0]));
+                    list->data[l1->len] = v2->val;
+                    l1->len = 0;
                     v2->val = v1->val;
-                    v1->val = val;
+                    v1->val = (Obj *)list;
                     continue;
                 }
                 /* fall through */
@@ -1002,26 +1036,29 @@ static int get_val2(struct eval_context_s *ev) {
                 switch (v2->val->obj->type) {
                 case T_COLONLIST:
                     if (v2->val->refcount == 1) {
-                        val = val_alloc(COLONLIST_OBJ);
-                        val->u.list.len = v2->val->u.list.len + 1;
-                        if (val->u.list.len < 1) err_msg_out_of_memory(); /* overflow */
-                        val->u.list.data = list_create_elements(val, val->u.list.len);
-                        val->u.list.data[0] = v1->val;
-                        memcpy(&val->u.list.data[1], v2->val->u.list.data, v2->val->u.list.len * sizeof(val->u.list.data[0]));
-                        v1->val = val;
-                        v2->val->u.list.len = 0;
+                        Colonlist *l2 = (Colonlist *)v2->val;
+                        Colonlist *list = new_colonlist();
+                        list->len = l2->len + 1;
+                        if (list->len < 1) err_msg_out_of_memory(); /* overflow */
+                        list->data = list_create_elements(list, list->len);
+                        list->data[0] = v1->val;
+                        memcpy(&list->data[1], l2->data, l2->len * sizeof(list->data[0]));
+                        v1->val = (Obj *)list;
+                        l2->len = 0;
                         continue;
                     }
                     /* fall through */
                 default: 
-                    val = val_alloc(COLONLIST_OBJ);
-                    val->u.list.len = 2;
-                    val->u.list.data = list_create_elements(val, 2);
-                    val->u.list.data[0] = v1->val;
-                    val->u.list.data[1] = v2->val;
-                    v1->val = val;
-                    v2->val = NULL;
-                    continue;
+                    {
+                        Colonlist *list = new_colonlist();
+                        list->len = 2;
+                        list->data = list_create_elements(list, 2);
+                        list->data[0] = v1->val;
+                        list->data[1] = v2->val;
+                        v1->val = (Obj *)list;
+                        v2->val = NULL;
+                        continue;
+                    }
                 case T_ERROR:
                     val_replace(&v1->val, v2->val);
                     continue;
@@ -1063,8 +1100,8 @@ static int get_val2(struct eval_context_s *ev) {
             continue;
         case O_SPLAT:   /* *  */
             if (v1->val->obj == TUPLE_OBJ || v1->val->obj == LIST_OBJ) {
-                value_t tmp = v1->val;
-                size_t k, len = tmp->u.list.len;
+                List *tmp = (List *)v1->val;
+                size_t k, len = tmp->len;
                 v1->val = NULL;
                 vsp--;
                 if (vsp + len >= ev->values_size) {
@@ -1076,39 +1113,40 @@ static int get_val2(struct eval_context_s *ev) {
                 }
                 for (k = 0; k < len; k++) {
                     if (values[vsp].val) val_destroy(values[vsp].val);
-                    values[vsp].val = (tmp->refcount == 1) ? tmp->u.list.data[k] : val_reference(tmp->u.list.data[k]);
+                    values[vsp].val = (tmp->v.refcount == 1) ? tmp->data[k] : val_reference(tmp->data[k]);
                     values[vsp++].epoint = o_out->epoint;
                 }
-                if (tmp->refcount == 1) tmp->u.list.len = 0;
-                val_destroy(tmp);
+                if (tmp->v.refcount == 1) tmp->len = 0;
+                val_destroy(&tmp->v);
                 continue;
             }
             if (v1->val->obj == DICT_OBJ) {
-                value_t tmp = v1->val;
-                const struct avltree_node *n = avltree_first(&tmp->u.dict.members);
+                Dict *tmp = (Dict *)v1->val;
+                const struct avltree_node *n = avltree_first(&tmp->members);
                 v1->val = NULL;
                 vsp--;
-                if (vsp + tmp->u.dict.len >= ev->values_size) {
+                if (vsp + tmp->len >= ev->values_size) {
                     size_t j = ev->values_size;
-                    ev->values_size = vsp + tmp->u.dict.len;
+                    ev->values_size = vsp + tmp->len;
                     ev->values = values = (struct values_s *)realloc(values, ev->values_size * sizeof(struct values_s));
                     if (!values || ev->values_size < vsp || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                     for (; j < ev->values_size; j++) ev->values[j].val = NULL;
                 }
                 while (n) {
                     const struct pair_s *p = cavltree_container_of(n, struct pair_s, node);
-                    val = val_alloc(COLONLIST_OBJ);
-                    val->u.list.len = 2;
-                    val->u.list.data = list_create_elements(val, 2);
-                    val->u.list.data[0] = val_reference(p->key);
-                    val->u.list.data[1] = val_reference(p->data);
+                    Colonlist *list = new_colonlist();
+                    list->len = 2;
+                    list->data = list_create_elements(list, 2);
+                    list->data[0] = val_reference(p->key);
+                    list->data[1] = val_reference(p->data);
 
                     if (values[vsp].val) val_destroy(values[vsp].val);
-                    values[vsp].val = val;
+                    values[vsp].val = (Obj *)list;
                     values[vsp++].epoint = o_out->epoint;
                     n = avltree_next(n);
                 }
-                if (tmp->u.dict.def) {
+                if (tmp->def) {
+                    Colonlist *list;
                     if (vsp >= ev->values_size) {
                         size_t j = ev->values_size;
                         ev->values_size += 16;
@@ -1116,63 +1154,62 @@ static int get_val2(struct eval_context_s *ev) {
                         if (!values || ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                         for (; j < ev->values_size; j++) ev->values[j].val = NULL;
                     }
-                    val = val_alloc(COLONLIST_OBJ);
-                    val->u.list.len = 2;
-                    val->u.list.data = list_create_elements(val, 2);
-                    val->u.list.data[0] = val_reference(default_value);
-                    val->u.list.data[1] = val_reference(tmp->u.dict.def);
+                    list = new_colonlist();
+                    list->len = 2;
+                    list->data = list_create_elements(list, 2);
+                    list->data[0] = (Obj *)ref_default();
+                    list->data[1] = val_reference(tmp->def);
 
                     if (values[vsp].val) val_destroy(values[vsp].val);
-                    values[vsp].val = val;
+                    values[vsp].val = (Obj *)list;
                     values[vsp++].epoint = o_out->epoint;
                 }
-                val_destroy(tmp);
+                val_destroy(&tmp->v);
                 continue;
             }
             v1->epoint = o_out->epoint;
             continue;
         case O_LNOT: /* ! */
-            err = v1->val->obj->truth(v1->val, TRUTH_BOOL, &v1->epoint);
-            if (err->obj != BOOL_OBJ) {
-                val_destroy(v1->val); v1->val = err;
+            val = v1->val->obj->truth(v1->val, TRUTH_BOOL, &v1->epoint);
+            if (val->obj != BOOL_OBJ) {
+                val_destroy(v1->val); v1->val = val;
                 continue;
             }
-            val_replace(&v1->val, err->u.boolean ? false_value : true_value);
-            val_destroy(err);
+            val_replace(&v1->val, (Obj *)bool_value[!((Bool *)val)->boolean]);
+            val_destroy(val);
             continue;
         case O_LAND: /* && */
         case O_LOR:  /* || */
         case O_LXOR: /* ^^ */
             v2 = v1; v1 = &values[--vsp-1];
             if (vsp == 0) goto syntaxe;
-            err = v1->val->obj->truth(v1->val, TRUTH_BOOL, &v1->epoint);
-            if (err->obj != BOOL_OBJ) {
-                val_destroy(v1->val); v1->val = err;
+            val = v1->val->obj->truth(v1->val, TRUTH_BOOL, &v1->epoint);
+            if (val->obj != BOOL_OBJ) {
+                val_destroy(v1->val); v1->val = val;
                 continue;
             }
             if (op != O_LXOR) { 
-                if (err->u.boolean != (op == O_LOR)) {
-                    value_t tmp = v1->val;
+                if (((Bool *)val)->boolean != (op == O_LOR)) {
+                    Obj *tmp = v1->val;
                     v1->val = v2->val;
                     v2->val = tmp;
                     v1->epoint = v2->epoint;
                 }
             } else {
-                value_t err2 = v2->val->obj->truth(v2->val, TRUTH_BOOL, &v2->epoint);
-                if (err2) {
-                    val_destroy(v1->val);
-                    v1->val = err2;
-                    val_destroy(err);
+                Obj *val2 = v2->val->obj->truth(v2->val, TRUTH_BOOL, &v2->epoint);
+                if (val2->obj != BOOL_OBJ) {
+                    val_destroy(v1->val); v1->val = val2;
+                    val_destroy(val);
                     continue;
                 }
-                if (err->u.boolean) {
-                    if (err2->u.boolean) val_replace(&v1->val, false_value);
+                if (((Bool *)val)->boolean) {
+                    if (((Bool *)val2)->boolean) val_replace(&v1->val, (Obj *)false_value);
                 } else {
-                    val_replace(&v1->val, err2->u.boolean ? v2->val : false_value);
+                    val_replace(&v1->val, ((Bool *)val2)->boolean ? v2->val : (Obj *)false_value);
                 }
-                val_destroy(err2);
+                val_destroy(val2);
             }
-            val_destroy(err);
+            val_destroy(val);
             continue;
         default: break;
         }
@@ -1204,8 +1241,8 @@ struct values_s *get_val(void) {
     return &eval->values[eval->values_p++];
 }
 
-value_t pull_val(struct linepos_s *epoint) {
-    value_t val;
+Obj *pull_val(struct linepos_s *epoint) {
+    Obj *val;
     struct values_s *value;
 
     if (eval->values_p >= eval->values_len) return NULL;
@@ -1231,11 +1268,13 @@ size_t get_val_remaining(void) {
 static int get_exp2(int *wd, int stop, struct file_s *cfile) {
     char ch;
 
-    value_t op;
-    struct values_s o_oper[256];
+    Oper *op;
+    struct {
+        Oper *val;
+        struct linepos_s epoint;
+    } o_oper[256];
     uint8_t operp = 0, prec, db;
     struct linepos_s epoint;
-    value_t val;
     size_t llen;
     size_t openclose, identlist;
 
@@ -1274,54 +1313,54 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         switch (ch) {
         case ',':
             if (stop != 4 || operp) goto tryanon;
-            lpoint.pos++;push_oper(val_reference(default_value), &epoint);
+            lpoint.pos++;push_oper((Obj *)ref_default(), &epoint);
             continue;
         case ')':
             if (operp) {
-                const value_t o = o_oper[operp-1].val;
+                const Oper *o = o_oper[operp-1].val;
                 if (o == &o_COMMA) {operp--;op = &o_TUPLE;goto tphack;}
                 else if (o == &o_PARENT || o == &o_FUNC) goto other;
             }
             goto tryanon;
         case ']':
             if (operp) { 
-                const value_t o = o_oper[operp-1].val;
+                const Oper *o = o_oper[operp-1].val;
                 if (o == &o_COMMA) {operp--;op = &o_LIST;goto lshack;}
                 else if (o == &o_BRACKET || o == &o_INDEX) goto other;
             }
             goto tryanon;
         case '}':
             if (operp) { 
-                const value_t o = o_oper[operp-1].val;
+                const Oper *o = o_oper[operp-1].val;
                 if (o == &o_COMMA) {operp--;op = &o_DICT;goto brhack;}
                 else if (o == &o_BRACE) goto other;
             }
             goto tryanon;
         case ':':
             if (operp) { 
-                const value_t o = o_oper[operp-1].val;
+                const Oper *o = o_oper[operp-1].val;
                 if (o != &o_PARENT && o != &o_BRACKET && o != &o_BRACE && o != &o_FUNC && o != &o_INDEX && o != &o_COMMA) goto tryanon;
             }
-            push_oper(val_reference(default_value), &epoint);
+            push_oper((Obj *)ref_default(), &epoint);
             goto other;
         case '(': 
             if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) identlist++;
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_PARENT; lpoint.pos++;
-            push_oper(&o_PARENT, &epoint);
+            push_oper(&o_PARENT.v, &epoint);
             openclose++;
             continue;
         case '[':
             if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) identlist++;
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_BRACKET; lpoint.pos++;
-            push_oper(&o_BRACKET, &epoint);
+            push_oper(&o_BRACKET.v, &epoint);
             openclose++;
             continue;
         case '{':
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_BRACE; lpoint.pos++;
-            push_oper(&o_BRACE, &epoint);
+            push_oper(&o_BRACE.v, &epoint);
             openclose++;
             continue;
         case '+': op = &o_POS; break;
@@ -1338,12 +1377,12 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         case '%': if ((pline[lpoint.pos+1] & 0xfe) == 0x30 || (pline[lpoint.pos+1] == '.' && (pline[lpoint.pos+2] & 0xfe) == 0x30)) { lpoint.pos++;push_oper(get_bin(&epoint), &epoint);goto other; }
                   goto tryanon;
         case '"':
-        case '\'': push_oper(get_string(), &epoint);goto other;
+        case '\'': push_oper((Obj *)get_string(), &epoint);goto other;
         case '?': 
             if (operp) { 
                 if (o_oper[operp - 1].val == &o_SPLAT || o_oper[operp - 1].val == &o_POS || o_oper[operp - 1].val == &o_NEG) goto tryanon;
             }
-            lpoint.pos++;push_oper(val_reference(gap_value), &epoint);goto other;
+            lpoint.pos++;push_oper((Obj *)ref_gap(), &epoint);goto other;
         case '.': if ((pline[lpoint.pos+1] ^ 0x30) >= 10) goto tryanon; /* fall through */;
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
             push_oper(get_float(&epoint), &epoint);
@@ -1360,7 +1399,8 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         default: 
             if (get_label()) {
                 int down;
-                value_t l;
+                Label *l;
+                Error *err;
                 str_t ident;
             as_ident:
                 if (pline[epoint.pos + 1] == '"' || pline[epoint.pos + 1] == '\'') {
@@ -1374,19 +1414,19 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                     default: mode = BYTES_MODE_NULL_CHECK; break;
                     }
                     if (mode != BYTES_MODE_NULL_CHECK) {
-                        val = get_string();
+                        Str *str = get_string();
                         epoint.pos++;
-                        push_oper(bytes_from_str(val, &epoint, mode), &epoint);
-                        val_destroy(val);
+                        push_oper(bytes_from_str(str, &epoint, mode), &epoint);
+                        val_destroy(&str->v);
                         goto other;
                     }
                 }
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
-                    val = val_alloc(IDENT_OBJ);
-                    val->u.ident.name.data = pline + epoint.pos;
-                    val->u.ident.name.len = lpoint.pos - epoint.pos;
-                    val->u.ident.epoint = epoint;
-                    push_oper(val, &epoint);
+                    Ident *idn = (Ident *)val_alloc(IDENT_OBJ);
+                    idn->name.data = pline + epoint.pos;
+                    idn->name.len = lpoint.pos - epoint.pos;
+                    idn->epoint = epoint;
+                    push_oper(&idn->v, &epoint);
                     goto other;
                 } 
                 ident.data = pline + epoint.pos;
@@ -1395,70 +1435,72 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 l = down ? find_label(&ident) : find_label2(&ident, cheap_context);
                 if (l) {
                     touch_label(l);
-                    l->u.label.shadowcheck = 1;
-                    push_oper(val_reference(l->u.label.value), &epoint);
+                    l->shadowcheck = 1;
+                    push_oper(val_reference(l->value), &epoint);
                     goto other;
                 }
-                val = new_error_obj(ERROR___NOT_DEFINED, &epoint);
-                val->u.error.u.notdef.ident = ident;
-                val->u.error.u.notdef.names = val_reference(down ? current_context : cheap_context);
-                val->u.error.u.notdef.down = down;
-                push_oper(val, &epoint);
+                err = new_error(ERROR___NOT_DEFINED, &epoint);
+                err->u.notdef.ident = ident;
+                err->u.notdef.names = ref_namespace(down ? current_context : cheap_context);
+                err->u.notdef.down = down;
+                push_oper(&err->v, &epoint);
                 goto other;
             }
         tryanon:
             db = operp;
             while (operp && o_oper[operp-1].val == &o_POS) operp--;
             if (db != operp) {
-                value_t l;
+                Label *l;
+                Error *err;
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
-                    val = val_alloc(ANONIDENT_OBJ);
-                    val->u.anonident.count = db - operp - 1;
-                    val->u.anonident.epoint = o_oper[operp].epoint;
-                    push_oper(val, &o_oper[operp].epoint);
+                    Anonident *anonident = (Anonident *)val_alloc(ANONIDENT_OBJ);
+                    anonident->count = db - operp - 1;
+                    anonident->epoint = o_oper[operp].epoint;
+                    push_oper(&anonident->v, &o_oper[operp].epoint);
                     goto other;
                 }
                 l = find_anonlabel(db - operp -1);
                 if (l) {
                     touch_label(l);
-                    push_oper(val_reference(l->u.label.value), &o_oper[operp].epoint);
+                    push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
                 }
-                val = new_error_obj(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
-                val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(db - operp));
-                val->u.error.u.notdef.ident.data = NULL;
-                val->u.error.u.notdef.names = val_reference(current_context);
-                val->u.error.u.notdef.down = 1;
-                push_oper(val, &o_oper[operp].epoint);
+                err = new_error(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
+                err->u.notdef.ident.len = (size_t)((ssize_t)(db - operp));
+                err->u.notdef.ident.data = NULL;
+                err->u.notdef.names = ref_namespace(current_context);
+                err->u.notdef.down = 1;
+                push_oper(&err->v, &o_oper[operp].epoint);
                 goto other;
             }
             while (operp && o_oper[operp-1].val == &o_NEG) operp--;
             if (db != operp) {
-                value_t l;
+                Label *l;
+                Error *err;
                 if ((operp && o_oper[operp-1].val == &o_MEMBER) || identlist) {
-                    val = val_alloc(ANONIDENT_OBJ);
-                    val->u.anonident.count = operp - db;
-                    val->u.anonident.epoint = o_oper[operp].epoint;
-                    push_oper(val, &o_oper[operp].epoint);
+                    Anonident *anonident = (Anonident *)val_alloc(ANONIDENT_OBJ);
+                    anonident->count = operp - db;
+                    anonident->epoint = o_oper[operp].epoint;
+                    push_oper(&anonident->v, &o_oper[operp].epoint);
                     goto other;
                 }
                 l = find_anonlabel(operp - db);
                 if (l) {
                     touch_label(l);
-                    push_oper(val_reference(l->u.label.value), &o_oper[operp].epoint);
+                    push_oper(val_reference(l->value), &o_oper[operp].epoint);
                     goto other;
                 }
-                val = new_error_obj(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
-                val->u.error.u.notdef.ident.len = (size_t)((ssize_t)(operp - db));
-                val->u.error.u.notdef.ident.data = NULL;
-                val->u.error.u.notdef.names = val_reference(current_context);
-                val->u.error.u.notdef.down = 1;
-                push_oper(val, &o_oper[operp].epoint);
+                err = new_error(ERROR___NOT_DEFINED, &o_oper[operp].epoint);
+                err->u.notdef.ident.len = (size_t)((ssize_t)(operp - db));
+                err->u.notdef.ident.data = NULL;
+                err->u.notdef.names = ref_namespace(current_context);
+                err->u.notdef.down = 1;
+                push_oper(&err->v, &o_oper[operp].epoint);
                 goto other;
             }
             if (operp) {
                 if (o_oper[operp-1].val == &o_COLON) {
-                    push_oper(val_reference(default_value), &epoint);
+                    push_oper((Obj *)ref_default(), &epoint);
                     goto other;
                 }
                 if (o_oper[operp-1].val == &o_SPLAT) {
@@ -1492,23 +1534,23 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 uint8_t c = pline[epoint.pos + 1];
                 if (!arguments.casesensitive) c |= 0x20;
                 switch (c) {
-                case 'x': op = &o_COMMAX; prec = o_WORD.u.oper.prio; break;
-                case 'y': op = &o_COMMAY; prec = o_WORD.u.oper.prio; break;
-                case 'z': op = &o_COMMAZ; prec = o_WORD.u.oper.prio; break;
-                case 'r': op = &o_COMMAR; prec = o_WORD.u.oper.prio; break;
-                case 's': op = &o_COMMAS; prec = o_WORD.u.oper.prio; break;
-                case 'd': op = &o_COMMAD; prec = o_WORD.u.oper.prio; break;
-                case 'b': op = &o_COMMAB; prec = o_WORD.u.oper.prio; break;
-                case 'k': op = &o_COMMAK; prec = o_WORD.u.oper.prio; break;
-                default: op = &o_COMMA; prec = op->u.oper.prio; break;
+                case 'x': op = &o_COMMAX; prec = o_WORD.prio; break;
+                case 'y': op = &o_COMMAY; prec = o_WORD.prio; break;
+                case 'z': op = &o_COMMAZ; prec = o_WORD.prio; break;
+                case 'r': op = &o_COMMAR; prec = o_WORD.prio; break;
+                case 's': op = &o_COMMAS; prec = o_WORD.prio; break;
+                case 'd': op = &o_COMMAD; prec = o_WORD.prio; break;
+                case 'b': op = &o_COMMAB; prec = o_WORD.prio; break;
+                case 'k': op = &o_COMMAK; prec = o_WORD.prio; break;
+                default: op = &o_COMMA; prec = op->prio; break;
                 }
             } else {
                 op = &o_COMMA;
-                prec = op->u.oper.prio;
+                prec = op->prio;
             }
-            while (operp && prec <= o_oper[operp-1].val->u.oper.prio) {
+            while (operp && prec <= o_oper[operp-1].val->prio) {
                 operp--;
-                push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+                push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
             if (op != &o_COMMA) {
                 o_oper[operp].epoint = epoint;
@@ -1518,7 +1560,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             if (!operp) {
                 if (stop == 1) {lpoint = epoint;break;}
             }
-            push_oper(&o_COMMA, &epoint);
+            push_oper(&o_COMMA.v, &epoint);
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = op;
             if (llen) {
@@ -1527,24 +1569,24 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             }
             continue;
         case '(':
-            prec = o_MEMBER.u.oper.prio;
-            while (operp && prec <= o_oper[operp-1].val->u.oper.prio) {
+            prec = o_MEMBER.prio;
+            while (operp && prec <= o_oper[operp-1].val->prio) {
                 operp--;
-                push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+                push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
-            push_oper(&o_PARENT, &epoint);
+            push_oper(&o_PARENT.v, &epoint);
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_FUNC; lpoint.pos++;
             if (identlist) identlist++;
             openclose++;
             continue;
         case '[':
-            prec = o_MEMBER.u.oper.prio;
-            while (operp && prec <= o_oper[operp-1].val->u.oper.prio) {
+            prec = o_MEMBER.prio;
+            while (operp && prec <= o_oper[operp-1].val->prio) {
                 operp--;
-                push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+                push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
-            push_oper(&o_BRACKET, &epoint);
+            push_oper(&o_BRACKET.v, &epoint);
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = &o_INDEX; lpoint.pos++;
             if (identlist) identlist++;
@@ -1559,12 +1601,12 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         case '+': lpoint.pos++;op = &o_ADD; goto push2;
         case '-': lpoint.pos++;op = &o_SUB; goto push2;
         case '.': if (pline[lpoint.pos+1] == '.') {lpoint.pos+=2;op = &o_CONCAT;} else {lpoint.pos++;op = &o_MEMBER;} goto push2;
-        case '?': lpoint.pos++;op = &o_QUEST; prec = o_COND.u.oper.prio + 1; goto push3;
+        case '?': lpoint.pos++;op = &o_QUEST; prec = o_COND.prio + 1; goto push3;
         case ':': op = &o_COLON;
-            prec = op->u.oper.prio + 1;
-            while (operp && prec <= o_oper[operp-1].val->u.oper.prio) {
+            prec = op->prio + 1;
+            while (operp && prec <= o_oper[operp-1].val->prio) {
                 operp--;
-                push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+                push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
             if (operp && o_oper[operp-1].val == &o_QUEST) { o_oper[operp-1].val = &o_COND; op = &o_COLON2;}
             o_oper[operp].epoint = epoint;
@@ -1573,11 +1615,11 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             continue;
         case '=': op = &o_EQ; if (pline[lpoint.pos+1] == '=') lpoint.pos+=2; else lpoint.pos++;
         push2:
-            prec = op->u.oper.prio;
+            prec = op->prio;
         push3:
-            while (operp && prec <= o_oper[operp-1].val->u.oper.prio) {
+            while (operp && prec <= o_oper[operp-1].val->prio) {
                 operp--;
-                push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+                push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
             o_oper[operp].epoint = epoint;
             o_oper[operp++].val = op;
@@ -1607,16 +1649,16 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             openclose--;
             if (identlist) identlist--;
             while (operp) {
-                const value_t o = o_oper[operp-1].val;
+                const Oper *o = o_oper[operp-1].val;
                 if (o == &o_PARENT || o == &o_FUNC) break;
                 if (o == &o_BRACKET || o == &o_INDEX || o == &o_BRACE) {operp = 0; break;}
                 operp--;
-                push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+                push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
             if (!operp) {err_msg2(ERROR______EXPECTED, "(", &lpoint); goto error;}
             lpoint.pos++;
             operp--;
-            push_oper((o_oper[operp].val == &o_PARENT)? op : o_oper[operp].val, &o_oper[operp].epoint);
+            push_oper((Obj *)((o_oper[operp].val == &o_PARENT) ? op : o_oper[operp].val), &o_oper[operp].epoint);
             goto other;
         case ']':
             op = &o_RBRACKET;
@@ -1624,32 +1666,32 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             openclose--;
             if (identlist) identlist--;
             while (operp) {
-                const value_t o = o_oper[operp-1].val;
+                const Oper *o = o_oper[operp-1].val;
                 if (o == &o_BRACKET || o == &o_INDEX) break;
                 if (o == &o_PARENT || o == &o_FUNC || o == &o_BRACE) {operp = 0; break;}
                 operp--;
-                push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+                push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
             if (!operp) {err_msg2(ERROR______EXPECTED, "[", &lpoint); goto error;}
             lpoint.pos++;
             operp--;
-            push_oper((o_oper[operp].val == &o_BRACKET) ? op : o_oper[operp].val, &o_oper[operp].epoint);
+            push_oper((Obj *)((o_oper[operp].val == &o_BRACKET) ? op : o_oper[operp].val), &o_oper[operp].epoint);
             goto other;
         case '}':
             op = &o_RBRACE;
         brhack:
             openclose--;
             while (operp) {
-                const value_t o = o_oper[operp-1].val;
+                const Oper *o = o_oper[operp-1].val;
                 if (o == &o_BRACE) break;
                 if (o == &o_BRACKET || o == &o_INDEX || o == &o_PARENT || o == &o_FUNC) {operp = 0; break;}
                 operp--;
-                push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+                push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
             }
             if (!operp) {err_msg2(ERROR______EXPECTED, "{", &lpoint); goto error;}
             lpoint.pos++;
             operp--;
-            push_oper((o_oper[operp].val == &o_BRACE) ? op : o_oper[operp].val, &o_oper[operp].epoint);
+            push_oper((Obj *)((o_oper[operp].val == &o_BRACE) ? op : o_oper[operp].val), &o_oper[operp].epoint);
             goto other;
         case 0:
         case ';': 
@@ -1670,12 +1712,12 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             goto syntaxe;
         }
         while (operp) {
-            const value_t o = o_oper[operp-1].val;
+            const Oper *o = o_oper[operp-1].val;
             if (o == &o_PARENT || o == &o_FUNC) {err_msg2(ERROR______EXPECTED, ")", &o_oper[operp - 1].epoint); goto error;}
             if (o == &o_BRACKET || o == &o_INDEX) {err_msg2(ERROR______EXPECTED,"]", &o_oper[operp - 1].epoint); goto error;}
             if (o == &o_BRACE) {err_msg2(ERROR______EXPECTED, "}", &o_oper[operp - 1].epoint); goto error;}
             operp--;
-            push_oper(o_oper[operp].val, &o_oper[operp].epoint);
+            push_oper((Obj *)o_oper[operp].val, &o_oper[operp].epoint);
         }
         if (!operp) return get_val2(eval);
     syntaxe:
@@ -1703,44 +1745,44 @@ int get_exp_var(struct file_s *cfile, linepos_t epoint) {
     return get_exp(&w, 2, cfile, 1, 1, epoint);
 }
 
-value_t get_vals_tuple(void) {
+Obj *get_vals_tuple(void) {
     size_t i, len = get_val_remaining();
-    value_t val;
+    Tuple *list;
 
     if (len == 1) {
-        val = pull_val(NULL);
-        if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy(val); val = val_reference(none_value); }
+        Obj *val = pull_val(NULL);
+        if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none(); }
         return val;
     }
-    val = val_alloc(TUPLE_OBJ);
-    val->u.list.len = len;
-    val->u.list.data = list_create_elements(val, len);
+    list = new_tuple();
+    list->len = len;
+    list->data = list_create_elements(list, len);
     for (i = 0; i < len; i++) {
-        value_t val2 = pull_val(NULL);
-        if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy(val2); val2 = val_reference(none_value); }
-        val->u.list.data[i] = val2;
+        Obj *val2 = pull_val(NULL);
+        if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val2); val2 = (Obj *)ref_none(); }
+        list->data[i] = val2;
     }
-    return val;
+    return (Obj *)list;
 }
 
-value_t get_vals_addrlist(struct linepos_s *epoints) {
+Obj *get_vals_addrlist(struct linepos_s *epoints) {
     size_t i, j, len = get_val_remaining();
-    value_t val;
+    Addrlist *list;
     struct linepos_s epoint;
 
     if (len == 1) {
-        val = pull_val(&epoints[0]);
-        if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy(val); val = val_reference(none_value); }
+        Obj *val = pull_val(&epoints[0]);
+        if (val->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none(); }
         return val;
     }
-    val = val_alloc(ADDRLIST_OBJ);
-    val->u.list.data = list_create_elements(val, len);
+    list = new_addrlist();
+    list->data = list_create_elements(list, len);
     for (i = j = 0; j < len; j++) {
-        value_t val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
-        if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy(val2); val2 = val_reference(none_value); }
-        else if (val2->obj == REGISTER_OBJ && val2->u.reg.len == 1 && i) {
+        Obj *val2 = pull_val((i < 3) ? &epoints[i] : &epoint);
+        if (val2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)val2); val2 = (Obj *)ref_none(); }
+        else if (val2->obj == REGISTER_OBJ && ((Register *)val2)->len == 1 && i) {
             enum atype_e am;
-            switch (val2->u.reg.data[0]) {
+            switch (((Register *)val2)->data[0]) {
             case 's': am = A_SR; break;
             case 'r': am = A_RR; break;
             case 'z': am = A_ZR; break;
@@ -1753,22 +1795,22 @@ value_t get_vals_addrlist(struct linepos_s *epoints) {
             }
             if (am != A_NONE) {
                 val_destroy(val2);
-                val2 = apply_addressing(val->u.list.data[i - 1], am);
-                val_destroy(val->u.list.data[i - 1]);
-                val->u.list.data[i - 1] = val2;
+                val2 = apply_addressing(list->data[i - 1], am);
+                val_destroy(list->data[i - 1]);
+                list->data[i - 1] = val2;
                 continue;
             }
         }
-        val->u.list.data[i++] = val2;
+        list->data[i++] = val2;
     }
     if (i == 1) {
-        value_t val2 = val->u.list.data[0];
-        val->u.list.len = 0;
-        val_destroy(val);
+        Obj *val2 = list->data[0];
+        list->len = 0;
+        val_destroy(&list->v);
         return val2;
     }
-    val->u.list.len = i;
-    return val;
+    list->len = i;
+    return &list->v;
 }
 
 void eval_enter(void) {

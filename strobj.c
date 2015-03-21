@@ -17,20 +17,25 @@
 
 */
 #include <string.h>
-#include "values.h"
 #include "strobj.h"
 #include "eval.h"
 #include "misc.h"
 #include "unicode.h"
+#include "error.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
+#include "bytesobj.h"
+#include "intobj.h"
+#include "bitsobj.h"
+#include "listobj.h"
 
 static struct obj_s obj;
 
 obj_t STR_OBJ = &obj;
+Str *null_str;
 
-static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
+static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
     case T_NONE:
     case T_ERROR:
@@ -39,37 +44,39 @@ static MUST_CHECK value_t create(const value_t v1, linepos_t epoint) {
     }
 }
 
-static void destroy(value_t v1) {
-    if (v1->u.str.val != v1->u.str.data) free(v1->u.str.data);
+static void destroy(Obj *o1) {
+    Str *v1 = (Str *)o1;
+    if (v1->val != v1->data) free(v1->data);
 }
 
-static uint8_t *snew(value_t v, size_t len) {
-    if (len > sizeof(v->u.str.val)) {
+static uint8_t *snew(Str *v, size_t len) {
+    if (len > sizeof(v->val)) {
         uint8_t *s = (uint8_t *)malloc(len);
         if (!s) err_msg_out_of_memory();
         return s;
     }
-    return v->u.str.val;
+    return v->val;
 }
 
-static int same(const value_t v1, const value_t v2) {
-    return v1->obj == STR_OBJ && v1->u.str.len == v2->u.str.len && (
-            v1->u.str.data == v2->u.str.data ||
-            !memcmp(v1->u.str.data, v2->u.str.data, v2->u.str.len));
+static int same(const Obj *o1, const Obj *o2) {
+    const Str *v1 = (const Str *)o1, *v2 = (const Str *)o2;
+    return o1->obj == STR_OBJ && v1->len == v2->len && (
+            v1->data == v2->data || !memcmp(v1->data, v2->data, v2->len));
 }
 
-static MUST_CHECK value_t truth(const value_t v1, enum truth_e type, linepos_t epoint) {
-    value_t tmp, ret;
-    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
+    Str *v1 = (Str *)o1;
+    Obj *tmp, *ret;
+    tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->truth(tmp, type, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-size_t str_quoting(const value_t v1, char *q) {
+size_t str_quoting(const uint8_t *data, size_t ln, char *q) {
     size_t i, sq = 0, dq = 0;
-    for (i = 0; i < v1->u.str.len; i++) {
-        switch (v1->u.str.data[i]) {
+    for (i = 0; i < ln; i++) {
+        switch (data[i]) {
         case '\'': sq++; continue;
         case '"': dq++; continue;
         }
@@ -86,34 +93,36 @@ size_t str_quoting(const value_t v1, char *q) {
     return i;
 }
 
-static MUST_CHECK value_t repr(const value_t v1, linepos_t UNUSED(epoint)) {
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
+    Str *v1 = (Str *)o1;
     size_t i2, i;
     uint8_t *s, *s2;
     char q;
-    value_t v = val_alloc(STR_OBJ);
-    i = str_quoting(v1, &q);
+    Str *v = new_str();
+    i = str_quoting(v1->data, v1->len, &q);
 
     i2 = i + 2;
     if (i2 < 2) err_msg_out_of_memory(); /* overflow */
     s2 = s = snew(v, i2);
 
     *s++ = q;
-    for (i = 0; i < v1->u.str.len; i++) {
-        s[i] = v1->u.str.data[i];
+    for (i = 0; i < v1->len; i++) {
+        s[i] = v1->data[i];
         if (s[i] == q) {
             s++; s[i] = q;
         }
     }
     s[i] = q;
-    v->u.str.data = s2;
-    v->u.str.len = i2;
-    v->u.str.chars = i2 - (i - v1->u.str.chars);
-    return v;
+    v->data = s2;
+    v->len = i2;
+    v->chars = i2 - (i - v1->chars);
+    return &v->v;
 }
 
-static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoint)) {
-    size_t l = v1->u.str.len;
-    const uint8_t *s2 = v1->u.str.data;
+static MUST_CHECK Error *hash(Obj *o1, int *hs, linepos_t UNUSED(epoint)) {
+    Str *v1 = (Str *)o1;
+    size_t l = v1->len;
+    const uint8_t *s2 = v1->data;
     unsigned int h;
     if (!l) {
         *hs = 0;
@@ -121,80 +130,87 @@ static MUST_CHECK value_t hash(const value_t v1, int *hs, linepos_t UNUSED(epoin
     }
     h = *s2 << 7;
     while (l--) h = (1000003 * h) ^ *s2++;
-    h ^= v1->u.str.len;
+    h ^= v1->len;
     *hs = h & ((~(unsigned int)0) >> 1);
     return NULL;
 }
 
-static MUST_CHECK value_t ival(const value_t v1, ival_t *iv, int bits, linepos_t epoint) {
-    value_t tmp, ret;
-    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+static MUST_CHECK Error *ival(Obj *o1, ival_t *iv, int bits, linepos_t epoint) {
+    Str *v1 = (Str *)o1;
+    Obj *tmp;
+    Error *ret;
+    tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->ival(tmp, iv, bits, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK value_t uval(const value_t v1, uval_t *uv, int bits, linepos_t epoint) {
-    value_t tmp, ret;
-    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
+    Str *v1 = (Str *)o1;
+    Obj *tmp;
+    Error *ret;
+    tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->uval(tmp, uv, bits, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-MUST_CHECK value_t float_from_str(const value_t v1, linepos_t epoint) {
-    value_t tmp, ret;
-    tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
+MUST_CHECK Obj *float_from_str(const Str *v1, linepos_t epoint) {
+    Obj *tmp, *ret;
+    tmp = (Obj *)bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     if (tmp->obj != BYTES_OBJ) return tmp;
-    ret = float_from_bytes(tmp, epoint);
+    ret = float_from_bytes((Bytes *)tmp, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK value_t sign(const value_t v1, linepos_t epoint) {
-    value_t tmp, ret;
+static MUST_CHECK Obj *sign(Obj *o1, linepos_t epoint) {
+    Str *v1 = (Str *)o1;
+    Obj *tmp, *ret;
     tmp = bytes_from_str(v1, epoint, BYTES_MODE_TEXT);
     ret = tmp->obj->sign(tmp, epoint);
     val_destroy(tmp);
     return ret;
 }
 
-static MUST_CHECK value_t absolute(const value_t v1, linepos_t epoint) {
+static MUST_CHECK Obj *absolute(Obj *o1, linepos_t epoint) {
+    Str *v1 = (Str *)o1;
     return int_from_str(v1, epoint);
 }
 
-static MUST_CHECK value_t len(const value_t v1, linepos_t UNUSED(epoint)) {
-    return int_from_size(v1->u.str.chars);
+static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
+    Str *v1 = (Str *)o1;
+    return (Obj *)int_from_size(v1->chars);
 }
 
-static MUST_CHECK value_t getiter(value_t v1) {
-    value_t v = val_alloc(ITER_OBJ);
-    v->u.iter.val = 0;
-    v->u.iter.iter = &v->u.iter.val;
-    v->u.iter.data = val_reference(v1);
+static MUST_CHECK Iter *getiter(Obj *v1) {
+    Iter *v = (Iter *)val_alloc(ITER_OBJ);
+    v->val = 0;
+    v->iter = &v->val;
+    v->data = val_reference(v1);
     return v;
 }
 
-static MUST_CHECK value_t next(value_t v1) {
-    const value_t vv1 = v1->u.iter.data;
+static MUST_CHECK Obj *next(Iter *v1) {
+    const Str *vv1 = (Str *)v1->data;
     int ln;
     uint8_t *s;
-    value_t v;
-    if (v1->u.iter.val >= vv1->u.str.len) return NULL;
-    ln = utf8len(vv1->u.str.data[v1->u.iter.val]);
-    v = val_alloc(STR_OBJ);
+    Str *v;
+    if (v1->val >= vv1->len) return NULL;
+    ln = utf8len(vv1->data[v1->val]);
+    v = new_str();
     s = snew(v, ln);
-    memcpy(s, vv1->u.str.data + v1->u.iter.val, ln);
-    v1->u.iter.val += ln;
+    memcpy(s, vv1->data + v1->val, ln);
+    v1->val += ln;
 
-    v->u.str.chars = 1;
-    v->u.str.len = ln;
-    v->u.str.data = s;
-    return v;
+    v->chars = 1;
+    v->len = ln;
+    v->data = s;
+    return &v->v;
 }
 
-MUST_CHECK value_t str_from_str(const uint8_t *s, size_t *ln) {
-    value_t v;
+MUST_CHECK Str *str_from_str(const uint8_t *s, size_t *ln) {
+    Str *v;
     size_t i2 = 0;
     size_t i, j;
     size_t r = 0;
@@ -202,7 +218,11 @@ MUST_CHECK value_t str_from_str(const uint8_t *s, size_t *ln) {
 
     i = 1;
     for (;;) {
-        if (!(ch2 = s[i])) {err_msg(ERROR______EXPECTED,"end of string"); break;}
+        if (!(ch2 = s[i])) {
+            err_msg(ERROR______EXPECTED, "end of string");
+            *ln = i;
+            return ref_str(null_str);
+        }
         if (ch2 & 0x80) i += utf8len(ch2); else i++;
         if (ch2 == ch) {
             if (s[i] == ch && !arguments.tasmcomp) {i++;r++;} /* handle 'it''s' */
@@ -210,15 +230,15 @@ MUST_CHECK value_t str_from_str(const uint8_t *s, size_t *ln) {
         }
         i2++;
     }
-    v = val_alloc(STR_OBJ);
+    v = new_str();
     if (r) {
         const uint8_t *p = s + 1, *p2;
         uint8_t *d;
         j = i - 2;
-        v->u.str.len = j - r;
-        v->u.str.chars = i2;
-        d = snew(v, v->u.str.len);
-        v->u.str.data = d;
+        v->len = j - r;
+        v->chars = i2;
+        d = snew(v, v->len);
+        v->data = d;
         while (j) {
             p2 = (const uint8_t *)memchr(p, ch, j);
             if (p2) {
@@ -231,29 +251,29 @@ MUST_CHECK value_t str_from_str(const uint8_t *s, size_t *ln) {
             }
         }
     } else {
-        v->u.str.len = (i > 1) ? (i - 2) : 0;
-        v->u.str.chars = i2;
-        v->u.str.data = snew(v, v->u.str.len);
-        memcpy(v->u.str.data, s + 1, v->u.str.len);
+        v->len = (i > 1) ? (i - 2) : 0;
+        v->chars = i2;
+        v->data = snew(v, v->len);
+        memcpy(v->data, s + 1, v->len);
     }
     *ln = i;
     return v;
 }
 
-uint8_t *str_create_elements(value_t v, size_t ln) {
+uint8_t *str_create_elements(Str *v, size_t ln) {
     return snew(v, ln);
 }
 
-static int scmp(value_t v1, value_t v2) {
-    int h = memcmp(v1->u.str.data, v2->u.str.data, (v1->u.str.len < v2->u.str.len) ? v1->u.str.len : v2->u.str.len);
+static int scmp(Str *v1, Str *v2) {
+    int h = memcmp(v1->data, v2->data, (v1->len < v2->len) ? v1->len : v2->len);
     if (h) return h;
-    return (v1->u.str.len > v2->u.str.len) - (v1->u.str.len < v2->u.str.len);
+    return (v1->len > v2->len) - (v1->len < v2->len);
 }
 
-static MUST_CHECK value_t calc1(oper_t op) {
-    value_t v1 = op->v1, v;
-    value_t tmp;
-    switch (op->op->u.oper.op) {
+static MUST_CHECK Obj *calc1(oper_t op) {
+    Str *v1 = (Str *)op->v1;
+    Obj *v, *tmp;
+    switch (op->op->op) {
     case O_BANK:
     case O_HIGHER:
     case O_LOWER:
@@ -268,15 +288,15 @@ static MUST_CHECK value_t calc1(oper_t op) {
     }
     op->v1 = tmp;
     v = tmp->obj->calc1(op);
-    op->v1 = v1;
+    op->v1 = &v1->v;
     val_destroy(tmp);
     return v;
 }
 
-static MUST_CHECK value_t calc2_str(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2, v;
+static MUST_CHECK Obj *calc2_str(oper_t op) {
+    Str *v1 = (Str *)op->v1, *v2 = (Str *)op->v2, *v;
     int val;
-    switch (op->op->u.oper.op) {
+    switch (op->op->op) {
     case O_ADD:
     case O_SUB:
     case O_MUL:
@@ -284,14 +304,14 @@ static MUST_CHECK value_t calc2_str(oper_t op) {
     case O_MOD:
     case O_EXP:
         {
-            value_t tmp, tmp2, result;
+            Obj *tmp, *tmp2, *result;
             tmp = int_from_str(v1, op->epoint);
             tmp2 = int_from_str(v2, op->epoint2);
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
-            op->v1 = v1;
-            op->v2 = v2;
+            op->v1 = &v1->v;
+            op->v2 = &v2->v;
             val_destroy(tmp2);
             val_destroy(tmp);
             return result;
@@ -300,14 +320,14 @@ static MUST_CHECK value_t calc2_str(oper_t op) {
     case O_OR:
     case O_XOR:
         {
-            value_t tmp, tmp2, result;
+            Obj *tmp, *tmp2, *result;
             tmp = bytes_from_str(v1, op->epoint, BYTES_MODE_TEXT);
             tmp2 = bytes_from_str(v2, op->epoint2, BYTES_MODE_TEXT);
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
-            op->v1 = v1;
-            op->v2 = v2;
+            op->v1 = &v1->v;
+            op->v2 = &v2->v;
             val_destroy(tmp2);
             val_destroy(tmp);
             return result;
@@ -315,22 +335,22 @@ static MUST_CHECK value_t calc2_str(oper_t op) {
     case O_LSHIFT:
     case O_RSHIFT:
         {
-            value_t tmp, tmp2, result;
+            Obj *tmp, *tmp2, *result;
             tmp = bits_from_str(v1, op->epoint);
             tmp2 = bits_from_str(v2, op->epoint2);
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
-            op->v1 = v1;
-            op->v2 = v2;
+            op->v1 = &v1->v;
+            op->v2 = &v2->v;
             val_destroy(tmp2);
             val_destroy(tmp);
             return result;
         }
     case O_CMP:
         val = scmp(v1, v2);
-        if (val < 0) return int_from_int(-1);
-        return val_reference(int_value[val > 0]);
+        if (val < 0) return (Obj *)ref_int(minus1_value);
+        return (Obj *)ref_int(int_value[val > 0]);
     case O_EQ: return truth_reference(scmp(v1, v2) == 0);
     case O_NE: return truth_reference(scmp(v1, v2) != 0);
     case O_LT: return truth_reference(scmp(v1, v2) < 0);
@@ -338,38 +358,38 @@ static MUST_CHECK value_t calc2_str(oper_t op) {
     case O_GT: return truth_reference(scmp(v1, v2) > 0);
     case O_GE: return truth_reference(scmp(v1, v2) >= 0);
     case O_CONCAT:
-        if (!v1->u.str.len) {
-            return val_reference(v2);
+        if (!v1->len) {
+            return (Obj *)ref_str(v2);
         }
-        if (!v2->u.str.len) {
-            return val_reference(v1);
+        if (!v2->len) {
+            return (Obj *)ref_str(v1);
         }
         {
             uint8_t *s;
-            size_t ln = v1->u.str.len + v2->u.str.len;
-            size_t ch = v1->u.str.chars + v2->u.str.chars;
-            if (ln < v2->u.str.len) err_msg_out_of_memory(); /* overflow */
+            size_t ln = v1->len + v2->len;
+            size_t ch = v1->chars + v2->chars;
+            if (ln < v2->len) err_msg_out_of_memory(); /* overflow */
 
-            v = val_alloc(STR_OBJ);
-            s = snew(v, v->u.str.len);
-            memcpy(s, v1->u.str.data, v1->u.str.len);
-            memcpy(s + v1->u.str.len, v2->u.str.data, v2->u.str.len);
-            v->u.str.len = ln;
-            v->u.str.chars = ch;
-            v->u.str.data = s;
-            return v;
+            v = new_str();
+            s = snew(v, ln);
+            memcpy(s, v1->data, v1->len);
+            memcpy(s + v1->len, v2->data, v2->len);
+            v->len = ln;
+            v->chars = ch;
+            v->data = s;
+            return &v->v;
         }
     case O_IN:
         {
             const uint8_t *c, *c2, *e;
-            if (!v1->u.str.len) return val_reference(true_value);
-            if (v1->u.str.len > v2->u.str.len) return val_reference(false_value);
-            c2 = v2->u.str.data;
-            e = c2 + v2->u.str.len - v1->u.str.len;
+            if (!v1->len) return (Obj *)ref_bool(true_value);
+            if (v1->len > v2->len) return (Obj *)ref_bool(false_value);
+            c2 = v2->data;
+            e = c2 + v2->len - v1->len;
             for (;;) {
-                c = (uint8_t *)memchr(c2, v1->u.str.data[0], e - c2 + 1);
-                if (!c) return val_reference(false_value);
-                if (!memcmp(c, v1->u.str.data, v1->u.str.len)) return val_reference(true_value);
+                c = (uint8_t *)memchr(c2, v1->data[0], e - c2 + 1);
+                if (!c) return (Obj *)ref_bool(false_value);
+                if (!memcmp(c, v1->data, v1->len)) return (Obj *)ref_bool(true_value);
                 c2 = c + 1;
             }
         }
@@ -378,87 +398,89 @@ static MUST_CHECK value_t calc2_str(oper_t op) {
     return obj_oper_error(op);
 }
 
-static inline MUST_CHECK value_t repeat(oper_t op) {
-    value_t v1 = op->v1, v;
+static inline MUST_CHECK Obj *repeat(oper_t op) {
+    Str *v1 = (Str *)op->v1, *v;
     uval_t rep;
+    Error *err;
 
-    v = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
-    if (v) return v;
+    err = op->v2->obj->uval(op->v2, &rep, 8*sizeof(uval_t), op->epoint2);
+    if (err) return &err->v;
 
-    if (v1->u.str.len && rep) {
+    if (v1->len && rep) {
         uint8_t *s;
         size_t ln;
         size_t chars;
         if (rep == 1) {
-            return val_reference(v1);
+            return (Obj *)ref_str(v1);
         }
-        chars = v1->u.str.chars;
-        ln = v1->u.str.len;
+        chars = v1->chars;
+        ln = v1->len;
         if (ln > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
-        v = val_alloc(STR_OBJ);
+        v = new_str();
         s = snew(v, ln * rep);
-        v->u.str.len = 0;
-        v->u.str.chars = chars * rep;
+        v->len = 0;
+        v->chars = chars * rep;
         while (rep--) {
-            memcpy(s + v->u.str.len, v1->u.str.data, ln);
-            v->u.str.len += ln;
+            memcpy(s + v->len, v1->data, ln);
+            v->len += ln;
         }
-        v->u.str.data = s;
-        return v;
+        v->data = s;
+        return &v->v;
     } 
-    return val_reference(null_str);
+    return (Obj *)ref_str(null_str);
 }
 
-static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
+static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
     size_t len2;
     uint8_t *p;
     uint8_t *p2;
-    value_t v, v1 = op->v1;
+    Str *v, *v1 = (Str *)op->v1;
     size_t length;
     ival_t offs, end, step;
+    Obj *err;
 
-    v = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
-    if (v) return v;
+    err = sliceparams(v2, ln, &length, &offs, &end, &step, op->epoint2);
+    if (err) return err;
 
     if (!length) {
-        return val_reference(null_str);
+        return (Obj *)ref_str(null_str);
     }
     if (step == 1) {
-        if (length == v1->u.str.chars) {
-            return val_reference(v1); /* original string */
+        if (length == v1->chars) {
+            return (Obj *)ref_str(v1); /* original string */
         }
-        if (v1->u.str.len == v1->u.str.chars) {
+        if (v1->len == v1->chars) {
             len2 = length;
         } else {
             ival_t i;
-            p = v1->u.str.data;
+            p = v1->data;
             for (i = 0; i < offs; i++) {
                 p += utf8len(*p);
             }
-            offs = p - v1->u.str.data;
+            offs = p - v1->data;
             for (; i < end; i++) {
                 p += utf8len(*p);
             }
-            len2 = p - v1->u.str.data - offs;
+            len2 = p - v1->data - offs;
         }
-        v = val_alloc(STR_OBJ);
+        v = new_str();
         p = p2 = snew(v, len2);
-        memcpy(p2, v1->u.str.data + offs, len2);
+        memcpy(p2, v1->data + offs, len2);
     } else {
-        v = val_alloc(STR_OBJ);
-        if (v1->u.str.len == v1->u.str.chars) {
+        v = new_str();
+        if (v1->len == v1->chars) {
             len2 = length;
             p = p2 = snew(v, len2);
             while ((end > offs && step > 0) || (end < offs && step < 0)) {
-                *p2++ = v1->u.str.data[offs];
+                *p2++ = v1->data[offs];
                 offs += step;
             }
         }
         else {
             ival_t i, j, k;
             uint8_t *o;
-            o = p2 = snew(v, v1->u.str.len);
-            p = v1->u.str.data;
+            o = p2 = snew(v, v1->len);
+            p = v1->data;
             for (i = 0; i < offs; i++) {
                 p += utf8len(*p);
             }
@@ -479,11 +501,11 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
                 }
             }
             len2 = p2 - o;
-            if (len2 > sizeof(v->u.str.val) && o != v->u.str.val) {
-                if (len2 <= sizeof(v->u.str.val)) {
-                    memcpy(v->u.str.val, o, len2);
+            if (len2 > sizeof(v->val) && o != v->val) {
+                if (len2 <= sizeof(v->val)) {
+                    memcpy(v->val, o, len2);
                     free(o);
-                    p = v->u.str.val;
+                    p = v->val;
                 } else {
                     p = (uint8_t *)realloc(o, len2);
                     if (!p) err_msg_out_of_memory();
@@ -491,60 +513,64 @@ static inline MUST_CHECK value_t slice(value_t v2, oper_t op, size_t ln) {
             } else p = o;
         }
     }
-    v->u.str.chars = length;
-    v->u.str.len = len2;
-    v->u.str.data = p;
-    return v;
+    v->chars = length;
+    v->len = len2;
+    v->data = p;
+    return &v->v;
 }
 
-static inline MUST_CHECK value_t iindex(oper_t op) {
+static inline MUST_CHECK Obj *iindex(oper_t op) {
     uint8_t *p;
     uint8_t *p2;
     size_t offs, len1, len2;
     size_t i;
-    value_t v1 = op->v1, v2 = op->v2, v, err;
+    Str *v1 = (Str *)op->v1, *v;
+    Obj *o2 = op->v2;
+    Error *err;
+    Funcargs *args = (Funcargs *)o2;
 
-    if (v2->u.funcargs.len != 1) {
-        err_msg_argnum(v2->u.funcargs.len, 1, 1, op->epoint2);
-        return val_reference(none_value);
+    if (args->len != 1) {
+        err_msg_argnum(args->len, 1, 1, op->epoint2);
+        return (Obj *)ref_none();
     }
-    v2 = v2->u.funcargs.val->val;
+    o2 = args->val->val;
 
-    len1 = v1->u.str.chars;
+    len1 = v1->chars;
 
-    if (v2->obj == LIST_OBJ) {
-        if (!v2->u.list.len) {
-            return val_reference(null_str);
+    if (o2->obj == LIST_OBJ) {
+        List *v2 = (List *)o2;
+        if (!v2->len) {
+            return (Obj *)ref_str(null_str);
         }
-        v = val_alloc(STR_OBJ);
-        if (v1->u.str.len == v1->u.str.chars) {
-            len2 = v2->u.list.len;
+        v = new_str();
+        if (v1->len == v1->chars) {
+            len2 = v2->len;
             p = p2 = snew(v, len2);
             for (i = 0; i < len2; i++) {
-                err = indexoffs(v2->u.list.data[i], len1, &offs, op->epoint2);
+                err = indexoffs(v2->data[i], len1, &offs, op->epoint2);
                 if (err) {
-                    v->u.str.data = p;
-                    val_destroy(v);
-                    return err;
+                    v->data = p;
+                    val_destroy(&v->v);
+                    return &err->v;
                 }
-                *p2++ = v1->u.str.data[offs];
+                *p2++ = v1->data[offs];
             }
             len1 = i;
         }
         else {
-            size_t m = v1->u.str.len;
+            size_t m = v1->len;
             uint8_t *o;
             size_t j = 0;
             o = p2 = snew(v, m);
-            p = v1->u.str.data;
+            p = v1->data;
 
-            for (i = 0; i < v2->u.list.len; i++) {
+            for (i = 0; i < v2->len; i++) {
                 int k;
-                err = indexoffs(v2->u.list.data[i], len1, &offs, op->epoint2);
+                err = indexoffs(v2->data[i], len1, &offs, op->epoint2);
                 if (err) {
-                    v->u.str.data = o;
-                    val_destroy(v);
-                    return err;
+                    v->data = o;
+                    val_destroy(&v->v);
+                    return &err->v;
                 }
                 while (offs != j) {
                     if (offs > j) {
@@ -559,10 +585,10 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
                 if ((size_t)(p2 + k - o) > m) {
                     const uint8_t *r = o;
                     m += 4096;
-                    if (o != v->u.str.val) o = (uint8_t *)realloc(o, m);
+                    if (o != v->val) o = (uint8_t *)realloc(o, m);
                     else {
                         o = (uint8_t *)malloc(m);
-                        if (o) memcpy(o, v->u.str.val, m - 4096);
+                        if (o) memcpy(o, v->val, m - 4096);
                     }
                     if (!o || m < 4096) err_msg_out_of_memory(); /* overflow */
                     p2 += o - r;
@@ -571,50 +597,51 @@ static inline MUST_CHECK value_t iindex(oper_t op) {
             }
             len1 = i;
             len2 = p2 - o;
-            if (len2 > sizeof(v->u.str.val) && o != v->u.str.val) {
-                if (len2 <= sizeof(v->u.str.val)) {
-                    memcpy(v->u.str.val, o, len2);
+            if (len2 > sizeof(v->val) && o != v->val) {
+                if (len2 <= sizeof(v->val)) {
+                    memcpy(v->val, o, len2);
                     free(o);
-                    p = v->u.str.val;
+                    p = v->val;
                 } else {
                     p = (uint8_t *)realloc(o, len2);
                     if (!p) err_msg_out_of_memory();
                 }
             } else p = o;
         }
-        v->u.str.chars = len1;
-        v->u.str.len = len2;
-        v->u.str.data = p;
-        return v;
+        v->chars = len1;
+        v->len = len2;
+        v->data = p;
+        return &v->v;
     }
-    if (v2->obj == COLONLIST_OBJ) {
-        return slice(v2, op, len1);
+    if (o2->obj == COLONLIST_OBJ) {
+        return slice((Colonlist *)o2, op, len1);
     }
-    err = indexoffs(v2, len1, &offs, op->epoint2);
-    if (err) return err;
+    err = indexoffs(o2, len1, &offs, op->epoint2);
+    if (err) return &err->v;
 
-    v = val_alloc(STR_OBJ);
-    if (v1->u.str.len == v1->u.str.chars) {
+    v = new_str();
+    if (v1->len == v1->chars) {
         len1 = 1;
-        p2 = v->u.str.val;
-        p2[0] = v1->u.str.data[offs];
+        p2 = v->val;
+        p2[0] = v1->data[offs];
     }
     else {
-        p = v1->u.str.data;
+        p = v1->data;
         while (offs--) p += utf8len(*p);
         len1 = utf8len(*p);
         p2 = snew(v, len1);
         memcpy(p2, p, len1);
     }
-    v->u.str.data = p2;
-    v->u.str.chars = 1;
-    v->u.str.len = len1;
-    return v;
+    v->data = p2;
+    v->chars = 1;
+    v->len = len1;
+    return &v->v;
 }
 
-static MUST_CHECK value_t calc2(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
-    value_t tmp;
+static MUST_CHECK Obj *calc2(oper_t op) {
+    Str *v1 = (Str *)op->v1;
+    Obj *v2 = op->v2;
+    Obj *tmp;
 
     if (op->op == &o_INDEX) {
         return iindex(op);
@@ -631,8 +658,8 @@ static MUST_CHECK value_t calc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
         {
-            value_t result;
-            switch (op->op->u.oper.op) {
+            Obj *result;
+            switch (op->op->op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
@@ -643,17 +670,17 @@ static MUST_CHECK value_t calc2(oper_t op) {
             }
             op->v1 = tmp;
             result = tmp->obj->calc2(op);
-            op->v1 = v1;
+            op->v1 = &v1->v;
             val_destroy(tmp);
             return result;
         }
     case T_BYTES:
         {
-            value_t result;
+            Obj *result;
             tmp = bytes_from_str(v1, op->epoint, BYTES_MODE_TEXT);
             op->v1 = tmp;
             result = tmp->obj->calc2(op);
-            op->v1 = v1;
+            op->v1 = &v1->v;
             val_destroy(tmp);
             return result;
         }
@@ -672,9 +699,10 @@ static MUST_CHECK value_t calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static MUST_CHECK value_t rcalc2(oper_t op) {
-    value_t v1 = op->v1, v2 = op->v2;
-    value_t tmp;
+static MUST_CHECK Obj *rcalc2(oper_t op) {
+    Str *v2 = (Str *)op->v2;
+    Obj *v1 = op->v1;
+    Obj *tmp;
     switch (v1->obj->type) {
     case T_BOOL:
     case T_INT:
@@ -683,8 +711,8 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
     case T_CODE:
     case T_ADDRESS:
         {
-            value_t result;
-            switch (op->op->u.oper.op) {
+            Obj *result;
+            switch (op->op->op) {
             case O_CONCAT:
             case O_AND:
             case O_OR:
@@ -693,17 +721,17 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
             }
             op->v2 = tmp;
             result = v1->obj->calc2(op);
-            op->v2 = v2;
+            op->v2 = &v2->v;
             val_destroy(tmp);
             return result;
         }
     case T_BYTES:
         {
-            value_t result;
+            Obj *result;
             tmp = bytes_from_str(v2, op->epoint2, BYTES_MODE_TEXT);
             op->v2 = tmp;
             result = v1->obj->calc2(op);
-            op->v2 = v2;
+            op->v2 = &v2->v;
             val_destroy(tmp);
             return result;
         }
@@ -720,7 +748,7 @@ static MUST_CHECK value_t rcalc2(oper_t op) {
 }
 
 void strobj_init(void) {
-    obj_init(&obj, T_STR, "str");
+    obj_init(&obj, T_STR, "str", sizeof(Str));
     obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
@@ -737,4 +765,17 @@ void strobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+
+    null_str = new_str();
+    null_str->len = 0;
+    null_str->chars = 0;
+    null_str->data = NULL;
+}
+
+void strobj_destroy(void) {
+#ifdef DEBUG
+    if (null_str->v.refcount != 1) fprintf(stderr, "str %d\n", null_str->v.refcount - 1);
+#endif
+
+    val_destroy(&null_str->v);
 }

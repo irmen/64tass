@@ -24,13 +24,16 @@ struct values_s;
 struct file_s;
 enum wait_e;
 
+typedef struct Namespace Namespace;
+typedef struct Mfunc Mfunc;
+
 extern int mtranslate(struct file_s *);
-extern value_t macro_recurse(enum wait_e, value_t, value_t, linepos_t);
-extern value_t mfunc_recurse(enum wait_e, value_t, value_t, linepos_t, uint8_t);
-extern value_t mfunc2_recurse(value_t, struct values_s *, unsigned int, linepos_t);
+extern Obj *macro_recurse(enum wait_e, Obj *, Namespace *, linepos_t);
+extern Obj *mfunc_recurse(enum wait_e, Mfunc *, Namespace *, linepos_t, uint8_t);
+extern Obj *mfunc2_recurse(Mfunc *, struct values_s *, unsigned int, linepos_t);
 extern void init_macro(void);
 extern void free_macro(void);
-extern void get_macro_params(value_t);
-extern void get_func_params(value_t, struct file_s *);
+extern void get_macro_params(Obj *);
+extern void get_func_params(Mfunc *, struct file_s *);
 extern int in_macro(void);
 #endif

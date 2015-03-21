@@ -20,14 +20,18 @@
 #define _VARIABLES_H_
 #include "libtree.h"
 #include "inttypes.h"
+#include "obj.h"
 
 extern obj_t LABEL_OBJ;
 
-typedef struct {
+typedef struct Namespace Namespace;
+
+typedef struct Label {
+    Obj v;
     str_t name;
     str_t cfname;
 
-    value_t value;
+    Obj *value;
     struct file_list_s *file_list;
     struct linepos_s epoint;
     unsigned ref:1;
@@ -37,23 +41,24 @@ typedef struct {
     uint8_t usepass;
     uint8_t defpass;
     uint8_t strength;
-} label_t;
+} Label;
 
-extern void push_context(value_t);
+extern void push_context(Namespace *);
 extern int pop_context(void);
 extern void reset_context(void);
 
 extern void labelobj_init(void);
-extern value_t current_context, cheap_context, root_namespace;
-extern value_t find_label(const str_t *);
-extern value_t find_label2(const str_t *, value_t);
-extern value_t find_label3(const str_t *, value_t, uint8_t);
-extern value_t find_anonlabel(int32_t);
-extern value_t find_anonlabel2(int32_t, value_t);
-extern value_t new_label(const str_t *, value_t, uint8_t, int *);
+extern Namespace *current_context, *cheap_context, *root_namespace;
+extern Label *find_label(const str_t *);
+extern Label *find_label2(const str_t *, Namespace *);
+extern Label *find_label3(const str_t *, Namespace *, uint8_t);
+extern Label *find_anonlabel(int32_t);
+extern Label *find_anonlabel2(int32_t, Namespace *);
+extern Label *new_label(const str_t *, Namespace *, uint8_t, int *);
 extern void labelprint(void);
-extern void shadow_check(value_t);
+extern void shadow_check(Namespace *);
 extern void destroy_variables(void);
 extern void init_variables(void);
 extern void init_defaultlabels(void);
+extern void destroy_lastlb(void);
 #endif

@@ -35,7 +35,7 @@ struct section_s {
     address2_t l_restart;
     address_t address;
     address2_t l_address;
-    value_t l_address_val;
+    Obj *l_address_val;
     address_t start;
     address_t end;
     address_t unionstart;

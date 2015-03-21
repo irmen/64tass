@@ -25,6 +25,11 @@
 #include "variables.h"
 #include "64tass.h"
 #include "listing.h"
+#include "error.h"
+#include "listobj.h"
+#include "namespaceobj.h"
+
+static int functionrecursion;
 
 struct macro_pline_s {
     size_t len;
@@ -35,7 +40,7 @@ struct macro_params_s {
     size_t len, size;
     str_t *param, all;
     struct macro_pline_s pline;
-    value_t macro;
+    Obj *macro;
 };
 
 static struct {
@@ -114,14 +119,14 @@ int mtranslate(struct file_s *cfile)
                 } else label.len = get_label();
                 if (label.len) {
                     str_t *param = macro_parameters.current->param;
-                    value_t macro = macro_parameters.current->macro;
+                    Macro *macro = (Macro *)macro_parameters.current->macro;
                     str_t cf;
                     str_cfcpy(&cf, &label);
-                    for (j = 0; j < macro->u.macro.argc; j++) {
-                        if (!macro->u.macro.param[j].cfname.data) continue;
-                        if (str_cmp(&macro->u.macro.param[j].cfname, &cf)) continue;
+                    for (j = 0; j < macro->argc; j++) {
+                        if (!macro->param[j].cfname.data) continue;
+                        if (str_cmp(&macro->param[j].cfname, &cf)) continue;
                         if (!param[j].data) {
-                            obj_t obj = macro->obj;
+                            obj_t obj = macro->v.obj;
                             if (obj == STRUCT_OBJ || obj == UNION_OBJ) {
                                 lpoint.pos--;
                                 ch = '?';
@@ -139,7 +144,7 @@ int mtranslate(struct file_s *cfile)
                         p += param[j].len;
                         break;
                     }
-                    if (j < macro->u.macro.argc) {
+                    if (j < macro->argc) {
                         lpoint.pos--;
                         continue;
                     }
@@ -208,8 +213,9 @@ static size_t macro_param_find(void) {
     return npoint2.pos - opoint2.pos;
 }
 
-value_t macro_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t epoint) {
-    value_t val;
+Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoint) {
+    Obj *val;
+    Macro *macro = (Macro *)tmp2;
     struct macro_params_s *params = macro_parameters.params;
     if (macro_parameters.p>100) {
         err_msg2(ERROR__MACRECURSION, NULL, epoint);
@@ -227,7 +233,7 @@ value_t macro_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t ep
         macro_parameters.current->pline.data = NULL;
     }
     macro_parameters.current = &params[macro_parameters.p];
-    macro_parameters.current->macro = val_reference(tmp2);
+    macro_parameters.current->macro = val_reference(&macro->v);
     macro_parameters.p++;
     {
         struct linepos_s opoint, npoint;
@@ -236,9 +242,9 @@ value_t macro_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t ep
 
         ignore(); opoint = lpoint;
         for (;;) {
-            if ((!here() || here()==';') && p >= tmp2->u.macro.argc) break;
+            if ((!here() || here()==';') && p >= macro->argc) break;
             if (p >= macro_parameters.current->size) {
-                if (macro_parameters.current->size < tmp2->u.macro.argc) macro_parameters.current->size = tmp2->u.macro.argc;
+                if (macro_parameters.current->size < macro->argc) macro_parameters.current->size = macro->argc;
                 else macro_parameters.current->size += 4;
                 param = (str_t *)realloc(param, sizeof(param[0]) * macro_parameters.current->size);
                 if (!param || macro_parameters.current->size > SIZE_MAX / sizeof(param[0])) err_msg_out_of_memory();
@@ -246,13 +252,13 @@ value_t macro_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t ep
             param[p].data = pline + lpoint.pos;
             param[p].len = macro_param_find();
             if (!param[p].len) {
-                if (p < tmp2->u.macro.argc) {
-                    param[p] = tmp2->u.macro.param[p].init;
+                if (p < macro->argc) {
+                    param[p] = macro->param[p].init;
                 } else param[p].data = NULL;
             }
             p++;
             if (!here() || here()==';') {
-                if (p < tmp2->u.macro.argc) continue;
+                if (p < macro->argc) continue;
             }
             if (here() != ',') break;
             lpoint.pos++;
@@ -266,17 +272,15 @@ value_t macro_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t ep
         macro_parameters.current->all.len = npoint.pos - opoint.pos;
     }
     if (t == W_ENDS) {
-        value_t oldcheap;
-        if (context) {oldcheap = cheap_context; push_context(context); cheap_context = current_context;}
-        val = compile(tmp2->u.macro.file_list);
-        if (context) {pop_context(); cheap_context = oldcheap;}
+        if (context) push_context(context);
+        val = compile(macro->file_list);
+        if (context) pop_context();
     } else {
         line_t lin = lpoint.line;
         int labelexists;
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
-        value_t oldcheap;
         struct file_list_s *cflist;
         struct linepos_s nopoint = {0, 0};
 
@@ -286,12 +290,12 @@ value_t macro_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t ep
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        cflist = enterfile(tmp2->u.macro.file_list->file, epoint);
-        lpoint.line = tmp2->u.macro.line;
+        cflist = enterfile(macro->file_list->file, epoint);
+        lpoint.line = macro->line;
         new_waitfor(t, &nopoint);
-        if (context) {oldcheap = cheap_context;push_context(context); cheap_context = current_context;}
+        if (context) push_context(context);
         val = compile(cflist);
-        if (context) {pop_context(); cheap_context = oldcheap;}
+        if (context) pop_context();
         star = s->addr;
         exitfile();
         star_tree = stree_old; vline = ovline;
@@ -303,60 +307,64 @@ value_t macro_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t ep
     return val;
 }
 
-value_t mfunc_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t epoint, uint8_t strength) {
+Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t epoint, uint8_t strength) {
     size_t i;
-    value_t label;
-    value_t val, tuple = NULL;
+    Label *label;
+    Obj *val;
+    Tuple *tuple = NULL;
     size_t max = 0, args = get_val_remaining();
 
-    for (i = 0; i < tmp2->u.mfunc.argc; i++) {
+    if (functionrecursion>100) {
+        err_msg2(ERROR__FUNRECURSION, NULL, epoint);
+        return NULL;
+    }
+    for (i = 0; i < mfunc->argc; i++) {
         int labelexists;
-        if (tmp2->u.mfunc.param[i].init && tmp2->u.mfunc.param[i].init->obj == DEFAULT_OBJ) {
+        if (mfunc->param[i].init && mfunc->param[i].init->obj == DEFAULT_OBJ) {
             size_t j = 0;
-            tuple = val_alloc(TUPLE_OBJ);
-            tuple->u.list.len = get_val_remaining();
-            tuple->u.list.data = list_create_elements(tuple, tuple->u.list.len);
+            tuple = new_tuple();
+            tuple->len = get_val_remaining();
+            tuple->data = list_create_elements(tuple, tuple->len);
             for (j = 0; (val = pull_val(NULL)); j++) {
-                if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy(val); val = val_reference(none_value);}
-                tuple->u.list.data[j] = val;
+                if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none();}
+                tuple->data[j] = val;
             }
-            val = tuple;
+            val = &tuple->v;
         } else {
             struct values_s *vs;
             vs = get_val();
             if (!vs) {
-                val = tmp2->u.mfunc.param[i].init;
-                if (!val) { max = i + 1; val = none_value; }
+                val = mfunc->param[i].init;
+                if (!val) { max = i + 1; val = (Obj *)none_value; }
             } else {
                 val = vs->val;
-                if (val->obj == ERROR_OBJ) {err_msg_output(val); val = none_value;}
+                if (val->obj == ERROR_OBJ) {err_msg_output((Error *)val); val = (Obj *)none_value;}
             }
         }
-        label = new_label(&tmp2->u.mfunc.param[i].name, context, strength, &labelexists);
-        label->u.label.ref=0;
+        label = new_label(&mfunc->param[i].name, context, strength, &labelexists);
+        label->ref=0;
         if (labelexists) {
-            if (label->u.label.defpass == pass) err_msg_double_defined(label, &tmp2->u.mfunc.param[i].name, &tmp2->u.mfunc.param[i].epoint); /* not possible in theory */
+            if (label->defpass == pass) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint); /* not possible in theory */
             else {
-                label->u.label.constant = 1;
+                label->constant = 1;
                 var_assign(label, val, 0);
             }
         } else {
-            label->u.label.constant = 1;
-            label->u.label.value = val_reference(val);
-            label->u.label.file_list = tmp2->u.mfunc.file_list;
-            label->u.label.epoint = tmp2->u.mfunc.param[i].epoint;
+            label->constant = 1;
+            label->value = val_reference(val);
+            label->file_list = mfunc->file_list;
+            label->epoint = mfunc->param[i].epoint;
         }
     }
-    if (tuple) val_destroy(tuple);
+    if (tuple) val_destroy(&tuple->v);
     else if (i < args) err_msg_argnum(args, i, i, epoint);
-    if (max) err_msg_argnum(args, max, tmp2->u.mfunc.argc, epoint);
+    if (max) err_msg_argnum(args, max, mfunc->argc, epoint);
     {
         line_t lin = lpoint.line;
         int labelexists;
         struct star_s *s = new_star(vline, &labelexists);
         struct avltree *stree_old = star_tree;
         line_t ovline = vline;
-        value_t oldcheap = cheap_context;
         struct file_list_s *cflist;
         struct linepos_s nopoint = {0, 0};
 
@@ -366,13 +374,14 @@ value_t mfunc_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t ep
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        cflist = enterfile(tmp2->u.mfunc.file_list->file, epoint);
-        lpoint.line = tmp2->u.mfunc.line;
+        cflist = enterfile(mfunc->file_list->file, epoint);
+        lpoint.line = mfunc->line;
         new_waitfor(t, &nopoint);
-        push_context(context); cheap_context = current_context;
+        push_context(context);
+        functionrecursion++;
         val = compile(cflist);
+        functionrecursion--;
         pop_context();star = s->addr;
-        cheap_context = oldcheap;
         exitfile();
         star_tree = stree_old; vline = ovline;
         lpoint.line = lin;
@@ -380,8 +389,8 @@ value_t mfunc_recurse(enum wait_e t, value_t tmp2, value_t context, linepos_t ep
     return val;
 }
 
-void get_func_params(value_t v, struct file_s *cfile) {
-    mfunc_t new_mfunc;
+void get_func_params(Mfunc *v, struct file_s *cfile) {
+    Mfunc new_mfunc;
     size_t len = 0, i, j;
     str_t label;
     int w, stard = 0;
@@ -412,29 +421,29 @@ void get_func_params(value_t v, struct file_s *cfile) {
                 if (!str_cmp(&new_mfunc.param[j].cfname, &cf)) break;
             }
             if (j != i) {
-                value_t tmp = val_alloc(LABEL_OBJ);
-                tmp->u.label.name = tmp->u.label.cfname = new_mfunc.param[j].name;
-                tmp->u.label.file_list = v->u.mfunc.file_list;
-                tmp->u.label.epoint = new_mfunc.param[j].epoint;
-                tmp->u.label.value = val_reference(none_value);
+                Label *tmp = (Label *)val_alloc(LABEL_OBJ);
+                tmp->name = tmp->cfname = new_mfunc.param[j].name;
+                tmp->file_list = v->file_list;
+                tmp->epoint = new_mfunc.param[j].epoint;
+                tmp->value = (Obj *)ref_none();
                 err_msg_double_defined(tmp, &label, &new_mfunc.param[i].epoint);
-                val_destroy(tmp);
+                val_destroy(&tmp->v);
             }
         } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, &new_mfunc.param[i].epoint);break;}
         ignore();
         if (stard) {
-            new_mfunc.param[i].init = val_reference(default_value);
+            new_mfunc.param[i].init = (Obj *)ref_default();
         } else {
             new_mfunc.param[i].init = NULL;
             if (here() == '=') {
-                value_t val;
+                Obj *val;
                 lpoint.pos++;
                 if (!get_exp(&w, 1, cfile, 1, 1, &lpoint)) {
                     i++;
                     break;
                 }
                 val = pull_val(NULL);
-                if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy(val); val = val_reference(none_value);}
+                if (val->obj == ERROR_OBJ) {err_msg_output_and_destroy((Error *)val); val = (Obj *)ref_none();}
                 new_mfunc.param[i].init = val;
             }
         }
@@ -458,12 +467,13 @@ void get_func_params(value_t v, struct file_s *cfile) {
             new_mfunc.param = NULL;
         }
     }
-    v->u.mfunc.argc = i;
-    v->u.mfunc.param = new_mfunc.param;
+    v->argc = i;
+    v->param = new_mfunc.param;
 }
 
-void get_macro_params(value_t v) {
-    macro_t new_macro;
+void get_macro_params(Obj *v) {
+    Macro *macro = (Macro *)v;
+    Macro new_macro;
     size_t len = 0, i, j;
     str_t label;
     struct linepos_s *epoints = NULL;
@@ -491,13 +501,13 @@ void get_macro_params(value_t v) {
                 if (!str_cmp(&new_macro.param[j].cfname, &cf)) break;
             }
             if (j != i) {
-                value_t tmp = val_alloc(LABEL_OBJ);
-                tmp->u.label.name = tmp->u.label.cfname = new_macro.param[j].cfname;
-                tmp->u.label.file_list = v->u.macro.file_list;
-                tmp->u.label.epoint = epoints[j];
-                tmp->u.label.value = val_reference(none_value);
+                Label *tmp = (Label *)val_alloc(LABEL_OBJ);
+                tmp->name = tmp->cfname = new_macro.param[j].cfname;
+                tmp->file_list = macro->file_list;
+                tmp->epoint = epoints[j];
+                tmp->value = (Obj *)ref_none();
                 err_msg_double_defined(tmp, &label, &epoints[i]);
-                val_destroy(tmp);
+                val_destroy(&tmp->v);
             }
         } else {new_macro.param[i].cfname.len = 0; new_macro.param[i].cfname.data = NULL;}
         ignore();
@@ -528,69 +538,73 @@ void get_macro_params(value_t v) {
             new_macro.param = NULL;
         }
     }
-    v->u.macro.argc = i;
-    v->u.macro.param = new_macro.param;
+    macro->argc = i;
+    macro->param = new_macro.param;
     free(epoints);
 }
 
-value_t mfunc2_recurse(value_t tmp2, struct values_s *vals, unsigned int args, linepos_t epoint) {
+Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, linepos_t epoint) {
     size_t i;
-    value_t label;
-    value_t val, tuple;
-    value_t retval = NULL;
-    value_t context;
-    value_t oldcheap = cheap_context;
+    Label *label;
+    Obj *val;
+    Tuple *tuple;
+    Obj *retval = NULL;
+    Namespace *context;
     struct section_s rsection;
     struct section_s *oldsection = current_section;
     struct file_list_s *cflist;
     struct linepos_s xpoint;
 
+    if (functionrecursion>100) {
+        err_msg2(ERROR__FUNRECURSION, NULL, epoint);
+        return NULL;
+    }
     init_section2(&rsection);
 
-    xpoint.line = tmp2->u.mfunc.line;
+    xpoint.line = mfunc->line;
     xpoint.pos = 0;
-    context = new_namespace(tmp2->u.mfunc.file_list, &xpoint);
+    context = new_namespace(mfunc->file_list, &xpoint);
 
-    cflist = enterfile(tmp2->u.mfunc.file_list->file, epoint);
+    cflist = enterfile(mfunc->file_list->file, epoint);
     tuple = NULL;
-    for (i = 0; i < tmp2->u.mfunc.argc; i++) {
+    for (i = 0; i < mfunc->argc; i++) {
         int labelexists;
-        if (tmp2->u.mfunc.param[i].init && tmp2->u.mfunc.param[i].init->obj == DEFAULT_OBJ) {
-            tuple = val_alloc(TUPLE_OBJ);
+        if (mfunc->param[i].init && mfunc->param[i].init->obj == DEFAULT_OBJ) {
+            tuple = new_tuple();
             if (i < args) {
                 size_t j = i;
-                tuple->u.list.len = args - i;
-                tuple->u.list.data = list_create_elements(tuple, tuple->u.list.len);
-                none_value->refcount += args - i;
+                tuple->len = args - i;
+                tuple->data = list_create_elements(tuple, tuple->len);
+                none_value->v.refcount += args - i;
                 while (j < args) {
-                    tuple->u.list.data[j - i] = vals[j].val;
-                    vals[j].val = none_value;
+                    tuple->data[j - i] = vals[j].val;
+                    vals[j].val = (Obj *)none_value;
                     j++;
                 }
             } else {
-                tuple->u.list.len = 0;
-                tuple->u.list.data = NULL;
+                tuple->len = 0;
+                tuple->data = NULL;
             }
-            val = tuple;
+            val = &tuple->v;
         } else {
-            val = (i < args) ? vals[i].val : tmp2->u.mfunc.param[i].init ? tmp2->u.mfunc.param[i].init : none_value;
+            val = (i < args) ? vals[i].val : mfunc->param[i].init ? mfunc->param[i].init : (Obj *)none_value;
         }
-        label = new_label(&tmp2->u.mfunc.param[i].name, context, 0, &labelexists);
-        label->u.label.ref=0;
+        label = new_label(&mfunc->param[i].name, context, 0, &labelexists);
+        label->ref=0;
         if (labelexists) {
-            if (label->u.label.defpass == pass) err_msg_double_defined(label, &tmp2->u.mfunc.param[i].name, &tmp2->u.mfunc.param[i].epoint);
+            if (label->defpass == pass) err_msg_double_defined(label, &mfunc->param[i].name, &mfunc->param[i].epoint);
             else {
-                label->u.label.constant = 1;
+                label->constant = 1;
                 var_assign(label, val, 0);
             }
         } else {
-            label->u.label.constant = 1;
-            label->u.label.value = val_reference(val);
-            label->u.label.file_list = cflist;
-            label->u.label.epoint = tmp2->u.mfunc.param[i].epoint;
+            label->constant = 1;
+            label->value = val_reference(val);
+            label->file_list = cflist;
+            label->epoint = mfunc->param[i].epoint;
         }
     }
-    if (tuple) val_destroy(tuple);
+    if (tuple) val_destroy(&tuple->v);
     else if (i < args) err_msg_argnum(args, i, i, &vals[i].epoint);
     {
         line_t lin = lpoint.line;
@@ -609,9 +623,9 @@ value_t mfunc2_recurse(value_t tmp2, struct values_s *vals, unsigned int args, l
         }
         s->addr = star;
         star_tree = &s->tree;vline=0;
-        lpoint.line = tmp2->u.mfunc.line;
+        lpoint.line = mfunc->line;
         new_waitfor(W_ENDF2, &nopoint);
-        push_context(context); cheap_context = current_context;
+        push_context(context);
         temporary_label_branch++;
         current_section = &rsection;
         reset_section(current_section);
@@ -623,9 +637,11 @@ value_t mfunc2_recurse(value_t tmp2, struct values_s *vals, unsigned int args, l
         if (current_section->l_address_val) val_destroy(current_section->l_address_val);
         current_section->l_address_val = oldsection->l_address_val ? val_reference(oldsection->l_address_val) : NULL;
         current_section->dooutput = 0;
+        functionrecursion++;
         retval = compile(cflist);
+        functionrecursion--;
         current_section = oldsection;
-        pop_context(); star = s->addr; cheap_context = oldcheap;
+        pop_context(); star = s->addr;
         temporary_label_branch--;
         lpoint = opoint;
         pline = opline;
@@ -634,14 +650,15 @@ value_t mfunc2_recurse(value_t tmp2, struct values_s *vals, unsigned int args, l
         lpoint.line = lin;
     }
     exitfile();
-    val_destroy(context);
+    val_destroy(&context->v);
     destroy_section2(&rsection);
     if (retval) return retval;
-    return val_reference(null_tuple);
+    return (Obj *)ref_tuple(null_tuple);
 }
 
 void init_macro(void) {
     macro_parameters.p = 0;
+    functionrecursion = 0;
 }
 
 void free_macro(void) {

@@ -18,10 +18,39 @@
 */
 #ifndef _BOOLOBJ_H
 #define _BOOLOBJ_H
+#include "obj.h"
+
 extern obj_t BOOL_OBJ;
 
-extern void boolobj_init(void);
+typedef struct Bool {
+    Obj v;
+    int boolean;
+} Bool;
 
-extern MUST_CHECK value_t int_from_bool(const value_t);
-extern MUST_CHECK value_t float_from_bool(const value_t);
+extern Bool *true_value;
+extern Bool *false_value;
+extern Bool *bool_value[2];
+
+extern void boolobj_init(void);
+extern void boolobj_destroy(void);
+
+static inline Bool *ref_bool(Bool *v1) {
+    v1->v.refcount++; return v1;
+}
+
+static inline MUST_CHECK Bool *new_boolean(int boolean) {
+    Bool *v = (Bool *)val_alloc(BOOL_OBJ);
+    v->boolean = boolean;
+    return v;
+}
+
+static inline MUST_CHECK Obj *truth_reference(int i) {
+    return (Obj *)ref_bool(bool_value[i]);
+}
+
+typedef struct Int Int;
+typedef struct Float Float;
+
+extern MUST_CHECK Int *int_from_bool(const Bool *);
+extern MUST_CHECK Float *float_from_bool(const Bool *);
 #endif

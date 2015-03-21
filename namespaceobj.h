@@ -18,19 +18,35 @@
 */
 #ifndef _NAMESPACEOBJ_H
 #define _NAMESPACEOBJ_H
-
-typedef struct oper_s *oper_t;
+#include "obj.h"
+#include "libtree.h"
 
 extern obj_t NAMESPACE_OBJ;
 
-typedef struct {
+typedef struct Namespace {
+    Obj v;
     size_t len;
     struct avltree members;
     const struct file_list_s *file_list;
     struct linepos_s epoint;
-} namespace_t;
+} Namespace;
 
 extern void namespaceobj_init(void);
-extern MUST_CHECK value_t new_namespace(const struct file_list_s *, linepos_t);
-extern MUST_CHECK value_t namespace_member(oper_t, value_t);
+
+typedef struct Label Label;
+
+struct namespacekey_s {
+    int hash;
+    Label *key;
+    struct avltree_node node;
+};
+
+typedef struct oper_s *oper_t;
+
+static inline Namespace *ref_namespace(Namespace *v1) {
+    v1->v.refcount++; return v1;
+}
+
+extern MUST_CHECK Namespace *new_namespace(const struct file_list_s *, linepos_t);
+extern MUST_CHECK Obj *namespace_member(oper_t, Namespace *);
 #endif

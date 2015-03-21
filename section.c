@@ -21,7 +21,7 @@
 #include "error.h"
 #include "misc.h"
 #include "64tass.h"
-#include "values.h"
+#include "intobj.h"
 
 struct section_s root_section;
 struct section_s *current_section = &root_section;
@@ -113,7 +113,7 @@ void reset_section(struct section_s *section) {
     section->provides = ~(uval_t)0; section->requires = section->conflicts = 0;
     section->end = section->start = section->restart = section->l_restart.address = section->l_restart.bank = section->address = section->l_address.address = section->l_address.bank = 0;
     if (section->l_address_val) val_destroy(section->l_address_val);
-    section->l_address_val = val_reference(int_value[0]);
+    section->l_address_val = (Obj *)ref_int(int_value[0]);
     section->dooutput = 1;
     section->structrecursion = 0;
     section->logicalrecursion = 0;

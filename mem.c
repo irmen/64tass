@@ -313,7 +313,7 @@ void output_mem(struct memblocks_s *memblocks) {
     }
 }
 
-void write_mem(struct memblocks_s * memblocks, uint8_t c) {
+void write_mem(struct memblocks_s *memblocks, uint8_t c) {
     if (memblocks->mem.p >= memblocks->mem.len) {
         memblocks->mem.len += 0x1000;
         memblocks->mem.data = (uint8_t *)realloc(memblocks->mem.data, memblocks->mem.len);

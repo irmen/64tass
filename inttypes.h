@@ -80,7 +80,7 @@ typedef uint32_t uval_t;
 
 #define SIZE_MSB ((size_t)1 << (sizeof(size_t) * 8 - 1))
 
-typedef struct value_s *value_t;
+typedef struct Obj Obj;
 typedef const struct obj_s *obj_t;
 
 #ifdef UNUSED

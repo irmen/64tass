@@ -33,10 +33,11 @@ struct trans_s {
 
 extern struct encoding_s *actual_encoding;
 
+typedef struct Str Str;
 extern struct encoding_s *new_encoding(const str_t *);
 extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
-extern int new_escape(const value_t, value_t, struct encoding_s *, linepos_t);
-extern void encode_string_init(const value_t, linepos_t);
+extern int new_escape(const Str *, Obj *, struct encoding_s *, linepos_t);
+extern void encode_string_init(const Str *, linepos_t);
 extern int encode_string(void);
 extern void encode_error(enum errors_e);
 extern void init_encoding(int);

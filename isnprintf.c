@@ -51,6 +51,9 @@
 #include "unicode.h"
 #include "eval.h"
 #include "floatobj.h"
+#include "strobj.h"
+#include "intobj.h"
+#include "error.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -59,7 +62,7 @@
 #endif
 #endif
 
-static ustr_t return_value;
+static Str return_value;
 static size_t returnsize = 0;
 static size_t none;
 
@@ -96,7 +99,7 @@ static struct values_s dummy = {NULL, {0, 0}};
 static inline const struct values_s *next_arg(void) {
     if (!none && largs > listp) return &list[listp++];
     listp++;
-    dummy.val = none_value;
+    dummy.val = &none_value->v;
     return &dummy;
 }
 
@@ -144,28 +147,28 @@ static inline void PAD_LEFT(struct DATA *p)
 }
 
 /* if width and prec. in the args */
-static MUST_CHECK value_t star_args(struct DATA *p)
+static MUST_CHECK Obj *star_args(struct DATA *p)
 {
     uval_t uval;
-    value_t err;
+    Error *err;
 
     if (p->star_w == FOUND) {
         const struct values_s *v = next_arg();
-        const value_t val = v->val;
+        Obj *val = v->val;
         if (val->obj == NONE_OBJ) none = listp;
         else {
             err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
-            if (err) return err;
+            if (err) return &err->v;
             p->width = uval;
         }
     }
     if (p->star_p == FOUND) {
         const struct values_s *v = next_arg();
-        const value_t val = v->val;
+        Obj *val = v->val;
         if (val->obj == NONE_OBJ) none = listp;
         else {
             err = val->obj->uval(val, &uval, 8*sizeof(uval_t)-1, &v->epoint);
-            if (err) return err;
+            if (err) return &err->v;
             p->precision = uval;
         }
     }
@@ -175,52 +178,56 @@ static MUST_CHECK value_t star_args(struct DATA *p)
 /* for %d and friends, it puts in holder
  * the representation with the right padding
  */
-static inline MUST_CHECK value_t decimal(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK Obj *decimal(struct DATA *p, const struct values_s *v)
 {
     int minus;
-    value_t val = v->val, err, err2;
+    Obj *val = v->val, *err, *err2;
+    Str *str;
     size_t i;
 
     if (val->obj == NONE_OBJ) {
         none = listp;
-        err = val_reference(int_value[0]);
+        err = (Obj *)ref_int(int_value[0]);
     } else {
         err = INT_OBJ->create(val, &v->epoint);
         if (err->obj != INT_OBJ) return err;
     }
 
-    minus = (err->u.integer.len < 0);
+    minus = (((Int *)err)->len < 0);
     err2 = err->obj->repr(err, &v->epoint);
     val_destroy(err);
     if (err2->obj != STR_OBJ) return err2;
 
-    p->width -= err2->u.str.len - minus;
+    str = (Str *)err2;
+    p->width -= str->len - minus;
     PAD_RIGHT2(p, 0, minus);
-    for (i = minus ;i < err2->u.str.len;i++) PUT_CHAR(err2->u.str.data[i]);
+    for (i = minus; i < str->len; i++) PUT_CHAR(str->data[i]);
     PAD_LEFT(p);
-    val_destroy(err2);
+    val_destroy(&str->v);
     return NULL;
 }
 
 /* for %x %X hexadecimal representation */
-static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK Obj *hexa(struct DATA *p, const struct values_s *v)
 {
     int minus;
-    value_t val = v->val, err;
+    Obj *val = v->val, *err;
+    Int *integer;
     const char *hex = (*p->pf == 'x') ? "0123456789abcdef" : "0123456789ABCDEF";
     unsigned int bp, b;
     size_t bp2;
 
     if (val->obj == NONE_OBJ) {
         none = listp;
-        err = val_reference(int_value[0]);
+        err = (Obj *)ref_int(int_value[0]);
     } else {
         err = INT_OBJ->create(val, &v->epoint);
         if (err->obj != INT_OBJ) return err;
     }
 
-    minus = (err->u.integer.len < 0);
-    bp2 = minus ? -err->u.integer.len : err->u.integer.len;
+    integer = (Int *)err;
+    minus = (integer->len < 0);
+    bp2 = minus ? -integer->len : integer->len;
     bp = b = 0;
     do {
         if (!bp) {
@@ -228,7 +235,7 @@ static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
             bp2--;
             bp = 8 * sizeof(digit_t) - 4;
         } else bp -= 4;
-        b = (err->u.integer.data[bp2] >> bp) & 0xf;
+        b = (integer->data[bp2] >> bp) & 0xf;
     } while (!b);
 
     p->width -= bp / 4 + bp2 * (sizeof(digit_t) * 2) + 1;
@@ -240,32 +247,34 @@ static inline MUST_CHECK value_t hexa(struct DATA *p, const struct values_s *v)
             bp2--;
             bp = 8 * sizeof(digit_t) - 4;
         } else bp -= 4;
-        b = (err->u.integer.data[bp2] >> bp) & 0xf;
+        b = (integer->data[bp2] >> bp) & 0xf;
         PUT_CHAR(hex[b]);
     } while (1);
     PAD_LEFT(p);
-    val_destroy(err);
+    val_destroy(&integer->v);
     return NULL;
 }
 
 /* for %b binary representation */
-static inline MUST_CHECK value_t bin(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK Obj *bin(struct DATA *p, const struct values_s *v)
 {
     int minus;
-    value_t val = v->val, err;
+    Obj *val = v->val, *err;
+    Int *integer;
     unsigned int bp, b;
     size_t bp2;
 
     if (val->obj == NONE_OBJ) {
         none = listp;
-        err = val_reference(int_value[0]);
+        err = (Obj *)ref_int(int_value[0]);
     } else {
         err = INT_OBJ->create(val, &v->epoint);
         if (err->obj != INT_OBJ) return err;
     }
 
-    minus = (err->u.integer.len < 0);
-    bp2 = minus ? -err->u.integer.len : err->u.integer.len;
+    integer = (Int *)err;
+    minus = (integer->len < 0);
+    bp2 = minus ? -integer->len : integer->len;
     bp = b = 0;
     do {
         if (!bp) {
@@ -273,7 +282,7 @@ static inline MUST_CHECK value_t bin(struct DATA *p, const struct values_s *v)
             bp2--;
             bp = 8 * sizeof(digit_t) - 1;
         } else bp--;
-        b = (err->u.integer.data[bp2] >> bp) & 1;
+        b = (integer->data[bp2] >> bp) & 1;
     } while (!b);
 
     p->width -= bp + bp2 * (sizeof(digit_t) * 8) + 1;
@@ -285,26 +294,27 @@ static inline MUST_CHECK value_t bin(struct DATA *p, const struct values_s *v)
             bp2--;
             bp = 8 * sizeof(digit_t) - 1;
         } else bp--;
-        b = (err->u.integer.data[bp2] >> bp) & 1;
+        b = (integer->data[bp2] >> bp) & 1;
         PUT_CHAR('0' + b);
     } while (1);
     PAD_LEFT(p);
-    val_destroy(err);
+    val_destroy(&integer->v);
     return NULL;
 }
 
 /* %c chars */
-static inline MUST_CHECK value_t chars(const struct values_s *v)
+static inline MUST_CHECK Obj *chars(const struct values_s *v)
 {
     uval_t uval;
-    value_t val = v->val, err;
+    Obj *val = v->val;
+    Error *err;
 
     if (val->obj == NONE_OBJ) {
         none = listp;
         uval = 0;
     } else {
         err = val->obj->uval(val, &uval, 24, &v->epoint);
-        if (err) return err;
+        if (err) return &err->v;
     }
 
     PUT_CHAR(uval);
@@ -312,12 +322,13 @@ static inline MUST_CHECK value_t chars(const struct values_s *v)
 }
 
 /* %s strings */
-static inline MUST_CHECK value_t strings(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK Obj *strings(struct DATA *p, const struct values_s *v)
 {
     int i;
     const uint8_t *tmp;
     uint32_t ch;
-    value_t val = v->val, err;
+    Obj *val = v->val, *err;
+    Str *str;
 
     if (val->obj == NONE_OBJ) {
         none = listp;
@@ -333,8 +344,10 @@ static inline MUST_CHECK value_t strings(struct DATA *p, const struct values_s *
         }
         return err;
     }
-    tmp = err->u.str.data;
-    i = err->u.str.chars;
+
+    str = (Str *)err;
+    tmp = str->data;
+    i = str->chars;
     if (p->precision != NOT_FOUND) /* the smallest number */
         i = (i < p->precision ? i : p->precision);
     p->width -= i;
@@ -344,17 +357,17 @@ static inline MUST_CHECK value_t strings(struct DATA *p, const struct values_s *
         PUT_CHAR(ch);
     }
     PAD_LEFT(p);
-    val_destroy(err);
+    val_destroy(&str->v);
     return NULL;
 }
 
 /* %f or %g  floating point representation */
-static inline MUST_CHECK value_t floating(struct DATA *p, const struct values_s *v)
+static inline MUST_CHECK Obj *floating(struct DATA *p, const struct values_s *v)
 {
     char tmp[400], *t, form[10];
     int minus;
     double d;
-    value_t val = v->val, err;
+    Obj *val = v->val, *err;
 
     if (val->obj == NONE_OBJ) {
         none = listp;
@@ -362,7 +375,7 @@ static inline MUST_CHECK value_t floating(struct DATA *p, const struct values_s 
     } else {
         err = FLOAT_OBJ->create(val, &v->epoint);
         if (err->obj != FLOAT_OBJ) return err;
-        d = err->u.real;
+        d = ((Float *)err)->real;
         val_destroy(err);
     }
     if (d < 0.0) { d = -d; minus = 1;} else minus = 0;
@@ -388,7 +401,7 @@ static inline MUST_CHECK value_t floating(struct DATA *p, const struct values_s 
 }
 
 /* initialize the conversion specifiers */
-static void conv_flag(char * s, struct DATA * p)
+static void conv_flag(char *s, struct DATA *p)
 {
     int number;
 
@@ -428,11 +441,12 @@ static void conv_flag(char * s, struct DATA * p)
     }
 }
 
-MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
+MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
 {
-    struct values_s *v = vals->u.funcargs.val;
-    size_t args = vals->u.funcargs.len;
-    value_t err;
+    struct values_s *v = vals->val;
+    size_t args = vals->len;
+    Obj *err;
+    Str *str;
     struct DATA data;
     char conv_field[MAX_FIELD];
     int state;
@@ -440,7 +454,7 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
 
     if (args < 1) {
         err_msg_argnum(args, 1, 0, epoint);
-        return val_reference(none_value);
+        return (Obj *)ref_none();
     }
     switch (v[0].val->obj->type) {
     case T_ERROR:
@@ -449,10 +463,10 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
     case T_STR: break;
     default:
         err_msg_wrong_type(v[0].val, STR_OBJ, &v[0].epoint);
-        return val_reference(none_value);
+        return (Obj *)ref_none();
     }
-    data.pf = (char *)v[0].val->u.str.data;
-    data.pfend = data.pf + v[0].val->u.str.len;
+    data.pf = (char *)((Str *)v[0].val)->data;
+    data.pfend = data.pf +((Str *) v[0].val)->len;
 
     listp = 0;
     list = &v[1];
@@ -538,7 +552,7 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
                         struct linepos_s epoint2 = v[0].epoint;
                         uint32_t ch;
                         str_t msg;
-                        epoint2.pos = interstring_position(&epoint2, v[0].val->u.str.data, data.pf - (char *)v[0].val->u.str.data - 1);
+                        epoint2.pos = interstring_position(&epoint2, ((Str *)v[0].val)->data, data.pf - (char *)((Str *)v[0].val)->data - 1);
                         msg.data = (uint8_t *)data.pf - 1;
                         ch = (uint8_t)*data.pf;
                         if (ch & 0x80) msg.len = utf8in((const uint8_t *)data.pf, &ch) + 1; else msg.len = 2;
@@ -562,20 +576,20 @@ MUST_CHECK value_t isnprintf(value_t vals, linepos_t epoint)
     } else if (none) {
         err_msg_still_none(NULL, (largs >= none) ? &v[none].epoint : epoint);
     }
-    err = val_alloc(STR_OBJ);
-    err->u.str.len = return_value.len;
-    err->u.str.chars = return_value.chars;
-    if (return_value.len > sizeof(err->u.str.val)) {
+    str = new_str();
+    str->len = return_value.len;
+    str->chars = return_value.chars;
+    if (return_value.len > sizeof(str->val)) {
         if (returnsize > return_value.len) {
-            err->u.str.data = (uint8_t *)realloc(return_value.data, return_value.len);
-            if (!err->u.str.data) err_msg_out_of_memory(); /* overflow */
-        } else err->u.str.data = return_value.data;
-        return err;
+            str->data = (uint8_t *)realloc(return_value.data, return_value.len);
+            if (!str->data) err_msg_out_of_memory(); /* overflow */
+        } else str->data = return_value.data;
+        return &str->v;
     }
-    memcpy(err->u.str.val, return_value.data, return_value.len);
-    err->u.str.data = err->u.str.val;
+    memcpy(str->val, return_value.data, return_value.len);
+    str->data = str->val;
     free(return_value.data);
-    return err;
+    return &str->v;
 error:
     free(return_value.data);
     return err;

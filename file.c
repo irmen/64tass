@@ -21,10 +21,11 @@
 #include <errno.h>
 #include <locale.h>
 #include "file.h"
-#include "values.h"
 #include "misc.h"
 #include "64tass.h"
 #include "unicode.h"
+#include "error.h"
+#include "strobj.h"
 
 struct include_list_s {
     struct include_list_s *next;
@@ -55,7 +56,7 @@ void include_list_add(const char *path)
     if (i != j) strcat(include_list_last->path, "/");
 }
 
-const char *get_path(const value_t v, const char *base) {
+const char *get_path(const Str *v, const char *base) {
     char *path;
     size_t i, len;
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
@@ -83,19 +84,19 @@ const char *get_path(const value_t v, const char *base) {
     }
 
 #if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-    if (v->u.str.len && (v->u.str.data[0]=='/' || v->u.str.data[0]=='\\')) i = j;
-    else if (v->u.str.len > 1 && ((v->u.str.data[0] >= 'A' && v->u.str.data[0] <= 'Z') || (v->u.str.data[0] >= 'a' && v->u.str.data[0] <= 'z')) && v->u.str.data[1]==':') i = 0;
+    if (v->len && (v->data[0]=='/' || v->data[0]=='\\')) i = j;
+    else if (v->len > 1 && ((v->data[0] >= 'A' && v->data[0] <= 'Z') || (v->data[0] >= 'a' && v->data[0] <= 'z')) && v->data[1]==':') i = 0;
 #else
-    if (v->u.str.len && v->u.str.data[0]=='/') i = 0;
+    if (v->len && v->data[0]=='/') i = 0;
 #endif
-    len = i + v->u.str.len;
+    len = i + v->len;
     if (len < i) err_msg_out_of_memory(); /* overflow */
     len += 1;
     path = (char *)malloc(len);
     if (!path || len < 1) err_msg_out_of_memory(); /* overflow */
     memcpy(path, base, i);
-    memcpy(path + i, v->u.str.data, v->u.str.len);
-    path[i + v->u.str.len] = 0;
+    memcpy(path + i, v->data, v->len);
+    path[i + v->len] = 0;
     return path;
 }
 
@@ -239,7 +240,7 @@ inline uint32_t fromiso(uint8_t c) {
 static struct file_s *command_line = NULL;
 static struct file_s *lastfi = NULL;
 static uint16_t curfnum=1;
-struct file_s *openfile(const char* name, const char *base, int ftype, const value_t val, linepos_t epoint) {
+struct file_s *openfile(const char* name, const char *base, int ftype, const Str *val, linepos_t epoint) {
     const char *base2;
     struct avltree_node *b;
     struct file_s *tmp;

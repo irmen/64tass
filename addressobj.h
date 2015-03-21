@@ -18,6 +18,7 @@
 */
 #ifndef _ADDRESSOBJ_H
 #define _ADDRESSOBJ_H
+#include "obj.h"
 
 extern obj_t ADDRESS_OBJ;
 
@@ -37,12 +38,20 @@ enum atype_e {
 };
 
 typedef uint32_t atype_t;
-typedef struct {
+typedef struct Address {
+    Obj v;
     atype_t type;
-    value_t val;
-} addrs_t;
+    Obj *val;
+} Address; 
 
 extern void addressobj_init(void);
+
+static inline MUST_CHECK Address *new_address(Obj *val, enum atype_e type) {
+    Address *v = (Address *)val_alloc(ADDRESS_OBJ);
+    v->val = val;
+    v->type = type;
+    return v;
+}
+
 extern int check_addr(atype_t);
-extern MUST_CHECK value_t address_from_value(value_t, atype_t);
 #endif
