@@ -708,22 +708,26 @@ void err_msg_not_definedx(const str_t *name, linepos_t epoint) {
     if (name) str_name(name->data, name->len);
 }
 
-static void err_msg_double_defined2(const char *msg, Label *l, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
+static void err_msg_double_defined2(const char *msg, struct file_list_s *cflist1, linepos_t epoint1, struct file_list_s *cflist, const str_t *labelname2, linepos_t epoint2) {
     new_error_msg(SV_DOUBLEERROR, cflist, epoint2);
     adderror(msg);
     str_name(labelname2->data, labelname2->len);
-    if (new_error_msg(SV_DOUBLENOTE, l->file_list, &l->epoint)) return;
+    if (new_error_msg(SV_DOUBLENOTE, cflist1, epoint1)) return;
     adderror("previous definition of");
     str_name(labelname2->data, labelname2->len);
     adderror(" was here");
 }
 
 void err_msg_double_defined(Label *l, const str_t *labelname2, linepos_t epoint2) {
-    err_msg_double_defined2("duplicate definition", l, current_file_list, labelname2, epoint2);
+    err_msg_double_defined2("duplicate definition", l->file_list, &l->epoint, current_file_list, labelname2, epoint2);
+}
+
+void err_msg_double_definedo(struct file_list_s *cflist, linepos_t epoint, const str_t *labelname2, linepos_t epoint2) {
+    err_msg_double_defined2("duplicate definition", cflist, epoint, current_file_list, labelname2, epoint2);
 }
 
 void err_msg_shadow_defined(Label *l, Label *l2) {
-    err_msg_double_defined2("shadow definition", l, l2->file_list, &l2->name, &l2->epoint);
+    err_msg_double_defined2("shadow definition", l->file_list, &l->epoint, l2->file_list, &l2->name, &l2->epoint);
 }
 
 void err_msg_invalid_oper(const Oper *op, const Obj *v1, const Obj *v2, linepos_t epoint) {

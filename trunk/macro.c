@@ -465,13 +465,7 @@ void get_func_params(Mfunc *v, struct file_s *cfile) {
                 if (!str_cmp(&new_mfunc.param[j].cfname, &cf)) break;
             }
             if (j != i) {
-                Label *tmp = (Label *)val_alloc(LABEL_OBJ);
-                tmp->name = tmp->cfname = new_mfunc.param[j].name;
-                tmp->file_list = v->file_list;
-                tmp->epoint = new_mfunc.param[j].epoint;
-                tmp->value = (Obj *)ref_none();
-                err_msg_double_defined(tmp, &label, &new_mfunc.param[i].epoint);
-                val_destroy(&tmp->v);
+                err_msg_double_definedo(v->file_list, &new_mfunc.param[j].epoint, &label, &new_mfunc.param[i].epoint);
             }
         } else {err_msg2(ERROR_GENERL_SYNTAX, NULL, &new_mfunc.param[i].epoint);break;}
         ignore();
@@ -545,13 +539,7 @@ void get_macro_params(Obj *v) {
                 if (!str_cmp(&new_macro.param[j].cfname, &cf)) break;
             }
             if (j != i) {
-                Label *tmp = (Label *)val_alloc(LABEL_OBJ);
-                tmp->name = tmp->cfname = new_macro.param[j].cfname;
-                tmp->file_list = macro->file_list;
-                tmp->epoint = epoints[j];
-                tmp->value = (Obj *)ref_none();
-                err_msg_double_defined(tmp, &label, &epoints[i]);
-                val_destroy(&tmp->v);
+                err_msg_double_definedo(macro->file_list, &epoints[j], &label, &epoints[i]);
             }
         } else {new_macro.param[i].cfname.len = 0; new_macro.param[i].cfname.data = NULL;}
         ignore();
