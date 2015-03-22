@@ -2653,13 +2653,7 @@ Obj *compile(struct file_list_s *cflist)
                     if (!sectionname.len) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
                     tmp3=new_section(&sectionname);
                     if (tmp3->defpass == pass) {
-                        Label *tmp = (Label *)val_alloc(LABEL_OBJ);
-                        tmp->name = tmp->cfname = tmp3->name;
-                        tmp->file_list = tmp3->file_list;
-                        tmp->epoint = tmp3->epoint;
-                        tmp->value = (Obj *)ref_none();
-                        err_msg_double_defined(tmp, &sectionname, &epoint);
-                        val_destroy(&tmp->v);
+                        err_msg_double_definedo(tmp3->file_list, &tmp3->epoint, &sectionname, &epoint);
                     } else {
                         address_t t;
                         if (!tmp3->usepass || tmp3->defpass < pass - 1) {
