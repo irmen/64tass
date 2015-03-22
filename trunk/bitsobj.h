@@ -28,7 +28,7 @@ typedef struct Bits {
     Obj v;
     ssize_t len;
     size_t bits;
-    bdigit_t val[3];
+    bdigit_t val[2];
     bdigit_t *data;
 } Bits;
 
@@ -45,10 +45,6 @@ struct Bytes;
 
 static inline Bits *ref_bits(Bits *v1) {
     v1->v.refcount++; return v1;
-}
-
-static inline MUST_CHECK Bits *new_bits(void) {
-    return (Bits *)val_alloc(BITS_OBJ);
 }
 
 extern MUST_CHECK Bits *bits_from_hexstr(const uint8_t *, size_t *);
