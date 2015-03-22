@@ -669,14 +669,13 @@ static void add_esc(const char *s, struct encoding_s *enc) {
     Bytes *tmp2;
     struct linepos_s nopoint = {0, 0};
     tmp = new_str();
-    tmp2 = new_bytes();
+    tmp2 = new_bytes(1);
     tmp2->len = 1;
-    tmp2->data = tmp2->val;
     while (s[1]) {
         tmp->data = (uint8_t *)s + 1;
         tmp->len = strlen(s + 1);
         tmp->chars = tmp->len;
-        tmp2->val[0] = (uint8_t)s[0];
+        tmp2->data[0] = (uint8_t)s[0];
         new_escape(tmp, (Obj *)tmp2, enc, &nopoint);
         s += tmp->len + 2;
     }

@@ -79,22 +79,24 @@ static void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
-static uint8_t *bnew(Bytes *v, size_t len) {
-    if (len > sizeof(v->val)) {
-        uint8_t *s = (uint8_t *)malloc(len);
+MUST_CHECK Bytes *new_bytes(size_t ln) {
+    Bytes *v = (Bytes *)val_alloc(BYTES_OBJ);
+    if (ln > sizeof(v->val)) {
+        uint8_t *s = (uint8_t *)malloc(ln);
         if (!s) err_msg_out_of_memory();
-        return s;
+        v->data = s;
+    } else {
+        v->data = v->val;
     }
-    return v->val;
+    return v;
 }
 
 static MUST_CHECK Obj *invert(const Bytes *v1) {
     size_t sz;
     sz = byteslen(v1);
     if (sz) {
-        Bytes *v = new_bytes();
+        Bytes *v = new_bytes(sz);
         v->len = ~v1->len;
-        v->data = bnew(v, sz);
         memcpy(v->data, v1->data, sz);
         return &v->v;
     } 
@@ -188,21 +190,21 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_
             if (!len) {
                 return (Obj *)ref_bytes(null_bytes);
             }
-            v = new_bytes();
-            s = bnew(v, len);
+            v = new_bytes(len);
+            s = v->data;
             encode_string_init(v1, epoint);
             while ((ch = encode_string()) != EOF) {
                 if (len2 >= len) {
                     if (v->val == s) {
                         len = 32;
                         s = (uint8_t *)malloc(len);
+                        if (!s) err_msg_out_of_memory();
                         memcpy(s, v->val, len2);
                     } else {
                         len += 1024;
-                        if (len < 1024) err_msg_out_of_memory(); /* overflow */
                         s = (uint8_t *)realloc(s, len);
+                        if (!s || len < 1024) err_msg_out_of_memory(); /* overflow */
                     }
-                    if (!s) err_msg_out_of_memory();
                 }
                 switch (mode) {
                 case BYTES_MODE_SHIFT_CHECK:
@@ -254,32 +256,32 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_
 MUST_CHECK Bytes *bytes_from_u8(uint8_t i) {
     Bytes *v = bytes_value[i];
     if (!v) {
-        v = new_bytes();
-        v->data = v->val;
-        v->val[0] = i;
+        v = new_bytes(1);
         v->len = 1;
+        v->data[0] = i;
         bytes_value[i] = v;
     }
     return ref_bytes(v);
 }
 
 MUST_CHECK Bytes *bytes_from_u16(uint16_t i) {
-    Bytes *v = new_bytes();
-    v->data = v->val;
-    v->val[0] = i;
-    v->val[1] = i >> 8;
+    Bytes *v = new_bytes(2);
     v->len = 2;
+    v->data[0] = i;
+    v->data[1] = i >> 8;
     return v;
 }
 
 MUST_CHECK Bytes *bytes_from_uval(uval_t i, int bytes) {
-    Bytes *v = new_bytes();
-    v->data = v->val;
-    v->val[0] = i;
-    v->val[1] = i >> 8;
-    v->val[2] = i >> 16;
-    v->val[3] = i >> 24;
+    Bytes *v = new_bytes(bytes);
     v->len = bytes;
+    switch (bytes) {
+    default: v->data[3] = i >> 24;
+    case 3: v->data[2] = i >> 16;
+    case 2: v->data[1] = i >> 8;
+    case 1: v->data[0] = i;
+    case 0: break;
+    }
     return v;
 }
 
@@ -297,12 +299,11 @@ static MUST_CHECK Bytes *bytes_from_bits(const Bits *v1) {
         return bytes_from_u8(v1->data[0]);
     }
 
-    v = new_bytes();
-
     sz = len1 / 8;
     if (len1 % 8) sz++;
-    v->data = d = bnew(v, sz);
+    v = new_bytes(sz);
     v->len = inv ? ~sz : sz;
+    d = v->data;
 
     len1 = v1->len;
     i = 0;
@@ -346,8 +347,8 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
     sz = inv ? -v1->len : v1->len;
     if (sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
     sz *= sizeof(digit_t);
-    v = new_bytes();
-    d = bnew(v, sz);
+    v = new_bytes(sz);
+    d = v->data;
 
     b = v1->data;
     if (inv) {
@@ -513,8 +514,8 @@ static MUST_CHECK Bytes *and_(const Bytes *vv1, const Bytes *vv2) {
 
     sz = neg2 ? len1 : len2;
     if (!sz) return ref_bytes((neg1 & neg2) ? inv_bytes : null_bytes);
-    vv = new_bytes();
-    v = bnew(vv, sz);
+    vv = new_bytes(sz);
+    v = vv->data;
     v1 = vv1->data; v2 = vv2->data;
 
     if (neg1) {
@@ -552,8 +553,8 @@ static MUST_CHECK Bytes *or_(const Bytes *vv1, const Bytes *vv2) {
 
     sz = neg2 ? len2 : len1;
     if (!sz) return ref_bytes((neg1 | neg2) ? inv_bytes : null_bytes);
-    vv = new_bytes();
-    v = bnew(vv, sz);
+    vv = new_bytes(sz);
+    v = vv->data;
     v1 = vv1->data; v2 = vv2->data;
 
     if (neg1) {
@@ -592,8 +593,8 @@ static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
 
     sz = len1;
     if (!sz) return ref_bytes((neg1 ^ neg2) ? inv_bytes : null_bytes);
-    vv = new_bytes();
-    v = bnew(vv, sz);
+    vv = new_bytes(sz);
+    v = vv->data;
     v1 = vv1->data; v2 = vv2->data;
 
     for (i = 0; i < len2; i++) v[i] = v1[i] ^ v2[i];
@@ -621,8 +622,8 @@ static MUST_CHECK Bytes *concat(Bytes *v1, Bytes *v2) {
     ln = len1 + len2;
     if (ln < len2) err_msg_out_of_memory(); /* overflow */
 
-    v = new_bytes();
-    s = bnew(v, ln);
+    v = new_bytes(ln);
+    s = v->data;
     inv = (v2->len ^ v1->len) < 0;
 
     memcpy(s, v1->data, len1);
@@ -706,8 +707,8 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
-            op->v1 = (Obj *)v1;
-            op->v2 = (Obj *)v2;
+            op->v1 = &v1->v;
+            op->v2 = &v2->v;
             val_destroy(tmp2);
             val_destroy(tmp);
             return result;
@@ -724,8 +725,8 @@ static MUST_CHECK Obj *calc2_bytes(oper_t op) {
             op->v1 = tmp;
             op->v2 = tmp2;
             result = tmp->obj->calc2(op);
-            op->v1 = (Obj *)v1;
-            op->v2 = (Obj *)v2;
+            op->v1 = &v1->v;
+            op->v2 = &v2->v;
             val_destroy(tmp2);
             val_destroy(tmp);
             return result;
@@ -783,26 +784,26 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     if (err) return &err->v;
 
     if (len1 && rep) {
-        uint8_t *s, *s2;
+        uint8_t *s;
         if (rep == 1) {
             return (Obj *)ref_bytes(v1);
         }
         if (len1 > SSIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
-        v = new_bytes();
-        v->data = s2 = s = bnew(v, len1 * rep);
+        v = new_bytes(len1 * rep);
+        s = v->data;
         v->len = 0;
         while (rep--) {
             memcpy(s + v->len, v1->data, len1);
             v->len += len1;
         }
         if (v1->len < 0) v->len = ~v->len;
-        return (Obj *)v;
+        return &v->v;
     }
     return (Obj *)ref_bytes((v1->len < 0) ? inv_bytes : null_bytes);
 }
 
 static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
-    uint8_t *p, *p2, inv;
+    uint8_t *p2, inv;
     Bytes *v, *v1 = (Bytes *)op->v1;
     size_t length;
     ival_t offs, end, step;
@@ -820,21 +821,19 @@ static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
             return (Obj *)ref_bytes(v1); /* original bytes */
         }
         if (length == 1) return (Obj *)bytes_from_u8(v1->data[offs]);
-        v = new_bytes();
-        p = p2 = bnew(v, length);
-        memcpy(p2, v1->data + offs, length);
+        v = new_bytes(length);
+        memcpy(v->data, v1->data + offs, length);
     } else {
         inv = -inv;
-        v = new_bytes();
-        p = p2 = bnew(v, length);
+        v = new_bytes(length);
+        p2 = v->data;
         while ((end > offs && step > 0) || (end < offs && step < 0)) {
             *p2++ = v1->data[offs] ^ inv;
             offs += step;
         }
     }
     v->len = length;
-    v->data = p;
-    return (Obj *)v;
+    return &v->v;
 }
 
 static inline MUST_CHECK Obj *iindex(oper_t op) {
@@ -862,8 +861,8 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         }
         len2 = list->len;
         inv = -(v1->len < 0);
-        v = new_bytes();
-        v->data = p2 = bnew(v, len2);
+        v = new_bytes(len2);
+        p2 = v->data;
         for (i = 0; i < len2; i++) {
             err = indexoffs(list->data[i], len1, &offs, op->epoint2);
             if (err) {
@@ -873,7 +872,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
             *p2++ = v1->data[offs] ^ inv;
         }
         v->len = i;
-        return (Obj *)v;
+        return &v->v;
     }
     if (o2->obj == COLONLIST_OBJ) {
         return slice((Colonlist *)o2, op, len1);
@@ -916,7 +915,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             }
             op->v1 = tmp;
             result = tmp->obj->calc2(op);
-            op->v1 = (Obj *)v1;
+            op->v1 = &v1->v;
             val_destroy(tmp);
             return result;
         }
@@ -958,7 +957,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             }
             op->v2 = tmp;
             result = o1->obj->calc2(op);
-            op->v2 =(Obj *)v2;
+            op->v2 = &v2->v;
             val_destroy(tmp);
             return result;
         }
@@ -995,14 +994,12 @@ void bytesobj_init(void) {
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
 
-    null_bytes = new_bytes();
+    null_bytes = new_bytes(0);
     null_bytes->len = 0;
-    null_bytes->val[0] = 0;
-    null_bytes->data = null_bytes->val;
-    inv_bytes = new_bytes();
+    null_bytes->data[0] = 0;
+    inv_bytes = new_bytes(0);
     inv_bytes->len = ~0;
-    inv_bytes->val[0] = 0;
-    inv_bytes->data = inv_bytes->val;
+    inv_bytes->data[0] = 0;
 }
 
 void bytesobj_names(void) {
