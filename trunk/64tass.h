@@ -20,7 +20,7 @@
 #define _64TASS_H_
 #include <stdio.h>
 #include "inttypes.h"
-#include "opcodes.h"
+#include "wait_e.h"
 #ifndef REVISION
 #define REVISION "883?"
 #endif
@@ -31,12 +31,6 @@
 struct file_list_s;
 struct Label;
 struct Obj;
-
-enum wait_e {
-    W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
-    W_ENDS, W_ENDS2, W_ENDC, W_ENDP, W_ENDP2, W_NEXT, W_NEXT2, W_SEND, W_SEND2,
-    W_PEND, W_FI, W_FI2, W_ENDF, W_ENDF2, W_SWITCH, W_SWITCH2, W_WEAK, W_WEAK2
-};
 
 extern address_t all_mem, all_mem2;
 extern uint8_t outputeor;
