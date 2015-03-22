@@ -260,12 +260,12 @@ static size_t macro_param_find(void) {
 Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoint) {
     Obj *val;
     Macro *macro = (Macro *)tmp2;
-    struct macro_params_s *params = macro_parameters.params;
     if (macro_parameters.p>100) {
         err_msg2(ERROR__MACRECURSION, NULL, epoint);
         return NULL;
     }
     if (macro_parameters.p >= macro_parameters.len) {
+        struct macro_params_s *params = macro_parameters.params;
         macro_parameters.len += 1;
         params = (struct macro_params_s *)realloc(params, sizeof(params[0]) * macro_parameters.len);
         if (!params || macro_parameters.len < 1 || macro_parameters.len > SIZE_MAX / sizeof(params[0])) err_msg_out_of_memory();
@@ -276,7 +276,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
         macro_parameters.current->pline.len = 0;
         macro_parameters.current->pline.data = NULL;
     }
-    macro_parameters.current = &params[macro_parameters.p];
+    macro_parameters.current = &macro_parameters.params[macro_parameters.p];
     macro_parameters.current->macro = val_reference(&macro->v);
     macro_parameters.p++;
     {
@@ -347,7 +347,7 @@ Obj *macro_recurse(enum wait_e t, Obj *tmp2, Namespace *context, linepos_t epoin
     }
     val_destroy(macro_parameters.current->macro);
     macro_parameters.p--;
-    if (macro_parameters.p) macro_parameters.current = &params[macro_parameters.p - 1];
+    if (macro_parameters.p) macro_parameters.current = &macro_parameters.params[macro_parameters.p - 1];
     return val;
 }
 
