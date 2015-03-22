@@ -22,6 +22,8 @@
 #include "inttypes.h"
 #include "mem.h"
 
+typedef struct Obj Obj;
+
 struct section_s {
     int name_hash;
     str_t name;

@@ -67,6 +67,8 @@
 #include "namespaceobj.h"
 #include "operobj.h"
 #include "gapobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
@@ -399,7 +401,7 @@ static void set_cpumode(const struct cpu_s *cpumode) {
 
 void var_assign(Label *label, Obj *val, int fix) {
     label->defpass = pass;
-    if (obj_same(val, label->value)) return;
+    if (val->obj->same(val, label->value)) return;
     val_replace(&label->value, val);
     if (label->usepass < pass) return;
     if (fixeddig && !fix && pass > max_pass) err_msg_cant_calculate(&label->name, &label->epoint);
@@ -429,7 +431,7 @@ static int textrecursion(Obj *val, int prm, int *ch2, size_t *uninit, size_t *su
         val_destroy(tmp);
     } else iter = val->obj->getiter(val);
 
-    while ((val2 = obj_next(iter))) {
+    while ((val2 = iter->v.obj->next(iter))) {
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE:
@@ -481,7 +483,7 @@ static int byterecursion(Obj *val, int prm, size_t *uninit, int bits, linepos_t 
     int warn = 0;
     if (val->obj == LIST_OBJ || val->obj == TUPLE_OBJ) iter = val->obj->getiter(val);
     else iter = invalid_getiter(val);
-    while ((val2 = obj_next(iter))) {
+    while ((val2 = iter->v.obj->next(iter))) {
         switch (val2->obj->type) {
         case T_LIST:
         case T_TUPLE: warn |= byterecursion(val2, prm, uninit, bits, epoint); val_destroy(val2); continue;
@@ -769,7 +771,7 @@ Obj *compile(struct file_list_s *cflist)
                     {
                         Label *label;
                         Macro *macro;
-                        obj_t obj = (prm == CMD_MACRO) ? MACRO_OBJ : SEGMENT_OBJ;
+                        Type *obj = (prm == CMD_MACRO) ? MACRO_OBJ : SEGMENT_OBJ;
                         int labelexists;
                         listing_line(0);
                         new_waitfor(W_ENDM, &lpoint);waitfor->skip=0;
@@ -844,7 +846,7 @@ Obj *compile(struct file_list_s *cflist)
                         Struct *structure;
                         struct section_s olds = *current_section;
                         int labelexists, doubledef = 0;
-                        obj_t obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
+                        Type *obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
 
                         new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &lpoint);waitfor->skip=0;
                         label=new_label(&labelname, mycontext, strength, &labelexists);
@@ -969,7 +971,7 @@ Obj *compile(struct file_list_s *cflist)
             if (!islabel) {
                 tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname);
                 if (tmp2) {
-                    obj_t obj = tmp2->value->obj;
+                    Type *obj = tmp2->value->obj;
                     if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                         tmp2->shadowcheck = 1;
                         labelname.len = 0;val = tmp2->value; goto as_macro;
@@ -1002,7 +1004,7 @@ Obj *compile(struct file_list_s *cflist)
                     if (!newlabel->update_after) {
                         Obj *tmp = get_star_value(current_section->l_address_val);
                         code = (Code *)newlabel->value;
-                        if (!obj_same(tmp, code->addr)) {
+                        if (!tmp->obj->same(tmp, code->addr)) {
                             val_destroy(code->addr); code->addr = tmp;
                             if (newlabel->usepass >= pass) {
                                 if (fixeddig && pass > max_pass) err_msg_cant_calculate(&newlabel->name, &newlabel->epoint);
@@ -1059,7 +1061,7 @@ Obj *compile(struct file_list_s *cflist)
                     {
                         int old_unionmode = current_section->unionmode;
                         struct values_s *vs;
-                        obj_t obj;
+                        Type *obj;
                         address_t old_unionstart = current_section->unionstart, old_unionend = current_section->unionend;
                         address2_t old_l_unionstart = current_section->l_unionstart, old_l_unionend = current_section->l_unionend;
                         listing_line(epoint.pos);
@@ -1808,7 +1810,7 @@ Obj *compile(struct file_list_s *cflist)
                                 val_destroy(tmp);
                             } else iter = val->obj->getiter(val);
 
-                            while (db && ((val2 = obj_next(iter)))) {
+                            while (db && ((val2 = iter->v.obj->next(iter)))) {
                                 db--;
                                 switch (val2->obj->type) {
                                 case T_GAP:uninit++; break;
@@ -2882,7 +2884,7 @@ Obj *compile(struct file_list_s *cflist)
                     if (err == NULL) break;
                     tmp2 = find_label(&opname);
                     if (tmp2) {
-                        obj_t obj = tmp2->value->obj;
+                        Type *obj = tmp2->value->obj;
                         if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                             val_destroy(&err->v);
                             tmp2->shadowcheck = 1;
@@ -2896,7 +2898,7 @@ Obj *compile(struct file_list_s *cflist)
                 }
                 tmp2 = find_label(&opname);
                 if (tmp2) {
-                    obj_t obj = tmp2->value->obj;
+                    Type *obj = tmp2->value->obj;
                     if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
                         tmp2->shadowcheck = 1;
                         val = tmp2->value;goto as_macro;

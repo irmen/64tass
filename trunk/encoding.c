@@ -25,6 +25,7 @@
 #include "unicode.h"
 #include "strobj.h"
 #include "bytesobj.h"
+#include "typeobj.h"
 #include "values.h"
 
 struct encoding_s *actual_encoding;
@@ -620,7 +621,7 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
         val_destroy(tmp2);
     } else iter = val->obj->getiter(val);
 
-    while ((val2 = obj_next(iter))) {
+    while ((val2 = iter->v.obj->next(iter))) {
         Error *err = val2->obj->uval(val2, &uval, 8, epoint);
         if (err) {
             err_msg_output_and_destroy(err);

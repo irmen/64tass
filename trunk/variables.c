@@ -39,14 +39,16 @@
 #include "dictobj.h"
 #include "addressobj.h"
 #include "gapobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 #include "values.h"
 
 static struct namespacekey_s *lastlb2 = NULL;
 static Label *lastlb = NULL;
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t LABEL_OBJ = &obj;
+Type *LABEL_OBJ = &obj;
 
 #define EQUAL_COLUMN 16
 
@@ -96,7 +98,7 @@ static void garbage(Obj *o1, int i) {
 
 static int same(const Obj *o1, const Obj *o2) {
     const Label *v1 = (const Label *)o1, *v2 = (const Label *)o2;
-    return o2->obj == LABEL_OBJ && (v1->value == v2->value || obj_same(v1->value, v2->value))
+    return o2->obj == LABEL_OBJ && (v1->value == v2->value || v1->value->obj->same(v1->value, v2->value))
         && v1->name.len == v2->name.len
         && v1->cfname.len == v2->cfname.len
         && (v1->name.data == v2->name.data || !memcmp(v1->name.data, v2->name.data, v1->name.len))
@@ -127,7 +129,8 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
 }
 
 void labelobj_init(void) {
-    obj_init(&obj, T_LABEL, "label", sizeof(Label));
+    new_type(&obj, T_LABEL, "label", sizeof(Label));
+    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;
@@ -441,7 +444,7 @@ void shadow_check(Namespace *members) {
                     const struct namespacekey_s *l2, *v1, *v2;
                     v1 = l2 = cavltree_container_of(b, struct namespacekey_s, node);
                     v2 = l;
-                    if (v1->key->value != v2->key->value && !obj_same(v1->key->value, v2->key->value)) {
+                    if (v1->key->value != v2->key->value && !v1->key->value->obj->same(v1->key->value, v2->key->value)) {
                         err_msg_shadow_defined(l2->key, l->key);
                         break;
                     }

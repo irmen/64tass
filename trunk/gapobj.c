@@ -26,10 +26,12 @@
 #include "operobj.h"
 #include "intobj.h"
 #include "boolobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t GAP_OBJ = &obj;
+Type *GAP_OBJ = &obj;
 Gap *gap_value;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
@@ -161,7 +163,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void gapobj_init(void) {
-    obj_init(&obj, T_GAP, "gap", sizeof(Gap));
+    new_type(&obj, T_GAP, "gap", sizeof(Gap));
+    obj_init(&obj);
     obj.create = create;
     obj.hash = hash;
     obj.repr = repr;
@@ -173,9 +176,7 @@ void gapobj_init(void) {
 }
 
 void gapobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = GAP_OBJ; 
-    new_builtin("gap", &v->v);
+    new_builtin("gap", val_reference(&GAP_OBJ->v));
 }
 
 void gapobj_destroy(void) {

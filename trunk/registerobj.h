@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern obj_t REGISTER_OBJ;
+extern Type *REGISTER_OBJ;
 
 typedef struct Register {
     Obj v;

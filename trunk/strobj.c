@@ -31,10 +31,12 @@
 #include "bitsobj.h"
 #include "listobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t STR_OBJ = &obj;
+Type *STR_OBJ = &obj;
 Str *null_str;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
@@ -750,7 +752,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void strobj_init(void) {
-    obj_init(&obj, T_STR, "str", sizeof(Str));
+    new_type(&obj, T_STR, "str", sizeof(Str));
+    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
@@ -775,9 +778,7 @@ void strobj_init(void) {
 }
 
 void strobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = STR_OBJ; 
-    new_builtin("str", &v->v);
+    new_builtin("str", val_reference(&STR_OBJ->v));
 }
 
 void strobj_destroy(void) {

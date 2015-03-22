@@ -30,6 +30,7 @@
 #include "listobj.h"
 #include "registerobj.h"
 #include "codeobj.h"
+#include "typeobj.h"
 
 static const uint32_t *mnemonic;    /* mnemonics */
 static const uint8_t *opcode;       /* opcodes */

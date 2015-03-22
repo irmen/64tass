@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern obj_t INT_OBJ;
+extern Type *INT_OBJ;
 extern Int *int_value[2];
 extern Int *minus1_value;
 

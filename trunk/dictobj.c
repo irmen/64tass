@@ -27,10 +27,12 @@
 #include "strobj.h"
 #include "boolobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t DICT_OBJ = &obj;
+Type *DICT_OBJ = &obj;
 
 static void dict_free(struct avltree_node *aa)
 {
@@ -118,7 +120,7 @@ static int same(const Obj *o1, const Obj *o2) {
     const struct avltree_node *n2;
     if (o2->obj != DICT_OBJ || v1->len != v2->len) return 0;
     if (!v1->def ^ !v2->def) return 0;
-    if (v1->def && v2->def && !obj_same(v1->def, v2->def)) return 0;
+    if (v1->def && v2->def && !v1->def->obj->same(v1->def, v2->def)) return 0;
     n = avltree_first(&v1->members);
     n2 = avltree_first(&v2->members);
     while (n && n2) {
@@ -127,7 +129,7 @@ static int same(const Obj *o1, const Obj *o2) {
         p = cavltree_container_of(n, struct pair_s, node);
         p2 = cavltree_container_of(n2, struct pair_s, node);
         if (!p->data ^ !p2->data) return 0;
-        if (p->data && p2->data && !obj_same(p->data, p2->data)) return 0;
+        if (p->data && p2->data && !p->data->obj->same(p->data, p2->data)) return 0;
         n = avltree_next(n);
         n2 = avltree_next(n2);
     }
@@ -243,7 +245,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
         o2 = args->val->val;
 
         pair.key = o2;
-        err = obj_hash(pair.key, &pair.hash, op->epoint2);
+        err = pair.key->obj->hash(pair.key, &pair.hash, op->epoint2);
         if (err) return &err->v;
         b = avltree_lookup(&pair.node, &v1->members, pair_compare);
         if (b) {
@@ -277,7 +279,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
         Error *err;
 
         p.key = o1;
-        err = obj_hash(p.key, &p.hash, op->epoint);
+        err = p.key->obj->hash(p.key, &p.hash, op->epoint);
         if (err) return &err->v;
         b = avltree_lookup(&p.node, &v2->members, pair_compare);
         return truth_reference(b != NULL);
@@ -315,7 +317,8 @@ int pair_compare(const struct avltree_node *aa, const struct avltree_node *bb)
 void dictobj_init(void) {
     static struct linepos_s nopoint;
 
-    obj_init(&obj, T_DICT, "dict", sizeof(Dict));
+    new_type(&obj, T_DICT, "dict", sizeof(Dict));
+    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;
@@ -332,7 +335,5 @@ void dictobj_init(void) {
 }
 
 void dictobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = DICT_OBJ; 
-    new_builtin("dict", &v->v);
+    new_builtin("dict", val_reference(&DICT_OBJ->v));
 }

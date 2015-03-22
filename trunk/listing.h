@@ -20,6 +20,7 @@
 #define _LISTING_H_
 #include "inttypes.h"
 struct cpu_s;
+typedef struct Obj Obj;
 
 extern unsigned int nolisting;
 extern const uint8_t *llist;

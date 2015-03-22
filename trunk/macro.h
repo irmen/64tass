@@ -20,8 +20,8 @@
 #define _MACRO_H_
 #include "obj.h"
 
-extern obj_t MACRO_OBJ;
-extern obj_t SEGMENT_OBJ;
+extern Type *MACRO_OBJ;
+extern Type *SEGMENT_OBJ;
 
 typedef struct Macro {
     Obj v;

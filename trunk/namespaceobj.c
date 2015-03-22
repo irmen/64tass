@@ -25,10 +25,12 @@
 #include "error.h"
 #include "strobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t NAMESPACE_OBJ = &obj;
+Type *NAMESPACE_OBJ = &obj;
 
 static void namespace_free(struct avltree_node *aa)
 {
@@ -229,7 +231,8 @@ MUST_CHECK Namespace *new_namespace(const struct file_list_s *file_list, linepos
 void namespaceobj_init(void) {
     static struct linepos_s nopoint;
 
-    obj_init(&obj, T_NAMESPACE, "namespace", sizeof(Namespace));
+    new_type(&obj, T_NAMESPACE, "namespace", sizeof(Namespace));
+    obj_init(&obj);
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.same = same;

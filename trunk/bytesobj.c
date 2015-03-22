@@ -32,11 +32,13 @@
 #include "bitsobj.h"
 #include "listobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 #include "error.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t BYTES_OBJ = &obj;
+Type *BYTES_OBJ = &obj;
 Bytes *null_bytes;
 Bytes *inv_bytes;
 static Bytes *bytes_value[256];
@@ -974,7 +976,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void bytesobj_init(void) {
-    obj_init(&obj, T_BYTES, "bytes", sizeof(Bytes));
+    new_type(&obj, T_BYTES, "bytes", sizeof(Bytes));
+    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
@@ -1003,9 +1006,7 @@ void bytesobj_init(void) {
 }
 
 void bytesobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = BYTES_OBJ; 
-    new_builtin("bytes", &v->v);
+    new_builtin("bytes", val_reference(&BYTES_OBJ->v));
 }
 
 void bytesobj_destroy(void) {

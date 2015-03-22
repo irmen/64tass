@@ -123,7 +123,7 @@ enum errors_e {
     ERROR_UNKNOWN_OPTIO
 };
 
-extern obj_t ERROR_OBJ;
+extern Type *ERROR_OBJ;
 
 typedef uint32_t atype_t;
 typedef struct Namespace Namespace;
@@ -168,7 +168,7 @@ typedef struct Label Label;
 
 extern void err_msg(enum errors_e, const void *);
 extern void err_msg2(enum errors_e, const void *, linepos_t);
-extern void err_msg_wrong_type(const Obj *, obj_t, linepos_t);
+extern void err_msg_wrong_type(const Obj *, Type *, linepos_t);
 extern void err_msg_cant_calculate(const str_t *, linepos_t);
 extern void err_msg_still_none(const str_t *, linepos_t);
 extern void err_msg_invalid_oper(const Oper *, const Obj *, const Obj *, linepos_t);

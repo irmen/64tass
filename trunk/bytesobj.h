@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern obj_t BYTES_OBJ;
+extern Type *BYTES_OBJ;
 
 typedef struct Bytes {
     Obj v;

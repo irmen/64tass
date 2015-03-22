@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "libtree.h"
 
-extern obj_t NAMESPACE_OBJ;
+extern Type *NAMESPACE_OBJ;
 
 typedef struct Namespace {
     Obj v;

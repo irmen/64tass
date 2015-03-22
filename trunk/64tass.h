@@ -30,6 +30,7 @@
 
 struct file_list_s;
 typedef struct Label Label;
+typedef struct Obj Obj;
 
 enum wait_e {
     W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,

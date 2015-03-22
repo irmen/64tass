@@ -16,20 +16,24 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _VALUES_H_
-#define _VALUES_H_
-#include <stdio.h>
-#include "inttypes.h"
+#ifndef _NONEOBJ_H
+#define _NONEOBJ_H
+#include "obj.h"
 
-typedef struct Type Type;
-typedef struct Obj Obj;
+extern Type *NONE_OBJ;
 
-extern Obj *val_alloc(Type *);
-extern void val_destroy(Obj *);
-extern void val_replace(Obj **, Obj *);
-extern int val_print(Obj *, FILE *);
+typedef struct None {
+    Obj v;
+    int *dummy;
+} None;
 
-extern void destroy_values(void);
-extern void init_values(void);
-extern void garbage_collect(void);
+extern None *none_value;
+
+extern void noneobj_init(void);
+extern void noneobj_destroy(void);
+
+static inline None *ref_none(void) {
+    none_value->v.refcount++; return none_value;
+}
+
 #endif

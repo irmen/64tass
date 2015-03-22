@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern obj_t FLOAT_OBJ;
+extern Type *FLOAT_OBJ;
 
 typedef struct Float {
     Obj v;

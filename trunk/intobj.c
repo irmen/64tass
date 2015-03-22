@@ -33,15 +33,17 @@
 #include "floatobj.h"
 #include "bitsobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
 #define SHIFT (8 * sizeof(digit_t))
 #define MASK (~(digit_t)0)
 #define DSHIFT 9
 #define DMUL ((digit_t)1000000000)
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t INT_OBJ = &obj;
+Type *INT_OBJ = &obj;
 Int *int_value[2];
 Int *minus1_value;
 
@@ -1558,7 +1560,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void intobj_init(void) {
-    obj_init(&obj, T_INT, "int", sizeof(Int));
+    new_type(&obj, T_INT, "int", sizeof(Int));
+    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
@@ -1579,9 +1582,7 @@ void intobj_init(void) {
 }
 
 void intobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = INT_OBJ; 
-    new_builtin("int", &v->v);
+    new_builtin("int", val_reference(&INT_OBJ->v));
 }
 
 void intobj_destroy(void) {

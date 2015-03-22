@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern obj_t ADDRESS_OBJ;
+extern Type *ADDRESS_OBJ;
 
 enum atype_e {
     A_NONE,          /*       */
