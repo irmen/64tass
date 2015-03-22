@@ -51,9 +51,7 @@ static inline Bytes *ref_bytes(Bytes *v1) {
     v1->v.refcount++; return v1;
 }
 
-static inline MUST_CHECK Bytes *new_bytes(void) {
-    return (Bytes *)val_alloc(BYTES_OBJ);
-}
+extern MUST_CHECK Bytes *new_bytes(size_t);
 
 struct Str;
 
