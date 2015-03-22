@@ -19,6 +19,7 @@
 #ifndef _DICTOBJ_H
 #define _DICTOBJ_H
 #include "obj.h"
+#include "values.h"
 #include "libtree.h"
 
 extern obj_t DICT_OBJ;
@@ -31,6 +32,7 @@ typedef struct Dict {
 } Dict;
 
 extern void dictobj_init(void);
+extern void dictobj_names(void);
 
 static inline MUST_CHECK Dict *new_dict(void) {
     Dict *v = (Dict *)val_alloc(DICT_OBJ);

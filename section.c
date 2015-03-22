@@ -21,6 +21,7 @@
 #include "error.h"
 #include "misc.h"
 #include "64tass.h"
+#include "values.h"
 #include "intobj.h"
 
 struct section_s root_section;

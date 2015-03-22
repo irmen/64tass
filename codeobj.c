@@ -24,6 +24,7 @@
 #include "section.h"
 #include "variables.h"
 #include "error.h"
+#include "values.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -32,6 +33,8 @@
 #include "intobj.h"
 #include "bitsobj.h"
 #include "bytesobj.h"
+#include "operobj.h"
+#include "gapobj.h"
 
 static struct obj_s obj;
 
@@ -579,4 +582,10 @@ void codeobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+}
+
+void codeobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ);
+    v->type = CODE_OBJ; 
+    new_builtin("code", &v->v);
 }

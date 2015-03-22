@@ -17,13 +17,15 @@
 
 */
 #include <string.h>
-#include "obj.h"
 #include "addressobj.h"
 #include "error.h"
+#include "eval.h"
+#include "variables.h"
 
 #include "boolobj.h"
 #include "strobj.h"
 #include "intobj.h"
+#include "operobj.h"
 
 static struct obj_s obj;
 
@@ -316,4 +318,10 @@ void addressobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+}
+
+void addressobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = ADDRESS_OBJ; 
+    new_builtin("address", &v->v);
 }

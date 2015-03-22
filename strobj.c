@@ -22,6 +22,7 @@
 #include "misc.h"
 #include "unicode.h"
 #include "error.h"
+#include "variables.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -29,6 +30,7 @@
 #include "intobj.h"
 #include "bitsobj.h"
 #include "listobj.h"
+#include "operobj.h"
 
 static struct obj_s obj;
 
@@ -770,6 +772,12 @@ void strobj_init(void) {
     null_str->len = 0;
     null_str->chars = 0;
     null_str->data = NULL;
+}
+
+void strobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = STR_OBJ; 
+    new_builtin("str", &v->v);
 }
 
 void strobj_destroy(void) {

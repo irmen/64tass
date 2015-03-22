@@ -38,6 +38,8 @@
 #include "bitsobj.h"
 #include "dictobj.h"
 #include "addressobj.h"
+#include "gapobj.h"
+#include "values.h"
 
 static struct namespacekey_s *lastlb2 = NULL;
 static Label *lastlb = NULL;
@@ -103,6 +105,34 @@ static int same(const Obj *o1, const Obj *o2) {
         && v1->epoint.pos == v2->epoint.pos
         && v1->epoint.line == v2->epoint.line
         && v1->strength == v2->strength;
+}
+
+static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
+    Label *v1 = (Label *)o1;
+    size_t len;
+    uint8_t *s;
+    Str *v;
+    if (!epoint) return NULL;
+    v = new_str();
+    len = v1->name.len;
+    s = str_create_elements(v, len + 8);
+    memcpy(s, "<label ", 7);
+    memcpy(s + 7, v1->name.data, len);
+    len += 7;
+    s[len++] = '>';
+    v->data = s;
+    v->len = len;
+    v->chars = len;
+    return &v->v;
+}
+
+void labelobj_init(void) {
+    obj_init(&obj, T_LABEL, "label", sizeof(Label));
+    obj.create = create;
+    obj.destroy = destroy;
+    obj.garbage = garbage;
+    obj.same = same;
+    obj.repr = repr;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -174,25 +204,6 @@ void reset_context(void) {
     }
     val_destroy(&cheap_context->v); cheap_context = ref_namespace(root_namespace);
     push_context(root_namespace);
-}
-
-static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
-    Label *v1 = (Label *)o1;
-    size_t len;
-    uint8_t *s;
-    Str *v;
-    if (!epoint) return NULL;
-    v = new_str();
-    len = v1->name.len;
-    s = str_create_elements(v, len + 8);
-    memcpy(s, "<label ", 7);
-    memcpy(s + 7, v1->name.data, len);
-    len += 7;
-    s[len++] = '>';
-    v->data = s;
-    v->len = len;
-    v->chars = len;
-    return &v->v;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -580,7 +591,7 @@ void labelprint(void) {
     if (flab != stdout) fclose(flab);
 }
 
-static void new_builtin(const char *ident, Obj *val) {
+void new_builtin(const char *ident, Obj *val) {
     struct linepos_s nopoint = {0, 0};
     str_t name;
     Label *label;
@@ -604,50 +615,21 @@ void init_variables(void)
 
     context_stack.stack = NULL;
     context_stack.p = context_stack.len = 0;
-}
 
-void init_defaultlabels(void) {
-    Type *v;
-    int i;
-
-    new_builtin("true", (Obj *)ref_bool(true_value));
-    new_builtin("false", (Obj *)ref_bool(false_value));
-
-    for (i = 0; reg_names[i]; i++) {
-        char name[2];
-        Register *reg = new_register();
-        name[0] = reg_names[i];
-        name[1] = 0;
-        reg->val[0] = name[0];
-        reg->data = reg->val;
-        reg->len = 1;
-        reg->chars = 1;
-        new_builtin(name, &reg->v);
-    }
-
-    for (i = 0; builtin_functions[i].name; i++) {
-        Function *func = new_function();
-        func->name.data = (const uint8_t *)builtin_functions[i].name;
-        func->name.len = strlen(builtin_functions[i].name);
-        func->func = builtin_functions[i].func;
-        func->name_hash = str_hash(&func->name);
-        new_builtin(builtin_functions[i].name, &func->v);
-    }
-
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = TYPE_OBJ; new_builtin("type", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = STR_OBJ; new_builtin("str", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = BOOL_OBJ; new_builtin("bool", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = INT_OBJ; new_builtin("int", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = FLOAT_OBJ; new_builtin("float", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = REGISTER_OBJ; new_builtin("register", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = BYTES_OBJ; new_builtin("bytes", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = BITS_OBJ; new_builtin("bits", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = DICT_OBJ; new_builtin("dict", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = LIST_OBJ; new_builtin("list", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = TUPLE_OBJ; new_builtin("tuple", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = ADDRESS_OBJ; new_builtin("address", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = CODE_OBJ; new_builtin("code", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); v->type = GAP_OBJ; new_builtin("gap", &v->v);
+    boolobj_names();
+    registerobj_names();
+    functionobj_names();
+    gapobj_names();
+    listobj_names();
+    strobj_names();
+    intobj_names();
+    floatobj_names();
+    codeobj_names();
+    addressobj_names();
+    dictobj_names();
+    bitsobj_names();
+    bytesobj_names();
+    typeobj_names();
 }
 
 void destroy_lastlb(void) {
@@ -673,13 +655,4 @@ void destroy_variables(void)
         if (c->cheap) val_destroy(&c->cheap->v);
     }
     free(context_stack.stack);
-}
-
-void labelobj_init(void) {
-    obj_init(&obj, T_LABEL, "label", sizeof(Label));
-    obj.create = create;
-    obj.destroy = destroy;
-    obj.garbage = garbage;
-    obj.same = same;
-    obj.repr = repr;
 }

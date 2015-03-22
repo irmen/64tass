@@ -18,9 +18,10 @@
 */
 #include <string.h>
 #include <math.h>
-#include "obj.h"
 #include "floatobj.h"
 #include "error.h"
+#include "eval.h"
+#include "variables.h"
 
 #include "boolobj.h"
 #include "codeobj.h"
@@ -29,6 +30,7 @@
 #include "bytesobj.h"
 #include "intobj.h"
 #include "bitsobj.h"
+#include "operobj.h"
 
 static struct obj_s obj;
 
@@ -298,4 +300,10 @@ void floatobj_init(void) {
     obj.calc1 = calc1;
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
+}
+
+void floatobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = FLOAT_OBJ; 
+    new_builtin("float", &v->v);
 }

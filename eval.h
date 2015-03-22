@@ -24,6 +24,17 @@ struct file_s;
 typedef struct List Colonlist;
 typedef struct Label Label;
 typedef struct Error Error;
+typedef struct Oper Oper;
+
+struct oper_s {
+    Oper *op;
+    Obj *v1;
+    Obj *v2;
+    linepos_t epoint;
+    linepos_t epoint2;
+    linepos_t epoint3;
+};
+typedef struct oper_s *oper_t;
 
 extern int get_exp(int *, int, struct file_s *, unsigned int, unsigned int, linepos_t);
 extern int get_exp_var(struct file_s *, linepos_t);

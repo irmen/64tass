@@ -19,6 +19,7 @@
 #ifndef _BYTESOBJ_H
 #define _BYTESOBJ_H
 #include "obj.h"
+#include "values.h"
 
 extern obj_t BYTES_OBJ;
 
@@ -33,6 +34,7 @@ extern Bytes *null_bytes;
 extern Bytes *inv_bytes;
 
 extern void bytesobj_init(void);
+extern void bytesobj_names(void);
 extern void bytesobj_destroy(void);
 
 enum bytes_mode_e {

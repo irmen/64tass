@@ -19,6 +19,7 @@
 #ifndef _INTOBJ_H
 #define _INTOBJ_H
 #include "obj.h"
+#include "values.h"
 
 extern obj_t INT_OBJ;
 extern Int *int_value[2];
@@ -35,6 +36,7 @@ typedef struct Int {
 } Int;
 
 extern void intobj_init(void);
+extern void intobj_names(void);
 extern void intobj_destroy(void);
 
 static inline Int *ref_int(Int *v1) {

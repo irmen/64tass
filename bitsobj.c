@@ -20,6 +20,7 @@
 #include <math.h>
 #include "bitsobj.h"
 #include "eval.h"
+#include "variables.h"
 #include "unicode.h"
 #include "encoding.h"
 #include "boolobj.h"
@@ -31,6 +32,7 @@
 #include "intobj.h"
 #include "error.h"
 #include "listobj.h"
+#include "operobj.h"
 
 #define SHIFT (8 * sizeof(bdigit_t))
 
@@ -1235,6 +1237,12 @@ void bitsobj_init(void) {
     bits_value[1]->bits = 1;
     bits_value[1]->val[0] = 1;
     bits_value[1]->data = bits_value[1]->val;
+}
+
+void bitsobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = BITS_OBJ; 
+    new_builtin("bits", &v->v);
 }
 
 void bitsobj_destroy(void) {

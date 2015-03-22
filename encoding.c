@@ -25,6 +25,7 @@
 #include "unicode.h"
 #include "strobj.h"
 #include "bytesobj.h"
+#include "values.h"
 
 struct encoding_s *actual_encoding;
 

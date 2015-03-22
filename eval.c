@@ -30,6 +30,7 @@
 #include "unicode.h"
 #include "listing.h"
 #include "error.h"
+#include "values.h"
 
 #include "floatobj.h"
 #include "boolobj.h"
@@ -43,6 +44,8 @@
 #include "dictobj.h"
 #include "registerobj.h"
 #include "namespaceobj.h"
+#include "operobj.h"
+#include "gapobj.h"
 
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else

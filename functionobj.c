@@ -21,6 +21,7 @@
 #include "isnprintf.h"
 #include "functionobj.h"
 #include "eval.h"
+#include "misc.h"
 #include "variables.h"
 #include "floatobj.h"
 #include "strobj.h"
@@ -29,6 +30,7 @@
 #include "floatobj.h"
 #include "intobj.h"
 #include "boolobj.h"
+#include "operobj.h"
 
 static struct obj_s obj;
 
@@ -394,7 +396,20 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-struct builtin_functions_s builtin_functions[] = {
+void functionobj_init(void) {
+    obj_init(&obj, T_FUNCTION, "function", sizeof(Function));
+    obj.hash = hash;
+    obj.same = same;
+    obj.repr = repr;
+    obj.calc2 = calc2;
+}
+
+struct builtin_functions_s {
+    const char *name;
+    enum func_e func;
+};
+
+static struct builtin_functions_s builtin_functions[] = {
     {"abs", F_ABS}, 
     {"acos", F_ACOS}, 
     {"all", F_ALL},
@@ -431,10 +446,15 @@ struct builtin_functions_s builtin_functions[] = {
     {NULL, F_NONE}
 };
 
-void functionobj_init(void) {
-    obj_init(&obj, T_FUNCTION, "function", sizeof(Function));
-    obj.hash = hash;
-    obj.same = same;
-    obj.repr = repr;
-    obj.calc2 = calc2;
+void functionobj_names(void) {
+    int i;
+
+    for (i = 0; builtin_functions[i].name; i++) {
+        Function *func = new_function();
+        func->name.data = (const uint8_t *)builtin_functions[i].name;
+        func->name.len = strlen(builtin_functions[i].name);
+        func->func = builtin_functions[i].func;
+        func->name_hash = str_hash(&func->name);
+        new_builtin(builtin_functions[i].name, &func->v);
+    }
 }

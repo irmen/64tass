@@ -18,7 +18,6 @@
 */
 #ifndef _VARIABLES_H_
 #define _VARIABLES_H_
-#include "libtree.h"
 #include "inttypes.h"
 #include "obj.h"
 
@@ -43,11 +42,12 @@ typedef struct Label {
     uint8_t strength;
 } Label;
 
+extern void labelobj_init(void);
+
 extern void push_context(Namespace *);
 extern int pop_context(void);
 extern void reset_context(void);
 
-extern void labelobj_init(void);
 extern Namespace *current_context, *cheap_context, *root_namespace;
 extern Label *find_label(const str_t *);
 extern Label *find_label2(const str_t *, Namespace *);
@@ -59,6 +59,6 @@ extern void labelprint(void);
 extern void shadow_check(Namespace *);
 extern void destroy_variables(void);
 extern void init_variables(void);
-extern void init_defaultlabels(void);
 extern void destroy_lastlb(void);
+extern void new_builtin(const char *, Obj *);
 #endif

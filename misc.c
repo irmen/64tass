@@ -34,6 +34,7 @@
 #include "ternary.h"
 #include "unicode.h"
 #include "error.h"
+#include "values.h"
 
 #include "codeobj.h"
 
@@ -154,11 +155,11 @@ void tfree(void) {
 }
 
 void tinit(void) {
+    init_values();
     objects_init();
     err_init();
     init_section();
     init_file();
-    init_values();
     init_variables();
     init_eval();
     init_ternary();

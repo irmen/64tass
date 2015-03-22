@@ -19,6 +19,7 @@
 #ifndef _BITSOBJ_H
 #define _BITSOBJ_H
 #include "obj.h"
+#include "values.h"
 
 extern obj_t BITS_OBJ;
 
@@ -36,6 +37,7 @@ extern Bits *inv_bits;
 extern Bits *bits_value[2];
 
 extern void bitsobj_init(void);
+extern void bitsobj_names(void);
 extern void bitsobj_destroy(void);
 
 typedef struct Str Str;

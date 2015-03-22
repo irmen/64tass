@@ -20,11 +20,13 @@
 #include "dictobj.h"
 #include "eval.h"
 #include "error.h"
+#include "variables.h"
 
 #include "intobj.h"
 #include "listobj.h"
 #include "strobj.h"
 #include "boolobj.h"
+#include "operobj.h"
 
 static struct obj_s obj;
 
@@ -327,4 +329,10 @@ void dictobj_init(void) {
     pair_oper.epoint = &nopoint;
     pair_oper.epoint2 = &nopoint;
     pair_oper.epoint3 = &nopoint;
+}
+
+void dictobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = DICT_OBJ; 
+    new_builtin("dict", &v->v);
 }
