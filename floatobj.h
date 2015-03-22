@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern Type *FLOAT_OBJ;
+extern struct Type *FLOAT_OBJ;
 
 typedef struct Float {
     Obj v;
@@ -37,9 +37,9 @@ static inline MUST_CHECK Float *new_float(double d) {
     return v;
 }
 
-typedef struct oper_s *oper_t;
+struct oper_s;
 
-extern MUST_CHECK Obj *calc2_double(oper_t, double, double);
+extern MUST_CHECK Obj *calc2_double(struct oper_s *, double, double);
 extern MUST_CHECK Obj *float_from_double(double, linepos_t);
 
 #endif

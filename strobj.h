@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern Type *STR_OBJ;
+extern struct Type *STR_OBJ;
 
 typedef struct Str {
     Obj v;

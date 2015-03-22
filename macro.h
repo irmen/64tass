@@ -20,8 +20,8 @@
 #define _MACRO_H_
 #include "obj.h"
 
-extern Type *MACRO_OBJ;
-extern Type *SEGMENT_OBJ;
+extern struct Type *MACRO_OBJ;
+extern struct Type *SEGMENT_OBJ;
 
 typedef struct Macro {
     Obj v;
@@ -39,16 +39,16 @@ struct values_s;
 struct file_s;
 enum wait_e;
 
-typedef struct Namespace Namespace;
-typedef struct Mfunc Mfunc;
+struct Namespace;
+struct Mfunc;
 
 extern int mtranslate(struct file_s *);
-extern Obj *macro_recurse(enum wait_e, Obj *, Namespace *, linepos_t);
-extern Obj *mfunc_recurse(enum wait_e, Mfunc *, Namespace *, linepos_t, uint8_t);
-extern Obj *mfunc2_recurse(Mfunc *, struct values_s *, unsigned int, linepos_t);
+extern Obj *macro_recurse(enum wait_e, Obj *, struct Namespace *, linepos_t);
+extern Obj *mfunc_recurse(enum wait_e, struct Mfunc *, struct Namespace *, linepos_t, uint8_t);
+extern Obj *mfunc2_recurse(struct Mfunc *, struct values_s *, unsigned int, linepos_t);
 extern void init_macro(void);
 extern void free_macro(void);
 extern void get_macro_params(Obj *);
-extern void get_func_params(Mfunc *, struct file_s *);
+extern void get_func_params(struct Mfunc *, struct file_s *);
 extern int in_macro(void);
 #endif

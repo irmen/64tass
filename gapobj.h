@@ -20,7 +20,7 @@
 #define _GAPOBJ_H
 #include "obj.h"
 
-extern Type *GAP_OBJ;
+extern struct Type *GAP_OBJ;
 
 typedef struct Gap {
     Obj v;

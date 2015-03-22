@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "libtree.h"
 
-extern Type *NAMESPACE_OBJ;
+extern struct Type *NAMESPACE_OBJ;
 
 typedef struct Namespace {
     Obj v;
@@ -33,20 +33,18 @@ typedef struct Namespace {
 
 extern void namespaceobj_init(void);
 
-typedef struct Label Label;
+struct Label;
 
 struct namespacekey_s {
     int hash;
-    Label *key;
+    struct Label *key;
     struct avltree_node node;
 };
-
-typedef struct oper_s *oper_t;
 
 static inline Namespace *ref_namespace(Namespace *v1) {
     v1->v.refcount++; return v1;
 }
 
 extern MUST_CHECK Namespace *new_namespace(const struct file_list_s *, linepos_t);
-extern MUST_CHECK Obj *namespace_member(oper_t, Namespace *);
+extern MUST_CHECK Obj *namespace_member(struct oper_s *, Namespace *);
 #endif
