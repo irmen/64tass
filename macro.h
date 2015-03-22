@@ -19,6 +19,7 @@
 #ifndef _MACRO_H_
 #define _MACRO_H_
 #include "obj.h"
+#include "wait_e.h"
 
 extern struct Type *MACRO_OBJ;
 extern struct Type *SEGMENT_OBJ;
@@ -37,7 +38,6 @@ extern void macroobj_init(void);
 
 struct values_s;
 struct file_s;
-enum wait_e;
 
 struct Namespace;
 struct Mfunc;

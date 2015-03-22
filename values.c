@@ -62,12 +62,12 @@ Obj *val_alloc(Type *obj) {
         Slotcoll *n = (Slotcoll *)malloc(sizeof(Slotcoll) + size * SLOTS);
         if (!n) err_msg_out_of_memory();
         n->next = *s; *s = n;
-        slot = ((void *)n) + sizeof(Slotcoll);
+        slot = (Slot *)(((const char *)n) + sizeof(Slotcoll));
         val = (Obj *)slot;
-        for (i = 0; i < (SLOTS - 1); i++, slot = ((void *)slot) + size) {
+        for (i = 0; i < (SLOTS - 1); i++, slot = (Slot *)(((const char *)slot) + size)) {
             slot->v.obj = NONE_OBJ;
             slot->v.refcount = 1;
-            slot->next = (Slot *)(((void *)slot) + size);
+            slot->next = (Slot *)(((const char *)slot) + size);
         }
         slot->v.obj = NONE_OBJ;
         slot->v.refcount = 1;
@@ -90,8 +90,8 @@ void garbage_collect(void) {
     for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
         size_t size = j * ALIGN;
         for (vals = slotcoll[j]; vals; vals = vals->next) {
-            Obj *val = ((void *)vals) + sizeof(Slotcoll);
-            for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
+            Obj *val = (Obj *)(((const char *)vals) + sizeof(Slotcoll));
+            for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
                 if (val->obj->garbage) {
                     val->obj->garbage(val, -1);
                     val->refcount |= SIZE_MSB;
@@ -103,8 +103,8 @@ void garbage_collect(void) {
     for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
         size_t size = j * ALIGN;
         for (vals = slotcoll[j]; vals; vals = vals->next) {
-            Obj *val = ((void *)vals) + sizeof(Slotcoll);
-            for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
+            Obj *val = (Obj *)(((const char *)vals) + sizeof(Slotcoll));
+            for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
                 if (val->obj->garbage) {
                     if (val->refcount > SIZE_MSB) {
                         val->refcount -= SIZE_MSB;
@@ -118,8 +118,8 @@ void garbage_collect(void) {
     for (j = 0; j < sizeof(slotcoll) / sizeof(slotcoll[0]); j++) {
         size_t size = j * ALIGN;
         for (vals = slotcoll[j]; vals; vals = vals->next) {
-            Obj *val = ((void *)vals) + sizeof(Slotcoll);
-            for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
+            Obj *val = (Obj *)(((const char *)vals) + sizeof(Slotcoll));
+            for (i = 0; i < SLOTS; i++, val = (Obj *)(((const char *)val) + size)) {
                 if (!(val->refcount & ~SIZE_MSB)) {
                     val->refcount = 1;
                     if (val->obj->garbage) val->obj->garbage(val, 0);

@@ -48,7 +48,7 @@ typedef struct Address {
 extern void addressobj_init(void);
 extern void addressobj_names(void);
 
-static inline MUST_CHECK Address *new_address(Obj *val, enum atype_e type) {
+static inline MUST_CHECK Address *new_address(Obj *val, atype_t type) {
     Address *v = (Address *)val_alloc(ADDRESS_OBJ);
     v->val = val;
     v->type = type;

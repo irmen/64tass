@@ -126,10 +126,9 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
     if (vals->obj != ADDRLIST_OBJ) {
         oval = val = vals; goto single;
     } else {
-        Addrlist *addrlist = (Addrlist *)vals;
-        size_t opers = addrlist->len;
+        Addrlist *addrlist;
         atype_t am;
-        switch (opers) {
+        switch (((Addrlist *)vals)->len) {
         case 0:
             if (cnmemonic[ADR_IMPLIED] != ____) {
                 adrgen = AG_IMP; opr = ADR_IMPLIED;
@@ -137,6 +136,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             }
             return err_addressing(A_NONE, epoint);
         case 1:
+            addrlist = (Addrlist *)vals;
             oval = val = addrlist->data[0];
         single:
             am = get_address_mode(val, epoint2);
@@ -356,7 +356,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                 if (cod && cpureg->len == 1) {
                     const char *ind = strchr(reg_names, cpureg->data[0]);
                     if (ind) {
-                        reg = ind - reg_names;
+                        reg = (enum reg_e)(ind - reg_names);
                         if (regopcode_table[cod][reg] != ____) {
                             adrgen = AG_IMP;
                             break;
@@ -525,6 +525,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             err->u.opers = 1;
             return err;
         case 2:
+            addrlist = (Addrlist *)vals;
             if (cnmemonic[ADR_MOVE] != ____) {
                 if (toaddress(addrlist->data[0], &uval, 8, &am, epoint2)) {}
                 else {
@@ -558,9 +559,10 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
                 break;
             }
             err = new_error(ERROR___NO_LOT_OPER, epoint);
-            err->u.opers = opers;
+            err->u.opers = 2;
             return err;
         case 3:
+            addrlist = (Addrlist *)vals;
             if (cnmemonic[ADR_BIT_ZP_REL] != ____) {
                 if (w != 3 && w != 1) return new_error(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
                 if (touval(addrlist->data[0], &uval, 3, epoint2)) {}
@@ -593,7 +595,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             /* fall through */
         default: 
             err = new_error(ERROR___NO_LOT_OPER, epoint);
-            err->u.opers = opers;
+            err->u.opers = ((Addrlist *)vals)->len;
             return err;
         }
     } 
@@ -679,7 +681,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             default: return new_error(ERROR__NO_LONG_ADDR, epoint); /* can't happen */
             }
         }
-        opr = opr - w; ln = w + 1;
+        opr = (enum opr_e)(opr - w); ln = w + 1;
         break;
     case AG_DB2: /* 2 choice data bank */
         if (w == 3) {/* auto length */
@@ -711,7 +713,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             default: return new_error(ERROR__NO_LONG_ADDR, epoint);
             }
         }
-        opr = opr - w; ln = w + 1;
+        opr = (enum opr_e)(opr - w); ln = w + 1;
         break;
     case AG_WORD: /* word only */
         if (w != 3 && w != 1) return new_error(w ? ERROR__NO_LONG_ADDR : ERROR__NO_BYTE_ADDR, epoint);
@@ -753,7 +755,7 @@ MUST_CHECK Error *instruction(int prm, int w, Obj *vals, linepos_t epoint, struc
             default: return new_error(ERROR__NO_BYTE_ADDR, epoint);
             }
         }
-        opr = opr - w; ln = w + 1;
+        opr = (enum opr_e)(opr - w); ln = w + 1;
         break;
     case AG_IMP:
         ln = 0;

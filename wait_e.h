@@ -16,31 +16,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _ENCODING_H_
-#define _ENCODING_H_
-#include "libtree.h"
-#include "inttypes.h"
-#include "errors_e.h"
-
-struct encoding_s;
-struct Obj;
-
-struct trans_s {
-    uint32_t start;
-    unsigned end : 24;
-    unsigned offset : 8;
-    struct avltree_node node;
+#ifndef _WAIT_E_H_
+#define _WAIT_E_H_
+enum wait_e {
+    W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
+    W_ENDS, W_ENDS2, W_ENDC, W_ENDP, W_ENDP2, W_NEXT, W_NEXT2, W_SEND, W_SEND2,
+    W_PEND, W_FI, W_FI2, W_ENDF, W_ENDF2, W_SWITCH, W_SWITCH2, W_WEAK, W_WEAK2
 };
-
-extern struct encoding_s *actual_encoding;
-
-struct Str;
-extern struct encoding_s *new_encoding(const str_t *);
-extern struct trans_s *new_trans(struct trans_s *, struct encoding_s *);
-extern int new_escape(const struct Str *, struct Obj *, struct encoding_s *, linepos_t);
-extern void encode_string_init(const struct Str *, linepos_t);
-extern int encode_string(void);
-extern void encode_error(enum errors_e);
-extern void init_encoding(int);
-extern void destroy_encoding(void);
 #endif

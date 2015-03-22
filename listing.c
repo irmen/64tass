@@ -23,6 +23,7 @@
 #include "file.h"
 #include "error.h"
 #include "64tass.h"
+#include "opcodes.h"
 #include "unicode.h"
 #include "misc.h"
 #include "section.h"
