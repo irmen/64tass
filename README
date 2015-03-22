@@ -2710,6 +2710,8 @@ Additional code: my_getopt command-line argument parser by Benjamin Sittler,
 avl tree code by Franck Bui-Huu, ternary tree code by Daniel Berlin, snprintf
 Alain Magloire, Amiga OS4 support files by Janne Per?aho.
 
+Pierre Zero helped to uncover a lot of faults by fuzzing.
+
 Main developer and maintainer: soci at c64.rulez.org
 
 -------------------------------------------------------------------------------
