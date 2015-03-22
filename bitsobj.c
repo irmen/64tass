@@ -80,39 +80,39 @@ static void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
-static bdigit_t *bnew(Bits *v, size_t len) {
+static MUST_CHECK Bits *new_bits(size_t len) {
+    Bits *v = (Bits *)val_alloc(BITS_OBJ);
     if (len > sizeof(v->val)/sizeof(v->val[0])) {
         bdigit_t *s = (bdigit_t *)malloc(len * sizeof(bdigit_t));
         if (!s || len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-        return s;
+        v->data = s;
+    } else {
+        v->data = v->val;
     }
-    return v->val;
+    return v;
 }
 
 static MUST_CHECK Obj *invert(const Bits *v1) {
-    size_t sz;
-    Bits *v = new_bits();
+    size_t sz = bitslen(v1);
+    Bits *v = new_bits(sz);
     v->bits = v1->bits;
     v->len = ~v1->len;
-    sz = bitslen(v1);
     if (sz) {
-        v->data = bnew(v, sz);
         memcpy(v->data, v1->data, sz * sizeof(bdigit_t));
     } else {
-        v->val[0] = 0;
-        v->data = v->val;
+        v->data[0] = 0;
     }
     return &v->v;
 }
 
-static MUST_CHECK Obj *normalize(Bits *v, bdigit_t *d, size_t sz, int neg) {
+static MUST_CHECK Obj *normalize(Bits *v, size_t sz, int neg) {
+    bdigit_t *d = v->data;
     while (sz && !d[sz - 1]) sz--;
     if (v->val != d && sz <= sizeof(v->val)/sizeof(v->val[0])) {
-        memcpy(v->val, d, sz);
+        memcpy(v->val, d, sz * sizeof(bdigit_t));
         free(d);
-        d = v->val;
+        v->data = v->val;
     }
-    v->data = d;
     v->len = neg ? ~sz : sz;
     return &v->v;
 }
@@ -292,36 +292,32 @@ static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
 }
 
 MUST_CHECK Bits *ibits_from_bool(int i) {
-    Bits *v = new_bits();
-    v->data = v->val;
-    v->val[0] = i;
+    Bits *v = new_bits(1);
+    v->data[0] = i;
     v->len = ~(i != 0);
     v->bits = 1;
     return v;
 }
 
 MUST_CHECK Bits *bits_from_bools(int i, int j) {
-    Bits *v = new_bits();
-    v->data = v->val;
-    v->val[0] = (i << 1) | j;
+    Bits *v = new_bits(1);
+    v->data[0] = (i << 1) | j;
     v->len = i | j;
     v->bits = 2;
     return v;
 }
 
 static MUST_CHECK Bits *bits_from_u24(uint32_t i) {
-    Bits *v = new_bits();
-    v->data = v->val;
-    v->val[0] = i;
+    Bits *v = new_bits(1);
+    v->data[0] = i;
     v->len = (i != 0);
     v->bits = 24;
     return v;
 }
 
 MUST_CHECK Bits *bits_from_uval(uval_t i, int bits) {
-    Bits *v = new_bits();
-    v->data = v->val;
-    v->val[0] = i;
+    Bits *v = new_bits(1);
+    v->data[0] = i;
     v->len = (i != 0);
     v->bits = bits;
     return v;
@@ -340,12 +336,12 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln) {
     }
 
     if (i > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */
-    v = new_bits();
-    v->bits = i * 4;
 
     sz = i / (2 * sizeof(bdigit_t));
     if (i % (2 * sizeof(bdigit_t))) sz++;
-    d = bnew(v, sz);
+    v = new_bits(sz);
+    v->bits = i * 4;
+    d = v->data;
 
     uv = bits = j = 0;
     while (i--) {
@@ -358,7 +354,7 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln) {
     }
     if (bits) d[j] = uv;
 
-    return (Bits *)normalize(v, d, sz, 0);
+    return (Bits *)normalize(v, sz, 0);
 }
 
 MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln) {
@@ -373,12 +369,11 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln) {
         return ref_bits(null_bits);
     }
 
-    v = new_bits();
-    v->bits = i;
-
     sz = i / SHIFT;
     if (i % SHIFT) sz++;
-    d = bnew(v, sz);
+    v = new_bits(sz);
+    v->bits = i;
+    d = v->data;
 
     uv = bits = j = 0;
     while (i--) {
@@ -390,7 +385,7 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln) {
     }
     if (bits) d[j] = uv;
 
-    return (Bits *)normalize(v, d, sz, 0);
+    return (Bits *)normalize(v, sz, 0);
 }
 
 MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
@@ -411,8 +406,8 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
             sz = v1->len / sizeof(bdigit_t);
             if (v1->len % sizeof(bdigit_t)) sz++;
         }
-        v = new_bits();
-        d = bnew(v, sz);
+        v = new_bits(sz);
+        d = v->data;
 
         uv = bits = j = 0;
         encode_string_init(v1, epoint);
@@ -487,12 +482,12 @@ MUST_CHECK Bits *bits_from_bytes(const Bytes *v1) {
     }
 
     if (len1 > SIZE_MAX / 8) err_msg_out_of_memory(); /* overflow */
-    v = new_bits();
-    v->bits = len1 * 8;
 
     sz = len1 / sizeof(bdigit_t);
     if (len1 % sizeof(bdigit_t)) sz++;
-    d = bnew(v, sz);
+    v = new_bits(sz);
+    v->bits = len1 * 8;
+    d = v->data;
 
     uv = bits = j = i = 0;
     while (len1 > i) {
@@ -504,7 +499,7 @@ MUST_CHECK Bits *bits_from_bytes(const Bytes *v1) {
     }
     if (bits) d[j] = uv;
 
-    return (Bits *)normalize(v, d, sz, inv);
+    return (Bits *)normalize(v, sz, inv);
 }
 
 static MUST_CHECK Obj *bits_from_int(const Int *v1) {
@@ -519,8 +514,8 @@ static MUST_CHECK Obj *bits_from_int(const Int *v1) {
 
     inv = v1->len < 0;
     sz = inv ? -v1->len : v1->len;
-    v = new_bits();
-    d = bnew(v, sz);
+    v = new_bits(sz);
+    d = v->data;
 
     b = v1->data;
     if (inv) {
@@ -539,7 +534,7 @@ static MUST_CHECK Obj *bits_from_int(const Int *v1) {
 
     v->bits = (sz - 1) * SHIFT + bits;
 
-    return normalize(v, d, sz, inv);
+    return normalize(v, sz, inv);
 }
 
 static ssize_t icmp(const Bits *vv1, const Bits *vv2) {
@@ -594,17 +589,17 @@ static MUST_CHECK Obj *calc1(oper_t op) {
 }
 
 static MUST_CHECK Obj *and_(const Bits *vv1, const Bits *vv2) {
-    size_t blen1, blen2;
+    size_t blen1, blen2, blen;
     size_t i, len1, len2, sz;
     int neg1, neg2;
     bdigit_t *v1, *v2, *v;
-    Bits *vv = new_bits();
+    Bits *vv;
     blen1 = vv1->bits;
     blen2 = vv2->bits;
     if (blen1 < blen2) {
-        vv->bits = (vv1->len < 0) ? blen2 : blen1;
+        blen = (vv1->len < 0) ? blen2 : blen1;
     } else {
-        vv->bits = (vv2->len < 0) ? blen1 : blen2;
+        blen = (vv2->len < 0) ? blen1 : blen2;
     }
     len1 = bitslen(vv1);
     len2 = bitslen(vv2);
@@ -621,10 +616,11 @@ static MUST_CHECK Obj *and_(const Bits *vv1, const Bits *vv2) {
         } else {
             c = vv1->data[0] & (neg2 ? ~vv2->data[0] : vv2->data[0]);
         }
-        v = vv->val;
+        vv = (Bits *)val_alloc(BITS_OBJ);
+        vv->data = v = vv->val;
         v[0] = c;
-        vv->data = v;
         vv->len = (neg1 & neg2) ? ~(c != 0) : (c != 0);
+        vv->bits = blen;
         return &vv->v;
     }
     if (len1 < len2) {
@@ -635,7 +631,9 @@ static MUST_CHECK Obj *and_(const Bits *vv1, const Bits *vv2) {
     neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = neg2 ? len1 : len2;
-    v = bnew(vv, sz);
+    vv = new_bits(sz);
+    vv->bits = blen;
+    v = vv->data;
 
     if (neg1) {
         if (neg2) {
@@ -653,21 +651,21 @@ static MUST_CHECK Obj *and_(const Bits *vv1, const Bits *vv2) {
         }
     }
 
-    return normalize(vv, v, sz, neg1 & neg2);
+    return normalize(vv, sz, neg1 & neg2);
 }
 
 static MUST_CHECK Obj *or_(const Bits *vv1, const Bits *vv2) {
-    size_t blen1, blen2;
+    size_t blen1, blen2, blen;
     size_t i, len1, len2, sz;
     int neg1, neg2;
     bdigit_t *v1, *v2, *v;
-    Bits *vv = new_bits();
+    Bits *vv;
     blen1 = vv1->bits;
     blen2 = vv2->bits;
     if (blen1 < blen2) {
-        vv->bits = (vv1->len < 0) ? blen1 : blen2;
+        blen = (vv1->len < 0) ? blen1 : blen2;
     } else {
-        vv->bits = (vv2->len < 0) ? blen2 : blen1;
+        blen = (vv2->len < 0) ? blen2 : blen1;
     }
     len1 = bitslen(vv1);
     len2 = bitslen(vv2);
@@ -684,10 +682,11 @@ static MUST_CHECK Obj *or_(const Bits *vv1, const Bits *vv2) {
                 c = vv1->data[0] | vv2->data[0];
             }
         }
-        v = vv->val;
+        vv = (Bits *)val_alloc(BITS_OBJ);
+        vv->data = v = vv->val;
         v[0] = c;
-        vv->data = v;
         vv->len = (neg1 | neg2) ? ~(c != 0) : (c != 0);
+        vv->bits = blen;
         return &vv->v;
     }
     if (len1 < len2) {
@@ -698,7 +697,9 @@ static MUST_CHECK Obj *or_(const Bits *vv1, const Bits *vv2) {
     neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = neg2 ? len2 : len1;
-    v = bnew(vv, sz);
+    vv = new_bits(sz);
+    vv->bits = blen;
+    v = vv->data;
 
     if (neg1) {
         if (neg2) {
@@ -716,18 +717,18 @@ static MUST_CHECK Obj *or_(const Bits *vv1, const Bits *vv2) {
         }
     }
 
-    return normalize(vv, v, sz, neg1 | neg2);
+    return normalize(vv, sz, neg1 | neg2);
 }
 
 static MUST_CHECK Obj *xor_(const Bits *vv1, const Bits *vv2) {
-    size_t blen1, blen2;
+    size_t blen1, blen2, blen;
     size_t i, len1, len2, sz;
     int neg1, neg2;
     bdigit_t *v1, *v2, *v;
-    Bits *vv = new_bits();
+    Bits *vv;
     blen1 = vv1->bits;
     blen2 = vv2->bits;
-    vv->bits = (blen1 < blen2) ? blen2 : blen1;
+    blen = (blen1 < blen2) ? blen2 : blen1;
     len1 = bitslen(vv1);
     len2 = bitslen(vv2);
 
@@ -735,10 +736,11 @@ static MUST_CHECK Obj *xor_(const Bits *vv1, const Bits *vv2) {
         bdigit_t c;
         neg1 = vv1->len < 0; neg2 = vv2->len < 0;
         c = vv1->val[0] ^ vv2->val[0];
-        v = vv->val;
+        vv = (Bits *)val_alloc(BITS_OBJ);
+        vv->data = v = vv->val;
         v[0] = c;
-        vv->data = v;
         vv->len = (neg1 ^ neg2) ? ~(c != 0) : (c != 0);
+        vv->bits = blen;
         return &vv->v;
     }
     if (len1 < len2) {
@@ -749,12 +751,14 @@ static MUST_CHECK Obj *xor_(const Bits *vv1, const Bits *vv2) {
     neg1 = vv1->len < 0; neg2 = vv2->len < 0;
 
     sz = len1;
-    v = bnew(vv, sz);
+    vv = new_bits(sz);
+    vv->bits = blen;
+    v = vv->data;
 
     for (i = 0; i < len2; i++) v[i] = v1[i] ^ v2[i];
     for (; i < len1; i++) v[i] = v1[i];
 
-    return normalize(vv, v, sz, neg1 ^ neg2);
+    return normalize(vv, sz, neg1 ^ neg2);
 }
 
 static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
@@ -774,8 +778,8 @@ static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
     if (blen < vv2->bits) err_msg_out_of_memory(); /* overflow */
     sz = blen / SHIFT;
     if (blen % SHIFT) sz++;
-    vv = new_bits();
-    v = bnew(vv, sz);
+    vv = new_bits(sz);
+    v = vv->data;
     inv = -((vv2->len ^ vv1->len) < 0);
 
     v1 = vv2->data;
@@ -805,14 +809,14 @@ static MUST_CHECK Obj *concat(Bits *vv1, Bits *vv2) {
     }
 
     vv->bits = blen;
-    return normalize(vv, v, sz, vv1->len < 0);
+    return normalize(vv, sz, vv1->len < 0);
 }
 
 static MUST_CHECK Obj *lshift(const Bits *vv1, size_t s) {
     size_t i, sz, bits, len1, word;
     int bit;
     bdigit_t *v1, *v, *o;
-    Bits *vv = new_bits();
+    Bits *vv;
 
     word = s / SHIFT;
     bit = s % SHIFT;
@@ -823,7 +827,8 @@ static MUST_CHECK Obj *lshift(const Bits *vv1, size_t s) {
     sz = word + (bit > 0);
     sz += len1;
     if (sz < len1) err_msg_out_of_memory(); /* overflow */
-    v = bnew(vv, sz);
+    vv = new_bits(sz);
+    v = vv->data;
     o = &v[word];
     if (bit) {
         o[len1] = 0;
@@ -835,7 +840,7 @@ static MUST_CHECK Obj *lshift(const Bits *vv1, size_t s) {
     memset(v, 0, word * sizeof(bdigit_t));
 
     vv->bits = bits;
-    return normalize(vv, v, sz, vv1->len < 0);
+    return normalize(vv, sz, vv1->len < 0);
 }
 
 static MUST_CHECK Obj *rshift(const Bits *vv1, uval_t s) {
@@ -853,8 +858,8 @@ static MUST_CHECK Obj *rshift(const Bits *vv1, uval_t s) {
     }
     sz = l - word;
     bits -= s;
-    vv = new_bits();
-    v = bnew(vv, sz);
+    vv = new_bits(sz);
+    v = vv->data;
     v1 = vv1->data + word;
     if (bit) {
         for (i = 0; i < sz - 1; i++) {
@@ -865,7 +870,7 @@ static MUST_CHECK Obj *rshift(const Bits *vv1, uval_t s) {
     } else if (sz) memmove(v, v1, sz * sizeof(bdigit_t));
 
     vv->bits = bits;
-    return normalize(vv, v, sz, vv1->len < 0);
+    return normalize(vv, sz, vv1->len < 0);
 }
 
 static inline MUST_CHECK Obj *repeat(oper_t op) {
@@ -887,13 +892,13 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
         return (Obj *)ref_bits(vv1);
     }
 
-    vv = new_bits();
     if (blen > SIZE_MAX / rep) err_msg_out_of_memory(); /* overflow */
     blen *= rep;
     sz = blen / SHIFT;
     if (blen % SHIFT) sz++;
 
-    v = bnew(vv, sz);
+    vv = new_bits(sz);
+    v = vv->data;
     v1 = vv1->data;
 
     i = 0;
@@ -928,7 +933,7 @@ static inline MUST_CHECK Obj *repeat(oper_t op) {
     if (i < sz) v[i] = uv;
 
     vv->bits = blen;
-    return normalize(vv, v, sz, vv1->len < 0);
+    return normalize(vv, sz, vv1->len < 0);
 }
 
 static inline MUST_CHECK Obj *slice(Colonlist *vv2, oper_t op, size_t ln) {
@@ -960,8 +965,8 @@ static inline MUST_CHECK Obj *slice(Colonlist *vv2, oper_t op, size_t ln) {
         wl = length / SHIFT;
 
         sz = wl + (bl > 0);
-        vv = new_bits();
-        v = bnew(vv, sz);
+        vv = new_bits(sz);
+        v = vv->data;
 
         l = bitslen(vv1);
         v1 = vv1->data + wo;
@@ -984,8 +989,8 @@ static inline MUST_CHECK Obj *slice(Colonlist *vv2, oper_t op, size_t ln) {
     } else {
         sz = length / SHIFT;
         if (length % SHIFT) sz++;
-        vv = new_bits();
-        v = bnew(vv, sz);
+        vv = new_bits(sz);
+        v = vv->data;
 
         uv = inv;
         sz = bits = 0;
@@ -1007,7 +1012,7 @@ static inline MUST_CHECK Obj *slice(Colonlist *vv2, oper_t op, size_t ln) {
     }
 
     vv->bits = length;
-    return normalize(vv, v, sz, 0);
+    return normalize(vv, sz, 0);
 }
 
 static inline MUST_CHECK Obj *iindex(oper_t op) {
@@ -1037,15 +1042,14 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         }
         sz = (list->len + SHIFT - 1) / SHIFT;
 
-        vv = new_bits();
-        v = bnew(vv, sz);
+        vv = new_bits(sz);
+        v = vv->data;
 
         uv = inv;
         bits = sz = 0;
         for (i = 0; i < list->len; i++) {
             err = indexoffs(list->data[i], ln, &offs, op->epoint2);
             if (err) {
-                vv->data = v;
                 val_destroy(&vv->v);
                 return &err->v;
             }
@@ -1063,7 +1067,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
         if (bits) v[sz++] = uv & ((1 << bits) - 1);
 
         vv->bits = list->len;
-        return normalize(vv, v, sz, 0);
+        return normalize(vv, sz, 0);
     }
     if (vv2->obj == COLONLIST_OBJ) {
         return slice((Colonlist *)vv2, op, ln);
@@ -1220,26 +1224,22 @@ void bitsobj_init(void) {
     obj.calc2 = calc2;
     obj.rcalc2 = rcalc2;
 
-    null_bits = new_bits();
+    null_bits = new_bits(0);
     null_bits->len = 0;
     null_bits->bits = 0;
-    null_bits->val[0] = 0;
-    null_bits->data = null_bits->val;
-    inv_bits = new_bits();
+    null_bits->data[0] = 0;
+    inv_bits = new_bits(0);
     inv_bits->len = ~0;
     inv_bits->bits = 0;
-    inv_bits->val[0] = 0;
-    inv_bits->data = inv_bits->val;
-    bits_value[0] = new_bits();
+    inv_bits->data[0] = 0;
+    bits_value[0] = new_bits(0);
     bits_value[0]->len = 0;
     bits_value[0]->bits = 1;
-    bits_value[0]->val[0] = 0;
-    bits_value[0]->data = bits_value[0]->val;
-    bits_value[1] = new_bits();
+    bits_value[0]->data[0] = 0;
+    bits_value[1] = new_bits(1);
     bits_value[1]->len = 1;
     bits_value[1]->bits = 1;
-    bits_value[1]->val[0] = 1;
-    bits_value[1]->data = bits_value[1]->val;
+    bits_value[1]->data[0] = 1;
 }
 
 void bitsobj_names(void) {
