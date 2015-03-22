@@ -171,52 +171,49 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
 MUST_CHECK Obj *namespace_member(oper_t op, Namespace *v1) {
     Obj *o2 = op->v2;
     Error *err;
-    if (op->op == &o_MEMBER) {
-        Label *l;
-        switch (o2->obj->type) {
-        case T_IDENT:
-            {
-                Ident *v2 = (Ident *)o2;
-                l = find_label2(&v2->name, v1);
-                if (l) {
-                    touch_label(l);
-                    return val_reference(l->value);
-                }
-                if (!referenceit) {
-                    return (Obj *)ref_none();
-                }
-                err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
-                err->u.notdef.names = ref_namespace(v1);
-                err->u.notdef.ident = v2->name;
-                err->u.notdef.down = 0;
-                return &err->v;
+    Label *l;
+    switch (o2->obj->type) {
+    case T_IDENT:
+        {
+            Ident *v2 = (Ident *)o2;
+            l = find_label2(&v2->name, v1);
+            if (l) {
+                touch_label(l);
+                return val_reference(l->value);
             }
-        case T_ANONIDENT:
-            {
-                Anonident *v2 = (Anonident *)o2;
-                ssize_t count;
-                l = find_anonlabel2(v2->count, v1);
-                if (l) {
-                    touch_label(l);
-                    return val_reference(l->value);
-                }
-                if (!referenceit) {
-                    return (Obj *)ref_none();
-                }
-                count = v2->count;
-                err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
-                err->u.notdef.names = ref_namespace(v1);
-                err->u.notdef.ident.len = count + (count >= 0);
-                err->u.notdef.ident.data = NULL;
-                err->u.notdef.down = 0;
-                return &err->v;
+            if (!referenceit) {
+                return (Obj *)ref_none();
             }
-        case T_TUPLE:
-        case T_LIST: return o2->obj->rcalc2(op);
-        default: return o2->obj->rcalc2(op);
+            err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
+            err->u.notdef.names = ref_namespace(v1);
+            err->u.notdef.ident = v2->name;
+            err->u.notdef.down = 0;
+            return &err->v;
         }
+    case T_ANONIDENT:
+        {
+            Anonident *v2 = (Anonident *)o2;
+            ssize_t count;
+            l = find_anonlabel2(v2->count, v1);
+            if (l) {
+                touch_label(l);
+                return val_reference(l->value);
+            }
+            if (!referenceit) {
+                return (Obj *)ref_none();
+            }
+            count = v2->count;
+            err = new_error(ERROR___NOT_DEFINED, &v2->epoint);
+            err->u.notdef.names = ref_namespace(v1);
+            err->u.notdef.ident.len = count + (count >= 0);
+            err->u.notdef.ident.data = NULL;
+            err->u.notdef.down = 0;
+            return &err->v;
+        }
+    case T_TUPLE:
+    case T_LIST: return o2->obj->rcalc2(op);
+    default: return obj_oper_error(op);
     }
-    return obj_oper_error(op);
 }
 
 MUST_CHECK Namespace *new_namespace(const struct file_list_s *file_list, linepos_t epoint) {
