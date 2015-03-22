@@ -64,7 +64,7 @@ static uint8_t *snew(Str *v, size_t len) {
 
 static int same(const Obj *o1, const Obj *o2) {
     const Str *v1 = (const Str *)o1, *v2 = (const Str *)o2;
-    return o1->obj == STR_OBJ && v1->len == v2->len && (
+    return o2->obj == STR_OBJ && v1->len == v2->len && (
             v1->data == v2->data || !memcmp(v1->data, v2->data, v2->len));
 }
 
