@@ -29,10 +29,111 @@
 #include "macro.h"
 #include "strobj.h"
 #include "unicode.h"
-#include "obj.h"
 #include "addressobj.h"
 #include "registerobj.h"
 #include "namespaceobj.h"
+#include "operobj.h"
+#include "eval.h"
+#include "values.h"
+
+static struct obj_s obj;
+
+obj_t ERROR_OBJ = &obj;
+
+static void destroy(Obj *o1) {
+    Error *v1 = (Error *)o1;
+    switch (v1->num) {
+    case ERROR__INVALID_OPER:
+        if (v1->u.invoper.v1) val_destroy(v1->u.invoper.v1);
+        if (v1->u.invoper.v2) val_destroy(v1->u.invoper.v2);
+        return;
+    case ERROR___NO_REGISTER: 
+        val_destroy(&v1->u.reg->v);
+        return;
+    case ERROR_____CANT_UVAL: 
+    case ERROR_____CANT_IVAL: 
+        val_destroy(v1->u.intconv.val);
+        return;
+    case ERROR___NOT_DEFINED: 
+        val_destroy((Obj *)v1->u.notdef.names);
+    default: return;
+    }
+}
+
+static void garbage(Obj *o1, int i) {
+    Error *v1 = (Error *)o1;
+    Obj *v;
+    switch (v1->num) {
+    case ERROR__INVALID_OPER:
+        v = v1->u.invoper.v1;
+        if (v) {
+            switch (i) {
+            case -1:
+                v->refcount--;
+                break;
+            case 0:
+                break;
+            case 1:
+                if (v->refcount & SIZE_MSB) {
+                    v->refcount -= SIZE_MSB - 1;
+                    v->obj->garbage(v, 1);
+                } else v->refcount++;
+                break;
+            }
+        }
+        v = v1->u.invoper.v2;
+        if (!v) return;
+        break;
+    case ERROR___NO_REGISTER: 
+        v = &v1->u.reg->v;
+        break;
+    case ERROR_____CANT_UVAL: 
+    case ERROR_____CANT_IVAL: 
+        v = v1->u.intconv.val;
+        break;
+    case ERROR___NOT_DEFINED: 
+        v = (Obj *)v1->u.notdef.names;
+        break;
+    default: return;
+    }
+    switch (i) {
+    case -1:
+        v->refcount--;
+        return;
+    case 0:
+        return;
+    case 1:
+        if (v->refcount & SIZE_MSB) {
+            v->refcount -= SIZE_MSB - 1;
+            v->obj->garbage(v, 1);
+        } else v->refcount++;
+        return;
+    }
+}
+
+
+static MUST_CHECK Obj *calc1(oper_t op) {
+    return val_reference(op->v1);
+}
+
+static MUST_CHECK Obj *calc2(oper_t op) {
+    return val_reference(op->v1);
+}
+
+static MUST_CHECK Obj *rcalc2(oper_t op) {
+    return val_reference(op->v2);
+}
+
+void errorobj_init(void) {
+    obj_init(&obj, T_ERROR, "error", sizeof(Error));
+    obj.destroy = destroy;
+    obj.garbage = garbage;
+    obj.calc1 = calc1;
+    obj.calc2 = calc2;
+    obj.rcalc2 = rcalc2;
+}
+
+/* ------------------------------------------------------------------------------ */
 
 #define ALIGN(v) (((v) + (sizeof(int *) - 1)) & ~(sizeof(int *) - 1))
 

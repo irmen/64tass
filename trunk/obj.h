@@ -18,9 +18,7 @@
 */
 #ifndef _OBJ_H
 #define _OBJ_H
-#include <stdio.h>
 #include "inttypes.h"
-#include "values.h"
 
 struct oper_s;
 typedef struct Error Error;
@@ -52,17 +50,6 @@ struct macro_param_s {
     str_t init;
 }; 
 
-typedef struct Macro {
-    Obj v;
-    size_t argc;
-    struct macro_param_s *param;
-    struct file_list_s *file_list;
-    line_t line;
-    int retval;
-} Macro;
-
-typedef struct Macro Segment;
-
 typedef struct Struct {
     Obj v;
     size_t argc;
@@ -87,13 +74,6 @@ typedef struct Type {
     Obj v;
     obj_t type;
 } Type;
-
-typedef struct Oper {
-    Obj v;
-    const char *name;
-    enum oper_e op;
-    int prio;
-} Oper;
 
 typedef struct Funcargs {
     Obj v;
@@ -124,11 +104,6 @@ typedef struct None {
     Obj v;
     int *dummy;
 } None;
-
-typedef struct Gap {
-    Obj v;
-    int *dummy;
-} Gap;
 
 typedef struct Default {
     Obj v;
@@ -191,35 +166,26 @@ static inline Obj *obj_next(Iter *v1) {
 extern void obj_init(struct obj_s *, enum type_e, const char *, size_t);
 extern MUST_CHECK Obj *obj_oper_error(struct oper_s *);
 extern void objects_init(void);
+extern void typeobj_names(void);
 extern void objects_destroy(void);
 extern MUST_CHECK Iter *invalid_getiter(Obj *);
 
 extern obj_t LBL_OBJ;
-extern obj_t MACRO_OBJ;
-extern obj_t SEGMENT_OBJ;
 extern obj_t MFUNC_OBJ;
 extern obj_t STRUCT_OBJ;
 extern obj_t UNION_OBJ;
 extern obj_t NONE_OBJ;
-extern obj_t ERROR_OBJ;
-extern obj_t GAP_OBJ;
 extern obj_t IDENT_OBJ;
 extern obj_t ANONIDENT_OBJ;
-extern obj_t OPER_OBJ;
 extern obj_t DEFAULT_OBJ;
 extern obj_t ITER_OBJ;
 extern obj_t FUNCARGS_OBJ;
 extern obj_t TYPE_OBJ;
 extern None *none_value;
-extern Gap *gap_value;
 extern Default *default_value;
 
 static inline None *ref_none(void) {
     none_value->v.refcount++; return none_value;
-}
-
-static inline Gap *ref_gap(void) {
-    gap_value->v.refcount++; return gap_value;
 }
 
 static inline Default *ref_default(void) {

@@ -21,6 +21,7 @@
 #include "misc.h"
 #include "file.h"
 #include "eval.h"
+#include "values.h"
 #include "section.h"
 #include "variables.h"
 #include "64tass.h"
@@ -28,6 +29,45 @@
 #include "error.h"
 #include "listobj.h"
 #include "namespaceobj.h"
+
+static struct obj_s macro_obj;
+static struct obj_s segment_obj;
+
+obj_t MACRO_OBJ = &macro_obj;
+obj_t SEGMENT_OBJ = &segment_obj;
+
+static void destroy(Obj *o1) {
+    Macro *v1 = (Macro *)o1;
+    while (v1->argc) {
+        --v1->argc;
+        free((char *)v1->param[v1->argc].cfname.data);
+        free((char *)v1->param[v1->argc].init.data);
+    }
+    free(v1->param);
+}
+
+static int same(const Obj *o1, const Obj *o2) {
+    const Macro *v1 = (const Macro *)o1, *v2 = (const Macro *)o2;
+    size_t i;
+    if (o1->obj != o2->obj || v1->file_list != v2->file_list || v1->line != v2->line || v1->retval != v2->retval || v1->argc != v2->argc) return 0;
+    for (i = 0; i < v1->argc; i++) {
+        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname)) return 0;
+        if (str_cmp(&v1->param[i].init, &v2->param[i].init)) return 0;
+    }
+    return 1;
+}
+
+
+void macroobj_init(void) {
+    obj_init(&macro_obj, T_MACRO, "macro", sizeof(Macro));
+    macro_obj.destroy = destroy;
+    macro_obj.same = same;
+    obj_init(&segment_obj, T_SEGMENT, "segment", sizeof(Segment));
+    segment_obj.destroy = destroy;
+    segment_obj.same = same;
+}
+
+/* ------------------------------------------------------------------------------ */
 
 static int functionrecursion;
 

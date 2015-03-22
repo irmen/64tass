@@ -19,6 +19,7 @@
 #ifndef _BOOLOBJ_H
 #define _BOOLOBJ_H
 #include "obj.h"
+#include "values.h"
 
 extern obj_t BOOL_OBJ;
 
@@ -32,6 +33,7 @@ extern Bool *false_value;
 extern Bool *bool_value[2];
 
 extern void boolobj_init(void);
+extern void boolobj_names(void);
 extern void boolobj_destroy(void);
 
 static inline Bool *ref_bool(Bool *v1) {

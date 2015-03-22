@@ -18,11 +18,12 @@
 */
 #include <string.h>
 #include <math.h>
-#include "obj.h"
 #include "intobj.h"
 #include "unicode.h"
 #include "encoding.h"
 #include "error.h"
+#include "eval.h"
+#include "variables.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -31,6 +32,7 @@
 #include "bytesobj.h"
 #include "floatobj.h"
 #include "bitsobj.h"
+#include "operobj.h"
 
 #define SHIFT (8 * sizeof(digit_t))
 #define MASK (~(digit_t)0)
@@ -1574,6 +1576,12 @@ void intobj_init(void) {
     int_value[0] = int_from_int(0);
     int_value[1] = int_from_int(1);
     minus1_value = int_from_int(-1);
+}
+
+void intobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = INT_OBJ; 
+    new_builtin("int", &v->v);
 }
 
 void intobj_destroy(void) {

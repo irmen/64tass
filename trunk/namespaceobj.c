@@ -18,12 +18,13 @@
 */
 #include <string.h>
 #include "namespaceobj.h"
+#include "variables.h"
 #include "eval.h"
 #include "intobj.h"
 #include "listobj.h"
 #include "error.h"
 #include "strobj.h"
-#include "variables.h"
+#include "operobj.h"
 
 static struct obj_s obj;
 

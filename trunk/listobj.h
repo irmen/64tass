@@ -19,6 +19,7 @@
 #ifndef _LISTOBJ_H
 #define _LISTOBJ_H
 #include "obj.h"
+#include "values.h"
 
 extern obj_t LIST_OBJ;
 extern obj_t TUPLE_OBJ;
@@ -40,6 +41,7 @@ extern List *null_list;
 extern Addrlist *null_addrlist;
 
 extern void listobj_init(void);
+extern void listobj_names(void);
 extern void listobj_destroy(void);
 
 static inline List *ref_list(List *v1) {

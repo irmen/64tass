@@ -19,6 +19,7 @@
 #ifndef _ADDRESSOBJ_H
 #define _ADDRESSOBJ_H
 #include "obj.h"
+#include "values.h"
 
 extern obj_t ADDRESS_OBJ;
 
@@ -45,6 +46,7 @@ typedef struct Address {
 } Address; 
 
 extern void addressobj_init(void);
+extern void addressobj_names(void);
 
 static inline MUST_CHECK Address *new_address(Obj *val, enum atype_e type) {
     Address *v = (Address *)val_alloc(ADDRESS_OBJ);

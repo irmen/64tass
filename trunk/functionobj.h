@@ -19,6 +19,7 @@
 #ifndef _FUNCTIONOBJ_H
 #define _FUNCTIONOBJ_H
 #include "obj.h"
+#include "values.h"
 struct values_s;
 
 extern obj_t FUNCTION_OBJ;
@@ -38,17 +39,10 @@ typedef struct Function {
 } Function;
 
 extern void functionobj_init(void);
+extern void functionobj_names(void);
 
 static inline MUST_CHECK Function *new_function(void) {
     return (Function *)val_alloc(FUNCTION_OBJ);
 }
-
-struct builtin_functions_s {
-    const char *name;
-    enum func_e func;
-};
-
-extern MUST_CHECK Obj *builtin_function(struct values_s *, unsigned int);
-extern struct builtin_functions_s builtin_functions[];
 
 #endif

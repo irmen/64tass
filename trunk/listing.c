@@ -29,6 +29,7 @@
 #include "instruction.h"
 #include "obj.h"
 #include "mem.h"
+#include "values.h"
 
 #define VERBOSE 0
 #define HEX_COLUMN 9

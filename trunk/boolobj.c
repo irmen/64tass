@@ -17,7 +17,7 @@
 
 */
 #include <string.h>
-#include "obj.h"
+#include "eval.h"
 #include "boolobj.h"
 #include "floatobj.h"
 #include "strobj.h"
@@ -25,6 +25,8 @@
 #include "bytesobj.h"
 #include "bitsobj.h"
 #include "intobj.h"
+#include "operobj.h"
+#include "variables.h"
 
 static struct obj_s obj;
 
@@ -204,6 +206,15 @@ void boolobj_init(void) {
 
     bool_value[0] = false_value = new_boolean(0);
     bool_value[1] = true_value = new_boolean(1);
+}
+
+void boolobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = BOOL_OBJ; 
+    new_builtin("bool", &v->v);
+
+    new_builtin("true", (Obj *)ref_bool(true_value));
+    new_builtin("false", (Obj *)ref_bool(false_value));
 }
 
 void boolobj_destroy(void) {

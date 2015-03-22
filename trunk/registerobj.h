@@ -19,6 +19,7 @@
 #ifndef _REGISTEROBJ_H
 #define _REGISTEROBJ_H
 #include "obj.h"
+#include "values.h"
 
 extern obj_t REGISTER_OBJ;
 
@@ -31,6 +32,7 @@ typedef struct Register {
 } Register;
 
 extern void registerobj_init(void);
+extern void registerobj_names(void);
 
 static inline Register *ref_register(Register *v1) {
     v1->v.refcount++; return v1;

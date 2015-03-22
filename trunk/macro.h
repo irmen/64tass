@@ -18,7 +18,22 @@
 */
 #ifndef _MACRO_H_
 #define _MACRO_H_
-#include "inttypes.h"
+#include "obj.h"
+
+extern obj_t MACRO_OBJ;
+extern obj_t SEGMENT_OBJ;
+
+typedef struct Macro {
+    Obj v;
+    size_t argc;
+    struct macro_param_s *param;
+    struct file_list_s *file_list;
+    line_t line;
+    int retval;
+} Macro;
+typedef struct Macro Segment;
+
+extern void macroobj_init(void);
 
 struct values_s;
 struct file_s;

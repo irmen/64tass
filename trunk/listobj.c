@@ -19,11 +19,13 @@
 #include <string.h>
 #include "listobj.h"
 #include "eval.h"
+#include "variables.h"
 #include "boolobj.h"
 #include "error.h"
 #include "codeobj.h"
 #include "strobj.h"
 #include "intobj.h"
+#include "operobj.h"
 
 static struct obj_s list_obj;
 static struct obj_s tuple_obj;
@@ -598,6 +600,15 @@ void listobj_init(void) {
     null_addrlist = new_addrlist();
     null_addrlist->len = 0;
     null_addrlist->data = NULL;
+}
+
+void listobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = LIST_OBJ; 
+    new_builtin("list", &v->v);
+    v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = TUPLE_OBJ; 
+    new_builtin("tuple", &v->v);
 }
 
 void listobj_destroy(void) {

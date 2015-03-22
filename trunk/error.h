@@ -123,9 +123,12 @@ enum errors_e {
     ERROR_UNKNOWN_OPTIO
 };
 
+extern obj_t ERROR_OBJ;
+
 typedef uint32_t atype_t;
 typedef struct Namespace Namespace;
 typedef struct Register Register;
+typedef struct Oper Oper;
 
 typedef struct Error {
     Obj v;
@@ -156,6 +159,8 @@ typedef struct Error {
         } broadcast;
     } u;
 } Error;
+
+extern void errorobj_init(void);
 
 extern MUST_CHECK Error *new_error(enum errors_e, linepos_t);
 

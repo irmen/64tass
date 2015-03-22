@@ -19,6 +19,7 @@
 #ifndef _FLOATOBJ_H
 #define _FLOATOBJ_H
 #include "obj.h"
+#include "values.h"
 
 extern obj_t FLOAT_OBJ;
 
@@ -28,12 +29,15 @@ typedef struct Float {
 } Float;
 
 extern void floatobj_init(void);
+extern void floatobj_names(void);
 
 static inline MUST_CHECK Float *new_float(double d) {
     Float *v = (Float *)val_alloc(FLOAT_OBJ);
     v->real = d;
     return v;
 }
+
+typedef struct oper_s *oper_t;
 
 extern MUST_CHECK Obj *calc2_double(oper_t, double, double);
 extern MUST_CHECK Obj *float_from_double(double, linepos_t);

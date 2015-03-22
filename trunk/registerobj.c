@@ -17,13 +17,16 @@
 
 */
 #include <string.h>
-#include "obj.h"
 #include "registerobj.h"
 #include "error.h"
+#include "eval.h"
+#include "opcodes.h"
+#include "variables.h"
 
 #include "boolobj.h"
 #include "strobj.h"
 #include "intobj.h"
+#include "operobj.h"
 
 static struct obj_s register_obj;
 
@@ -188,4 +191,23 @@ void registerobj_init(void) {
     register_obj.repr = repr;
     register_obj.calc2 = calc2;
     register_obj.rcalc2 = rcalc2;
+}
+
+void registerobj_names(void) {
+    int i;
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = REGISTER_OBJ; 
+    new_builtin("register", &v->v);
+
+    for (i = 0; reg_names[i]; i++) {
+        char name[2];
+        Register *reg = new_register();
+        name[0] = reg_names[i];
+        name[1] = 0;
+        reg->val[0] = name[0];
+        reg->data = reg->val;
+        reg->len = 1;
+        reg->chars = 1;
+        new_builtin(name, &reg->v);
+    }
 }

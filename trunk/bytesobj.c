@@ -22,6 +22,7 @@
 #include "eval.h"
 #include "unicode.h"
 #include "encoding.h"
+#include "variables.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -30,6 +31,7 @@
 #include "strobj.h"
 #include "bitsobj.h"
 #include "listobj.h"
+#include "operobj.h"
 #include "error.h"
 
 static struct obj_s obj;
@@ -998,6 +1000,12 @@ void bytesobj_init(void) {
     inv_bytes->len = ~0;
     inv_bytes->val[0] = 0;
     inv_bytes->data = inv_bytes->val;
+}
+
+void bytesobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = BYTES_OBJ; 
+    new_builtin("bytes", &v->v);
 }
 
 void bytesobj_destroy(void) {

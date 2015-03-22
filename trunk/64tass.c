@@ -44,6 +44,7 @@
 #include "opcodes.h"
 #include "misc.h"
 #include "eval.h"
+#include "values.h"
 #include "section.h"
 #include "encoding.h"
 #include "file.h"
@@ -64,6 +65,8 @@
 #include "bitsobj.h"
 #include "functionobj.h"
 #include "namespaceobj.h"
+#include "operobj.h"
+#include "gapobj.h"
 
 int temporary_label_branch; /* function declaration in function context, not good */
 line_t vline;      /* current line */
@@ -2965,7 +2968,6 @@ static int main2(int argc, char *argv[]) {
         return -opts;
     }
     init_encoding(arguments.toascii);
-    init_defaultlabels();
 
     if (arguments.quiet && !(arguments.output[0] == '-' && !arguments.output[1]))
         puts("64tass Turbo Assembler Macro V" VERSION "\n"

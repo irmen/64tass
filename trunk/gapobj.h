@@ -16,37 +16,25 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
-#ifndef _STROBJ_H
-#define _STROBJ_H
+#ifndef _GAPOBJ_H
+#define _GAPOBJ_H
 #include "obj.h"
-#include "values.h"
 
-extern obj_t STR_OBJ;
+extern obj_t GAP_OBJ;
 
-typedef struct Str {
+typedef struct Gap {
     Obj v;
-    size_t len;
-    size_t chars;
-    uint8_t *data;
-    uint8_t val[16];
-} Str;
+    int *dummy;
+} Gap;
 
-extern Str *null_str;
+extern Gap *gap_value;
 
-extern void strobj_init(void);
-extern void strobj_names(void);
-extern void strobj_destroy(void);
+extern void gapobj_init(void);
+extern void gapobj_names(void);
+extern void gapobj_destroy(void);
 
-static inline Str *ref_str(Str *v1) {
-    v1->v.refcount++; return v1;
+static inline Gap *ref_gap(void) {
+    gap_value->v.refcount++; return gap_value;
 }
 
-static inline MUST_CHECK Str *new_str(void) {
-    return (Str *)val_alloc(STR_OBJ);
-}
-
-extern MUST_CHECK Obj *str_from_str(const uint8_t *, size_t *);
-extern MUST_CHECK Obj *float_from_str(const Str *, linepos_t);
-extern uint8_t *str_create_elements(Str *, size_t);
-extern size_t str_quoting(const uint8_t *, size_t, char *);
 #endif

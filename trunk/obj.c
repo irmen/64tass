@@ -23,6 +23,7 @@
 #include "64tass.h"
 #include "eval.h"
 #include "error.h"
+#include "values.h"
 
 #include "boolobj.h"
 #include "floatobj.h"
@@ -38,44 +39,35 @@
 #include "bitsobj.h"
 #include "functionobj.h"
 #include "dictobj.h"
+#include "operobj.h"
+#include "gapobj.h"
 
 int referenceit = 1;
 
-static struct obj_s macro_obj;
-static struct obj_s segment_obj;
 static struct obj_s lbl_obj;
 static struct obj_s mfunc_obj;
 static struct obj_s struct_obj;
 static struct obj_s union_obj;
 static struct obj_s none_obj;
-static struct obj_s error_obj;
-static struct obj_s gap_obj;
 static struct obj_s ident_obj;
 static struct obj_s anonident_obj;
-static struct obj_s oper_obj;
 static struct obj_s default_obj;
 static struct obj_s iter_obj;
 static struct obj_s funcargs_obj;
 static struct obj_s type_obj;
 
-obj_t MACRO_OBJ = &macro_obj;
-obj_t SEGMENT_OBJ = &segment_obj;
 obj_t LBL_OBJ = &lbl_obj;
 obj_t MFUNC_OBJ = &mfunc_obj;
 obj_t STRUCT_OBJ = &struct_obj;
 obj_t UNION_OBJ = &union_obj;
 obj_t NONE_OBJ = &none_obj;
-obj_t ERROR_OBJ = &error_obj;
-obj_t GAP_OBJ = &gap_obj;
 obj_t IDENT_OBJ = &ident_obj;
 obj_t ANONIDENT_OBJ = &anonident_obj;
-obj_t OPER_OBJ = &oper_obj;
 obj_t DEFAULT_OBJ = &default_obj;
 obj_t ITER_OBJ = &iter_obj;
 obj_t FUNCARGS_OBJ = &funcargs_obj;
 obj_t TYPE_OBJ = &type_obj;
 None *none_value;
-Gap *gap_value;
 Default *default_value;
 
 MUST_CHECK Obj *obj_oper_error(oper_t op) {
@@ -152,163 +144,20 @@ static MUST_CHECK Obj *invalid_repr(Obj *v1, linepos_t epoint) {
     return &v->v;
 }
 
-static MUST_CHECK Obj *gap_create(Obj *v1, linepos_t epoint) {
-    switch (v1->obj->type) {
-    case T_NONE:
-    case T_ERROR:
-    case T_GAP: return val_reference(v1);
-    default: break;
-    }
-    err_msg_wrong_type(v1, NULL, epoint);
-    return (Obj *)ref_none();
-}
-
-static MUST_CHECK Error *gap_hash(Obj *UNUSED(v1), int *hs, linepos_t UNUSED(epoint)) {
-    *hs = 0; /* whatever, there's only one */
-    return NULL;
-}
-
-static MUST_CHECK Obj *gap_repr(Obj *UNUSED(v1), linepos_t UNUSED(epoint)) {
-    uint8_t *s;
-    Str *v = new_str();
-    v->len = 1;
-    v->chars = 1;
-    s = str_create_elements(v, 1);
-    *s = '?';
-    v->data = s;
-    return &v->v;
-}
-
-static MUST_CHECK Obj *gap_calc1(oper_t op) {
-    switch (op->op->op) {
-    case O_BANK: 
-    case O_HIGHER:
-    case O_LOWER:
-    case O_HWORD:
-    case O_WORD:
-    case O_BSWORD:
-    case O_INV:
-    case O_NEG:
-    case O_POS:
-    case O_STRING:
-        return (Obj *)ref_gap();
-    default: break;
-    }
-    return obj_oper_error(op);
-}
-
-static MUST_CHECK Obj *gap_calc2(oper_t op) {
-    Obj *v2 = op->v2;
-    switch (v2->obj->type) {
-    case T_GAP:
-        switch (op->op->op) {
-        case O_CMP: return (Obj *)ref_int(int_value[0]);
-        case O_GE: 
-        case O_LE:
-        case O_EQ: return (Obj *)ref_bool(true_value);
-        case O_NE:
-        case O_LT:
-        case O_GT: return (Obj *)ref_bool(false_value);
-        case O_ADD:
-        case O_SUB:
-        case O_MUL:
-        case O_DIV:
-        case O_MOD:
-        case O_EXP:
-        case O_AND:
-        case O_OR:
-        case O_XOR:
-        case O_LSHIFT:
-        case O_RSHIFT: return (Obj *)ref_gap();
-        default: break;
-        }
-        break;
-    case T_STR:
-    case T_BOOL:
-    case T_INT:
-    case T_BITS:
-    case T_FLOAT:
-    case T_CODE:
-    case T_ADDRESS:
-    case T_BYTES:
-    case T_REGISTER:
-        switch (op->op->op) {
-        case O_EQ: return (Obj *)ref_bool(false_value);
-        case O_NE: return (Obj *)ref_bool(true_value);
-        default: break;
-        }
-        break;
-    case T_NONE:
-    case T_ERROR:
-    case T_TUPLE:
-    case T_LIST:
-    case T_DICT:
-        if (op->op != &o_MEMBER && op->op != &o_INDEX && op->op != &o_X) {
-            return v2->obj->rcalc2(op);
-        }
-    default: break;
-    }
-    return obj_oper_error(op);
-}
-
-static MUST_CHECK Obj *gap_rcalc2(oper_t op) {
-    Obj *v1 = op->v1, *v2 = op->v2;
-    switch (v1->obj->type) {
-    case T_GAP: return gap_calc2(op);
-    case T_STR:
-    case T_BOOL:
-    case T_INT:
-    case T_BITS:
-    case T_FLOAT:
-    case T_CODE:
-    case T_ADDRESS:
-    case T_BYTES:
-    case T_REGISTER:
-        switch (op->op->op) {
-        case O_EQ: return (Obj *)ref_bool(false_value);
-        case O_NE: return (Obj *)ref_bool(true_value);
-        default: break;
-        }
-        break;
-    case T_NONE:
-    case T_ERROR:
-    case T_TUPLE:
-    case T_LIST:
-        return v2->obj->calc2(op);
-    default: break;
-    }
-    return obj_oper_error(op);
-}
-
-static MUST_CHECK Obj *error_calc1(oper_t op) {
-    return val_reference(op->v1);
-}
-
-static MUST_CHECK Obj *error_calc2(oper_t op) {
-    return val_reference(op->v1);
-}
-
-static MUST_CHECK Obj *error_rcalc2(oper_t op) {
-    return val_reference(op->v2);
-}
-
 static MUST_CHECK Obj *invalid_calc1(oper_t op) {
-    if (op->v1->obj == ERROR_OBJ) {
-        return error_calc1(op);
-    }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *invalid_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
-        return error_rcalc2(op);
+        return ERROR_OBJ->rcalc2(op);
     }
     return obj_oper_error(op);
 }
 
 static MUST_CHECK Obj *invalid_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        return error_calc2(op);
+        return ERROR_OBJ->calc2(op);
     }
     return obj_oper_error(op);
 }
@@ -386,27 +235,6 @@ static void iter_garbage(Obj *o1, int i) {
 static MUST_CHECK Obj *iter_next(Iter *v1) {
     if (!v1->iter) return invalid_next(v1);
     return v1->data->obj->next(v1);
-}
-
-static void macro_destroy(Obj *o1) {
-    Macro *v1 = (Macro *)o1;
-    while (v1->argc) {
-        --v1->argc;
-        free((char *)v1->param[v1->argc].cfname.data);
-        free((char *)v1->param[v1->argc].init.data);
-    }
-    free(v1->param);
-}
-
-static int macro_same(const Obj *o1, const Obj *o2) {
-    const Macro *v1 = (const Macro *)o1, *v2 = (const Macro *)o2;
-    size_t i;
-    if (o1->obj != o2->obj || v1->file_list != v2->file_list || v1->line != v2->line || v1->retval != v2->retval || v1->argc != v2->argc) return 0;
-    for (i = 0; i < v1->argc; i++) {
-        if (str_cmp(&v1->param[i].cfname, &v2->param[i].cfname)) return 0;
-        if (str_cmp(&v1->param[i].init, &v2->param[i].init)) return 0;
-    }
-    return 1;
 }
 
 static void mfunc_destroy(Obj *o1) {
@@ -499,99 +327,6 @@ static MUST_CHECK Obj *mfunc_calc2(oper_t op) {
     return obj_oper_error(op);
 }
 
-static void error_destroy(Obj *o1) {
-    Error *v1 = (Error *)o1;
-    switch (v1->num) {
-    case ERROR__INVALID_OPER:
-        if (v1->u.invoper.v1) val_destroy(v1->u.invoper.v1);
-        if (v1->u.invoper.v2) val_destroy(v1->u.invoper.v2);
-        return;
-    case ERROR___NO_REGISTER: 
-        val_destroy(&v1->u.reg->v);
-        return;
-    case ERROR_____CANT_UVAL: 
-    case ERROR_____CANT_IVAL: 
-        val_destroy(v1->u.intconv.val);
-        return;
-    case ERROR___NOT_DEFINED: 
-        val_destroy((Obj *)v1->u.notdef.names);
-    default: return;
-    }
-}
-
-static void error_garbage(Obj *o1, int i) {
-    Error *v1 = (Error *)o1;
-    Obj *v;
-    switch (v1->num) {
-    case ERROR__INVALID_OPER:
-        v = v1->u.invoper.v1;
-        if (v) {
-            switch (i) {
-            case -1:
-                v->refcount--;
-                break;
-            case 0:
-                break;
-            case 1:
-                if (v->refcount & SIZE_MSB) {
-                    v->refcount -= SIZE_MSB - 1;
-                    v->obj->garbage(v, 1);
-                } else v->refcount++;
-                break;
-            }
-        }
-        v = v1->u.invoper.v2;
-        if (!v) return;
-        break;
-    case ERROR___NO_REGISTER: 
-        v = &v1->u.reg->v;
-        break;
-    case ERROR_____CANT_UVAL: 
-    case ERROR_____CANT_IVAL: 
-        v = v1->u.intconv.val;
-        break;
-    case ERROR___NOT_DEFINED: 
-        v = (Obj *)v1->u.notdef.names;
-        break;
-    default: return;
-    }
-    switch (i) {
-    case -1:
-        v->refcount--;
-        return;
-    case 0:
-        return;
-    case 1:
-        if (v->refcount & SIZE_MSB) {
-            v->refcount -= SIZE_MSB - 1;
-            v->obj->garbage(v, 1);
-        } else v->refcount++;
-        return;
-    }
-}
-
-static MUST_CHECK Obj *oper_repr(Obj *o1, linepos_t epoint) {
-    Oper *v1 = (Oper *)o1;
-    const char *txt;
-    size_t len;
-    uint8_t *s;
-    Str *v;
-    if (!epoint) return NULL;
-    v = new_str();
-    txt = v1->name;
-    len = strlen(txt);
-    s = str_create_elements(v, len + 8);
-    memcpy(s, "<oper ", 6);
-    memcpy(s + 6, txt, len);
-    len += 6;
-    s[len++] = '\'';
-    s[len++] = '>';
-    v->data = s;
-    v->len = len;
-    v->chars = len;
-    return (Obj *)v;
-}
-
 static MUST_CHECK Obj *ident_calc2(oper_t op) {
     switch (op->v2->obj->type) {
     case T_NONE:
@@ -632,14 +367,14 @@ static MUST_CHECK Obj *none_calc1(oper_t UNUSED(op)) {
 
 static MUST_CHECK Obj *none_calc2(oper_t op) {
     if (op->v2->obj == ERROR_OBJ) {
-        return error_rcalc2(op);
+        return ERROR_OBJ->rcalc2(op);
     }
     return (Obj *)ref_none();
 }
 
 static MUST_CHECK Obj *none_rcalc2(oper_t op) {
     if (op->v1->obj == ERROR_OBJ) {
-        return error_calc2(op);
+        return ERROR_OBJ->calc2(op);
     }
     return (Obj *)ref_none();
 }
@@ -902,13 +637,11 @@ void objects_init(void) {
     dictobj_init();
     labelobj_init();
     namespaceobj_init();
+    macroobj_init();
+    errorobj_init();
+    operobj_init();
+    gapobj_init();
 
-    obj_init(&macro_obj, T_MACRO, "macro", sizeof(Macro));
-    macro_obj.destroy = macro_destroy;
-    macro_obj.same = macro_same;
-    obj_init(&segment_obj, T_SEGMENT, "segment", sizeof(Segment));
-    segment_obj.destroy = macro_destroy;
-    segment_obj.same = macro_same;
     obj_init(&lbl_obj, T_LBL, "lbl", sizeof(Lbl));
     lbl_obj.same = lbl_same;
     obj_init(&mfunc_obj, T_MFUNC, "function", sizeof(Mfunc));
@@ -942,27 +675,12 @@ void objects_init(void) {
     none_obj.abs = none_abs;
     none_obj.len = none_len;
     none_obj.size = none_size;
-    obj_init(&error_obj, T_ERROR, "error", sizeof(Error));
-    error_obj.destroy = error_destroy;
-    error_obj.garbage = error_garbage;
-    error_obj.calc1 = error_calc1;
-    error_obj.calc2 = error_calc2;
-    error_obj.rcalc2 = error_rcalc2;
-    obj_init(&gap_obj, T_GAP, "gap", sizeof(Gap));
-    gap_obj.create = gap_create;
-    gap_obj.hash = gap_hash;
-    gap_obj.repr = gap_repr;
-    gap_obj.calc1 = gap_calc1;
-    gap_obj.calc2 = gap_calc2;
-    gap_obj.rcalc2 = gap_rcalc2;
     obj_init(&ident_obj, T_IDENT, "ident", sizeof(Ident));
     ident_obj.calc2 = ident_calc2;
     ident_obj.rcalc2 = ident_rcalc2;
     obj_init(&anonident_obj, T_ANONIDENT, "anonident", sizeof(Anonident));
     anonident_obj.calc2 = ident_calc2;
     anonident_obj.rcalc2 = ident_rcalc2;
-    obj_init(&oper_obj, T_OPER, "oper", sizeof(Oper));
-    oper_obj.repr = oper_repr;
     obj_init(&default_obj, T_DEFAULT, "default", sizeof(Default));
     obj_init(&iter_obj, T_ITER, "iter", sizeof(Iter));
     iter_obj.destroy = iter_destroy;
@@ -978,8 +696,13 @@ void objects_init(void) {
     type_obj.calc2 = type_calc2;
 
     none_value = (None *)val_alloc(NONE_OBJ);
-    gap_value = (Gap *)val_alloc(GAP_OBJ);
     default_value = (Default *)val_alloc(DEFAULT_OBJ);
+}
+
+void typeobj_names(void) {
+    Type *v = (Type *)val_alloc(TYPE_OBJ); 
+    v->type = TYPE_OBJ; 
+    new_builtin("type", &v->v);
 }
 
 void objects_destroy(void) {
@@ -989,14 +712,13 @@ void objects_destroy(void) {
     strobj_destroy();
     boolobj_destroy();
     intobj_destroy();
+    gapobj_destroy();
 
 #ifdef DEBUG
     if (none_value->v.refcount != 1) fprintf(stderr, "none %d\n", none_value->v.refcount - 1);
-    if (gap_value->v.refcount != 1) fprintf(stderr, "gap %d\n", gap_value->v.refcount - 1);
     if (default_value->v.refcount != 1) fprintf(stderr, "default %d\n", default_value->v.refcount - 1);
 #endif
 
     val_destroy(&none_value->v);
-    val_destroy(&gap_value->v);
     val_destroy(&default_value->v);
 }

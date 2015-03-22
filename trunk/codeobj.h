@@ -19,6 +19,7 @@
 #ifndef _CODEOBJ_H
 #define _CODEOBJ_H
 #include "obj.h"
+#include "values.h"
 
 extern obj_t CODE_OBJ;
 
@@ -52,6 +53,7 @@ typedef struct Code {
 } Code;
 
 extern void codeobj_init(void);
+extern void codeobj_names(void);
 
 static inline MUST_CHECK Code *new_code(void) {
     return (Code *)val_alloc(CODE_OBJ);
