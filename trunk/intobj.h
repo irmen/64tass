@@ -21,9 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern Type *INT_OBJ;
-extern Int *int_value[2];
-extern Int *minus1_value;
+extern struct Type *INT_OBJ;
 
 typedef uint32_t digit_t;
 typedef uint64_t twodigits_t;
@@ -34,6 +32,9 @@ typedef struct Int {
     digit_t val[2];
     digit_t *data;
 } Int;
+
+extern Int *int_value[2];
+extern Int *minus1_value;
 
 extern void intobj_init(void);
 extern void intobj_names(void);
@@ -47,20 +48,20 @@ static inline MUST_CHECK Int *new_int(void) {
     return (Int *)val_alloc(INT_OBJ);
 }
 
-typedef struct Str Str;
-typedef struct Bytes Bytes;
-typedef struct Bits Bits;
-typedef struct Float Float;
+struct Str;
+struct Bytes;
+struct Bits;
+struct Float;
 
 extern MUST_CHECK Int *int_from_int(int);
 extern MUST_CHECK Int *int_from_size(size_t);
 extern MUST_CHECK Int *int_from_uval(uval_t);
 extern MUST_CHECK Int *int_from_ival(ival_t);
-extern MUST_CHECK Obj *int_from_str(const Str *, linepos_t);
-extern MUST_CHECK Int *int_from_bytes(const Bytes *);
-extern MUST_CHECK Int *int_from_bits(const Bits *);
+extern MUST_CHECK Obj *int_from_str(const struct Str *, linepos_t);
+extern MUST_CHECK Int *int_from_bytes(const struct Bytes *);
+extern MUST_CHECK Int *int_from_bits(const struct Bits *);
 extern MUST_CHECK Int *int_from_decstr(const uint8_t *, size_t *);
-extern MUST_CHECK Int *int_from_float(const Float *);
+extern MUST_CHECK Int *int_from_float(const struct Float *);
 extern MUST_CHECK Obj *float_from_int(const Int *, linepos_t);
 
 #endif

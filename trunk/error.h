@@ -123,12 +123,11 @@ enum errors_e {
     ERROR_UNKNOWN_OPTIO
 };
 
-extern Type *ERROR_OBJ;
+extern struct Type *ERROR_OBJ;
 
-typedef uint32_t atype_t;
-typedef struct Namespace Namespace;
-typedef struct Register Register;
-typedef struct Oper Oper;
+struct Namespace;
+struct Register;
+struct Oper;
 
 typedef struct Error {
     Obj v;
@@ -136,13 +135,13 @@ typedef struct Error {
     struct linepos_s epoint;
     union {
         struct {
-            Oper *op;
+            struct Oper *op;
             Obj *v1;
             Obj *v2;
         } invoper;
         struct {
             str_t ident;
-            Namespace *names;
+            struct Namespace *names;
             int down;
         } notdef;
         struct {
@@ -150,8 +149,8 @@ typedef struct Error {
             Obj *val;
         } intconv;
         const char *objname;
-        atype_t addressing;
-        Register *reg;
+        uint32_t addressing;
+        struct Register *reg;
         size_t opers;
         struct {
             size_t v1;
@@ -164,16 +163,16 @@ extern void errorobj_init(void);
 
 extern MUST_CHECK Error *new_error(enum errors_e, linepos_t);
 
-typedef struct Label Label;
+struct Label;
 
 extern void err_msg(enum errors_e, const void *);
 extern void err_msg2(enum errors_e, const void *, linepos_t);
-extern void err_msg_wrong_type(const Obj *, Type *, linepos_t);
+extern void err_msg_wrong_type(const Obj *, struct Type *, linepos_t);
 extern void err_msg_cant_calculate(const str_t *, linepos_t);
 extern void err_msg_still_none(const str_t *, linepos_t);
-extern void err_msg_invalid_oper(const Oper *, const Obj *, const Obj *, linepos_t);
-extern void err_msg_double_defined(Label *, const str_t *, linepos_t);
-extern void err_msg_shadow_defined(Label *, Label *);
+extern void err_msg_invalid_oper(const struct Oper *, const Obj *, const Obj *, linepos_t);
+extern void err_msg_double_defined(struct Label *, const str_t *, linepos_t);
+extern void err_msg_shadow_defined(struct Label *, struct Label *);
 extern void err_msg_not_defined(const str_t *, linepos_t);
 extern void err_msg_not_definedx(const str_t *, linepos_t);
 extern void err_msg_file(enum errors_e, const char *, linepos_t);

@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern Type *BOOL_OBJ;
+extern struct Type *BOOL_OBJ;
 
 typedef struct Bool {
     Obj v;
@@ -50,9 +50,9 @@ static inline MUST_CHECK Obj *truth_reference(int i) {
     return (Obj *)ref_bool(bool_value[i]);
 }
 
-typedef struct Int Int;
-typedef struct Float Float;
+struct Int;
+struct Float;
 
-extern MUST_CHECK Int *int_from_bool(const Bool *);
-extern MUST_CHECK Float *float_from_bool(const Bool *);
+extern MUST_CHECK struct Int *int_from_bool(const struct Bool *);
+extern MUST_CHECK struct Float *float_from_bool(const struct Bool *);
 #endif

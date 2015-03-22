@@ -21,9 +21,9 @@
 #include "inttypes.h"
 #include "obj.h"
 
-extern Type *LABEL_OBJ;
+extern struct Type *LABEL_OBJ;
 
-typedef struct Namespace Namespace;
+struct Namespace;
 
 typedef struct Label {
     Obj v;
@@ -44,19 +44,19 @@ typedef struct Label {
 
 extern void labelobj_init(void);
 
-extern void push_context(Namespace *);
+extern void push_context(struct Namespace *);
 extern int pop_context(void);
 extern void reset_context(void);
 
-extern Namespace *current_context, *cheap_context, *root_namespace;
+extern struct Namespace *current_context, *cheap_context, *root_namespace;
 extern Label *find_label(const str_t *);
-extern Label *find_label2(const str_t *, Namespace *);
-extern Label *find_label3(const str_t *, Namespace *, uint8_t);
+extern Label *find_label2(const str_t *, struct Namespace *);
+extern Label *find_label3(const str_t *, struct Namespace *, uint8_t);
 extern Label *find_anonlabel(int32_t);
-extern Label *find_anonlabel2(int32_t, Namespace *);
-extern Label *new_label(const str_t *, Namespace *, uint8_t, int *);
+extern Label *find_anonlabel2(int32_t, struct Namespace *);
+extern Label *new_label(const str_t *, struct Namespace *, uint8_t, int *);
 extern void labelprint(void);
-extern void shadow_check(Namespace *);
+extern void shadow_check(struct Namespace *);
 extern void destroy_variables(void);
 extern void init_variables(void);
 extern void destroy_lastlb(void);

@@ -21,15 +21,15 @@
 #include "inttypes.h"
 struct cpu_s;
 
-typedef struct Error Error;
-typedef struct Obj Obj;
+struct Error;
+struct Obj;
 
-extern MUST_CHECK Error *instruction(int, int, Obj *, linepos_t, struct linepos_s *);
+extern MUST_CHECK struct Error *instruction(int, int, struct Obj *, linepos_t, struct linepos_s *);
 extern void select_opcodes(const struct cpu_s *);
 extern int lookup_opcode(const char *);
-extern MUST_CHECK int touval(Obj *, uval_t *, int, linepos_t);
-extern MUST_CHECK int toaddress(Obj *, uval_t *, int, uint32_t *, linepos_t);
-extern MUST_CHECK Error *err_addressing(uint32_t, linepos_t);
+extern MUST_CHECK int touval(struct Obj *, uval_t *, int, linepos_t);
+extern MUST_CHECK int toaddress(struct Obj *, uval_t *, int, uint32_t *, linepos_t);
+extern MUST_CHECK struct Error *err_addressing(uint32_t, linepos_t);
 
 extern int longaccu, longindex, autosize;
 extern unsigned int dpage;

@@ -49,16 +49,16 @@ struct star_s {
     struct avltree_node node;
 };
 
-typedef struct Str Str;
+struct Str;
 
-extern struct file_s *openfile(const char *, const char *, int, const Str *, linepos_t);
+extern struct file_s *openfile(const char *, const char *, int, const struct Str *, linepos_t);
 extern void closefile(struct file_s*);
 extern struct star_s *new_star(line_t, int *);
 extern void destroy_file(void);
 extern void init_file(void);
 extern FILE *file_open(const char *, const char *);
 extern void include_list_add(const char *);
-extern const char *get_path(const Str *, const char *);
+extern const char *get_path(const struct Str *, const char *);
 extern uint32_t fromiso(uint8_t);
 
 #endif

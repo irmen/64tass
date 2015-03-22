@@ -20,7 +20,7 @@
 #define _OPEROBJ_H
 #include "obj.h"
 
-extern Type *OPER_OBJ;
+extern struct Type *OPER_OBJ;
 
 enum oper_e {
     O_FUNC,          /* a(    */

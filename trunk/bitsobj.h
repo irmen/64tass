@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern Type *BITS_OBJ;
+extern struct Type *BITS_OBJ;
 
 typedef uint32_t bdigit_t;
 typedef struct Bits {
@@ -40,8 +40,8 @@ extern void bitsobj_init(void);
 extern void bitsobj_names(void);
 extern void bitsobj_destroy(void);
 
-typedef struct Str Str;
-typedef struct Bytes Bytes;
+struct Str;
+struct Bytes;
 
 static inline Bits *ref_bits(Bits *v1) {
     v1->v.refcount++; return v1;
@@ -53,8 +53,8 @@ static inline MUST_CHECK Bits *new_bits(void) {
 
 extern MUST_CHECK Bits *bits_from_hexstr(const uint8_t *, size_t *);
 extern MUST_CHECK Bits *bits_from_binstr(const uint8_t *, size_t *);
-extern MUST_CHECK Obj *bits_from_str(const Str *, linepos_t);
-extern MUST_CHECK Bits *bits_from_bytes(const Bytes *);
+extern MUST_CHECK Obj *bits_from_str(const struct Str *, linepos_t);
+extern MUST_CHECK Bits *bits_from_bytes(const struct Bytes *);
 extern MUST_CHECK Bits *bits_from_uval(uval_t, int);
 extern MUST_CHECK Bits *ibits_from_bool(int);
 extern MUST_CHECK Bits *bits_from_bools(int, int);

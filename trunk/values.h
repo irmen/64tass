@@ -21,13 +21,13 @@
 #include <stdio.h>
 #include "inttypes.h"
 
-typedef struct Type Type;
-typedef struct Obj Obj;
+struct Type;
+struct Obj;
 
-extern Obj *val_alloc(Type *);
-extern void val_destroy(Obj *);
-extern void val_replace(Obj **, Obj *);
-extern int val_print(Obj *, FILE *);
+extern struct Obj *val_alloc(struct Type *);
+extern void val_destroy(struct Obj *);
+extern void val_replace(struct Obj **, struct Obj *);
+extern int val_print(struct Obj *, FILE *);
 
 extern void destroy_values(void);
 extern void init_values(void);

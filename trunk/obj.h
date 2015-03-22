@@ -21,13 +21,11 @@
 #include "inttypes.h"
 
 struct oper_s;
-typedef struct Error Error;
-typedef struct Namespace Namespace;
-typedef struct Int Int;
-typedef struct Type Type;
+struct Namespace;
+struct Type;
 
 typedef struct Obj {
-    Type *obj;
+    struct Type *obj;
     size_t refcount;
 } Obj;
 
@@ -58,7 +56,7 @@ typedef struct Struct {
     struct file_list_s *file_list;
     line_t line;
     size_t size; /* first part same as macro! */
-    Namespace *names;
+    struct Namespace *names;
 } Struct;
 
 typedef struct Struct Union;
@@ -68,7 +66,7 @@ typedef struct Lbl_s {
     line_t sline;
     size_t waitforp;
     const struct file_list_s *file_list;
-    Namespace *parent;
+    struct Namespace *parent;
 } Lbl;
 
 typedef struct Iter {
@@ -111,15 +109,15 @@ extern void objects_init(void);
 extern void objects_destroy(void);
 extern MUST_CHECK Iter *invalid_getiter(Obj *);
 
-extern Type *LBL_OBJ;
-extern Type *MFUNC_OBJ;
-extern Type *STRUCT_OBJ;
-extern Type *UNION_OBJ;
-extern Type *IDENT_OBJ;
-extern Type *ANONIDENT_OBJ;
-extern Type *DEFAULT_OBJ;
-extern Type *ITER_OBJ;
-extern Type *FUNCARGS_OBJ;
+extern struct Type *LBL_OBJ;
+extern struct Type *MFUNC_OBJ;
+extern struct Type *STRUCT_OBJ;
+extern struct Type *UNION_OBJ;
+extern struct Type *IDENT_OBJ;
+extern struct Type *ANONIDENT_OBJ;
+extern struct Type *DEFAULT_OBJ;
+extern struct Type *ITER_OBJ;
+extern struct Type *FUNCARGS_OBJ;
 extern Default *default_value;
 
 static inline Default *ref_default(void) {

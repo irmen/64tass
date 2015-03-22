@@ -20,8 +20,8 @@
 #define _ISNPRINTF_H_
 #include "inttypes.h"
 
-typedef struct Funcargs Funcargs;
-typedef struct Obj Obj;
+struct Funcargs;
+struct Obj;
 
-extern MUST_CHECK Obj *isnprintf(Funcargs *, linepos_t);
+extern MUST_CHECK struct Obj *isnprintf(struct  Funcargs *, linepos_t);
 #endif

@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern Type *CODE_OBJ;
+extern struct Type *CODE_OBJ;
 
 enum dtype_e {
     D_DINT = -4,
@@ -35,7 +35,7 @@ enum dtype_e {
     D_DWORD = 4
 };
 
-typedef struct Namespace Namespace;
+struct Namespace;
 
 typedef struct Code {
     Obj v;
@@ -47,7 +47,7 @@ typedef struct Code {
     const struct memblocks_s *mem;
     size_t memp;
     size_t membp;
-    Namespace *names;
+    struct Namespace *names;
     uval_t requires;
     uval_t conflicts;
 } Code;
@@ -63,5 +63,5 @@ extern MUST_CHECK Obj *int_from_code(Code *, linepos_t);
 extern MUST_CHECK Obj *float_from_code(Code *, linepos_t);
 extern MUST_CHECK Obj *bits_from_code(Code *, linepos_t);
 extern MUST_CHECK Obj *bytes_from_code(Code *, linepos_t);
-extern MUST_CHECK Obj *tuple_from_code(const Code *, Type *, linepos_t);
+extern MUST_CHECK Obj *tuple_from_code(const Code *, struct Type *, linepos_t);
 #endif

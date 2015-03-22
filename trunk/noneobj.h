@@ -20,7 +20,7 @@
 #define _NONEOBJ_H
 #include "obj.h"
 
-extern Type *NONE_OBJ;
+extern struct Type *NONE_OBJ;
 
 typedef struct None {
     Obj v;

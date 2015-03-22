@@ -21,13 +21,13 @@
 #include "obj.h"
 
 struct file_s;
-typedef struct List Colonlist;
-typedef struct Label Label;
-typedef struct Error Error;
-typedef struct Oper Oper;
+struct List;
+struct Label;
+struct Error;
+struct Oper;
 
 struct oper_s {
-    Oper *op;
+    struct Oper *op;
     Obj *v1;
     Obj *v2;
     linepos_t epoint;
@@ -49,9 +49,9 @@ extern size_t get_label(void);
 extern MUST_CHECK Obj *get_star_value(Obj *);
 extern Obj *get_vals_tuple(void);
 extern Obj *get_vals_addrlist(struct linepos_s *);
-extern MUST_CHECK Error *indexoffs(Obj *, size_t, size_t *, linepos_t);
-extern MUST_CHECK Obj *sliceparams(const Colonlist *, size_t, size_t *, ival_t *, ival_t *, ival_t *, linepos_t);
-extern void touch_label(Label *);
+extern MUST_CHECK struct Error *indexoffs(Obj *, size_t, size_t *, linepos_t);
+extern MUST_CHECK Obj *sliceparams(const struct List *, size_t, size_t *, ival_t *, ival_t *, ival_t *, linepos_t);
+extern void touch_label(struct Label *);
 
 struct values_s {
     Obj *val;

@@ -22,7 +22,7 @@
 #include "inttypes.h"
 #include "mem.h"
 
-typedef struct Obj Obj;
+struct Obj;
 
 struct section_s {
     int name_hash;
@@ -37,7 +37,7 @@ struct section_s {
     address2_t l_restart;
     address_t address;
     address2_t l_address;
-    Obj *l_address_val;
+    struct Obj *l_address_val;
     address_t start;
     address_t end;
     address_t unionstart;

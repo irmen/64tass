@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern Type *TYPE_OBJ;
+extern struct Type *TYPE_OBJ;
 
 enum truth_e {
     TRUTH_BOOL, TRUTH_ALL, TRUTH_ANY
@@ -35,6 +35,8 @@ enum type_e {
     T_LABEL, T_NAMESPACE
 };
 
+struct Error;
+
 typedef struct Type {
     Obj v;
     enum type_e type;
@@ -45,14 +47,14 @@ typedef struct Type {
     void (*garbage)(Obj *, int);
     int (*same)(const Obj *, const Obj *);
     Obj *(*truth)(Obj *, enum truth_e, linepos_t) MUST_CHECK;
-    Error *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
+    struct Error *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
     Obj *(*repr)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*calc1)(struct oper_s *) MUST_CHECK;
     Obj *(*calc2)(struct oper_s *) MUST_CHECK;
     Obj *(*rcalc2)(struct oper_s *) MUST_CHECK;
-    Error *(*ival)(Obj *, ival_t *, int, linepos_t) MUST_CHECK;
-    Error *(*uval)(Obj *, uval_t *, int, linepos_t) MUST_CHECK;
-    Error *(*address)(Obj *, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;
+    struct Error *(*ival)(Obj *, ival_t *, int, linepos_t) MUST_CHECK;
+    struct Error *(*uval)(Obj *, uval_t *, int, linepos_t) MUST_CHECK;
+    struct Error *(*address)(Obj *, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;
     Obj *(*sign)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*abs)(Obj *, linepos_t) MUST_CHECK;
     Obj *(*len)(Obj *, linepos_t) MUST_CHECK;

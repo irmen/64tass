@@ -29,8 +29,8 @@
 #define MAX_PASS 20
 
 struct file_list_s;
-typedef struct Label Label;
-typedef struct Obj Obj;
+struct Label;
+struct Obj;
 
 enum wait_e {
     W_NONE, W_ENDM, W_ENDM2, W_BEND, W_BEND2, W_HERE, W_HERE2, W_ENDU, W_ENDU2,
@@ -52,7 +52,7 @@ extern uint16_t reffile;
 extern uint32_t backr, forwr;
 extern uint8_t pass, max_pass;
 extern void new_waitfor(enum wait_e, linepos_t);
-extern Obj *compile(struct file_list_s *);
-extern void var_assign(Label *, Obj *, int);
+extern struct Obj *compile(struct file_list_s *);
+extern void var_assign(struct Label *, struct Obj *, int);
 extern void pokeb(uint8_t);
 #endif

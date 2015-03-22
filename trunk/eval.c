@@ -691,7 +691,7 @@ MUST_CHECK Error *indexoffs(Obj *v1, size_t len, size_t *offs, linepos_t epoint)
     return new_error(ERROR___INDEX_RANGE, epoint);
 }
 
-MUST_CHECK Obj *sliceparams(const Colonlist *v2, size_t len, size_t *olen, ival_t *offs2, ival_t *end2, ival_t *step2, linepos_t epoint) {
+MUST_CHECK Obj *sliceparams(const struct List *v2, size_t len, size_t *olen, ival_t *offs2, ival_t *end2, ival_t *step2, linepos_t epoint) {
     Error *err;
     ival_t offs, end, step = 1;
     if (v2->len > 3 || v2->len < 1) {
