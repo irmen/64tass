@@ -31,10 +31,12 @@
 #include "intobj.h"
 #include "boolobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t FUNCTION_OBJ = &obj;
+Type *FUNCTION_OBJ = &obj;
 
 static int same(const Obj *o1, const Obj *o2) {
     const Function *v1 = (const Function *)o1, *v2 = (const Function *)o2;
@@ -397,7 +399,8 @@ static MUST_CHECK Obj *calc2(oper_t op) {
 }
 
 void functionobj_init(void) {
-    obj_init(&obj, T_FUNCTION, "function", sizeof(Function));
+    new_type(&obj, T_FUNCTION, "function", sizeof(Function));
+    obj_init(&obj);
     obj.hash = hash;
     obj.same = same;
     obj.repr = repr;

@@ -22,7 +22,7 @@
 #include "values.h"
 #include "libtree.h"
 
-extern obj_t DICT_OBJ;
+extern Type *DICT_OBJ;
 
 typedef struct Dict {
     Obj v;

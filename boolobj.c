@@ -26,11 +26,12 @@
 #include "bitsobj.h"
 #include "intobj.h"
 #include "operobj.h"
+#include "typeobj.h"
 #include "variables.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t BOOL_OBJ = &obj;
+Type *BOOL_OBJ = &obj;
 Bool *true_value;
 Bool *false_value;
 Bool *bool_value[2];
@@ -190,7 +191,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void boolobj_init(void) {
-    obj_init(&obj, T_BOOL, "bool", sizeof(Bool));
+    new_type(&obj, T_BOOL, "bool", sizeof(Bool));
+    obj_init(&obj);
     obj.create = create;
     obj.same = same;
     obj.truth = truth;
@@ -209,9 +211,7 @@ void boolobj_init(void) {
 }
 
 void boolobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = BOOL_OBJ; 
-    new_builtin("bool", &v->v);
+    new_builtin("bool", val_reference(&BOOL_OBJ->v));
 
     new_builtin("true", (Obj *)ref_bool(true_value));
     new_builtin("false", (Obj *)ref_bool(false_value));

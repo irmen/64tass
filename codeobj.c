@@ -35,10 +35,12 @@
 #include "bytesobj.h"
 #include "operobj.h"
 #include "gapobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t CODE_OBJ = &obj;
+Type *CODE_OBJ = &obj;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
@@ -94,10 +96,10 @@ static MUST_CHECK Error *access_check(const Code *v1, linepos_t epoint) {
 
 static int same(const Obj *o1, const Obj *o2) {
     const Code *v1 = (const Code *)o1, *v2 = (const Code *)o2;
-    return o2->obj == CODE_OBJ && (v1->addr == v2->addr || obj_same(v1->addr, v2->addr))
+    return o2->obj == CODE_OBJ && (v1->addr == v2->addr || v1->addr->obj->same(v1->addr, v2->addr))
         && v1->size == v2->size && v1->dtype == v2->dtype
         && v1->requires == v2->requires && v1->conflicts == v2->conflicts
-        && (v1->names == v2->names || obj_same((Obj *)v1->names, (Obj *)v2->names));
+        && (v1->names == v2->names || v1->names->v.obj->same(&v1->names->v, &v2->names->v));
 }
 
 static MUST_CHECK Obj *truth(Obj *o1, enum truth_e type, linepos_t epoint) {
@@ -207,7 +209,7 @@ MUST_CHECK Obj *bytes_from_code(Code *v1, linepos_t epoint) {
     return BYTES_OBJ->create(v1->addr, epoint);
 }
 
-MUST_CHECK Obj *tuple_from_code(const Code *v1, obj_t typ, linepos_t epoint) {
+MUST_CHECK Obj *tuple_from_code(const Code *v1, Type *typ, linepos_t epoint) {
     size_t ln, ln2, i, i2, offs2;
     List *v;
     Obj **vals;
@@ -565,7 +567,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void codeobj_init(void) {
-    obj_init(&obj, T_CODE, "code", sizeof(Code));
+    new_type(&obj, T_CODE, "code", sizeof(Code));
+    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;
@@ -585,7 +588,5 @@ void codeobj_init(void) {
 }
 
 void codeobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ);
-    v->type = CODE_OBJ; 
-    new_builtin("code", &v->v);
+    new_builtin("code", val_reference(&CODE_OBJ->v));
 }

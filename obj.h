@@ -24,9 +24,10 @@ struct oper_s;
 typedef struct Error Error;
 typedef struct Namespace Namespace;
 typedef struct Int Int;
+typedef struct Type Type;
 
 typedef struct Obj {
-    obj_t obj;
+    Type *obj;
     size_t refcount;
 } Obj;
 
@@ -70,23 +71,18 @@ typedef struct Lbl_s {
     Namespace *parent;
 } Lbl;
 
-typedef struct Type {
-    Obj v;
-    obj_t type;
-} Type;
-
-typedef struct Funcargs {
-    Obj v;
-    size_t len;
-    struct values_s *val;
-} Funcargs;
-
 typedef struct Iter {
     Obj v;
     void *iter;
     size_t val;
     Obj *data;
 } Iter;
+
+typedef struct Funcargs {
+    Obj v;
+    size_t len;
+    struct values_s *val;
+} Funcargs;
 
 typedef struct Ident {
     Obj v;
@@ -100,93 +96,31 @@ typedef struct Anonident {
     struct linepos_s epoint;
 } Anonident;
 
-typedef struct None {
-    Obj v;
-    int *dummy;
-} None;
-
 typedef struct Default {
     Obj v;
     int *dummy;
 } Default;
 
-enum type_e {
-    T_NONE, T_BOOL, T_BITS, T_INT, T_FLOAT, T_BYTES, T_STR, T_GAP, T_ADDRESS,
-    T_IDENT, T_ANONIDENT, T_ERROR, T_OPER, T_COLONLIST, T_TUPLE, T_LIST,
-    T_DICT, T_MACRO, T_SEGMENT, T_UNION, T_STRUCT, T_MFUNC, T_CODE, T_LBL,
-    T_DEFAULT, T_ITER, T_REGISTER, T_FUNCTION, T_ADDRLIST, T_FUNCARGS, T_TYPE,
-    T_LABEL, T_NAMESPACE
-};
-
-enum truth_e {
-    TRUTH_BOOL, TRUTH_ALL, TRUTH_ANY
-};
-
-struct obj_s {
-    enum type_e type;
-    const char *name;
-    size_t length;
-    Obj *(*create)(Obj *, linepos_t) MUST_CHECK;
-    void (*destroy)(Obj *);
-    void (*garbage)(Obj *, int);
-    int (*same)(const Obj *, const Obj *);
-    Obj *(*truth)(Obj *, enum truth_e, linepos_t) MUST_CHECK;
-    Error *(*hash)(Obj *, int *, linepos_t) MUST_CHECK;
-    Obj *(*repr)(Obj *, linepos_t) MUST_CHECK;
-    Obj *(*calc1)(struct oper_s *) MUST_CHECK;
-    Obj *(*calc2)(struct oper_s *) MUST_CHECK;
-    Obj *(*rcalc2)(struct oper_s *) MUST_CHECK;
-    Error *(*ival)(Obj *, ival_t *, int, linepos_t) MUST_CHECK;
-    Error *(*uval)(Obj *, uval_t *, int, linepos_t) MUST_CHECK;
-    Error *(*address)(Obj *, uval_t *, int, uint32_t *, linepos_t) MUST_CHECK;
-    Obj *(*sign)(Obj *, linepos_t) MUST_CHECK;
-    Obj *(*abs)(Obj *, linepos_t) MUST_CHECK;
-    Obj *(*len)(Obj *, linepos_t) MUST_CHECK;
-    Obj *(*size)(Obj *, linepos_t) MUST_CHECK;
-    Iter *(*getiter)(Obj *) MUST_CHECK;
-    Obj *(*next)(Iter *) MUST_CHECK;
-};
-
-static inline MUST_CHECK int obj_same(const Obj *v1, const Obj *v2) {
-    return v1->obj->same(v1, v2);
-}
-
-static inline MUST_CHECK Error *obj_hash(Obj *v1, int *hs, linepos_t epoint) {
-    return v1->obj->hash(v1, hs, epoint);
-}
-
 static inline Obj *val_reference(Obj *v1) {
     v1->refcount++; return v1;
 }
 
-static inline Obj *obj_next(Iter *v1) {
-    return v1->v.obj->next(v1);
-}
-
-extern void obj_init(struct obj_s *, enum type_e, const char *, size_t);
 extern MUST_CHECK Obj *obj_oper_error(struct oper_s *);
+extern void obj_init(struct Type *);
 extern void objects_init(void);
-extern void typeobj_names(void);
 extern void objects_destroy(void);
 extern MUST_CHECK Iter *invalid_getiter(Obj *);
 
-extern obj_t LBL_OBJ;
-extern obj_t MFUNC_OBJ;
-extern obj_t STRUCT_OBJ;
-extern obj_t UNION_OBJ;
-extern obj_t NONE_OBJ;
-extern obj_t IDENT_OBJ;
-extern obj_t ANONIDENT_OBJ;
-extern obj_t DEFAULT_OBJ;
-extern obj_t ITER_OBJ;
-extern obj_t FUNCARGS_OBJ;
-extern obj_t TYPE_OBJ;
-extern None *none_value;
+extern Type *LBL_OBJ;
+extern Type *MFUNC_OBJ;
+extern Type *STRUCT_OBJ;
+extern Type *UNION_OBJ;
+extern Type *IDENT_OBJ;
+extern Type *ANONIDENT_OBJ;
+extern Type *DEFAULT_OBJ;
+extern Type *ITER_OBJ;
+extern Type *FUNCARGS_OBJ;
 extern Default *default_value;
-
-static inline None *ref_none(void) {
-    none_value->v.refcount++; return none_value;
-}
 
 static inline Default *ref_default(void) {
     default_value->v.refcount++; return default_value;

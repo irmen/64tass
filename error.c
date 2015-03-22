@@ -33,12 +33,13 @@
 #include "registerobj.h"
 #include "namespaceobj.h"
 #include "operobj.h"
+#include "typeobj.h"
 #include "eval.h"
 #include "values.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t ERROR_OBJ = &obj;
+Type *ERROR_OBJ = &obj;
 
 static void destroy(Obj *o1) {
     Error *v1 = (Error *)o1;
@@ -125,7 +126,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void errorobj_init(void) {
-    obj_init(&obj, T_ERROR, "error", sizeof(Error));
+    new_type(&obj, T_ERROR, "error", sizeof(Error));
+    obj_init(&obj);
     obj.destroy = destroy;
     obj.garbage = garbage;
     obj.calc1 = calc1;
@@ -674,7 +676,7 @@ void err_msg_output_and_destroy(Error *val) {
     val_destroy(&val->v);
 }
 
-void err_msg_wrong_type(const Obj *val, obj_t expected, linepos_t epoint) {
+void err_msg_wrong_type(const Obj *val, Type *expected, linepos_t epoint) {
     new_error_msg(SV_CONDERROR, current_file_list, epoint);
     adderror("wrong type '");
     adderror(val->obj->name);

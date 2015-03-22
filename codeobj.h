@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern obj_t CODE_OBJ;
+extern Type *CODE_OBJ;
 
 enum dtype_e {
     D_DINT = -4,
@@ -63,5 +63,5 @@ extern MUST_CHECK Obj *int_from_code(Code *, linepos_t);
 extern MUST_CHECK Obj *float_from_code(Code *, linepos_t);
 extern MUST_CHECK Obj *bits_from_code(Code *, linepos_t);
 extern MUST_CHECK Obj *bytes_from_code(Code *, linepos_t);
-extern MUST_CHECK Obj *tuple_from_code(const Code *, obj_t, linepos_t);
+extern MUST_CHECK Obj *tuple_from_code(const Code *, Type *, linepos_t);
 #endif

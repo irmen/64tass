@@ -26,10 +26,12 @@
 #include "strobj.h"
 #include "intobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t ADDRESS_OBJ = &obj;
+Type *ADDRESS_OBJ = &obj;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
@@ -68,7 +70,7 @@ static void garbage(Obj *o1, int i) {
 
 static int same(const Obj *o1, const Obj *o2) {
     const Address *v1 = (const Address *)o1, *v2 = (const Address *)o2;
-    return o2->obj == ADDRESS_OBJ && v1->type == v2->type && obj_same(v1->val, v2->val);
+    return o2->obj == ADDRESS_OBJ && v1->type == v2->type && v1->val->obj->same(v1->val, v2->val);
 }
 
 static MUST_CHECK Obj *repr(Obj *o1, linepos_t epoint) {
@@ -308,7 +310,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void addressobj_init(void) {
-    obj_init(&obj, T_ADDRESS, "address", sizeof(Address));
+    new_type(&obj, T_ADDRESS, "address", sizeof(Address));
+    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.garbage = garbage;
@@ -321,7 +324,5 @@ void addressobj_init(void) {
 }
 
 void addressobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = ADDRESS_OBJ; 
-    new_builtin("address", &v->v);
+    new_builtin("address", val_reference(&ADDRESS_OBJ->v));
 }

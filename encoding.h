@@ -23,6 +23,7 @@
 
 struct encoding_s;
 enum errors_e;
+typedef struct Obj Obj;
 
 struct trans_s {
     uint32_t start;

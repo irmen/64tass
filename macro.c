@@ -28,13 +28,15 @@
 #include "listing.h"
 #include "error.h"
 #include "listobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 #include "namespaceobj.h"
 
-static struct obj_s macro_obj;
-static struct obj_s segment_obj;
+static Type macro_obj;
+static Type segment_obj;
 
-obj_t MACRO_OBJ = &macro_obj;
-obj_t SEGMENT_OBJ = &segment_obj;
+Type *MACRO_OBJ = &macro_obj;
+Type *SEGMENT_OBJ = &segment_obj;
 
 static void destroy(Obj *o1) {
     Macro *v1 = (Macro *)o1;
@@ -59,10 +61,12 @@ static int same(const Obj *o1, const Obj *o2) {
 
 
 void macroobj_init(void) {
-    obj_init(&macro_obj, T_MACRO, "macro", sizeof(Macro));
+    new_type(&macro_obj, T_MACRO, "macro", sizeof(Macro));
+    obj_init(&macro_obj);
     macro_obj.destroy = destroy;
     macro_obj.same = same;
-    obj_init(&segment_obj, T_SEGMENT, "segment", sizeof(Segment));
+    new_type(&segment_obj, T_SEGMENT, "segment", sizeof(Segment));
+    obj_init(&segment_obj);
     segment_obj.destroy = destroy;
     segment_obj.same = same;
 }
@@ -117,7 +121,7 @@ int mtranslate(struct file_s *cfile)
                 str_t *param = macro_parameters.current->param;
                 /* \1..\9 */
                 if ((j=ch-'1') >= macro_parameters.current->len || !param[j].data) {
-                    obj_t obj = macro_parameters.current->macro->obj;
+                    Type *obj = macro_parameters.current->macro->obj;
                     if (obj == STRUCT_OBJ || obj == UNION_OBJ) {
                         lpoint.pos++;
                         ch = '?';
@@ -166,7 +170,7 @@ int mtranslate(struct file_s *cfile)
                         if (!macro->param[j].cfname.data) continue;
                         if (str_cmp(&macro->param[j].cfname, &cf)) continue;
                         if (!param[j].data) {
-                            obj_t obj = macro->v.obj;
+                            Type *obj = macro->v.obj;
                             if (obj == STRUCT_OBJ || obj == UNION_OBJ) {
                                 lpoint.pos--;
                                 ch = '?';

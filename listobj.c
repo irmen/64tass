@@ -26,16 +26,18 @@
 #include "strobj.h"
 #include "intobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s list_obj;
-static struct obj_s tuple_obj;
-static struct obj_s addrlist_obj;
-static struct obj_s colonlist_obj;
+static Type list_obj;
+static Type tuple_obj;
+static Type addrlist_obj;
+static Type colonlist_obj;
 
-obj_t LIST_OBJ = &list_obj;
-obj_t TUPLE_OBJ = &tuple_obj;
-obj_t ADDRLIST_OBJ = &addrlist_obj;
-obj_t COLONLIST_OBJ = &colonlist_obj;
+Type *LIST_OBJ = &list_obj;
+Type *TUPLE_OBJ = &tuple_obj;
+Type *ADDRLIST_OBJ = &addrlist_obj;
+Type *COLONLIST_OBJ = &colonlist_obj;
 Tuple *null_tuple;
 List *null_list;
 Addrlist *null_addrlist;
@@ -138,7 +140,8 @@ static int same(const Obj *o1, const Obj *o2) {
     size_t i;
     if (o1->obj != o2->obj || v1->len != v2->len) return 0;
     for (i = 0; i < v2->len; i++) {
-        if (!obj_same(v1->data[i], v2->data[i])) return 0;
+        Obj *val = v1->data[i];
+        if (!val->obj->same(val, v2->data[i])) return 0;
     }
     return 1;
 }
@@ -559,7 +562,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
     return val_reference(o2);
 }
 
-static void init(struct obj_s *obj) {
+static void init(Type *obj) {
     obj->destroy = destroy;
     obj->garbage = garbage;
     obj->same = same;
@@ -574,18 +577,22 @@ static void init(struct obj_s *obj) {
 }
 
 void listobj_init(void) {
-    obj_init(&list_obj, T_LIST, "list", sizeof(List));
+    new_type(&list_obj, T_LIST, "list", sizeof(List));
+    obj_init(&list_obj);
     init(&list_obj);
     list_obj.create = list_create;
-    obj_init(&tuple_obj, T_TUPLE, "tuple", sizeof(Tuple));
+    new_type(&tuple_obj, T_TUPLE, "tuple", sizeof(Tuple));
+    obj_init(&tuple_obj);
     init(&tuple_obj);
     tuple_obj.create = tuple_create;
-    obj_init(&addrlist_obj, T_ADDRLIST, "addresslist", sizeof(Addrlist));
+    new_type(&addrlist_obj, T_ADDRLIST, "addresslist", sizeof(Addrlist));
+    obj_init(&addrlist_obj);
     addrlist_obj.destroy = destroy;
     addrlist_obj.garbage = garbage;
     addrlist_obj.same = same;
     addrlist_obj.repr = repr_listtuple;
-    obj_init(&colonlist_obj, T_COLONLIST, "colonlist", sizeof(Colonlist));
+    new_type(&colonlist_obj, T_COLONLIST, "colonlist", sizeof(Colonlist));
+    obj_init(&colonlist_obj);
     colonlist_obj.destroy = destroy;
     colonlist_obj.garbage = garbage;
     colonlist_obj.same = same;
@@ -603,12 +610,8 @@ void listobj_init(void) {
 }
 
 void listobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = LIST_OBJ; 
-    new_builtin("list", &v->v);
-    v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = TUPLE_OBJ; 
-    new_builtin("tuple", &v->v);
+    new_builtin("list", val_reference(&LIST_OBJ->v));
+    new_builtin("tuple", val_reference(&TUPLE_OBJ->v));
 }
 
 void listobj_destroy(void) {

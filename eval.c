@@ -46,6 +46,8 @@
 #include "namespaceobj.h"
 #include "operobj.h"
 #include "gapobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
 #if _BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE >= 500 || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
 #else
@@ -937,21 +939,22 @@ static int get_val2(struct eval_context_s *ev) {
                         }
                         if (v2->val->obj == COLONLIST_OBJ) {
                             Colonlist *list = (Colonlist *)v2->val;
+                            Obj *key = list->data[0];
                             struct pair_s *p, *p2;
                             struct avltree_node *b;
-                            if (list->data[0]->obj == DEFAULT_OBJ) {
+                            if (key->obj == DEFAULT_OBJ) {
                                 if (dict->def) val_destroy(dict->def);
                                 dict->def = val_reference(list->data[1]);
                             } else {
                                 p = (struct pair_s *)malloc(sizeof(struct pair_s));
                                 if (!p) err_msg_out_of_memory();
-                                err = obj_hash(list->data[0], &p->hash, &v2->epoint);
+                                err = key->obj->hash(key, &p->hash, &v2->epoint);
                                 if (err) {
                                     free(p);
                                     val_destroy(v1->val); v1->val = &err->v;
                                     break;
                                 }
-                                p->key = list->data[0];
+                                p->key = key;
                                 b = avltree_insert(&p->node, &dict->members, pair_compare);
                                 if (b) {
                                     p2 = avltree_container_of(b, struct pair_s, node);

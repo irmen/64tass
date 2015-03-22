@@ -23,6 +23,8 @@
 #include "unicode.h"
 #include "error.h"
 #include "strobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 #include "variables.h"
 
 #define SLOTS 128
@@ -49,7 +51,7 @@ static inline void value_free(Obj *val) {
     *c = slot;
 }
 
-Obj *val_alloc(obj_t obj) {
+Obj *val_alloc(Type *obj) {
     size_t p = (obj->length + (ALIGN - 1)) / ALIGN;
     Slot **c = &values_free[p];
     Obj *val = (Obj *)*c;

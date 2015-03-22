@@ -21,7 +21,7 @@
 #include "obj.h"
 #include "values.h"
 
-extern obj_t BITS_OBJ;
+extern Type *BITS_OBJ;
 
 typedef uint32_t bdigit_t;
 typedef struct Bits {

@@ -53,6 +53,8 @@
 #include "floatobj.h"
 #include "strobj.h"
 #include "intobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 #include "error.h"
 
 #if _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L

@@ -31,10 +31,12 @@
 #include "intobj.h"
 #include "bitsobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t FLOAT_OBJ = &obj;
+Type *FLOAT_OBJ = &obj;
 
 static MUST_CHECK Obj *create(Obj *v1, linepos_t epoint) {
     switch (v1->obj->type) {
@@ -287,7 +289,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void floatobj_init(void) {
-    obj_init(&obj, T_FLOAT, "float", sizeof(Float));
+    new_type(&obj, T_FLOAT, "float", sizeof(Float));
+    obj_init(&obj);
     obj.create = create;
     obj.same = same;
     obj.truth = truth;
@@ -303,7 +306,5 @@ void floatobj_init(void) {
 }
 
 void floatobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = FLOAT_OBJ; 
-    new_builtin("float", &v->v);
+    new_builtin("float", val_reference(&FLOAT_OBJ->v));
 }

@@ -20,10 +20,11 @@
 #include "operobj.h"
 
 #include "strobj.h"
+#include "typeobj.h"
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t OPER_OBJ = &obj;
+Type *OPER_OBJ = &obj;
 
 Oper o_TUPLE;
 Oper o_LIST;
@@ -119,7 +120,8 @@ static inline void oper_init(Oper *o, const char *name, enum oper_e op, int prio
 }
 
 void operobj_init(void) {
-    obj_init(&obj, T_OPER, "oper", sizeof(Oper));
+    new_type(&obj, T_OPER, "oper", sizeof(Oper));
+    obj_init(&obj);
     obj.repr = repr;
 
     oper_init(&o_TUPLE, "')", O_TUPLE, 0);

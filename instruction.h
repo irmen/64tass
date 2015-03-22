@@ -22,6 +22,7 @@
 struct cpu_s;
 
 typedef struct Error Error;
+typedef struct Obj Obj;
 
 extern MUST_CHECK Error *instruction(int, int, Obj *, linepos_t, struct linepos_s *);
 extern void select_opcodes(const struct cpu_s *);

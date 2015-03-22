@@ -33,12 +33,14 @@
 #include "error.h"
 #include "listobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
 #define SHIFT (8 * sizeof(bdigit_t))
 
-static struct obj_s obj;
+static Type obj;
 
-obj_t BITS_OBJ = &obj;
+Type *BITS_OBJ = &obj;
 Bits *null_bits;
 Bits *inv_bits;
 Bits *bits_value[2];
@@ -1201,7 +1203,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void bitsobj_init(void) {
-    obj_init(&obj, T_BITS, "bits", sizeof(Bits));
+    new_type(&obj, T_BITS, "bits", sizeof(Bits));
+    obj_init(&obj);
     obj.create = create;
     obj.destroy = destroy;
     obj.same = same;
@@ -1240,9 +1243,7 @@ void bitsobj_init(void) {
 }
 
 void bitsobj_names(void) {
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = BITS_OBJ; 
-    new_builtin("bits", &v->v);
+    new_builtin("bits", val_reference(&BITS_OBJ->v));
 }
 
 void bitsobj_destroy(void) {

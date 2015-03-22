@@ -22,7 +22,7 @@
 #include "values.h"
 struct values_s;
 
-extern obj_t FUNCTION_OBJ;
+extern Type *FUNCTION_OBJ;
 
 enum func_e {
     F_NONE, F_FLOOR, F_CEIL, F_ROUND, F_TRUNC, F_FRAC, F_SQRT, F_CBRT, F_LOG,

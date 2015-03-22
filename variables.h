@@ -21,7 +21,7 @@
 #include "inttypes.h"
 #include "obj.h"
 
-extern obj_t LABEL_OBJ;
+extern Type *LABEL_OBJ;
 
 typedef struct Namespace Namespace;
 

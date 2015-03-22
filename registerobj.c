@@ -27,10 +27,12 @@
 #include "strobj.h"
 #include "intobj.h"
 #include "operobj.h"
+#include "typeobj.h"
+#include "noneobj.h"
 
-static struct obj_s register_obj;
+static Type register_obj;
 
-obj_t REGISTER_OBJ = &register_obj;
+Type *REGISTER_OBJ = &register_obj;
 
 static void destroy(Obj *o1) {
     Register *v1 = (Register *)o1;
@@ -183,7 +185,8 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
 }
 
 void registerobj_init(void) {
-    obj_init(&register_obj, T_REGISTER, "register", sizeof(Register));
+    new_type(&register_obj, T_REGISTER, "register", sizeof(Register));
+    obj_init(&register_obj);
     register_obj.create = create;
     register_obj.destroy = destroy;
     register_obj.same = same;
@@ -195,9 +198,7 @@ void registerobj_init(void) {
 
 void registerobj_names(void) {
     int i;
-    Type *v = (Type *)val_alloc(TYPE_OBJ); 
-    v->type = REGISTER_OBJ; 
-    new_builtin("register", &v->v);
+    new_builtin("register", val_reference(&REGISTER_OBJ->v));
 
     for (i = 0; reg_names[i]; i++) {
         char name[2];
