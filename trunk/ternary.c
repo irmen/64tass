@@ -45,7 +45,7 @@ static void tern_free(union tern_u *tern) {
 
 static ternary_node *tern_alloc(void) {
 #ifdef DEBUG
-    return malloc(sizeof(ternary_node));
+    return (ternary_node *)mallocx(sizeof(ternary_node));
 #else
     ternary_node *tern;
     size_t i;
@@ -53,8 +53,7 @@ static ternary_node *tern_alloc(void) {
     terns_free = terns_free->next;
     if (!terns_free) {
         struct terns_s *old = terns;
-        terns = (struct terns_s *)malloc(sizeof(struct terns_s));
-        if (!terns) err_msg_out_of_memory();
+        terns = (struct terns_s *)mallocx(sizeof(struct terns_s));
         for (i = 0; i < 254; i++) {
             terns->terns[i].next = &terns->terns[i+1];
         }
@@ -170,8 +169,7 @@ void *ternary_search (const ternary_node *p, const uint8_t *s, const uint8_t *en
 void init_ternary(void)
 {
     size_t i;
-    terns = (struct terns_s *)malloc(sizeof(struct terns_s));
-    if (!terns) err_msg_out_of_memory();
+    terns = (struct terns_s *)mallocx(sizeof(struct terns_s));
     for (i = 0; i < 254; i++) {
         terns->terns[i].next = &terns->terns[i+1];
     }

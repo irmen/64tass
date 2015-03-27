@@ -228,7 +228,7 @@ static int new_error_msg(enum severity_e severity, const struct file_list_s *fli
     if (error_list.header_pos + sizeof(struct errorentry_s) + line_len > error_list.max) {
         error_list.max += (sizeof(struct errorentry_s) > 0x200) ? sizeof(struct errorentry_s) : 0x200;
         error_list.data = (uint8_t *)realloc(error_list.data, error_list.max);
-        if (!error_list.data) {fputs("Out of memory error\n", stderr);exit(1);}
+        if (!error_list.data) err_msg_out_of_memory2();
     }
     error_list.len = error_list.header_pos + sizeof(struct errorentry_s) + line_len;
     err = (struct errorentry_s *)&error_list.data[error_list.header_pos];
@@ -261,8 +261,7 @@ static struct file_list_s *lastfl = NULL;
 struct file_list_s *enterfile(struct file_s *file, linepos_t epoint) {
     struct avltree_node *b;
     if (!lastfl) {
-        lastfl = (struct file_list_s *)malloc(sizeof(struct file_list_s));
-        if (!lastfl) err_msg_out_of_memory();
+        lastfl = (struct file_list_s *)mallocx(sizeof(struct file_list_s));
     }
     lastfl->file = file;
     lastfl->epoint = *epoint;
@@ -287,7 +286,7 @@ static void adderror2(const uint8_t *s, size_t len) {
     if (len + error_list.len > error_list.max) {
         error_list.max += (len > 0x200) ? len : 0x200;
         error_list.data = (uint8_t *)realloc(error_list.data, error_list.max);
-        if (!error_list.data) {fputs("Out of memory error\n", stderr);exit(1);}
+        if (!error_list.data) err_msg_out_of_memory2();
     }
     memcpy(error_list.data + error_list.len, s, len);
     error_list.len += len;
@@ -536,8 +535,7 @@ static inline void err_msg_not_defined2(const str_t *name, Namespace *l, int dow
     if (constcreated && pass < max_pass) return;
 
     if (!lastnd) {
-        lastnd = (struct notdefines_s *)malloc(sizeof(struct notdefines_s));
-        if (!lastnd) err_msg_out_of_memory();
+        lastnd = (struct notdefines_s *)mallocx(sizeof(struct notdefines_s));
     }
 
     if (name->data) {
@@ -936,11 +934,16 @@ void err_destroy(void) {
     free(lastnd);
 }
 
+void err_msg_out_of_memory2(void)
+{
+    fputs("Out of memory error\n", stderr);
+    exit(1);
+}
+
 void err_msg_out_of_memory(void)
 {
     error_print(0, 1, 1);
-    fputs("Out of memory error\n", stderr);
-    exit(1);
+    err_msg_out_of_memory2();
 }
 
 void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {

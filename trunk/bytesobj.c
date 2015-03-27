@@ -82,8 +82,7 @@ static void destroy(Obj *o1) {
 MUST_CHECK Bytes *new_bytes(size_t ln) {
     Bytes *v = (Bytes *)val_alloc(BYTES_OBJ);
     if (ln > sizeof(v->val)) {
-        uint8_t *s = (uint8_t *)malloc(ln);
-        if (!s) err_msg_out_of_memory();
+        uint8_t *s = (uint8_t *)mallocx(ln);
         v->data = s;
     } else {
         v->data = v->val;
@@ -197,13 +196,12 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_
                 if (len2 >= len) {
                     if (v->val == s) {
                         len = 32;
-                        s = (uint8_t *)malloc(len);
-                        if (!s) err_msg_out_of_memory();
+                        s = (uint8_t *)mallocx(len);
                         memcpy(s, v->val, len2);
                     } else {
                         len += 1024;
-                        s = (uint8_t *)realloc(s, len);
-                        if (!s || len < 1024) err_msg_out_of_memory(); /* overflow */
+                        s = (uint8_t *)reallocx(s, len);
+                        if (len < 1024) err_msg_out_of_memory(); /* overflow */
                     }
                 }
                 switch (mode) {
@@ -239,8 +237,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_
                 free(s);
                 s = v->val;
             } else if (len2 < len) {
-                s = (uint8_t *)realloc(s, len2);
-                if (!s) err_msg_out_of_memory();
+                s = (uint8_t *)reallocx(s, len2);
             }
         }
         v->len = len2;
@@ -386,8 +383,7 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
             free(d);
             d = v->val;
         } else if (sz < i) {
-            d = (uint8_t *)realloc(d, sz);
-            if (!d) err_msg_out_of_memory();
+            d = (uint8_t *)reallocx(d, sz);
         }
     }
     v->data = d;

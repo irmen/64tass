@@ -231,8 +231,8 @@ void new_waitfor(enum wait_e what, linepos_t epoint) {
     waitfor_p++;
     if (waitfor_p >= waitfor_len) {
         waitfor_len += 8;
-        waitfors = (struct waitfor_s *)realloc(waitfors, waitfor_len * sizeof(struct waitfor_s));
-        if (!waitfors || waitfor_len < 8 || waitfor_len > SIZE_MAX / sizeof(struct waitfor_s)) err_msg_out_of_memory(); /* overflow */
+        waitfors = (struct waitfor_s *)reallocx(waitfors, waitfor_len * sizeof(struct waitfor_s));
+        if (waitfor_len < 8 || waitfor_len > SIZE_MAX / sizeof(struct waitfor_s)) err_msg_out_of_memory(); /* overflow */
     }
     waitfor = &waitfors[waitfor_p];
     prevwaitfor = waitfor_p ? &waitfors[waitfor_p - 1] : waitfor;
@@ -1409,8 +1409,7 @@ Obj *compile(struct file_list_s *cflist)
                         str_t cf;
                         str_cfcpy(&cf, &sectionname);
                         if (str_cmp(&cf, &current_section->cfname)) {
-                            char *s = (char *)malloc(current_section->name.len + 1);
-                            if (!s) err_msg_out_of_memory();
+                            char *s = (char *)mallocx(current_section->name.len + 1);
                             memcpy(s, current_section->name.data, current_section->name.len);
                             s[current_section->name.len] = '\0';
                             err_msg2(ERROR______EXPECTED, s, &epoint);
@@ -2355,8 +2354,7 @@ Obj *compile(struct file_list_s *cflist)
                     s->addr = star;
                     star_tree = &s->tree;lvline = vline = 0;
                     xlin=lin=lpoint.line; apoint = lpoint;
-                    expr = (uint8_t *)malloc(strlen((char *)pline) + 1);
-                    if (!expr) err_msg_out_of_memory();
+                    expr = (uint8_t *)mallocx(strlen((char *)pline) + 1);
                     strcpy((char *)expr, (char *)pline); label = NULL;
                     waitfor->breakout = 0;
                     my_waitfor = NULL;
@@ -3080,6 +3078,7 @@ void myexit(void) {
 
 int wmain(int argc, wchar_t *argv2[]) {
     int i, r;
+    char **argv;
 
     if (IsValidCodePage(CP_UTF8)) {
         oldcodepage = GetConsoleOutputCP();
@@ -3089,7 +3088,8 @@ int wmain(int argc, wchar_t *argv2[]) {
         atexit(myexit);
     }
 
-    char **argv = (char **)malloc(sizeof(char *)*argc);
+    argv = (char **)malloc(sizeof(char *)*argc);
+    if (!argv) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
 	uint32_t c = 0, lastchar;
 	wchar_t *p = argv2[i];
@@ -3097,7 +3097,7 @@ int wmain(int argc, wchar_t *argv2[]) {
 
 	while (*p) p++;
 	c2 = (uint8_t *)malloc((p - argv2[i])*4/sizeof(wchar_t)+1);
-	if (!c2) exit(1);
+	if (!c2) err_msg_out_of_memory2();
 	p = argv2[i];
 	argv[i] = (char *)c2;
 
@@ -3120,7 +3120,7 @@ int wmain(int argc, wchar_t *argv2[]) {
 	}
 	*c2++ = 0;
 	argv[i] = (char *)realloc(argv[i], (char *)c2 - argv[i]);
-	if (!argv[i]) exit(1);
+	if (!argv[i]) err_msg_out_of_memory2();
     }
     r = main2(argc, argv);
 
@@ -3137,6 +3137,7 @@ int main(int argc, char *argv[]) {
     setlocale(LC_NUMERIC, "C");
 
     uargv = (char **)malloc(sizeof(char *)*argc);
+    if (!uargv) err_msg_out_of_memory2();
     for (i = 0; i < argc; i++) {
         const char *s = argv[i];
         mbstate_t ps;
@@ -3144,7 +3145,7 @@ int main(int argc, char *argv[]) {
         size_t n = strlen(s), j = 0;
         size_t len = n + 64;
         uint8_t *data = (uint8_t *)malloc(len);
-        if (!data || len < 64) err_msg_out_of_memory();
+        if (!data || len < 64) err_msg_out_of_memory2();
 
         memset(&ps, 0, sizeof(ps));
         p = data;
@@ -3156,7 +3157,7 @@ int main(int argc, char *argv[]) {
                 size_t o = p - data;
                 len += 1024;
                 data=(uint8_t*)realloc(data, len);
-                if (!data) err_msg_out_of_memory();
+                if (!data) err_msg_out_of_memory2();
                 p = data + o;
             }
             l = mbrtowc(&w, s + j, n - j,  &ps);

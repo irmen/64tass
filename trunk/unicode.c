@@ -121,8 +121,7 @@ static inline unsigned int utf8outlen(uint32_t i) {
 
 static void extbuff(struct ubuff_s *d) {
     d->len += 16;
-    d->data = (uint32_t *)realloc(d->data, d->len * sizeof(uint32_t));
-    if (!d->data) err_msg_out_of_memory();
+    d->data = (uint32_t *)reallocx(d->data, d->len * sizeof(uint32_t));
 }
 
 static void udecompose(uint32_t ch, struct ubuff_s *d, int options) {
@@ -308,8 +307,7 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
     ucompose(&dbuf, &dbuf2);
     l = s2->len;
     if (l > s1->len) {
-        s1->data = (uint8_t *)realloc((uint8_t *)s1->data, l);
-        if (!s1->data) err_msg_out_of_memory();
+        s1->data = (uint8_t *)reallocx((uint8_t *)s1->data, l);
     }
     dd = s = (uint8_t *)s1->data;
     m = dd + l;
@@ -320,8 +318,8 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
             if (s >= m) {
                 size_t o = s - dd;
                 l += 16;
-                dd = (uint8_t *)realloc(dd, l);
-                if (!dd || l < 16) err_msg_out_of_memory();
+                dd = (uint8_t *)reallocx(dd, l);
+                if (l < 16) err_msg_out_of_memory();
                 s = dd + o;
                 m = dd + l;
             }
@@ -331,8 +329,8 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
         if (s + utf8outlen(ch) > m) {
             size_t o = s - dd;
             l += 16;
-            dd = (uint8_t *)realloc(dd, l);
-            if (!dd || l < 16) err_msg_out_of_memory();
+            dd = (uint8_t *)reallocx(dd, l);
+            if (l < 16) err_msg_out_of_memory();
             s = dd + o;
             m = dd + l;
         }

@@ -55,9 +55,7 @@ static void destroy(Obj *o1) {
 
 static uint8_t *snew(Str *v, size_t len) {
     if (len > sizeof(v->val)) {
-        uint8_t *s = (uint8_t *)malloc(len);
-        if (!s) err_msg_out_of_memory();
-        return s;
+        return (uint8_t *)mallocx(len);
     }
     return v->val;
 }
@@ -511,8 +509,7 @@ static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
                     free(o);
                     p = v->val;
                 } else {
-                    p = (uint8_t *)realloc(o, len2);
-                    if (!p) err_msg_out_of_memory();
+                    p = (uint8_t *)reallocx(o, len2);
                 }
             } else p = o;
         }
@@ -589,12 +586,12 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
                 if ((size_t)(p2 + k - o) > m) {
                     const uint8_t *r = o;
                     m += 4096;
-                    if (o != v->val) o = (uint8_t *)realloc(o, m);
+                    if (o != v->val) o = (uint8_t *)reallocx(o, m);
                     else {
-                        o = (uint8_t *)malloc(m);
-                        if (o) memcpy(o, v->val, m - 4096);
+                        o = (uint8_t *)mallocx(m);
+                        memcpy(o, v->val, m - 4096);
                     }
-                    if (!o || m < 4096) err_msg_out_of_memory(); /* overflow */
+                    if (m < 4096) err_msg_out_of_memory(); /* overflow */
                     p2 += o - r;
                 }
                 memcpy(p2, p, k);p2 += k;
@@ -607,8 +604,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
                     free(o);
                     p = v->val;
                 } else {
-                    p = (uint8_t *)realloc(o, len2);
-                    if (!p) err_msg_out_of_memory();
+                    p = (uint8_t *)reallocx(o, len2);
                 }
             } else p = o;
         }

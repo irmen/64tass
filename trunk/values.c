@@ -59,8 +59,7 @@ Obj *val_alloc(Type *obj) {
         size_t i, size = p * ALIGN;
         Slot *slot;
         Slotcoll **s = &slotcoll[p];
-        Slotcoll *n = (Slotcoll *)malloc(sizeof(Slotcoll) + size * SLOTS);
-        if (!n) err_msg_out_of_memory();
+        Slotcoll *n = (Slotcoll *)mallocx(sizeof(Slotcoll) + size * SLOTS);
         n->next = *s; *s = n;
         slot = (Slot *)(((const char *)n) + sizeof(Slotcoll));
         val = (Obj *)slot;

@@ -83,8 +83,8 @@ static void destroy(Obj *o1) {
 static MUST_CHECK Bits *new_bits(size_t len) {
     Bits *v = (Bits *)val_alloc(BITS_OBJ);
     if (len > sizeof(v->val)/sizeof(v->val[0])) {
-        bdigit_t *s = (bdigit_t *)malloc(len * sizeof(bdigit_t));
-        if (!s || len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
+        bdigit_t *s = (bdigit_t *)mallocx(len * sizeof(bdigit_t));
+        if (len > SSIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
         v->data = s;
     } else {
         v->data = v->val;
@@ -417,14 +417,13 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
                 if (j >= sz) {
                     if (v->val == d) {
                         sz = 16 / sizeof(bdigit_t);
-                        d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
+                        d = (bdigit_t *)mallocx(sz * sizeof(bdigit_t));
                         memcpy(d, v->val, j * sizeof(bdigit_t));
                     } else {
                         sz += 1024 / sizeof(bdigit_t);
                         if (sz < 1024 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-                        d = (bdigit_t *)realloc(d, sz * sizeof(bdigit_t));
+                        d = (bdigit_t *)reallocx(d, sz * sizeof(bdigit_t));
                     }
-                    if (!d) err_msg_out_of_memory();
                 }
                 d[j++] = uv;
                 bits = uv = 0;
@@ -435,10 +434,9 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
                 sz++;
                 if (sz < 1) err_msg_out_of_memory(); /* overflow */
                 if (v->val == d) {
-                    d = (bdigit_t *)malloc(sz * sizeof(bdigit_t));
+                    d = (bdigit_t *)mallocx(sz * sizeof(bdigit_t));
                     memcpy(d, v->val, j * sizeof(bdigit_t));
-                } else d = (bdigit_t *)realloc(d, sz * sizeof(bdigit_t));
-                if (!d) err_msg_out_of_memory();
+                } else d = (bdigit_t *)reallocx(d, sz * sizeof(bdigit_t));
             }
             d[j] = uv;
             osz = j + 1;
@@ -451,8 +449,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
                 free(d);
                 d = v->val;
             } else if (osz < sz) {
-                d = (bdigit_t *)realloc(d, osz * sizeof(bdigit_t));
-                if (!d) err_msg_out_of_memory();
+                d = (bdigit_t *)reallocx(d, osz * sizeof(bdigit_t));
             }
         }
         v->data = d;

@@ -48,8 +48,8 @@ void include_list_add(const char *path)
     if (path[i-1] != '/') j++;
 #endif
     len = j + 1 + sizeof(struct include_list_s);
-    include_list_last->next = (struct include_list_s *)malloc(len);
-    if (!include_list_last->next || len < sizeof(struct include_list_s)) err_msg_out_of_memory();
+    include_list_last->next = (struct include_list_s *)mallocx(len);
+    if (len < sizeof(struct include_list_s)) err_msg_out_of_memory();
     include_list_last = include_list_last->next;
     include_list_last->next = NULL;
     strcpy(include_list_last->path, path);
@@ -76,8 +76,8 @@ const char *get_path(const Str *v, const char *base) {
 
     if (!v) {
         len = i + 1;
-        path = (char *)malloc(len);
-        if (!path || len < 1) err_msg_out_of_memory(); /* overflow */
+        path = (char *)mallocx(len);
+        if (len < 1) err_msg_out_of_memory(); /* overflow */
         memcpy(path, base, i);
         path[i] = 0;
         return path;
@@ -92,8 +92,8 @@ const char *get_path(const Str *v, const char *base) {
     len = i + v->len;
     if (len < i) err_msg_out_of_memory(); /* overflow */
     len += 1;
-    path = (char *)malloc(len);
-    if (!path || len < 1) err_msg_out_of_memory(); /* overflow */
+    path = (char *)mallocx(len);
+    if (len < 1) err_msg_out_of_memory(); /* overflow */
     memcpy(path, base, i);
     memcpy(path + i, v->data, v->len);
     path[i + v->len] = 0;
@@ -108,8 +108,8 @@ FILE *file_open(const char *name, const char *mode)
     const uint8_t *c;
     uint32_t ch;
     size_t len = strlen(name) + 1;
-    wname = (wchar_t *)malloc(len * sizeof(wchar_t));
-    if (!wname || len > SIZE_MAX / sizeof(wchar_t)) err_msg_out_of_memory();
+    wname = (wchar_t *)mallocx(len * sizeof(wchar_t));
+    if (len > SIZE_MAX / sizeof(wchar_t)) err_msg_out_of_memory();
     c2 = wname; c = (uint8_t *)name;
     while (*c) {
         ch = *c;
@@ -127,12 +127,12 @@ FILE *file_open(const char *name, const char *mode)
     free(wname);
 #else
     size_t len = 0, max = strlen(name) + 1;
-    char *newname = (char *)malloc(max);
+    char *newname = (char *)mallocx(max);
     const uint8_t *c = (uint8_t *)name;
     uint32_t ch;
     mbstate_t ps;
     memset(&ps, 0, sizeof(mbstate_t));
-    if (!newname || max < 1) err_msg_out_of_memory();
+    if (max < 1) err_msg_out_of_memory();
     do {
         char temp[64];
         int l;
@@ -144,8 +144,8 @@ FILE *file_open(const char *name, const char *mode)
         if (len < (unsigned int)l) err_msg_out_of_memory();
         if (len > max) {
             max = len + 64;
-            newname = (char *)realloc(newname, max);
-            if (!newname || max < 64) err_msg_out_of_memory();
+            newname = (char *)reallocx(newname, max);
+            if (max < 64) err_msg_out_of_memory();
         }
         memcpy(newname + len - l, temp, l);
     } while (ch);
@@ -201,8 +201,8 @@ static inline void flushubuff(struct ubuff_s *ubuff, uint8_t **pp, struct file_s
             size_t o = p - tmp->data;
             if (o + 6*6 + 1 > tmp->len) {
                 tmp->len += 4096;
-                tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
-                if (!tmp->data || tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
+                tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
+                if (tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
                 p = tmp->data + o;
             }
             if (ubuff->data[i] && ubuff->data[i] < 0x80) *p++ = ubuff->data[i]; else p = utf8out(ubuff->data[i], p);
@@ -211,8 +211,7 @@ static inline void flushubuff(struct ubuff_s *ubuff, uint8_t **pp, struct file_s
     } else {
         if (ubuff->p >= ubuff->len) {
             ubuff->len += 16;
-            ubuff->data = (uint32_t *)realloc(ubuff->data, ubuff->len * sizeof(uint32_t));
-            if (!ubuff->data) err_msg_out_of_memory();
+            ubuff->data = (uint32_t *)reallocx(ubuff->data, ubuff->len * sizeof(uint32_t));
         }
     }
 }
@@ -246,8 +245,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
     struct file_s *tmp;
     char *s;
     if (!lastfi) {
-        lastfi = (struct file_s *)malloc(sizeof(struct file_s));
-        if (!lastfi) err_msg_out_of_memory();
+        lastfi = (struct file_s *)mallocx(sizeof(struct file_s));
     }
     base2 = get_path(NULL, base);
     lastfi->base = base2;
@@ -275,8 +273,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
         lastfi=NULL;
         if (name) {
             const char *path = NULL;
-            s = (char *)malloc(strlen(name) + 1);
-            if (!s) err_msg_out_of_memory();
+            s = (char *)mallocx(strlen(name) + 1);
             strcpy(s, name); tmp->name = s;
             if (val) {
                 struct include_list_s *i = include_list.next;
@@ -292,8 +289,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 else f=file_open(name, "rb");
             }
             if (!path) {
-                s = (char *)malloc(strlen(name) + 1);
-                if (!s) err_msg_out_of_memory();
+                s = (char *)mallocx(strlen(name) + 1);
                 strcpy(s, name);
                 path = s;
             }
@@ -313,8 +309,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 if (!fseek(f, 0, SEEK_END)) {
                     long len = ftell(f);
                     if (len >= 0) {
-                        tmp->data = (uint8_t *)malloc(len);
-                        if (!tmp->data) err_msg_out_of_memory();
+                        tmp->data = (uint8_t *)mallocx(len);
                         tmp->len = len;
                     }
                     rewind(f);
@@ -322,8 +317,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                 do {
                     if (fp + 4096 > tmp->len) {
                         tmp->len += 4096;
-                        tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
-                        if (!tmp->data || tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
+                        tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
+                        if (tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
                     }
                     fp += fread(tmp->data + fp, 1, tmp->len - fp, f);
                 } while (!feof(f));
@@ -341,12 +336,11 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                     long len = ftell(f);
                     if (len >= 0) {
                         len += 4096;
-                        tmp->data = (uint8_t *)malloc(len);
-                        if (!tmp->data || len < 4096) err_msg_out_of_memory(); /* overflow */
+                        tmp->data = (uint8_t *)mallocx(len);
+                        if (len < 4096) err_msg_out_of_memory(); /* overflow */
                         tmp->len = len;
                         max_lines = (len / 20 + 1024) & ~1023;
-                        tmp->line = (size_t *)malloc(max_lines * sizeof(tmp->line[0]));
-                        if (!tmp->line) max_lines = 0;
+                        tmp->line = (size_t *)mallocx(max_lines * sizeof(tmp->line[0]));
                     }
                     rewind(f);
                 }
@@ -364,8 +358,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
 
                     if (tmp->lines >= max_lines) {
                         max_lines += 1024;
-                        tmp->line = (size_t *)realloc(tmp->line, max_lines * sizeof(tmp->line[0]));
-                        if (!tmp->line || max_lines < 1024) err_msg_out_of_memory(); /* overflow */
+                        tmp->line = (size_t *)reallocx(tmp->line, max_lines * sizeof(tmp->line[0]));
+                        if (max_lines < 1024) err_msg_out_of_memory(); /* overflow */
                     }
                     tmp->line[tmp->lines++] = fp;
                     ubuff.p = 0;
@@ -374,8 +368,8 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                         size_t o = p - tmp->data;
                         if (o + 6*6 + 1 > tmp->len) {
                             tmp->len += 4096;
-                            tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
-                            if (!tmp->data || tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
+                            tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
+                            if (tmp->len < 4096) err_msg_out_of_memory(); /* overflow */
                             p = tmp->data + o;
                         }
                         if (bp / (BUFSIZ / 2) == qr) {
@@ -448,15 +442,13 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                         qc = 0;
                                         if (ubuff.p >= ubuff.len) {
                                             ubuff.len += 16;
-                                            ubuff.data = (uint32_t *)realloc(ubuff.data, ubuff.len * sizeof(uint32_t));
-                                            if (!ubuff.data) err_msg_out_of_memory();
+                                            ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof(uint32_t));
                                         }
                                         ubuff.data[ubuff.p++] = fromiso(((~0x7f >> j) & 0xff) | (c >> i));
                                         for (;i; i-= 6) {
                                             if (ubuff.p >= ubuff.len) {
                                                 ubuff.len += 16;
-                                                ubuff.data = (uint32_t *)realloc(ubuff.data, ubuff.len * sizeof(uint32_t));
-                                                if (!ubuff.data) err_msg_out_of_memory();
+                                                ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof(uint32_t));
                                             }
                                             ubuff.data[ubuff.p++] = fromiso(((c >> (i-6)) & 0x3f) | 0x80);
                                         }
@@ -536,8 +528,7 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
                                 qc = 0;
                                 if (ubuff.p >= ubuff.len) {
                                     ubuff.len += 16;
-                                    ubuff.data = (uint32_t *)realloc(ubuff.data, ubuff.len * sizeof(uint32_t));
-                                    if (!ubuff.data) err_msg_out_of_memory();
+                                    ubuff.data = (uint32_t *)reallocx(ubuff.data, ubuff.len * sizeof(uint32_t));
                                 }
                                 ubuff.data[ubuff.p++] = c;
                             } else {
@@ -570,23 +561,19 @@ struct file_s *openfile(const char* name, const char *base, int ftype, const Str
 #endif
                 free(ubuff.data);
                 if (tmp->lines != max_lines) {
-                    tmp->line = (size_t *)realloc(tmp->line, tmp->lines * sizeof(tmp->line[0]));
-                    if (!tmp->lines) err_msg_out_of_memory();
+                    tmp->line = (size_t *)reallocx(tmp->line, tmp->lines * sizeof(tmp->line[0]));
                 }
             }
             if (ferror(f) && errno) err_msg_file(ERROR__READING_FILE, name, epoint);
             if (f != stdin) fclose(f);
             tmp->len = fp;
-            tmp->data = (uint8_t *)realloc(tmp->data, tmp->len);
-            if (!tmp->data) err_msg_out_of_memory();
+            tmp->data = (uint8_t *)reallocx(tmp->data, tmp->len);
             tmp->coding = type;
         } else {
             const char *cmd_name = "<command line>";
-            s = (char *)malloc(1);
-            if (!s) err_msg_out_of_memory();
+            s = (char *)mallocx(1);
             s[0] = 0; tmp->name = s;
-            s = (char *)malloc(strlen(cmd_name) + 1);
-            if (!s) err_msg_out_of_memory();
+            s = (char *)mallocx(strlen(cmd_name) + 1);
             strcpy(s, cmd_name); tmp->realname = s;
             tmp->coding = E_UNKNOWN;
         }
@@ -622,8 +609,7 @@ struct star_s *new_star(line_t line, int *exists) {
         avltree_init(&lastst->tree);
         if (starsp == 254) {
             struct stars_s *old = stars;
-            stars = (struct stars_s *)malloc(sizeof(struct stars_s));
-            if (!stars) err_msg_out_of_memory();
+            stars = (struct stars_s *)mallocx(sizeof(struct stars_s));
             stars->next = old;
             starsp = 0;
         } else starsp++;
@@ -658,8 +644,7 @@ void destroy_file(void) {
 
 void init_file(void) {
     avltree_init(&file_tree);
-    stars = (struct stars_s *)malloc(sizeof(struct stars_s));
-    if (!stars) err_msg_out_of_memory();
+    stars = (struct stars_s *)mallocx(sizeof(struct stars_s));
     stars->next = NULL;
     starsp = 0;
     lastst = &stars->stars[starsp];
