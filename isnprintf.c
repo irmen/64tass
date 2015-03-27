@@ -109,8 +109,8 @@ static inline void PUT_CHAR(uint32_t c) {
     uint8_t *p = (uint8_t *)return_value.data;
     if (return_value.len + 6 >= returnsize) {
         returnsize += 256;
-        p = (uint8_t *)realloc(p, returnsize);
-        if (!p || returnsize < 256) err_msg_out_of_memory(); /* overflow */
+        p = (uint8_t *)reallocx(p, returnsize);
+        if (returnsize < 256) err_msg_out_of_memory(); /* overflow */
         return_value.data = p;
     }
     if (c && c < 0x80) p[return_value.len++] = c; else {
@@ -583,8 +583,7 @@ MUST_CHECK Obj *isnprintf(Funcargs *vals, linepos_t epoint)
     str->chars = return_value.chars;
     if (return_value.len > sizeof(str->val)) {
         if (returnsize > return_value.len) {
-            str->data = (uint8_t *)realloc(return_value.data, return_value.len);
-            if (!str->data) err_msg_out_of_memory(); /* overflow */
+            str->data = (uint8_t *)reallocx(return_value.data, return_value.len);
         } else str->data = return_value.data;
         return &str->v;
     }

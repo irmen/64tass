@@ -76,8 +76,8 @@ static void destroy(Obj *o1) {
 
 static digit_t *inew(Int *v, ssize_t len) {
     if (len > (ssize_t)sizeof(v->val)/(ssize_t)sizeof(v->val[0])) {
-        digit_t *s = (digit_t *)malloc(len * sizeof(digit_t));
-        if (!s || len > SSIZE_MAX / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+        digit_t *s = (digit_t *)mallocx(len * sizeof(digit_t));
+        if (len > SSIZE_MAX / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
         return s; 
     }
     return v->val;
@@ -1268,14 +1268,13 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
                 if (j >= sz) {
                     if (v->val == d) {
                         sz = 16 / sizeof(digit_t);
-                        d = (digit_t *)malloc(sz * sizeof(digit_t));
+                        d = (digit_t *)mallocx(sz * sizeof(digit_t));
                         memcpy(d, v->val, j * sizeof(digit_t));
                     } else {
                         sz += 1024 / sizeof(digit_t);
                         if (sz < 1024 / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
-                        d = (digit_t *)realloc(d, sz * sizeof(digit_t));
+                        d = (digit_t *)reallocx(d, sz * sizeof(digit_t));
                     }
-                    if (!d) err_msg_out_of_memory();
                 }
                 d[j++] = uv;
                 bits = uv = 0;
@@ -1286,10 +1285,9 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
                 sz++;
                 if (sz < 1) err_msg_out_of_memory(); /* overflow */
                 if (v->val == d) {
-                    d = (digit_t *)malloc(sz * sizeof(digit_t));
+                    d = (digit_t *)mallocx(sz * sizeof(digit_t));
                     memcpy(d, v->val, j * sizeof(digit_t));
-                } else d = (digit_t *)realloc(d, sz * sizeof(digit_t));
-                if (!d) err_msg_out_of_memory();
+                } else d = (digit_t *)reallocx(d, sz * sizeof(digit_t));
             }
             d[j] = uv;
             osz = j + 1;
@@ -1302,8 +1300,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
                 free(d);
                 d = v->val;
             } else if (osz < sz) {
-                d = (digit_t *)realloc(d, osz * sizeof(digit_t));
-                if (!d) err_msg_out_of_memory();
+                d = (digit_t *)reallocx(d, osz * sizeof(digit_t));
             }
         }
         v->data = d;
@@ -1369,12 +1366,11 @@ MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln) {
                 sz++;
                 if (sz > sizeof(v->val)/sizeof(v->val[0])) {
                     if (d == v->val) { 
-                        d = (digit_t *)malloc(sz * sizeof(digit_t));
-                        if (!d) err_msg_out_of_memory();
+                        d = (digit_t *)mallocx(sz * sizeof(digit_t));
                         memcpy(d, v->val, sizeof(v->val));
                     } else {
-                        d = (digit_t *)realloc(d, sz * sizeof(digit_t));
-                        if (!d || sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+                        d = (digit_t *)reallocx(d, sz * sizeof(digit_t));
+                        if (sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
                     }
                 }
                 end2 = d + sz - 1;

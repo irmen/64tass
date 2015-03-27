@@ -96,9 +96,22 @@ extern struct file_list_s *enterfile(struct file_s *, linepos_t);
 extern void exitfile(void);
 extern void err_init(void);
 extern void err_destroy(void);
+extern void NO_RETURN err_msg_out_of_memory2(void);
 extern void NO_RETURN err_msg_out_of_memory(void);
 extern void error_status(void);
 extern int error_serious(int, int);
 extern linecpos_t interstring_position(linepos_t, const uint8_t *, size_t);
+
+static inline void *mallocx(size_t l) {
+    void *m = malloc(l);
+    if (!m) err_msg_out_of_memory();
+    return m;
+}
+
+static inline void *reallocx(void *o, size_t l) {
+    void *m = realloc(o, l);
+    if (!m) err_msg_out_of_memory();
+    return m;
+}
 
 #endif

@@ -549,8 +549,7 @@ struct encoding_s *new_encoding(const str_t *name)
     struct encoding_s *tmp;
 
     if (!lasten) {
-        lasten = (struct encoding_s *)malloc(sizeof(struct encoding_s));
-        if (!lasten) err_msg_out_of_memory();
+        lasten = (struct encoding_s *)mallocx(sizeof(struct encoding_s));
     }
     str_cfcpy(&lasten->cfname, name);
     b = avltree_insert(&lasten->node, &encoding_tree, encoding_compare);
@@ -572,8 +571,7 @@ struct trans_s *new_trans(struct trans_s *trans, struct encoding_s *enc)
     struct avltree_node *b;
     struct trans_s *tmp;
     if (!lasttr) {
-        lasttr = (struct trans_s *)malloc(sizeof(struct trans_s));
-        if (!lasttr) err_msg_out_of_memory();
+        lasttr = (struct trans_s *)mallocx(sizeof(struct trans_s));
     }
     lasttr->start = trans->start;
     lasttr->end = trans->end;
@@ -599,8 +597,7 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
     int foundold;
 
     if (!lastes) {
-        lastes = (struct escape_s *)malloc(sizeof(struct escape_s));
-        if (!lastes) err_msg_out_of_memory();
+        lastes = (struct escape_s *)mallocx(sizeof(struct escape_s));
     }
     b = (struct escape_s *)ternary_insert(&enc->escape, v->data, v->data + v->len, lastes, 0);
     if (!b) err_msg_out_of_memory();
@@ -630,14 +627,13 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
         if (i >= len) {
             if (i == sizeof(tmp.val)) {
                 len = 16;
-                d = (uint8_t *)malloc(len);
+                d = (uint8_t *)mallocx(len);
                 memcpy(d, tmp.val, i);
             } else {
                 len += 1024;
                 if (len < 1024) err_msg_out_of_memory(); /* overflow */
-                d = (uint8_t *)realloc(d, len);
+                d = (uint8_t *)reallocx(d, len);
             }
-            if (!d) err_msg_out_of_memory();
         }
         d[i++] = (uint8_t)uval;
         val_destroy(val2);
@@ -649,8 +645,7 @@ int new_escape(const Str *v, Obj *val, struct encoding_s *enc, linepos_t epoint)
             memcpy(lastes->val, tmp.val, i);
             d = lastes->val;
         } else if (i < len) {
-            d = (uint8_t *)realloc(d, i);
-            if (!d) err_msg_out_of_memory();
+            d = (uint8_t *)reallocx(d, i);
         }
         lastes->strlen = v->len;
         lastes->len = i;

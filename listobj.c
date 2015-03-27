@@ -78,8 +78,8 @@ static void garbage(Obj *o1, int j) {
 
 static Obj **lnew(List *v, size_t len) {
     if (len > sizeof(v->val) / sizeof(Obj *)) {
-        Obj **s = (Obj **)malloc(len * sizeof(Obj *));
-        if (!s || len > SIZE_MAX / sizeof(Obj *)) err_msg_out_of_memory(); /* overflow */
+        Obj **s = (Obj **)mallocx(len * sizeof(Obj *));
+        if (len > SIZE_MAX / sizeof(Obj *)) err_msg_out_of_memory(); /* overflow */
         return s; 
     }
     return v->val;

@@ -76,8 +76,7 @@ struct section_s *new_section(const str_t *name) {
     struct section_s *tmp;
 
     if (!lastsc) {
-	lastsc = (struct section_s *)malloc(sizeof(struct section_s));
-	if (!lastsc) err_msg_out_of_memory();
+	lastsc = (struct section_s *)mallocx(sizeof(struct section_s));
     }
     str_cfcpy(&lastsc->cfname, name);
     lastsc->name_hash = str_hash(&lastsc->cfname);

@@ -155,8 +155,8 @@ static struct context_stack_s context_stack;
 void push_context(Namespace *name) {
     if (context_stack.p >= context_stack.len) {
         context_stack.len += 8;
-        context_stack.stack = (struct cstack_s *)realloc(context_stack.stack, context_stack.len * sizeof(struct cstack_s));
-        if (!context_stack.stack || context_stack.len < 8 || context_stack.len > SIZE_MAX / sizeof(struct cstack_s)) err_msg_out_of_memory(); /* overflow */
+        context_stack.stack = (struct cstack_s *)reallocx(context_stack.stack, context_stack.len * sizeof(struct cstack_s));
+        if (context_stack.len < 8 || context_stack.len > SIZE_MAX / sizeof(struct cstack_s)) err_msg_out_of_memory(); /* overflow */
     }
     context_stack.stack[context_stack.p].normal = ref_namespace(name);
     current_context = name;
@@ -188,8 +188,8 @@ static struct label_stack_s label_stack;
 static void push_label(Label *name) {
     if (label_stack.p >= label_stack.len) {
         label_stack.len += 8;
-        label_stack.stack = (Label **)realloc(label_stack.stack, label_stack.len * sizeof(Label *));
-        if (!label_stack.stack || label_stack.len < 8 || label_stack.len > SIZE_MAX / sizeof(Label *)) err_msg_out_of_memory(); /* overflow */
+        label_stack.stack = (Label **)reallocx(label_stack.stack, label_stack.len * sizeof(Label *));
+        if (label_stack.len < 8 || label_stack.len > SIZE_MAX / sizeof(Label *)) err_msg_out_of_memory(); /* overflow */
     }
     label_stack.stack[label_stack.p] = name;
     label_stack.p++;
@@ -374,8 +374,7 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, int *e
     struct avltree_node *b;
     Label *tmp;
     if (!lastlb2) {
-        lastlb2 = (struct namespacekey_s *)malloc(sizeof(struct namespacekey_s));
-        if (!lastlb2) err_msg_out_of_memory();
+        lastlb2 = (struct namespacekey_s *)mallocx(sizeof(struct namespacekey_s));
     }
     if (!lastlb) lastlb = (Label *)val_alloc(LABEL_OBJ);
 
