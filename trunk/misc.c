@@ -222,16 +222,16 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
 
                     if (fin->lines >= max_lines) {
                         max_lines += 1024;
+                        if (/*max_lines < 1024 ||*/ max_lines > SIZE_MAX / sizeof(fin->line[0])) err_msg_out_of_memory(); /* overflow */
                         fin->line = (size_t *)reallocx(fin->line, max_lines * sizeof(fin->line[0]));
-                        if (max_lines < 1024) err_msg_out_of_memory(); /* overflow */
                     }
                     fin->line[fin->lines++] = fp;
 
                     if (len < 1 || fp + len < len) err_msg_out_of_memory();
                     if (fp + len > fin->len) {
                         fin->len = fp + len + 1024;
-                        fin->data=(uint8_t*)reallocx(fin->data, fin->len);
                         if (fin->len < 1024) err_msg_out_of_memory();
+                        fin->data = (uint8_t*)reallocx(fin->data, fin->len);
                     }
                     memcpy(fin->data + fp, optarg, len);
                     fp += len;

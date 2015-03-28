@@ -109,8 +109,8 @@ static inline void PUT_CHAR(uint32_t c) {
     uint8_t *p = (uint8_t *)return_value.data;
     if (return_value.len + 6 >= returnsize) {
         returnsize += 256;
-        p = (uint8_t *)reallocx(p, returnsize);
         if (returnsize < 256) err_msg_out_of_memory(); /* overflow */
+        p = (uint8_t *)reallocx(p, returnsize);
         return_value.data = p;
     }
     if (c && c < 0x80) p[return_value.len++] = c; else {

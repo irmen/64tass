@@ -83,9 +83,8 @@ static void destroy(Obj *o1) {
 static MUST_CHECK Bits *new_bits(size_t len) {
     Bits *v = (Bits *)val_alloc(BITS_OBJ);
     if (len > sizeof(v->val)/sizeof(v->val[0])) {
-        bdigit_t *s = (bdigit_t *)mallocx(len * sizeof(bdigit_t));
-        if (len > SSIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
-        v->data = s;
+        if (len > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
+        v->data = (bdigit_t *)mallocx(len * sizeof(bdigit_t));
     } else {
         v->data = v->val;
     }
@@ -113,6 +112,7 @@ static MUST_CHECK Obj *normalize(Bits *v, size_t sz, int neg) {
         free(d);
         v->data = v->val;
     }
+    /*if (sz >= SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     v->len = neg ? ~sz : sz;
     return &v->v;
 }
@@ -393,7 +393,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
     Bits *v;
 
     if (actual_encoding) {
-        int bits;
+        unsigned int bits;
         size_t j, sz, osz;
         bdigit_t *d, uv;
 
@@ -421,7 +421,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
                         memcpy(d, v->val, j * sizeof(bdigit_t));
                     } else {
                         sz += 1024 / sizeof(bdigit_t);
-                        if (sz < 1024 / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
+                        if (/*sz < 1024 / sizeof(bdigit_t) ||*/ sz > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
                         d = (bdigit_t *)reallocx(d, sz * sizeof(bdigit_t));
                     }
                 }
@@ -432,11 +432,13 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
         if (bits) {
             if (j >= sz) {
                 sz++;
-                if (sz < 1) err_msg_out_of_memory(); /* overflow */
                 if (v->val == d) {
                     d = (bdigit_t *)mallocx(sz * sizeof(bdigit_t));
                     memcpy(d, v->val, j * sizeof(bdigit_t));
-                } else d = (bdigit_t *)reallocx(d, sz * sizeof(bdigit_t));
+                } else {
+                    if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof(bdigit_t)) err_msg_out_of_memory(); /* overflow */
+                    d = (bdigit_t *)reallocx(d, sz * sizeof(bdigit_t));
+                }
             }
             d[j] = uv;
             osz = j + 1;
@@ -455,7 +457,7 @@ MUST_CHECK Obj *bits_from_str(const Str *v1, linepos_t epoint) {
         v->data = d;
         v->len = osz;
         v->bits = j * SHIFT + bits;
-        if (j > SIZE_MAX / SHIFT) err_msg_out_of_memory(); /* overflow */
+        if (/*v->bits < bits ||*/ j > SIZE_MAX / SHIFT /*|| osz > SSIZE_MAX*/) err_msg_out_of_memory(); /* overflow */
         return &v->v;
     }
     if (v1->chars == 1) {

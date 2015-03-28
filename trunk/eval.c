@@ -335,8 +335,8 @@ static inline void push_oper(Obj *val, linepos_t epoint) {
     if (eval->outp >= eval->out_size) {
         size_t i;
         eval->out_size += 64;
+        if (/*eval->out_size < 64 ||*/ eval->out_size > SIZE_MAX / sizeof(eval->o_out[0])) err_msg_out_of_memory(); /* overflow */
         eval->o_out = (struct values_s *)reallocx(eval->o_out, eval->out_size * sizeof(eval->o_out[0]));
-        if (eval->out_size < 64 || eval->out_size > SIZE_MAX / sizeof(eval->o_out[0])) err_msg_out_of_memory(); /* overflow */
         for (i = eval->outp + 1; i < eval->out_size; i++) eval->o_out[i].val = NULL;
     } else if (eval->o_out[eval->outp].val) val_destroy(eval->o_out[eval->outp].val);
     eval->o_out[eval->outp].val = val;
@@ -494,8 +494,8 @@ static int get_val2_compat(struct eval_context_s *ev) {/* length in bytes, defin
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
                 ev->values_size += 16;
+                if (/*ev->values_size < 16 ||*/ ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                 ev->values = values = (struct values_s *)reallocx(ev->values, ev->values_size * sizeof(struct values_s));
-                if (ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                 for (; j < ev->values_size; j++) ev->values[j].val = NULL;
             }
             o_out->val = values[vsp].val;
@@ -813,8 +813,8 @@ static int get_val2(struct eval_context_s *ev) {
             if (vsp >= ev->values_size) {
                 size_t j = ev->values_size;
                 ev->values_size += 16;
+                if (/*ev->values_size < 16 ||*/ ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                 ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof(struct values_s));
-                if (ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                 for (; j < ev->values_size; j++) ev->values[j].val = NULL;
             }
             o_out->val = values[vsp].val;
@@ -1112,8 +1112,8 @@ static int get_val2(struct eval_context_s *ev) {
                 if (vsp + len >= ev->values_size) {
                     size_t j = ev->values_size;
                     ev->values_size = vsp + len;
-                    ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof(struct values_s));
                     if (ev->values_size < len || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
+                    ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof(struct values_s));
                     for (; j < ev->values_size; j++) ev->values[j].val = NULL;
                 }
                 for (k = 0; k < len; k++) {
@@ -1133,8 +1133,8 @@ static int get_val2(struct eval_context_s *ev) {
                 if (vsp + tmp->len >= ev->values_size) {
                     size_t j = ev->values_size;
                     ev->values_size = vsp + tmp->len;
-                    ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof(struct values_s));
                     if (ev->values_size < vsp || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
+                    ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof(struct values_s));
                     for (; j < ev->values_size; j++) ev->values[j].val = NULL;
                 }
                 while (n) {
@@ -1155,8 +1155,8 @@ static int get_val2(struct eval_context_s *ev) {
                     if (vsp >= ev->values_size) {
                         size_t j = ev->values_size;
                         ev->values_size += 16;
+                        if (/*ev->values_size < 16 ||*/ ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                         ev->values = values = (struct values_s *)reallocx(values, ev->values_size * sizeof(struct values_s));
-                        if (ev->values_size < 16 || ev->values_size > SIZE_MAX / sizeof(struct values_s)) err_msg_out_of_memory(); /* overflow */
                         for (; j < ev->values_size; j++) ev->values[j].val = NULL;
                     }
                     list = new_colonlist();
@@ -1824,8 +1824,8 @@ void eval_enter(void) {
     evx_p++;
     if (evx_p >= evxnum) {
         evxnum++;
+        if (/*evxnum < 1 ||*/ evxnum > SIZE_MAX / sizeof(struct eval_context_s *)) err_msg_out_of_memory(); /* overflow */
         evx = (struct eval_context_s **)reallocx(evx, evxnum * sizeof(struct eval_context_s *));
-        if (evxnum < 1 || evxnum > SIZE_MAX / sizeof(struct eval_context_s *)) err_msg_out_of_memory(); /* overflow */
         eval = (struct eval_context_s *)mallocx(sizeof(struct eval_context_s));
         eval->values = NULL;
         eval->values_size = 0;
