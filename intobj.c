@@ -74,11 +74,10 @@ static void destroy(Obj *o1) {
     if (v1->val != v1->data) free(v1->data);
 }
 
-static digit_t *inew(Int *v, ssize_t len) {
-    if (len > (ssize_t)sizeof(v->val)/(ssize_t)sizeof(v->val[0])) {
-        digit_t *s = (digit_t *)mallocx(len * sizeof(digit_t));
-        if (len > SSIZE_MAX / (ssize_t)sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
-        return s; 
+static digit_t *inew(Int *v, size_t len) {
+    if (len > sizeof(v->val)/sizeof(v->val[0])) {
+        if (len > SIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+        return (digit_t *)mallocx(len * sizeof(digit_t)); 
     }
     return v->val;
 }
@@ -105,6 +104,7 @@ static MUST_CHECK Obj *normalize(Int *v, digit_t *d, size_t sz, int neg) {
         d = v->val;
     }
     v->data = d;
+    /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     v->len = neg ? -sz : sz;
     return &v->v;
 }
@@ -1272,7 +1272,7 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
                         memcpy(d, v->val, j * sizeof(digit_t));
                     } else {
                         sz += 1024 / sizeof(digit_t);
-                        if (sz < 1024 / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+                        if (/*sz < 1024 / sizeof(digit_t) ||*/ sz > SIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
                         d = (digit_t *)reallocx(d, sz * sizeof(digit_t));
                     }
                 }
@@ -1283,11 +1283,13 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
         if (bits) {
             if (j >= sz) {
                 sz++;
-                if (sz < 1) err_msg_out_of_memory(); /* overflow */
                 if (v->val == d) {
                     d = (digit_t *)mallocx(sz * sizeof(digit_t));
                     memcpy(d, v->val, j * sizeof(digit_t));
-                } else d = (digit_t *)reallocx(d, sz * sizeof(digit_t));
+                } else {
+                    if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
+                    d = (digit_t *)reallocx(d, sz * sizeof(digit_t));
+                }
             }
             d[j] = uv;
             osz = j + 1;
@@ -1369,8 +1371,8 @@ MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln) {
                         d = (digit_t *)mallocx(sz * sizeof(digit_t));
                         memcpy(d, v->val, sizeof(v->val));
                     } else {
+                        if (/*sz < 1 ||*/ sz > SIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
                         d = (digit_t *)reallocx(d, sz * sizeof(digit_t));
-                        if (sz > SSIZE_MAX / sizeof(digit_t)) err_msg_out_of_memory(); /* overflow */
                     }
                 }
                 end2 = d + sz - 1;

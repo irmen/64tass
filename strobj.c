@@ -503,7 +503,7 @@ static inline MUST_CHECK Obj *slice(Colonlist *v2, oper_t op, size_t ln) {
                 }
             }
             len2 = p2 - o;
-            if (len2 > sizeof(v->val) && o != v->val) {
+            if (o != v->val) {
                 if (len2 <= sizeof(v->val)) {
                     memcpy(v->val, o, len2);
                     free(o);
@@ -586,19 +586,19 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
                 if ((size_t)(p2 + k - o) > m) {
                     const uint8_t *r = o;
                     m += 4096;
+                    if (m < 4096) err_msg_out_of_memory(); /* overflow */
                     if (o != v->val) o = (uint8_t *)reallocx(o, m);
                     else {
                         o = (uint8_t *)mallocx(m);
                         memcpy(o, v->val, m - 4096);
                     }
-                    if (m < 4096) err_msg_out_of_memory(); /* overflow */
                     p2 += o - r;
                 }
                 memcpy(p2, p, k);p2 += k;
             }
             len1 = i;
             len2 = p2 - o;
-            if (len2 > sizeof(v->val) && o != v->val) {
+            if (o != v->val) {
                 if (len2 <= sizeof(v->val)) {
                     memcpy(v->val, o, len2);
                     free(o);

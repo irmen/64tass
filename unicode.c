@@ -121,6 +121,7 @@ static inline unsigned int utf8outlen(uint32_t i) {
 
 static void extbuff(struct ubuff_s *d) {
     d->len += 16;
+    if (/*d->len < 16 ||*/ d->len > SIZE_MAX / sizeof(uint32_t)) err_msg_out_of_memory(); /* overflow */
     d->data = (uint32_t *)reallocx(d->data, d->len * sizeof(uint32_t));
 }
 
@@ -318,8 +319,8 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
             if (s >= m) {
                 size_t o = s - dd;
                 l += 16;
-                dd = (uint8_t *)reallocx(dd, l);
                 if (l < 16) err_msg_out_of_memory();
+                dd = (uint8_t *)reallocx(dd, l);
                 s = dd + o;
                 m = dd + l;
             }
@@ -329,8 +330,8 @@ void unfkc(str_t *s1, const str_t *s2, int mode) {
         if (s + utf8outlen(ch) > m) {
             size_t o = s - dd;
             l += 16;
-            dd = (uint8_t *)reallocx(dd, l);
             if (l < 16) err_msg_out_of_memory();
+            dd = (uint8_t *)reallocx(dd, l);
             s = dd + o;
             m = dd + l;
         }

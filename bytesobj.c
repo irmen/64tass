@@ -82,8 +82,7 @@ static void destroy(Obj *o1) {
 MUST_CHECK Bytes *new_bytes(size_t ln) {
     Bytes *v = (Bytes *)val_alloc(BYTES_OBJ);
     if (ln > sizeof(v->val)) {
-        uint8_t *s = (uint8_t *)mallocx(ln);
-        v->data = s;
+        v->data = (uint8_t *)mallocx(ln);
     } else {
         v->data = v->val;
     }
@@ -200,8 +199,8 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_
                         memcpy(s, v->val, len2);
                     } else {
                         len += 1024;
-                        s = (uint8_t *)reallocx(s, len);
                         if (len < 1024) err_msg_out_of_memory(); /* overflow */
+                        s = (uint8_t *)reallocx(s, len);
                     }
                 }
                 switch (mode) {
@@ -240,6 +239,7 @@ MUST_CHECK Obj *bytes_from_str(const Str *v1, linepos_t epoint, enum bytes_mode_
                 s = (uint8_t *)reallocx(s, len2);
             }
         }
+        if (len2 > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
         v->len = len2;
         v->data = s;
         return &v->v;
@@ -298,6 +298,7 @@ static MUST_CHECK Bytes *bytes_from_bits(const Bits *v1) {
 
     sz = len1 / 8;
     if (len1 % 8) sz++;
+    if (sz > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
     v = new_bytes(sz);
     v->len = inv ? ~sz : sz;
     d = v->data;
@@ -387,6 +388,7 @@ static MUST_CHECK Bytes *bytes_from_int(const Int *v1) {
         }
     }
     v->data = d;
+    if (sz > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
     v->len = inv ? ~sz : sz;
 
     return v;
@@ -529,6 +531,7 @@ static MUST_CHECK Bytes *and_(const Bytes *vv1, const Bytes *vv2) {
             for (i = 0; i < len2; i++) v[i] = v1[i] & v2[i];
         }
     }
+    /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     vv->len = (neg1 & neg2) ? ~sz : sz;
     vv->data = v;
     return vv;
@@ -569,6 +572,7 @@ static MUST_CHECK Bytes *or_(const Bytes *vv1, const Bytes *vv2) {
         }
     }
 
+    /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     vv->len = (neg1 | neg2) ? ~sz : sz;
     vv->data = v;
     return vv;
@@ -596,6 +600,7 @@ static MUST_CHECK Bytes *xor_(const Bytes *vv1, const Bytes *vv2) {
     for (i = 0; i < len2; i++) v[i] = v1[i] ^ v2[i];
     for (; i < len1; i++) v[i] = v1[i];
 
+    /*if (sz > SSIZE_MAX) err_msg_out_of_memory();*/ /* overflow */
     vv->len = (neg1 ^ neg2) ? ~sz : sz;
     vv->data = v;
     return vv;
@@ -616,7 +621,7 @@ static MUST_CHECK Bytes *concat(Bytes *v1, Bytes *v2) {
     len1 = byteslen(v1);
     len2 = byteslen(v2);
     ln = len1 + len2;
-    if (ln < len2) err_msg_out_of_memory(); /* overflow */
+    if (ln < len2 || ln > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
 
     v = new_bytes(ln);
     s = v->data;
@@ -867,6 +872,7 @@ static inline MUST_CHECK Obj *iindex(oper_t op) {
             }
             *p2++ = v1->data[offs] ^ inv;
         }
+        if (i > SSIZE_MAX) err_msg_out_of_memory(); /* overflow */
         v->len = i;
         return &v->v;
     }
