@@ -818,6 +818,8 @@ Obj *compile(struct file_list_s *cflist)
                         mfunc = (Mfunc *)val_alloc(MFUNC_OBJ);
                         mfunc->file_list = cflist;
                         mfunc->line = epoint.line;
+                        mfunc->argc = 0;
+                        mfunc->param = NULL; /* might be recursive through init */
                         if (labelexists) {
                             if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
                             else {
@@ -835,8 +837,6 @@ Obj *compile(struct file_list_s *cflist)
                             label->value = &mfunc->v;
                             label->file_list = cflist;
                             label->epoint = epoint;
-                            mfunc->argc = 0;
-                            mfunc->param = NULL; /* might be recursive through init */
                             get_func_params(mfunc, cfile);
                         }
                         label->ref = 0;
