@@ -625,7 +625,7 @@ Obj *compile(struct file_list_s *cflist)
             while (here() == '.') {
                 if (waitfor->skip & 1) {
                     if (mycontext == current_context) {
-                        tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname);
+                        tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname, NULL);
                         if (tmp2) tmp2->shadowcheck = (labelname.data[0] != '_');
                     }
                     else tmp2 = find_label2(&labelname, mycontext);
@@ -971,22 +971,29 @@ Obj *compile(struct file_list_s *cflist)
                     }
                 }
             }
-            if (!islabel) {
-                tmp2 = (labelname.len && labelname.data[0] == '_') ? find_label2(&labelname, cheap_context) : find_label(&labelname);
-                if (tmp2) {
-                    Type *obj = tmp2->value->obj;
-                    if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
-                        tmp2->shadowcheck = 1;
-                        labelname.len = 0;val = tmp2->value; goto as_macro;
-                    }
-                }
-                if (epoint.pos) err_msg2(ERROR_LABEL_NOT_LEF, NULL, &epoint);
-            }
             {
-                int labelexists;
+                int labelexists = 0;
                 Code *code;
-                /*if (!islabel && tmp2 && tmp2->u.label.parent == current_context && tmp2->u.label.strength == strength) {newlabel = tmp2;labelexists = 1;}
-                else */newlabel=new_label(&labelname, mycontext, strength, &labelexists);
+                if (!islabel) {
+                    Namespace *parent;
+                    if (labelname.len && labelname.data[0] == '_') {
+                        parent = cheap_context;
+                        tmp2 = find_label2(&labelname, cheap_context);
+                    } else tmp2 = find_label(&labelname, &parent);
+                    if (tmp2) {
+                        Type *obj = tmp2->value->obj;
+                        if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
+                            tmp2->shadowcheck = 1;
+                            labelname.len = 0;val = tmp2->value; goto as_macro;
+                        }
+                        if (parent == mycontext && tmp2->strength == strength) {
+                            newlabel = tmp2;
+                            labelexists = 1;
+                        }
+                    }
+                    if (epoint.pos) err_msg2(ERROR_LABEL_NOT_LEF, NULL, &epoint);
+                }
+                if (!labelexists) newlabel=new_label(&labelname, mycontext, strength, &labelexists);
                 oaddr=current_section->address;
                 if (labelexists) {
                     if (newlabel->defpass == pass) {
@@ -2877,7 +2884,7 @@ Obj *compile(struct file_list_s *cflist)
                     err = instruction(prm, w, val, &epoint, epoints);
                     val_destroy(val);
                     if (err == NULL) break;
-                    tmp2 = find_label(&opname);
+                    tmp2 = find_label(&opname, NULL);
                     if (tmp2) {
                         Type *obj = tmp2->value->obj;
                         if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {
@@ -2891,7 +2898,7 @@ Obj *compile(struct file_list_s *cflist)
                     err_msg_output_and_destroy(err);
                     break;
                 }
-                tmp2 = find_label(&opname);
+                tmp2 = find_label(&opname, NULL);
                 if (tmp2) {
                     Type *obj = tmp2->value->obj;
                     if (obj == MACRO_OBJ || obj == SEGMENT_OBJ || obj == MFUNC_OBJ) {

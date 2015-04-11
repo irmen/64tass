@@ -250,11 +250,10 @@ static struct namespacekey_s *strongest_label(struct avltree_node *b) {
     return a;
 }
 
-Label *find_label(const str_t *name) {
+Label *find_label(const str_t *name, Namespace **here) {
     struct avltree_node *b;
     struct namespacekey_s tmp, *c;
     size_t p = context_stack.p;
-    Namespace *context;
     Label label;
 
     tmp.key = &label;
@@ -263,17 +262,22 @@ Label *find_label(const str_t *name) {
     tmp.hash = str_hash(&tmp.key->cfname);
 
     while (p) {
-        context = context_stack.stack[--p].normal;
+        Namespace *context = context_stack.stack[--p].normal;
         b = avltree_lookup(&tmp.node, &context->members, label_compare);
         if (b) {
             c = strongest_label(b);
             if (c) {
+                if (here) *here = context;
                 return c->key;
             }
         }
     }
     b = avltree_lookup(&tmp.node, &builtin_namespace->members, label_compare);
-    if (b) return avltree_container_of(b, struct namespacekey_s, node)->key;
+    if (b) {
+        if (here) *here = builtin_namespace;
+        return avltree_container_of(b, struct namespacekey_s, node)->key;
+    }
+    if (here) *here = NULL;
     return NULL;
 }
 

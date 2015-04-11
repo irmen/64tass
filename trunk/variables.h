@@ -49,7 +49,7 @@ extern int pop_context(void);
 extern void reset_context(void);
 
 extern struct Namespace *current_context, *cheap_context, *root_namespace;
-extern Label *find_label(const str_t *);
+extern Label *find_label(const str_t *, struct Namespace **);
 extern Label *find_label2(const str_t *, struct Namespace *);
 extern Label *find_label3(const str_t *, struct Namespace *, uint8_t);
 extern Label *find_anonlabel(int32_t);
