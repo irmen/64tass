@@ -397,7 +397,7 @@ rest:
     as_ident:
         ident.data = pline + epoint.pos;
         ident.len = lpoint.pos - epoint.pos;
-        l = find_label(&ident);
+        l = find_label(&ident, NULL);
         if (l) {
             touch_label(l);
             l->shadowcheck = 1;
@@ -1439,7 +1439,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
                 ident.data = pline + epoint.pos;
                 ident.len = lpoint.pos - epoint.pos;
                 down = (ident.data[0] != '_');
-                l = down ? find_label(&ident) : find_label2(&ident, cheap_context);
+                l = down ? find_label(&ident, NULL) : find_label2(&ident, cheap_context);
                 if (l) {
                     touch_label(l);
                     l->shadowcheck = 1;
