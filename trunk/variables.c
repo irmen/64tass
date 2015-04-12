@@ -378,7 +378,7 @@ Label *new_label(const str_t *name, Namespace *context, uint8_t strength, int *e
     struct avltree_node *b;
     Label *tmp;
     if (!lastlb2) {
-        lastlb2 = (struct namespacekey_s *)mallocx(sizeof(struct namespacekey_s));
+        lastlb2 = namespacekey_alloc();
     }
     if (!lastlb) lastlb = (Label *)val_alloc(LABEL_OBJ);
 
@@ -654,7 +654,7 @@ void destroy_variables(void)
     val_destroy(&root_namespace->v);
     val_destroy(&cheap_context->v);
     destroy_lastlb();
-    free(lastlb2);
+    if (lastlb2) namespacekey_free(lastlb2);
     while (context_stack.p) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
         val_destroy(&c->normal->v);

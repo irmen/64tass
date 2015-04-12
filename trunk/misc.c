@@ -37,6 +37,7 @@
 #include "values.h"
 
 #include "codeobj.h"
+#include "namespaceobj.h"
 
 struct arguments_s arguments={1,1,0,1,1,0,0,0,0,"a.out",&c6502,NULL,NULL, OUTPUT_CBM, 8};
 
@@ -145,6 +146,7 @@ void tfree(void) {
     destroy_encoding();
     objects_destroy();
     destroy_values();
+    destroy_namespacekeys();
     destroy_ternary();
     unfc(NULL);
     unfkc(NULL, NULL, 0);
