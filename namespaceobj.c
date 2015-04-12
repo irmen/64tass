@@ -36,13 +36,13 @@ static void namespace_free(struct avltree_node *aa)
 {
     struct namespacekey_s *a = avltree_container_of(aa, struct namespacekey_s, node);
     val_destroy(&a->key->v);
-    free(a);
+    namespacekey_free(a);
 }
 
 static void namespace_free2(struct avltree_node *aa)
 {
     struct namespacekey_s *a = avltree_container_of(aa, struct namespacekey_s, node);
-    free(a);
+    namespacekey_free(a);
 }
 
 static void garbage1(struct avltree_node *aa)
@@ -240,3 +240,51 @@ void namespaceobj_init(void) {
     pair_oper.epoint2 = &nopoint;
     pair_oper.epoint3 = &nopoint;
 }
+
+#define SLOTS 128
+
+static void *namespacekeys;
+#ifndef DEBUG
+static void *namespacekey_next;
+#endif
+
+void namespacekey_free(struct namespacekey_s *val) {
+#ifdef DEBUG
+    free(val);
+#else
+    *((void **)val) = namespacekey_next;
+    namespacekey_next = (void *)val;
+#endif
+}
+
+struct namespacekey_s *namespacekey_alloc(void) {
+#ifdef DEBUG
+    struct namespacekey_s *val = (struct namespacekey_s *)mallocx(sizeof(struct namespacekey_s));
+#else
+    struct namespacekey_s *val = (struct namespacekey_s *)namespacekey_next;
+    if (!val) {
+        size_t i;
+        uint8_t *n = (uint8_t *)mallocx(sizeof(void *) + sizeof(struct namespacekey_s) * SLOTS);
+        *((void **)n) = namespacekeys;
+        namespacekeys = (void *)n;
+        n += sizeof(void *);
+        val = (struct namespacekey_s *)n;
+        for (i = 0; i < (SLOTS - 1); i++, n += sizeof(struct namespacekey_s)) {
+            *((void **)n) = (void *)(n + sizeof(struct namespacekey_s));
+        }
+        *((void **)n) = NULL;
+    }
+    namespacekey_next = *(void **)val;
+#endif
+    return val;
+}
+
+void destroy_namespacekeys(void) {
+    void *n = namespacekeys, *n2;
+    while (n) {
+        n2 = *((void **)n);
+        free(n);
+        n = n2;
+    }
+}
+
