@@ -254,13 +254,20 @@ static MUST_CHECK Error *uval(Obj *o1, uval_t *uv, int bits, linepos_t epoint) {
 }
 
 MUST_CHECK Obj *float_from_int(const Int *v1, linepos_t epoint) {
-    size_t i, len1 = intlen(v1);
-    double d = 0;
-    for (i = 0; i < len1; i++) {
-        if (v1->len < 0) d -= ldexp((double)v1->data[i], i * SHIFT);
-        else d += ldexp((double)v1->data[i], i * SHIFT);
+    size_t i, len1;
+    double d;
+    switch (v1->len) {
+    case -1: return (Obj *)new_float(-(double)v1->data[0]);
+    case 0: return (Obj *)new_float(0.0);
+    case 1: return (Obj *)new_float(v1->data[0]);
+    default:
+        len1 = intlen(v1); d = 0.0;
+        for (i = 0; i < len1; i++) {
+            if (v1->len < 0) d -= ldexp((double)v1->data[i], i * SHIFT);
+            else d += ldexp((double)v1->data[i], i * SHIFT);
+        }
+        return float_from_double(d, epoint);
     }
-    return float_from_double(d, epoint);
 }
 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
