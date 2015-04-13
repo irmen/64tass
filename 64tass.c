@@ -2705,7 +2705,13 @@ Obj *compile(struct file_list_s *cflist)
                             tmp3->wrapwarn = 0;
                             t = tmp3->end - tmp3->start;
                             tmp3->end = tmp3->start = tmp3->restart = tmp3->address = current_section->address;
-                            tmp3->l_restart = tmp3->l_address = current_section->l_address;
+                            tmp3->l_address = current_section->l_address;
+                            if (tmp3->l_restart.address != current_section->l_address.address ||
+                                    tmp3->l_restart.bank != current_section->l_address.bank) {
+                                tmp3->l_restart = current_section->l_address;
+                                if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &epoint);
+                                fixeddig = 0;
+                            }
                             tmp3->size = t;
                             restart_memblocks(&tmp3->mem, tmp3->address);
                         }
