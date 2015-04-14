@@ -1209,6 +1209,7 @@ floating point constants section.</p>
 <tr><td><code><span class="k"><a name="f_any">any</a></span>(<u>a</u>)</code><td>any elements true
 <tr><td><code><span class="k"><a name="f_format">format</a></span>(<u>s</u>, &lowast;)</code><td>convert to string with formatting
 <tr><td><code><span class="k"><a name="f_len">len</a></span>(<u>a</u>)</code><td>number of elements
+<tr><td><code><span class="k"><a name="f_random">random</a></span>(<u>s</u>, <u>e</u>, <u>t</u>)</code><td>pseudo random integer in a range
 <tr><td><code><span class="k"><a name="f_range">range</a></span>(<u>s</u>, <u>e</u>, <u>t</u>)</code><td>create a list with values from a range
 <tr><td><code><span class="k"><a name="f_repr">repr</a></span>(<u>a</u>)</code><td>representation to string
 <tr><td><code><span class="k"><a name="f_sign">sign</a></span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)
@@ -2288,6 +2289,10 @@ can ruin the timing of a carefully cycle counted code.
 <dd>XOR output with a 8&nbsp;bit value. Useful for reverse screen code text for example,
 or for silly <q>encryption</q>.
 
+<dt><code><b class="k"><a name="d_seed">.seed</a></b></code> &lt;expression&gt;
+<dd>Seed the pseudo random number generator with an unsigned integer of
+maximum 128 bits, to make the generated numbers less boring.
+
 <dt><code><b class="k"><a name="d_var">.var</a></b></code> &lt;expression&gt;
 <dd>Defines a variable identified by the label preceding, which
 is set to the value of expression or reference of variable.
@@ -2891,6 +2896,7 @@ will display without them.</p>
 <dt>double defined escape<dd>escape sequence already defined in another .edef
 <dt>double defined range<dd>part of a character range was already defined by another .cdef
 <dt>duplicate definition<dd>symbol defined more than once
+<dt>empty range not allowed<dd>invalid range
 <dt>empty string not allowed<dd>at least one character is required
 <dt>expected exactly/at least/at most ? arguments, got ?<dd>wrong number of function arguments
 <dt>expression syntax<dd>syntax error
@@ -2903,7 +2909,7 @@ will display without them.</p>
 <dt>key error<dd>not in dictionary
 <dt>label required<dd>a label is mandatory for this directive
 <dt>last byte must not be gap<dd>.shift or .shiftl needs a normal byte at the end
-<dt>logarithm of non-positive number<dd>Only positive numbers have a logarithm
+<dt>logarithm of non-positive number<dd>only positive numbers have a logarithm
 <dt>missing argument<dd>not enough arguments supplied to function
 <dt>most significiant bit must be clear in byte<dd>for .shift and .shiftl only 7 bit "bytes" are valid
 <dt>negative number raised on fractional power<dd>can't calculate this
@@ -3980,6 +3986,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#d_rept">.rept</a>
 <a href="#d_rta">.rta</a>
 <a href="#d_section">.section</a>
+<a href="#d_seed">.seed</a>
 <a href="#d_segment">.segment</a>
 <a href="#d_send">.send</a>
 <a href="#d_shift">.shift</a>
@@ -4022,6 +4029,7 @@ This is a Unicode to PETSCII screen code mapping, including escape sequences for
 <a href="#f_log10">log10</a>
 <a href="#f_pow">pow</a>
 <a href="#f_rad">rad</a>
+<a href="#f_range">random</a>
 <a href="#f_range">range</a>
 <a href="#f_repr">repr</a>
 <a href="#f_round">round</a>

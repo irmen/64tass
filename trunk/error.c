@@ -327,6 +327,7 @@ static const char *terr_error[]={
     "square root of negative number",
     "logarithm of non-positive number",
     "not in range -1.0 to 1.0",
+    "empty range not allowed",
     "empty string not allowed",
     "not a one character string",
     "too early to reference",
@@ -440,7 +441,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
         case ERROR_____NOT_BANK0:
         case ERROR____NOT_DIRECT:
         case ERROR__NOT_DATABANK:
-            adderror(terr_error[no & 63]);
+            adderror(terr_error[no - 0x40]);
             adderror(" '");
             err_msg_variable((Obj *)prm, epoint);
             adderror("'");
@@ -450,7 +451,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             err_msg_variable((Obj *)prm, epoint);
             break;
         default:
-            adderror(terr_error[no & 63]);
+            adderror(terr_error[no - 0x40]);
         }
         return;
     }
@@ -463,7 +464,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
         adderror("'");
         break;
     default:
-        adderror(terr_fatal[no & 63]);
+        adderror(terr_fatal[no - 0xc0]);
     }
     status(1);exit(1);
 }
@@ -633,7 +634,7 @@ void err_msg_output(const Error *val) {
     case ERROR__INVALID_OPER: err_msg_invalid_oper(val->u.invoper.op, val->u.invoper.v1, val->u.invoper.v2, &val->epoint);break;
     case ERROR____STILL_NONE: err_msg_still_none(NULL, &val->epoint); break;
     case ERROR_____CANT_IVAL:
-    case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->num & 63], val);break;
+    case ERROR_____CANT_UVAL: err_msg_big_integer(terr_error[val->num - 0x40], val);break;
     case ERROR____NO_FORWARD:
     case ERROR_REQUIREMENTS_:
     case ERROR______CONFLICT:
@@ -644,6 +645,7 @@ void err_msg_output(const Error *val) {
     case ERROR_SQUARE_ROOT_N:
     case ERROR_LOG_NON_POSIT:
     case ERROR___MATH_DOMAIN:
+    case ERROR___EMPTY_RANGE:
     case ERROR__EMPTY_STRING:
     case ERROR__BYTES_NEEDED:
     case ERROR___NO_LAST_GAP:
@@ -652,7 +654,8 @@ void err_msg_output(const Error *val) {
     case ERROR__NO_BYTE_ADDR:
     case ERROR__NO_WORD_ADDR:
     case ERROR__NO_LONG_ADDR:
-    case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->num & 63], NULL, &val->epoint);break;
+    case ERROR_NO_ZERO_VALUE:
+    case ERROR_DIVISION_BY_Z: err_msg_str_name(terr_error[val->num - 0x40], NULL, &val->epoint);break;
     case ERROR__NOT_KEYVALUE:
     case ERROR__NOT_HASHABLE:
     case ERROR_____CANT_SIGN:
@@ -660,11 +663,11 @@ void err_msg_output(const Error *val) {
     case ERROR______CANT_INT:
     case ERROR______CANT_LEN:
     case ERROR_____CANT_SIZE:
-    case ERROR_____CANT_BOOL: err_msg_char_name(terr_error[val->num & 63], val->u.objname, &val->epoint);break;
+    case ERROR_____CANT_BOOL: err_msg_char_name(terr_error[val->num - 0x40], val->u.objname, &val->epoint);break;
     case ERROR_NO_ADDRESSING: err_msg_no_addressing(val->u.addressing, &val->epoint);break;
     case ERROR___NO_REGISTER: err_msg_no_register(val->u.reg, &val->epoint);break;
     case ERROR___NO_LOT_OPER: err_msg_no_lot_operand(val->u.opers, &val->epoint);break;
-    case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->num & 63], val->u.broadcast.v1, val->u.broadcast.v2, &val->epoint);break;
+    case ERROR_CANT_BROADCAS: err_msg_cant_broadcast(terr_error[val->num - 0x40], val->u.broadcast.v1, val->u.broadcast.v2, &val->epoint);break;
     default: break;
     }
 }
@@ -961,7 +964,7 @@ void err_msg_file(enum errors_e no, const char *prm, linepos_t epoint) {
     n = strlen(s);
 
     new_error_msg(SV_FATAL, current_file_list, epoint);
-    adderror(terr_fatal[no & 63]);
+    adderror(terr_fatal[no - 0xc0]);
     adderror(prm);
     adderror(": ");
     memset(&ps, 0, sizeof(ps));

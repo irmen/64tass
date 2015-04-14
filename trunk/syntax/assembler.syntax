@@ -166,6 +166,7 @@ context default lightgray
     keyword whole .pron brightcyan
     keyword whole .rept brightcyan
     keyword whole .section brightcyan
+    keyword whole .seed brightcyan
     keyword whole .segment brightcyan
     keyword whole .send brightcyan
     keyword whole .showmac brightcyan
