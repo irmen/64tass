@@ -257,17 +257,18 @@ MUST_CHECK Obj *float_from_int(const Int *v1, linepos_t epoint) {
     size_t i, len1;
     double d;
     switch (v1->len) {
-    case -1: return (Obj *)new_float(-(double)v1->data[0]);
-    case 0: return (Obj *)new_float(0.0);
-    case 1: return (Obj *)new_float(v1->data[0]);
+    case -1: d = -(double)v1->data[0]; break;
+    case 0: d = 0.0; break;
+    case 1: d = v1->data[0]; break;
     default:
         len1 = intlen(v1); d = 0.0;
         for (i = 0; i < len1; i++) {
-            if (v1->len < 0) d -= ldexp((double)v1->data[i], i * SHIFT);
-            else d += ldexp((double)v1->data[i], i * SHIFT);
+            if (v1->len < 0) d -= ldexp(v1->data[i], i * SHIFT);
+            else d += ldexp(v1->data[i], i * SHIFT);
         }
         return float_from_double(d, epoint);
     }
+    return (Obj *)new_float(d);
 }
 
 static MUST_CHECK Obj *sign(Obj *o1, linepos_t UNUSED(epoint)) {
