@@ -1140,25 +1140,32 @@ MUST_CHECK Int *int_from_float(const Float *v1) {
     neg = (f < 0.0);
     if (neg) f = -f;
 
-    frac = frexp(f, &expo);
-    if (expo <= 0) {
-        return ref_int(int_value[0]);
+    if (f >= (double)(~(digit_t)0) + 1.0) {
+        frac = frexp(f, &expo);
+        sz = (expo - 1) / SHIFT + 1;
+
+        v = new_int();
+        d = inew(v, sz);
+        v->len = neg ? -sz : +sz;
+        v->data = d;
+
+        frac = ldexp(frac, (expo - 1) % SHIFT + 1);
+
+        while (sz--) {
+            digit_t dg = (digit_t)frac;
+            d[sz] = dg;
+            frac = ldexp(frac - (double)dg, SHIFT);
+        }
+        return v;
     }
-    sz = (expo - 1) / SHIFT + 1;
-
-    v = new_int();
-    d = inew(v, sz);
-    v->len = neg ? -sz : +sz;
-    v->data = d;
-
-    frac = ldexp(frac, (expo - 1) % SHIFT + 1);
-
-    while (sz--) {
-        digit_t dg = (digit_t)frac;
-        d[sz] = dg;
-        frac = ldexp(frac - (double)dg, SHIFT);
+    if (f >= 1.0) {
+        v = new_int();
+        v->data = v->val;
+        v->val[0] = f;
+        v->len = neg ? -1 : 1;
+        return v;
     }
-    return v;
+    return ref_int(int_value[0]);
 }
 
 MUST_CHECK Int *int_from_bytes(const Bytes *v1) {
