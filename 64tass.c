@@ -178,6 +178,7 @@ static const char* command[]={ /* must be sorted, first char is the ID */
     "\x18" "rept",
     "\x07" "rta",
     "\x4b" "section",
+    "\x5d" "seed",
     "\x41" "segment",
     "\x4d" "send",
     "\x02" "shift",
@@ -210,7 +211,7 @@ enum command_e {
     CMD_DUNION, CMD_SECTION, CMD_DSECTION, CMD_SEND, CMD_CDEF, CMD_EDEF,
     CMD_BINCLUDE, CMD_FUNCTION, CMD_ENDF, CMD_SWITCH, CMD_CASE, CMD_DEFAULT,
     CMD_ENDSWITCH, CMD_WEAK, CMD_ENDWEAK, CMD_CONTINUE, CMD_BREAK, CMD_AUTSIZ,
-    CMD_MANSIZ
+    CMD_MANSIZ, CMD_SEED
 };
 
 /* --------------------------------------------------------------------------- */
@@ -1753,6 +1754,7 @@ Obj *compile(struct file_list_s *cflist)
                     newlabel = NULL;
                 } else new_waitfor(W_WEAK, &epoint);
                 break;
+            case CMD_SEED:
             case CMD_DATABANK:
             case CMD_DPAGE:
             case CMD_EOR: if (waitfor->skip & 1)
@@ -1776,6 +1778,9 @@ Obj *compile(struct file_list_s *cflist)
                     case CMD_EOR:
                         if (touval(vs->val, &uval, 8, &vs->epoint)) {}
                         else outputeor = uval;
+                        break;
+                    case CMD_SEED:
+                        random_reseed(vs->val, &vs->epoint);
                         break;
                     default:
                         break;
@@ -2987,7 +2992,7 @@ static int main2(int argc, char *argv[]) {
     /* assemble the input file(s) */
     do {
         if (pass++>max_pass) {err_msg(ERROR_TOO_MANY_PASS, NULL);break;}
-        fixeddig=1;constcreated=0;error_reset();
+        fixeddig=1;constcreated=0;error_reset();random_reseed(&int_value[0]->v, NULL);
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             set_cpumode(arguments.cpumode);
@@ -3029,7 +3034,7 @@ static int main2(int argc, char *argv[]) {
         listing_open(arguments.list, argc, argv);
 
         max_pass = pass; pass++;
-        fixeddig=1;constcreated=0;error_reset();
+        fixeddig=1;constcreated=0;error_reset();random_reseed(&int_value[0]->v, NULL);
         restart_memblocks(&root_section.mem, 0);
         for (i = opts - 1; i<argc; i++) {
             if (i >= opts) {

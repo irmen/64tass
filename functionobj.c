@@ -33,6 +33,7 @@
 #include "operobj.h"
 #include "typeobj.h"
 #include "noneobj.h"
+#include "bitsobj.h"
 
 static Type obj;
 
@@ -78,7 +79,7 @@ static inline MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t epoint) {
     List *new_value;
     Error *err;
     ival_t start = 0, end, step = 1;
-    size_t i = 0, len2;
+    size_t len2;
     Obj **val;
 
     if (args < 1 || args > 3) {
@@ -112,7 +113,7 @@ static inline MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t epoint) {
     new_value = new_list();
     val = list_create_elements(new_value, len2);
     if (len2) {
-        i = 0;
+        size_t i = 0;
         while ((end > start && step > 0) || (end < start && step < 0)) {
             val[i] = (Obj *)int_from_ival(start);
             i++; start += step;
@@ -121,6 +122,99 @@ static inline MUST_CHECK Obj *function_range(Funcargs *vals, linepos_t epoint) {
     new_value->len = len2;
     new_value->data = val;
     return &new_value->v;
+}
+
+static uint64_t state[2];
+ 
+static uint64_t random64(void) {
+    uint64_t a = state[0];
+    const uint64_t b = state[1];
+    state[0] = b;
+    a ^= a << 23;
+    a ^= a >> 17;
+    a ^= b ^ (b >> 26);
+    state[1] = a;
+    return a + b;
+}
+
+void random_reseed(Obj *o1, linepos_t epoint) {
+    Obj *v = INT_OBJ->create(o1, epoint);
+    if (v->obj != INT_OBJ) {
+        if (v->obj == ERROR_OBJ) err_msg_output((Error *)v);
+    } else {
+        Int *v1 = (Int *)v;
+        Error *err;
+
+        state[0] = 0x5229a30f996ad7ebul;
+        state[1] = 0xc03bbc753f671f6ful;
+
+        switch (v1->len) {
+        case 4: state[1] ^= ((uint64_t)v1->data[3] << (8 * sizeof(digit_t)));
+        case 3: state[1] ^= v1->data[2];
+        case 2: state[0] ^= ((uint64_t)v1->data[0] << (8 * sizeof(digit_t)));
+        case 1: state[0] ^= v1->data[0];
+        case 0: val_destroy(v); break;
+        default:
+            err = new_error(ERROR_____CANT_UVAL, epoint);
+            err->u.intconv.bits = 128;
+            err->u.intconv.val = val_reference(o1);
+            err_msg_output_and_destroy(err);
+        }
+    }
+    val_destroy(v);
+}
+
+/* random() */
+static inline MUST_CHECK Obj *function_random(Funcargs *vals, linepos_t epoint) {
+    struct values_s *v = vals->val;
+    size_t args = vals->len;
+    Error *err;
+    ival_t start = 0, end, step = 1;
+    uval_t len2;
+
+    if (args > 3) {
+        err_msg_argnum(args, 0, 3, epoint);
+        return (Obj *)ref_none();
+    }
+    switch (args) {
+    case 0:
+        return (Obj *)new_float((random64() & ((((uint64_t)1) << 53)-1)) * ldexp(1, -53));
+    case 1: 
+        err = v[0].val->obj->ival(v[0].val, &end, 8*sizeof(ival_t), &v[0].epoint);
+        break;
+    case 3: 
+        err = v[2].val->obj->ival(v[2].val, &step, 8*sizeof(ival_t), &v[2].epoint);
+        if (err) return &err->v; 
+    case 2: 
+        err = v[0].val->obj->ival(v[0].val, &start, 8*sizeof(ival_t), &v[0].epoint);
+        if (err) return &err->v; 
+        err = v[1].val->obj->ival(v[1].val, &end, 8*sizeof(ival_t), &v[1].epoint);
+        break;
+    }
+    if (err) return &err->v;
+    if (step == 0) {
+        return (Obj *)new_error(ERROR_NO_ZERO_VALUE, &v[2].epoint);
+    }
+    if (step > 0) {
+        if (end < start) end = start;
+        len2 = (end - start + step - 1) / step;
+    } else {
+        if (end > start) end = start;
+        len2 = (start - end - step - 1) / -step;
+    }
+    if (len2) {
+        if (step != 1 || (len2 & (len2 - 1))) {
+            uval_t a = (~(uval_t)0) / len2;
+            uval_t b = a * len2;
+            uval_t r;
+            do {
+                r = random64();
+            } while (r >= b);
+            return (Obj *)int_from_ival(start + (r / a) * step);
+        }
+        return (Obj *)int_from_ival(start + (random64() & (len2 - 1)));
+    }
+    return (Obj *)new_error(ERROR___EMPTY_RANGE, epoint);
 }
 
 static MUST_CHECK Obj *apply_func(Obj *o1, enum func_e func, linepos_t epoint) {
@@ -374,6 +468,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
                     return apply_func2(&oper, func);
                 case F_RANGE: return function_range(v2, op->epoint2);
                 case F_FORMAT: return isnprintf(v2, op->epoint);
+                case F_RANDOM: return function_random(v2, op->epoint2);
                 default:
                                if (args != 1) {
                                    err_msg_argnum(args, 1, 1, op->epoint2);
@@ -434,6 +529,7 @@ static struct builtin_functions_s builtin_functions[] = {
     {"log10", F_LOG10}, 
     {"pow", F_POW}, 
     {"rad", F_RAD}, 
+    {"random", F_RANDOM},
     {"range", F_RANGE},
     {"repr", F_REPR},
     {"round", F_ROUND},

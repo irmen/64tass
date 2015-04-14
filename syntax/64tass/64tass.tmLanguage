@@ -55,7 +55,7 @@
 			</dict>
 			<dict>
 				<key>match</key>
-				<string>(^|\s)\.(al|align|as|assert|bend|binclude|block|cdef|cerror|check|cpu|cwarn|databank|dpage|edef|enc|end|endp|eor|error|for|goto|here|hidemac|include|lbl|logical|next|offs|option|page|proff|pron|rept|showmac|var|warn|xl|xs|proc|if|ifeq|ifne|ifpl|ifmi|else|elsif|switch|default|case|segment|macro|section|function|struct|union|pend|fi|endif|endswitch|endm|send|endf|ends|endu|comment|endc|break|continue|weak|endweak|autsiz|mansiz)\b</string>
+				<string>(^|\s)\.(al|align|as|assert|bend|binclude|block|cdef|cerror|check|cpu|cwarn|databank|dpage|edef|enc|end|endp|eor|error|for|goto|here|hidemac|include|lbl|logical|next|offs|option|page|proff|pron|rept|showmac|var|warn|xl|xs|proc|if|ifeq|ifne|ifpl|ifmi|else|elsif|switch|default|case|segment|macro|section|function|struct|union|pend|fi|endif|endswitch|endm|send|endf|ends|endu|comment|endc|break|continue|weak|endweak|autsiz|mansiz|seed)\b</string>
 				<key>name</key>
 				<string>keyword.control</string>
 			</dict>

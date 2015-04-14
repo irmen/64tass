@@ -974,6 +974,7 @@ all(a)                all elements true or no elements
 any(a)                any elements true
 format(s, *)          convert to string with formatting
 len(a)                number of elements
+random(s, e, t)       pseudo random integer in a range
 range(s, e, t)        create a list with values from a range
 repr(a)               representation to string
 sign(a)               sign value (-1, 0, 1)
@@ -1988,6 +1989,9 @@ Misc
 .eor <expression>
     XOR output with a 8 bit value. Useful for reverse screen code text for
     example, or for silly `encryption'.
+.seed <expression>
+    Seed the pseudo random number generator with an unsigned integer of maximum
+    128 bits, to make the generated numbers less boring.
 .var <expression>
     Defines a variable identified by the label preceding, which is set to the
     value of expression or reference of variable.
@@ -2596,6 +2600,8 @@ double defined range
     part of a character range was already defined by another .cdef
 duplicate definition
     symbol defined more than once
+empty range not allowed
+    invalid range
 empty string not allowed
     at least one character is required
 expected exactly/at least/at most ? arguments, got ?
@@ -2621,7 +2627,7 @@ label required
 last byte must not be gap
     .shift or .shiftl needs a normal byte at the end
 logarithm of non-positive number
-    Only positive numbers have a logarithm
+    only positive numbers have a logarithm
 missing argument
     not enough arguments supplied to function
 most significiant bit must be clear in byte
@@ -3178,17 +3184,17 @@ Assembler directives
 .end .endc .endf .endif .endm .endp .ends .endswitch .endu .endweak .eor .error
 .fi .fill .for .function .goto .here .hidemac .if .ifeq .ifmi .ifne .ifpl
 .include .int .lbl .lint .logical .long .macro .mansiz .next .null .offs
-.option .page .pend .proc .proff .pron .ptext .rept .rta .section .segment
-.send .shift .shiftl .showmac .struct .switch .text .union .var .warn .weak
-.word .xl .xs
+.option .page .pend .proc .proff .pron .ptext .rept .rta .section .seed
+.segment .send .shift .shiftl .showmac .struct .switch .text .union .var .warn
+.weak .word .xl .xs
 
 -------------------------------------------------------------------------------
 
 Built-in functions
 
 abs acos all any asin atan atan2 cbrt ceil cos cosh deg exp floor format frac
-hypot len log log10 pow rad range repr round sign sin sinh size sqrt tan tanh
-trunc
+hypot len log log10 pow rad random range repr round sign sin sinh size sqrt tan
+tanh trunc
 
 Built-in types
 
