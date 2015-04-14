@@ -151,9 +151,9 @@ void random_reseed(Obj *o1, linepos_t epoint) {
         switch (v1->len) {
         case 4: state[1] ^= ((uint64_t)v1->data[3] << (8 * sizeof(digit_t)));
         case 3: state[1] ^= v1->data[2];
-        case 2: state[0] ^= ((uint64_t)v1->data[0] << (8 * sizeof(digit_t)));
+        case 2: state[0] ^= ((uint64_t)v1->data[1] << (8 * sizeof(digit_t)));
         case 1: state[0] ^= v1->data[0];
-        case 0: val_destroy(v); break;
+        case 0: break;
         default:
             err = new_error(ERROR_____CANT_UVAL, epoint);
             err->u.intconv.bits = 128;
