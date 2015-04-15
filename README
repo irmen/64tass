@@ -47,6 +47,17 @@ Table of Contents
           o Anonymous symbols
           o Constant and re-definable symbols
       + Conditional expressions
+      + Built-in functions
+          o Absolute value, abs(x)
+          o All elements, all(x)
+          o Any elements, any(x)
+          o Format string, format(x)
+          o Length as number of elements, len(x)
+          o Pseudo random number, random(x)
+          o List of integers in a range, range(x)
+          o String representation, repr(x)
+          o Sign of value, sign(x)
+          o Size in bytes, size(x)
       + Expressions
   * Compiler directives
       + Controlling the compile offset and program counter
@@ -262,11 +273,9 @@ x ^ y    bitwise xor                      2 ^ 6 is 4
 x & y    bitwise and                      2 & 6 is 2
 x << y   logical shift left               1 << 3 is 8
 x >> y   arithmetic shift right           -8 >> 3 is -1
-abs(a)   absolute value                   abs(-1) is 1
-sign(a)  sign value (-1, 0, 1)            sign(-4) is -1
 
 Integers are automatically promoted to float as necessary in expressions. Other
-types can can be converted to integer using the integer type int.
+types can be converted to integer using the integer type int.
 
         .byte 23        ; decimal
 
@@ -288,22 +297,17 @@ Bit string constants can be entered in hexadecimal form by a leading dollar
 sign or in binary with a leading percent sign. The following operations are
 accepted:
 
-             Bit string operators and functions
-~x      invert bits                    ~%101 is ~%101
-y .. x  concatenate bits               $a .. $b is $ab
-y x n   repeat                         %101 x 3 is %101101101
-x[n]    extract bit(s)                 $a[1] is %1
-x[s]    slice bits                     $1234[4:8] is $3
-x | y   bitwise or                     ~$2 | $6 is ~$0
-x ^ y   bitwise xor                    ~$2 ^ $6 is ~$4
-x & y   bitwise and                    ~$2 & $6 is $4
-x << y  bitwise shift left             $0f << 4 is $0f0
-x >> y  bitwise shift right            ~$f4 >> 4 is ~$f
-abs(a)  absolute value                 abs(%11) is 3
-sign(a) sign value (-1, 0, 1)          sign(~%11) is -1
-len(a)  length in bits                 len($034) is 12
-all(a)  all bits set or no bits at all all($f) is true
-any(a)  at least one bit set           any(~$f) is false
+       Bit string operators and functions
+~x     invert bits         ~%101 is ~%101
+y .. x concatenate bits    $a .. $b is $ab
+y x n  repeat              %101 x 3 is %101101101
+x[n]   extract bit(s)      $a[1] is %1
+x[s]   slice bits          $1234[4:8] is $3
+x | y  bitwise or          ~$2 | $6 is ~$0
+x ^ y  bitwise xor         ~$2 ^ $6 is ~$4
+x & y  bitwise and         ~$2 & $6 is $4
+x << y bitwise shift left  $0f << 4 is $0f0
+x >> y bitwise shift right ~$f4 >> 4 is ~$f
 
 Length of bit string constants are defined in bits and is calculated from the
 number of bit digits used including leading zeros.
@@ -312,7 +316,7 @@ Bit strings are automatically promoted to integer or floating point as
 necessary in expressions. The higher bits are extended with zeros or ones as
 needed.
 
-Other types can can be converted to bit string using the bit string type bits.
+Other types can be converted to bit string using the bit string type bits.
 
         .byte $33       ; hex
         .byte %00011111 ; binary
@@ -355,8 +359,6 @@ x & y       bitwise and                      2.5 & 6.5 is 2.5
 x << y      logical shift left               1.0 << 3.0 is 8.0
 x >> y      arithmetic shift right           -8.0 >> 4 is -0.5
 ~x          almost -x                        ~2.1 is almost -2.1
-abs(a)      absolute value                   abs(-1.0) is 1.0
-sign(a)     sign value (-1, 0, 1)            sign(-4.0) is -1
 floor(a)    round down                       floor(-4.8) is -5.0
 round(a)    round to nearest away from zero  round(4.8) is 5.0
 ceil(a)     round up                         ceil(1.1) is 2.0
@@ -389,7 +391,7 @@ There are no predefined floating point constants, define them as necessary.
 Hint: pi is rad(180) and e is exp(1).
 
 Floating point numbers are automatically truncated to integer as necessary.
-Other types can can be converted to floating point by using the type float.
+Other types can be converted to floating point by using the type float.
 
 Fixed point conversion can be done by using the shift operators for example a
 8.16 fixed point number can be calculated as (3.14 << 16) & $ffffff. The binary
@@ -409,21 +411,16 @@ expressions as numeric constants or in context of text data directives.
 Doubling the quotes inside character strings escapes them and results in a
 single quote.
 
-                   Character string operators and functions
-y .. x       concatenate strings                     "a" .. "b" is "ab"
-y in x       is substring of                         "b" in "abc" is true
-a x n        repeat                                  "ab" x 3 is "ababab"
-a[i]         character from start                    "abc"[1] is "b"
-a[i]         character from end                      "abc"[-1] is "c"
-a[s]         no change                               "abc"[:] is "abc"
-a[s]         cut off start                           "abc"[1:] is "bc"
-a[s]         cut off end                             "abc"[:-1] is "ab"
-a[s]         reverse                                 "abc"[::-1] is "cba"
-len(a)       number of characters                    len("abc") is 3
-all(a)       all characters non-zero or empty string all("c") is true
-any(a)       at least one non-zero character         any("c") is true
-repr(a)      representation to string                str("a") is '"a"'
-format(s, *) string formatting                       format("%02x", 12) is "0c"
+    Character string operators and functions
+y .. x concatenate strings  "a" .. "b" is "ab"
+y in x is substring of      "b" in "abc" is true
+a x n  repeat               "ab" x 3 is "ababab"
+a[i]   character from start "abc"[1] is "b"
+a[i]   character from end   "abc"[-1] is "c"
+a[s]   no change            "abc"[:] is "abc"
+a[s]   cut off start        "abc"[1:] is "bc"
+a[s]   cut off end          "abc"[:-1] is "ab"
+a[s]   reverse              "abc"[::-1] is "cba"
 
 Character strings are converted to integers, byte and bit strings as necessary
 using the current encoding and escape rules. For example when using a sane
@@ -454,37 +451,6 @@ mystr   = "oeU"         ; text
         .text "text"[:-1]    ; "tex"
         .text "reverse"[::-1]; "esrever"
 
-The format function converts a list of values into a character string. The
-converted values are inserted in place of the % sign. Optional conversion flags
-and minimum field length may follow, before the conversion type character.
-These flags can be used:
-
-           Formatting flags
-#     alternate form ($a, %10, 10.)
-*     width/precision from list
-.     precision
-0     pad with zeros
--     left adjusted (default right)
-      blank when positive or minus sign
-+     sign even if positive
-
-The following conversion types are implemented:
-
-        Formatting conversion types
-a A   hexadecimal floating point (uppercase)
-b     binary
-c     unicode character
-d     decimal
-e E   exponential float (uppercase)
-f F   floating point (uppercase)
-g G   exponential/floating point
-s     string
-r     representation
-x X   hexadecimal (uppercase)
-%     percent sign
-
-        .text format("%#04x bytes left", 1000); $03e8 bytes left
-
 Byte string constants
 
 Byte strings are like character strings, but hold bytes instead of characters.
@@ -493,19 +459,16 @@ Quoted character strings prefixing by `b', `l', `n', `p' or `s' characters can
 be used to create byte strings. The resulting byte string contains what .text,
 .shiftl, .null, .ptext and .shift would create.
 
-            Byte string operators and functions
-y .. x concatenate strings            b"a" .. b"b" is b"ab"
-y in x is substring of                b"b" in b"abc" is true
-a x n  repeat                         b"ab" x 3 is b"ababab"
-a[i]   byte from start                b"abc"[1] is b"b"
-a[i]   byte from end                  b"abc"[-1] is b"c"
-a[s]   no change                      b"abc"[:] is b"abc"
-a[s]   cut off start                  b"abc"[1:] is b"bc"
-a[s]   cut off end                    b"abc"[:-1] is b"ab"
-a[s]   reverse                        b"abc"[::-1] is b"cba"
-len(a) number of bytes                len(b"abc") is 3
-all(a) all bytes non-zero or no bytes all(b"c") is true
-any(a) at least one non-zero byte     any(b"c") is true
+       Byte string operators and functions
+y .. x concatenate strings b"a" .. b"b" is b"ab"
+y in x is substring of     b"b" in b"abc" is true
+a x n  repeat              b"ab" x 3 is b"ababab"
+a[i]   byte from start     b"abc"[1] is b"b"
+a[i]   byte from end       b"abc"[-1] is b"c"
+a[s]   no change           b"abc"[:] is b"abc"
+a[s]   cut off start       b"abc"[1:] is b"bc"
+a[s]   cut off end         b"abc"[:-1] is b"ab"
+a[s]   reverse             b"abc"[::-1] is b"cba"
 
 Indexing and slicing works as with character strings.
 
@@ -530,22 +493,17 @@ Tuples are similar but are enclosed in parentheses instead. An empty tuple is
 expression parentheses. When nested they function similar to an array.
 Currently both types are immutable.
 
-                    List and tuple operators and functions
-y .. x       concatenate lists                     [1] .. [2] is [1, 2]
-y in x       is member of list                     2 in [1, 2, 3] is true
-a x n        repeat                                [1, 2] x 2 is [1, 2, 1, 2]
-a[i]         element from start                    ("1", 2)[1] is 2
-a[i]         element from end                      ("1", 2, 3)[-1] is 3
-a[s]         no change                             (1, 2, 3)[:] is (1, 2, 3)
-a[s]         cut off start                         (1, 2, 3)[1:] is (2, 3)
-a[s]         cut off end                           (1, 2.0, 3)[:-1] is (1, 2.0)
-a[s]         reverse                               (1, 2, 3)[::-1] is (3, 2, 1)
-*a           convert to arguments                  format("%d: %s", *mylist)
-len(a)       number of elements                    len([1, 2, 3]) is 3
-all(a)       all elements true or empty list       all([1, 1, 0]) is false
-any(a)       at least one true element             any([1, 1, 0]) is true
-range(s,e,t) create a list with values from a      range(3) is [0,1,2]
-             range
+         List and tuple operators and functions
+y .. x concatenate lists    [1] .. [2] is [1, 2]
+y in x is member of list    2 in [1, 2, 3] is true
+a x n  repeat               [1, 2] x 2 is [1, 2, 1, 2]
+a[i]   element from start   ("1", 2)[1] is 2
+a[i]   element from end     ("1", 2, 3)[-1] is 3
+a[s]   no change            (1, 2, 3)[:] is (1, 2, 3)
+a[s]   cut off start        (1, 2, 3)[1:] is (2, 3)
+a[s]   cut off end          (1, 2.0, 3)[:-1] is (1, 2.0)
+a[s]   reverse              (1, 2, 3)[::-1] is (3, 2, 1)
+*a     convert to arguments format("%d: %s", *mylist)
 
 Arithmetic operations are applied on the all elements recursively, therefore
 [1, 2] + 1 is [2, 3], and abs([1, -1]) is [1, 1].
@@ -602,10 +560,9 @@ Looking up a non existing key is normally an error unless a default value is
 given. An empty dictionary is {}. Currently this type is immutable. Numeric and
 string keys are accepted, the value can be anything.
 
-      Dictionary operators and functions
-x[i]   value lookup       {"1":2}["1"] is 2
-y in x is a key           1 in {1:2} is true
-len(x) number of elements len({1:2, 3:4]) is 2
+  Dictionary operators and functions
+x[i]   value lookup {"1":2}["1"] is 2
+y in x is a key     1 in {1:2} is true
 
         .text {1:"one", 2:"two"}[2]; "two"
 
@@ -620,16 +577,14 @@ Indexing and slicing of code to access the compiled content might be
 implemented differently in future releases. Use this feature at your own risk
 for now, you might need to update your code later.
 
-         Label operators and functions
-a.b     member                  label.locallabel
-a[i]    element from start      label[1]
-a[i]    element from end        label[-1]
-a[s]    copy as tuple           label[:]
-a[s]    cut off start, as tuple label[1:]
-a[s]    cut off end, as tuple   label[:-1]
-a[s]    reverse, as tuple       label[::-1]
-len(a)  number of elements      len(label)
-size(a) size in bytes           size(label)
+        Label operators and functions
+a.b  member                  label.locallabel
+a[i] element from start      label[1]
+a[i] element from end        label[-1]
+a[s] copy as tuple           label[:]
+a[s] cut off start, as tuple label[1:]
+a[s] cut off end, as tuple   label[:-1]
+a[s] reverse, as tuple       label[::-1]
 
 mydata  .word 1, 4, 3
 mycode  .block
@@ -957,28 +912,141 @@ c ? x : y   if c is true then x otherwise y
 Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.
 
+Built-in functions
+
+Only the generic built-in functions are listed here. There are plenty of math
+functions, for those see the floating point constants section.
+
+Absolute value, abs(x)
+
+Returns the numeric absolute value.
+
+                         Absolute function
+absolute of integer               abs(-1) is 1
+absolute of bit string            abs(%11) is 3
+absolute of floating point number abs(-1.0) is 1.0
+
+All elements, all(x)
+
+Checks for various definitions of `all'.
+
+                                 All function
+all bits set or no bits at all          all($f) is true
+all characters non-zero or empty string all("c") is true
+all bytes non-zero or no bytes          all(b"c") is true
+all elements true or empty list         all([1, 1, 0]) is false
+
+Any elements, any(x)
+
+Checks for various definitions of `any'.
+
+                         Any function
+at least one bit set            any(~$f) is false
+at least one non-zero character any("c") is true
+at least one non-zero byte      any(b"c") is true
+at least one true element       any([1, 1, 0]) is true
+
+Format string, format(x)
+
+The format function converts a list of values into a character string. The
+converted values are inserted in place of the % sign. Optional conversion flags
+and minimum field length may follow, before the conversion type character.
+These flags can be used:
+
+           Formatting flags
+#     alternate form ($a, %10, 10.)
+*     width/precision from list
+.     precision
+0     pad with zeros
+-     left adjusted (default right)
+      blank when positive or minus sign
++     sign even if positive
+
+The following conversion types are implemented:
+
+        Formatting conversion types
+a A   hexadecimal floating point (uppercase)
+b     binary
+c     unicode character
+d     decimal
+e E   exponential float (uppercase)
+f F   floating point (uppercase)
+g G   exponential/floating point
+s     string
+r     representation
+x X   hexadecimal (uppercase)
+%     percent sign
+
+        .text format("%#04x bytes left", 1000); $03e8 bytes left
+
+Length as number of elements, len(x)
+
+Returns the number of elements.
+
+                 Length of various types
+bit string       length in bits       len($034) is 12
+character string number of characters len("abc") is 3
+byte string      number of bytes      len(b"abc") is 3
+tuple, list      number of elements   len([1, 2, 3]) is 3
+dictionary       number of elements   len({1:2, 3:4]) is 2
+code             number of elements   len(label)
+
+Pseudo random number, random(x)
+
+Returns a pseudo random number.
+
+The sequence does not change across compilations and is the same every time.
+Different sequences can be generated by seeding.
+
+           Random function invocation types
+floating point number 0.0 <= x < 1.0   random()
+integer in range of 0 <= x < e         random(e)
+integer in range of s <= x < e         random(s, a)
+integer in range of s <= x < e, step t random(s, a, t)
+
+        .seed 1234      ; default is boring, seed the generator
+        .byte random(256); a pseudo random byte (0..255)
+
+List of integers in a range, range(x)
+
+Returns a list of integers in a range, with optional stepping.
+
+               Range function invocation types
+integers from 0 to e-1                         range(e)
+integers from s to e-1                         range(s, a)
+integers from s to e (not including e), step t range(s, a, t)
+
+        .byte range(16) ; 0, 1, ..., 14, 15
+        .char range(-5, 6); -5, -4, ..., 4, 5
+mylist  = range(10, 0, -2); [10, 8, 6, 4, 2]
+
+String representation, repr(x)
+
+Returns a string representation of value.
+
+        .warn repr(var) ; pretty print value, for debugging
+
+Sign of value, sign(x)
+
+Returns the sign of value as -1, 0 or 1 for negative, zero and positive.
+
+        Sign of various types
+integer               sign(-4) is -1
+bit string            sign(~%11) is -1
+floating point number sign(-4.0) is -1
+
+Size in bytes, size(x)
+
+Returns the size of code, structure or union in bytes.
+
+        ldx #size(var) ; size to x
+
 Expressions
 
 Parenthesis (( )) can be used to override operator precedence. Don't forget
 that they also denote indirect addressing mode for certain opcodes.
 
         lda #(4+2)*3
-
-Built-in functions are identifiers followed by parentheses. They accept
-variable number of parameters separated by comma. For math functions see the
-floating point constants section.
-
-                 General built-in functions
-abs(a)                absolute value
-all(a)                all elements true or no elements
-any(a)                any elements true
-format(s, *)          convert to string with formatting
-len(a)                number of elements
-random(s, e, t)       pseudo random integer in a range
-range(s, e, t)        create a list with values from a range
-repr(a)               representation to string
-sign(a)               sign value (-1, 0, 1)
-size(a)               size in bytes
 
 Special addressing mode forcing operators in front of an expression can be used
 to make sure the expected addressing mode is used.

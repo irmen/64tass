@@ -137,6 +137,19 @@ Not everything is backwards compatible.</b></p>
    <li><a href="#symbols-constant">Constant and re-definable symbols</a>
   </ul>
   <li><a href="#conditionals">Conditional expressions</a>
+  <li><a href="#builtin-functions">Built-in functions</a>
+  <ul>
+   <li><a href="#f_abs">Absolute value, abs(x)</a>
+   <li><a href="#f_all">All elements, all(x)</a>
+   <li><a href="#f_all">Any elements, any(x)</a>
+   <li><a href="#f_format">Format string, format(x)</a>
+   <li><a href="#f_len">Length as number of elements, len(x)</a>
+   <li><a href="#f_random">Pseudo random number, random(x)</a>
+   <li><a href="#f_range">List of integers in a range, range(x)</a>
+   <li><a href="#f_repr">String representation, repr(x)</a>
+   <li><a href="#f_sign">Sign of value, sign(x)</a>
+   <li><a href="#f_size">Size in bytes, size(x)</a>
+  </ul>
   <li><a href="#expressions">Expressions</a>
  </ul>
  <li><a href="#compiler-directives">Compiler directives</a>
@@ -398,13 +411,11 @@ following operations are accepted:</p>
 <tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
 <tr><td><code><u>x</u> &lt;&lt; <u>y</u></code><td>logical shift left<td><code><span>1</span> &lt;&lt; <span>3</span></code> is <code><span>8</span></code>
 <tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>arithmetic shift right<td><code><span>&minus;8</span> &gt;&gt; <span>3</span></code> is <code><span>&minus;1</span></code>
-<tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>&minus;1</span>)</code> is <code><span>1</span></code>
-<tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>&minus;4</span>)</code> is <code><span>&minus;1</span></code>
 </tbody>
 </table></div>
 
 <p>Integers are automatically promoted to float as necessary in expressions.
-Other types can can be converted to integer using the integer type
+Other types can be converted to integer using the integer type
 <code>int</code>.</p>
 
 <pre width=80>
@@ -441,11 +452,6 @@ The following operations are accepted:</p>
 <tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>~$2</span> &amp; <span>$6</span></code> is <code><span>$4</span></code>
 <tr><td><code><u>x</u> &lt;&lt; <u>y</u></code><td>bitwise shift left<td><code><span>$0f</span> &lt;&lt; <span>4</span></code> is <code><span>$0f0</span></code>
 <tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>bitwise shift right<td><code><span>~$f4</span> &gt;&gt; <span>4</span></code> is <code><span>~$f</span></code>
-<tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
-<tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
-<tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is <code><span>true</span></code>
-<tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is <code><span>false</span></code>
 </tbody>
 </table></div>
 
@@ -455,7 +461,7 @@ the number of bit digits used including leading zeros.</p>
 <p>Bit strings are automatically promoted to integer or floating point as necessary in
 expressions. The higher bits are extended with zeros or ones as needed.</p>
 
-<p>Other types can can be converted to bit string using the bit string type <code>bits</code>.</p>
+<p>Other types can be converted to bit string using the bit string type <code>bits</code>.</p>
 
 <pre width=80>
         <b class="d">.byte</b> <span>$33</span>       <i>; hex</i>
@@ -502,8 +508,6 @@ following operations can be used:</p>
 <tr><td><code><u>x</u> &lt;&lt; <u>y</u></code><td>logical shift left<td><code><span>1.0</span> &lt;&lt; <span>3.0</span></code> is <code><span>8.0</span></code>
 <tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>arithmetic shift right<td><code><span>&minus;8.0</span> &gt;&gt; <span>4</span></code> is <code><span>&minus;0.5</span></code>
 <tr><td><code>~<u>x</u></code><td>almost &minus;x<td><code>~<span>2.1</span></code> is almost <code><span>&minus;2.1</span></code>
-<tr><td><code><span class="k">abs</span>(<u>a</u>)</code><td>absolute value<td><code><span class="k">abs</span>(<span>&minus;1.0</span>)</code> is <code><span>1.0</span></code>
-<tr><td><code><span class="k">sign</span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)<td><code><span class="k">sign</span>(<span>&minus;4.0</span>)</code> is <code><span>&minus;1</span></code>
 <tr><td><code><span class="k"><a name="f_floor">floor</a></span>(<u>a</u>)</code><td>round down<td><code><span class="k">floor</span>(<span>&minus;4.8</span>)</code> is <code><span>&minus;5.0</span></code>
 <tr><td><code><span class="k"><a name="f_round">round</a></span>(<u>a</u>)</code><td>round to nearest away from zero<td><code><span class="k">round</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
 <tr><td><code><span class="k"><a name="f_ceil">ceil</a></span>(<u>a</u>)</code><td>round up<td><code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
@@ -537,7 +541,7 @@ following operations can be used:</p>
 and e is <code>exp(1)</code>.</p>
 
 <p>Floating point numbers are automatically truncated to integer as necessary.
-Other types can can be converted to floating point by using the type <code>float</code>.</p>
+Other types can be converted to floating point by using the type <code>float</code>.</p>
 
 <p>Fixed point conversion can be done by using the shift operators for example
 a 8.16 fixed point number can be calculated as <code>(3.14 &lt;&lt; 16) &amp; $ffffff</code>.
@@ -570,11 +574,6 @@ Doubling the quotes inside character strings escapes them and results in a singl
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start<td><code><span class="s">"abc"</span>[<span>1</span>:]</code> is <code><span class="s">"bc"</span></code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end<td><code><span class="s">"abc"</span>[:<span>&minus;1</span>]</code> is <code><span class="s">"ab"</span></code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse<td><code><span class="s">"abc"</span>[::<span>&minus;1</span>]</code> is <code><span class="s">"cba"</span></code>
-<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
-<tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
-<tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
-<tr><td><code><span class="k">repr</span>(<u>a</u>)</code><td>representation to string<td><code><span class="k">str</span>(<span class="s">"a"</span>)</code> is <code><span class="s">'"a"'</span></code>
-<tr><td><code><span class="k">format</span>(<u>s</u>, &lowast;)</code><td>string formatting<td><code><span class="k">format</span>(<span class="s">"<span>%02x</span>"</span>, <span>12</span>)</code> is <code><span class="s">"0c"</span></code>
 </tbody>
 </table></div>
 
@@ -583,7 +582,7 @@ encoding and escape rules. For example when using a sane encoding <code>"z"&minu
 <code>25</code>.</p>
 
 <p>Other types can be converted to character strings by using the type
-<code>str</code> or by using the <code>repr</code> and </code>format</code>
+<code>str</code> or by using the <code>repr</code> and <code>format</code>
 functions.</p>
 
 <p>Indexing characters with positive integers start with zero. Negative indexes
@@ -610,47 +609,6 @@ mystr   <b>=</b> <span class="s">"oeU"</span>         <i>; text</i>
         <b class="d">.text</b> <span class="s">"reverse"</span>[::<span>-1</span>]<i>; "esrever"</i>
 </pre>
 
-<p>The <code>format</code> function converts a list of values into a character string.
-The converted values are inserted in place of the <code>%</code> sign. Optional 
-conversion flags and minimum field length may follow, before the conversion
-type character. These flags can be used:</p>
-
-<div><table border="0">
-<caption>Formatting flags</caption>
-<tbody>
-<tr><td width="40"><code>#</code><td>alternate form ($a, %10, 10.)
-<tr><td><code>&lowast;</code><td>width/precision from list
-<tr><td><code>.</code><td>precision
-<tr><td><code>0</code><td>pad with zeros
-<tr><td><code>&minus;</code><td>left adjusted (default right)
-<tr><td><code>&nbsp;</code><td>blank when positive or minus sign
-<tr><td><code>+</code><td>sign even if positive
-</tbody>
-</table></div>
-
-<p>The following conversion types are implemented:</p>
-
-<div><table border="0">
-<caption>Formatting conversion types</caption>
-<tbody>
-<tr><td width="40"><code>a&nbsp;A</code><td>hexadecimal floating point (uppercase)
-<tr><td><code>b</code><td>binary
-<tr><td><code>c</code><td>unicode character
-<tr><td><code>d</code><td>decimal
-<tr><td><code>e&nbsp;E</code><td>exponential float (uppercase)
-<tr><td><code>f&nbsp;F</code><td>floating point (uppercase)
-<tr><td><code>g&nbsp;G</code><td>exponential/floating point
-<tr><td><code>s</code><td>string
-<tr><td><code>r</code><td>representation
-<tr><td><code>x&nbsp;X</code><td>hexadecimal (uppercase)
-<tr><td><code>%</code><td>percent sign
-</tbody>
-</table></div>
-
-<pre width=80>
-        <b class="d">.text</b> <span class="k">format</span>(<span class="s">"<span>%#04x</span> bytes left"</span>, <span>1000</span>)<i>; $03e8 bytes left</i>
-</pre>
-
 <h3>Byte string constants<a name="byte-string" href="#byte-string"></a></h3>
 <p>Byte strings are like character strings, but hold bytes instead of characters.</p>
 <p>Quoted character strings prefixing by <q>b</q>, <q>l</q>, <q>n</q>, <q>p</q>
@@ -671,9 +629,6 @@ create.</p>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start<td><code><span class="s">b"abc"</span>[<span>1</span>:]</code> is <code><span class="s">b"bc"</span></code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end<td><code><span class="s">b"abc"</span>[:<span>&minus;1</span>]</code> is <code><span class="s">b"ab"</span></code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse<td><code><span class="s">b"abc"</span>[::<span>&minus;1</span>]</code> is <code><span class="s">b"cba"</span></code>
-<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
-<tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
-<tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
 </tbody>
 </table></div>
 
@@ -716,10 +671,6 @@ types are immutable.</p>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end<td><code>(<span>1</span>, <span>2.0</span>, <span>3</span>)[:<span>&minus;1</span>]</code> is <code>(<span>1</span>, <span>2.0</span>)</code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse<td><code>(<span>1</span>, <span>2</span>, <span>3</span>)[::<span>&minus;1</span>]</code> is <code>(<span>3</span>, <span>2</span>, <span>1</span>)</code>
 <tr><td><code>&lowast;<u>a</u></code><td>convert to arguments<td><code><span class="k">format</span>(<span class="s">"%d: %s"</span>, &lowast;<u>mylist</u>)</code>
-<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
-<tr><td><code><span class="k">all</span>(<u>a</u>)</code><td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
-<tr><td><code><span class="k">any</span>(<u>a</u>)</code><td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
-<tr><td><code><span class="k">range</span>(<u>s</u>,<u>e</u>,<u>t</u>)</code><td>create a list with values from a range<td><code><span class="k">range</span>(<span>3</span>)</code> is <code>[<span>0</span>,<span>1</span>,<span>2</span>]</code>
 </tbody>
 </table></div>
 
@@ -789,7 +740,6 @@ and string keys are accepted, the value can be anything.</p>
 <tbody>
 <tr><td><code><u>x</u>[<u>i</u>]</code><td>value lookup<td><code>{<span class="s">"1"</span>:<span>2</span>}[<span class="s">"1"</span>]</code> is <code><span>2</span></code>
 <tr><td><code><u>y</u> <span class="k">in</span> <u>x</u></code><td>is a key<td><code><span>1</span> <span class="k">in</span> {<span>1</span>:<span>2</span>}</code> is <code><span>true</span></code>
-<tr><td><code><span class="k">len</span>(<u>x</u>)</code><td>number of elements<td><code><span class="k">len</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>])</code> is <code><span>2</span></code>
 </tbody>
 </table></div>
 
@@ -817,8 +767,6 @@ risk for now, you might need to update your code later.</b></p>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off start, as tuple<td><code><u>label</u>[<span>1</span>:]</code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>cut off end, as tuple<td><code><u>label</u>[:<span>&minus;1</span>]</code>
 <tr><td><code><u>a</u>[<u>s</u>]</code><td>reverse, as tuple<td><code><u>label</u>[::<span>&minus;1</span>]</code>
-<tr><td><code><span class="k">len</span>(<u>a</u>)</code><td>number of elements<td><code><span class="k">len</span>(<u>label</u>)</code>
-<tr><td><code><span class="k">size</span>(<u>a</u>)</code><td>size in bytes<td><code><span class="k">size</span>(<u>label</u>)</code>
 </tbody>
 </table></div>
 
@@ -1187,6 +1135,181 @@ true or the second (y) if c is false.</p>
 <p>Please note that these are not short circuiting operations and both sides are
 calculated even if thrown away later.</p>
 
+<h3>Built-in functions<a name="builtin-functions" href="#builtin-functions"></a></h3>
+
+<p>Only the generic built-in functions are listed here. There are plenty of
+math functions, for those see the <a href="#floating-point">floating point constants</a> section.</p>
+
+<h4>Absolute value, abs(x)<a name="f_abs" href="#f_abs"></a></h4>
+
+<p>Returns the numeric absolute value.</p>
+
+<div><table border="0">
+<caption>Absolute function</caption>
+<tbody>
+<tr><td width="50%">absolute of integer<td><code><span class="k">abs</span>(<span>&minus;1</span>)</code> is <code><span>1</span></code>
+<tr><td>absolute of bit string<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
+<tr><td>absolute of floating point number<td><code><span class="k">abs</span>(<span>&minus;1.0</span>)</code> is <code><span>1.0</span></code>
+</tbody>
+</table></div>
+
+<h4>All elements, all(x)<a name="f_all" href="#f_all"></a></h4>
+
+<p>Checks for various definitions of <q>all</q>.</p>
+
+<div><table border="0">
+<caption>All function</caption>
+<tbody>
+<tr><td width="50%">all bits set or no bits at all<td><code><span class="k">all</span>(<span>$f</span>)</code> is <code><span>true</span></code>
+<tr><td>all characters non-zero or empty string<td><code><span class="k">all</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
+<tr><td>all bytes non-zero or no bytes<td><code><span class="k">all</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
+<tr><td>all elements true or empty list<td><code><span class="k">all</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>false</span></code>
+</tbody>
+</table></div>
+
+<h4>Any elements, any(x)<a name="f_any" href="#f_any"></a></h4>
+
+<p>Checks for various definitions of <q>any</q>.</p>
+
+<div><table border="0">
+<caption>Any function</caption>
+<tbody>
+<tr><td width="50%">at least one bit set<td><code><span class="k">any</span>(~<span>$f</span>)</code> is <code><span>false</span></code>
+<tr><td>at least one non-zero character<td><code><span class="k">any</span>(<span class="s">"c"</span>)</code> is <code><span>true</span></code>
+<tr><td>at least one non-zero byte<td><code><span class="k">any</span>(<span class="s">b"c"</span>)</code> is <code><span>true</span></code>
+<tr><td>at least one true element<td><code><span class="k">any</span>([<span>1</span>, <span>1</span>, <span>0</span>])</code> is <code><span>true</span></code>
+</tbody>
+</table></div>
+
+<h4>Format string, format(x)<a name="f_format" href="#f_format"></a></h4>
+
+<p>The <code>format</code> function converts a list of values into a character string.
+The converted values are inserted in place of the <code>%</code> sign. Optional 
+conversion flags and minimum field length may follow, before the conversion
+type character. These flags can be used:</p>
+
+<div><table border="0">
+<caption>Formatting flags</caption>
+<tbody>
+<tr><td width="40"><code>#</code><td>alternate form ($a, %10, 10.)
+<tr><td><code>&lowast;</code><td>width/precision from list
+<tr><td><code>.</code><td>precision
+<tr><td><code>0</code><td>pad with zeros
+<tr><td><code>&minus;</code><td>left adjusted (default right)
+<tr><td><code>&nbsp;</code><td>blank when positive or minus sign
+<tr><td><code>+</code><td>sign even if positive
+</tbody>
+</table></div>
+
+<p>The following conversion types are implemented:</p>
+
+<div><table border="0">
+<caption>Formatting conversion types</caption>
+<tbody>
+<tr><td width="40"><code>a&nbsp;A</code><td>hexadecimal floating point (uppercase)
+<tr><td><code>b</code><td>binary
+<tr><td><code>c</code><td>unicode character
+<tr><td><code>d</code><td>decimal
+<tr><td><code>e&nbsp;E</code><td>exponential float (uppercase)
+<tr><td><code>f&nbsp;F</code><td>floating point (uppercase)
+<tr><td><code>g&nbsp;G</code><td>exponential/floating point
+<tr><td><code>s</code><td>string
+<tr><td><code>r</code><td>representation
+<tr><td><code>x&nbsp;X</code><td>hexadecimal (uppercase)
+<tr><td><code>%</code><td>percent sign
+</tbody>
+</table></div>
+
+<pre width=80>
+        <b class="d">.text</b> <span class="k">format</span>(<span class="s">"<span>%#04x</span> bytes left"</span>, <span>1000</span>)<i>; $03e8 bytes left</i>
+</pre>
+
+<h4>Length as number of elements, len(x)<a name="f_len" href="#f_len"></a></h4>
+
+<p>Returns the number of elements.</p>
+
+<div><table border="0">
+<caption>Length of various types</caption>
+<tbody>
+<tr><td>bit string<td>length in bits<td><code><span class="k">len</span>(<span>$034</span>)</code> is <code><span>12</span></code>
+<tr><td>character string<td>number of characters<td><code><span class="k">len</span>(<span class="s">"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td>byte string<td>number of bytes<td><code><span class="k">len</span>(<span class="s">b"abc"</span>)</code> is <code><span>3</span></code>
+<tr><td>tuple, list<td>number of elements<td><code><span class="k">len</span>([<span>1</span>, <span>2</span>, <span>3</span>])</code> is <code><span>3</span></code>
+<tr><td>dictionary<td>number of elements<td><code><span class="k">len</span>({<span>1</span>:<span>2</span>, <span>3</span>:<span>4</span>])</code> is <code><span>2</span></code>
+<tr><td>code<td>number of elements<td><code><span class="k">len</span>(<u>label</u>)</code>
+</tbody>
+</table></div>
+
+<h4>Pseudo random number, random(x)<a name="f_random" href="#f_random"></a></h4>
+
+<p>Returns a pseudo random number.</p>
+
+<p>The sequence does not change across compilations and is the same every time.
+Different sequences can be generated by seeding.</p>
+
+<div><table border="0">
+<caption>Random function invocation types</caption>
+<tbody>
+<tr><td>floating point number 0.0 &lt;= x &lt; 1.0<td><code><span class="k">random</span>()</code>
+<tr><td>integer in range of 0 &lt;= x &lt; e<td><code><span class="k">random</span>(<u>e</u>)</code>
+<tr><td>integer in range of s &lt;= x &lt; e<td><code><span class="k">random</span>(<u>s</u>, <u>a</u>)</code>
+<tr><td>integer in range of s &lt;= x &lt; e, step t<td><code><span class="k">random</span>(<u>s</u>, <u>a</u>, <u>t</u>)</code>
+</tbody>
+</table></div>
+
+<pre width=80>
+        <b class="k">.seed</b> <span>1234</span>      <i>; default is boring, seed the generator</i>
+        <b class="d">.byte</b> <span class="k">random</span>(<span>256</span>)<i>; a pseudo random byte (0..255)</i>
+</pre>
+
+<h4>List of integers in a range, range(x)<a name="f_range" href="#f_range"></a></h4>
+
+<p>Returns a list of integers in a range, with optional stepping.</p>
+
+<div><table border="0">
+<caption>Range function invocation types</caption>
+<tbody>
+<tr><td>integers from 0 to e&minus;1<td><code><span class="k">range</span>(<u>e</u>)</code>
+<tr><td>integers from s to e&minus;1<td><code><span class="k">range</span>(<u>s</u>, <u>a</u>)</code>
+<tr><td>integers from s to e (not including e), step t<td><code><span class="k">range</span>(<u>s</u>, <u>a</u>, <u>t</u>)</code>
+</tbody>
+</table></div>
+
+<pre width=80>
+        <b class="d">.byte</b> <span class="k">range</span>(<span>16</span>) <i>; 0, 1, ..., 14, 15</i>
+        <b class="d">.char</b> <span class="k">range</span>(<span>-5</span>, <span>6</span>)<i>; -5, -4, ..., 4, 5</i>
+mylist  <b>=</b> <span class="k">range</span>(<span>10</span>, <span>0</span>, <span>-2</span>)<i>; [10, 8, 6, 4, 2]</i>
+</pre>
+
+<h4>String representation, repr(x)<a name="f_repr" href="#f_repr"></a></h4>
+
+<p>Returns a string representation of value.</p>
+
+<pre width=80>
+        <b class="k">.warn</b> <span class="k">repr</span>(<u>var</u>) <i>; pretty print value, for debugging</i>
+</pre>
+
+<h4>Sign of value, sign(x)<a name="f_sign" href="#f_sign"></a></h4>
+
+<p>Returns the sign of value as &minus;1, 0 or 1 for negative, zero and positive.</p>
+
+<div><table border="0">
+<caption>Sign of various types</caption>
+<tbody>
+<tr><td>integer<td><code><span class="k">sign</span>(<span>&minus;4</span>)</code> is <code><span>&minus;1</span></code>
+<tr><td>bit string<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>&minus;1</span></code>
+<tr><td>floating point number<td><code><span class="k">sign</span>(<span>&minus;4.0</span>)</code> is <code><span>&minus;1</span></code>
+</tbody>
+</table></div>
+
+<h4>Size in bytes, size(x)<a name="f_size" href="#f_size"></a></h4>
+
+<p>Returns the size of code, structure or union in bytes.</p>
+
+<pre width=80>
+        <b>ldx</b> #<span class="k">size</span>(<u>var</u>) <i>; size to x</i>
+</pre>
+
 <h3>Expressions<a name="expressions" href="#expressions"></a></h3>
 
 <p>Parenthesis (<code>( )</code>) can be used to override operator precedence.
@@ -1196,26 +1319,6 @@ opcodes.</p>
 <pre width=80>
         <b>lda</b> #(<span>4</span>+<span>2</span>)*<span>3</span>
 </pre>
-
-<p>Built-in functions are identifiers followed by parentheses. They accept
-variable number of parameters separated by comma. For math functions see the
-floating point constants section.</p>
-
-<div><table border="0">
-<caption>General built-in functions</caption>
-<tbody>
-<tr><td width="150"><code><span class="k"><a name="f_abs">abs</a></span>(<u>a</u>)</code><td>absolute value
-<tr><td><code><span class="k"><a name="f_all">all</a></span>(<u>a</u>)</code><td>all elements true or no elements
-<tr><td><code><span class="k"><a name="f_any">any</a></span>(<u>a</u>)</code><td>any elements true
-<tr><td><code><span class="k"><a name="f_format">format</a></span>(<u>s</u>, &lowast;)</code><td>convert to string with formatting
-<tr><td><code><span class="k"><a name="f_len">len</a></span>(<u>a</u>)</code><td>number of elements
-<tr><td><code><span class="k"><a name="f_random">random</a></span>(<u>s</u>, <u>e</u>, <u>t</u>)</code><td>pseudo random integer in a range
-<tr><td><code><span class="k"><a name="f_range">range</a></span>(<u>s</u>, <u>e</u>, <u>t</u>)</code><td>create a list with values from a range
-<tr><td><code><span class="k"><a name="f_repr">repr</a></span>(<u>a</u>)</code><td>representation to string
-<tr><td><code><span class="k"><a name="f_sign">sign</a></span>(<u>a</u>)</code><td>sign value (&minus;1, 0, 1)
-<tr><td><code><span class="k"><a name="f_size">size</a></span>(<u>a</u>)</code><td>size in bytes
-</tbody>
-</table></div>
 
 <p>Special addressing mode forcing operators in front of an expression can be
 used to make sure the expected addressing mode is used.</p>
