@@ -139,16 +139,8 @@ Not everything is backwards compatible.</b></p>
   <li><a href="#conditionals">Conditional expressions</a>
   <li><a href="#builtin-functions">Built-in functions</a>
   <ul>
-   <li><a href="#f_abs">Absolute value, abs(x)</a>
-   <li><a href="#f_all">All elements, all(x)</a>
-   <li><a href="#f_all">Any elements, any(x)</a>
-   <li><a href="#f_format">Format string, format(x)</a>
-   <li><a href="#f_len">Length as number of elements, len(x)</a>
-   <li><a href="#f_random">Pseudo random number, random(x)</a>
-   <li><a href="#f_range">List of integers in a range, range(x)</a>
-   <li><a href="#f_repr">String representation, repr(x)</a>
-   <li><a href="#f_sign">Sign of value, sign(x)</a>
-   <li><a href="#f_size">Size in bytes, size(x)</a>
+   <li><a href="#math-functions">Mathematical functions</a>
+   <li><a href="#other-functions">Other functions</a>
   </ul>
   <li><a href="#expressions">Expressions</a>
  </ul>
@@ -508,30 +500,6 @@ following operations can be used:</p>
 <tr><td><code><u>x</u> &lt;&lt; <u>y</u></code><td>logical shift left<td><code><span>1.0</span> &lt;&lt; <span>3.0</span></code> is <code><span>8.0</span></code>
 <tr><td><code><u>x</u> &gt;&gt; <u>y</u></code><td>arithmetic shift right<td><code><span>&minus;8.0</span> &gt;&gt; <span>4</span></code> is <code><span>&minus;0.5</span></code>
 <tr><td><code>~<u>x</u></code><td>almost &minus;x<td><code>~<span>2.1</span></code> is almost <code><span>&minus;2.1</span></code>
-<tr><td><code><span class="k"><a name="f_floor">floor</a></span>(<u>a</u>)</code><td>round down<td><code><span class="k">floor</span>(<span>&minus;4.8</span>)</code> is <code><span>&minus;5.0</span></code>
-<tr><td><code><span class="k"><a name="f_round">round</a></span>(<u>a</u>)</code><td>round to nearest away from zero<td><code><span class="k">round</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
-<tr><td><code><span class="k"><a name="f_ceil">ceil</a></span>(<u>a</u>)</code><td>round up<td><code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
-<tr><td><code><span class="k"><a name="f_trunc">trunc</a></span>(<u>a</u>)</code><td>round down towards zero<td><code><span class="k">trunc</span>(<span>&minus;1.9</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td><code><span class="k"><a name="f_frac">frac</a></span>(<u>a</u>)</code><td>fractional part<td><code><span class="k">frac</span>(<span>1.1</span>)</code> is <code><span>0.1</span></code>
-<tr><td><code><span class="k"><a name="f_sqrt">sqrt</a></span>(<u>a</u>)</code><td>square root<td><code><span class="k">sqrt</span>(<span>16.0</span>)</code> is <code><span>4.0</span></code>
-<tr><td><code><span class="k"><a name="f_cbrt">cbrt</a></span>(<u>a</u>)</code><td>cube root<td><code><span class="k">cbrt</span>(<span>27.0</span>)</code> is <code><span>3.0</span></code>
-<tr><td><code><span class="k"><a name="f_log10">log10</a></span>(<u>a</u>)</code><td>common logarithm<td><code><span class="k">log10</span>(<span>100.0</span>)</code> is <code><span>2.0</span></code>
-<tr><td><code><span class="k"><a name="f_log">log</a></span>(<u>a</u>)</code><td>natural logarithm<td><code><span class="k">log</span>(<span>1</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_exp">exp</a></span>(<u>a</u>)</code><td>exponential<td><code><span class="k">exp</span>(<span>0</span>)</code> is <code><span>1.0</span></code>
-<tr><td><code><span class="k"><a name="f_pow">pow</a></span>(<u>a</u>,&nbsp;<u>b</u>)</code><td>a raised to power of b<td><code><span class="k">pow</span>(<span>2.0, 3.0</span>)</code> is <code><span>8.0</span></code>
-<tr><td><code><span class="k"><a name="f_sin">sin</a></span>(<u>a</u>)</code><td>sine<td><code><span class="k">sin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_asin">asin</a></span>(<u>a</u>)</code><td>arc sine<td><code><span class="k">asin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_sinh">sinh</a></span>(<u>a</u>)</code><td>hyperbolic sine<td><code><span class="k">sinh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_cos">cos</a></span>(<u>a</u>)</code><td>cosine<td><code><span class="k">cos</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
-<tr><td><code><span class="k"><a name="f_acos">acos</a></span>(<u>a</u>)</code><td>arc cosine<td><code><span class="k">acos</span>(<span>1.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_cosh">cosh</a></span>(<u>a</u>)</code><td>hyperbolic cosine<td><code><span class="k">cosh</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
-<tr><td><code><span class="k"><a name="f_tan">tan</a></span>(<u>a</u>)</code><td>tangent<td><code><span class="k">tan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_atan">atan</a></span>(<u>a</u>)</code><td>arc tangent<td><code><span class="k">atan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_tanh">tanh</a></span>(<u>a</u>)</code><td>hyperbolic tangent<td><code><span class="k">tanh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_rad">rad</a></span>(<u>a</u>)</code><td>degrees to radian<td><code><span class="k">rad</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_deg">deg</a></span>(<u>a</u>)</code><td>radian to degrees<td><code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
-<tr><td><code><span class="k"><a name="f_hypot">hypot</a></span>(<u>y</u>,&nbsp;<u>x</u>)</code><td>polar distance<td><code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
-<tr><td><code><span class="k"><a name="f_atan2">atan2</a></span>(<u>y</u>,&nbsp;<u>x</u>)</code><td>polar angle<td><code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
 </tbody>
 </table></div>
 
@@ -1140,23 +1108,121 @@ calculated even if thrown away later.</p>
 <p>Only the generic built-in functions are listed here. There are plenty of
 math functions, for those see the <a href="#floating-point">floating point constants</a> section.</p>
 
-<h4>Absolute value, abs(x)<a name="f_abs" href="#f_abs"></a></h4>
+<h4>Mathematical functions<a name="math-functions" href="#math-functions"></a></h4>
 
-<p>Returns the numeric absolute value.</p>
+<dl class="dir">
+<dt><code><b><a name="f_floor">floor</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Round down. E.g.
+<code><span class="k">floor</span>(<span>&minus;4.8</span>)</code> is <code><span>&minus;5.0</span></code>
 
-<div><table border="0">
-<caption>Absolute function</caption>
-<tbody>
-<tr><td width="50%">absolute of integer<td><code><span class="k">abs</span>(<span>&minus;1</span>)</code> is <code><span>1</span></code>
-<tr><td>absolute of bit string<td><code><span class="k">abs</span>(<span>%11</span>)</code> is <code><span>3</span></code>
-<tr><td>absolute of floating point number<td><code><span class="k">abs</span>(<span>&minus;1.0</span>)</code> is <code><span>1.0</span></code>
-</tbody>
-</table></div>
+<dt><code><b><a name="f_round">round</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Round to nearest away from zero. E.g.
+<code><span class="k">round</span>(<span>4.8</span>)</code> is <code><span>5.0</span></code>
 
-<h4>All elements, all(x)<a name="f_all" href="#f_all"></a></h4>
+<dt><code><b><a name="f_ceil">ceil</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Round up. E.g.
+<code><span class="k">ceil</span>(<span>1.1</span>)</code> is <code><span>2.0</span></code>
 
-<p>Checks for various definitions of <q>all</q>.</p>
+<dt><code><b><a name="f_trunc">trunc</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Round down towards zero. E.g.
+<code><span class="k">trunc</span>(<span>&minus;1.9</span>)</code> is <code><span>&minus;1</span></code>
 
+<dt><code><b><a name="f_frac">frac</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Fractional part. E.g.
+<code><span class="k">frac</span>(<span>1.1</span>)</code> is <code><span>0.1</span></code>
+
+<dt><code><b><a name="f_sqrt">sqrt</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Square root. E.g.
+<code><span class="k">sqrt</span>(<span>16.0</span>)</code> is <code><span>4.0</span></code>
+
+<dt><code><b><a name="f_cbrt">cbrt</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Cube root. E.g.
+<code><span class="k">cbrt</span>(<span>27.0</span>)</code> is <code><span>3.0</span></code>
+
+<dt><code><b><a name="f_log10">log10</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Common logarithm. E.g.
+<code><span class="k">log10</span>(<span>100.0</span>)</code> is <code><span>2.0</span></code>
+
+<dt><code><b><a name="f_log">log</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Natural logarithm. E.g.
+<code><span class="k">log</span>(<span>1</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_exp">exp</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Exponential. E.g.
+<code><span class="k">exp</span>(<span>0</span>)</code> is <code><span>1.0</span></code>
+
+<dt><code><b><a name="f_pow">pow</a>(</b>&lt;expression a&gt;, &lt;expression b&gt;<b>)</b></code>
+<dd>A raised to power of B. E.g.
+<code><span class="k">pow</span>(<span>2.0, 3.0</span>)</code> is <code><span>8.0</span></code>
+
+<dt><code><b><a name="f_sin">sin</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Sine. E.g.
+<code><span class="k">sin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_asin">asin</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Arc sine. E.g.
+<code><span class="k">asin</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_sinh">sinh</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Hyperbolic sine. E.g.
+<code><span class="k">sinh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_cos">cos</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Cosine. E.g.
+<code><span class="k">cos</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
+
+<dt><code><b><a name="f_acos">acos</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Arc cosine. E.g.
+<code><span class="k">acos</span>(<span>1.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_cosh">cosh</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Hyperbolic cosine. E.g.
+<code><span class="k">cosh</span>(<span>0.0</span>)</code> is <code><span>1.0</span></code>
+
+<dt><code><b><a name="f_tan">tan</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Tangent. E.g.
+<code><span class="k">tan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_atan">atan</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Arc tangent. E.g.
+<code><span class="k">atan</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_tanh">tanh</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Hyperbolic tangent. E.g.
+<code><span class="k">tanh</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_rad">rad</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Degrees to radian. E.g.
+<code><span class="k">rad</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_deg">deg</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Radian to degrees. E.g.
+<code><span class="k">deg</span>(<span>0.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_hypot">hypot</a>(</b>&lt;expression y&gt;, &lt;expression x&gt;<b>)</b></code>
+<dd>Polar distance. E.g.
+<code><span class="k">hypot</span>(<span>4.0</span>, <span>3.0</span>)</code> is <code><span>5.0</span></code>
+
+<dt><code><b><a name="f_atan2">atan2</a>(</b>&lt;expression y&gt;, &lt;expression x&gt;<b>)</b></code>
+<dd>Polar angle in &minus;pi to +pi range. E.g.
+<code><span class="k">atan2</span>(<span>0.0</span>, <span>3.0</span>)</code> is <code><span>0.0</span></code>
+
+<dt><code><b><a name="f_abs">abs</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Absolute value. E.g.
+<code><span class="k">abs</span>(<span>&minus;1</span>)</code> is <code><span>1</span></code>
+
+<dt><code><b><a name="f_sign">sign</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Returns the sign of value as &minus;1, 0 or 1 for negative, zero and positive. E.g.
+<code><span class="k">sign</span>(<span>&minus;5</span>)</code> is <code><span>&minus;1</span></code>
+
+</dl>
+
+<h4>Other functions<a name="other-functions" href="#other-functions"></a></h4>
+
+<dl class="dir">
+
+<dt><code><b><a name="f_all">all</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Return truth for various definitions of <q>all</q>.
 <div><table border="0">
 <caption>All function</caption>
 <tbody>
@@ -1167,10 +1233,8 @@ math functions, for those see the <a href="#floating-point">floating point const
 </tbody>
 </table></div>
 
-<h4>Any elements, any(x)<a name="f_any" href="#f_any"></a></h4>
-
-<p>Checks for various definitions of <q>any</q>.</p>
-
+<dt><code><b><a name="f_any">any</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Return truth for various definitions of <q>any</q>.
 <div><table border="0">
 <caption>Any function</caption>
 <tbody>
@@ -1181,8 +1245,8 @@ math functions, for those see the <a href="#floating-point">floating point const
 </tbody>
 </table></div>
 
-<h4>Format string, format(x)<a name="f_format" href="#f_format"></a></h4>
-
+<dt><code><b><a name="f_format">format</a>(</b>&lt;string expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code>
+<dd>Create string from values according to a format string.
 <p>The <code>format</code> function converts a list of values into a character string.
 The converted values are inserted in place of the <code>%</code> sign. Optional 
 conversion flags and minimum field length may follow, before the conversion
@@ -1224,10 +1288,8 @@ type character. These flags can be used:</p>
         <b class="d">.text</b> <span class="k">format</span>(<span class="s">"<span>%#04x</span> bytes left"</span>, <span>1000</span>)<i>; $03e8 bytes left</i>
 </pre>
 
-<h4>Length as number of elements, len(x)<a name="f_len" href="#f_len"></a></h4>
-
-<p>Returns the number of elements.</p>
-
+<dt><code><b><a name="f_len">len</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Returns the number of elements.
 <div><table border="0">
 <caption>Length of various types</caption>
 <tbody>
@@ -1240,13 +1302,10 @@ type character. These flags can be used:</p>
 </tbody>
 </table></div>
 
-<h4>Pseudo random number, random(x)<a name="f_random" href="#f_random"></a></h4>
-
-<p>Returns a pseudo random number.</p>
-
+<dt><code><b><a name="f_random">random</a>(</b>[&lt;expression&gt;, &hellip;]<b>)</b></code>
+<dd>Returns a pseudo random number.
 <p>The sequence does not change across compilations and is the same every time.
 Different sequences can be generated by seeding.</p>
-
 <div><table border="0">
 <caption>Random function invocation types</caption>
 <tbody>
@@ -1256,16 +1315,13 @@ Different sequences can be generated by seeding.</p>
 <tr><td>integer in range of s &lt;= x &lt; e, step t<td><code><span class="k">random</span>(<u>s</u>, <u>a</u>, <u>t</u>)</code>
 </tbody>
 </table></div>
-
 <pre width=80>
         <b class="k">.seed</b> <span>1234</span>      <i>; default is boring, seed the generator</i>
         <b class="d">.byte</b> <span class="k">random</span>(<span>256</span>)<i>; a pseudo random byte (0..255)</i>
 </pre>
 
-<h4>List of integers in a range, range(x)<a name="f_range" href="#f_range"></a></h4>
-
-<p>Returns a list of integers in a range, with optional stepping.</p>
-
+<dt><code><b><a name="f_range">range</a>(</b>&lt;expression&gt;[, &lt;expression&gt;, &hellip;]<b>)</b></code>
+<dd>Returns a list of integers in a range, with optional stepping.
 <div><table border="0">
 <caption>Range function invocation types</caption>
 <tbody>
@@ -1274,41 +1330,25 @@ Different sequences can be generated by seeding.</p>
 <tr><td>integers from s to e (not including e), step t<td><code><span class="k">range</span>(<u>s</u>, <u>a</u>, <u>t</u>)</code>
 </tbody>
 </table></div>
-
 <pre width=80>
         <b class="d">.byte</b> <span class="k">range</span>(<span>16</span>) <i>; 0, 1, ..., 14, 15</i>
         <b class="d">.char</b> <span class="k">range</span>(<span>-5</span>, <span>6</span>)<i>; -5, -4, ..., 4, 5</i>
 mylist  <b>=</b> <span class="k">range</span>(<span>10</span>, <span>0</span>, <span>-2</span>)<i>; [10, 8, 6, 4, 2]</i>
 </pre>
 
-<h4>String representation, repr(x)<a name="f_repr" href="#f_repr"></a></h4>
-
-<p>Returns a string representation of value.</p>
-
+<dt><code><b><a name="f_repr">repr</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Returns a string representation of value.
 <pre width=80>
         <b class="k">.warn</b> <span class="k">repr</span>(<u>var</u>) <i>; pretty print value, for debugging</i>
 </pre>
 
-<h4>Sign of value, sign(x)<a name="f_sign" href="#f_sign"></a></h4>
-
-<p>Returns the sign of value as &minus;1, 0 or 1 for negative, zero and positive.</p>
-
-<div><table border="0">
-<caption>Sign of various types</caption>
-<tbody>
-<tr><td>integer<td><code><span class="k">sign</span>(<span>&minus;4</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td>bit string<td><code><span class="k">sign</span>(<span>~%11</span>)</code> is <code><span>&minus;1</span></code>
-<tr><td>floating point number<td><code><span class="k">sign</span>(<span>&minus;4.0</span>)</code> is <code><span>&minus;1</span></code>
-</tbody>
-</table></div>
-
-<h4>Size in bytes, size(x)<a name="f_size" href="#f_size"></a></h4>
-
-<p>Returns the size of code, structure or union in bytes.</p>
-
+<dt><code><b><a name="f_size">size</a>(</b>&lt;expression&gt;<b>)</b></code>
+<dd>Returns the size of code, structure or union in bytes.
 <pre width=80>
         <b>ldx</b> #<span class="k">size</span>(<u>var</u>) <i>; size to x</i>
 </pre>
+
+</dl>
 
 <h3>Expressions<a name="expressions" href="#expressions"></a></h3>
 
