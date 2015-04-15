@@ -368,9 +368,9 @@ static int get_command(void) {
     l = get_label();
     if (l && l < 19) {
         char cmd[20];
-        if (!arguments.casesensitive) {
+        if (arguments.caseinsensitive) {
             size_t i;
-            for (i = 0; i < l; i++) cmd[i] = lowcase(label[i]);
+            for (i = 0; i < l; i++) cmd[i] = label[i] | 0x20;
         } else memcpy(cmd, label, l);
         cmd[l] = 0;
         if (l) {

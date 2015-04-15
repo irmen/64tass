@@ -48,11 +48,8 @@ int lookup_opcode(const char *s) {
     unsigned int also, felso, elozo, no;
     uint32_t name;
 
-    if (arguments.casesensitive) {
-        name = (s[0] << 16) | (s[1] << 8) | s[2];
-    } else {
-        name = (lowcase(s[0]) << 16) | (lowcase(s[1]) << 8) | lowcase(s[2]);
-    }
+    name = (s[0] << 16) | (s[1] << 8) | s[2];
+    if (arguments.caseinsensitive) name |= 0x202020;
     also = 0;
     no = (felso = last_mnem) / 2;
     for (;;) {  /* do binary search */

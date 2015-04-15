@@ -26,18 +26,16 @@ enum output_mode_e {
 
 struct file_s;
 
-static inline char lowcase(char cch) {return (cch<'A' || cch>'Z')?cch:(cch|0x20);}
-
 struct arguments_s {
     unsigned warning:1;
     unsigned quiet:1;
     unsigned toascii:1;
     unsigned monitor:1;
     unsigned source:1;
-    unsigned casesensitive:1;
     unsigned longbranch:1;
     unsigned longaddr:1;
     unsigned tasmcomp:1;
+    uint8_t caseinsensitive;
     const char *output;
     const struct cpu_s *cpumode;
     const char *label;
