@@ -39,7 +39,7 @@
 #include "codeobj.h"
 #include "namespaceobj.h"
 
-struct arguments_s arguments={1,1,0,1,1,0,0,0,0,"a.out",&c6502,NULL,NULL, OUTPUT_CBM, 8};
+struct arguments_s arguments={1,1,0,1,1,0,0,0,0x20,"a.out",&c6502,NULL,NULL, OUTPUT_CBM, 8};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -73,7 +73,7 @@ void str_cfcpy(str_t *s1, const str_t *s2) {
         return;
     }
     l = s2->len; d = s2->data;
-    if (arguments.casesensitive) {
+    if (!arguments.caseinsensitive) {
         for (i = 0; i < l; i++) {
             if (d[i] & 0x80) {
                 unfkc(&cache, s2, 0);
@@ -254,7 +254,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'I':include_list_add(optarg);break;
             case 'm':arguments.monitor=0;break;
             case 's':arguments.source=0;break;
-            case 'C':arguments.casesensitive=1;break;
+            case 'C':arguments.caseinsensitive=0;break;
             case 0x109:tab = atoi(optarg); if (tab > 0 && tab <= 64) arguments.tab_size = tab; break;
             case 0x102:puts(
              /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */

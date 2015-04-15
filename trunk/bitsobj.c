@@ -1135,6 +1135,7 @@ static MUST_CHECK Obj *calc2(oper_t op) {
             case O_OR: return or_(v1, v2);
             case O_XOR: return xor_(v1, v2);
             case O_CONCAT: return concat(v1, v2);
+            case O_IN: return obj_oper_error(op); /* TODO */
             default: break;
             }
             /* fall through */
@@ -1199,6 +1200,7 @@ static MUST_CHECK Obj *rcalc2(oper_t op) {
             case O_OR: return or_(v1, v2);
             case O_XOR: return xor_(v1, v2);
             case O_CONCAT: return concat(v1, v2);
+            case O_IN: return obj_oper_error(op); /* TODO */
             default: break;
             }
             /* fall through */

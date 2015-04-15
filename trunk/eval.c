@@ -422,9 +422,7 @@ rest:
             lpoint.pos++;
             llen = get_label();
             if (llen == 1) {
-                uint8_t c = pline[epoint.pos + 1];
-                if (!arguments.casesensitive) c |= 0x20;
-                switch (c) {
+                switch (pline[epoint.pos + 1] | arguments.caseinsensitive) {
                 case 'x': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_COMMAX;goto other;
                 case 'y': o_oper[operp].epoint = epoint; o_oper[operp++].val = &o_COMMAY;goto other;
                 default: break;
@@ -1302,9 +1300,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
     case 0:
     case ';': return 1;
     case '@':
-        ch = pline[++lpoint.pos];
-        if (!arguments.casesensitive) ch |= 0x20;
-        switch (ch) {
+        switch (pline[++lpoint.pos] | arguments.caseinsensitive) {
         case 'b':*wd=0;break;
         case 'w':*wd=1;break;
         case 'l':*wd=2;break;
@@ -1410,7 +1406,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             as_ident:
                 if (pline[epoint.pos + 1] == '"' || pline[epoint.pos + 1] == '\'') {
                     enum bytes_mode_e mode;
-                    switch (pline[epoint.pos] | (arguments.casesensitive ? 0 : 0x20)) {
+                    switch (pline[epoint.pos] | arguments.caseinsensitive) {
                     case 'n': mode = BYTES_MODE_NULL; break;
                     case 's': mode = BYTES_MODE_SHIFT; break;
                     case 'p': mode = BYTES_MODE_PTEXT; break;
@@ -1538,9 +1534,7 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
             lpoint.pos++;
             llen = get_label();
             if (llen == 1) {
-                uint8_t c = pline[epoint.pos + 1];
-                if (!arguments.casesensitive) c |= 0x20;
-                switch (c) {
+                switch (pline[epoint.pos + 1] | arguments.caseinsensitive) {
                 case 'x': op = &o_COMMAX; prec = o_WORD.prio; break;
                 case 'y': op = &o_COMMAY; prec = o_WORD.prio; break;
                 case 'z': op = &o_COMMAZ; prec = o_WORD.prio; break;
@@ -1713,8 +1707,9 @@ static int get_exp2(int *wd, int stop, struct file_s *cfile) {
         case ' ': break;
         default: 
             switch (get_label()) {
-            case 1: if (pline[epoint.pos] == 'x') {op = &o_X;goto push2;} break;
-            case 2: if (pline[epoint.pos] == 'i' && pline[epoint.pos + 1] == 'n') {op = &o_IN;goto push2;} break;
+            case 1: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'x') {op = &o_X;goto push2;} break;
+            case 2: if ((pline[epoint.pos] | arguments.caseinsensitive) == 'i' && 
+                        (pline[epoint.pos + 1] | arguments.caseinsensitive) == 'n') {op = &o_IN;goto push2;} break;
             }
             goto syntaxe;
         }
