@@ -144,6 +144,27 @@ int check_addr(atype_t type) {
     return 0;
 }
 
+static inline int check_addr2(atype_t type) {
+    while (type) {
+        switch ((enum atype_e)(type & 15)) {
+        case A_KR:
+        case A_DR:
+        case A_BR:
+        case A_XR:
+        case A_YR:
+        case A_ZR:
+        case A_RR:
+        case A_SR:
+        case A_I:
+        case A_LI: return 1;
+        case A_IMMEDIATE:
+        case A_NONE: break;
+        }
+        type >>= 4;
+    }
+    return 0;
+}
+
 static MUST_CHECK Error *address(Obj *o1, uval_t *uv, int bits, uint32_t *am, linepos_t epoint) {
     const Address *v1 = (Address *)o1;
     Obj *v = v1->val;
@@ -259,16 +280,20 @@ static MUST_CHECK Obj *calc2(oper_t op) {
     case T_BYTES:
     case T_STR:
         switch (op->op->op) {
+        default:
+            am = v1->type;
+            if (check_addr2(am)) break;
+            goto ok;
         case O_ADD:
         case O_SUB:
             am = v1->type;
             if (check_addr(am)) break;
+        ok:
             op->v1 = v1->val;
             result = op->v1->obj->calc2(op);
             op->v1 = &v1->v;
             if (result->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result); result = (Obj *)ref_none(); }
             return (Obj *)new_address(result, am);
-        default: break;
         }
         break;
     default:
