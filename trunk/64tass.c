@@ -775,7 +775,7 @@ Obj *compile(struct file_list_s *cflist)
                         Type *obj = (prm == CMD_MACRO) ? MACRO_OBJ : SEGMENT_OBJ;
                         int labelexists;
                         listing_line(0);
-                        new_waitfor(W_ENDM, &lpoint);waitfor->skip=0;
+                        new_waitfor(W_ENDM, &cmdpoint);waitfor->skip=0;
                         label=new_label(&labelname, mycontext, strength, &labelexists);
                         macro = (Macro *)val_alloc(obj);
                         macro->file_list = cflist;
@@ -813,7 +813,7 @@ Obj *compile(struct file_list_s *cflist)
                         Mfunc *mfunc;
                         int labelexists;
                         listing_line(0);
-                        new_waitfor(W_ENDF, &lpoint);waitfor->skip=0;
+                        new_waitfor(W_ENDF, &cmdpoint);waitfor->skip=0;
                         if (temporary_label_branch) {err_msg2(ERROR___NOT_ALLOWED, ".FUNCTION", &cmdpoint);goto breakerr;}
                         label=new_label(&labelname, mycontext, strength, &labelexists);
                         mfunc = (Mfunc *)val_alloc(MFUNC_OBJ);
@@ -856,7 +856,7 @@ Obj *compile(struct file_list_s *cflist)
                         int labelexists, doubledef = 0;
                         Type *obj = (prm == CMD_STRUCT) ? STRUCT_OBJ : UNION_OBJ;
 
-                        new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &lpoint);waitfor->skip=0;
+                        new_waitfor((prm==CMD_STRUCT)?W_ENDS:W_ENDU, &cmdpoint);waitfor->skip=0;
                         label=new_label(&labelname, mycontext, strength, &labelexists);
 
                         current_section->provides = ~(uval_t)0;current_section->requires = current_section->conflicts = 0;
@@ -944,7 +944,7 @@ Obj *compile(struct file_list_s *cflist)
                         struct section_s *tmp;
                         str_t sectionname;
                         struct linepos_s opoint;
-                        new_waitfor(W_SEND, &lpoint);waitfor->section=current_section;
+                        new_waitfor(W_SEND, &cmdpoint);waitfor->section=current_section;
                         opoint=lpoint;
                         sectionname.data = pline + lpoint.pos; sectionname.len = get_label();
                         if (!sectionname.len) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &opoint); goto breakerr;}
