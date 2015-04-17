@@ -169,6 +169,7 @@ void destroy_values(void)
 {
     size_t j;
     garbage_collect();
+    objects_destroy();
 
 #ifdef DEBUG
     {

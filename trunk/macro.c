@@ -414,6 +414,7 @@ Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t ep
         line_t ovline = vline;
         struct file_list_s *cflist;
         struct linepos_s nopoint = {0, 0};
+        size_t oldbottom;
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
@@ -424,11 +425,20 @@ Obj *mfunc_recurse(enum wait_e t, Mfunc *mfunc, Namespace *context, linepos_t ep
         cflist = enterfile(mfunc->file_list->file, epoint);
         lpoint.line = mfunc->line;
         new_waitfor(t, &nopoint);
+        oldbottom = context_get_bottom();
+        for (i = 0; i < mfunc->nslen; i++) {
+            push_context(mfunc->namespaces[i]);
+        }
         push_context(context);
         functionrecursion++;
         val = compile(cflist);
         functionrecursion--;
-        pop_context();star = s->addr;
+        context_set_bottom(oldbottom);
+        pop_context();
+        for (i = 0; i < mfunc->nslen; i++) {
+            pop_context();
+        }
+        star = s->addr;
         exitfile();
         star_tree = stree_old; vline = ovline;
         lpoint.line = lin;
@@ -650,6 +660,7 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
         const uint8_t *opline = pline;
         const uint8_t *ollist = llist;
         struct linepos_s nopoint = {0, 0};
+        size_t oldbottom;
 
         if (labelexists && s->addr != star) {
             if (fixeddig && pass > max_pass) err_msg_cant_calculate(NULL, &lpoint);
@@ -659,6 +670,10 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
         star_tree = &s->tree;vline=0;
         lpoint.line = mfunc->line;
         new_waitfor(W_ENDF2, &nopoint);
+        oldbottom = context_get_bottom();
+        for (i = 0; i < mfunc->nslen; i++) {
+            push_context(mfunc->namespaces[i]);
+        }
         push_context(context);
         temporary_label_branch++;
         current_section = &rsection;
@@ -675,7 +690,12 @@ Obj *mfunc2_recurse(Mfunc *mfunc, struct values_s *vals, unsigned int args, line
         retval = compile(cflist);
         functionrecursion--;
         current_section = oldsection;
-        pop_context(); star = s->addr;
+        context_set_bottom(oldbottom);
+        pop_context();
+        for (i = 0; i < mfunc->nslen; i++) {
+            pop_context();
+        }
+        star = s->addr;
         temporary_label_branch--;
         lpoint = opoint;
         pline = opline;
