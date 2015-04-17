@@ -3,7 +3,7 @@ CC = gcc
 OBJ = 64tass.o opcodes.o misc.o avl.o my_getopt.o eval.o error.o section.o encoding.o ternary.o file.o values.o variables.o mem.o isnprintf.o macro.o obj.o floatobj.o addressobj.o codeobj.o strobj.o listobj.o boolobj.o bytesobj.o intobj.o bitsobj.o functionobj.o instruction.o unicode.o unicodedata.o listing.o registerobj.o dictobj.o namespaceobj.o operobj.o gapobj.o typeobj.o noneobj.o
 LIBS = -lm
 LANG = C
-REVISION := $(shell svnversion | grep "^[1-9]" || echo "883?")
+REVISION := $(shell svnversion | grep "^[1-9]" || echo "943?")
 CFLAGS = -pipe -O2 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -DREVISION="\"$(REVISION)\"" -g -Wstrict-aliasing=2 -Werror=missing-prototypes
 LDFLAGS = -g
 CFLAGS += $(LDFLAGS)
@@ -100,7 +100,7 @@ mem.o: mem.c mem.h inttypes.h error.h errors_e.h libtree.h obj.h file.h \
 misc.o: misc.c misc.h inttypes.h 64tass.h wait_e.h opcodes.h getopt.h \
  my_getopt.h section.h libtree.h mem.h encoding.h errors_e.h file.h \
  eval.h obj.h variables.h ternary.h unicode.h unicodedata.h error.h \
- values.h codeobj.h
+ values.h codeobj.h namespaceobj.h
 my_getopt.o: my_getopt.c my_getopt.h unicode.h inttypes.h unicodedata.h
 namespaceobj.o: namespaceobj.c namespaceobj.h obj.h inttypes.h libtree.h \
  variables.h eval.h intobj.h values.h listobj.h error.h errors_e.h \
