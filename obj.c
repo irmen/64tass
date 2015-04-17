@@ -242,6 +242,11 @@ static void mfunc_destroy(Obj *o1) {
         if (v1->param[i].name.data != v1->param[i].cfname.data) free((char *)v1->param[i].cfname.data);
         if (v1->param[i].init) val_destroy(v1->param[i].init);
     }
+    i = v1->nslen;
+    while (i--) {
+        val_destroy(&v1->namespaces[i]->v);
+    }
+    free(v1->namespaces);
     free(v1->param);
 }
 
@@ -255,6 +260,11 @@ static void mfunc_garbage(Obj *o1, int j) {
             v = v1->param[i].init;
             if (v) v->refcount--;
         }
+        i = v1->nslen;
+        while (i--) {
+            v = &v1->namespaces[i]->v;
+            v->refcount--;
+        }
         return;
     case 0:
         while (i--) {
@@ -262,6 +272,7 @@ static void mfunc_garbage(Obj *o1, int j) {
             if (v1->param[i].name.data != v1->param[i].cfname.data) free((char *)v1->param[i].cfname.data);
         }
         free(v1->param);
+        free(v1->namespaces);
         return;
     case 1:
         while (i--) {
@@ -273,6 +284,14 @@ static void mfunc_garbage(Obj *o1, int j) {
                 } else v->refcount++;
             }
         }
+        i = v1->nslen;
+        while (i--) {
+            v = &v1->namespaces[i]->v;
+            if (v->refcount & SIZE_MSB) {
+                v->refcount -= SIZE_MSB - 1;
+                v->obj->garbage(v, 1);
+            } else v->refcount++;
+        }
         return;
     }
 }
@@ -280,12 +299,15 @@ static void mfunc_garbage(Obj *o1, int j) {
 static int mfunc_same(const Obj *o1, const Obj *o2) {
     const Mfunc *v1 = (const Mfunc *)o1, *v2 = (const Mfunc *)o2;
     size_t i;
-    if (o2->obj != MFUNC_OBJ || v1->file_list != v2->file_list || v1->line != v2->line) return 0;
+    if (o2->obj != MFUNC_OBJ || v1->file_list != v2->file_list || v1->line != v2->line || v1->argc != v2->argc || v1->nslen != v2->nslen) return 0;
     for (i = 0; i < v1->argc; i++) {
         if (str_cmp(&v1->param[i].name, &v2->param[i].name)) return 0;
         if ((v1->param[i].name.data != v1->param[i].cfname.data || v2->param[i].name.data != v2->param[i].cfname.data) && str_cmp(&v1->param[i].cfname, &v2->param[i].cfname)) return 0;
         if (v1->param[i].init != v2->param[i].init && (!v1->param[i].init || !v2->param[i].init || !v1->param[i].init->obj->same(v1->param[i].init, v2->param[i].init))) return 0;
         if (v1->param[i].epoint.pos != v2->param[i].epoint.pos) return 0;
+    }
+    for (i = 0; i < v1->nslen; i++) {
+        if (v1->namespaces[i] != v2->namespaces[i] && !v1->namespaces[i]->v.obj->same(&v1->namespaces[i]->v, &v2->namespaces[i]->v)) return 0;
     }
     return 1;
 }

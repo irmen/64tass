@@ -47,6 +47,9 @@ extern void labelobj_init(void);
 extern void push_context(struct Namespace *);
 extern int pop_context(void);
 extern void reset_context(void);
+extern void get_namespaces(Mfunc *);
+extern size_t context_get_bottom(void);
+extern void context_set_bottom(size_t);
 
 extern struct Namespace *current_context, *cheap_context, *root_namespace;
 extern Label *find_label(const str_t *, struct Namespace **);

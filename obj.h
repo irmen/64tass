@@ -42,6 +42,8 @@ typedef struct Mfunc {
     struct mfunc_param_s *param; 
     struct file_list_s *file_list;
     line_t line;
+    size_t nslen;
+    struct Namespace **namespaces;
 } Mfunc;
 
 struct macro_param_s {

@@ -144,7 +144,6 @@ void tfree(void) {
     destroy_file();
     err_destroy();
     destroy_encoding();
-    objects_destroy();
     destroy_values();
     destroy_namespacekeys();
     destroy_ternary();

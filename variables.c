@@ -147,7 +147,7 @@ struct cstack_s {
 
 struct context_stack_s {
     struct cstack_s *stack;
-    size_t len, p;
+    size_t len, p, bottom;
 };
 
 static struct context_stack_s context_stack;
@@ -166,13 +166,14 @@ void push_context(Namespace *name) {
 }
 
 int pop_context(void) {
-    if (context_stack.p > 1) {
+    if (context_stack.p > 1 + context_stack.bottom) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
         val_destroy(&c->normal->v);
-        if (c->cheap) val_destroy(&c->cheap->v);
+        val_destroy(&c->cheap->v);
         c = &context_stack.stack[context_stack.p - 1];
         current_context = c->normal;
-        val_destroy(&cheap_context->v); cheap_context = ref_namespace(c->cheap);
+        val_destroy(&cheap_context->v); 
+        cheap_context = ref_namespace(c->cheap);
         return 0;
     }
     return 1;
@@ -200,13 +201,35 @@ static void pop_label(void) {
 }
 
 void reset_context(void) {
+    context_stack.bottom = 0;
     while (context_stack.p) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
         val_destroy(&c->normal->v);
-        if (c->cheap) val_destroy(&c->cheap->v);
+        val_destroy(&c->cheap->v);
     }
-    val_destroy(&cheap_context->v); cheap_context = ref_namespace(root_namespace);
+    val_destroy(&cheap_context->v); 
+    cheap_context = ref_namespace(root_namespace);
     push_context(root_namespace);
+}
+
+void get_namespaces(Mfunc *mfunc) {
+    size_t i, len = context_stack.p - context_stack.bottom;
+    if (len > SIZE_MAX / sizeof(Namespace *)) err_msg_out_of_memory(); /* overflow */
+    mfunc->nslen = len;
+    mfunc->namespaces = (Namespace **)mallocx(len * sizeof(Namespace *));
+    for (i = context_stack.bottom; i < context_stack.p; i++) {
+        mfunc->namespaces[i] = ref_namespace(context_stack.stack[i].normal);
+    }
+}
+
+void context_set_bottom(size_t n) {
+    context_stack.bottom = n;
+}
+
+size_t context_get_bottom(void) {
+    size_t old = context_stack.bottom;
+    context_stack.bottom = context_stack.p;
+    return old;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -261,7 +284,7 @@ Label *find_label(const str_t *name, Namespace **here) {
     else str_cfcpy(&tmp.key->cfname, name);
     tmp.hash = str_hash(&tmp.key->cfname);
 
-    while (p) {
+    while (context_stack.bottom < p) {
         Namespace *context = context_stack.stack[--p].normal;
         b = avltree_lookup(&tmp.node, &context->members, label_compare);
         if (b) {
@@ -337,7 +360,7 @@ Label *find_anonlabel(int32_t count) {
     tmp.key->cfname.len = sizeof(anon_idents);
     tmp.hash = str_hash(&tmp.key->cfname);
 
-    while (p) {
+    while (context_stack.bottom < p) {
         context = context_stack.stack[--p].normal;
         b = avltree_lookup(&tmp.node, &context->members, label_compare);
         if (b) {
@@ -441,7 +464,7 @@ void shadow_check(Namespace *members) {
         n = avltree_next(n);
         if (l->key->shadowcheck) {
             size_t p = context_stack.p;
-            while (p) {
+            while (context_stack.bottom < p) {
                 b = avltree_lookup(&l->node, &context_stack.stack[--p].normal->members, label_compare);
                 if (b) {
                     const struct namespacekey_s *l2, *v1, *v2;
@@ -620,7 +643,7 @@ void init_variables(void)
     cheap_context = ref_namespace(root_namespace);
 
     context_stack.stack = NULL;
-    context_stack.p = context_stack.len = 0;
+    context_stack.p = context_stack.len = context_stack.bottom = 0;
 
     boolobj_names();
     registerobj_names();
@@ -658,7 +681,7 @@ void destroy_variables(void)
     while (context_stack.p) {
         struct cstack_s *c = &context_stack.stack[--context_stack.p];
         val_destroy(&c->normal->v);
-        if (c->cheap) val_destroy(&c->cheap->v);
+        val_destroy(&c->cheap->v);
     }
     free(context_stack.stack);
 }
