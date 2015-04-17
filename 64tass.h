@@ -22,7 +22,7 @@
 #include "inttypes.h"
 #include "wait_e.h"
 #ifndef REVISION
-#define REVISION "883?"
+#define REVISION "943?"
 #endif
 #undef VERSION
 #define VERSION "1.51." REVISION
