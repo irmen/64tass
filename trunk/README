@@ -2405,6 +2405,12 @@ Operation options
 
     64tass --no-warn a.asm
 
+-w, --no-caret-diag
+    Suppress displaying of faulty source line and fault position after fault
+    messages.
+
+    64tass --no-caret-diag a.asm
+
 -q, --quiet
     Suppress messages. Disables header and summary messages.
 

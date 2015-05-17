@@ -28,6 +28,7 @@ struct file_s;
 
 struct arguments_s {
     unsigned warning:1;
+    unsigned caret:1;
     unsigned quiet:1;
     unsigned toascii:1;
     unsigned monitor:1;
