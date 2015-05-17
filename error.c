@@ -835,7 +835,7 @@ static inline void print_error(FILE *f, const struct errorentry_s *err) {
     }
     printable_print2(((uint8_t *)err) + sizeof(struct errorentry_s) + err->line_len, f, err->error_len);
     putc('\n', f);
-    if (text) {
+    if (text && arguments.caret) {
         if (err->severity != SV_NOTDEFGNOTE) {
             putc(' ', f);
             printable_print(line, f);

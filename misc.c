@@ -39,7 +39,7 @@
 #include "codeobj.h"
 #include "namespaceobj.h"
 
-struct arguments_s arguments={1,1,0,1,1,0,0,0,0x20,"a.out",&c6502,NULL,NULL, OUTPUT_CBM, 8};
+struct arguments_s arguments={1,1,1,0,1,1,0,0,0,0x20,"a.out",&c6502,NULL,NULL, OUTPUT_CBM, 8};
 
 /* --------------------------------------------------------------------------- */
 int str_hash(const str_t *s) {
@@ -193,6 +193,7 @@ static const struct option long_options[]={
     {""                 , required_argument, 0, 'I'},
     {"no-monitor"       , no_argument      , 0, 'm'},
     {"no-source"        , no_argument      , 0, 's'},
+    {"no-caret-diag"    , no_argument      , 0,  0x10a},
     {"tab-size"         , required_argument, 0,  0x109},
     {"version"          , no_argument      , 0, 'V'},
     {"usage"            , no_argument      , 0,  0x102},
@@ -217,6 +218,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
             case 'a':arguments.toascii=1;break;
             case 'T':arguments.tasmcomp=1;break;
             case 'o':arguments.output=optarg;break;
+            case 0x10a:arguments.caret = 0;break;
             case 'D':
                 {
                     size_t len = strlen(optarg) + 1;
@@ -282,6 +284,7 @@ int testarg(int argc,char *argv[], struct file_s *fin) {
                "  -q, --quiet           Display errors/warnings\n"
                "  -T, --tasm-compatible Enable TASM compatible mode\n"
                "  -w, --no-warn         Suppress warnings\n"
+               "      --no-caret-diag   Suppress source line display\n"
                "\n"
                " Output selection:\n"
                "  -o <file>             Place output into <file>\n"
