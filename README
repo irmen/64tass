@@ -1,4 +1,4 @@
-64tass v1.51 r943 manual
+64tass v1.51 r944 manual
 
 This is the manual for 64tass, the multi pass optimizing macro assembler for
 the 65xx series of processors. Key features:
@@ -2405,7 +2405,7 @@ Operation options
 
     64tass --no-warn a.asm
 
--w, --no-caret-diag
+--no-caret-diag
     Suppress displaying of faulty source line and fault position after fault
     messages.
 
