@@ -139,7 +139,7 @@ FILE *file_open(const char *name, const char *mode)
         ch = *c;
         if (ch & 0x80) c += utf8in(c, &ch); else c++;
         l = wcrtomb(temp, (wchar_t)ch, &ps);
-        if (l <= 0) l = sprintf(temp, "{$%x}", ch);
+        if (l <= 0) l = sprintf(temp, "{$%" PRIx32 "}", ch);
         len += l;
         if (len < (size_t)l) err_msg_out_of_memory();
         if (len > max) {

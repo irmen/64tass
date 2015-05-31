@@ -462,7 +462,7 @@ void argv_print(const char *line, FILE *f) {
                     continue;
                 }
             }
-            fprintf(f, ch < 0x10000 ? "$'\\u%x'" : "$'\\U%x'", ch);
+            fprintf(f, ch < 0x10000 ? "$'\\u%" PRIx32 "'" : "$'\\U%" PRIx32 "'", ch);
             continue;
         }
         if (ch == 0) break;
@@ -477,7 +477,7 @@ void argv_print(const char *line, FILE *f) {
 
         i++;
         if (!isprint(ch)) {
-            fprintf(f, "$'\\x%x'", ch);
+            fprintf(f, "$'\\x%" PRIx32 "'", ch);
             continue;
         }
         putc(ch, f);
@@ -507,14 +507,14 @@ void printable_print(const uint8_t *line, FILE *f) {
             }
             i += ln;
             l = i;
-            fprintf(f, "{$%x}", ch);
+            fprintf(f, "{$%" PRIx32 "}", ch);
             continue;
         }
         if (ch == 0) break;
         if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
             if (l != i) fwrite(line + l, 1, i - l, f);
             i++;
-            fprintf(f, "{$%x}", ch);
+            fprintf(f, "{$%" PRIx32 "}", ch);
             l = i;
             continue;
         }
@@ -540,14 +540,14 @@ void printable_print(const uint8_t *line, FILE *f) {
                     continue;
                 }
             }
-            fprintf(f, "{$%x}", ch);
+            fprintf(f, "{$%" PRIx32 "}", ch);
             continue;
         }
         if (ch == 0) break;
         if ((ch < 0x20 && ch != 0x09) || ch > 0x7e) {
             if (l != i) fwrite(line + l, 1, i - l, f);
             i++;
-            fprintf(f, "{$%x}", ch);
+            fprintf(f, "{$%" PRIx32 "}", ch);
             l = i;
             continue;
         }
@@ -580,7 +580,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             }
             i += ln;
             l = i;
-            err = fprintf(f, "{$%x}", ch);
+            err = fprintf(f, "{$%" PRIx32 "}", ch);
             if (err >= 0) len += err;
             continue;
         }
@@ -588,7 +588,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i++;
             l = i;
-            err = fprintf(f, "{$%x}", ch);
+            err = fprintf(f, "{$%" PRIx32 "}", ch);
             if (err >= 0) len += err;
             continue;
         }
@@ -616,7 +616,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
                     continue;
                 }
             }
-            err = fprintf(f, "{$%x}", ch);
+            err = fprintf(f, "{$%" PRIx32 "}", ch);
             if (err >= 0) len += err;
             continue;
         }
@@ -624,7 +624,7 @@ size_t printable_print2(const uint8_t *line, FILE *f, size_t max) {
             if (l != i) len += fwrite(line + l, 1, i - l, f);
             i++;
             l = i;
-            err = fprintf(f, "{$%x}", ch);
+            err = fprintf(f, "{$%" PRIx32 "}", ch);
             if (err >= 0) len += err;
             continue;
         }
@@ -666,7 +666,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
                 }
             }
 #endif
-            l += sprintf(temp, "{$%x}", ch);
+            l += sprintf(temp, "{$%" PRIx32 "}", ch);
             continue;
         }
         if (ch == 0) break;
@@ -679,7 +679,7 @@ void caret_print(const uint8_t *line, FILE *f, size_t max) {
             i++;
             continue;
         }
-        if (ch < 0x20 || ch > 0x7e) l += sprintf(temp, "{$%x}", ch); else l++;
+        if (ch < 0x20 || ch > 0x7e) l += sprintf(temp, "{$%" PRIx32 "}", ch); else l++;
         i++;
     }
     while (l) { 
