@@ -543,7 +543,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
                 err = l->value->obj->uval(l->value, &uv, 24, &epoint);
                 if (err) val_destroy(&err->v);
                 else {
-                    fprintf(flab, "al %x ", uv);
+                    fprintf(flab, "al %" PRIx32 " ", uv);
                     labelname_print(l, flab);
                     switch ((enum dtype_e)code->dtype) {
                     case D_CHAR:

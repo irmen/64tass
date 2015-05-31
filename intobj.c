@@ -156,7 +156,7 @@ static MUST_CHECK Obj *repr(Obj *o1, linepos_t UNUSED(epoint)) {
 
     if (len <= 1) {
         char tmp2[sizeof(digit_t) * 3];
-        if (len) len = sprintf(tmp2, neg ? "-%u" : "%u", v1->val[0]);
+        if (len) len = sprintf(tmp2, neg ? "-%" PRIu32 : "%" PRIu32, v1->val[0]);
         else {tmp2[0]='0';len = 1;}
         s = str_create_elements(v, len);
         memcpy(s, tmp2, len);
