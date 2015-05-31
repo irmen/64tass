@@ -423,7 +423,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             adderror2(((Str *)prm)->data, ((Str *)prm)->len);
             break;
         case ERROR___UNKNOWN_CHR:
-            sprintf(line,"can't encode character $%02x", *(const uint32_t *)prm); adderror(line);
+            sprintf(line,"can't encode character $%02" PRIx32, *(const uint32_t *)prm); adderror(line);
             break;
         case ERROR______EXPECTED:
             adderror((char *)prm);
