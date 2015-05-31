@@ -26,6 +26,23 @@
 #define U_CASEFOLD 1
 #define U_COMPAT 2
 
+#ifdef __DJGPP__
+int iswprint(wint_t wc) {
+    return wc < 0x7f ? isprint(wc) : 0;
+}
+
+size_t mbrtowc(wchar_t *wc, const char *s, size_t UNUSED(n), mbstate_t *UNUSED(ps)) {
+    if (!*s) return 0;
+    *wc = *s;
+    return 1;
+}
+
+size_t wcrtomb(char *s, wchar_t wc, mbstate_t *UNUSED(ps)) {
+    *s = wc;
+    return 1;
+}
+#endif
+
 unsigned int utf8in(const uint8_t *c, uint32_t *out) { /* only for internal use with validated utf-8! */
     uint32_t ch;
     int i, j;

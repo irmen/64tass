@@ -27,6 +27,13 @@ struct ubuff_s {
     size_t len, p;
 };
 
+#ifdef __DJGPP__
+#include <wchar.h>
+extern int iswprint(wint_t);
+extern size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);
+extern size_t wcrtomb(char *, wchar_t, mbstate_t *);
+#endif
+
 extern unsigned int utf8in(const uint8_t *, uint32_t *);
 extern unsigned int utf8rin(const uint8_t *, uint32_t *);
 extern uint8_t *utf8out(uint32_t, uint8_t *);

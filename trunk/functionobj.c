@@ -34,6 +34,12 @@
 #include "typeobj.h"
 #include "noneobj.h"
 
+#if _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
+#else
+extern double round(double);
+extern double trunc(double);
+#endif
+
 static Type obj;
 
 Type *FUNCTION_OBJ = &obj;
