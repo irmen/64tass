@@ -45,7 +45,7 @@
 #define PRIX32 "X"
 #endif
 #ifndef PRIxPTR
-#define PRIxPTR "x"
+#define PRIxPTR "lx"
 #endif
 
 #ifndef PRIxSIZE
