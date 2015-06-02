@@ -1025,11 +1025,11 @@ void bytesobj_names(void) {
 void bytesobj_destroy(void) {
     int i;
 #ifdef DEBUG
-    if (null_bytes->v.refcount != 1) fprintf(stderr, "bytes %d\n", null_bytes->v.refcount - 1);
-    if (inv_bytes->v.refcount != 1) fprintf(stderr, "invbytes %d\n", inv_bytes->v.refcount - 1);
+    if (null_bytes->v.refcount != 1) fprintf(stderr, "bytes %" PRIuSIZE "\n", null_bytes->v.refcount - 1);
+    if (inv_bytes->v.refcount != 1) fprintf(stderr, "invbytes %" PRIuSIZE "\n", inv_bytes->v.refcount - 1);
     for (i = 0; i < 256; i++) {
         if (bytes_value[i] && bytes_value[i]->v.refcount != 1) {
-            fprintf(stderr, "bytes[%d] %d\n", i, bytes_value[i]->v.refcount - 1);
+            fprintf(stderr, "bytes[%d] %" PRIuSIZE "\n", i, bytes_value[i]->v.refcount - 1);
         }
     }
 #endif

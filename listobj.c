@@ -615,9 +615,9 @@ void listobj_names(void) {
 
 void listobj_destroy(void) {
 #ifdef DEBUG
-    if (null_tuple->v.refcount != 1) fprintf(stderr, "tuple %d\n", null_tuple->v.refcount - 1);
-    if (null_list->v.refcount != 1) fprintf(stderr, "list %d\n", null_list->v.refcount - 1);
-    if (null_addrlist->v.refcount != 1) fprintf(stderr, "addrlist %d\n", null_addrlist->v.refcount - 1);
+    if (null_tuple->v.refcount != 1) fprintf(stderr, "tuple %" PRIuSIZE "\n", null_tuple->v.refcount - 1);
+    if (null_list->v.refcount != 1) fprintf(stderr, "list %" PRIuSIZE "\n", null_list->v.refcount - 1);
+    if (null_addrlist->v.refcount != 1) fprintf(stderr, "addrlist %" PRIuSIZE "\n", null_addrlist->v.refcount - 1);
 #endif
 
     val_destroy(&null_tuple->v);

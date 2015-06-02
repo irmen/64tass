@@ -779,7 +779,7 @@ void strobj_names(void) {
 
 void strobj_destroy(void) {
 #ifdef DEBUG
-    if (null_str->v.refcount != 1) fprintf(stderr, "str %d\n", null_str->v.refcount - 1);
+    if (null_str->v.refcount != 1) fprintf(stderr, "str %" PRIuSIZE "\n", null_str->v.refcount - 1);
 #endif
 
     val_destroy(&null_str->v);
