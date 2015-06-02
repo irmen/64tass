@@ -1259,10 +1259,10 @@ void bitsobj_names(void) {
 
 void bitsobj_destroy(void) {
 #ifdef DEBUG
-    if (null_bits->v.refcount != 1) fprintf(stderr, "bits %d\n", null_bits->v.refcount - 1);
-    if (inv_bits->v.refcount != 1) fprintf(stderr, "invbits %d\n", inv_bits->v.refcount - 1);
-    if (bits_value[0]->v.refcount != 1) fprintf(stderr, "bit0 %d\n", bits_value[0]->v.refcount - 1);
-    if (bits_value[1]->v.refcount != 1) fprintf(stderr, "bit1 %d\n", bits_value[1]->v.refcount - 1);
+    if (null_bits->v.refcount != 1) fprintf(stderr, "bits %" PRIuSIZE "\n", null_bits->v.refcount - 1);
+    if (inv_bits->v.refcount != 1) fprintf(stderr, "invbits %" PRIuSIZE "\n", inv_bits->v.refcount - 1);
+    if (bits_value[0]->v.refcount != 1) fprintf(stderr, "bit0 %" PRIuSIZE "\n", bits_value[0]->v.refcount - 1);
+    if (bits_value[1]->v.refcount != 1) fprintf(stderr, "bit1 %" PRIuSIZE "\n", bits_value[1]->v.refcount - 1);
 #endif
 
     val_destroy(&null_bits->v);

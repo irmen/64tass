@@ -181,7 +181,7 @@ void gapobj_names(void) {
 
 void gapobj_destroy(void) {
 #ifdef DEBUG
-    if (gap_value->v.refcount != 1) fprintf(stderr, "gap %d\n", gap_value->v.refcount - 1);
+    if (gap_value->v.refcount != 1) fprintf(stderr, "gap %" PRIuSIZE "\n", gap_value->v.refcount - 1);
 #endif
 
     val_destroy(&gap_value->v);

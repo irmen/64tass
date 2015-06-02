@@ -108,7 +108,7 @@ void noneobj_init(void) {
 
 void noneobj_destroy(void) {
 #ifdef DEBUG
-    if (none_value->v.refcount != 1) fprintf(stderr, "none %d\n", none_value->v.refcount - 1);
+    if (none_value->v.refcount != 1) fprintf(stderr, "none %" PRIuSIZE "\n", none_value->v.refcount - 1);
 #endif
 
     val_destroy(&none_value->v);

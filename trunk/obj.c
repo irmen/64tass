@@ -537,7 +537,7 @@ void objects_destroy(void) {
     noneobj_destroy();
 
 #ifdef DEBUG
-    if (default_value->v.refcount != 1) fprintf(stderr, "default %d\n", default_value->v.refcount - 1);
+    if (default_value->v.refcount != 1) fprintf(stderr, "default %" PRIuSIZE "\n", default_value->v.refcount - 1);
 #endif
 
     val_destroy(&default_value->v);

@@ -219,8 +219,8 @@ void boolobj_names(void) {
 
 void boolobj_destroy(void) {
 #ifdef DEBUG
-    if (false_value->v.refcount != 1) fprintf(stderr, "false %d\n", false_value->v.refcount - 1);
-    if (true_value->v.refcount != 1) fprintf(stderr, "true %d\n", true_value->v.refcount - 1);
+    if (false_value->v.refcount != 1) fprintf(stderr, "false %" PRIuSIZE "\n", false_value->v.refcount - 1);
+    if (true_value->v.refcount != 1) fprintf(stderr, "true %" PRIuSIZE "\n", true_value->v.refcount - 1);
 #endif
 
     val_destroy(&false_value->v);

@@ -1600,9 +1600,9 @@ void intobj_names(void) {
 
 void intobj_destroy(void) {
 #ifdef DEBUG
-    if (int_value[0]->v.refcount != 1) fprintf(stderr, "int[0] %d\n", int_value[0]->v.refcount - 1);
-    if (int_value[1]->v.refcount != 1) fprintf(stderr, "int[1] %d\n", int_value[1]->v.refcount - 1);
-    if (minus1_value->v.refcount != 1) fprintf(stderr, "int[-1] %d\n", minus1_value->v.refcount - 1);
+    if (int_value[0]->v.refcount != 1) fprintf(stderr, "int[0] %" PRIuSIZE "\n", int_value[0]->v.refcount - 1);
+    if (int_value[1]->v.refcount != 1) fprintf(stderr, "int[1] %" PRIuSIZE "\n", int_value[1]->v.refcount - 1);
+    if (minus1_value->v.refcount != 1) fprintf(stderr, "int[-1] %" PRIuSIZE "\n", minus1_value->v.refcount - 1);
 #endif
 
     val_destroy(&int_value[0]->v);

@@ -56,6 +56,14 @@
 #endif
 #endif
 
+#ifndef PRIuSIZE
+#ifdef _WIN32
+#define PRIuSIZE "u"
+#else
+#define PRIuSIZE "zu"
+#endif
+#endif
+
 typedef uint32_t line_t;
 #define PRIuline PRIu32
 #define PRIxline PRIx32

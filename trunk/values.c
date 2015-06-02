@@ -182,7 +182,7 @@ void destroy_values(void)
             for (i = 0; i < SLOTS; i++, val = ((void *)val) + size) {
                 if (val->obj != NONE_OBJ) {
                     val_print(val, stderr);
-                    fprintf(stderr, " %s %d %x\n", val->obj->name, val->refcount, (int)val); 
+                    fprintf(stderr, " %s %" PRIuSIZE " %x\n", val->obj->name, val->refcount, (int)val); 
                 }
             }
         }
