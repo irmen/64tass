@@ -339,7 +339,7 @@ static const char *terr_error[]={
     "not a key and value pair",
     "can't convert to a %d bit signed integer",
     "can't convert to a %d bit unsigned integer",
-    "operands could not be broadcast together with shapes %u and %u",
+    "operands could not be broadcast together with shapes %" PRIuSIZE " and %" PRIuSIZE,
     "can't get sign of type",
     "can't get absolute value of type",
     "can't get integer value of type",
@@ -414,7 +414,7 @@ void err_msg2(enum errors_e no, const void *prm, linepos_t epoint) {
             sprintf(line,"branch too far by %+d bytes", *(const int *)prm); adderror(line);
             break;
         case ERROR____PTEXT_LONG:
-            sprintf(line,"ptext too long by %lu bytes", (unsigned long)*(const size_t *)prm - 0x100); adderror(line);
+            sprintf(line,"ptext too long by %" PRIuSIZE " bytes", *(const size_t *)prm - 0x100); adderror(line);
             break;
         case ERROR__BRANCH_CROSS:
             adderror("branch crosses page");
@@ -617,14 +617,14 @@ static void err_msg_no_register(Register *val, linepos_t epoint) {
 static void err_msg_no_lot_operand(size_t opers, linepos_t epoint) {
     char msg2[256];
     new_error_msg(SV_CONDERROR, current_file_list, epoint);
-    sprintf(msg2, "no %u operand addressing mode for opcode", (unsigned int)opers);
+    sprintf(msg2, "no %" PRIuSIZE " operand addressing mode for opcode", opers);
     adderror(msg2);
 }
 
 static void err_msg_cant_broadcast(const char *msg, size_t v1, size_t v2, linepos_t epoint) {
     char msg2[256];
     new_error_msg(SV_CONDERROR, current_file_list, epoint);
-    sprintf(msg2, msg, (unsigned int)v1, (unsigned int)v2);
+    sprintf(msg2, msg, v1, v2);
     adderror(msg2);
 }
 
@@ -771,10 +771,10 @@ void err_msg_argnum(unsigned int num, unsigned int min, unsigned int max, linepo
     switch (n) {
     case 0: adderror("no arguments"); break;
     case 1: adderror("one argument"); break;
-    default: sprintf(line, "%d arguments", n); adderror(line); break;
+    default: sprintf(line, "%u arguments", n); adderror(line); break;
     }
     if (num) {
-        sprintf(line, ", got %d", num);
+        sprintf(line, ", got %u", num);
         adderror(line);
     }
     return;
