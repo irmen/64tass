@@ -401,6 +401,7 @@ void argv_print(const char *line, FILE *f) {
         if (ch == '\\') {
             back++;
             i++;
+            putc('\\', f);
             continue;
         }
         if (!space || quote) {
