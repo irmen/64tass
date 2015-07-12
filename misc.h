@@ -24,6 +24,10 @@ enum output_mode_e {
     OUTPUT_CBM, OUTPUT_RAW, OUTPUT_NONLINEAR, OUTPUT_FLAT, OUTPUT_XEX, OUTPUT_APPLE
 };
 
+enum label_mode_e {
+    LABEL_64TASS, LABEL_VICE
+};
+
 struct file_s;
 
 struct arguments_s {
@@ -43,6 +47,7 @@ struct arguments_s {
     const char *list;
     enum output_mode_e output_mode;
     uint8_t tab_size;
+    enum label_mode_e label_mode;
 };
 
 #define ignore() while(pline[lpoint.pos]==0x20 || pline[lpoint.pos]==0x09) lpoint.pos++

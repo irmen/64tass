@@ -2904,6 +2904,17 @@ result (labels.txt):
 label           = $1000
 </pre>
 
+<dt><b>--vice-labels</b>=&lt;file&gt;
+<dd>List labels into &lt;file&gt; in VICE format.
+<pre width=80>
+64tass --vice-labels labels.txt a.asm
+        <b>*=</b> <span>$1000</span>
+label   <b>jmp</b> <u>label</u>
+
+result (labels.txt):
+al 1000 .label
+</pre>
+
 <dt><b>-L</b> &lt;file&gt;, <b>--list</b>=&lt;file&gt;
 <dd>List into &lt;file&gt;. Dumps source code and compiled code into file.
 Useful for debugging, it's much easier to identify the code in memory within
