@@ -517,7 +517,7 @@ static inline void padding(int l, int t, FILE *f) {
     while (l < t) { l++; putc(' ', f);} 
 }
 
-static void labelprint2(const struct avltree *members, FILE *flab) {
+static void labelprint2(const struct avltree *members, FILE *flab, int labelmode) {
     struct avltree_node *n;
     Label *l;
 
@@ -534,7 +534,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
         case T_STRUCT: continue;
         default:break;
         }
-        if (0) { /* for future use with VICE */
+        if (labelmode == LABEL_VICE) { /* for future use with VICE */
             if (l->value->obj == CODE_OBJ) {
                 Error *err;
                 Code *code = (Code *)l->value;
@@ -580,7 +580,7 @@ static void labelprint2(const struct avltree *members, FILE *flab) {
                     putc('\n', flab);
                 }
                 push_label(l);
-                labelprint2(&code->names->members, flab);
+                labelprint2(&code->names->members, flab, labelmode);
                 pop_label();
             }
         } else {
@@ -612,7 +612,7 @@ void labelprint(void) {
     referenceit = 0;
     label_stack.stack = NULL;
     label_stack.p = label_stack.len = 0;
-    labelprint2(&root_namespace->members, flab);
+    labelprint2(&root_namespace->members, flab, arguments.label_mode);
     free(label_stack.stack);
     referenceit = oldreferenceit;
     if (flab == stdout) fflush(flab);
