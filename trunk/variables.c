@@ -179,27 +179,6 @@ int pop_context(void) {
     return 1;
 }
 
-struct label_stack_s {
-    Label **stack;
-    size_t len, p;
-};
-
-static struct label_stack_s label_stack;
-
-static void push_label(Label *name) {
-    if (label_stack.p >= label_stack.len) {
-        label_stack.len += 8;
-        if (/*label_stack.len < 8 ||*/ label_stack.len > SIZE_MAX / sizeof(Label *)) err_msg_out_of_memory(); /* overflow */
-        label_stack.stack = (Label **)reallocx(label_stack.stack, label_stack.len * sizeof(Label *));
-    }
-    label_stack.stack[label_stack.p] = name;
-    label_stack.p++;
-}
-
-static void pop_label(void) {
-    label_stack.p--;
-}
-
 void reset_context(void) {
     context_stack.bottom = 0;
     while (context_stack.p) {
@@ -499,16 +478,6 @@ static Label *find_strongest_label(struct avltree_node **x, avltree_cmp_fn_t cmp
     return NULL;
 }
 
-static void labelname_print(Label *l, FILE *flab) {
-    size_t p;
-    for (p = 1; p < label_stack.p; p++) {
-        putc('.', flab);
-        printable_print2(label_stack.stack[p]->name.data, flab, label_stack.stack[p]->name.len);
-    }
-    putc('.', flab);
-    printable_print2(l->name.data, flab, l->name.len);
-}
-
 static inline void padding(int l, int t, FILE *f) {
     if (arguments.tab_size > 1) {
         int l2 = l - l % arguments.tab_size;
@@ -534,54 +503,25 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
         case T_STRUCT: continue;
         default:break;
         }
-        if (labelmode == LABEL_VICE) { /* for future use with VICE */
+        if (labelmode == LABEL_VICE) {
             if (l->value->obj == CODE_OBJ) {
                 Error *err;
-                Code *code = (Code *)l->value;
                 uval_t uv;
                 struct linepos_s epoint;
                 err = l->value->obj->uval(l->value, &uv, 24, &epoint);
                 if (err) val_destroy(&err->v);
                 else {
-                    fprintf(flab, "al %" PRIx32 " ", uv);
-                    labelname_print(l, flab);
-                    switch ((enum dtype_e)code->dtype) {
-                    case D_CHAR:
-                    case D_BYTE: 
-                        fputs(" byte", flab);
-                        if (code->size > 1) {
-                            fprintf(flab, " %" PRIxSIZE, code->size);
-                        }
-                        break;
-                    case D_INT:
-                    case D_WORD: 
-                        fputs(" word", flab);
-                        if (code->size > 2) {
-                            fprintf(flab, " %" PRIxSIZE, code->size);
-                        }
-                        break;
-                    case D_LINT:
-                    case D_LONG:
-                        fputs(" long", flab);
-                        if (code->size > 3) {
-                            fprintf(flab, " %" PRIxSIZE, code->size);
-                        }
-                        break;
-                    case D_DINT:
-                    case D_DWORD:
-                        fputs(" dword", flab);
-                        if (code->size > 4) {
-                            fprintf(flab, " %" PRIxSIZE, code->size);
-                        }
-                        break;
-                    case D_NONE:
-                        break;
+                    size_t i, j = l->name.len;
+                    const uint8_t *d = l->name.data;
+                    for (i = 0; i < j; i++) {
+                        if (d[i] & 0x80) break;
                     }
-                    putc('\n', flab);
+                    if (i == j) {
+                        fprintf(flab, "al %" PRIx32 " ", uv);
+                        printable_print2(l->name.data, flab, l->name.len);
+                        putc('\n', flab);
+                    }
                 }
-                push_label(l);
-                labelprint2(&code->names->members, flab, labelmode);
-                pop_label();
             }
         } else {
             Str *val = (Str *)l->value->obj->repr(l->value, NULL);
@@ -610,10 +550,7 @@ void labelprint(void) {
     }
     clearerr(flab);
     referenceit = 0;
-    label_stack.stack = NULL;
-    label_stack.p = label_stack.len = 0;
     labelprint2(&root_namespace->members, flab, arguments.label_mode);
-    free(label_stack.stack);
     referenceit = oldreferenceit;
     if (flab == stdout) fflush(flab);
     if (ferror(flab) && errno) err_msg_file(ERROR_CANT_DUMP_LBL, arguments.label, &nopoint);
