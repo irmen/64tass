@@ -517,7 +517,7 @@ static void labelprint2(const struct avltree *members, FILE *flab, int labelmode
                         if (d[i] & 0x80) break;
                     }
                     if (i == j) {
-                        fprintf(flab, "al %" PRIx32 " ", uv);
+                        fprintf(flab, "al %" PRIx32 " .", uv);
                         printable_print2(l->name.data, flab, l->name.len);
                         putc('\n', flab);
                     }

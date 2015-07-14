@@ -2509,10 +2509,10 @@ Source listing options
     result (labels.txt):
     label           = $1000
 
---vice-labels=<file>
-    List labels into <file> in VICE format.
+--vice-labels
+    List labels in a VICE readable format.
 
-    64tass --vice-labels labels.txt a.asm
+    64tass --vice-labels -l labels.txt a.asm
             *= $1000
     label   jmp label
 
