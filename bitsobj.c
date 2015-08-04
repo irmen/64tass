@@ -334,13 +334,23 @@ MUST_CHECK Bits *bits_from_uval(uval_t i, int bits) {
 }
 
 MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln) {
-    size_t i = 0, j, sz;
+    size_t i, j, k, sz;
     int bits;
     bdigit_t *d, uv;
     Bits *v;
 
-    while ((s[i] ^ 0x30) < 10 || (uint8_t)((s[i] | 0x20) - 0x61) < 6) i++;
-    *ln = i;
+    i = k = 0;
+    if (s[0] != '_') {
+        for (;;k++) {
+            uint8_t c = s[k];
+            if ((c ^ 0x30) < 10 || (uint8_t)((c | 0x20) - 0x61) < 6) continue;
+            if (c != '_') break;
+            i++;
+        }
+        while (k && s[k - 1] == '_') k--;
+    }
+    *ln = k;
+    i = k - i;
     if (!i) {
         return ref_bits(null_bits);
     }
@@ -354,9 +364,11 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln) {
     d = v->data;
 
     uv = bits = j = 0;
-    while (i--) {
-        if (s[i] < 0x40) uv |= (s[i] & 15) << bits;
-        else uv |= ((s[i] & 7) + 9) << bits;
+    while (k--) {
+        uint8_t c = s[k];
+        if (c < 0x40) uv |= (c & 15) << bits;
+        else if (c == '_') continue;
+        else uv |= ((c & 7) + 9) << bits;
         if (bits == SHIFT - 4) {
             d[j++] = uv;
             bits = uv = 0;
@@ -368,13 +380,23 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln) {
 }
 
 MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln) {
-    size_t i = 0, j, sz;
+    size_t i, j, k, sz;
     int bits;
     bdigit_t *d, uv;
     Bits *v;
 
-    while ((s[i] & 0xfe) == 0x30) i++;
-    *ln = i;
+    i = k = 0;
+    if (s[0] != '_') {
+        for (;;k++) {
+            uint8_t c = s[k];
+            if ((c & 0xfe) == 0x30) continue;
+            if (c != '_') break;
+            i++;
+        }
+        while (k && s[k - 1] == '_') k--;
+    }
+    *ln = k;
+    i = k - i;
     if (!i) {
         return ref_bits(null_bits);
     }
@@ -386,8 +408,10 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln) {
     d = v->data;
 
     uv = bits = j = 0;
-    while (i--) {
-        if (s[i] == 0x31) uv |= 1 << bits;
+    while (k--) {
+        uint8_t c = s[k];
+        if (c == 0x31) uv |= 1 << bits;
+        else if (c == '_') continue;
         if (bits == SHIFT - 1) {
             d[j++] = uv;
             bits = uv = 0;

@@ -285,9 +285,10 @@ types can be converted to integer using the integer type int.
 
 Bit string constants
 
-Bit string constants can be entered in hexadecimal form by a leading dollar
-sign or in binary with a leading percent sign. The following operations are
-accepted:
+Bit string constants can be entered in hexadecimal form with a leading dollar
+sign or in binary with a leading percent sign. An underscore can be used
+between digits as a separator for better readability of long numbers. The
+following operations are accepted:
 
        Bit string operators and functions
 ~x     invert bits         ~%101 is ~%101
