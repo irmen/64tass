@@ -333,7 +333,7 @@ MUST_CHECK Bits *bits_from_uval(uval_t i, int bits) {
     return v;
 }
 
-MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln) {
+MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     size_t i, j, k, sz;
     int bits;
     bdigit_t *d, uv;
@@ -351,6 +351,7 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln) {
     }
     *ln = k;
     i = k - i;
+    *ln2 = i;
     if (!i) {
         return ref_bits(null_bits);
     }
@@ -379,7 +380,7 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln) {
     return (Bits *)normalize(v, sz, 0);
 }
 
-MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln) {
+MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     size_t i, j, k, sz;
     int bits;
     bdigit_t *d, uv;
@@ -397,6 +398,7 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln) {
     }
     *ln = k;
     i = k - i;
+    *ln2 = i;
     if (!i) {
         return ref_bits(null_bits);
     }
