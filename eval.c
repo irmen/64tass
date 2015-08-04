@@ -214,19 +214,19 @@ static MUST_CHECK Obj *get_exponent2(Obj *v, linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *get_hex(linepos_t epoint) {
-    size_t len;
-    Obj *v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len);
+    size_t len, len2;
+    Obj *v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len, &len2);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
         real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
-        v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len);
+        v = (Obj *)bits_from_hexstr(pline + lpoint.pos, &len, &len2);
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
-        if (real2) real += real2 * pow(16.0, -(double)len);
+        if (real2) real += real2 * pow(16.0, -(double)len2);
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
@@ -234,19 +234,19 @@ static MUST_CHECK Obj *get_hex(linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *get_bin(linepos_t epoint) {
-    size_t len;
-    Obj *v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len);
+    size_t len, len2;
+    Obj *v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len, &len2);
 
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
         real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
-        v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len);
+        v = (Obj *)bits_from_binstr(pline + lpoint.pos, &len, &len2);
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
-        if (real2) real += real2 * pow(2.0, -(double)len);
+        if (real2) real += real2 * pow(2.0, -(double)len2);
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;
