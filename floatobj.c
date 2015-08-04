@@ -229,9 +229,11 @@ MUST_CHECK Obj *calc2_double(oper_t op, double v1, double v2) {
         if (!v1) {
             if (v2 < 0.0) {
                 return (Obj *)new_error(ERROR_DIVISION_BY_Z, op->epoint3);
+            } else if (v2) {
+                return (Obj *)new_float(0.0);
             }
-            return (Obj *)new_float(0.0);
-        } 
+            return (Obj *)new_float(1.0);
+        }
         if (v1 < 0.0 && floor(v2) != v2) {
             return (Obj *)new_error(ERROR_NEGFRAC_POWER, op->epoint3);
         }
