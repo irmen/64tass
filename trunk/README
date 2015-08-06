@@ -234,8 +234,9 @@ Expressions and data types
 
 Integer constants
 
-Integer constants can be entered as decimal digits of arbitrary length. The
-following operations are accepted:
+Integer constants can be entered as decimal digits of arbitrary length. An
+underscore can be used between digits as a separator for better readability of
+long numbers. The following operations are accepted:
 
              Integer operators and functions
 x + y    add x to y                       2 + 2 is 4
@@ -327,7 +328,8 @@ Other types can be converted to bit string using the bit string type bits.
 Floating point constants
 
 Floating point constants have a radix point in them and optionally an exponent.
-A decimal exponent is `e' while a binary one is `p'. The following operations
+A decimal exponent is `e' while a binary one is `p'. An underscore can be used
+between digits as a separator for better readability. The following operations
 can be used:
 
              Floating point operators and functions

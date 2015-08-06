@@ -138,9 +138,9 @@ size_t get_label(void) {
 
 static MUST_CHECK Int *get_dec(void) {
     Int *v;
-    size_t len;
-    while (here() == 0x30) lpoint.pos++;
-    v = int_from_decstr(pline + lpoint.pos, &len);
+    size_t len, len2;
+
+    v = int_from_decstr(pline + lpoint.pos, &len, &len2);
     lpoint.pos += len;
     return v;
 }
@@ -162,11 +162,11 @@ static MUST_CHECK Obj *get_exponent(double real, linepos_t epoint) {
         if ((pline[lpoint.pos + 1] ^ 0x30) < 10) {
             ival_t expo;
             Error *err;
-            size_t len;
+            size_t len, len2;
             Obj *v;
             lpoint.pos++;
 
-            v = (Obj *)int_from_decstr(pline + lpoint.pos, &len);
+            v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
             err = v->obj->ival(v, &expo, 8*sizeof(uval_t), &lpoint);
             val_destroy(v);
             if (err) return &err->v;
@@ -254,21 +254,20 @@ static MUST_CHECK Obj *get_bin(linepos_t epoint) {
 }
 
 static MUST_CHECK Obj *get_float(linepos_t epoint) {
-    size_t len;
+    size_t len, len2;
     Obj *v;
 
-    while (here() == 0x30) lpoint.pos++;
-    v = (Obj *)int_from_decstr(pline + lpoint.pos, &len);
+    v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
     if (pline[lpoint.pos + len] == '.' && pline[lpoint.pos + len + 1] != '.') {
         double real, real2;
         real = toreal_destroy(v, &lpoint);
         lpoint.pos += len + 1;
 
-        v = (Obj *)int_from_decstr(pline + lpoint.pos, &len);
+        v = (Obj *)int_from_decstr(pline + lpoint.pos, &len, &len2);
         real2 = toreal_destroy(v, &lpoint);
         lpoint.pos += len;
 
-        if (real2) real += real2 * pow(10.0, -(double)len);
+        if (real2) real += real2 * pow(10.0, -(double)len2);
         return get_exponent(real, epoint);
     }
     lpoint.pos += len;

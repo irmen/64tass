@@ -60,7 +60,7 @@ extern MUST_CHECK Int *int_from_ival(ival_t);
 extern MUST_CHECK Obj *int_from_str(const struct Str *, linepos_t);
 extern MUST_CHECK Int *int_from_bytes(const struct Bytes *);
 extern MUST_CHECK Int *int_from_bits(const struct Bits *);
-extern MUST_CHECK Int *int_from_decstr(const uint8_t *, size_t *);
+extern MUST_CHECK Int *int_from_decstr(const uint8_t *, size_t *, size_t *);
 extern MUST_CHECK Int *int_from_float(const struct Float *);
 extern MUST_CHECK Obj *float_from_int(const Int *, linepos_t);
 
