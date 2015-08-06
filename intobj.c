@@ -1332,20 +1332,29 @@ MUST_CHECK Obj *int_from_str(const Str *v1, linepos_t epoint) {
     return (Obj *)new_error(ERROR_BIG_STRING_CO, epoint);
 }
 
-MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln) {
+MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     const uint8_t *end;
-    size_t i = 0, j, sz, l;
-    digit_t *d, *end2;
+    size_t i, j, k, sz;
+    digit_t *d, *end2, val;
     Int *v;
 
-    while ((s[i] ^ 0x30) < 10) i++;
-    if (i < 10) {
-        digit_t val;
-        if (!i) val = 0; else {
-            val = s[0] & 15; 
-            for (j = 1;j < i; j++) val = val * 10 + (s[j] & 15);
+    i = k = val = 0;
+    if (s[0] != '_') {
+        for (;;k++) {
+            uint8_t c = s[k] ^ 0x30;
+            if (c < 10) {
+                val = val * 10 + c;
+                continue;
+            }
+            if (c != ('_' ^ 0x30)) break;
+            i++;
         }
-        *ln = i;
+        while (k && s[k - 1] == '_') k--;
+    }
+    *ln = k;
+    i = k - i;
+    *ln2 = i;
+    if (i < 10) {
         if (val >= sizeof(int_value) / sizeof(int_value[0])) {
             v = new_int();
             v->val[0] = val;
@@ -1356,17 +1365,23 @@ MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln) {
         return ref_int(int_value[val]);
     }
     sz = (double)i * 0.11073093649624542178511177326072356663644313812255859375 + 1;
-    l = i;
 
     v = new_int();
     d = inew(v, sz);
 
-    end = s + i;
+    end = s + k;
     end2 = d;
     while (s < end) {
         digit_t *d2 = d;
-        twodigits_t mul, a = *s++ & 15;
-        for (j = 1; j < 9 && s < end; j++) a = a * 10 + (*s++ & 15);
+        twodigits_t mul, a;
+        for (a = j = 0; j < 9 && s < end; s++) {
+            uint8_t c = *s ^ 0x30;
+            if (c < 10) {
+                a = a * 10 + c;
+                j++;
+                continue;
+            }
+        }
         if (j == 9) mul = 1000000000;
         else {
             mul = 10;
@@ -1397,7 +1412,6 @@ MUST_CHECK Int *int_from_decstr(const uint8_t *s, size_t *ln) {
     }
 
     sz = end2 - d;
-    *ln = l;
     return (Int *)normalize(v, d, sz, 0);
 }
 

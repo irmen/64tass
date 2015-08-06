@@ -343,17 +343,17 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     if (s[0] != '_') {
         uv = 0;
         for (;;k++) {
-            uint8_t c = s[k], c2 = c ^ 0x30;
-            if (c2 < 10) {
-                uv = (uv << 4) | c2;
+            uint8_t c2, c = s[k] ^ 0x30;
+            if (c < 10) {
+                uv = (uv << 4) | c;
                 continue;
             }
-            c2 = (c | 0x20) - 0x61;
+            c2 = (c | 0x20) - 0x71;
             if (c2 < 6) {
                 uv = (uv << 4) | (c2 + 10);
                 continue;
             }
-            if (c != '_') break;
+            if (c != ('_' ^ 0x30)) break;
             i++;
         }
         while (k && s[k - 1] == '_') k--;
@@ -382,9 +382,9 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
 
     uv = bits = j = 0;
     while (k--) {
-        uint8_t c = s[k];
-        if (c < 0x40) uv |= (c & 15) << bits;
-        else if (c == '_') continue;
+        uint8_t c = s[k] ^ 0x30;
+        if (c < 10) uv |= c << bits;
+        else if (c == ('_' ^ 0x30)) continue;
         else uv |= ((c & 7) + 9) << bits;
         if (bits == SHIFT - 4) {
             d[j++] = uv;
@@ -406,12 +406,12 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     if (s[0] != '_') {
         uv = 0;
         for (;;k++) {
-            uint8_t c = s[k];
-            if ((c & 0xfe) == 0x30) {
-                uv = (uv << 1) | (c & 1);
+            uint8_t c = s[k] ^ 0x30;
+            if (c < 2) {
+                uv = (uv << 1) | c;
                 continue;
             }
-            if (c != '_') break;
+            if (c != ('_' ^ 0x30)) break;
             i++;
         }
         while (k && s[k - 1] == '_') k--;
