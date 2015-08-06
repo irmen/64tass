@@ -341,9 +341,18 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
 
     i = k = 0;
     if (s[0] != '_') {
+        uv = 0;
         for (;;k++) {
-            uint8_t c = s[k];
-            if ((c ^ 0x30) < 10 || (uint8_t)((c | 0x20) - 0x61) < 6) continue;
+            uint8_t c = s[k], c2 = c ^ 0x30;
+            if (c2 < 10) {
+                uv = (uv << 4) | c2;
+                continue;
+            }
+            c2 = (c | 0x20) - 0x61;
+            if (c2 < 6) {
+                uv = (uv << 4) | (c2 + 10);
+                continue;
+            }
             if (c != '_') break;
             i++;
         }
@@ -352,8 +361,15 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     *ln = k;
     i = k - i;
     *ln2 = i;
-    if (!i) {
-        return ref_bits(null_bits);
+    if (i <= 2 * sizeof(bdigit_t)) {
+        if (!i) {
+            return ref_bits(null_bits);
+        }
+        v = new_bits(1);
+        v->data[0] = uv;
+        v->len = (uv != 0);
+        v->bits = i * 4;
+        return v;
     }
 
     if (i > SIZE_MAX / 4) err_msg_out_of_memory(); /* overflow */
@@ -388,9 +404,13 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2) {
 
     i = k = 0;
     if (s[0] != '_') {
+        uv = 0;
         for (;;k++) {
             uint8_t c = s[k];
-            if ((c & 0xfe) == 0x30) continue;
+            if ((c & 0xfe) == 0x30) {
+                uv = (uv << 1) | (c & 1);
+                continue;
+            }
             if (c != '_') break;
             i++;
         }
@@ -399,8 +419,15 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2) {
     *ln = k;
     i = k - i;
     *ln2 = i;
-    if (!i) {
-        return ref_bits(null_bits);
+    if (i <= 8 * sizeof(bdigit_t)) {
+        if (!i) {
+            return ref_bits(null_bits);
+        }
+        v = new_bits(1);
+        v->data[0] = uv;
+        v->len = (uv != 0);
+        v->bits = i;
+        return v;
     }
 
     sz = i / SHIFT;
