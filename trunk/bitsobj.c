@@ -302,32 +302,36 @@ static MUST_CHECK Obj *len(Obj *o1, linepos_t UNUSED(epoint)) {
 }
 
 MUST_CHECK Bits *ibits_from_bool(int i) {
-    Bits *v = new_bits(1);
-    v->data[0] = i;
+    Bits *v = (Bits *)val_alloc(BITS_OBJ);
+    v->data = v->val;
+    v->val[0] = i;
     v->len = ~(i != 0);
     v->bits = 1;
     return v;
 }
 
 MUST_CHECK Bits *bits_from_bools(int i, int j) {
-    Bits *v = new_bits(1);
-    v->data[0] = (i << 1) | j;
+    Bits *v = (Bits *)val_alloc(BITS_OBJ);
+    v->data = v->val;
+    v->val[0] = (i << 1) | j;
     v->len = i | j;
     v->bits = 2;
     return v;
 }
 
 static MUST_CHECK Bits *bits_from_u24(uint32_t i) {
-    Bits *v = new_bits(1);
-    v->data[0] = i;
+    Bits *v = (Bits *)val_alloc(BITS_OBJ);
+    v->data = v->val;
+    v->val[0] = i;
     v->len = (i != 0);
     v->bits = 24;
     return v;
 }
 
 MUST_CHECK Bits *bits_from_uval(uval_t i, int bits) {
-    Bits *v = new_bits(1);
-    v->data[0] = i;
+    Bits *v = (Bits *)val_alloc(BITS_OBJ);
+    v->data = v->val;
+    v->val[0] = i;
     v->len = (i != 0);
     v->bits = bits;
     return v;
@@ -365,8 +369,9 @@ MUST_CHECK Bits *bits_from_hexstr(const uint8_t *s, size_t *ln, size_t *ln2) {
         if (!i) {
             return ref_bits(null_bits);
         }
-        v = new_bits(1);
-        v->data[0] = uv;
+        v = (Bits *)val_alloc(BITS_OBJ);
+        v->data = v->val;
+        v->val[0] = uv;
         v->len = (uv != 0);
         v->bits = i * 4;
         return v;
@@ -423,8 +428,9 @@ MUST_CHECK Bits *bits_from_binstr(const uint8_t *s, size_t *ln, size_t *ln2) {
         if (!i) {
             return ref_bits(null_bits);
         }
-        v = new_bits(1);
-        v->data[0] = uv;
+        v = (Bits *)val_alloc(BITS_OBJ);
+        v->data = v->val;
+        v->val[0] = uv;
         v->len = (uv != 0);
         v->bits = i;
         return v;
