@@ -1037,7 +1037,7 @@ Obj *compile(struct file_list_s *cflist)
                         get_mem(&current_section->mem, &newmemp, &newmembp);
                         code->apass = pass;
                         newlabel->defpass = pass;
-                        if (labelname.data[0] != '_') {val_destroy(&cheap_context->v);cheap_context = ref_namespace(code->names);}
+                        if (labelname.data[0] != '_' && labelname.data[0] != '+' && labelname.data[0] != '-') {val_destroy(&cheap_context->v);cheap_context = ref_namespace(code->names);}
                     }
                 } else {
                     code = new_code();
@@ -1055,7 +1055,7 @@ Obj *compile(struct file_list_s *cflist)
                     code->requires = current_section->requires;
                     code->conflicts = current_section->conflicts;
                     get_mem(&current_section->mem, &newmemp, &newmembp);
-                    if (labelname.data[0] != '_') {val_destroy(&cheap_context->v);cheap_context = ref_namespace(code->names);}
+                    if (labelname.data[0] != '_' && labelname.data[0] != '+' && labelname.data[0] != '-') {val_destroy(&cheap_context->v);cheap_context = ref_namespace(code->names);}
                 }
             }
             if (wht == '.') { /* .proc */
