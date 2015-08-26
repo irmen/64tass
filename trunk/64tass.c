@@ -604,10 +604,15 @@ Obj *compile(struct file_list_s *cflist)
         }
         star = (current_section->l_address.address & 0xffff) | current_section->l_address.bank;
         wht = here();
-        if (wht =='-' || wht =='+') {
-            lpoint.pos++;if (here()!=0x20 && here()!=0x09 && here()!=';' && here()) {
-                lpoint.pos--;
-            } else {
+        switch (wht) {
+        case '-':
+        case '+':
+            lpoint.pos++;
+            switch (here()) {
+            case ' ':
+            case '\t':
+            case ';':
+            case '\0':
                 if (sizeof(anonident) != sizeof(anonident.dir) + sizeof(anonident.padding) + sizeof(anonident.reffile) + sizeof(anonident.count)) memset(&anonident, 0, sizeof(anonident));
                 else anonident.padding = 0;
                 anonident.dir = wht;
@@ -616,7 +621,11 @@ Obj *compile(struct file_list_s *cflist)
 
                 labelname.data = (const uint8_t *)&anonident;labelname.len = sizeof(anonident);
                 goto hh;
+            default:
+                lpoint.pos--;
             }
+        default:
+            break;
         }
         labelname.data = pline + lpoint.pos; labelname.len = get_label();
         if (labelname.len) {
@@ -665,6 +674,107 @@ Obj *compile(struct file_list_s *cflist)
                     goto itsvar;
                 }
                 break;
+            case '>':
+            case '<':
+                if (pline[lpoint.pos+1] == wht && pline[lpoint.pos+2] == '=') {
+                    goto shifting;
+                }
+                break;
+            case 'X':
+                if (arguments.caseinsensitive && pline[lpoint.pos+1] == '=') {
+                    goto reptop;
+                }
+                break;
+            case '*':
+                if (pline[lpoint.pos+1] == wht && pline[lpoint.pos+2] == '=') {
+                    wht = '=';
+                    goto shifting;
+                }
+                /* fall through */
+            case 'x':
+            case '+':
+            case '-':
+            case '/':
+            case '%':
+            case '|':
+            case '&':
+            case '^':
+                if (pline[lpoint.pos+1] == '=') {
+                    Label *label;
+                    int labelexists;
+                    int oldreferenceit;
+                    struct oper_s tmp;
+                    Obj *result2;
+                    struct linepos_s epoint2, epoint3;
+                    if (1) {
+                    reptop:
+                        epoint3 = lpoint;
+                        lpoint.pos += 2;
+                    } else {
+                    shifting:
+                        epoint3 = lpoint;
+                        lpoint.pos += 3;
+                    }
+                    ignore();
+                    epoint2 = lpoint;
+                    oldreferenceit = referenceit;
+                    label=find_label3(&labelname, mycontext, strength);
+                    if (!label) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
+                    if (!here() || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
+                    else {
+                        struct linepos_s epoints[3];
+                        referenceit &= 1; /* not good... */
+                        if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
+                        val = get_vals_addrlist(epoints);
+                        referenceit = oldreferenceit;
+                    }
+                    if (label) labelexists = 1;
+                    else label = new_label(&labelname, mycontext, strength, &labelexists);
+                    oaddr=current_section->address;
+                    switch (wht) {
+                    default:
+                    case '+': tmp.op = &o_ADD; break;
+                    case '-': tmp.op = &o_SUB; break;
+                    case '*': tmp.op = &o_MUL; break;
+                    case '/': tmp.op = &o_DIV; break;
+                    case '%': tmp.op = &o_MOD; break;
+                    case '|': tmp.op = &o_OR; break;
+                    case '&': tmp.op = &o_AND; break;
+                    case '^': tmp.op = &o_XOR; break;
+                    case '<': tmp.op = &o_LSHIFT; break;
+                    case '>': tmp.op = &o_RSHIFT; break;
+                    case '.': tmp.op = &o_CONCAT; break;
+                    case '=': tmp.op = &o_EXP; break;
+                    case 'X':
+                    case 'x': tmp.op = &o_X; break;
+                    }
+                    tmp.v1 = label->value;
+                    tmp.v2 = val;
+                    tmp.epoint = &epoint;
+                    tmp.epoint2 = &epoint2;
+                    tmp.epoint3 = &epoint3;
+                    result2 = tmp.v1->obj->calc2(&tmp);
+                    if (result2->obj == ERROR_OBJ) { err_msg_output_and_destroy((Error *)result2); result2 = (Obj *)ref_none(); }
+                    val_destroy(val);
+                    listing_equal(result2);
+                    if (labelexists) {
+                        if (label->constant) err_msg_double_defined(label, &labelname, &epoint);
+                        else {
+                            label->file_list = cflist;
+                            label->epoint = epoint;
+                            if (label->defpass != pass) label->ref = 0;
+                            var_assign(label, result2, fixeddig);
+                        }
+                        val_destroy(result2);
+                    } else {
+                        label->constant = 0;
+                        label->value = result2;
+                        label->file_list = cflist;
+                        label->epoint = epoint;
+                    }
+                    goto finish;
+                }
+                break;
             case '=': 
                 { /* variable */
                     Label *label;
@@ -705,6 +815,9 @@ Obj *compile(struct file_list_s *cflist)
                     goto finish;
                 }
             case '.':
+                if (pline[lpoint.pos+1] == wht && pline[lpoint.pos+2] == '=') {
+                    goto shifting;
+                }
                 cmdpoint = lpoint;
                 prm = get_command();
                 ignore();
@@ -1133,6 +1246,21 @@ Obj *compile(struct file_list_s *cflist)
         }
         jn:
         switch (wht) {
+        case '>':
+        case '<':
+            if (pline[lpoint.pos+1] != wht || pline[lpoint.pos+2] != '=') {
+                if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint);
+                goto breakerr;
+            }
+            if (waitfor->skip & 1) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
+            break;
+        case '+':
+        case '-':
+        case '/':
+        case '%':
+        case '|':
+        case '&':
+        case '^':
         case ':':
             if (pline[lpoint.pos+1] != '=') {
                 if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint);
