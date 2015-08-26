@@ -994,7 +994,7 @@ and are assigned to the code symbol above them.</p>
 <p>Not all regularly named symbols can be scope boundaries just plain code symbol ones
 without anything or an opcode after them (no macros!). Symbols defined as procedures, blocks,
 macros, functions, structs and unions are ignored. Also symbols defined by
-<code>.var</code> or <code>=</code> don't apply, and there are a few more
+<code>.var</code>, <code>:=</code> or <code>=</code> don't apply, and there are a few more
 exceptions, so stick to using plain code labels.</p>
 
 <p>The name must start with an underscore (<tt>_</tt>), otherwise the same character
@@ -1060,20 +1060,22 @@ until the global scope is reached.</p>
 <h4>Constant and re-definable symbols<a name="symbols-constant" href="#symbols-constant"></a></h4>
 
 <p>Constant symbols can be created with the equal sign. These are not
-re-definable. Forward referencing to them is allowed as they retain the
+re-definable. Forward referencing of them is allowed as they retain the
 objects over compilation passes.</p>
 
 <p>Symbols in front of code or certain assembler directives are created as
 constant symbols too. They are binded to the object following them.</p>
 
-<p>Re-definable symbols can be created by the <code>.var</code> directive.
-These are also called as variables as they don't carry their content over from
-the previous pass it's not possible to use them before definition.</p>
+<p>Re-definable symbols can be created by the <code>.var</code> directive
+or <code>:=</code> construct. These are also called as variables as they
+don't carry their content over from the previous pass. Therefore it's not
+possible to use them before their definition.</p>
 
 <pre width=80>
 border  <b>=</b> <span>$d020</span>         <i>;a constant</i>
         <b>inc</b> <u>border</u>      <i>;inc $d020</i>
 variabl	<b class="k">.var</b> <span>1</span>          <i>;a variable</i>
+var2	<b>:=</b> <span>1</span>            <i>;another variable</i>
         <b class="k">.rept</b> <span>10</span>
         <b class="d">.byte</b> <u>variabl</u>
 variabl	<b class="k">.var</b> <u>variabl</u>+<span>1</span>  <i>;increment it</i>

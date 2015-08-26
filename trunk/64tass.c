@@ -647,7 +647,7 @@ Obj *compile(struct file_list_s *cflist)
             if (!islabel && labelname.len && labelname.data[0] == '_') {
                 mycontext = cheap_context;
             }
-            if (here()==':') {islabel = 1; lpoint.pos++;}
+            if (here()==':' && pline[lpoint.pos+1] != '=') {islabel = 1; lpoint.pos++;}
             if (!islabel && labelname.len == 3 && (prm=lookup_opcode((const char *)labelname.data))>=0) {
                 if (waitfor->skip & 1) goto as_opcode; else continue;
             }
@@ -657,45 +657,54 @@ Obj *compile(struct file_list_s *cflist)
             ignore();wht = here();
             if (!(waitfor->skip & 1)) {epoint = lpoint; goto jn;} /* skip things if needed */
             if (labelname.len > 1 && labelname.data[0] == '_' && labelname.data[1] == '_') {err_msg2(ERROR_RESERVED_LABL, &labelname, &epoint); goto breakerr;}
-            if (wht == '=') { /* variable */
-                Label *label;
-                int labelexists;
-                int oldreferenceit = referenceit;
-                label = find_label3(&labelname, mycontext, strength);
-                lpoint.pos++; ignore();
-                if (!here() || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
-                else {
-                    struct linepos_s epoints[3];
-                    referenceit &= label ? label->ref : 1;
-                    if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
-                    val = get_vals_addrlist(epoints);
-                    referenceit = oldreferenceit;
+            switch (wht) {
+            case ':':
+                if (pline[lpoint.pos+1] == '=') {
+                    lpoint.pos += 2;
+                    ignore();
+                    goto itsvar;
                 }
-                if (label) labelexists = 1;
-                else label = new_label(&labelname, mycontext, strength, &labelexists);
-                oaddr=current_section->address;
-                listing_equal(val);
-                label->ref = 0;
-                if (labelexists) {
-                    if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
+                break;
+            case '=': 
+                { /* variable */
+                    Label *label;
+                    int labelexists;
+                    int oldreferenceit = referenceit;
+                    label = find_label3(&labelname, mycontext, strength);
+                    lpoint.pos++; ignore();
+                    if (!here() || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
                     else {
-                        if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
+                        struct linepos_s epoints[3];
+                        referenceit &= label ? label->ref : 1;
+                        if (!get_exp(&w, 0, cfile, 0, 0, NULL)) goto breakerr;
+                        val = get_vals_addrlist(epoints);
+                        referenceit = oldreferenceit;
+                    }
+                    if (label) labelexists = 1;
+                    else label = new_label(&labelname, mycontext, strength, &labelexists);
+                    oaddr=current_section->address;
+                    listing_equal(val);
+                    label->ref = 0;
+                    if (labelexists) {
+                        if (label->defpass == pass) err_msg_double_defined(label, &labelname, &epoint);
+                        else {
+                            if (label->defpass != pass - 1 && !temporary_label_branch) constcreated = 1;
+                            label->constant = 1;
+                            label->file_list = cflist;
+                            label->epoint = epoint;
+                            var_assign(label, val, 0);
+                        }
+                        val_destroy(val);
+                    } else {
+                        constcreated |= !temporary_label_branch;
                         label->constant = 1;
+                        label->value = val;
                         label->file_list = cflist;
                         label->epoint = epoint;
-                        var_assign(label, val, 0);
                     }
-                    val_destroy(val);
-                } else {
-                    constcreated |= !temporary_label_branch;
-                    label->constant = 1;
-                    label->value = val;
-                    label->file_list = cflist;
-                    label->epoint = epoint;
+                    goto finish;
                 }
-                goto finish;
-            }
-            if (wht == '.') {
+            case '.':
                 cmdpoint = lpoint;
                 prm = get_command();
                 ignore();
@@ -704,7 +713,9 @@ Obj *compile(struct file_list_s *cflist)
                     {
                         Label *label;
                         int labelexists;
-                        int oldreferenceit = referenceit;
+                        int oldreferenceit;
+                    itsvar:
+                        oldreferenceit = referenceit;
                         label=find_label3(&labelname, mycontext, strength);
                         if (!here() || here() == ';') val = (Obj *)ref_addrlist(null_addrlist);
                         else {
@@ -975,6 +986,7 @@ Obj *compile(struct file_list_s *cflist)
                         break;
                     }
                 }
+                break;
             }
             {
                 int labelexists = 0;
@@ -1121,6 +1133,12 @@ Obj *compile(struct file_list_s *cflist)
         }
         jn:
         switch (wht) {
+        case ':':
+            if (pline[lpoint.pos+1] != '=') {
+                if (waitfor->skip & 1) err_msg2(ERROR_GENERL_SYNTAX, NULL, &epoint);
+                goto breakerr;
+            }
+            /* fall through */
         case '=':
             if (waitfor->skip & 1) {err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint); goto breakerr;}
             break;
