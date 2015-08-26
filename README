@@ -779,8 +779,8 @@ Therefore they're easy to reuse without explicit scope declaration directives.
 Not all regularly named symbols can be scope boundaries just plain code symbol
 ones without anything or an opcode after them (no macros!). Symbols defined as
 procedures, blocks, macros, functions, structs and unions are ignored. Also
-symbols defined by .var or = don't apply, and there are a few more exceptions,
-so stick to using plain code labels.
+symbols defined by .var, := or = don't apply, and there are a few more
+exceptions, so stick to using plain code labels.
 
 The name must start with an underscore (_), otherwise the same character
 restrictions apply as for regular symbols. There's no restriction on the length
@@ -842,19 +842,21 @@ scopes until the global scope is reached.
 Constant and re-definable symbols
 
 Constant symbols can be created with the equal sign. These are not
-re-definable. Forward referencing to them is allowed as they retain the objects
+re-definable. Forward referencing of them is allowed as they retain the objects
 over compilation passes.
 
 Symbols in front of code or certain assembler directives are created as
 constant symbols too. They are binded to the object following them.
 
-Re-definable symbols can be created by the .var directive. These are also
-called as variables as they don't carry their content over from the previous
-pass it's not possible to use them before definition.
+Re-definable symbols can be created by the .var directive or := construct.
+These are also called as variables as they don't carry their content over from
+the previous pass. Therefore it's not possible to use them before their
+definition.
 
 border  = $d020         ;a constant
         inc border      ;inc $d020
 variabl .var 1          ;a variable
+var2    := 1            ;another variable
         .rept 10
         .byte variabl
 variabl .var variabl+1  ;increment it
