@@ -1128,7 +1128,14 @@ Obj *compile(struct file_list_s *cflist)
                 if (labelexists) {
                     if (newlabel->defpass == pass) {
                         err_msg_double_defined(newlabel, &labelname, &epoint);
-                        newlabel = NULL; epoint = lpoint; if (wht == '.') goto as_command; else goto jn;
+                        newlabel = NULL;
+                        if (wht == '.') {
+                            epoint = cmdpoint;
+                            goto as_command;
+                        } else {
+                            epoint = lpoint;
+                            goto jn;
+                        }
                     }
                     if (!newlabel->update_after && newlabel->value->obj != CODE_OBJ) {
                         val_destroy(newlabel->value);
@@ -2721,7 +2728,7 @@ Obj *compile(struct file_list_s *cflist)
             case CMD_PROC: /* .proc */
                 if (waitfor->skip & 1) {
                     listing_line(0);
-                    err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
+                    if (!labelname.len) err_msg2(ERROR_LABEL_REQUIRE, NULL, &epoint);
                 }
                 new_waitfor(W_PEND, &epoint);
                 waitfor->skip = 0;waitfor->label = NULL;
