@@ -55,7 +55,7 @@ Table of Contents
           o Bit string extraction operators
           o Conditional operators
           o Address length forcing
-          o Compobound assignment
+          o Compound assignment
   * Compiler directives
       + Controlling the compile offset and program counter
       + Dumping data
@@ -1101,14 +1101,14 @@ used directly with instructions.
 
         lda @w$0000
 
-Compobound assignment
+Compound assignment
 
 These assignment operators are shorthands for common .var directive use.
 
 With the exception of := the variables updated must be defined beforehand. As
 with .var they can't update constants, only variables.
 
-      Compobound assignments
+       Compound assignments
 +=  add         -=  subtract
 *=  multiply    /=  divide
 %=  modulo      **= raise to power
