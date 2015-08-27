@@ -739,7 +739,7 @@ Obj *compile(struct file_list_s *cflist)
                         label = NULL;
                         tmp.v1 = get_star_value(current_section->l_address_val);
                     } else {
-                        label = find_label3(&labelname, mycontext, strength);
+                        label = find_label2(&labelname, mycontext);
                         if (!label) {err_msg_not_definedx(&labelname, &epoint); goto breakerr;}
                         tmp.v1 = label->value;
                     }
