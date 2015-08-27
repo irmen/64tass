@@ -46,11 +46,16 @@ Table of Contents
           o Local symbols
           o Anonymous symbols
           o Constant and re-definable symbols
-      + Conditional expressions
       + Built-in functions
           o Mathematical functions
           o Other functions
       + Expressions
+          o Operators
+          o Comparison operators
+          o Bit string extraction operators
+          o Conditional operators
+          o Address length forcing
+          o Compobound assignment
   * Compiler directives
       + Controlling the compile offset and program counter
       + Dumping data
@@ -238,7 +243,7 @@ Integer constants can be entered as decimal digits of arbitrary length. An
 underscore can be used between digits as a separator for better readability of
 long numbers. The following operations are accepted:
 
-             Integer operators and functions
+            Integer operators and functions
 x + y    add x to y                       2 + 2 is 4
 x - y    subtract y from x                4 - 1 is 3
 x * y    multiply x with y                2 * 3 is 6
@@ -248,19 +253,6 @@ x ** y   x raised to power of y           2 ** 4 is 16
 -x       negated value                    -2 is -2
 +x       unchanged                        +2 is 2
 ~x       -x - 1                           ~3 is -4
-<x       lower byte                       <2049 is $01
->x       higher byte                      >2049 is $08
-`x       bank byte                        `65536 is $01
-<>x      lower word                       <>65537 is $0001
->`x      higher word                      >`65537 is $0100
-><x      lower byte swapped word          ><2049 is $0108
-x <=> y  x compares to y                  2 <=> 5 is -1
-x == y   x equals to y                    2 == 3 is false
-x != y   x does not equal to y            2 != 3 is true
-x < y    x is less than y                 2 < 3 is true
-x > y    x is more than y                 2 > 3 is false
-x >= y   x is more than y or equals       2 >= 3 is false
-x <= y   x is less than y or equals       2 <= 3 is true
 x | y    bitwise or                       2 | 6 is 6
 x ^ y    bitwise xor                      2 ^ 6 is 4
 x & y    bitwise and                      2 & 6 is 2
@@ -341,13 +333,6 @@ x % y       integer modulo of x divided by y 5.0 % 2.0 is 1.0
 x ** y      x raised t power of y            2.0 ** -1 is 0.5
 -x          negated value                    -2.0 is -2.0
 +x          unchanged                        +2.0 is 2.0
-x <=> y     x compares to y                  5.0 <=> 3.0 is 1
-x == y      x equals to y                    2.0 == 3.0 is false
-x != y      x does not equal to y            2.0 != 3.0 is true
-x < y       x is less than y                 2.0 < 3.0 is true
-x > y       x is more than y                 2.0 > 3.0 is false
-x >= y      x is more than y or equals       2.0 >= 3.0 is false
-x <= y      x is less than y or equals       2.0 <= 3.0 is true
 x | y       bitwise or                       2.5 | 6.5 is 6.5
 x ^ y       bitwise xor                      2.5 ^ 6.5 is 4.0
 x & y       bitwise and                      2.5 & 6.5 is 2.5
@@ -649,9 +634,9 @@ The program bank indexed addressing mode is not affected by the current program
 bank and always generates the 16 bit constant value as is. It's only usable
 with jump instructions.
 
-Normally addressing mode operators are used right after instructions. They can
-also be used for defining stack variable symbols when using a 65816, or to
-force a specific addressing mode.
+Normally addressing mode operators are used in expressions right after
+instructions. They can also be used for defining stack variable symbols when
+using a 65816, or to force a specific addressing mode.
 
 param   = 1,s             ;define a stack variable
 const   = #1              ;immediate constant
@@ -862,33 +847,15 @@ var2    := 1            ;another variable
 variabl .var variabl+1  ;increment it
         .next
 
-Conditional expressions
-
-Boolean conditional operators give false (0) or true (1) or one of the operands
-as the result. True is defined as a non-zero number, anything else is false.
-
-The ternary operator (?:) gives the first (x) result if c is true or the second
-(y) if c is false.
-
-              Logical and conditional operators
-x || y      if x is true then x otherwise y
-x ^^ y      if both false or true then false otherwise x || y
-x && y      if x is true then y otherwise x
-!x          if x is true then false otherwise true
-!!x         if x is true then true otherwise false
-c ? x : y   if c is true then x otherwise y
-
-;Silly example for 1=>"simple", 2=>"advanced", else "normal"
-        .text MODE == 1 && "simple" || MODE == 2 && "advanced" || "normal"
-        .text MODE == 1 ? "simple" : MODE == 2 ? "advanced" : "normal"
-
-Please note that these are not short circuiting operations and both sides are
-calculated even if thrown away later.
-
 Built-in functions
 
-Only the generic built-in functions are listed here. There are plenty of math
-functions, for those see the floating point constants section.
+Builting functions are assigned to the symbols listed below. If you reuse these
+symbols in a scope for other purposes then they become inaccessible, or can
+perform a different function.
+
+Built-in functions can be assigned to symbols (e.g. sinus = sin), and the new
+name can be used as the original function. They can even be passed as
+parameters to functions.
 
 Mathematical functions
 
@@ -1051,13 +1018,86 @@ size(<expression>)
 
 Expressions
 
+Operators
+
+The following operators are available. Not all are defined for all types of
+arguments and their meaning might slightly vary depending on the type.
+
+            Unary operators
+- negative             + positive
+! not                  ~ invert
+* convert to arguments ^ decimal string
+
+        Binary operators
++  add         -  subtract
+*  multiply    /  divide
+%  modulo      ** raise to power
+|  binary or   ^  binary xor
+&  binary and  << shift left
+>> shift right .  member
+.. concat      x  repeat
+in contains
+
+There's a ternary operator (?:) which gives the second value if the first is
+true or the third if the first is false.
+
 Parenthesis (( )) can be used to override operator precedence. Don't forget
 that they also denote indirect addressing mode for certain opcodes.
 
         lda #(4+2)*3
 
-Special addressing mode forcing operators in front of an expression can be used
-to make sure the expected addressing mode is used.
+Comparison operators
+
+Traditional comparison operators give false or true depending on the result.
+
+The compare operator (<=>) gives -1 for less, 0 for equal and 1 for more.
+
+        Comparison operators
+<=> compare
+==  equals    != not equal
+<   less than >= more than or equals
+>   more than <= less than or equals
+
+Bit string extraction operators
+
+These unary operators extract 8 or 16 bits as a bit string from various types
+of operands.
+
+     Bit string extraction operators
+<  lower byte              >  higher byte
+<> lower word              >` higher word
+>< lower byte swapped word `  bank byte
+
+        lda #<irq+1     ; lower byte of irq+1
+        sta $314
+        lda #>irq+1     ; higher byte of irq+1
+        sta $315
+
+Conditional operators
+
+Boolean conditional operators give false or true or one of the operands as the
+result. True is defined as a non-zero number, anything else is false.
+
+              Logical and conditional operators
+x || y      if x is true then x otherwise y
+x ^^ y      if both false or true then false otherwise x || y
+x && y      if x is true then y otherwise x
+!x          if x is true then false otherwise true
+!!x         if x is true then true otherwise false
+c ? x : y   if c is true then x otherwise y
+
+;Silly example for 1=>"simple", 2=>"advanced", else "normal"
+        .text MODE == 1 && "simple" || MODE == 2 && "advanced" || "normal"
+        .text MODE == 1 ? "simple" : MODE == 2 ? "advanced" : "normal"
+
+Please note that these are not short circuiting operations and both sides are
+calculated even if thrown away later.
+
+Address length forcing
+
+Special addressing length forcing operators in front of an expression can be
+used to make sure the expected addressing mode is used. Only applicable when
+used directly with instructions.
 
            Address size forcing
 @b          to force 8 bit address
@@ -1065,6 +1105,25 @@ to make sure the expected addressing mode is used.
 @l          to force 24 bit address (65816)
 
         lda @w$0000
+
+Compobound assignment
+
+These assignment operators are shorthands for common .var directive use.
+
+With the exception of := the variables updated must be defined beforehand. As
+with .var they can't update constants, only variables.
+
+      Compobound assignments
++=  add         -=  subtract
+*=  multiply    /=  divide
+%=  modulo      **= raise to power
+|=  binary or   ^=  binary xor
+&=  binary and  <<= shift left
+>>= shift right ..= concat
+x=  repeat      :=  assign
+
+v       := 1            ; same as 'v .var 1'
+v       += 1            ; same as 'v .var v + 1'
 
 -------------------------------------------------------------------------------
 

@@ -136,13 +136,20 @@ Not everything is backwards compatible.</b></p>
    <li><a href="#symbols-anonymous">Anonymous symbols</a>
    <li><a href="#symbols-constant">Constant and re-definable symbols</a>
   </ul>
-  <li><a href="#conditionals">Conditional expressions</a>
   <li><a href="#builtin-functions">Built-in functions</a>
   <ul>
    <li><a href="#math-functions">Mathematical functions</a>
    <li><a href="#other-functions">Other functions</a>
   </ul>
   <li><a href="#expressions">Expressions</a>
+  <ul>
+   <li><a href="#operators">Operators</a>
+   <li><a href="#comparison">Comparison operators</a>
+   <li><a href="#bitstringextractor">Bit string extraction operators</a>
+   <li><a href="#conditionals">Conditional operators</a>
+   <li><a href="#addresslength">Address length forcing</a>
+   <li><a href="#combopound">Compobound assignment</a>
+  </ul>
  </ul>
  <li><a href="#compiler-directives">Compiler directives</a>
  <ul>
@@ -387,19 +394,6 @@ accepted:</p>
 <tr><td><code>&minus;<u>x</u></code><td>negated value<td><code>&minus;<span>2</span></code> is <code><span>&minus;2</span></code>
 <tr><td><code>+<u>x</u></code><td>unchanged<td><code>+<span>2</span></code> is <code><span>2</span></code>
 <tr><td><code>~<u>x</u></code><td>&minus;x &minus; 1<td><code>~<span>3</span></code> is <code><span>&minus;4</span></code>
-<tr><td><code>&lt;<u>x</u></code><td>lower byte<td><code>&lt;<span>2049</span></code> is <code><span>$01</span></code>
-<tr><td><code>&gt;<u>x</u></code><td>higher byte<td><code>&gt;<span>2049</span></code> is <code><span>$08</span></code>
-<tr><td><code>`<u>x</u></code><td>bank byte<td><code>`<span>65536</span></code> is <code><span>$01</span></code>
-<tr><td><code>&lt;&gt;<u>x</u></code><td>lower word<td><code>&lt;&gt;<span>65537</span></code> is <code><span>$0001</span></code>
-<tr><td><code>&gt;`<u>x</u></code><td>higher word<td><code>&gt;`<span>65537</span></code> is <code><span>$0100</span></code>
-<tr><td><code>&gt;&lt;<u>x</u></code><td>lower byte swapped word<td><code>&gt;&lt;<span>2049</span></code> is <code><span>$0108</span></code>
-<tr><td><code><u>x</u> &lt;=&gt; <u>y</u></code><td>x compares to y<td><code><span>2</span> &lt;=&gt; <span>5</span></code> is <code><span>&minus;1</span></code>
-<tr><td><code><u>x</u> == <u>y</u></code><td>x equals to y<td><code><span>2</span> == <span>3</span></code> is <code><span>false</span></code>
-<tr><td><code><u>x</u> != <u>y</u></code><td>x does not equal to y<td><code><span>2</span> != <span>3</span></code> is <code><span>true</span></code>
-<tr><td><code><u>x</u> &lt; <u>y</u></code><td>x is less than y<td><code><span>2</span> &lt; <span>3</span></code> is <code><span>true</span></code>
-<tr><td><code><u>x</u> &gt; <u>y</u></code><td>x is more than y<td><code><span>2</span> &gt; <span>3</span></code> is <code><span>false</span></code>
-<tr><td><code><u>x</u> &gt;= <u>y</u></code><td>x is more than y or equals<td><code><span>2</span> &gt;= <span>3</span></code> is <code><span>false</span></code>
-<tr><td><code><u>x</u> &lt;= <u>y</u></code><td>x is less than y or equals<td><code><span>2</span> &lt;= <span>3</span></code> is <code><span>true</span></code>
 <tr><td><code><u>x</u> | <u>y</u></code><td>bitwise or<td><code><span>2</span> | <span>6</span></code> is <code><span>6</span></code>
 <tr><td><code><u>x</u> ^ <u>y</u></code><td>bitwise xor<td><code><span>2</span> ^ <span>6</span></code> is <code><span>4</span></code>
 <tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>2</span> &amp; <span>6</span></code> is <code><span>2</span></code>
@@ -492,13 +486,6 @@ readability. The following operations can be used:</p>
 <tr><td><code><u>x</u> &lowast;&lowast; <u>y</u></code><td>x raised t power of y<td><code><span>2.0</span> &lowast;&lowast; <span>&minus;1</span></code> is <code><span>0.5</span></code>
 <tr><td><code>&minus;<u>x</u></code><td>negated value<td><code>&minus;<span>2.0</span></code> is <code><span>&minus;2.0</span></code>
 <tr><td><code>+<u>x</u></code><td>unchanged<td><code>+<span>2.0</span></code> is <code><span>2.0</span></code>
-<tr><td><code><u>x</u> &lt;=&gt; <u>y</u></code><td>x compares to y<td><code><span>5.0</span> &lt;=&gt; <span>3.0</span></code> is <code><span>1</span></code>
-<tr><td><code><u>x</u> == <u>y</u></code><td>x equals to y<td><code><span>2.0</span> == <span>3.0</span></code> is <code><span>false</span></code>
-<tr><td><code><u>x</u> != <u>y</u></code><td>x does not equal to y<td><code><span>2.0</span> != <span>3.0</span></code> is <code><span>true</span></code>
-<tr><td><code><u>x</u> &lt; <u>y</u></code><td>x is less than y<td><code><span>2.0</span> &lt; <span>3.0</span></code> is <code><span>true</span></code>
-<tr><td><code><u>x</u> &gt; <u>y</u></code><td>x is more than y<td><code><span>2.0</span> &gt; <span>3.0</span></code> is <code><span>false</span></code>
-<tr><td><code><u>x</u> &gt;= <u>y</u></code><td>x is more than y or equals<td><code><span>2.0</span> &gt;= <span>3.0</span></code> is <code><span>false</span></code>
-<tr><td><code><u>x</u> &lt;= <u>y</u></code><td>x is less than y or equals<td><code><span>2.0</span> &lt;= <span>3.0</span></code> is <code><span>true</span></code>
 <tr><td><code><u>x</u> | <u>y</u></code><td>bitwise or<td><code><span>2.5</span> | <span>6.5</span></code> is <code><span>6.5</span></code>
 <tr><td><code><u>x</u> ^ <u>y</u></code><td>bitwise xor<td><code><span>2.5</span> ^ <span>6.5</span></code> is <code><span>4.0</span></code>
 <tr><td><code><u>x</u> &amp; <u>y</u></code><td>bitwise and<td><code><span>2.5</span> &amp; <span>6.5</span></code> is <code><span>2.5</span></code>
@@ -846,9 +833,9 @@ as is. It's only usable with data bank accessing instructions.</p>
 current program bank and always generates the 16&nbsp;bit constant value as
 is. It's only usable with jump instructions.</p>
 
-<p>Normally addressing mode operators are used right after instructions. They
-can also be used for defining stack variable symbols when using a 65816, or to
-force a specific addressing mode.</p>
+<p>Normally addressing mode operators are used in expressions right after
+instructions. They can also be used for defining stack variable symbols when
+using a 65816, or to force a specific addressing mode.</p>
 
 <pre width=80>
 param   <b>=</b> <span>1</span>,s             <i>;define a stack variable</i>
@@ -1082,38 +1069,15 @@ variabl	<b class="k">.var</b> <u>variabl</u>+<span>1</span>  <i>;increment it</i
 	<b class="k">.next</b>
 </pre>
 
-<h3>Conditional expressions<a name="conditionals" href="#conditionals"></a></h3>
-<p>Boolean conditional operators give false (0) or true (1) or one of the
-operands as the result. True is defined as a non-zero number, anything else is false.</p>
-
-<p>The ternary operator (<code>?:</code>) gives the first (x) result if c is
-true or the second (y) if c is false.</p>
-
-<div><table border="0">
-<caption>Logical and conditional operators</caption>
-<tbody>
-<tr><td width="80"><code><u>x</u> || <u>y</u></code><td>if x is true then x otherwise y
-<tr><td><code><u>x</u> ^^ <u>y</u></code><td>if both false or true then false otherwise x || y
-<tr><td><code><u>x</u> &amp;&amp; <u>y</u></code><td>if x is true then y otherwise x
-<tr><td><code>!<u>x</u></code><td>if x is true then false otherwise true
-<tr><td><code>!!<u>x</u></code><td>if x is true then true otherwise false
-<tr><td><code><u>c</u>&nbsp;?&nbsp;<u>x</u>&nbsp;:&nbsp;<u>y</u></code><td>if c is true then x otherwise y
-</tbody>
-</table></div>
-
-<pre width=80>
-<i>;Silly example for 1=>"simple", 2=>"advanced", else "normal"</i>
-        <b class="d">.text</b> <u>MODE</u> == <span>1</span> &amp;&amp; <span class="s">"simple"</span> || <u>MODE</u> == <span>2</span> &amp;&amp; <span class="s">"advanced"</span> || <span class="s">"normal"</span>
-        <b class="d">.text</b> <u>MODE</u> == <span>1</span> ? <span class="s">"simple"</span> : <u>MODE</u> == <span>2</span> ? <span class="s">"advanced"</span> : <span class="s">"normal"</span>
-</pre>
-
-<p>Please note that these are not short circuiting operations and both sides are
-calculated even if thrown away later.</p>
-
 <h3>Built-in functions<a name="builtin-functions" href="#builtin-functions"></a></h3>
 
-<p>Only the generic built-in functions are listed here. There are plenty of
-math functions, for those see the <a href="#floating-point">floating point constants</a> section.</p>
+<p>Builting functions are assigned to the symbols listed below. If you reuse these
+symbols in a scope for other purposes then they become inaccessible, or can
+perform a different function.</p>
+
+<p>Built-in functions can be assigned to symbols (e.g. <code>sinus = sin</code>), and
+the new name can be used as the original function. They can even be passed as
+parameters to functions.</p>
 
 <h4>Mathematical functions<a name="math-functions" href="#math-functions"></a></h4>
 
@@ -1359,6 +1323,48 @@ mylist  <b>=</b> <span class="k">range</span>(<span>10</span>, <span>0</span>, <
 
 <h3>Expressions<a name="expressions" href="#expressions"></a></h3>
 
+<h4>Operators<a name="operators" href="#operators"></a></h4>
+
+The following operators are available. Not all are defined for all types of
+arguments and their meaning might slightly vary depending on the type.
+
+<div><table border="0">
+<caption>Unary operators</caption>
+<tbody>
+<tr><td><code>&minus;</code><td>negative
+<td><code>+</code><td>positive
+<tr><td><code>!</code><td>not
+<td><code>~</code><td>invert
+<tr><td><code>&lowast;</code><td>convert to arguments
+<td><code>^</code><td>decimal string
+</tbody>
+</table></div>
+
+<div><table border="0">
+<caption>Binary operators</caption>
+<tbody>
+<tr><td><code>+</code><td>add
+<td><code>&minus;</code><td>subtract
+<tr><td><code>&lowast;</code><td>multiply
+<td><code>/</code><td>divide
+<tr><td><code>%</code><td>modulo
+<td><code>&lowast;&lowast;</code><td>raise to power
+<tr><td><code>|</code><td>binary or
+<td><code>^</code><td>binary xor
+<tr><td><code>&amp;</code><td>binary and
+<td><code>&lt;&lt;</code><td>shift left
+<tr><td><code>&gt;&gt;</code><td>shift right
+<td><code>.</code><td>member
+<tr><td><code>..</code><td>concat
+<td><code>x</code><td>repeat
+<tr><td><code>in</code><td>contains
+<td>&nbsp;<td>&nbsp;
+</tbody>
+</table></div>
+
+<p>There's a ternary operator (<code>?:</code>) which gives the second value if the first is
+true or the third if the first is false.</p>
+
 <p>Parenthesis (<code>( )</code>) can be used to override operator precedence.
 Don't forget that they also denote indirect addressing mode for certain
 opcodes.</p>
@@ -1367,8 +1373,78 @@ opcodes.</p>
         <b>lda</b> #(<span>4</span>+<span>2</span>)*<span>3</span>
 </pre>
 
-<p>Special addressing mode forcing operators in front of an expression can be
-used to make sure the expected addressing mode is used.</p>
+<h4>Comparison operators<a name="comparison" href="#comparison"></a></h4>
+
+<p>Traditional comparison operators give false or true depending on the result.</p>
+<p>The compare operator (<code>&lt;=&gt;</code>) gives &minus;1 for less, 0 for equal and 1 for more.</p>
+
+<div><table border="0">
+<caption>Comparison operators</caption>
+<tbody>
+<tr><td><code>&lt;=&gt;</code><td>compare
+<td>&nbsp;<td>&nbsp;
+<tr><td><code>==</code><td>equals
+<td><code>!=</code><td>not equal
+<tr><td><code>&lt;</code><td>less than
+<td><code>&gt;=</code><td>more than or equals
+<tr><td><code>&gt;</code><td>more than
+<td><code>&lt;=</code><td>less than or equals
+</tbody>
+</table></div>
+
+<h4>Bit string extraction operators<a name="bitstringextractor" href="#bitstringextractor"></a></h4>
+
+<p>These unary operators extract 8 or 16&nbsp;bits as a bit string from various types of operands.</p>
+
+<div><table border="0">
+<caption>Bit string extraction operators</caption>
+<tbody>
+<tr><td><code>&lt;</code><td>lower byte
+<td><code>&gt;</code><td>higher byte
+<tr><td><code>&lt;&gt;</code><td>lower word
+<td><code>&gt;`</code><td>higher word
+<tr><td><code>&gt;&lt;</code><td>lower byte swapped word
+<td><code>`</code><td>bank byte
+</tbody>
+</table></div>
+
+<pre width=80>
+        <b>lda</b> #&lt;<u>irq</u>+<span>1</span>     <i>; lower byte of irq+1</i>
+        <b>sta</b> <span>$314</span>
+        <b>lda</b> #&gt;<u>irq</u>+<span>1</span>     <i>; higher byte of irq+1</i>
+        <b>sta</b> <span>$315</span>
+</pre>
+
+<h4>Conditional operators<a name="conditionals" href="#conditionals"></a></h4>
+<p>Boolean conditional operators give false or true or one of the
+operands as the result. True is defined as a non-zero number, anything else is false.</p>
+
+<div><table border="0">
+<caption>Logical and conditional operators</caption>
+<tbody>
+<tr><td width="80"><code><u>x</u> || <u>y</u></code><td>if x is true then x otherwise y
+<tr><td><code><u>x</u> ^^ <u>y</u></code><td>if both false or true then false otherwise x || y
+<tr><td><code><u>x</u> &amp;&amp; <u>y</u></code><td>if x is true then y otherwise x
+<tr><td><code>!<u>x</u></code><td>if x is true then false otherwise true
+<tr><td><code>!!<u>x</u></code><td>if x is true then true otherwise false
+<tr><td><code><u>c</u>&nbsp;?&nbsp;<u>x</u>&nbsp;:&nbsp;<u>y</u></code><td>if c is true then x otherwise y
+</tbody>
+</table></div>
+
+<pre width=80>
+<i>;Silly example for 1=>"simple", 2=>"advanced", else "normal"</i>
+        <b class="d">.text</b> <u>MODE</u> == <span>1</span> &amp;&amp; <span class="s">"simple"</span> || <u>MODE</u> == <span>2</span> &amp;&amp; <span class="s">"advanced"</span> || <span class="s">"normal"</span>
+        <b class="d">.text</b> <u>MODE</u> == <span>1</span> ? <span class="s">"simple"</span> : <u>MODE</u> == <span>2</span> ? <span class="s">"advanced"</span> : <span class="s">"normal"</span>
+</pre>
+
+<p>Please note that these are not short circuiting operations and both sides are
+calculated even if thrown away later.</p>
+
+<h4>Address length forcing<a name="addresslength" href="#addresslength"></a></h4>
+
+<p>Special addressing length forcing operators in front of an expression can be
+used to make sure the expected addressing mode is used. Only applicable when used
+directly with instructions.</p>
 
 <div><table border="0">
 <caption>Address size forcing</caption>
@@ -1381,6 +1457,39 @@ used to make sure the expected addressing mode is used.</p>
 
 <pre width=80>
         <b>lda</b> @w<span>$0000</span>
+</pre>
+
+<h4>Compobound assignment<a name="combopound" href="#combopound"></a></h4>
+
+<p>These assignment operators are shorthands for common <code>.var</code> directive use.</p>
+
+<p>With the exception of <code>:=</code> the variables updated must be defined
+beforehand.  As with <code>.var</code> they can't update constants, only
+variables.</p>
+
+<div><table border="0">
+<caption>Compobound assignments</caption>
+<tbody>
+<tr><td><code>+=</code><td>add
+<td><code>&minus;=</code><td>subtract
+<tr><td><code>&lowast;=</code><td>multiply
+<td><code>/=</code><td>divide
+<tr><td><code>%=</code><td>modulo
+<td><code>&lowast;&lowast;=</code><td>raise to power
+<tr><td><code>|=</code><td>binary or
+<td><code>^=</code><td>binary xor
+<tr><td><code>&amp;=</code><td>binary and
+<td><code>&lt;&lt;=</code><td>shift left
+<tr><td><code>&gt;&gt;=</code><td>shift right
+<td><code>..=</code><td>concat
+<tr><td><code>x=</code><td>repeat
+<td><code>:=</code><td>assign
+</tbody>
+</table></div>
+
+<pre width=80>
+v       <b>:=</b> <span>1</span>            <i>; same as 'v .var 1'</i>
+v       <b>+=</b> <span>1</span>            <i>; same as 'v .var v + 1'</i>
 </pre>
 
 <hr>
