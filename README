@@ -171,12 +171,12 @@ clean:
 It's useful to add a basic header to your source files like the one below, so
 that the resulting file is directly runnable without additional compression:
 
-        *= $0801
+*       = $0801
         .word (+), 2005  ;pointer, line number
         .null $9e, ^start;will be sys 4096
 +       .word 0          ;basic line end
 
-        *= $1000
+*       = $1000
 
 start   rts
 
@@ -186,7 +186,7 @@ initial values but what about zero page, or RAM outside of program area? The
 solution is to not use an initial value by using `?' or not giving a fill byte
 value to .fill.
 
-        *= $02
+*       = $02
 p1      .word ?         ;a zero page pointer
 temp    .fill 10        ;a 10 byte temporary area
 
@@ -264,15 +264,6 @@ types can be converted to integer using the integer type int.
 
         .byte 23        ; decimal
 
-        lda #<label
-        ldy #>label
-        jsr $ab1e
-
-        ldx #<>source   ; word extraction
-        ldy #<>dest
-        lda #size(source)-1
-        mvn #`source, #`dest; bank extraction
-
         lda #((bitmap >> 10) & $0f) | ((screen >> 6) & $f0)
         sta $d018
 
@@ -349,7 +340,7 @@ Hint: pi is rad(180) and e is exp(1).
 Floating point numbers are automatically truncated to integer as necessary.
 Other types can be converted to floating point by using the type float.
 
-Fixed point conversion can be done by using the shift operators for example a
+Fixed point conversion can be done by using the shift operators. For example a
 8.16 fixed point number can be calculated as (3.14 << 16) & $ffffff. The binary
 operators operate like if the floating point number would be a fixed point one.
 This is the reason for the strange definition of inversion.
@@ -364,8 +355,8 @@ Character strings are enclosed in single or double quotes and can hold any
 Unicode character. Operations like indexing or slicing are always done on the
 original representation. The current encoding is only applied when it's used in
 expressions as numeric constants or in context of text data directives.
-Doubling the quotes inside character strings escapes them and results in a
-single quote.
+Doubling the quotes inside string literals escapes them and results in a single
+quote.
 
     Character string operators and functions
 y .. x concatenate strings  "a" .. "b" is "ab"
@@ -658,7 +649,7 @@ really necessary for the output format, in that case it's replaced with zeros.
 It's not just data generation statements (e.g. .byte) that can create
 uninitialized memory, but filling, alignment or address manipulation as well.
 
-        *= $200         ;bytes as necessary
+*       = $200          ;bytes as necessary
         .word ?         ;2 bytes
         .fill 10        ;10 bytes
         .align 64       ;bytes as necessary
@@ -1068,10 +1059,14 @@ of operands.
 <> lower word              >` higher word
 >< lower byte swapped word `  bank byte
 
-        lda #<irq+1     ; lower byte of irq+1
-        sta $314
-        lda #>irq+1     ; higher byte of irq+1
-        sta $315
+        lda #<label
+        ldy #>label
+        jsr $ab1e
+
+        ldx #<>source   ; word extraction
+        ldy #<>dest
+        lda #size(source)-1
+        mvn #`source, #`dest; bank extraction
 
 Conditional operators
 
@@ -1155,7 +1150,7 @@ The actual program bank is not incremented, just like on a real processor.
     Align code to a dividable program counter address by inserting
     uninitialized memory or repeated bytes.
 
-        *= $1000        ;set program counter (and offset)
+*       = $1000         ;set program counter (and offset)
 
         .offs 100       ;gap of 100, PC still the same
 
@@ -1173,9 +1168,9 @@ loop    adc #1          ;padding with "nop" for DTV burst mode
 
 Here's an example how .logical and *= works together:
 
-        *= $0800       ;Compile: $0800, PC: $0800
+*       = $0800        ;Compile: $0800, PC: $0800
         .logical $1000 ;Compile: $0800, PC: $1000
-        *= $1200       ;Compile: $0a00, PC: $1200
+*       = $1200        ;Compile: $0a00, PC: $1200
         .here          ;Compile: $0a00, PC: $0a00
 
 Dumping data
@@ -1238,12 +1233,12 @@ which accepts strings of any length.
     bank)
 
     ;Computed jumps with jump table (65816, current bank)
-            *= $12000
+    *       = $12000
             jmp (jumps,x)
     jumps   .addr $12050, routine1, routine2
 
     ;Computed jumps by using stack (current bank)
-            *= $103000
+    *       = $103000
             lda rets+1,x
             pha
             lda rets,x
@@ -1517,7 +1512,7 @@ overlapping memory assignment. The example below shares zeropage allocations
 for two separate parts of a bigger program. The common subroutine variables are
 assigned after in the `zp' section.
 
-        *= $02
+*       = $02
         .union          ;spare some memory
          .struct
           .dsection zp1 ;declare zp1 section
@@ -1794,7 +1789,7 @@ directory separator and use lower/uppercase consistently in filenames!
             .binary "stuffz.bin", 2     ;skip start address
             .binary "stuffz.bin", 2, 1000;skip start address, 1000 bytes max
 
-            *= $1000                    ;load music to $1000 and
+    *       = $1000                     ;load music to $1000 and
             .binary "music.sid", $7e    ;strip SID header
 
 Scopes
@@ -1890,19 +1885,19 @@ starting compile offset and the maximum compile offset reached. It is possible
 to manipulate the compile offset in fragments, but putting code before the
 start of .dsection is not allowed.
 
-        *= $02
+*       = $02
         .dsection zp   ;declare zeropage section
         .cerror * > $30, "Too many zeropage variables"
 
-        *= $334
+*       = $334
         .dsection bss   ;declare uninitialized variable section
         .cerror * > $400, "Too many variables"
 
-        *= $0801
+*       = $0801
         .dsection code   ;declare code section
         .cerror * > $1000, "Program too long!"
 
-        *= $1000
+*       = $1000
         .dsection data   ;declare data section
         .cerror * > $2000, "Data too long!"
 ;--------------------
@@ -1965,7 +1960,7 @@ In the following example the included sources don't have to know which `code'
 and `data' sections they use, while the `bss' section is shared for all banks.
 
 ;First 8K bank at the beginning, PC at $8000
-        *= $0000
+*       = $0000
         .logical $8000
         .dsection bank1
         .cerror * > $a000, "Bank1 too long"
@@ -1983,7 +1978,7 @@ bank1   .block          ;Make all symbols local
         .bend
 
 ;Second 8K bank at $2000, PC at $8000
-        *= $2000
+*       = $2000
         .logical $8000
         .dsection bank2
         .cerror * > $a000, "Bank2 too long"
@@ -2000,7 +1995,7 @@ bank2   .block          ;Make all symbols local
         .bend
 
 ;Common data, avoid initialized variables here!
-        *= $c000
+*       = $c000
         .dsection bss
         .cerror * > $d000, "Too much common data"
 ;------------- The following is in "code.asm"
@@ -2150,10 +2145,10 @@ Printer control
     Turn on or off source listing on part of the file.
 
             .proff           ;Don't put filler bytes into listing
-            *= $8000
+    *       = $8000
             .fill $2000, $ff ;Pre-fill ROM area
             .pron
-            *= $8000
+    *       = $8000
             .word reset, restore
             .text "CBM80"
     reset   cld
@@ -2335,9 +2330,9 @@ no option
     Used for linkers.
 
     64tass --nonlinear a.asm
-            *= $1000
+    *       = $1000
             lda #2
-            *= $2000
+    *       = $2000
             nop
 
           Result of compilation
@@ -2362,9 +2357,9 @@ no option
     is skipped in the output.
 
     64tass --atari-xex a.asm
-            *= $02e0
+    *       = $02e0
             .word start      ;run address
-            *= $2000
+    *       = $2000
     start   rts
 
           Result of compilation
@@ -2384,7 +2379,7 @@ no option
     are not saved.
 
     64tass --apple-ii a.asm
-            *= $0c00
+    *       = $0c00
             rts
 
          Result of compilation
@@ -2432,16 +2427,16 @@ Operation options
     can do this automatically if this option is used. But BRA is not converted.
 
     64tass a.asm
-            *= $1000
+    *       = $1000
             bcc $1233       ;error...
 
     64tass a.asm
-            *= $1000
+    *       = $1000
             bcs *+5         ;opposite condition
             jmp $1233       ;as simple workaround
 
     64tass --long-branch a.asm
-            *= $1000
+    *       = $1000
             bcc $1233       ;no error, automatically converted to the above one.
 
 -C, --case-sensitive
@@ -2567,7 +2562,7 @@ Source listing options
     List labels into <file>. List global used labels to a file.
 
     64tass -l labels.txt a.asm
-            *= $1000
+    *       = $1000
     label   jmp label
 
     result (labels.txt):
@@ -2577,7 +2572,7 @@ Source listing options
     List labels in a VICE readable format.
 
     64tass --vice-labels -l labels.txt a.asm
-            *= $1000
+    *       = $1000
     label   jmp label
 
     result (labels.txt):
@@ -2589,7 +2584,7 @@ Source listing options
     source files.
 
     64tass -L list.txt a.asm
-            *= $1000
+    *       = $1000
             ldx #0
     loop    dex
             bne loop
